@@ -1,0 +1,91 @@
+:root{
+  --primary:#C53030; --secondary:#D69E2E; --linen:#FAF3E0; --charcoal:#2C2C2C;
+  --radius-lg:20px; --shadow:0 10px 30px rgba(0,0,0,.12);
+}
+
+.future-wrap{
+  min-height:100vh; padding:40px 0 72px;
+  background: radial-gradient(1200px 600px at -10% -10%, rgba(214,158,46,.10), transparent 60%),
+              radial-gradient(1200px 600px at 110% 110%, rgba(197,48,48,.08), transparent 60%),
+              var(--linen);
+}
+
+/* HERO */
+.ft-hero{
+  display:grid; grid-template-columns:1.15fr 1fr; align-items:center; gap:16px;
+  background: linear-gradient(#fff,#fff) padding-box,
+             linear-gradient(135deg, rgba(214,158,46,.28), rgba(197,48,48,.28)) border-box;
+  border:2px solid transparent;
+}
+@media (max-width:960px){ .ft-hero{ grid-template-columns:1fr } }
+
+.ft-hero-left{ padding-right:8px }
+.ft-title{ font-family:"Merriweather",serif; color:var(--primary); margin:0 0 6px; font-size:clamp(30px,3vw,44px) }
+.ft-sub{ opacity:.95; font-size:clamp(16px,1.2vw,20px) }
+
+.ft-kpis{ display:flex; gap:16px; margin-top:12px; flex-wrap:wrap }
+.kpi{ display:flex; align-items:center; gap:12px; }
+.ring{
+  --val: 50%;
+  width:68px; height:68px; border-radius:50%;
+  background:
+    conic-gradient(var(--primary) var(--val), #eee 0),
+    radial-gradient(closest-side, #fff 74%, transparent 75% 100%);
+  box-shadow:var(--shadow);
+}
+.ring.green{
+  background:
+    conic-gradient(#3a8f55 var(--val), #eee 0),
+    radial-gradient(closest-side, #fff 74%, transparent 75% 100%);
+}
+.kpi-text .kpi-num{ font-weight:900; font-size:20px; color:var(--primary) }
+.kpi-text .kpi-cap{ font-size:13px; opacity:.9 }
+
+/* ORBIT GRAPHIC */
+.ft-hero-right{ position:relative; height:280px }
+@media (max-width:960px){ .ft-hero-right{ height:220px } }
+.orbit{
+  position:absolute; inset:0; margin:auto; width:min(420px, 100%); height:min(420px,100%);
+  border-radius:50%; display:grid; place-items:center;
+  background:
+    radial-gradient(450px 220px at 10% -10%, rgba(214,158,46,.10), transparent 60%),
+    radial-gradient(450px 220px at 110% 110%, rgba(197,48,48,.10), transparent 60%);
+}
+.orbit::before{
+  content:""; position:absolute; inset:8%; border-radius:50%;
+  border:2px dashed rgba(0,0,0,.12);
+}
+.orb{
+  width:56px; height:56px; border-radius:14px; display:grid; place-items:center;
+  background:#fff; border:2px solid #00000012; box-shadow:var(--shadow);
+  transition:transform .2s ease, box-shadow .22s ease; will-change: transform;
+}
+.orb svg{ width:26px; height:26px }
+.orb:hover{ transform:translateY(-3px); box-shadow:0 16px 38px rgba(0,0,0,.16) }
+
+.orb.center{ width:70px; height:70px; }
+.o1{ position:absolute; top:6%; left:50%; transform:translate(-50%,0); }
+.o2{ position:absolute; left:4%; top:50%; transform:translate(0,-50%); }
+.o3{ position:absolute; right:6%; top:26%; }
+.o4{ position:absolute; bottom:8%; left:22%; }
+.o5{ position:absolute; bottom:12%; right:18%; }
+
+/* GRID CARDS */
+.ft-grid{
+  display:grid; grid-template-columns:repeat(4,1fr); gap:16px; margin-top:16px;
+}
+@media (max-width:1100px){ .ft-grid{ grid-template-columns:repeat(2,1fr) } }
+@media (max-width:640px){ .ft-grid{ grid-template-columns:1fr } }
+
+.ft-card{
+  background:#fff; border:2px solid #00000012; border-radius:var(--radius-lg); box-shadow:var(--shadow);
+  padding:16px 18px;
+  transition:transform .2s cubic-bezier(.2,.8,.2,1), box-shadow .22s, filter .22s;
+}
+.ft-card:hover{ transform:translateY(-2px); box-shadow:0 14px 36px rgba(0,0,0,.16); filter:saturate(1.02) }
+
+.ft-row{ display:flex; align-items:center; gap:10px; margin-bottom:6px }
+.ft-ico{ width:36px; height:36px; border-radius:10px; background:var(--secondary); display:grid; place-items:center }
+.ft-ico svg{ width:20px; height:20px }
+.ft-title2{ font-weight:900; color:#2a2a2a }
+.ft-list{ margin:0 0 0 18px; line-height:1.7 }

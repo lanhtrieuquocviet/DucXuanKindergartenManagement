@@ -1,0 +1,133 @@
+/* src/components/CoverScreen.module.css - ĐÃ CẬP NHẬT */
+
+.container {
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  align-items: center;
+  text-align: center;
+  padding: 10vh 2rem 15vh 2rem;
+  width: 100%;
+  background: transparent;
+  box-sizing: border-box;
+  overflow: hidden;
+  position: relative;
+  background-color: var(--linen);
+  background-repeat: no-repeat;
+  background-position: center center;
+  background-size: cover;
+
+}
+
+/* Các đường nét trang trí - Giữ nguyên hoặc tùy chỉnh */
+.decorativeElement {
+  position: absolute;
+  top: 15%;
+  width: 100%;
+  height: 100px;
+  background-image: url("data:image/svg+xml,%3Csvg width='300' height='50' viewBox='0 0 300 50' fill='none' xmlns='http://www.w3.org/2000/svg'%3E%3Cpath d='M0 25 Q 75 0, 150 25 T 300 25' stroke='%23C53030' stroke-width='3' fill='none' stroke-opacity='0.5'/%3E%3Cpath d='M0 30 Q 75 5, 150 30 T 300 30' stroke='%23C53030' stroke-width='2' fill='none' stroke-opacity='0.3'/%3E%3C/svg%3E");
+  background-repeat: no-repeat;
+  background-position: center;
+  opacity: 0.6;
+}
+
+
+.contentWrapper {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  
+  /* 
+    QUAN TRỌNG: Dùng công cụ "eyedropper" (chọn màu) trong trình duyệt hoặc Photoshop 
+    để lấy chính xác mã màu nền của file logo_cover.png của bạn.
+    Tôi sẽ dùng một màu trắng kem tương tự để minh họa.
+  */
+  background-color: #f3eede; 
+
+  /* Tạo khoảng đệm bên trong khối */
+  padding: 2.5rem 2rem;
+
+  /* Bo tròn các góc cho mềm mại */
+  border-radius: var(--radius-lg, 20px); 
+
+  /* Tạo hiệu ứng đổ bóng để khối nổi bật trên nền bản đồ */
+  box-shadow: var(--shadow-strong, 0 16px 40px rgba(0,0,0,0.18));
+
+  /* Thêm một đường viền rất mờ cho sắc nét */
+  border: 1px solid rgba(0, 0, 0, 0.05);
+
+  /* Giới hạn chiều rộng tối đa để không bị quá to trên màn hình lớn */
+  max-width: 500px;
+  width: 90%; /* Responsive trên màn hình nhỏ */
+}
+
+/* Tinh chỉnh lại một chút cho logo và các phần tử khác */
+.lotusIcon {
+  max-width: 220px;
+  width: 60%;
+  height: auto;
+  margin-bottom: 1.5rem; 
+  /* Bỏ filter vì giờ đã có shadow của cả khối */
+}
+
+.title {
+  /* Sử dụng font brand từ file App.css */
+  font-family: var(--font-brand);
+  font-size: 3.5rem;
+  color: var(--charcoal);
+  font-weight: 700;
+  margin: 0;
+  letter-spacing: 0.1rem;
+}
+
+.subtitle {
+  /* Sử dụng font base từ file App.css */
+  font-family: var(--font-base);
+  font-size: 1.5rem;
+  color: var(--primary);
+  font-weight: 600;
+  margin-top: 0.5rem;
+  letter-spacing: 0.2rem;
+  text-transform: uppercase;
+}
+
+/* Nút CTA - Sử dụng lại class .btn và .btn-red từ App.css */
+/* Bạn có thể xóa class này và dùng className="btn btn-red" trực tiếp trong JS */
+.ctaButton {
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+  border: none;
+  padding: 12px 28px;
+  border-radius: var(--radius-md);
+  font-weight: 700;
+  letter-spacing: .3px;
+  cursor: pointer;
+  background: var(--primary);
+  color: #fff;
+  box-shadow: var(--shadow);
+  transition: transform .15s ease, box-shadow .2s ease, filter .2s ease;
+  will-change: transform;
+}
+
+.ctaButton:hover {
+  transform: translateY(-2px);
+  filter: saturate(1.05);
+  box-shadow: 0 14px 34px rgba(197, 48, 48, .35);
+}
+
+
+/* Responsive cho màn hình nhỏ */
+@media (max-width: 768px) {
+  .container {
+    padding: 8vh 1rem 12vh 1rem;
+  }
+
+  .title {
+    font-size: 2.5rem;
+  }
+
+  .subtitle {
+    font-size: 1rem;
+  }
+}

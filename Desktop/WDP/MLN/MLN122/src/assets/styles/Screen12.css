@@ -1,0 +1,186 @@
+:root {
+  --primary: #c53030;
+  --secondary: #d69e2e;
+  --linen: #faf3e0;
+  --charcoal: #2c2c2c;
+  --radius-lg: 20px;
+  --shadow: 0 10px 30px rgba(0, 0, 0, 0.12);
+}
+
+/* ===== Layout tổng ===== */
+.thorn-wrap {
+  display: grid;
+  grid-template-columns: 1.1fr 1.2fr;
+  min-height: 100vh;
+  background: linear-gradient(180deg, var(--linen), #f2e8d5);
+}
+@media (max-width: 1000px) {
+  .thorn-wrap {
+    grid-template-columns: 1fr;
+  }
+}
+
+/* ===== Ảnh bên trái ===== */
+.thorn-photo {
+  position: relative;
+  background-size: cover;
+  background-position: center;
+  border-radius: 0 var(--radius-lg) var(--radius-lg) 0;
+  margin-right: 12px;
+  min-height: 60vh;
+  filter: grayscale(60%) sepia(20%) contrast(1.05);
+  box-shadow: inset 0 0 0 8px #00000010;
+  transition: filter 0.5s ease, transform 0.2s ease;
+  cursor: crosshair;
+}
+.thorn-photo:hover {
+  transform: scale(1.005);
+  filter: grayscale(40%) sepia(10%) contrast(1.07);
+}
+
+/* ===== Phần nội dung ===== */
+.thorn-content {
+  padding: 64px 28px;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+}
+.thorn-title {
+  font-family: "Merriweather", serif;
+  color: var(--primary);
+  font-size: clamp(32px, 3vw, 46px);
+  margin-bottom: 6px;
+}
+.thorn-sub {
+  color: var(--charcoal);
+  opacity: 0.9;
+  font-size: clamp(16px, 1.2vw, 20px);
+  margin-bottom: 20px;
+}
+
+/* ===== Grid các card ===== */
+.thorn-grid {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 18px;
+}
+@media (max-width: 800px) {
+  .thorn-grid {
+    grid-template-columns: 1fr;
+  }
+}
+
+.thorn-card {
+  position: relative;
+  background: #fff;
+  border-radius: var(--radius-lg);
+  border: 2px solid #00000012;
+  padding: 18px 20px;
+  box-shadow: var(--shadow);
+  cursor: pointer;
+  transition: all 0.25s ease;
+}
+.thorn-card:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 12px 28px rgba(0, 0, 0, 0.16);
+}
+
+/* Icon, tiêu đề, mô tả */
+.t-icon {
+  background: var(--secondary);
+  width: 38px;
+  height: 38px;
+  border-radius: 10px;
+  display: grid;
+  place-items: center;
+  color: #fff;
+  margin-bottom: 8px;
+}
+.t-title {
+  font-weight: 800;
+  color: var(--primary);
+  margin-bottom: 6px;
+}
+.t-desc {
+  color: var(--charcoal);
+  opacity: 0.9;
+  font-size: 15px;
+  line-height: 1.6;
+}
+
+/* ===== Overlay ghi chú đè lên card ===== */
+.t-note-overlay {
+  position: absolute;
+  inset: 0;
+  background: #fff;
+  border-radius: var(--radius-lg);
+  box-shadow: 0 12px 32px rgba(0, 0, 0, 0.18);
+  padding: 20px;
+  z-index: 10;
+  animation: fadeIn 0.25s ease forwards;
+
+  /* NEW: tạo vùng cuộn cho phần nội dung */
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+
+/* Vùng nội dung ghi chú có thể cuộn */
+.t-note-content {
+  flex: 1;
+  overflow-y: auto;
+  padding-right: 8px;
+  margin-top: 8px;
+  scroll-behavior: smooth;
+}
+
+/* Thanh cuộn tinh tế */
+.t-note-content::-webkit-scrollbar {
+  width: 6px;
+}
+.t-note-content::-webkit-scrollbar-thumb {
+  background: rgba(197, 48, 48, 0.35);
+  border-radius: 3px;
+}
+.t-note-content::-webkit-scrollbar-thumb:hover {
+  background: rgba(197, 48, 48, 0.55);
+}
+
+/* Giữ nút đóng cố định */
+.close-btn {
+  position: absolute;
+  top: 10px;
+  right: 12px;
+  border: none;
+  background: none;
+  cursor: pointer;
+  color: var(--primary);
+  font-size: 18px;
+  transition: transform 0.2s ease;
+  z-index: 11;
+}
+.close-btn:hover {
+  transform: scale(1.15);
+  color: #a00;
+}
+
+/* ===== Chú thích ===== */
+.thorn-footnote {
+  font-size: 0.9rem;
+  color: #555;
+  opacity: 0.8;
+  font-style: italic;
+  text-align: center;
+  margin-top: 28px;
+}
+
+.thorn-wrap {
+  opacity: 0;
+  transform: translateY(30px);
+  transition: opacity 0.8s ease-out, transform 0.8s ease-out;
+}
+
+.thorn-wrap.is-in {
+  opacity: 1;
+  transform: translateY(0);
+}
