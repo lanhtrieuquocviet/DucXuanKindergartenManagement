@@ -9,6 +9,7 @@ import SystemAdminDashboard from './pages/systemAdmin/AdminDashboard';
 import ManagePermission from './pages/systemAdmin/ManagePermission';
 import TeacherDashboard from './pages/teacher/TeacherDashboard';
 import SchoolAdminDashboard from './pages/schoolAdmin/SchoolAdminDashboard';
+import Contact from './pages/Contact';
 
 function AppContent() {
   return (
@@ -16,6 +17,7 @@ function AppContent() {
       <Routes>
         <Route path="/" element={<HomePage />} />
         <Route path="/about" element={<About />} />
+        <Route path="/contact" element={<Contact />} />
         {/* 404 route phải ở cuối cùng */}
         <Route path="*" element={<div>404 Not Found</div>} />
       </Routes>

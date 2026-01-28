@@ -173,16 +173,14 @@ function Header() {
                             </div>
                         </div>
                         {/* Các menu thường */}
-                        {["Liên hệ", "Hỏi đáp"].map(
-                            (item) => (
-                                <div
-                                    key={item}
-                                    className="px-4 py-2 rounded-full cursor-pointer hover:bg-white hover:text-green-600 transition"
-                                >
-                                    {item}
-                                </div>
-                            )
-                        )}
+                        <a href="/contact">
+                            <div className="px-4 py-2 rounded-full cursor-pointer hover:bg-white hover:text-green-600 transition">
+                                Liên hệ
+                            </div>
+                        </a>
+                        <div className="px-4 py-2 rounded-full cursor-pointer hover:bg-white hover:text-green-600 transition">
+                            Hỏi đáp
+                        </div>
                     </nav>
 
                     {/* ===== SEARCH + LOGIN ===== */}
