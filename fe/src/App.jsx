@@ -5,9 +5,10 @@ import HomePage from './pages/Homepage';
 import About from './pages/About';
 import Login from './pages/Login';
 import ForgotPassword from './pages/ForgotPassword';
-import SystemAdminDashboard from './pages/AdminDashboard';
-import TeacherDashboard from './pages/TeacherDashboard';
-import SchoolAdminDashboard from './pages/SchoolAdminDashboard';
+import SystemAdminDashboard from './pages/systemAdmin/AdminDashboard';
+import ManagePermission from './pages/systemAdmin/ManagePermission';
+import TeacherDashboard from './pages/teacher/TeacherDashboard';
+import SchoolAdminDashboard from './pages/schoolAdmin/SchoolAdminDashboard';
 
 function AppContent() {
   return (
@@ -37,6 +38,7 @@ function App() {
         <Route path="/login" element={<Login />} />
         <Route path="/forgot-password" element={<ForgotPassword />} />
         <Route path="/system-admin" element={<SystemAdminDashboard />} />
+        <Route path="/system-admin/managepermitsion" element={<ManagePermission />} />
         <Route path="/teacher" element={<TeacherDashboard />} />
         <Route path="/school-admin" element={<SchoolAdminDashboard />} />
       </Routes>

@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import RoleLayout from '../components/RoleLayout';
+import RoleLayout from '../../components/RoleLayout';
 
 function SchoolAdminDashboard() {
   const [data, setData] = useState(null);
@@ -56,17 +56,22 @@ function SchoolAdminDashboard() {
     { key: 'classes', label: 'Lớp học' },
     { key: 'teachers', label: 'Giáo viên' },
     { key: 'students', label: 'Học sinh & phụ huynh' },
+    { key: 'assets', label: 'Quản lý tài sản' },
     { key: 'reports', label: 'Báo cáo của trường' },
-    { key: 'reports', label: 'Quản Lý tài sản' },
   ];
 
   return (
     <RoleLayout
-      title="Bảng điều khiển School Admin"
+      title="Bảng điều khiển của Ban giám hiệu"
       description="Quản lý trường, lớp học, giáo viên và phụ huynh trong phạm vi trường."
       menuItems={menuItems}
       activeKey="overview"
       onLogout={handleLogout}
+      onViewProfile={() => {
+        const user = JSON.parse(localStorage.getItem('user') || '{}');
+        // eslint-disable-next-line no-alert
+        alert(`Hồ sơ Ban giám hiệu:\n\nHọ tên: ${user.fullName || ''}\nTài khoản: ${user.username || ''}\nEmail: ${user.email || ''}`);
+      }}
       userName={JSON.parse(localStorage.getItem('user') || '{}').fullName || JSON.parse(localStorage.getItem('user') || '{}').username || 'School Admin'}
     >
       {error && (

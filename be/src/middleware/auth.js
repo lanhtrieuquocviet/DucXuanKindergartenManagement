@@ -34,7 +34,7 @@ const authenticate = async (req, res, next) => {
       path: 'roles',
       model: 'Roles',
       populate: {
-        path: 'Permisstons',
+        path: 'permissions',
         model: 'Permission',
       },
     });
@@ -49,7 +49,7 @@ const authenticate = async (req, res, next) => {
     const roles = (user.roles || []).map((role) => ({
       id: role._id,
       roleName: role.roleName,
-      permissions: (role.Permisstons || []).map((p) =>
+      permissions: (role.permissions || []).map((p) =>
         p && p.code ? p.code : p,
       ),
     }));
