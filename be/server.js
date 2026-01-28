@@ -8,6 +8,13 @@ dotenv.config();
 
 // Import routes
 const authRoutes = require('./src/routes/auth.routes');
+const systemAdminRoutes = require('./src/routes/systemAdmin.routes');
+const teacherRoutes = require('./src/routes/teacher.routes');
+const schoolAdminRoutes = require('./src/routes/schoolAdmin.routes');
+
+// Import models để Mongoose đăng ký schema (tránh lỗi "Schema hasn't been registered for model 'Roles'")
+require('./src/models/Role');
+require('./src/models/Permission');
 
 // Initialize express app
 const app = express();
@@ -107,7 +114,17 @@ app.use(express.urlencoded({ extended: true, limit: '10mb' }));
 // Routes
 // ============================================
 
+// Auth routes (login)
 app.use('/api/auth', authRoutes);
+
+// SystemAdmin routes
+app.use('/api/system-admin', systemAdminRoutes);
+
+// Teacher routes
+app.use('/api/teacher', teacherRoutes);
+
+// SchoolAdmin routes
+app.use('/api/school-admin', schoolAdminRoutes);
 
 // Health check route
 app.get('/api/health', (req, res) => {
@@ -141,8 +158,11 @@ app.use((req, res) => {
     message: `Route not found: ${req.method} ${req.path}`,
     availableRoutes: [
       'POST /api/auth/login',
-      'GET  /api/health'
-    ]
+      'GET  /api/health',
+      'GET  /api/system-admin/dashboard',
+      'GET  /api/teacher/dashboard',
+      'GET  /api/school-admin/dashboard',
+    ],
   });
 });
 
