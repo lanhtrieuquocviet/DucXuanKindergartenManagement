@@ -5,21 +5,20 @@ const roleSchema = new mongoose.Schema({
     type: String,
     required: true,
     unique: true,
-    trim: true
+    trim: true,
   },
   description: {
     type: String,
-    default: ''
-    // Lưu ý: Giữ nguyên lỗi chính tả "desscription" theo schema của bạn
+    default: '',
   },
-  Permisstons: [{
+  // Đổi tên đúng chính tả: permissions
+  permissions: [{
     type: mongoose.Schema.Types.ObjectId,
-    ref: 'Permission'
-    // Lưu ý: Giữ nguyên lỗi chính tả "Permisstons" theo schema của bạn
-  }]
+    ref: 'Permission',
+  }],
 }, {
   timestamps: true,
-  collection: 'Roles' // Tên collection trong MongoDB
+  collection: 'Roles', // Tên collection trong MongoDB
 });
 
 const Role = mongoose.model('Roles', roleSchema);

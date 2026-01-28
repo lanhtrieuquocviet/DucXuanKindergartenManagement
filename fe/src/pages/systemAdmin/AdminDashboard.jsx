@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import RoleLayout from '../components/RoleLayout';
+import RoleLayout from '../../components/RoleLayout';
 
 function SystemAdminDashboard() {
   const [data, setData] = useState(null);
@@ -59,6 +59,25 @@ function SystemAdminDashboard() {
     { key: 'reports', label: 'Báo cáo tổng hợp' },
   ];
 
+  const handleMenuSelect = (key) => {
+    if (key === 'overview') {
+      // đang ở đây rồi
+      return;
+    }
+    if (key === 'roles') {
+      navigate('/system-admin/managepermitsion');
+      return;
+    }
+    // các mục khác sau này có thể tách route riêng
+  };
+
+  const handleViewProfile = () => {
+    const user = JSON.parse(localStorage.getItem('user') || '{}');
+    // Hiển thị nhanh thông tin hồ sơ; sau này có thể tách sang trang riêng
+    // eslint-disable-next-line no-alert
+    alert(`Hồ sơ SystemAdmin:\n\nHọ tên: ${user.fullName || ''}\nTài khoản: ${user.username || ''}\nEmail: ${user.email || ''}`);
+  };
+
   return (
     <RoleLayout
       title="Bảng điều khiển System Admin"
@@ -66,6 +85,8 @@ function SystemAdminDashboard() {
       menuItems={menuItems}
       activeKey="overview"
       onLogout={handleLogout}
+      onMenuSelect={handleMenuSelect}
+      onViewProfile={handleViewProfile}
       userName={JSON.parse(localStorage.getItem('user') || '{}').fullName || JSON.parse(localStorage.getItem('user') || '{}').username || 'System Admin'}
     >
       {error && (

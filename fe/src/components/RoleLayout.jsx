@@ -9,11 +9,10 @@ function RoleLayout({
   onLogout,
   userName,
   onViewProfile,
-  onEditProfile,
+  onMenuSelect,
   children,
 }) {
   const [openProfileMenu, setOpenProfileMenu] = useState(false);
-
   return (
     <div className="min-h-screen bg-sky-50/60">
       <div className="flex h-screen max-h-screen">
@@ -31,6 +30,9 @@ function RoleLayout({
                 <button
                   key={item.key}
                   type="button"
+                  onClick={() => {
+                    if (onMenuSelect) onMenuSelect(item.key);
+                  }}
                   className={`w-full flex items-center justify-between rounded-lg px-3 py-2 text-sm font-medium transition ${
                     isActive
                       ? 'bg-sky-500 text-white shadow-sm'
@@ -68,7 +70,7 @@ function RoleLayout({
         {/* Main content */}
         <main className="flex-1 overflow-y-auto">
           <div className="max-w-6xl mx-auto px-4 py-6 md:py-8">
-            <header className="mb-6 flex flex-col md:flex-row md:items-center md:justify-between gap-3 relative">
+            <header className="mb-6 flex flex-col md:flex-row md:items-center md:justify-between gap-3">
               <div>
                 <h2 className="text-xl md:text-2xl font-bold text-sky-900">{title}</h2>
                 {description && (
@@ -106,33 +108,7 @@ function RoleLayout({
                       >
                         Xem hồ sơ
                       </button>
-                      <button
-                        type="button"
-                        className="w-full text-left px-3 py-2 hover:bg-sky-50 text-sky-800"
-                        onClick={() => {
-                          if (onEditProfile) {
-                            onEditProfile();
-                          } else {
-                            // eslint-disable-next-line no-alert
-                            alert('Chức năng chỉnh sửa thông tin đang được phát triển.');
-                          }
-                          setOpenProfileMenu(false);
-                        }}
-                      >
-                        Chỉnh sửa thông tin
-                      </button>
-                      <button
-                        type="button"
-                        className="w-full text-left px-3 py-2 hover:bg-red-50 text-red-600 border-t border-sky-50 rounded-b-xl"
-                        onClick={() => {
-                          if (onLogout) {
-                            onLogout();
-                          }
-                          setOpenProfileMenu(false);
-                        }}
-                      >
-                        Đăng xuất
-                      </button>
+                      
                     </div>
                   )}
                 </div>

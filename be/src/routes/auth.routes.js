@@ -54,7 +54,7 @@ router.post('/login', async (req, res) => {
       path: 'roles',
       model: 'Roles',
       populate: {
-        path: 'Permisstons',
+        path: 'permissions',
         model: 'Permission',
       },
     });
@@ -85,7 +85,7 @@ router.post('/login', async (req, res) => {
     const roles = (user.roles || []).map((role) => ({
       id: role._id,
       roleName: role.roleName,
-      permissions: (role.Permisstons || []).map((p) => (p.code ? p.code : p)),
+      permissions: (role.permissions || []).map((p) => (p.code ? p.code : p)),
     }));
 
     const payload = {

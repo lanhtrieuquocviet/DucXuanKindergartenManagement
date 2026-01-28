@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import RoleLayout from '../components/RoleLayout';
+import RoleLayout from '../../components/RoleLayout';
 
 function TeacherDashboard() {
   const [data, setData] = useState(null);
@@ -65,6 +65,11 @@ function TeacherDashboard() {
       menuItems={menuItems}
       activeKey="classes"
       onLogout={handleLogout}
+      onViewProfile={() => {
+        const user = JSON.parse(localStorage.getItem('user') || '{}');
+        // eslint-disable-next-line no-alert
+        alert(`Hồ sơ Giáo viên:\n\nHọ tên: ${user.fullName || ''}\nTài khoản: ${user.username || ''}\nEmail: ${user.email || ''}`);
+      }}
       userName={JSON.parse(localStorage.getItem('user') || '{}').fullName || JSON.parse(localStorage.getItem('user') || '{}').username || 'Teacher'}
     >
       {error && (
