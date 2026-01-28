@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { Link } from 'react-router-dom';
+import { Link, useNavigate } from 'react-router-dom';
 import './Login.css';
 import logoDucXuan from '../assets/logo/ducxuan-logo.png';
 
@@ -7,6 +7,7 @@ function Login() {
   const [form, setForm] = useState({ username: '', password: '' });
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
+  const navigate = useNavigate();
 
   const handleChange = (e) => {
     const { name, value } = e.target;
@@ -19,13 +20,47 @@ function Login() {
     setLoading(true);
 
     try {
-      // TODO: Gọi API backend: POST http://localhost:5000/api/auth/login
-      // const res = await fetch('http://localhost:5000/api/auth/login', { ... })
-      // Xử lý lưu token, chuyển trang, v.v.
+      const res = await fetch('http://localhost:5000/api/auth/login', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          username: form.username,
+          password: form.password,
+        }),
+      });
 
-      // Tạm thời chỉ log ra console để bạn kiểm tra
-      // eslint-disable-next-line no-console
-      console.log('Login form submit', form);
+      const data = await res.json();
+
+      if (!res.ok) {
+        throw new Error(data.message || 'Đăng nhập thất bại');
+      }
+
+      const { token, user } = data.data || {};
+
+      if (!token || !user) {
+        throw new Error('Phản hồi đăng nhập không hợp lệ');
+      }
+
+      // Lưu token + thông tin user để dùng cho các màn khác
+      localStorage.setItem('token', token);
+      localStorage.setItem('user', JSON.stringify(user));
+
+      // Lấy danh sách roleName từ user.roles (nếu có)
+      const roles = (user.roles || []).map((r) => r.roleName || r);
+
+      // Ưu tiên chuyển hướng theo thứ tự: SystemAdmin > SchoolAdmin > Teacher
+      if (roles.includes('SystemAdmin')) {
+        navigate('/system-admin', { replace: true });
+      } else if (roles.includes('SchoolAdmin')) {
+        navigate('/school-admin', { replace: true });
+      } else if (roles.includes('Teacher')) {
+        navigate('/teacher', { replace: true });
+      } else {
+        // Nếu không khớp role nào thì đưa về trang chủ
+        navigate('/', { replace: true });
+      }
     } catch (err) {
       setError(err.message || 'Đăng nhập thất bại');
     } finally {

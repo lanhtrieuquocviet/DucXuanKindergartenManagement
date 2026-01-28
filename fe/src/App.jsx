@@ -5,6 +5,9 @@ import HomePage from './pages/Homepage';
 import About from './pages/About';
 import Login from './pages/Login';
 import ForgotPassword from './pages/ForgotPassword';
+import SystemAdminDashboard from './pages/AdminDashboard';
+import TeacherDashboard from './pages/TeacherDashboard';
+import SchoolAdminDashboard from './pages/SchoolAdminDashboard';
 
 function AppContent() {
   return (
@@ -33,6 +36,9 @@ function App() {
         />
         <Route path="/login" element={<Login />} />
         <Route path="/forgot-password" element={<ForgotPassword />} />
+        <Route path="/system-admin" element={<SystemAdminDashboard />} />
+        <Route path="/teacher" element={<TeacherDashboard />} />
+        <Route path="/school-admin" element={<SchoolAdminDashboard />} />
       </Routes>
     </Router>
   );
