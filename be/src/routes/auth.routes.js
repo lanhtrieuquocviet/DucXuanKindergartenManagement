@@ -36,7 +36,7 @@ const buildUserResponse = (user) => {
   const roles = (user.roles || []).map((role) => ({
     id: role._id,
     roleName: role.roleName,
-    permissions: (role.Permisstons || []).map((p) => (p.code ? p.code : p)),
+    permissions: (role.permissions || []).map((p) => (p.code ? p.code : p)),
   }));
 
   return {
@@ -112,7 +112,7 @@ router.post('/login', async (req, res) => {
       permissions: Array.from(
         new Set(
           (user.roles || []).flatMap((role) =>
-            (role.Permisstons || []).map((p) => (p.code ? p.code : p)),
+            (role.permissions || []).map((p) => (p.code ? p.code : p)),
           ),
         ),
       ),
@@ -150,7 +150,7 @@ router.get('/me', authenticate, async (req, res) => {
       path: 'roles',
       model: 'Roles',
       populate: {
-        path: 'Permisstons',
+        path: 'permissions',
         model: 'Permission',
       },
     });
@@ -189,7 +189,7 @@ router.put('/me', authenticate, async (req, res) => {
       path: 'roles',
       model: 'Roles',
       populate: {
-        path: 'Permisstons',
+        path: 'permissions',
         model: 'Permission',
       },
     });
@@ -201,16 +201,52 @@ router.put('/me', authenticate, async (req, res) => {
       });
     }
 
+    // Validate và cập nhật fullName
     if (typeof fullName === 'string' && fullName.trim() !== '') {
       user.fullName = fullName.trim();
+    } else if (fullName !== undefined && fullName !== null) {
+      return res.status(400).json({
+        status: 'error',
+        message: 'Họ và tên không hợp lệ',
+      });
     }
 
+    // Validate và cập nhật email
     if (typeof email === 'string' && email.trim() !== '') {
-      user.email = email.trim().toLowerCase();
+      const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+      const trimmedEmail = email.trim().toLowerCase();
+      
+      if (!emailRegex.test(trimmedEmail)) {
+        return res.status(400).json({
+          status: 'error',
+          message: 'Email không hợp lệ',
+        });
+      }
+
+      // Kiểm tra email đã tồn tại chưa (trừ chính user hiện tại)
+      const existingUser = await User.findOne({ 
+        email: trimmedEmail,
+        _id: { $ne: user._id }
+      });
+      
+      if (existingUser) {
+        return res.status(400).json({
+          status: 'error',
+          message: 'Email này đã được sử dụng bởi tài khoản khác',
+        });
+      }
+
+      user.email = trimmedEmail;
+    } else if (email !== undefined && email !== null) {
+      return res.status(400).json({
+        status: 'error',
+        message: 'Email không hợp lệ',
+      });
     }
 
+    // Cập nhật avatar (cho phép rỗng)
     if (typeof avatar === 'string') {
-      user.avatar = avatar;
+      user.avatar = avatar.trim();
     }
 
     await user.save();
@@ -223,6 +259,15 @@ router.put('/me', authenticate, async (req, res) => {
   } catch (error) {
     // eslint-disable-next-line no-console
     console.error('Update profile error:', error);
+    
+    // Xử lý lỗi duplicate email từ MongoDB
+    if (error.code === 11000 && error.keyPattern && error.keyPattern.email) {
+      return res.status(400).json({
+        status: 'error',
+        message: 'Email này đã được sử dụng bởi tài khoản khác',
+      });
+    }
+
     return res.status(500).json({
       status: 'error',
       message: error.message || 'Không cập nhật được hồ sơ',

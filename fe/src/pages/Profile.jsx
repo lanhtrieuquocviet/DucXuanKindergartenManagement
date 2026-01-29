@@ -7,10 +7,8 @@ function Profile() {
   const [profileForm, setProfileForm] = useState({
     fullName: '',
     email: '',
-    phoneNumber: '',
-    dateOfBirth: '',
-    role: '',
     status: '',
+    avatar: '',
   });
 
   const [passwordForm, setPasswordForm] = useState({
@@ -27,14 +25,34 @@ function Profile() {
 
   useEffect(() => {
     const token = localStorage.getItem('token');
-    const userStr = localStorage.getItem('user');
 
     if (!token) {
       navigate('/login', { replace: true });
       return;
     }
 
-    // Ưu tiên gọi API để lấy thông tin hồ sơ mới nhất
+    const applyUserToForm = (user) => {
+      if (!user) return;
+      setProfileForm((prev) => ({
+        ...prev,
+        fullName: user.fullName || user.username || '',
+        email: user.email || '',
+        status: user.status === 'active' ? 'Đang hoạt động' : 'Đã khóa',
+        avatar: user.avatar || '',
+      }));
+    };
+
+    // Đổ ngay dữ liệu từ localStorage (nếu có) để không bị trống
+    try {
+      const cachedUser = JSON.parse(localStorage.getItem('user') || 'null');
+      if (cachedUser) {
+        applyUserToForm(cachedUser);
+      }
+    } catch {
+      // ignore
+    }
+
+    // Sau đó gọi API để lấy dữ liệu mới nhất
     const fetchProfile = async () => {
       try {
         setLoadingProfile(true);
@@ -57,20 +75,7 @@ function Profile() {
         }
 
         const user = json.data || {};
-
-        setProfileForm((prev) => ({
-          ...prev,
-          fullName: user.fullName || user.username || '',
-          email: user.email || '',
-          phoneNumber: user.phoneNumber || '',
-          dateOfBirth: user.dateOfBirth ? user.dateOfBirth.substring(0, 10) : '',
-          role:
-            (user.roles &&
-              user.roles[0] &&
-              (user.roles[0].roleName || user.roles[0])) ||
-            '',
-          status: user.status === 'active' ? 'Đang hoạt động' : 'Đã khóa',
-        }));
+        applyUserToForm(user);
 
         // Cập nhật lại localStorage để các màn khác dùng chung thông tin mới
         if (user && Object.keys(user).length > 0) {
@@ -113,6 +118,7 @@ function Profile() {
       const body = {
         fullName: profileForm.fullName,
         email: profileForm.email,
+        avatar: profileForm.avatar,
       };
 
       const res = await fetch('http://localhost:5000/api/auth/me', {
@@ -131,6 +137,16 @@ function Profile() {
       }
 
       const user = json.data || {};
+      
+      // Cập nhật lại form từ dữ liệu trả về (đã được backend chuẩn hóa)
+      setProfileForm({
+        fullName: user.fullName || user.username || '',
+        email: user.email || '',
+        status: user.status === 'active' ? 'Đang hoạt động' : 'Đã khóa',
+        avatar: user.avatar || '',
+      });
+
+      // Cập nhật localStorage để các màn khác dùng chung thông tin mới
       localStorage.setItem('user', JSON.stringify(user));
 
       setMessage('Cập nhật hồ sơ thành công.');
@@ -220,10 +236,21 @@ function Profile() {
             </p>
           </div>
           <div className="flex items-center gap-2 text-sm text-gray-700">
-            <span className="inline-flex h-8 w-8 items-center justify-center rounded-full bg-indigo-600 text-white font-semibold">
-              {profileForm.fullName ? profileForm.fullName.charAt(0).toUpperCase() : '?'}
-            </span>
-            <span className="font-medium">{profileForm.fullName || 'Người dùng'}</span>
+            {profileForm.avatar ? (
+              <img
+                src={profileForm.avatar}
+                alt="Avatar"
+                className="h-9 w-9 rounded-full object-cover border border-gray-300"
+              />
+            ) : (
+              <span className="inline-flex h-9 w-9 items-center justify-center rounded-full bg-indigo-600 text-white font-semibold">
+                {profileForm.fullName ? profileForm.fullName.charAt(0).toUpperCase() : '?'}
+              </span>
+            )}
+            <div className="flex flex-col">
+              <span className="font-medium">{profileForm.fullName || 'Người dùng'}</span>
+              <span className="text-xs text-gray-500">{profileForm.email}</span>
+            </div>
           </div>
         </div>
 
@@ -284,55 +311,26 @@ function Profile() {
 
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-1">
-                  Số điện thoại
+                  Avatar (URL ảnh)
                 </label>
                 <input
-                  type="tel"
-                  name="phoneNumber"
-                  value={profileForm.phoneNumber}
+                  type="text"
+                  name="avatar"
+                  value={profileForm.avatar}
                   onChange={handleProfileChange}
                   className="w-full border border-gray-300 rounded-md px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
-                  placeholder="Nhập số điện thoại"
+                  placeholder="Nhập đường dẫn ảnh avatar (nếu có)"
                 />
               </div>
 
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-1">
-                  Ngày sinh
+                  Trạng thái tài khoản
                 </label>
-                <input
-                  type="date"
-                  name="dateOfBirth"
-                  value={profileForm.dateOfBirth}
-                  onChange={handleProfileChange}
-                  className="w-full border border-gray-300 rounded-md px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
-                />
-              </div>
-
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">
-                    Vai trò
-                  </label>
-                  <input
-                    type="text"
-                    name="role"
-                    value={profileForm.role}
-                    onChange={handleProfileChange}
-                    className="w-full border border-gray-300 rounded-md px-3 py-2 text-sm bg-gray-50"
-                    disabled
-                  />
-                </div>
-
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">
-                    Trạng thái tài khoản
-                  </label>
-                  <div className="flex items-center gap-2">
-                    <span className="inline-flex items-center rounded-full bg-green-100 text-green-700 text-xs font-semibold px-3 py-1">
-                      {profileForm.status || 'Đang hoạt động'}
-                    </span>
-                  </div>
+                <div className="flex items-center gap-2">
+                  <span className="inline-flex items-center rounded-full bg-green-100 text-green-700 text-xs font-semibold px-3 py-1">
+                    {profileForm.status || 'Đang hoạt động'}
+                  </span>
                 </div>
               </div>
 
