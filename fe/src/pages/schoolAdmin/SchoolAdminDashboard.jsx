@@ -51,6 +51,10 @@ function SchoolAdminDashboard() {
     navigate('/login', { replace: true });
   };
 
+  const handleViewProfile = () => {
+    navigate('/profile');
+  };
+
   const menuItems = [
     { key: 'overview', label: 'Tổng quan trường' },
     { key: 'classes', label: 'Lớp học' },
@@ -67,11 +71,16 @@ function SchoolAdminDashboard() {
       menuItems={menuItems}
       activeKey="overview"
       onLogout={handleLogout}
+<<<<<<< Updated upstream:fe/src/pages/schoolAdmin/SchoolAdminDashboard.jsx
       onViewProfile={() => {
         const user = JSON.parse(localStorage.getItem('user') || '{}');
         // eslint-disable-next-line no-alert
         alert(`Hồ sơ Ban giám hiệu:\n\nHọ tên: ${user.fullName || ''}\nTài khoản: ${user.username || ''}\nEmail: ${user.email || ''}`);
       }}
+=======
+      onViewProfile={handleViewProfile}
+      onEditProfile={handleViewProfile}
+>>>>>>> Stashed changes:fe/src/pages/SchoolAdminDashboard.jsx
       userName={JSON.parse(localStorage.getItem('user') || '{}').fullName || JSON.parse(localStorage.getItem('user') || '{}').username || 'School Admin'}
     >
       {error && (

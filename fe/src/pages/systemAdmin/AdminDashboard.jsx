@@ -51,6 +51,10 @@ function SystemAdminDashboard() {
     navigate('/login', { replace: true });
   };
 
+  const handleViewProfile = () => {
+    navigate('/profile');
+  };
+
   const menuItems = [
     { key: 'overview', label: 'Tổng quan hệ thống' },
     { key: 'schools', label: 'Quản lý trường' },
@@ -85,8 +89,13 @@ function SystemAdminDashboard() {
       menuItems={menuItems}
       activeKey="overview"
       onLogout={handleLogout}
+<<<<<<< Updated upstream:fe/src/pages/systemAdmin/AdminDashboard.jsx
       onMenuSelect={handleMenuSelect}
       onViewProfile={handleViewProfile}
+=======
+      onViewProfile={handleViewProfile}
+      onEditProfile={handleViewProfile}
+>>>>>>> Stashed changes:fe/src/pages/AdminDashboard.jsx
       userName={JSON.parse(localStorage.getItem('user') || '{}').fullName || JSON.parse(localStorage.getItem('user') || '{}').username || 'System Admin'}
     >
       {error && (
