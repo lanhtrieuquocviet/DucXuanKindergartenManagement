@@ -16,6 +16,7 @@ import { AuthProvider } from './context/AuthContext';
 import { SystemAdminProvider } from './context/SystemAdminContext';
 import { SchoolAdminProvider } from './context/SchoolAdminContext';
 import { TeacherProvider } from './context/TeacherContext';
+import SimpleLayout from './layouts/SimpleLayout';
 
 function AppContent() {
   return (
@@ -23,7 +24,6 @@ function AppContent() {
       <Routes>
         <Route path="/" element={<HomePage />} />
         <Route path="/about" element={<About />} />
-        <Route path="/contact" element={<Contact />} />
         {/* 404 route phải ở cuối cùng */}
         <Route path="*" element={<div>404 Not Found</div>} />
       </Routes>
@@ -88,6 +88,15 @@ function App() {
             )}
           />
           <Route path="/profile" element={<Profile />} />
+
+          <Route
+            path="/contact"
+            element={
+              <SimpleLayout>
+                <Contact />
+              </SimpleLayout>
+            }
+          />
         </Routes>
       </AuthProvider>
     </Router>
