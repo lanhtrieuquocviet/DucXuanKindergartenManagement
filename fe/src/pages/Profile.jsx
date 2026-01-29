@@ -12,6 +12,7 @@ function Profile() {
     loading,
     error: authError,
     setError,
+    isInitializing,
   } = useAuth();
 
   const [profileForm, setProfileForm] = useState({
@@ -32,6 +33,11 @@ function Profile() {
   const [message, setMessage] = useState('');
 
   useEffect(() => {
+    // Chờ quá trình khởi tạo (verify token) hoàn thành
+    if (isInitializing) {
+      return;
+    }
+
     if (!user) {
       navigate('/login', { replace: true });
       return;
@@ -62,7 +68,7 @@ function Profile() {
     };
 
     loadProfile();
-  }, [navigate, getProfile, user]);
+  }, [navigate, getProfile, user, isInitializing]);
 
   const handleProfileChange = (e) => {
     const { name, value } = e.target;

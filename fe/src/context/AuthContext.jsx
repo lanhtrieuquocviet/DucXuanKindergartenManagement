@@ -1,4 +1,4 @@
-import { createContext, useContext, useState, useEffect } from 'react';
+import { createContext, useContext, useState, useEffect, useRef, useCallback } from 'react';
 import { get, post, put, ENDPOINTS } from '../service/api';
 
 const AuthContext = createContext(null);
@@ -11,28 +11,105 @@ export const useAuth = () => {
   return context;
 };
 
-export const AuthProvider = ({ children }) => {
+export const AuthProvider = ({
+  children,
+  onLoginSuccess,
+  onLogout,
+  onError,
+  autoLoadUser = true,
+}) => {
   const [user, setUser] = useState(null);
   const [token, setToken] = useState(localStorage.getItem('token'));
-  const [loading, setLoading] = useState(false);
+  const [loading, setLoading] = useState(true); // Bắt đầu với loading = true để chờ verify token
   const [error, setError] = useState(null);
+  const [isInitializing, setIsInitializing] = useState(true); // Trạng thái đang khởi tạo
 
-  // Load user từ localStorage khi mount
+  // Sử dụng useRef để lưu trữ callback functions, tránh thay đổi kích thước mảng dependencies
+  const onErrorRef = useRef(onError);
+  const onLoginSuccessRef = useRef(onLoginSuccess);
+  const onLogoutRef = useRef(onLogout);
+
+  // Cập nhật ref khi prop thay đổi
   useEffect(() => {
-    const storedUser = localStorage.getItem('user');
-    if (storedUser) {
-      try {
-        setUser(JSON.parse(storedUser));
-      } catch (err) {
-        // eslint-disable-next-line no-console
-        console.error('Error parsing user from localStorage:', err);
-        localStorage.removeItem('user');
-      }
+    onErrorRef.current = onError;
+  }, [onError]);
+
+  useEffect(() => {
+    onLoginSuccessRef.current = onLoginSuccess;
+  }, [onLoginSuccess]);
+
+  useEffect(() => {
+    onLogoutRef.current = onLogout;
+  }, [onLogout]);
+
+  // Load và verify user khi mount/reload
+  useEffect(() => {
+    if (!autoLoadUser) {
+      setIsInitializing(false);
+      setLoading(false);
+      return;
     }
-  }, []);
+
+    const initializeAuth = async () => {
+      const storedToken = localStorage.getItem('token');
+      const storedUser = localStorage.getItem('user');
+
+      // Nếu không có token, không cần verify
+      if (!storedToken) {
+        setIsInitializing(false);
+        setLoading(false);
+        return;
+      }
+
+      // Nếu có token, verify với backend
+      try {
+        // Load user từ localStorage trước để hiển thị ngay (optimistic)
+        if (storedUser) {
+          try {
+            const parsedUser = JSON.parse(storedUser);
+            setUser(parsedUser);
+          } catch (err) {
+            // eslint-disable-next-line no-console
+            console.error('Error parsing user from localStorage:', err);
+            localStorage.removeItem('user');
+          }
+        }
+
+        // Verify token với backend và lấy user mới nhất
+        const response = await get(ENDPOINTS.AUTH.ME);
+        const userData = response.data || {};
+
+        // Cập nhật user từ backend (đảm bảo dữ liệu mới nhất)
+        setUser(userData);
+        localStorage.setItem('user', JSON.stringify(userData));
+        setToken(storedToken); // Đảm bảo token được set
+      } catch (err) {
+        // Token không hợp lệ hoặc đã hết hạn
+        if (err.status === 401 || err.status === 403) {
+          // Xóa token và user không hợp lệ
+          localStorage.removeItem('token');
+          localStorage.removeItem('user');
+          setToken(null);
+          setUser(null);
+        } else {
+          // Lỗi khác, giữ lại user từ localStorage nếu có
+          const errorMessage = err.message || 'Không thể xác thực người dùng';
+          setError(errorMessage);
+          if (onErrorRef.current) {
+            onErrorRef.current(err);
+          }
+        }
+      } finally {
+        setIsInitializing(false);
+        setLoading(false);
+      }
+    };
+
+    initializeAuth();
+  }, [autoLoadUser]);
 
   // Login
-  const login = async (username, password) => {
+  const login = useCallback(async (username, password) => {
     try {
       setLoading(true);
       setError(null);
@@ -50,28 +127,41 @@ export const AuthProvider = ({ children }) => {
       localStorage.setItem('token', newToken);
       localStorage.setItem('user', JSON.stringify(newUser));
 
+      // Callback khi login thành công
+      if (onLoginSuccessRef.current) {
+        onLoginSuccessRef.current({ token: newToken, user: newUser });
+      }
+
       // Return để component tự xử lý navigation
       return { token: newToken, user: newUser };
     } catch (err) {
       const errorMessage = err.message || 'Đăng nhập thất bại';
       setError(errorMessage);
+      if (onErrorRef.current) {
+        onErrorRef.current(err);
+      }
       throw new Error(errorMessage);
     } finally {
       setLoading(false);
     }
-  };
+  }, []);
 
   // Logout
-  const logout = () => {
+  const logout = useCallback(() => {
     setToken(null);
     setUser(null);
     localStorage.removeItem('token');
     localStorage.removeItem('user');
+    
+    // Callback khi logout
+    if (onLogoutRef.current) {
+      onLogoutRef.current();
+    }
     // Component sẽ tự xử lý navigation
-  };
+  }, []);
 
   // Get profile
-  const getProfile = async () => {
+  const getProfile = useCallback(async () => {
     try {
       setLoading(true);
       setError(null);
@@ -91,14 +181,17 @@ export const AuthProvider = ({ children }) => {
       }
       const errorMessage = err.message || 'Không lấy được hồ sơ người dùng';
       setError(errorMessage);
+      if (onErrorRef.current) {
+        onErrorRef.current(err);
+      }
       throw new Error(errorMessage);
     } finally {
       setLoading(false);
     }
-  };
+  }, [logout]);
 
   // Update profile
-  const updateProfile = async (profileData) => {
+  const updateProfile = useCallback(async (profileData) => {
     try {
       setLoading(true);
       setError(null);
@@ -114,14 +207,17 @@ export const AuthProvider = ({ children }) => {
     } catch (err) {
       const errorMessage = err.message || 'Cập nhật hồ sơ thất bại';
       setError(errorMessage);
+      if (onErrorRef.current) {
+        onErrorRef.current(err);
+      }
       throw new Error(errorMessage);
     } finally {
       setLoading(false);
     }
-  };
+  }, []);
 
   // Change password
-  const changePassword = async (currentPassword, newPassword) => {
+  const changePassword = useCallback(async (currentPassword, newPassword) => {
     try {
       setLoading(true);
       setError(null);
@@ -130,32 +226,36 @@ export const AuthProvider = ({ children }) => {
     } catch (err) {
       const errorMessage = err.message || 'Đổi mật khẩu thất bại';
       setError(errorMessage);
+      if (onErrorRef.current) {
+        onErrorRef.current(err);
+      }
       throw new Error(errorMessage);
     } finally {
       setLoading(false);
     }
-  };
+  }, []);
 
   // Check if user is authenticated
-  const isAuthenticated = () => {
+  const isAuthenticated = useCallback(() => {
     return !!token && !!user;
-  };
+  }, [token, user]);
 
   // Get user roles
-  const getUserRoles = () => {
+  const getUserRoles = useCallback(() => {
     if (!user || !user.roles) return [];
     return user.roles.map((r) => r.roleName || r);
-  };
+  }, [user]);
 
   // Check if user has specific role
-  const hasRole = (roleName) => {
+  const hasRole = useCallback((roleName) => {
     return getUserRoles().includes(roleName);
-  };
+  }, [getUserRoles]);
 
   const value = {
     user,
     token,
     loading,
+    isInitializing, // Trạng thái đang khởi tạo (verify token khi reload)
     error,
     login,
     logout,

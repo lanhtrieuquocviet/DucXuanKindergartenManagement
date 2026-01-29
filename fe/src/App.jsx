@@ -6,7 +6,8 @@ import About from './pages/About';
 import Login from './pages/Login';
 import ForgotPassword from './pages/ForgotPassword';
 import SystemAdminDashboard from './pages/systemAdmin/AdminDashboard';
-import ManagePermission from './pages/systemAdmin/ManagePermission';
+import ManageRoles from './pages/systemAdmin/ManageRoles';
+import ManagePermissions from './pages/systemAdmin/ManagePermissions';
 import TeacherDashboard from './pages/teacher/TeacherDashboard';
 import SchoolAdminDashboard from './pages/schoolAdmin/SchoolAdminDashboard';
 import Contact from './pages/Contact';
@@ -55,10 +56,18 @@ function App() {
             )}
           />
           <Route
-            path="/system-admin/managepermitsion"
+            path="/system-admin/manage-roles"
             element={(
               <SystemAdminProvider>
-                <ManagePermission />
+                <ManageRoles />
+              </SystemAdminProvider>
+            )}
+          />
+          <Route
+            path="/system-admin/manage-permissions"
+            element={(
+              <SystemAdminProvider>
+                <ManagePermissions />
               </SystemAdminProvider>
             )}
           />

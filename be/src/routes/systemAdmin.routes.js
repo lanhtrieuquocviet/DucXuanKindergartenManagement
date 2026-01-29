@@ -1,7 +1,18 @@
 const express = require('express');
 const { authenticate, authorizeRoles } = require('../middleware/auth');
-const User = require('../models/User');
-const Role = require('../models/Role');
+const {
+  getUsers,
+  getRoles,
+  createRole,
+  updateRole,
+  deleteRole,
+  updateUserRoles,
+  getPermissions,
+  createPermission,
+  updatePermission,
+  deletePermission,
+  updateRolePermissions,
+} = require('../controller/systemAdminController');
 
 const router = express.Router();
 
@@ -20,115 +31,73 @@ router.get('/dashboard', authenticate, authorizeRoles('SystemAdmin'), (req, res)
  * GET /api/system-admin/users
  * Lấy danh sách user + roles để SystemAdmin phân quyền
  */
-router.get('/users', authenticate, authorizeRoles('SystemAdmin'), async (req, res) => {
-  try {
-    const users = await User.find()
-      .select('username fullName email roles status')
-      .populate({
-        path: 'roles',
-        model: 'Roles',
-        select: 'roleName description',
-      });
-
-    return res.status(200).json({
-      status: 'success',
-      data: users,
-    });
-  } catch (error) {
-    return res.status(500).json({
-      status: 'error',
-      message: error.message || 'Không lấy được danh sách người dùng',
-    });
-  }
-});
+router.get('/users', authenticate, authorizeRoles('SystemAdmin'), getUsers);
 
 /**
  * GET /api/system-admin/roles
- * Lấy danh sách role để gán cho user
+ * Lấy danh sách role
  */
-router.get('/roles', authenticate, authorizeRoles('SystemAdmin'), async (req, res) => {
-  try {
-    const roles = await Role.find()
-      .select('roleName description permissions')
-      .populate({
-        path: 'permissions',
-        model: 'Permission',
-        select: 'code description',
-      });
+router.get('/roles', authenticate, authorizeRoles('SystemAdmin'), getRoles);
 
-    const mapped = roles.map((role) => ({
-      id: role._id,
-      roleName: role.roleName,
-      description: role.description,
-      // Trả về đầy đủ thông tin permission (code + description)
-      permissions: (role.permissions || []).map((p) => ({
-        code: p.code,
-        description: p.description,
-      })),
-    }));
+/**
+ * POST /api/system-admin/roles
+ * Tạo role mới
+ * body: { roleName: string, description?: string }
+ */
+router.post('/roles', authenticate, authorizeRoles('SystemAdmin'), createRole);
 
-    return res.status(200).json({
-      status: 'success',
-      data: mapped,
-    });
-  } catch (error) {
-    return res.status(500).json({
-      status: 'error',
-      message: error.message || 'Không lấy được danh sách vai trò',
-    });
-  }
-});
+/**
+ * PUT /api/system-admin/roles/:id
+ * Cập nhật role
+ * body: { roleName?: string, description?: string }
+ */
+router.put('/roles/:id', authenticate, authorizeRoles('SystemAdmin'), updateRole);
+
+/**
+ * DELETE /api/system-admin/roles/:id
+ * Xóa role
+ */
+router.delete('/roles/:id', authenticate, authorizeRoles('SystemAdmin'), deleteRole);
 
 /**
  * PUT /api/system-admin/users/:id/roles
  * Cập nhật danh sách role cho 1 user
  * body: { roleIds: string[] }
  */
-router.put('/users/:id/roles', authenticate, authorizeRoles('SystemAdmin'), async (req, res) => {
-  try {
-    const { id } = req.params;
-    const { roleIds } = req.body;
+router.put('/users/:id/roles', authenticate, authorizeRoles('SystemAdmin'), updateUserRoles);
 
-    if (!Array.isArray(roleIds)) {
-      return res.status(400).json({
-        status: 'error',
-        message: 'roleIds phải là một mảng',
-      });
-    }
+/**
+ * GET /api/system-admin/permissions
+ * Lấy danh sách tất cả permissions
+ */
+router.get('/permissions', authenticate, authorizeRoles('SystemAdmin'), getPermissions);
 
-    // Kiểm tra các role có tồn tại không
-    const validRoles = await Role.find({ _id: { $in: roleIds } }).select('_id');
-    const validRoleIds = validRoles.map((r) => r._id);
+/**
+ * POST /api/system-admin/permissions
+ * Tạo permission mới
+ * body: { code: string, description: string }
+ */
+router.post('/permissions', authenticate, authorizeRoles('SystemAdmin'), createPermission);
 
-    const user = await User.findByIdAndUpdate(
-      id,
-      { roles: validRoleIds },
-      { new: true },
-    ).populate({
-      path: 'roles',
-      model: 'Roles',
-      select: 'roleName description',
-    });
+/**
+ * PUT /api/system-admin/permissions/:id
+ * Cập nhật permission
+ * body: { code?: string, description?: string }
+ */
+router.put('/permissions/:id', authenticate, authorizeRoles('SystemAdmin'), updatePermission);
 
-    if (!user) {
-      return res.status(404).json({
-        status: 'error',
-        message: 'Người dùng không tồn tại',
-      });
-    }
+/**
+ * DELETE /api/system-admin/permissions/:id
+ * Xóa permission
+ */
+router.delete('/permissions/:id', authenticate, authorizeRoles('SystemAdmin'), deletePermission);
 
-    return res.status(200).json({
-      status: 'success',
-      message: 'Cập nhật vai trò cho người dùng thành công',
-      data: user,
-    });
-  } catch (error) {
-    return res.status(500).json({
-      status: 'error',
-      message: error.message || 'Không cập nhật được vai trò cho người dùng',
-    });
-  }
-});
+/**
+ * PUT /api/system-admin/roles/:id/permissions
+ * Cập nhật danh sách permissions cho 1 role
+ * body: { permissionCodes: string[] }
+ */
+router.put('/roles/:id/permissions', authenticate, authorizeRoles('SystemAdmin'), updateRolePermissions);
 
 module.exports = router;
 
