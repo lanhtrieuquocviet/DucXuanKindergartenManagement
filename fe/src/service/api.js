@@ -117,7 +117,15 @@ export const ENDPOINTS = {
     DASHBOARD: '/system-admin/dashboard',
     USERS: '/system-admin/users',
     ROLES: '/system-admin/roles',
+    CREATE_ROLE: '/system-admin/roles',
+    UPDATE_ROLE: (roleId) => `/system-admin/roles/${roleId}`,
+    DELETE_ROLE: (roleId) => `/system-admin/roles/${roleId}`,
     UPDATE_USER_ROLES: (userId) => `/system-admin/users/${userId}/roles`,
+    PERMISSIONS: '/system-admin/permissions',
+    CREATE_PERMISSION: '/system-admin/permissions',
+    UPDATE_PERMISSION: (permissionId) => `/system-admin/permissions/${permissionId}`,
+    DELETE_PERMISSION: (permissionId) => `/system-admin/permissions/${permissionId}`,
+    UPDATE_ROLE_PERMISSIONS: (roleId) => `/system-admin/roles/${roleId}/permissions`,
   },
   // School Admin
   SCHOOL_ADMIN: {

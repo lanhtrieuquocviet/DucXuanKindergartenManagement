@@ -92,24 +92,42 @@ function RoleLayout({
                   </button>
 
                   {openProfileMenu && (
-                    <div className="absolute right-0 mt-2 w-44 rounded-xl border border-sky-100 bg-white shadow-lg text-xs md:text-sm z-10">
-                      <button
-                        type="button"
-                        className="w-full text-left px-3 py-2 hover:bg-sky-50 text-sky-800 rounded-t-xl"
-                        onClick={() => {
-                          if (onViewProfile) {
-                            onViewProfile();
-                          } else {
-                            // eslint-disable-next-line no-alert
-                            alert('Chức năng xem hồ sơ đang được phát triển.');
-                          }
-                          setOpenProfileMenu(false);
-                        }}
-                      >
-                        Xem hồ sơ
-                      </button>
-                      
-                    </div>
+                    <>
+                      <div className="absolute right-0 mt-2 w-44 rounded-xl border border-sky-100 bg-white shadow-lg text-xs md:text-sm z-10">
+                        <button
+                          type="button"
+                          className="w-full text-left px-3 py-2 hover:bg-sky-50 text-sky-800 rounded-t-xl"
+                          onClick={() => {
+                            if (onViewProfile) {
+                              onViewProfile();
+                            } else {
+                              // eslint-disable-next-line no-alert
+                              alert('Chức năng xem hồ sơ đang được phát triển.');
+                            }
+                            setOpenProfileMenu(false);
+                          }}
+                        >
+                          Xem hồ sơ
+                        </button>
+                        <button
+                          type="button"
+                          className="w-full text-left px-3 py-2 hover:bg-red-50 text-red-600 rounded-b-xl"
+                          onClick={() => {
+                            if (onLogout) {
+                              onLogout();
+                            }
+                            setOpenProfileMenu(false);
+                          }}
+                        >
+                          Đăng xuất
+                        </button>
+                      </div>
+                      {/* Click outside để đóng dropdown */}
+                      <div
+                        className="fixed inset-0 z-0"
+                        onClick={() => setOpenProfileMenu(false)}
+                      />
+                    </>
                   )}
                 </div>
               )}
@@ -124,4 +142,3 @@ function RoleLayout({
 }
 
 export default RoleLayout;
-

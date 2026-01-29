@@ -1,5 +1,5 @@
 import { createContext, useContext, useState, useCallback, useRef, useEffect } from 'react';
-import { get, put, ENDPOINTS } from '../service/api';
+import { get, post, put, del as deleteRequest, ENDPOINTS } from '../service/api';
 
 const SystemAdminContext = createContext(null);
 
@@ -94,6 +94,75 @@ export const SystemAdminProvider = ({
     }
   }, []);
 
+  // Create role
+  const createRole = useCallback(async (roleName, description) => {
+    try {
+      setLoading(true);
+      setError(null);
+      const response = await post(ENDPOINTS.SYSTEM_ADMIN.CREATE_ROLE, { roleName, description });
+      if (onSuccessRef.current) {
+        onSuccessRef.current({ role: response.data });
+      }
+      return response;
+    } catch (err) {
+      const errorMessage = err.data?.message || err.message || 'Không tạo được vai trò';
+      setError(errorMessage);
+      if (onErrorRef.current) {
+        onErrorRef.current(err);
+      }
+      throw new Error(errorMessage);
+    } finally {
+      setLoading(false);
+    }
+  }, []);
+
+  // Update role
+  const updateRole = useCallback(async (roleId, roleName, description) => {
+    try {
+      setLoading(true);
+      setError(null);
+      const updateData = {};
+      if (roleName) updateData.roleName = roleName;
+      if (description !== undefined) updateData.description = description;
+      const response = await put(ENDPOINTS.SYSTEM_ADMIN.UPDATE_ROLE(roleId), updateData);
+      if (onSuccessRef.current) {
+        onSuccessRef.current({ role: response.data });
+      }
+      return response;
+    } catch (err) {
+      const errorMessage = err.data?.message || err.message || 'Không cập nhật được vai trò';
+      setError(errorMessage);
+      if (onErrorRef.current) {
+        onErrorRef.current(err);
+      }
+      throw new Error(errorMessage);
+    } finally {
+      setLoading(false);
+    }
+  }, []);
+
+  // Delete role
+  const deleteRole = useCallback(async (roleId) => {
+    try {
+      setLoading(true);
+      setError(null);
+      const response = await deleteRequest(ENDPOINTS.SYSTEM_ADMIN.DELETE_ROLE(roleId));
+      if (onSuccessRef.current) {
+        onSuccessRef.current({ roleId });
+      }
+      return response;
+    } catch (err) {
+      const errorMessage = err.data?.message || err.message || 'Không xóa được vai trò';
+      setError(errorMessage);
+      if (onErrorRef.current) {
+        onErrorRef.current(err);
+      }
+      throw new Error(errorMessage);
+    } finally {
+      setLoading(false);
+    }
+  }, []);
+
   // Update user roles
   const updateUserRoles = useCallback(async (userId, roleIds) => {
     try {
@@ -125,13 +194,138 @@ export const SystemAdminProvider = ({
     }
   }, []);
 
+  // Get permissions list
+  const getPermissions = useCallback(async () => {
+    try {
+      setLoading(true);
+      setError(null);
+      const response = await get(ENDPOINTS.SYSTEM_ADMIN.PERMISSIONS);
+      return response.data || [];
+    } catch (err) {
+      const errorMessage = err.data?.message || err.message || 'Không lấy được danh sách phân quyền';
+      setError(errorMessage);
+      if (onErrorRef.current) {
+        onErrorRef.current(err);
+      }
+      throw new Error(errorMessage);
+    } finally {
+      setLoading(false);
+    }
+  }, []);
+
+  // Create permission
+  const createPermission = useCallback(async (code, description) => {
+    try {
+      setLoading(true);
+      setError(null);
+      const response = await post(ENDPOINTS.SYSTEM_ADMIN.CREATE_PERMISSION, { code, description });
+      if (onSuccessRef.current) {
+        onSuccessRef.current({ permission: response.data });
+      }
+      return response;
+    } catch (err) {
+      const errorMessage = err.data?.message || err.message || 'Không tạo được phân quyền';
+      setError(errorMessage);
+      if (onErrorRef.current) {
+        onErrorRef.current(err);
+      }
+      throw new Error(errorMessage);
+    } finally {
+      setLoading(false);
+    }
+  }, []);
+
+  // Update permission
+  const updatePermission = useCallback(async (permissionId, code, description) => {
+    try {
+      setLoading(true);
+      setError(null);
+      const updateData = {};
+      if (code) updateData.code = code;
+      if (description) updateData.description = description;
+      const response = await put(ENDPOINTS.SYSTEM_ADMIN.UPDATE_PERMISSION(permissionId), updateData);
+      if (onSuccessRef.current) {
+        onSuccessRef.current({ permission: response.data });
+      }
+      return response;
+    } catch (err) {
+      const errorMessage = err.data?.message || err.message || 'Không cập nhật được phân quyền';
+      setError(errorMessage);
+      if (onErrorRef.current) {
+        onErrorRef.current(err);
+      }
+      throw new Error(errorMessage);
+    } finally {
+      setLoading(false);
+    }
+  }, []);
+
+  // Delete permission
+  const deletePermission = useCallback(async (permissionId) => {
+    try {
+      setLoading(true);
+      setError(null);
+      const response = await deleteRequest(ENDPOINTS.SYSTEM_ADMIN.DELETE_PERMISSION(permissionId));
+      if (onSuccessRef.current) {
+        onSuccessRef.current({ permissionId });
+      }
+      return response;
+    } catch (err) {
+      const errorMessage = err.data?.message || err.message || 'Không xóa được phân quyền';
+      setError(errorMessage);
+      if (onErrorRef.current) {
+        onErrorRef.current(err);
+      }
+      throw new Error(errorMessage);
+    } finally {
+      setLoading(false);
+    }
+  }, []);
+
+  // Update role permissions
+  const updateRolePermissions = useCallback(async (roleId, permissionCodes) => {
+    try {
+      setLoading(true);
+      setError(null);
+      
+      if (!Array.isArray(permissionCodes)) {
+        throw new Error('permissionCodes phải là một mảng');
+      }
+      
+      const response = await put(ENDPOINTS.SYSTEM_ADMIN.UPDATE_ROLE_PERMISSIONS(roleId), { permissionCodes });
+      
+      if (onSuccessRef.current) {
+        onSuccessRef.current({ roleId, permissionCodes, response: response.data });
+      }
+      
+      return response;
+    } catch (err) {
+      const errorMessage = err.data?.message || err.message || 'Không cập nhật được phân quyền cho vai trò';
+      setError(errorMessage);
+      if (onErrorRef.current) {
+        onErrorRef.current(err);
+      }
+      throw new Error(errorMessage);
+    } finally {
+      setLoading(false);
+    }
+  }, []);
+
   const value = {
     loading,
     error,
     getDashboard,
     getUsers,
     getRoles,
+    createRole,
+    updateRole,
+    deleteRole,
     updateUserRoles,
+    getPermissions,
+    createPermission,
+    updatePermission,
+    deletePermission,
+    updateRolePermissions,
     setError,
   };
 
