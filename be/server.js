@@ -11,10 +11,15 @@ const authRoutes = require('./src/routes/auth.routes');
 const systemAdminRoutes = require('./src/routes/systemAdmin.routes');
 const teacherRoutes = require('./src/routes/teacher.routes');
 const schoolAdminRoutes = require('./src/routes/schoolAdmin.routes');
+const classesRoutes = require('./src/routes/classes.routes');
+const studentRoutes = require('./src/routes/student.routes');
 
 // Import models để Mongoose đăng ký schema (tránh lỗi "Schema hasn't been registered for model 'Roles'")
 require('./src/models/Role');
 require('./src/models/Permission');
+require('./src/models/Student');
+require('./src/models/Grade');
+require('./src/models/Classes');
 
 // Initialize express app
 const app = express();
@@ -122,6 +127,12 @@ app.use('/api/system-admin', systemAdminRoutes);
 
 // Teacher routes
 app.use('/api/teacher', teacherRoutes);
+
+// Classes routes
+app.use('/api/classes', classesRoutes);
+
+// Student routes
+app.use('/api/students', studentRoutes);
 
 // SchoolAdmin routes
 app.use('/api/school-admin', schoolAdminRoutes);

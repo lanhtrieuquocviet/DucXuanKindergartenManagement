@@ -1,9 +1,15 @@
 const User = require('./User');
 const Role = require('./Role');
 const Permission = require('./Permission');
+const Student = require('./Student');
+const Grade = require('./Grade');
+const Classes = require('./Classes');
 
 module.exports = {
   User,
   Role,
-  Permission
+  Permission,
+  Student,
+  Grade,
+  Classes
 };
