@@ -5,18 +5,12 @@ import HomePage from './pages/Homepage';
 import About from './pages/About';
 import Login from './pages/Login';
 import ForgotPassword from './pages/ForgotPassword';
-<<<<<<< Updated upstream
 import SystemAdminDashboard from './pages/systemAdmin/AdminDashboard';
 import ManagePermission from './pages/systemAdmin/ManagePermission';
 import TeacherDashboard from './pages/teacher/TeacherDashboard';
 import SchoolAdminDashboard from './pages/schoolAdmin/SchoolAdminDashboard';
 import Contact from './pages/Contact';
-=======
-import SystemAdminDashboard from './pages/AdminDashboard';
-import TeacherDashboard from './pages/TeacherDashboard';
-import SchoolAdminDashboard from './pages/SchoolAdminDashboard';
 import Profile from './pages/Profile';
->>>>>>> Stashed changes
 
 function AppContent() {
   return (

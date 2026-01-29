@@ -99,15 +99,12 @@ router.post('/login', async (req, res) => {
       });
     }
 
-<<<<<<< Updated upstream
     const roles = (user.roles || []).map((role) => ({
       id: role._id,
       roleName: role.roleName,
       permissions: (role.permissions || []).map((p) => (p.code ? p.code : p)),
     }));
 
-=======
->>>>>>> Stashed changes
     const payload = {
       sub: user._id.toString(),
       username: user.username,
