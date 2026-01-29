@@ -1,336 +1,41 @@
 const express = require('express');
-const bcrypt = require('bcryptjs');
-const jwt = require('jsonwebtoken');
-const User = require('../models/User');
 const { authenticate } = require('../middleware/auth');
+const {
+  login,
+  getProfile,
+  updateProfile,
+  changePassword,
+} = require('../controller/authController');
 
 const router = express.Router();
-
-// ============================================
-// Helpers
-// ============================================
-
-const JWT_SECRET = process.env.JWT_SECRET || 'dev_jwt_secret_change_me';
-const JWT_EXPIRES_IN = process.env.JWT_EXPIRES_IN || '1d';
-
-/**
- * Remove sensitive fields from user document before sending to client
- * @param {import('../models/User')} userDoc
- */
-const sanitizeUser = (userDoc) => {
-  if (!userDoc) return null;
-  const user = userDoc.toObject ? userDoc.toObject() : userDoc;
-  // eslint-disable-next-line no-unused-vars
-  const { passwordHash, __v, ...safeUser } = user;
-  return safeUser;
-};
 
 // ============================================
 // Authentication Routes
 // ============================================
 
 /**
- * Helper: build user response (kèm roles đã format)
- */
-const buildUserResponse = (user) => {
-  const roles = (user.roles || []).map((role) => ({
-    id: role._id,
-    roleName: role.roleName,
-    permissions: (role.permissions || []).map((p) => (p.code ? p.code : p)),
-  }));
-
-  return {
-    ...sanitizeUser(user),
-    roles,
-  };
-};
-
-/**
  * POST /api/auth/login
  * Đăng nhập bằng tài khoản + mật khẩu
  */
-router.post('/login', async (req, res) => {
-  try {
-    const { username, password } = req.body;
-
-    if (!username || !password) {
-      return res.status(400).json({
-        status: 'error',
-        message: 'Vui lòng nhập đầy đủ tài khoản và mật khẩu',
-      });
-    }
-
-    if (!User || !User.findOne) {
-      return res.status(500).json({
-        status: 'error',
-        message: 'User model is not available',
-      });
-    }
-
-    const user = await User.findOne({ username }).populate({
-      path: 'roles',
-      model: 'Roles',
-      populate: {
-        path: 'permissions',
-        model: 'Permission',
-      },
-    });
-
-    if (!user) {
-      return res.status(401).json({
-        status: 'error',
-        message: 'Tài khoản hoặc mật khẩu không đúng',
-      });
-    }
-
-    if (user.status === 'inactive') {
-      return res.status(403).json({
-        status: 'error',
-        message: 'Tài khoản đã bị khóa. Vui lòng liên hệ nhà trường.',
-      });
-    }
-
-    const isPasswordValid = await bcrypt.compare(password, user.passwordHash);
-
-    if (!isPasswordValid) {
-      return res.status(401).json({
-        status: 'error',
-        message: 'Tài khoản hoặc mật khẩu không đúng',
-      });
-    }
-
-    const roles = (user.roles || []).map((role) => ({
-      id: role._id,
-      roleName: role.roleName,
-      permissions: (role.permissions || []).map((p) => (p.code ? p.code : p)),
-    }));
-
-    const payload = {
-      sub: user._id.toString(),
-      username: user.username,
-      roles: (user.roles || []).map((r) => r.roleName),
-      permissions: Array.from(
-        new Set(
-          (user.roles || []).flatMap((role) =>
-            (role.permissions || []).map((p) => (p.code ? p.code : p)),
-          ),
-        ),
-      ),
-    };
-
-    const token = jwt.sign(payload, JWT_SECRET, {
-      expiresIn: JWT_EXPIRES_IN,
-    });
-
-    return res.status(200).json({
-      status: 'success',
-      message: 'Đăng nhập thành công',
-      data: {
-        token,
-        user: buildUserResponse(user),
-      },
-    });
-  } catch (error) {
-    // eslint-disable-next-line no-console
-    console.error('Login error:', error);
-    return res.status(500).json({
-      status: 'error',
-      message: error.message || 'Đăng nhập thất bại',
-    });
-  }
-});
+router.post('/login', login);
 
 /**
  * GET /api/auth/me
  * Lấy thông tin hồ sơ người dùng hiện tại (dựa trên token)
  */
-router.get('/me', authenticate, async (req, res) => {
-  try {
-    const user = await User.findById(req.user.id).populate({
-      path: 'roles',
-      model: 'Roles',
-      populate: {
-        path: 'permissions',
-        model: 'Permission',
-      },
-    });
-
-    if (!user) {
-      return res.status(404).json({
-        status: 'error',
-        message: 'Không tìm thấy người dùng',
-      });
-    }
-
-    return res.status(200).json({
-      status: 'success',
-      data: buildUserResponse(user),
-    });
-  } catch (error) {
-    // eslint-disable-next-line no-console
-    console.error('Get profile error:', error);
-    return res.status(500).json({
-      status: 'error',
-      message: error.message || 'Không lấy được hồ sơ người dùng',
-    });
-  }
-});
+router.get('/me', authenticate, getProfile);
 
 /**
  * PUT /api/auth/me
  * Cập nhật thông tin cơ bản của người dùng hiện tại
  * (fullName, email, avatar; các field khác có thể bổ sung sau)
  */
-router.put('/me', authenticate, async (req, res) => {
-  try {
-    const { fullName, email, avatar } = req.body;
-
-    const user = await User.findById(req.user.id).populate({
-      path: 'roles',
-      model: 'Roles',
-      populate: {
-        path: 'permissions',
-        model: 'Permission',
-      },
-    });
-
-    if (!user) {
-      return res.status(404).json({
-        status: 'error',
-        message: 'Không tìm thấy người dùng',
-      });
-    }
-
-    // Validate và cập nhật fullName
-    if (typeof fullName === 'string' && fullName.trim() !== '') {
-      user.fullName = fullName.trim();
-    } else if (fullName !== undefined && fullName !== null) {
-      return res.status(400).json({
-        status: 'error',
-        message: 'Họ và tên không hợp lệ',
-      });
-    }
-
-    // Validate và cập nhật email
-    if (typeof email === 'string' && email.trim() !== '') {
-      const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-      const trimmedEmail = email.trim().toLowerCase();
-      
-      if (!emailRegex.test(trimmedEmail)) {
-        return res.status(400).json({
-          status: 'error',
-          message: 'Email không hợp lệ',
-        });
-      }
-
-      // Kiểm tra email đã tồn tại chưa (trừ chính user hiện tại)
-      const existingUser = await User.findOne({ 
-        email: trimmedEmail,
-        _id: { $ne: user._id }
-      });
-      
-      if (existingUser) {
-        return res.status(400).json({
-          status: 'error',
-          message: 'Email này đã được sử dụng bởi tài khoản khác',
-        });
-      }
-
-      user.email = trimmedEmail;
-    } else if (email !== undefined && email !== null) {
-      return res.status(400).json({
-        status: 'error',
-        message: 'Email không hợp lệ',
-      });
-    }
-
-    // Cập nhật avatar (cho phép rỗng)
-    if (typeof avatar === 'string') {
-      user.avatar = avatar.trim();
-    }
-
-    await user.save();
-
-    return res.status(200).json({
-      status: 'success',
-      message: 'Cập nhật hồ sơ thành công',
-      data: buildUserResponse(user),
-    });
-  } catch (error) {
-    // eslint-disable-next-line no-console
-    console.error('Update profile error:', error);
-    
-    // Xử lý lỗi duplicate email từ MongoDB
-    if (error.code === 11000 && error.keyPattern && error.keyPattern.email) {
-      return res.status(400).json({
-        status: 'error',
-        message: 'Email này đã được sử dụng bởi tài khoản khác',
-      });
-    }
-
-    return res.status(500).json({
-      status: 'error',
-      message: error.message || 'Không cập nhật được hồ sơ',
-    });
-  }
-});
+router.put('/me', authenticate, updateProfile);
 
 /**
  * POST /api/auth/change-password
  * Đổi mật khẩu cho người dùng hiện tại
  */
-router.post('/change-password', authenticate, async (req, res) => {
-  try {
-    const { currentPassword, newPassword } = req.body;
-
-    if (!currentPassword || !newPassword) {
-      return res.status(400).json({
-        status: 'error',
-        message: 'Vui lòng nhập đầy đủ mật khẩu hiện tại và mật khẩu mới',
-      });
-    }
-
-    if (newPassword.length < 6) {
-      return res.status(400).json({
-        status: 'error',
-        message: 'Mật khẩu mới phải có ít nhất 6 ký tự',
-      });
-    }
-
-    const user = await User.findById(req.user.id);
-
-    if (!user) {
-      return res.status(404).json({
-        status: 'error',
-        message: 'Không tìm thấy người dùng',
-      });
-    }
-
-    const isPasswordValid = await bcrypt.compare(currentPassword, user.passwordHash);
-
-    if (!isPasswordValid) {
-      return res.status(400).json({
-        status: 'error',
-        message: 'Mật khẩu hiện tại không đúng',
-      });
-    }
-
-    const salt = await bcrypt.genSalt(10);
-    user.passwordHash = await bcrypt.hash(newPassword, salt);
-    await user.save();
-
-    return res.status(200).json({
-      status: 'success',
-      message: 'Đổi mật khẩu thành công',
-    });
-  } catch (error) {
-    // eslint-disable-next-line no-console
-    console.error('Change password error:', error);
-    return res.status(500).json({
-      status: 'error',
-      message: error.message || 'Không đổi được mật khẩu',
-    });
-  }
-});
+router.post('/change-password', authenticate, changePassword);
 
 module.exports = router;
