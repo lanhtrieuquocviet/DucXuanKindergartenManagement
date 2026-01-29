@@ -8,9 +8,11 @@ function Header() {
                     {/* ===== NAV LEFT ===== */}
                     <nav className="flex gap-2 text-sm font-semibold text-white">
                         {/* Trang chủ */}
-                        <div className="px-4 py-2 rounded-full cursor-pointer hover:bg-white hover:text-green-600 transition">
-                            Trang chủ
-                        </div>
+                        <a href="/">
+                            <div className="px-4 py-2 rounded-full cursor-pointer hover:bg-white hover:text-green-600 transition">
+                                Trang chủ
+                            </div>
+                        </a>
 
                         {/* Thông tin công khai */}
                         <div className="relative group">

@@ -1,7 +1,13 @@
+import { useState } from "react";
+import Captcha from "../components/Captcha";
+
 function Contact() {
+
+  const [captchaValid, setCaptchaValid] = useState(false);
+
   return (
     <div className="grid grid-cols-1 md:grid-cols-2 gap-10">
-      
+
       {/* ===== LEFT: THÔNG TIN LIÊN HỆ ===== */}
       <div className="border rounded-lg p-6 shadow bg-white">
         <h2 className="font-bold text-lg mb-4 bg-gray-200 px-3 py-2 rounded">
@@ -35,7 +41,7 @@ function Contact() {
           <Input label="Địa chỉ" />
           <Input label="Số điện thoại *" />
           <Input label="Thư điện tử *" />
-          
+
           <div>
             <label className="text-sm font-medium">Nội dung liên hệ *</label>
             <textarea
@@ -46,21 +52,30 @@ function Contact() {
 
           {/* Captcha giả */}
           <div className="flex items-center gap-3">
-            <div className="border px-4 py-2 font-mono bg-gray-100">
-              WQ7Z
-            </div>
-            <input
-              placeholder="Mã bảo mật"
-              className="border rounded px-3 py-2 w-32"
-            />
+            <form className="space-y-4">
+              {/* các input khác */}
+
+              <Captcha onValidate={setCaptchaValid} />
+
+              <button
+                disabled={!captchaValid}
+                className={`w-full py-2 rounded text-white transition
+          ${captchaValid
+                    ? "bg-blue-600 hover:bg-blue-700"
+                    : "bg-gray-400 cursor-not-allowed"}
+        `}
+              >
+                Gửi liên hệ
+              </button>
+            </form>
           </div>
 
-          <button
+          {/* <button
             type="submit"
             className="bg-red-600 hover:bg-red-700 text-white px-6 py-2 rounded font-semibold"
           >
             Gửi liên hệ
-          </button>
+          </button> */}
         </form>
       </div>
     </div>
