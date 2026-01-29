@@ -75,13 +75,6 @@ function SystemAdminDashboard() {
     // các mục khác sau này có thể tách route riêng
   };
 
-  const handleViewProfile = () => {
-    const user = JSON.parse(localStorage.getItem('user') || '{}');
-    // Hiển thị nhanh thông tin hồ sơ; sau này có thể tách sang trang riêng
-    // eslint-disable-next-line no-alert
-    alert(`Hồ sơ SystemAdmin:\n\nHọ tên: ${user.fullName || ''}\nTài khoản: ${user.username || ''}\nEmail: ${user.email || ''}`);
-  };
-
   return (
     <RoleLayout
       title="Bảng điều khiển System Admin"
@@ -89,13 +82,8 @@ function SystemAdminDashboard() {
       menuItems={menuItems}
       activeKey="overview"
       onLogout={handleLogout}
-<<<<<<< Updated upstream:fe/src/pages/systemAdmin/AdminDashboard.jsx
       onMenuSelect={handleMenuSelect}
       onViewProfile={handleViewProfile}
-=======
-      onViewProfile={handleViewProfile}
-      onEditProfile={handleViewProfile}
->>>>>>> Stashed changes:fe/src/pages/AdminDashboard.jsx
       userName={JSON.parse(localStorage.getItem('user') || '{}').fullName || JSON.parse(localStorage.getItem('user') || '{}').username || 'System Admin'}
     >
       {error && (
