@@ -17,6 +17,7 @@ import { SystemAdminProvider } from './context/SystemAdminContext';
 import { SchoolAdminProvider } from './context/SchoolAdminContext';
 import { TeacherProvider } from './context/TeacherContext';
 import SimpleLayout from './layouts/SimpleLayout';
+import QnAPage from './pages/QuesAndAn/QnAPage';
 
 function AppContent() {
   return (
@@ -97,6 +98,16 @@ function App() {
               </SimpleLayout>
             }
           />
+
+          <Route
+            path="/qa"
+            element={
+              <SimpleLayout>
+                <QnAPage />
+              </SimpleLayout>
+            }
+          />
+
         </Routes>
       </AuthProvider>
     </Router>
