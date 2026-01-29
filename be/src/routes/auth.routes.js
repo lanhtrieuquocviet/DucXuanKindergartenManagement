@@ -2,6 +2,7 @@ const express = require('express');
 const bcrypt = require('bcryptjs');
 const jwt = require('jsonwebtoken');
 const User = require('../models/User');
+const { authenticate } = require('../middleware/auth');
 
 const router = express.Router();
 
@@ -27,6 +28,22 @@ const sanitizeUser = (userDoc) => {
 // ============================================
 // Authentication Routes
 // ============================================
+
+/**
+ * Helper: build user response (kèm roles đã format)
+ */
+const buildUserResponse = (user) => {
+  const roles = (user.roles || []).map((role) => ({
+    id: role._id,
+    roleName: role.roleName,
+    permissions: (role.Permisstons || []).map((p) => (p.code ? p.code : p)),
+  }));
+
+  return {
+    ...sanitizeUser(user),
+    roles,
+  };
+};
 
 /**
  * POST /api/auth/login
@@ -82,18 +99,25 @@ router.post('/login', async (req, res) => {
       });
     }
 
+<<<<<<< Updated upstream
     const roles = (user.roles || []).map((role) => ({
       id: role._id,
       roleName: role.roleName,
       permissions: (role.permissions || []).map((p) => (p.code ? p.code : p)),
     }));
 
+=======
+>>>>>>> Stashed changes
     const payload = {
       sub: user._id.toString(),
       username: user.username,
-      roles: roles.map((r) => r.roleName),
+      roles: (user.roles || []).map((r) => r.roleName),
       permissions: Array.from(
-        new Set(roles.flatMap((r) => r.permissions)),
+        new Set(
+          (user.roles || []).flatMap((role) =>
+            (role.Permisstons || []).map((p) => (p.code ? p.code : p)),
+          ),
+        ),
       ),
     };
 
@@ -106,10 +130,7 @@ router.post('/login', async (req, res) => {
       message: 'Đăng nhập thành công',
       data: {
         token,
-        user: {
-          ...sanitizeUser(user),
-          roles,
-        },
+        user: buildUserResponse(user),
       },
     });
   } catch (error) {
@@ -118,6 +139,154 @@ router.post('/login', async (req, res) => {
     return res.status(500).json({
       status: 'error',
       message: error.message || 'Đăng nhập thất bại',
+    });
+  }
+});
+
+/**
+ * GET /api/auth/me
+ * Lấy thông tin hồ sơ người dùng hiện tại (dựa trên token)
+ */
+router.get('/me', authenticate, async (req, res) => {
+  try {
+    const user = await User.findById(req.user.id).populate({
+      path: 'roles',
+      model: 'Roles',
+      populate: {
+        path: 'Permisstons',
+        model: 'Permission',
+      },
+    });
+
+    if (!user) {
+      return res.status(404).json({
+        status: 'error',
+        message: 'Không tìm thấy người dùng',
+      });
+    }
+
+    return res.status(200).json({
+      status: 'success',
+      data: buildUserResponse(user),
+    });
+  } catch (error) {
+    // eslint-disable-next-line no-console
+    console.error('Get profile error:', error);
+    return res.status(500).json({
+      status: 'error',
+      message: error.message || 'Không lấy được hồ sơ người dùng',
+    });
+  }
+});
+
+/**
+ * PUT /api/auth/me
+ * Cập nhật thông tin cơ bản của người dùng hiện tại
+ * (fullName, email, avatar; các field khác có thể bổ sung sau)
+ */
+router.put('/me', authenticate, async (req, res) => {
+  try {
+    const { fullName, email, avatar } = req.body;
+
+    const user = await User.findById(req.user.id).populate({
+      path: 'roles',
+      model: 'Roles',
+      populate: {
+        path: 'Permisstons',
+        model: 'Permission',
+      },
+    });
+
+    if (!user) {
+      return res.status(404).json({
+        status: 'error',
+        message: 'Không tìm thấy người dùng',
+      });
+    }
+
+    if (typeof fullName === 'string' && fullName.trim() !== '') {
+      user.fullName = fullName.trim();
+    }
+
+    if (typeof email === 'string' && email.trim() !== '') {
+      user.email = email.trim().toLowerCase();
+    }
+
+    if (typeof avatar === 'string') {
+      user.avatar = avatar;
+    }
+
+    await user.save();
+
+    return res.status(200).json({
+      status: 'success',
+      message: 'Cập nhật hồ sơ thành công',
+      data: buildUserResponse(user),
+    });
+  } catch (error) {
+    // eslint-disable-next-line no-console
+    console.error('Update profile error:', error);
+    return res.status(500).json({
+      status: 'error',
+      message: error.message || 'Không cập nhật được hồ sơ',
+    });
+  }
+});
+
+/**
+ * POST /api/auth/change-password
+ * Đổi mật khẩu cho người dùng hiện tại
+ */
+router.post('/change-password', authenticate, async (req, res) => {
+  try {
+    const { currentPassword, newPassword } = req.body;
+
+    if (!currentPassword || !newPassword) {
+      return res.status(400).json({
+        status: 'error',
+        message: 'Vui lòng nhập đầy đủ mật khẩu hiện tại và mật khẩu mới',
+      });
+    }
+
+    if (newPassword.length < 6) {
+      return res.status(400).json({
+        status: 'error',
+        message: 'Mật khẩu mới phải có ít nhất 6 ký tự',
+      });
+    }
+
+    const user = await User.findById(req.user.id);
+
+    if (!user) {
+      return res.status(404).json({
+        status: 'error',
+        message: 'Không tìm thấy người dùng',
+      });
+    }
+
+    const isPasswordValid = await bcrypt.compare(currentPassword, user.passwordHash);
+
+    if (!isPasswordValid) {
+      return res.status(400).json({
+        status: 'error',
+        message: 'Mật khẩu hiện tại không đúng',
+      });
+    }
+
+    const salt = await bcrypt.genSalt(10);
+    user.passwordHash = await bcrypt.hash(newPassword, salt);
+    await user.save();
+
+    return res.status(200).json({
+      status: 'success',
+      message: 'Đổi mật khẩu thành công',
+    });
+  } catch (error) {
+    // eslint-disable-next-line no-console
+    console.error('Change password error:', error);
+    return res.status(500).json({
+      status: 'error',
+      message: error.message || 'Không đổi được mật khẩu',
     });
   }
 });

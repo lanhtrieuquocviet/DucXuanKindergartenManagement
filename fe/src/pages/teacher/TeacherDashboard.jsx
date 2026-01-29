@@ -51,6 +51,10 @@ function TeacherDashboard() {
     navigate('/login', { replace: true });
   };
 
+  const handleViewProfile = () => {
+    navigate('/profile');
+  };
+
   const menuItems = [
     { key: 'classes', label: 'Lớp phụ trách' },
     { key: 'students', label: 'Danh sách học sinh' },
@@ -65,11 +69,16 @@ function TeacherDashboard() {
       menuItems={menuItems}
       activeKey="classes"
       onLogout={handleLogout}
+<<<<<<< Updated upstream:fe/src/pages/teacher/TeacherDashboard.jsx
       onViewProfile={() => {
         const user = JSON.parse(localStorage.getItem('user') || '{}');
         // eslint-disable-next-line no-alert
         alert(`Hồ sơ Giáo viên:\n\nHọ tên: ${user.fullName || ''}\nTài khoản: ${user.username || ''}\nEmail: ${user.email || ''}`);
       }}
+=======
+      onViewProfile={handleViewProfile}
+      onEditProfile={handleViewProfile}
+>>>>>>> Stashed changes:fe/src/pages/TeacherDashboard.jsx
       userName={JSON.parse(localStorage.getItem('user') || '{}').fullName || JSON.parse(localStorage.getItem('user') || '{}').username || 'Teacher'}
     >
       {error && (
