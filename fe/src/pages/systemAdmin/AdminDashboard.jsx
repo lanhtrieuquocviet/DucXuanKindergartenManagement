@@ -51,10 +51,6 @@ function SystemAdminDashboard() {
     navigate('/login', { replace: true });
   };
 
-  const handleViewProfile = () => {
-    navigate('/profile');
-  };
-
   const menuItems = [
     { key: 'overview', label: 'Tổng quan hệ thống' },
     { key: 'schools', label: 'Quản lý trường' },
@@ -75,6 +71,9 @@ function SystemAdminDashboard() {
     // các mục khác sau này có thể tách route riêng
   };
 
+  const handleViewProfile = () => {
+    navigate('/profile');
+  };
   return (
     <RoleLayout
       title="Bảng điều khiển System Admin"

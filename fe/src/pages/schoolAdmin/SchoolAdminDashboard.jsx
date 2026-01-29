@@ -71,11 +71,7 @@ function SchoolAdminDashboard() {
       menuItems={menuItems}
       activeKey="overview"
       onLogout={handleLogout}
-      onViewProfile={() => {
-        const user = JSON.parse(localStorage.getItem('user') || '{}');
-        // eslint-disable-next-line no-alert
-        alert(`Hồ sơ Ban giám hiệu:\n\nHọ tên: ${user.fullName || ''}\nTài khoản: ${user.username || ''}\nEmail: ${user.email || ''}`);
-      }}
+      onViewProfile={handleViewProfile}
       userName={JSON.parse(localStorage.getItem('user') || '{}').fullName || JSON.parse(localStorage.getItem('user') || '{}').username || 'School Admin'}
     >
       {error && (

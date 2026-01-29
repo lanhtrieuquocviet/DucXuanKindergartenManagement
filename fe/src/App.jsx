@@ -5,7 +5,6 @@ import HomePage from './pages/Homepage';
 import About from './pages/About';
 import Login from './pages/Login';
 import ForgotPassword from './pages/ForgotPassword';
-
 import SystemAdminDashboard from './pages/systemAdmin/AdminDashboard';
 import ManagePermission from './pages/systemAdmin/ManagePermission';
 import TeacherDashboard from './pages/teacher/TeacherDashboard';
@@ -52,8 +51,3 @@ function App() {
 }
 
 export default App;
-
-
-
-
-
