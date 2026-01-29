@@ -94,7 +94,7 @@ function SchoolAdminDashboard() {
         <div className="rounded-xl border border-sky-100 bg-sky-50/70 p-4">
           <h2 className="text-sm font-semibold text-sky-900 mb-1">Học sinh</h2>
           <p className="mt-2 text-2xl font-bold text-sky-800">120</p>
-          <p className="mt-1 text-xs text-sky-700">Tổng số học sinh trong các lớp.</p>
+          <p className="mt-1 text-xs text-sky-700">Tổng số học sinh trong các lớp22.</p>
         </div>
       </div>
 
