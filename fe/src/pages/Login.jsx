@@ -2,12 +2,12 @@ import { useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import './Login.css';
 import logoDucXuan from '../assets/logo/ducxuan-logo.png';
+import { useAuth } from '../context/AuthContext';
 
 function Login() {
   const [form, setForm] = useState({ username: '', password: '' });
-  const [loading, setLoading] = useState(false);
-  const [error, setError] = useState('');
   const navigate = useNavigate();
+  const { login, loading, error } = useAuth();
 
   const handleChange = (e) => {
     const { name, value } = e.target;
@@ -16,41 +16,10 @@ function Login() {
 
   const handleSubmit = async (e) => {
     e.preventDefault();
-    setError('');
-    setLoading(true);
-
     try {
-      const res = await fetch('http://localhost:5000/api/auth/login', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          username: form.username,
-          password: form.password,
-        }),
-      });
-
-      const data = await res.json();
-
-      if (!res.ok) {
-        throw new Error(data.message || 'Đăng nhập thất bại');
-      }
-
-      const { token, user } = data.data || {};
-
-      if (!token || !user) {
-        throw new Error('Phản hồi đăng nhập không hợp lệ');
-      }
-
-      // Lưu token + thông tin user để dùng cho các màn khác
-      localStorage.setItem('token', token);
-      localStorage.setItem('user', JSON.stringify(user));
-
-      // Lấy danh sách roleName từ user.roles (nếu có)
-      const roles = (user.roles || []).map((r) => r.roleName || r);
-
-      // Ưu tiên chuyển hướng theo thứ tự: SystemAdmin > SchoolAdmin > Teacher
+      const { user: newUser } = await login(form.username, form.password);
+      // Chuyển hướng theo role
+      const roles = (newUser.roles || []).map((r) => r.roleName || r);
       if (roles.includes('SystemAdmin')) {
         navigate('/system-admin', { replace: true });
       } else if (roles.includes('SchoolAdmin')) {
@@ -58,13 +27,10 @@ function Login() {
       } else if (roles.includes('Teacher')) {
         navigate('/teacher', { replace: true });
       } else {
-        // Nếu không khớp role nào thì đưa về trang chủ
         navigate('/', { replace: true });
       }
     } catch (err) {
-      setError(err.message || 'Đăng nhập thất bại');
-    } finally {
-      setLoading(false);
+      // Error được xử lý trong AuthContext
     }
   };
 

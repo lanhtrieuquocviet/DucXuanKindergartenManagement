@@ -1,78 +1,58 @@
 import { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import RoleLayout from '../../components/RoleLayout';
+import { useAuth } from '../../context/AuthContext';
+import { useSystemAdmin } from '../../context/SystemAdminContext';
 
 function ManagePermission() {
   const [users, setUsers] = useState([]);
   const [roles, setRoles] = useState([]);
   const [selectedRoles, setSelectedRoles] = useState({}); // { userId: Set(roleId) }
-  const [loading, setLoading] = useState(false);
-  const [error, setError] = useState('');
   const [success, setSuccess] = useState('');
   const [selectedUserForPerm, setSelectedUserForPerm] = useState(null);
   const navigate = useNavigate();
-
-  const token = localStorage.getItem('token');
-  const storedUser = JSON.parse(localStorage.getItem('user') || '{}');
+  const { user, hasRole, logout } = useAuth();
+  const { getUsers, getRoles, updateUserRoles, loading, error, setError } = useSystemAdmin();
 
   useEffect(() => {
-    if (!token || !storedUser) {
+    if (!user) {
       navigate('/login', { replace: true });
       return;
     }
 
-    const rolesFromUser = (storedUser.roles || []).map((r) => r.roleName || r);
-    if (!rolesFromUser.includes('SystemAdmin')) {
+    if (!hasRole('SystemAdmin')) {
       navigate('/', { replace: true });
       return;
     }
 
     const fetchAll = async () => {
       try {
-        setLoading(true);
-        setError('');
+        setError(null);
 
-        const [usersRes, rolesRes] = await Promise.all([
-          fetch('http://localhost:5000/api/system-admin/users', {
-            headers: { Authorization: `Bearer ${token}` },
-          }),
-          fetch('http://localhost:5000/api/system-admin/roles', {
-            headers: { Authorization: `Bearer ${token}` },
-          }),
+        const [usersData, rolesData] = await Promise.all([
+          getUsers(),
+          getRoles(),
         ]);
 
-        const usersJson = await usersRes.json();
-        const rolesJson = await rolesRes.json();
-
-        if (!usersRes.ok) {
-          throw new Error(usersJson.message || 'Không lấy được danh sách người dùng');
-        }
-        if (!rolesRes.ok) {
-          throw new Error(rolesJson.message || 'Không lấy được danh sách vai trò');
-        }
-
-        setUsers(usersJson.data || []);
-        setRoles(rolesJson.data || []);
+        setUsers(usersData || []);
+        setRoles(rolesData || []);
 
         const initialSelected = {};
-        (usersJson.data || []).forEach((u) => {
+        (usersData || []).forEach((u) => {
           const roleIds = (u.roles || []).map((r) => r._id || r.id);
           initialSelected[u._id] = new Set(roleIds);
         });
         setSelectedRoles(initialSelected);
       } catch (err) {
-        setError(err.message);
-      } finally {
-        setLoading(false);
+        // Error được xử lý trong context
       }
     };
 
     fetchAll();
-  }, [navigate, token]);
+  }, [navigate, user, hasRole, getUsers, getRoles, setError]);
 
   const handleLogout = () => {
-    localStorage.removeItem('token');
-    localStorage.removeItem('user');
+    logout();
     navigate('/login', { replace: true });
   };
 
@@ -112,32 +92,17 @@ function ManagePermission() {
 
   const handleSaveUserRoles = async (userId) => {
     try {
-      setLoading(true);
-      setError('');
+      setError(null);
       setSuccess('');
 
       const roleIds = Array.from(selectedRoles[userId] || []);
 
-      const res = await fetch(`http://localhost:5000/api/system-admin/users/${userId}/roles`, {
-        method: 'PUT',
-        headers: {
-          'Content-Type': 'application/json',
-          Authorization: `Bearer ${token}`,
-        },
-        body: JSON.stringify({ roleIds }),
-      });
-
-      const json = await res.json();
-      if (!res.ok) {
-        throw new Error(json.message || 'Không cập nhật được vai trò cho tài khoản này');
-      }
+      await updateUserRoles(userId, roleIds);
 
       setSuccess('Cập nhật vai trò thành công.');
-    } catch (err) {
-      setError(err.message);
-    } finally {
-      setLoading(false);
       setTimeout(() => setSuccess(''), 2000);
+    } catch (err) {
+      // Error được xử lý trong context
     }
   };
 
@@ -172,7 +137,7 @@ function ManagePermission() {
       activeKey="roles"
       onLogout={handleLogout}
       onMenuSelect={handleMenuSelect}
-      userName={storedUser.fullName || storedUser.username || 'System Admin'}
+      userName={user?.fullName || user?.username || 'System Admin'}
     >
       {error && (
         <p className="mb-4 text-sm text-red-600 bg-red-50 border border-red-100 rounded-xl px-3 py-2">

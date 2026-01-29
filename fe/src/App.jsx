@@ -11,6 +11,10 @@ import TeacherDashboard from './pages/teacher/TeacherDashboard';
 import SchoolAdminDashboard from './pages/schoolAdmin/SchoolAdminDashboard';
 import Contact from './pages/Contact';
 import Profile from './pages/Profile';
+import { AuthProvider } from './context/AuthContext';
+import { SystemAdminProvider } from './context/SystemAdminContext';
+import { SchoolAdminProvider } from './context/SchoolAdminContext';
+import { TeacherProvider } from './context/TeacherContext';
 
 function AppContent() {
   return (
@@ -25,27 +29,58 @@ function AppContent() {
     </>
   );
 }
+
 function App() {
   return (
     <Router>
-      <Routes>
-        {/* Trang login / forgot-password KHÔNG dùng MainLayout */}
-        <Route
-          path="/*"
-          element={(
-            <MainLayout>
-              <AppContent />
-            </MainLayout>
-          )}
-        />
-        <Route path="/login" element={<Login />} />
-        <Route path="/forgot-password" element={<ForgotPassword />} />
-        <Route path="/system-admin" element={<SystemAdminDashboard />} />
-        <Route path="/system-admin/managepermitsion" element={<ManagePermission />} />
-        <Route path="/teacher" element={<TeacherDashboard />} />
-        <Route path="/school-admin" element={<SchoolAdminDashboard />} />
-        <Route path="/profile" element={<Profile />} />
-      </Routes>
+      <AuthProvider>
+        <Routes>
+          {/* Trang login / forgot-password KHÔNG dùng MainLayout */}
+          <Route
+            path="/*"
+            element={(
+              <MainLayout>
+                <AppContent />
+              </MainLayout>
+            )}
+          />
+          <Route path="/login" element={<Login />} />
+          <Route path="/forgot-password" element={<ForgotPassword />} />
+          <Route
+            path="/system-admin"
+            element={(
+              <SystemAdminProvider>
+                <SystemAdminDashboard />
+              </SystemAdminProvider>
+            )}
+          />
+          <Route
+            path="/system-admin/managepermitsion"
+            element={(
+              <SystemAdminProvider>
+                <ManagePermission />
+              </SystemAdminProvider>
+            )}
+          />
+          <Route
+            path="/teacher"
+            element={(
+              <TeacherProvider>
+                <TeacherDashboard />
+              </TeacherProvider>
+            )}
+          />
+          <Route
+            path="/school-admin"
+            element={(
+              <SchoolAdminProvider>
+                <SchoolAdminDashboard />
+              </SchoolAdminProvider>
+            )}
+          />
+          <Route path="/profile" element={<Profile />} />
+        </Routes>
+      </AuthProvider>
     </Router>
   );
 }
