@@ -1,22 +1,27 @@
 import { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import RoleLayout from '../../components/RoleLayout';
 import { useAuth } from '../../context/AuthContext';
 import { useSchoolAdmin } from '../../context/SchoolAdminContext';
 
 function SchoolAdminDashboard() {
   const [data, setData] = useState(null);
   const navigate = useNavigate();
-  const { user, hasRole, logout } = useAuth();
+  const { user, logout, isInitializing } = useAuth();
   const { getDashboard, loading, error } = useSchoolAdmin();
 
   useEffect(() => {
+    // Chờ quá trình khởi tạo (verify token) hoàn thành
+    if (isInitializing) {
+      return;
+    }
+
     if (!user) {
       navigate('/login', { replace: true });
       return;
     }
 
-    if (!hasRole('SchoolAdmin')) {
+    const userRoles = user?.roles?.map((r) => r.roleName || r) || [];
+    if (!userRoles.includes('SchoolAdmin')) {
       navigate('/', { replace: true });
       return;
     }
@@ -31,12 +36,7 @@ function SchoolAdminDashboard() {
     };
 
     fetchData();
-  }, [navigate, user, hasRole, getDashboard]);
-
-  const handleLogout = () => {
-    logout();
-    navigate('/login', { replace: true });
-  };
+  }, [navigate, user, getDashboard, isInitializing]);
 
   const handleViewProfile = () => {
     navigate('/profile');
@@ -51,49 +51,101 @@ function SchoolAdminDashboard() {
     { key: 'reports', label: 'Báo cáo của trường' },
   ];
 
+  const userName = user?.fullName || user?.username || 'School Admin';
+
   return (
-    <RoleLayout
-      title="Bảng điều khiển của Ban giám hiệu"
-      description="Quản lý trường, lớp học, giáo viên và phụ huynh trong phạm vi trường."
-      menuItems={menuItems}
-      activeKey="overview"
-      onLogout={handleLogout}
-      onViewProfile={handleViewProfile}
-      userName={user?.fullName || user?.username || 'School Admin'}
-    >
-      {error && (
-        <p className="mb-4 text-sm text-red-600 bg-red-50 border border-red-100 rounded-xl px-3 py-2">
-          {error}
-        </p>
-      )}
+    <div className="min-h-screen bg-gray-100 flex">
+      {/* Sidebar */}
+      <aside className="w-56 bg-gray-900 text-white flex flex-col">
+        <div className="px-6 py-4 font-semibold text-lg border-b border-gray-800">
+          Menu
+        </div>
+        <nav className="flex-1 px-3 py-4 space-y-1">
+          {menuItems.map((item) => (
+            <button
+              key={item.key}
+              type="button"
+              className="w-full text-left px-3 py-2 text-sm rounded-md hover:bg-gray-800 transition"
+            >
+              {item.label}
+            </button>
+          ))}
+        </nav>
+        <div className="px-4 py-3 border-t border-gray-800">
+          <button
+            type="button"
+            onClick={() => {
+              logout();
+              navigate('/login', { replace: true });
+            }}
+            className="w-full text-left px-3 py-2 text-sm rounded-md hover:bg-gray-800 transition text-red-400"
+          >
+            Đăng xuất
+          </button>
+        </div>
+      </aside>
 
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
-        <div className="rounded-xl border border-amber-100 bg-amber-50/80 p-4">
-          <h2 className="text-sm font-semibold text-amber-900 mb-1">Số lớp đang hoạt động</h2>
-          <p className="mt-2 text-2xl font-bold text-amber-800">8</p>
-          <p className="mt-1 text-xs text-amber-700">Ví dụ thống kê số lớp trong trường.</p>
+      {/* Main Content */}
+      <main className="flex-1 p-8">
+        <div className="flex items-center justify-between mb-6">
+          <div>
+            <h1 className="text-2xl font-semibold text-gray-800">Bảng điều khiển của Ban giám hiệu</h1>
+            <p className="text-sm text-gray-500 mt-1">
+              Quản lý trường, lớp học, giáo viên và phụ huynh trong phạm vi trường.
+            </p>
+          </div>
+          <div className="flex items-center gap-2 text-sm text-gray-700">
+            <button
+              type="button"
+              onClick={handleViewProfile}
+              className="inline-flex items-center gap-2 rounded-full border border-gray-200 bg-white px-3 py-1.5 shadow-sm hover:bg-gray-50 transition"
+            >
+              <span className="inline-flex h-8 w-8 items-center justify-center rounded-full bg-indigo-600 text-white font-semibold">
+                {userName.charAt(0).toUpperCase()}
+              </span>
+              <span className="font-medium">{userName}</span>
+            </button>
+          </div>
         </div>
-        <div className="rounded-xl border border-emerald-100 bg-emerald-50/70 p-4">
-          <h2 className="text-sm font-semibold text-emerald-900 mb-1">Số giáo viên</h2>
-          <p className="mt-2 text-2xl font-bold text-emerald-800">15</p>
-          <p className="mt-1 text-xs text-emerald-700">Tổng số giáo viên thuộc trường.</p>
-        </div>
-        <div className="rounded-xl border border-sky-100 bg-sky-50/70 p-4">
-          <h2 className="text-sm font-semibold text-sky-900 mb-1">Học sinh</h2>
-          <p className="mt-2 text-2xl font-bold text-sky-800">120</p>
-          <p className="mt-1 text-xs text-sky-700">Tổng số học sinh trong các lớp22.</p>
-        </div>
-      </div>
 
-      <div className="rounded-xl border border-amber-100 bg-amber-50/40 p-4">
-        <h3 className="text-sm font-semibold text-amber-900 mb-2">Dữ liệu trả về từ API</h3>
-        <pre className="text-xs text-amber-800 overflow-auto max-h-80">
-          {JSON.stringify(data, null, 2)}
-        </pre>
-      </div>
-    </RoleLayout>
+        {error && (
+          <div className="mb-4 rounded-md bg-red-50 border border-red-200 px-4 py-2 text-sm text-red-800">
+            {error}
+          </div>
+        )}
+
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
+          <div className="bg-white rounded-lg shadow p-6">
+            <h2 className="text-sm font-semibold text-gray-700 mb-1">Số lớp đang hoạt động</h2>
+            <p className="mt-2 text-2xl font-bold text-gray-800">8</p>
+            <p className="mt-1 text-xs text-gray-500">Ví dụ thống kê số lớp trong trường.</p>
+          </div>
+          <div className="bg-white rounded-lg shadow p-6">
+            <h2 className="text-sm font-semibold text-gray-700 mb-1">Số giáo viên</h2>
+            <p className="mt-2 text-2xl font-bold text-gray-800">15</p>
+            <p className="mt-1 text-xs text-gray-500">Tổng số giáo viên thuộc trường.</p>
+          </div>
+          <div className="bg-white rounded-lg shadow p-6">
+            <h2 className="text-sm font-semibold text-gray-700 mb-1">Học sinh</h2>
+            <p className="mt-2 text-2xl font-bold text-gray-800">120</p>
+            <p className="mt-1 text-xs text-gray-500">Tổng số học sinh trong các lớp.</p>
+          </div>
+        </div>
+
+        <div className="bg-white rounded-lg shadow p-6">
+          <h3 className="text-sm font-semibold text-gray-800 mb-2">Dữ liệu trả về từ API</h3>
+          {loading && (
+            <p className="text-sm text-gray-500">Đang tải...</p>
+          )}
+          {!loading && (
+            <pre className="text-xs text-gray-700 overflow-auto max-h-80 bg-gray-50 p-4 rounded">
+              {JSON.stringify(data, null, 2)}
+            </pre>
+          )}
+        </div>
+      </main>
+    </div>
   );
 }
 
 export default SchoolAdminDashboard;
-
