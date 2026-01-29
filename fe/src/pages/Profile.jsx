@@ -1,8 +1,18 @@
 import { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
+import { useAuth } from '../context/AuthContext';
 
 function Profile() {
   const navigate = useNavigate();
+  const {
+    user,
+    getProfile,
+    updateProfile,
+    changePassword,
+    loading,
+    error: authError,
+    setError,
+  } = useAuth();
 
   const [profileForm, setProfileForm] = useState({
     fullName: '',
@@ -19,72 +29,42 @@ function Profile() {
     confirmPassword: '',
   });
 
-  const [loadingProfile, setLoadingProfile] = useState(false);
   const [savingProfile, setSavingProfile] = useState(false);
   const [changingPassword, setChangingPassword] = useState(false);
   const [message, setMessage] = useState('');
-  const [error, setError] = useState('');
 
   useEffect(() => {
-    const token = localStorage.getItem('token');
-    const userStr = localStorage.getItem('user');
-
-    if (!token) {
+    if (!user) {
       navigate('/login', { replace: true });
       return;
     }
 
-    // Ưu tiên gọi API để lấy thông tin hồ sơ mới nhất
-    const fetchProfile = async () => {
+    // Load profile data từ user trong context hoặc fetch mới
+    const loadProfile = async () => {
       try {
-        setLoadingProfile(true);
-        setError('');
-
-        const res = await fetch('http://localhost:5000/api/auth/me', {
-          headers: {
-            Authorization: `Bearer ${token}`,
-          },
-        });
-
-        const json = await res.json();
-
-        if (!res.ok) {
-          if (res.status === 401) {
-            navigate('/login', { replace: true });
-            return;
-          }
-          throw new Error(json.message || 'Không lấy được hồ sơ người dùng');
-        }
-
-        const user = json.data || {};
-
-        setProfileForm((prev) => ({
-          ...prev,
-          fullName: user.fullName || user.username || '',
-          email: user.email || '',
-          phoneNumber: user.phoneNumber || '',
-          dateOfBirth: user.dateOfBirth ? user.dateOfBirth.substring(0, 10) : '',
-          role:
-            (user.roles &&
-              user.roles[0] &&
-              (user.roles[0].roleName || user.roles[0])) ||
-            '',
-          status: user.status === 'active' ? 'Đang hoạt động' : 'Đã khóa',
-        }));
-
-        // Cập nhật lại localStorage để các màn khác dùng chung thông tin mới
-        if (user && Object.keys(user).length > 0) {
-          localStorage.setItem('user', JSON.stringify(user));
+        const userData = await getProfile();
+        if (userData) {
+          setProfileForm((prev) => ({
+            ...prev,
+            fullName: userData.fullName || userData.username || '',
+            email: userData.email || '',
+            phoneNumber: userData.phoneNumber || '',
+            dateOfBirth: userData.dateOfBirth ? userData.dateOfBirth.substring(0, 10) : '',
+            role:
+              (userData.roles &&
+                userData.roles[0] &&
+                (userData.roles[0].roleName || userData.roles[0])) ||
+              '',
+            status: userData.status === 'active' ? 'Đang hoạt động' : 'Đã khóa',
+          }));
         }
       } catch (err) {
-        setError(err.message);
-      } finally {
-        setLoadingProfile(false);
+        // Error được xử lý trong context
       }
     };
 
-    fetchProfile();
-  }, [navigate]);
+    loadProfile();
+  }, [navigate, getProfile, user]);
 
   const handleProfileChange = (e) => {
     const { name, value } = e.target;
@@ -98,9 +78,7 @@ function Profile() {
 
   const handleSubmitProfile = async (e) => {
     e.preventDefault();
-    const token = localStorage.getItem('token');
-
-    if (!token) {
+    if (!user) {
       navigate('/login', { replace: true });
       return;
     }
@@ -108,34 +86,16 @@ function Profile() {
     try {
       setSavingProfile(true);
       setMessage('');
-      setError('');
+      setError(null);
 
-      const body = {
+      await updateProfile({
         fullName: profileForm.fullName,
         email: profileForm.email,
-      };
-
-      const res = await fetch('http://localhost:5000/api/auth/me', {
-        method: 'PUT',
-        headers: {
-          'Content-Type': 'application/json',
-          Authorization: `Bearer ${token}`,
-        },
-        body: JSON.stringify(body),
       });
-
-      const json = await res.json();
-
-      if (!res.ok) {
-        throw new Error(json.message || 'Cập nhật hồ sơ thất bại');
-      }
-
-      const user = json.data || {};
-      localStorage.setItem('user', JSON.stringify(user));
 
       setMessage('Cập nhật hồ sơ thành công.');
     } catch (err) {
-      setError(err.message);
+      // Error được xử lý trong context
     } finally {
       setSavingProfile(false);
     }
@@ -148,9 +108,7 @@ function Profile() {
       return;
     }
 
-    const token = localStorage.getItem('token');
-
-    if (!token) {
+    if (!user) {
       navigate('/login', { replace: true });
       return;
     }
@@ -158,25 +116,12 @@ function Profile() {
     try {
       setChangingPassword(true);
       setMessage('');
-      setError('');
+      setError(null);
 
-      const res = await fetch('http://localhost:5000/api/auth/change-password', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          Authorization: `Bearer ${token}`,
-        },
-        body: JSON.stringify({
-          currentPassword: passwordForm.currentPassword,
-          newPassword: passwordForm.newPassword,
-        }),
-      });
-
-      const json = await res.json();
-
-      if (!res.ok) {
-        throw new Error(json.message || 'Đổi mật khẩu thất bại');
-      }
+      await changePassword(
+        passwordForm.currentPassword,
+        passwordForm.newPassword,
+      );
 
       setMessage('Đổi mật khẩu thành công.');
       setPasswordForm({
@@ -185,7 +130,7 @@ function Profile() {
         confirmPassword: '',
       });
     } catch (err) {
-      setError(err.message);
+      // Error được xử lý trong context
     } finally {
       setChangingPassword(false);
     }
@@ -227,16 +172,16 @@ function Profile() {
           </div>
         </div>
 
-        {(message || error) && (
+        {(message || authError) && (
           <div className="mb-4">
             {message && (
               <div className="mb-2 rounded-md bg-green-50 border border-green-200 px-4 py-2 text-sm text-green-800">
                 {message}
               </div>
             )}
-            {error && (
+            {authError && (
               <div className="rounded-md bg-red-50 border border-red-200 px-4 py-2 text-sm text-red-800">
-                {error}
+                {authError}
               </div>
             )}
           </div>
@@ -247,7 +192,7 @@ function Profile() {
           <section className="bg-white rounded-lg shadow p-6">
             <h2 className="text-lg font-semibold text-gray-800 mb-4">
               Chỉnh sửa hồ sơ
-              {loadingProfile && (
+              {loading && (
                 <span className="ml-2 text-xs font-normal text-gray-400">
                   Đang tải...
                 </span>

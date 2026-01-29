@@ -1,53 +1,40 @@
 import { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import RoleLayout from '../../components/RoleLayout';
+import { useAuth } from '../../context/AuthContext';
+import { useSchoolAdmin } from '../../context/SchoolAdminContext';
 
 function SchoolAdminDashboard() {
   const [data, setData] = useState(null);
-  const [error, setError] = useState('');
   const navigate = useNavigate();
+  const { user, hasRole, logout } = useAuth();
+  const { getDashboard, loading, error } = useSchoolAdmin();
 
   useEffect(() => {
-    const token = localStorage.getItem('token');
-    const userStr = localStorage.getItem('user');
-
-    if (!token || !userStr) {
+    if (!user) {
       navigate('/login', { replace: true });
       return;
     }
 
-    const user = JSON.parse(userStr);
-    const roles = (user.roles || []).map((r) => r.roleName || r);
-
-    // Nếu không phải SchoolAdmin thì đá ra trang chủ
-    if (!roles.includes('SchoolAdmin')) {
+    if (!hasRole('SchoolAdmin')) {
       navigate('/', { replace: true });
       return;
     }
 
     const fetchData = async () => {
       try {
-        const res = await fetch('http://localhost:5000/api/school-admin/dashboard', {
-          headers: {
-            Authorization: `Bearer ${token}`,
-          },
-        });
-        const json = await res.json();
-        if (!res.ok) {
-          throw new Error(json.message || 'Không tải được dữ liệu school admin');
-        }
-        setData(json);
+        const response = await getDashboard();
+        setData(response);
       } catch (err) {
-        setError(err.message);
+        // Error được xử lý trong context
       }
     };
 
     fetchData();
-  }, [navigate]);
+  }, [navigate, user, hasRole, getDashboard]);
 
   const handleLogout = () => {
-    localStorage.removeItem('token');
-    localStorage.removeItem('user');
+    logout();
     navigate('/login', { replace: true });
   };
 
@@ -72,7 +59,7 @@ function SchoolAdminDashboard() {
       activeKey="overview"
       onLogout={handleLogout}
       onViewProfile={handleViewProfile}
-      userName={JSON.parse(localStorage.getItem('user') || '{}').fullName || JSON.parse(localStorage.getItem('user') || '{}').username || 'School Admin'}
+      userName={user?.fullName || user?.username || 'School Admin'}
     >
       {error && (
         <p className="mb-4 text-sm text-red-600 bg-red-50 border border-red-100 rounded-xl px-3 py-2">
