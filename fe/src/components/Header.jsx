@@ -180,9 +180,13 @@ function Header() {
                                 Liên hệ
                             </div>
                         </a>
-                        <div className="px-4 py-2 rounded-full cursor-pointer hover:bg-white hover:text-green-600 transition">
-                            Hỏi đáp
-                        </div>
+
+                        <a href="/qa">
+                            <div className="px-4 py-2 rounded-full cursor-pointer hover:bg-white hover:text-green-600 transition">
+                                Hỏi đáp
+                            </div>
+                        </a>
+
                     </nav>
 
                     {/* ===== SEARCH + LOGIN ===== */}
