@@ -74,7 +74,6 @@ function SystemAdminDashboard() {
   const handleViewProfile = () => {
     navigate('/profile');
   };
-
   return (
     <RoleLayout
       title="Bảng điều khiển System Admin"

@@ -72,7 +72,6 @@ function SchoolAdminDashboard() {
       activeKey="overview"
       onLogout={handleLogout}
       onViewProfile={handleViewProfile}
-      onEditProfile={handleViewProfile}
       userName={JSON.parse(localStorage.getItem('user') || '{}').fullName || JSON.parse(localStorage.getItem('user') || '{}').username || 'School Admin'}
     >
       {error && (
