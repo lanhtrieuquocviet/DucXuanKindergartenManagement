@@ -36,6 +36,19 @@ const userSchema = new mongoose.Schema({
     enum: ['active', 'inactive'],
     default: 'active'
   },
+  // Rate limiting cho forgot password
+  passwordResetAttempts: {
+    type: Number,
+    default: 0
+  },
+  lastPasswordResetAt: {
+    type: Date,
+    default: null
+  },
+  nextPasswordResetAllowedAt: {
+    type: Date,
+    default: null
+  },
   createdAt: {
     type: Date,
     default: Date.now

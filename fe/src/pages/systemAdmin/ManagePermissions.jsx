@@ -351,7 +351,10 @@ function ManagePermissions() {
         {/* Quản lý Permissions */}
         <div className="bg-white rounded-lg shadow p-6 mb-6">
           <div className="flex items-center justify-between mb-4">
-            <h3 className="text-sm font-semibold text-gray-800">Quản lý phân quyền</h3>
+            <div>
+              <h3 className="text-sm font-semibold text-gray-800">Quản lý phân quyền</h3>
+              <p className="text-xs text-gray-500 mt-1">Tổng số: {permissions.length} phân quyền</p>
+            </div>
             <button
               type="button"
               onClick={() => handleOpenPermissionForm()}
@@ -361,37 +364,39 @@ function ManagePermissions() {
             </button>
           </div>
 
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
+          <div className="max-h-64 overflow-y-auto border border-gray-200 rounded-lg p-2">
             {permissions.length === 0 ? (
-              <p className="text-sm text-gray-500 col-span-full">Chưa có phân quyền nào.</p>
+              <p className="text-sm text-gray-500 py-4">Chưa có phân quyền nào.</p>
             ) : (
-              permissions.map((perm) => (
-                <div
-                  key={perm._id || perm.id}
-                  className="flex items-center justify-between p-3 border border-gray-200 rounded-lg hover:bg-gray-50"
-                >
-                  <div className="flex-1">
-                    <div className="font-medium text-sm text-gray-900">{perm.code}</div>
-                    <div className="text-xs text-gray-500 mt-1">{perm.description}</div>
+              <div className="space-y-2">
+                {permissions.map((perm) => (
+                  <div
+                    key={perm._id || perm.id}
+                    className="flex items-center justify-between p-3 border border-gray-200 rounded-lg hover:bg-gray-50 transition-colors"
+                  >
+                    <div className="flex-1 min-w-0">
+                      <div className="font-medium text-sm text-gray-900 truncate">{perm.code}</div>
+                      <div className="text-xs text-gray-500 mt-1 line-clamp-2">{perm.description}</div>
+                    </div>
+                    <div className="flex gap-2 ml-3 flex-shrink-0">
+                      <button
+                        type="button"
+                        onClick={() => handleOpenPermissionForm(perm)}
+                        className="text-xs text-indigo-600 hover:text-indigo-800 font-medium whitespace-nowrap"
+                      >
+                        Sửa
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => handleDeletePermission(perm._id || perm.id)}
+                        className="text-xs text-red-600 hover:text-red-800 font-medium whitespace-nowrap"
+                      >
+                        Xóa
+                      </button>
+                    </div>
                   </div>
-                  <div className="flex gap-2 ml-2">
-                    <button
-                      type="button"
-                      onClick={() => handleOpenPermissionForm(perm)}
-                      className="text-xs text-indigo-600 hover:text-indigo-800"
-                    >
-                      Sửa
-                    </button>
-                    <button
-                      type="button"
-                      onClick={() => handleDeletePermission(perm._id || perm.id)}
-                      className="text-xs text-red-600 hover:text-red-800"
-                    >
-                      Xóa
-                    </button>
-                  </div>
-                </div>
-              ))
+                ))}
+              </div>
             )}
           </div>
         </div>
@@ -505,30 +510,45 @@ function ManagePermissions() {
                 </div>
 
                 <div className="mb-4">
-                  <div className="flex flex-wrap gap-2 mb-4 max-h-96 overflow-y-auto">
+                  <div className="text-xs text-gray-500 mb-2">
+                    Chọn phân quyền cho vai trò này ({selectedPermissions.size}/{permissions.length} đã chọn)
+                  </div>
+                  <div className="max-h-96 overflow-y-auto pr-2 border border-gray-200 rounded-lg p-2">
                     {permissions.length === 0 ? (
-                      <p className="text-sm text-gray-500">Chưa có phân quyền nào trong hệ thống.</p>
+                      <p className="text-sm text-gray-500 py-4">Chưa có phân quyền nào trong hệ thống.</p>
                     ) : (
-                      permissions.map((perm) => {
-                        const isChecked = selectedPermissions.has(perm.code);
-                        return (
-                          <button
-                            key={perm._id || perm.id}
-                            type="button"
-                            onClick={() => togglePermission(perm.code)}
-                            className={`inline-flex items-center rounded-lg border px-3 py-2 text-xs cursor-pointer transition-colors ${
-                              isChecked
-                                ? 'bg-indigo-600 border-indigo-600 text-white'
-                                : 'bg-gray-50 border-gray-200 text-gray-800 hover:bg-gray-100'
-                            }`}
-                          >
-                            <span className="font-medium mr-2">{perm.code}</span>
-                            {perm.description && (
-                              <span className="text-xs opacity-90">- {perm.description}</span>
-                            )}
-                          </button>
-                        );
-                      })
+                      <div className="space-y-2">
+                        {permissions.map((perm) => {
+                          const isChecked = selectedPermissions.has(perm.code);
+                          return (
+                            <label
+                              key={perm._id || perm.id}
+                              className={`flex items-start p-3 rounded-lg border cursor-pointer transition-colors ${
+                                isChecked
+                                  ? 'bg-indigo-50 border-indigo-500'
+                                  : 'bg-gray-50 border-gray-200 hover:bg-gray-100'
+                              }`}
+                            >
+                              <input
+                                type="checkbox"
+                                checked={isChecked}
+                                onChange={() => togglePermission(perm.code)}
+                                className="mt-0.5 mr-3 h-4 w-4 text-indigo-600 border-gray-300 rounded focus:ring-indigo-500 cursor-pointer flex-shrink-0"
+                              />
+                              <div className="flex-1 min-w-0">
+                                <div className={`font-medium text-sm ${isChecked ? 'text-indigo-900' : 'text-gray-900'}`}>
+                                  {perm.code}
+                                </div>
+                                {perm.description && (
+                                  <div className="text-xs text-gray-600 mt-1 line-clamp-2">
+                                    {perm.description}
+                                  </div>
+                                )}
+                              </div>
+                            </label>
+                          );
+                        })}
+                      </div>
                     )}
                   </div>
                 </div>

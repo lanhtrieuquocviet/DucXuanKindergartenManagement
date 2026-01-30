@@ -5,6 +5,8 @@ const {
   getProfile,
   updateProfile,
   changePassword,
+  verifyAccount,
+  resetPassword,
 } = require('../controller/authController');
 
 const router = express.Router();
@@ -37,5 +39,17 @@ router.put('/me', authenticate, updateProfile);
  * Đổi mật khẩu cho người dùng hiện tại
  */
 router.post('/change-password', authenticate, changePassword);
+
+/**
+ * POST /api/auth/forgot-password/verify-account
+ * 验证账户名，返回部分隐藏的邮箱
+ */
+router.post('/forgot-password/verify-account', verifyAccount);
+
+/**
+ * POST /api/auth/forgot-password/reset
+ * 验证完整邮箱并发送重置密码邮件
+ */
+router.post('/forgot-password/reset', resetPassword);
 
 module.exports = router;
