@@ -20,9 +20,14 @@ function Header() {
                                 Thông tin công khai
                             </div>
 
+
                             <div className="absolute top-full left-0 mt-2 hidden group-hover:block bg-white text-gray-800 rounded-xl shadow-xl min-w-[220px] z-50">
+                                <a href="/public-information">
+                                    <div className="px-4 py-3 hover:bg-green-100 cursor-pointer">
+                                        Thông tin chung về cơ sở giáo dục
+                                    </div>
+                                </a>
                                 {[
-                                    "Thông tin chung về cơ sở giáo dục",
                                     "Công khai thu chi tài chính",
                                     "Điều kiện đảm bảo chất lượng hoạt động giáo dục",
                                     "Kế hoạch và kết quả hoạt động giáo dục",

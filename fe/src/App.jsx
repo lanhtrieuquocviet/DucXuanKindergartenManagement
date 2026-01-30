@@ -18,6 +18,7 @@ import { SchoolAdminProvider } from './context/SchoolAdminContext';
 import { TeacherProvider } from './context/TeacherContext';
 import SimpleLayout from './layouts/SimpleLayout';
 import QnAPage from './pages/QuesAndAn/QnAPage';
+import PublicInfoPage from './pages/PublicInformation/PublicInfoPage';
 
 function AppContent() {
   return (
@@ -25,6 +26,11 @@ function AppContent() {
       <Routes>
         <Route path="/" element={<HomePage />} />
         <Route path="/about" element={<About />} />
+        {/* Thông tin công khai */}
+        <Route
+          path="/public-information"
+          element={<PublicInfoPage />}
+        />
         {/* 404 route phải ở cuối cùng */}
         <Route path="*" element={<div>404 Not Found</div>} />
       </Routes>
