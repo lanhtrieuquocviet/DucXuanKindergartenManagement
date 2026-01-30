@@ -1,5 +1,6 @@
 import { useState } from "react";
 
+/* ===== BLOG GIẢ ===== */
 const mockBlogs = Array.from({ length: 9 }, (_, i) => ({
   id: i + 1,
   title: `Hoạt động giáo dục nổi bật tháng ${i + 1}`,
@@ -12,15 +13,7 @@ như: hoạt động trải nghiệm, vui chơi ngoài trời, sinh hoạt tập
 chương trình giáo dục kỹ năng sống phù hợp với lứa tuổi mầm non.
 
 Thông qua các hoạt động này, trẻ được phát triển toàn diện về thể chất,
-trí tuệ, ngôn ngữ, tình cảm và kỹ năng xã hội. Đội ngũ giáo viên luôn tận tâm,
-sáng tạo trong từng bài giảng, chú trọng cá nhân hóa việc chăm sóc và giáo dục trẻ.
-
-Bên cạnh đó, nhà trường cũng tăng cường phối hợp với phụ huynh trong công tác
-chăm sóc – giáo dục trẻ, đảm bảo sự thống nhất giữa gia đình và nhà trường.
-
-Trong thời gian tới, Trường Mầm non Đức Xuân sẽ tiếp tục nâng cao chất lượng
-giáo dục, đầu tư cơ sở vật chất, đổi mới phương pháp giảng dạy, hướng tới mục
-tiêu xây dựng môi trường giáo dục hạnh phúc cho trẻ em.
+trí tuệ, ngôn ngữ, tình cảm và kỹ năng xã hội.
   `,
 }));
 
@@ -30,66 +23,96 @@ function Homepage() {
   const [page, setPage] = useState(1);
 
   const totalPage = Math.ceil(mockBlogs.length / PAGE_SIZE);
-  const start = (page - 1) * PAGE_SIZE;
-  const blogs = mockBlogs.slice(start, start + PAGE_SIZE);
+  const startIndex = (page - 1) * PAGE_SIZE;
+  const currentBlogs = mockBlogs.slice(startIndex, startIndex + PAGE_SIZE);
 
-  const mainBlog = blogs[0];
-  const subBlogs = blogs.slice(1);
+  const mainBlog = currentBlogs[0];
+  const subBlogs = currentBlogs.slice(1);
 
   return (
-    <div className="space-y-8">
+    <div className="space-y-10">
 
-      {/* Ảnh Slider (mockup) */}
+      {/* ===== SLIDER ===== */}
       <div className="h-[260px] border-2 border-gray-400 flex items-center justify-center text-xl font-semibold bg-gray-50">
         Ảnh Slider
       </div>
 
-      {/* Blog nổi bật */}
-      <h3 className="text-xl font-bold">Tin tức nổi bật</h3>
+      {/* ===== TIÊU ĐỀ ===== */}
+      <h3 className="text-xl font-bold border-b pb-2">
+        Tin tức nổi bật
+      </h3>
 
-      {/* Blog lớn */}
+      {/* ===== BLOG LỚN ===== */}
       {mainBlog && (
         <div className="border-2 border-gray-400 p-4 bg-white space-y-3">
           <div className="h-[220px] border flex items-center justify-center bg-gray-100">
             Ảnh bài viết
           </div>
 
-          <h4 className="text-lg font-semibold">{mainBlog.title}</h4>
+          <h4 className="text-lg font-semibold hover:text-green-700 cursor-pointer">
+            {mainBlog.title}
+          </h4>
+
           <p className="text-sm text-gray-700 line-clamp-4">
             {mainBlog.content}
           </p>
         </div>
       )}
 
-      {/* 3 blog nhỏ */}
+      {/* ===== BLOG NHỎ ===== */}
       <div className="grid grid-cols-3 gap-6">
         {subBlogs.map((blog) => (
-          <div key={blog.id} className="space-y-2">
+          <div
+            key={blog.id}
+            className="border p-2 space-y-2 hover:shadow cursor-pointer"
+          >
             <div className="h-[140px] border flex items-center justify-center bg-gray-100">
               Ảnh blog
             </div>
-            <div className="border px-3 py-2 text-sm font-medium">
+
+            <div className="text-sm font-medium line-clamp-2">
               {blog.title}
             </div>
           </div>
         ))}
       </div>
 
-      {/* Phân trang */}
-      <div className="flex justify-center gap-2 pt-4">
+      {/* ===== PHÂN TRANG ===== */}
+      <div className="flex justify-center items-center gap-2 pt-6">
+
+        {/* Prev */}
+        <button
+          disabled={page === 1}
+          onClick={() => setPage(page - 1)}
+          className={`px-3 py-1 border rounded
+            ${page === 1 ? "opacity-50 cursor-not-allowed" : "hover:bg-gray-100"}`}
+        >
+          «
+        </button>
+
+        {/* Page number */}
         {Array.from({ length: totalPage }).map((_, i) => (
           <button
             key={i}
             onClick={() => setPage(i + 1)}
-            className={`px-4 py-1 border rounded ${
-              page === i + 1
+            className={`px-4 py-1 border rounded
+              ${page === i + 1
                 ? "bg-green-600 text-white"
-                : "bg-white hover:bg-gray-100"
-            }`}
+                : "bg-white hover:bg-gray-100"}`}
           >
             {i + 1}
           </button>
         ))}
+
+        {/* Next */}
+        <button
+          disabled={page === totalPage}
+          onClick={() => setPage(page + 1)}
+          className={`px-3 py-1 border rounded
+            ${page === totalPage ? "opacity-50 cursor-not-allowed" : "hover:bg-gray-100"}`}
+        >
+          »
+        </button>
       </div>
     </div>
   );
