@@ -96,24 +96,21 @@ function Header() {
                                                 Ban giám hiệu
                                             </div>
                                         </a>
-                                        <a href="/specialized-group">
+                                        <a href="/professional-group">
                                             <div className="px-4 py-3 hover:bg-green-100 cursor-pointer">
                                                 Tổ Chuyên môn
                                             </div>
                                         </a>
-                                        {[
-                                            "Tổ Hành chính - Văn phòng",
-                                            "Hội Thường trực PHHS",
-                                        ].map((item) => (
-                                            <div
-                                                key={item}
-                                                className="px-4 py-3 cursor-pointer
-                       hover:bg-green-50 hover:text-green-700
-                       transition"
-                                            >
-                                                {item}
+                                        <a href="/administrative-staff">
+                                            <div className="px-4 py-3 hover:bg-green-100 cursor-pointer">
+                                                Tổ Hành chính - Văn phòng
                                             </div>
-                                        ))}
+                                        </a>
+                                        <a href="/parent-council">
+                                            <div className="px-4 py-3 hover:bg-green-100 cursor-pointer">
+                                                Hội Thường trực PHHS
+                                            </div>
+                                        </a>
                                     </div>
                                 </div>
                             </div>
