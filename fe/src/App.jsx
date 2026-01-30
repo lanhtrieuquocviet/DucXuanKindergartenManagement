@@ -19,6 +19,7 @@ import { TeacherProvider } from './context/TeacherContext';
 import SimpleLayout from './layouts/SimpleLayout';
 import QnAPage from './pages/QuesAndAn/QnAPage';
 import PublicInfoPage from './pages/PublicInformation/PublicInfoPage';
+import IntroductionSchool from './pages/Introduce/IntroductionSchool';
 
 function AppContent() {
   return (
@@ -30,6 +31,10 @@ function AppContent() {
         <Route
           path="/public-information"
           element={<PublicInfoPage />}
+        />
+        <Route
+          path="/introduce-school"
+          element={<IntroductionSchool />}
         />
         {/* 404 route phải ở cuối cùng */}
         <Route path="*" element={<div>404 Not Found</div>} />

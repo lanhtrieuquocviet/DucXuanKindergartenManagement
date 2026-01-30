@@ -50,7 +50,7 @@ function PublicInfoPage() {
 
       {/* Breadcrumb */}
       <div className="text-sm text-gray-600 flex items-center gap-2">
-        <span>🏠 Trang chủ</span>
+        <span>Trang chủ</span>
         <span>›</span>
         <span>Thông tin công khai</span>
         <span>›</span>
