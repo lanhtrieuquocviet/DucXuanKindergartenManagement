@@ -76,7 +76,7 @@ function Header() {
                                     </div>
                                 </a>
 
-                                
+
                                 {/* Cơ cấu tổ chức */}
                                 <div className="relative group/sub">
                                     <div
@@ -91,9 +91,17 @@ function Header() {
                                     <div className="absolute top-0 left-full ml-1 hidden group-hover/sub:block
                       bg-white text-gray-800 rounded-xl shadow-lg
                       min-w-[260px] border">
+                                        <a href="/board-of-directors">
+                                            <div className="px-4 py-3 hover:bg-green-100 cursor-pointer">
+                                                Ban giám hiệu
+                                            </div>
+                                        </a>
+                                        <a href="/specialized-group">
+                                            <div className="px-4 py-3 hover:bg-green-100 cursor-pointer">
+                                                Tổ Chuyên môn
+                                            </div>
+                                        </a>
                                         {[
-                                            "Ban Giám hiệu",
-                                            "Tổ Chuyên môn",
                                             "Tổ Hành chính - Văn phòng",
                                             "Hội Thường trực PHHS",
                                         ].map((item) => (
