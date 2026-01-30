@@ -9,6 +9,8 @@ import SystemAdminDashboard from './pages/systemAdmin/AdminDashboard';
 import ManagePermission from './pages/systemAdmin/ManagePermission';
 import TeacherDashboard from './pages/teacher/TeacherDashboard';
 import SchoolAdminDashboard from './pages/schoolAdmin/SchoolAdminDashboard';
+import ClassList from './pages/schoolAdmin/ClassList';
+import StudentInClass from './pages/schoolAdmin/StudentInClass';
 import Contact from './pages/Contact';
 import Profile from './pages/Profile';
 import { AuthProvider } from './context/AuthContext';
@@ -63,6 +65,22 @@ function App() {
             )}
           />
           <Route
+            path="/system-admin/classes"
+            element={(
+              <SystemAdminProvider>
+                <ClassList />
+              </SystemAdminProvider>
+            )}
+          />
+          <Route
+            path="/system-admin/classes/:classId/students"
+            element={(
+              <SystemAdminProvider>
+                <StudentInClass />
+              </SystemAdminProvider>
+            )}
+          />
+          <Route
             path="/teacher"
             element={(
               <TeacherProvider>
@@ -75,6 +93,22 @@ function App() {
             element={(
               <SchoolAdminProvider>
                 <SchoolAdminDashboard />
+              </SchoolAdminProvider>
+            )}
+          />
+          <Route
+            path="/school-admin/classes"
+            element={(
+              <SchoolAdminProvider>
+                <ClassList />
+              </SchoolAdminProvider>
+            )}
+          />
+          <Route
+            path="/school-admin/classes/:classId/students"
+            element={(
+              <SchoolAdminProvider>
+                <StudentInClass />
               </SchoolAdminProvider>
             )}
           />

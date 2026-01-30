@@ -127,6 +127,21 @@ export const ENDPOINTS = {
   TEACHER: {
     DASHBOARD: '/teacher/dashboard',
   },
+  // Classes
+  CLASSES: {
+    LIST: '/classes',
+    DETAIL: (classId) => `/classes/${classId}`,
+    STUDENTS: (classId) => `/classes/${classId}/students`,
+    CREATE: '/classes',
+  },
+  // Students
+  STUDENTS: {
+    LIST: '/students',
+    DETAIL: (studentId) => `/students/${studentId}`,
+    CREATE: '/students',
+    UPDATE: (studentId) => `/students/${studentId}`,
+    DELETE: (studentId) => `/students/${studentId}`,
+  },
 };
 
 export default {
