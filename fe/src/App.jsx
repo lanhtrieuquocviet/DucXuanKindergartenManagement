@@ -20,6 +20,9 @@ import SimpleLayout from './layouts/SimpleLayout';
 import QnAPage from './pages/QuesAndAn/QnAPage';
 import PublicInfoPage from './pages/PublicInformation/PublicInfoPage';
 import IntroductionSchool from './pages/Introduce/IntroductionSchool';
+import TeacherTeam from './pages/Introduce/TeacherTeam';
+import Facilities from './pages/Introduce/Facilities';
+import StudySchedule from './pages/Introduce/StudySchedule';
 
 function AppContent() {
   return (
@@ -35,6 +38,20 @@ function AppContent() {
         <Route
           path="/introduce-school"
           element={<IntroductionSchool />}
+        />
+        <Route 
+          path="/teacher-team"
+          element={<TeacherTeam />}
+        />
+
+        <Route 
+          path="/facilities"
+          element={<Facilities />}
+        />
+
+        <Route 
+          path="/study-schedule"
+          element={<StudySchedule />}
         />
         {/* 404 route phải ở cuối cùng */}
         <Route path="*" element={<div>404 Not Found</div>} />

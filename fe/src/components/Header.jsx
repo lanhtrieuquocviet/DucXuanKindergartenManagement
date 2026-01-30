@@ -58,23 +58,25 @@ function Header() {
                                         Giới thiệu trường
                                     </div>
                                 </a>
-
-                                {[
-                                    
-                                    "Đội ngũ giáo viên",
-                                    "Cơ sở vật chất",
-                                    "Lịch học tập",
-                                ].map((item) => (
-                                    <div
-                                        key={item}
-                                        className="px-4 py-3 cursor-pointer
-                   hover:bg-green-50 hover:text-green-700
-                   transition"
-                                    >
-                                        {item}
+                                <a href="/teacher-team">
+                                    <div className="px-4 py-3 hover:bg-green-100 cursor-pointer">
+                                        Đội ngũ giáo viên
                                     </div>
-                                ))}
+                                </a>
 
+                                <a href="/facilities">
+                                    <div className="px-4 py-3 hover:bg-green-100 cursor-pointer">
+                                        Cơ sở vật chất
+                                    </div>
+                                </a>
+
+                                <a href="/study-schedule">
+                                    <div className="px-4 py-3 hover:bg-green-100 cursor-pointer">
+                                        Lịch học tập
+                                    </div>
+                                </a>
+
+                                
                                 {/* Cơ cấu tổ chức */}
                                 <div className="relative group/sub">
                                     <div
