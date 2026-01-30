@@ -19,7 +19,7 @@ function LeftNav() {
             </li>
           )}
         </NavLink>
-        <NavLink to="/specialized-group">
+        <NavLink to="/professional-group">
           {({ isActive }) => (
             <li
               style={{
@@ -32,8 +32,32 @@ function LeftNav() {
             </li>
           )}
         </NavLink>
-        <li>Tổ Hành chính</li>
-        <li>Hội PHHS</li>
+        <NavLink to="/administrative-staff">
+          {({ isActive }) => (
+            <li
+              style={{
+                color: isActive ? "red" : "#333",
+                fontWeight: isActive ? "600" : "400",
+                cursor: "pointer",
+              }}
+            >
+              Tổ hành chính
+            </li>
+          )}
+        </NavLink>
+        <NavLink to="/parent-council">
+          {({ isActive }) => (
+            <li
+              style={{
+                color: isActive ? "red" : "#333",
+                fontWeight: isActive ? "600" : "400",
+                cursor: "pointer",
+              }}
+            >
+              Hội PHHS
+            </li>
+          )}
+        </NavLink>
       </Dropdown>
 
       <Dropdown title="Các hoạt động">

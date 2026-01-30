@@ -26,7 +26,9 @@ import TeacherTeam from './pages/Introduce/TeacherTeam';
 import Facilities from './pages/Introduce/Facilities';
 import StudySchedule from './pages/Introduce/StudySchedule';
 import BoardOfDirectors from './pages/Introduce/BoardOfDirectors';
-import SpecializedGroup from './pages/expertTeam/SpecializedGroup';
+import AdministrativeOffice from './pages/Introduce/AdministrativeOffice';
+import ParentsCouncil from './pages/Introduce/ParentsCouncil';
+import ProfessionalGroup from './pages/Introduce/ProfessionalGroup';
 
 function AppContent() {
   return (
@@ -64,8 +66,18 @@ function AppContent() {
         />
 
         <Route 
-          path="/specialized-group"
-          element={<SpecializedGroup />}
+          path="/professional-group"
+          element={<ProfessionalGroup />}
+        />
+
+        <Route 
+          path="/administrative-staff"
+          element={<AdministrativeOffice />}
+        />
+
+        <Route 
+          path="/parent-council"
+          element={<ParentsCouncil />}
         />
         {/* 404 route phải ở cuối cùng */}
         <Route path="*" element={<div>404 Not Found</div>} />
