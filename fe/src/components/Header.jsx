@@ -53,9 +53,14 @@ function Header() {
                             <div className="absolute top-full left-0 mt-2 hidden group-hover:block
                   bg-white text-gray-800 rounded-xl shadow-lg
                   min-w-[260px] z-50 border">
+                                <a href="/introduce-school">
+                                    <div className="px-4 py-3 hover:bg-green-100 cursor-pointer">
+                                        Giới thiệu trường
+                                    </div>
+                                </a>
 
                                 {[
-                                    "Giới thiệu trường",
+                                    
                                     "Đội ngũ giáo viên",
                                     "Cơ sở vật chất",
                                     "Lịch học tập",
