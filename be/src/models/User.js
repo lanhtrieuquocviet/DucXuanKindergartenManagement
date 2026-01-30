@@ -46,18 +46,18 @@ const userSchema = new mongoose.Schema({
     default: null
   },
   nextPasswordResetAllowedAt: {
-    type: Date,
-    default: null
-  },
-  createdAt: {
-    type: Date,
-    default: Date.now
-  },
-  updatedAt: {
-    type: Date,
-    default: Date.now
-  }
-}, {
+      type: Date,
+      default: null
+    },
+    createdAt: {
+      type: Date,
+      default: Date.now
+    },
+    updatedAt: {
+      type: Date,
+      default: Date.now
+    }
+  }, {
   timestamps: true, // Tự động cập nhật createdAt và updatedAt
   collection: 'User' // Tên collection trong MongoDB
 });
