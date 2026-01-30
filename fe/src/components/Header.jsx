@@ -8,9 +8,11 @@ function Header() {
                     {/* ===== NAV LEFT ===== */}
                     <nav className="flex gap-2 text-sm font-semibold text-white">
                         {/* Trang chủ */}
-                        <div className="px-4 py-2 rounded-full cursor-pointer hover:bg-white hover:text-green-600 transition">
-                            Trang chủ
-                        </div>
+                        <a href="/">
+                            <div className="px-4 py-2 rounded-full cursor-pointer hover:bg-white hover:text-green-600 transition">
+                                Trang chủ
+                            </div>
+                        </a>
 
                         {/* Thông tin công khai */}
                         <div className="relative group">
@@ -18,9 +20,14 @@ function Header() {
                                 Thông tin công khai
                             </div>
 
+
                             <div className="absolute top-full left-0 mt-2 hidden group-hover:block bg-white text-gray-800 rounded-xl shadow-xl min-w-[220px] z-50">
+                                <a href="/public-information">
+                                    <div className="px-4 py-3 hover:bg-green-100 cursor-pointer">
+                                        Thông tin chung về cơ sở giáo dục
+                                    </div>
+                                </a>
                                 {[
-                                    "Thông tin chung về cơ sở giáo dục",
                                     "Công khai thu chi tài chính",
                                     "Điều kiện đảm bảo chất lượng hoạt động giáo dục",
                                     "Kế hoạch và kết quả hoạt động giáo dục",
@@ -46,23 +53,30 @@ function Header() {
                             <div className="absolute top-full left-0 mt-2 hidden group-hover:block
                   bg-white text-gray-800 rounded-xl shadow-lg
                   min-w-[260px] z-50 border">
-
-                                {[
-                                    "Giới thiệu trường",
-                                    "Đội ngũ giáo viên",
-                                    "Cơ sở vật chất",
-                                    "Lịch học tập",
-                                ].map((item) => (
-                                    <div
-                                        key={item}
-                                        className="px-4 py-3 cursor-pointer
-                   hover:bg-green-50 hover:text-green-700
-                   transition"
-                                    >
-                                        {item}
+                                <a href="/introduce-school">
+                                    <div className="px-4 py-3 hover:bg-green-100 cursor-pointer">
+                                        Giới thiệu trường
                                     </div>
-                                ))}
+                                </a>
+                                <a href="/teacher-team">
+                                    <div className="px-4 py-3 hover:bg-green-100 cursor-pointer">
+                                        Đội ngũ giáo viên
+                                    </div>
+                                </a>
 
+                                <a href="/facilities">
+                                    <div className="px-4 py-3 hover:bg-green-100 cursor-pointer">
+                                        Cơ sở vật chất
+                                    </div>
+                                </a>
+
+                                <a href="/study-schedule">
+                                    <div className="px-4 py-3 hover:bg-green-100 cursor-pointer">
+                                        Lịch học tập
+                                    </div>
+                                </a>
+
+                                
                                 {/* Cơ cấu tổ chức */}
                                 <div className="relative group/sub">
                                     <div
@@ -178,9 +192,13 @@ function Header() {
                                 Liên hệ
                             </div>
                         </a>
-                        <div className="px-4 py-2 rounded-full cursor-pointer hover:bg-white hover:text-green-600 transition">
-                            Hỏi đáp
-                        </div>
+
+                        <a href="/qa">
+                            <div className="px-4 py-2 rounded-full cursor-pointer hover:bg-white hover:text-green-600 transition">
+                                Hỏi đáp
+                            </div>
+                        </a>
+
                     </nav>
 
                     {/* ===== SEARCH + LOGIN ===== */}
