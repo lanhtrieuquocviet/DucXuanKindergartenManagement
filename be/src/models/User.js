@@ -36,15 +36,28 @@ const userSchema = new mongoose.Schema({
     enum: ['active', 'inactive'],
     default: 'active'
   },
-  createdAt: {
-    type: Date,
-    default: Date.now
+  // Rate limiting cho forgot password
+  passwordResetAttempts: {
+    type: Number,
+    default: 0
   },
-  updatedAt: {
+  lastPasswordResetAt: {
     type: Date,
-    default: Date.now
-  }
-}, {
+    default: null
+  },
+  nextPasswordResetAllowedAt: {
+      type: Date,
+      default: null
+    },
+    createdAt: {
+      type: Date,
+      default: Date.now
+    },
+    updatedAt: {
+      type: Date,
+      default: Date.now
+    }
+  }, {
   timestamps: true, // Tự động cập nhật createdAt và updatedAt
   collection: 'User' // Tên collection trong MongoDB
 });

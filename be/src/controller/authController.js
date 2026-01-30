@@ -1,6 +1,7 @@
 const bcrypt = require('bcryptjs');
 const jwt = require('jsonwebtoken');
 const User = require('../models/User');
+const { sendPasswordResetEmail, generateRandomPassword } = require('../utils/email');
 
 // ============================================
 // Constants
@@ -39,6 +40,80 @@ const buildUserResponse = (user) => {
   return {
     ...sanitizeUser(user),
     roles,
+  };
+};
+
+/**
+ * Helper: 部分隐藏邮箱地址
+ * @param {string} email - 完整邮箱地址
+ * @returns {string} - 部分隐藏的邮箱（例如：abc***@gmail.com）
+ */
+const maskEmail = (email) => {
+  if (!email || !email.includes('@')) {
+    return email;
+  }
+  const [localPart, domain] = email.split('@');
+  if (localPart.length <= 3) {
+    return `${localPart[0]}***@${domain}`;
+  }
+  const visibleChars = Math.min(3, Math.floor(localPart.length / 2));
+  const visible = localPart.substring(0, visibleChars);
+  return `${visible}***@${domain}`;
+};
+
+/**
+ * Helper: Tính toán thời gian chờ dựa trên số lần reset (exponential backoff)
+ * @param {number} attempts - Số lần đã reset password
+ * @returns {number} - Thời gian chờ tính bằng phút
+ */
+const calculateWaitTime = (attempts) => {
+  if (attempts === 0) {
+    return 0; // Lần đầu không cần chờ
+  }
+  // Exponential backoff: 5 phút, 10 phút, 20 phút, 40 phút, 80 phút...
+  // Công thức: 5 * 2^(attempts - 1)
+  return 5 * Math.pow(2, attempts - 1);
+};
+
+/**
+ * Helper: Kiểm tra và tính toán thời gian chờ còn lại
+ * @param {import('../models/User')} user - User object
+ * @returns {Object} - { allowed: boolean, waitMinutes: number, waitUntil: Date }
+ */
+const checkPasswordResetRateLimit = (user) => {
+  const now = new Date();
+  const RESET_WINDOW_HOURS = 24; // Reset counter sau 24 giờ
+
+  // Reset counter nếu đã qua 24 giờ kể từ lần reset cuối
+  if (user.lastPasswordResetAt) {
+    const hoursSinceLastReset = (now - user.lastPasswordResetAt) / (1000 * 60 * 60);
+    if (hoursSinceLastReset >= RESET_WINDOW_HOURS) {
+      // Reset counter
+      user.passwordResetAttempts = 0;
+      user.nextPasswordResetAllowedAt = null;
+      return { allowed: true, waitMinutes: 0, waitUntil: null };
+    }
+  }
+
+  // Kiểm tra nếu đang trong thời gian chờ
+  if (user.nextPasswordResetAllowedAt && now < user.nextPasswordResetAllowedAt) {
+    const waitMs = user.nextPasswordResetAllowedAt - now;
+    const waitMinutes = Math.ceil(waitMs / (1000 * 60));
+    return {
+      allowed: false,
+      waitMinutes,
+      waitUntil: user.nextPasswordResetAllowedAt,
+    };
+  }
+
+  // Tính toán thời gian chờ cho lần tiếp theo
+  const waitMinutes = calculateWaitTime(user.passwordResetAttempts);
+  const waitUntil = waitMinutes > 0 ? new Date(now.getTime() + waitMinutes * 60 * 1000) : null;
+
+  return {
+    allowed: true,
+    waitMinutes: 0,
+    waitUntil,
   };
 };
 
@@ -289,9 +364,171 @@ const changePassword = async (req, res) => {
   }
 };
 
+/**
+ * POST /api/auth/forgot-password/verify-account
+ * 验证账户名，返回部分隐藏的邮箱
+ */
+const verifyAccount = async (req, res) => {
+  try {
+    const { username } = req.body;
+
+    if (!username) {
+      return res.status(400).json({
+        status: 'error',
+        message: 'Vui lòng nhập tài khoản',
+      });
+    }
+
+    const user = await User.findOne({ username });
+
+    if (!user) {
+      return res.status(404).json({
+        status: 'error',
+        message: 'Tài khoản không tồn tại trong hệ thống',
+      });
+    }
+
+    if (user.status === 'inactive') {
+      return res.status(403).json({
+        status: 'error',
+        message: 'Tài khoản đã bị khóa. Vui lòng liên hệ nhà trường.',
+      });
+    }
+
+    if (!user.email) {
+      return res.status(400).json({
+        status: 'error',
+        message: 'Tài khoản này chưa có email. Vui lòng liên hệ nhà trường.',
+      });
+    }
+
+    const maskedEmail = maskEmail(user.email);
+
+    return res.status(200).json({
+      status: 'success',
+      message: 'Tài khoản hợp lệ',
+      data: {
+        maskedEmail,
+      },
+    });
+  } catch (error) {
+    // eslint-disable-next-line no-console
+    console.error('Verify account error:', error);
+    return res.status(500).json({
+      status: 'error',
+      message: error.message || 'Không thể xác minh tài khoản',
+    });
+  }
+};
+
+/**
+ * POST /api/auth/forgot-password/reset
+ * Xác minh email và gửi mật khẩu mới qua email
+ */
+const resetPassword = async (req, res) => {
+  try {
+    const { username, email } = req.body;
+
+    if (!username || !email) {
+      return res.status(400).json({
+        status: 'error',
+        message: 'Vui lòng nhập đầy đủ tài khoản và email',
+      });
+    }
+
+    const user = await User.findOne({ username });
+
+    if (!user) {
+      return res.status(404).json({
+        status: 'error',
+        message: 'Tài khoản không tồn tại trong hệ thống',
+      });
+    }
+
+    if (user.status === 'inactive') {
+      return res.status(403).json({
+        status: 'error',
+        message: 'Tài khoản đã bị khóa. Vui lòng liên hệ nhà trường.',
+      });
+    }
+
+    if (user.email.toLowerCase() !== email.toLowerCase().trim()) {
+      return res.status(400).json({
+        status: 'error',
+        message: 'Email không khớp với tài khoản',
+      });
+    }
+
+    // Kiểm tra rate limiting
+    const rateLimitCheck = checkPasswordResetRateLimit(user);
+    if (!rateLimitCheck.allowed) {
+      const waitMinutes = rateLimitCheck.waitMinutes;
+      const waitHours = Math.floor(waitMinutes / 60);
+      const waitMins = waitMinutes % 60;
+      let waitMessage = '';
+      if (waitHours > 0) {
+        waitMessage = `${waitHours} giờ ${waitMins > 0 ? `${waitMins} phút` : ''}`;
+      } else {
+        waitMessage = `${waitMins} phút`;
+      }
+
+      return res.status(429).json({
+        status: 'error',
+        message: `Bạn đã yêu cầu đặt lại mật khẩu quá nhiều lần. Vui lòng đợi ${waitMessage} trước khi thử lại.`,
+        data: {
+          waitMinutes,
+          waitUntil: rateLimitCheck.waitUntil,
+        },
+      });
+    }
+
+    // Tạo mật khẩu mới ngẫu nhiên
+    const newPassword = generateRandomPassword(12);
+
+    // Mã hóa mật khẩu mới
+    const salt = await bcrypt.genSalt(10);
+    const passwordHash = await bcrypt.hash(newPassword, salt);
+
+    // Cập nhật mật khẩu và rate limiting info
+    user.passwordHash = passwordHash;
+    user.passwordResetAttempts = (user.passwordResetAttempts || 0) + 1;
+    user.lastPasswordResetAt = new Date();
+    user.nextPasswordResetAllowedAt = rateLimitCheck.waitUntil;
+    await user.save();
+
+    // Gửi email với mật khẩu mới
+    try {
+      await sendPasswordResetEmail(user.email, user.username, newPassword);
+    } catch (emailError) {
+      // Nếu gửi email thất bại, vẫn trả về lỗi nhưng không revert mật khẩu
+      // (vì mật khẩu đã được đổi, người dùng có thể liên hệ admin)
+      // eslint-disable-next-line no-console
+      console.error('Failed to send email, but password was reset:', emailError);
+      return res.status(500).json({
+        status: 'error',
+        message: 'Mật khẩu đã được đặt lại nhưng không thể gửi email. Vui lòng liên hệ nhà trường để lấy mật khẩu mới.',
+      });
+    }
+
+    return res.status(200).json({
+      status: 'success',
+      message: 'Mật khẩu mới đã được gửi đến email của bạn. Vui lòng kiểm tra hộp thư.',
+    });
+  } catch (error) {
+    // eslint-disable-next-line no-console
+    console.error('Reset password error:', error);
+    return res.status(500).json({
+      status: 'error',
+      message: error.message || 'Không thể gửi email đặt lại mật khẩu',
+    });
+  }
+};
+
 module.exports = {
   login,
   getProfile,
   updateProfile,
   changePassword,
+  verifyAccount,
+  resetPassword,
 };

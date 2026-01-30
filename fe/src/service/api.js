@@ -111,6 +111,8 @@ export const ENDPOINTS = {
     LOGIN: '/auth/login',
     ME: '/auth/me',
     CHANGE_PASSWORD: '/auth/change-password',
+    FORGOT_PASSWORD_VERIFY_ACCOUNT: '/auth/forgot-password/verify-account',
+    FORGOT_PASSWORD_RESET: '/auth/forgot-password/reset',
   },
   // System Admin
   SYSTEM_ADMIN: {
