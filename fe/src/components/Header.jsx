@@ -123,20 +123,31 @@ function Header() {
                             </div>
 
                             <div className="absolute top-full left-0 mt-2 hidden group-hover:block bg-white text-gray-800 rounded-xl shadow-xl min-w-[220px] z-50">
-                                {[
-                                    "Bản tin trường",
-                                    "Thông báo",
-                                    "Tin tức từ Phòng",
-                                    "Thông báo từ Phòng",
-                                    "Hoạt động ngoại khóa",
-                                ].map((item) => (
-                                    <div
-                                        key={item}
-                                        className="px-4 py-3 hover:bg-green-100 cursor-pointer"
-                                    >
-                                        {item}
+                                <a href="/school-news">
+                                    <div className="px-4 py-3 hover:bg-green-100 cursor-pointer">
+                                        Bản tin trường
                                     </div>
-                                ))}
+                                </a>
+                                <a href="/notifications-news">
+                                    <div className="px-4 py-3 hover:bg-green-100 cursor-pointer">
+                                        Thông báo
+                                    </div>
+                                </a>
+                                <a href="/department-news">
+                                    <div className="px-4 py-3 hover:bg-green-100 cursor-pointer">
+                                        Tin tức từ Phòng
+                                    </div>
+                                </a>
+                                <a href="/department-notifications">
+                                    <div className="px-4 py-3 hover:bg-green-100 cursor-pointer">
+                                        Thông báo từ Phòng
+                                    </div>
+                                </a>
+                                <a href="/extracurricular-activities">
+                                    <div className="px-4 py-3 hover:bg-green-100 cursor-pointer">
+                                        Hoạt động ngoại khóa
+                                    </div>
+                                </a>
                             </div>
                         </div>
 

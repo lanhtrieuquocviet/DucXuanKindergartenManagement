@@ -61,10 +61,71 @@ function LeftNav() {
       </Dropdown>
 
       <Dropdown title="Các hoạt động">
-        <li>Bản tin trường</li>
-        <li>Thông báo</li>
-        <li>Tin từ Phòng</li>
-        <li>Ngoại khóa</li>
+        <NavLink to="/school-news">
+          {({ isActive }) => (
+            <li
+              style={{
+                color: isActive ? "red" : "#333",
+                fontWeight: isActive ? "600" : "400",
+                cursor: "pointer",
+              }}
+            >
+              Bản tin trường
+            </li>
+          )}
+        </NavLink>
+        <NavLink to="/notifications-news">
+          {({ isActive }) => (
+            <li
+              style={{
+                color: isActive ? "red" : "#333",
+                fontWeight: isActive ? "600" : "400",
+                cursor: "pointer",
+              }}
+            >
+              Thông báo
+            </li>
+          )}
+        </NavLink>
+        <NavLink to="/department-news">
+          {({ isActive }) => (
+            <li
+              style={{
+                color: isActive ? "red" : "#333",
+                fontWeight: isActive ? "600" : "400",
+                cursor: "pointer",
+              }}
+            >
+              Tin tức từ Phòng
+            </li>
+          )}
+        </NavLink>
+        <NavLink to="/department-notifications">
+          {({ isActive }) => (
+            <li
+              style={{
+                color: isActive ? "red" : "#333",
+                fontWeight: isActive ? "600" : "400",
+                cursor: "pointer",
+              }}
+            >
+              Thông báo từ Phòng
+            </li>
+          )}
+        </NavLink>
+        <NavLink to="/extracurricular-activities">
+          {({ isActive }) => (
+            <li
+              style={{
+                color: isActive ? "red" : "#333",
+                fontWeight: isActive ? "600" : "400",
+                cursor: "pointer",
+              }}
+            >
+              Hoạt động ngoại khóa
+            </li>
+          )}
+        </NavLink>
       </Dropdown>
 
       <Dropdown title="Kế hoạch CS-GD">

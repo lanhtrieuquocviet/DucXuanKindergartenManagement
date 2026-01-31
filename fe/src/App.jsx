@@ -29,6 +29,11 @@ import BoardOfDirectors from './pages/Introduce/BoardOfDirectors';
 import AdministrativeOffice from './pages/Introduce/AdministrativeOffice';
 import ParentsCouncil from './pages/Introduce/ParentsCouncil';
 import ProfessionalGroup from './pages/Introduce/ProfessionalGroup';
+import SchoolNews from './pages/News/SchoolNews';
+import Notifications from './pages/News/Notifications';
+import DepartmentNews from './pages/News/DepartmentNews';
+import DepartmentNotifications from './pages/News/DepartmentNotifications';
+import ExtracurricularActivities from './pages/News/ExtracurricularActivities';
 
 function AppContent() {
   return (
@@ -78,6 +83,31 @@ function AppContent() {
         <Route 
           path="/parent-council"
           element={<ParentsCouncil />}
+        />
+
+        <Route 
+          path="/school-news"
+          element={<SchoolNews />}
+        />
+
+        <Route 
+          path="/notifications-news"
+          element={<Notifications />}
+        />
+
+        <Route 
+          path="/department-news"
+          element={<DepartmentNews />}
+        />
+
+        <Route 
+          path="/department-notifications"
+          element={<DepartmentNotifications />}
+        />
+
+        <Route 
+          path="/extracurricular-activities"
+          element={<ExtracurricularActivities />}
         />
         {/* 404 route phải ở cuối cùng */}
         <Route path="*" element={<div>404 Not Found</div>} />
