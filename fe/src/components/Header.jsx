@@ -157,7 +157,7 @@ function Header() {
                                 Văn bản
                             </div>
 
-                            <div className="absolute top-full left-0 mt-2 hidden group-hover:block bg-white text-gray-800 rounded-xl shadow-xl min-w-[220px] z-50">   
+                            <div className="absolute top-full left-0 mt-2 hidden group-hover:block bg-white text-gray-800 rounded-xl shadow-xl min-w-[220px] z-50">
                                 <a href="/legal-documents">
                                     <div className="px-4 py-3 hover:bg-green-100 cursor-pointer">
                                         Văn bản pháp quy
@@ -178,27 +178,81 @@ function Header() {
                             </div>
 
                             <div className="absolute top-full left-0 mt-2 hidden group-hover:block bg-white text-gray-800 rounded-xl shadow-xl min-w-[220px] z-50">
-                                {[
-                                    "Học trực tuyến",
-                                    "Chương trình tuần",
-                                    "Thực đơn tuần",
-                                    "Thư viện ảnh",
-                                    "Video Clip",
-                                    "Tài liệu",
-                                    "Thời khóa biểu",
-                                    "Giáo án điện tử",
-                                    "Chia sẻ kinh nghiệm",
-                                    "Điều cần biết",
-                                    "Thơ văn - nhạc",
-                                    "Thư giãn",
-                                ].map((item) => (
-                                    <div
-                                        key={item}
-                                        className="px-4 py-3 hover:bg-green-100 cursor-pointer"
-                                    >
-                                        {item}
+                                <a
+                                    href="https://k12online.vn/"
+                                    target="_blank"
+                                    rel="noopener noreferrer"
+                                >
+                                    <div className="px-4 py-3 hover:bg-green-100 cursor-pointer">
+                                        Học trực tuyến
                                     </div>
-                                ))}
+                                </a>
+
+                                <a href="/weekly-program">
+                                    <div className="px-4 py-3 hover:bg-green-100 cursor-pointer">
+                                        Trương chình tuần
+                                    </div>
+                                </a>
+
+                                <a href="/weekly-menu">
+                                    <div className="px-4 py-3 hover:bg-green-100 cursor-pointer">
+                                        Thực đơn tuần
+                                    </div>
+                                </a>
+
+                                <a href="/photo-gallery">
+                                    <div className="px-4 py-3 hover:bg-green-100 cursor-pointer">
+                                        Thư viện ảnh
+                                    </div>
+                                </a>
+
+                                <a href="/video-gallery">
+                                    <div className="px-4 py-3 hover:bg-green-100 cursor-pointer">
+                                        Video clip
+                                    </div>
+                                </a>
+
+                                <a href="/document-library">
+                                    <div className="px-4 py-3 hover:bg-green-100 cursor-pointer">
+                                        Tài liệu
+                                    </div>
+                                </a>
+
+                                <a href="/schedule">
+                                    <div className="px-4 py-3 hover:bg-green-100 cursor-pointer">
+                                        Thời khóa biểu
+                                    </div>
+                                </a>
+
+                                <a href="/lesson-plan">
+                                    <div className="px-4 py-3 hover:bg-green-100 cursor-pointer">
+                                        Giáo án điện tử
+                                    </div>
+                                </a>
+
+                                <a href="/experience-sharing">
+                                    <div className="px-4 py-3 hover:bg-green-100 cursor-pointer">
+                                        Chia sẻ kinh nghiệm
+                                    </div>
+                                </a>
+
+                                <a href="/things-to-know">
+                                    <div className="px-4 py-3 hover:bg-green-100 cursor-pointer">
+                                        Điều cần biết
+                                    </div>
+                                </a>
+
+                                <a href="/poetry-music">
+                                    <div className="px-4 py-3 hover:bg-green-100 cursor-pointer">
+                                        Thơ văn - nhạc
+                                    </div>
+                                </a>
+
+                                <a href="/relax-page">
+                                    <div className="px-4 py-3 hover:bg-green-100 cursor-pointer">
+                                        Thư giãn
+                                    </div>
+                                </a>
                             </div>
                         </div>
                         {/* Các menu thường */}
