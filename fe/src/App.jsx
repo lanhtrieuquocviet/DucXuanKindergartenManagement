@@ -36,6 +36,17 @@ import DepartmentNotifications from './pages/News/DepartmentNotifications';
 import ExtracurricularActivities from './pages/News/ExtracurricularActivities';
 import LegalDocuments from './pages/Document/LegalDocuments';
 import DepartmentDocuments from './pages/Document/DepartmentDocuments';
+import WeeklyMenu from './pages/Library/WeeklyMenu';
+import WeeklyProgram from './pages/Library/WeeklyProgram';
+import PhotoGallery from './pages/Library/PhotoGallery';
+import VideoGallery from './pages/Library/VideoGallery';
+import DocumentLibrary from './pages/Library/DocumentLibrary';
+import Schedule from './pages/Library/Schedule';
+import LessonPlan from './pages/Library/LessonPlan';
+import ExperienceSharing from './pages/Library/ExperienceSharing';
+import ThingsToKnow from './pages/Library/ThingsToKnow';
+import PoetryMusic from './pages/Library/PoetryMusic';
+import RelaxPage from './pages/Library/RelaxPage';
 
 function AppContent() {
   return (
@@ -44,83 +55,60 @@ function AppContent() {
         <Route path="/" element={<HomePage />} />
         <Route path="/about" element={<About />} />
         {/* Thông tin công khai */}
-        <Route
-          path="/public-information"
-          element={<PublicInfoPage />}
-        />
-        <Route
-          path="/introduce-school"
-          element={<IntroductionSchool />}
-        />
-        <Route 
-          path="/teacher-team"
-          element={<TeacherTeam />}
-        />
+        <Route path="/public-information" element={<PublicInfoPage />} />
 
-        <Route 
-          path="/facilities"
-          element={<Facilities />}
-        />
+        <Route path="/introduce-school" element={<IntroductionSchool />} />
 
-        <Route 
-          path="/study-schedule"
-          element={<StudySchedule />}
-        />
+        <Route path="/teacher-team" element={<TeacherTeam />} />
 
-        <Route 
-          path="/board-of-directors"
-          element={<BoardOfDirectors />}
-        />
+        <Route path="/facilities" element={<Facilities />} />
 
-        <Route 
-          path="/professional-group"
-          element={<ProfessionalGroup />}
-        />
+        <Route path="/study-schedule" element={<StudySchedule />} />
 
-        <Route 
-          path="/administrative-staff"
-          element={<AdministrativeOffice />}
-        />
+        <Route path="/board-of-directors" element={<BoardOfDirectors />} />
 
-        <Route 
-          path="/parent-council"
-          element={<ParentsCouncil />}
-        />
+        <Route path="/professional-group" element={<ProfessionalGroup />} /> 
 
-        <Route 
-          path="/school-news"
-          element={<SchoolNews />}
-        />
+        <Route path="/administrative-staff" element={<AdministrativeOffice />} />
 
-        <Route 
-          path="/notifications-news"
-          element={<Notifications />}
-        />
+        <Route path="/parent-council" element={<ParentsCouncil />} />
 
-        <Route 
-          path="/department-news"
-          element={<DepartmentNews />}
-        />
+        <Route path="/school-news" element={<SchoolNews />} /> 
 
-        <Route 
-          path="/department-notifications"
-          element={<DepartmentNotifications />}
-        />
+        <Route path="/notifications-news" element={<Notifications />} />
 
-        <Route 
-          path="/extracurricular-activities"
-          element={<ExtracurricularActivities />}
-        />
+        <Route path="/department-news" element={<DepartmentNews />} />
 
-        <Route 
-          path="/legal-documents"
-          element={<LegalDocuments />}
-        />
+        <Route path="/department-notifications" element={<DepartmentNotifications />} />
 
-        <Route 
-          path="/department-documents"
-          element={<DepartmentDocuments />}
-        />
+        <Route path="/extracurricular-activities" element={<ExtracurricularActivities />} />
+
+        <Route path="/legal-documents" element={<LegalDocuments />} />
+
+        <Route path="/department-documents" element={<DepartmentDocuments />} />
+
+        <Route path="/weekly-program" element={<WeeklyProgram />} />
+
+        <Route path="/weekly-menu" element={<WeeklyMenu />} />
+
+        <Route path="/photo-gallery" element={<PhotoGallery />} />
+
+        <Route path="/video-gallery" element={<VideoGallery />} />
+
+        <Route path="/document-library" element={<DocumentLibrary />} />
+
+        <Route path="/schedule" element={<Schedule />} />
+
+        <Route path="/lesson-plan" element={<LessonPlan />} />
+
+        <Route path="/experience-sharing" element={<ExperienceSharing />} />
+
+        <Route path="/things-to-know" element={<ThingsToKnow />} />
+
+        <Route path="/poetry-music" element={<PoetryMusic />} />
+
+        <Route path="/relax-page" element={<RelaxPage />} />
+        
         {/* 404 route phải ở cuối cùng */}
         <Route path="*" element={<div>404 Not Found</div>} />
       </Routes>
