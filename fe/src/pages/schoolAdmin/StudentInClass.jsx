@@ -12,9 +12,13 @@ function StudentInClass() {
   const [error, setError] = useState(null);
   const [searchTerm, setSearchTerm] = useState('');
   const navigate = useNavigate();
-  const { user, hasRole, logout } = useAuth();
+  const { user, hasRole, logout, isInitializing } = useAuth();
 
   useEffect(() => {
+    if (isInitializing) {
+      return;
+    }
+
     if (!user) {
       navigate('/login', { replace: true });
       return;
@@ -31,7 +35,7 @@ function StudentInClass() {
     }
 
     fetchStudents();
-  }, [navigate, user, hasRole, classId]);
+  }, [navigate, user, hasRole, classId, isInitializing]);
 
   const fetchStudents = async () => {
     try {

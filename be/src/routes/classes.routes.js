@@ -6,8 +6,34 @@ const {
   getClassDetail,
   createClass
 } = require('../controller/classController');
+const Classes = require('../models/Classes');
 
 const router = express.Router();
+
+/**
+ * DEBUG: Lấy dữ liệu thô (raw) của tất cả các lớp
+ * GET /api/classes/debug/raw
+ */
+router.get('/debug/raw', authenticate, async (req, res) => {
+  try {
+    const rawClasses = await Classes.find().lean();
+    const totalDocs = await Classes.countDocuments();
+    
+    return res.status(200).json({
+      status: 'success',
+      message: `Found ${totalDocs} raw classes`,
+      data: rawClasses,
+      total: totalDocs
+    });
+  } catch (error) {
+    console.error('Debug raw error:', error);
+    return res.status(500).json({
+      status: 'error',
+      message: 'Debug endpoint error',
+      error: error.message
+    });
+  }
+});
 
 /**
  * Lấy danh sách tất cả các lớp học

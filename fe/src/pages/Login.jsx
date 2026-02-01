@@ -18,8 +18,12 @@ function Login() {
     e.preventDefault();
     try {
       const { user: newUser } = await login(form.username, form.password);
+      // eslint-disable-next-line no-console
+      console.log('Login successful - newUser:', newUser);
       // Chuyển hướng theo role
       const roles = (newUser.roles || []).map((r) => r.roleName || r);
+      // eslint-disable-next-line no-console
+      console.log('Mapped roles:', roles);
       if (roles.includes('SystemAdmin')) {
         navigate('/system-admin', { replace: true });
       } else if (roles.includes('SchoolAdmin')) {

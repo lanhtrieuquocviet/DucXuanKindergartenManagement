@@ -242,13 +242,25 @@ export const AuthProvider = ({
 
   // Get user roles
   const getUserRoles = useCallback(() => {
-    if (!user || !user.roles) return [];
-    return user.roles.map((r) => r.roleName || r);
+    if (!user || !user.roles) {
+      console.log('DEBUG getUserRoles: No user or roles', { user: user ? 'exists' : 'null', roles: user?.roles ? 'exists' : 'null' });
+      return [];
+    }
+    const roles = user.roles.map((r) => {
+      console.log('DEBUG: Processing role:', r);
+      return r.roleName || r;
+    });
+    console.log('getUserRoles result:', { input: user.roles, output: roles });
+    return roles;
   }, [user]);
 
   // Check if user has specific role
   const hasRole = useCallback((roleName) => {
-    return getUserRoles().includes(roleName);
+    const userRoles = getUserRoles();
+    const hasIt = userRoles.includes(roleName);
+    // eslint-disable-next-line no-console
+    console.log('hasRole check:', { roleName, userRoles, hasIt });
+    return hasIt;
   }, [getUserRoles]);
 
   const value = {

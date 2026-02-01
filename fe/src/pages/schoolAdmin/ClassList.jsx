@@ -10,9 +10,13 @@ function ClassList() {
   const [error, setError] = useState(null);
   const [searchTerm, setSearchTerm] = useState('');
   const navigate = useNavigate();
-  const { user, hasRole, logout } = useAuth();
+  const { user, hasRole, logout, isInitializing } = useAuth();
 
   useEffect(() => {
+    if (isInitializing) {
+      return;
+    }
+
     if (!user) {
       navigate('/login', { replace: true });
       return;
@@ -24,13 +28,18 @@ function ClassList() {
     }
 
     fetchClasses();
-  }, [navigate, user, hasRole]);
+  }, [navigate, user, hasRole, isInitializing]);
 
   const fetchClasses = async () => {
     try {
       setLoading(true);
       setError(null);
       const response = await get(ENDPOINTS.CLASSES.LIST);
+      console.log('=== FRONTEND DEBUG: fetchClasses ===');
+      console.log('API Response:', response);
+      console.log('Response data:', response.data);
+      console.log('Data length:', response.data ? response.data.length : 'null');
+      console.log('=== END DEBUG ===');
       setClasses(response.data || []);
     } catch (err) {
       setError(err.message || 'Lỗi khi tải danh sách lớp học');
