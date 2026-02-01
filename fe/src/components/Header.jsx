@@ -157,18 +157,17 @@ function Header() {
                                 Văn bản
                             </div>
 
-                            <div className="absolute top-full left-0 mt-2 hidden group-hover:block bg-white text-gray-800 rounded-xl shadow-xl min-w-[220px] z-50">
-                                {[
-                                    "Văn bản pháp quy",
-                                    "Văn bản từ Phòng",
-                                ].map((item) => (
-                                    <div
-                                        key={item}
-                                        className="px-4 py-3 hover:bg-green-100 cursor-pointer"
-                                    >
-                                        {item}
+                            <div className="absolute top-full left-0 mt-2 hidden group-hover:block bg-white text-gray-800 rounded-xl shadow-xl min-w-[220px] z-50">   
+                                <a href="/legal-documents">
+                                    <div className="px-4 py-3 hover:bg-green-100 cursor-pointer">
+                                        Văn bản pháp quy
                                     </div>
-                                ))}
+                                </a>
+                                <a href="/department-documents">
+                                    <div className="px-4 py-3 hover:bg-green-100 cursor-pointer">
+                                        Văn bản từ Phòng
+                                    </div>
+                                </a>
                             </div>
                         </div>
 

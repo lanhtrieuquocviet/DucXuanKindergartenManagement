@@ -34,6 +34,8 @@ import Notifications from './pages/News/Notifications';
 import DepartmentNews from './pages/News/DepartmentNews';
 import DepartmentNotifications from './pages/News/DepartmentNotifications';
 import ExtracurricularActivities from './pages/News/ExtracurricularActivities';
+import LegalDocuments from './pages/Document/LegalDocuments';
+import DepartmentDocuments from './pages/Document/DepartmentDocuments';
 
 function AppContent() {
   return (
@@ -108,6 +110,16 @@ function AppContent() {
         <Route 
           path="/extracurricular-activities"
           element={<ExtracurricularActivities />}
+        />
+
+        <Route 
+          path="/legal-documents"
+          element={<LegalDocuments />}
+        />
+
+        <Route 
+          path="/department-documents"
+          element={<DepartmentDocuments />}
         />
         {/* 404 route phải ở cuối cùng */}
         <Route path="*" element={<div>404 Not Found</div>} />
