@@ -13,10 +13,12 @@ function generateCaptcha(length = 5) {
 }
 
 function ForgotPassword() {
-  const [step, setStep] = useState(1); // 1: 输入账户名, 2: 输入邮箱
+  const [step, setStep] = useState(1); // 1: Nhập tài khoản, 2: Nhập OTP, 3: Nhập mật khẩu mới
   const [account, setAccount] = useState('');
   const [maskedEmail, setMaskedEmail] = useState('');
-  const [email, setEmail] = useState('');
+  const [otpCode, setOtpCode] = useState('');
+  const [newPassword, setNewPassword] = useState('');
+  const [confirmPassword, setConfirmPassword] = useState('');
   const [sent, setSent] = useState(false);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
@@ -57,8 +59,7 @@ function ForgotPassword() {
 
       if (response.status === 'success') {
         setMaskedEmail(response.data.maskedEmail);
-        setStep(2);
-        // 重置验证码
+        setStep(2); // Chuyển sang bước nhập OTP
         refreshCaptcha();
       }
     } catch (err) {
@@ -84,39 +85,95 @@ function ForgotPassword() {
       return;
     }
 
+    if (!otpCode.trim()) {
+      setError('Vui lòng nhập mã OTP');
+      return;
+    }
+
     setCaptchaError('');
     setLoading(true);
 
     try {
       const response = await post(
-        ENDPOINTS.AUTH.FORGOT_PASSWORD_RESET,
-        { username: account, email },
+        ENDPOINTS.AUTH.FORGOT_PASSWORD_VERIFY_OTP,
+        { username: account, otpCode: otpCode.trim() },
         { includeAuth: false }
       );
 
       if (response.status === 'success') {
-    setSent(true);
+        setStep(3); // Chuyển sang bước nhập mật khẩu mới
+        refreshCaptcha();
       }
     } catch (err) {
-      // Xử lý rate limiting (status 429)
-      if (err.status === 429 && err.data) {
-        const { waitMinutes, waitUntil } = err.data;
-        const waitHours = Math.floor(waitMinutes / 60);
-        const waitMins = waitMinutes % 60;
-        let waitMessage = '';
-        if (waitHours > 0) {
-          waitMessage = `${waitHours} giờ${waitMins > 0 ? ` ${waitMins} phút` : ''}`;
-        } else {
-          waitMessage = `${waitMins} phút`;
-        }
-        setError(
-          err.message ||
-            `Bạn đã yêu cầu đặt lại mật khẩu quá nhiều lần. Vui lòng đợi ${waitMessage} trước khi thử lại.`
-        );
-      } else {
-        setError(err.message || 'Email không khớp hoặc có lỗi xảy ra');
-      }
+      setError(err.message || 'Mã OTP không chính xác hoặc đã hết hạn');
       refreshCaptcha();
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  // Hàm validation mật khẩu
+  const validatePassword = (password) => {
+    const errors = [];
+
+    // Kiểm tra độ dài tối thiểu
+    if (password.length < 8) {
+      errors.push('Mật khẩu phải có ít nhất 8 ký tự');
+    }
+
+    // Kiểm tra độ dài tối đa
+    if (password.length > 64) {
+      errors.push('Mật khẩu không được vượt quá 64 ký tự');
+    }
+
+    // Kiểm tra khoảng trắng
+    if (password.includes(' ')) {
+      errors.push('Mật khẩu không được chứa khoảng trắng');
+    }
+
+    // Kiểm tra khoảng trắng đầu/cuối
+    if (password !== password.trim()) {
+      errors.push('Mật khẩu không được có khoảng trắng ở đầu hoặc cuối');
+    }
+
+    return errors;
+  };
+
+  const handleStep3Submit = async (e) => {
+    e.preventDefault();
+    setError('');
+
+    if (!newPassword || !confirmPassword) {
+      setError('Vui lòng nhập đầy đủ mật khẩu mới và xác nhận mật khẩu');
+      return;
+    }
+
+    // Validate mật khẩu mới
+    const passwordErrors = validatePassword(newPassword);
+    if (passwordErrors.length > 0) {
+      setError(passwordErrors.join('. '));
+      return;
+    }
+
+    if (newPassword !== confirmPassword) {
+      setError('Mật khẩu xác nhận không khớp');
+      return;
+    }
+
+    setLoading(true);
+
+    try {
+      const response = await post(
+        ENDPOINTS.AUTH.FORGOT_PASSWORD_RESET,
+        { username: account, newPassword },
+        { includeAuth: false }
+      );
+
+      if (response.status === 'success') {
+        setSent(true);
+      }
+    } catch (err) {
+      setError(err.message || 'Không thể đặt lại mật khẩu');
     } finally {
       setLoading(false);
     }
@@ -124,9 +181,19 @@ function ForgotPassword() {
 
   const handleBackToStep1 = () => {
     setStep(1);
-    setEmail('');
+    setOtpCode('');
+    setNewPassword('');
+    setConfirmPassword('');
     setError('');
     setSent(false);
+    refreshCaptcha();
+  };
+
+  const handleBackToStep2 = () => {
+    setStep(2);
+    setNewPassword('');
+    setConfirmPassword('');
+    setError('');
     refreshCaptcha();
   };
 
@@ -137,14 +204,19 @@ function ForgotPassword() {
           <h1 className="text-xl md:text-2xl font-bold text-sky-900">
             Quên mật khẩu
           </h1>
-          {step === 1 ? (
-          <p className="mt-2 text-xs md:text-sm text-sky-600">
-            Nhập tài khoản dùng để đăng nhập. Hệ thống sẽ gửi hướng dẫn đặt lại mật
-            khẩu.
-          </p>
-          ) : (
+          {step === 1 && (
             <p className="mt-2 text-xs md:text-sm text-sky-600">
-              Nhập email đầy đủ của tài khoản <strong>{account}</strong> để xác minh.
+              Nhập tài khoản dùng để đăng nhập. Hệ thống sẽ gửi mã OTP qua email.
+            </p>
+          )}
+          {step === 2 && (
+            <p className="mt-2 text-xs md:text-sm text-sky-600">
+              Nhập mã OTP đã được gửi đến email <strong>{maskedEmail}</strong>
+            </p>
+          )}
+          {step === 3 && (
+            <p className="mt-2 text-xs md:text-sm text-sky-600">
+              Nhập mật khẩu mới cho tài khoản <strong>{account}</strong>
             </p>
           )}
         </div>
@@ -230,29 +302,33 @@ function ForgotPassword() {
               {loading ? 'Đang xử lý...' : 'Tiếp theo'}
             </button>
           </form>
-        ) : (
+        ) : step === 2 ? (
           <form onSubmit={handleStep2Submit} className="space-y-5">
             <div className="space-y-2">
               <label
-                htmlFor="email"
+                htmlFor="otp"
                 className="block text-sm font-medium text-sky-900"
               >
-                Email
+                Mã OTP <span className="text-red-500">*</span>
               </label>
               <div className="mb-2 text-xs text-sky-600">
                 Email của bạn: <strong className="text-sky-800">{maskedEmail}</strong>
               </div>
               <input
-                id="email"
-                name="email"
-                type="email"
+                id="otp"
+                name="otp"
+                type="text"
                 required
-                value={email}
-                onChange={(e) => setEmail(e.target.value)}
-                disabled={loading || sent}
-                className="block w-full rounded-xl border border-sky-100 bg-sky-50/60 px-3 py-2.5 text-sm text-sky-900 placeholder-sky-400 shadow-sm focus:border-sky-400 focus:bg-white focus:outline-none focus:ring-2 focus:ring-sky-200 transition disabled:opacity-50 disabled:cursor-not-allowed"
-                placeholder="Nhập email đầy đủ"
+                maxLength={6}
+                value={otpCode}
+                onChange={(e) => setOtpCode(e.target.value.replace(/\D/g, ''))}
+                disabled={loading}
+                className="block w-full rounded-xl border border-sky-100 bg-sky-50/60 px-3 py-2.5 text-sm text-sky-900 placeholder-sky-400 shadow-sm focus:border-sky-400 focus:bg-white focus:outline-none focus:ring-2 focus:ring-sky-200 transition disabled:opacity-50 disabled:cursor-not-allowed text-center text-2xl tracking-widest font-mono"
+                placeholder="000000"
               />
+              <p className="text-xs text-sky-500 mt-1">
+                Mã OTP có 6 chữ số, có hiệu lực trong 10 phút
+              </p>
             </div>
 
             {/* Mã bảo mật */}
@@ -300,30 +376,103 @@ function ForgotPassword() {
             )}
           </div>
 
-          {sent && (
-            <p className="text-sm text-emerald-700 bg-emerald-50 border border-emerald-100 rounded-xl px-3 py-2">
-                Hướng dẫn đặt lại mật khẩu đã được gửi đến email của bạn.
-            </p>
-          )}
-
             <div className="flex gap-3">
               <button
                 type="button"
                 onClick={handleBackToStep1}
-                disabled={loading || sent}
+                disabled={loading}
                 className="flex-1 inline-flex items-center justify-center rounded-xl border border-sky-300 bg-white px-4 py-2.5 text-sm font-semibold text-sky-700 shadow-sm hover:bg-sky-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-sky-300 transition disabled:opacity-50 disabled:cursor-not-allowed"
               >
                 Quay lại
               </button>
-          <button
-            type="submit"
-                disabled={loading || sent}
+              <button
+                type="submit"
+                disabled={loading}
                 className="flex-1 inline-flex items-center justify-center rounded-xl bg-gradient-to-r from-sky-500 to-emerald-400 px-4 py-2.5 text-sm font-semibold text-white shadow-md hover:from-sky-600 hover:to-emerald-500 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-sky-300 transition disabled:opacity-50 disabled:cursor-not-allowed"
-          >
-                {loading ? 'Đang gửi...' : sent ? 'Đã gửi' : 'Gửi yêu cầu'}
-          </button>
+              >
+                {loading ? 'Đang xác minh...' : 'Xác minh OTP'}
+              </button>
             </div>
-        </form>
+          </form>
+        ) : (
+          <form onSubmit={handleStep3Submit} className="space-y-5">
+            {sent ? (
+              <div className="text-center space-y-4">
+                <p className="text-sm text-emerald-700 bg-emerald-50 border border-emerald-100 rounded-xl px-4 py-3">
+                  Đặt lại mật khẩu thành công! Bạn có thể đăng nhập bằng mật khẩu mới.
+                </p>
+                <Link
+                  to="/login"
+                  className="inline-flex items-center justify-center rounded-xl bg-gradient-to-r from-sky-500 to-emerald-400 px-6 py-2.5 text-sm font-semibold text-white shadow-md hover:from-sky-600 hover:to-emerald-500 transition"
+                >
+                  Đăng nhập ngay
+                </Link>
+              </div>
+            ) : (
+              <>
+                <div className="space-y-2">
+                  <label
+                    htmlFor="newPassword"
+                    className="block text-sm font-medium text-sky-900"
+                  >
+                    Mật khẩu mới <span className="text-red-500">*</span>
+                  </label>
+                  <input
+                    id="newPassword"
+                    name="newPassword"
+                    type="password"
+                    required
+                    value={newPassword}
+                    onChange={(e) => setNewPassword(e.target.value)}
+                    disabled={loading || sent}
+                    className="block w-full rounded-xl border border-sky-100 bg-sky-50/60 px-3 py-2.5 text-sm text-sky-900 placeholder-sky-400 shadow-sm focus:border-sky-400 focus:bg-white focus:outline-none focus:ring-2 focus:ring-sky-200 transition disabled:opacity-50 disabled:cursor-not-allowed"
+                    placeholder="Nhập mật khẩu mới (8-64 ký tự, không có khoảng trắng)"
+                  />
+                  <p className="text-xs text-sky-500 mt-1">
+                    Yêu cầu: 8-64 ký tự, không chứa khoảng trắng
+                  </p>
+                </div>
+
+                <div className="space-y-2">
+                  <label
+                    htmlFor="confirmPassword"
+                    className="block text-sm font-medium text-sky-900"
+                  >
+                    Xác nhận mật khẩu <span className="text-red-500">*</span>
+                  </label>
+                  <input
+                    id="confirmPassword"
+                    name="confirmPassword"
+                    type="password"
+                    required
+                    value={confirmPassword}
+                    onChange={(e) => setConfirmPassword(e.target.value)}
+                    disabled={loading || sent}
+                    className="block w-full rounded-xl border border-sky-100 bg-sky-50/60 px-3 py-2.5 text-sm text-sky-900 placeholder-sky-400 shadow-sm focus:border-sky-400 focus:bg-white focus:outline-none focus:ring-2 focus:ring-sky-200 transition disabled:opacity-50 disabled:cursor-not-allowed"
+                    placeholder="Nhập lại mật khẩu mới"
+                  />
+                </div>
+
+                <div className="flex gap-3">
+                  <button
+                    type="button"
+                    onClick={handleBackToStep2}
+                    disabled={loading || sent}
+                    className="flex-1 inline-flex items-center justify-center rounded-xl border border-sky-300 bg-white px-4 py-2.5 text-sm font-semibold text-sky-700 shadow-sm hover:bg-sky-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-sky-300 transition disabled:opacity-50 disabled:cursor-not-allowed"
+                  >
+                    Quay lại
+                  </button>
+                  <button
+                    type="submit"
+                    disabled={loading || sent}
+                    className="flex-1 inline-flex items-center justify-center rounded-xl bg-gradient-to-r from-sky-500 to-emerald-400 px-4 py-2.5 text-sm font-semibold text-white shadow-md hover:from-sky-600 hover:to-emerald-500 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-sky-300 transition disabled:opacity-50 disabled:cursor-not-allowed"
+                  >
+                    {loading ? 'Đang xử lý...' : 'Đặt lại mật khẩu'}
+                  </button>
+                </div>
+              </>
+            )}
+          </form>
         )}
 
         <div className="mt-6 text-center text-xs text-sky-500">

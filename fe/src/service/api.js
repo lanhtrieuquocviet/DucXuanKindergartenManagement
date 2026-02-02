@@ -112,6 +112,7 @@ export const ENDPOINTS = {
     ME: '/auth/me',
     CHANGE_PASSWORD: '/auth/change-password',
     FORGOT_PASSWORD_VERIFY_ACCOUNT: '/auth/forgot-password/verify-account',
+    FORGOT_PASSWORD_VERIFY_OTP: '/auth/forgot-password/verify-otp',
     FORGOT_PASSWORD_RESET: '/auth/forgot-password/reset',
   },
   // System Admin

@@ -6,13 +6,14 @@ const {
   updateProfile,
   changePassword,
   verifyAccount,
+  verifyOTP,
   resetPassword,
 } = require('../controller/authController');
 
 const router = express.Router();
 
 // ============================================
-// Authentication Routes
+// Các route xác thực
 // ============================================
 
 /**
@@ -72,8 +73,8 @@ router.post('/change-password', authenticate, changePassword);
  * @openapi
  * /api/auth/forgot-password/verify-account:
  *   post:
- *     summary: Xác minh tài khoản và trả về email đã ẩn một phần
- *     description: Kiểm tra tài khoản có tồn tại và trả về email đã được ẩn một phần để người dùng xác nhận
+ *     summary: Xác minh tài khoản và gửi mã OTP qua email
+ *     description: Kiểm tra tài khoản có tồn tại và gửi mã OTP 6 chữ số đến email của người dùng. Mã OTP có hiệu lực trong 10 phút.
  *     tags:
  *       - Auth
  *     requestBody:
@@ -90,7 +91,7 @@ router.post('/change-password', authenticate, changePassword);
  *                 example: parent01
  *     responses:
  *       200:
- *         description: Tài khoản hợp lệ, trả về email đã ẩn
+ *         description: Mã OTP đã được gửi đến email
  *         content:
  *           application/json:
  *             schema:
@@ -101,7 +102,7 @@ router.post('/change-password', authenticate, changePassword);
  *                   example: success
  *                 message:
  *                   type: string
- *                   example: Tài khoản hợp lệ
+ *                   example: Mã OTP đã được gửi đến email của bạn. Vui lòng kiểm tra hộp thư.
  *                 data:
  *                   type: object
  *                   properties:
@@ -114,8 +115,10 @@ router.post('/change-password', authenticate, changePassword);
  *         description: Tài khoản đã bị khóa
  *       404:
  *         description: Tài khoản không tồn tại
+ *       429:
+ *         description: Đã yêu cầu quá nhiều lần, cần đợi
  *       500:
- *         description: Lỗi server
+ *         description: Lỗi server hoặc không thể gửi email
  */
 router.post('/forgot-password/verify-account', verifyAccount);
 
@@ -186,6 +189,77 @@ router.post('/forgot-password/verify-account', verifyAccount);
  *                       format: date-time
  *       500:
  *         description: Lỗi server hoặc không thể gửi email
+ */
+/**
+ * @openapi
+ * /api/auth/forgot-password/verify-otp:
+ *   post:
+ *     summary: Xác minh mã OTP
+ *     description: Xác minh mã OTP đã được gửi qua email để cho phép đặt lại mật khẩu
+ *     tags:
+ *       - Auth
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             required:
+ *               - username
+ *               - otpCode
+ *             properties:
+ *               username:
+ *                 type: string
+ *                 example: parent01
+ *               otpCode:
+ *                 type: string
+ *                 example: "123456"
+ *     responses:
+ *       200:
+ *         description: Mã OTP hợp lệ
+ *       400:
+ *         description: Mã OTP không chính xác hoặc đã hết hạn
+ *       404:
+ *         description: Tài khoản không tồn tại
+ *       500:
+ *         description: Lỗi server
+ */
+router.post('/forgot-password/verify-otp', verifyOTP);
+
+/**
+ * @openapi
+ * /api/auth/forgot-password/reset:
+ *   post:
+ *     summary: Đặt lại mật khẩu sau khi đã xác minh OTP
+ *     description: Đặt lại mật khẩu mới sau khi đã xác minh OTP thành công
+ *     tags:
+ *       - Auth
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             required:
+ *               - username
+ *               - newPassword
+ *             properties:
+ *               username:
+ *                 type: string
+ *                 example: parent01
+ *               newPassword:
+ *                 type: string
+ *                 format: password
+ *                 example: "NewPassword123"
+ *     responses:
+ *       200:
+ *         description: Đặt lại mật khẩu thành công
+ *       400:
+ *         description: Thiếu thông tin hoặc OTP chưa được xác minh
+ *       404:
+ *         description: Tài khoản không tồn tại
+ *       500:
+ *         description: Lỗi server
  */
 router.post('/forgot-password/reset', resetPassword);
 
