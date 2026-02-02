@@ -5,10 +5,10 @@ const dotenv = require('dotenv');
 const swaggerUi = require('swagger-ui-express');
 const swaggerSpec = require('./src/config/swagger');
 
-// Load environment variables
+// Tải các biến môi trường
 dotenv.config();
 
-// Import routes
+// Import các routes
 const authRoutes = require('./src/routes/auth.routes');
 const systemAdminRoutes = require('./src/routes/systemAdmin.routes');
 const teacherRoutes = require('./src/routes/teacher.routes');
@@ -25,16 +25,16 @@ require('./src/models/Classes');
 require('./src/models/AcademicYear');
 require('./src/models/User');
 
-// Initialize express app
+// Khởi tạo ứng dụng express
 const app = express();
 
 // ============================================
-// Configuration Helpers
+// Các hàm hỗ trợ cấu hình
 // ============================================
 
 /**
- * Parse and merge CORS origins from environment variables
- * @returns {string[]} Array of allowed origins
+ * Phân tích và hợp nhất các CORS origins từ biến môi trường
+ * @returns {string[]} Mảng các origins được phép
  */
 const getAllowedOrigins = () => {
   const defaultOrigins = [
@@ -57,8 +57,8 @@ const getAllowedOrigins = () => {
 };
 
 /**
- * Get base URL for the server
- * @param {number} port - Server port
+ * Lấy base URL cho server
+ * @param {number} port - Cổng server
  * @returns {string} Base URL
  */
 const getBaseUrl = (port) => {
@@ -72,9 +72,9 @@ const getBaseUrl = (port) => {
 };
 
 /**
- * Get MongoDB connection options based on URI type
- * @param {string} uri - MongoDB connection URI
- * @returns {object} Mongoose connection options
+ * Lấy các tùy chọn kết nối MongoDB dựa trên loại URI
+ * @param {string} uri - URI kết nối MongoDB
+ * @returns {object} Các tùy chọn kết nối Mongoose
  */
 const getMongooseOptions = (uri) => {
   const options = {
@@ -82,7 +82,7 @@ const getMongooseOptions = (uri) => {
     socketTimeoutMS: 45000,
   };
 
-  // Add TLS options for MongoDB Atlas (cloud)
+  // Thêm tùy chọn TLS cho MongoDB Atlas (cloud)
   if (uri.includes('mongodb+srv')) {
     options.tls = true;
     options.tlsAllowInvalidCertificates = false;
@@ -92,14 +92,14 @@ const getMongooseOptions = (uri) => {
 };
 
 // ============================================
-// Middleware Configuration
+// Cấu hình Middleware
 // ============================================
 
-// CORS configuration
+// Cấu hình CORS
 const allowedOrigins = getAllowedOrigins();
 const corsOptions = {
   origin: (origin, callback) => {
-    // Allow requests with no origin (mobile apps, Postman, curl, etc.)
+    // Cho phép các request không có origin (ứng dụng mobile, Postman, curl, v.v.)
     if (!origin || allowedOrigins.includes(origin)) {
       return callback(null, true);
     }
@@ -124,10 +124,10 @@ app.use('/api-docs', swaggerUi.serve, swaggerUi.setup(swaggerSpec));
 
 
 // ============================================
-// Routes
+// Các Routes
 // ============================================
 
-// Auth routes (login)
+// Routes xác thực (đăng nhập)
 app.use('/api/auth', authRoutes);
 
 // SystemAdmin routes
@@ -145,7 +145,7 @@ app.use('/api/students', studentRoutes);
 // SchoolAdmin routes
 app.use('/api/school-admin', schoolAdminRoutes);
 
-// Health check route
+// Route kiểm tra sức khỏe hệ thống
 /**
  * @openapi
  * /api/health:
@@ -188,10 +188,10 @@ app.get('/api/health', (req, res) => {
 });
 
 // ============================================
-// Error Handling
+// Xử lý lỗi
 // ============================================
 
-// Global error handler
+// Xử lý lỗi toàn cục
 app.use((err, req, res, next) => {
   res.status(err.status || 500).json({
     status: 'error',
@@ -200,7 +200,7 @@ app.use((err, req, res, next) => {
   });
 });
 
-// 404 handler
+// Xử lý 404
 app.use((req, res) => {
   res.status(404).json({
     status: 'error',
@@ -216,13 +216,13 @@ app.use((req, res) => {
 });
 
 // ============================================
-// Server Initialization
+// Khởi tạo Server
 // ============================================
 
 const PORT = process.env.PORT || 5000;
 const baseUrl = getBaseUrl(PORT);
 
-// Start server
+// Khởi động server
 app.listen(PORT, () => {
   console.log(`🚀 Server is running on ${baseUrl}`);
   console.log(`📡 Health check: ${baseUrl}/api/health`);
@@ -230,7 +230,7 @@ app.listen(PORT, () => {
 });
 
 // ============================================
-// Database Connection
+// Kết nối Database
 // ============================================
 
 const MONGODB_URI = process.env.MONGODB_URI || '';
@@ -254,7 +254,7 @@ if (MONGODB_URI && MONGODB_URI.trim() !== '') {
       console.error('   Server continues without database connection.');
     });
 
-  // Handle MongoDB connection events
+  // Xử lý các sự kiện kết nối MongoDB
   mongoose.connection.on('disconnected', () => {
     console.warn('⚠️  MongoDB disconnected');
   });

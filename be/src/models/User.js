@@ -49,6 +49,19 @@ const userSchema = new mongoose.Schema({
       type: Date,
       default: null
     },
+  // OTP cho forgot password
+  otpCode: {
+    type: String,
+    default: null
+  },
+  otpExpiresAt: {
+    type: Date,
+    default: null
+  },
+  otpVerified: {
+    type: Boolean,
+    default: false
+  },
     createdAt: {
       type: Date,
       default: Date.now

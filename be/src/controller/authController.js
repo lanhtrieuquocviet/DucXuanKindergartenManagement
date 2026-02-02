@@ -1,21 +1,55 @@
 const bcrypt = require('bcryptjs');
 const jwt = require('jsonwebtoken');
 const User = require('../models/User');
-const { sendPasswordResetEmail, generateRandomPassword } = require('../utils/email');
+const { sendPasswordResetEmail, sendOTPEmail, generateRandomPassword } = require('../utils/email');
 
 // ============================================
-// Constants
+// Hằng số
 // ============================================
 
 const JWT_SECRET = process.env.JWT_SECRET || 'dev_jwt_secret_change_me';
 const JWT_EXPIRES_IN = process.env.JWT_EXPIRES_IN || '1d';
 
 // ============================================
-// Helpers
+// Các hàm hỗ trợ
 // ============================================
 
 /**
- * Remove sensitive fields from user document before sending to client
+ * Validate mật khẩu theo các quy tắc:
+ * - Độ dài tối thiểu: 8 ký tự
+ * - Độ dài tối đa: 64 ký tự
+ * - Không chứa khoảng trắng
+ * @param {string} password - Mật khẩu cần validate
+ * @returns {string[]} - Mảng các lỗi (rỗng nếu hợp lệ)
+ */
+const validatePassword = (password) => {
+  const errors = [];
+
+  // Kiểm tra độ dài tối thiểu
+  if (password.length < 8) {
+    errors.push('Mật khẩu phải có ít nhất 8 ký tự');
+  }
+
+  // Kiểm tra độ dài tối đa
+  if (password.length > 64) {
+    errors.push('Mật khẩu không được vượt quá 64 ký tự');
+  }
+
+  // Kiểm tra khoảng trắng
+  if (password.includes(' ')) {
+    errors.push('Mật khẩu không được chứa khoảng trắng');
+  }
+
+  // Kiểm tra khoảng trắng đầu/cuối
+  if (password !== password.trim()) {
+    errors.push('Mật khẩu không được có khoảng trắng ở đầu hoặc cuối');
+  }
+
+  return errors;
+};
+
+/**
+ * Loại bỏ các trường nhạy cảm khỏi tài liệu người dùng trước khi gửi cho client
  * @param {import('../models/User')} userDoc
  */
 const sanitizeUser = (userDoc) => {
@@ -44,9 +78,9 @@ const buildUserResponse = (user) => {
 };
 
 /**
- * Helper: 部分隐藏邮箱地址
- * @param {string} email - 完整邮箱地址
- * @returns {string} - 部分隐藏的邮箱（例如：abc***@gmail.com）
+ * Hàm hỗ trợ: Ẩn một phần địa chỉ email
+ * @param {string} email - Địa chỉ email đầy đủ
+ * @returns {string} - Email đã được ẩn một phần (ví dụ: abc***@gmail.com)
  */
 const maskEmail = (email) => {
   if (!email || !email.includes('@')) {
@@ -118,7 +152,7 @@ const checkPasswordResetRateLimit = (user) => {
 };
 
 // ============================================
-// Controller Functions
+// Các hàm controller
 // ============================================
 
 /**
@@ -321,10 +355,12 @@ const changePassword = async (req, res) => {
       });
     }
 
-    if (newPassword.length < 6) {
+    // Validate mật khẩu mới
+    const passwordErrors = validatePassword(newPassword);
+    if (passwordErrors.length > 0) {
       return res.status(400).json({
         status: 'error',
-        message: 'Mật khẩu mới phải có ít nhất 6 ký tự',
+        message: passwordErrors.join('. '),
       });
     }
 
@@ -365,8 +401,16 @@ const changePassword = async (req, res) => {
 };
 
 /**
+ * Tạo mã OTP 6 chữ số
+ * @returns {string} - Mã OTP
+ */
+const generateOTP = () => {
+  return Math.floor(100000 + Math.random() * 900000).toString();
+};
+
+/**
  * POST /api/auth/forgot-password/verify-account
- * 验证账户名，返回部分隐藏的邮箱
+ * Xác minh tài khoản và gửi OTP qua email
  */
 const verifyAccount = async (req, res) => {
   try {
@@ -402,11 +446,59 @@ const verifyAccount = async (req, res) => {
       });
     }
 
+    // Kiểm tra rate limiting
+    const rateLimitCheck = checkPasswordResetRateLimit(user);
+    if (!rateLimitCheck.allowed) {
+      const waitMinutes = rateLimitCheck.waitMinutes;
+      const waitHours = Math.floor(waitMinutes / 60);
+      const waitMins = waitMinutes % 60;
+      let waitMessage = '';
+      if (waitHours > 0) {
+        waitMessage = `${waitHours} giờ${waitMins > 0 ? ` ${waitMins} phút` : ''}`;
+      } else {
+        waitMessage = `${waitMins} phút`;
+      }
+
+      return res.status(429).json({
+        status: 'error',
+        message: `Bạn đã yêu cầu đặt lại mật khẩu quá nhiều lần. Vui lòng đợi ${waitMessage} trước khi thử lại.`,
+        data: {
+          waitMinutes,
+          waitUntil: rateLimitCheck.waitUntil,
+        },
+      });
+    }
+
+    // Tạo mã OTP
+    const otpCode = generateOTP();
+    const otpExpiresAt = new Date(Date.now() + 10 * 60 * 1000); // 10 phút
+
+    // Lưu OTP vào database
+    user.otpCode = otpCode;
+    user.otpExpiresAt = otpExpiresAt;
+    user.otpVerified = false;
+    user.passwordResetAttempts = (user.passwordResetAttempts || 0) + 1;
+    user.lastPasswordResetAt = new Date();
+    user.nextPasswordResetAllowedAt = rateLimitCheck.waitUntil;
+    await user.save();
+
+    // Gửi OTP qua email
+    try {
+      await sendOTPEmail(user.email, user.username, otpCode);
+    } catch (emailError) {
+      // eslint-disable-next-line no-console
+      console.error('Failed to send OTP email:', emailError);
+      return res.status(500).json({
+        status: 'error',
+        message: 'Không thể gửi mã OTP. Vui lòng thử lại sau hoặc liên hệ nhà trường.',
+      });
+    }
+
     const maskedEmail = maskEmail(user.email);
 
     return res.status(200).json({
       status: 'success',
-      message: 'Tài khoản hợp lệ',
+      message: 'Mã OTP đã được gửi đến email của bạn. Vui lòng kiểm tra hộp thư.',
       data: {
         maskedEmail,
       },
@@ -422,17 +514,17 @@ const verifyAccount = async (req, res) => {
 };
 
 /**
- * POST /api/auth/forgot-password/reset
- * Xác minh email và gửi mật khẩu mới qua email
+ * POST /api/auth/forgot-password/verify-otp
+ * Xác minh mã OTP
  */
-const resetPassword = async (req, res) => {
+const verifyOTP = async (req, res) => {
   try {
-    const { username, email } = req.body;
+    const { username, otpCode } = req.body;
 
-    if (!username || !email) {
+    if (!username || !otpCode) {
       return res.status(400).json({
         status: 'error',
-        message: 'Vui lòng nhập đầy đủ tài khoản và email',
+        message: 'Vui lòng nhập đầy đủ tài khoản và mã OTP',
       });
     }
 
@@ -452,74 +544,116 @@ const resetPassword = async (req, res) => {
       });
     }
 
-    if (user.email.toLowerCase() !== email.toLowerCase().trim()) {
+    // Kiểm tra OTP
+    if (!user.otpCode) {
       return res.status(400).json({
         status: 'error',
-        message: 'Email không khớp với tài khoản',
+        message: 'Chưa có mã OTP. Vui lòng yêu cầu gửi mã OTP trước.',
       });
     }
 
-    // Kiểm tra rate limiting
-    const rateLimitCheck = checkPasswordResetRateLimit(user);
-    if (!rateLimitCheck.allowed) {
-      const waitMinutes = rateLimitCheck.waitMinutes;
-      const waitHours = Math.floor(waitMinutes / 60);
-      const waitMins = waitMinutes % 60;
-      let waitMessage = '';
-      if (waitHours > 0) {
-        waitMessage = `${waitHours} giờ ${waitMins > 0 ? `${waitMins} phút` : ''}`;
-      } else {
-        waitMessage = `${waitMins} phút`;
-      }
-
-      return res.status(429).json({
+    if (user.otpCode !== otpCode.trim()) {
+      return res.status(400).json({
         status: 'error',
-        message: `Bạn đã yêu cầu đặt lại mật khẩu quá nhiều lần. Vui lòng đợi ${waitMessage} trước khi thử lại.`,
-        data: {
-          waitMinutes,
-          waitUntil: rateLimitCheck.waitUntil,
-        },
+        message: 'Mã OTP không chính xác',
       });
     }
 
-    // Tạo mật khẩu mới ngẫu nhiên
-    const newPassword = generateRandomPassword(12);
+    // Kiểm tra OTP hết hạn
+    if (!user.otpExpiresAt || new Date() > user.otpExpiresAt) {
+      return res.status(400).json({
+        status: 'error',
+        message: 'Mã OTP đã hết hạn. Vui lòng yêu cầu mã OTP mới.',
+      });
+    }
+
+    // Đánh dấu OTP đã được xác minh
+    user.otpVerified = true;
+    await user.save();
+
+    return res.status(200).json({
+      status: 'success',
+      message: 'Mã OTP hợp lệ. Bạn có thể đặt lại mật khẩu.',
+    });
+  } catch (error) {
+    // eslint-disable-next-line no-console
+    console.error('Verify OTP error:', error);
+    return res.status(500).json({
+      status: 'error',
+      message: error.message || 'Không thể xác minh mã OTP',
+    });
+  }
+};
+
+/**
+ * POST /api/auth/forgot-password/reset
+ * Đặt lại mật khẩu sau khi đã xác minh OTP
+ */
+const resetPassword = async (req, res) => {
+  try {
+    const { username, newPassword } = req.body;
+
+    if (!username || !newPassword) {
+      return res.status(400).json({
+        status: 'error',
+        message: 'Vui lòng nhập đầy đủ tài khoản và mật khẩu mới',
+      });
+    }
+
+    // Validate mật khẩu
+    const passwordErrors = validatePassword(newPassword);
+    if (passwordErrors.length > 0) {
+      return res.status(400).json({
+        status: 'error',
+        message: passwordErrors.join('. '),
+      });
+    }
+
+    const user = await User.findOne({ username });
+
+    if (!user) {
+      return res.status(404).json({
+        status: 'error',
+        message: 'Tài khoản không tồn tại trong hệ thống',
+      });
+    }
+
+    if (user.status === 'inactive') {
+      return res.status(403).json({
+        status: 'error',
+        message: 'Tài khoản đã bị khóa. Vui lòng liên hệ nhà trường.',
+      });
+    }
+
+    // Kiểm tra OTP đã được xác minh chưa
+    if (!user.otpVerified) {
+      return res.status(400).json({
+        status: 'error',
+        message: 'Vui lòng xác minh mã OTP trước khi đặt lại mật khẩu.',
+      });
+    }
 
     // Mã hóa mật khẩu mới
     const salt = await bcrypt.genSalt(10);
     const passwordHash = await bcrypt.hash(newPassword, salt);
 
-    // Cập nhật mật khẩu và rate limiting info
+    // Cập nhật mật khẩu và xóa OTP
     user.passwordHash = passwordHash;
-    user.passwordResetAttempts = (user.passwordResetAttempts || 0) + 1;
-    user.lastPasswordResetAt = new Date();
-    user.nextPasswordResetAllowedAt = rateLimitCheck.waitUntil;
+    user.otpCode = null;
+    user.otpExpiresAt = null;
+    user.otpVerified = false;
     await user.save();
-
-    // Gửi email với mật khẩu mới
-    try {
-      await sendPasswordResetEmail(user.email, user.username, newPassword);
-    } catch (emailError) {
-      // Nếu gửi email thất bại, vẫn trả về lỗi nhưng không revert mật khẩu
-      // (vì mật khẩu đã được đổi, người dùng có thể liên hệ admin)
-      // eslint-disable-next-line no-console
-      console.error('Failed to send email, but password was reset:', emailError);
-      return res.status(500).json({
-        status: 'error',
-        message: 'Mật khẩu đã được đặt lại nhưng không thể gửi email. Vui lòng liên hệ nhà trường để lấy mật khẩu mới.',
-      });
-    }
 
     return res.status(200).json({
       status: 'success',
-      message: 'Mật khẩu mới đã được gửi đến email của bạn. Vui lòng kiểm tra hộp thư.',
+      message: 'Đặt lại mật khẩu thành công. Bạn có thể đăng nhập bằng mật khẩu mới.',
     });
   } catch (error) {
     // eslint-disable-next-line no-console
     console.error('Reset password error:', error);
     return res.status(500).json({
       status: 'error',
-      message: error.message || 'Không thể gửi email đặt lại mật khẩu',
+      message: error.message || 'Không thể đặt lại mật khẩu',
     });
   }
 };
@@ -530,5 +664,6 @@ module.exports = {
   updateProfile,
   changePassword,
   verifyAccount,
+  verifyOTP,
   resetPassword,
 };
