@@ -20,26 +20,63 @@ function Header() {
                                 Thông tin công khai
                             </div>
 
-
-                            <div className="absolute top-full left-0 mt-2 hidden group-hover:block bg-white text-gray-800 rounded-xl shadow-xl min-w-[220px] z-50">
+                            {/* Dropdown cấp 1 */}
+                            <div className="absolute top-full left-0 mt-2 hidden group-hover:block bg-white text-gray-800 rounded-xl shadow-xl min-w-[260px] z-50">
+                                {/* Link thông tin chung */}
                                 <a href="/public-information">
-                                    <div className="px-4 py-3 hover:bg-green-100 cursor-pointer">
+                                    <div className="px-4 py-3 hover:bg-green-100 cursor-pointer font-medium">
                                         Thông tin chung về cơ sở giáo dục
                                     </div>
                                 </a>
+
                                 {[
-                                    "Công khai thu chi tài chính",
-                                    "Điều kiện đảm bảo chất lượng hoạt động giáo dục",
-                                    "Kế hoạch và kết quả hoạt động giáo dục",
-                                    "Báo cáo thường niên",
-                                ].map((item) => (
-                                    <div
-                                        key={item}
-                                        className="px-4 py-3 hover:bg-green-100 cursor-pointer"
-                                    >
-                                        {item}
-                                    </div>
-                                ))}
+                                    {
+                                        label: "Công khai thu chi tài chính",
+                                        slug: "financial-disclosure",
+                                    },
+                                    {
+                                        label: "Điều kiện đảm bảo chất lượng hoạt động giáo dục",
+                                        slug: "education-quality",
+                                    },
+                                    {
+                                        label: "Kế hoạch và kết quả hoạt động giáo dục",
+                                        slug: "education-plan-result",
+                                    },
+                                    {
+                                        label: "Báo cáo thường niên",
+                                        slug: "annual-report",
+                                    },
+                                ].map((item) => {
+                                    const currentYear = new Date().getFullYear();
+                                    const years = [currentYear, currentYear - 1];
+
+                                    return (
+                                        <div
+                                            key={item.slug}
+                                            className="relative group/sub"
+                                        >
+                                            {/* Item cấp 1 */}
+                                            <div className="px-4 py-3 hover:bg-green-100 cursor-pointer flex justify-between items-center">
+                                                <span>{item.label}</span>
+                                                <span className="text-xs">▶</span>
+                                            </div>
+
+                                            {/* Dropdown cấp 2 (năm) */}
+                                            <div className="absolute top-0 left-full ml-1 hidden group-hover/sub:block bg-white rounded-xl shadow-xl min-w-[120px] z-50">
+                                                {years.map((year) => (
+                                                    <a
+                                                        key={year}
+                                                        href={`/public-information/${item.slug}/${year}`}
+                                                    >
+                                                        <div className="px-4 py-3 hover:bg-green-100 cursor-pointer">
+                                                            Năm {year}
+                                                        </div>
+                                                    </a>
+                                                ))}
+                                            </div>
+                                        </div>
+                                    );
+                                })}
                             </div>
                         </div>
 
@@ -84,7 +121,7 @@ function Header() {
                    hover:bg-green-50 hover:text-green-700 transition"
                                     >
                                         Cơ cấu tổ chức
-                                        <span className="text-sm">›</span>
+                                        <span className="text-sm">▶</span>
                                     </div>
 
                                     {/* Dropdown cấp 2 */}
