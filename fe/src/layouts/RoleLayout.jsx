@@ -14,13 +14,13 @@ function RoleLayout({
 }) {
   const [openProfileMenu, setOpenProfileMenu] = useState(false);
   return (
-    <div className="min-h-screen bg-sky-50/60">
+    <div className="min-h-screen bg-gray-100">
       <div className="flex h-screen max-h-screen">
         {/* Sidebar */}
-        <aside className="w-64 bg-white border-r border-sky-100 shadow-sm flex flex-col">
-          <div className="px-5 py-4 border-b border-sky-100">
-            <h1 className="text-base font-bold text-sky-900">DucXuan Management</h1>
-            <p className="mt-1 text-xs text-sky-500">Bảng điều khiển</p>
+        <aside className="w-64 bg-gray-900 text-white flex flex-col">
+          <div className="px-5 py-4 border-b border-gray-800">
+            <h1 className="text-base font-semibold">Menu</h1>
+            <p className="mt-1 text-xs text-gray-400">Bảng điều khiển</p>
           </div>
 
           <nav className="flex-1 overflow-y-auto px-3 py-4 space-y-1">
@@ -33,10 +33,10 @@ function RoleLayout({
                   onClick={() => {
                     if (onMenuSelect) onMenuSelect(item.key);
                   }}
-                  className={`w-full flex items-center justify-between rounded-lg px-3 py-2 text-sm font-medium transition ${
+                  className={`w-full flex items-center justify-between rounded-md px-3 py-2 text-sm font-medium transition ${
                     isActive
-                      ? 'bg-sky-500 text-white shadow-sm'
-                      : 'text-sky-800 hover:bg-sky-50'
+                      ? 'bg-gray-800 text-white'
+                      : 'text-gray-200 hover:bg-gray-800 hover:text-white'
                   }`}
                 >
                   <span>{item.label}</span>
@@ -45,7 +45,7 @@ function RoleLayout({
                       className={`ml-2 inline-flex items-center rounded-full px-2 text-[11px] font-semibold ${
                         isActive
                           ? 'bg-white/20 text-white'
-                          : 'bg-sky-100 text-sky-700'
+                          : 'bg-gray-700 text-gray-100'
                       }`}
                     >
                       {item.badge}
@@ -56,11 +56,11 @@ function RoleLayout({
             })}
           </nav>
 
-          <div className="px-4 py-3 border-t border-sky-100">
+          <div className="px-4 py-3 border-t border-gray-800">
             <button
               type="button"
               onClick={onLogout}
-              className="w-full inline-flex items-center justify-center rounded-lg bg-red-500 px-3 py-2 text-xs font-semibold text-white shadow hover:bg-red-600 transition"
+              className="w-full inline-flex items-center justify-center rounded-md bg-red-500 px-3 py-2 text-xs font-semibold text-white shadow hover:bg-red-600 transition"
             >
               Đăng xuất
             </button>
@@ -69,12 +69,12 @@ function RoleLayout({
 
         {/* Main content */}
         <main className="flex-1 overflow-y-auto">
-          <div className="max-w-6xl mx-auto px-4 py-6 md:py-8">
+          <div className="max-w-6xl mx-auto px-6 py-6 md:py-8">
             <header className="mb-6 flex flex-col md:flex-row md:items-center md:justify-between gap-3">
               <div>
-                <h2 className="text-xl md:text-2xl font-bold text-sky-900">{title}</h2>
+                <h2 className="text-xl md:text-2xl font-bold text-gray-800">{title}</h2>
                 {description && (
-                  <p className="mt-1 text-sm text-sky-600">{description}</p>
+                  <p className="mt-1 text-sm text-gray-500">{description}</p>
                 )}
               </div>
 
@@ -83,9 +83,9 @@ function RoleLayout({
                   <button
                     type="button"
                     onClick={() => setOpenProfileMenu((prev) => !prev)}
-                    className="inline-flex items-center gap-2 rounded-full border border-sky-200 bg-white px-3 py-1.5 text-xs md:text-sm font-medium text-sky-800 shadow-sm hover:bg-sky-50 transition"
+                    className="inline-flex items-center gap-2 rounded-full border border-gray-200 bg-white px-3 py-1.5 text-xs md:text-sm font-medium text-gray-800 shadow-sm hover:bg-gray-50 transition"
                   >
-                    <span className="inline-flex h-7 w-7 items-center justify-center rounded-full bg-sky-500 text-white text-xs font-semibold">
+                    <span className="inline-flex h-7 w-7 items-center justify-center rounded-full bg-indigo-600 text-white text-xs font-semibold">
                       {userName.charAt(0).toUpperCase()}
                     </span>
                     <span>{userName}</span>
@@ -93,10 +93,10 @@ function RoleLayout({
 
                   {openProfileMenu && (
                     <>
-                      <div className="absolute right-0 mt-2 w-44 rounded-xl border border-sky-100 bg-white shadow-lg text-xs md:text-sm z-10">
+                      <div className="absolute right-0 mt-2 w-44 rounded-xl border border-gray-200 bg-white shadow-lg text-xs md:text-sm z-10">
                         <button
                           type="button"
-                          className="w-full text-left px-3 py-2 hover:bg-sky-50 text-sky-800 rounded-t-xl"
+                          className="w-full text-left px-3 py-2 hover:bg-gray-50 text-gray-800 rounded-t-xl"
                           onClick={() => {
                             if (onViewProfile) {
                               onViewProfile();

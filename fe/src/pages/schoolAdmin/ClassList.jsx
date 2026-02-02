@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import RoleLayout from '../../components/RoleLayout';
+import RoleLayout from '../../layouts/RoleLayout';
 import { useAuth } from '../../context/AuthContext';
 import { get, ENDPOINTS } from '../../service/api';
 
@@ -98,6 +98,10 @@ function ClassList() {
     cls.className.toLowerCase().includes(searchTerm.toLowerCase())
   );
 
+  const totalClasses = classes.length;
+  const activeClasses = classes.filter((c) => c.className).length;
+  const totalCapacity = classes.reduce((sum, c) => sum + (c.maxStudents || 0), 0);
+
   return (
     <RoleLayout
       title="Quản lý Lớp Học"
@@ -110,115 +114,109 @@ function ClassList() {
       userName={user?.fullName || user?.username || 'Admin'}
     >
       {error && (
-        <div className="mb-4 text-sm text-red-600 bg-red-50 border border-red-100 rounded-xl px-4 py-3">
+        <div className="mb-4 text-sm text-red-600 bg-red-50 border border-red-100 rounded-md px-4 py-3">
           {error}
         </div>
       )}
 
-      {/* Header Section */}
-      <div className="mb-6">
-        <h2 className="text-lg font-bold text-sky-900 mb-4">Danh sách lớp học</h2>
+      {/* Card chính: danh sách lớp học */}
+      <div className="bg-white rounded-lg shadow p-6">
+        {/* Header + bộ lọc */}
+        <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-3 mb-4">
+          <div>
+            <h3 className="text-sm font-semibold text-gray-800">Danh sách lớp học</h3>
+            <p className="text-xs text-gray-500 mt-1">
+              Tổng lớp: <span className="font-semibold">{totalClasses}</span> • Lớp hoạt động:{' '}
+              <span className="font-semibold">{activeClasses}</span> • Sức chứa tổng:{' '}
+              <span className="font-semibold">{totalCapacity}</span>
+            </p>
+          </div>
+          <div className="flex flex-col sm:flex-row gap-2 w-full md:w-auto">
+            <input
+              type="text"
+              placeholder="Tìm kiếm tên lớp..."
+              value={searchTerm}
+              onChange={(e) => setSearchTerm(e.target.value)}
+              className="flex-1 px-3 py-2 border border-gray-300 rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500"
+            />
+            <button
+              type="button"
+              onClick={fetchClasses}
+              className="px-3 py-2 bg-gray-100 text-gray-700 text-sm font-medium rounded-md hover:bg-gray-200 transition-colors"
+            >
+              Tải lại
+            </button>
+            <button
+              type="button"
+              className="px-3 py-2 bg-indigo-600 text-white text-sm font-semibold rounded-md hover:bg-indigo-700 transition-colors"
+            >
+              + Thêm lớp
+            </button>
+          </div>
+        </div>
 
-        <div className="flex gap-3 items-center">
-          <input
-            type="text"
-            placeholder="Tìm kiếm tên lớp..."
-            value={searchTerm}
-            onChange={(e) => setSearchTerm(e.target.value)}
-            className="flex-1 px-4 py-2 border border-sky-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-sky-400"
-          />
-          <button
-            onClick={fetchClasses}
-            className="px-4 py-2 bg-sky-500 text-white text-sm font-medium rounded-lg hover:bg-sky-600 transition"
-          >
-            Tải lại
-          </button>
-          <button className="px-4 py-2 bg-emerald-500 text-white text-sm font-medium rounded-lg hover:bg-emerald-600 transition">
-            + Thêm lớp
-          </button>
-        </div>
-      </div>
-
-      {/* Stats Section */}
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
-        <div className="rounded-xl border border-amber-100 bg-amber-50/80 p-4">
-          <h3 className="text-sm font-semibold text-amber-900">Tổng số lớp</h3>
-          <p className="mt-2 text-2xl font-bold text-amber-800">{classes.length}</p>
-        </div>
-        <div className="rounded-xl border border-sky-100 bg-sky-50/80 p-4">
-          <h3 className="text-sm font-semibold text-sky-900">Lớp hoạt động</h3>
-          <p className="mt-2 text-2xl font-bold text-sky-800">
-            {classes.filter(c => c.className).length}
-          </p>
-        </div>
-        <div className="rounded-xl border border-emerald-100 bg-emerald-50/80 p-4">
-          <h3 className="text-sm font-semibold text-emerald-900">Sức chứa tổng</h3>
-          <p className="mt-2 text-2xl font-bold text-emerald-800">
-            {classes.reduce((sum, c) => sum + (c.maxStudents || 0), 0)}
-          </p>
-        </div>
-      </div>
-
-      {/* Table Section */}
-      <div className="rounded-xl border border-sky-100 bg-white shadow-sm overflow-hidden">
+        {/* Table Section */}
         {loading ? (
           <div className="p-8 text-center">
             <div className="inline-block animate-spin">
-              <div className="h-6 w-6 border-3 border-sky-400 border-t-transparent rounded-full"></div>
+              <div className="h-6 w-6 border-3 border-indigo-500 border-t-transparent rounded-full" />
             </div>
-            <p className="mt-2 text-sm text-sky-600">Đang tải danh sách...</p>
+            <p className="mt-2 text-sm text-gray-500">Đang tải danh sách...</p>
           </div>
         ) : filteredClasses.length === 0 ? (
           <div className="p-8 text-center">
-            <p className="text-sm text-sky-600">Không tìm thấy lớp học nào</p>
+            <p className="text-sm text-gray-500">Không tìm thấy lớp học nào</p>
           </div>
         ) : (
           <div className="overflow-x-auto">
-            <table className="w-full text-sm">
-              <thead className="bg-sky-50 border-b border-sky-100">
+            <table className="w-full text-sm border border-gray-200 rounded-lg overflow-hidden">
+              <thead className="bg-gray-50 border-b border-gray-200">
                 <tr>
-                  <th className="px-6 py-3 text-left font-semibold text-sky-900">Tên lớp</th>
-                  <th className="px-6 py-3 text-left font-semibold text-sky-900">Khối lớp</th>
-                  <th className="px-6 py-3 text-left font-semibold text-sky-900">Năm học</th>
-                  <th className="px-6 py-3 text-center font-semibold text-sky-900">Sức chứa</th>
-                  <th className="px-6 py-3 text-center font-semibold text-sky-900">Giáo viên</th>
-                  <th className="px-6 py-3 text-center font-semibold text-sky-900">Thao tác</th>
+                  <th className="px-4 py-3 text-left font-semibold text-gray-800">Tên lớp</th>
+                  <th className="px-4 py-3 text-left font-semibold text-gray-800">Khối lớp</th>
+                  <th className="px-4 py-3 text-left font-semibold text-gray-800">Năm học</th>
+                  <th className="px-4 py-3 text-center font-semibold text-gray-800">Sức chứa</th>
+                  <th className="px-4 py-3 text-center font-semibold text-gray-800">Giáo viên</th>
+                  <th className="px-4 py-3 text-center font-semibold text-gray-800">Thao tác</th>
                 </tr>
               </thead>
               <tbody>
                 {filteredClasses.map((cls, index) => (
-                  <tr key={cls._id || index} className="border-b border-sky-50 hover:bg-sky-50/50 transition">
-                    <td className="px-6 py-3">
-                      <div className="font-medium text-sky-900">{cls.className}</div>
+                  <tr
+                    key={cls._id || index}
+                    className="border-b border-gray-100 hover:bg-gray-50 transition-colors"
+                  >
+                    <td className="px-4 py-3">
+                      <div className="font-medium text-gray-900">{cls.className}</div>
                     </td>
-                    <td className="px-6 py-3">
-                      <div className="text-sky-700">
+                    <td className="px-4 py-3">
+                      <div className="text-gray-700">
                         {cls.gradeId?.gradeName || 'N/A'}
                       </div>
                     </td>
-                    <td className="px-6 py-3">
-                      <div className="text-sky-700">
+                    <td className="px-4 py-3">
+                      <div className="text-gray-700">
                         {cls.academicYearId?.yearName || 'N/A'}
                       </div>
                     </td>
-                    <td className="px-6 py-3 text-center">
-                      <span className="inline-block px-2 py-1 bg-amber-100 text-amber-800 text-xs font-medium rounded-full">
+                    <td className="px-4 py-3 text-center">
+                      <span className="inline-block px-2 py-1 bg-gray-100 text-gray-800 text-xs font-medium rounded-full">
                         {cls.maxStudents || 0}
                       </span>
                     </td>
-                    <td className="px-6 py-3 text-center">
-                      <span className="text-sky-700 font-medium">
+                    <td className="px-4 py-3 text-center">
+                      <span className="text-gray-800 font-medium">
                         {cls.teacherIds?.length || 0}
                       </span>
                     </td>
-                    <td className="px-6 py-3 text-center space-x-2">
+                    <td className="px-4 py-3 text-center space-x-2">
                       <button
                         onClick={() => handleViewStudents(cls._id)}
-                        className="inline-block px-3 py-1 bg-sky-500 text-white text-xs font-medium rounded-lg hover:bg-sky-600 transition"
+                        className="inline-flex items-center rounded-lg bg-indigo-50 px-3 py-1.5 text-xs font-medium text-indigo-700 hover:bg-indigo-100 transition-colors"
                       >
                         Xem học sinh
                       </button>
-                      <button className="inline-block px-3 py-1 bg-sky-100 text-sky-700 text-xs font-medium rounded-lg hover:bg-sky-200 transition">
+                      <button className="inline-flex items-center rounded-lg bg-gray-100 px-3 py-1.5 text-xs font-medium text-gray-700 hover:bg-gray-200 transition-colors">
                         Sửa
                       </button>
                     </td>
