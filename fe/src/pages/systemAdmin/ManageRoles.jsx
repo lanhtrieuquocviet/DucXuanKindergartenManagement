@@ -10,6 +10,10 @@ function ManageRoles() {
   const [showRoleForm, setShowRoleForm] = useState(false);
   const [editingRole, setEditingRole] = useState(null); // Role đang sửa
   const [roleForm, setRoleForm] = useState({ roleName: '', description: '' });
+  const [showPermissionModal, setShowPermissionModal] = useState(false);
+  const [selectedRoleForPermissions, setSelectedRoleForPermissions] = useState(null);
+  const [permissions, setPermissions] = useState([]);
+  const [selectedPermissions, setSelectedPermissions] = useState(new Set());
   const navigate = useNavigate();
   const { user, logout, isInitializing } = useAuth();
   const { 
@@ -17,6 +21,8 @@ function ManageRoles() {
     createRole, 
     updateRole, 
     deleteRole,
+    getPermissions,
+    updateRolePermissions,
     loading, 
     error, 
     setError 
@@ -146,6 +152,74 @@ function ManageRoles() {
     navigate('/profile');
   };
 
+  const handleOpenPermissionModal = async (role) => {
+    try {
+      setError(null);
+      setSelectedRoleForPermissions(role);
+      
+      // Lấy danh sách tất cả permissions
+      const allPermissions = await getPermissions();
+      setPermissions(allPermissions || []);
+      
+      // Lấy permissions hiện tại của role
+      const rolePerms = new Set();
+      (role.permissions || []).forEach((p) => {
+        if (p && p.code) {
+          rolePerms.add(typeof p === 'string' ? p : p.code);
+        }
+      });
+      setSelectedPermissions(rolePerms);
+      
+      setShowPermissionModal(true);
+    } catch (err) {
+      // Error được xử lý trong context
+    }
+  };
+
+  const handleClosePermissionModal = () => {
+    setShowPermissionModal(false);
+    setSelectedRoleForPermissions(null);
+    setSelectedPermissions(new Set());
+  };
+
+  const togglePermission = (permCode) => {
+    setSelectedPermissions((prev) => {
+      const next = new Set(prev);
+      if (next.has(permCode)) {
+        next.delete(permCode);
+      } else {
+        next.add(permCode);
+      }
+      return next;
+    });
+  };
+
+  const handleSaveRolePermissions = async () => {
+    if (!selectedRoleForPermissions) return;
+
+    try {
+      setError(null);
+      setSuccess('');
+
+      const permissionCodes = Array.from(selectedPermissions);
+      await updateRolePermissions(
+        selectedRoleForPermissions.id || selectedRoleForPermissions._id,
+        permissionCodes
+      );
+
+      setSuccess('Cập nhật phân quyền cho vai trò thành công.');
+      setTimeout(() => setSuccess(''), 3000);
+      
+      handleClosePermissionModal();
+
+      // Refresh roles
+      const rolesData = await getRoles();
+      setRoles(rolesData || []);
+    } catch (err) {
+      // Error được xử lý trong context
+    }
+  };
+
   return (
     <RoleLayout
       title="Quản lý vai trò"
@@ -222,8 +296,30 @@ function ManageRoles() {
                       <td className="px-4 py-3 border-b border-gray-100 text-gray-800">
                         {role.description || <span className="text-gray-400">Không có mô tả</span>}
                       </td>
-                      <td className="px-4 py-3 border-b border-gray-100 text-gray-600">
-                        {role.permissions?.length || 0}
+                      <td 
+                        className="px-4 py-3 border-b border-gray-100"
+                      >
+                        <div
+                          className="flex items-center gap-2 text-gray-600 cursor-pointer hover:text-indigo-600 transition-colors group"
+                          onClick={() => handleOpenPermissionModal(role)}
+                          title="Click để sửa phân quyền"
+                        >
+                          <span className="font-medium">{role.permissions?.length || 0}</span>
+                          <svg 
+                            xmlns="http://www.w3.org/2000/svg" 
+                            className="h-4 w-4 opacity-60 group-hover:opacity-100 transition-opacity" 
+                            fill="none" 
+                            viewBox="0 0 24 24" 
+                            stroke="currentColor"
+                          >
+                            <path 
+                              strokeLinecap="round" 
+                              strokeLinejoin="round" 
+                              strokeWidth={2} 
+                              d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" 
+                            />
+                          </svg>
+                        </div>
                       </td>
                       <td className="px-4 py-3 border-b border-gray-100 text-right">
                         <div className="flex justify-end gap-2">
@@ -254,7 +350,7 @@ function ManageRoles() {
 
       {/* Form thêm/sửa role */}
       {showRoleForm && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+         <div className="fixed inset-0 bg-black/40 flex items-center justify-center z-50">
           <div className="bg-white rounded-lg shadow-xl p-6 w-full max-w-md">
             <h3 className="text-lg font-semibold text-gray-900 mb-4">
               {editingRole ? 'Sửa vai trò' : 'Thêm vai trò mới'}
@@ -302,6 +398,80 @@ function ManageRoles() {
                 </button>
               </div>
             </form>
+          </div>
+        </div>
+      )}
+
+      {/* Modal quản lý phân quyền cho vai trò */}
+      {showPermissionModal && selectedRoleForPermissions && (
+        <div className="fixed inset-0 bg-black/40 flex items-center justify-center z-50">
+          <div className="bg-white rounded-lg shadow-xl p-6 w-full max-w-2xl max-h-[90vh] flex flex-col">
+            <h3 className="text-lg font-semibold text-gray-900 mb-4">
+              Quản lý phân quyền cho vai trò: {selectedRoleForPermissions.roleName}
+            </h3>
+            
+            <div className="mb-4 text-sm text-gray-600">
+              Đã chọn: {selectedPermissions.size}/{permissions.length} phân quyền
+            </div>
+
+            <div className="flex-1 overflow-y-auto mb-4 border border-gray-200 rounded-lg p-4">
+              {permissions.length === 0 ? (
+                <p className="text-sm text-gray-500 py-4 text-center">
+                  Chưa có phân quyền nào trong hệ thống.
+                </p>
+              ) : (
+                <div className="space-y-2">
+                  {permissions.map((perm) => {
+                    const isChecked = selectedPermissions.has(perm.code);
+                    return (
+                      <label
+                        key={perm._id || perm.id}
+                        className={`flex items-start p-3 rounded-lg border cursor-pointer transition-colors ${
+                          isChecked
+                            ? 'bg-indigo-50 border-indigo-500'
+                            : 'bg-gray-50 border-gray-200 hover:bg-gray-100'
+                        }`}
+                      >
+                        <input
+                          type="checkbox"
+                          checked={isChecked}
+                          onChange={() => togglePermission(perm.code)}
+                          className="mt-0.5 mr-3 h-4 w-4 text-indigo-600 border-gray-300 rounded focus:ring-indigo-500 cursor-pointer flex-shrink-0"
+                        />
+                        <div className="flex-1 min-w-0">
+                          <div className={`font-medium text-sm ${isChecked ? 'text-indigo-900' : 'text-gray-900'}`}>
+                            {perm.code}
+                          </div>
+                          {perm.description && (
+                            <div className="text-xs text-gray-600 mt-1 line-clamp-2">
+                              {perm.description}
+                            </div>
+                          )}
+                        </div>
+                      </label>
+                    );
+                  })}
+                </div>
+              )}
+            </div>
+
+            <div className="flex justify-end gap-2 pt-4 border-t border-gray-200">
+              <button
+                type="button"
+                onClick={handleClosePermissionModal}
+                className="px-4 py-2 text-sm font-medium text-gray-700 bg-gray-100 rounded-md hover:bg-gray-200 transition-colors"
+              >
+                Hủy
+              </button>
+              <button
+                type="button"
+                onClick={handleSaveRolePermissions}
+                disabled={loading}
+                className="px-4 py-2 text-sm font-semibold text-white bg-indigo-600 rounded-md hover:bg-indigo-700 disabled:opacity-60 disabled:cursor-not-allowed transition-colors"
+              >
+                {loading ? 'Đang lưu...' : 'Lưu phân quyền'}
+              </button>
+            </div>
           </div>
         </div>
       )}
