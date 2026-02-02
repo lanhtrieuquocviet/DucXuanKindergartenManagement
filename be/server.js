@@ -2,6 +2,8 @@ const express = require('express');
 const mongoose = require('mongoose');
 const cors = require('cors');
 const dotenv = require('dotenv');
+const swaggerUi = require('swagger-ui-express');
+const swaggerSpec = require('./src/config/swagger');
 
 // Load environment variables
 dotenv.config();
@@ -115,6 +117,10 @@ app.use(cors(corsOptions));
 app.use(express.json({ limit: '10mb' }));
 app.use(express.urlencoded({ extended: true, limit: '10mb' }));
 
+// ============================================
+// Swagger API Docs
+// ============================================
+app.use('/api-docs', swaggerUi.serve, swaggerUi.setup(swaggerSpec));
 
 
 // ============================================
@@ -140,6 +146,36 @@ app.use('/api/students', studentRoutes);
 app.use('/api/school-admin', schoolAdminRoutes);
 
 // Health check route
+/**
+ * @openapi
+ * /api/health:
+ *   get:
+ *     summary: Kiểm tra tình trạng server
+ *     tags:
+ *       - System
+ *     responses:
+ *       200:
+ *         description: Trạng thái hệ thống hiện tại
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 status:
+ *                   type: string
+                   example: success
+                 message:
+                   type: string
+                   example: SEP490_G54 API is running
+                 timestamp:
+                   type: string
+                   format: date-time
+                 environment:
+                   type: string
+                 mongodb:
+                   type: string
+                   example: connected
+ */
 app.get('/api/health', (req, res) => {
   const healthStatus = {
     status: 'success',
@@ -190,6 +226,7 @@ const baseUrl = getBaseUrl(PORT);
 app.listen(PORT, () => {
   console.log(`🚀 Server is running on ${baseUrl}`);
   console.log(`📡 Health check: ${baseUrl}/api/health`);
+  console.log(`📘 Swagger docs: ${baseUrl}/api-docs`);
 });
 
 // ============================================
