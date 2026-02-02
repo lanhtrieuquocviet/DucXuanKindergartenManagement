@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
-import RoleLayout from '../../layouts/RoleLayout';
+import RoleLayout from '../../components/RoleLayout';
 import { useAuth } from '../../context/AuthContext';
 import { get, ENDPOINTS } from '../../service/api';
 
