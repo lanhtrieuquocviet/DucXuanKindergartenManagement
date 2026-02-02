@@ -69,14 +69,123 @@ router.put('/me', authenticate, updateProfile);
 router.post('/change-password', authenticate, changePassword);
 
 /**
- * POST /api/auth/forgot-password/verify-account
- 
+ * @openapi
+ * /api/auth/forgot-password/verify-account:
+ *   post:
+ *     summary: Xác minh tài khoản và trả về email đã ẩn một phần
+ *     description: Kiểm tra tài khoản có tồn tại và trả về email đã được ẩn một phần để người dùng xác nhận
+ *     tags:
+ *       - Auth
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             required:
+ *               - username
+ *             properties:
+ *               username:
+ *                 type: string
+ *                 example: parent01
+ *     responses:
+ *       200:
+ *         description: Tài khoản hợp lệ, trả về email đã ẩn
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 status:
+ *                   type: string
+ *                   example: success
+ *                 message:
+ *                   type: string
+ *                   example: Tài khoản hợp lệ
+ *                 data:
+ *                   type: object
+ *                   properties:
+ *                     maskedEmail:
+ *                       type: string
+ *                       example: abc***@gmail.com
+ *       400:
+ *         description: Thiếu username hoặc tài khoản chưa có email
+ *       403:
+ *         description: Tài khoản đã bị khóa
+ *       404:
+ *         description: Tài khoản không tồn tại
+ *       500:
+ *         description: Lỗi server
  */
 router.post('/forgot-password/verify-account', verifyAccount);
 
 /**
- * POST /api/auth/forgot-password/reset
- 
+ * @openapi
+ * /api/auth/forgot-password/reset:
+ *   post:
+ *     summary: Đặt lại mật khẩu và gửi mật khẩu mới qua email
+ *     description: Xác minh email khớp với tài khoản, tạo mật khẩu mới và gửi qua email. Có rate limiting để tránh spam.
+ *     tags:
+ *       - Auth
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             required:
+ *               - username
+ *               - email
+ *             properties:
+ *               username:
+ *                 type: string
+ *                 example: parent01
+ *               email:
+ *                 type: string
+ *                 format: email
+ *                 example: user@example.com
+ *     responses:
+ *       200:
+ *         description: Mật khẩu mới đã được gửi đến email
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 status:
+ *                   type: string
+ *                   example: success
+ *                 message:
+ *                   type: string
+ *                   example: Mật khẩu mới đã được gửi đến email của bạn. Vui lòng kiểm tra hộp thư.
+ *       400:
+ *         description: Thiếu thông tin hoặc email không khớp với tài khoản
+ *       403:
+ *         description: Tài khoản đã bị khóa
+ *       404:
+ *         description: Tài khoản không tồn tại
+ *       429:
+ *         description: Đã yêu cầu đặt lại mật khẩu quá nhiều lần, cần đợi
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 status:
+ *                   type: string
+ *                   example: error
+ *                 message:
+ *                   type: string
+ *                 data:
+ *                   type: object
+ *                   properties:
+ *                     waitMinutes:
+ *                       type: number
+ *                     waitUntil:
+ *                       type: string
+ *                       format: date-time
+ *       500:
+ *         description: Lỗi server hoặc không thể gửi email
  */
 router.post('/forgot-password/reset', resetPassword);
 
