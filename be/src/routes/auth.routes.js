@@ -16,8 +16,36 @@ const router = express.Router();
 // ============================================
 
 /**
- * POST /api/auth/login
- * Đăng nhập bằng tài khoản + mật khẩu
+ * @openapi
+ * /api/auth/login:
+ *   post:
+ *     summary: Đăng nhập bằng tài khoản và mật khẩu
+ *     tags:
+ *       - Auth
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             required:
+ *               - username
+ *               - password
+ *             properties:
+ *               username:
+ *                 type: string
+ *                 example: parent01
+ *               password:
+ *                 type: string
+ *                 format: password
+ *                 example: 123456
+ *     responses:
+ *       200:
+ *         description: Đăng nhập thành công
+ *       400:
+ *         description: Thiếu tài khoản hoặc mật khẩu
+ *       401:
+ *         description: Sai tài khoản hoặc mật khẩu
  */
 router.post('/login', login);
 
@@ -42,13 +70,13 @@ router.post('/change-password', authenticate, changePassword);
 
 /**
  * POST /api/auth/forgot-password/verify-account
- * 验证账户名，返回部分隐藏的邮箱
+ 
  */
 router.post('/forgot-password/verify-account', verifyAccount);
 
 /**
  * POST /api/auth/forgot-password/reset
- * 验证完整邮箱并发送重置密码邮件
+ 
  */
 router.post('/forgot-password/reset', resetPassword);
 
