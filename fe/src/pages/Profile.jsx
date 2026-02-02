@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 
@@ -9,7 +9,6 @@ function Profile() {
     getProfile,
     updateProfile,
     changePassword,
-    loading,
     error: authError,
     setError,
     isInitializing,
@@ -31,39 +30,59 @@ function Profile() {
   const [savingProfile, setSavingProfile] = useState(false);
   const [changingPassword, setChangingPassword] = useState(false);
   const [message, setMessage] = useState('');
+  const [profileFormLoading, setProfileFormLoading] = useState(false);
+  const hasLoadedProfileRef = useRef(false);
+  const hasUserEditedRef = useRef(false);
 
+  // Chỉ reset ref khi rời trang (unmount), không reset khi effect chạy lại vì user thay đổi
   useEffect(() => {
-    // Chờ quá trình khởi tạo (verify token) hoàn thành
-    if (isInitializing) {
-      return;
-    }
+    return () => {
+      hasLoadedProfileRef.current = false;
+    };
+  }, []);
 
+  // Điền form từ user ngay khi có user (chỉ lần đầu, không ghi đè khi user đã chỉnh sửa)
+  useEffect(() => {
+    if (isInitializing || !user) return;
+    if (hasLoadedProfileRef.current) return;
+    if (hasUserEditedRef.current) return;
+    setProfileForm((prev) => ({
+      ...prev,
+      fullName: user.fullName || user.username || '',
+      email: user.email || '',
+      avatar: user.avatar || '',
+      status: user.status === 'active' ? 'Đang hoạt động' : 'Đã khóa',
+    }));
+  }, [user, isInitializing]);
+
+  // Load profile từ server một lần khi vào trang
+  useEffect(() => {
+    if (isInitializing) return;
     if (!user) {
       navigate('/login', { replace: true });
       return;
     }
 
-    // Load profile data từ user trong context hoặc fetch mới
+    if (hasLoadedProfileRef.current) return;
+    hasLoadedProfileRef.current = true;
+
     const loadProfile = async () => {
       try {
+        setProfileFormLoading(true);
         const userData = await getProfile();
-        if (userData) {
+        if (userData && !hasUserEditedRef.current) {
           setProfileForm((prev) => ({
             ...prev,
             fullName: userData.fullName || userData.username || '',
             email: userData.email || '',
-            phoneNumber: userData.phoneNumber || '',
-            dateOfBirth: userData.dateOfBirth ? userData.dateOfBirth.substring(0, 10) : '',
-            role:
-              (userData.roles &&
-                userData.roles[0] &&
-                (userData.roles[0].roleName || userData.roles[0])) ||
-              '',
+            avatar: userData.avatar || '',
             status: userData.status === 'active' ? 'Đang hoạt động' : 'Đã khóa',
           }));
         }
       } catch (err) {
-        // Error được xử lý trong context
+        hasLoadedProfileRef.current = false;
+      } finally {
+        setProfileFormLoading(false);
       }
     };
 
@@ -71,6 +90,7 @@ function Profile() {
   }, [navigate, getProfile, user, isInitializing]);
 
   const handleProfileChange = (e) => {
+    hasUserEditedRef.current = true;
     const { name, value } = e.target;
     setProfileForm((prev) => ({ ...prev, [name]: value }));
   };
@@ -95,8 +115,10 @@ function Profile() {
       await updateProfile({
         fullName: profileForm.fullName,
         email: profileForm.email,
+        avatar: profileForm.avatar || undefined,
       });
 
+      hasUserEditedRef.current = false;
       setMessage('Cập nhật hồ sơ thành công.');
     } catch (err) {
       // Error được xử lý trong context
@@ -169,20 +191,26 @@ function Profile() {
             </p>
           </div>
           <div className="flex items-center gap-2 text-sm text-gray-700">
-            {profileForm.avatar ? (
+            {(user?.avatar || profileForm.avatar) ? (
               <img
-                src={profileForm.avatar}
+                src={user?.avatar || profileForm.avatar}
                 alt="Avatar"
                 className="h-9 w-9 rounded-full object-cover border border-gray-300"
               />
             ) : (
               <span className="inline-flex h-9 w-9 items-center justify-center rounded-full bg-indigo-600 text-white font-semibold">
-                {profileForm.fullName ? profileForm.fullName.charAt(0).toUpperCase() : '?'}
+                {(user?.fullName || profileForm.fullName)
+                  ? (user?.fullName || profileForm.fullName).charAt(0).toUpperCase()
+                  : '?'}
               </span>
             )}
             <div className="flex flex-col">
-              <span className="font-medium">{profileForm.fullName || 'Người dùng'}</span>
-              <span className="text-xs text-gray-500">{profileForm.email}</span>
+              <span className="font-medium">
+                {(user?.fullName ?? profileForm.fullName) || 'Người dùng'}
+              </span>
+              <span className="text-xs text-gray-500">
+                {(user?.email ?? profileForm.email)}
+              </span>
             </div>
           </div>
         </div>
@@ -207,7 +235,7 @@ function Profile() {
           <section className="bg-white rounded-lg shadow p-6">
             <h2 className="text-lg font-semibold text-gray-800 mb-4">
               Chỉnh sửa hồ sơ
-              {loading && (
+              {profileFormLoading && (
                 <span className="ml-2 text-xs font-normal text-gray-400">
                   Đang tải...
                 </span>
@@ -221,8 +249,10 @@ function Profile() {
                 <input
                   type="text"
                   name="fullName"
-                  value={profileForm.fullName}
+                  value={profileForm.fullName ?? ''}
                   onChange={handleProfileChange}
+                  readOnly={false}
+                  disabled={false}
                   className="w-full border border-gray-300 rounded-md px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
                   placeholder="Nhập họ và tên"
                 />
@@ -235,8 +265,10 @@ function Profile() {
                 <input
                   type="email"
                   name="email"
-                  value={profileForm.email}
+                  value={profileForm.email ?? ''}
                   onChange={handleProfileChange}
+                  readOnly={false}
+                  disabled={false}
                   className="w-full border border-gray-300 rounded-md px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
                   placeholder="Nhập email"
                 />
@@ -249,8 +281,10 @@ function Profile() {
                 <input
                   type="text"
                   name="avatar"
-                  value={profileForm.avatar}
+                  value={profileForm.avatar ?? ''}
                   onChange={handleProfileChange}
+                  readOnly={false}
+                  disabled={false}
                   className="w-full border border-gray-300 rounded-md px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
                   placeholder="Nhập đường dẫn ảnh avatar (nếu có)"
                 />

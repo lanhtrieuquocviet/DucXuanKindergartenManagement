@@ -20,26 +20,63 @@ function Header() {
                                 Thông tin công khai
                             </div>
 
-
-                            <div className="absolute top-full left-0 mt-2 hidden group-hover:block bg-white text-gray-800 rounded-xl shadow-xl min-w-[220px] z-50">
+                            {/* Dropdown cấp 1 */}
+                            <div className="absolute top-full left-0 mt-2 hidden group-hover:block bg-white text-gray-800 rounded-xl shadow-xl min-w-[260px] z-50">
+                                {/* Link thông tin chung */}
                                 <a href="/public-information">
-                                    <div className="px-4 py-3 hover:bg-green-100 cursor-pointer">
+                                    <div className="px-4 py-3 hover:bg-green-100 cursor-pointer font-medium">
                                         Thông tin chung về cơ sở giáo dục
                                     </div>
                                 </a>
+
                                 {[
-                                    "Công khai thu chi tài chính",
-                                    "Điều kiện đảm bảo chất lượng hoạt động giáo dục",
-                                    "Kế hoạch và kết quả hoạt động giáo dục",
-                                    "Báo cáo thường niên",
-                                ].map((item) => (
-                                    <div
-                                        key={item}
-                                        className="px-4 py-3 hover:bg-green-100 cursor-pointer"
-                                    >
-                                        {item}
-                                    </div>
-                                ))}
+                                    {
+                                        label: "Công khai thu chi tài chính",
+                                        slug: "financial-disclosure",
+                                    },
+                                    {
+                                        label: "Điều kiện đảm bảo chất lượng hoạt động giáo dục",
+                                        slug: "education-quality",
+                                    },
+                                    {
+                                        label: "Kế hoạch và kết quả hoạt động giáo dục",
+                                        slug: "education-plan-result",
+                                    },
+                                    {
+                                        label: "Báo cáo thường niên",
+                                        slug: "annual-report",
+                                    },
+                                ].map((item) => {
+                                    const currentYear = new Date().getFullYear();
+                                    const years = [currentYear, currentYear - 1];
+
+                                    return (
+                                        <div
+                                            key={item.slug}
+                                            className="relative group/sub"
+                                        >
+                                            {/* Item cấp 1 */}
+                                            <div className="px-4 py-3 hover:bg-green-100 cursor-pointer flex justify-between items-center">
+                                                <span>{item.label}</span>
+                                                <span className="text-xs">▶</span>
+                                            </div>
+
+                                            {/* Dropdown cấp 2 (năm) */}
+                                            <div className="absolute top-0 left-full ml-1 hidden group-hover/sub:block bg-white rounded-xl shadow-xl min-w-[120px] z-50">
+                                                {years.map((year) => (
+                                                    <a
+                                                        key={year}
+                                                        href={`/public-information/${item.slug}/${year}`}
+                                                    >
+                                                        <div className="px-4 py-3 hover:bg-green-100 cursor-pointer">
+                                                            Năm {year}
+                                                        </div>
+                                                    </a>
+                                                ))}
+                                            </div>
+                                        </div>
+                                    );
+                                })}
                             </div>
                         </div>
 
@@ -76,7 +113,7 @@ function Header() {
                                     </div>
                                 </a>
 
-                                
+
                                 {/* Cơ cấu tổ chức */}
                                 <div className="relative group/sub">
                                     <div
@@ -84,28 +121,33 @@ function Header() {
                    hover:bg-green-50 hover:text-green-700 transition"
                                     >
                                         Cơ cấu tổ chức
-                                        <span className="text-sm">›</span>
+                                        <span className="text-sm">▶</span>
                                     </div>
 
                                     {/* Dropdown cấp 2 */}
                                     <div className="absolute top-0 left-full ml-1 hidden group-hover/sub:block
                       bg-white text-gray-800 rounded-xl shadow-lg
                       min-w-[260px] border">
-                                        {[
-                                            "Ban Giám hiệu",
-                                            "Tổ Chuyên môn",
-                                            "Tổ Hành chính - Văn phòng",
-                                            "Hội Thường trực PHHS",
-                                        ].map((item) => (
-                                            <div
-                                                key={item}
-                                                className="px-4 py-3 cursor-pointer
-                       hover:bg-green-50 hover:text-green-700
-                       transition"
-                                            >
-                                                {item}
+                                        <a href="/board-of-directors">
+                                            <div className="px-4 py-3 hover:bg-green-100 cursor-pointer">
+                                                Ban giám hiệu
                                             </div>
-                                        ))}
+                                        </a>
+                                        <a href="/professional-group">
+                                            <div className="px-4 py-3 hover:bg-green-100 cursor-pointer">
+                                                Tổ Chuyên môn
+                                            </div>
+                                        </a>
+                                        <a href="/administrative-staff">
+                                            <div className="px-4 py-3 hover:bg-green-100 cursor-pointer">
+                                                Tổ Hành chính - Văn phòng
+                                            </div>
+                                        </a>
+                                        <a href="/parent-council">
+                                            <div className="px-4 py-3 hover:bg-green-100 cursor-pointer">
+                                                Hội Thường trực PHHS
+                                            </div>
+                                        </a>
                                     </div>
                                 </div>
                             </div>
@@ -118,20 +160,31 @@ function Header() {
                             </div>
 
                             <div className="absolute top-full left-0 mt-2 hidden group-hover:block bg-white text-gray-800 rounded-xl shadow-xl min-w-[220px] z-50">
-                                {[
-                                    "Bản tin trường",
-                                    "Thông báo",
-                                    "Tin tức từ Phòng",
-                                    "Thông báo từ Phòng",
-                                    "Hoạt động ngoại khóa",
-                                ].map((item) => (
-                                    <div
-                                        key={item}
-                                        className="px-4 py-3 hover:bg-green-100 cursor-pointer"
-                                    >
-                                        {item}
+                                <a href="/school-news">
+                                    <div className="px-4 py-3 hover:bg-green-100 cursor-pointer">
+                                        Bản tin trường
                                     </div>
-                                ))}
+                                </a>
+                                <a href="/notifications-news">
+                                    <div className="px-4 py-3 hover:bg-green-100 cursor-pointer">
+                                        Thông báo
+                                    </div>
+                                </a>
+                                <a href="/department-news">
+                                    <div className="px-4 py-3 hover:bg-green-100 cursor-pointer">
+                                        Tin tức từ Phòng
+                                    </div>
+                                </a>
+                                <a href="/department-notifications">
+                                    <div className="px-4 py-3 hover:bg-green-100 cursor-pointer">
+                                        Thông báo từ Phòng
+                                    </div>
+                                </a>
+                                <a href="/extracurricular-activities">
+                                    <div className="px-4 py-3 hover:bg-green-100 cursor-pointer">
+                                        Hoạt động ngoại khóa
+                                    </div>
+                                </a>
                             </div>
                         </div>
 
@@ -142,17 +195,16 @@ function Header() {
                             </div>
 
                             <div className="absolute top-full left-0 mt-2 hidden group-hover:block bg-white text-gray-800 rounded-xl shadow-xl min-w-[220px] z-50">
-                                {[
-                                    "Văn bản pháp quy",
-                                    "Văn bản từ Phòng",
-                                ].map((item) => (
-                                    <div
-                                        key={item}
-                                        className="px-4 py-3 hover:bg-green-100 cursor-pointer"
-                                    >
-                                        {item}
+                                <a href="/legal-documents">
+                                    <div className="px-4 py-3 hover:bg-green-100 cursor-pointer">
+                                        Văn bản pháp quy
                                     </div>
-                                ))}
+                                </a>
+                                <a href="/department-documents">
+                                    <div className="px-4 py-3 hover:bg-green-100 cursor-pointer">
+                                        Văn bản từ Phòng
+                                    </div>
+                                </a>
                             </div>
                         </div>
 
@@ -163,27 +215,81 @@ function Header() {
                             </div>
 
                             <div className="absolute top-full left-0 mt-2 hidden group-hover:block bg-white text-gray-800 rounded-xl shadow-xl min-w-[220px] z-50">
-                                {[
-                                    "Học trực tuyến",
-                                    "Chương trình tuần",
-                                    "Thực đơn tuần",
-                                    "Thư viện ảnh",
-                                    "Video Clip",
-                                    "Tài liệu",
-                                    "Thời khóa biểu",
-                                    "Giáo án điện tử",
-                                    "Chia sẻ kinh nghiệm",
-                                    "Điều cần biết",
-                                    "Thơ văn - nhạc",
-                                    "Thư giãn",
-                                ].map((item) => (
-                                    <div
-                                        key={item}
-                                        className="px-4 py-3 hover:bg-green-100 cursor-pointer"
-                                    >
-                                        {item}
+                                <a
+                                    href="https://k12online.vn/"
+                                    target="_blank"
+                                    rel="noopener noreferrer"
+                                >
+                                    <div className="px-4 py-3 hover:bg-green-100 cursor-pointer">
+                                        Học trực tuyến
                                     </div>
-                                ))}
+                                </a>
+
+                                <a href="/weekly-program">
+                                    <div className="px-4 py-3 hover:bg-green-100 cursor-pointer">
+                                        Trương chình tuần
+                                    </div>
+                                </a>
+
+                                <a href="/weekly-menu">
+                                    <div className="px-4 py-3 hover:bg-green-100 cursor-pointer">
+                                        Thực đơn tuần
+                                    </div>
+                                </a>
+
+                                <a href="/photo-gallery">
+                                    <div className="px-4 py-3 hover:bg-green-100 cursor-pointer">
+                                        Thư viện ảnh
+                                    </div>
+                                </a>
+
+                                <a href="/video-gallery">
+                                    <div className="px-4 py-3 hover:bg-green-100 cursor-pointer">
+                                        Video clip
+                                    </div>
+                                </a>
+
+                                <a href="/document-library">
+                                    <div className="px-4 py-3 hover:bg-green-100 cursor-pointer">
+                                        Tài liệu
+                                    </div>
+                                </a>
+
+                                <a href="/schedule">
+                                    <div className="px-4 py-3 hover:bg-green-100 cursor-pointer">
+                                        Thời khóa biểu
+                                    </div>
+                                </a>
+
+                                <a href="/lesson-plan">
+                                    <div className="px-4 py-3 hover:bg-green-100 cursor-pointer">
+                                        Giáo án điện tử
+                                    </div>
+                                </a>
+
+                                <a href="/experience-sharing">
+                                    <div className="px-4 py-3 hover:bg-green-100 cursor-pointer">
+                                        Chia sẻ kinh nghiệm
+                                    </div>
+                                </a>
+
+                                <a href="/things-to-know">
+                                    <div className="px-4 py-3 hover:bg-green-100 cursor-pointer">
+                                        Điều cần biết
+                                    </div>
+                                </a>
+
+                                <a href="/poetry-music">
+                                    <div className="px-4 py-3 hover:bg-green-100 cursor-pointer">
+                                        Thơ văn - nhạc
+                                    </div>
+                                </a>
+
+                                <a href="/relax-page">
+                                    <div className="px-4 py-3 hover:bg-green-100 cursor-pointer">
+                                        Thư giãn
+                                    </div>
+                                </a>
                             </div>
                         </div>
                         {/* Các menu thường */}

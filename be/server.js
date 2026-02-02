@@ -20,6 +20,8 @@ require('./src/models/Permission');
 require('./src/models/Student');
 require('./src/models/Grade');
 require('./src/models/Classes');
+require('./src/models/AcademicYear');
+require('./src/models/User');
 
 // Initialize express app
 const app = express();
