@@ -170,7 +170,7 @@ function ForgotPassword() {
       );
 
       if (response.status === 'success') {
-        setSent(true);
+    setSent(true);
       }
     } catch (err) {
       setError(err.message || 'Không thể đặt lại mật khẩu');
@@ -210,9 +210,9 @@ function ForgotPassword() {
             </p>
           )}
           {step === 2 && (
-            <p className="mt-2 text-xs md:text-sm text-sky-600">
+          <p className="mt-2 text-xs md:text-sm text-sky-600">
               Nhập mã OTP đã được gửi đến email <strong>{maskedEmail}</strong>
-            </p>
+          </p>
           )}
           {step === 3 && (
             <p className="mt-2 text-xs md:text-sm text-sky-600">
@@ -385,15 +385,15 @@ function ForgotPassword() {
               >
                 Quay lại
               </button>
-              <button
-                type="submit"
+          <button
+            type="submit"
                 disabled={loading}
                 className="flex-1 inline-flex items-center justify-center rounded-xl bg-gradient-to-r from-sky-500 to-emerald-400 px-4 py-2.5 text-sm font-semibold text-white shadow-md hover:from-sky-600 hover:to-emerald-500 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-sky-300 transition disabled:opacity-50 disabled:cursor-not-allowed"
-              >
+          >
                 {loading ? 'Đang xác minh...' : 'Xác minh OTP'}
-              </button>
+          </button>
             </div>
-          </form>
+        </form>
         ) : (
           <form onSubmit={handleStep3Submit} className="space-y-5">
             {sent ? (

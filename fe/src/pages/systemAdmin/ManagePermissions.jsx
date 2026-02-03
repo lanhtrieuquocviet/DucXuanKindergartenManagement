@@ -3,6 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../../context/AuthContext';
 import { useSystemAdmin } from '../../context/SystemAdminContext';
 import RoleLayout from '../../layouts/RoleLayout';
+import ConfirmDialog from '../../components/ConfirmDialog';
 
 function ManagePermissions() {
   const [roles, setRoles] = useState([]);
@@ -13,6 +14,12 @@ function ManagePermissions() {
   const [showPermissionForm, setShowPermissionForm] = useState(false);
   const [editingPermission, setEditingPermission] = useState(null); // Permission đang sửa
   const [permissionForm, setPermissionForm] = useState({ code: '', description: '' });
+  const [confirmState, setConfirmState] = useState({
+    open: false,
+    title: '',
+    message: '',
+    onConfirm: null,
+  });
   const navigate = useNavigate();
   const { user, logout, isInitializing } = useAuth();
   const { 
@@ -93,6 +100,8 @@ function ManagePermissions() {
       setEditingPermission(null);
       setPermissionForm({ code: '', description: '' });
     }
+    setError(null);
+    setSuccess('');
     setShowPermissionForm(true);
   };
 
@@ -100,6 +109,7 @@ function ManagePermissions() {
     setShowPermissionForm(false);
     setEditingPermission(null);
     setPermissionForm({ code: '', description: '' });
+    setError(null);
   };
 
   const handleSavePermission = async (e) => {
@@ -108,13 +118,41 @@ function ManagePermissions() {
       setError(null);
       setSuccess('');
 
+      const code = permissionForm.code.toUpperCase().trim();
+      const description = permissionForm.description.trim();
+
+      // Validate độ dài
+      if (code.length < 3 || code.length > 64) {
+        setError('Code phải có từ 3 đến 64 ký tự');
+        return;
+      }
+
+      if (description.length === 0) {
+        setError('Mô tả không được để trống');
+        return;
+      }
+
+      if (description.length > 255) {
+        setError('Mô tả không được vượt quá 255 ký tự');
+        return;
+      }
+
+      // Chỉ cho phép định dạng ACTION_MODULE (chữ in hoa + _)
+      const codePattern = /^[A-Z]+_[A-Z]+$/;
+      if (!codePattern.test(code)) {
+        setError('Code chỉ được chứa chữ in hoa (A-Z) và dấu gạch dưới (_), theo định dạng ACTION_MODULE. Ví dụ: CREATE_USER');
+        return;
+      }
+
+      const payload = { code, description };
+
       if (editingPermission) {
         // Cập nhật permission
-        await updatePermission(editingPermission._id || editingPermission.id, permissionForm.code, permissionForm.description);
+        await updatePermission(editingPermission._id || editingPermission.id, payload.code, payload.description);
         setSuccess('Cập nhật phân quyền thành công.');
       } else {
         // Tạo permission mới
-        await createPermission(permissionForm.code, permissionForm.description);
+        await createPermission(payload.code, payload.description);
         setSuccess('Tạo phân quyền thành công.');
       }
 
@@ -129,11 +167,7 @@ function ManagePermissions() {
     }
   };
 
-  const handleDeletePermission = async (permissionId) => {
-    if (!window.confirm('Bạn có chắc chắn muốn xóa phân quyền này?')) {
-      return;
-    }
-
+  const handleDeletePermissionConfirmed = async (permissionId) => {
     try {
       setError(null);
       setSuccess('');
@@ -158,6 +192,18 @@ function ManagePermissions() {
     } catch (err) {
       // Error được xử lý trong context
     }
+  };
+
+  const handleDeletePermission = (permissionId) => {
+    setConfirmState({
+      open: true,
+      title: 'Xóa phân quyền',
+      message: 'Bạn có chắc chắn muốn xóa phân quyền này?',
+      onConfirm: () => {
+        setConfirmState((prev) => ({ ...prev, open: false }));
+        handleDeletePermissionConfirmed(permissionId);
+      },
+    });
   };
 
   const handleSelectRole = (role) => {
@@ -313,6 +359,11 @@ function ManagePermissions() {
               <h3 className="text-lg font-semibold text-gray-900 mb-4">
                 {editingPermission ? 'Sửa phân quyền' : 'Thêm phân quyền mới'}
               </h3>
+              {error && (
+                <div className="mb-3 rounded-md bg-red-50 border border-red-200 px-3 py-2 text-xs text-red-800">
+                  {error}
+                </div>
+              )}
               <form onSubmit={handleSavePermission}>
                 <div className="mb-4">
                   <label className="block text-sm font-medium text-gray-700 mb-1">
@@ -326,6 +377,7 @@ function ManagePermissions() {
                     placeholder="VD: CREATE_USER"
                     required
                     disabled={!!editingPermission}
+                    maxLength={64}
                   />
                   {editingPermission && (
                     <p className="text-xs text-gray-500 mt-1">Không thể thay đổi code khi sửa</p>
@@ -339,9 +391,10 @@ function ManagePermissions() {
                     value={permissionForm.description}
                     onChange={(e) => setPermissionForm({ ...permissionForm, description: e.target.value })}
                     className="w-full border border-gray-300 rounded-md px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500"
-                    placeholder="Mô tả phân quyền này"
+                    placeholder="Mô tả phân quyền này (tối đa 255 ký tự)"
                     rows={3}
                     required
+                    maxLength={255}
                   />
                 </div>
                 <div className="flex justify-end gap-2">
@@ -387,9 +440,13 @@ function ManagePermissions() {
                           : 'bg-gray-50 border-gray-200 text-gray-800 hover:bg-gray-100'
                       }`}
                     >
-                      <div className="font-medium">{role.roleName}</div>
+                      <div className="font-medium text-sm text-gray-900 truncate max-w-xs">
+                        {role.roleName}
+                      </div>
                       {role.description && (
-                        <div className="text-xs text-gray-500 mt-1">{role.description}</div>
+                        <div className="text-xs text-gray-500 mt-1 line-clamp-2 max-w-xs">
+                          {role.description}
+                        </div>
                       )}
                       <div className="text-xs text-gray-400 mt-1">
                         {role.permissions?.length || 0} phân quyền
@@ -406,11 +463,18 @@ function ManagePermissions() {
             {selectedRole ? (
               <>
                 <div className="mb-4">
-                  <h3 className="text-sm font-semibold text-gray-800 mb-2">
-                    Phân quyền cho vai trò: {selectedRole.roleName}
+                  <h3 className="text-sm font-semibold text-gray-800 mb-1">
+                    <span className="inline-block max-w-md truncate align-bottom" title={selectedRole.roleName}>
+                      Phân quyền cho vai trò: {selectedRole.roleName}
+                    </span>
                   </h3>
                   {selectedRole.description && (
-                    <p className="text-xs text-gray-500">{selectedRole.description}</p>
+                    <p
+                      className="text-xs text-gray-500 max-w-md line-clamp-2"
+                      title={selectedRole.description}
+                    >
+                      {selectedRole.description}
+                    </p>
                   )}
                 </div>
 
@@ -441,7 +505,10 @@ function ManagePermissions() {
                                 className="mt-0.5 mr-3 h-4 w-4 text-indigo-600 border-gray-300 rounded focus:ring-indigo-500 cursor-pointer flex-shrink-0"
                               />
                               <div className="flex-1 min-w-0">
-                                <div className={`font-medium text-sm ${isChecked ? 'text-indigo-900' : 'text-gray-900'}`}>
+                                <div
+                                  className={`font-medium text-sm ${isChecked ? 'text-indigo-900' : 'text-gray-900'} truncate max-w-xs`}
+                                  title={perm.code}
+                                >
                                   {perm.code}
                                 </div>
                                 {perm.description && (
@@ -478,6 +545,14 @@ function ManagePermissions() {
             )}
           </div>
       </div>
+
+      <ConfirmDialog
+        open={confirmState.open}
+        title={confirmState.title}
+        message={confirmState.message}
+        onCancel={() => setConfirmState((prev) => ({ ...prev, open: false }))}
+        onConfirm={confirmState.onConfirm}
+      />
     </RoleLayout>
   );
 }
