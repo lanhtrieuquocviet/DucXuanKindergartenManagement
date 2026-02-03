@@ -3,6 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../../context/AuthContext';
 import { useSystemAdmin } from '../../context/SystemAdminContext';
 import RoleLayout from '../../layouts/RoleLayout';
+import ConfirmDialog from '../../components/ConfirmDialog';
 
 function ManageRoles() {
   const [roles, setRoles] = useState([]);
@@ -14,6 +15,12 @@ function ManageRoles() {
   const [selectedRoleForPermissions, setSelectedRoleForPermissions] = useState(null);
   const [permissions, setPermissions] = useState([]);
   const [selectedPermissions, setSelectedPermissions] = useState(new Set());
+  const [confirmState, setConfirmState] = useState({
+    open: false,
+    title: '',
+    message: '',
+    onConfirm: null,
+  });
   const navigate = useNavigate();
   const { user, logout, isInitializing } = useAuth();
   const { 
@@ -90,6 +97,7 @@ function ManageRoles() {
       setEditingRole(null);
       setRoleForm({ roleName: '', description: '' });
     }
+    setError(null);
     setShowRoleForm(true);
   };
 
@@ -97,6 +105,7 @@ function ManageRoles() {
     setShowRoleForm(false);
     setEditingRole(null);
     setRoleForm({ roleName: '', description: '' });
+    setError(null);
   };
 
   const handleSaveRole = async (e) => {
@@ -105,13 +114,34 @@ function ManageRoles() {
       setError(null);
       setSuccess('');
 
+      const roleName = roleForm.roleName.trim();
+      const description = (roleForm.description || '').trim();
+
+      // Validate độ dài tên vai trò
+      if (roleName.length < 3 || roleName.length > 32) {
+        setError('Tên vai trò phải có từ 3 đến 32 ký tự');
+        return;
+      }
+
+      // Chỉ cho phép chữ cái và số, bắt đầu bằng chữ cái, không khoảng trắng/ký tự đặc biệt
+      const namePattern = /^[A-Za-z][A-Za-z0-9]*$/;
+      if (!namePattern.test(roleName)) {
+        setError('Tên vai trò chỉ được chứa chữ cái và số, bắt đầu bằng chữ cái, không có khoảng trắng hoặc ký tự đặc biệt. Ví dụ: Teacher, SchoolAdmin');
+        return;
+      }
+
+      if (description.length > 255) {
+        setError('Mô tả vai trò không được vượt quá 255 ký tự');
+        return;
+      }
+
       if (editingRole) {
         // Cập nhật role
-        await updateRole(editingRole.id || editingRole._id, roleForm.roleName, roleForm.description);
+        await updateRole(editingRole.id || editingRole._id, roleName, description);
         setSuccess('Cập nhật vai trò thành công.');
       } else {
         // Tạo role mới
-        await createRole(roleForm.roleName, roleForm.description);
+        await createRole(roleName, description);
         setSuccess('Tạo vai trò thành công.');
       }
 
@@ -126,11 +156,7 @@ function ManageRoles() {
     }
   };
 
-  const handleDeleteRole = async (roleId) => {
-    if (!window.confirm('Bạn có chắc chắn muốn xóa vai trò này? Vai trò sẽ không thể khôi phục.')) {
-      return;
-    }
-
+  const handleDeleteRoleConfirmed = async (roleId) => {
     try {
       setError(null);
       setSuccess('');
@@ -144,6 +170,18 @@ function ManageRoles() {
     } catch (err) {
       // Error được xử lý trong context
     }
+  };
+
+  const handleDeleteRole = (roleId) => {
+    setConfirmState({
+      open: true,
+      title: 'Xóa vai trò',
+      message: 'Bạn có chắc chắn muốn xóa vai trò này? Vai trò sẽ không thể khôi phục.',
+      onConfirm: () => {
+        setConfirmState((prev) => ({ ...prev, open: false }));
+        handleDeleteRoleConfirmed(roleId);
+      },
+    });
   };
 
   const userName = user?.fullName || user?.username || 'System Admin';
@@ -290,11 +328,18 @@ function ManageRoles() {
                   const roleId = role.id || role._id;
                   return (
                     <tr key={roleId} className="hover:bg-gray-50">
-                      <td className="px-4 py-3 border-b border-gray-100 text-gray-900 font-medium">
-                        {role.roleName}
+                      <td className="px-4 py-3 border-b border-gray-100 text-gray-900 font-medium max-w-xs">
+                        <span className="block truncate" title={role.roleName}>
+                          {role.roleName}
+                        </span>
                       </td>
-                      <td className="px-4 py-3 border-b border-gray-100 text-gray-800">
-                        {role.description || <span className="text-gray-400">Không có mô tả</span>}
+                      <td className="px-4 py-3 border-b border-gray-100 text-gray-800 max-w-md">
+                        <span
+                          className="block text-sm text-gray-800 line-clamp-2"
+                          title={role.description || 'Không có mô tả'}
+                        >
+                          {role.description || <span className="text-gray-400">Không có mô tả</span>}
+                        </span>
                       </td>
                       <td 
                         className="px-4 py-3 border-b border-gray-100"
@@ -355,6 +400,11 @@ function ManageRoles() {
             <h3 className="text-lg font-semibold text-gray-900 mb-4">
               {editingRole ? 'Sửa vai trò' : 'Thêm vai trò mới'}
             </h3>
+            {error && (
+              <div className="mb-3 rounded-md bg-red-50 border border-red-200 px-3 py-2 text-xs text-red-800">
+                {error}
+              </div>
+            )}
             <form onSubmit={handleSaveRole}>
               <div className="mb-4">
                 <label className="block text-sm font-medium text-gray-700 mb-1">
@@ -367,6 +417,7 @@ function ManageRoles() {
                   className="w-full border border-gray-300 rounded-md px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500"
                   placeholder="VD: Teacher, SchoolAdmin"
                   required
+                  maxLength={32}
                 />
               </div>
               <div className="mb-4">
@@ -377,8 +428,9 @@ function ManageRoles() {
                   value={roleForm.description}
                   onChange={(e) => setRoleForm({ ...roleForm, description: e.target.value })}
                   className="w-full border border-gray-300 rounded-md px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500"
-                  placeholder="Mô tả vai trò này"
+                  placeholder="Mô tả vai trò này (tối đa 255 ký tự)"
                   rows={3}
+                  maxLength={255}
                 />
               </div>
               <div className="flex justify-end gap-2">
@@ -406,15 +458,17 @@ function ManageRoles() {
       {showPermissionModal && selectedRoleForPermissions && (
         <div className="fixed inset-0 bg-black/40 flex items-center justify-center z-50">
           <div className="bg-white rounded-lg shadow-xl p-6 w-full max-w-2xl max-h-[90vh] flex flex-col">
-            <h3 className="text-lg font-semibold text-gray-900 mb-4">
-              Quản lý phân quyền cho vai trò: {selectedRoleForPermissions.roleName}
+            <h3 className="text-lg font-semibold text-gray-900 mb-2">
+              <span className="block truncate max-w-xl" title={selectedRoleForPermissions.roleName}>
+                Quản lý phân quyền cho vai trò: {selectedRoleForPermissions.roleName}
+              </span>
             </h3>
             
             <div className="mb-4 text-sm text-gray-600">
               Đã chọn: {selectedPermissions.size}/{permissions.length} phân quyền
             </div>
 
-            <div className="flex-1 overflow-y-auto mb-4 border border-gray-200 rounded-lg p-4">
+            <div className="flex-1 overflow-y-auto overflow-x-hidden mb-4 border border-gray-200 rounded-lg p-4">
               {permissions.length === 0 ? (
                 <p className="text-sm text-gray-500 py-4 text-center">
                   Chưa có phân quyền nào trong hệ thống.
@@ -439,7 +493,10 @@ function ManageRoles() {
                           className="mt-0.5 mr-3 h-4 w-4 text-indigo-600 border-gray-300 rounded focus:ring-indigo-500 cursor-pointer flex-shrink-0"
                         />
                         <div className="flex-1 min-w-0">
-                          <div className={`font-medium text-sm ${isChecked ? 'text-indigo-900' : 'text-gray-900'}`}>
+                          <div
+                            className={`font-medium text-sm ${isChecked ? 'text-indigo-900' : 'text-gray-900'} truncate max-w-xl`}
+                            title={perm.code}
+                          >
                             {perm.code}
                           </div>
                           {perm.description && (
@@ -475,6 +532,13 @@ function ManageRoles() {
           </div>
         </div>
       )}
+      <ConfirmDialog
+        open={confirmState.open}
+        title={confirmState.title}
+        message={confirmState.message}
+        onCancel={() => setConfirmState((prev) => ({ ...prev, open: false }))}
+        onConfirm={confirmState.onConfirm}
+      />
     </RoleLayout>
   );
 }
