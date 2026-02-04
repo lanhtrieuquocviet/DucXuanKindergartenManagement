@@ -116,24 +116,34 @@ function ForgotPassword() {
   const validatePassword = (password) => {
     const errors = [];
 
-    // Kiểm tra độ dài tối thiểu
-    if (password.length < 8) {
-      errors.push('Mật khẩu phải có ít nhất 8 ký tự');
+    // Độ dài 8-32 ký tự
+    if (password.length < 8 || password.length > 32) {
+      errors.push('Mật khẩu phải có từ 8 đến 32 ký tự');
     }
 
-    // Kiểm tra độ dài tối đa
-    if (password.length > 64) {
-      errors.push('Mật khẩu không được vượt quá 64 ký tự');
-    }
-
-    // Kiểm tra khoảng trắng
-    if (password.includes(' ')) {
+    // Không chứa khoảng trắng
+    if (/\s/.test(password)) {
       errors.push('Mật khẩu không được chứa khoảng trắng');
     }
 
-    // Kiểm tra khoảng trắng đầu/cuối
-    if (password !== password.trim()) {
-      errors.push('Mật khẩu không được có khoảng trắng ở đầu hoặc cuối');
+    // Ít nhất 1 chữ hoa
+    if (!/[A-Z]/.test(password)) {
+      errors.push('Mật khẩu phải chứa ít nhất 1 chữ hoa');
+    }
+
+    // Ít nhất 1 chữ thường
+    if (!/[a-z]/.test(password)) {
+      errors.push('Mật khẩu phải chứa ít nhất 1 chữ thường');
+    }
+
+    // Ít nhất 1 số
+    if (!/[0-9]/.test(password)) {
+      errors.push('Mật khẩu phải chứa ít nhất 1 chữ số');
+    }
+
+    // Ít nhất 1 ký tự đặc biệt
+    if (!/[^A-Za-z0-9]/.test(password)) {
+      errors.push('Mật khẩu phải chứa ít nhất 1 ký tự đặc biệt');
     }
 
     return errors;
@@ -426,10 +436,10 @@ function ForgotPassword() {
                     onChange={(e) => setNewPassword(e.target.value)}
                     disabled={loading || sent}
                     className="block w-full rounded-xl border border-sky-100 bg-sky-50/60 px-3 py-2.5 text-sm text-sky-900 placeholder-sky-400 shadow-sm focus:border-sky-400 focus:bg-white focus:outline-none focus:ring-2 focus:ring-sky-200 transition disabled:opacity-50 disabled:cursor-not-allowed"
-                    placeholder="Nhập mật khẩu mới (8-64 ký tự, không có khoảng trắng)"
+                    placeholder="Nhập mật khẩu mới (8-32 ký tự, có HOA, thường, số, ký tự đặc biệt, không khoảng trắng)"
                   />
                   <p className="text-xs text-sky-500 mt-1">
-                    Yêu cầu: 8-64 ký tự, không chứa khoảng trắng
+                    Yêu cầu: 8-32 ký tự, chứa ít nhất 1 chữ hoa, 1 chữ thường, 1 số, 1 ký tự đặc biệt và không chứa khoảng trắng
                   </p>
                 </div>
 
