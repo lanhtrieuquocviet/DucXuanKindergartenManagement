@@ -71,6 +71,8 @@ function ManagePermissions() {
   const handleMenuSelect = (key) => {
     if (key === 'overview') {
       navigate('/system-admin');
+    } else if (key === 'accounts') {
+      navigate('/system-admin/manage-accounts');
     } else if (key === 'roles') {
       navigate('/system-admin/manage-roles');
     } else if (key === 'permissions') {

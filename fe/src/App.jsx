@@ -6,6 +6,7 @@ import About from './pages/About';
 import Login from './pages/Login';
 import ForgotPassword from './pages/ForgotPassword';
 import SystemAdminDashboard from './pages/systemAdmin/AdminDashboard';
+import ManageAccounts from './pages/systemAdmin/ManageAccounts';
 import ManageRoles from './pages/systemAdmin/ManageRoles';
 import ManagePermissions from './pages/systemAdmin/ManagePermissions';
 import TeacherDashboard from './pages/teacher/TeacherDashboard';
@@ -140,6 +141,14 @@ function App() {
             element={(
               <SystemAdminProvider>
                 <SystemAdminDashboard />
+              </SystemAdminProvider>
+            )}
+          />
+          <Route
+            path="/system-admin/manage-accounts"
+            element={(
+              <SystemAdminProvider>
+                <ManageAccounts />
               </SystemAdminProvider>
             )}
           />

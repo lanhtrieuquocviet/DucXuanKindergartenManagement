@@ -6,12 +6,33 @@ import { useAuth } from '../context/AuthContext';
 
 function Login() {
   const [form, setForm] = useState({ username: '', password: '' });
+  const [usernameWarning, setUsernameWarning] = useState('');
+  const [passwordWarning, setPasswordWarning] = useState('');
   const navigate = useNavigate();
   const { login, loading, error } = useAuth();
 
   const handleChange = (e) => {
     const { name, value } = e.target;
     setForm((prev) => ({ ...prev, [name]: value }));
+    if (name === 'username') {
+      if (value && !/[A-Z]/.test(value)) {
+        setUsernameWarning('Tài khoản nên chứa ít nhất 1 chữ cái viết hoa (A-Z).');
+      } else {
+        setUsernameWarning('');
+      }
+    }
+    if (name === 'password') {
+      const hasUpper = /[A-Z]/.test(value);
+      const hasNumber = /\d/.test(value);
+      const hasSpecial = /[^A-Za-z0-9]/.test(value);
+      if (value && (!hasUpper || !hasNumber || !hasSpecial)) {
+        setPasswordWarning(
+          'Mật khẩu nên có ít nhất 1 chữ cái viết hoa, 1 số và 1 ký tự đặc biệt.'
+        );
+      } else {
+        setPasswordWarning('');
+      }
+    }
   };
 
   const handleSubmit = async (e) => {
@@ -90,6 +111,11 @@ function Login() {
                   className="block w-full rounded-xl border border-sky-100 bg-sky-50/60 px-3 py-2.5 text-sm text-sky-900 placeholder-sky-400 shadow-sm focus:border-sky-400 focus:bg-white focus:outline-none focus:ring-2 focus:ring-sky-200 transition"
                   placeholder="vd: admin"
                 />
+                {usernameWarning && (
+                  <p className="mt-1 text-xs text-amber-600">
+                    {usernameWarning}
+                  </p>
+                )}
               </div>
 
               <div className="space-y-2">
@@ -109,6 +135,11 @@ function Login() {
                   className="block w-full rounded-xl border border-sky-100 bg-sky-50/60 px-3 py-2.5 text-sm text-sky-900 placeholder-sky-400 shadow-sm focus:border-sky-400 focus:bg-white focus:outline-none focus:ring-2 focus:ring-sky-200 transition"
                   placeholder="Nhập mật khẩu"
                 />
+                {passwordWarning && (
+                  <p className="mt-1 text-xs text-amber-600">
+                    {passwordWarning}
+                  </p>
+                )}
                 <div className="flex justify-end">
                   <Link
                     to="/forgot-password"

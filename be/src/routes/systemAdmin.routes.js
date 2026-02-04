@@ -2,6 +2,9 @@ const express = require('express');
 const { authenticate, authorizeRoles } = require('../middleware/auth');
 const {
   getUsers,
+  createUser,
+  updateUser,
+  deleteUser,
   getRoles,
   createRole,
   updateRole,
@@ -32,6 +35,24 @@ router.get('/dashboard', authenticate, authorizeRoles('SystemAdmin'), (req, res)
  * Lấy danh sách user + roles để SystemAdmin phân quyền
  */
 router.get('/users', authenticate, authorizeRoles('SystemAdmin'), getUsers);
+
+/**
+ * POST /api/system-admin/users
+ * Tạo tài khoản người dùng mới
+ */
+router.post('/users', authenticate, authorizeRoles('SystemAdmin'), createUser);
+
+/**
+ * PUT /api/system-admin/users/:id
+ * Cập nhật thông tin tài khoản người dùng
+ */
+router.put('/users/:id', authenticate, authorizeRoles('SystemAdmin'), updateUser);
+
+/**
+ * DELETE /api/system-admin/users/:id
+ * Xóa tài khoản người dùng
+ */
+router.delete('/users/:id', authenticate, authorizeRoles('SystemAdmin'), deleteUser);
 
 /**
  * GET /api/system-admin/roles

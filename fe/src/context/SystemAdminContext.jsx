@@ -72,6 +72,72 @@ export const SystemAdminProvider = ({
     }
   }, []);
 
+  // Create user account
+  const createUser = useCallback(async (userData) => {
+    try {
+      setLoading(true);
+      setError(null);
+      const response = await post(ENDPOINTS.SYSTEM_ADMIN.CREATE_USER, userData);
+      if (onSuccessRef.current) {
+        onSuccessRef.current({ user: response.data });
+      }
+      return response;
+    } catch (err) {
+      const errorMessage = err.data?.message || err.message || 'Không tạo được tài khoản';
+      setError(errorMessage);
+      if (onErrorRef.current) {
+        onErrorRef.current(err);
+      }
+      throw new Error(errorMessage);
+    } finally {
+      setLoading(false);
+    }
+  }, []);
+
+  // Update user account
+  const updateUser = useCallback(async (userId, userData) => {
+    try {
+      setLoading(true);
+      setError(null);
+      const response = await put(ENDPOINTS.SYSTEM_ADMIN.UPDATE_USER(userId), userData);
+      if (onSuccessRef.current) {
+        onSuccessRef.current({ user: response.data });
+      }
+      return response;
+    } catch (err) {
+      const errorMessage = err.data?.message || err.message || 'Không cập nhật được tài khoản';
+      setError(errorMessage);
+      if (onErrorRef.current) {
+        onErrorRef.current(err);
+      }
+      throw new Error(errorMessage);
+    } finally {
+      setLoading(false);
+    }
+  }, []);
+
+  // Delete user account
+  const deleteUser = useCallback(async (userId) => {
+    try {
+      setLoading(true);
+      setError(null);
+      const response = await deleteRequest(ENDPOINTS.SYSTEM_ADMIN.DELETE_USER(userId));
+      if (onSuccessRef.current) {
+        onSuccessRef.current({ userId });
+      }
+      return response;
+    } catch (err) {
+      const errorMessage = err.data?.message || err.message || 'Không xóa được tài khoản';
+      setError(errorMessage);
+      if (onErrorRef.current) {
+        onErrorRef.current(err);
+      }
+      throw new Error(errorMessage);
+    } finally {
+      setLoading(false);
+    }
+  }, []);
+
   // Get roles list
   const getRoles = useCallback(async () => {
     try {
@@ -316,6 +382,9 @@ export const SystemAdminProvider = ({
     error,
     getDashboard,
     getUsers,
+    createUser,
+    updateUser,
+    deleteUser,
     getRoles,
     createRole,
     updateRole,

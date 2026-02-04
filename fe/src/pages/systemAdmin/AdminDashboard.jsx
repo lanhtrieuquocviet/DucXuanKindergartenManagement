@@ -52,6 +52,10 @@ function SystemAdminDashboard() {
     if (key === 'overview') {
       return;
     }
+    if (key === 'accounts') {
+      navigate('/system-admin/manage-accounts');
+      return;
+    }
     if (key === 'roles') {
       navigate('/system-admin/manage-roles');
       return;
