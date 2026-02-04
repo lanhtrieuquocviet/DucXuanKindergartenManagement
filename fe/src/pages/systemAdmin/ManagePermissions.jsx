@@ -2,6 +2,8 @@ import { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../../context/AuthContext';
 import { useSystemAdmin } from '../../context/SystemAdminContext';
+import RoleLayout from '../../layouts/RoleLayout';
+import ConfirmDialog from '../../components/ConfirmDialog';
 
 function ManagePermissions() {
   const [roles, setRoles] = useState([]);
@@ -12,7 +14,12 @@ function ManagePermissions() {
   const [showPermissionForm, setShowPermissionForm] = useState(false);
   const [editingPermission, setEditingPermission] = useState(null); // Permission đang sửa
   const [permissionForm, setPermissionForm] = useState({ code: '', description: '' });
-  const [showProfileMenu, setShowProfileMenu] = useState(false);
+  const [confirmState, setConfirmState] = useState({
+    open: false,
+    title: '',
+    message: '',
+    onConfirm: null,
+  });
   const navigate = useNavigate();
   const { user, logout, isInitializing } = useAuth();
   const { 
@@ -61,10 +68,6 @@ function ManagePermissions() {
     fetchData();
   }, [navigate, user, getRoles, getPermissions, setError, isInitializing]);
 
-  const handleViewProfile = () => {
-    navigate('/profile');
-  };
-
   const handleMenuSelect = (key) => {
     if (key === 'overview') {
       navigate('/system-admin');
@@ -99,6 +102,8 @@ function ManagePermissions() {
       setEditingPermission(null);
       setPermissionForm({ code: '', description: '' });
     }
+    setError(null);
+    setSuccess('');
     setShowPermissionForm(true);
   };
 
@@ -106,6 +111,7 @@ function ManagePermissions() {
     setShowPermissionForm(false);
     setEditingPermission(null);
     setPermissionForm({ code: '', description: '' });
+    setError(null);
   };
 
   const handleSavePermission = async (e) => {
@@ -114,13 +120,41 @@ function ManagePermissions() {
       setError(null);
       setSuccess('');
 
+      const code = permissionForm.code.toUpperCase().trim();
+      const description = permissionForm.description.trim();
+
+      // Validate độ dài
+      if (code.length < 3 || code.length > 64) {
+        setError('Code phải có từ 3 đến 64 ký tự');
+        return;
+      }
+
+      if (description.length === 0) {
+        setError('Mô tả không được để trống');
+        return;
+      }
+
+      if (description.length > 255) {
+        setError('Mô tả không được vượt quá 255 ký tự');
+        return;
+      }
+
+      // Chỉ cho phép định dạng ACTION_MODULE (chữ in hoa + _)
+      const codePattern = /^[A-Z]+_[A-Z]+$/;
+      if (!codePattern.test(code)) {
+        setError('Code chỉ được chứa chữ in hoa (A-Z) và dấu gạch dưới (_), theo định dạng ACTION_MODULE. Ví dụ: CREATE_USER');
+        return;
+      }
+
+      const payload = { code, description };
+
       if (editingPermission) {
         // Cập nhật permission
-        await updatePermission(editingPermission._id || editingPermission.id, permissionForm.code, permissionForm.description);
+        await updatePermission(editingPermission._id || editingPermission.id, payload.code, payload.description);
         setSuccess('Cập nhật phân quyền thành công.');
       } else {
         // Tạo permission mới
-        await createPermission(permissionForm.code, permissionForm.description);
+        await createPermission(payload.code, payload.description);
         setSuccess('Tạo phân quyền thành công.');
       }
 
@@ -135,11 +169,7 @@ function ManagePermissions() {
     }
   };
 
-  const handleDeletePermission = async (permissionId) => {
-    if (!window.confirm('Bạn có chắc chắn muốn xóa phân quyền này?')) {
-      return;
-    }
-
+  const handleDeletePermissionConfirmed = async (permissionId) => {
     try {
       setError(null);
       setSuccess('');
@@ -164,6 +194,18 @@ function ManagePermissions() {
     } catch (err) {
       // Error được xử lý trong context
     }
+  };
+
+  const handleDeletePermission = (permissionId) => {
+    setConfirmState({
+      open: true,
+      title: 'Xóa phân quyền',
+      message: 'Bạn có chắc chắn muốn xóa phân quyền này?',
+      onConfirm: () => {
+        setConfirmState((prev) => ({ ...prev, open: false }));
+        handleDeletePermissionConfirmed(permissionId);
+      },
+    });
   };
 
   const handleSelectRole = (role) => {
@@ -230,128 +272,37 @@ function ManagePermissions() {
 
   const userName = user?.fullName || user?.username || 'System Admin';
 
+  const handleViewProfile = () => {
+    navigate('/profile');
+  };
+
   return (
-    <div className="min-h-screen bg-gray-100 flex">
-      {/* Sidebar */}
-      <aside className="w-56 bg-gray-900 text-white flex flex-col">
-        <div className="px-6 py-4 font-semibold text-lg border-b border-gray-800">
-          Menu
-        </div>
-        <nav className="flex-1 px-3 py-4 space-y-1">
-          {menuItems.map((item) => {
-            const isActive = item.key === 'permissions';
-            return (
-              <button
-                key={item.key}
-                type="button"
-                onClick={() => handleMenuSelect(item.key)}
-                className={`w-full text-left px-3 py-2 text-sm rounded-md transition ${
-                  isActive
-                    ? 'bg-gray-800 text-white'
-                    : 'hover:bg-gray-800'
-                }`}
-              >
-                {item.label}
-              </button>
-            );
-          })}
-        </nav>
-        <div className="px-4 py-3 border-t border-gray-800">
-          <button
-            type="button"
-            onClick={() => {
-              logout();
-              navigate('/login', { replace: true });
-            }}
-            className="w-full text-left px-3 py-2 text-sm rounded-md hover:bg-gray-800 transition text-red-400"
-          >
-            Đăng xuất
-          </button>
-        </div>
-      </aside>
-
-      {/* Main Content */}
-      <main className="flex-1 p-8">
-        <div className="flex items-center justify-between mb-6">
-          <div>
-            <h1 className="text-2xl font-semibold text-gray-800">Quản lý phân quyền cho vai trò</h1>
-            <p className="text-sm text-gray-500 mt-1">
-              Gán phân quyền (permissions) cho từng vai trò trong hệ thống.
-            </p>
-          </div>
-          <div className="flex items-center gap-2 text-sm text-gray-700">
-            <div className="relative">
-              <button
-                type="button"
-                onClick={() => setShowProfileMenu(!showProfileMenu)}
-                className="inline-flex items-center gap-2 rounded-full border border-gray-200 bg-white px-3 py-1.5 shadow-sm hover:bg-gray-50 transition"
-              >
-                <span className="inline-flex h-8 w-8 items-center justify-center rounded-full bg-indigo-600 text-white font-semibold">
-                  {userName.charAt(0).toUpperCase()}
-                </span>
-                <span className="font-medium">{userName}</span>
-                <svg
-                  className={`w-4 h-4 text-gray-500 transition-transform ${showProfileMenu ? 'rotate-180' : ''}`}
-                  fill="none"
-                  stroke="currentColor"
-                  viewBox="0 0 24 24"
-                >
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
-                </svg>
-              </button>
-
-              {showProfileMenu && (
-                <div className="absolute right-0 mt-2 w-48 rounded-lg border border-gray-200 bg-white shadow-lg z-10">
-                  <div className="py-1">
-                    <button
-                      type="button"
-                      onClick={() => {
-                        handleViewProfile();
-                        setShowProfileMenu(false);
-                      }}
-                      className="w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-gray-100 transition-colors"
-                    >
-                      Xem hồ sơ
-                    </button>
-                    <button
-                      type="button"
-                      onClick={() => {
-                        logout();
-                        navigate('/login', { replace: true });
-                        setShowProfileMenu(false);
-                      }}
-                      className="w-full text-left px-4 py-2 text-sm text-red-600 hover:bg-red-50 transition-colors"
-                    >
-                      Đăng xuất
-                    </button>
-                  </div>
-                </div>
-              )}
-            </div>
-          </div>
-        </div>
-
-        {/* Click outside để đóng dropdown */}
-        {showProfileMenu && (
-          <div
-            className="fixed inset-0 z-0"
-            onClick={() => setShowProfileMenu(false)}
-          />
-        )}
-
-        {error && (
+    <RoleLayout
+      title="Quản lý phân quyền cho vai trò"
+      description="Gán phân quyền (permissions) cho từng vai trò trong hệ thống."
+      menuItems={menuItems}
+      activeKey="permissions"
+      onLogout={() => {
+        logout();
+        navigate('/login', { replace: true });
+      }}
+      userName={userName}
+      onViewProfile={handleViewProfile}
+      onMenuSelect={handleMenuSelect}
+    >
+      {error && (
           <div className="mb-4 rounded-md bg-red-50 border border-red-200 px-4 py-2 text-sm text-red-800">
             {error}
           </div>
-        )}
-        {success && (
+      )}
+      {success && (
           <div className="mb-4 rounded-md bg-green-50 border border-green-200 px-4 py-2 text-sm text-green-800">
             {success}
           </div>
-        )}
+      )}
 
-        {/* Quản lý Permissions */}
-        <div className="bg-white rounded-lg shadow p-6 mb-6">
+      {/* Quản lý Permissions */}
+      <div className="bg-white rounded-lg shadow p-6 mb-6">
           <div className="flex items-center justify-between mb-4">
             <div>
               <h3 className="text-sm font-semibold text-gray-800">Quản lý phân quyền</h3>
@@ -401,15 +352,20 @@ function ManagePermissions() {
               </div>
             )}
           </div>
-        </div>
+      </div>
 
-        {/* Form thêm/sửa permission */}
-        {showPermissionForm && (
-          <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+      {/* Form thêm/sửa permission */}
+      {showPermissionForm && (
+           <div className="fixed inset-0 bg-black/40 flex items-center justify-center z-50">
             <div className="bg-white rounded-lg shadow-xl p-6 w-full max-w-md">
               <h3 className="text-lg font-semibold text-gray-900 mb-4">
                 {editingPermission ? 'Sửa phân quyền' : 'Thêm phân quyền mới'}
               </h3>
+              {error && (
+                <div className="mb-3 rounded-md bg-red-50 border border-red-200 px-3 py-2 text-xs text-red-800">
+                  {error}
+                </div>
+              )}
               <form onSubmit={handleSavePermission}>
                 <div className="mb-4">
                   <label className="block text-sm font-medium text-gray-700 mb-1">
@@ -423,6 +379,7 @@ function ManagePermissions() {
                     placeholder="VD: CREATE_USER"
                     required
                     disabled={!!editingPermission}
+                    maxLength={64}
                   />
                   {editingPermission && (
                     <p className="text-xs text-gray-500 mt-1">Không thể thay đổi code khi sửa</p>
@@ -436,9 +393,10 @@ function ManagePermissions() {
                     value={permissionForm.description}
                     onChange={(e) => setPermissionForm({ ...permissionForm, description: e.target.value })}
                     className="w-full border border-gray-300 rounded-md px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500"
-                    placeholder="Mô tả phân quyền này"
+                    placeholder="Mô tả phân quyền này (tối đa 255 ký tự)"
                     rows={3}
                     required
+                    maxLength={255}
                   />
                 </div>
                 <div className="flex justify-end gap-2">
@@ -462,7 +420,7 @@ function ManagePermissions() {
           </div>
         )}
 
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
           {/* Danh sách vai trò */}
           <div className="bg-white rounded-lg shadow p-6">
             <h3 className="text-sm font-semibold text-gray-800 mb-4">Danh sách vai trò</h3>
@@ -484,9 +442,13 @@ function ManagePermissions() {
                           : 'bg-gray-50 border-gray-200 text-gray-800 hover:bg-gray-100'
                       }`}
                     >
-                      <div className="font-medium">{role.roleName}</div>
+                      <div className="font-medium text-sm text-gray-900 truncate max-w-xs">
+                        {role.roleName}
+                      </div>
                       {role.description && (
-                        <div className="text-xs text-gray-500 mt-1">{role.description}</div>
+                        <div className="text-xs text-gray-500 mt-1 line-clamp-2 max-w-xs">
+                          {role.description}
+                        </div>
                       )}
                       <div className="text-xs text-gray-400 mt-1">
                         {role.permissions?.length || 0} phân quyền
@@ -503,11 +465,18 @@ function ManagePermissions() {
             {selectedRole ? (
               <>
                 <div className="mb-4">
-                  <h3 className="text-sm font-semibold text-gray-800 mb-2">
-                    Phân quyền cho vai trò: {selectedRole.roleName}
+                  <h3 className="text-sm font-semibold text-gray-800 mb-1">
+                    <span className="inline-block max-w-md truncate align-bottom" title={selectedRole.roleName}>
+                      Phân quyền cho vai trò: {selectedRole.roleName}
+                    </span>
                   </h3>
                   {selectedRole.description && (
-                    <p className="text-xs text-gray-500">{selectedRole.description}</p>
+                    <p
+                      className="text-xs text-gray-500 max-w-md line-clamp-2"
+                      title={selectedRole.description}
+                    >
+                      {selectedRole.description}
+                    </p>
                   )}
                 </div>
 
@@ -538,7 +507,10 @@ function ManagePermissions() {
                                 className="mt-0.5 mr-3 h-4 w-4 text-indigo-600 border-gray-300 rounded focus:ring-indigo-500 cursor-pointer flex-shrink-0"
                               />
                               <div className="flex-1 min-w-0">
-                                <div className={`font-medium text-sm ${isChecked ? 'text-indigo-900' : 'text-gray-900'}`}>
+                                <div
+                                  className={`font-medium text-sm ${isChecked ? 'text-indigo-900' : 'text-gray-900'} truncate max-w-xs`}
+                                  title={perm.code}
+                                >
                                   {perm.code}
                                 </div>
                                 {perm.description && (
@@ -574,9 +546,16 @@ function ManagePermissions() {
               </div>
             )}
           </div>
-        </div>
-      </main>
-    </div>
+      </div>
+
+      <ConfirmDialog
+        open={confirmState.open}
+        title={confirmState.title}
+        message={confirmState.message}
+        onCancel={() => setConfirmState((prev) => ({ ...prev, open: false }))}
+        onConfirm={confirmState.onConfirm}
+      />
+    </RoleLayout>
   );
 }
 

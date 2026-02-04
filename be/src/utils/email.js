@@ -1,7 +1,7 @@
-const nodemailer = require('nodemailer');
+  const nodemailer = require('nodemailer');
 
 // ============================================
-// Email Configuration
+// Cấu hình Email
 // ============================================
 
 /**
@@ -239,8 +239,165 @@ Vui lòng không trả lời email này.
   }
 };
 
+/**
+ * Gửi email với mã OTP
+ * @param {string} to - Email người nhận
+ * @param {string} username - Tên tài khoản
+ * @param {string} otpCode - Mã OTP
+ * @returns {Promise<Object>} - Kết quả gửi email
+ */
+const sendOTPEmail = async (to, username, otpCode) => {
+  const transporter = createTransporter();
+
+  if (!transporter) {
+    throw new Error('Email service is not configured. Please check your environment variables.');
+  }
+
+  const mailOptions = {
+    from: `"DucXuan Kindergarten" <${process.env.EMAIL_USER}>`,
+    to,
+    subject: 'Mã OTP đặt lại mật khẩu - DucXuan Kindergarten',
+    html: `
+      <!DOCTYPE html>
+      <html>
+      <head>
+        <meta charset="UTF-8">
+        <style>
+          body {
+            font-family: Arial, sans-serif;
+            line-height: 1.6;
+            color: #333;
+            max-width: 600px;
+            margin: 0 auto;
+            padding: 20px;
+          }
+          .container {
+            background-color: #f9f9f9;
+            border-radius: 10px;
+            padding: 30px;
+            border: 1px solid #e0e0e0;
+          }
+          .header {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            padding: 20px;
+            border-radius: 10px 10px 0 0;
+            text-align: center;
+            margin: -30px -30px 30px -30px;
+          }
+          .header h1 {
+            margin: 0;
+            font-size: 24px;
+          }
+          .content {
+            background-color: white;
+            padding: 25px;
+            border-radius: 8px;
+            margin-bottom: 20px;
+          }
+          .otp-box {
+            background-color: #f0f0f0;
+            border: 2px dashed #667eea;
+            border-radius: 8px;
+            padding: 20px;
+            text-align: center;
+            margin: 20px 0;
+            font-size: 32px;
+            font-weight: bold;
+            color: #667eea;
+            letter-spacing: 8px;
+            font-family: 'Courier New', monospace;
+          }
+          .warning {
+            background-color: #fff3cd;
+            border-left: 4px solid #ffc107;
+            padding: 15px;
+            margin: 20px 0;
+            border-radius: 4px;
+          }
+          .footer {
+            text-align: center;
+            color: #666;
+            font-size: 12px;
+            margin-top: 30px;
+            padding-top: 20px;
+            border-top: 1px solid #e0e0e0;
+          }
+        </style>
+      </head>
+      <body>
+        <div class="container">
+          <div class="header">
+            <h1>🔐 Mã OTP đặt lại mật khẩu</h1>
+          </div>
+          
+          <div class="content">
+            <p>Xin chào <strong>${username}</strong>,</p>
+            
+            <p>Bạn đã yêu cầu đặt lại mật khẩu cho tài khoản của mình trong hệ thống quản lý <strong>DucXuan Kindergarten</strong>.</p>
+            
+            <p>Mã OTP của bạn là:</p>
+            
+            <div class="otp-box">
+              ${otpCode}
+            </div>
+            
+            <div class="warning">
+              <strong>⚠️ Lưu ý quan trọng:</strong>
+              <ul style="margin: 10px 0; padding-left: 20px;">
+                <li>Mã OTP này có hiệu lực trong <strong>10 phút</strong></li>
+                <li>Không chia sẻ mã OTP này với bất kỳ ai</li>
+                <li>Nếu bạn không yêu cầu đặt lại mật khẩu, vui lòng liên hệ với nhà trường ngay lập tức</li>
+              </ul>
+            </div>
+          </div>
+          
+          <div class="footer">
+            <p>Email này được gửi tự động từ hệ thống quản lý DucXuan Kindergarten.</p>
+            <p>Vui lòng không trả lời email này.</p>
+            <p>Nếu bạn có bất kỳ câu hỏi nào, vui lòng liên hệ với nhà trường.</p>
+          </div>
+        </div>
+      </body>
+      </html>
+    `,
+    text: `
+Mã OTP đặt lại mật khẩu - DucXuan Kindergarten
+
+Xin chào ${username},
+
+Bạn đã yêu cầu đặt lại mật khẩu cho tài khoản của mình trong hệ thống quản lý DucXuan Kindergarten.
+
+Mã OTP của bạn là: ${otpCode}
+
+⚠️ Lưu ý quan trọng:
+- Mã OTP này có hiệu lực trong 10 phút
+- Không chia sẻ mã OTP này với bất kỳ ai
+- Nếu bạn không yêu cầu đặt lại mật khẩu, vui lòng liên hệ với nhà trường ngay lập tức
+
+Email này được gửi tự động từ hệ thống quản lý DucXuan Kindergarten.
+Vui lòng không trả lời email này.
+    `,
+  };
+
+  try {
+    const info = await transporter.sendMail(mailOptions);
+    // eslint-disable-next-line no-console
+    console.log('✅ OTP Email sent successfully:', info.messageId);
+    return {
+      success: true,
+      messageId: info.messageId,
+    };
+  } catch (error) {
+    // eslint-disable-next-line no-console
+    console.error('❌ Error sending OTP email:', error);
+    throw error;
+  }
+};
+
 module.exports = {
   sendPasswordResetEmail,
+  sendOTPEmail,
   generateRandomPassword,
   createTransporter,
 };

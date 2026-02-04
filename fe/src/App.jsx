@@ -48,6 +48,7 @@ import ExperienceSharing from './pages/Library/ExperienceSharing';
 import ThingsToKnow from './pages/Library/ThingsToKnow';
 import PoetryMusic from './pages/Library/PoetryMusic';
 import RelaxPage from './pages/Library/RelaxPage';
+import PublicInformationDetail from './pages/PublicInformation/PublicInformationDetail';
 
 function AppContent() {
   return (
@@ -57,6 +58,8 @@ function AppContent() {
         <Route path="/about" element={<About />} />
         {/* Thông tin công khai */}
         <Route path="/public-information" element={<PublicInfoPage />} />
+        
+        <Route path="/public-information/:slug/:year" element={<PublicInformationDetail />} />
 
         <Route path="/introduce-school" element={<IntroductionSchool />} />
 

@@ -328,14 +328,60 @@ const getRoles = async (req, res) => {
  * Tạo role mới
  * body: { roleName: string, description?: string }
  */
+// Validate dữ liệu role (roleName & description)
+// - roleName: bắt buộc, độ dài 3-32, chỉ chữ cái và số, bắt đầu bằng chữ cái, không khoảng trắng/ký tự đặc biệt
+//   Ví dụ hợp lệ: Teacher, SchoolAdmin, SystemAdmin
+// - description: tùy chọn, tối đa 255 ký tự
+const validateRoleName = (roleName) => {
+  if (!roleName) {
+    return 'Tên vai trò là bắt buộc';
+  }
+
+  const trimmedName = roleName.trim();
+
+  if (trimmedName.length < 3 || trimmedName.length > 32) {
+    return 'Tên vai trò phải có từ 3 đến 32 ký tự';
+  }
+
+  const namePattern = /^[A-Za-z][A-Za-z0-9]*$/;
+  if (!namePattern.test(trimmedName)) {
+    return 'Tên vai trò chỉ được chứa chữ cái và số, bắt đầu bằng chữ cái, không có khoảng trắng hoặc ký tự đặc biệt. Ví dụ: Teacher, SchoolAdmin';
+  }
+
+  return null;
+};
+
+const validateRoleDescription = (description) => {
+  if (description === undefined || description === null) {
+    return null;
+  }
+
+  const trimmed = description.trim();
+
+  if (trimmed.length > 255) {
+    return 'Mô tả vai trò không được vượt quá 255 ký tự';
+  }
+
+  return null;
+};
+
 const createRole = async (req, res) => {
   try {
     const { roleName, description } = req.body;
 
-    if (!roleName) {
+    const nameError = validateRoleName(roleName);
+    if (nameError) {
       return res.status(400).json({
         status: 'error',
-        message: 'roleName là bắt buộc',
+        message: nameError,
+      });
+    }
+
+    const descError = validateRoleDescription(description);
+    if (descError) {
+      return res.status(400).json({
+        status: 'error',
+        message: descError,
       });
     }
 
@@ -391,6 +437,33 @@ const updateRole = async (req, res) => {
   try {
     const { id } = req.params;
     const { roleName, description } = req.body;
+
+    if (!roleName && description === undefined) {
+      return res.status(400).json({
+        status: 'error',
+        message: 'Vui lòng cung cấp ít nhất một trường để cập nhật (tên vai trò hoặc mô tả)',
+      });
+    }
+
+    if (roleName) {
+      const nameError = validateRoleName(roleName);
+      if (nameError) {
+        return res.status(400).json({
+          status: 'error',
+          message: nameError,
+        });
+      }
+    }
+
+    if (description !== undefined) {
+      const descError = validateRoleDescription(description);
+      if (descError) {
+        return res.status(400).json({
+          status: 'error',
+          message: descError,
+        });
+      }
+    }
 
     const updateData = {};
     if (roleName) updateData.roleName = roleName.trim();
@@ -537,6 +610,44 @@ const updateUserRoles = async (req, res) => {
 // ============================================
 
 /**
+ * Validate code và description của phân quyền
+ * - Code: chỉ cho phép A-Z và dấu gạch dưới (_), theo định dạng ACTION_MODULE
+ * - Code: độ dài 3-64 ký tự, không có dấu, không khoảng trắng
+ * - Description: tối đa 255 ký tự
+ * @param {string} code
+ * @param {string} description
+ * @returns {string|null} - Thông báo lỗi (null nếu hợp lệ)
+ */
+const validatePermissionData = (code, description) => {
+  if (!code || !description) {
+    return 'Code và mô tả là bắt buộc';
+  }
+
+  const trimmedCode = code.toUpperCase().trim();
+
+  if (trimmedCode.length < 3 || trimmedCode.length > 64) {
+    return 'Code phải có từ 3 đến 64 ký tự';
+  }
+
+  // Chỉ cho phép chữ in hoa A-Z và dấu gạch dưới, định dạng ACTION_MODULE
+  const codePattern = /^[A-Z]+_[A-Z]+$/;
+  if (!codePattern.test(trimmedCode)) {
+    return 'Code chỉ được chứa chữ in hoa (A-Z) và dấu gạch dưới (_), theo định dạng ACTION_MODULE. Ví dụ: CREATE_USER';
+  }
+
+  const trimmedDescription = description.trim();
+  if (trimmedDescription.length === 0) {
+    return 'Mô tả không được để trống';
+  }
+
+  if (trimmedDescription.length > 355) {
+    return 'Mô tả không được vượt quá 355 ký tự';
+  }
+
+  return null;
+};
+
+/**
  * GET /api/system-admin/permissions
  * Lấy danh sách tất cả permissions
  */
@@ -567,10 +678,11 @@ const createPermission = async (req, res) => {
   try {
     const { code, description } = req.body;
 
-    if (!code || !description) {
+    const validationError = validatePermissionData(code, description);
+    if (validationError) {
       return res.status(400).json({
         status: 'error',
-        message: 'Code và description là bắt buộc',
+        message: validationError,
       });
     }
 
@@ -609,6 +721,25 @@ const updatePermission = async (req, res) => {
   try {
     const { id } = req.params;
     const { code, description } = req.body;
+
+    if (!code && !description) {
+      return res.status(400).json({
+        status: 'error',
+        message: 'Vui lòng cung cấp ít nhất một trường để cập nhật (code hoặc mô tả)',
+      });
+    }
+
+    // Nếu có code hoặc description mới, validate đầy đủ
+    const validationError = validatePermissionData(
+      code || 'DUMMY_CODE',
+      description || 'DUMMY_DESCRIPTION',
+    );
+    if (validationError) {
+      return res.status(400).json({
+        status: 'error',
+        message: validationError,
+      });
+    }
 
     const updateData = {};
     if (code) updateData.code = code.toUpperCase().trim();
