@@ -1,6 +1,21 @@
+const bcrypt = require('bcryptjs');
 const User = require('../models/User');
 const Role = require('../models/Role');
 const Permission = require('../models/Permission');
+
+// ============================================
+// Constants & helpers
+// ============================================
+
+const USERNAME_UPPERCASE_REGEX = /[A-Z]/;
+// Ít nhất 1 chữ hoa, 1 số, 1 ký tự đặc biệt, tối thiểu 6 ký tự
+const PASSWORD_COMPLEXITY_REGEX = /^(?=.*[A-Z])(?=.*\d)(?=.*[^A-Za-z0-9]).{6,}$/;
+
+const isValidUsername = (username) =>
+  USERNAME_UPPERCASE_REGEX.test((username || '').trim());
+
+const isStrongPassword = (password) =>
+  PASSWORD_COMPLEXITY_REGEX.test(password || '');
 
 // ============================================
 // User & Role Management
@@ -28,6 +43,244 @@ const getUsers = async (req, res) => {
     return res.status(500).json({
       status: 'error',
       message: error.message || 'Không lấy được danh sách người dùng',
+    });
+  }
+};
+
+/**
+ * POST /api/system-admin/users
+ * Tạo tài khoản người dùng mới
+ * body: { username, password, fullName, email, status?, roleIds? }
+ */
+const createUser = async (req, res) => {
+  try {
+    const {
+      username,
+      password,
+      fullName,
+      email,
+      status,
+      roleIds,
+    } = req.body;
+
+    if (!username || !password || !fullName || !email) {
+      return res.status(400).json({
+        status: 'error',
+        message: 'Vui lòng nhập đầy đủ: tài khoản, mật khẩu, họ tên và email',
+      });
+    }
+
+    if (!isValidUsername(username)) {
+      return res.status(400).json({
+        status: 'error',
+        message: 'Tài khoản phải chứa ít nhất 1 chữ cái viết hoa (A-Z).',
+      });
+    }
+
+    if (!isStrongPassword(password)) {
+      return res.status(400).json({
+        status: 'error',
+        message:
+          'Mật khẩu phải có ít nhất 1 chữ cái viết hoa, 1 số và 1 ký tự đặc biệt.',
+      });
+    }
+
+    const existingUser = await User.findOne({
+      $or: [
+        { username: username.trim() },
+        { email: email.trim().toLowerCase() },
+      ],
+    });
+
+    if (existingUser) {
+      return res.status(400).json({
+        status: 'error',
+        message: 'Tài khoản hoặc email đã tồn tại trong hệ thống',
+      });
+    }
+
+    const salt = await bcrypt.genSalt(10);
+    const passwordHash = await bcrypt.hash(password, salt);
+
+    let validRoleIds = [];
+    if (Array.isArray(roleIds) && roleIds.length > 0) {
+      const validRoles = await Role.find({ _id: { $in: roleIds } }).select('_id');
+      validRoleIds = validRoles.map((r) => r._id);
+    }
+
+    const user = new User({
+      username: username.trim(),
+      passwordHash,
+      fullName: fullName.trim(),
+      email: email.trim().toLowerCase(),
+      status: status === 'inactive' ? 'inactive' : 'active',
+      roles: validRoleIds,
+    });
+
+    await user.save();
+
+    const populatedUser = await User.findById(user._id)
+      .select('username fullName email roles status')
+      .populate({
+        path: 'roles',
+        model: 'Roles',
+        select: 'roleName description',
+      });
+
+    return res.status(201).json({
+      status: 'success',
+      message: 'Tạo tài khoản thành công',
+      data: populatedUser,
+    });
+  } catch (error) {
+    if (error.code === 11000) {
+      return res.status(400).json({
+        status: 'error',
+        message: 'Tài khoản hoặc email đã tồn tại trong hệ thống',
+      });
+    }
+    return res.status(500).json({
+      status: 'error',
+      message: error.message || 'Không tạo được tài khoản mới',
+    });
+  }
+};
+
+/**
+ * PUT /api/system-admin/users/:id
+ * Cập nhật thông tin tài khoản người dùng
+ * body: { username?, fullName?, email?, status?, password?, roleIds? }
+ */
+const updateUser = async (req, res) => {
+  try {
+    const { id } = req.params;
+    const {
+      username,
+      fullName,
+      email,
+      status,
+      password,
+      roleIds,
+    } = req.body;
+
+    const updateData = {};
+
+    if (typeof username === 'string' && username.trim() !== '') {
+      if (!isValidUsername(username)) {
+        return res.status(400).json({
+          status: 'error',
+          message: 'Tài khoản phải chứa ít nhất 1 chữ cái viết hoa (A-Z).',
+        });
+      }
+      updateData.username = username.trim();
+    }
+    if (typeof fullName === 'string' && fullName.trim() !== '') {
+      updateData.fullName = fullName.trim();
+    }
+    if (typeof email === 'string' && email.trim() !== '') {
+      updateData.email = email.trim().toLowerCase();
+    }
+    if (typeof status === 'string') {
+      updateData.status = status === 'inactive' ? 'inactive' : 'active';
+    }
+
+    if (Array.isArray(roleIds)) {
+      const validRoles = await Role.find({ _id: { $in: roleIds } }).select('_id');
+      updateData.roles = validRoles.map((r) => r._id);
+    }
+
+    if (typeof password === 'string' && password.length > 0) {
+      if (!isStrongPassword(password)) {
+        return res.status(400).json({
+          status: 'error',
+          message:
+            'Mật khẩu phải có ít nhất 1 chữ cái viết hoa, 1 số và 1 ký tự đặc biệt.',
+        });
+      }
+      const salt = await bcrypt.genSalt(10);
+      updateData.passwordHash = await bcrypt.hash(password, salt);
+    }
+
+    const user = await User.findByIdAndUpdate(
+      id,
+      updateData,
+      { new: true, runValidators: true },
+    )
+      .select('username fullName email roles status')
+      .populate({
+        path: 'roles',
+        model: 'Roles',
+        select: 'roleName description',
+      });
+
+    if (!user) {
+      return res.status(404).json({
+        status: 'error',
+        message: 'Tài khoản không tồn tại',
+      });
+    }
+
+    return res.status(200).json({
+      status: 'success',
+      message: 'Cập nhật tài khoản thành công',
+      data: user,
+    });
+  } catch (error) {
+    if (error.code === 11000) {
+      return res.status(400).json({
+        status: 'error',
+        message: 'Tài khoản hoặc email đã tồn tại trong hệ thống',
+      });
+    }
+    return res.status(500).json({
+      status: 'error',
+      message: error.message || 'Không cập nhật được tài khoản',
+    });
+  }
+};
+
+/**
+ * DELETE /api/system-admin/users/:id
+ * Xóa tài khoản người dùng
+ */
+const deleteUser = async (req, res) => {
+  try {
+    const { id } = req.params;
+
+    if (req.user && req.user.id === id) {
+      return res.status(400).json({
+        status: 'error',
+        message: 'Bạn không thể xóa tài khoản của chính mình',
+      });
+    }
+
+    const user = await User.findById(id);
+
+    if (!user) {
+      return res.status(404).json({
+        status: 'error',
+        message: 'Tài khoản không tồn tại',
+      });
+    }
+
+    if (user.status === 'inactive') {
+      return res.status(200).json({
+        status: 'success',
+        message: 'Tài khoản đã được khóa trước đó',
+      });
+    }
+
+    user.status = 'inactive';
+    await user.save();
+
+    return res.status(200).json({
+      status: 'success',
+      message: 'Tài khoản đã được khóa (xóa mềm)',
+    });
+  } catch (error) {
+    return res.status(500).json({
+      status: 'error',
+      message: error.message || 'Không xóa được tài khoản',
     });
   }
 };
@@ -494,12 +747,20 @@ const updateRolePermissions = async (req, res) => {
 };
 
 module.exports = {
+  // User management
   getUsers,
+  createUser,
+  updateUser,
+  deleteUser,
+  updateUserRoles,
+
+  // Role management
   getRoles,
   createRole,
   updateRole,
   deleteRole,
-  updateUserRoles,
+
+  // Permission management
   getPermissions,
   createPermission,
   updatePermission,

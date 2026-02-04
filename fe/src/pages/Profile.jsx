@@ -1,8 +1,15 @@
 import { useEffect, useState, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
+import { get, ENDPOINTS } from '../service/api';
 
 function Profile() {
+  const CLOUDINARY_CLOUD_NAME = import.meta.env.VITE_CLOUDINARY_CLOUD_NAME || 'ddlvzfvd4';
+  const CLOUDINARY_API_KEY = import.meta.env.VITE_CLOUDINARY_API_KEY || '';
+  const CLOUDINARY_MEDIA_FOLDER = import.meta.env.VITE_CLOUDINARY_MEDIA_FOLDER || 'demotest';
+  const DEFAULT_AVATAR =
+    'https://via.placeholder.com/300x400.png?text=Avatar+3x4';
+
   const navigate = useNavigate();
   const {
     user,
@@ -26,6 +33,7 @@ function Profile() {
     newPassword: '',
     confirmPassword: '',
   });
+  const [passwordHint, setPasswordHint] = useState('');
 
   const [savingProfile, setSavingProfile] = useState(false);
   const [changingPassword, setChangingPassword] = useState(false);
@@ -38,6 +46,20 @@ function Profile() {
   useEffect(() => {
     return () => {
       hasLoadedProfileRef.current = false;
+    };
+  }, []);
+
+  // Load script Cloudinary Media Library
+  useEffect(() => {
+    if (window.cloudinary && window.cloudinary.openMediaLibrary) return;
+
+    const script = document.createElement('script');
+    script.src = 'https://media-library.cloudinary.com/global/all.js';
+    script.async = true;
+    document.body.appendChild(script);
+
+    return () => {
+      document.body.removeChild(script);
     };
   }, []);
 
@@ -95,9 +117,81 @@ function Profile() {
     setProfileForm((prev) => ({ ...prev, [name]: value }));
   };
 
+  const openCloudinaryWidget = async () => {
+    try {
+      setError(null);
+      setMessage('');
+
+      if (!window.cloudinary || !window.cloudinary.openMediaLibrary) {
+        setError('Cloudinary Media Library chưa sẵn sàng. Vui lòng chờ vài giây và thử lại.');
+        return;
+      }
+
+      // Lấy chữ ký từ backend
+      const sigResponse = await get(ENDPOINTS.CLOUDINARY.MEDIA_LIBRARY_SIGNATURE);
+      const { timestamp, signature, cloudName, apiKey } = sigResponse.data || {};
+
+      const finalCloudName = cloudName || CLOUDINARY_CLOUD_NAME;
+      const finalApiKey = apiKey || CLOUDINARY_API_KEY;
+
+      if (!finalCloudName || !finalApiKey || !signature || !timestamp) {
+        setError('Không lấy được thông tin Cloudinary. Vui lòng kiểm tra cấu hình backend.');
+        return;
+      }
+
+      window.cloudinary.openMediaLibrary(
+        {
+          cloud_name: finalCloudName,
+          api_key: finalApiKey,
+          timestamp,
+          signature,
+          // Chỉ cho phép chọn trong folder demotest
+          folder: {
+            path: CLOUDINARY_MEDIA_FOLDER,
+            resource_type: 'image',
+          },
+          multiple: false,
+          max_files: 1,
+          insert_caption: 'Chọn ảnh này',
+          inline_container: null,
+        },
+        {
+          insertHandler: (data) => {
+            if (!data || !data.assets || !data.assets.length) return;
+            const asset = data.assets[0];
+            const imageUrl = asset.secure_url || asset.url;
+            if (!imageUrl) return;
+
+            hasUserEditedRef.current = true;
+            setProfileForm((prev) => ({
+              ...prev,
+              avatar: imageUrl,
+            }));
+            setMessage('Chọn ảnh thành công. Nhấn "Lưu thay đổi" để cập nhật hồ sơ.');
+          },
+        },
+      );
+    } catch (err) {
+      setError(err.message || 'Không thể chọn ảnh từ Cloudinary.');
+    }
+  };
+
   const handlePasswordChange = (e) => {
     const { name, value } = e.target;
     setPasswordForm((prev) => ({ ...prev, [name]: value }));
+
+    if (name === 'newPassword') {
+      const hasUpper = /[A-Z]/.test(value);
+      const hasNumber = /\d/.test(value);
+      const hasSpecial = /[^A-Za-z0-9]/.test(value);
+      if (value && (!hasUpper || !hasNumber || !hasSpecial)) {
+        setPasswordHint(
+          'Mật khẩu mới phải có ít nhất 1 chữ cái viết hoa, 1 số và 1 ký tự đặc biệt, tối thiểu 6 ký tự.'
+        );
+      } else {
+        setPasswordHint('');
+      }
+    }
   };
 
   const handleSubmitProfile = async (e) => {
@@ -131,6 +225,13 @@ function Profile() {
     e.preventDefault();
     if (passwordForm.newPassword !== passwordForm.confirmPassword) {
       setError('Mật khẩu mới và xác nhận mật khẩu không khớp.');
+      return;
+    }
+
+     // Kiểm tra độ mạnh mật khẩu mới
+    const strongPasswordRegex = /^(?=.*[A-Z])(?=.*\d)(?=.*[^A-Za-z0-9]).{6,}$/;
+    if (!strongPasswordRegex.test(passwordForm.newPassword || '')) {
+      setError('Mật khẩu mới phải có ít nhất 1 chữ cái viết hoa, 1 số và 1 ký tự đặc biệt, tối thiểu 6 ký tự.');
       return;
     }
 
@@ -190,20 +291,18 @@ function Profile() {
               Xem và cập nhật thông tin cá nhân, thay đổi mật khẩu đăng nhập.
             </p>
           </div>
-          <div className="flex items-center gap-2 text-sm text-gray-700">
-            {(user?.avatar || profileForm.avatar) ? (
+          <div className="flex items-center gap-3 text-sm text-gray-700">
+            <div className="w-10 h-[52px] overflow-hidden rounded-md border border-gray-300 bg-gray-100 flex items-center justify-center">
               <img
-                src={user?.avatar || profileForm.avatar}
+                src={
+                  profileForm.avatar ||
+                  user?.avatar ||
+                  DEFAULT_AVATAR
+                }
                 alt="Avatar"
-                className="h-9 w-9 rounded-full object-cover border border-gray-300"
+                className="w-full h-full object-cover"
               />
-            ) : (
-              <span className="inline-flex h-9 w-9 items-center justify-center rounded-full bg-indigo-600 text-white font-semibold">
-                {(user?.fullName || profileForm.fullName)
-                  ? (user?.fullName || profileForm.fullName).charAt(0).toUpperCase()
-                  : '?'}
-              </span>
-            )}
+            </div>
             <div className="flex flex-col">
               <span className="font-medium">
                 {(user?.fullName ?? profileForm.fullName) || 'Người dùng'}
@@ -276,18 +375,34 @@ function Profile() {
 
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-1">
-                  Avatar (URL ảnh)
+                  Ảnh đại diện (3x4)
                 </label>
-                <input
-                  type="text"
-                  name="avatar"
-                  value={profileForm.avatar ?? ''}
-                  onChange={handleProfileChange}
-                  readOnly={false}
-                  disabled={false}
-                  className="w-full border border-gray-300 rounded-md px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
-                  placeholder="Nhập đường dẫn ảnh avatar (nếu có)"
-                />
+                <div className="flex items-start gap-4">
+                  <div className="w-24 aspect-[3/4] overflow-hidden rounded-md border border-gray-300 bg-gray-100 flex items-center justify-center">
+                    <img
+                      src={
+                        profileForm.avatar ||
+                        user?.avatar ||
+                        DEFAULT_AVATAR
+                      }
+                      alt="Avatar preview"
+                      className="w-full h-full object-cover"
+                    />
+                  </div>
+                  <div className="flex flex-col gap-2">
+                    <button
+                      type="button"
+                      onClick={openCloudinaryWidget}
+                      className="inline-flex items-center justify-center px-4 py-2 rounded-md border border-gray-300 bg-white text-sm font-medium text-gray-700 hover:bg-gray-50"
+                    >
+                      Chọn ảnh từ Cloudinary
+                    </button>
+                    <p className="text-xs text-gray-500 max-w-xs">
+                      Ảnh nên có tỉ lệ 3x4 . Sau khi tải ảnh, hãy nhấn &quot;Lưu thay đổi&quot; để cập nhật.
+                    </p>
+                    
+                  </div>
+                </div>
               </div>
 
               <div>
@@ -344,6 +459,12 @@ function Profile() {
                   placeholder="Nhập mật khẩu mới"
                 />
               </div>
+
+              {passwordHint && (
+                <p className="text-xs text-amber-600">
+                  {passwordHint}
+                </p>
+              )}
 
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-1">

@@ -10,6 +10,9 @@ const { sendPasswordResetEmail, generateRandomPassword } = require('../utils/ema
 const JWT_SECRET = process.env.JWT_SECRET || 'dev_jwt_secret_change_me';
 const JWT_EXPIRES_IN = process.env.JWT_EXPIRES_IN || '1d';
 
+// Ít nhất 1 chữ hoa, 1 số, 1 ký tự đặc biệt, tối thiểu 6 ký tự
+const PASSWORD_COMPLEXITY_REGEX = /^(?=.*[A-Z])(?=.*\d)(?=.*[^A-Za-z0-9]).{6,}$/;
+
 // ============================================
 // Helpers
 // ============================================
@@ -116,6 +119,9 @@ const checkPasswordResetRateLimit = (user) => {
     waitUntil,
   };
 };
+
+const isStrongPassword = (password) =>
+  PASSWORD_COMPLEXITY_REGEX.test(password || '');
 
 // ============================================
 // Controller Functions
@@ -321,10 +327,11 @@ const changePassword = async (req, res) => {
       });
     }
 
-    if (newPassword.length < 6) {
+    if (!isStrongPassword(newPassword)) {
       return res.status(400).json({
         status: 'error',
-        message: 'Mật khẩu mới phải có ít nhất 6 ký tự',
+        message:
+          'Mật khẩu mới phải có ít nhất 1 chữ cái viết hoa, 1 số và 1 ký tự đặc biệt, tối thiểu 6 ký tự.',
       });
     }
 
@@ -524,6 +531,175 @@ const resetPassword = async (req, res) => {
   }
 };
 
+// ============================================
+// Parent: quản lý con (học sinh) của phụ huynh
+// ============================================
+
+/**
+ * GET /api/auth/me/children
+ * Lấy danh sách con (học sinh) của phụ huynh đăng nhập
+ */
+const getMyChildren = async (req, res) => {
+  try {
+    const parentId = req.user.id;
+    // Tìm theo cả userId và UserId (cho dữ liệu import)
+    const students = await Student.find({
+      $or: [{ userId: parentId }, { UserId: parentId }]
+    })
+      .populate('classId', 'className')
+      .sort({ createdAt: -1 });
+
+    return res.status(200).json({
+      status: 'success',
+      data: students || [],
+      total: students ? students.length : 0,
+    });
+  } catch (error) {
+    // eslint-disable-next-line no-console
+    console.error('Get my children error:', error);
+    return res.status(500).json({
+      status: 'error',
+      message: error.message || 'Không lấy được danh sách con',
+    });
+  }
+};
+
+/**
+ * POST /api/auth/me/children
+ * Thêm con (học sinh) cho phụ huynh
+ */
+const createMyChild = async (req, res) => {
+  try {
+    const parentId = req.user.id;
+    const { fullName, dateOfBirth, gender, parentName, parentPhone, address, classId } = req.body;
+
+    if (!fullName || !dateOfBirth || !gender) {
+      return res.status(400).json({
+        status: 'error',
+        message: 'Vui lòng nhập đầy đủ: Họ tên, Ngày sinh, Giới tính',
+      });
+    }
+
+    const newStudent = new Student({
+      fullName: fullName.trim(),
+      dateOfBirth: new Date(dateOfBirth),
+      gender,
+      parent: {
+        name: parentName ? String(parentName).trim() : '',
+        phone: parentPhone ? String(parentPhone).trim() : '',
+      },
+      address: address ? address.trim() : '',
+      classId: classId || undefined,
+      userId: parentId,
+      status: 'active',
+    });
+
+    await newStudent.save();
+
+    const populated = await Student.findById(newStudent._id).populate('classId', 'className');
+
+    return res.status(201).json({
+      status: 'success',
+      message: 'Thêm thông tin con thành công',
+      data: populated,
+    });
+  } catch (error) {
+    // eslint-disable-next-line no-console
+    console.error('Create my child error:', error);
+    return res.status(500).json({
+      status: 'error',
+      message: error.message || 'Không thêm được thông tin con',
+    });
+  }
+};
+
+/**
+ * PUT /api/auth/me/children/:studentId
+ * Cập nhật thông tin con (chỉ phụ huynh sở hữu)
+ */
+const updateMyChild = async (req, res) => {
+  try {
+    const parentId = req.user.id;
+    const { studentId } = req.params;
+    const { fullName, dateOfBirth, gender, parentName, parentPhone, address, classId, status } = req.body;
+
+    const student = await Student.findOne({
+      _id: studentId,
+      $or: [{ userId: parentId }, { UserId: parentId }]
+    });
+    if (!student) {
+      return res.status(404).json({
+        status: 'error',
+        message: 'Không tìm thấy thông tin con',
+      });
+    }
+
+    if (fullName !== undefined) student.fullName = fullName.trim();
+    if (dateOfBirth !== undefined) student.dateOfBirth = new Date(dateOfBirth);
+    if (gender !== undefined) student.gender = gender;
+    if (parentName !== undefined || parentPhone !== undefined) {
+      student.parent = student.parent || {};
+      if (parentName !== undefined) student.parent.name = String(parentName).trim();
+      if (parentPhone !== undefined) student.parent.phone = String(parentPhone).trim();
+    }
+    if (address !== undefined) student.address = address.trim();
+    if (classId !== undefined) student.classId = classId || null;
+    if (status !== undefined) student.status = status;
+
+    await student.save();
+
+    const populated = await Student.findById(student._id).populate('classId', 'className');
+
+    return res.status(200).json({
+      status: 'success',
+      message: 'Cập nhật thông tin con thành công',
+      data: populated,
+    });
+  } catch (error) {
+    // eslint-disable-next-line no-console
+    console.error('Update my child error:', error);
+    return res.status(500).json({
+      status: 'error',
+      message: error.message || 'Không cập nhật được thông tin con',
+    });
+  }
+};
+
+/**
+ * DELETE /api/auth/me/children/:studentId
+ * Xóa thông tin con (chỉ phụ huynh sở hữu)
+ */
+const deleteMyChild = async (req, res) => {
+  try {
+    const parentId = req.user.id;
+    const { studentId } = req.params;
+
+    const deleted = await Student.findOneAndDelete({
+      _id: studentId,
+      $or: [{ userId: parentId }, { UserId: parentId }]
+    });
+    if (!deleted) {
+      return res.status(404).json({
+        status: 'error',
+        message: 'Không tìm thấy thông tin con',
+      });
+    }
+
+    return res.status(200).json({
+      status: 'success',
+      message: 'Đã xóa thông tin con',
+      data: deleted,
+    });
+  } catch (error) {
+    // eslint-disable-next-line no-console
+    console.error('Delete my child error:', error);
+    return res.status(500).json({
+      status: 'error',
+      message: error.message || 'Không xóa được thông tin con',
+    });
+  }
+};
+
 module.exports = {
   login,
   getProfile,
@@ -531,4 +707,8 @@ module.exports = {
   changePassword,
   verifyAccount,
   resetPassword,
+  getMyChildren,
+  createMyChild,
+  updateMyChild,
+  deleteMyChild,
 };

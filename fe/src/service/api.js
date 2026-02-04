@@ -118,6 +118,9 @@ export const ENDPOINTS = {
   SYSTEM_ADMIN: {
     DASHBOARD: '/system-admin/dashboard',
     USERS: '/system-admin/users',
+    CREATE_USER: '/system-admin/users',
+    UPDATE_USER: (userId) => `/system-admin/users/${userId}`,
+    DELETE_USER: (userId) => `/system-admin/users/${userId}`,
     ROLES: '/system-admin/roles',
     CREATE_ROLE: '/system-admin/roles',
     UPDATE_ROLE: (roleId) => `/system-admin/roles/${roleId}`,
@@ -151,6 +154,10 @@ export const ENDPOINTS = {
     CREATE: '/students',
     UPDATE: (studentId) => `/students/${studentId}`,
     DELETE: (studentId) => `/students/${studentId}`,
+  },
+  // Cloudinary
+  CLOUDINARY: {
+    MEDIA_LIBRARY_SIGNATURE: '/cloudinary/media-library-signature',
   },
 };
 

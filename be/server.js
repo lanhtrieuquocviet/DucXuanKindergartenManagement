@@ -13,6 +13,7 @@ const teacherRoutes = require('./src/routes/teacher.routes');
 const schoolAdminRoutes = require('./src/routes/schoolAdmin.routes');
 const classesRoutes = require('./src/routes/classes.routes');
 const studentRoutes = require('./src/routes/student.routes');
+const cloudinaryRoutes = require('./src/routes/cloudinary.routes');
 
 // Import models để Mongoose đăng ký schema (tránh lỗi "Schema hasn't been registered for model 'Roles'")
 require('./src/models/Role');
@@ -135,6 +136,9 @@ app.use('/api/classes', classesRoutes);
 
 // Student routes
 app.use('/api/students', studentRoutes);
+
+// Cloudinary helper routes
+app.use('/api/cloudinary', cloudinaryRoutes);
 
 // SchoolAdmin routes
 app.use('/api/school-admin', schoolAdminRoutes);
