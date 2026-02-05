@@ -8,6 +8,7 @@ function RoleLayout({
   activeKey,
   onLogout,
   userName,
+  userAvatar,
   onViewProfile,
   onMenuSelect,
   children,
@@ -85,8 +86,12 @@ function RoleLayout({
                     onClick={() => setOpenProfileMenu((prev) => !prev)}
                     className="inline-flex items-center gap-2 rounded-full border border-gray-200 bg-white px-3 py-1.5 text-xs md:text-sm font-medium text-gray-800 shadow-sm hover:bg-gray-50 transition"
                   >
-                    <span className="inline-flex h-7 w-7 items-center justify-center rounded-full bg-indigo-600 text-white text-xs font-semibold">
-                      {userName.charAt(0).toUpperCase()}
+                    <span className="inline-flex h-7 w-7 items-center justify-center rounded-full bg-indigo-600 text-white text-xs font-semibold overflow-hidden">
+                      {userAvatar ? (
+                        <img src={userAvatar} alt="" className="w-full h-full object-cover" />
+                      ) : (
+                        userName.charAt(0).toUpperCase()
+                      )}
                     </span>
                     <span>{userName}</span>
                   </button>

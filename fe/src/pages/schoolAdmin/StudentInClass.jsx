@@ -121,6 +121,7 @@ function StudentInClass() {
       onViewProfile={handleViewProfile}
       onMenuSelect={handleMenuSelect}
       userName={user?.fullName || user?.username || 'Admin'}
+      userAvatar={user?.avatar}
     >
       {error && (
         <div className="mb-4 rounded-md bg-red-50 border border-red-200 px-4 py-2 text-sm text-red-800">

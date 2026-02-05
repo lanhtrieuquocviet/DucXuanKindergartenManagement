@@ -15,8 +15,8 @@ function Login() {
     const { name, value } = e.target;
     setForm((prev) => ({ ...prev, [name]: value }));
     if (name === 'username') {
-      if (value && !/[A-Z]/.test(value)) {
-        setUsernameWarning('Tài khoản nên chứa ít nhất 1 chữ cái viết hoa (A-Z).');
+      if (value && (/[\s]/.test(value) || /[^A-Za-z0-9]/.test(value))) {
+        setUsernameWarning('Tài khoản không được chứa khoảng trắng và ký tự đặc biệt.');
       } else {
         setUsernameWarning('');
       }
@@ -37,8 +37,13 @@ function Login() {
 
   const handleSubmit = async (e) => {
     e.preventDefault();
+    const usernameTrimmed = (form.username || '').trim();
+    if (/[\s]/.test(usernameTrimmed) || /[^A-Za-z0-9]/.test(usernameTrimmed)) {
+      setUsernameWarning('Tài khoản không được chứa khoảng trắng và ký tự đặc biệt.');
+      return;
+    }
     try {
-      const { user: newUser } = await login(form.username, form.password);
+      const { user: newUser } = await login(usernameTrimmed, form.password);
       // eslint-disable-next-line no-console
       console.log('Login successful - newUser:', newUser);
       // Chuyển hướng theo role

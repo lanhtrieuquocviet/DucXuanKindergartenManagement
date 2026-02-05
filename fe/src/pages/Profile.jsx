@@ -1,12 +1,9 @@
 import { useEffect, useState, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
-import { get, ENDPOINTS } from '../service/api';
+import { ENDPOINTS, postFormData } from '../service/api';
 
 function Profile() {
-  const CLOUDINARY_CLOUD_NAME = import.meta.env.VITE_CLOUDINARY_CLOUD_NAME || 'ddlvzfvd4';
-  const CLOUDINARY_API_KEY = import.meta.env.VITE_CLOUDINARY_API_KEY || '';
-  const CLOUDINARY_MEDIA_FOLDER = import.meta.env.VITE_CLOUDINARY_MEDIA_FOLDER || 'demotest';
   const DEFAULT_AVATAR =
     'https://via.placeholder.com/300x400.png?text=Avatar+3x4';
 
@@ -39,29 +36,19 @@ function Profile() {
   const [changingPassword, setChangingPassword] = useState(false);
   const [message, setMessage] = useState('');
   const [profileFormLoading, setProfileFormLoading] = useState(false);
+  const [uploadingAvatar, setUploadingAvatar] = useState(false);
+  const [avatarPreview, setAvatarPreview] = useState('');
   const hasLoadedProfileRef = useRef(false);
   const hasUserEditedRef = useRef(false);
+  const fileInputRef = useRef(null);
 
   // Chỉ reset ref khi rời trang (unmount), không reset khi effect chạy lại vì user thay đổi
   useEffect(() => {
     return () => {
       hasLoadedProfileRef.current = false;
+      if (avatarPreview) URL.revokeObjectURL(avatarPreview);
     };
-  }, []);
-
-  // Load script Cloudinary Media Library
-  useEffect(() => {
-    if (window.cloudinary && window.cloudinary.openMediaLibrary) return;
-
-    const script = document.createElement('script');
-    script.src = 'https://media-library.cloudinary.com/global/all.js';
-    script.async = true;
-    document.body.appendChild(script);
-
-    return () => {
-      document.body.removeChild(script);
-    };
-  }, []);
+  }, [avatarPreview]);
 
   // Điền form từ user ngay khi có user (chỉ lần đầu, không ghi đè khi user đã chỉnh sửa)
   useEffect(() => {
@@ -117,62 +104,49 @@ function Profile() {
     setProfileForm((prev) => ({ ...prev, [name]: value }));
   };
 
-  const openCloudinaryWidget = async () => {
+  const handleSelectAvatarFile = async (e) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    if (!/^image\/(jpeg|jpg|png|gif|webp)$/i.test(file.type)) {
+      setError('Chỉ chấp nhận file ảnh (JPEG, PNG, GIF, WebP).');
+      return;
+    }
+
+    // Hiện preview ngay bằng blob URL (không đợi upload)
+    if (avatarPreview) URL.revokeObjectURL(avatarPreview);
+    const previewUrl = URL.createObjectURL(file);
+    setAvatarPreview(previewUrl);
+    hasUserEditedRef.current = true;
+
     try {
       setError(null);
       setMessage('');
+      setUploadingAvatar(true);
 
-      if (!window.cloudinary || !window.cloudinary.openMediaLibrary) {
-        setError('Cloudinary Media Library chưa sẵn sàng. Vui lòng chờ vài giây và thử lại.');
+      const formData = new FormData();
+      formData.append('avatar', file);
+
+      const response = await postFormData(ENDPOINTS.CLOUDINARY.UPLOAD_AVATAR, formData);
+      const url = response.data?.url;
+
+      if (!url) {
+        setError('Không nhận được đường dẫn ảnh từ server.');
         return;
       }
 
-      // Lấy chữ ký từ backend
-      const sigResponse = await get(ENDPOINTS.CLOUDINARY.MEDIA_LIBRARY_SIGNATURE);
-      const { timestamp, signature, cloudName, apiKey } = sigResponse.data || {};
-
-      const finalCloudName = cloudName || CLOUDINARY_CLOUD_NAME;
-      const finalApiKey = apiKey || CLOUDINARY_API_KEY;
-
-      if (!finalCloudName || !finalApiKey || !signature || !timestamp) {
-        setError('Không lấy được thông tin Cloudinary. Vui lòng kiểm tra cấu hình backend.');
-        return;
-      }
-
-      window.cloudinary.openMediaLibrary(
-        {
-          cloud_name: finalCloudName,
-          api_key: finalApiKey,
-          timestamp,
-          signature,
-          // Chỉ cho phép chọn trong folder demotest
-          folder: {
-            path: CLOUDINARY_MEDIA_FOLDER,
-            resource_type: 'image',
-          },
-          multiple: false,
-          max_files: 1,
-          insert_caption: 'Chọn ảnh này',
-          inline_container: null,
-        },
-        {
-          insertHandler: (data) => {
-            if (!data || !data.assets || !data.assets.length) return;
-            const asset = data.assets[0];
-            const imageUrl = asset.secure_url || asset.url;
-            if (!imageUrl) return;
-
-            hasUserEditedRef.current = true;
-            setProfileForm((prev) => ({
-              ...prev,
-              avatar: imageUrl,
-            }));
-            setMessage('Chọn ảnh thành công. Nhấn "Lưu thay đổi" để cập nhật hồ sơ.');
-          },
-        },
-      );
+      setProfileForm((prev) => ({ ...prev, avatar: url }));
+      setAvatarPreview((prev) => {
+        if (prev) URL.revokeObjectURL(prev);
+        return '';
+      });
+      setMessage('Đã tải ảnh lên. Nhấn "Lưu thay đổi" để cập nhật hồ sơ.');
     } catch (err) {
-      setError(err.message || 'Không thể chọn ảnh từ Cloudinary.');
+      setError(err.message || 'Không tải lên được ảnh.');
+      // Giữ preview để user vẫn thấy ảnh đã chọn
+    } finally {
+      setUploadingAvatar(false);
+      e.target.value = '';
     }
   };
 
@@ -295,6 +269,7 @@ function Profile() {
             <div className="w-10 h-[52px] overflow-hidden rounded-md border border-gray-300 bg-gray-100 flex items-center justify-center">
               <img
                 src={
+                  avatarPreview ||
                   profileForm.avatar ||
                   user?.avatar ||
                   DEFAULT_AVATAR
@@ -381,6 +356,7 @@ function Profile() {
                   <div className="w-24 aspect-[3/4] overflow-hidden rounded-md border border-gray-300 bg-gray-100 flex items-center justify-center">
                     <img
                       src={
+                        avatarPreview ||
                         profileForm.avatar ||
                         user?.avatar ||
                         DEFAULT_AVATAR
@@ -390,17 +366,24 @@ function Profile() {
                     />
                   </div>
                   <div className="flex flex-col gap-2">
+                    <input
+                      ref={fileInputRef}
+                      type="file"
+                      accept="image/jpeg,image/jpg,image/png,image/gif,image/webp"
+                      onChange={handleSelectAvatarFile}
+                      className="hidden"
+                    />
                     <button
                       type="button"
-                      onClick={openCloudinaryWidget}
-                      className="inline-flex items-center justify-center px-4 py-2 rounded-md border border-gray-300 bg-white text-sm font-medium text-gray-700 hover:bg-gray-50"
+                      onClick={() => fileInputRef.current?.click()}
+                      disabled={uploadingAvatar}
+                      className="inline-flex items-center justify-center px-4 py-2 rounded-md border border-gray-300 bg-white text-sm font-medium text-gray-700 hover:bg-gray-50 disabled:opacity-60 disabled:cursor-not-allowed"
                     >
-                      Chọn ảnh từ Cloudinary
+                      {uploadingAvatar ? 'Đang tải lên...' : 'Chọn ảnh trong máy'}
                     </button>
                     <p className="text-xs text-gray-500 max-w-xs">
-                      Ảnh nên có tỉ lệ 3x4 . Sau khi tải ảnh, hãy nhấn &quot;Lưu thay đổi&quot; để cập nhật.
+                      Ảnh nên có tỉ lệ 3x4. Chọn file (JPEG, PNG, GIF, WebP), sau đó nhấn &quot;Lưu thay đổi&quot; để cập nhật.
                     </p>
-                    
                   </div>
                 </div>
               </div>
