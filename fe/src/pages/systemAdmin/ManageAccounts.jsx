@@ -13,6 +13,7 @@ function ManageAccounts() {
   const [deleteConfirmUser, setDeleteConfirmUser] = useState(null);
   const [usernameHint, setUsernameHint] = useState('');
   const [passwordHint, setPasswordHint] = useState('');
+  const [saveErrorMessage, setSaveErrorMessage] = useState('');
   const [userForm, setUserForm] = useState({
     username: '',
     fullName: '',
@@ -20,7 +21,7 @@ function ManageAccounts() {
     password: '',
     confirmPassword: '',
     status: 'active',
-    roleId: '',
+    roleIds: [],
   });
 
   const navigate = useNavigate();
@@ -97,6 +98,7 @@ function ManageAccounts() {
   };
 
   const handleOpenUserForm = (account = null) => {
+    setSaveErrorMessage('');
     if (account) {
       setEditingUser(account);
       setUserForm({
@@ -106,11 +108,7 @@ function ManageAccounts() {
         password: '',
         confirmPassword: '',
         status: account.status || 'active',
-        // Nếu tài khoản đang có nhiều vai trò, ưu tiên lấy vai trò đầu tiên
-        roleId:
-          (account.roles || [])
-            .map((r) => r._id || r.id)
-            .filter(Boolean)[0] || '',
+        roleIds: (account.roles || []).map((r) => r._id || r.id).filter(Boolean),
       });
     } else {
       setEditingUser(null);
@@ -121,13 +119,14 @@ function ManageAccounts() {
         password: '',
         confirmPassword: '',
         status: 'active',
-        roleId: '',
+        roleIds: [],
       });
     }
     setShowUserForm(true);
   };
 
   const handleCloseUserForm = () => {
+    setSaveErrorMessage('');
     setShowUserForm(false);
     setEditingUser(null);
     setUserForm({
@@ -137,7 +136,18 @@ function ManageAccounts() {
       password: '',
       confirmPassword: '',
       status: 'active',
-      roleId: '',
+      roleIds: [],
+    });
+  };
+
+  const handleToggleRole = (roleId) => {
+    setUserForm((prev) => {
+      const ids = prev.roleIds || [];
+      const has = ids.includes(roleId);
+      if (has) {
+        return { ...prev, roleIds: ids.filter((id) => id !== roleId) };
+      }
+      return { ...prev, roleIds: [...ids, roleId] };
     });
   };
 
@@ -149,8 +159,8 @@ function ManageAccounts() {
     }));
 
     if (name === 'username') {
-      if (value && !/[A-Z]/.test(value)) {
-        setUsernameHint('Tài khoản phải chứa ít nhất 1 chữ cái viết hoa (A-Z).');
+      if (value && (/[\s]/.test(value) || /[^A-Za-z0-9]/.test(value))) {
+        setUsernameHint('Tài khoản không được chứa khoảng trắng và ký tự đặc biệt.');
       } else {
         setUsernameHint('');
       }
@@ -174,48 +184,56 @@ function ManageAccounts() {
     try {
       setError(null);
       setSuccess('');
+      setSaveErrorMessage('');
 
-      if (!/[A-Z]/.test(userForm.username || '')) {
-        setError('Tài khoản phải chứa ít nhất 1 chữ cái viết hoa (A-Z).');
+      const usernameTrimmed = (userForm.username || '').trim();
+      if (/[\s]/.test(usernameTrimmed) || /[^A-Za-z0-9]/.test(usernameTrimmed)) {
+        const msg = 'Tài khoản không được chứa khoảng trắng và ký tự đặc biệt.';
+        setError(msg);
+        setSaveErrorMessage(msg);
         return;
       }
 
       if (userForm.password || !editingUser) {
         if (!userForm.password) {
-          setError('Vui lòng nhập mật khẩu cho tài khoản mới.');
+          const msg = 'Vui lòng nhập mật khẩu cho tài khoản mới.';
+          setError(msg);
+          setSaveErrorMessage(msg);
           return;
         }
         if (userForm.password !== userForm.confirmPassword) {
-          setError('Mật khẩu và xác nhận mật khẩu không khớp.');
+          const msg = 'Mật khẩu và xác nhận mật khẩu không khớp.';
+          setError(msg);
+          setSaveErrorMessage(msg);
           return;
         }
         const strongPasswordRegex = /^(?=.*[A-Z])(?=.*\d)(?=.*[^A-Za-z0-9]).{6,}$/;
         if (!strongPasswordRegex.test(userForm.password)) {
-          setError(
-            'Mật khẩu phải có ít nhất 1 chữ cái viết hoa, 1 số và 1 ký tự đặc biệt, tối thiểu 6 ký tự.'
-          );
+          const msg = 'Mật khẩu phải có ít nhất 1 chữ cái viết hoa, 1 số và 1 ký tự đặc biệt, tối thiểu 6 ký tự.';
+          setError(msg);
+          setSaveErrorMessage(msg);
           return;
         }
       }
 
       if (!editingUser) {
         const payload = {
-          username: userForm.username.trim(),
+          username: usernameTrimmed,
           password: userForm.password,
           fullName: userForm.fullName.trim(),
           email: userForm.email.trim(),
           status: userForm.status,
-          roleIds: userForm.roleId ? [userForm.roleId] : [],
+          roleIds: userForm.roleIds || [],
         };
         await createUser(payload);
         setSuccess('Tạo tài khoản thành công.');
       } else {
         const payload = {
-          username: userForm.username.trim(),
+          username: usernameTrimmed,
           fullName: userForm.fullName.trim(),
           email: userForm.email.trim(),
           status: userForm.status,
-          roleIds: userForm.roleId ? [userForm.roleId] : [],
+          roleIds: userForm.roleIds || [],
         };
         if (userForm.password) {
           payload.password = userForm.password;
@@ -230,7 +248,9 @@ function ManageAccounts() {
       const refreshedUsers = await getUsers();
       setUsers(refreshedUsers || []);
     } catch (err) {
-      // Error đã được xử lý trong context
+      const msg = err?.data?.message || err?.message || 'Có lỗi khi lưu tài khoản.';
+      setSaveErrorMessage(msg);
+      // Error cũng được set trong context
     }
   };
 
@@ -327,8 +347,12 @@ function ManageAccounts() {
                 onClick={() => setShowProfileMenu(!showProfileMenu)}
                 className="inline-flex items-center gap-2 rounded-full border border-gray-200 bg-white px-3 py-1.5 shadow-sm hover:bg-gray-50 transition"
               >
-                <span className="inline-flex h-8 w-8 items-center justify-center rounded-full bg-indigo-600 text-white font-semibold">
-                  {userName.charAt(0).toUpperCase()}
+                <span className="inline-flex h-8 w-8 items-center justify-center rounded-full bg-indigo-600 text-white font-semibold overflow-hidden">
+                  {user?.avatar ? (
+                    <img src={user.avatar} alt="" className="w-full h-full object-cover" />
+                  ) : (
+                    userName.charAt(0).toUpperCase()
+                  )}
                 </span>
                 <span className="font-medium">{userName}</span>
                 <svg
@@ -380,11 +404,6 @@ function ManageAccounts() {
           />
         )}
 
-        {error && (
-          <div className="mb-4 rounded-md bg-red-50 border border-red-200 px-4 py-2 text-sm text-red-800">
-            {error}
-          </div>
-        )}
         {success && (
           <div className="mb-4 rounded-md bg-green-50 border border-green-200 px-4 py-2 text-sm text-green-800">
             {success}
@@ -588,9 +607,15 @@ function ManageAccounts() {
                   </p>
                 )}
 
+                {saveErrorMessage && (
+                  <div className="mt-4 rounded-md bg-red-50 border border-red-200 px-3 py-2 text-sm text-red-800">
+                    {saveErrorMessage}
+                  </div>
+                )}
+
                 <div className="mt-4">
                   <label className="block text-sm font-medium text-gray-700 mb-2">
-                    Vai trò
+                    Vai trò (có thể chọn nhiều)
                   </label>
                   {roles.length === 0 ? (
                     <p className="text-xs text-gray-500">
@@ -600,19 +625,17 @@ function ManageAccounts() {
                     <div className="space-y-2">
                       {roles.map((role) => {
                         const roleId = role.id || role._id;
-                        const checked = userForm.roleId === roleId;
+                        const checked = (userForm.roleIds || []).includes(roleId);
                         return (
                           <label
                             key={roleId}
                             className="flex items-center gap-2 text-sm text-gray-800 cursor-pointer px-2 py-1 rounded hover:bg-gray-50"
                           >
                             <input
-                              type="radio"
-                              name="roleId"
-                              value={roleId}
+                              type="checkbox"
                               checked={checked}
-                              onChange={handleChangeField}
-                              className="h-4 w-4 text-indigo-600 border-gray-300 focus:ring-indigo-500 cursor-pointer"
+                              onChange={() => handleToggleRole(roleId)}
+                              className="h-4 w-4 text-indigo-600 border-gray-300 rounded focus:ring-indigo-500 cursor-pointer"
                             />
                             <span className="font-medium">{role.roleName}</span>
                             {role.description && (

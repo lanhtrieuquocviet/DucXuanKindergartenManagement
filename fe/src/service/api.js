@@ -75,6 +75,25 @@ export const post = async (endpoint, body, options = {}) => {
 };
 
 /**
+ * POST FormData (multipart) - dùng cho upload file
+ */
+export const postFormData = async (endpoint, formData, options = {}) => {
+  const { includeAuth = true } = options;
+  const headers = {};
+  if (includeAuth) {
+    const token = getToken();
+    if (token) headers.Authorization = `Bearer ${token}`;
+  }
+  const response = await fetch(`${API_BASE_URL}${endpoint}`, {
+    method: 'POST',
+    headers,
+    body: formData,
+  });
+
+  return handleResponse(response);
+};
+
+/**
  * PUT request
  */
 export const put = async (endpoint, body, options = {}) => {
@@ -159,12 +178,14 @@ export const ENDPOINTS = {
   // Cloudinary
   CLOUDINARY: {
     MEDIA_LIBRARY_SIGNATURE: '/cloudinary/media-library-signature',
+    UPLOAD_AVATAR: '/cloudinary/upload-avatar',
   },
 };
 
 export default {
   get,
   post,
+  postFormData,
   put,
   delete: del,
   getToken,

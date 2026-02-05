@@ -112,6 +112,7 @@ function ClassList() {
       onViewProfile={handleViewProfile}
       onMenuSelect={handleMenuSelect}
       userName={user?.fullName || user?.username || 'Admin'}
+      userAvatar={user?.avatar}
     >
       {error && (
         <div className="mb-4 text-sm text-red-600 bg-red-50 border border-red-100 rounded-md px-4 py-3">

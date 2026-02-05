@@ -287,6 +287,7 @@ function ManagePermissions() {
         navigate('/login', { replace: true });
       }}
       userName={userName}
+      userAvatar={user?.avatar}
       onViewProfile={handleViewProfile}
       onMenuSelect={handleMenuSelect}
     >
