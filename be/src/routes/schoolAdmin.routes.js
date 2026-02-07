@@ -1,5 +1,6 @@
 const express = require('express');
 const { authenticate, authorizeRoles } = require('../middleware/auth');
+const contactController = require('../controller/contactController');
 
 const router = express.Router();
 
@@ -13,6 +14,33 @@ router.get('/dashboard', authenticate, authorizeRoles('SchoolAdmin'), (req, res)
     },
   });
 });
+
+// Liên hệ: danh sách + phản hồi
+router.get(
+  '/contacts',
+  authenticate,
+  authorizeRoles('SchoolAdmin'),
+  contactController.listContacts
+);
+router.patch(
+  '/contacts/:id/reply',
+  authenticate,
+  authorizeRoles('SchoolAdmin'),
+  contactController.validateReplyContact,
+  contactController.replyContact
+);
+router.patch(
+  '/contacts/:id/clear-reply',
+  authenticate,
+  authorizeRoles('SchoolAdmin'),
+  contactController.clearReplyContact
+);
+router.post(
+  '/contacts/:id/resend-email',
+  authenticate,
+  authorizeRoles('SchoolAdmin'),
+  contactController.resendReplyEmail
+);
 
 module.exports = router;
 

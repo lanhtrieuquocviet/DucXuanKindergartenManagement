@@ -395,9 +395,91 @@ Vui lòng không trả lời email này.
   }
 };
 
+/**
+ * Gửi email thông báo phản hồi liên hệ tới người đã gửi liên hệ
+ * @param {string} to - Email người nhận (người đã gửi liên hệ)
+ * @param {string} fullName - Họ tên người nhận
+ * @param {string} replyContent - Nội dung phản hồi từ trường
+ * @param {string} [originalContent] - Nội dung liên hệ gốc (tùy chọn)
+ * @returns {Promise<Object|null>} - Kết quả gửi email hoặc null nếu không cấu hình
+ */
+const sendContactReplyEmail = async (to, fullName, replyContent, originalContent = '') => {
+  const transporter = createTransporter();
+
+  if (!transporter) {
+    // eslint-disable-next-line no-console
+    console.warn('⚠️  Email not sent (no config). Contact reply saved.');
+    return null;
+  }
+
+  const mailOptions = {
+    from: `"Trường Mầm non Đức Xuân" <${process.env.EMAIL_USER}>`,
+    to,
+    subject: 'Phản hồi liên hệ - Trường Mầm non Đức Xuân',
+    html: `
+      <!DOCTYPE html>
+      <html>
+      <head>
+        <meta charset="UTF-8">
+        <style>
+          body { font-family: Arial, sans-serif; line-height: 1.6; color: #333; max-width: 600px; margin: 0 auto; padding: 20px; }
+          .container { background-color: #f9f9f9; border-radius: 10px; padding: 30px; border: 1px solid #e0e0e0; }
+          .header { background: linear-gradient(135deg, #059669 0%, #047857 100%); color: white; padding: 20px; border-radius: 10px 10px 0 0; text-align: center; margin: -30px -30px 30px -30px; }
+          .content { background-color: white; padding: 25px; border-radius: 8px; margin-bottom: 20px; }
+          .reply-box { background-color: #ecfdf5; border-left: 4px solid #059669; padding: 15px; margin: 15px 0; border-radius: 4px; white-space: pre-wrap; }
+          .footer { text-align: center; color: #666; font-size: 12px; margin-top: 30px; padding-top: 20px; border-top: 1px solid #e0e0e0; }
+        </style>
+      </head>
+      <body>
+        <div class="container">
+          <div class="header">
+            <h1 style="margin:0;font-size:22px;">Phản hồi liên hệ</h1>
+          </div>
+          <div class="content">
+            <p>Xin chào <strong>${fullName}</strong>,</p>
+            <p>Trường Mầm non Đức Xuân đã phản hồi nội dung liên hệ của bạn:</p>
+            <div class="reply-box">${replyContent.replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/\n/g, '<br>')}</div>
+            <p>Nếu bạn cần trao đổi thêm, vui lòng liên hệ trực tiếp với nhà trường.</p>
+          </div>
+          <div class="footer">
+            <p>Email này được gửi tự động từ hệ thống Trường Mầm non Đức Xuân.</p>
+          </div>
+        </div>
+      </body>
+      </html>
+    `,
+    text: `
+Phản hồi liên hệ - Trường Mầm non Đức Xuân
+
+Xin chào ${fullName},
+
+Trường Mầm non Đức Xuân đã phản hồi nội dung liên hệ của bạn:
+
+${replyContent}
+
+Nếu bạn cần trao đổi thêm, vui lòng liên hệ trực tiếp với nhà trường.
+
+---
+Email này được gửi tự động từ hệ thống Trường Mầm non Đức Xuân.
+    `,
+  };
+
+  try {
+    const info = await transporter.sendMail(mailOptions);
+    // eslint-disable-next-line no-console
+    console.log('✅ Contact reply email sent:', info.messageId);
+    return { success: true, messageId: info.messageId };
+  } catch (error) {
+    // eslint-disable-next-line no-console
+    console.error('❌ Error sending contact reply email:', error);
+    throw error;
+  }
+};
+
 module.exports = {
   sendPasswordResetEmail,
   sendOTPEmail,
   generateRandomPassword,
   createTransporter,
+  sendContactReplyEmail,
 };

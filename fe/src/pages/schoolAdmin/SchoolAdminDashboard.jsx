@@ -46,6 +46,7 @@ function SchoolAdminDashboard() {
     { key: 'students', label: 'Học sinh & phụ huynh' },
     { key: 'assets', label: 'Quản lý tài sản' },
     { key: 'reports', label: 'Báo cáo của trường' },
+    { key: 'contacts', label: 'Liên hệ' },
   ];
 
   const userName = user?.fullName || user?.username || 'School Admin';
@@ -60,7 +61,10 @@ function SchoolAdminDashboard() {
       navigate('/school-admin/classes');
       return;
     }
-    // Các mục khác có thể mapping route sau
+    if (key === 'contacts') {
+      navigate('/school-admin/contacts');
+      return;
+    }
   };
 
   return (

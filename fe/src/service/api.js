@@ -108,6 +108,20 @@ export const put = async (endpoint, body, options = {}) => {
 };
 
 /**
+ * PATCH request
+ */
+export const patch = async (endpoint, body, options = {}) => {
+  const { includeAuth = true, headers: customHeaders = {} } = options;
+  const response = await fetch(`${API_BASE_URL}${endpoint}`, {
+    method: 'PATCH',
+    headers: getHeaders(includeAuth, customHeaders),
+    body: JSON.stringify(body),
+  });
+
+  return handleResponse(response);
+};
+
+/**
  * DELETE request
  */
 export const del = async (endpoint, options = {}) => {
@@ -155,6 +169,14 @@ export const ENDPOINTS = {
   // School Admin
   SCHOOL_ADMIN: {
     DASHBOARD: '/school-admin/dashboard',
+    CONTACTS: '/school-admin/contacts',
+    CONTACT_REPLY: (id) => `/school-admin/contacts/${id}/reply`,
+    CONTACT_CLEAR_REPLY: (id) => `/school-admin/contacts/${id}/clear-reply`,
+    CONTACT_RESEND_EMAIL: (id) => `/school-admin/contacts/${id}/resend-email`,
+  },
+  // Contact (public)
+  CONTACT: {
+    SUBMIT: '/contact',
   },
   // Teacher
   TEACHER: {
@@ -187,6 +209,7 @@ export default {
   post,
   postFormData,
   put,
+  patch,
   delete: del,
   getToken,
   ENDPOINTS,
