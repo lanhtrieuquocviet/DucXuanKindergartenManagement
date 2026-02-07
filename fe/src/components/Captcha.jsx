@@ -58,8 +58,8 @@ export default function Captcha({ onValidate }) {
   }, []);
 
   useEffect(() => {
-    onValidate?.(input.toUpperCase() === captcha);
-  }, [input]);
+    onValidate?.(input.trim().toUpperCase() === captcha);
+  }, [input, captcha, onValidate]);
 
   return (
     <div className="flex items-center gap-3">

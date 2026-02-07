@@ -1,5 +1,5 @@
 import { createContext, useContext, useState, useCallback, useRef, useEffect } from 'react';
-import { get, ENDPOINTS } from '../service/api';
+import { get, post, patch, ENDPOINTS } from '../service/api';
 
 const SchoolAdminContext = createContext(null);
 
@@ -51,10 +51,71 @@ export const SchoolAdminProvider = ({
     }
   }, []);
 
+  // Danh sách liên hệ
+  const getContacts = useCallback(async (params = {}) => {
+    try {
+      setLoading(true);
+      setError(null);
+      const search = new URLSearchParams(params).toString();
+      const endpoint = search ? `${ENDPOINTS.SCHOOL_ADMIN.CONTACTS}?${search}` : ENDPOINTS.SCHOOL_ADMIN.CONTACTS;
+      const response = await get(endpoint);
+      return response;
+    } catch (err) {
+      const errorMessage = err.message || 'Không tải được danh sách liên hệ';
+      setError(errorMessage);
+      throw new Error(errorMessage);
+    } finally {
+      setLoading(false);
+    }
+  }, []);
+
+  // Phản hồi liên hệ
+  const replyContact = useCallback(async (contactId, reply) => {
+    try {
+      setError(null);
+      const response = await patch(ENDPOINTS.SCHOOL_ADMIN.CONTACT_REPLY(contactId), { reply });
+      return response;
+    } catch (err) {
+      const errorMessage = err.message || 'Phản hồi thất bại';
+      setError(errorMessage);
+      throw new Error(errorMessage);
+    }
+  }, []);
+
+  // Xóa phản hồi
+  const clearReplyContact = useCallback(async (contactId) => {
+    try {
+      setError(null);
+      const response = await patch(ENDPOINTS.SCHOOL_ADMIN.CONTACT_CLEAR_REPLY(contactId), {});
+      return response;
+    } catch (err) {
+      const errorMessage = err.message || 'Xóa phản hồi thất bại';
+      setError(errorMessage);
+      throw new Error(errorMessage);
+    }
+  }, []);
+
+  // Gửi lại email phản hồi
+  const resendReplyEmail = useCallback(async (contactId) => {
+    try {
+      setError(null);
+      const response = await post(ENDPOINTS.SCHOOL_ADMIN.CONTACT_RESEND_EMAIL(contactId), {});
+      return response;
+    } catch (err) {
+      const errorMessage = err.message || 'Gửi lại email thất bại';
+      setError(errorMessage);
+      throw new Error(errorMessage);
+    }
+  }, []);
+
   const value = {
     loading,
     error,
     getDashboard,
+    getContacts,
+    replyContact,
+    clearReplyContact,
+    resendReplyEmail,
     setError,
   };
 

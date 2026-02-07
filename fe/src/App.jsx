@@ -13,6 +13,7 @@ import TeacherDashboard from './pages/teacher/TeacherDashboard';
 import SchoolAdminDashboard from './pages/schoolAdmin/SchoolAdminDashboard';
 import ClassList from './pages/schoolAdmin/ClassList';
 import StudentInClass from './pages/schoolAdmin/StudentInClass';
+import ContactList from './pages/schoolAdmin/ContactList';
 import Contact from './pages/Contact';
 import Profile from './pages/Profile';
 import { AuthProvider } from './context/AuthContext';
@@ -213,6 +214,14 @@ function App() {
             element={(
               <SchoolAdminProvider>
                 <StudentInClass />
+              </SchoolAdminProvider>
+            )}
+          />
+          <Route
+            path="/school-admin/contacts"
+            element={(
+              <SchoolAdminProvider>
+                <ContactList />
               </SchoolAdminProvider>
             )}
           />
