@@ -143,6 +143,7 @@ export const ENDPOINTS = {
   AUTH: {
     LOGIN: '/auth/login',
     ME: '/auth/me',
+    ME_STUDENT: '/auth/me/student',
     CHANGE_PASSWORD: '/auth/change-password',
     FORGOT_PASSWORD_VERIFY_ACCOUNT: '/auth/forgot-password/verify-account',
     FORGOT_PASSWORD_VERIFY_OTP: '/auth/forgot-password/verify-otp',

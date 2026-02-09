@@ -56,6 +56,8 @@ function Login() {
         navigate('/school-admin', { replace: true });
       } else if (roles.includes('Teacher')) {
         navigate('/teacher', { replace: true });
+      } else if (roles.includes('Student')) {
+        navigate('/student', { replace: true });
       } else {
         navigate('/', { replace: true });
       }

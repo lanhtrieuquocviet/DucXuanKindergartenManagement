@@ -1,6 +1,7 @@
 const bcrypt = require('bcryptjs');
 const jwt = require('jsonwebtoken');
 const User = require('../models/User');
+const Student = require('../models/Student');
 const { sendPasswordResetEmail, sendOTPEmail, generateRandomPassword } = require('../utils/email');
 
 // ============================================
@@ -799,6 +800,41 @@ const updateMyChild = async (req, res) => {
 };
 
 /**
+ * GET /api/auth/me/student
+ * Lấy thông tin học sinh của user đăng nhập (role Student)
+ */
+const getMyStudentInfo = async (req, res) => {
+  try {
+    const userId = req.user.id;
+    const student = await Student.findOne({
+      $or: [{ userId }, { UserId: userId }],
+    })
+      .populate('classId', 'className')
+      .lean();
+
+    if (!student) {
+      return res.status(200).json({
+        status: 'success',
+        data: null,
+        message: 'Chưa có thông tin học sinh',
+      });
+    }
+
+    return res.status(200).json({
+      status: 'success',
+      data: student,
+    });
+  } catch (error) {
+    // eslint-disable-next-line no-console
+    console.error('Get my student info error:', error);
+    return res.status(500).json({
+      status: 'error',
+      message: error.message || 'Không lấy được thông tin học sinh',
+    });
+  }
+};
+
+/**
  * DELETE /api/auth/me/children/:studentId
  * Xóa thông tin con (chỉ phụ huynh sở hữu)
  */
@@ -845,4 +881,5 @@ module.exports = {
   createMyChild,
   updateMyChild,
   deleteMyChild,
+  getMyStudentInfo,
 };

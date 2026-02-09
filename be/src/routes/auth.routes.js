@@ -8,6 +8,7 @@ const {
   verifyAccount,
   verifyOTP,
   resetPassword,
+  getMyStudentInfo,
 } = require('../controller/authController');
 
 const router = express.Router();
@@ -68,6 +69,12 @@ router.put('/me', authenticate, updateProfile);
  * Đổi mật khẩu cho người dùng hiện tại
  */
 router.post('/change-password', authenticate, changePassword);
+
+/**
+ * GET /api/auth/me/student
+ * Lấy thông tin học sinh (cho role Student)
+ */
+router.get('/me/student', authenticate, getMyStudentInfo);
 
 /**
  * @openapi

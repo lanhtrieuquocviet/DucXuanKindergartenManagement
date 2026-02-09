@@ -10,6 +10,7 @@ import ManageAccounts from './pages/systemAdmin/ManageAccounts';
 import ManageRoles from './pages/systemAdmin/ManageRoles';
 import ManagePermissions from './pages/systemAdmin/ManagePermissions';
 import TeacherDashboard from './pages/teacher/TeacherDashboard';
+import StudentDashboard from './pages/student/StudentDashboard';
 import SchoolAdminDashboard from './pages/schoolAdmin/SchoolAdminDashboard';
 import ClassList from './pages/schoolAdmin/ClassList';
 import StudentInClass from './pages/schoolAdmin/StudentInClass';
@@ -193,6 +194,7 @@ function App() {
               </TeacherProvider>
             )}
           />
+          <Route path="/student" element={<StudentDashboard />} />
           <Route
             path="/school-admin"
             element={(
