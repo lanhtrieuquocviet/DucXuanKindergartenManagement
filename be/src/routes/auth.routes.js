@@ -8,6 +8,10 @@ const {
   verifyAccount,
   verifyOTP,
   resetPassword,
+  getMyChildren,
+  createMyChild,
+  updateMyChild,
+  deleteMyChild,
   getMyStudentInfo,
 } = require('../controller/authController');
 
@@ -69,6 +73,30 @@ router.put('/me', authenticate, updateProfile);
  * Đổi mật khẩu cho người dùng hiện tại
  */
 router.post('/change-password', authenticate, changePassword);
+
+/**
+ * GET /api/auth/me/children
+ * Lấy danh sách con (cho role Phụ huynh)
+ */
+router.get('/me/children', authenticate, getMyChildren);
+
+/**
+ * POST /api/auth/me/children
+ * Thêm con cho phụ huynh hiện tại
+ */
+router.post('/me/children', authenticate, createMyChild);
+
+/**
+ * PUT /api/auth/me/children/:studentId
+ * Cập nhật thông tin con
+ */
+router.put('/me/children/:studentId', authenticate, updateMyChild);
+
+/**
+ * DELETE /api/auth/me/children/:studentId
+ * Xóa thông tin con
+ */
+router.delete('/me/children/:studentId', authenticate, deleteMyChild);
 
 /**
  * GET /api/auth/me/student

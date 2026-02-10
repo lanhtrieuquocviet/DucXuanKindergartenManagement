@@ -56,7 +56,12 @@ function Login() {
         navigate('/school-admin', { replace: true });
       } else if (roles.includes('Teacher')) {
         navigate('/teacher', { replace: true });
-      } else if (roles.includes('Student')) {
+      } else if (
+        roles.includes('Parent') ||
+        roles.includes('StudentParent') ||
+        roles.includes('Student')
+      ) {
+        // Phụ huynh / tài khoản xem thông tin trẻ
         navigate('/student', { replace: true });
       } else {
         navigate('/', { replace: true });
