@@ -6,6 +6,7 @@ const Grade = require('./Grade');
 const Classes = require('./Classes');
 const AcademicYear = require('./AcademicYear');
 const Attendances = require('./Attendances');
+const TakeOff = require('./TakeOff');
 
 module.exports = {
   User,
@@ -15,5 +16,6 @@ module.exports = {
   Grade,
   Classes,
   AcademicYear,
-  Attendances
+  Attendances,
+  TakeOff
 };
