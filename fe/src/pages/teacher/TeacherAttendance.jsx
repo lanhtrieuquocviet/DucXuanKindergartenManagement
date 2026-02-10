@@ -2,7 +2,7 @@ import { useEffect, useMemo, useState } from 'react';
 import { useLocation, useNavigate, useParams } from 'react-router-dom';
 import { useAuth } from '../../context/AuthContext';
 import RoleLayout from '../../layouts/RoleLayout';
-import { get, ENDPOINTS } from '../../service/api';
+import { get, post, ENDPOINTS } from '../../service/api';
 
 const getLocalISODate = () => {
   const d = new Date();
@@ -93,7 +93,7 @@ function TeacherAttendance() {
 
   const [isDetailOpen, setIsDetailOpen] = useState(false);
   const [detailStudentId, setDetailStudentId] = useState(null);
-  const [detailMode, setDetailMode] = useState('view'); // 'view' | 'checkin'
+  const [detailMode, setDetailMode] = useState('view'); // 'view' | 'checkin' | 'checkout'
   const [detailForm, setDetailForm] = useState(() => ({
     status: 'empty',
     timeIn: '',
@@ -256,12 +256,20 @@ function TeacherAttendance() {
     setDetailStudentId(studentId);
     const rec = attendanceByStudent?.[studentId] || defaultRecord();
     setDetailForm({
-      status: mode === 'checkin' && (rec.status === 'empty' || rec.status === 'absent') ? 'checked_in' : rec.status || 'empty',
+      status:
+        mode === 'checkin' && (rec.status === 'empty' || rec.status === 'absent')
+          ? 'checked_in'
+          : mode === 'checkout'
+          ? 'checked_out'
+          : rec.status || 'empty',
       timeIn:
         mode === 'checkin' && (!rec.timeIn || rec.status === 'empty' || rec.status === 'absent')
           ? nowHHmm()
           : rec.timeIn || '',
-      timeOut: rec.timeOut || '',
+      timeOut:
+        mode === 'checkout' && !rec.timeOut
+          ? nowHHmm()
+          : rec.timeOut || '',
       checkinImageName: rec.checkinImageName || '',
       delivererType: rec.delivererType || '',
       delivererOtherInfo: rec.delivererOtherInfo || '',
@@ -286,7 +294,15 @@ function TeacherAttendance() {
     return null;
   };
 
-  const handleSaveDetail = (e) => {
+  const buildDateTimeISO = (dateStr, hhmm) => {
+    const [hh, mm] = (hhmm || '').split(':');
+    if (!dateStr || !hh || !mm) return null;
+    const d = new Date(dateStr);
+    d.setHours(Number(hh), Number(mm), 0, 0);
+    return d.toISOString();
+  };
+
+  const handleSaveDetail = async (e) => {
     e.preventDefault();
     const error = validateDetail();
     if (error) {
@@ -294,21 +310,131 @@ function TeacherAttendance() {
       return;
     }
     setSubmitError(null);
+
+    try {
+      if (!detailStudentId) throw new Error('Không xác định học sinh.');
+
+      const basePayload = {
+        studentId: detailStudentId,
+        classId,
+        date: selectedDate,
+        note: detailForm.note?.trim() || '',
+      };
+
+      if (detailMode === 'checkout') {
+        const timeOutHHmm = detailForm.timeOut || nowHHmm();
+        const isoOut = buildDateTimeISO(selectedDate, timeOutHHmm);
+
+        // Trường hợp checkout với người đón đã đăng ký (không phải "Khác"):
+        // -> giáo viên lưu luôn, trạng thái hoàn thành điểm danh.
+        await post(ENDPOINTS.STUDENTS.ATTENDANCE_CHECKOUT, {
+          ...basePayload,
+          time: isoOut ? { checkOut: isoOut } : undefined,
+          timeString: { checkOut: timeOutHHmm },
+          status: 'present',
+          isTakeOff: false,
+        });
+
+        updateRecord(detailStudentId, {
+          ...(attendanceByStudent?.[detailStudentId] || defaultRecord()),
+          status: 'checked_out',
+          timeOut: timeOutHHmm,
+          note: basePayload.note,
+          delivererType: detailForm.delivererType,
+          delivererOtherInfo: detailForm.delivererOtherInfo,
+          delivererOtherImageName: detailForm.delivererOtherImageName,
+          checkinImageName: detailForm.checkinImageName,
+          hasBelongings: detailForm.hasBelongings,
+          belongingsNote: detailForm.belongingsNote,
+        });
+      } else if (detailMode === 'checkin') {
+        const timeInHHmm = detailForm.timeIn || nowHHmm();
+        const isoIn = buildDateTimeISO(selectedDate, timeInHHmm);
+
+        await post(ENDPOINTS.STUDENTS.ATTENDANCE_CHECKIN, {
+          ...basePayload,
+          time: isoIn ? { checkIn: isoIn } : undefined,
+          timeString: { checkIn: timeInHHmm },
+          status: 'present',
+          isTakeOff: false,
+        });
+
+        updateRecord(detailStudentId, {
+          ...(attendanceByStudent?.[detailStudentId] || defaultRecord()),
+          status: 'checked_in',
+          timeIn: timeInHHmm,
+          note: basePayload.note,
+        });
+      } else {
+        // view mode: chỉ lưu local
+        updateRecord(detailStudentId, {
+          ...(attendanceByStudent?.[detailStudentId] || defaultRecord()),
+          ...detailForm,
+          note: basePayload.note,
+        });
+      }
+
+      closeDetail();
+    } catch (err) {
+      setSubmitError(err.message || 'Lỗi khi lưu điểm danh');
+    }
+  };
+
+  // Xử lý luồng "Gửi PH" khi người đón là \"Khác\":
+  // - Không hoàn thành điểm danh ngay, chỉ lưu local trạng thái \"Chờ PH xác nhận\"
+  const handleSendToParent = () => {
+    if (!detailStudentId) {
+      setSubmitError('Không xác định học sinh.');
+      return;
+    }
+
+    // validate cơ bản cho trường hợp \"Khác\"
+    if (!detailForm.delivererType) {
+      setSubmitError('Vui lòng chọn người đón.');
+      return;
+    }
+    if (detailForm.delivererType === 'Khác') {
+      if (!detailForm.delivererOtherInfo?.trim()) {
+        setSubmitError('Vui lòng nhập thông tin người đón (tên + SĐT).');
+        return;
+      }
+      if (!detailForm.delivererOtherImageName) {
+        setSubmitError('Vui lòng chọn ảnh người đón.');
+        return;
+      }
+    }
+
+    setSubmitError(null);
+
+    // Lưu local trạng thái \"chờ PH xác nhận\"
     updateRecord(detailStudentId, {
-      status: detailForm.status,
-      // Giờ đến tự động cập nhật theo thời điểm lưu
-      timeIn: nowHHmm(),
+      ...(attendanceByStudent?.[detailStudentId] || defaultRecord()),
+      status: 'waiting_parent',
       timeOut: detailForm.timeOut || '',
-      checkinImageName: detailForm.checkinImageName || '',
-      delivererType: detailForm.delivererType || '',
-      delivererOtherInfo: detailForm.delivererOtherInfo || '',
-      delivererOtherImageName: detailForm.delivererOtherImageName || '',
-      hasBelongings: !!detailForm.hasBelongings,
-      belongingsNote: detailForm.belongingsNote || '',
       note: detailForm.note?.trim() || '',
+      delivererType: detailForm.delivererType,
+      delivererOtherInfo: detailForm.delivererOtherInfo,
+      delivererOtherImageName: detailForm.delivererOtherImageName,
+      checkinImageName: detailForm.checkinImageName,
+      hasBelongings: detailForm.hasBelongings,
+      belongingsNote: detailForm.belongingsNote,
     });
+
     closeDetail();
   };
+
+  // Điều kiện enable/disable button theo spec checkout
+  const isCheckoutMode = detailMode === 'checkout';
+  const isDelivererOther = detailForm.delivererType === 'Khác';
+  const canSaveCheckout =
+    isCheckoutMode &&
+    !!detailForm.delivererType &&
+    !isDelivererOther; // chỉ cho Lưu khi không phải \"Khác\"
+  const canSendToParent =
+    isCheckoutMode &&
+    isDelivererOther &&
+    !!detailForm.delivererOtherInfo?.trim() &&
+    !!detailForm.delivererOtherImageName;
 
   const detailStudent = students.find((s) => s._id === detailStudentId) || null;
   const selectedClass = classes.find((c) => (c._id || c.id) === classId) || null;
@@ -479,12 +605,7 @@ function TeacherAttendance() {
                             {canCheckOut && (
                               <button
                                 type="button"
-                                onClick={() =>
-                                  updateRecord(s._id, {
-                                    status: 'checked_out',
-                                    timeOut: nowHHmm(),
-                                  })
-                                }
+                                onClick={() => openDetail(s._id, 'checkout')}
                                 className="px-3 py-2 text-xs font-semibold rounded-md bg-sky-600 text-white hover:bg-sky-700 transition-colors"
                               >
                                 Check-out
@@ -521,7 +642,11 @@ function TeacherAttendance() {
             <div className="border-b px-5 py-4 flex items-center justify-between">
               <div>
                 <h3 className="text-sm font-semibold text-gray-900">
-                  {detailMode === 'checkin' ? 'Check-in' : 'Chi tiết điểm danh'}
+                  {detailMode === 'checkin'
+                    ? 'Check-in'
+                    : detailMode === 'checkout'
+                    ? 'Check-out'
+                    : 'Chi tiết điểm danh'}
                 </h3>
                 <p className="text-xs text-gray-500 mt-1">
                   {detailStudent?.fullName ? (
@@ -562,6 +687,23 @@ function TeacherAttendance() {
                     className="w-full px-3 py-2 border border-gray-300 rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500"
                   />
                 </div>
+
+                {isCheckoutMode && (
+                  <div className="md:col-span-2">
+                    <label className="block text-xs font-semibold text-gray-700 mb-1">Giờ về</label>
+                    <input
+                      type="time"
+                      value={detailForm.timeOut}
+                      onChange={(e) =>
+                        setDetailForm((prev) => ({
+                          ...prev,
+                          timeOut: e.target.value,
+                        }))
+                      }
+                      className="w-full px-3 py-2 border border-gray-300 rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                    />
+                  </div>
+                )}
 
                 <div className="md:col-span-2 border-t border-gray-100 pt-4 mt-2">
                   <p className="text-xs font-semibold text-gray-700 mb-2">Ảnh điểm danh / người đưa</p>
@@ -696,12 +838,40 @@ function TeacherAttendance() {
                 >
                   Hủy
                 </button>
-                <button
-                  type="submit"
-                  className="px-4 py-2 text-sm font-semibold text-white bg-indigo-600 rounded-md hover:bg-indigo-700 transition-colors"
-                >
-                  Lưu
-                </button>
+                {isCheckoutMode ? (
+                  <>
+                    <button
+                      type="submit"
+                      disabled={!canSaveCheckout}
+                      className={`px-4 py-2 text-sm font-semibold rounded-md transition-colors ${
+                        canSaveCheckout
+                          ? 'text-white bg-indigo-600 hover:bg-indigo-700'
+                          : 'text-gray-400 bg-gray-200 cursor-not-allowed'
+                      }`}
+                    >
+                      Lưu
+                    </button>
+                    <button
+                      type="button"
+                      onClick={handleSendToParent}
+                      disabled={!canSendToParent}
+                      className={`px-4 py-2 text-sm font-semibold rounded-md transition-colors ${
+                        canSendToParent
+                          ? 'text-white bg-sky-600 hover:bg-sky-700'
+                          : 'text-gray-400 bg-gray-200 cursor-not-allowed'
+                      }`}
+                    >
+                      Gửi PH
+                    </button>
+                  </>
+                ) : (
+                  <button
+                    type="submit"
+                    className="px-4 py-2 text-sm font-semibold text-white bg-indigo-600 rounded-md hover:bg-indigo-700 transition-colors"
+                  >
+                    Lưu
+                  </button>
+                )}
               </div>
             </form>
           </div>

@@ -197,6 +197,9 @@ export const ENDPOINTS = {
     CREATE: '/students',
     UPDATE: (studentId) => `/students/${studentId}`,
     DELETE: (studentId) => `/students/${studentId}`,
+    ATTENDANCE_CHECKIN: '/students/attendance',
+    ATTENDANCE_CHECKOUT: '/students/attendance/checkout',
+    ATTENDANCE_LIST: '/students/attendance',
   },
   // Cloudinary
   CLOUDINARY: {
