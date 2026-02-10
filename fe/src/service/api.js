@@ -144,6 +144,7 @@ export const ENDPOINTS = {
     LOGIN: '/auth/login',
     ME: '/auth/me',
     ME_STUDENT: '/auth/me/student',
+    MY_CHILDREN: '/auth/me/children',
     CHANGE_PASSWORD: '/auth/change-password',
     FORGOT_PASSWORD_VERIFY_ACCOUNT: '/auth/forgot-password/verify-account',
     FORGOT_PASSWORD_VERIFY_OTP: '/auth/forgot-password/verify-otp',

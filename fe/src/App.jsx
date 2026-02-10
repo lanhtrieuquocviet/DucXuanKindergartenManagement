@@ -12,6 +12,8 @@ import ManagePermissions from './pages/systemAdmin/ManagePermissions';
 import TeacherDashboard from './pages/teacher/TeacherDashboard';
 import TeacherAttendance from './pages/teacher/TeacherAttendance';
 import StudentDashboard from './pages/student/StudentDashboard';
+import PickupRegistration from './pages/student/PickupRegistration';
+import TodayAttendance from './pages/student/TodayAttendance';
 import SchoolAdminDashboard from './pages/schoolAdmin/SchoolAdminDashboard';
 import ClassList from './pages/schoolAdmin/ClassList';
 import StudentInClass from './pages/schoolAdmin/StudentInClass';
@@ -212,6 +214,8 @@ function App() {
             )}
           />
           <Route path="/student" element={<StudentDashboard />} />
+          <Route path="/student/pickup" element={<PickupRegistration />} />
+          <Route path="/student/attendance/today" element={<TodayAttendance />} />
           <Route
             path="/school-admin"
             element={(
