@@ -10,6 +10,7 @@ import ManageAccounts from './pages/systemAdmin/ManageAccounts';
 import ManageRoles from './pages/systemAdmin/ManageRoles';
 import ManagePermissions from './pages/systemAdmin/ManagePermissions';
 import TeacherDashboard from './pages/teacher/TeacherDashboard';
+import TeacherAttendance from './pages/teacher/TeacherAttendance';
 import StudentDashboard from './pages/student/StudentDashboard';
 import SchoolAdminDashboard from './pages/schoolAdmin/SchoolAdminDashboard';
 import ClassList from './pages/schoolAdmin/ClassList';
@@ -191,6 +192,22 @@ function App() {
             element={(
               <TeacherProvider>
                 <TeacherDashboard />
+              </TeacherProvider>
+            )}
+          />
+          <Route
+            path="/teacher/attendance"
+            element={(
+              <TeacherProvider>
+                <TeacherAttendance />
+              </TeacherProvider>
+            )}
+          />
+          <Route
+            path="/teacher/attendance/:classId"
+            element={(
+              <TeacherProvider>
+                <TeacherAttendance />
               </TeacherProvider>
             )}
           />

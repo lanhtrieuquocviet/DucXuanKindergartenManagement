@@ -1,5 +1,5 @@
-import { useEffect, useState } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useEffect, useMemo, useState } from 'react';
+import { useLocation, useNavigate } from 'react-router-dom';
 import { useAuth } from '../../context/AuthContext';
 import { useTeacher } from '../../context/TeacherContext';
 import RoleLayout from '../../layouts/RoleLayout';
@@ -7,6 +7,7 @@ import RoleLayout from '../../layouts/RoleLayout';
 function TeacherDashboard() {
   const [data, setData] = useState(null);
   const navigate = useNavigate();
+  const location = useLocation();
   const { user, logout, isInitializing } = useAuth();
   const { getDashboard, loading, error } = useTeacher();
 
@@ -39,12 +40,22 @@ function TeacherDashboard() {
     fetchData();
   }, [navigate, user, getDashboard, isInitializing]);
 
-  const menuItems = [
-    { key: 'classes', label: 'Lớp phụ trách' },
-    { key: 'students', label: 'Danh sách học sinh' },
-    { key: 'schedule', label: 'Lịch dạy & hoạt động' },
-    { key: 'messages', label: 'Thông báo cho phụ huynh' },
-  ];
+  const menuItems = useMemo(
+    () => [
+      { key: 'classes', label: 'Lớp phụ trách' },
+      { key: 'students', label: 'Danh sách học sinh' },
+      { key: 'attendance', label: 'Điểm danh' },
+      { key: 'schedule', label: 'Lịch dạy & hoạt động' },
+      { key: 'messages', label: 'Thông báo cho phụ huynh' },
+    ],
+    []
+  );
+
+  const activeKey = useMemo(() => {
+    const path = location.pathname || '';
+    if (path.startsWith('/teacher/attendance')) return 'attendance';
+    return 'classes';
+  }, [location.pathname]);
 
   const userName = user?.fullName || user?.username || 'Teacher';
 
@@ -57,6 +68,10 @@ function TeacherDashboard() {
       // Sau này có thể điều hướng tới trang lớp cụ thể
       return;
     }
+    if (key === 'attendance') {
+      navigate('/teacher/attendance');
+      return;
+    }
     // Các mục khác sẽ mapping route sau
   };
 
@@ -65,7 +80,7 @@ function TeacherDashboard() {
       title="Bảng điều khiển Giáo viên"
       description="Xem nhanh lớp phụ trách, danh sách học sinh và lịch dạy."
       menuItems={menuItems}
-      activeKey="classes"
+      activeKey={activeKey}
       onLogout={() => {
         logout();
         navigate('/login', { replace: true });
