@@ -91,6 +91,8 @@ function StudentInClass() {
       { key: 'students', label: 'Học sinh & phụ huynh' },
       { key: 'assets', label: 'Quản lý tài sản' },
       { key: 'reports', label: 'Báo cáo của trường' },
+      { key: 'contacts', label: 'Liên hệ' },
+      { key: 'attendance', label: 'Quản lý điểm danh' },
     ];
   };
 
@@ -101,6 +103,18 @@ function StudentInClass() {
       } else {
         navigate('/school-admin/classes');
       }
+      return;
+    }
+    if (key === 'contacts') {
+      navigate('/school-admin/contacts');
+      return;
+    }
+    if (key === 'overview') {
+      navigate('/school-admin');
+      return;
+    }
+    if (key === 'attendance') {
+      navigate('/school-admin/attendance/overview');
       return;
     }
     // Các mục khác có thể tách route riêng sau

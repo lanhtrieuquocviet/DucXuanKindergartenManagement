@@ -18,6 +18,7 @@ import SchoolAdminDashboard from './pages/schoolAdmin/SchoolAdminDashboard';
 import ClassList from './pages/schoolAdmin/ClassList';
 import StudentInClass from './pages/schoolAdmin/StudentInClass';
 import ContactList from './pages/schoolAdmin/ContactList';
+import AttendanceOverview from './pages/schoolAdmin/AttendanceOverview';
 import Contact from './pages/Contact';
 import Profile from './pages/Profile';
 import { AuthProvider } from './context/AuthContext';
@@ -245,6 +246,14 @@ function App() {
             element={(
               <SchoolAdminProvider>
                 <ContactList />
+              </SchoolAdminProvider>
+            )}
+          />
+          <Route
+            path="/school-admin/attendance/overview"
+            element={(
+              <SchoolAdminProvider>
+                <AttendanceOverview />
               </SchoolAdminProvider>
             )}
           />

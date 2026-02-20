@@ -1,6 +1,7 @@
 const express = require('express');
 const { authenticate, authorizeRoles } = require('../middleware/auth');
 const contactController = require('../controller/contactController');
+const { getAttendanceOverview } = require('../controller/attendanceController');
 
 const router = express.Router();
 
@@ -40,6 +41,14 @@ router.post(
   authenticate,
   authorizeRoles('SchoolAdmin'),
   contactController.resendReplyEmail
+);
+
+// Tổng quan điểm danh các lớp
+router.get(
+  '/attendance/overview',
+  authenticate,
+  authorizeRoles('SchoolAdmin'),
+  getAttendanceOverview
 );
 
 module.exports = router;

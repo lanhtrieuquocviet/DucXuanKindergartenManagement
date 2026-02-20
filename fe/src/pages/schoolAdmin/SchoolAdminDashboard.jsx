@@ -47,6 +47,7 @@ function SchoolAdminDashboard() {
     { key: 'assets', label: 'Quản lý tài sản' },
     { key: 'reports', label: 'Báo cáo của trường' },
     { key: 'contacts', label: 'Liên hệ' },
+    { key: 'attendance', label: 'Quản lý điểm danh' },
   ];
 
   const userName = user?.fullName || user?.username || 'School Admin';
@@ -63,6 +64,10 @@ function SchoolAdminDashboard() {
     }
     if (key === 'contacts') {
       navigate('/school-admin/contacts');
+      return;
+    }
+    if (key === 'attendance') {
+      navigate('/school-admin/attendance/overview');
       return;
     }
   };
@@ -104,6 +109,20 @@ function SchoolAdminDashboard() {
           <p className="mt-2 text-2xl font-bold text-gray-800">120</p>
           <p className="mt-1 text-xs text-gray-500">Tổng số học sinh trong các lớp.</p>
         </div>
+      </div>
+
+      <div className="bg-white rounded-lg shadow p-6 mb-6">
+        <h3 className="text-sm font-semibold text-gray-800 mb-4">Thông tin điểm danh</h3>
+        <p className="text-sm text-gray-600 mb-4">
+          Xem tổng quan điểm danh của tất cả các lớp trong trường.
+        </p>
+        <button
+          type="button"
+          onClick={() => navigate('/school-admin/attendance/overview')}
+          className="px-4 py-2 bg-indigo-600 text-white text-sm font-semibold rounded-md hover:bg-indigo-700 transition-colors"
+        >
+          Xem điểm danh các lớp
+        </button>
       </div>
 
       <div className="bg-white rounded-lg shadow p-6">
