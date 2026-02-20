@@ -1,4 +1,7 @@
+const mongoose = require('mongoose');
 const Attendances = require('../models/Attendances');
+const Classes = require('../models/Classes');
+const Students = require('../models/Student');
 
 /**
  * Tạo / cập nhật điểm danh (check-in) cho 1 học sinh trong 1 ngày
@@ -215,9 +218,141 @@ const getAttendances = async (req, res) => {
   }
 };
 
+/**
+ * Lấy tổng quan điểm danh của tất cả các lớp (cho SchoolAdmin)
+ * GET /api/school-admin/attendance/overview
+ * query: date? (YYYY-MM-DD), gradeId?, classId?, status?
+ */
+const getAttendanceOverview = async (req, res) => {
+  try {
+    const { date, gradeId, classId, status } = req.query;
+
+    // Xử lý ngày
+    const attendanceDate = date ? new Date(date) : new Date();
+    attendanceDate.setHours(0, 0, 0, 0);
+    const endOfDay = new Date(attendanceDate);
+    endOfDay.setHours(23, 59, 59, 999);
+
+    // Lấy danh sách lớp với filter
+    const classFilter = {};
+    if (gradeId && gradeId !== 'all') {
+      // Nếu gradeId là ObjectId hợp lệ thì dùng, không thì tìm theo gradeName
+      if (mongoose.Types.ObjectId.isValid(gradeId)) {
+        classFilter.gradeId = gradeId;
+      } else {
+        // Tìm theo gradeName nếu không phải ObjectId
+        const Grade = require('../models/Grade');
+        const grade = await Grade.findOne({ gradeName: gradeId });
+        if (grade) {
+          classFilter.gradeId = grade._id;
+        }
+      }
+    }
+    if (classId && classId !== 'all') {
+      classFilter._id = classId;
+    }
+
+    const classes = await Classes.find(classFilter)
+      .populate('gradeId', 'gradeName')
+      .lean();
+
+    // Lấy tất cả điểm danh trong ngày
+    const attendanceFilter = {
+      date: { $gte: attendanceDate, $lte: endOfDay },
+    };
+    if (classId) {
+      attendanceFilter.classId = classId;
+    }
+
+    const attendances = await Attendances.find(attendanceFilter).lean();
+
+    // Nhóm điểm danh theo classId
+    const attendanceByClass = {};
+    attendances.forEach((att) => {
+      const cId = att.classId?.toString() || att.classId;
+      if (!attendanceByClass[cId]) {
+        attendanceByClass[cId] = [];
+      }
+      attendanceByClass[cId].push(att);
+    });
+
+    // Tính toán thống kê cho mỗi lớp
+    const classStats = await Promise.all(
+      classes.map(async (cls) => {
+        const clsId = cls._id.toString();
+        const classAttendances = attendanceByClass[clsId] || [];
+
+        // Đếm số học sinh trong lớp
+        const totalStudents = await Students.countDocuments({
+          classId: cls._id,
+          status: 'active',
+        });
+
+        // Tính toán thống kê
+        const present = classAttendances.filter(
+          (att) => att.status === 'present'
+        ).length;
+        const absent = classAttendances.filter(
+          (att) => att.status === 'absent'
+        ).length;
+        const notCheckedOut = classAttendances.filter(
+          (att) =>
+            att.status === 'present' &&
+            att.time?.checkIn &&
+            !att.time?.checkOut
+        ).length;
+
+        return {
+          _id: cls._id,
+          className: cls.className,
+          gradeName: cls.gradeId?.gradeName || '',
+          totalStudents,
+          present,
+          absent,
+          notCheckedOut,
+        };
+      })
+    );
+
+    // Lọc theo trạng thái nếu có
+    let filteredStats = classStats;
+    if (status) {
+      filteredStats = classStats.filter((stat) => {
+        if (status === 'complete') {
+          return stat.present === stat.totalStudents && stat.absent === 0;
+        }
+        if (status === 'missing') {
+          return stat.present < stat.totalStudents;
+        }
+        if (status === 'monitoring') {
+          return stat.notCheckedOut > 0;
+        }
+        return true;
+      });
+    }
+
+    return res.status(200).json({
+      status: 'success',
+      message: 'Lấy tổng quan điểm danh thành công',
+      data: {
+        date: attendanceDate.toISOString().split('T')[0],
+        classes: filteredStats,
+      },
+    });
+  } catch (error) {
+    console.error('Error in getAttendanceOverview:', error);
+    return res.status(500).json({
+      status: 'error',
+      message: 'Lỗi khi lấy tổng quan điểm danh',
+      error: error.message,
+    });
+  }
+};
+
 module.exports = {
   upsertAttendance,
   checkoutAttendance,
   getAttendances,
+  getAttendanceOverview,
 };
 

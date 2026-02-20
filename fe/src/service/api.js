@@ -175,6 +175,7 @@ export const ENDPOINTS = {
     CONTACT_REPLY: (id) => `/school-admin/contacts/${id}/reply`,
     CONTACT_CLEAR_REPLY: (id) => `/school-admin/contacts/${id}/clear-reply`,
     CONTACT_RESEND_EMAIL: (id) => `/school-admin/contacts/${id}/resend-email`,
+    ATTENDANCE_OVERVIEW: '/school-admin/attendance/overview',
   },
   // Contact (public)
   CONTACT: {
@@ -183,6 +184,9 @@ export const ENDPOINTS = {
   // Teacher
   TEACHER: {
     DASHBOARD: '/teacher/dashboard',
+    ATTENDANCES: '/teacher/attendances',
+    ATTENDANCE_BY_CLASS: (classId) => `/teacher/attendances/class/${classId}`,
+    ATTENDANCE_BY_CLASS_DATE: (classId, date) => `/teacher/attendances/class/${classId}/date/${date}`,
   },
   // Classes
   CLASSES: {

@@ -108,6 +108,24 @@ export const SchoolAdminProvider = ({
     }
   }, []);
 
+  // Lấy dữ liệu tổng quan điểm danh
+  const getAttendanceOverview = useCallback(async (params = {}) => {
+    try {
+      setLoading(true);
+      setError(null);
+      const search = new URLSearchParams(params).toString();
+      const endpoint = search ? `${ENDPOINTS.SCHOOL_ADMIN.ATTENDANCE_OVERVIEW}?${search}` : ENDPOINTS.SCHOOL_ADMIN.ATTENDANCE_OVERVIEW;
+      const response = await get(endpoint);
+      return response;
+    } catch (err) {
+      const errorMessage = err.message || 'Không tải được dữ liệu điểm danh';
+      setError(errorMessage);
+      throw new Error(errorMessage);
+    } finally {
+      setLoading(false);
+    }
+  }, []);
+
   const value = {
     loading,
     error,
@@ -116,6 +134,7 @@ export const SchoolAdminProvider = ({
     replyContact,
     clearReplyContact,
     resendReplyEmail,
+    getAttendanceOverview,
     setError,
   };
 
