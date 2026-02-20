@@ -52,9 +52,15 @@ const defaultRecord = () => ({
   hasBelongings: false,
   belongingsNote: '',
   note: '',
+  // Thông tin check-out chi tiết
+  checkoutImageName: '',
+  receiverType: '', // '', 'Bố', 'Mẹ', 'Ông', 'Bà', 'Khác'
+  receiverOtherInfo: '',
+  receiverOtherImageName: '',
 });
 
 const DELIVERER_OPTIONS = ['Bố', 'Mẹ', 'Ông', 'Bà', 'Khác'];
+const ABSENT_REASONS = ['Ốm', 'Nghỉ phép', 'Gia đình có việc', 'Khác'];
 
 const getStatusBadge = (status) => {
   switch (status) {
@@ -105,7 +111,19 @@ function TeacherAttendance() {
     hasBelongings: false,
     belongingsNote: '',
     note: '',
+    checkoutImageName: '',
+    receiverType: '',
+    receiverOtherInfo: '',
+    receiverOtherImageName: '',
   }));
+
+  const [isAbsentOpen, setIsAbsentOpen] = useState(false);
+  const [absentStudentId, setAbsentStudentId] = useState(null);
+  const [absentForm, setAbsentForm] = useState({
+    reason: '',
+    note: '',
+  });
+  const [absentError, setAbsentError] = useState(null);
 
   useEffect(() => {
     if (isInitializing) return;
@@ -277,6 +295,10 @@ function TeacherAttendance() {
       hasBelongings: !!rec.hasBelongings,
       belongingsNote: rec.belongingsNote || '',
       note: rec.note || '',
+      checkoutImageName: rec.checkoutImageName || '',
+      receiverType: rec.receiverType || '',
+      receiverOtherInfo: rec.receiverOtherInfo || '',
+      receiverOtherImageName: rec.receiverOtherImageName || '',
     });
     setDetailMode(mode);
     setIsDetailOpen(true);
@@ -339,13 +361,12 @@ function TeacherAttendance() {
           ...(attendanceByStudent?.[detailStudentId] || defaultRecord()),
           status: 'checked_out',
           timeOut: timeOutHHmm,
+          timeIn: detailForm.timeIn || '',
           note: basePayload.note,
-          delivererType: detailForm.delivererType,
-          delivererOtherInfo: detailForm.delivererOtherInfo,
-          delivererOtherImageName: detailForm.delivererOtherImageName,
-          checkinImageName: detailForm.checkinImageName,
-          hasBelongings: detailForm.hasBelongings,
-          belongingsNote: detailForm.belongingsNote,
+          checkoutImageName: detailForm.checkoutImageName,
+          receiverType: detailForm.receiverType,
+          receiverOtherInfo: detailForm.receiverOtherInfo,
+          receiverOtherImageName: detailForm.receiverOtherImageName,
         });
       } else if (detailMode === 'checkin') {
         const timeInHHmm = detailForm.timeIn || nowHHmm();
@@ -364,9 +385,15 @@ function TeacherAttendance() {
           status: 'checked_in',
           timeIn: timeInHHmm,
           note: basePayload.note,
+          delivererType: detailForm.delivererType,
+          delivererOtherInfo: detailForm.delivererOtherInfo,
+          delivererOtherImageName: detailForm.delivererOtherImageName,
+          checkinImageName: detailForm.checkinImageName,
+          hasBelongings: detailForm.hasBelongings,
+          belongingsNote: detailForm.belongingsNote,
         });
       } else {
-        // view mode: chỉ lưu local
+        // view mode: chỉ lưu local - lưu tất cả thông tin
         updateRecord(detailStudentId, {
           ...(attendanceByStudent?.[detailStudentId] || defaultRecord()),
           ...detailForm,
@@ -389,16 +416,16 @@ function TeacherAttendance() {
     }
 
     // validate cơ bản cho trường hợp \"Khác\"
-    if (!detailForm.delivererType) {
+    if (!detailForm.receiverType) {
       setSubmitError('Vui lòng chọn người đón.');
       return;
     }
-    if (detailForm.delivererType === 'Khác') {
-      if (!detailForm.delivererOtherInfo?.trim()) {
+    if (detailForm.receiverType === 'Khác') {
+      if (!detailForm.receiverOtherInfo?.trim()) {
         setSubmitError('Vui lòng nhập thông tin người đón (tên + SĐT).');
         return;
       }
-      if (!detailForm.delivererOtherImageName) {
+      if (!detailForm.receiverOtherImageName) {
         setSubmitError('Vui lòng chọn ảnh người đón.');
         return;
       }
@@ -410,31 +437,75 @@ function TeacherAttendance() {
     updateRecord(detailStudentId, {
       ...(attendanceByStudent?.[detailStudentId] || defaultRecord()),
       status: 'waiting_parent',
+      timeIn: detailForm.timeIn || '',
       timeOut: detailForm.timeOut || '',
       note: detailForm.note?.trim() || '',
-      delivererType: detailForm.delivererType,
-      delivererOtherInfo: detailForm.delivererOtherInfo,
-      delivererOtherImageName: detailForm.delivererOtherImageName,
-      checkinImageName: detailForm.checkinImageName,
-      hasBelongings: detailForm.hasBelongings,
-      belongingsNote: detailForm.belongingsNote,
+      checkoutImageName: detailForm.checkoutImageName,
+      receiverType: detailForm.receiverType,
+      receiverOtherInfo: detailForm.receiverOtherInfo,
+      receiverOtherImageName: detailForm.receiverOtherImageName,
     });
 
     closeDetail();
   };
 
+  const handleSaveAbsent = async (e) => {
+    e.preventDefault();
+    if (!absentStudentId) {
+      setAbsentError('Không xác định học sinh.');
+      return;
+    }
+    if (!absentForm.reason) {
+      setAbsentError('Vui lòng chọn lý do vắng mặt.');
+      return;
+    }
+    setAbsentError(null);
+
+    try {
+      // Lưu local trạng thái "absent"
+      updateRecord(absentStudentId, {
+        ...(attendanceByStudent?.[absentStudentId] || defaultRecord()),
+        status: 'absent',
+        timeIn: '',
+        timeOut: '',
+        note: absentForm.note?.trim() || '',
+        absentReason: absentForm.reason,
+      });
+
+      // TODO: Nếu cần gọi API lưu lên server, có thể thêm ở đây
+      // await post(ENDPOINTS.STUDENTS.ATTENDANCE_ABSENT, {
+      //   studentId: absentStudentId,
+      //   classId,
+      //   date: selectedDate,
+      //   reason: absentForm.reason,
+      //   note: absentForm.note?.trim() || '',
+      // });
+
+      setIsAbsentOpen(false);
+      setAbsentStudentId(null);
+      setAbsentForm({ reason: '', note: '' });
+    } catch (err) {
+      setAbsentError(err.message || 'Lỗi khi lưu thông tin vắng mặt');
+    }
+  };
+
+  const closeAbsent = () => {
+    setIsAbsentOpen(false);
+    setAbsentError(null);
+  };
+
   // Điều kiện enable/disable button theo spec checkout
   const isCheckoutMode = detailMode === 'checkout';
-  const isDelivererOther = detailForm.delivererType === 'Khác';
+  const isReceiverOther = detailForm.receiverType === 'Khác';
   const canSaveCheckout =
     isCheckoutMode &&
-    !!detailForm.delivererType &&
-    !isDelivererOther; // chỉ cho Lưu khi không phải \"Khác\"
+    !!detailForm.receiverType &&
+    !isReceiverOther; // chỉ cho Lưu khi không phải \"Khác\"
   const canSendToParent =
     isCheckoutMode &&
-    isDelivererOther &&
-    !!detailForm.delivererOtherInfo?.trim() &&
-    !!detailForm.delivererOtherImageName;
+    isReceiverOther &&
+    !!detailForm.receiverOtherInfo?.trim() &&
+    !!detailForm.receiverOtherImageName;
 
   const detailStudent = students.find((s) => s._id === detailStudentId) || null;
   const selectedClass = classes.find((c) => (c._id || c.id) === classId) || null;
@@ -618,6 +689,21 @@ function TeacherAttendance() {
                             >
                               Xem chi tiết
                             </button>
+                            <button
+                              type="button"
+                              onClick={() => {
+                                setAbsentStudentId(s._id);
+                                setAbsentForm({
+                                  reason: '',
+                                  note: '',
+                                });
+                                setAbsentError(null);
+                                setIsAbsentOpen(true);
+                              }}
+                              className="px-3 py-2 text-xs font-semibold rounded-md bg-red-600 text-white hover:bg-red-700 transition-colors"
+                            >
+                              Vắng mặt
+                            </button>
                           </div>
                         </td>
                       </tr>
@@ -638,107 +724,78 @@ function TeacherAttendance() {
       {/* Modal: Chi tiết điểm danh (lưu localStorage theo ngày + lớp) */}
       {isDetailOpen && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40">
-          <div className="bg-white rounded-xl shadow-2xl w-full max-w-2xl mx-4">
-            <div className="border-b px-5 py-4 flex items-center justify-between">
-              <div>
-                <h3 className="text-sm font-semibold text-gray-900">
-                  {detailMode === 'checkin'
-                    ? 'Check-in'
-                    : detailMode === 'checkout'
-                    ? 'Check-out'
-                    : 'Chi tiết điểm danh'}
-                </h3>
-                <p className="text-xs text-gray-500 mt-1">
-                  {detailStudent?.fullName ? (
-                    <>
-                      Học sinh: <span className="font-semibold text-gray-700">{detailStudent.fullName}</span>
-                    </>
-                  ) : (
-                    <>Học sinh ID: <span className="font-semibold text-gray-700">{detailStudentId}</span></>
-                  )}
-                  {' · '}
-                  Ngày: <span className="font-semibold text-gray-700">{selectedDate}</span>
-                </p>
-              </div>
-              <button
-                type="button"
-                onClick={closeDetail}
-                className="text-gray-500 hover:text-gray-900"
-                aria-label="Đóng"
-              >
-                ✕
-              </button>
-            </div>
+          <div className={`bg-white rounded-xl shadow-2xl mx-4 ${detailMode === 'view' ? 'w-full max-w-4xl max-h-[90vh] overflow-y-auto' : 'w-full max-w-2xl'}`}>
+            {detailMode === 'view' ? (
+              <>
+                <div className="border-b px-6 py-4 bg-gray-50">
+                  <h2 className="text-lg font-semibold text-gray-900 mb-2">Màn hình Chi tiết điểm danh</h2>
+                  <p className="text-sm text-gray-600">Cho phép View và Edit trong màn này</p>
+                </div>
 
-            <form onSubmit={handleSaveDetail} className="p-5">
+                <form onSubmit={handleSaveDetail} className="p-6">
               {(submitError || studentsError) && (
                 <div className="mb-4 rounded-md bg-red-50 border border-red-200 px-4 py-2 text-sm text-red-800">
                   {submitError || studentsError}
                 </div>
               )}
 
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                <div className="md:col-span-2">
-                  <label className="block text-xs font-semibold text-gray-700 mb-1">Giờ đến</label>
+              <div className="mb-6">
+                <h3 className="text-base font-semibold text-gray-900 mb-4 flex items-center gap-2">
+                  <span>📄</span>
+                  Chi tiết & chỉnh sửa điểm danh
+                </h3>
+
+                <div className="mb-4">
+                  <label className="block text-sm font-semibold text-gray-700 mb-2">Học sinh</label>
                   <input
-                    type="time"
-                    value={detailForm.timeIn}
+                    type="text"
+                    value={detailStudent?.fullName || ''}
                     readOnly
-                    className="w-full px-3 py-2 border border-gray-300 rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                    className="w-full px-4 py-2 border border-gray-300 rounded-md text-sm bg-gray-50"
                   />
                 </div>
 
-                {isCheckoutMode && (
-                  <div className="md:col-span-2">
-                    <label className="block text-xs font-semibold text-gray-700 mb-1">Giờ về</label>
-                    <input
-                      type="time"
-                      value={detailForm.timeOut}
-                      onChange={(e) =>
-                        setDetailForm((prev) => ({
-                          ...prev,
-                          timeOut: e.target.value,
-                        }))
-                      }
-                      className="w-full px-3 py-2 border border-gray-300 rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500"
-                    />
+                {/* Check-in Section */}
+                <div className="mb-6 border border-gray-200 rounded-lg p-4 bg-green-50/30">
+                  <div className="flex items-center gap-2 mb-4">
+                    <div className="w-6 h-6 rounded-full bg-green-500 flex items-center justify-center text-white text-xs font-semibold">
+                      ✓
+                    </div>
+                    <h4 className="text-sm font-semibold text-gray-900">Check-in</h4>
                   </div>
-                )}
 
-                <div className="md:col-span-2 border-t border-gray-100 pt-4 mt-2">
-                  <p className="text-xs font-semibold text-gray-700 mb-2">Ảnh điểm danh / người đưa</p>
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                     <div>
-                      <label className="block text-[11px] font-semibold text-gray-700 mb-1">Ảnh điểm danh (Check-in)</label>
-                      <input
-                        type="file"
-                        accept="image/*"
-                        onChange={(e) =>
-                          setDetailForm((prev) => ({
-                            ...prev,
-                            checkinImageName: e.target.files && e.target.files[0] ? e.target.files[0].name : '',
-                          }))
-                        }
-                        className="block w-full text-xs text-gray-700 file:mr-3 file:px-3 file:py-1.5 file:border file:border-gray-300 file:text-xs file:font-semibold file:bg-gray-50 file:text-gray-700 hover:file:bg-gray-100"
-                      />
-                      {detailForm.checkinImageName && (
-                        <p className="mt-1 text-[11px] text-gray-500">Đã chọn: {detailForm.checkinImageName}</p>
-                      )}
+                      <label className="block text-sm font-semibold text-gray-700 mb-2">Giờ đến</label>
+                      <div className="relative">
+                        <input
+                          type="time"
+                          value={detailForm.timeIn}
+                          onChange={(e) =>
+                            setDetailForm((prev) => ({
+                              ...prev,
+                              timeIn: e.target.value,
+                            }))
+                          }
+                          className="w-full px-4 py-2 border border-gray-300 rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-green-500 pl-10"
+                        />
+                        <span className="absolute left-3 top-2.5 text-gray-400">🕐</span>
+                      </div>
                     </div>
+
                     <div>
-                      <label className="block text-[11px] font-semibold text-gray-700 mb-1">Người đưa *</label>
+                      <label className="block text-sm font-semibold text-gray-700 mb-2">Người đưa</label>
                       <select
                         value={detailForm.delivererType}
                         onChange={(e) =>
                           setDetailForm((prev) => ({
                             ...prev,
                             delivererType: e.target.value,
-                            // reset thông tin khác nếu đổi lựa chọn
                             delivererOtherInfo: e.target.value === 'Khác' ? prev.delivererOtherInfo : '',
                             delivererOtherImageName: e.target.value === 'Khác' ? prev.delivererOtherImageName : '',
                           }))
                         }
-                        className="w-full px-3 py-2 border border-gray-300 rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                        className="w-full px-4 py-2 border border-gray-300 rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-green-500"
                       >
                         <option value="">--Chọn--</option>
                         {DELIVERER_OPTIONS.map((opt) => (
@@ -748,89 +805,199 @@ function TeacherAttendance() {
                         ))}
                       </select>
                     </div>
-                  </div>
-                  {detailForm.delivererType === 'Khác' && (
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mt-3">
-                      <div>
-                        <label className="block text-[11px] font-semibold text-gray-700 mb-1">Tên + SĐT người đưa</label>
-                        <input
-                          type="text"
-                          value={detailForm.delivererOtherInfo}
-                          onChange={(e) =>
-                            setDetailForm((prev) => ({
-                              ...prev,
-                              delivererOtherInfo: e.target.value,
-                            }))
-                          }
-                          placeholder="VD: Nguyễn A - 09xx..."
-                          className="w-full px-3 py-2 border border-gray-300 rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500"
-                        />
-                      </div>
-                      <div>
-                        <label className="block text-[11px] font-semibold text-gray-700 mb-1">Ảnh người đưa</label>
+
+                    {detailForm.delivererType === 'Khác' && (
+                      <>
+                        <div>
+                          <label className="block text-sm font-semibold text-gray-700 mb-2">
+                            Thông tin người đưa (nếu khác)
+                          </label>
+                          <input
+                            type="text"
+                            value={detailForm.delivererOtherInfo}
+                            onChange={(e) =>
+                              setDetailForm((prev) => ({
+                                ...prev,
+                                delivererOtherInfo: e.target.value,
+                              }))
+                            }
+                            placeholder="Tên + SĐT"
+                            className="w-full px-4 py-2 border border-gray-300 rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-green-500"
+                          />
+                        </div>
+                        <div>
+                          <label className="block text-sm font-semibold text-gray-700 mb-2">Ảnh người đưa</label>
+                          <input
+                            type="file"
+                            accept="image/*"
+                            onChange={(e) =>
+                              setDetailForm((prev) => ({
+                                ...prev,
+                                delivererOtherImageName: e.target.files && e.target.files[0] ? e.target.files[0].name : '',
+                              }))
+                            }
+                            className="block w-full text-sm text-gray-700 file:mr-3 file:px-3 file:py-1.5 file:border file:border-gray-300 file:text-sm file:font-semibold file:bg-gray-50 file:text-gray-700 hover:file:bg-gray-100"
+                          />
+                        </div>
+                      </>
+                    )}
+
+                    <div>
+                      <label className="block text-sm font-semibold text-gray-700 mb-2">Ảnh check-in</label>
+                      <div className="flex items-center gap-2">
+                        <span className="text-gray-400">🖼️</span>
                         <input
                           type="file"
                           accept="image/*"
                           onChange={(e) =>
                             setDetailForm((prev) => ({
                               ...prev,
-                              delivererOtherImageName: e.target.files && e.target.files[0] ? e.target.files[0].name : '',
+                              checkinImageName: e.target.files && e.target.files[0] ? e.target.files[0].name : '',
                             }))
                           }
-                          className="block w-full text-xs text-gray-700 file:mr-3 file:px-3 file:py-1.5 file:border file:border-gray-300 file:text-xs file:font-semibold file:bg-gray-50 file:text-gray-700 hover:file:bg-gray-100"
+                          className="block w-full text-sm text-gray-700 file:mr-3 file:px-3 file:py-1.5 file:border file:border-gray-300 file:text-sm file:font-semibold file:bg-gray-50 file:text-gray-700 hover:file:bg-gray-100"
                         />
-                        {detailForm.delivererOtherImageName && (
-                          <p className="mt-1 text-[11px] text-gray-500">Đã chọn: {detailForm.delivererOtherImageName}</p>
-                        )}
                       </div>
                     </div>
-                  )}
+
+                    <div>
+                      <label className="block text-sm font-semibold text-gray-700 mb-2">Đồ mang theo</label>
+                      <input
+                        type="text"
+                        value={detailForm.belongingsNote}
+                        onChange={(e) =>
+                          setDetailForm((prev) => ({
+                            ...prev,
+                            belongingsNote: e.target.value,
+                          }))
+                        }
+                        placeholder="Bình nước, balo..."
+                        className="w-full px-4 py-2 border border-gray-300 rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-green-500"
+                      />
+                    </div>
+
+                    <div className="md:col-span-2">
+                      <label className="block text-sm font-semibold text-gray-700 mb-2">Ghi chú</label>
+                      <textarea
+                        rows={3}
+                        value={detailForm.note}
+                        onChange={(e) => setDetailForm((prev) => ({ ...prev, note: e.target.value }))}
+                        placeholder="Trẻ hơi mệt..."
+                        className="w-full px-4 py-2 border border-gray-300 rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-green-500"
+                      />
+                    </div>
+                  </div>
                 </div>
 
-                <div className="md:col-span-2 border-t border-gray-100 pt-4 mt-2">
-                  <label className="flex items-center gap-2 text-sm text-gray-700 mb-2">
-                    <input
-                      type="checkbox"
-                      checked={detailForm.hasBelongings}
-                      onChange={(e) =>
-                        setDetailForm((prev) => ({
-                          ...prev,
-                          hasBelongings: e.target.checked,
-                          belongingsNote: e.target.checked ? prev.belongingsNote : '',
-                        }))
-                      }
-                    />
-                    Có đồ mang theo
-                  </label>
-                  {detailForm.hasBelongings && (
-                    <textarea
-                      rows={2}
-                      value={detailForm.belongingsNote}
-                      onChange={(e) =>
-                        setDetailForm((prev) => ({
-                          ...prev,
-                          belongingsNote: e.target.value,
-                        }))
-                      }
-                      placeholder="Ghi chú đồ dùng (VD: mang theo balo, thú bông...)"
-                      className="w-full px-3 py-2 border border-gray-300 rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500 mb-3"
-                    />
-                  )}
-                </div>
+                {/* Check-out Section */}
+                <div className="mb-6 border border-gray-200 rounded-lg p-4 bg-blue-50/30">
+                  <div className="flex items-center gap-2 mb-4">
+                    <div className="w-6 h-6 rounded-full bg-blue-500 flex items-center justify-center text-white text-xs font-semibold">
+                      ✓
+                    </div>
+                    <h4 className="text-sm font-semibold text-gray-900">Check-out</h4>
+                  </div>
 
-                <div className="md:col-span-2">
-                  <label className="block text-xs font-semibold text-gray-700 mb-1">Note chung</label>
-                  <textarea
-                    rows={3}
-                    value={detailForm.note}
-                    onChange={(e) => setDetailForm((prev) => ({ ...prev, note: e.target.value }))}
-                    placeholder="Ví dụ: Bé đến muộn 10 phút..."
-                    className="w-full px-3 py-2 border border-gray-300 rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500"
-                  />
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <div>
+                      <label className="block text-sm font-semibold text-gray-700 mb-2">Giờ về</label>
+                      <div className="relative">
+                        <input
+                          type="time"
+                          value={detailForm.timeOut}
+                          onChange={(e) =>
+                            setDetailForm((prev) => ({
+                              ...prev,
+                              timeOut: e.target.value,
+                            }))
+                          }
+                          className="w-full px-4 py-2 border border-gray-300 rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 pl-10"
+                        />
+                        <span className="absolute left-3 top-2.5 text-gray-400">🕐</span>
+                      </div>
+                    </div>
+
+                    <div>
+                      <label className="block text-sm font-semibold text-gray-700 mb-2">Người đón</label>
+                      <select
+                        value={detailForm.receiverType}
+                        onChange={(e) =>
+                          setDetailForm((prev) => ({
+                            ...prev,
+                            receiverType: e.target.value,
+                            receiverOtherInfo: e.target.value === 'Khác' ? prev.receiverOtherInfo : '',
+                            receiverOtherImageName: e.target.value === 'Khác' ? prev.receiverOtherImageName : '',
+                          }))
+                        }
+                        className="w-full px-4 py-2 border border-gray-300 rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+                      >
+                        <option value="">--Chọn--</option>
+                        {DELIVERER_OPTIONS.map((opt) => (
+                          <option key={opt} value={opt}>
+                            {opt}
+                          </option>
+                        ))}
+                      </select>
+                    </div>
+
+                    {detailForm.receiverType === 'Khác' && (
+                      <>
+                        <div>
+                          <label className="block text-sm font-semibold text-gray-700 mb-2">
+                            Thông tin người đón (nếu khác)
+                          </label>
+                          <input
+                            type="text"
+                            value={detailForm.receiverOtherInfo}
+                            onChange={(e) =>
+                              setDetailForm((prev) => ({
+                                ...prev,
+                                receiverOtherInfo: e.target.value,
+                              }))
+                            }
+                            placeholder="Tên + SĐT"
+                            className="w-full px-4 py-2 border border-gray-300 rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+                          />
+                        </div>
+                        <div>
+                          <label className="block text-sm font-semibold text-gray-700 mb-2">Ảnh người đón</label>
+                          <input
+                            type="file"
+                            accept="image/*"
+                            onChange={(e) =>
+                              setDetailForm((prev) => ({
+                                ...prev,
+                                receiverOtherImageName: e.target.files && e.target.files[0] ? e.target.files[0].name : '',
+                              }))
+                            }
+                            className="block w-full text-sm text-gray-700 file:mr-3 file:px-3 file:py-1.5 file:border file:border-gray-300 file:text-sm file:font-semibold file:bg-gray-50 file:text-gray-700 hover:file:bg-gray-100"
+                          />
+                        </div>
+                      </>
+                    )}
+
+                    <div>
+                      <label className="block text-sm font-semibold text-gray-700 mb-2">Ảnh check-out</label>
+                      <div className="flex items-center gap-2">
+                        <span className="text-gray-400">🖼️</span>
+                        <input
+                          type="file"
+                          accept="image/*"
+                          onChange={(e) =>
+                            setDetailForm((prev) => ({
+                              ...prev,
+                              checkoutImageName: e.target.files && e.target.files[0] ? e.target.files[0].name : '',
+                            }))
+                          }
+                          className="block w-full text-sm text-gray-700 file:mr-3 file:px-3 file:py-1.5 file:border file:border-gray-300 file:text-sm file:font-semibold file:bg-gray-50 file:text-gray-700 hover:file:bg-gray-100"
+                        />
+                      </div>
+                    </div>
+                  </div>
                 </div>
               </div>
 
-              <div className="mt-5 flex justify-end gap-2">
+              <div className="flex justify-end gap-3 pt-4 border-t border-gray-200">
                 <button
                   type="button"
                   onClick={closeDetail}
@@ -838,40 +1005,435 @@ function TeacherAttendance() {
                 >
                   Hủy
                 </button>
-                {isCheckoutMode ? (
-                  <>
-                    <button
-                      type="submit"
-                      disabled={!canSaveCheckout}
-                      className={`px-4 py-2 text-sm font-semibold rounded-md transition-colors ${
-                        canSaveCheckout
-                          ? 'text-white bg-indigo-600 hover:bg-indigo-700'
-                          : 'text-gray-400 bg-gray-200 cursor-not-allowed'
-                      }`}
-                    >
-                      Lưu
-                    </button>
-                    <button
-                      type="button"
-                      onClick={handleSendToParent}
-                      disabled={!canSendToParent}
-                      className={`px-4 py-2 text-sm font-semibold rounded-md transition-colors ${
-                        canSendToParent
-                          ? 'text-white bg-sky-600 hover:bg-sky-700'
-                          : 'text-gray-400 bg-gray-200 cursor-not-allowed'
-                      }`}
-                    >
-                      Gửi PH
-                    </button>
-                  </>
-                ) : (
+                {isCheckoutMode && (
                   <button
-                    type="submit"
-                    className="px-4 py-2 text-sm font-semibold text-white bg-indigo-600 rounded-md hover:bg-indigo-700 transition-colors"
+                    type="button"
+                    onClick={handleSendToParent}
+                    disabled={!canSendToParent}
+                    className={`px-4 py-2 text-sm font-semibold rounded-md transition-colors ${
+                      canSendToParent
+                        ? 'text-white bg-sky-600 hover:bg-sky-700'
+                        : 'text-gray-400 bg-gray-200 cursor-not-allowed'
+                    }`}
                   >
-                    Lưu
+                    Gửi PH
                   </button>
                 )}
+                <button
+                  type="submit"
+                  className="px-4 py-2 text-sm font-semibold text-white bg-green-600 rounded-md hover:bg-green-700 transition-colors flex items-center gap-2"
+                >
+                  <span>💾</span>
+                  Lưu chỉnh sửa
+                </button>
+              </div>
+            </form>
+              </>
+            ) : (
+              <>
+                <div className="border-b px-5 py-4 flex items-center justify-between">
+                  <div>
+                    <h3 className="text-sm font-semibold text-gray-900">
+                      {detailMode === 'checkin'
+                        ? 'Check-in'
+                        : detailMode === 'checkout'
+                        ? 'Check-out'
+                        : 'Chi tiết điểm danh'}
+                    </h3>
+                    <p className="text-xs text-gray-500 mt-1">
+                      {detailStudent?.fullName ? (
+                        <>
+                          Học sinh: <span className="font-semibold text-gray-700">{detailStudent.fullName}</span>
+                        </>
+                      ) : (
+                        <>Học sinh ID: <span className="font-semibold text-gray-700">{detailStudentId}</span></>
+                      )}
+                      {' · '}
+                      Ngày: <span className="font-semibold text-gray-700">{selectedDate}</span>
+                    </p>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={closeDetail}
+                    className="text-gray-500 hover:text-gray-900"
+                    aria-label="Đóng"
+                  >
+                    ✕
+                  </button>
+                </div>
+
+                <form onSubmit={handleSaveDetail} className="p-5">
+                  {(submitError || studentsError) && (
+                    <div className="mb-4 rounded-md bg-red-50 border border-red-200 px-4 py-2 text-sm text-red-800">
+                      {submitError || studentsError}
+                    </div>
+                  )}
+
+                  {isCheckoutMode ? (
+                    // Checkout form - chỉ hiển thị các trường cần thiết
+                    <div className="space-y-4">
+                      <div>
+                        <label className="block text-sm font-semibold text-gray-700 mb-2">Giờ về</label>
+                        <div className="relative">
+                          <input
+                            type="time"
+                            value={detailForm.timeOut}
+                            onChange={(e) =>
+                              setDetailForm((prev) => ({
+                                ...prev,
+                                timeOut: e.target.value,
+                              }))
+                            }
+                            className="w-full px-4 py-2 border border-gray-300 rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500 pr-10"
+                          />
+                          <span className="absolute right-3 top-2.5 text-gray-400">🕐</span>
+                        </div>
+                      </div>
+
+                      <div>
+                        <label className="block text-sm font-semibold text-gray-700 mb-2">Ảnh đón trẻ</label>
+                        <input
+                          type="file"
+                          accept="image/*"
+                          onChange={(e) =>
+                            setDetailForm((prev) => ({
+                              ...prev,
+                              checkoutImageName: e.target.files && e.target.files[0] ? e.target.files[0].name : '',
+                            }))
+                          }
+                          className="block w-full text-sm text-gray-700 file:mr-3 file:px-3 file:py-1.5 file:border file:border-gray-300 file:text-sm file:font-semibold file:bg-gray-50 file:text-gray-700 hover:file:bg-gray-100"
+                        />
+                        {detailForm.checkoutImageName && (
+                          <p className="mt-1 text-xs text-gray-500">Đã chọn: {detailForm.checkoutImageName}</p>
+                        )}
+                      </div>
+
+                      <div>
+                        <label className="block text-sm font-semibold text-gray-700 mb-2">Người đón</label>
+                        <select
+                          value={detailForm.receiverType}
+                          onChange={(e) =>
+                            setDetailForm((prev) => ({
+                              ...prev,
+                              receiverType: e.target.value,
+                              receiverOtherInfo: e.target.value === 'Khác' ? prev.receiverOtherInfo : '',
+                              receiverOtherImageName: e.target.value === 'Khác' ? prev.receiverOtherImageName : '',
+                            }))
+                          }
+                          className="w-full px-4 py-2 border border-gray-300 rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                        >
+                          <option value="">--Chọn--</option>
+                          {DELIVERER_OPTIONS.map((opt) => (
+                            <option key={opt} value={opt}>
+                              {opt}
+                            </option>
+                          ))}
+                        </select>
+                      </div>
+
+                      {detailForm.receiverType === 'Khác' && (
+                        <>
+                          <div>
+                            <label className="block text-sm font-semibold text-gray-700 mb-2">Thông tin người đón</label>
+                            <input
+                              type="text"
+                              value={detailForm.receiverOtherInfo}
+                              onChange={(e) =>
+                                setDetailForm((prev) => ({
+                                  ...prev,
+                                  receiverOtherInfo: e.target.value,
+                                }))
+                              }
+                              placeholder="Tên + SĐT"
+                              className="w-full px-4 py-2 border border-gray-300 rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                            />
+                          </div>
+                          <div>
+                            <label className="block text-sm font-semibold text-gray-700 mb-2">Ảnh người đón</label>
+                            <input
+                              type="file"
+                              accept="image/*"
+                              onChange={(e) =>
+                                setDetailForm((prev) => ({
+                                  ...prev,
+                                  receiverOtherImageName: e.target.files && e.target.files[0] ? e.target.files[0].name : '',
+                                }))
+                              }
+                              className="block w-full text-sm text-gray-700 file:mr-3 file:px-3 file:py-1.5 file:border file:border-gray-300 file:text-sm file:font-semibold file:bg-gray-50 file:text-gray-700 hover:file:bg-gray-100"
+                            />
+                            {detailForm.receiverOtherImageName && (
+                              <p className="mt-1 text-xs text-gray-500">Đã chọn: {detailForm.receiverOtherImageName}</p>
+                            )}
+                          </div>
+                        </>
+                      )}
+                    </div>
+                  ) : (
+                    // Checkin form - hiển thị đầy đủ các trường
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                      <div className="md:col-span-2">
+                        <label className="block text-xs font-semibold text-gray-700 mb-1">Giờ đến</label>
+                        <input
+                          type="time"
+                          value={detailForm.timeIn}
+                          onChange={(e) =>
+                            setDetailForm((prev) => ({
+                              ...prev,
+                              timeIn: e.target.value,
+                            }))
+                          }
+                          className="w-full px-3 py-2 border border-gray-300 rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                        />
+                      </div>
+
+                      <div className="md:col-span-2 border-t border-gray-100 pt-4 mt-2">
+                        <p className="text-xs font-semibold text-gray-700 mb-2">Ảnh điểm danh / người đưa</p>
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                          <div>
+                            <label className="block text-[11px] font-semibold text-gray-700 mb-1">Ảnh điểm danh (Check-in)</label>
+                            <input
+                              type="file"
+                              accept="image/*"
+                              onChange={(e) =>
+                                setDetailForm((prev) => ({
+                                  ...prev,
+                                  checkinImageName: e.target.files && e.target.files[0] ? e.target.files[0].name : '',
+                                }))
+                              }
+                              className="block w-full text-xs text-gray-700 file:mr-3 file:px-3 file:py-1.5 file:border file:border-gray-300 file:text-xs file:font-semibold file:bg-gray-50 file:text-gray-700 hover:file:bg-gray-100"
+                            />
+                            {detailForm.checkinImageName && (
+                              <p className="mt-1 text-[11px] text-gray-500">Đã chọn: {detailForm.checkinImageName}</p>
+                            )}
+                          </div>
+                          <div>
+                            <label className="block text-[11px] font-semibold text-gray-700 mb-1">Người đưa *</label>
+                            <select
+                              value={detailForm.delivererType}
+                              onChange={(e) =>
+                                setDetailForm((prev) => ({
+                                  ...prev,
+                                  delivererType: e.target.value,
+                                  delivererOtherInfo: e.target.value === 'Khác' ? prev.delivererOtherInfo : '',
+                                  delivererOtherImageName: e.target.value === 'Khác' ? prev.delivererOtherImageName : '',
+                                }))
+                              }
+                              className="w-full px-3 py-2 border border-gray-300 rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                            >
+                              <option value="">--Chọn--</option>
+                              {DELIVERER_OPTIONS.map((opt) => (
+                                <option key={opt} value={opt}>
+                                  {opt}
+                                </option>
+                              ))}
+                            </select>
+                          </div>
+                        </div>
+                        {detailForm.delivererType === 'Khác' && (
+                          <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mt-3">
+                            <div>
+                              <label className="block text-[11px] font-semibold text-gray-700 mb-1">Tên + SĐT người đưa</label>
+                              <input
+                                type="text"
+                                value={detailForm.delivererOtherInfo}
+                                onChange={(e) =>
+                                  setDetailForm((prev) => ({
+                                    ...prev,
+                                    delivererOtherInfo: e.target.value,
+                                  }))
+                                }
+                                placeholder="VD: Nguyễn A - 09xx..."
+                                className="w-full px-3 py-2 border border-gray-300 rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                              />
+                            </div>
+                            <div>
+                              <label className="block text-[11px] font-semibold text-gray-700 mb-1">Ảnh người đưa</label>
+                              <input
+                                type="file"
+                                accept="image/*"
+                                onChange={(e) =>
+                                  setDetailForm((prev) => ({
+                                    ...prev,
+                                    delivererOtherImageName: e.target.files && e.target.files[0] ? e.target.files[0].name : '',
+                                  }))
+                                }
+                                className="block w-full text-xs text-gray-700 file:mr-3 file:px-3 file:py-1.5 file:border file:border-gray-300 file:text-xs file:font-semibold file:bg-gray-50 file:text-gray-700 hover:file:bg-gray-100"
+                              />
+                              {detailForm.delivererOtherImageName && (
+                                <p className="mt-1 text-[11px] text-gray-500">Đã chọn: {detailForm.delivererOtherImageName}</p>
+                              )}
+                            </div>
+                          </div>
+                        )}
+                      </div>
+
+                      <div className="md:col-span-2 border-t border-gray-100 pt-4 mt-2">
+                        <label className="flex items-center gap-2 text-sm text-gray-700 mb-2">
+                          <input
+                            type="checkbox"
+                            checked={detailForm.hasBelongings}
+                            onChange={(e) =>
+                              setDetailForm((prev) => ({
+                                ...prev,
+                                hasBelongings: e.target.checked,
+                                belongingsNote: e.target.checked ? prev.belongingsNote : '',
+                              }))
+                            }
+                          />
+                          Có đồ mang theo
+                        </label>
+                        {detailForm.hasBelongings && (
+                          <textarea
+                            rows={2}
+                            value={detailForm.belongingsNote}
+                            onChange={(e) =>
+                              setDetailForm((prev) => ({
+                                ...prev,
+                                belongingsNote: e.target.value,
+                              }))
+                            }
+                            placeholder="Ghi chú đồ dùng (VD: mang theo balo, thú bông...)"
+                            className="w-full px-3 py-2 border border-gray-300 rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500 mb-3"
+                          />
+                        )}
+                      </div>
+
+                      <div className="md:col-span-2">
+                        <label className="block text-xs font-semibold text-gray-700 mb-1">Note chung</label>
+                        <textarea
+                          rows={3}
+                          value={detailForm.note}
+                          onChange={(e) => setDetailForm((prev) => ({ ...prev, note: e.target.value }))}
+                          placeholder="Ví dụ: Bé đến muộn 10 phút..."
+                          className="w-full px-3 py-2 border border-gray-300 rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                        />
+                      </div>
+                    </div>
+                  )}
+
+                  <div className="mt-5 flex justify-end gap-2">
+                    <button
+                      type="button"
+                      onClick={closeDetail}
+                      className="px-4 py-2 text-sm font-medium text-gray-700 bg-gray-100 rounded-md hover:bg-gray-200 transition-colors"
+                    >
+                      Hủy
+                    </button>
+                    {isCheckoutMode ? (
+                      <>
+                        <button
+                          type="submit"
+                          disabled={!canSaveCheckout}
+                          className={`px-4 py-2 text-sm font-semibold rounded-md transition-colors ${
+                            canSaveCheckout
+                              ? 'text-white bg-indigo-600 hover:bg-indigo-700'
+                              : 'text-gray-400 bg-gray-200 cursor-not-allowed'
+                          }`}
+                        >
+                          Lưu
+                        </button>
+                        <button
+                          type="button"
+                          onClick={handleSendToParent}
+                          disabled={!canSendToParent}
+                          className={`px-4 py-2 text-sm font-semibold rounded-md transition-colors ${
+                            canSendToParent
+                              ? 'text-white bg-sky-600 hover:bg-sky-700'
+                              : 'text-gray-400 bg-gray-200 cursor-not-allowed'
+                          }`}
+                        >
+                          Gửi PH
+                        </button>
+                      </>
+                    ) : (
+                      <button
+                        type="submit"
+                        className="px-4 py-2 text-sm font-semibold text-white bg-indigo-600 rounded-md hover:bg-indigo-700 transition-colors"
+                      >
+                        Lưu
+                      </button>
+                    )}
+                  </div>
+                </form>
+              </>
+            )}
+          </div>
+        </div>
+      )}
+
+      {/* Modal: Học sinh vắng mặt */}
+      {isAbsentOpen && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40">
+          <div className="bg-white rounded-xl shadow-2xl w-full max-w-md mx-4">
+            <div className="border-b px-5 py-4 flex items-center justify-between">
+              <h3 className="text-sm font-semibold text-gray-900">Học sinh vắng mặt</h3>
+              <button
+                type="button"
+                onClick={closeAbsent}
+                className="text-red-600 hover:text-red-800"
+                aria-label="Đóng"
+              >
+                ✕
+              </button>
+            </div>
+
+            <form onSubmit={handleSaveAbsent} className="p-5">
+              {absentError && (
+                <div className="mb-4 rounded-md bg-red-50 border border-red-200 px-4 py-2 text-sm text-red-800">
+                  {absentError}
+                </div>
+              )}
+
+              <div className="mb-4">
+                <p className="text-xs text-gray-600 mb-3">
+                  Học sinh:{' '}
+                  <span className="font-semibold text-gray-900">
+                    {students.find((s) => s._id === absentStudentId)?.fullName || absentStudentId}
+                  </span>
+                </p>
+              </div>
+
+              <div className="mb-4">
+                <label className="block text-xs font-semibold text-gray-700 mb-2">Lý do</label>
+                <select
+                  value={absentForm.reason}
+                  onChange={(e) => setAbsentForm((prev) => ({ ...prev, reason: e.target.value }))}
+                  className="w-full px-3 py-2 border border-gray-300 rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                >
+                  <option value="">--Chọn--</option>
+                  {ABSENT_REASONS.map((reason) => (
+                    <option key={reason} value={reason}>
+                      {reason}
+                    </option>
+                  ))}
+                </select>
+              </div>
+
+              <div className="mb-4">
+                <label className="block text-xs font-semibold text-gray-700 mb-2">Ghi chú</label>
+                <textarea
+                  rows={4}
+                  value={absentForm.note}
+                  onChange={(e) => setAbsentForm((prev) => ({ ...prev, note: e.target.value }))}
+                  placeholder="Nhập ghi chú nếu có"
+                  className="w-full px-3 py-2 border border-gray-300 rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500 resize-y"
+                />
+              </div>
+
+              <div className="flex justify-end gap-2 mt-5">
+                <button
+                  type="button"
+                  onClick={closeAbsent}
+                  className="px-4 py-2 text-sm font-medium text-gray-700 bg-gray-100 rounded-md hover:bg-gray-200 transition-colors"
+                >
+                  Hủy
+                </button>
+                <button
+                  type="submit"
+                  className="px-4 py-2 text-sm font-semibold text-white bg-red-600 rounded-md hover:bg-red-700 transition-colors"
+                >
+                  Lưu
+                </button>
               </div>
             </form>
           </div>
