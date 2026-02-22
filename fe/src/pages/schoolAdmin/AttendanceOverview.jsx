@@ -222,32 +222,42 @@ function AttendanceOverview() {
 
       {/* Nút điều hướng menu */}
       <div className="mb-4 bg-white rounded-lg shadow p-4">
-        <div className="flex flex-wrap items-center gap-2">
-          <span className="text-sm font-semibold text-gray-700">Điều hướng:</span>
-          {menuItems.map((item) => (
-            <button
-              key={item.key}
-              type="button"
-              onClick={() => {
-                if (item.key === 'overview') {
-                  navigate('/school-admin');
-                } else if (item.key === 'classes') {
-                  navigate('/school-admin/classes');
-                } else if (item.key === 'contacts') {
-                  navigate('/school-admin/contacts');
-                } else {
-                  handleMenuSelect(item.key);
-                }
-              }}
-              className={`px-3 py-1.5 text-sm font-medium rounded-md transition-colors ${
-                item.key === 'attendance'
-                  ? 'bg-indigo-600 text-white hover:bg-indigo-700'
-                  : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
-              }`}
-            >
-              {item.label}
-            </button>
-          ))}
+        <div className="flex flex-wrap items-center gap-2 justify-between">
+          <div className="flex flex-wrap items-center gap-2">
+            <span className="text-sm font-semibold text-gray-700">Điều hướng:</span>
+            {menuItems.map((item) => (
+              <button
+                key={item.key}
+                type="button"
+                onClick={() => {
+                  if (item.key === 'overview') {
+                    navigate('/school-admin');
+                  } else if (item.key === 'classes') {
+                    navigate('/school-admin/classes');
+                  } else if (item.key === 'contacts') {
+                    navigate('/school-admin/contacts');
+                  } else {
+                    handleMenuSelect(item.key);
+                  }
+                }}
+                className={`px-3 py-1.5 text-sm font-medium rounded-md transition-colors ${
+                  item.key === 'attendance'
+                    ? 'bg-indigo-600 text-white hover:bg-indigo-700'
+                    : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
+                }`}
+              >
+                {item.label}
+              </button>
+            ))}
+          </div>
+          <button
+            type="button"
+            onClick={() => navigate('/school-admin/attendance/export')}
+            className="px-4 py-2 bg-green-600 text-white text-sm font-semibold rounded-md hover:bg-green-700 transition-colors flex items-center gap-2"
+          >
+            <span>📊</span>
+            <span>Xuất báo cáo điểm danh</span>
+          </button>
         </div>
       </div>
 

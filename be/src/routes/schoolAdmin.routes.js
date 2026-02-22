@@ -1,7 +1,7 @@
 const express = require('express');
 const { authenticate, authorizeRoles } = require('../middleware/auth');
 const contactController = require('../controller/contactController');
-const { getAttendanceOverview } = require('../controller/attendanceController');
+const { getAttendanceOverview, getClassAttendanceDetail, getStudentAttendanceDetail, getStudentAttendanceHistory } = require('../controller/attendanceController');
 
 const router = express.Router();
 
@@ -49,6 +49,30 @@ router.get(
   authenticate,
   authorizeRoles('SchoolAdmin'),
   getAttendanceOverview
+);
+
+// Chi tiết điểm danh của một lớp
+router.get(
+  '/classes/:classId/attendance',
+  authenticate,
+  authorizeRoles('SchoolAdmin'),
+  getClassAttendanceDetail
+);
+
+// Chi tiết điểm danh của một học sinh
+router.get(
+  '/students/:studentId/attendance',
+  authenticate,
+  authorizeRoles('SchoolAdmin'),
+  getStudentAttendanceDetail
+);
+
+// Lịch sử điểm danh của một học sinh
+router.get(
+  '/students/:studentId/attendance/history',
+  authenticate,
+  authorizeRoles('SchoolAdmin'),
+  getStudentAttendanceHistory
 );
 
 module.exports = router;

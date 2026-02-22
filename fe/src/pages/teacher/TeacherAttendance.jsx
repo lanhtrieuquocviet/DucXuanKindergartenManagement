@@ -2,7 +2,8 @@ import { useEffect, useMemo, useState } from 'react';
 import { useLocation, useNavigate, useParams } from 'react-router-dom';
 import { useAuth } from '../../context/AuthContext';
 import RoleLayout from '../../layouts/RoleLayout';
-import { get, post, ENDPOINTS } from '../../service/api';
+import ConfirmDialog from '../../components/ConfirmDialog';
+import { get, post, postFormData, ENDPOINTS } from '../../service/api';
 
 const getLocalISODate = () => {
   const d = new Date();
@@ -61,6 +62,21 @@ const defaultRecord = () => ({
 
 const DELIVERER_OPTIONS = ['Bố', 'Mẹ', 'Ông', 'Bà', 'Khác'];
 const ABSENT_REASONS = ['Ốm', 'Nghỉ phép', 'Gia đình có việc', 'Khác'];
+const MAX_PERSON_INFO_LEN = 100;
+const MAX_BELONGINGS_NOTE_LEN = 100;
+const MAX_NOTE_LEN = 100;
+const PERSON_INFO_REGEX = /^[\p{L}\p{N}\s.,\-()+/]+$/u;
+
+const sanitizeSingleLineText = (value = '', maxLen = 100) =>
+  value
+    .replace(/[<>]/g, '')
+    .replace(/\s+/g, ' ')
+    .slice(0, maxLen);
+
+const sanitizeMultiLineText = (value = '', maxLen = 300) =>
+  value
+    .replace(/[<>]/g, '')
+    .slice(0, maxLen);
 
 const getStatusBadge = (status) => {
   switch (status) {
@@ -85,6 +101,7 @@ function TeacherAttendance() {
   const location = useLocation();
   const { classId } = useParams();
   const { user, logout, isInitializing } = useAuth();
+  const todayISO = getLocalISODate();
 
   const [classes, setClasses] = useState([]);
   const [loadingClasses, setLoadingClasses] = useState(false);
@@ -124,6 +141,16 @@ function TeacherAttendance() {
     note: '',
   });
   const [absentError, setAbsentError] = useState(null);
+  const [isConfirmAbsentOpen, setIsConfirmAbsentOpen] = useState(false);
+
+  const handleSelectedDateChange = (value) => {
+    if (!value) return;
+    if (value > todayISO) {
+      setSelectedDate(todayISO);
+      return;
+    }
+    setSelectedDate(value);
+  };
 
   useEffect(() => {
     if (isInitializing) return;
@@ -313,6 +340,37 @@ function TeacherAttendance() {
     if (!detailStudentId) return 'Không xác định học sinh.';
     if (!isValidHHmm(detailForm.timeIn) || !isValidHHmm(detailForm.timeOut))
       return 'Giờ đến/giờ về phải theo định dạng HH:mm.';
+
+    const delivererOtherInfo = detailForm.delivererOtherInfo?.trim() || '';
+    const receiverOtherInfo = detailForm.receiverOtherInfo?.trim() || '';
+    const belongingsNote = detailForm.belongingsNote?.trim() || '';
+    const note = detailForm.note?.trim() || '';
+
+    if (detailForm.delivererType === 'Khác') {
+      if (!delivererOtherInfo) return 'Vui lòng nhập thông tin người đưa.';
+      if (!PERSON_INFO_REGEX.test(delivererOtherInfo))
+        return 'Thông tin người đưa chỉ chứa chữ, số và ký tự cơ bản (.,-()+).';
+      if (delivererOtherInfo.length > MAX_PERSON_INFO_LEN)
+        return `Thông tin người đưa tối đa ${MAX_PERSON_INFO_LEN} ký tự.`;
+    }
+
+    if (detailForm.receiverType === 'Khác') {
+      if (!receiverOtherInfo) return 'Vui lòng nhập thông tin người đón.';
+      if (!PERSON_INFO_REGEX.test(receiverOtherInfo))
+        return 'Thông tin người đón chỉ chứa chữ, số và ký tự cơ bản (.,-()+).';
+      if (receiverOtherInfo.length > MAX_PERSON_INFO_LEN)
+        return `Thông tin người đón tối đa ${MAX_PERSON_INFO_LEN} ký tự.`;
+    }
+
+    if (detailForm.hasBelongings && !belongingsNote) {
+      return 'Vui lòng nhập ghi chú đồ mang theo.';
+    }
+    if (belongingsNote.length > MAX_BELONGINGS_NOTE_LEN) {
+      return `Ghi chú đồ mang theo tối đa ${MAX_BELONGINGS_NOTE_LEN} ký tự.`;
+    }
+    if (note.length > MAX_NOTE_LEN) {
+      return `Ghi chú tối đa ${MAX_NOTE_LEN} ký tự.`;
+    }
     return null;
   };
 
@@ -322,6 +380,44 @@ function TeacherAttendance() {
     const d = new Date(dateStr);
     d.setHours(Number(hh), Number(mm), 0, 0);
     return d.toISOString();
+  };
+
+  const uploadAttendanceImage = async (file, fieldName) => {
+    if (!file) return;
+    if (!/^image\/(jpeg|jpg|png|gif|webp)$/i.test(file.type)) {
+      throw new Error('Chỉ chấp nhận file ảnh (JPEG, PNG, GIF, WebP).');
+    }
+
+    const formData = new FormData();
+    formData.append('avatar', file);
+    const response = await postFormData(ENDPOINTS.CLOUDINARY.UPLOAD_AVATAR, formData);
+    const url = response?.data?.url;
+
+    if (!url) {
+      throw new Error('Không nhận được đường dẫn ảnh từ server.');
+    }
+
+    setDetailForm((prev) => ({
+      ...prev,
+      [fieldName]: url,
+    }));
+  };
+
+  const renderImagePreview = (imageValue, altText) => {
+    if (!imageValue) return null;
+    if (!/^https?:\/\//i.test(imageValue)) {
+      return <p className="mt-1 text-xs text-gray-500">Đã chọn: {imageValue}</p>;
+    }
+
+    return (
+      <a href={imageValue} target="_blank" rel="noreferrer" className="mt-2 inline-block">
+        <img
+          src={imageValue}
+          alt={altText}
+          className="h-20 w-20 rounded border border-gray-200 object-cover"
+        />
+      </a>
+    );
   };
 
   const handleSaveDetail = async (e) => {
@@ -351,6 +447,10 @@ function TeacherAttendance() {
         // -> giáo viên lưu luôn, trạng thái hoàn thành điểm danh.
         await post(ENDPOINTS.STUDENTS.ATTENDANCE_CHECKOUT, {
           ...basePayload,
+          checkoutImageName: detailForm.checkoutImageName || '',
+          receiverType: detailForm.receiverType || '',
+          receiverOtherInfo: detailForm.receiverOtherInfo || '',
+          receiverOtherImageName: detailForm.receiverOtherImageName || '',
           time: isoOut ? { checkOut: isoOut } : undefined,
           timeString: { checkOut: timeOutHHmm },
           status: 'present',
@@ -374,6 +474,10 @@ function TeacherAttendance() {
 
         await post(ENDPOINTS.STUDENTS.ATTENDANCE_CHECKIN, {
           ...basePayload,
+          checkinImageName: detailForm.checkinImageName || '',
+          delivererType: detailForm.delivererType || '',
+          delivererOtherInfo: detailForm.delivererOtherInfo || '',
+          delivererOtherImageName: detailForm.delivererOtherImageName || '',
           time: isoIn ? { checkIn: isoIn } : undefined,
           timeString: { checkIn: timeInHHmm },
           status: 'present',
@@ -449,16 +553,8 @@ function TeacherAttendance() {
     closeDetail();
   };
 
-  const handleSaveAbsent = async (e) => {
-    e.preventDefault();
-    if (!absentStudentId) {
-      setAbsentError('Không xác định học sinh.');
-      return;
-    }
-    if (!absentForm.reason) {
-      setAbsentError('Vui lòng chọn lý do vắng mặt.');
-      return;
-    }
+  const saveAbsentRecord = async () => {
+    if (!absentStudentId) return;
     setAbsentError(null);
 
     try {
@@ -472,15 +568,7 @@ function TeacherAttendance() {
         absentReason: absentForm.reason,
       });
 
-      // TODO: Nếu cần gọi API lưu lên server, có thể thêm ở đây
-      // await post(ENDPOINTS.STUDENTS.ATTENDANCE_ABSENT, {
-      //   studentId: absentStudentId,
-      //   classId,
-      //   date: selectedDate,
-      //   reason: absentForm.reason,
-      //   note: absentForm.note?.trim() || '',
-      // });
-
+      setIsConfirmAbsentOpen(false);
       setIsAbsentOpen(false);
       setAbsentStudentId(null);
       setAbsentForm({ reason: '', note: '' });
@@ -489,8 +577,28 @@ function TeacherAttendance() {
     }
   };
 
+  const handleSaveAbsent = async (e) => {
+    e.preventDefault();
+    if (!absentStudentId) {
+      setAbsentError('Không xác định học sinh.');
+      return;
+    }
+    if (!absentForm.reason) {
+      setAbsentError('Vui lòng chọn lý do vắng mặt.');
+      return;
+    }
+    if ((absentForm.note || '').trim().length > MAX_NOTE_LEN) {
+      setAbsentError(`Ghi chú tối đa ${MAX_NOTE_LEN} ký tự.`);
+      return;
+    }
+
+    setAbsentError(null);
+    setIsConfirmAbsentOpen(true);
+  };
+
   const closeAbsent = () => {
     setIsAbsentOpen(false);
+    setIsConfirmAbsentOpen(false);
     setAbsentError(null);
   };
 
@@ -606,7 +714,8 @@ function TeacherAttendance() {
                 <input
                   type="date"
                   value={selectedDate}
-                  onChange={(e) => setSelectedDate(e.target.value)}
+                  max={todayISO}
+                  onChange={(e) => handleSelectedDateChange(e.target.value)}
                   className="px-3 py-2 border border-gray-300 rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500"
                 />
               </div>
@@ -818,10 +927,11 @@ function TeacherAttendance() {
                             onChange={(e) =>
                               setDetailForm((prev) => ({
                                 ...prev,
-                                delivererOtherInfo: e.target.value,
+                                delivererOtherInfo: sanitizeSingleLineText(e.target.value, MAX_PERSON_INFO_LEN),
                               }))
                             }
                             placeholder="Tên + SĐT"
+                            maxLength={MAX_PERSON_INFO_LEN}
                             className="w-full px-4 py-2 border border-gray-300 rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-green-500"
                           />
                         </div>
@@ -830,14 +940,20 @@ function TeacherAttendance() {
                           <input
                             type="file"
                             accept="image/*"
-                            onChange={(e) =>
-                              setDetailForm((prev) => ({
-                                ...prev,
-                                delivererOtherImageName: e.target.files && e.target.files[0] ? e.target.files[0].name : '',
-                              }))
-                            }
+                            onChange={async (e) => {
+                              try {
+                                setSubmitError(null);
+                                const file = e.target.files?.[0];
+                                await uploadAttendanceImage(file, 'delivererOtherImageName');
+                              } catch (err) {
+                                setSubmitError(err.message || 'Không tải lên được ảnh người đưa.');
+                              } finally {
+                                e.target.value = '';
+                              }
+                            }}
                             className="block w-full text-sm text-gray-700 file:mr-3 file:px-3 file:py-1.5 file:border file:border-gray-300 file:text-sm file:font-semibold file:bg-gray-50 file:text-gray-700 hover:file:bg-gray-100"
                           />
+                          {renderImagePreview(detailForm.delivererOtherImageName, 'Ảnh người đưa')}
                         </div>
                       </>
                     )}
@@ -849,15 +965,21 @@ function TeacherAttendance() {
                         <input
                           type="file"
                           accept="image/*"
-                          onChange={(e) =>
-                            setDetailForm((prev) => ({
-                              ...prev,
-                              checkinImageName: e.target.files && e.target.files[0] ? e.target.files[0].name : '',
-                            }))
-                          }
+                          onChange={async (e) => {
+                            try {
+                              setSubmitError(null);
+                              const file = e.target.files?.[0];
+                              await uploadAttendanceImage(file, 'checkinImageName');
+                            } catch (err) {
+                              setSubmitError(err.message || 'Không tải lên được ảnh check-in.');
+                            } finally {
+                              e.target.value = '';
+                            }
+                          }}
                           className="block w-full text-sm text-gray-700 file:mr-3 file:px-3 file:py-1.5 file:border file:border-gray-300 file:text-sm file:font-semibold file:bg-gray-50 file:text-gray-700 hover:file:bg-gray-100"
                         />
                       </div>
+                      {renderImagePreview(detailForm.checkinImageName, 'Ảnh check-in')}
                     </div>
 
                     <div>
@@ -868,10 +990,11 @@ function TeacherAttendance() {
                         onChange={(e) =>
                           setDetailForm((prev) => ({
                             ...prev,
-                            belongingsNote: e.target.value,
+                            belongingsNote: sanitizeSingleLineText(e.target.value, MAX_BELONGINGS_NOTE_LEN),
                           }))
                         }
                         placeholder="Bình nước, balo..."
+                        maxLength={MAX_BELONGINGS_NOTE_LEN}
                         className="w-full px-4 py-2 border border-gray-300 rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-green-500"
                       />
                     </div>
@@ -881,8 +1004,14 @@ function TeacherAttendance() {
                       <textarea
                         rows={3}
                         value={detailForm.note}
-                        onChange={(e) => setDetailForm((prev) => ({ ...prev, note: e.target.value }))}
+                        onChange={(e) =>
+                          setDetailForm((prev) => ({
+                            ...prev,
+                            note: sanitizeMultiLineText(e.target.value, MAX_NOTE_LEN),
+                          }))
+                        }
                         placeholder="Trẻ hơi mệt..."
+                        maxLength={MAX_NOTE_LEN}
                         className="w-full px-4 py-2 border border-gray-300 rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-green-500"
                       />
                     </div>
@@ -952,10 +1081,11 @@ function TeacherAttendance() {
                             onChange={(e) =>
                               setDetailForm((prev) => ({
                                 ...prev,
-                                receiverOtherInfo: e.target.value,
+                                receiverOtherInfo: sanitizeSingleLineText(e.target.value, MAX_PERSON_INFO_LEN),
                               }))
                             }
                             placeholder="Tên + SĐT"
+                            maxLength={MAX_PERSON_INFO_LEN}
                             className="w-full px-4 py-2 border border-gray-300 rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
                           />
                         </div>
@@ -964,14 +1094,20 @@ function TeacherAttendance() {
                           <input
                             type="file"
                             accept="image/*"
-                            onChange={(e) =>
-                              setDetailForm((prev) => ({
-                                ...prev,
-                                receiverOtherImageName: e.target.files && e.target.files[0] ? e.target.files[0].name : '',
-                              }))
-                            }
+                            onChange={async (e) => {
+                              try {
+                                setSubmitError(null);
+                                const file = e.target.files?.[0];
+                                await uploadAttendanceImage(file, 'receiverOtherImageName');
+                              } catch (err) {
+                                setSubmitError(err.message || 'Không tải lên được ảnh người đón.');
+                              } finally {
+                                e.target.value = '';
+                              }
+                            }}
                             className="block w-full text-sm text-gray-700 file:mr-3 file:px-3 file:py-1.5 file:border file:border-gray-300 file:text-sm file:font-semibold file:bg-gray-50 file:text-gray-700 hover:file:bg-gray-100"
                           />
+                          {renderImagePreview(detailForm.receiverOtherImageName, 'Ảnh người đón')}
                         </div>
                       </>
                     )}
@@ -983,15 +1119,21 @@ function TeacherAttendance() {
                         <input
                           type="file"
                           accept="image/*"
-                          onChange={(e) =>
-                            setDetailForm((prev) => ({
-                              ...prev,
-                              checkoutImageName: e.target.files && e.target.files[0] ? e.target.files[0].name : '',
-                            }))
-                          }
+                          onChange={async (e) => {
+                            try {
+                              setSubmitError(null);
+                              const file = e.target.files?.[0];
+                              await uploadAttendanceImage(file, 'checkoutImageName');
+                            } catch (err) {
+                              setSubmitError(err.message || 'Không tải lên được ảnh check-out.');
+                            } finally {
+                              e.target.value = '';
+                            }
+                          }}
                           className="block w-full text-sm text-gray-700 file:mr-3 file:px-3 file:py-1.5 file:border file:border-gray-300 file:text-sm file:font-semibold file:bg-gray-50 file:text-gray-700 hover:file:bg-gray-100"
                         />
                       </div>
+                      {renderImagePreview(detailForm.checkoutImageName, 'Ảnh check-out')}
                     </div>
                   </div>
                 </div>
@@ -1095,16 +1237,21 @@ function TeacherAttendance() {
                         <input
                           type="file"
                           accept="image/*"
-                          onChange={(e) =>
-                            setDetailForm((prev) => ({
-                              ...prev,
-                              checkoutImageName: e.target.files && e.target.files[0] ? e.target.files[0].name : '',
-                            }))
-                          }
+                          onChange={async (e) => {
+                            try {
+                              setSubmitError(null);
+                              const file = e.target.files?.[0];
+                              await uploadAttendanceImage(file, 'checkoutImageName');
+                            } catch (err) {
+                              setSubmitError(err.message || 'Không tải lên được ảnh check-out.');
+                            } finally {
+                              e.target.value = '';
+                            }
+                          }}
                           className="block w-full text-sm text-gray-700 file:mr-3 file:px-3 file:py-1.5 file:border file:border-gray-300 file:text-sm file:font-semibold file:bg-gray-50 file:text-gray-700 hover:file:bg-gray-100"
                         />
                         {detailForm.checkoutImageName && (
-                          <p className="mt-1 text-xs text-gray-500">Đã chọn: {detailForm.checkoutImageName}</p>
+                          renderImagePreview(detailForm.checkoutImageName, 'Ảnh check-out')
                         )}
                       </div>
 
@@ -1141,10 +1288,11 @@ function TeacherAttendance() {
                               onChange={(e) =>
                                 setDetailForm((prev) => ({
                                   ...prev,
-                                  receiverOtherInfo: e.target.value,
+                                  receiverOtherInfo: sanitizeSingleLineText(e.target.value, MAX_PERSON_INFO_LEN),
                                 }))
                               }
                               placeholder="Tên + SĐT"
+                              maxLength={MAX_PERSON_INFO_LEN}
                               className="w-full px-4 py-2 border border-gray-300 rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500"
                             />
                           </div>
@@ -1153,16 +1301,21 @@ function TeacherAttendance() {
                             <input
                               type="file"
                               accept="image/*"
-                              onChange={(e) =>
-                                setDetailForm((prev) => ({
-                                  ...prev,
-                                  receiverOtherImageName: e.target.files && e.target.files[0] ? e.target.files[0].name : '',
-                                }))
-                              }
+                              onChange={async (e) => {
+                                try {
+                                  setSubmitError(null);
+                                  const file = e.target.files?.[0];
+                                  await uploadAttendanceImage(file, 'receiverOtherImageName');
+                                } catch (err) {
+                                  setSubmitError(err.message || 'Không tải lên được ảnh người đón.');
+                                } finally {
+                                  e.target.value = '';
+                                }
+                              }}
                               className="block w-full text-sm text-gray-700 file:mr-3 file:px-3 file:py-1.5 file:border file:border-gray-300 file:text-sm file:font-semibold file:bg-gray-50 file:text-gray-700 hover:file:bg-gray-100"
                             />
                             {detailForm.receiverOtherImageName && (
-                              <p className="mt-1 text-xs text-gray-500">Đã chọn: {detailForm.receiverOtherImageName}</p>
+                              renderImagePreview(detailForm.receiverOtherImageName, 'Ảnh người đón')
                             )}
                           </div>
                         </>
@@ -1194,16 +1347,21 @@ function TeacherAttendance() {
                             <input
                               type="file"
                               accept="image/*"
-                              onChange={(e) =>
-                                setDetailForm((prev) => ({
-                                  ...prev,
-                                  checkinImageName: e.target.files && e.target.files[0] ? e.target.files[0].name : '',
-                                }))
-                              }
+                              onChange={async (e) => {
+                                try {
+                                  setSubmitError(null);
+                                  const file = e.target.files?.[0];
+                                  await uploadAttendanceImage(file, 'checkinImageName');
+                                } catch (err) {
+                                  setSubmitError(err.message || 'Không tải lên được ảnh check-in.');
+                                } finally {
+                                  e.target.value = '';
+                                }
+                              }}
                               className="block w-full text-xs text-gray-700 file:mr-3 file:px-3 file:py-1.5 file:border file:border-gray-300 file:text-xs file:font-semibold file:bg-gray-50 file:text-gray-700 hover:file:bg-gray-100"
                             />
                             {detailForm.checkinImageName && (
-                              <p className="mt-1 text-[11px] text-gray-500">Đã chọn: {detailForm.checkinImageName}</p>
+                              renderImagePreview(detailForm.checkinImageName, 'Ảnh check-in')
                             )}
                           </div>
                           <div>
@@ -1239,10 +1397,11 @@ function TeacherAttendance() {
                                 onChange={(e) =>
                                   setDetailForm((prev) => ({
                                     ...prev,
-                                    delivererOtherInfo: e.target.value,
+                                    delivererOtherInfo: sanitizeSingleLineText(e.target.value, MAX_PERSON_INFO_LEN),
                                   }))
                                 }
                                 placeholder="VD: Nguyễn A - 09xx..."
+                                maxLength={MAX_PERSON_INFO_LEN}
                                 className="w-full px-3 py-2 border border-gray-300 rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500"
                               />
                             </div>
@@ -1251,16 +1410,21 @@ function TeacherAttendance() {
                               <input
                                 type="file"
                                 accept="image/*"
-                                onChange={(e) =>
-                                  setDetailForm((prev) => ({
-                                    ...prev,
-                                    delivererOtherImageName: e.target.files && e.target.files[0] ? e.target.files[0].name : '',
-                                  }))
-                                }
+                                onChange={async (e) => {
+                                  try {
+                                    setSubmitError(null);
+                                    const file = e.target.files?.[0];
+                                    await uploadAttendanceImage(file, 'delivererOtherImageName');
+                                  } catch (err) {
+                                    setSubmitError(err.message || 'Không tải lên được ảnh người đưa.');
+                                  } finally {
+                                    e.target.value = '';
+                                  }
+                                }}
                                 className="block w-full text-xs text-gray-700 file:mr-3 file:px-3 file:py-1.5 file:border file:border-gray-300 file:text-xs file:font-semibold file:bg-gray-50 file:text-gray-700 hover:file:bg-gray-100"
                               />
                               {detailForm.delivererOtherImageName && (
-                                <p className="mt-1 text-[11px] text-gray-500">Đã chọn: {detailForm.delivererOtherImageName}</p>
+                                renderImagePreview(detailForm.delivererOtherImageName, 'Ảnh người đưa')
                               )}
                             </div>
                           </div>
@@ -1289,10 +1453,11 @@ function TeacherAttendance() {
                             onChange={(e) =>
                               setDetailForm((prev) => ({
                                 ...prev,
-                                belongingsNote: e.target.value,
+                                belongingsNote: sanitizeMultiLineText(e.target.value, MAX_BELONGINGS_NOTE_LEN),
                               }))
                             }
                             placeholder="Ghi chú đồ dùng (VD: mang theo balo, thú bông...)"
+                            maxLength={MAX_BELONGINGS_NOTE_LEN}
                             className="w-full px-3 py-2 border border-gray-300 rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500 mb-3"
                           />
                         )}
@@ -1303,8 +1468,14 @@ function TeacherAttendance() {
                         <textarea
                           rows={3}
                           value={detailForm.note}
-                          onChange={(e) => setDetailForm((prev) => ({ ...prev, note: e.target.value }))}
+                          onChange={(e) =>
+                            setDetailForm((prev) => ({
+                              ...prev,
+                              note: sanitizeMultiLineText(e.target.value, MAX_NOTE_LEN),
+                            }))
+                          }
                           placeholder="Ví dụ: Bé đến muộn 10 phút..."
+                          maxLength={MAX_NOTE_LEN}
                           className="w-full px-3 py-2 border border-gray-300 rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500"
                         />
                       </div>
@@ -1414,8 +1585,14 @@ function TeacherAttendance() {
                 <textarea
                   rows={4}
                   value={absentForm.note}
-                  onChange={(e) => setAbsentForm((prev) => ({ ...prev, note: e.target.value }))}
+                  onChange={(e) =>
+                    setAbsentForm((prev) => ({
+                      ...prev,
+                      note: sanitizeMultiLineText(e.target.value, MAX_NOTE_LEN),
+                    }))
+                  }
                   placeholder="Nhập ghi chú nếu có"
+                  maxLength={MAX_NOTE_LEN}
                   className="w-full px-3 py-2 border border-gray-300 rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500 resize-y"
                 />
               </div>
@@ -1439,6 +1616,18 @@ function TeacherAttendance() {
           </div>
         </div>
       )}
+
+      <ConfirmDialog
+        open={isConfirmAbsentOpen}
+        title="Xác nhận lưu vắng mặt"
+        message={`Bạn có chắc muốn lưu vắng mặt cho học sinh "${
+          students.find((s) => s._id === absentStudentId)?.fullName || absentStudentId || ''
+        }" vào ngày ${selectedDate}?`}
+        confirmText="Lưu"
+        cancelText="Hủy"
+        onConfirm={saveAbsentRecord}
+        onCancel={() => setIsConfirmAbsentOpen(false)}
+      />
     </RoleLayout>
   );
 }

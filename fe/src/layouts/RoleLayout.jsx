@@ -101,13 +101,15 @@ function RoleLayout({
                       <div className="absolute right-0 mt-2 w-44 rounded-xl border border-gray-200 bg-white shadow-lg text-xs md:text-sm z-10">
                         <button
                           type="button"
-                          className="w-full text-left px-3 py-2 hover:bg-gray-50 text-gray-800 rounded-t-xl"
+                          className={`w-full text-left px-3 py-2 rounded-t-xl ${
+                            onViewProfile
+                              ? 'hover:bg-gray-50 text-gray-800'
+                              : 'text-gray-400 cursor-not-allowed'
+                          }`}
+                          disabled={!onViewProfile}
                           onClick={() => {
                             if (onViewProfile) {
                               onViewProfile();
-                            } else {
-                              // eslint-disable-next-line no-alert
-                              alert('Chức năng xem hồ sơ đang được phát triển.');
                             }
                             setOpenProfileMenu(false);
                           }}
