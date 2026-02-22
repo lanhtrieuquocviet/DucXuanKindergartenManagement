@@ -176,6 +176,9 @@ export const ENDPOINTS = {
     CONTACT_CLEAR_REPLY: (id) => `/school-admin/contacts/${id}/clear-reply`,
     CONTACT_RESEND_EMAIL: (id) => `/school-admin/contacts/${id}/resend-email`,
     ATTENDANCE_OVERVIEW: '/school-admin/attendance/overview',
+    CLASS_ATTENDANCE_DETAIL: (classId) => `/school-admin/classes/${classId}/attendance`,
+    STUDENT_ATTENDANCE_DETAIL: (studentId) => `/school-admin/students/${studentId}/attendance`,
+    STUDENT_ATTENDANCE_HISTORY: (studentId) => `/school-admin/students/${studentId}/attendance/history`,
   },
   // Contact (public)
   CONTACT: {

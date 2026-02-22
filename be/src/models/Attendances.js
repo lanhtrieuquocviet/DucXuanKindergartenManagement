@@ -34,6 +34,17 @@ const attendanceSchema = new mongoose.Schema(
       trim: true,
       default: '',
     },
+    // Ảnh check-in và check-out riêng biệt
+    checkinImageName: {
+      type: String,
+      trim: true,
+      default: '',
+    },
+    checkoutImageName: {
+      type: String,
+      trim: true,
+      default: '',
+    },
     time: {
       checkIn: { type: Date, default: null },
       checkOut: { type: Date, default: null },
@@ -45,6 +56,38 @@ const attendanceSchema = new mongoose.Schema(
     isTakeOff: {
       type: Boolean,
       default: false,
+    },
+    // Thông tin người đưa (check-in)
+    delivererType: {
+      type: String,
+      trim: true,
+      default: '',
+    },
+    delivererOtherInfo: {
+      type: String,
+      trim: true,
+      default: '',
+    },
+    delivererOtherImageName: {
+      type: String,
+      trim: true,
+      default: '',
+    },
+    // Thông tin người đón (check-out)
+    receiverType: {
+      type: String,
+      trim: true,
+      default: '',
+    },
+    receiverOtherInfo: {
+      type: String,
+      trim: true,
+      default: '',
+    },
+    receiverOtherImageName: {
+      type: String,
+      trim: true,
+      default: '',
     },
     createdAt: {
       type: Date,

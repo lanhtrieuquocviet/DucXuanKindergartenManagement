@@ -126,6 +126,104 @@ export const SchoolAdminProvider = ({
     }
   }, []);
 
+  // Lấy chi tiết điểm danh của một lớp
+  const getClassAttendanceDetail = useCallback(async (classId, params = {}) => {
+    try {
+      setLoading(true);
+      setError(null);
+      const search = new URLSearchParams(params).toString();
+      const endpoint = search 
+        ? `${ENDPOINTS.SCHOOL_ADMIN.CLASS_ATTENDANCE_DETAIL(classId)}?${search}` 
+        : ENDPOINTS.SCHOOL_ADMIN.CLASS_ATTENDANCE_DETAIL(classId);
+      const response = await get(endpoint);
+      return response;
+    } catch (err) {
+      const errorMessage = err.message || 'Không tải được chi tiết điểm danh lớp';
+      setError(errorMessage);
+      throw new Error(errorMessage);
+    } finally {
+      setLoading(false);
+    }
+  }, []);
+
+  // Lấy chi tiết điểm danh của một học sinh
+  const getStudentAttendanceDetail = useCallback(async (studentId, params = {}) => {
+    try {
+      setLoading(true);
+      setError(null);
+      const search = new URLSearchParams(params).toString();
+      const endpoint = search 
+        ? `${ENDPOINTS.SCHOOL_ADMIN.STUDENT_ATTENDANCE_DETAIL(studentId)}?${search}` 
+        : ENDPOINTS.SCHOOL_ADMIN.STUDENT_ATTENDANCE_DETAIL(studentId);
+      const response = await get(endpoint);
+      return response;
+    } catch (err) {
+      const errorMessage = err.message || 'Không tải được chi tiết điểm danh học sinh';
+      setError(errorMessage);
+      throw new Error(errorMessage);
+    } finally {
+      setLoading(false);
+    }
+  }, []);
+
+  // Lấy lịch sử điểm danh của một học sinh
+  const getStudentAttendanceHistory = useCallback(async (studentId, params = {}) => {
+    try {
+      setLoading(true);
+      setError(null);
+      const search = new URLSearchParams(params).toString();
+      const endpoint = search 
+        ? `${ENDPOINTS.SCHOOL_ADMIN.STUDENT_ATTENDANCE_HISTORY(studentId)}?${search}` 
+        : ENDPOINTS.SCHOOL_ADMIN.STUDENT_ATTENDANCE_HISTORY(studentId);
+      const response = await get(endpoint);
+      return response;
+    } catch (err) {
+      const errorMessage = err.message || 'Không tải được lịch sử điểm danh học sinh';
+      setError(errorMessage);
+      throw new Error(errorMessage);
+    } finally {
+      setLoading(false);
+    }
+  }, []);
+
+  // Lấy danh sách lớp
+  const getClasses = useCallback(async (params = {}) => {
+    try {
+      setLoading(true);
+      setError(null);
+      const search = new URLSearchParams(params).toString();
+      const endpoint = search ? `${ENDPOINTS.CLASSES.LIST}?${search}` : ENDPOINTS.CLASSES.LIST;
+      const response = await get(endpoint);
+      return response;
+    } catch (err) {
+      const errorMessage = err.message || 'Không tải được danh sách lớp';
+      setError(errorMessage);
+      throw new Error(errorMessage);
+    } finally {
+      setLoading(false);
+    }
+  }, []);
+
+  // Lấy danh sách học sinh trong lớp
+  const getStudents = useCallback(async (classId, params = {}) => {
+    try {
+      setLoading(true);
+      setError(null);
+      const search = new URLSearchParams(params).toString();
+      const endpoint = search 
+        ? `${ENDPOINTS.CLASSES.STUDENTS(classId)}?${search}` 
+        : ENDPOINTS.CLASSES.STUDENTS(classId);
+      const response = await get(endpoint);
+      return response;
+    } catch (err) {
+      const errorMessage = err.message || 'Không tải được danh sách học sinh';
+      setError(errorMessage);
+      throw new Error(errorMessage);
+    } finally {
+      setLoading(false);
+    }
+  }, []);
+
   const value = {
     loading,
     error,
@@ -135,6 +233,11 @@ export const SchoolAdminProvider = ({
     clearReplyContact,
     resendReplyEmail,
     getAttendanceOverview,
+    getClassAttendanceDetail,
+    getStudentAttendanceDetail,
+    getStudentAttendanceHistory,
+    getClasses,
+    getStudents,
     setError,
   };
 

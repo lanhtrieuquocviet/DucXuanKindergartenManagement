@@ -19,6 +19,10 @@ import ClassList from './pages/schoolAdmin/ClassList';
 import StudentInClass from './pages/schoolAdmin/StudentInClass';
 import ContactList from './pages/schoolAdmin/ContactList';
 import AttendanceOverview from './pages/schoolAdmin/AttendanceOverview';
+import ClassAttendanceDetail from './pages/schoolAdmin/ClassAttendanceDetail';
+import StudentAttendanceDetail from './pages/schoolAdmin/StudentAttendanceDetail';
+import StudentAttendanceHistory from './pages/schoolAdmin/StudentAttendanceHistory';
+import ExportAttendanceReport from './pages/schoolAdmin/ExportAttendanceReport';
 import Contact from './pages/Contact';
 import Profile from './pages/Profile';
 import { AuthProvider } from './context/AuthContext';
@@ -254,6 +258,38 @@ function App() {
             element={(
               <SchoolAdminProvider>
                 <AttendanceOverview />
+              </SchoolAdminProvider>
+            )}
+          />
+          <Route
+            path="/school-admin/classes/:classId/attendance"
+            element={(
+              <SchoolAdminProvider>
+                <ClassAttendanceDetail />
+              </SchoolAdminProvider>
+            )}
+          />
+          <Route
+            path="/school-admin/students/:studentId/attendance"
+            element={(
+              <SchoolAdminProvider>
+                <StudentAttendanceDetail />
+              </SchoolAdminProvider>
+            )}
+          />
+          <Route
+            path="/school-admin/students/:studentId/attendance/history"
+            element={(
+              <SchoolAdminProvider>
+                <StudentAttendanceHistory />
+              </SchoolAdminProvider>
+            )}
+          />
+          <Route
+            path="/school-admin/attendance/export"
+            element={(
+              <SchoolAdminProvider>
+                <ExportAttendanceReport />
               </SchoolAdminProvider>
             )}
           />

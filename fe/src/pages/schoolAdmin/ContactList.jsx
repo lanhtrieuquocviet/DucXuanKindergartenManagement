@@ -3,6 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../../context/AuthContext';
 import { useSchoolAdmin } from '../../context/SchoolAdminContext';
 import RoleLayout from '../../layouts/RoleLayout';
+import ConfirmDialog from '../../components/ConfirmDialog';
 
 function ContactList() {
   const [data, setData] = useState(null);
@@ -10,6 +11,7 @@ function ContactList() {
   const [replyingId, setReplyingId] = useState(null);
   const [replyText, setReplyText] = useState('');
   const [message, setMessage] = useState({ type: null, text: null });
+  const [confirmClearId, setConfirmClearId] = useState(null);
   const navigate = useNavigate();
   const { user, logout, isInitializing } = useAuth();
   const { getContacts, replyContact, clearReplyContact, resendReplyEmail, loading, error, setError } = useSchoolAdmin();
@@ -68,8 +70,7 @@ function ContactList() {
     }
   };
 
-  const handleClearReply = async (contactId) => {
-    if (!window.confirm('Bạn có chắc muốn xóa phản hồi này? Liên hệ sẽ chuyển về trạng thái chưa phản hồi.')) return;
+  const clearReplyConfirmed = async (contactId) => {
     try {
       setActioningId(contactId);
       setError(null);
@@ -83,6 +84,7 @@ function ContactList() {
       setMessage({ type: 'error', text: err.message || 'Xóa phản hồi thất bại.' });
     } finally {
       setActioningId(null);
+      setConfirmClearId(null);
     }
   };
 
@@ -239,7 +241,7 @@ function ContactList() {
                           </button>
                           <button
                             type="button"
-                            onClick={() => handleClearReply(item._id)}
+                            onClick={() => setConfirmClearId(item._id)}
                             disabled={actioningId === item._id}
                             className="px-3 py-1.5 text-sm rounded bg-red-600 text-white hover:bg-red-700 disabled:opacity-50"
                           >
@@ -297,6 +299,16 @@ function ContactList() {
           </div>
         )}
       </div>
+
+      <ConfirmDialog
+        open={!!confirmClearId}
+        title="Xác nhận xóa phản hồi"
+        message="Bạn có chắc muốn xóa phản hồi này? Liên hệ sẽ chuyển về trạng thái chưa phản hồi."
+        confirmText="Xóa"
+        cancelText="Hủy"
+        onConfirm={() => clearReplyConfirmed(confirmClearId)}
+        onCancel={() => setConfirmClearId(null)}
+      />
     </RoleLayout>
   );
 }

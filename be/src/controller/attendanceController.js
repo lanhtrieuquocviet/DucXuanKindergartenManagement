@@ -17,6 +17,10 @@ const upsertAttendance = async (req, res) => {
       status,
       note,
       image,
+      checkinImageName,
+      delivererType,
+      delivererOtherInfo,
+      delivererOtherImageName,
       time,
       timeString,
       isTakeOff,
@@ -40,6 +44,10 @@ const upsertAttendance = async (req, res) => {
       status,
       note,
       image,
+      checkinImageName,
+      delivererType,
+      delivererOtherInfo,
+      delivererOtherImageName,
       time: {
         checkIn: time && time.checkIn ? new Date(time.checkIn) : null,
         checkOut: time && time.checkOut ? new Date(time.checkOut) : null,
@@ -92,6 +100,10 @@ const checkoutAttendance = async (req, res) => {
       date,
       note,
       image,
+      checkoutImageName,
+      receiverType,
+      receiverOtherInfo,
+      receiverOtherImageName,
       time,
       timeString,
       status,
@@ -120,6 +132,10 @@ const checkoutAttendance = async (req, res) => {
     const update = {
       note,
       image,
+      checkoutImageName,
+      receiverType,
+      receiverOtherInfo,
+      receiverOtherImageName,
       isTakeOff: typeof isTakeOff === 'boolean' ? isTakeOff : false,
       status: status || 'present',
       'time.checkOut': checkOutTime,
@@ -349,10 +365,297 @@ const getAttendanceOverview = async (req, res) => {
   }
 };
 
+/**
+ * Lấy chi tiết điểm danh của một lớp (cho SchoolAdmin)
+ * GET /api/school-admin/classes/:classId/attendance
+ * query: date? (YYYY-MM-DD)
+ */
+const getClassAttendanceDetail = async (req, res) => {
+  try {
+    const { classId } = req.params;
+    const { date } = req.query;
+
+    if (!classId) {
+      return res.status(400).json({
+        status: 'error',
+        message: 'Vui lòng cung cấp classId',
+      });
+    }
+
+    // Xử lý ngày
+    const attendanceDate = date ? new Date(date) : new Date();
+    attendanceDate.setHours(0, 0, 0, 0);
+    const endOfDay = new Date(attendanceDate);
+    endOfDay.setHours(23, 59, 59, 999);
+
+    // Lấy thông tin lớp
+    const classInfo = await Classes.findById(classId)
+      .populate('gradeId', 'gradeName')
+      .lean();
+
+    if (!classInfo) {
+      return res.status(404).json({
+        status: 'error',
+        message: 'Không tìm thấy lớp học',
+      });
+    }
+
+    // Lấy tất cả học sinh trong lớp
+    const allStudents = await Students.find({
+      classId: classId,
+      status: 'active',
+    })
+      .sort({ fullName: 1 })
+      .lean();
+
+    // Lấy tất cả điểm danh trong ngày của lớp
+    const attendances = await Attendances.find({
+      classId: classId,
+      date: { $gte: attendanceDate, $lte: endOfDay },
+    })
+      .populate('studentId', 'fullName classId')
+      .lean();
+
+    // Tạo map attendance theo studentId để dễ tra cứu
+    const attendanceMap = {};
+    attendances.forEach((att) => {
+      const studentId = att.studentId?._id?.toString() || att.studentId?.toString();
+      if (studentId) {
+        attendanceMap[studentId] = att;
+      }
+    });
+
+    // Kết hợp học sinh với điểm danh
+    const studentsWithAttendance = allStudents.map((student) => {
+      const studentId = student._id.toString();
+      const attendance = attendanceMap[studentId] || null;
+
+      return {
+        _id: student._id,
+        fullName: student.fullName,
+        attendance: attendance
+          ? {
+              _id: attendance._id,
+              status: attendance.status,
+              time: attendance.time,
+              timeString: attendance.timeString,
+              note: attendance.note,
+              image: attendance.image,
+              // Có thể có các trường delivererType, receiverType nếu được lưu
+              delivererType: attendance.delivererType || null,
+              receiverType: attendance.receiverType || null,
+              delivererOtherInfo: attendance.delivererOtherInfo || null,
+              receiverOtherInfo: attendance.receiverOtherInfo || null,
+            }
+          : null,
+      };
+    });
+
+    // Lấy danh sách tất cả lớp để hiển thị trong dropdown
+    const allClasses = await Classes.find()
+      .populate('gradeId', 'gradeName')
+      .sort({ className: 1 })
+      .lean();
+
+    return res.status(200).json({
+      status: 'success',
+      message: 'Lấy chi tiết điểm danh lớp thành công',
+      data: {
+        classInfo: {
+          _id: classInfo._id,
+          className: classInfo.className,
+          gradeName: classInfo.gradeId?.gradeName || '',
+        },
+        students: studentsWithAttendance,
+        classes: allClasses.map((cls) => ({
+          _id: cls._id,
+          className: cls.className,
+        })),
+      },
+    });
+  } catch (error) {
+    console.error('Error in getClassAttendanceDetail:', error);
+    return res.status(500).json({
+      status: 'error',
+      message: 'Lỗi khi lấy chi tiết điểm danh lớp',
+      error: error.message,
+    });
+  }
+};
+
+/**
+ * Lấy chi tiết điểm danh của một học sinh (cho SchoolAdmin)
+ * GET /api/school-admin/students/:studentId/attendance
+ * query: date? (YYYY-MM-DD)
+ */
+const getStudentAttendanceDetail = async (req, res) => {
+  try {
+    const { studentId } = req.params;
+    const { date } = req.query;
+
+    if (!studentId) {
+      return res.status(400).json({
+        status: 'error',
+        message: 'Vui lòng cung cấp studentId',
+      });
+    }
+
+    // Lấy thông tin học sinh
+    const student = await Students.findById(studentId)
+      .populate('classId', 'className')
+      .lean();
+
+    if (!student) {
+      return res.status(404).json({
+        status: 'error',
+        message: 'Không tìm thấy học sinh',
+      });
+    }
+
+    // Xử lý ngày
+    const attendanceDate = date ? new Date(date) : new Date();
+    attendanceDate.setHours(0, 0, 0, 0);
+    const endOfDay = new Date(attendanceDate);
+    endOfDay.setHours(23, 59, 59, 999);
+
+    // Lấy điểm danh trong ngày
+    const attendance = await Attendances.findOne({
+      studentId: studentId,
+      date: { $gte: attendanceDate, $lte: endOfDay },
+    }).lean();
+
+    return res.status(200).json({
+      status: 'success',
+      message: 'Lấy chi tiết điểm danh học sinh thành công',
+      data: {
+        studentInfo: {
+          _id: student._id,
+          fullName: student.fullName,
+          className: student.classId?.className || '',
+          classId: student.classId?._id || student.classId,
+        },
+        attendance: attendance
+          ? {
+              _id: attendance._id,
+              status: attendance.status,
+              time: attendance.time,
+              timeString: attendance.timeString,
+              note: attendance.note,
+              image: attendance.image,
+              date: attendance.date,
+              delivererType: attendance.delivererType || '',
+              receiverType: attendance.receiverType || '',
+              delivererOtherInfo: attendance.delivererOtherInfo || '',
+              receiverOtherInfo: attendance.receiverOtherInfo || '',
+              delivererOtherImageName: attendance.delivererOtherImageName || '',
+              receiverOtherImageName: attendance.receiverOtherImageName || '',
+              checkinImageName: attendance.checkinImageName || attendance.image || '',
+              checkoutImageName: attendance.checkoutImageName || '',
+            }
+          : null,
+      },
+    });
+  } catch (error) {
+    console.error('Error in getStudentAttendanceDetail:', error);
+    return res.status(500).json({
+      status: 'error',
+      message: 'Lỗi khi lấy chi tiết điểm danh học sinh',
+      error: error.message,
+    });
+  }
+};
+
+/**
+ * Lấy lịch sử điểm danh của một học sinh (cho SchoolAdmin)
+ * GET /api/school-admin/students/:studentId/attendance/history
+ * query: from? (YYYY-MM-DD), to? (YYYY-MM-DD)
+ */
+const getStudentAttendanceHistory = async (req, res) => {
+  try {
+    const { studentId } = req.params;
+    const { from, to } = req.query;
+
+    if (!studentId) {
+      return res.status(400).json({
+        status: 'error',
+        message: 'Vui lòng cung cấp studentId',
+      });
+    }
+
+    // Lấy thông tin học sinh
+    const student = await Students.findById(studentId)
+      .populate('classId', 'className')
+      .lean();
+
+    if (!student) {
+      return res.status(404).json({
+        status: 'error',
+        message: 'Không tìm thấy học sinh',
+      });
+    }
+
+    // Xử lý filter ngày
+    const filter = { studentId: studentId };
+    if (from || to) {
+      filter.date = {};
+      if (from) {
+        const fromDate = new Date(from);
+        fromDate.setHours(0, 0, 0, 0);
+        filter.date.$gte = fromDate;
+      }
+      if (to) {
+        const toDate = new Date(to);
+        toDate.setHours(23, 59, 59, 999);
+        filter.date.$lte = toDate;
+      }
+    }
+
+    // Lấy tất cả điểm danh, sắp xếp theo ngày giảm dần
+    const attendances = await Attendances.find(filter)
+      .sort({ date: -1 })
+      .lean();
+
+    return res.status(200).json({
+      status: 'success',
+      message: 'Lấy lịch sử điểm danh học sinh thành công',
+      data: {
+        studentInfo: {
+          _id: student._id,
+          fullName: student.fullName,
+          className: student.classId?.className || '',
+          classId: student.classId?._id || student.classId,
+        },
+        attendances: attendances.map((att) => ({
+          _id: att._id,
+          date: att.date,
+          status: att.status,
+          time: att.time,
+          timeString: att.timeString,
+          note: att.note,
+          delivererType: att.delivererType || '',
+          receiverType: att.receiverType || '',
+          delivererOtherInfo: att.delivererOtherInfo || '',
+          receiverOtherInfo: att.receiverOtherInfo || '',
+        })),
+      },
+    });
+  } catch (error) {
+    console.error('Error in getStudentAttendanceHistory:', error);
+    return res.status(500).json({
+      status: 'error',
+      message: 'Lỗi khi lấy lịch sử điểm danh học sinh',
+      error: error.message,
+    });
+  }
+};
+
 module.exports = {
   upsertAttendance,
   checkoutAttendance,
   getAttendances,
   getAttendanceOverview,
+  getClassAttendanceDetail,
+  getStudentAttendanceDetail,
+  getStudentAttendanceHistory,
 };
 
