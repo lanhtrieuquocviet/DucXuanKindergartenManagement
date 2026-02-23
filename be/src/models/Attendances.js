@@ -29,11 +29,6 @@ const attendanceSchema = new mongoose.Schema(
       trim: true,
       default: '',
     },
-    image: {
-      type: String,
-      trim: true,
-      default: '',
-    },
     // Ảnh check-in và check-out riêng biệt
     checkinImageName: {
       type: String,
@@ -85,6 +80,12 @@ const attendanceSchema = new mongoose.Schema(
       default: '',
     },
     receiverOtherImageName: {
+      type: String,
+      trim: true,
+      default: '',
+    },
+    // Lý do vắng mặt (nếu status = 'absent')
+    absentReason: {
       type: String,
       trim: true,
       default: '',

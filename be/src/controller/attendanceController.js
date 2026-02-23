@@ -6,7 +6,7 @@ const Students = require('../models/Student');
 /**
  * Tạo / cập nhật điểm danh (check-in) cho 1 học sinh trong 1 ngày
  * POST /api/students/attendance
- * body: { studentId, classId, date, status, note, image, time, timeString, isTakeOff }
+ * body: { studentId, classId, date, status, note, time, timeString, isTakeOff }
  */
 const upsertAttendance = async (req, res) => {
   try {
@@ -16,11 +16,11 @@ const upsertAttendance = async (req, res) => {
       date,
       status,
       note,
-      image,
       checkinImageName,
       delivererType,
       delivererOtherInfo,
       delivererOtherImageName,
+      absentReason,
       time,
       timeString,
       isTakeOff,
@@ -43,11 +43,11 @@ const upsertAttendance = async (req, res) => {
       date: attendanceDate,
       status,
       note,
-      image,
       checkinImageName,
       delivererType,
       delivererOtherInfo,
       delivererOtherImageName,
+      absentReason,
       time: {
         checkIn: time && time.checkIn ? new Date(time.checkIn) : null,
         checkOut: time && time.checkOut ? new Date(time.checkOut) : null,
@@ -89,7 +89,7 @@ const upsertAttendance = async (req, res) => {
 /**
  * Check-out: cập nhật giờ về, ảnh đón trẻ, thông tin người đón
  * POST /api/students/attendance/checkout
- * body: { studentId, classId, date?, note, image, time, timeString, status?, isTakeOff? }
+ * body: { studentId, classId, date?, note, time, timeString, status?, isTakeOff? }
  * - date: nếu không truyền sẽ lấy theo ngày hiện tại
  */
 const checkoutAttendance = async (req, res) => {
@@ -99,7 +99,6 @@ const checkoutAttendance = async (req, res) => {
       classId,
       date,
       note,
-      image,
       checkoutImageName,
       receiverType,
       receiverOtherInfo,
@@ -131,7 +130,6 @@ const checkoutAttendance = async (req, res) => {
 
     const update = {
       note,
-      image,
       checkoutImageName,
       receiverType,
       receiverOtherInfo,
@@ -440,7 +438,6 @@ const getClassAttendanceDetail = async (req, res) => {
               time: attendance.time,
               timeString: attendance.timeString,
               note: attendance.note,
-              image: attendance.image,
               // Có thể có các trường delivererType, receiverType nếu được lưu
               delivererType: attendance.delivererType || null,
               receiverType: attendance.receiverType || null,
@@ -541,7 +538,6 @@ const getStudentAttendanceDetail = async (req, res) => {
               time: attendance.time,
               timeString: attendance.timeString,
               note: attendance.note,
-              image: attendance.image,
               date: attendance.date,
               delivererType: attendance.delivererType || '',
               receiverType: attendance.receiverType || '',
@@ -549,7 +545,8 @@ const getStudentAttendanceDetail = async (req, res) => {
               receiverOtherInfo: attendance.receiverOtherInfo || '',
               delivererOtherImageName: attendance.delivererOtherImageName || '',
               receiverOtherImageName: attendance.receiverOtherImageName || '',
-              checkinImageName: attendance.checkinImageName || attendance.image || '',
+              absentReason: attendance.absentReason || '',
+              checkinImageName: attendance.checkinImageName || '',
               checkoutImageName: attendance.checkoutImageName || '',
             }
           : null,

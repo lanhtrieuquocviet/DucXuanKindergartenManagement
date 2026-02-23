@@ -124,7 +124,7 @@ function StudentAttendanceDetail() {
     return null;
   };
 
-  const checkInImage = attendance?.checkinImageName || attendance?.image || null;
+  const checkInImage = attendance?.checkinImageName || null;
   const delivererImage = attendance?.delivererOtherImageName || null;
   const checkOutImage = attendance?.checkoutImageName || null;
   const receiverImage = attendance?.receiverOtherImageName || null;
