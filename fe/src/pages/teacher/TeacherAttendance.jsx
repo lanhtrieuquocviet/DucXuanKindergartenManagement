@@ -53,6 +53,7 @@ const defaultRecord = () => ({
   hasBelongings: false,
   belongingsNote: '',
   note: '',
+  absentReason: '',
   // Thông tin check-out chi tiết
   checkoutImageName: '',
   receiverType: '', // '', 'Bố', 'Mẹ', 'Ông', 'Bà', 'Khác'
@@ -128,6 +129,7 @@ function TeacherAttendance() {
     hasBelongings: false,
     belongingsNote: '',
     note: '',
+    absentReason: '',
     checkoutImageName: '',
     receiverType: '',
     receiverOtherInfo: '',
@@ -322,6 +324,7 @@ function TeacherAttendance() {
       hasBelongings: !!rec.hasBelongings,
       belongingsNote: rec.belongingsNote || '',
       note: rec.note || '',
+      absentReason: rec.absentReason || '',
       checkoutImageName: rec.checkoutImageName || '',
       receiverType: rec.receiverType || '',
       receiverOtherInfo: rec.receiverOtherInfo || '',
@@ -557,7 +560,26 @@ function TeacherAttendance() {
     if (!absentStudentId) return;
     setAbsentError(null);
 
+    // Không cho vắng mặt nếu học sinh đã có bản ghi điểm danh (checkin/checkout/vắng)
+    const currentRec = attendanceByStudent?.[absentStudentId];
+    if (currentRec && currentRec.status && currentRec.status !== 'empty') {
+      setAbsentError('Học sinh đã có bản ghi điểm danh, không thể đánh vắng mặt.');
+      setIsConfirmAbsentOpen(false);
+      return;
+    }
+
     try {
+      // Lưu bản ghi vắng mặt lên server
+      await post(ENDPOINTS.STUDENTS.ATTENDANCE_CHECKIN, {
+        studentId: absentStudentId,
+        classId,
+        date: selectedDate,
+        status: 'absent',
+        note: absentForm.note?.trim() || '',
+        absentReason: absentForm.reason,
+        isTakeOff: false,
+      });
+
       // Lưu local trạng thái "absent"
       updateRecord(absentStudentId, {
         ...(attendanceByStudent?.[absentStudentId] || defaultRecord()),
@@ -583,6 +605,14 @@ function TeacherAttendance() {
       setAbsentError('Không xác định học sinh.');
       return;
     }
+
+    // Chặn từ bước mở confirm: nếu đã checkin/checkout thì không cho vắng mặt nữa
+    const currentRec = attendanceByStudent?.[absentStudentId];
+    if (currentRec && currentRec.status && currentRec.status !== 'empty') {
+      setAbsentError('Học sinh đã có bản ghi điểm danh , không thể đánh vắng mặt.');
+      return;
+    }
+
     if (!absentForm.reason) {
       setAbsentError('Vui lòng chọn lý do vắng mặt.');
       return;
@@ -602,18 +632,22 @@ function TeacherAttendance() {
     setAbsentError(null);
   };
 
-  // Điều kiện enable/disable button theo spec checkout
+  // Trạng thái form checkout + điều kiện enable/disable nút theo spec
   const isCheckoutMode = detailMode === 'checkout';
   const isReceiverOther = detailForm.receiverType === 'Khác';
   const canSaveCheckout =
     isCheckoutMode &&
     !!detailForm.receiverType &&
-    !isReceiverOther; // chỉ cho Lưu khi không phải \"Khác\"
+    !!detailForm.checkoutImageName &&
+    !isReceiverOther; // chỉ cho Lưu khi không phải "Khác"
   const canSendToParent =
     isCheckoutMode &&
     isReceiverOther &&
+    !!detailForm.checkoutImageName &&
     !!detailForm.receiverOtherInfo?.trim() &&
     !!detailForm.receiverOtherImageName;
+
+  const canSubmitCheckin = detailMode === 'checkin' ? !!detailForm.checkinImageName : true;
 
   const detailStudent = students.find((s) => s._id === detailStudentId) || null;
   const selectedClass = classes.find((c) => (c._id || c.id) === classId) || null;
@@ -748,6 +782,7 @@ function TeacherAttendance() {
                   {(students || []).map((s, idx) => {
                     const rec = attendanceByStudent?.[s._id] || defaultRecord();
                     const badge = getStatusBadge(rec.status);
+                    // Cho phép check-in lại nếu trước đó đã đánh vắng mặt
                     const canCheckIn = rec.status === 'empty' || rec.status === 'absent';
                     const canCheckOut =
                       rec.status === 'checked_in' ||
@@ -854,6 +889,23 @@ function TeacherAttendance() {
                   Chi tiết & chỉnh sửa điểm danh
                 </h3>
 
+                {detailForm.status === 'absent' && (
+                  <div className="mb-4 rounded-lg border border-red-200 bg-red-50 px-4 py-3">
+                    <p className="text-sm font-semibold text-red-700 mb-1">Trạng thái: Vắng mặt</p>
+                    <p className="text-xs text-red-700">
+                      Lý do:{' '}
+                      <span className="font-medium">
+                        {attendanceByStudent?.[detailStudentId]?.absentReason || 'Không rõ'}
+                      </span>
+                    </p>
+                    {attendanceByStudent?.[detailStudentId]?.note && (
+                      <p className="mt-1 text-xs text-gray-700">
+                        Ghi chú: {attendanceByStudent[detailStudentId].note}
+                      </p>
+                    )}
+                  </div>
+                )}
+
                 <div className="mb-4">
                   <label className="block text-sm font-semibold text-gray-700 mb-2">Học sinh</label>
                   <input
@@ -880,16 +932,14 @@ function TeacherAttendance() {
                         <input
                           type="time"
                           value={detailForm.timeIn}
-                          onChange={(e) =>
-                            setDetailForm((prev) => ({
-                              ...prev,
-                              timeIn: e.target.value,
-                            }))
-                          }
-                          className="w-full px-4 py-2 border border-gray-300 rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-green-500 pl-10"
+                          disabled
+                          className="w-full px-4 py-2 border border-gray-300 rounded-md text-sm bg-gray-100 cursor-not-allowed focus:outline-none pl-10"
                         />
                         <span className="absolute left-3 top-2.5 text-gray-400">🕐</span>
                       </div>
+                      <p className="mt-1 text-xs text-gray-500">
+                        Giờ đến được hệ thống lưu lại theo lúc check-in, không chỉnh sửa tại đây.
+                      </p>
                     </div>
 
                     <div>
@@ -1034,16 +1084,14 @@ function TeacherAttendance() {
                         <input
                           type="time"
                           value={detailForm.timeOut}
-                          onChange={(e) =>
-                            setDetailForm((prev) => ({
-                              ...prev,
-                              timeOut: e.target.value,
-                            }))
-                          }
-                          className="w-full px-4 py-2 border border-gray-300 rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 pl-10"
+                          disabled
+                          className="w-full px-4 py-2 border border-gray-300 rounded-md text-sm bg-gray-100 cursor-not-allowed focus:outline-none pl-10"
                         />
                         <span className="absolute left-3 top-2.5 text-gray-400">🕐</span>
                       </div>
+                      <p className="mt-1 text-xs text-gray-500">
+                        Giờ về được hệ thống lưu lại theo lúc check-out, không chỉnh sửa tại đây.
+                      </p>
                     </div>
 
                     <div>
@@ -1220,16 +1268,14 @@ function TeacherAttendance() {
                           <input
                             type="time"
                             value={detailForm.timeOut}
-                            onChange={(e) =>
-                              setDetailForm((prev) => ({
-                                ...prev,
-                                timeOut: e.target.value,
-                              }))
-                            }
-                            className="w-full px-4 py-2 border border-gray-300 rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500 pr-10"
+                            disabled
+                            className="w-full px-4 py-2 border border-gray-300 rounded-md text-sm bg-gray-100 cursor-not-allowed focus:outline-none pr-10"
                           />
                           <span className="absolute right-3 top-2.5 text-gray-400">🕐</span>
                         </div>
+                        <p className="mt-1 text-xs text-gray-500">
+                          Giờ về được tự động lấy theo thời điểm check-out, không thể chỉnh sửa ở đây.
+                        </p>
                       </div>
 
                       <div>
@@ -1329,14 +1375,12 @@ function TeacherAttendance() {
                         <input
                           type="time"
                           value={detailForm.timeIn}
-                          onChange={(e) =>
-                            setDetailForm((prev) => ({
-                              ...prev,
-                              timeIn: e.target.value,
-                            }))
-                          }
-                          className="w-full px-3 py-2 border border-gray-300 rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                          disabled
+                          className="w-full px-3 py-2 border border-gray-300 rounded-md text-sm bg-gray-100 cursor-not-allowed focus:outline-none"
                         />
+                        <p className="mt-1 text-[11px] text-gray-500">
+                          Giờ đến được tự động lấy theo thời điểm check-in, không thể chỉnh sửa ở đây.
+                        </p>
                       </div>
 
                       <div className="md:col-span-2 border-t border-gray-100 pt-4 mt-2">
@@ -1519,7 +1563,13 @@ function TeacherAttendance() {
                     ) : (
                       <button
                         type="submit"
-                        className="px-4 py-2 text-sm font-semibold text-white bg-indigo-600 rounded-md hover:bg-indigo-700 transition-colors"
+                        disabled={!canSubmitCheckin}
+                        title={canSubmitCheckin ? 'Lưu check-in' : 'Vui lòng chọn ảnh check-in'}
+                        className={`px-4 py-2 text-sm font-semibold rounded-md transition-colors ${
+                          canSubmitCheckin
+                            ? 'text-white bg-indigo-600 hover:bg-indigo-700'
+                            : 'text-gray-400 bg-gray-200 cursor-not-allowed'
+                        }`}
                       >
                         Lưu
                       </button>
