@@ -38,9 +38,6 @@ export default function AskQuestionModal({ open, onClose }) {
           <select className="w-full border rounded px-3 py-2 bg-white">
             <option value="">-- Loại phản hồi --</option>
             <option value="gop-y">Hỏi đáp</option>
-            <option value="khieu-nai">Khiếu nại</option>
-            <option value="hoi-dap">Góp ý</option>
-            <option value="bao-loi">Báo lỗi kỹ thuật</option>
           </select>
 
           <textarea

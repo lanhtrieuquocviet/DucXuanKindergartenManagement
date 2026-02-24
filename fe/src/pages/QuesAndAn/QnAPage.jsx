@@ -16,9 +16,6 @@ export default function QnAPage() {
                     <select className="border-2 border-black rounded px-3 py-1 w-56">
                         <option>-- Chọn danh mục --</option>
                         <option >Hỏi đáp</option>
-                        <option >Khiếu nại</option>
-                        <option >Góp ý</option>
-                        <option >Báo lỗi kỹ thuật</option>
                     </select>
 
                     <button
