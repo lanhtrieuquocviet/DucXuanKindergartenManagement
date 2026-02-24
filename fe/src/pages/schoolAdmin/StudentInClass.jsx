@@ -283,9 +283,9 @@ function StudentInClass() {
                       <div className="font-medium text-gray-900">
                         {student.fullName}
                       </div>
-                      {student.userId?.email && (
+                      {(student.parentId?.email || student.userId?.email) && (
                         <div className="text-xs text-gray-500">
-                          {student.userId.email}
+                          {student.parentId?.email || student.userId?.email}
                         </div>
                       )}
                     </td>

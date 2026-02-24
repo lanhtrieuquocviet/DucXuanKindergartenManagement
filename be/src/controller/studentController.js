@@ -8,7 +8,7 @@ const getStudents = async (req, res) => {
   try {
     const students = await Student.find()
       .populate('classId', 'className')
-      .populate('userId', 'fullName email username avatar');
+      .populate('parentId', 'fullName email username avatar');
 
     if (!students || students.length === 0) {
       return res.status(200).json({
@@ -41,7 +41,7 @@ const getStudents = async (req, res) => {
  */
 const createStudent = async (req, res) => {
   try {
-    const { fullName, dateOfBirth, gender, phone, address, classId, userId } =
+    const { fullName, dateOfBirth, gender, phone, address, classId, parentId, userId } =
       req.body;
 
     if (!fullName || !dateOfBirth || !gender) {
@@ -59,7 +59,8 @@ const createStudent = async (req, res) => {
       phone,
       address,
       classId,
-      userId,
+      // Ưu tiên parentId, fallback sang userId để tương thích dữ liệu cũ
+      parentId: parentId || userId,
       status: 'active',
     });
 
@@ -67,7 +68,7 @@ const createStudent = async (req, res) => {
 
     const populatedStudent = await Student.findById(newStudent._id)
       .populate('classId', 'className')
-      .populate('userId', 'fullName email username avatar');
+      .populate('parentId', 'fullName email username avatar');
 
     return res.status(201).json({
       status: 'success',
@@ -94,7 +95,7 @@ const getStudentDetail = async (req, res) => {
 
     const student = await Student.findById(studentId)
       .populate('classId', 'className')
-      .populate('userId', 'fullName email username avatar');
+      .populate('parentId', 'fullName email username avatar');
 
     if (!student) {
       return res.status(404).json({
@@ -150,7 +151,7 @@ const updateStudent = async (req, res) => {
       { new: true, runValidators: true },
     )
       .populate('classId', 'className')
-      .populate('userId', 'fullName email username avatar');
+      .populate('parentId', 'fullName email username avatar');
 
     if (!updatedStudent) {
       return res.status(404).json({

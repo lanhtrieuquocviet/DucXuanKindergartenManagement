@@ -32,7 +32,8 @@ const studentSchema = new mongoose.Schema({
     enum: ['active', 'inactive'],
     default: 'active'
   },
-  userId: {
+  // parentId: tham chiếu đến tài khoản User của phụ huynh
+  parentId: {
     type: mongoose.Schema.Types.ObjectId,
     ref: 'User'
   },

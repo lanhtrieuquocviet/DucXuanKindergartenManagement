@@ -676,9 +676,14 @@ const resetPassword = async (req, res) => {
 const getMyChildren = async (req, res) => {
   try {
     const parentId = req.user.id;
-    // Tìm theo cả userId và UserId (cho dữ liệu import)
+    // Tìm theo cả parentId mới và userId/UserId cũ (cho dữ liệu import hoặc dữ liệu legacy)
     const students = await Student.find({
-      $or: [{ userId: parentId }, { UserId: parentId }]
+      $or: [
+        { parentId },
+        { ParentId: parentId },
+        { userId: parentId },
+        { UserId: parentId },
+      ]
     })
       .populate('classId', 'className')
       .sort({ createdAt: -1 });
@@ -724,7 +729,7 @@ const createMyChild = async (req, res) => {
       },
       address: address ? address.trim() : '',
       classId: classId || undefined,
-      userId: parentId,
+      parentId,
       status: 'active',
     });
 
@@ -759,7 +764,12 @@ const updateMyChild = async (req, res) => {
 
     const student = await Student.findOne({
       _id: studentId,
-      $or: [{ userId: parentId }, { UserId: parentId }]
+      $or: [
+        { parentId },
+        { ParentId: parentId },
+        { userId: parentId },
+        { UserId: parentId },
+      ]
     });
     if (!student) {
       return res.status(404).json({
@@ -807,7 +817,12 @@ const getMyStudentInfo = async (req, res) => {
   try {
     const userId = req.user.id;
     const student = await Student.findOne({
-      $or: [{ userId }, { UserId: userId }],
+      $or: [
+        { parentId: userId },
+        { ParentId: userId },
+        { userId },
+        { UserId: userId },
+      ],
     })
       .populate('classId', 'className')
       .lean();
