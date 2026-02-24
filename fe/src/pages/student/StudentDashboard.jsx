@@ -74,7 +74,11 @@ function StudentDashboard() {
       label: 'Điểm danh hôm nay',
       onClick: () => navigate('/student/attendance/today'),
     },
-    { icon: '📈', label: 'Báo cáo điểm danh', onClick: () => {} },
+    {
+      icon: '📈',
+      label: 'Báo cáo điểm danh',
+      onClick: () => navigate('/student/attendance/report'),
+    },
     {
       icon: '👤',
       label: 'Người đón trẻ',

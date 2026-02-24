@@ -562,10 +562,35 @@ const getStudentAttendanceDetail = async (req, res) => {
   }
 };
 
+// Helper: kiểm tra đi trễ (sau 7:30 sáng)
+const isLate = (checkInTime) => {
+  if (!checkInTime) return false;
+  try {
+    let hours;
+    let minutes;
+    if (typeof checkInTime === 'string' && /^\d{2}:\d{2}$/.test(checkInTime)) {
+      [hours, minutes] = checkInTime.split(':').map(Number);
+    } else {
+      const d = new Date(checkInTime);
+      if (Number.isNaN(d.getTime())) return false;
+      hours = d.getHours();
+      minutes = d.getMinutes();
+    }
+    return hours > 7 || (hours === 7 && minutes > 30);
+  } catch (e) {
+    // eslint-disable-next-line no-console
+    console.error('Error in isLate helper:', e);
+    return false;
+  }
+};
+
 /**
  * Lấy lịch sử điểm danh của một học sinh (cho SchoolAdmin)
  * GET /api/school-admin/students/:studentId/attendance/history
  * query: from? (YYYY-MM-DD), to? (YYYY-MM-DD)
+ * Logic dựa hoàn toàn trên collection Attendances:
+ *  - Trả về danh sách bản ghi điểm danh
+ *  - Tính toán sẵn thống kê: totalDays, present, absent, late
  */
 const getStudentAttendanceHistory = async (req, res) => {
   try {
@@ -592,7 +617,7 @@ const getStudentAttendanceHistory = async (req, res) => {
     }
 
     // Xử lý filter ngày
-    const filter = { studentId: studentId };
+    const filter = { studentId };
     if (from || to) {
       filter.date = {};
       if (from) {
@@ -612,6 +637,29 @@ const getStudentAttendanceHistory = async (req, res) => {
       .sort({ date: -1 })
       .lean();
 
+    // Tính toán thống kê dựa trên bản ghi Attendances
+    const totalDays = attendances.length;
+    const present = attendances.filter((att) => att.status === 'present').length;
+    const absent = attendances.filter((att) => att.status === 'absent').length;
+    const late = attendances.filter((att) => {
+      if (att.status !== 'present') return false;
+      const checkInTime = att?.timeString?.checkIn || att?.time?.checkIn;
+      return isLate(checkInTime);
+    }).length;
+
+    const mappedAttendances = attendances.map((att) => ({
+      _id: att._id,
+      date: att.date,
+      status: att.status,
+      time: att.time,
+      timeString: att.timeString,
+      note: att.note,
+      delivererType: att.delivererType || '',
+      receiverType: att.receiverType || '',
+      delivererOtherInfo: att.delivererOtherInfo || '',
+      receiverOtherInfo: att.receiverOtherInfo || '',
+    }));
+
     return res.status(200).json({
       status: 'success',
       message: 'Lấy lịch sử điểm danh học sinh thành công',
@@ -622,18 +670,13 @@ const getStudentAttendanceHistory = async (req, res) => {
           className: student.classId?.className || '',
           classId: student.classId?._id || student.classId,
         },
-        attendances: attendances.map((att) => ({
-          _id: att._id,
-          date: att.date,
-          status: att.status,
-          time: att.time,
-          timeString: att.timeString,
-          note: att.note,
-          delivererType: att.delivererType || '',
-          receiverType: att.receiverType || '',
-          delivererOtherInfo: att.delivererOtherInfo || '',
-          receiverOtherInfo: att.receiverOtherInfo || '',
-        })),
+        stats: {
+          totalDays,
+          present,
+          absent,
+          late,
+        },
+        attendances: mappedAttendances,
       },
     });
   } catch (error) {

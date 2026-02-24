@@ -10,6 +10,7 @@ function Profile() {
   const navigate = useNavigate();
   const {
     user,
+    logout,
     getProfile,
     updateProfile,
     changePassword,
@@ -17,6 +18,13 @@ function Profile() {
     setError,
     isInitializing,
   } = useAuth();
+
+  const userRoles = user?.roles?.map((r) => r.roleName || r) || [];
+  // Student dashboard đang coi Parent/StudentParent/Student là cùng nhóm người dùng
+  const isStudentRole =
+    userRoles.includes('Student') ||
+    userRoles.includes('Parent') ||
+    userRoles.includes('StudentParent');
 
   const [profileForm, setProfileForm] = useState({
     fullName: '',
@@ -241,6 +249,278 @@ function Profile() {
     navigate(-1);
   };
 
+  const handleBackToDashboard = () => {
+    if (isStudentRole) {
+      navigate('/student');
+      return;
+    }
+    handleBack();
+  };
+
+  const handleLogout = () => {
+    logout();
+    navigate('/login', { replace: true });
+  };
+
+  if (isStudentRole) {
+    const displayName =
+      user?.fullName || profileForm.fullName || user?.username || 'Phụ huynh';
+
+    return (
+      <div className="min-h-screen bg-gray-100">
+        {/* Green banner (giống StudentDashboard) */}
+        <div className="bg-emerald-600 text-white px-4 py-4 md:px-6 md:py-5">
+          <div className="max-w-4xl mx-auto flex items-center justify-between">
+            <h1 className="text-lg md:text-xl font-bold">
+              👋 Xin chào, {displayName}
+            </h1>
+            <div className="flex items-center gap-2">
+              <button
+                type="button"
+                onClick={handleBackToDashboard}
+                className="text-sm px-3 py-1.5 rounded-lg bg-white/20 hover:bg-white/30 transition"
+              >
+                Bảng điều khiển
+              </button>
+              <button
+                type="button"
+                onClick={handleLogout}
+                className="text-sm px-3 py-1.5 rounded-lg bg-white/20 hover:bg-white/30 transition"
+              >
+                Đăng xuất
+              </button>
+            </div>
+          </div>
+        </div>
+
+        <div className="max-w-4xl mx-auto px-4 py-6 md:px-6 md:py-8">
+          {/* Header card */}
+          <div className="bg-white rounded-xl shadow-sm p-4 md:p-5 mb-6">
+            <div className="flex items-start justify-between gap-4">
+              <div>
+                <h2 className="text-lg md:text-xl font-semibold text-gray-800">
+                  Quản lý hồ sơ
+                </h2>
+                <p className="text-sm text-gray-500 mt-1">
+                  Xem và cập nhật thông tin cá nhân, thay đổi mật khẩu đăng nhập.
+                </p>
+              </div>
+
+              <div className="flex items-center gap-3 text-sm text-gray-700">
+                <div className="w-10 h-[52px] overflow-hidden rounded-md border border-gray-300 bg-gray-100 flex items-center justify-center">
+                  <img
+                    src={
+                      avatarPreview ||
+                      profileForm.avatar ||
+                      user?.avatar ||
+                      DEFAULT_AVATAR
+                    }
+                    alt="Avatar"
+                    className="w-full h-full object-cover"
+                  />
+                </div>
+                <div className="flex flex-col">
+                  <span className="font-medium">{displayName}</span>
+                  <span className="text-xs text-gray-500">
+                    {user?.email ?? profileForm.email}
+                  </span>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          {(message || authError) && (
+            <div className="mb-4">
+              {message && (
+                <div className="mb-2 rounded-md bg-green-50 border border-green-200 px-4 py-2 text-sm text-green-800">
+                  {message}
+                </div>
+              )}
+              {authError && (
+                <div className="rounded-md bg-red-50 border border-red-200 px-4 py-2 text-sm text-red-800">
+                  {authError}
+                </div>
+              )}
+            </div>
+          )}
+
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4 md:gap-6">
+            {/* Edit Profile */}
+            <section className="bg-white rounded-xl shadow-sm p-4 md:p-5">
+              <h2 className="text-lg font-semibold text-gray-800 mb-4">
+                Chỉnh sửa hồ sơ
+                {profileFormLoading && (
+                  <span className="ml-2 text-xs font-normal text-gray-400">
+                    Đang tải...
+                  </span>
+                )}
+              </h2>
+              <form onSubmit={handleSubmitProfile} className="space-y-4">
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">
+                    Họ và tên
+                  </label>
+                  <input
+                    type="text"
+                    name="fullName"
+                    value={profileForm.fullName ?? ''}
+                    onChange={handleProfileChange}
+                    readOnly={false}
+                    disabled={false}
+                    className="w-full border border-gray-300 rounded-md px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500"
+                    placeholder="Nhập họ và tên"
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">
+                    Email
+                  </label>
+                  <input
+                    type="email"
+                    name="email"
+                    value={profileForm.email ?? ''}
+                    onChange={handleProfileChange}
+                    readOnly={false}
+                    disabled={false}
+                    className="w-full border border-gray-300 rounded-md px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500"
+                    placeholder="Nhập email"
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">
+                    Ảnh đại diện (3x4)
+                  </label>
+                  <div className="flex items-start gap-4">
+                    <div className="w-24 aspect-[3/4] overflow-hidden rounded-md border border-gray-300 bg-gray-100 flex items-center justify-center">
+                      <img
+                        src={
+                          avatarPreview ||
+                          profileForm.avatar ||
+                          user?.avatar ||
+                          DEFAULT_AVATAR
+                        }
+                        alt="Avatar preview"
+                        className="w-full h-full object-cover"
+                      />
+                    </div>
+                    <div className="flex flex-col gap-2">
+                      <input
+                        ref={fileInputRef}
+                        type="file"
+                        accept="image/jpeg,image/jpg,image/png,image/gif,image/webp"
+                        onChange={handleSelectAvatarFile}
+                        className="hidden"
+                      />
+                      <button
+                        type="button"
+                        onClick={() => fileInputRef.current?.click()}
+                        disabled={uploadingAvatar}
+                        className="inline-flex items-center justify-center px-4 py-2 rounded-md border border-gray-300 bg-white text-sm font-medium text-gray-700 hover:bg-gray-50 disabled:opacity-60 disabled:cursor-not-allowed"
+                      >
+                        {uploadingAvatar ? 'Đang tải lên...' : 'Chọn ảnh trong máy'}
+                      </button>
+                      <p className="text-xs text-gray-500 max-w-xs">
+                        Ảnh nên có tỉ lệ 3x4. Chọn file (JPEG, PNG, GIF, WebP),
+                        sau đó nhấn &quot;Lưu thay đổi&quot; để cập nhật.
+                      </p>
+                    </div>
+                  </div>
+                </div>
+
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">
+                    Trạng thái tài khoản
+                  </label>
+                  <div className="flex items-center gap-2">
+                    <span className="inline-flex items-center rounded-full bg-green-100 text-green-700 text-xs font-semibold px-3 py-1">
+                      {profileForm.status || 'Đang hoạt động'}
+                    </span>
+                  </div>
+                </div>
+
+                <div className="pt-2">
+                  <button
+                    type="submit"
+                    disabled={savingProfile}
+                    className="inline-flex items-center justify-center px-6 py-2 rounded-lg bg-emerald-600 text-white text-sm font-semibold hover:bg-emerald-700 disabled:opacity-60 disabled:cursor-not-allowed transition"
+                  >
+                    {savingProfile ? 'Đang lưu...' : 'Lưu thay đổi'}
+                  </button>
+                </div>
+              </form>
+            </section>
+
+            {/* Change Password */}
+            <section className="bg-white rounded-xl shadow-sm p-4 md:p-5">
+              <h2 className="text-lg font-semibold text-gray-800 mb-4">
+                Đổi mật khẩu
+              </h2>
+              <form onSubmit={handleSubmitPassword} className="space-y-4">
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">
+                    Mật khẩu hiện tại
+                  </label>
+                  <input
+                    type="password"
+                    name="currentPassword"
+                    value={passwordForm.currentPassword}
+                    onChange={handlePasswordChange}
+                    className="w-full border border-gray-300 rounded-md px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500"
+                    placeholder="Nhập mật khẩu hiện tại"
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">
+                    Mật khẩu mới
+                  </label>
+                  <input
+                    type="password"
+                    name="newPassword"
+                    value={passwordForm.newPassword}
+                    onChange={handlePasswordChange}
+                    className="w-full border border-gray-300 rounded-md px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500"
+                    placeholder="Nhập mật khẩu mới"
+                  />
+                </div>
+
+                {passwordHint && (
+                  <p className="text-xs text-amber-600">{passwordHint}</p>
+                )}
+
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">
+                    Xác nhận mật khẩu mới
+                  </label>
+                  <input
+                    type="password"
+                    name="confirmPassword"
+                    value={passwordForm.confirmPassword}
+                    onChange={handlePasswordChange}
+                    className="w-full border border-gray-300 rounded-md px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500"
+                    placeholder="Nhập lại mật khẩu mới"
+                  />
+                </div>
+
+                <div className="pt-2">
+                  <button
+                    type="submit"
+                    disabled={changingPassword}
+                    className="inline-flex items-center justify-center px-6 py-2 rounded-lg bg-amber-500 text-white text-sm font-semibold hover:bg-amber-600 disabled:opacity-60 disabled:cursor-not-allowed transition"
+                  >
+                    {changingPassword ? 'Đang đổi...' : 'Đổi mật khẩu'}
+                  </button>
+                </div>
+              </form>
+            </section>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div className="min-h-screen bg-gray-100 flex">
       {/* Sidebar giả lập như hình */}
@@ -250,7 +530,7 @@ function Profile() {
         </div>
         <button
           type="button"
-          onClick={handleBack}
+          onClick={handleBackToDashboard}
           className="text-left px-6 py-3 text-sm hover:bg-gray-800 transition"
         >
           ← Quay lại bảng điều khiển

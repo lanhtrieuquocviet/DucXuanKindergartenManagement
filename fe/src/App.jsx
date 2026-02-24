@@ -14,6 +14,7 @@ import TeacherAttendance from './pages/teacher/TeacherAttendance';
 import StudentDashboard from './pages/student/StudentDashboard';
 import PickupRegistration from './pages/student/PickupRegistration';
 import TodayAttendance from './pages/student/TodayAttendance';
+import AttendanceReport from './pages/student/AttendanceReport';
 import SchoolAdminDashboard from './pages/schoolAdmin/SchoolAdminDashboard';
 import ClassList from './pages/schoolAdmin/ClassList';
 import StudentInClass from './pages/schoolAdmin/StudentInClass';
@@ -221,6 +222,7 @@ function App() {
           <Route path="/student" element={<StudentDashboard />} />
           <Route path="/student/pickup" element={<PickupRegistration />} />
           <Route path="/student/attendance/today" element={<TodayAttendance />} />
+          <Route path="/student/attendance/report" element={<AttendanceReport />} />
           <Route
             path="/school-admin"
             element={(
