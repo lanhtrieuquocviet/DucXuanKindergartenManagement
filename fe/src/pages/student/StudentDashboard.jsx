@@ -45,9 +45,12 @@ function StudentDashboard() {
   }, [navigate, user, isInitializing]);
 
   const studentInfo = children[0] || null;
-  const studentName =
-    studentInfo?.fullName || user?.fullName || user?.username || 'Học sinh';
+  const studentName = studentInfo?.fullName || 'Học sinh';
   const className = studentInfo?.classId?.className || 'Chưa xếp lớp';
+  const parentName = studentInfo?.parent?.name || '';
+  const parentPhone = studentInfo?.parent?.phone || '';
+  const parentDisplayName =
+    parentName || user?.fullName || user?.username || 'Phụ huynh';
   const arrivalInfo = '07:25 – Bố đưa'; // dữ liệu mẫu
   const leaveInfo = 'Chưa đón'; // dữ liệu mẫu
 
@@ -92,7 +95,7 @@ function StudentDashboard() {
       <div className="bg-emerald-600 text-white px-4 py-4 md:px-6 md:py-5">
         <div className="max-w-4xl mx-auto flex items-center justify-between">
           <h1 className="text-lg md:text-xl font-bold">
-            👋 Xin chào, {studentName}
+            👋 Xin chào, {parentDisplayName}
           </h1>
           <div className="flex items-center gap-2">
             <button
@@ -122,6 +125,17 @@ function StudentDashboard() {
             <div className="space-y-2 text-sm md:text-base text-gray-800">
               <p>👶 Trẻ: {studentName}</p>
               <p>🏫 Lớp: {className}</p>
+              {(parentName || parentPhone) && (
+                <p>
+                  👨‍👩‍👧 Phụ huynh:{' '}
+                  <span className="font-semibold">
+                    {parentName || '—'}
+                  </span>
+                  {parentPhone && (
+                    <span className="text-gray-600"> — {parentPhone}</span>
+                  )}
+                </p>
+              )}
               <p>
                 <span className="inline-block w-2 h-2 rounded-full bg-green-500 mr-2" />
                 Đến: {arrivalInfo}
@@ -184,7 +198,7 @@ function StudentDashboard() {
                   <span className="font-medium">
                     Số điện thoại phụ huynh:&nbsp;
                   </span>
-                  {studentInfo.parentPhone || '—'}
+                  {parentPhone || '—'}
                 </p>
                 <p>
                   <span className="font-medium">Địa chỉ:&nbsp;</span>
