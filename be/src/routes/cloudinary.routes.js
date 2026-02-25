@@ -1,7 +1,7 @@
 const express = require('express');
 const multer = require('multer');
-const { getMediaLibrarySignature, uploadAvatar } = require('../controller/cloudinaryController');
-const { authenticate } = require('../middleware/auth');
+const { getMediaLibrarySignature, uploadAvatar, uploadBlogImage } = require('../controller/cloudinaryController');
+const { authenticate, authorizeRoles } = require('../middleware/auth');
 
 const router = express.Router();
 
@@ -27,6 +27,16 @@ router.post('/upload-avatar', authenticate, (req, res, next) => {
     next();
   });
 }, uploadAvatar);
+
+// Upload ảnh blog từ máy (cần đăng nhập + SchoolAdmin)
+router.post('/upload-blog-image', authenticate, authorizeRoles('SchoolAdmin'), (req, res, next) => {
+  upload.single('image')(req, res, (err) => {
+    if (err) {
+      return res.status(400).json({ status: 'error', message: err.message || 'File không hợp lệ.' });
+    }
+    next();
+  });
+}, uploadBlogImage);
 
 module.exports = router;
 

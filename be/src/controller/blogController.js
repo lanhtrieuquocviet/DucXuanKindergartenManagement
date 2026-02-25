@@ -6,9 +6,6 @@ const validateBlogPayload = (body, isCreate = true) => {
   if (isCreate && !body.code) errors.push('Code không được để trống');
   if (body.code && typeof body.code !== 'string') errors.push('Code không hợp lệ');
 
-  if (isCreate && !body.title) errors.push('Tiêu đề không được để trống');
-  if (body.title && typeof body.title !== 'string') errors.push('Tiêu đề không hợp lệ');
-
   if (isCreate && !body.description) errors.push('Mô tả không được để trống');
   if (body.description && typeof body.description !== 'string') {
     errors.push('Mô tả không hợp lệ');
@@ -16,6 +13,20 @@ const validateBlogPayload = (body, isCreate = true) => {
 
   if (body.description && body.description.length > 5000) {
     errors.push('Mô tả quá dài (tối đa 5000 ký tự)');
+  }
+
+  if (isCreate && !body.category) errors.push('Danh mục không được để trống');
+  if (body.category && typeof body.category !== 'string') errors.push('Danh mục không hợp lệ');
+
+  if (body.images && Array.isArray(body.images)) {
+    if (body.images.length > 3) {
+      errors.push('Tối đa 3 ảnh cho mỗi bài viết');
+    }
+    body.images.forEach((img, idx) => {
+      if (!img || typeof img !== 'string') {
+        errors.push(`Ảnh ${idx + 1} không hợp lệ`);
+      }
+    });
   }
 
   return errors;
@@ -102,7 +113,7 @@ const getBlog = async (req, res) => {
 // POST /api/school-admin/blogs
 const createBlog = async (req, res) => {
   try {
-    const { code, title, description, category, imageUrl, status } = req.body;
+    const { code, description, category, images, status } = req.body;
 
     const errors = validateBlogPayload(req.body, true);
     if (errors.length > 0) {
@@ -120,12 +131,16 @@ const createBlog = async (req, res) => {
       });
     }
 
+    // Filter images - tối đa 3
+    const validImages = Array.isArray(images) 
+      ? images.filter(img => img && typeof img === 'string').slice(0, 3)
+      : [];
+
     const blog = await Blog.create({
       code: code.trim(),
-      title: title.trim(),
       description: description.trim(),
-      category: category ? category.trim() : '',
-      imageUrl: imageUrl ? imageUrl.trim() : '',
+      category: category.trim(),
+      images: validImages,
       status: status || 'draft',
       author: req.user.id,
     });
@@ -153,7 +168,7 @@ const createBlog = async (req, res) => {
 const updateBlog = async (req, res) => {
   try {
     const { id } = req.params;
-    const { code, title, description, category, imageUrl, status } = req.body;
+    const { description, category, images, status } = req.body;
 
     const errors = validateBlogPayload(req.body, false);
     if (errors.length > 0) {
@@ -171,21 +186,14 @@ const updateBlog = async (req, res) => {
       });
     }
 
-    if (code && code !== blog.code) {
-      const existed = await Blog.findOne({ code });
-      if (existed) {
-        return res.status(400).json({
-          status: 'error',
-          message: 'Code đã tồn tại, vui lòng chọn code khác',
-        });
-      }
-      blog.code = code.trim();
-    }
-
-    if (title !== undefined) blog.title = title.trim();
     if (description !== undefined) blog.description = description.trim();
-    if (category !== undefined) blog.category = category ? category.trim() : '';
-    if (imageUrl !== undefined) blog.imageUrl = imageUrl ? imageUrl.trim() : '';
+    if (category !== undefined) blog.category = category.trim();
+    if (images !== undefined) {
+      // Filter images - tối đa 3
+      blog.images = Array.isArray(images)
+        ? images.filter(img => img && typeof img === 'string').slice(0, 3)
+        : [];
+    }
     if (status !== undefined) blog.status = status;
 
     await blog.save();

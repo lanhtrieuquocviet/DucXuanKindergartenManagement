@@ -57,40 +57,35 @@ router.get(
   getAttendanceOverview
 );
 
-// Blog CRUD cho SchoolAdmin (permission-based)
+// Blog CRUD cho SchoolAdmin
 router.get(
   '/blogs',
   authenticate,
   authorizeRoles('SchoolAdmin'),
-  authorizePermissions('BLOG_READ'),
   blogController.listBlogs
 );
 router.get(
   '/blogs/:id',
   authenticate,
   authorizeRoles('SchoolAdmin'),
-  authorizePermissions('BLOG_READ'),
   blogController.getBlog
 );
 router.post(
   '/blogs',
   authenticate,
   authorizeRoles('SchoolAdmin'),
-  authorizePermissions('BLOG_CREATE'),
   blogController.createBlog
 );
 router.put(
   '/blogs/:id',
   authenticate,
   authorizeRoles('SchoolAdmin'),
-  authorizePermissions('BLOG_UPDATE'),
   blogController.updateBlog
 );
 router.delete(
   '/blogs/:id',
   authenticate,
   authorizeRoles('SchoolAdmin'),
-  authorizePermissions('BLOG_DELETE'),
   blogController.deleteBlog
 );
 

@@ -47,6 +47,7 @@ function SchoolAdminDashboard() {
     { key: 'assets', label: 'Quản lý tài sản' },
     { key: 'reports', label: 'Báo cáo của trường' },
     { key: 'contacts', label: 'Liên hệ' },
+    { key: 'blogs', label: 'Quản lý blog' },
     { key: 'attendance', label: 'Quản lý điểm danh' },
   ];
 
@@ -64,6 +65,10 @@ function SchoolAdminDashboard() {
     }
     if (key === 'contacts') {
       navigate('/school-admin/contacts');
+      return;
+    }
+    if (key === 'blogs') {
+      navigate('/school-admin/blogs');
       return;
     }
     if (key === 'attendance') {
@@ -87,12 +92,6 @@ function SchoolAdminDashboard() {
       onViewProfile={handleViewProfile}
       onMenuSelect={handleMenuSelect}
     >
-      {error && (
-        <div className="mb-4 rounded-md bg-red-50 border border-red-200 px-4 py-2 text-sm text-red-800">
-          {error}
-        </div>
-      )}
-
       <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
         <div className="bg-white rounded-lg shadow p-6">
           <h2 className="text-sm font-semibold text-gray-700 mb-1">Số lớp đang hoạt động</h2>

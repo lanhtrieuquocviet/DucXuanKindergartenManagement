@@ -215,6 +215,7 @@ export const ENDPOINTS = {
   CLOUDINARY: {
     MEDIA_LIBRARY_SIGNATURE: '/cloudinary/media-library-signature',
     UPLOAD_AVATAR: '/cloudinary/upload-avatar',
+    UPLOAD_BLOG_IMAGE: '/cloudinary/upload-blog-image',
   },
 };
 

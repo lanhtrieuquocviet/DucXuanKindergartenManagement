@@ -4,6 +4,15 @@ import { useSchoolAdmin } from '../../context/SchoolAdminContext';
 import { useAuth } from '../../context/AuthContext';
 import RoleLayout from '../../layouts/RoleLayout';
 import ConfirmDialog from '../../components/ConfirmDialog';
+import { postFormData, ENDPOINTS } from '../../service/api';
+
+const CATEGORY_OPTIONS = [
+  { value: 'Hoạt động', label: 'Hoạt động' },
+  { value: 'Thông báo', label: 'Thông báo' },
+  { value: 'Tin tức', label: 'Tin tức' },
+  { value: 'Hướng dẫn', label: 'Hướng dẫn' },
+  { value: 'Khác', label: 'Khác' },
+];
 
 const STATUS_OPTIONS = [
   { value: '', label: 'Tất cả trạng thái' },
@@ -15,23 +24,24 @@ const STATUS_OPTIONS = [
 function BlogFormModal({ open, onClose, initialData, onSubmit, loading }) {
   const [form, setForm] = useState({
     code: '',
-    title: '',
     description: '',
-    category: '',
-    imageUrl: '',
+    category: 'Hoạt động',
+    images: [],
     status: 'draft',
   });
+  const [uploading, setUploading] = useState(false);
+  const [uploadProgress, setUploadProgress] = useState({});
 
   useEffect(() => {
     if (open) {
       setForm({
         code: initialData?.code || '',
-        title: initialData?.title || '',
         description: initialData?.description || '',
-        category: initialData?.category || '',
-        imageUrl: initialData?.imageUrl || '',
+        category: initialData?.category || 'Hoạt động',
+        images: initialData?.images || [],
         status: initialData?.status || 'draft',
       });
+      setUploadProgress({});
     }
   }, [open, initialData]);
 
@@ -42,6 +52,56 @@ function BlogFormModal({ open, onClose, initialData, onSubmit, loading }) {
     setForm((prev) => ({ ...prev, [name]: value }));
   };
 
+  const handleUploadImages = async (e) => {
+    const files = Array.from(e.target.files);
+    
+    if (form.images.length + files.length > 3) {
+      alert('Tối đa 3 ảnh cho mỗi bài viết');
+      return;
+    }
+
+    setUploading(true);
+    const newImages = [...form.images];
+
+    try {
+      for (let i = 0; i < files.length; i++) {
+        const file = files[i];
+        const formData = new FormData();
+        formData.append('image', file);
+
+        setUploadProgress(prev => ({ ...prev, [i]: 0 }));
+
+        try {
+          const response = await postFormData(ENDPOINTS.CLOUDINARY.UPLOAD_BLOG_IMAGE, formData);
+
+          if (response.data?.url) {
+            newImages.push(response.data.url);
+            console.log(`Ảnh ${i + 1} uploaded:`, response.data.url);
+            setUploadProgress(prev => ({ ...prev, [i]: 100 }));
+          }
+        } catch (uploadErr) {
+          console.error('Upload lỗi cho ảnh', i + 1, ':', uploadErr);
+          throw uploadErr;
+        }
+      }
+
+      setForm(prev => ({ ...prev, images: newImages }));
+    } catch (err) {
+      console.error('Upload error:', err);
+      alert(`Upload ảnh thất bại: ${err.message || 'Lỗi không xác định'}`);
+    } finally {
+      setUploading(false);
+      setUploadProgress({});
+    }
+  };
+
+  const handleRemoveImage = (index) => {
+    setForm(prev => ({
+      ...prev,
+      images: prev.images.filter((_, i) => i !== index),
+    }));
+  };
+
   const handleSubmit = (e) => {
     e.preventDefault();
     onSubmit(form);
@@ -49,8 +109,8 @@ function BlogFormModal({ open, onClose, initialData, onSubmit, loading }) {
 
   return (
     <div className="fixed inset-0 z-40 flex items-center justify-center bg-black/30">
-      <div className="w-full max-w-2xl rounded-xl bg-white shadow-lg">
-        <div className="flex items-center justify-between border-b px-4 py-3">
+      <div className="w-full max-w-2xl max-h-[90vh] overflow-y-auto rounded-xl bg-white shadow-lg">
+        <div className="flex items-center justify-between border-b px-4 py-3 sticky top-0 bg-white">
           <h2 className="text-base font-semibold text-gray-800">
             {initialData ? 'Chỉnh sửa bài viết' : 'Tạo bài viết mới'}
           </h2>
@@ -63,62 +123,46 @@ function BlogFormModal({ open, onClose, initialData, onSubmit, loading }) {
           </button>
         </div>
         <form onSubmit={handleSubmit} className="space-y-4 px-4 py-4">
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            <div>
-              <label className="block text-xs font-medium text-gray-700 mb-1">
-                Mã bài viết *
-              </label>
-              <input
-                name="code"
-                value={form.code}
-                onChange={handleChange}
-                disabled={!!initialData}
-                className="w-full rounded-md border border-gray-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500 disabled:bg-gray-100"
-                placeholder="vd: BLOG_001"
-                required
-              />
-            </div>
-            <div>
-              <label className="block text-xs font-medium text-gray-700 mb-1">
-                Danh mục
-              </label>
-              <input
-                name="category"
-                value={form.category}
-                onChange={handleChange}
-                className="w-full rounded-md border border-gray-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500"
-                placeholder="vd: Hoạt động, Thông báo..."
-              />
-            </div>
-          </div>
+          {/* Code */}
           <div>
             <label className="block text-xs font-medium text-gray-700 mb-1">
               Tiêu đề *
             </label>
             <input
-              name="title"
-              value={form.title}
+              name="code"
+              value={form.code}
               onChange={handleChange}
-              className="w-full rounded-md border border-gray-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500"
-              placeholder="Tiêu đề bài viết"
+              disabled={!!initialData}
+              className="w-full rounded-md border border-gray-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500 disabled:bg-gray-100"
+              placeholder="vd: BLOG_001"
               required
             />
           </div>
+
+          {/* Danh mục */}
           <div>
             <label className="block text-xs font-medium text-gray-700 mb-1">
-              Ảnh hiển thị (URL)
+              Danh mục *
             </label>
-            <input
-              name="imageUrl"
-              value={form.imageUrl}
+            <select
+              name="category"
+              value={form.category}
               onChange={handleChange}
               className="w-full rounded-md border border-gray-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500"
-              placeholder="https://..."
-            />
+              required
+            >
+              {CATEGORY_OPTIONS.map(opt => (
+                <option key={opt.value} value={opt.value}>
+                  {opt.label}
+                </option>
+              ))}
+            </select>
           </div>
+
+          {/* Mô tả */}
           <div>
             <label className="block text-xs font-medium text-gray-700 mb-1">
-              Nội dung *
+              Mô tả *
             </label>
             <textarea
               name="description"
@@ -130,38 +174,75 @@ function BlogFormModal({ open, onClose, initialData, onSubmit, loading }) {
               required
             />
           </div>
-          <div className="flex items-center justify-between pt-2">
-            <div>
-              <label className="block text-xs font-medium text-gray-700 mb-1">
-                Trạng thái
-              </label>
-              <select
-                name="status"
-                value={form.status}
-                onChange={handleChange}
-                className="rounded-md border border-gray-300 px-3 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500"
-              >
-                <option value="draft">Nháp</option>
-                <option value="published">Đã xuất bản</option>
-                <option value="inactive">Ngưng hiển thị</option>
-              </select>
-            </div>
-            <div className="flex gap-2">
-              <button
-                type="button"
-                onClick={onClose}
-                className="rounded-lg border border-gray-300 px-4 py-2 text-sm font-medium text-gray-700 hover:bg-gray-50"
-              >
-                Hủy
-              </button>
-              <button
-                type="submit"
-                disabled={loading}
-                className="rounded-lg bg-emerald-600 px-4 py-2 text-sm font-semibold text-white hover:bg-emerald-700 disabled:opacity-60 disabled:cursor-not-allowed"
-              >
-                {loading ? 'Đang lưu...' : 'Lưu'}
-              </button>
-            </div>
+
+          {/* Upload ảnh */}
+          <div>
+            <label className="block text-xs font-medium text-gray-700 mb-1">
+              Ảnh ({form.images.length}/3)
+            </label>
+            <input
+              type="file"
+              multiple
+              accept="image/*"
+              onChange={handleUploadImages}
+              disabled={uploading || form.images.length >= 3}
+              className="block w-full text-sm text-gray-500 file:rounded-md file:border-0 file:text-sm file:font-semibold file:bg-emerald-50 file:text-emerald-700 hover:file:bg-emerald-100 disabled:opacity-50"
+            />
+            {form.images.length > 0 && (
+              <div className="mt-2 grid grid-cols-3 gap-2">
+                {form.images.map((url, idx) => (
+                  <div key={idx} className="relative">
+                    <img
+                      src={url}
+                      alt={`Blog ${idx + 1}`}
+                      className="w-full h-20 object-cover rounded-md"
+                    />
+                    <button
+                      type="button"
+                      onClick={() => handleRemoveImage(idx)}
+                      className="absolute top-1 right-1 bg-red-600 text-white rounded-full w-5 h-5 text-xs flex items-center justify-center hover:bg-red-700"
+                    >
+                      ×
+                    </button>
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+
+          {/* Trạng thái */}
+          <div>
+            <label className="block text-xs font-medium text-gray-700 mb-1">
+              Trạng thái
+            </label>
+            <select
+              name="status"
+              value={form.status}
+              onChange={handleChange}
+              className="rounded-md border border-gray-300 px-3 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500 w-full"
+            >
+              <option value="draft">Nháp</option>
+              <option value="published">Đã xuất bản</option>
+              <option value="inactive">Ngưng hiển thị</option>
+            </select>
+          </div>
+
+          {/* Buttons */}
+          <div className="flex gap-2 pt-2">
+            <button
+              type="button"
+              onClick={onClose}
+              className="flex-1 rounded-lg border border-gray-300 px-4 py-2 text-sm font-medium text-gray-700 hover:bg-gray-50"
+            >
+              Hủy
+            </button>
+            <button
+              type="submit"
+              disabled={loading || uploading}
+              className="flex-1 rounded-lg bg-emerald-600 px-4 py-2 text-sm font-semibold text-white hover:bg-emerald-700 disabled:opacity-60 disabled:cursor-not-allowed"
+            >
+              {loading ? 'Đang lưu...' : 'Lưu'}
+            </button>
           </div>
         </form>
       </div>
@@ -397,7 +478,7 @@ function ManageBlogs() {
               value={filters.search}
               onChange={handleSearchChange}
               className="w-full rounded-md border border-gray-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500"
-              placeholder="Tìm theo mã, tiêu đề, nội dung..."
+              placeholder="Tìm theo mã, nội dung..."
             />
             <button
               type="submit"
@@ -436,10 +517,13 @@ function ManageBlogs() {
                   Mã
                 </th>
                 <th className="px-3 py-2 text-left text-xs font-semibold uppercase tracking-wide text-gray-500">
-                  Tiêu đề
+                  Danh mục
                 </th>
                 <th className="px-3 py-2 text-left text-xs font-semibold uppercase tracking-wide text-gray-500">
-                  Danh mục
+                  Nội dung
+                </th>
+                <th className="px-3 py-2 text-left text-xs font-semibold uppercase tracking-wide text-gray-500">
+                  Ảnh
                 </th>
                 <th className="px-3 py-2 text-left text-xs font-semibold uppercase tracking-wide text-gray-500">
                   Trạng thái
@@ -458,16 +542,32 @@ function ManageBlogs() {
                   <td className="px-3 py-2 text-xs font-mono text-gray-700">
                     {blog.code}
                   </td>
+                  <td className="px-3 py-2 text-xs text-gray-700">
+                    {blog.category || '-'}
+                  </td>
                   <td className="px-3 py-2">
-                    <div className="text-sm font-medium text-gray-900 line-clamp-2">
-                      {blog.title}
-                    </div>
-                    <div className="mt-0.5 text-xs text-gray-500 line-clamp-2">
+                    <div className="text-xs text-gray-900 line-clamp-2">
                       {blog.description}
                     </div>
                   </td>
                   <td className="px-3 py-2 text-xs text-gray-700">
-                    {blog.category || '-'}
+                    {blog.images && blog.images.length > 0 ? (
+                      <div className="flex gap-1">
+                        {blog.images.slice(0, 2).map((img, idx) => (
+                          <img
+                            key={idx}
+                            src={img}
+                            alt={`img-${idx}`}
+                            className="w-8 h-8 rounded object-cover"
+                          />
+                        ))}
+                        {blog.images.length > 2 && (
+                          <span className="text-[10px] text-gray-500">+{blog.images.length - 2}</span>
+                        )}
+                      </div>
+                    ) : (
+                      '-'
+                    )}
                   </td>
                   <td className="px-3 py-2 text-xs">
                     {blog.status === 'published' && (
@@ -490,6 +590,13 @@ function ManageBlogs() {
                     {blog.author?.fullName || blog.author?.username || '-'}
                   </td>
                   <td className="px-3 py-2 text-right text-xs">
+                    <button
+                      type="button"
+                      onClick={() => navigate(`/school-admin/blogs/${blog._id}`)}
+                      className="mr-2 text-blue-600 hover:underline"
+                    >
+                      Xem
+                    </button>
                     <button
                       type="button"
                       onClick={() => openEditModal(blog)}

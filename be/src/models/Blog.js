@@ -8,11 +8,6 @@ const blogSchema = new mongoose.Schema(
       unique: true,
       trim: true,
     },
-    title: {
-      type: String,
-      required: true,
-      trim: true,
-    },
     description: {
       type: String,
       required: true,
@@ -20,14 +15,13 @@ const blogSchema = new mongoose.Schema(
     },
     category: {
       type: String,
+      required: true,
       trim: true,
-      default: '',
     },
-    imageUrl: {
+    images: [{
       type: String,
       trim: true,
-      default: '',
-    },
+    }],
     status: {
       type: String,
       enum: ['draft', 'published', 'inactive'],
