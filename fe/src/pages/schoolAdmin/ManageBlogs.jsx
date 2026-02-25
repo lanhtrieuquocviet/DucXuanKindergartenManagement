@@ -1,5 +1,9 @@
 import { useEffect, useMemo, useState } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { useSchoolAdmin } from '../../context/SchoolAdminContext';
+import { useAuth } from '../../context/AuthContext';
+import RoleLayout from '../../layouts/RoleLayout';
+import ConfirmDialog from '../../components/ConfirmDialog';
 
 const STATUS_OPTIONS = [
   { value: '', label: 'Tất cả trạng thái' },
@@ -176,6 +180,9 @@ function ManageBlogs() {
     setError,
   } = useSchoolAdmin();
 
+  const navigate = useNavigate();
+  const { user, logout, isInitializing } = useAuth();
+
   const [blogs, setBlogs] = useState([]);
   const [pagination, setPagination] = useState({
     page: 1,
@@ -190,6 +197,21 @@ function ManageBlogs() {
   const [selectedBlog, setSelectedBlog] = useState(null);
   const [modalOpen, setModalOpen] = useState(false);
   const [submitting, setSubmitting] = useState(false);
+  const [confirmDelete, setConfirmDelete] = useState(null);
+
+  // Auth check
+  useEffect(() => {
+    if (isInitializing) return;
+    if (!user) {
+      navigate('/login', { replace: true });
+      return;
+    }
+    const userRoles = user?.roles?.map((r) => r.roleName || r) || [];
+    if (!userRoles.includes('SchoolAdmin')) {
+      navigate('/', { replace: true });
+      return;
+    }
+  }, [navigate, user, isInitializing]);
 
   const canShowEmptyState = useMemo(
     () => !loading && blogs.length === 0,
@@ -246,14 +268,16 @@ function ManageBlogs() {
   };
 
   const handleDelete = async (blog) => {
-    // eslint-disable-next-line no-alert
-    const confirm = window.confirm(`Bạn chắc chắn muốn xóa "${blog.title}"?`);
-    if (!confirm) return;
+    setConfirmDelete(blog);
+  };
 
+  const confirmDeleteAction = async () => {
+    if (!confirmDelete) return;
     try {
       setSubmitting(true);
-      await deleteBlog(blog._id);
+      await deleteBlog(confirmDelete._id);
       await loadData();
+      setConfirmDelete(null);
     } finally {
       setSubmitting(false);
     }
@@ -281,17 +305,76 @@ function ManageBlogs() {
     await loadData({ page: newPage });
   };
 
+  const menuItems = [
+    { key: 'overview', label: 'Tổng quan trường' },
+    { key: 'classes', label: 'Lớp học' },
+    { key: 'teachers', label: 'Giáo viên' },
+    { key: 'students', label: 'Học sinh & phụ huynh' },
+    { key: 'assets', label: 'Quản lý tài sản' },
+    { key: 'reports', label: 'Báo cáo của trường' },
+    { key: 'contacts', label: 'Liên hệ' },
+    { key: 'blogs', label: 'Quản lý blog' },
+    { key: 'attendance', label: 'Quản lý điểm danh' },
+  ];
+
+  const handleMenuSelect = (key) => {
+    if (key === 'overview') {
+      navigate('/school-admin');
+      return;
+    }
+    if (key === 'classes') {
+      navigate('/school-admin/classes');
+      return;
+    }
+    if (key === 'contacts') {
+      navigate('/school-admin/contacts');
+      return;
+    }
+    if (key === 'blogs') {
+      navigate('/school-admin/blogs');
+      return;
+    }
+    if (key === 'attendance') {
+      navigate('/school-admin/attendance/overview');
+      return;
+    }
+  };
+
+  const userName = user?.fullName || user?.username || 'School Admin';
+
+  const handleLogout = () => {
+    logout();
+    navigate('/login', { replace: true });
+  };
+
+  const handleViewProfile = () => {
+    navigate('/profile');
+  };
   return (
-    <div className="min-h-screen bg-gray-50 px-4 py-4 md:px-6 md:py-6">
-      <div className="mx-auto max-w-6xl space-y-4">
-        <header className="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
+    <RoleLayout
+      title="Quản lý bài viết (Blog)"
+      description="Tạo, chỉnh sửa, xóa và quản lý các bài viết, tin tức của trường."
+      menuItems={menuItems}
+      activeKey="blogs"
+      onLogout={handleLogout}
+      onViewProfile={handleViewProfile}
+      onMenuSelect={handleMenuSelect}
+      userName={userName}
+      userAvatar={user?.avatar}
+    >
+      {error && (
+        <div className="mb-4 rounded-md bg-red-50 border border-red-200 px-4 py-2 text-sm text-red-800">
+          {error}
+        </div>
+      )}
+
+      <div className="bg-white rounded-lg shadow p-6">
+        {/* Header + bộ lọc */}
+        <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-3 mb-4">
           <div>
-            <h1 className="text-xl font-semibold text-gray-800">
-              Quản lý bài viết (Blog)
-            </h1>
+            <h3 className="text-sm font-semibold text-gray-800">Danh sách bài viết</h3>
             <p className="text-xs text-gray-500 mt-1">
-              SchoolAdmin có thể tạo, chỉnh sửa, xóa và ẩn/hiện các bài viết tin tức.
-              Phân quyền chi tiết được kiểm soát trên backend qua Permission.
+              Tổng bài: <span className="font-semibold">{pagination.total}</span>
             </p>
           </div>
           <button
@@ -301,172 +384,167 @@ function ManageBlogs() {
           >
             + Tạo bài viết mới
           </button>
-        </header>
+        </div>
 
-        <section className="rounded-xl bg-white p-4 shadow-sm">
-          <form
-            onSubmit={handleSearchSubmit}
-            className="flex flex-col gap-3 border-b border-gray-100 pb-3 md:flex-row md:items-center md:justify-between"
-          >
-            <div className="flex flex-1 gap-2">
-              <input
-                type="text"
-                value={filters.search}
-                onChange={handleSearchChange}
-                className="w-full rounded-md border border-gray-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500"
-                placeholder="Tìm theo mã, tiêu đề, nội dung..."
-              />
-              <button
-                type="submit"
-                className="hidden rounded-md bg-gray-800 px-4 py-2 text-sm font-medium text-white hover:bg-gray-900 md:inline-flex"
-              >
-                Tìm kiếm
-              </button>
-            </div>
-            <div className="flex items-center gap-2">
-              <select
-                value={filters.status}
-                onChange={handleStatusChange}
-                className="rounded-md border border-gray-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500"
-              >
-                {STATUS_OPTIONS.map((opt) => (
-                  <option key={opt.value} value={opt.value}>
-                    {opt.label}
-                  </option>
-                ))}
-              </select>
-              <button
-                type="submit"
-                className="inline-flex rounded-md bg-gray-800 px-4 py-2 text-sm font-medium text-white hover:bg-gray-900 md:hidden"
-              >
-                Lọc
-              </button>
-            </div>
-          </form>
-
-          {error && (
-            <div className="mt-3 rounded-md border border-red-200 bg-red-50 px-3 py-2 text-xs text-red-700">
-              {error}
-            </div>
-          )}
-
-          <div className="mt-3 overflow-x-auto">
-            <table className="min-w-full divide-y divide-gray-200 text-sm">
-              <thead className="bg-gray-50">
-                <tr>
-                  <th className="px-3 py-2 text-left text-xs font-semibold uppercase tracking-wide text-gray-500">
-                    Mã
-                  </th>
-                  <th className="px-3 py-2 text-left text-xs font-semibold uppercase tracking-wide text-gray-500">
-                    Tiêu đề
-                  </th>
-                  <th className="px-3 py-2 text-left text-xs font-semibold uppercase tracking-wide text-gray-500">
-                    Danh mục
-                  </th>
-                  <th className="px-3 py-2 text-left text-xs font-semibold uppercase tracking-wide text-gray-500">
-                    Trạng thái
-                  </th>
-                  <th className="px-3 py-2 text-left text-xs font-semibold uppercase tracking-wide text-gray-500">
-                    Tác giả
-                  </th>
-                  <th className="px-3 py-2 text-right text-xs font-semibold uppercase tracking-wide text-gray-500">
-                    Hành động
-                  </th>
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-gray-100 bg-white">
-                {blogs.map((blog) => (
-                  <tr key={blog._id}>
-                    <td className="px-3 py-2 text-xs font-mono text-gray-700">
-                      {blog.code}
-                    </td>
-                    <td className="px-3 py-2">
-                      <div className="text-sm font-medium text-gray-900 line-clamp-2">
-                        {blog.title}
-                      </div>
-                      <div className="mt-0.5 text-xs text-gray-500 line-clamp-2">
-                        {blog.description}
-                      </div>
-                    </td>
-                    <td className="px-3 py-2 text-xs text-gray-700">
-                      {blog.category || '-'}
-                    </td>
-                    <td className="px-3 py-2 text-xs">
-                      {blog.status === 'published' && (
-                        <span className="inline-flex rounded-full bg-emerald-50 px-2 py-0.5 text-[11px] font-semibold text-emerald-700">
-                          Đã xuất bản
-                        </span>
-                      )}
-                      {blog.status === 'draft' && (
-                        <span className="inline-flex rounded-full bg-yellow-50 px-2 py-0.5 text-[11px] font-semibold text-yellow-700">
-                          Nháp
-                        </span>
-                      )}
-                      {blog.status === 'inactive' && (
-                        <span className="inline-flex rounded-full bg-gray-100 px-2 py-0.5 text-[11px] font-semibold text-gray-600">
-                          Ngưng hiển thị
-                        </span>
-                      )}
-                    </td>
-                    <td className="px-3 py-2 text-xs text-gray-700">
-                      {blog.author?.fullName || blog.author?.username || '-'}
-                    </td>
-                    <td className="px-3 py-2 text-right text-xs">
-                      <button
-                        type="button"
-                        onClick={() => openEditModal(blog)}
-                        className="mr-2 text-emerald-700 hover:underline"
-                      >
-                        Sửa
-                      </button>
-                      <button
-                        type="button"
-                        onClick={() => handleDelete(blog)}
-                        disabled={submitting}
-                        className="text-red-600 hover:underline disabled:opacity-50"
-                      >
-                        Xóa
-                      </button>
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-
-            {canShowEmptyState && (
-              <div className="py-8 text-center text-sm text-gray-500">
-                Chưa có bài viết nào. Hãy nhấn &quot;Tạo bài viết mới&quot; để bắt đầu.
-              </div>
-            )}
+        {/* Bộ lọc và tìm kiếm */}
+        <form
+          onSubmit={handleSearchSubmit}
+          className="flex flex-col gap-3 border-b border-gray-100 pb-3 md:flex-row md:items-center md:justify-between mb-4"
+        >
+          <div className="flex flex-1 gap-2">
+            <input
+              type="text"
+              value={filters.search}
+              onChange={handleSearchChange}
+              className="w-full rounded-md border border-gray-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500"
+              placeholder="Tìm theo mã, tiêu đề, nội dung..."
+            />
+            <button
+              type="submit"
+              className="hidden rounded-md bg-gray-800 px-4 py-2 text-sm font-medium text-white hover:bg-gray-900 md:inline-flex"
+            >
+              Tìm kiếm
+            </button>
           </div>
+          <div className="flex items-center gap-2">
+            <select
+              value={filters.status}
+              onChange={handleStatusChange}
+              className="rounded-md border border-gray-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500"
+            >
+              {STATUS_OPTIONS.map((opt) => (
+                <option key={opt.value} value={opt.value}>
+                  {opt.label}
+                </option>
+              ))}
+            </select>
+            <button
+              type="submit"
+              className="inline-flex rounded-md bg-gray-800 px-4 py-2 text-sm font-medium text-white hover:bg-gray-900 md:hidden"
+            >
+              Lọc
+            </button>
+          </div>
+        </form>
 
-          {pagination.totalPages > 1 && (
-            <div className="mt-4 flex items-center justify-between text-xs text-gray-600">
-              <div>
-                Trang {pagination.page}/{pagination.totalPages} · Tổng{' '}
-                {pagination.total} bài viết
-              </div>
-              <div className="flex gap-1">
-                <button
-                  type="button"
-                  disabled={pagination.page === 1 || loading}
-                  onClick={() => handlePageChange(pagination.page - 1)}
-                  className="rounded-md border border-gray-300 px-2 py-1 disabled:opacity-50"
-                >
-                  «
-                </button>
-                <button
-                  type="button"
-                  disabled={pagination.page === pagination.totalPages || loading}
-                  onClick={() => handlePageChange(pagination.page + 1)}
-                  className="rounded-md border border-gray-300 px-2 py-1 disabled:opacity-50"
-                >
-                  »
-                </button>
-              </div>
+        {/* Bảng danh sách */}
+        <div className="overflow-x-auto">
+          <table className="min-w-full divide-y divide-gray-200 text-sm">
+            <thead className="bg-gray-50">
+              <tr>
+                <th className="px-3 py-2 text-left text-xs font-semibold uppercase tracking-wide text-gray-500">
+                  Mã
+                </th>
+                <th className="px-3 py-2 text-left text-xs font-semibold uppercase tracking-wide text-gray-500">
+                  Tiêu đề
+                </th>
+                <th className="px-3 py-2 text-left text-xs font-semibold uppercase tracking-wide text-gray-500">
+                  Danh mục
+                </th>
+                <th className="px-3 py-2 text-left text-xs font-semibold uppercase tracking-wide text-gray-500">
+                  Trạng thái
+                </th>
+                <th className="px-3 py-2 text-left text-xs font-semibold uppercase tracking-wide text-gray-500">
+                  Tác giả
+                </th>
+                <th className="px-3 py-2 text-right text-xs font-semibold uppercase tracking-wide text-gray-500">
+                  Hành động
+                </th>
+              </tr>
+            </thead>
+            <tbody className="divide-y divide-gray-100 bg-white">
+              {blogs.map((blog) => (
+                <tr key={blog._id}>
+                  <td className="px-3 py-2 text-xs font-mono text-gray-700">
+                    {blog.code}
+                  </td>
+                  <td className="px-3 py-2">
+                    <div className="text-sm font-medium text-gray-900 line-clamp-2">
+                      {blog.title}
+                    </div>
+                    <div className="mt-0.5 text-xs text-gray-500 line-clamp-2">
+                      {blog.description}
+                    </div>
+                  </td>
+                  <td className="px-3 py-2 text-xs text-gray-700">
+                    {blog.category || '-'}
+                  </td>
+                  <td className="px-3 py-2 text-xs">
+                    {blog.status === 'published' && (
+                      <span className="inline-flex rounded-full bg-emerald-50 px-2 py-0.5 text-[11px] font-semibold text-emerald-700">
+                        Đã xuất bản
+                      </span>
+                    )}
+                    {blog.status === 'draft' && (
+                      <span className="inline-flex rounded-full bg-yellow-50 px-2 py-0.5 text-[11px] font-semibold text-yellow-700">
+                        Nháp
+                      </span>
+                    )}
+                    {blog.status === 'inactive' && (
+                      <span className="inline-flex rounded-full bg-gray-100 px-2 py-0.5 text-[11px] font-semibold text-gray-600">
+                        Ngưng hiển thị
+                      </span>
+                    )}
+                  </td>
+                  <td className="px-3 py-2 text-xs text-gray-700">
+                    {blog.author?.fullName || blog.author?.username || '-'}
+                  </td>
+                  <td className="px-3 py-2 text-right text-xs">
+                    <button
+                      type="button"
+                      onClick={() => openEditModal(blog)}
+                      className="mr-2 text-emerald-700 hover:underline"
+                    >
+                      Sửa
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => handleDelete(blog)}
+                      disabled={submitting}
+                      className="text-red-600 hover:underline disabled:opacity-50"
+                    >
+                      Xóa
+                    </button>
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+
+          {canShowEmptyState && (
+            <div className="py-8 text-center text-sm text-gray-500">
+              Chưa có bài viết nào. Hãy nhấn &quot;Tạo bài viết mới&quot; để bắt đầu.
             </div>
           )}
-        </section>
+        </div>
+
+        {/* Phân trang */}
+        {pagination.totalPages > 1 && (
+          <div className="mt-4 flex items-center justify-between text-xs text-gray-600">
+            <div>
+              Trang {pagination.page}/{pagination.totalPages} · Tổng{' '}
+              {pagination.total} bài viết
+            </div>
+            <div className="flex gap-1">
+              <button
+                type="button"
+                disabled={pagination.page === 1 || loading}
+                onClick={() => handlePageChange(pagination.page - 1)}
+                className="rounded-md border border-gray-300 px-2 py-1 disabled:opacity-50"
+              >
+                «
+              </button>
+              <button
+                type="button"
+                disabled={pagination.page === pagination.totalPages || loading}
+                onClick={() => handlePageChange(pagination.page + 1)}
+                className="rounded-md border border-gray-300 px-2 py-1 disabled:opacity-50"
+              >
+                »
+              </button>
+            </div>
+          </div>
+        )}
       </div>
 
       <BlogFormModal
@@ -476,7 +554,16 @@ function ManageBlogs() {
         onSubmit={handleSubmitForm}
         loading={submitting}
       />
-    </div>
+
+      <ConfirmDialog
+        open={!!confirmDelete}
+        title="Xác nhận xóa"
+        message={`Bạn chắc chắn muốn xóa bài viết "${confirmDelete?.title}"?`}
+        onConfirm={confirmDeleteAction}
+        onCancel={() => setConfirmDelete(null)}
+        loading={submitting}
+      />
+    </RoleLayout>
   );
 }
 
