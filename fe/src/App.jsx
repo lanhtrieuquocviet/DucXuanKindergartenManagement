@@ -297,6 +297,14 @@ function App() {
             )}
           />
           <Route
+            path="/school-admin/blogs"
+            element={(
+              <SchoolAdminProvider>
+                <ManageBlogs />
+              </SchoolAdminProvider>
+            )}
+          />
+          <Route
             path="/school-admin/manage-blogs"
             element={(
               <SchoolAdminProvider>

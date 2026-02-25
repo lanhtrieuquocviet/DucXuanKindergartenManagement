@@ -27,6 +27,7 @@ require('./src/models/Classes');
 require('./src/models/AcademicYear');
 require('./src/models/User');
 require('./src/models/Contact');
+require('./src/models/Blog');
 
 // Khởi tạo ứng dụng express
 const app = express();
