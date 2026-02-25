@@ -1,7 +1,13 @@
 const express = require('express');
-const { authenticate, authorizeRoles } = require('../middleware/auth');
+const { authenticate, authorizeRoles, authorizePermissions } = require('../middleware/auth');
 const contactController = require('../controller/contactController');
-const { getAttendanceOverview, getClassAttendanceDetail, getStudentAttendanceDetail, getStudentAttendanceHistory } = require('../controller/attendanceController');
+const {
+  getAttendanceOverview,
+  getClassAttendanceDetail,
+  getStudentAttendanceDetail,
+  getStudentAttendanceHistory,
+} = require('../controller/attendanceController');
+const blogController = require('../controller/blogController');
 
 const router = express.Router();
 
@@ -49,6 +55,43 @@ router.get(
   authenticate,
   authorizeRoles('SchoolAdmin'),
   getAttendanceOverview
+);
+
+// Blog CRUD cho SchoolAdmin (permission-based)
+router.get(
+  '/blogs',
+  authenticate,
+  authorizeRoles('SchoolAdmin'),
+  authorizePermissions('BLOG_READ'),
+  blogController.listBlogs
+);
+router.get(
+  '/blogs/:id',
+  authenticate,
+  authorizeRoles('SchoolAdmin'),
+  authorizePermissions('BLOG_READ'),
+  blogController.getBlog
+);
+router.post(
+  '/blogs',
+  authenticate,
+  authorizeRoles('SchoolAdmin'),
+  authorizePermissions('BLOG_CREATE'),
+  blogController.createBlog
+);
+router.put(
+  '/blogs/:id',
+  authenticate,
+  authorizeRoles('SchoolAdmin'),
+  authorizePermissions('BLOG_UPDATE'),
+  blogController.updateBlog
+);
+router.delete(
+  '/blogs/:id',
+  authenticate,
+  authorizeRoles('SchoolAdmin'),
+  authorizePermissions('BLOG_DELETE'),
+  blogController.deleteBlog
 );
 
 // Chi tiết điểm danh của một lớp

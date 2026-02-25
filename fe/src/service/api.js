@@ -179,6 +179,8 @@ export const ENDPOINTS = {
     CLASS_ATTENDANCE_DETAIL: (classId) => `/school-admin/classes/${classId}/attendance`,
     STUDENT_ATTENDANCE_DETAIL: (studentId) => `/school-admin/students/${studentId}/attendance`,
     STUDENT_ATTENDANCE_HISTORY: (studentId) => `/school-admin/students/${studentId}/attendance/history`,
+    BLOGS: '/school-admin/blogs',
+    BLOG_DETAIL: (blogId) => `/school-admin/blogs/${blogId}`,
   },
   // Contact (public)
   CONTACT: {

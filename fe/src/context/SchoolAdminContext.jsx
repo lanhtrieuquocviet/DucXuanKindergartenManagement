@@ -1,5 +1,12 @@
 import { createContext, useContext, useState, useCallback, useRef, useEffect } from 'react';
-import { get, post, patch, ENDPOINTS } from '../service/api';
+import {
+  get,
+  post,
+  patch,
+  put,
+  del,
+  ENDPOINTS,
+} from '../service/api';
 
 const SchoolAdminContext = createContext(null);
 
@@ -224,6 +231,68 @@ export const SchoolAdminProvider = ({
     }
   }, []);
 
+  // ==== BLOGS CRUD (SchoolAdmin only, permission-based tại backend) ====
+  const getBlogs = useCallback(async (params = {}) => {
+    try {
+      setLoading(true);
+      setError(null);
+      const search = new URLSearchParams(params).toString();
+      const endpoint = search
+        ? `${ENDPOINTS.SCHOOL_ADMIN.BLOGS}?${search}`
+        : ENDPOINTS.SCHOOL_ADMIN.BLOGS;
+      const response = await get(endpoint);
+      return response;
+    } catch (err) {
+      const errorMessage = err.message || 'Không tải được danh sách blog';
+      setError(errorMessage);
+      throw new Error(errorMessage);
+    } finally {
+      setLoading(false);
+    }
+  }, []);
+
+  const createBlog = useCallback(async (payload) => {
+    try {
+      setError(null);
+      const response = await post(ENDPOINTS.SCHOOL_ADMIN.BLOGS, payload);
+      if (onSuccessRef.current) onSuccessRef.current(response.data);
+      return response;
+    } catch (err) {
+      const errorMessage = err.message || 'Tạo blog thất bại';
+      setError(errorMessage);
+      if (onErrorRef.current) onErrorRef.current(err);
+      throw new Error(errorMessage);
+    }
+  }, []);
+
+  const updateBlog = useCallback(async (blogId, payload) => {
+    try {
+      setError(null);
+      const response = await put(ENDPOINTS.SCHOOL_ADMIN.BLOG_DETAIL(blogId), payload);
+      if (onSuccessRef.current) onSuccessRef.current(response.data);
+      return response;
+    } catch (err) {
+      const errorMessage = err.message || 'Cập nhật blog thất bại';
+      setError(errorMessage);
+      if (onErrorRef.current) onErrorRef.current(err);
+      throw new Error(errorMessage);
+    }
+  }, []);
+
+  const deleteBlog = useCallback(async (blogId) => {
+    try {
+      setError(null);
+      const response = await del(ENDPOINTS.SCHOOL_ADMIN.BLOG_DETAIL(blogId));
+      if (onSuccessRef.current) onSuccessRef.current({ id: blogId });
+      return response;
+    } catch (err) {
+      const errorMessage = err.message || 'Xóa blog thất bại';
+      setError(errorMessage);
+      if (onErrorRef.current) onErrorRef.current(err);
+      throw new Error(errorMessage);
+    }
+  }, []);
+
   const value = {
     loading,
     error,
@@ -238,6 +307,10 @@ export const SchoolAdminProvider = ({
     getStudentAttendanceHistory,
     getClasses,
     getStudents,
+    getBlogs,
+    createBlog,
+    updateBlog,
+    deleteBlog,
     setError,
   };
 

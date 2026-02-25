@@ -1,6 +1,7 @@
 const User = require('./User');
 const Role = require('./Role');
 const Permission = require('./Permission');
+const Blog = require('./Blog');
 const Student = require('./Student');
 const Grade = require('./Grade');
 const Classes = require('./Classes');
@@ -12,10 +13,11 @@ module.exports = {
   User,
   Role,
   Permission,
+  Blog,
   Student,
   Grade,
   Classes,
   AcademicYear,
   Attendances,
-  TakeOff
+  TakeOff,
 };
