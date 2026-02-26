@@ -293,6 +293,65 @@ export const SchoolAdminProvider = ({
     }
   }, []);
 
+  // ==== Q&A (SchoolAdmin) ====
+  const getQaQuestions = useCallback(async (params = {}) => {
+    try {
+      setLoading(true);
+      setError(null);
+      const search = new URLSearchParams(params).toString();
+      const endpoint = search
+        ? `${ENDPOINTS.SCHOOL_ADMIN.QA_QUESTIONS}?${search}`
+        : ENDPOINTS.SCHOOL_ADMIN.QA_QUESTIONS;
+      const response = await get(endpoint);
+      return response;
+    } catch (err) {
+      const errorMessage = err.message || 'Không tải được danh sách câu hỏi';
+      setError(errorMessage);
+      throw new Error(errorMessage);
+    } finally {
+      setLoading(false);
+    }
+  }, []);
+
+  const updateQuestion = useCallback(async (questionId, payload) => {
+    try {
+      setError(null);
+      const response = await patch(ENDPOINTS.SCHOOL_ADMIN.QA_QUESTION_DETAIL(questionId), payload);
+      return response;
+    } catch (err) {
+      const errorMessage = err.message || 'Cập nhật câu hỏi thất bại';
+      setError(errorMessage);
+      throw new Error(errorMessage);
+    }
+  }, []);
+
+  const deleteQuestion = useCallback(async (questionId) => {
+    try {
+      setError(null);
+      const response = await del(ENDPOINTS.SCHOOL_ADMIN.QA_QUESTION_DETAIL(questionId));
+      return response;
+    } catch (err) {
+      const errorMessage = err.message || 'Xóa câu hỏi thất bại';
+      setError(errorMessage);
+      throw new Error(errorMessage);
+    }
+  }, []);
+
+  const answerQuestion = useCallback(async (questionId, content, authorName) => {
+    try {
+      setError(null);
+      const response = await post(ENDPOINTS.SCHOOL_ADMIN.QA_QUESTION_ANSWERS(questionId), {
+        content,
+        authorName,
+      });
+      return response;
+    } catch (err) {
+      const errorMessage = err.message || 'Gửi trả lời thất bại';
+      setError(errorMessage);
+      throw new Error(errorMessage);
+    }
+  }, []);
+
   const value = {
     loading,
     error,
@@ -311,6 +370,10 @@ export const SchoolAdminProvider = ({
     createBlog,
     updateBlog,
     deleteBlog,
+    getQaQuestions,
+    updateQuestion,
+    deleteQuestion,
+    answerQuestion,
     setError,
   };
 

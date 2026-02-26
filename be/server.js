@@ -17,6 +17,7 @@ const classesRoutes = require('./src/routes/classes.routes');
 const studentRoutes = require('./src/routes/student.routes');
 const cloudinaryRoutes = require('./src/routes/cloudinary.routes');
 const contactRoutes = require('./src/routes/contact.routes');
+const qaRoutes = require('./src/routes/qa.routes');
 
 // Import models để Mongoose đăng ký schema (tránh lỗi "Schema hasn't been registered for model 'Roles'")
 require('./src/models/Role');
@@ -28,6 +29,7 @@ require('./src/models/AcademicYear');
 require('./src/models/User');
 require('./src/models/Contact');
 require('./src/models/Blog');
+require('./src/models/Question');
 
 // Khởi tạo ứng dụng express
 const app = express();
@@ -156,6 +158,9 @@ app.use('/api/school-admin', schoolAdminRoutes);
 
 // Contact (public submit)
 app.use('/api/contact', contactRoutes);
+
+// Q&A (public)
+app.use('/api/qa', qaRoutes);
 
 // Route kiểm tra sức khỏe hệ thống
 /**

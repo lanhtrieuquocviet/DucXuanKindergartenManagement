@@ -175,6 +175,9 @@ export const ENDPOINTS = {
     CONTACT_REPLY: (id) => `/school-admin/contacts/${id}/reply`,
     CONTACT_CLEAR_REPLY: (id) => `/school-admin/contacts/${id}/clear-reply`,
     CONTACT_RESEND_EMAIL: (id) => `/school-admin/contacts/${id}/resend-email`,
+    QA_QUESTIONS: '/school-admin/qa/questions',
+    QA_QUESTION_DETAIL: (id) => `/school-admin/qa/questions/${id}`,
+    QA_QUESTION_ANSWERS: (id) => `/school-admin/qa/questions/${id}/answers`,
     ATTENDANCE_OVERVIEW: '/school-admin/attendance/overview',
     CLASS_ATTENDANCE_DETAIL: (classId) => `/school-admin/classes/${classId}/attendance`,
     STUDENT_ATTENDANCE_DETAIL: (studentId) => `/school-admin/students/${studentId}/attendance`,
@@ -185,6 +188,11 @@ export const ENDPOINTS = {
   // Contact (public)
   CONTACT: {
     SUBMIT: '/contact',
+  },
+  // Q&A (public)
+  QA: {
+    QUESTIONS: '/qa/questions',
+    QUESTION_ANSWERS: (id) => `/qa/questions/${id}/answers`,
   },
   // Teacher
   TEACHER: {
