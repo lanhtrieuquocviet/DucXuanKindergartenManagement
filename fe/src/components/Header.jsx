@@ -1,4 +1,5 @@
-import { useState, useRef } from "react";
+import { useState, useRef, useEffect } from "react";
+import { get } from "../service/api";
 
 const CLOSE_DELAY = 300; // 30 tích tắc
 
@@ -22,6 +23,30 @@ function Header() {
 
     const currentYear = new Date().getFullYear();
     const years = [currentYear, currentYear - 1];
+
+    // map known category names to specific internal routes
+    const NEWS_ROUTE_MAP = {
+        'Bản tin trường': '/school-news',
+        'Thông báo': '/notifications-news',
+        'Tin tức từ Phòng': '/department-news',
+        'Thông báo từ Phòng': '/department-notifications',
+        'Hoạt động ngoại khóa': '/extracurricular-activities',
+    };
+
+    const [newsCategories, setNewsCategories] = useState([]);
+
+    useEffect(() => {
+        const loadCats = async () => {
+            try {
+                const resp = await get('/blogs/categories');
+                const list = resp.data || resp;
+                setNewsCategories(list);
+            } catch (err) {
+                console.error('Failed to load news categories', err);
+            }
+        };
+        loadCats();
+    }, []);
 
     return (
         <header className="w-full bg-green-50">
@@ -127,11 +152,20 @@ function Header() {
 
                             {activeMenu === "news" && (
                                 <div className="absolute top-full left-0 mt-2 bg-white rounded-xl shadow-xl min-w-[220px] z-50 text-gray-800">
-                                    <a href="/school-news"><div className="px-4 py-3 hover:bg-green-100">Bản tin trường</div></a>
-                                    <a href="/notifications-news"><div className="px-4 py-3 hover:bg-green-100">Thông báo</div></a>
-                                    <a href="/department-news"><div className="px-4 py-3 hover:bg-green-100">Tin tức từ Phòng</div></a>
-                                    <a href="/department-notifications"><div className="px-4 py-3 hover:bg-green-100">Thông báo từ Phòng</div></a>
-                                    <a href="/extracurricular-activities"><div className="px-4 py-3 hover:bg-green-100">Hoạt động ngoại khóa</div></a>
+                                    {newsCategories.length === 0 ? (
+                                        <div className="px-4 py-3 text-sm text-gray-500">Đang tải...</div>
+                                    ) : (
+                                        newsCategories.map((c) => {
+                                            const route = NEWS_ROUTE_MAP[c.name] || "/";
+                                            return (
+                                                <a key={c._id} href={route}>
+                                                    <div className="px-4 py-3 hover:bg-green-100">
+                                                        {c.name}
+                                                    </div>
+                                                </a>
+                                            );
+                                        })
+                                    )}
                                 </div>
                             )}
                         </div>

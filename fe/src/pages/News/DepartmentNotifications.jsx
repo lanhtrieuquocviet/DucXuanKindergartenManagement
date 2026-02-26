@@ -1,17 +1,55 @@
-import { useState } from "react";
-
-/* ===== MOCK DATA: 25 thông báo ===== */
-const notifications = Array.from({ length: 25 }, (_, i) => ({
-  id: i + 1,
-  title: `Thông báo số ${i + 1} về công tác chuyên môn`,
-  date: `0${(i % 9) + 1}/09/2026`,
-  summary:
-    "Phòng Giáo dục và Đào tạo thông báo đến các đơn vị trường học về việc triển khai một số nội dung liên quan đến công tác chuyên môn, kế hoạch giảng dạy và hoạt động giáo dục trong thời gian tới.",
-}));
-
-const PAGE_SIZE = 6;
+import { useState, useEffect } from "react";
+import { get, ENDPOINTS } from "../../service/api";
 
 function DepartmentNotifications() {
+  const [notifications, setNotifications] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(null);
+
+  const [categoryId, setCategoryId] = useState('');
+
+  useEffect(() => {
+    const loadCategory = async () => {
+      try {
+        const resp = await get(ENDPOINTS.BLOGS.CATEGORIES);
+        const list = resp.data || resp;
+        const cat = list.find((c) => c.name === 'Thông báo từ Phòng');
+        if (cat) setCategoryId(cat._id);
+      } catch (err) {
+        console.error('Failed to load categories', err);
+      }
+    };
+    loadCategory();
+  }, []);
+
+  useEffect(() => {
+    if (!categoryId) return;
+    const fetchNews = async () => {
+      try {
+        setLoading(true);
+        setError(null);
+        const response = await get(
+          `${ENDPOINTS.BLOGS.PUBLISHED}?category=${categoryId}&limit=999`
+        );
+        const blogs = response.data.items || [];
+        const mapped = blogs.map((blog) => ({
+          id: blog._id,
+          title: blog.code,
+          date: new Date(blog.createdAt).toLocaleDateString('vi-VN'),
+          summary: blog.description,
+        }));
+        setNotifications(mapped);
+      } catch (err) {
+        setError(err.message || 'Lỗi khi tải thông báo');
+        setNotifications([]);
+      } finally {
+        setLoading(false);
+      }
+    };
+    fetchNews();
+  }, [categoryId]);
+
+  const PAGE_SIZE = 6;
   const [page, setPage] = useState(1);
 
   const totalPage = Math.ceil(notifications.length / PAGE_SIZE);
@@ -36,7 +74,20 @@ function DepartmentNotifications() {
         Thông báo từ Phòng
       </h1>
 
+      {loading && (
+        <div className="text-center py-8 text-gray-500">Đang tải...</div>
+      )}
+      {error && (
+        <div className="bg-red-50 border border-red-200 rounded p-4 mb-6 text-red-700">
+          {error}
+        </div>
+      )}
+      {!loading && notifications.length === 0 && (
+        <div className="text-center py-8 text-gray-500">Chưa có thông báo nào</div>
+      )}
+
       {/* ===== List ===== */}
+      {!loading && notifications.length > 0 && (
       <div className="space-y-4">
         {data.map((item) => (
           <div
@@ -57,6 +108,7 @@ function DepartmentNotifications() {
           </div>
         ))}
       </div>
+      )}
 
       {/* ===== Pagination ===== */}
       <div className="flex justify-center gap-2 pt-4">

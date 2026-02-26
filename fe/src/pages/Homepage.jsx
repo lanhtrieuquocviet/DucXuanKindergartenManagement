@@ -1,30 +1,59 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
+import { get } from "../service/api";
 
-/* ===== BLOG GIẢ ===== */
-const mockBlogs = Array.from({ length: 9 }, (_, i) => ({
-  id: i + 1,
-  title: `Hoạt động giáo dục nổi bật tháng ${i + 1}`,
-  content: `
-Trường Mầm non Đức Xuân luôn chú trọng đổi mới phương pháp giáo dục nhằm tạo
-môi trường học tập thân thiện, an toàn và hiệu quả cho trẻ.
-
-Trong tháng ${i + 1}, nhà trường đã tổ chức nhiều hoạt động giáo dục bổ ích
-như: hoạt động trải nghiệm, vui chơi ngoài trời, sinh hoạt tập thể và các
-chương trình giáo dục kỹ năng sống phù hợp với lứa tuổi mầm non.
-
-Thông qua các hoạt động này, trẻ được phát triển toàn diện về thể chất,
-trí tuệ, ngôn ngữ, tình cảm và kỹ năng xã hội.
-  `,
-}));
+// we'll fetch latest published blogs to display in news section
 
 const PAGE_SIZE = 4;
 
 function Homepage() {
-  const [page, setPage] = useState(1);
+  // load categories and their latest published blog
+  useEffect(() => {
+    const loadFeatured = async () => {
+      setLoading(true);
+      setError(null);
+      try {
+        const resp = await get('/blogs/categories');
+        const cats = resp.data || resp;
+        const posts = [];
 
-  const totalPage = Math.ceil(mockBlogs.length / PAGE_SIZE);
+        // fetch one blog per category
+        for (const c of cats) {
+          try {
+            const r2 = await get(`/blogs/published?category=${c._id}&limit=1`);
+            const items = r2.data?.items || [];
+            if (items.length > 0) {
+              const b = items[0];
+              posts.push({
+                id: b._id,
+                title: b.code,
+                content: b.description,
+                category: c.name,
+              });
+            }
+          } catch (e) {
+            // ignore failures for individual categories
+          }
+        }
+        setFeatured(posts);
+      } catch (err) {
+        setError(err.message || 'Không tải được tin nổi bật');
+        console.error('Failed to load featured blogs', err);
+      } finally {
+        setLoading(false);
+      }
+    };
+    loadFeatured();
+  }, []);
+  const [page, setPage] = useState(1);
+  const [featured, setFeatured] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(null);
+
+  // load categories with latest post (see above useEffect)
+
+  const totalPage = Math.ceil(featured.length / PAGE_SIZE);
   const startIndex = (page - 1) * PAGE_SIZE;
-  const currentBlogs = mockBlogs.slice(startIndex, startIndex + PAGE_SIZE);
+  const currentBlogs = featured.slice(startIndex, startIndex + PAGE_SIZE);
 
   const mainBlog = currentBlogs[0];
   const subBlogs = currentBlogs.slice(1);
@@ -43,6 +72,15 @@ function Homepage() {
       </h3>
 
       {/* ===== BLOG LỚN ===== */}
+      {loading && (
+        <div className="text-center py-8 text-gray-500">Đang tải...</div>
+      )}
+      {error && (
+        <div className="text-center py-8 text-red-600">{error}</div>
+      )}
+      {!loading && !error && featured.length === 0 && (
+        <div className="text-center py-8 text-gray-500">Chưa có bài viết</div>
+      )}
       {mainBlog && (
         <div className="border-2 border-gray-400 p-4 bg-white space-y-3">
           <div className="h-[220px] border flex items-center justify-center bg-gray-100">

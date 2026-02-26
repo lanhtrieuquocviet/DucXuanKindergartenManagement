@@ -1,8 +1,10 @@
 const Blog = require('../models/Blog');
+// Blog categories are now stored in their own collection (BlogCategory)
 
 const validateBlogPayload = (body, isCreate = true) => {
   const errors = [];
 
+  // code required only on creation, on update we allow omitting it
   if (isCreate && !body.code) errors.push('Code không được để trống');
   if (body.code && typeof body.code !== 'string') errors.push('Code không hợp lệ');
 
@@ -16,7 +18,10 @@ const validateBlogPayload = (body, isCreate = true) => {
   }
 
   if (isCreate && !body.category) errors.push('Danh mục không được để trống');
-  if (body.category && typeof body.category !== 'string') errors.push('Danh mục không hợp lệ');
+  // category should be a non-empty string representing ObjectId
+  if (body.category && typeof body.category !== 'string') {
+    errors.push('Danh mục không hợp lệ');
+  }
 
   if (body.images && Array.isArray(body.images)) {
     if (body.images.length > 3) {
@@ -55,6 +60,7 @@ const listBlogs = async (req, res) => {
     const [items, total] = await Promise.all([
       Blog.find(filter)
         .populate('author', 'username fullName email')
+        .populate('category', 'name')
         .sort({ createdAt: -1 })
         .skip(skip)
         .limit(limitNum),
@@ -87,7 +93,9 @@ const listBlogs = async (req, res) => {
 const getBlog = async (req, res) => {
   try {
     const { id } = req.params;
-    const blog = await Blog.findById(id).populate('author', 'username fullName email');
+    const blog = await Blog.findById(id)
+      .populate('author', 'username fullName email')
+      .populate('category', 'name');
 
     if (!blog) {
       return res.status(404).json({
@@ -131,6 +139,13 @@ const createBlog = async (req, res) => {
       });
     }
 
+    // verify category id
+    const BlogCategory = require('../models/BlogCategory');
+    const cat = await BlogCategory.findById(category);
+    if (!cat) {
+      return res.status(400).json({ status: 'error', message: 'Danh mục không hợp lệ' });
+    }
+
     // Filter images - tối đa 3
     const validImages = Array.isArray(images) 
       ? images.filter(img => img && typeof img === 'string').slice(0, 3)
@@ -139,16 +154,15 @@ const createBlog = async (req, res) => {
     const blog = await Blog.create({
       code: code.trim(),
       description: description.trim(),
-      category: category.trim(),
+      category: cat._id,
       images: validImages,
       status: status || 'draft',
       author: req.user.id,
     });
 
-    const populated = await Blog.findById(blog._id).populate(
-      'author',
-      'username fullName email'
-    );
+    const populated = await Blog.findById(blog._id)
+      .populate('author', 'username fullName email')
+      .populate('category', 'name');
 
     return res.status(201).json({
       status: 'success',
@@ -168,7 +182,8 @@ const createBlog = async (req, res) => {
 const updateBlog = async (req, res) => {
   try {
     const { id } = req.params;
-    const { description, category, images, status } = req.body;
+    console.log('updateBlog endpoint hit, body:', req.body);
+    const { code, description, category, images, status } = req.body;
 
     const errors = validateBlogPayload(req.body, false);
     if (errors.length > 0) {
@@ -186,29 +201,47 @@ const updateBlog = async (req, res) => {
       });
     }
 
-    if (description !== undefined) blog.description = description.trim();
-    if (category !== undefined) blog.category = category.trim();
+    // allow updating code similar to description: just trim and assign
+    if (code !== undefined) {
+      blog.code = String(code).trim();
+    }
+
+    /* ===== UPDATE OTHER FIELDS ===== */
+    if (typeof description === 'string') {
+      blog.description = description.trim();
+    }
+
+    if (category !== undefined) {
+      // category is expected to be an ObjectId
+      const BlogCategory = require('../models/BlogCategory');
+      const cat = await BlogCategory.findById(category);
+      if (!cat) {
+        return res.status(400).json({ status: 'error', message: 'Danh mục không hợp lệ' });
+      }
+      blog.category = cat._id;
+    }
+
     if (images !== undefined) {
-      // Filter images - tối đa 3
       blog.images = Array.isArray(images)
-        ? images.filter(img => img && typeof img === 'string').slice(0, 3)
+        ? images.filter(img => typeof img === 'string' && img.trim()).slice(0, 3)
         : [];
     }
-    if (status !== undefined) blog.status = status;
+
+    if (status !== undefined) {
+      blog.status = status;
+    }
 
     await blog.save();
 
-    const populated = await Blog.findById(blog._id).populate(
-      'author',
-      'username fullName email'
-    );
+    const populated = await Blog.findById(blog._id)
+      .populate('author', 'username fullName email')
+      .populate('category', 'name');
 
     return res.status(200).json({
       status: 'success',
       data: populated,
     });
   } catch (error) {
-    // eslint-disable-next-line no-console
     console.error('updateBlog error:', error);
     return res.status(500).json({
       status: 'error',
@@ -244,11 +277,83 @@ const deleteBlog = async (req, res) => {
   }
 };
 
+// GET /api/blogs/published (PUBLIC - for frontend)
+const getPublishedBlogs = async (req, res) => {
+  try {
+    const { category, search, page = 1, limit = 10 } = req.query;
+
+    // Filter only published blogs
+    const filter = { status: 'published' };
+    
+    // Optional: filter by category if provided
+    if (category && category.trim()) {
+      filter.category = category.trim();
+    }
+    
+    // Optional: filter by search term
+    if (search && search.trim()) {
+      filter.$or = [
+        { code: new RegExp(search.trim(), 'i') },
+        { description: new RegExp(search.trim(), 'i') },
+      ];
+    }
+
+    const pageNum = Number(page) || 1;
+    const limitNum = Number(limit) || 10;
+    const skip = (pageNum - 1) * limitNum;
+
+    const [items, total] = await Promise.all([
+      Blog.find(filter)
+        .populate('author', 'username fullName email')
+        .populate('category', 'name')
+        .sort({ createdAt: -1 })
+        .skip(skip)
+        .limit(limitNum),
+      Blog.countDocuments(filter),
+    ]);
+
+    return res.status(200).json({
+      status: 'success',
+      data: {
+        items,
+        pagination: {
+          page: pageNum,
+          limit: limitNum,
+          total,
+          totalPages: Math.ceil(total / limitNum) || 1,
+        },
+      },
+    });
+  } catch (error) {
+    // eslint-disable-next-line no-console
+    console.error('getPublishedBlogs error:', error);
+    return res.status(500).json({
+      status: 'error',
+      message: 'Không tải được danh sách blog',
+    });
+  }
+};
+
+
+// retrieve all categories (public)
+const getBlogCategories = async (req, res) => {
+  try {
+    const BlogCategory = require('../models/BlogCategory');
+    const cats = await BlogCategory.find().sort({ name: 1 });
+    return res.status(200).json({ status: 'success', data: cats });
+  } catch (error) {
+    console.error('getBlogCategories error:', error);
+    return res.status(500).json({ status: 'error', message: 'Không tải được danh mục' });
+  }
+};
+
 module.exports = {
   listBlogs,
   getBlog,
   createBlog,
   updateBlog,
   deleteBlog,
+  getPublishedBlogs,
+  getBlogCategories,
 };
 

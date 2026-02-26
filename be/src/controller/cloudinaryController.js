@@ -62,9 +62,10 @@ const uploadBlogImage = async (req, res) => {
 
     const config = cloudinary.config();
     if (!config.api_key || !config.api_secret || !config.cloud_name) {
+      console.error('Cloudinary config missing:', { api_key: !!config.api_key, api_secret: !!config.api_secret, cloud_name: !!config.cloud_name });
       return res.status(500).json({
         status: 'error',
-        message: 'Cloudinary chưa được cấu hình.',
+        message: 'Cloudinary chưa được cấu hình trong server.',
       });
     }
 

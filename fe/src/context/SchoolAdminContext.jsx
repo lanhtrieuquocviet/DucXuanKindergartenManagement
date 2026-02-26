@@ -267,6 +267,7 @@ export const SchoolAdminProvider = ({
 
   const updateBlog = useCallback(async (blogId, payload) => {
     try {
+      console.log('context.updateBlog payload', blogId, payload);
       setError(null);
       const response = await put(ENDPOINTS.SCHOOL_ADMIN.BLOG_DETAIL(blogId), payload);
       if (onSuccessRef.current) onSuccessRef.current(response.data);

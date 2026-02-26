@@ -1,19 +1,58 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
+import { get, ENDPOINTS } from "../../service/api";
 
 function SchoolNews() {
-  // ===== DATA GIẢ =====
-  const newsData = Array.from({ length: 18 }, (_, i) => ({
-    id: i + 1,
-    title: `Bản tin số ${i + 1} của Trường Mầm non Đức Xuân`,
-    description:
-      "Đây là nội dung tóm tắt bản tin, phục vụ công tác thông tin – tuyên truyền của nhà trường.",
-    date: "20/11/2025",
-    category: "Thông tin công khai",
-    image:
-      i % 2 === 0
-        ? `https://picsum.photos/300/180?random=${i}`
-        : null,
-  }));
+  const [newsData, setNewsData] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(null);
+
+  // load category id from backend then fetch blogs
+  const [categoryId, setCategoryId] = useState('');
+
+  useEffect(() => {
+    const loadCategory = async () => {
+      try {
+        const resp = await get(ENDPOINTS.BLOGS.CATEGORIES);
+        const list = resp.data || resp;
+        const cat = list.find((c) => c.name === 'Bản tin trường');
+        if (cat) setCategoryId(cat._id);
+      } catch (err) {
+        console.error('Failed to load categories', err);
+      }
+    };
+    loadCategory();
+  }, []);
+
+  useEffect(() => {
+    if (!categoryId) return;
+    const fetchNews = async () => {
+      try {
+        setLoading(true);
+        setError(null);
+        const response = await get(
+          `${ENDPOINTS.BLOGS.PUBLISHED}?category=${categoryId}&limit=999`
+        );
+        const blogs = response.data.items || [];
+        
+        // Map blogs to news format
+        const mapped = blogs.map((blog) => ({
+          id: blog._id,
+          title: blog.code,
+          description: blog.description,
+          date: new Date(blog.createdAt).toLocaleDateString('vi-VN'),
+          category: blog.category?.name || '',
+          image: blog.images && blog.images.length > 0 ? blog.images[0] : null,
+        }));
+        setNewsData(mapped);
+      } catch (err) {
+        setError(err.message || 'Lỗi khi tải tin tức');
+        setNewsData([]);
+      } finally {
+        setLoading(false);
+      }
+    };
+    fetchNews();
+  }, [categoryId]);
 
   // ===== PAGINATION =====
   const ITEMS_PER_PAGE = 5;
@@ -40,6 +79,18 @@ function SchoolNews() {
       <h1 className="text-3xl font-bold mb-8">Bản tin trường</h1>
 
       {/* Danh sách bản tin */}
+      {loading && (
+        <div className="text-center py-8 text-gray-500">Đang tải...</div>
+      )}
+      {error && (
+        <div className="bg-red-50 border border-red-200 rounded p-4 mb-6 text-red-700">
+          {error}
+        </div>
+      )}
+      {!loading && newsData.length === 0 && (
+        <div className="text-center py-8 text-gray-500">Chưa có bản tin nào</div>
+      )}
+      {!loading && newsData.length > 0 && (
       <div className="space-y-6">
         {currentNews.map((item) => (
           <div
@@ -79,6 +130,7 @@ function SchoolNews() {
           </div>
         ))}
       </div>
+      )}
 
       {/* Phân trang */}
       <div className="flex justify-center items-center gap-2 mt-8">

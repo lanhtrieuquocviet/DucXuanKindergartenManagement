@@ -14,9 +14,9 @@ const blogSchema = new mongoose.Schema(
       trim: true,
     },
     category: {
-      type: String,
+      type: mongoose.Schema.Types.ObjectId,
+      ref: 'BlogCategory',
       required: true,
-      trim: true,
     },
     images: [{
       type: String,

@@ -5,7 +5,7 @@ const { authenticate, authorizeRoles } = require('../middleware/auth');
 
 const router = express.Router();
 
-const upload = multer({
+const uploadMiddleware = multer({
   storage: multer.memoryStorage(),
   limits: { fileSize: 5 * 1024 * 1024 },
   fileFilter: (req, file, cb) => {
@@ -19,24 +19,46 @@ const upload = multer({
 router.get('/media-library-signature', getMediaLibrarySignature);
 
 // Upload ảnh đại diện từ máy (cần đăng nhập)
-router.post('/upload-avatar', authenticate, (req, res, next) => {
-  upload.single('avatar')(req, res, (err) => {
-    if (err) {
-      return res.status(400).json({ status: 'error', message: err.message || 'File không hợp lệ.' });
-    }
-    next();
-  });
-}, uploadAvatar);
+router.post(
+  '/upload-avatar',
+  authenticate,
+  uploadMiddleware.single('avatar'),
+  uploadAvatar,
+  handleUploadError
+);
 
 // Upload ảnh blog từ máy (cần đăng nhập + SchoolAdmin)
-router.post('/upload-blog-image', authenticate, authorizeRoles('SchoolAdmin'), (req, res, next) => {
-  upload.single('image')(req, res, (err) => {
-    if (err) {
-      return res.status(400).json({ status: 'error', message: err.message || 'File không hợp lệ.' });
+router.post(
+  '/upload-blog-image',
+  authenticate,
+  authorizeRoles('SchoolAdmin'),
+  uploadMiddleware.single('image'),
+  uploadBlogImage,
+  handleUploadError
+);
+
+// Middleware xử lý lỗi upload
+function handleUploadError(err, req, res, next) {
+  if (err instanceof multer.MulterError) {
+    if (err.code === 'FILE_TOO_LARGE') {
+      return res.status(400).json({
+        status: 'error',
+        message: 'File quá lớn (tối đa 5MB)',
+      });
     }
-    next();
-  });
-}, uploadBlogImage);
+    return res.status(400).json({
+      status: 'error',
+      message: err.message || 'Lỗi upload file',
+    });
+  }
+  if (err) {
+    return res.status(400).json({
+      status: 'error',
+      message: err.message || 'Lỗi xử lý file',
+    });
+  }
+  next();
+}
 
 module.exports = router;
 

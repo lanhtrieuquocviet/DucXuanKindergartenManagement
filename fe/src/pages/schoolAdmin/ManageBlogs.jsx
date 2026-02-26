@@ -4,15 +4,10 @@ import { useSchoolAdmin } from '../../context/SchoolAdminContext';
 import { useAuth } from '../../context/AuthContext';
 import RoleLayout from '../../layouts/RoleLayout';
 import ConfirmDialog from '../../components/ConfirmDialog';
-import { postFormData, ENDPOINTS } from '../../service/api';
+import { get, postFormData, ENDPOINTS } from '../../service/api';
 
-const CATEGORY_OPTIONS = [
-  { value: 'Hoạt động', label: 'Hoạt động' },
-  { value: 'Thông báo', label: 'Thông báo' },
-  { value: 'Tin tức', label: 'Tin tức' },
-  { value: 'Hướng dẫn', label: 'Hướng dẫn' },
-  { value: 'Khác', label: 'Khác' },
-];
+// categories will be fetched from backend; each item has {_id, name}
+// we convert to {value,label} when rendering the form
 
 const STATUS_OPTIONS = [
   { value: '', label: 'Tất cả trạng thái' },
@@ -21,11 +16,11 @@ const STATUS_OPTIONS = [
   { value: 'inactive', label: 'Ngưng hiển thị' },
 ];
 
-function BlogFormModal({ open, onClose, initialData, onSubmit, loading }) {
+function BlogFormModal({ open, onClose, initialData, categories, onSubmit, loading }) {
   const [form, setForm] = useState({
     code: '',
     description: '',
-    category: 'Hoạt động',
+    category: '',
     images: [],
     status: 'draft',
   });
@@ -37,13 +32,16 @@ function BlogFormModal({ open, onClose, initialData, onSubmit, loading }) {
       setForm({
         code: initialData?.code || '',
         description: initialData?.description || '',
-        category: initialData?.category || 'Hoạt động',
+        category:
+          (initialData?.category &&
+            (initialData.category._id || initialData.category)) ||
+          (categories[0]?._id || ''),
         images: initialData?.images || [],
         status: initialData?.status || 'draft',
       });
       setUploadProgress({});
     }
-  }, [open, initialData]);
+  }, [open, initialData, categories]);
 
   if (!open) return null;
 
@@ -60,6 +58,8 @@ function BlogFormModal({ open, onClose, initialData, onSubmit, loading }) {
       return;
     }
 
+    if (files.length === 0) return;
+
     setUploading(true);
     const newImages = [...form.images];
 
@@ -74,21 +74,25 @@ function BlogFormModal({ open, onClose, initialData, onSubmit, loading }) {
         try {
           const response = await postFormData(ENDPOINTS.CLOUDINARY.UPLOAD_BLOG_IMAGE, formData);
 
-          if (response.data?.url) {
+          // Backend trả về { status: 'success', data: { url: '...' } }
+          if (response.status === 'success' && response.data?.url) {
             newImages.push(response.data.url);
-            console.log(`Ảnh ${i + 1} uploaded:`, response.data.url);
+            console.log(`✓ Ảnh ${i + 1} uploaded:`, response.data.url);
             setUploadProgress(prev => ({ ...prev, [i]: 100 }));
+          } else {
+            throw new Error(response.message || 'Upload thất bại');
           }
         } catch (uploadErr) {
-          console.error('Upload lỗi cho ảnh', i + 1, ':', uploadErr);
-          throw uploadErr;
+          const errMsg = uploadErr.message || 'Lỗi upload';
+          console.error(`✗ Upload lỗi cho ảnh ${i + 1}:`, errMsg);
+          throw new Error(`Ảnh ${i + 1}: ${errMsg}`);
         }
       }
 
       setForm(prev => ({ ...prev, images: newImages }));
     } catch (err) {
       console.error('Upload error:', err);
-      alert(`Upload ảnh thất bại: ${err.message || 'Lỗi không xác định'}`);
+      alert(`Upload ảnh thất bại:\n${err.message}`);
     } finally {
       setUploading(false);
       setUploadProgress({});
@@ -132,8 +136,7 @@ function BlogFormModal({ open, onClose, initialData, onSubmit, loading }) {
               name="code"
               value={form.code}
               onChange={handleChange}
-              disabled={!!initialData}
-              className="w-full rounded-md border border-gray-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500 disabled:bg-gray-100"
+              className="w-full rounded-md border border-gray-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500"
               placeholder="vd: BLOG_001"
               required
             />
@@ -150,12 +153,17 @@ function BlogFormModal({ open, onClose, initialData, onSubmit, loading }) {
               onChange={handleChange}
               className="w-full rounded-md border border-gray-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500"
               required
+              disabled={categories.length === 0}
             >
-              {CATEGORY_OPTIONS.map(opt => (
-                <option key={opt.value} value={opt.value}>
-                  {opt.label}
-                </option>
-              ))}
+              {categories.length === 0 ? (
+                <option value="">Đang tải...</option>
+              ) : (
+                categories.map((c) => (
+                  <option key={c._id} value={c._id}>
+                    {c.name}
+                  </option>
+                ))
+              )}
             </select>
           </div>
 
@@ -265,6 +273,7 @@ function ManageBlogs() {
   const { user, logout, isInitializing } = useAuth();
 
   const [blogs, setBlogs] = useState([]);
+  const [categories, setCategories] = useState([]);
   const [pagination, setPagination] = useState({
     page: 1,
     limit: 10,
@@ -314,7 +323,7 @@ function ManageBlogs() {
         setPagination(data.pagination);
       }
     } catch (err) {
-      // error đã được set trong context
+      // error handled in context
     }
   };
 
@@ -322,6 +331,20 @@ function ManageBlogs() {
     loadData();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [filters.status]);
+
+  // fetch categories once
+  useEffect(() => {
+    const fetchCategories = async () => {
+      try {
+        const resp = await get('/blogs/categories');
+        setCategories(resp.data || resp);
+      } catch (err) {
+        // ignore, categories are not critical
+        console.error('Failed to load blog categories', err);
+      }
+    };
+    fetchCategories();
+  }, []);
 
   const handleSearchChange = (e) => {
     setFilters((prev) => ({ ...prev, search: e.target.value }));
@@ -368,12 +391,23 @@ function ManageBlogs() {
     try {
       setSubmitting(true);
       if (selectedBlog) {
+        const oldCode = selectedBlog.code;
         await updateBlog(selectedBlog._id, form);
+        // after editing we always reset search filter so the updated item
+        // remains visible (code might have changed and not match previous query)
+        if (filters.search) {
+          setFilters((prev) => ({ ...prev, search: '' }));
+          await loadData({ page: 1, search: '' });
+        } else {
+          await loadData();
+        }
       } else {
         await createBlog(form);
+        await loadData();
       }
       setModalOpen(false);
-      await loadData();
+    } catch (err) {
+      // error handled in context; nothing special here
     } finally {
       setSubmitting(false);
     }
@@ -543,7 +577,7 @@ function ManageBlogs() {
                     {blog.code}
                   </td>
                   <td className="px-3 py-2 text-xs text-gray-700">
-                    {blog.category || '-'}
+                    {blog.category?.name || '-'}
                   </td>
                   <td className="px-3 py-2">
                     <div className="text-xs text-gray-900 line-clamp-2">
@@ -658,6 +692,7 @@ function ManageBlogs() {
         open={modalOpen}
         onClose={() => setModalOpen(false)}
         initialData={selectedBlog}
+        categories={categories}
         onSubmit={handleSubmitForm}
         loading={submitting}
       />

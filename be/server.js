@@ -18,6 +18,7 @@ const studentRoutes = require('./src/routes/student.routes');
 const cloudinaryRoutes = require('./src/routes/cloudinary.routes');
 const contactRoutes = require('./src/routes/contact.routes');
 const qaRoutes = require('./src/routes/qa.routes');
+const blogsRoutes = require('./src/routes/blogs.routes');
 
 // Import models để Mongoose đăng ký schema (tránh lỗi "Schema hasn't been registered for model 'Roles'")
 require('./src/models/Role');
@@ -29,7 +30,42 @@ require('./src/models/AcademicYear');
 require('./src/models/User');
 require('./src/models/Contact');
 require('./src/models/Blog');
+require('./src/models/BlogCategory');
 require('./src/models/Question');
+
+// ensure default blog categories exist
+(async () => {
+  const BlogCategory = require('./src/models/BlogCategory');
+  const Blog = require('./src/models/Blog');
+  const defaults = [
+    'Bản tin trường',
+    'Thông báo',
+    'Tin tức từ Phòng',
+    'Thông báo từ Phòng',
+    'Hoạt động ngoại khóa',
+  ];
+  try {
+    for (const name of defaults) {
+      await BlogCategory.findOneAndUpdate({ name }, { name }, { upsert: true, new: true });
+    }
+    console.log('✅ Default blog categories seeded');
+
+    // migrate existing blog documents whose category field is still a string
+    const blogsToFix = await Blog.find({ category: { $type: 'string' } });
+    for (const b of blogsToFix) {
+      const cat = await BlogCategory.findOne({ name: b.category });
+      if (cat) {
+        b.category = cat._id;
+        await b.save();
+      }
+    }
+    if (blogsToFix.length > 0) {
+      console.log(`🔁 Migrated ${blogsToFix.length} blog(s) to use category ObjectId`);
+    }
+  } catch (err) {
+    console.error('Error seeding/migrating blog categories', err);
+  }
+})();
 
 // Khởi tạo ứng dụng express
 const app = express();
@@ -161,6 +197,9 @@ app.use('/api/contact', contactRoutes);
 
 // Q&A (public)
 app.use('/api/qa', qaRoutes);
+
+// Blogs (public - published only)
+app.use('/api/blogs', blogsRoutes);
 
 // Route kiểm tra sức khỏe hệ thống
 /**

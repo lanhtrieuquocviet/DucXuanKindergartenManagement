@@ -208,6 +208,11 @@ export const ENDPOINTS = {
     STUDENTS: (classId) => `/classes/${classId}/students`,
     CREATE: '/classes',
   },
+  // Blogs (public)
+  BLOGS: {
+    PUBLISHED: '/blogs/published',
+    CATEGORIES: '/blogs/categories',
+  },
   // Students
   STUDENTS: {
     LIST: '/students',

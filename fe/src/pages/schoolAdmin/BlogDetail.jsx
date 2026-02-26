@@ -203,14 +203,14 @@ function BlogDetail() {
             <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
               {/* Mã */}
               <div>
-                <h3 className="text-xs font-medium text-gray-500 uppercase mb-1">Mã bài viết</h3>
+                <h3 className="text-xs font-medium text-gray-500 uppercase mb-1">Tiêu đề</h3>
                 <p className="text-lg font-mono font-semibold text-gray-900">{blog.code}</p>
               </div>
 
               {/* Danh mục */}
               <div>
                 <h3 className="text-xs font-medium text-gray-500 uppercase mb-1">Danh mục</h3>
-                <p className="text-lg font-semibold text-gray-900">{blog.category}</p>
+                <p className="text-lg font-semibold text-gray-900">{blog.category?.name || '-'}</p>
               </div>
 
               {/* Trạng thái */}
