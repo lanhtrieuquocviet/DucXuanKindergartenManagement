@@ -12,7 +12,11 @@ function TodayAttendance() {
   const [error, setError] = useState('');
 
   const today = useMemo(() => new Date(), []);
-  const todayLabel = today.toLocaleDateString('vi-VN');
+  const todayLabel = today.toLocaleDateString('vi-VN', {
+    day: '2-digit',
+    month: '2-digit',
+    year: 'numeric',
+  });
   const todayQuery = `${today.getFullYear()}-${(today.getMonth() + 1)
     .toString()
     .padStart(2, '0')}-${today.getDate().toString().padStart(2, '0')}`;
@@ -39,7 +43,6 @@ function TodayAttendance() {
         setError('');
         setLoading(true);
 
-        // 1. Lấy danh sách con
         const childrenRes = await get(ENDPOINTS.AUTH.MY_CHILDREN);
         const list = childrenRes.data || [];
         setChildren(list);
@@ -51,7 +54,6 @@ function TodayAttendance() {
           return;
         }
 
-        // 2. Lấy điểm danh hôm nay cho trẻ đầu tiên
         const attendanceRes = await get(
           `${ENDPOINTS.STUDENTS.ATTENDANCE_LIST}?studentId=${student._id}&date=${todayQuery}`,
         );
@@ -73,58 +75,62 @@ function TodayAttendance() {
   const studentName = student?.fullName || '—';
   const className = student?.classId?.className || 'Chưa xếp lớp';
 
-  const statusCheckIn = attendance?.status || 'present';
+  // Trạng thái chỉ có 3 loại: Có mặt, Đã đón, Chưa có dữ liệu (khi GV điểm danh sẽ gửi tới phụ huynh)
   const checkInTime = attendance?.timeString?.checkIn || '';
   const checkOutTime = attendance?.timeString?.checkOut || '';
   const note = attendance?.note || '';
+  const delivererDisplay =
+    attendance?.delivererType ||
+    attendance?.delivererOtherInfo ||
+    '';
+  const receiverDisplay =
+    attendance?.receiverType ||
+    attendance?.receiverOtherInfo ||
+    '';
+  const hasCheckout = Boolean(checkOutTime);
+  const parentConfirmLabel = hasCheckout ? 'Đã xác nhận' : 'Chưa xác nhận';
+
+  // Điểm danh đến: "Có mặt" khi đã có bản ghi điểm danh đến (có giờ đến hoặc status present), còn lại "Chưa có dữ liệu"
+  const hasCheckInData =
+    attendance && (checkInTime || attendance?.status === 'present');
+  const statusCheckInLabel = hasCheckInData ? 'Có mặt' : 'Chưa có dữ liệu';
+
+  // Điểm danh về: "Đã đón" khi có giờ về, còn lại "Chưa có dữ liệu"
+  const statusCheckOutLabel = hasCheckout ? 'Đã đón' : 'Chưa có dữ liệu';
 
   return (
     <div className="min-h-screen bg-gray-100">
-      <div className="max-w-3xl mx-auto px-4 py-6 md:py-8">
-        {/* Header */}
-        <div className="flex items-center justify-between mb-4">
-          <h1 className="text-lg md:text-xl font-semibold text-gray-800 flex items-center gap-2">
+      <div className="max-w-2xl mx-auto px-4 py-6 md:py-8">
+        {/* Tiêu đề trang - căn giữa */}
+        <div className="text-center mb-6">
+          <h1 className="text-xl md:text-2xl font-semibold text-gray-800 flex items-center justify-center gap-2">
             <span role="img" aria-label="clipboard">
               📋
             </span>
             Chi tiết điểm danh
           </h1>
-          <button
-            type="button"
-            onClick={() => navigate('/student')}
-            className="text-sm text-emerald-600 hover:text-emerald-700"
-          >
-            ← Quay lại Dashboard
-          </button>
         </div>
 
-        {/* Thông tin trẻ + ngày */}
-        <div className="bg-emerald-50 border border-emerald-100 rounded-xl px-4 py-3 mb-4 text-sm text-gray-800 space-y-1">
+        {/* Khung thông tin trẻ + ngày (nền xanh nhạt) */}
+        <div className="bg-green-50 border border-green-100 rounded-xl px-4 py-4 mb-6 text-sm text-gray-800 space-y-2">
           <p>
             <span className="mr-1">👶</span>
-            Trẻ:{' '}
-            <span className="font-semibold">
-              {studentName}
-            </span>
+            Trẻ: <span className="font-semibold">{studentName}</span>
           </p>
           <p>
             <span className="mr-1">🏫</span>
-            Lớp:{' '}
-            <span className="font-semibold">
-              {className}
-            </span>
+            Lớp: <span className="font-semibold">{className}</span>
           </p>
           <p>
             <span className="mr-1">📅</span>
-            Ngày:{' '}
-            <span className="font-semibold">
-              {todayLabel}
-            </span>
+            Ngày: <span className="font-semibold">{todayLabel}</span>
           </p>
         </div>
 
         {loading ? (
-          <p className="text-sm text-gray-500">Đang tải dữ liệu điểm danh...</p>
+          <p className="text-sm text-gray-500 text-center py-8">
+            Đang tải dữ liệu điểm danh...
+          </p>
         ) : (
           <>
             {error && (
@@ -133,147 +139,200 @@ function TodayAttendance() {
               </div>
             )}
 
-            {!attendance && !error && (
-              <p className="text-sm text-gray-600">
-                Chưa có dữ liệu điểm danh cho ngày hôm nay.
-              </p>
-            )}
-
-            {attendance && (
-              <div className="space-y-6">
+            {/* Luôn hiển thị 2 block; trạng thái "Có mặt" / "Đã đón" / "Chưa có dữ liệu" theo dữ liệu GV gửi tới phụ huynh */}
+            <div className="space-y-6">
                 {/* Điểm danh đến */}
-                <section className="bg-white rounded-xl shadow-sm border border-gray-100">
-                  <div className="border-b border-gray-100 px-4 py-2 flex items-center gap-2">
-                    <span className="inline-block w-2 h-2 rounded-full bg-green-600" />
-                    <h2 className="text-sm md:text-base font-semibold text-gray-800">
+                <section className="bg-white rounded-xl shadow-sm border border-gray-100 overflow-hidden">
+                  <div className="border-b border-gray-100 px-4 py-3 flex items-center gap-2">
+                    <span className="inline-block w-3 h-3 rounded-full bg-green-600" />
+                    <h2 className="text-base font-semibold text-gray-800">
                       Điểm danh đến
                     </h2>
                   </div>
-                  <div className="px-4 py-3 space-y-3 text-sm">
-                    <div className="bg-emerald-50 border border-emerald-100 rounded-md px-3 py-1.5 text-emerald-700 text-xs font-semibold inline-block">
-                      Trạng thái:{' '}
-                      {statusCheckIn === 'present'
-                        ? 'Có mặt'
-                        : statusCheckIn === 'absent'
-                          ? 'Vắng'
-                          : 'Xin nghỉ'}
+                  <div className="px-4 py-4 space-y-4">
+                    <div>
+                      <span className="text-xs font-medium text-gray-500 block mb-1">
+                        Trạng thái
+                      </span>
+                      <div
+                        className={`inline-block rounded-lg border px-3 py-2 text-sm font-semibold ${
+                          statusCheckInLabel === 'Có mặt'
+                            ? 'bg-green-50 border-green-100 text-green-700'
+                            : 'bg-gray-50 border-gray-200 text-gray-600'
+                        }`}
+                      >
+                        {statusCheckInLabel}
+                      </div>
                     </div>
 
                     <div>
-                      <label className="block text-xs font-medium text-gray-700 mb-1">
+                      <label className="block text-sm font-medium text-gray-700 mb-1">
                         Giờ đến
                       </label>
                       <input
                         type="text"
                         readOnly
-                        value={checkInTime || ''}
-                        className="w-full border border-gray-300 rounded-md px-3 py-2 text-sm bg-gray-50"
+                        value={checkInTime || '—'}
+                        className="w-full border border-gray-300 rounded-lg px-3 py-2.5 text-sm bg-gray-50"
                       />
                     </div>
 
                     <div>
-                      <label className="block text-xs font-medium text-gray-700 mb-1">
+                      <label className="block text-sm font-medium text-gray-700 mb-1">
                         Người đưa
                       </label>
                       <input
                         type="text"
                         readOnly
-                        value=""
+                        value={delivererDisplay || ''}
                         placeholder="(Chưa có thông tin người đưa)"
-                        className="w-full border border-gray-300 rounded-md px-3 py-2 text-sm bg-gray-50"
+                        className="w-full border border-gray-300 rounded-lg px-3 py-2.5 text-sm bg-gray-50"
                       />
                     </div>
 
                     <div>
-                      <label className="block text-xs font-medium text-gray-700 mb-1">
+                      <label className="block text-sm font-medium text-gray-700 mb-2">
                         Hình ảnh xác nhận
                       </label>
                       <div className="grid grid-cols-2 gap-3">
-                        <div className="border border-gray-300 rounded-md bg-gray-50 flex items-center justify-center h-28 text-xs text-gray-400">
-                          Ảnh check-in
+                        <div className="border border-gray-200 rounded-lg bg-gray-50 flex flex-col items-center justify-center h-28 text-xs text-gray-400">
+                          <span className="mt-2">Ảnh check-in</span>
+                          {attendance?.checkinImageName && (
+                            <span className="text-green-600 text-[10px] mt-1">
+                              Đã có ảnh
+                            </span>
+                          )}
                         </div>
-                        <div className="border border-gray-300 rounded-md bg-gray-50 flex items-center justify-center h-28 text-xs text-gray-400">
-                          Ảnh người đưa
+                        <div className="border border-gray-200 rounded-lg bg-gray-50 flex flex-col items-center justify-center h-28 text-xs text-gray-400">
+                          <span className="mt-2">Ảnh người đưa</span>
+                          {attendance?.delivererOtherImageName && (
+                            <span className="text-green-600 text-[10px] mt-1">
+                              Đã có ảnh
+                            </span>
+                          )}
                         </div>
                       </div>
                     </div>
 
                     <div>
-                      <label className="block text-xs font-medium text-gray-700 mb-1">
+                      <label className="block text-sm font-medium text-gray-700 mb-1">
                         Ghi chú
                       </label>
-                      <textarea
+                      <input
+                        type="text"
                         readOnly
-                        value={note}
-                        className="w-full border border-gray-300 rounded-md px-3 py-2 text-sm bg-gray-50 min-h-[60px]"
+                        value={note || ''}
                         placeholder="Không có ghi chú."
+                        className="w-full border border-gray-300 rounded-lg px-3 py-2.5 text-sm bg-gray-50 min-h-[44px]"
                       />
                     </div>
                   </div>
                 </section>
 
                 {/* Điểm danh về */}
-                <section className="bg-white rounded-xl shadow-sm border border-gray-100">
-                  <div className="border-b border-gray-100 px-4 py-2 flex items-center gap-2">
-                    <span className="inline-block w-2 h-2 rounded-full bg-blue-600" />
-                    <h2 className="text-sm md:text-base font-semibold text-gray-800">
+                <section className="bg-white rounded-xl shadow-sm border border-gray-100 overflow-hidden">
+                  <div className="border-b border-gray-100 px-4 py-3 flex items-center gap-2">
+                    <span className="inline-block w-3 h-3 rounded-full bg-blue-600" />
+                    <h2 className="text-base font-semibold text-gray-800">
                       Điểm danh về
                     </h2>
                   </div>
-                  <div className="px-4 py-3 space-y-3 text-sm">
-                    <div className="bg-blue-50 border border-blue-100 rounded-md px-3 py-1.5 text-blue-700 text-xs font-semibold inline-block">
-                      Trạng thái:{' '}
-                      {checkOutTime ? 'Đã đón' : 'Chưa đón'}
+                  <div className="px-4 py-4 space-y-4">
+                    <div>
+                      <span className="text-xs font-medium text-gray-500 block mb-1">
+                        Trạng thái
+                      </span>
+                      <div
+                        className={`inline-block rounded-lg border px-3 py-2 text-sm font-semibold ${
+                          statusCheckOutLabel === 'Đã đón'
+                            ? 'bg-blue-50 border-blue-100 text-blue-700'
+                            : 'bg-gray-50 border-gray-200 text-gray-600'
+                        }`}
+                      >
+                        {statusCheckOutLabel}
+                      </div>
                     </div>
 
                     <div>
-                      <label className="block text-xs font-medium text-gray-700 mb-1">
+                      <label className="block text-sm font-medium text-gray-700 mb-1">
                         Giờ về
                       </label>
                       <input
                         type="text"
                         readOnly
-                        value={checkOutTime || ''}
-                        className="w-full border border-gray-300 rounded-md px-3 py-2 text-sm bg-gray-50"
+                        value={checkOutTime || '—'}
+                        className="w-full border border-gray-300 rounded-lg px-3 py-2.5 text-sm bg-gray-50"
                       />
                     </div>
 
                     <div>
-                      <label className="block text-xs font-medium text-gray-700 mb-1">
+                      <label className="block text-sm font-medium text-gray-700 mb-1">
                         Người đón
                       </label>
                       <input
                         type="text"
                         readOnly
-                        value=""
+                        value={receiverDisplay || ''}
                         placeholder="(Chưa có thông tin người đón)"
-                        className="w-full border border-gray-300 rounded-md px-3 py-2 text-sm bg-gray-50"
+                        className="w-full border border-gray-300 rounded-lg px-3 py-2.5 text-sm bg-gray-50"
                       />
                     </div>
 
                     <div>
-                      <label className="block text-xs font-medium text-gray-700 mb-1">
+                      <label className="block text-sm font-medium text-gray-700 mb-2">
                         Hình ảnh xác nhận
                       </label>
                       <div className="grid grid-cols-2 gap-3">
-                        <div className="border border-gray-300 rounded-md bg-gray-50 flex items-center justify-center h-28 text-xs text-gray-400">
-                          Ảnh check-out
+                        <div className="border border-gray-200 rounded-lg bg-gray-50 flex flex-col items-center justify-center h-28 text-xs text-gray-400">
+                          <span className="mt-2">Ảnh check-out</span>
+                          {attendance?.checkoutImageName && (
+                            <span className="text-green-600 text-[10px] mt-1">
+                              Đã có ảnh
+                            </span>
+                          )}
                         </div>
-                        <div className="border border-gray-300 rounded-md bg-gray-50 flex items-center justify-center h-28 text-xs text-gray-400">
-                          Ảnh người đón
+                        <div className="border border-gray-200 rounded-lg bg-gray-50 flex flex-col items-center justify-center h-28 text-xs text-gray-400">
+                          <span className="mt-2">Ảnh người đón</span>
+                          {attendance?.receiverOtherImageName && (
+                            <span className="text-green-600 text-[10px] mt-1">
+                              Đã có ảnh
+                            </span>
+                          )}
                         </div>
                       </div>
+                    </div>
+
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-1">
+                        Xác nhận phụ huynh
+                      </label>
+                      <input
+                        type="text"
+                        readOnly
+                        value={parentConfirmLabel}
+                        className="w-full border border-gray-300 rounded-lg px-3 py-2.5 text-sm bg-gray-50 font-medium"
+                      />
                     </div>
                   </div>
                 </section>
               </div>
-            )}
           </>
         )}
+
+        {/* Nút quay lại Dashboard - căn giữa, màu xanh */}
+        <div className="mt-8 flex justify-center">
+          <button
+            type="button"
+            onClick={() => navigate('/student')}
+            className="px-6 py-3 bg-green-600 text-white font-semibold rounded-lg hover:bg-green-700 transition-colors flex items-center gap-2 shadow-sm"
+          >
+            <span>←</span>
+            <span>Quay lại Dashboard</span>
+          </button>
+        </div>
       </div>
     </div>
   );
 }
 
 export default TodayAttendance;
-
