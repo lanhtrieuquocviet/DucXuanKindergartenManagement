@@ -8,6 +8,7 @@ const {
   getStudentAttendanceHistory,
 } = require('../controller/attendanceController');
 const blogController = require('../controller/blogController');
+const qaController = require('../controller/qaController');
 
 const router = express.Router();
 
@@ -87,6 +88,36 @@ router.delete(
   authenticate,
   authorizeRoles('SchoolAdmin'),
   blogController.deleteBlog
+);
+
+// Q&A cho SchoolAdmin
+router.get(
+  '/qa/questions',
+  authenticate,
+  authorizeRoles('SchoolAdmin'),
+  qaController.getQuestions
+);
+router.patch(
+  '/qa/questions/:id',
+  authenticate,
+  authorizeRoles('SchoolAdmin'),
+  qaController.validateQuestionId,
+  qaController.validateCreateQuestion,
+  qaController.updateQuestion
+);
+router.delete(
+  '/qa/questions/:id',
+  authenticate,
+  authorizeRoles('SchoolAdmin'),
+  qaController.validateQuestionId,
+  qaController.deleteQuestion
+);
+router.post(
+  '/qa/questions/:id/answers',
+  authenticate,
+  authorizeRoles('SchoolAdmin'),
+  qaController.validateCreateAnswer,
+  qaController.createAnswer
 );
 
 // Chi tiết điểm danh của một lớp

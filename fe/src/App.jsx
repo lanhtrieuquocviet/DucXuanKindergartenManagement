@@ -19,6 +19,7 @@ import SchoolAdminDashboard from './pages/schoolAdmin/SchoolAdminDashboard';
 import ClassList from './pages/schoolAdmin/ClassList';
 import StudentInClass from './pages/schoolAdmin/StudentInClass';
 import ContactList from './pages/schoolAdmin/ContactList';
+import QaList from './pages/schoolAdmin/QaList';
 import AttendanceOverview from './pages/schoolAdmin/AttendanceOverview';
 import ClassAttendanceDetail from './pages/schoolAdmin/ClassAttendanceDetail';
 import StudentAttendanceDetail from './pages/schoolAdmin/StudentAttendanceDetail';
@@ -254,6 +255,14 @@ function App() {
             element={(
               <SchoolAdminProvider>
                 <ContactList />
+              </SchoolAdminProvider>
+            )}
+          />
+          <Route
+            path="/school-admin/qa"
+            element={(
+              <SchoolAdminProvider>
+                <QaList />
               </SchoolAdminProvider>
             )}
           />
