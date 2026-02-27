@@ -1,5 +1,7 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { useLocation, useNavigate, useParams } from 'react-router-dom';
+import { RecaptchaVerifier, signInWithPhoneNumber } from 'firebase/auth';
+import { auth } from '../../config/firebase';
 import { useAuth } from '../../context/AuthContext';
 import RoleLayout from '../../layouts/RoleLayout';
 import ConfirmDialog from '../../components/ConfirmDialog';
@@ -152,10 +154,41 @@ function TeacherAttendance() {
   const [absentError, setAbsentError] = useState(null);
   const [isConfirmAbsentOpen, setIsConfirmAbsentOpen] = useState(false);
 
-  // State để lưu mã OTP được gửi
-  const [sentOtpCode, setSentOtpCode] = useState('');
+  // Toast thông báo thành công
+  const [successToast, setSuccessToast] = useState({ visible: false, message: '' });
+
+  const showSuccessToast = (message) => {
+    setSuccessToast({ visible: true, message });
+    setTimeout(() => setSuccessToast({ visible: false, message: '' }), 3000);
+  };
+
+  // State cho Firebase OTP
+  const [confirmationResult, setConfirmationResult] = useState(null);
+  const recaptchaVerifierRef = useRef(null);
   const [otpTimeLeft, setOtpTimeLeft] = useState(0); // Thời gian còn lại (giây)
   const [otpExpired, setOtpExpired] = useState(false); // OTP đã hết hạn
+
+  // Khởi tạo RecaptchaVerifier MỘT LẦN khi component mount, clear khi unmount
+  useEffect(() => {
+    recaptchaVerifierRef.current = new RecaptchaVerifier(auth, 'recaptcha-container', {
+      size: 'invisible',
+    });
+    return () => {
+      if (recaptchaVerifierRef.current) {
+        recaptchaVerifierRef.current.clear();
+        recaptchaVerifierRef.current = null;
+      }
+    };
+  }, []);
+
+  // Chuyển số điện thoại VN sang định dạng E.164 cho Firebase
+  const formatPhoneForFirebase = (phone) => {
+    if (!phone) return '';
+    const cleaned = phone.replace(/\s/g, '');
+    if (cleaned.startsWith('+')) return cleaned;
+    if (cleaned.startsWith('0')) return '+84' + cleaned.slice(1);
+    return '+84' + cleaned;
+  };
 
   const handleSelectedDateChange = (value) => {
     if (!value) return;
@@ -339,6 +372,8 @@ function TeacherAttendance() {
     setSubmitError(null);
     setDetailStudentId(studentId);
     const rec = attendanceByStudent?.[studentId] || defaultRecord();
+    const isSameStudentCheckin = mode === 'checkin' && studentId === detailStudentId;
+
     setDetailForm({
       status:
         mode === 'checkin' && (rec.status === 'empty' || rec.status === 'absent')
@@ -366,72 +401,34 @@ function TeacherAttendance() {
       receiverType: rec.receiverType || '',
       receiverOtherInfo: rec.receiverOtherInfo || '',
       receiverOtherImageName: rec.receiverOtherImageName || '',
+      // Giữ lại trạng thái OTP nếu mở lại cùng học sinh ở chế độ checkin
+      sendOtpSchoolAccount: isSameStudentCheckin ? detailForm.sendOtpSchoolAccount : false,
+      sendOtpViaSms: isSameStudentCheckin ? detailForm.sendOtpViaSms : false,
+      selectedParentForOtp: isSameStudentCheckin ? detailForm.selectedParentForOtp : '',
+      otpCode: isSameStudentCheckin ? detailForm.otpCode : '',
+      otpSent: isSameStudentCheckin ? detailForm.otpSent : false,
     });
     setDetailMode(mode);
     setIsDetailOpen(true);
 
-    // Khôi phục trạng thái OTP nếu có
-    if (mode === 'checkin') {
-      const otpState = restoreOtpState(studentId);
-      if (otpState) {
-        setSentOtpCode(otpState.sentOtpCode);
-        setOtpTimeLeft(otpState.otpTimeLeft);
-        setOtpExpired(otpState.otpExpired);
-        setDetailForm((prev) => ({
-          ...prev,
-          otpSent: otpState.otpSent,
-        }));
-      }
+    // Chỉ reset OTP khi mở checkin cho học sinh khác hoặc chuyển sang mode khác
+    if (!isSameStudentCheckin) {
+      resetOtpState();
     }
   };
 
-  // Lưu trạng thái OTP vào localStorage
-  const saveOtpState = (studentId, code, timeLeft, expired, sent) => {
-    if (!studentId) return;
-    const otpState = {
-      studentId,
-      sentOtpCode: code,
-      otpTimeLeft: timeLeft,
-      otpExpired: expired,
-      otpSent: sent,
-      timestamp: Date.now(),
-    };
-    localStorage.setItem(`otp_state_${studentId}`, JSON.stringify(otpState));
-  };
-
-  // Khôi phục trạng thái OTP từ localStorage
-  const restoreOtpState = (studentId) => {
-    if (!studentId) return null;
-    try {
-      const stored = localStorage.getItem(`otp_state_${studentId}`);
-      if (!stored) return null;
-      const otpState = JSON.parse(stored);
-      // Kiểm tra OTP có hết hạn không (quá 2 phút = 120 giây)
-      const elapsedSeconds = Math.floor((Date.now() - otpState.timestamp) / 1000);
-      if (elapsedSeconds >= 120) {
-        // OTP đã hết hạn
-        localStorage.removeItem(`otp_state_${studentId}`);
-        return null;
-      }
-      return otpState;
-    } catch {
-      return null;
-    }
-  };
-
-  // Xóa trạng thái OTP từ localStorage
-  const clearOtpState = (studentId) => {
-    if (!studentId) return;
-    localStorage.removeItem(`otp_state_${studentId}`);
+  // Reset trạng thái OTP (RecaptchaVerifier được giữ nguyên để tránh "already rendered")
+  const resetOtpState = () => {
+    setConfirmationResult(null);
+    setOtpExpired(false);
+    setOtpTimeLeft(0);
+    setDetailForm((prev) => ({ ...prev, otpSent: false, otpCode: '' }));
   };
 
   const closeDetail = () => {
     setIsDetailOpen(false);
     setSubmitError(null);
-    // Lưu trạng thái OTP khi đóng modal
-    if (detailStudentId && detailMode === 'checkin') {
-      saveOtpState(detailStudentId, sentOtpCode, otpTimeLeft, otpExpired, detailForm.otpSent);
-    }
+    // Không reset OTP ở đây để teacher có thể mở lại cùng học sinh mà không cần gửi lại OTP
   };
 
   const validateDetail = () => {
@@ -530,16 +527,18 @@ function TeacherAttendance() {
     try {
       if (!detailStudentId) throw new Error('Không xác định học sinh.');
 
-      // Kiểm tra OTP - bắt buộc phải gửi và nhập mã OTP chính xác
+      // Kiểm tra OTP qua Firebase - bắt buộc phải gửi và xác minh thành công
       if (detailMode === 'checkin') {
-        if (!detailForm.otpSent) {
+        if (!detailForm.otpSent || !confirmationResult) {
           throw new Error('Vui lòng gửi mã OTP trước khi lưu.');
         }
         if (!detailForm.otpCode) {
           throw new Error('Vui lòng nhập mã OTP.');
         }
-        if (detailForm.otpCode !== sentOtpCode) {
-          throw new Error('Mã OTP không chính xác.');
+        try {
+          await confirmationResult.confirm(detailForm.otpCode);
+        } catch {
+          throw new Error('Mã OTP không chính xác hoặc đã hết hạn.');
         }
       }
 
@@ -579,6 +578,9 @@ function TeacherAttendance() {
           receiverOtherInfo: detailForm.receiverOtherInfo,
           receiverOtherImageName: detailForm.receiverOtherImageName,
         });
+
+        const studentNameOut = students.find((s) => s._id === detailStudentId)?.fullName || 'Học sinh';
+        showSuccessToast(`Check-out thành công cho ${studentNameOut}!`);
       } else if (detailMode === 'checkin') {
         const timeInHHmm = detailForm.timeIn || nowHHmm();
         const isoIn = buildDateTimeISO(selectedDate, timeInHHmm);
@@ -607,6 +609,9 @@ function TeacherAttendance() {
           hasBelongings: detailForm.hasBelongings,
           belongingsNote: detailForm.belongingsNote,
         });
+
+        const studentName = students.find((s) => s._id === detailStudentId)?.fullName || 'Học sinh';
+        showSuccessToast(`Điểm danh thành công cho ${studentName}!`);
       } else {
         // view mode: chỉ lưu local - lưu tất cả thông tin
         updateRecord(detailStudentId, {
@@ -1684,21 +1689,16 @@ function TeacherAttendance() {
                                 }
                                 setSubmitError(null);
                                 try {
-                                  // Gọi API để gửi OTP qua SMS
-                                  const response = await post(ENDPOINTS.OTP.SEND, {
-                                    studentId: detailStudentId,
-                                    phoneNumber: detailForm.selectedParentForOtp,
-                                  });
-                                  
-                                  // Lưu mã OTP từ response (chỉ dùng cho dev/test)
-                                  setSentOtpCode(response.data.otpCode);
+                                  const phoneE164 = formatPhoneForFirebase(detailForm.selectedParentForOtp);
+                                  const result = await signInWithPhoneNumber(auth, phoneE164, recaptchaVerifierRef.current);
+                                  setConfirmationResult(result);
                                   setDetailForm((prev) => ({
                                     ...prev,
                                     otpSent: true,
                                     otpCode: '',
                                   }));
                                 } catch (err) {
-                                  setSubmitError(err.message || 'Lỗi khi gửi OTP');
+                                  setSubmitError(err.message || 'Lỗi khi gửi OTP qua Firebase');
                                 }
                               }}
                               className="w-full px-3 py-2 text-sm font-semibold text-white bg-blue-600 rounded-md hover:bg-blue-700 transition-colors mb-3"
@@ -1742,17 +1742,7 @@ function TeacherAttendance() {
                                     )}
                                     <button
                                       type="button"
-                                      onClick={() => {
-                                        // Reset OTP state
-                                        setOtpExpired(false);
-                                        setOtpTimeLeft(120);
-                                        setSentOtpCode('');
-                                        setDetailForm((prev) => ({
-                                          ...prev,
-                                          otpSent: false,
-                                          otpCode: '',
-                                        }));
-                                      }}
+                                      onClick={() => resetOtpState()}
                                       className="w-full mt-2 px-3 py-2 text-xs font-semibold text-white bg-red-600 rounded hover:bg-red-700 transition-colors"
                                     >
                                       Gửi lại mã OTP
@@ -1936,6 +1926,16 @@ function TeacherAttendance() {
         onConfirm={saveAbsentRecord}
         onCancel={() => setIsConfirmAbsentOpen(false)}
       />
+      {/* Firebase invisible reCAPTCHA container */}
+      <div id="recaptcha-container" />
+
+      {/* Toast thông báo thành công */}
+      {successToast.visible && (
+        <div className="fixed top-6 right-6 z-50 flex items-center gap-4 bg-green-600 text-white px-8 py-5 rounded-2xl shadow-2xl text-base font-bold">
+          <span className="text-2xl">✅</span>
+          <span>{successToast.message}</span>
+        </div>
+      )}
     </RoleLayout>
   );
 }
