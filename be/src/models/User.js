@@ -23,6 +23,10 @@ const userSchema = new mongoose.Schema({
     trim: true,
     lowercase: true
   },
+  phone: {
+    type: String,
+    default: ''
+  },
   avatar: {
     type: String,
     default: ''

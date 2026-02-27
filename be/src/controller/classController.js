@@ -77,8 +77,8 @@ const getStudentInClass = async (req, res) => {
 
     // Lấy danh sách học sinh trong lớp
     const students = await Student.find({ classId })
-      .populate('parentId', 'username email fullName avatar')
-      .select('-__v');
+      .populate('parentId', 'username email fullName avatar phone')
+      .lean();
 
     if (!students || students.length === 0) {
       return res.status(200).json({
