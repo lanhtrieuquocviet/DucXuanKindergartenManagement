@@ -59,6 +59,13 @@ const defaultRecord = () => ({
   receiverType: '', // '', 'Bố', 'Mẹ', 'Ông', 'Bà', 'Khác'
   receiverOtherInfo: '',
   receiverOtherImageName: '',
+  // Thông tin gửi OTP
+  sendOtpSchoolAccount: false,
+  sendOtpViaSms: false,
+  selectedParentForOtp: '',
+  otpCode: '',
+  otpSent: false,
+  otpVerified: false,
 });
 
 const DELIVERER_OPTIONS = ['Bố', 'Mẹ', 'Ông', 'Bà', 'Khác'];
@@ -145,6 +152,11 @@ function TeacherAttendance() {
   const [absentError, setAbsentError] = useState(null);
   const [isConfirmAbsentOpen, setIsConfirmAbsentOpen] = useState(false);
 
+  // State để lưu mã OTP được gửi
+  const [sentOtpCode, setSentOtpCode] = useState('');
+  const [otpTimeLeft, setOtpTimeLeft] = useState(0); // Thời gian còn lại (giây)
+  const [otpExpired, setOtpExpired] = useState(false); // OTP đã hết hạn
+
   const handleSelectedDateChange = (value) => {
     if (!value) return;
     if (value > todayISO) {
@@ -221,6 +233,31 @@ function TeacherAttendance() {
       return next;
     });
   }, [classId, selectedDate, students]);
+
+  // Đếm ngược OTP - 120 giây (2 phút)
+  useEffect(() => {
+    if (!detailForm.otpSent || otpExpired) return;
+
+    const interval = setInterval(() => {
+      setOtpTimeLeft((prev) => {
+        if (prev <= 1) {
+          setOtpExpired(true);
+          clearInterval(interval);
+          return 0;
+        }
+        return prev - 1;
+      });
+    }, 1000);
+
+    return () => clearInterval(interval);
+  }, [detailForm.otpSent, otpExpired]);
+
+  // Khi gửi OTP, bắt đầu đếm ngược
+  useEffect(() => {
+    if (detailForm.otpSent && !otpExpired) {
+      setOtpTimeLeft(120); // 2 phút
+    }
+  }, [detailForm.otpSent]);
 
   const menuItems = useMemo(
     () => [
@@ -332,11 +369,69 @@ function TeacherAttendance() {
     });
     setDetailMode(mode);
     setIsDetailOpen(true);
+
+    // Khôi phục trạng thái OTP nếu có
+    if (mode === 'checkin') {
+      const otpState = restoreOtpState(studentId);
+      if (otpState) {
+        setSentOtpCode(otpState.sentOtpCode);
+        setOtpTimeLeft(otpState.otpTimeLeft);
+        setOtpExpired(otpState.otpExpired);
+        setDetailForm((prev) => ({
+          ...prev,
+          otpSent: otpState.otpSent,
+        }));
+      }
+    }
+  };
+
+  // Lưu trạng thái OTP vào localStorage
+  const saveOtpState = (studentId, code, timeLeft, expired, sent) => {
+    if (!studentId) return;
+    const otpState = {
+      studentId,
+      sentOtpCode: code,
+      otpTimeLeft: timeLeft,
+      otpExpired: expired,
+      otpSent: sent,
+      timestamp: Date.now(),
+    };
+    localStorage.setItem(`otp_state_${studentId}`, JSON.stringify(otpState));
+  };
+
+  // Khôi phục trạng thái OTP từ localStorage
+  const restoreOtpState = (studentId) => {
+    if (!studentId) return null;
+    try {
+      const stored = localStorage.getItem(`otp_state_${studentId}`);
+      if (!stored) return null;
+      const otpState = JSON.parse(stored);
+      // Kiểm tra OTP có hết hạn không (quá 2 phút = 120 giây)
+      const elapsedSeconds = Math.floor((Date.now() - otpState.timestamp) / 1000);
+      if (elapsedSeconds >= 120) {
+        // OTP đã hết hạn
+        localStorage.removeItem(`otp_state_${studentId}`);
+        return null;
+      }
+      return otpState;
+    } catch {
+      return null;
+    }
+  };
+
+  // Xóa trạng thái OTP từ localStorage
+  const clearOtpState = (studentId) => {
+    if (!studentId) return;
+    localStorage.removeItem(`otp_state_${studentId}`);
   };
 
   const closeDetail = () => {
     setIsDetailOpen(false);
     setSubmitError(null);
+    // Lưu trạng thái OTP khi đóng modal
+    if (detailStudentId && detailMode === 'checkin') {
+      saveOtpState(detailStudentId, sentOtpCode, otpTimeLeft, otpExpired, detailForm.otpSent);
+    }
   };
 
   const validateDetail = () => {
@@ -434,6 +529,19 @@ function TeacherAttendance() {
 
     try {
       if (!detailStudentId) throw new Error('Không xác định học sinh.');
+
+      // Kiểm tra OTP - bắt buộc phải gửi và nhập mã OTP chính xác
+      if (detailMode === 'checkin') {
+        if (!detailForm.otpSent) {
+          throw new Error('Vui lòng gửi mã OTP trước khi lưu.');
+        }
+        if (!detailForm.otpCode) {
+          throw new Error('Vui lòng nhập mã OTP.');
+        }
+        if (detailForm.otpCode !== sentOtpCode) {
+          throw new Error('Mã OTP không chính xác.');
+        }
+      }
 
       const basePayload = {
         studentId: detailStudentId,
@@ -1504,6 +1612,156 @@ function TeacherAttendance() {
                             maxLength={MAX_BELONGINGS_NOTE_LEN}
                             className="w-full px-3 py-2 border border-gray-300 rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500 mb-3"
                           />
+                        )}
+                      </div>
+
+                      {/* Phần Gửi mã OTP cho phụ huynh */}
+                      <div className="md:col-span-2 border-t border-gray-100 pt-4 mt-2">
+                        <p className="text-xs font-semibold text-gray-700 mb-3 flex items-center gap-2">
+                          <span>📱</span>
+                          Phương thức gửi OTP
+                        </p>
+                        
+                        <div className="space-y-3 mb-4">
+                          <label className="flex items-center gap-2 text-sm text-gray-700">
+                            <input
+                              type="checkbox"
+                              checked={detailForm.sendOtpSchoolAccount || false}
+                              onChange={(e) =>
+                                setDetailForm((prev) => ({
+                                  ...prev,
+                                  sendOtpSchoolAccount: e.target.checked,
+                                }))
+                              }
+                            />
+                            Tài khoản trường cấp
+                          </label>
+                          
+                          <label className="flex items-center gap-2 text-sm text-gray-700">
+                            <input
+                              type="checkbox"
+                              checked={detailForm.sendOtpViaSms || false}
+                              onChange={(e) =>
+                                setDetailForm((prev) => ({
+                                  ...prev,
+                                  sendOtpViaSms: e.target.checked,
+                                }))
+                              }
+                            />
+                            Gửi qua SMS
+                          </label>
+                        </div>
+
+                        {(detailForm.sendOtpSchoolAccount || detailForm.sendOtpViaSms) && (
+                          <>
+                            <div className="mb-3">
+                              <label className="block text-xs font-semibold text-gray-700 mb-1">Chọn phụ huynh nhận SMS</label>
+                              <select
+                                value={detailForm.selectedParentForOtp || ''}
+                                onChange={(e) =>
+                                  setDetailForm((prev) => ({
+                                    ...prev,
+                                    selectedParentForOtp: e.target.value,
+                                  }))
+                                }
+                                className="w-full px-3 py-2 border border-gray-300 rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                              >
+                                <option value="">--Chọn--</option>
+                                {detailStudent?.parentId?.phone && (
+                                  <option value={detailStudent.parentId.phone}>
+                                    {detailStudent.parentId.fullName || 'Phụ huynh'} - {detailStudent.parentId.phone}
+                                  </option>
+                                )}
+                              </select>
+                            </div>
+
+                            <button
+                              type="button"
+                              onClick={async () => {
+                                if (!detailForm.selectedParentForOtp) {
+                                  setSubmitError('Vui lòng chọn phụ huynh nhận SMS.');
+                                  return;
+                                }
+                                setSubmitError(null);
+                                try {
+                                  // Gọi API để gửi OTP qua SMS
+                                  const response = await post(ENDPOINTS.OTP.SEND, {
+                                    studentId: detailStudentId,
+                                    phoneNumber: detailForm.selectedParentForOtp,
+                                  });
+                                  
+                                  // Lưu mã OTP từ response (chỉ dùng cho dev/test)
+                                  setSentOtpCode(response.data.otpCode);
+                                  setDetailForm((prev) => ({
+                                    ...prev,
+                                    otpSent: true,
+                                    otpCode: '',
+                                  }));
+                                } catch (err) {
+                                  setSubmitError(err.message || 'Lỗi khi gửi OTP');
+                                }
+                              }}
+                              className="w-full px-3 py-2 text-sm font-semibold text-white bg-blue-600 rounded-md hover:bg-blue-700 transition-colors mb-3"
+                            >
+                              Gửi mã OTP
+                            </button>
+
+                            {detailForm.otpSent && (
+                              <div className={`rounded-md p-3 ${otpExpired ? 'bg-red-50 border border-red-200' : 'bg-blue-50 border border-blue-200'}`}>
+                                <div className="flex items-center justify-between mb-2">
+                                  <label className="block text-xs font-semibold text-gray-700">Nhập mã OTP</label>
+                                  <span className={`text-xs font-semibold ${otpExpired ? 'text-red-600' : 'text-blue-600'}`}>
+                                    {otpExpired ? '❌ Hết hạn' : `⏱️ ${Math.floor(otpTimeLeft / 60)}:${String(otpTimeLeft % 60).padStart(2, '0')}`}
+                                  </span>
+                                </div>
+                                <input
+                                  type="text"
+                                  value={detailForm.otpCode || ''}
+                                  onChange={(e) =>
+                                    setDetailForm((prev) => ({
+                                      ...prev,
+                                      otpCode: e.target.value.slice(0, 6),
+                                    }))
+                                  }
+                                  placeholder="Mã 6 số"
+                                  maxLength={6}
+                                  disabled={otpExpired}
+                                  className={`w-full px-3 py-2 border rounded-md text-sm focus:outline-none ${
+                                    otpExpired
+                                      ? 'bg-gray-100 border-gray-300 cursor-not-allowed text-gray-500'
+                                      : 'border-gray-300 focus:ring-2 focus:ring-blue-500'
+                                  }`}
+                                />
+                                {otpExpired && (
+                                  <div className="mt-3 p-3 bg-red-100 border border-red-300 rounded text-xs text-red-700">
+                                    <p className="font-semibold mb-2">⚠️ Mã OTP đã hết hạn</p>
+                                    {detailStudent?.parentId?.phone && (
+                                      <p className="text-red-600 font-semibold mb-2">
+                                        📱 {detailStudent.parentId.fullName || 'Phụ huynh'}: {detailStudent.parentId.phone}
+                                      </p>
+                                    )}
+                                    <button
+                                      type="button"
+                                      onClick={() => {
+                                        // Reset OTP state
+                                        setOtpExpired(false);
+                                        setOtpTimeLeft(120);
+                                        setSentOtpCode('');
+                                        setDetailForm((prev) => ({
+                                          ...prev,
+                                          otpSent: false,
+                                          otpCode: '',
+                                        }));
+                                      }}
+                                      className="w-full mt-2 px-3 py-2 text-xs font-semibold text-white bg-red-600 rounded hover:bg-red-700 transition-colors"
+                                    >
+                                      Gửi lại mã OTP
+                                    </button>
+                                  </div>
+                                )}
+                              </div>
+                            )}
+                          </>
                         )}
                       </div>
 

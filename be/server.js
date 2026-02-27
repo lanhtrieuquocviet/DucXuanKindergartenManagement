@@ -19,6 +19,7 @@ const cloudinaryRoutes = require('./src/routes/cloudinary.routes');
 const contactRoutes = require('./src/routes/contact.routes');
 const qaRoutes = require('./src/routes/qa.routes');
 const blogsRoutes = require('./src/routes/blogs.routes');
+const otpRoutes = require('./src/routes/otp.routes');
 
 // Import models để Mongoose đăng ký schema (tránh lỗi "Schema hasn't been registered for model 'Roles'")
 require('./src/models/Role');
@@ -200,6 +201,9 @@ app.use('/api/qa', qaRoutes);
 
 // Blogs (public - published only)
 app.use('/api/blogs', blogsRoutes);
+
+// OTP routes
+app.use('/api/otp', otpRoutes);
 
 // Route kiểm tra sức khỏe hệ thống
 /**

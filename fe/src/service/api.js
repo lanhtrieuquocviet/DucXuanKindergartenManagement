@@ -230,6 +230,11 @@ export const ENDPOINTS = {
     UPLOAD_AVATAR: '/cloudinary/upload-avatar',
     UPLOAD_BLOG_IMAGE: '/cloudinary/upload-blog-image',
   },
+  // OTP
+  OTP: {
+    SEND: '/otp/send',
+    VERIFY: '/otp/verify',
+  },
 };
 
 export default {
