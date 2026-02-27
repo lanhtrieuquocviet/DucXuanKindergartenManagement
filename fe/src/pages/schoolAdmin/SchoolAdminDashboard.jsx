@@ -49,6 +49,7 @@ function SchoolAdminDashboard() {
     { key: 'contacts', label: 'Liên hệ' },
     { key: 'qa', label: 'Câu hỏi' },
     { key: 'blogs', label: 'Quản lý blog' },
+    { key: 'documents', label: 'Quản lý tài liệu' },
     { key: 'attendance', label: 'Quản lý điểm danh' },
   ];
 
@@ -74,6 +75,10 @@ function SchoolAdminDashboard() {
     }
     if (key === 'blogs') {
       navigate('/school-admin/blogs');
+      return;
+    }
+    if (key === 'documents') {
+      navigate('/school-admin/documents');
       return;
     }
     if (key === 'attendance') {

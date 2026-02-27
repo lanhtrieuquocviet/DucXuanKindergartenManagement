@@ -19,6 +19,7 @@ const cloudinaryRoutes = require('./src/routes/cloudinary.routes');
 const contactRoutes = require('./src/routes/contact.routes');
 const qaRoutes = require('./src/routes/qa.routes');
 const blogsRoutes = require('./src/routes/blogs.routes');
+const documentsRoutes = require('./src/routes/documents.routes');
 const otpRoutes = require('./src/routes/otp.routes');
 
 // Import models để Mongoose đăng ký schema (tránh lỗi "Schema hasn't been registered for model 'Roles'")
@@ -33,11 +34,13 @@ require('./src/models/Contact');
 require('./src/models/Blog');
 require('./src/models/BlogCategory');
 require('./src/models/Question');
+require('./src/models/Document');
 
 // ensure default blog categories exist
 (async () => {
   const BlogCategory = require('./src/models/BlogCategory');
   const Blog = require('./src/models/Blog');
+  const Permission = require('./src/models/Permission');
   const defaults = [
     'Bản tin trường',
     'Thông báo',
@@ -63,8 +66,16 @@ require('./src/models/Question');
     if (blogsToFix.length > 0) {
       console.log(`🔁 Migrated ${blogsToFix.length} blog(s) to use category ObjectId`);
     }
+
+    // Ensure MANAGE_DOCUMENTS permission exists
+    await Permission.findOneAndUpdate(
+      { code: 'MANAGE_DOCUMENTS' },
+      { code: 'MANAGE_DOCUMENTS', description: 'Quản lý tài liệu' },
+      { upsert: true, new: true }
+    );
+    console.log('✅ MANAGE_DOCUMENTS permission seeded');
   } catch (err) {
-    console.error('Error seeding/migrating blog categories', err);
+    console.error('Error seeding/migrating blog categories and permissions', err);
   }
 })();
 
@@ -198,6 +209,9 @@ app.use('/api/contact', contactRoutes);
 
 // Q&A (public)
 app.use('/api/qa', qaRoutes);
+
+// Documents (public - published only)
+app.use('/api/documents', documentsRoutes);
 
 // Blogs (public - published only)
 app.use('/api/blogs', blogsRoutes);

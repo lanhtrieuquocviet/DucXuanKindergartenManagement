@@ -94,6 +94,25 @@ export const postFormData = async (endpoint, formData, options = {}) => {
 };
 
 /**
+ * PUT FormData (multipart) - dùng cho upload file
+ */
+export const putFormData = async (endpoint, formData, options = {}) => {
+  const { includeAuth = true } = options;
+  const headers = {};
+  if (includeAuth) {
+    const token = getToken();
+    if (token) headers.Authorization = `Bearer ${token}`;
+  }
+  const response = await fetch(`${API_BASE_URL}${endpoint}`, {
+    method: 'PUT',
+    headers,
+    body: formData,
+  });
+
+  return handleResponse(response);
+};
+
+/**
  * PUT request
  */
 export const put = async (endpoint, body, options = {}) => {
@@ -184,6 +203,8 @@ export const ENDPOINTS = {
     STUDENT_ATTENDANCE_HISTORY: (studentId) => `/school-admin/students/${studentId}/attendance/history`,
     BLOGS: '/school-admin/blogs',
     BLOG_DETAIL: (blogId) => `/school-admin/blogs/${blogId}`,
+    DOCUMENTS: '/school-admin/documents',
+    DOCUMENT_DETAIL: (documentId) => `/school-admin/documents/${documentId}`,
   },
   // Contact (public)
   CONTACT: {
@@ -213,6 +234,10 @@ export const ENDPOINTS = {
     PUBLISHED: '/blogs/published',
     CATEGORIES: '/blogs/categories',
   },
+  // Documents (public)
+  DOCUMENTS: {
+    PUBLISHED: '/documents/published',
+  },
   // Students
   STUDENTS: {
     LIST: '/students',
@@ -241,6 +266,7 @@ export default {
   get,
   post,
   postFormData,
+  putFormData,
   put,
   patch,
   delete: del,

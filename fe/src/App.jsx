@@ -26,6 +26,7 @@ import StudentAttendanceDetail from './pages/schoolAdmin/StudentAttendanceDetail
 import StudentAttendanceHistory from './pages/schoolAdmin/StudentAttendanceHistory';
 import ExportAttendanceReport from './pages/schoolAdmin/ExportAttendanceReport';
 import ManageBlogs from './pages/schoolAdmin/ManageBlogs';
+import ManageDocuments from './pages/schoolAdmin/ManageDocuments';
 import BlogDetail from './pages/schoolAdmin/BlogDetail';
 import Contact from './pages/Contact';
 import Profile from './pages/Profile';
@@ -329,6 +330,14 @@ function App() {
             element={(
               <SchoolAdminProvider>
                 <ManageBlogs />
+              </SchoolAdminProvider>
+            )}
+          />
+          <Route
+            path="/school-admin/documents"
+            element={(
+              <SchoolAdminProvider>
+                <ManageDocuments />
               </SchoolAdminProvider>
             )}
           />

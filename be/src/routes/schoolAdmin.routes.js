@@ -1,4 +1,5 @@
 const express = require('express');
+const multer = require('multer');
 const { authenticate, authorizeRoles, authorizePermissions } = require('../middleware/auth');
 const contactController = require('../controller/contactController');
 const {
@@ -9,8 +10,43 @@ const {
 } = require('../controller/attendanceController');
 const blogController = require('../controller/blogController');
 const qaController = require('../controller/qaController');
+const documentController = require('../controller/documentController');
 
 const router = express.Router();
+
+// Multer configuration for PDF files
+const pdfUploadMiddleware = multer({
+  storage: multer.memoryStorage(),
+  limits: { fileSize: 10 * 1024 * 1024 }, // 10MB
+  fileFilter: (req, file, cb) => {
+    const allowed = /^application\/pdf$/i.test(file.mimetype);
+    if (allowed) cb(null, true);
+    else cb(new Error('Chỉ chấp nhận file PDF.'));
+  },
+});
+
+// Middleware xử lý lỗi upload
+function handleUploadError(err, req, res, next) {
+  if (err instanceof multer.MulterError) {
+    if (err.code === 'FILE_TOO_LARGE') {
+      return res.status(400).json({
+        status: 'error',
+        message: 'File quá lớn (tối đa 10MB)',
+      });
+    }
+    return res.status(400).json({
+      status: 'error',
+      message: `Lỗi upload: ${err.message}`,
+    });
+  }
+  if (err) {
+    return res.status(400).json({
+      status: 'error',
+      message: err.message || 'Lỗi upload file',
+    });
+  }
+  next();
+}
 
 // Chỉ SchoolAdmin mới truy cập được
 router.get('/dashboard', authenticate, authorizeRoles('SchoolAdmin'), (req, res) => {
@@ -142,6 +178,42 @@ router.get(
   authenticate,
   authorizeRoles('SchoolAdmin'),
   getStudentAttendanceHistory
+);
+
+// Document Management CRUD cho SchoolAdmin
+router.get(
+  '/documents',
+  authenticate,
+  authorizeRoles('SchoolAdmin'),
+  documentController.listDocuments
+);
+router.get(
+  '/documents/:id',
+  authenticate,
+  authorizeRoles('SchoolAdmin'),
+  documentController.getDocument
+);
+router.post(
+  '/documents',
+  authenticate,
+  authorizeRoles('SchoolAdmin'),
+  pdfUploadMiddleware.single('pdf'),
+  handleUploadError,
+  documentController.createDocument
+);
+router.put(
+  '/documents/:id',
+  authenticate,
+  authorizeRoles('SchoolAdmin'),
+  pdfUploadMiddleware.single('pdf'),
+  handleUploadError,
+  documentController.updateDocument
+);
+router.delete(
+  '/documents/:id',
+  authenticate,
+  authorizeRoles('SchoolAdmin'),
+  documentController.deleteDocument
 );
 
 module.exports = router;
