@@ -170,7 +170,7 @@ function DocumentFormModal({ open, onClose, initialData, onSubmit, loading }) {
   );
 }
 
-function DocumentGallery({ document }) {
+export function DocumentGallery({ document }) {
   const [currentPage, setCurrentPage] = useState(0);
 
   if (!document.images || document.images.length === 0) {
@@ -398,6 +398,13 @@ export default function ManageDocuments() {
                   </div>
 
                   <div className="card-footer">
+                    <button
+                      className="btn btn-sm btn-primary"
+                      onClick={() => navigate(`/school-admin/documents/${doc._id}`)}
+                      disabled={loading}
+                    >
+                      Xem
+                    </button>
                     <button
                       className="btn btn-sm btn-secondary"
                       onClick={() => handleEdit(doc)}

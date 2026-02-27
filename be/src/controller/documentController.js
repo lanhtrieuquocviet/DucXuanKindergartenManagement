@@ -28,24 +28,21 @@ const validateDocumentPayload = (body, isCreate = true) => {
 
 /**
  * Generate preview images from PDF using Cloudinary transformations
- * Cloudinary automatically extracts pages from PDFs
+ * Uses the PDF's public_id to generate image URLs for each page
  */
-const generatePdfPreviewImages = async (pdfUrl, pageCount = 3) => {
+const generatePdfPreviewImages = (pdfPublicId, pageCount = 5) => {
   try {
     const imageUrls = [];
 
-    // Generate preview images from PDF using Cloudinary transformations
-    // Each page is extracted and converted to a format
+    // Generate preview images from PDF using Cloudinary image transformation
+    // Uses resource_type: 'image' to convert PDF pages to PNG images
     for (let page = 1; page <= pageCount; page++) {
-      // Use Cloudinary's fetch API to get specific pages from PDF
-      // page parameter converts PDF to images - one image per page
-      const imageUrl = cloudinary.url(pdfUrl.split('/').pop(), {
-        fetch_format: 'png',
-        quality: 'auto',
+      const imageUrl = cloudinary.url(pdfPublicId, {
+        resource_type: 'image',
+        format: 'png',
         page: page,
-        transformation: [
-          { quality: 85, fetch_format: 'auto' },
-        ],
+        width: 1200,
+        crop: 'limit',
       });
 
       imageUrls.push(imageUrl);
@@ -62,17 +59,30 @@ const generatePdfPreviewImages = async (pdfUrl, pageCount = 3) => {
 
 /**
  * Upload PDF file to Cloudinary
+ * Returns an object with both URL and public_id for further processing
  */
 const uploadPdfToCloudinary = async (pdfBuffer) => {
   try {
-    const dataUri = `data:application/pdf;base64,${pdfBuffer.toString('base64')}`;
-    const result = await cloudinary.uploader.upload(dataUri, {
-      folder: DOCUMENT_FOLDER,
-      resource_type: 'raw',
-      public_id: `pdf_${Date.now()}`,
+    return new Promise((resolve, reject) => {
+      cloudinary.uploader.upload_stream(
+        {
+          resource_type: 'raw',
+          folder: DOCUMENT_FOLDER,
+          format: 'pdf',
+        },
+        (error, result) => {
+          if (error) {
+            console.error('PDF upload error:', error);
+            return reject(new Error('Lỗi tải lên file PDF: ' + error.message));
+          }
+          // Return both URL and public_id
+          resolve({
+            url: result.secure_url,
+            public_id: result.public_id,
+          });
+        }
+      ).end(pdfBuffer);
     });
-
-    return result.secure_url;
   } catch (error) {
     console.error('PDF upload error:', error);
     throw new Error('Lỗi tải lên file PDF: ' + error.message);
@@ -166,7 +176,23 @@ const getDocument = async (req, res) => {
 const createDocument = async (req, res) => {
   try {
     const { title, description = '', status = 'draft' } = req.body;
-    const { user } = req;
+    const user = req.user;
+
+    // Debug logging
+    console.log('createDocument - req.user:', user);
+    console.log('createDocument - user._id:', user ? user._id : undefined);
+    console.log('createDocument - user.id:', user ? user.id : undefined);
+
+    // Check if user exists
+    if (!user || (!user._id && !user.id && !user.rawUser)) {
+      return res.status(401).json({
+        status: 'error',
+        message: 'Người dùng không được xác thực',
+      });
+    }
+
+    // Get userId - check for _id first, then id, then rawUser._id
+    const userId = user._id || user.id || (user.rawUser && user.rawUser._id);
 
     // Validate payload
     const errors = validateDocumentPayload(req.body, true);
@@ -212,19 +238,19 @@ const createDocument = async (req, res) => {
     }
 
     // Upload PDF file to Cloudinary
-    const pdfUrl = await uploadPdfToCloudinary(req.file.buffer);
+    const pdfUploadResult = await uploadPdfToCloudinary(req.file.buffer);
 
-    // Generate preview images from the uploaded PDF
+    // Generate preview images from the uploaded PDF using its public_id
     // Cloudinary can extract pages and convert them to images
-    const imageUrls = await generatePdfPreviewImages(pdfUrl, 5);
+    const imageUrls = generatePdfPreviewImages(pdfUploadResult.public_id, 5);
 
     // Create document record
     const newDocument = new Document({
       title,
       description,
-      author: user._id,
+      author: userId,
       images: imageUrls,
-      pdfUrl,
+      pdfUrl: pdfUploadResult.url,
       status,
     });
 
@@ -289,11 +315,11 @@ const updateDocument = async (req, res) => {
       }
 
       // Upload new PDF
-      const pdfUrl = await uploadPdfToCloudinary(req.file.buffer);
-      updateData.pdfUrl = pdfUrl;
+      const pdfUploadResult = await uploadPdfToCloudinary(req.file.buffer);
+      updateData.pdfUrl = pdfUploadResult.url;
 
-      // Generate preview images from the new PDF
-      const imageUrls = await generatePdfPreviewImages(pdfUrl, 5);
+      // Generate preview images from the new PDF using its public_id
+      const imageUrls = generatePdfPreviewImages(pdfUploadResult.public_id, 5);
       updateData.images = imageUrls;
     }
 
