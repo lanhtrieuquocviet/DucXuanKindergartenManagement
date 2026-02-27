@@ -45,6 +45,7 @@ import AdministrativeOffice from './pages/Introduce/AdministrativeOffice';
 import ParentsCouncil from './pages/Introduce/ParentsCouncil';
 import ProfessionalGroup from './pages/Introduce/ProfessionalGroup';
 import SchoolNews from './pages/News/SchoolNews';
+import SearchResults from './pages/SearchResults';
 import Notifications from './pages/News/Notifications';
 import DepartmentNews from './pages/News/DepartmentNews';
 import DepartmentNotifications from './pages/News/DepartmentNotifications';
@@ -92,6 +93,7 @@ function AppContent() {
         <Route path="/parent-council" element={<ParentsCouncil />} />
 
         <Route path="/school-news" element={<SchoolNews />} /> 
+        <Route path="/search" element={<SearchResults />} />
 
         <Route path="/notifications-news" element={<Notifications />} />
 

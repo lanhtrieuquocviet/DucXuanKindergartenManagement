@@ -1,5 +1,6 @@
 import { useState, useRef, useEffect } from "react";
-import { get } from "../service/api";
+import { useNavigate } from "react-router-dom";
+import { get, ENDPOINTS } from "../service/api";
 
 const CLOSE_DELAY = 300; // 30 tích tắc
 
@@ -34,6 +35,57 @@ function Header() {
     };
 
     const [newsCategories, setNewsCategories] = useState([]);
+    // search state
+    const [query, setQuery] = useState("");
+    const [results, setResults] = useState([]);
+    const [loading, setLoading] = useState(false);
+    const [showResults, setShowResults] = useState(false);
+    const searchTimerRef = useRef(null);
+    const searchContainerRef = useRef(null);
+    const navigate = useNavigate();
+
+    const handleQueryChange = (value) => {
+        setQuery(value);
+        if (searchTimerRef.current) {
+            clearTimeout(searchTimerRef.current);
+            searchTimerRef.current = null;
+        }
+
+        if (!value || value.trim().length < 2) {
+            setResults([]);
+            return;
+        }
+
+        // debounce
+        searchTimerRef.current = setTimeout(async () => {
+            setLoading(true);
+            try {
+                const resp = await get(
+                    `${ENDPOINTS.BLOGS.PUBLISHED}?search=${encodeURIComponent(value.trim())}&limit=5`,
+                    { includeAuth: false }
+                );
+                const items = resp.data?.items || [];
+                setResults(items);
+                setShowResults(true);
+            } catch (err) {
+                setResults([]);
+            } finally {
+                setLoading(false);
+            }
+        }, 300);
+    };
+
+    // close results when clicking outside
+    useEffect(() => {
+        const onDocClick = (e) => {
+            if (!searchContainerRef.current) return;
+            if (!searchContainerRef.current.contains(e.target)) {
+                setShowResults(false);
+            }
+        };
+        document.addEventListener('click', onDocClick);
+        return () => document.removeEventListener('click', onDocClick);
+    }, []);
 
     useEffect(() => {
         const loadCats = async () => {
@@ -221,11 +273,65 @@ function Header() {
                     </nav>
                     {/* ===== SEARCH + LOGIN ===== */}
                     <div className="flex items-center gap-3">
-                        <div className="flex items-center bg-white rounded-full px-4 py-2 text-sm shadow">
-                            <input
-                                className="outline-none text-gray-700 w-36"
-                                placeholder="Tìm kiếm..."
-                            /> 
+                        <div className="relative" ref={searchContainerRef}>
+                            <div className="flex items-center bg-white rounded-full px-2 py-2 text-sm shadow">
+                                <input
+                                    className="outline-none text-gray-700 w-36 px-3"
+                                    placeholder="Tìm kiếm..."
+                                    value={query}
+                                    onChange={(e) => handleQueryChange(e.target.value)}
+                                    onFocus={() => { if (results.length > 0) setShowResults(true); }}
+                                    onKeyDown={(e) => {
+                                        if (e.key === 'Enter') {
+                                            const q = query.trim();
+                                            if (q.length >= 2) {
+                                                navigate(`/search?q=${encodeURIComponent(q)}`);
+                                                setShowResults(false);
+                                            }
+                                        }
+                                    }}
+                                />
+
+                                <button
+                                    type="button"
+                                    aria-label="Tìm"
+                                    onClick={() => {
+                                        const q = query.trim();
+                                        if (q.length >= 2) {
+                                            navigate(`/search?q=${encodeURIComponent(q)}`);
+                                            setShowResults(false);
+                                        }
+                                    }}
+                                    className="ml-2 mr-2 p-2 rounded-full hover:bg-gray-100 text-gray-600"
+                                >
+                                    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" className="w-4 h-4">
+                                        <circle cx="11" cy="11" r="7" />
+                                        <line x1="21" y1="21" x2="16.65" y2="16.65" />
+                                    </svg>
+                                </button>
+                            </div>
+
+                            {showResults && (
+                                <div className="absolute right-0 mt-2 w-[320px] bg-white rounded-xl shadow-xl z-50 text-gray-800">
+                                    {loading ? (
+                                        <div className="px-4 py-3 text-sm text-gray-500">Đang tìm...</div>
+                                    ) : results.length === 0 ? (
+                                        <div className="px-4 py-3 text-sm text-gray-500">Không có kết quả</div>
+                                    ) : (
+                                        results.map((r) => {
+                                            const route = NEWS_ROUTE_MAP[r.category?.name] || "/";
+                                            return (
+                                                <a key={r._id} href={route} onClick={() => setShowResults(false)}>
+                                                    <div className="px-4 py-3 hover:bg-green-100">
+                                                        <div className="font-medium">{r.code || r.title || 'Không tên'}</div>
+                                                        <div className="text-sm text-gray-600 line-clamp-2">{r.description}</div>
+                                                    </div>
+                                                </a>
+                                            );
+                                        })
+                                    )}
+                                </div>
+                            )}
                         </div>
                         <a href="/login">
                             <button className="bg-orange-500 hover:bg-orange-600 text-white font-semibold px-5 py-2 rounded-full transition">
