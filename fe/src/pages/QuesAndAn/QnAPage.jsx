@@ -9,23 +9,31 @@ export default function QnAPage() {
   const [selectedCategory, setSelectedCategory] = useState("");
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
+  const [page, setPage] = useState(1);
+  const [pagination, setPagination] = useState(null);
 
-  const fetchQuestions = async () => {
+  const fetchQuestions = async (currentPage = 1) => {
     try {
       setLoading(true);
       setError(null);
-      const res = await get(ENDPOINTS.QA.QUESTIONS, { includeAuth: false });
+
+      const res = await get(
+        `${ENDPOINTS.QA.QUESTIONS}?page=${currentPage}&limit=2`,
+        { includeAuth: false }
+      );
+
       setQuestions(res?.data?.questions || []);
+      setPagination(res?.data?.pagination);
+      setPage(currentPage);
     } catch (err) {
-      const msg = err?.message || "Không thể tải danh sách câu hỏi";
-      setError(msg);
+      setError(err?.message || "Không thể tải danh sách câu hỏi");
     } finally {
       setLoading(false);
     }
   };
 
   useEffect(() => {
-    fetchQuestions();
+    fetchQuestions(page);
   }, []);
 
   const handleSubmitted = (created) => {
@@ -105,7 +113,7 @@ export default function QnAPage() {
         </div>
 
         {/* Box kết quả */}
-        <div className="border-2 border-black rounded h-[280px] p-3 overflow-y-auto">
+        <div className="border-2 border-black rounded min-h-[500px] p-4">
           {error && (
             <p className="text-xs text-red-600 mb-2">{error}</p>
           )}
@@ -158,6 +166,44 @@ export default function QnAPage() {
           )}
         </div>
       </div>
+
+      {pagination && pagination.totalPages > 1 && (
+        <div className="flex justify-center items-center gap-2 mt-6">
+
+          <button
+            disabled={page === 1}
+            onClick={() => fetchQuestions(page - 1)}
+            className="px-3 py-1 border rounded disabled:opacity-50"
+          >
+            {"<<"}
+          </button>
+
+          {[...Array(pagination.totalPages)].map((_, index) => {
+            const pageNumber = index + 1;
+            return (
+              <button
+                key={pageNumber}
+                onClick={() => fetchQuestions(pageNumber)}
+                className={`px-3 py-1 border rounded ${pageNumber === page
+                    ? "bg-blue-600 text-white"
+                    : "bg-white"
+                  }`}
+              >
+                {pageNumber}
+              </button>
+            );
+          })}
+
+          <button
+            disabled={page === pagination.totalPages}
+            onClick={() => fetchQuestions(page + 1)}
+            className="px-3 py-1 border rounded disabled:opacity-50"
+          >
+            {">>"}
+          </button>
+
+        </div>
+      )}
 
       <AskQuestionModal
         open={open}

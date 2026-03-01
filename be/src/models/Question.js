@@ -27,28 +27,34 @@ const questionSchema = new mongoose.Schema({
     type: String,
     trim: true,
     lowercase: true,
+    required: true,
   },
   phone: {
     type: String,
     trim: true,
+    required: true,
   },
   address: {
     type: String,
     trim: true,
+    required: true,
   },
   idNumber: {
     type: String,
     trim: true,
+    required: true,
   },
   category: {
     type: String,
     trim: true,
     default: 'question',
+    required: true,
   },
   content: {
     type: String,
     required: true,
     trim: true,
+    required: true,
   },
   answers: {
     type: [answerSchema],
