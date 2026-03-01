@@ -294,11 +294,12 @@ function TeacherAttendance() {
 
   const menuItems = useMemo(
     () => [
-      { key: 'classes', label: 'Lớp phụ trách' },
-      { key: 'students', label: 'Danh sách học sinh' },
-      { key: 'attendance', label: 'Điểm danh' },
-      { key: 'schedule', label: 'Lịch dạy & hoạt động' },
-      { key: 'messages', label: 'Thông báo cho phụ huynh' },
+      { key: "classes", label: "Lớp phụ trách" },
+      { key: "students", label: "Danh sách học sinh" },
+      { key: "attendance", label: "Điểm danh" },
+      { key: "pickup-approval", label: "Phê duyệt đưa đón" },
+      { key: "schedule", label: "Lịch dạy & hoạt động" },
+      { key: "messages", label: "Thông báo cho phụ huynh" },
     ],
     []
   );
@@ -317,6 +318,10 @@ function TeacherAttendance() {
       return;
     }
     if (key === 'attendance') {
+      return;
+    }
+    if (key === "pickup-approval") {
+      navigate("/teacher/pickup-approval");
       return;
     }
   };
