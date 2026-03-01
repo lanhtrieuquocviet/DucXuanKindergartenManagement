@@ -6,27 +6,33 @@ const validateCreateQuestion = [
     .trim()
     .notEmpty().withMessage('Tiêu đề không được để trống')
     .isLength({ max: 200 }).withMessage('Tiêu đề tối đa 200 ký tự'),
+
   body('email')
-    .optional()
     .trim()
+    .notEmpty().withMessage('Email không được để trống')
     .isEmail().withMessage('Email không hợp lệ')
     .isLength({ max: 150 }).withMessage('Email tối đa 150 ký tự'),
+
   body('phone')
-    .optional()
     .trim()
-    .matches(/^[0-9+\-\s()]{0,20}$/).withMessage('Số điện thoại không hợp lệ'),
+    .notEmpty().withMessage('Số điện thoại không được để trống')
+    .matches(/^[0-9+\-\s()]{6,20}$/).withMessage('Số điện thoại không hợp lệ'),
+
   body('address')
-    .optional()
     .trim()
+    .notEmpty().withMessage('Địa chỉ không được để trống')
     .isLength({ max: 200 }).withMessage('Địa chỉ tối đa 200 ký tự'),
+
   body('idNumber')
-    .optional()
     .trim()
+    .notEmpty().withMessage('Số CMND/Hộ chiếu không được để trống')
     .isLength({ max: 50 }).withMessage('Số CMND/Hộ chiếu tối đa 50 ký tự'),
+
   body('category')
-    .optional()
     .trim()
+    .notEmpty().withMessage('Loại phản hồi không được để trống')
     .isLength({ max: 50 }).withMessage('Loại phản hồi tối đa 50 ký tự'),
+
   body('content')
     .trim()
     .notEmpty().withMessage('Nội dung không được để trống')

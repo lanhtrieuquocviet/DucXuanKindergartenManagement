@@ -22,39 +22,56 @@ const initialErrors = {
   content: "",
 };
 
-function validate(values) {
+function validate(values, agreed) {
   const errors = { ...initialErrors };
+
   if (!values.title.trim()) {
     errors.title = "Tiêu đề không được để trống";
   } else if (values.title.length > 200) {
     errors.title = "Tiêu đề tối đa 200 ký tự";
   }
-  if (values.email) {
-    // eslint-disable-next-line no-control-regex
+
+  if (!values.email.trim()) {
+    errors.email = "Email không được để trống";
+  } else {
     const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
     if (!emailRegex.test(values.email.trim())) {
       errors.email = "Email không hợp lệ";
     }
   }
-  if (values.phone) {
-    if (!/^[0-9+\-\s()]{0,20}$/.test(values.phone.trim())) {
-      errors.phone = "Số điện thoại không hợp lệ";
-    }
+
+  if (!values.phone.trim()) {
+    errors.phone = "Số điện thoại không được để trống";
+  } else if (!/^[0-9+\-\s()]{6,20}$/.test(values.phone.trim())) {
+    errors.phone = "Số điện thoại không hợp lệ";
   }
-  if (values.address && values.address.length > 200) {
+
+  if (!values.address.trim()) {
+    errors.address = "Địa chỉ không được để trống";
+  } else if (values.address.length > 200) {
     errors.address = "Địa chỉ tối đa 200 ký tự";
   }
-  if (values.idNumber && values.idNumber.length > 50) {
+
+  if (!values.idNumber.trim()) {
+    errors.idNumber = "Số CMND/Hộ chiếu không được để trống";
+  } else if (values.idNumber.length > 50) {
     errors.idNumber = "Số CMND/Hộ chiếu tối đa 50 ký tự";
   }
-  if (values.category && values.category.length > 50) {
-    errors.category = "Loại phản hồi tối đa 50 ký tự";
+
+  if (!values.category.trim()) {
+    errors.category = "Vui lòng chọn loại phản hồi";
   }
+
   if (!values.content.trim()) {
     errors.content = "Nội dung không được để trống";
   } else if (values.content.length > 2000) {
     errors.content = "Nội dung tối đa 2000 ký tự";
   }
+
+  if (!agreed) {
+    errors.agreed = "Bạn phải đồng ý với điều khoản";
+  }
+
   return errors;
 }
 
@@ -65,6 +82,7 @@ export default function AskQuestionModal({ open, onClose, onSubmitted }) {
   const [captchaError, setCaptchaError] = useState(false);
   const [submitting, setSubmitting] = useState(false);
   const [message, setMessage] = useState(null);
+  const [agreed, setAgreed] = useState(false);
 
   if (!open) return null;
 
@@ -82,7 +100,7 @@ export default function AskQuestionModal({ open, onClose, onSubmitted }) {
   };
 
   const handleSubmit = async () => {
-    const vErrors = validate(form);
+    const vErrors = validate(form, agreed);
     setErrors(vErrors);
     const hasError = Object.values(vErrors).some(Boolean);
     if (hasError) return;
@@ -236,11 +254,21 @@ export default function AskQuestionModal({ open, onClose, onSubmitted }) {
 
           {/* Checkbox */}
           <label className="flex items-start gap-2 text-xs">
-            <input type="checkbox" className="mt-1" />
+            <input
+              type="checkbox"
+              checked={agreed}
+              onChange={(e) => setAgreed(e.target.checked)}
+              className="mt-1"
+            />
             <span>
               Tôi đồng ý với các điều kiện trên
             </span>
           </label>
+          {errors.agreed && (
+            <p className="text-red-600 text-xs mt-1">
+              {errors.agreed}
+            </p>
+          )}
 
           {/* Buttons */}
           <div className="flex justify-center gap-4 pt-3">
