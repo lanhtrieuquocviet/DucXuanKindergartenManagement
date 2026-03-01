@@ -1,0 +1,75 @@
+
+.container {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 100vh;
+  padding: 4rem 2rem;
+  box-sizing: border-box;
+    background-repeat: no-repeat;
+  background-position: center center;
+  background-size: cover;
+}
+
+.container::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  opacity: .07;
+  background-image: url("data:image/svg+xml,..."); 
+}
+
+.contentCard {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  text-align: center;
+  
+
+  background-color: #071619; 
+  
+  color: var(--linen, #FAF3E0); 
+
+  padding: 3rem 2.5rem;
+  border-radius: var(--radius-lg, 20px);
+  box-shadow: var(--shadow-strong, 0 16px 40px rgba(0,0,0,0.18));
+  border: 1px solid rgba(255, 255, 255, 0.1); 
+  max-width: 600px;
+  width: 90%;
+}
+
+.futureMap {
+  max-width: 250px;
+  width: 50%;
+  height: auto;
+  margin-bottom: 2rem;
+  border-radius: var(--radius-md, 14px); 
+}
+
+.title {
+  font-family: var(--font-brand);
+  font-size: 2.8rem;
+  color: var(--secondary, #D69E2E);
+  margin-bottom: 1rem;
+}
+
+.conclusionText {
+  font-family: var(--font-base);
+  font-size: 1.1rem;
+  max-width: 700px;
+  line-height: 1.8;
+  opacity: 0.9; 
+  margin-bottom: 3rem;
+}
+
+
+
+.credits a {
+  color: var(--linen, #FAF3E0); 
+  text-decoration: underline;
+  opacity: 0.7;
+}
+.credits a:hover {
+  opacity: 1;
+}

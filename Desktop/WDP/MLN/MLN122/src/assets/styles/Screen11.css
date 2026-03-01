@@ -1,0 +1,292 @@
+:root {
+  --primary: #c53030;
+  --secondary: #d69e2e;
+  --linen: #faf3e0;
+  --charcoal: #2c2c2c;
+  --radius-lg: 20px;
+  --shadow: 0 10px 30px rgba(0, 0, 0, 0.12);
+}
+
+/* =======================================================
+   BỐ CỤC CHUNG — ẢNH TRÁI, NỘI DUNG PHẢI
+   ======================================================= */
+.sweet-wrap {
+  position: relative;
+  display: flex;
+  min-height: 100vh;
+  overflow: hidden;
+  background: var(--linen);
+  transition: background 0.8s ease;
+}
+
+.sweet-wrap.is-in {
+  background: linear-gradient(180deg, #faf3e0 0%, #fff 100%);
+}
+
+/* ============================
+   ẢNH BÊN TRÁI (PARALLAX)
+   ============================ */
+.sweet-wrap .sw-photo {
+  flex: 1;
+  background-size: cover;
+  background-position: center;
+  background-repeat: no-repeat;
+  transition: transform 1.8s ease, filter 1.2s ease;
+  filter: brightness(0.9) grayscale(0.2);
+  position: relative;
+}
+
+.sweet-wrap.is-in .sw-photo {
+  transform: scale(1.05);
+  filter: brightness(1) grayscale(0);
+}
+
+/* --- Hiệu ứng spotlight khi di chuột --- */
+.sweet-wrap .sw-photo::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  background: radial-gradient(
+    circle at var(--mx, 50%) var(--my, 50%),
+    rgba(255, 255, 255, 0.18) 0%,
+    transparent 60%
+  );
+  pointer-events: none;
+}
+
+/* ============================
+   CỘT PHẢI: NỘI DUNG
+   ============================ */
+.sweet-wrap .sw-content {
+  flex: 1;
+  padding: 60px 48px;
+  background: linear-gradient(90deg, #fffdf9, #fffaf0);
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  position: relative;
+  z-index: 2;
+}
+
+.sweet-wrap .container {
+  max-width: 1100px;
+  margin: 0 auto;
+}
+
+/* ============================
+   TIÊU ĐỀ & ĐOẠN MỞ ĐẦU
+   ============================ */
+.sweet-wrap .sw-title {
+  font-family: "Merriweather", serif;
+  color: var(--primary);
+  font-size: clamp(34px, 3vw, 48px);
+  margin: 0 0 10px;
+  font-weight: 800;
+}
+
+.sweet-wrap .sw-lead {
+  opacity: 0.95;
+  font-size: clamp(16px, 1.2vw, 20px);
+  color: var(--charcoal);
+  line-height: 1.7;
+  margin-bottom: 16px;
+}
+
+/* ============================
+   DÃY SỐ LIỆU (COUNTER)
+   ============================ */
+.sweet-wrap .sw-stats {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px;
+  margin: 24px 0 20px;
+}
+
+.sweet-wrap .chip {
+  background: #fff;
+  border: 2px solid #00000012;
+  padding: 10px 16px;
+  border-radius: 999px;
+  box-shadow: var(--shadow);
+  font-weight: 700;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  transition: transform 0.2s ease, box-shadow 0.2s ease;
+}
+
+.sweet-wrap .chip:hover {
+  transform: translateY(-3px);
+  box-shadow: 0 12px 28px rgba(0, 0, 0, 0.18);
+}
+
+/* ============================
+   CÁC THẺ FACT
+   ============================ */
+.sweet-wrap .fact-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 16px;
+  margin-top: 20px;
+}
+
+.sweet-wrap .fact.card {
+  background: #fff;
+  border: 2px solid #00000012;
+  border-radius: var(--radius-lg);
+  box-shadow: var(--shadow);
+  padding: 16px 18px;
+  text-align: left;
+  transition: transform 0.25s cubic-bezier(0.2, 0.8, 0.2, 1),
+    box-shadow 0.25s;
+}
+
+.sweet-wrap .fact.card:hover {
+  transform: translateY(-3px);
+  box-shadow: 0 14px 36px rgba(0, 0, 0, 0.16);
+}
+
+.sweet-wrap .f-icon {
+  color: var(--secondary);
+  font-size: 1.4rem;
+  margin-bottom: 6px;
+}
+
+.sweet-wrap .f-title {
+  font-weight: 800;
+  color: var(--primary);
+  margin-bottom: 4px;
+}
+
+.sweet-wrap .f-text {
+  color: var(--charcoal);
+  opacity: 0.9;
+  line-height: 1.6;
+}
+
+/* ============================
+   TRÍCH DẪN (QUOTE)
+   ============================ */
+.sweet-wrap .quote-card {
+  background: #fff;
+  border-radius: var(--radius-lg);
+  border: 2px solid #00000012;
+  box-shadow: var(--shadow);
+  padding: 20px 22px;
+  margin-top: 24px;
+  position: relative;
+  overflow: hidden;
+}
+
+.sweet-wrap .q-mark {
+  position: absolute;
+  font-size: 100px;
+  line-height: 1;
+  color: rgba(197, 48, 48, 0.08);
+  top: -20px;
+  left: 12px;
+  /* user-select: none; */
+}
+
+.sweet-wrap .q-text {
+  position: relative;
+  font-size: 1.05rem;
+  line-height: 1.6;
+  color: var(--charcoal);
+}
+
+/* ============================
+   NÚT CHUYỂN MÀN HÌNH
+   ============================ */
+.sweet-wrap .sw-actions {
+  margin-top: 26px;
+}
+
+.sweet-wrap .btn {
+  display: inline-block;
+  padding: 10px 18px;
+  border-radius: 999px;
+  font-weight: 700;
+  border: 2px solid var(--primary);
+  color: var(--primary);
+  text-decoration: none;
+  transition: all 0.25s ease;
+}
+
+.sweet-wrap .btn:hover {
+  background: var(--primary);
+  color: #fff;
+  transform: translateY(-2px);
+  box-shadow: 0 10px 28px rgba(0, 0, 0, 0.15);
+}
+
+/* ============================
+   CHÚ THÍCH DƯỚI CÙNG
+   ============================ */
+.sweet-wrap .sw-footnote {
+  font-size: 0.9rem;
+  color: #666;
+  font-style: italic;
+  opacity: 0.8;
+  margin-top: 16px;
+}
+
+/* ============================
+   RESPONSIVE
+   ============================ */
+@media (max-width: 960px) {
+  .sweet-wrap {
+    flex-direction: column;
+  }
+
+  .sweet-wrap .sw-photo {
+    height: 40vh;
+  }
+
+  .sweet-wrap .sw-content {
+    padding: 32px 20px;
+  }
+
+  .sweet-wrap .fact-grid {
+    grid-template-columns: 1fr;
+  }
+}
+
+/* --- FIX ICON CHO SCREEN 11 --- */
+.sweet-wrap svg {
+  width: 20px;
+  height: 20px;
+  color: currentColor;
+  fill: currentColor;
+  flex-shrink: 0;
+}
+
+/* Icon trong chip và fact luôn hiện rõ */
+.sweet-wrap .chip svg,
+.sweet-wrap .f-icon svg,
+.sweet-wrap .fact.card svg {
+  color: var(--secondary);
+  fill: var(--secondary);
+  opacity: 1;
+  visibility: visible;
+}
+
+/* Đảm bảo vùng icon (ô vàng) hiển thị rõ ràng */
+.sweet-wrap .f-icon {
+  background: #fff; /* trắng để icon nổi bật */
+  color: var(--secondary);
+  width: 42px;
+  height: 42px;
+  border-radius: 12px;
+  display: grid;
+  place-items: center;
+  box-shadow: var(--shadow);
+  border: 2px solid #00000010;
+  margin-bottom: 10px;
+  transition: transform .22s ease, box-shadow .22s;
+}
+
+.sweet-wrap .fact.card:hover .f-icon {
+  transform: scale(1.08);
+  box-shadow: 0 10px 24px rgba(214,158,46,.3);
+}

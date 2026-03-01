@@ -1,0 +1,141 @@
+:root{
+  --primary:#C53030; --secondary:#D69E2E; --linen:#FAF3E0; --charcoal:#2C2C2C;
+  --radius-lg:20px; --shadow:0 10px 30px rgba(0,0,0,.12);
+}
+
+.reform-wrap{
+  position:relative;
+  min-height:100vh; padding:40px 0 70px;
+  background:
+    radial-gradient(1200px 600px at 10% -10%, rgba(214,158,46,.12), transparent),
+    radial-gradient(1200px 600px at 110% 110%, rgba(197,48,48,.10), transparent),
+    var(--linen);
+  overflow:hidden;
+}
+.bg-float{
+  position:absolute; inset:auto -10% 0 -10%; height:40vh; z-index:0;
+  background:radial-gradient(40vw 20vh at 50% 0%, rgba(214,158,46,.20), transparent 60%);
+  pointer-events:none;
+}
+
+.rf-title{
+  position:relative; z-index:1;
+  font-family:"Merriweather", serif; color:var(--primary); font-size:34px; margin:10px 0 6px;
+}
+.rf-sub{ position:relative; z-index:1; opacity:.92; margin-bottom:28px }
+
+.timeline{ position:relative; padding:30px 0 20px; z-index:1; }
+.timeline .line{
+  position:absolute; left:calc(50% - 2px); top:0; bottom:0; width:4px;
+  background:linear-gradient(180deg, var(--primary), var(--secondary)); border-radius:4px;
+  transform-origin:top; will-change:transform;
+}
+.tl-item{
+  position:relative; display:flex; justify-content:center; margin:22px 0;
+  will-change:transform, opacity;
+}
+.tl-item .dot{
+  position:absolute; left:calc(50% - 7px); width:14px; height:14px; background:#fff;
+  border:3px solid var(--primary); border-radius:50%; z-index:2;
+  box-shadow:0 0 0 6px rgba(197,48,48,.15);
+  transition:box-shadow .18s ease, transform .18s ease;
+}
+.tl-card{
+  width:min(520px, 86vw); background:#fff; border-radius:var(--radius-lg); box-shadow:var(--shadow);
+  padding:16px 18px; position:relative; border:2px solid #00000012;
+  transition:box-shadow .22s cubic-bezier(.2,.8,.2,1), filter .22s;
+  will-change:transform; backface-visibility:hidden; transform:translateZ(0);
+}
+.tl-card:hover{
+  box-shadow:0 14px 32px rgba(0,0,0,.16);
+  background:linear-gradient(#fff,#fff) padding-box,
+             linear-gradient(135deg, rgba(197,48,48,.35), rgba(214,158,46,.35)) border-box;
+  border:2px solid transparent;
+}
+.tl-item:hover .dot{
+  box-shadow:0 0 0 6px rgba(197,48,48,.14), 0 0 10px rgba(197,48,48,.20);
+  transform:scale(1.04);
+}
+.tl-item:nth-child(odd) .tl-card{ margin-left:calc(50% + 18px) }
+.tl-item:nth-child(even) .tl-card{ margin-right:calc(50% + 18px) }
+
+.tl-card .row1{ display:flex; align-items:center; gap:10px; margin-bottom:6px }
+.tl-card .icon{ width:34px; height:34px; border-radius:10px; background:var(--secondary); display:grid; place-items:center }
+.tl-card .year{ font-weight:900; color:#5a2; letter-spacing:.6px }
+.tl-card .title{ font-weight:800; color:#2a2a2a; margin-bottom:4px }
+.tl-card .note{ opacity:.92; line-height:1.6 }
+
+@keyframes nudge { 0%,100%{ transform:translateY(0) } 50%{ transform:translateY(-2px) } }
+.tl-card:hover .icon{ animation:nudge .35s ease-in-out }
+
+.policy-grid{
+  display:grid; grid-template-columns:repeat(4,1fr); gap:16px; margin:26px 0 10px;
+}
+@media (max-width:1000px){ .policy-grid{ grid-template-columns:repeat(2,1fr); } }
+@media (max-width:560px){ .policy-grid{ grid-template-columns:1fr; } }
+
+.policy{
+  position:relative; overflow:hidden;
+  border-radius:var(--radius-lg); border:2px solid #00000012; box-shadow:var(--shadow); background:#fff;
+  transition:box-shadow .22s cubic-bezier(.2,.8,.2,1), filter .22s, border-color .22s;
+}
+.policy:hover{
+  background:linear-gradient(#fff,#fff) padding-box,
+             linear-gradient(135deg, rgba(214,158,46,.32), rgba(197,48,48,.28)) border-box;
+  border:2px solid transparent;
+  box-shadow:0 0 0 4px rgba(214,158,46,.14), var(--shadow);
+}
+.p-icon{ width:38px; height:38px; border-radius:12px; background:var(--secondary); display:grid; place-items:center; margin-bottom:8px }
+.p-title{ font-weight:900; color:#2a2a2a; margin-bottom:6px; position:relative; display:inline-block }
+.p-title::after{
+  content:""; position:absolute; left:0; right:0; bottom:-2px; height:2px; border-radius:3px;
+  background:linear-gradient(90deg, var(--secondary), var(--primary));
+  transform:scaleX(0); transform-origin:left; transition:transform .25s ease; opacity:.9;
+}
+.policy:hover .p-title::after{ transform:scaleX(1) }
+.p-text{ opacity:.92 }
+
+.metric-row{
+  display:grid; grid-template-columns:repeat(3,1fr); gap:16px; margin:10px 0 14px;
+}
+@media (max-width:800px){ .metric-row{ grid-template-columns:1fr; } }
+
+.metric .m-label{ font-weight:700; margin-bottom:6px }
+.metric .meter{
+  height:12px; border-radius:999px; background:#f0e8d6; overflow:hidden; margin-bottom:6px; border:1px solid #00000010;
+}
+.metric .fill{
+  height:100%; width:0; border-radius:inherit;
+  background:linear-gradient(90deg, var(--primary), var(--secondary));
+  transition:width .48s cubic-bezier(.2,.8,.2,1), filter .2s;
+}
+.metric{ transition:transform .2s cubic-bezier(.2,.8,.2,1), box-shadow .2s }
+.metric:hover{ transform:translateY(-2px); box-shadow:0 12px 28px rgba(0,0,0,.16) }
+.metric:hover .fill{ filter:saturate(1.08) }
+
+.rf-summary{ margin-top:16px }
+.rf-summary .pill{
+  display:inline-block; background:var(--primary); color:#fff; padding:6px 12px;
+  border-radius:999px; font-weight:800; letter-spacing:.4px; margin-bottom:10px;
+}
+.rf-summary ul{ margin:0 0 12px 18px; line-height:1.7 }
+.rf-actions{ display:flex; gap:10px; flex-wrap:wrap }
+.footnote{ font-size:12px; opacity:.75; margin-top:10px }
+
+.timeline:hover ~ .rf-summary .pill{ filter:brightness(1.02) saturate(1.05) }
+.policy-grid:hover ~ .rf-summary,
+.metric-row:hover ~ .rf-summary{ filter:saturate(1.01) }
+.rf-title { font-size: clamp(36px, 3.2vw, 48px); }
+.rf-sub   { font-size: clamp(16px, 1.2vw, 20px); }
+
+.tl-card .year  { font-size: clamp(14px, 1.1vw, 18px); }
+.tl-card .title { font-size: clamp(18px, 1.5vw, 22px); }
+.tl-card .note  { font-size: clamp(14px, 1.2vw, 18px); }
+
+.p-title { font-size: clamp(16px, 1.3vw, 20px); }
+.p-text  { font-size: clamp(14px, 1.1vw, 18px); }
+
+.metric .m-label { font-size: clamp(14px, 1.2vw, 18px); }
+
+.rf-summary .pill { font-size: clamp(12px, 1.0vw, 14px); }
+.rf-summary ul    { font-size: clamp(14px, 1.15vw, 18px); }

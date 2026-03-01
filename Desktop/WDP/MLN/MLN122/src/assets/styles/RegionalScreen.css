@@ -1,0 +1,59 @@
+:root{ --primary:#C53030; --secondary:#D69E2E; --linen:#FAF3E0; --charcoal:#2C2C2C; --radius-lg:20px; --shadow:0 10px 30px rgba(0,0,0,.12); }
+
+.regional-wrap{ min-height:100vh; padding:40px 0 72px; background:var(--linen); }
+.rg-head{ margin-bottom:14px }
+.rg-title{ font-family:"Merriweather",serif; color:var(--primary); font-size:clamp(32px,3vw,44px); margin:0 0 6px }
+.rg-sub{ opacity:.96; font-size:clamp(16px,1.2vw,20px) }
+
+.rg-badges{ display:flex; gap:10px; margin-top:8px; flex-wrap:wrap }
+.rg-badge{ display:inline-flex; align-items:center; gap:8px; padding:10px 14px; border-radius:999px; background:#fff; border:2px solid #00000012; font-weight:800; cursor:pointer; box-shadow:var(--shadow); transition:transform .18s cubic-bezier(.2,.8,.2,1), box-shadow .2s, background .2s, color .2s, filter .2s; }
+.rg-badge:hover{ transform:translateY(-2px); box-shadow:0 14px 34px rgba(0,0,0,.16) }
+.rg-badge.active{ background:var(--secondary); color:#351 }
+.b-ico{ filter:grayscale(.1) }
+/* .geo-board{ background:#efe6cf url("/src/assets/images/regional-map.png") center/cover no-repeat; } */
+
+.geo-board{ position:relative; aspect-ratio:16/9; border-radius:var(--radius-lg); border:2px solid #00000012; box-shadow:var(--shadow); overflow:hidden; margin:14px 0; background:#efe6cf; }
+.geo-bg{ position:absolute; inset:0; pointer-events:none; z-index:0; background:
+  radial-gradient(1200px 600px at 110% 110%, rgba(197,48,48,.08), transparent 60%),
+  radial-gradient(1200px 600px at -10% -10%, rgba(214,158,46,.10), transparent 60%),
+  repeating-linear-gradient(0deg, rgba(0,0,0,.06) 0 1px, transparent 1px 28px),
+  repeating-linear-gradient(90deg, rgba(0,0,0,.06) 0 1px, transparent 1px 28px),
+  var(--linen);
+  filter:contrast(1.02) saturate(.95);
+}
+.geo-svg{ position:absolute; inset:0; width:100%; height:100%; z-index:0; pointer-events:none; mix-blend-mode:multiply; }
+
+.node{ position:absolute; transform:translate(-50%,-50%); z-index:1; transition:transform .18s, filter .18s, opacity .18s; }
+.node .dot{ width:12px; height:12px; border-radius:50%; box-shadow:0 0 0 4px rgba(0,0,0,.06); background:#c8b68f; }
+.node.SEA .dot{ background:#e6c46a }
+.node.PAC .dot{ background:#b9a67d }
+.node.vn .dot{ background:var(--primary); box-shadow:0 0 0 5px rgba(197,48,48,.18) }
+.node .label{ margin-left:8px; transform:translateY(-2px); display:inline-block; padding:4px 8px; border-radius:999px; font-weight:800; font-size:12px; background:#fff; border:1px solid #00000012; box-shadow:var(--shadow); }
+
+.node.highlight{ transform:translate(-50%,-50%) scale(1.06); filter:saturate(1.08) }
+.node.highlight .dot{ animation:glow 1.8s ease-in-out infinite; background:linear-gradient(135deg, var(--secondary), #f1c66e); box-shadow:0 0 0 6px rgba(214,158,46,.18), 0 0 18px rgba(214,158,46,.35); }
+.node.vn .label{ font-weight:900; color:var(--primary) }
+.node:hover{ transform:translate(-50%,-48%) scale(1.04); filter:saturate(1.08) }
+@keyframes glow{ 0%,100%{ filter:brightness(1) } 50%{ filter:brightness(1.25) } }
+
+.geo-board.filter .node{ opacity:.35 }
+.geo-board.filter .node.highlight{ opacity:1 }
+
+.legend{ position:absolute; right:12px; bottom:12px; z-index:2; padding:12px 14px; background:#fff; border-radius:14px; border:2px solid #00000012; box-shadow:var(--shadow); }
+.lg-row{ display:flex; align-items:center; gap:8px; margin:4px 0; font-weight:700 }
+.lg-dot{ width:12px; height:12px; border-radius:50% }
+.lg-dot.asean{ background:#e6c46a }
+.lg-dot.apec{ background:#b9a67d }
+.lg-dot.vn{ background:var(--primary) }
+
+.rg-events{ display:grid; grid-template-columns:repeat(3,1fr); gap:16px; margin-top:8px }
+@media (max-width:900px){ .rg-events{ grid-template-columns:1fr } }
+.ev-card{ background:#fff; border:2px solid #00000012; border-radius:var(--radius-lg); box-shadow:var(--shadow); padding:16px 18px; transition:transform .18s, box-shadow .2s, filter .18s; }
+.ev-card:hover{ transform:translateY(-2px); box-shadow:0 14px 34px rgba(0,0,0,.16); filter:saturate(1.02) }
+.ev-row1{ display:flex; align-items:center; gap:10px; margin-bottom:6px }
+.ev-ico{ width:34px; height:34px; border-radius:10px; background:var(--secondary); display:grid; place-items:center }
+.ev-year{ font-weight:900; color:#5a2; letter-spacing:.6px }
+.ev-title{ font-weight:800; color:#2a2a2a; margin-bottom:4px }
+.ev-note{ opacity:.92; line-height:1.6 }
+
+.rg-actions{ margin-top:14px }
