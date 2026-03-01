@@ -88,6 +88,3 @@ export default function Captcha({ onValidate }) {
   );
 }
 
-
-
-
