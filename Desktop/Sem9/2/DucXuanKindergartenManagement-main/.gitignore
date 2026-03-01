@@ -1,0 +1,112 @@
+# ==========================
+# 📦 COMMON (Frontend + Backend)
+# ==========================
+node_modules/
+pnpm-lock.yaml
+yarn.lock
+package-lock.json
+
+# Build output
+dist/
+build/
+.vite/
+
+# Environment variables
+.env
+.env.local
+.env.development.local
+.env.test.local
+.env.production.local
+
+# Logs
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+logs
+*.log
+*.out
+*.pid
+*.seed
+*.pid.lock
+
+# OS / Editor files
+.DS_Store
+Thumbs.db
+.vscode/
+.idea/
+*.suo
+*.ntvs*
+*.njsproj
+*.sln
+*.sw?
+
+# Test coverage
+coverage/
+.nyc_output/
+
+# TypeScript
+*.tsbuildinfo
+
+# Cache
+.cache/
+.tmp/
+temp/
+*.tmp
+*.bak
+
+# ==========================
+# 🧩 FRONTEND (React / Vite)
+# ==========================
+# Build artifacts
+frontend/dist/
+frontend/build/
+
+# Dependencies
+frontend/node_modules/
+
+# Editor settings
+frontend/.vscode/
+frontend/.idea/
+
+# ==========================
+# ⚙️ BACKEND (Node.js / Express)
+# ==========================
+# Build artifacts
+backend/dist/
+backend/build/
+
+# Dependencies
+backend/node_modules/
+
+# Runtime files
+pids
+*.pid
+*.seed
+*.pid.lock
+
+# Debug logs
+debug.log
+npm-debug.log*
+
+# Local database files
+*.db
+*.sqlite
+*.sqlite3
+
+# Uploaded files
+uploads/
+tmp/
+public/uploads/
+storage/
+files/
+
+# ==========================
+# 🧪 Testing / CI
+# ==========================
+coverage/
+.jest/
+.cypress/
+.playwright/
+reports/
+test-results/

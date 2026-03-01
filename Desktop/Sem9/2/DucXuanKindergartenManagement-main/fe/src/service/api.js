@@ -1,0 +1,289 @@
+/**
+ * API Service - Chỉ định nghĩa endpoints và HTTP methods
+ * Logic xử lý được thực hiện trong Context
+ */
+
+const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || 'http://localhost:5000/api';
+
+/**
+ * Lấy token từ localStorage
+ */
+export const getToken = () => {
+  return localStorage.getItem('token');
+};
+
+/**
+ * Xử lý response từ API
+ */
+const handleResponse = async (response) => {
+  const data = await response.json();
+
+  if (!response.ok) {
+    const error = new Error(data.message || `HTTP error! status: ${response.status}`);
+    error.status = response.status;
+    error.data = data;
+    throw error;
+  }
+
+  return data;
+};
+
+/**
+ * Tạo headers với token nếu có
+ */
+const getHeaders = (includeAuth = true, customHeaders = {}) => {
+  const headers = {
+    'Content-Type': 'application/json',
+    ...customHeaders,
+  };
+
+  if (includeAuth) {
+    const token = getToken();
+    if (token) {
+      headers.Authorization = `Bearer ${token}`;
+    }
+  }
+
+  return headers;
+};
+
+/**
+ * GET request
+ */
+export const get = async (endpoint, options = {}) => {
+  const { includeAuth = true, headers: customHeaders = {} } = options;
+  const response = await fetch(`${API_BASE_URL}${endpoint}`, {
+    method: 'GET',
+    headers: getHeaders(includeAuth, customHeaders),
+  });
+
+  return handleResponse(response);
+};
+
+/**
+ * POST request
+ */
+export const post = async (endpoint, body, options = {}) => {
+  const { includeAuth = true, headers: customHeaders = {} } = options;
+  const response = await fetch(`${API_BASE_URL}${endpoint}`, {
+    method: 'POST',
+    headers: getHeaders(includeAuth, customHeaders),
+    body: JSON.stringify(body),
+  });
+
+  return handleResponse(response);
+};
+
+/**
+ * POST FormData (multipart) - dùng cho upload file
+ */
+export const postFormData = async (endpoint, formData, options = {}) => {
+  const { includeAuth = true } = options;
+  const headers = {};
+  if (includeAuth) {
+    const token = getToken();
+    if (token) headers.Authorization = `Bearer ${token}`;
+  }
+  const response = await fetch(`${API_BASE_URL}${endpoint}`, {
+    method: 'POST',
+    headers,
+    body: formData,
+  });
+
+  return handleResponse(response);
+};
+
+/**
+ * PUT FormData (multipart) - dùng cho upload file
+ */
+export const putFormData = async (endpoint, formData, options = {}) => {
+  const { includeAuth = true } = options;
+  const headers = {};
+  if (includeAuth) {
+    const token = getToken();
+    if (token) headers.Authorization = `Bearer ${token}`;
+  }
+  const response = await fetch(`${API_BASE_URL}${endpoint}`, {
+    method: 'PUT',
+    headers,
+    body: formData,
+  });
+
+  return handleResponse(response);
+};
+
+/**
+ * PUT request
+ */
+export const put = async (endpoint, body, options = {}) => {
+  const { includeAuth = true, headers: customHeaders = {} } = options;
+  const response = await fetch(`${API_BASE_URL}${endpoint}`, {
+    method: 'PUT',
+    headers: getHeaders(includeAuth, customHeaders),
+    body: JSON.stringify(body),
+  });
+
+  return handleResponse(response);
+};
+
+/**
+ * PATCH request
+ */
+export const patch = async (endpoint, body, options = {}) => {
+  const { includeAuth = true, headers: customHeaders = {} } = options;
+  const response = await fetch(`${API_BASE_URL}${endpoint}`, {
+    method: 'PATCH',
+    headers: getHeaders(includeAuth, customHeaders),
+    body: JSON.stringify(body),
+  });
+
+  return handleResponse(response);
+};
+
+/**
+ * DELETE request
+ */
+export const del = async (endpoint, options = {}) => {
+  const { includeAuth = true, headers: customHeaders = {} } = options;
+  const response = await fetch(`${API_BASE_URL}${endpoint}`, {
+    method: 'DELETE',
+    headers: getHeaders(includeAuth, customHeaders),
+  });
+
+  return handleResponse(response);
+};
+
+// ============================================
+// Endpoints Definition
+// ============================================
+
+export const ENDPOINTS = {
+  // Authentication
+  AUTH: {
+    LOGIN: "/auth/login",
+    ME: "/auth/me",
+    ME_STUDENT: "/auth/me/student",
+    MY_CHILDREN: "/auth/me/children",
+    CHANGE_PASSWORD: "/auth/change-password",
+    FORGOT_PASSWORD_VERIFY_ACCOUNT: "/auth/forgot-password/verify-account",
+    FORGOT_PASSWORD_VERIFY_OTP: "/auth/forgot-password/verify-otp",
+    FORGOT_PASSWORD_RESET: "/auth/forgot-password/reset",
+  },
+  // System Admin
+  SYSTEM_ADMIN: {
+    DASHBOARD: "/system-admin/dashboard",
+    USERS: "/system-admin/users",
+    CREATE_USER: "/system-admin/users",
+    UPDATE_USER: (userId) => `/system-admin/users/${userId}`,
+    DELETE_USER: (userId) => `/system-admin/users/${userId}`,
+    ROLES: "/system-admin/roles",
+    CREATE_ROLE: "/system-admin/roles",
+    UPDATE_ROLE: (roleId) => `/system-admin/roles/${roleId}`,
+    DELETE_ROLE: (roleId) => `/system-admin/roles/${roleId}`,
+    UPDATE_USER_ROLES: (userId) => `/system-admin/users/${userId}/roles`,
+    PERMISSIONS: "/system-admin/permissions",
+    CREATE_PERMISSION: "/system-admin/permissions",
+    UPDATE_PERMISSION: (permissionId) =>
+      `/system-admin/permissions/${permissionId}`,
+    DELETE_PERMISSION: (permissionId) =>
+      `/system-admin/permissions/${permissionId}`,
+    UPDATE_ROLE_PERMISSIONS: (roleId) =>
+      `/system-admin/roles/${roleId}/permissions`,
+  },
+  // School Admin
+  SCHOOL_ADMIN: {
+    DASHBOARD: "/school-admin/dashboard",
+    CONTACTS: "/school-admin/contacts",
+    CONTACT_REPLY: (id) => `/school-admin/contacts/${id}/reply`,
+    CONTACT_CLEAR_REPLY: (id) => `/school-admin/contacts/${id}/clear-reply`,
+    CONTACT_RESEND_EMAIL: (id) => `/school-admin/contacts/${id}/resend-email`,
+    QA_QUESTIONS: "/school-admin/qa/questions",
+    QA_QUESTION_DETAIL: (id) => `/school-admin/qa/questions/${id}`,
+    QA_QUESTION_ANSWERS: (id) => `/school-admin/qa/questions/${id}/answers`,
+    ATTENDANCE_OVERVIEW: "/school-admin/attendance/overview",
+    CLASS_ATTENDANCE_DETAIL: (classId) =>
+      `/school-admin/classes/${classId}/attendance`,
+    STUDENT_ATTENDANCE_DETAIL: (studentId) =>
+      `/school-admin/students/${studentId}/attendance`,
+    STUDENT_ATTENDANCE_HISTORY: (studentId) =>
+      `/school-admin/students/${studentId}/attendance/history`,
+    BLOGS: "/school-admin/blogs",
+    BLOG_DETAIL: (blogId) => `/school-admin/blogs/${blogId}`,
+    DOCUMENTS: "/school-admin/documents",
+    DOCUMENT_DETAIL: (documentId) => `/school-admin/documents/${documentId}`,
+  },
+  // Contact (public)
+  CONTACT: {
+    SUBMIT: "/contact",
+  },
+  // Q&A (public)
+  QA: {
+    QUESTIONS: "/qa/questions",
+    QUESTION_ANSWERS: (id) => `/qa/questions/${id}/answers`,
+  },
+  // Teacher
+  TEACHER: {
+    DASHBOARD: "/teacher/dashboard",
+    ATTENDANCES: "/teacher/attendances",
+    ATTENDANCE_BY_CLASS: (classId) => `/teacher/attendances/class/${classId}`,
+    ATTENDANCE_BY_CLASS_DATE: (classId, date) =>
+      `/teacher/attendances/class/${classId}/date/${date}`,
+  },
+  // Classes
+  CLASSES: {
+    LIST: "/classes",
+    DETAIL: (classId) => `/classes/${classId}`,
+    STUDENTS: (classId) => `/classes/${classId}/students`,
+    CREATE: "/classes",
+  },
+  // Blogs (public)
+  BLOGS: {
+    PUBLISHED: "/blogs/published",
+    CATEGORIES: "/blogs/categories",
+  },
+  // Documents (public)
+  DOCUMENTS: {
+    PUBLISHED: "/documents/published",
+  },
+  // Students
+  STUDENTS: {
+    LIST: "/students",
+    DETAIL: (studentId) => `/students/${studentId}`,
+    CREATE: "/students",
+    UPDATE: (studentId) => `/students/${studentId}`,
+    DELETE: (studentId) => `/students/${studentId}`,
+    ATTENDANCE_CHECKIN: "/students/attendance",
+    ATTENDANCE_CHECKOUT: "/students/attendance/checkout",
+    ATTENDANCE_LIST: "/students/attendance",
+  },
+  // Cloudinary
+  CLOUDINARY: {
+    MEDIA_LIBRARY_SIGNATURE: "/cloudinary/media-library-signature",
+    UPLOAD_AVATAR: "/cloudinary/upload-avatar",
+    UPLOAD_BLOG_IMAGE: "/cloudinary/upload-blog-image",
+  },
+  // OTP
+  OTP: {
+    SEND: "/otp/send",
+    VERIFY: "/otp/verify",
+  },
+  //Pickup
+  PICKUP: {
+    CREATE: "/pickup/requests",
+    MY_REQUESTS: "/pickup/my-requests",
+    REQUESTS: "/pickup/requests",
+    UPDATE_STATUS: "/pickup/requests/status",
+  },
+};
+
+export default {
+  get,
+  post,
+  postFormData,
+  putFormData,
+  put,
+  patch,
+  delete: del,
+  getToken,
+  ENDPOINTS,
+};
