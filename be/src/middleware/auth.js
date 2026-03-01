@@ -58,10 +58,9 @@ const authenticate = async (req, res, next) => {
       id: user._id.toString(),
       username: user.username,
       roles: roles.map((r) => r.roleName),
-      permissions: Array.from(
-        new Set(roles.flatMap((r) => r.permissions)),
-      ),
+      permissions: Array.from(new Set(roles.flatMap((r) => r.permissions))),
       rawUser: user,
+      _id: user._id, // them ObjectId
     };
 
     next();

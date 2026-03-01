@@ -87,3 +87,4 @@ export default function Captcha({ onValidate }) {
     </div>
   );
 }
+
