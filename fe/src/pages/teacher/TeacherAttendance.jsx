@@ -50,6 +50,7 @@ const defaultRecord = () => ({
   // Thông tin check-in chi tiết
   checkinImageName: '',
   delivererType: '', // '', 'Bố', 'Mẹ', 'Ông', 'Bà', 'Khác'
+  delivererPickupPersonId: '', // _id của pickup request đã đăng ký (nếu chọn từ danh sách)
   delivererOtherInfo: '',
   delivererOtherImageName: '',
   hasBelongings: false,
@@ -58,9 +59,11 @@ const defaultRecord = () => ({
   absentReason: '',
   // Thông tin check-out chi tiết
   checkoutImageName: '',
-  receiverType: '', // '', 'Bố', 'Mẹ', 'Ông', 'Bà', 'Khác'
+  receiverType: '',
+  receiverPickupPersonId: '',
   receiverOtherInfo: '',
   receiverOtherImageName: '',
+  checkoutNote: '',
   // Thông tin gửi OTP
   sendOtpSchoolAccount: false,
   sendOtpViaSms: false,
@@ -70,7 +73,6 @@ const defaultRecord = () => ({
   otpVerified: false,
 });
 
-const DELIVERER_OPTIONS = ['Bố', 'Mẹ', 'Ông', 'Bà', 'Khác'];
 const ABSENT_REASONS = ['Ốm', 'Nghỉ phép', 'Gia đình có việc', 'Khác'];
 const MAX_PERSON_INFO_LEN = 100;
 const MAX_BELONGINGS_NOTE_LEN = 100;
@@ -133,6 +135,7 @@ function TeacherAttendance() {
     timeOut: '',
     checkinImageName: '',
     delivererType: '',
+    delivererPickupPersonId: '',
     delivererOtherInfo: '',
     delivererOtherImageName: '',
     hasBelongings: false,
@@ -141,6 +144,7 @@ function TeacherAttendance() {
     absentReason: '',
     checkoutImageName: '',
     receiverType: '',
+    receiverPickupPersonId: '',
     receiverOtherInfo: '',
     receiverOtherImageName: '',
   }));
@@ -153,6 +157,10 @@ function TeacherAttendance() {
   });
   const [absentError, setAbsentError] = useState(null);
   const [isConfirmAbsentOpen, setIsConfirmAbsentOpen] = useState(false);
+
+  // Danh sách người đưa đón đã được duyệt của học sinh đang check-in
+  const [approvedPickupPersons, setApprovedPickupPersons] = useState([]);
+  const [loadingPickupPersons, setLoadingPickupPersons] = useState(false);
 
   // Toast thông báo thành công
   const [successToast, setSuccessToast] = useState({ visible: false, message: '' });
@@ -236,6 +244,20 @@ function TeacherAttendance() {
     fetchStudentsByClass(classId);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [classId]);
+
+  // Fetch danh sách người đưa đón đã được duyệt khi mở modal check-in / check-out
+  useEffect(() => {
+    if (!detailStudentId || (detailMode !== 'checkin' && detailMode !== 'checkout')) {
+      setApprovedPickupPersons([]);
+      return;
+    }
+    setLoadingPickupPersons(true);
+    get(ENDPOINTS.PICKUP.APPROVED_BY_STUDENT(detailStudentId))
+      .then((res) => setApprovedPickupPersons(res.data || []))
+      .catch(() => setApprovedPickupPersons([]))
+      .finally(() => setLoadingPickupPersons(false));
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [detailStudentId, detailMode]);
 
   useEffect(() => {
     // load attendance from localStorage by classId + date
@@ -377,7 +399,7 @@ function TeacherAttendance() {
     setSubmitError(null);
     setDetailStudentId(studentId);
     const rec = attendanceByStudent?.[studentId] || defaultRecord();
-    const isSameStudentCheckin = mode === 'checkin' && studentId === detailStudentId;
+    const isSameStudentSameMode = (mode === detailMode) && (studentId === detailStudentId);
 
     setDetailForm({
       status:
@@ -396,6 +418,7 @@ function TeacherAttendance() {
           : rec.timeOut || '',
       checkinImageName: rec.checkinImageName || '',
       delivererType: rec.delivererType || '',
+      delivererPickupPersonId: '',
       delivererOtherInfo: rec.delivererOtherInfo || '',
       delivererOtherImageName: rec.delivererOtherImageName || '',
       hasBelongings: !!rec.hasBelongings,
@@ -404,20 +427,22 @@ function TeacherAttendance() {
       absentReason: rec.absentReason || '',
       checkoutImageName: rec.checkoutImageName || '',
       receiverType: rec.receiverType || '',
+      receiverPickupPersonId: '',
       receiverOtherInfo: rec.receiverOtherInfo || '',
       receiverOtherImageName: rec.receiverOtherImageName || '',
-      // Giữ lại trạng thái OTP nếu mở lại cùng học sinh ở chế độ checkin
-      sendOtpSchoolAccount: isSameStudentCheckin ? detailForm.sendOtpSchoolAccount : false,
-      sendOtpViaSms: isSameStudentCheckin ? detailForm.sendOtpViaSms : false,
-      selectedParentForOtp: isSameStudentCheckin ? detailForm.selectedParentForOtp : '',
-      otpCode: isSameStudentCheckin ? detailForm.otpCode : '',
-      otpSent: isSameStudentCheckin ? detailForm.otpSent : false,
+      checkoutNote: rec.checkoutNote || '',
+      // Giữ lại trạng thái OTP nếu mở lại cùng học sinh ở cùng chế độ (checkin hoặc checkout)
+      sendOtpSchoolAccount: isSameStudentSameMode ? detailForm.sendOtpSchoolAccount : false,
+      sendOtpViaSms: isSameStudentSameMode ? detailForm.sendOtpViaSms : false,
+      selectedParentForOtp: isSameStudentSameMode ? detailForm.selectedParentForOtp : '',
+      otpCode: isSameStudentSameMode ? detailForm.otpCode : '',
+      otpSent: isSameStudentSameMode ? detailForm.otpSent : false,
     });
     setDetailMode(mode);
     setIsDetailOpen(true);
 
-    // Chỉ reset OTP khi mở checkin cho học sinh khác hoặc chuyển sang mode khác
-    if (!isSameStudentCheckin) {
+    // Chỉ reset OTP khi mở cho học sinh khác hoặc chuyển sang mode khác
+    if (!isSameStudentSameMode) {
       resetOtpState();
     }
   };
@@ -532,18 +557,31 @@ function TeacherAttendance() {
     try {
       if (!detailStudentId) throw new Error('Không xác định học sinh.');
 
-      // Kiểm tra OTP qua Firebase - bắt buộc phải gửi và xác minh thành công
+      // Kiểm tra OTP - bắt buộc phải gửi và xác minh thành công
       if (detailMode === 'checkin') {
-        if (!detailForm.otpSent || !confirmationResult) {
+        if (!detailForm.otpSent) {
           throw new Error('Vui lòng gửi mã OTP trước khi lưu.');
         }
         if (!detailForm.otpCode) {
           throw new Error('Vui lòng nhập mã OTP.');
         }
-        try {
-          await confirmationResult.confirm(detailForm.otpCode);
-        } catch {
-          throw new Error('Mã OTP không chính xác hoặc đã hết hạn.');
+        const isSchoolOtp = detailForm.sendOtpSchoolAccount && !detailForm.sendOtpViaSms;
+        if (isSchoolOtp) {
+          // Xác minh OTP nội bộ qua API
+          try {
+            const verifyRes = await post(ENDPOINTS.OTP.VERIFY, { studentId: detailStudentId, otpCode: detailForm.otpCode });
+            if (!verifyRes.data?.verified) throw new Error('OTP không chính xác.');
+          } catch (err) {
+            throw new Error(err.message || 'Mã OTP không chính xác hoặc đã hết hạn.');
+          }
+        } else {
+          // Xác minh OTP qua Firebase
+          if (!confirmationResult) throw new Error('Vui lòng gửi mã OTP trước khi lưu.');
+          try {
+            await confirmationResult.confirm(detailForm.otpCode);
+          } catch {
+            throw new Error('Mã OTP không chính xác hoặc đã hết hạn.');
+          }
         }
       }
 
@@ -555,6 +593,30 @@ function TeacherAttendance() {
       };
 
       if (detailMode === 'checkout') {
+        // Kiểm tra OTP - bắt buộc phải gửi và xác minh thành công
+        if (!detailForm.otpSent) {
+          throw new Error('Vui lòng gửi mã OTP trước khi lưu.');
+        }
+        if (!detailForm.otpCode) {
+          throw new Error('Vui lòng nhập mã OTP.');
+        }
+        const isSchoolOtpCO = detailForm.sendOtpSchoolAccount && !detailForm.sendOtpViaSms;
+        if (isSchoolOtpCO) {
+          try {
+            const verifyRes = await post(ENDPOINTS.OTP.VERIFY, { studentId: detailStudentId, otpCode: detailForm.otpCode });
+            if (!verifyRes.data?.verified) throw new Error('OTP không chính xác.');
+          } catch (err) {
+            throw new Error(err.message || 'Mã OTP không chính xác hoặc đã hết hạn.');
+          }
+        } else {
+          if (!confirmationResult) throw new Error('Vui lòng gửi mã OTP trước khi lưu.');
+          try {
+            await confirmationResult.confirm(detailForm.otpCode);
+          } catch {
+            throw new Error('Mã OTP không chính xác hoặc đã hết hạn.');
+          }
+        }
+
         const timeOutHHmm = detailForm.timeOut || nowHHmm();
         const isoOut = buildDateTimeISO(selectedDate, timeOutHHmm);
 
@@ -562,6 +624,7 @@ function TeacherAttendance() {
         // -> giáo viên lưu luôn, trạng thái hoàn thành điểm danh.
         await post(ENDPOINTS.STUDENTS.ATTENDANCE_CHECKOUT, {
           ...basePayload,
+          note: detailForm.checkoutNote?.trim() || '',
           checkoutImageName: detailForm.checkoutImageName || '',
           receiverType: detailForm.receiverType || '',
           receiverOtherInfo: detailForm.receiverOtherInfo || '',
@@ -577,7 +640,7 @@ function TeacherAttendance() {
           status: 'checked_out',
           timeOut: timeOutHHmm,
           timeIn: detailForm.timeIn || '',
-          note: basePayload.note,
+          checkoutNote: detailForm.checkoutNote?.trim() || '',
           checkoutImageName: detailForm.checkoutImageName,
           receiverType: detailForm.receiverType,
           receiverOtherInfo: detailForm.receiverOtherInfo,
@@ -990,7 +1053,7 @@ function TeacherAttendance() {
             {detailMode === 'view' ? (
               <>
                 <div className="border-b px-6 py-4 bg-gray-50">
-                  <h2 className="text-lg font-semibold text-gray-900 mb-2">Màn hình Chi tiết điểm danh</h2>
+                  <h2 className="text-lg font-semibold text-gray-900 mb-2"> Chi tiết điểm danh</h2>
                   <p className="text-sm text-gray-600">Cho phép View và Edit trong màn này</p>
                 </div>
 
@@ -1063,31 +1126,48 @@ function TeacherAttendance() {
                     <div>
                       <label className="block text-sm font-semibold text-gray-700 mb-2">Người đưa</label>
                       <select
-                        value={detailForm.delivererType}
-                        onChange={(e) =>
-                          setDetailForm((prev) => ({
-                            ...prev,
-                            delivererType: e.target.value,
-                            delivererOtherInfo: e.target.value === 'Khác' ? prev.delivererOtherInfo : '',
-                            delivererOtherImageName: e.target.value === 'Khác' ? prev.delivererOtherImageName : '',
-                          }))
-                        }
+                        value={detailForm.delivererPickupPersonId}
+                        onChange={(e) => {
+                          const val = e.target.value;
+                          if (val === 'KHAC') {
+                            setDetailForm((prev) => ({
+                              ...prev,
+                              delivererPickupPersonId: 'KHAC',
+                              delivererType: 'Khác',
+                              delivererOtherInfo: '',
+                              delivererOtherImageName: '',
+                            }));
+                          } else {
+                            const pickedPerson = approvedPickupPersons.find((p) => p._id === val);
+                            setDetailForm((prev) => ({
+                              ...prev,
+                              delivererPickupPersonId: val,
+                              delivererType: pickedPerson ? pickedPerson.relation : '',
+                              delivererOtherInfo: pickedPerson ? `${pickedPerson.fullName} - ${pickedPerson.phone}` : '',
+                              delivererOtherImageName: pickedPerson ? (pickedPerson.imageUrl || '') : '',
+                            }));
+                          }
+                        }}
                         className="w-full px-4 py-2 border border-gray-300 rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-green-500"
                       >
                         <option value="">--Chọn--</option>
-                        {DELIVERER_OPTIONS.map((opt) => (
-                          <option key={opt} value={opt}>
-                            {opt}
+                        {approvedPickupPersons.map((p) => (
+                          <option key={p._id} value={p._id}>
+                            {p.fullName} ({p.relation} - {p.phone})
                           </option>
                         ))}
+                        <option value="KHAC">Khác</option>
                       </select>
+                      {loadingPickupPersons && (
+                        <p className="mt-1 text-xs text-gray-500">Đang tải danh sách người đã đăng ký...</p>
+                      )}
                     </div>
 
-                    {detailForm.delivererType === 'Khác' && (
+                    {(detailForm.delivererType === 'Khác' || !!detailForm.delivererOtherInfo) && (
                       <>
                         <div>
                           <label className="block text-sm font-semibold text-gray-700 mb-2">
-                            Thông tin người đưa (nếu khác)
+                            Thông tin người đưa
                           </label>
                           <input
                             type="text"
@@ -1215,31 +1295,45 @@ function TeacherAttendance() {
                     <div>
                       <label className="block text-sm font-semibold text-gray-700 mb-2">Người đón</label>
                       <select
-                        value={detailForm.receiverType}
-                        onChange={(e) =>
-                          setDetailForm((prev) => ({
-                            ...prev,
-                            receiverType: e.target.value,
-                            receiverOtherInfo: e.target.value === 'Khác' ? prev.receiverOtherInfo : '',
-                            receiverOtherImageName: e.target.value === 'Khác' ? prev.receiverOtherImageName : '',
-                          }))
-                        }
+                        value={detailForm.receiverPickupPersonId}
+                        onChange={(e) => {
+                          const val = e.target.value;
+                          if (val === 'KHAC') {
+                            setDetailForm((prev) => ({
+                              ...prev,
+                              receiverPickupPersonId: 'KHAC',
+                              receiverType: 'Khác',
+                              receiverOtherInfo: '',
+                              receiverOtherImageName: '',
+                            }));
+                          } else {
+                            const pickedPerson = approvedPickupPersons.find((p) => p._id === val);
+                            setDetailForm((prev) => ({
+                              ...prev,
+                              receiverPickupPersonId: val,
+                              receiverType: pickedPerson ? pickedPerson.relation : '',
+                              receiverOtherInfo: pickedPerson ? `${pickedPerson.fullName} - ${pickedPerson.phone}` : '',
+                              receiverOtherImageName: pickedPerson ? (pickedPerson.imageUrl || '') : '',
+                            }));
+                          }
+                        }}
                         className="w-full px-4 py-2 border border-gray-300 rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
                       >
                         <option value="">--Chọn--</option>
-                        {DELIVERER_OPTIONS.map((opt) => (
-                          <option key={opt} value={opt}>
-                            {opt}
+                        {approvedPickupPersons.map((p) => (
+                          <option key={p._id} value={p._id}>
+                            {p.fullName} ({p.relation})
                           </option>
                         ))}
+                        <option value="KHAC">Khác</option>
                       </select>
                     </div>
 
-                    {detailForm.receiverType === 'Khác' && (
+                    {(detailForm.receiverType === 'Khác' || !!detailForm.receiverOtherInfo) && (
                       <>
                         <div>
                           <label className="block text-sm font-semibold text-gray-700 mb-2">
-                            Thông tin người đón (nếu khác)
+                            Thông tin người đón
                           </label>
                           <input
                             type="text"
@@ -1300,6 +1394,23 @@ function TeacherAttendance() {
                         />
                       </div>
                       {renderImagePreview(detailForm.checkoutImageName, 'Ảnh check-out')}
+                    </div>
+
+                    <div className="md:col-span-2">
+                      <label className="block text-sm font-semibold text-gray-700 mb-2">Ghi chú</label>
+                      <textarea
+                        rows={3}
+                        value={detailForm.checkoutNote}
+                        onChange={(e) =>
+                          setDetailForm((prev) => ({
+                            ...prev,
+                            checkoutNote: sanitizeMultiLineText(e.target.value, MAX_NOTE_LEN),
+                          }))
+                        }
+                        placeholder="Ví dụ: Bé về sớm..."
+                        maxLength={MAX_NOTE_LEN}
+                        className="w-full px-4 py-2 border border-gray-300 rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+                      />
                     </div>
                   </div>
                 </div>
@@ -1422,23 +1533,37 @@ function TeacherAttendance() {
                       <div>
                         <label className="block text-sm font-semibold text-gray-700 mb-2">Người đón</label>
                         <select
-                          value={detailForm.receiverType}
-                          onChange={(e) =>
-                            setDetailForm((prev) => ({
-                              ...prev,
-                              receiverType: e.target.value,
-                              receiverOtherInfo: e.target.value === 'Khác' ? prev.receiverOtherInfo : '',
-                              receiverOtherImageName: e.target.value === 'Khác' ? prev.receiverOtherImageName : '',
-                            }))
-                          }
+                          value={detailForm.receiverPickupPersonId}
+                          onChange={(e) => {
+                            const val = e.target.value;
+                            if (val === 'KHAC') {
+                              setDetailForm((prev) => ({
+                                ...prev,
+                                receiverPickupPersonId: 'KHAC',
+                                receiverType: 'Khác',
+                                receiverOtherInfo: '',
+                                receiverOtherImageName: '',
+                              }));
+                            } else {
+                              const pickedPerson = approvedPickupPersons.find((p) => p._id === val);
+                              setDetailForm((prev) => ({
+                                ...prev,
+                                receiverPickupPersonId: val,
+                                receiverType: pickedPerson ? pickedPerson.relation : '',
+                                receiverOtherInfo: pickedPerson ? `${pickedPerson.fullName} - ${pickedPerson.phone}` : '',
+                                receiverOtherImageName: pickedPerson ? (pickedPerson.imageUrl || '') : '',
+                              }));
+                            }
+                          }}
                           className="w-full px-4 py-2 border border-gray-300 rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500"
                         >
                           <option value="">--Chọn--</option>
-                          {DELIVERER_OPTIONS.map((opt) => (
-                            <option key={opt} value={opt}>
-                              {opt}
+                          {approvedPickupPersons.map((p) => (
+                            <option key={p._id} value={p._id}>
+                              {p.fullName} ({p.relation})
                             </option>
                           ))}
+                          <option value="KHAC">Khác</option>
                         </select>
                       </div>
 
@@ -1484,6 +1609,173 @@ function TeacherAttendance() {
                           </div>
                         </>
                       )}
+
+                      {/* Phần Gửi mã OTP cho phụ huynh - checkout */}
+                      <div className="border-t border-gray-100 pt-4">
+                        <p className="text-xs font-semibold text-gray-700 mb-3 flex items-center gap-2">
+                          <span>📱</span>
+                          Phương thức gửi OTP
+                        </p>
+
+                        <div className="space-y-3 mb-4">
+                          <label className="flex items-center gap-2 text-sm text-gray-700">
+                            <input
+                              type="radio"
+                              name="otpMethodCheckout"
+                              checked={detailForm.sendOtpSchoolAccount || false}
+                              onChange={() =>
+                                setDetailForm((prev) => ({
+                                  ...prev,
+                                  sendOtpSchoolAccount: true,
+                                  sendOtpViaSms: false,
+                                }))
+                              }
+                            />
+                            Tài khoản trường cấp
+                          </label>
+
+                          <label className="flex items-center gap-2 text-sm text-gray-700">
+                            <input
+                              type="radio"
+                              name="otpMethodCheckout"
+                              checked={detailForm.sendOtpViaSms || false}
+                              onChange={() =>
+                                setDetailForm((prev) => ({
+                                  ...prev,
+                                  sendOtpSchoolAccount: false,
+                                  sendOtpViaSms: true,
+                                }))
+                              }
+                            />
+                            Gửi qua SMS
+                          </label>
+                        </div>
+
+                        {(detailForm.sendOtpSchoolAccount || detailForm.sendOtpViaSms) && (
+                          <>
+                            {detailForm.sendOtpViaSms && (
+                              <div className="mb-3">
+                                <label className="block text-xs font-semibold text-gray-700 mb-1">Chọn phụ huynh nhận SMS</label>
+                                <select
+                                  value={detailForm.selectedParentForOtp || ''}
+                                  onChange={(e) =>
+                                    setDetailForm((prev) => ({
+                                      ...prev,
+                                      selectedParentForOtp: e.target.value,
+                                    }))
+                                  }
+                                  className="w-full px-3 py-2 border border-gray-300 rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                                >
+                                  <option value="">--Chọn--</option>
+                                  {detailStudent?.parentId?.phone && (
+                                    <option value={detailStudent.parentId.phone}>
+                                      {detailStudent.parentId.fullName || 'Phụ huynh'} - {detailStudent.parentId.phone}
+                                    </option>
+                                  )}
+                                </select>
+                              </div>
+                            )}
+
+                            <button
+                              type="button"
+                              onClick={async () => {
+                                setSubmitError(null);
+                                try {
+                                  if (detailForm.sendOtpSchoolAccount && !detailForm.sendOtpViaSms) {
+                                    await post(ENDPOINTS.OTP.SEND, { studentId: detailStudentId, method: 'school' });
+                                    setDetailForm((prev) => ({ ...prev, otpSent: true, otpCode: '' }));
+                                    setOtpTimeLeft(60);
+                                    setOtpExpired(false);
+                                  } else {
+                                    const phone = detailForm.sendOtpViaSms
+                                      ? detailForm.selectedParentForOtp
+                                      : detailStudent?.parentId?.phone;
+                                    if (!phone) {
+                                      setSubmitError('Vui lòng chọn phụ huynh nhận SMS.');
+                                      return;
+                                    }
+                                    const phoneE164 = formatPhoneForFirebase(phone);
+                                    const result = await signInWithPhoneNumber(auth, phoneE164, recaptchaVerifierRef.current);
+                                    setConfirmationResult(result);
+                                    setDetailForm((prev) => ({ ...prev, otpSent: true, otpCode: '' }));
+                                    setOtpTimeLeft(120);
+                                    setOtpExpired(false);
+                                  }
+                                } catch (err) {
+                                  setSubmitError(err.message || 'Lỗi khi gửi OTP');
+                                }
+                              }}
+                              className="w-full px-3 py-2 text-sm font-semibold text-white bg-blue-600 rounded-md hover:bg-blue-700 transition-colors mb-3"
+                            >
+                              Gửi mã OTP
+                            </button>
+
+                            {detailForm.otpSent && (
+                              <div className={`rounded-md p-3 ${otpExpired ? 'bg-red-50 border border-red-200' : 'bg-blue-50 border border-blue-200'}`}>
+                                <div className="flex items-center justify-between mb-2">
+                                  <label className="block text-xs font-semibold text-gray-700">Nhập mã OTP</label>
+                                  <span className={`text-xs font-semibold ${otpExpired ? 'text-red-600' : 'text-blue-600'}`}>
+                                    {otpExpired ? '❌ Hết hạn' : `⏱️ ${Math.floor(otpTimeLeft / 60)}:${String(otpTimeLeft % 60).padStart(2, '0')}`}
+                                  </span>
+                                </div>
+                                <input
+                                  type="text"
+                                  value={detailForm.otpCode || ''}
+                                  onChange={(e) =>
+                                    setDetailForm((prev) => ({
+                                      ...prev,
+                                      otpCode: e.target.value.slice(0, 6),
+                                    }))
+                                  }
+                                  placeholder="Mã 6 số"
+                                  maxLength={6}
+                                  disabled={otpExpired}
+                                  className={`w-full px-3 py-2 border rounded-md text-sm focus:outline-none ${
+                                    otpExpired
+                                      ? 'bg-gray-100 border-gray-300 cursor-not-allowed text-gray-500'
+                                      : 'border-gray-300 focus:ring-2 focus:ring-blue-500'
+                                  }`}
+                                />
+                                {otpExpired && (
+                                  <div className="mt-3 p-3 bg-red-100 border border-red-300 rounded text-xs text-red-700">
+                                    <p className="font-semibold mb-2">⚠️ Mã OTP đã hết hạn</p>
+                                    {detailStudent?.parentId?.phone && (
+                                      <p className="text-red-600 font-semibold mb-2">
+                                        📱 {detailStudent.parentId.fullName || 'Phụ huynh'}: {detailStudent.parentId.phone}
+                                      </p>
+                                    )}
+                                    <button
+                                      type="button"
+                                      onClick={() => resetOtpState()}
+                                      className="w-full mt-2 px-3 py-2 text-xs font-semibold text-white bg-red-600 rounded hover:bg-red-700 transition-colors"
+                                    >
+                                      Gửi lại mã OTP
+                                    </button>
+                                  </div>
+                                )}
+                              </div>
+                            )}
+                          </>
+                        )}
+                      </div>
+
+                      <div>
+                        <label className="block text-sm font-semibold text-gray-700 mb-2">Ghi chú</label>
+                        <textarea
+                          rows={3}
+                          value={detailForm.checkoutNote}
+                          onChange={(e) =>
+                            setDetailForm((prev) => ({
+                              ...prev,
+                              checkoutNote: sanitizeMultiLineText(e.target.value, MAX_NOTE_LEN),
+                            }))
+                          }
+                          placeholder="Ví dụ: Bé về sớm..."
+                          maxLength={MAX_NOTE_LEN}
+                          className="w-full px-4 py-2 border border-gray-300 rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500 resize-y"
+                        />
+                      </div>
+
                     </div>
                   ) : (
                     // Checkin form - hiển thị đầy đủ các trường
@@ -1529,23 +1821,37 @@ function TeacherAttendance() {
                           <div>
                             <label className="block text-[11px] font-semibold text-gray-700 mb-1">Người đưa *</label>
                             <select
-                              value={detailForm.delivererType}
-                              onChange={(e) =>
-                                setDetailForm((prev) => ({
-                                  ...prev,
-                                  delivererType: e.target.value,
-                                  delivererOtherInfo: e.target.value === 'Khác' ? prev.delivererOtherInfo : '',
-                                  delivererOtherImageName: e.target.value === 'Khác' ? prev.delivererOtherImageName : '',
-                                }))
-                              }
+                              value={detailForm.delivererPickupPersonId}
+                              onChange={(e) => {
+                                const val = e.target.value;
+                                if (val === 'KHAC') {
+                                  setDetailForm((prev) => ({
+                                    ...prev,
+                                    delivererPickupPersonId: 'KHAC',
+                                    delivererType: 'Khác',
+                                    delivererOtherInfo: '',
+                                    delivererOtherImageName: '',
+                                  }));
+                                } else {
+                                  const pickedPerson = approvedPickupPersons.find((p) => p._id === val);
+                                  setDetailForm((prev) => ({
+                                    ...prev,
+                                    delivererPickupPersonId: val,
+                                    delivererType: pickedPerson ? pickedPerson.relation : '',
+                                    delivererOtherInfo: pickedPerson ? `${pickedPerson.fullName} - ${pickedPerson.phone}` : '',
+                                    delivererOtherImageName: pickedPerson ? (pickedPerson.imageUrl || '') : '',
+                                  }));
+                                }
+                              }}
                               className="w-full px-3 py-2 border border-gray-300 rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500"
                             >
                               <option value="">--Chọn--</option>
-                              {DELIVERER_OPTIONS.map((opt) => (
-                                <option key={opt} value={opt}>
-                                  {opt}
+                              {approvedPickupPersons.map((p) => (
+                                <option key={p._id} value={p._id}>
+                                  {p.fullName} ({p.relation} - {p.phone})
                                 </option>
                               ))}
+                              <option value="KHAC">Khác</option>
                             </select>
                           </div>
                         </div>
@@ -1635,26 +1941,30 @@ function TeacherAttendance() {
                         <div className="space-y-3 mb-4">
                           <label className="flex items-center gap-2 text-sm text-gray-700">
                             <input
-                              type="checkbox"
+                              type="radio"
+                              name="otpMethodCheckin"
                               checked={detailForm.sendOtpSchoolAccount || false}
-                              onChange={(e) =>
+                              onChange={() =>
                                 setDetailForm((prev) => ({
                                   ...prev,
-                                  sendOtpSchoolAccount: e.target.checked,
+                                  sendOtpSchoolAccount: true,
+                                  sendOtpViaSms: false,
                                 }))
                               }
                             />
                             Tài khoản trường cấp
                           </label>
-                          
+
                           <label className="flex items-center gap-2 text-sm text-gray-700">
                             <input
-                              type="checkbox"
+                              type="radio"
+                              name="otpMethodCheckin"
                               checked={detailForm.sendOtpViaSms || false}
-                              onChange={(e) =>
+                              onChange={() =>
                                 setDetailForm((prev) => ({
                                   ...prev,
-                                  sendOtpViaSms: e.target.checked,
+                                  sendOtpSchoolAccount: false,
+                                  sendOtpViaSms: true,
                                 }))
                               }
                             />
@@ -1664,46 +1974,58 @@ function TeacherAttendance() {
 
                         {(detailForm.sendOtpSchoolAccount || detailForm.sendOtpViaSms) && (
                           <>
-                            <div className="mb-3">
-                              <label className="block text-xs font-semibold text-gray-700 mb-1">Chọn phụ huynh nhận SMS</label>
-                              <select
-                                value={detailForm.selectedParentForOtp || ''}
-                                onChange={(e) =>
-                                  setDetailForm((prev) => ({
-                                    ...prev,
-                                    selectedParentForOtp: e.target.value,
-                                  }))
-                                }
-                                className="w-full px-3 py-2 border border-gray-300 rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500"
-                              >
-                                <option value="">--Chọn--</option>
-                                {detailStudent?.parentId?.phone && (
-                                  <option value={detailStudent.parentId.phone}>
-                                    {detailStudent.parentId.fullName || 'Phụ huynh'} - {detailStudent.parentId.phone}
-                                  </option>
-                                )}
-                              </select>
-                            </div>
+                            {detailForm.sendOtpViaSms && (
+                              <div className="mb-3">
+                                <label className="block text-xs font-semibold text-gray-700 mb-1">Chọn phụ huynh nhận SMS</label>
+                                <select
+                                  value={detailForm.selectedParentForOtp || ''}
+                                  onChange={(e) =>
+                                    setDetailForm((prev) => ({
+                                      ...prev,
+                                      selectedParentForOtp: e.target.value,
+                                    }))
+                                  }
+                                  className="w-full px-3 py-2 border border-gray-300 rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                                >
+                                  <option value="">--Chọn--</option>
+                                  {detailStudent?.parentId?.phone && (
+                                    <option value={detailStudent.parentId.phone}>
+                                      {detailStudent.parentId.fullName || 'Phụ huynh'} - {detailStudent.parentId.phone}
+                                    </option>
+                                  )}
+                                </select>
+                              </div>
+                            )}
 
                             <button
                               type="button"
                               onClick={async () => {
-                                if (!detailForm.selectedParentForOtp) {
-                                  setSubmitError('Vui lòng chọn phụ huynh nhận SMS.');
-                                  return;
-                                }
                                 setSubmitError(null);
                                 try {
-                                  const phoneE164 = formatPhoneForFirebase(detailForm.selectedParentForOtp);
-                                  const result = await signInWithPhoneNumber(auth, phoneE164, recaptchaVerifierRef.current);
-                                  setConfirmationResult(result);
-                                  setDetailForm((prev) => ({
-                                    ...prev,
-                                    otpSent: true,
-                                    otpCode: '',
-                                  }));
+                                  if (detailForm.sendOtpSchoolAccount && !detailForm.sendOtpViaSms) {
+                                    // Gửi OTP nội bộ qua tài khoản trường
+                                    await post(ENDPOINTS.OTP.SEND, { studentId: detailStudentId, method: 'school' });
+                                    setDetailForm((prev) => ({ ...prev, otpSent: true, otpCode: '' }));
+                                    setOtpTimeLeft(60);
+                                    setOtpExpired(false);
+                                  } else {
+                                    // Gửi OTP qua Firebase SMS
+                                    const phone = detailForm.sendOtpViaSms
+                                      ? detailForm.selectedParentForOtp
+                                      : detailStudent?.parentId?.phone;
+                                    if (!phone) {
+                                      setSubmitError('Vui lòng chọn phụ huynh nhận SMS.');
+                                      return;
+                                    }
+                                    const phoneE164 = formatPhoneForFirebase(phone);
+                                    const result = await signInWithPhoneNumber(auth, phoneE164, recaptchaVerifierRef.current);
+                                    setConfirmationResult(result);
+                                    setDetailForm((prev) => ({ ...prev, otpSent: true, otpCode: '' }));
+                                    setOtpTimeLeft(120);
+                                    setOtpExpired(false);
+                                  }
                                 } catch (err) {
-                                  setSubmitError(err.message || 'Lỗi khi gửi OTP qua Firebase');
+                                  setSubmitError(err.message || 'Lỗi khi gửi OTP');
                                 }
                               }}
                               className="w-full px-3 py-2 text-sm font-semibold text-white bg-blue-600 rounded-md hover:bg-blue-700 transition-colors mb-3"

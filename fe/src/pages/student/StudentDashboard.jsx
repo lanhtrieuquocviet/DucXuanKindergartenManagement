@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../../context/AuthContext';
 import { get, ENDPOINTS } from '../../service/api';
@@ -9,6 +9,9 @@ function StudentDashboard() {
   const [children, setChildren] = useState([]);
   const [loading, setLoading] = useState(true);
   const [showChildInfo, setShowChildInfo] = useState(false);
+  const [pendingOtp, setPendingOtp] = useState(null); // { code, expiresAt, timeLeft }
+  const [otpTimeLeft, setOtpTimeLeft] = useState(0);
+  const pollRef = useRef(null);
 
   useEffect(() => {
     if (isInitializing) return;
@@ -45,6 +48,45 @@ function StudentDashboard() {
   }, [navigate, user, isInitializing]);
 
   const studentInfo = children[0] || null;
+
+  // Poll OTP đang chờ mỗi 3 giây
+  useEffect(() => {
+    if (!studentInfo?._id) return;
+    const fetchPending = async () => {
+      try {
+        const res = await get(ENDPOINTS.OTP.PENDING(studentInfo._id));
+        const data = res.data;
+        if (data) {
+          setPendingOtp(data);
+          setOtpTimeLeft(data.timeLeft);
+        } else {
+          setPendingOtp(null);
+          setOtpTimeLeft(0);
+        }
+      } catch {
+        // ignore lỗi polling
+      }
+    };
+    fetchPending();
+    pollRef.current = setInterval(fetchPending, 3000);
+    return () => clearInterval(pollRef.current);
+  }, [studentInfo?._id]);
+
+  // Countdown timer cho OTP
+  useEffect(() => {
+    if (!pendingOtp || otpTimeLeft <= 0) return;
+    const timer = setInterval(() => {
+      setOtpTimeLeft((prev) => {
+        if (prev <= 1) {
+          clearInterval(timer);
+          setPendingOtp(null);
+          return 0;
+        }
+        return prev - 1;
+      });
+    }, 1000);
+    return () => clearInterval(timer);
+  }, [pendingOtp?.code]);
   const studentName = studentInfo?.fullName || 'Học sinh';
   const className = studentInfo?.classId?.className || 'Chưa xếp lớp';
   const parentName = studentInfo?.parent?.name || '';
@@ -168,6 +210,22 @@ function StudentDashboard() {
             </button>
           ))}
         </div>
+
+        {/* Toast OTP từ tài khoản trường */}
+        {pendingOtp && (
+          <div className="fixed bottom-6 right-6 z-50 flex items-center gap-3 bg-emerald-600 text-white px-4 py-3 rounded-xl shadow-2xl text-sm font-semibold">
+            <span>🔑</span>
+            <span>Mã OTP: <strong className="text-lg tracking-widest">{pendingOtp.code}</strong></span>
+            <span className="text-emerald-200">còn {otpTimeLeft}s</span>
+            <button
+              type="button"
+              onClick={() => setPendingOtp(null)}
+              className="ml-1 text-emerald-200 hover:text-white font-bold"
+            >
+              ×
+            </button>
+          </div>
+        )}
 
         {/* Modal hiển thị thông tin chi tiết của trẻ */}
         {showChildInfo && studentInfo && (
