@@ -210,6 +210,8 @@ export const ENDPOINTS = {
       `/school-admin/students/${studentId}/attendance/history`,
     BLOGS: "/school-admin/blogs",
     BLOG_DETAIL: (blogId) => `/school-admin/blogs/${blogId}`,
+    BLOG_CATEGORIES: "/school-admin/blog-categories",
+    BLOG_CATEGORY_DETAIL: (id) => `/school-admin/blog-categories/${id}`,
     DOCUMENTS: "/school-admin/documents",
     DOCUMENT_DETAIL: (documentId) => `/school-admin/documents/${documentId}`,
   },
@@ -239,14 +241,9 @@ export const ENDPOINTS = {
   },
   // Blogs (public)
   BLOGS: {
-<<<<<<< HEAD
     PUBLISHED: '/blogs/published',
     CATEGORIES: '/blogs/categories',
     DETAIL: (id) => `/blogs/${id}`,
-=======
-    PUBLISHED: "/blogs/published",
-    CATEGORIES: "/blogs/categories",
->>>>>>> 1f3618a8d3bd8b1e8c76858ef800df80ed9e2a81
   },
   // Documents (public)
   DOCUMENTS: {
@@ -265,16 +262,10 @@ export const ENDPOINTS = {
   },
   // Cloudinary
   CLOUDINARY: {
-<<<<<<< HEAD
     MEDIA_LIBRARY_SIGNATURE: '/cloudinary/media-library-signature',
     UPLOAD_AVATAR: '/cloudinary/upload-avatar',
     UPLOAD_BLOG_IMAGE: '/cloudinary/upload-blog-image',
     UPLOAD_BLOG_FILE: '/cloudinary/upload-blog-file',
-=======
-    MEDIA_LIBRARY_SIGNATURE: "/cloudinary/media-library-signature",
-    UPLOAD_AVATAR: "/cloudinary/upload-avatar",
-    UPLOAD_BLOG_IMAGE: "/cloudinary/upload-blog-image",
->>>>>>> 1f3618a8d3bd8b1e8c76858ef800df80ed9e2a81
   },
   // OTP
   OTP: {

@@ -607,13 +607,22 @@ function ManageBlogs() {
               Tổng bài: <span className="font-semibold">{pagination.total}</span>
             </p>
           </div>
-          <button
-            type="button"
-            onClick={openCreateModal}
-            className="inline-flex items-center justify-center rounded-lg bg-emerald-600 px-4 py-2 text-sm font-semibold text-white shadow-sm hover:bg-emerald-700"
-          >
-            + Tạo bài viết mới
-          </button>
+          <div className="flex gap-2">
+            <button
+              type="button"
+              onClick={() => navigate('/school-admin/blog-categories')}
+              className="inline-flex items-center justify-center rounded-lg border border-emerald-600 px-4 py-2 text-sm font-semibold text-emerald-700 hover:bg-emerald-50"
+            >
+              Quản lý danh mục
+            </button>
+            <button
+              type="button"
+              onClick={openCreateModal}
+              className="inline-flex items-center justify-center rounded-lg bg-emerald-600 px-4 py-2 text-sm font-semibold text-white shadow-sm hover:bg-emerald-700"
+            >
+              + Tạo bài viết mới
+            </button>
+          </div>
         </div>
 
         {/* Bộ lọc và tìm kiếm */}
