@@ -256,19 +256,22 @@ function PickupRegistration() {
               <div>
                 <label className="block text-sm font-medium mb-1">
                   Mối quan hệ *
-                  <span className="text-xs text-gray-400 ml-1">
-                    ({form.relation.length}/50)
-                  </span>
                 </label>
-                <input
-                  type="text"
+                <select
                   name="relation"
                   value={form.relation}
                   onChange={handleChange}
-                  maxLength={50}
-                  className="w-full border rounded-md px-3 py-2"
+                  className="w-full border rounded-md px-3 py-2 bg-white"
                   required
-                />
+                >
+                  <option value="">-- Chọn mối quan hệ --</option>
+                  <option value="Bố">Bố</option>
+                  <option value="Mẹ">Mẹ</option>
+                  <option value="Ông">Ông</option>
+                  <option value="Bà">Bà</option>
+                  <option value="Anh/Chị">Anh/Chị</option>
+                  <option value="Khác">Khác</option>
+                </select>
               </div>
 
               {/* SĐT */}
