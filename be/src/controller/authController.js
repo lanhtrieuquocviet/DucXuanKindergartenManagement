@@ -3,6 +3,7 @@ const jwt = require('jsonwebtoken');
 const User = require('../models/User');
 const Student = require('../models/Student');
 const { sendPasswordResetEmail, sendOTPEmail, generateRandomPassword } = require('../utils/email');
+const { createSystemLog } = require('../utils/systemLog');
 
 // ============================================
 // Hằng số
@@ -237,6 +238,13 @@ const login = async (req, res) => {
 
     const token = jwt.sign(payload, JWT_SECRET, {
       expiresIn: JWT_EXPIRES_IN,
+    });
+
+    await createSystemLog({
+      req,
+      actor: user,
+      action: 'Đăng nhập hệ thống',
+      detail: `Đăng nhập thành công cho tài khoản ${user.username}`,
     });
 
     return res.status(200).json({
