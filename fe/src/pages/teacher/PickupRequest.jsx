@@ -45,7 +45,7 @@ function PickupRequest() {
     { key: "pickup-approval", label: "Phê duyệt đưa đón" },
     { key: "schedule", label: "Lịch dạy & hoạt động" },
     { key: "messages", label: "Thông báo cho phụ huynh" },
-  ];
+  ], []);
 
   const activeKey = useMemo(() => {
     const path = location.pathname || '';
