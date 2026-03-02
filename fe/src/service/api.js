@@ -233,6 +233,7 @@ export const ENDPOINTS = {
   BLOGS: {
     PUBLISHED: '/blogs/published',
     CATEGORIES: '/blogs/categories',
+    DETAIL: (id) => `/blogs/${id}`,
   },
   // Documents (public)
   DOCUMENTS: {
@@ -254,6 +255,7 @@ export const ENDPOINTS = {
     MEDIA_LIBRARY_SIGNATURE: '/cloudinary/media-library-signature',
     UPLOAD_AVATAR: '/cloudinary/upload-avatar',
     UPLOAD_BLOG_IMAGE: '/cloudinary/upload-blog-image',
+    UPLOAD_BLOG_FILE: '/cloudinary/upload-blog-file',
   },
   // OTP
   OTP: {

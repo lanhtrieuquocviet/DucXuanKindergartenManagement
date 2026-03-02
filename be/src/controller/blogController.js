@@ -7,14 +7,15 @@ const validateBlogPayload = (body, isCreate = true) => {
   // code required only on creation, on update we allow omitting it
   if (isCreate && !body.code) errors.push('Code không được để trống');
   if (body.code && typeof body.code !== 'string') errors.push('Code không hợp lệ');
+  if (body.code && body.code.length > 100) errors.push('Tiêu đề quá dài (tối đa 100 ký tự)');
 
   if (isCreate && !body.description) errors.push('Mô tả không được để trống');
   if (body.description && typeof body.description !== 'string') {
     errors.push('Mô tả không hợp lệ');
   }
 
-  if (body.description && body.description.length > 5000) {
-    errors.push('Mô tả quá dài (tối đa 5000 ký tự)');
+  if (body.description && body.description.length > 1000) {
+    errors.push('Mô tả quá dài (tối đa 1000 ký tự)');
   }
 
   if (isCreate && !body.category) errors.push('Danh mục không được để trống');
@@ -32,6 +33,17 @@ const validateBlogPayload = (body, isCreate = true) => {
         errors.push(`Ảnh ${idx + 1} không hợp lệ`);
       }
     });
+  }
+
+  if (body.status && !['draft', 'published', 'inactive'].includes(body.status)) {
+    errors.push('Trạng thái không hợp lệ (draft | published | inactive)');
+  }
+
+  if (body.attachmentUrl && typeof body.attachmentUrl !== 'string') {
+    errors.push('URL tệp đính kèm không hợp lệ');
+  }
+  if (body.attachmentType && !['pdf', 'word'].includes(body.attachmentType)) {
+    errors.push('Loại tệp đính kèm không hợp lệ');
   }
 
   return errors;
@@ -121,7 +133,7 @@ const getBlog = async (req, res) => {
 // POST /api/school-admin/blogs
 const createBlog = async (req, res) => {
   try {
-    const { code, description, category, images, status } = req.body;
+    const { code, description, category, images, status, attachmentUrl, attachmentType } = req.body;
 
     const errors = validateBlogPayload(req.body, true);
     if (errors.length > 0) {
@@ -158,6 +170,8 @@ const createBlog = async (req, res) => {
       images: validImages,
       status: status || 'draft',
       author: req.user.id,
+      attachmentUrl: attachmentUrl || null,
+      attachmentType: attachmentType || null,
     });
 
     const populated = await Blog.findById(blog._id)
@@ -183,7 +197,7 @@ const updateBlog = async (req, res) => {
   try {
     const { id } = req.params;
     console.log('updateBlog endpoint hit, body:', req.body);
-    const { code, description, category, images, status } = req.body;
+    const { code, description, category, images, status, attachmentUrl, attachmentType } = req.body;
 
     const errors = validateBlogPayload(req.body, false);
     if (errors.length > 0) {
@@ -229,6 +243,13 @@ const updateBlog = async (req, res) => {
 
     if (status !== undefined) {
       blog.status = status;
+    }
+
+    if (attachmentUrl !== undefined) {
+      blog.attachmentUrl = attachmentUrl || null;
+    }
+    if (attachmentType !== undefined) {
+      blog.attachmentType = attachmentType || null;
     }
 
     await blog.save();
@@ -335,6 +356,25 @@ const getPublishedBlogs = async (req, res) => {
 };
 
 
+// GET /api/blogs/:id (PUBLIC - published only)
+const getPublishedBlogById = async (req, res) => {
+  try {
+    const { id } = req.params;
+    const blog = await Blog.findOne({ _id: id, status: 'published' })
+      .populate('author', 'username fullName')
+      .populate('category', 'name');
+
+    if (!blog) {
+      return res.status(404).json({ status: 'error', message: 'Không tìm thấy bài viết' });
+    }
+
+    return res.status(200).json({ status: 'success', data: blog });
+  } catch (error) {
+    console.error('getPublishedBlogById error:', error);
+    return res.status(500).json({ status: 'error', message: 'Lỗi khi tải bài viết' });
+  }
+};
+
 // retrieve all categories (public)
 const getBlogCategories = async (req, res) => {
   try {
@@ -354,6 +394,7 @@ module.exports = {
   updateBlog,
   deleteBlog,
   getPublishedBlogs,
+  getPublishedBlogById,
   getBlogCategories,
 };
 

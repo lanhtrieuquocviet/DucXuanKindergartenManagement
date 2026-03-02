@@ -22,6 +22,16 @@ const blogSchema = new mongoose.Schema(
       type: String,
       trim: true,
     }],
+    attachmentUrl: {
+      type: String,
+      trim: true,
+      default: null,
+    },
+    attachmentType: {
+      type: String,
+      enum: ['pdf', 'word', null],
+      default: null,
+    },
     status: {
       type: String,
       enum: ['draft', 'published', 'inactive'],

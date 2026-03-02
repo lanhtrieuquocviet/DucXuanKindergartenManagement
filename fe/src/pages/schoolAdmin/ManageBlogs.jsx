@@ -23,9 +23,13 @@ function BlogFormModal({ open, onClose, initialData, categories, onSubmit, loadi
     category: '',
     images: [],
     status: 'draft',
+    attachmentUrl: null,
+    attachmentType: null,
   });
   const [uploading, setUploading] = useState(false);
   const [uploadProgress, setUploadProgress] = useState({});
+  const [uploadingFile, setUploadingFile] = useState(false);
+  const [formErrors, setFormErrors] = useState({});
 
   useEffect(() => {
     if (open) {
@@ -38,8 +42,11 @@ function BlogFormModal({ open, onClose, initialData, categories, onSubmit, loadi
           (categories[0]?._id || ''),
         images: initialData?.images || [],
         status: initialData?.status || 'draft',
+        attachmentUrl: initialData?.attachmentUrl || null,
+        attachmentType: initialData?.attachmentType || null,
       });
       setUploadProgress({});
+      setFormErrors({});
     }
   }, [open, initialData, categories]);
 
@@ -48,6 +55,7 @@ function BlogFormModal({ open, onClose, initialData, categories, onSubmit, loadi
   const handleChange = (e) => {
     const { name, value } = e.target;
     setForm((prev) => ({ ...prev, [name]: value }));
+    if (formErrors[name]) setFormErrors((prev) => ({ ...prev, [name]: null }));
   };
 
   const handleUploadImages = async (e) => {
@@ -106,8 +114,49 @@ function BlogFormModal({ open, onClose, initialData, categories, onSubmit, loadi
     }));
   };
 
+  const handleUploadFile = async (e) => {
+    const file = e.target.files[0];
+    if (!file) return;
+
+    setUploadingFile(true);
+    try {
+      const formData = new FormData();
+      formData.append('file', file);
+      const response = await postFormData(ENDPOINTS.CLOUDINARY.UPLOAD_BLOG_FILE, formData);
+      if (response.status === 'success' && response.data?.url) {
+        setForm(prev => ({
+          ...prev,
+          attachmentUrl: response.data.url,
+          attachmentType: response.data.type,
+        }));
+      } else {
+        throw new Error(response.message || 'Upload thất bại');
+      }
+    } catch (err) {
+      alert(`Upload file thất bại:\n${err.message}`);
+    } finally {
+      setUploadingFile(false);
+      e.target.value = '';
+    }
+  };
+
+  const handleRemoveFile = () => {
+    setForm(prev => ({ ...prev, attachmentUrl: null, attachmentType: null }));
+  };
+
   const handleSubmit = (e) => {
     e.preventDefault();
+    const errs = {};
+    if (!form.code.trim()) errs.code = 'Tiêu đề không được để trống';
+    else if (form.code.length > 100) errs.code = 'Tiêu đề quá dài (tối đa 100 ký tự)';
+    if (!form.category) errs.category = 'Vui lòng chọn danh mục';
+    if (!form.description.trim()) errs.description = 'Nội dung không được để trống';
+    else if (form.description.length > 1000) errs.description = 'Nội dung quá dài (tối đa 1000 ký tự)';
+    if (Object.keys(errs).length > 0) {
+      setFormErrors(errs);
+      return;
+    }
+    setFormErrors({});
     onSubmit(form);
   };
 
@@ -136,10 +185,19 @@ function BlogFormModal({ open, onClose, initialData, categories, onSubmit, loadi
               name="code"
               value={form.code}
               onChange={handleChange}
-              className="w-full rounded-md border border-gray-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500"
+              maxLength={100}
+              className={`w-full rounded-md border px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500 ${formErrors.code ? 'border-red-400' : 'border-gray-300'}`}
               placeholder="vd: BLOG_001"
-              required
             />
+            <div className="flex justify-between items-center mt-1">
+              {formErrors.code
+                ? <p className="text-xs text-red-600">{formErrors.code}</p>
+                : <span />
+              }
+              <p className={`text-xs ${form.code.length > 100 ? 'text-red-600' : 'text-gray-400'}`}>
+                {form.code.length}/100
+              </p>
+            </div>
           </div>
 
           {/* Danh mục */}
@@ -151,36 +209,49 @@ function BlogFormModal({ open, onClose, initialData, categories, onSubmit, loadi
               name="category"
               value={form.category}
               onChange={handleChange}
-              className="w-full rounded-md border border-gray-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500"
-              required
+              className={`w-full rounded-md border px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500 ${formErrors.category ? 'border-red-400' : 'border-gray-300'}`}
               disabled={categories.length === 0}
             >
               {categories.length === 0 ? (
-                <option value="">Đang tải...</option>
+                <option value="">Đang tải danh mục...</option>
               ) : (
-                categories.map((c) => (
-                  <option key={c._id} value={c._id}>
-                    {c.name}
-                  </option>
-                ))
+                <>
+                  <option value="">-- Chọn danh mục --</option>
+                  {categories.map((c) => (
+                    <option key={c._id} value={c._id}>
+                      {c.name}
+                    </option>
+                  ))}
+                </>
               )}
             </select>
+            {formErrors.category && (
+              <p className="mt-1 text-xs text-red-600">{formErrors.category}</p>
+            )}
           </div>
 
           {/* Mô tả */}
           <div>
             <label className="block text-xs font-medium text-gray-700 mb-1">
-              Mô tả *
+              Nội dung *
             </label>
             <textarea
               name="description"
               value={form.description}
               onChange={handleChange}
               rows={5}
-              className="w-full rounded-md border border-gray-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500"
+              className={`w-full rounded-md border px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500 ${formErrors.description ? 'border-red-400' : 'border-gray-300'}`}
               placeholder="Nhập nội dung bài viết"
-              required
             />
+            <div className="flex justify-between items-center mt-1">
+              {formErrors.description
+                ? <p className="text-xs text-red-600">{formErrors.description}</p>
+                : <span />
+              }
+              <p className={`text-xs ${form.description.length > 1000 ? 'text-red-600' : 'text-gray-400'}`}>
+                {form.description.length}/1000
+              </p>
+            </div>
           </div>
 
           {/* Upload ảnh */}
@@ -218,6 +289,50 @@ function BlogFormModal({ open, onClose, initialData, categories, onSubmit, loadi
             )}
           </div>
 
+          {/* Tệp đính kèm (PDF / Word) */}
+          <div>
+            <label className="block text-xs font-medium text-gray-700 mb-1">
+              Tệp đính kèm (PDF hoặc Word, tối đa 10MB)
+            </label>
+            {form.attachmentUrl ? (
+              <div className="flex items-center gap-2 rounded-md border border-gray-200 bg-gray-50 px-3 py-2">
+                <span className="text-sm">
+                  {form.attachmentType === 'pdf' ? '📄' : '📝'}
+                </span>
+                <span className="flex-1 truncate text-xs text-gray-700">
+                  {form.attachmentType === 'pdf' ? 'PDF' : 'Word'}:{' '}
+                  {decodeURIComponent(form.attachmentUrl.split('/').pop())}
+                </span>
+                <a
+                  href={form.attachmentUrl}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="text-xs text-blue-600 hover:underline"
+                >
+                  Xem
+                </a>
+                <button
+                  type="button"
+                  onClick={handleRemoveFile}
+                  className="text-xs text-red-600 hover:underline"
+                >
+                  Xóa
+                </button>
+              </div>
+            ) : (
+              <input
+                type="file"
+                accept=".pdf,.doc,.docx,application/pdf,application/msword,application/vnd.openxmlformats-officedocument.wordprocessingml.document"
+                onChange={handleUploadFile}
+                disabled={uploadingFile}
+                className="block w-full text-sm text-gray-500 file:rounded-md file:border-0 file:bg-blue-50 file:px-3 file:py-1 file:text-sm file:font-semibold file:text-blue-700 hover:file:bg-blue-100 disabled:opacity-50"
+              />
+            )}
+            {uploadingFile && (
+              <p className="mt-1 text-xs text-blue-600">Đang tải lên tệp...</p>
+            )}
+          </div>
+
           {/* Trạng thái */}
           <div>
             <label className="block text-xs font-medium text-gray-700 mb-1">
@@ -246,7 +361,7 @@ function BlogFormModal({ open, onClose, initialData, categories, onSubmit, loadi
             </button>
             <button
               type="submit"
-              disabled={loading || uploading}
+              disabled={loading || uploading || uploadingFile}
               className="flex-1 rounded-lg bg-emerald-600 px-4 py-2 text-sm font-semibold text-white hover:bg-emerald-700 disabled:opacity-60 disabled:cursor-not-allowed"
             >
               {loading ? 'Đang lưu...' : 'Lưu'}
@@ -560,6 +675,9 @@ function ManageBlogs() {
                   Ảnh
                 </th>
                 <th className="px-3 py-2 text-left text-xs font-semibold uppercase tracking-wide text-gray-500">
+                  Tệp đính kèm
+                </th>
+                <th className="px-3 py-2 text-left text-xs font-semibold uppercase tracking-wide text-gray-500">
                   Trạng thái
                 </th>
                 <th className="px-3 py-2 text-left text-xs font-semibold uppercase tracking-wide text-gray-500">
@@ -599,6 +717,20 @@ function ManageBlogs() {
                           <span className="text-[10px] text-gray-500">+{blog.images.length - 2}</span>
                         )}
                       </div>
+                    ) : (
+                      '-'
+                    )}
+                  </td>
+                  <td className="px-3 py-2 text-xs text-gray-700">
+                    {blog.attachmentUrl ? (
+                      <a
+                        href={blog.attachmentUrl}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="inline-flex items-center gap-1 text-blue-600 hover:underline"
+                      >
+                        {blog.attachmentType === 'pdf' ? '📄 PDF' : '📝 Word'}
+                      </a>
                     ) : (
                       '-'
                     )}

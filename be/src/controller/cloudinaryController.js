@@ -139,9 +139,61 @@ const getMediaLibrarySignature = (req, res) => {
   }
 };
 
+/**
+ * POST /api/cloudinary/upload-blog-file
+ * Upload file PDF hoặc Word lên Cloudinary, trả về URL + loại file (cần đăng nhập + SchoolAdmin)
+ */
+const uploadBlogFile = async (req, res) => {
+  try {
+    if (!req.file || !req.file.buffer) {
+      return res.status(400).json({
+        status: 'error',
+        message: 'Vui lòng chọn file PDF hoặc Word.',
+      });
+    }
+
+    const config = cloudinary.config();
+    if (!config.api_key || !config.api_secret || !config.cloud_name) {
+      return res.status(500).json({
+        status: 'error',
+        message: 'Cloudinary chưa được cấu hình trong server.',
+      });
+    }
+
+    const isPdf = req.file.mimetype === 'application/pdf';
+    const fileType = isPdf ? 'pdf' : 'word';
+
+    const result = await new Promise((resolve, reject) => {
+      cloudinary.uploader.upload_stream(
+        {
+          resource_type: 'raw',
+          folder: BLOG_FOLDER,
+          format: isPdf ? 'pdf' : 'docx',
+        },
+        (error, uploadResult) => {
+          if (error) return reject(error);
+          resolve(uploadResult);
+        }
+      ).end(req.file.buffer);
+    });
+
+    return res.status(200).json({
+      status: 'success',
+      data: { url: result.secure_url, type: fileType },
+    });
+  } catch (error) {
+    console.error('Upload blog file error:', error);
+    return res.status(500).json({
+      status: 'error',
+      message: error.message || 'Không tải lên được file',
+    });
+  }
+};
+
 module.exports = {
   getMediaLibrarySignature,
   uploadAvatar,
   uploadBlogImage,
+  uploadBlogFile,
 };
 
