@@ -21,6 +21,7 @@ const qaRoutes = require('./src/routes/qa.routes');
 const blogsRoutes = require('./src/routes/blogs.routes');
 const documentsRoutes = require('./src/routes/documents.routes');
 const otpRoutes = require('./src/routes/otp.routes');
+const pickupRoutes = require("./src/routes/pickup.routes");
 
 // Import models để Mongoose đăng ký schema (tránh lỗi "Schema hasn't been registered for model 'Roles'")
 require('./src/models/Role');
@@ -35,6 +36,7 @@ require('./src/models/Blog');
 require('./src/models/BlogCategory');
 require('./src/models/Question');
 require('./src/models/Document');
+require('./src/models/SystemLog');
 
 // ensure default blog categories exist
 (async () => {
@@ -219,6 +221,8 @@ app.use('/api/blogs', blogsRoutes);
 // OTP routes
 app.use('/api/otp', otpRoutes);
 
+// pickup-requets
+app.use("/api/pickup", pickupRoutes);
 // Route kiểm tra sức khỏe hệ thống
 /**
  * @openapi

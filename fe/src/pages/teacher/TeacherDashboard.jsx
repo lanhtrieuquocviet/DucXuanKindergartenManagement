@@ -42,11 +42,12 @@ function TeacherDashboard() {
 
   const menuItems = useMemo(
     () => [
-      { key: 'classes', label: 'Lớp phụ trách' },
-      { key: 'students', label: 'Danh sách học sinh' },
-      { key: 'attendance', label: 'Điểm danh' },
-      { key: 'schedule', label: 'Lịch dạy & hoạt động' },
-      { key: 'messages', label: 'Thông báo cho phụ huynh' },
+      { key: "classes", label: "Lớp phụ trách" },
+      { key: "students", label: "Danh sách học sinh" },
+      { key: "attendance", label: "Điểm danh" },
+      { key: "pickup-approval", label: "Đơn đưa đón" },
+      { key: "schedule", label: "Lịch dạy & hoạt động" },
+      { key: "messages", label: "Thông báo cho phụ huynh" },
     ],
     []
   );
@@ -72,6 +73,11 @@ function TeacherDashboard() {
       navigate('/teacher/attendance');
       return;
     }
+     if (key === "pickup-approval") {
+       navigate("/teacher/pickup-approval");
+       return;
+     }
+     
     // Các mục khác sẽ mapping route sau
   };
 

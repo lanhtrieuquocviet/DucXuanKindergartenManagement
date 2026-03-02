@@ -10,6 +10,7 @@ const Attendances = require('./Attendances');
 const TakeOff = require('./TakeOff');
 const Question = require('./Question');
 const Document = require('./Document');
+const SystemLog = require('./SystemLog');
 
 module.exports = {
   User,
@@ -24,4 +25,5 @@ module.exports = {
   TakeOff,
   Question,
   Document,
+  SystemLog,
 };

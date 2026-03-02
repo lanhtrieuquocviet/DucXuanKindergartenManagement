@@ -9,6 +9,7 @@ import SystemAdminDashboard from './pages/systemAdmin/AdminDashboard';
 import ManageAccounts from './pages/systemAdmin/ManageAccounts';
 import ManageRoles from './pages/systemAdmin/ManageRoles';
 import ManagePermissions from './pages/systemAdmin/ManagePermissions';
+import SystemLogs from './pages/systemAdmin/SystemLogs';
 import TeacherDashboard from './pages/teacher/TeacherDashboard';
 import TeacherAttendance from './pages/teacher/TeacherAttendance';
 import StudentDashboard from './pages/student/StudentDashboard';
@@ -63,6 +64,7 @@ import ThingsToKnow from './pages/Library/ThingsToKnow';
 import PoetryMusic from './pages/Library/PoetryMusic';
 import RelaxPage from './pages/Library/RelaxPage';
 import PublicInformationDetail from './pages/PublicInformation/PublicInformationDetail';
+import PickupRequest from './pages/teacher/PickupRequest';
 
 function AppContent() {
   return (
@@ -145,209 +147,231 @@ function App() {
           {/* Trang login / forgot-password KHÔNG dùng MainLayout */}
           <Route
             path="/*"
-            element={(
+            element={
               <MainLayout>
                 <AppContent />
               </MainLayout>
-            )}
+            }
           />
           <Route path="/login" element={<Login />} />
           <Route path="/forgot-password" element={<ForgotPassword />} />
           <Route
             path="/system-admin"
-            element={(
+            element={
               <SystemAdminProvider>
                 <SystemAdminDashboard />
               </SystemAdminProvider>
-            )}
+            }
           />
           <Route
             path="/system-admin/manage-accounts"
-            element={(
+            element={
               <SystemAdminProvider>
                 <ManageAccounts />
               </SystemAdminProvider>
-            )}
+            }
           />
           <Route
             path="/system-admin/manage-roles"
-            element={(
+            element={
               <SystemAdminProvider>
                 <ManageRoles />
               </SystemAdminProvider>
-            )}
+            }
           />
           <Route
             path="/system-admin/manage-permissions"
-            element={(
+            element={
               <SystemAdminProvider>
                 <ManagePermissions />
               </SystemAdminProvider>
-            )}
+            }
+          />
+          <Route
+            path="/system-admin/system-logs"
+            element={
+              <SystemAdminProvider>
+                <SystemLogs />
+              </SystemAdminProvider>
+            }
           />
           <Route
             path="/system-admin/classes"
-            element={(
+            element={
               <SystemAdminProvider>
                 <ClassList />
               </SystemAdminProvider>
-            )}
+            }
           />
           <Route
             path="/system-admin/classes/:classId/students"
-            element={(
+            element={
               <SystemAdminProvider>
                 <StudentInClass />
               </SystemAdminProvider>
-            )}
+            }
           />
           <Route
             path="/teacher"
-            element={(
+            element={
               <TeacherProvider>
                 <TeacherDashboard />
               </TeacherProvider>
-            )}
+            }
           />
           <Route
             path="/teacher/attendance"
-            element={(
+            element={
               <TeacherProvider>
                 <TeacherAttendance />
               </TeacherProvider>
-            )}
+            }
+          />
+          <Route
+            path="/teacher/pickup-approval"
+            element={
+              <TeacherProvider>
+                <PickupRequest />
+              </TeacherProvider>
+            }
           />
           <Route
             path="/teacher/attendance/:classId"
-            element={(
+            element={
               <TeacherProvider>
                 <TeacherAttendance />
               </TeacherProvider>
-            )}
+            }
           />
           <Route path="/student" element={<StudentDashboard />} />
           <Route path="/student/pickup" element={<PickupRegistration />} />
-          <Route path="/student/attendance/today" element={<TodayAttendance />} />
-          <Route path="/student/attendance/report" element={<AttendanceReport />} />
+          <Route
+            path="/student/attendance/today"
+            element={<TodayAttendance />}
+          />
+          <Route
+            path="/student/attendance/report"
+            element={<AttendanceReport />}
+          />
           <Route
             path="/school-admin"
-            element={(
+            element={
               <SchoolAdminProvider>
                 <SchoolAdminDashboard />
               </SchoolAdminProvider>
-            )}
+            }
           />
           <Route
             path="/school-admin/classes"
-            element={(
+            element={
               <SchoolAdminProvider>
                 <ClassList />
               </SchoolAdminProvider>
-            )}
+            }
           />
           <Route
             path="/school-admin/classes/:classId/students"
-            element={(
+            element={
               <SchoolAdminProvider>
                 <StudentInClass />
               </SchoolAdminProvider>
-            )}
+            }
           />
           <Route
             path="/school-admin/contacts"
-            element={(
+            element={
               <SchoolAdminProvider>
                 <ContactList />
               </SchoolAdminProvider>
-            )}
+            }
           />
           <Route
             path="/school-admin/qa"
-            element={(
+            element={
               <SchoolAdminProvider>
                 <QaList />
               </SchoolAdminProvider>
-            )}
+            }
           />
           <Route
             path="/school-admin/attendance/overview"
-            element={(
+            element={
               <SchoolAdminProvider>
                 <AttendanceOverview />
               </SchoolAdminProvider>
-            )}
+            }
           />
           <Route
             path="/school-admin/classes/:classId/attendance"
-            element={(
+            element={
               <SchoolAdminProvider>
                 <ClassAttendanceDetail />
               </SchoolAdminProvider>
-            )}
+            }
           />
           <Route
             path="/school-admin/students/:studentId/attendance"
-            element={(
+            element={
               <SchoolAdminProvider>
                 <StudentAttendanceDetail />
               </SchoolAdminProvider>
-            )}
+            }
           />
           <Route
             path="/school-admin/students/:studentId/attendance/history"
-            element={(
+            element={
               <SchoolAdminProvider>
                 <StudentAttendanceHistory />
               </SchoolAdminProvider>
-            )}
+            }
           />
           <Route
             path="/school-admin/attendance/export"
-            element={(
+            element={
               <SchoolAdminProvider>
                 <ExportAttendanceReport />
               </SchoolAdminProvider>
-            )}
+            }
           />
           <Route
             path="/school-admin/blogs"
-            element={(
+            element={
               <SchoolAdminProvider>
                 <ManageBlogs />
               </SchoolAdminProvider>
-            )}
+            }
           />
           <Route
             path="/school-admin/blogs/:blogId"
-            element={(
+            element={
               <SchoolAdminProvider>
                 <BlogDetail />
               </SchoolAdminProvider>
-            )}
+            }
           />
           <Route
             path="/school-admin/manage-blogs"
-            element={(
+            element={
               <SchoolAdminProvider>
                 <ManageBlogs />
               </SchoolAdminProvider>
-            )}
+            }
           />
           <Route
             path="/school-admin/documents"
-            element={(
+            element={
               <SchoolAdminProvider>
                 <ManageDocuments />
               </SchoolAdminProvider>
-            )}
+            }
           />
           <Route
             path="/school-admin/documents/:documentId"
-            element={(
+            element={
               <SchoolAdminProvider>
                 <DocumentDetail />
               </SchoolAdminProvider>
-            )}
+            }
           />
           <Route path="/profile" element={<Profile />} />
 
@@ -368,7 +392,6 @@ function App() {
               </SimpleLayout>
             }
           />
-
         </Routes>
       </AuthProvider>
     </Router>
