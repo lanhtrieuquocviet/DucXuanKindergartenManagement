@@ -405,6 +405,24 @@ export const SchoolAdminProvider = ({
     }
   }, []);
 
+  const updateAnswer = useCallback(async (questionId, answerIndex, content, authorName) => {
+    try {
+      setError(null);
+      const response = await patch(
+        ENDPOINTS.SCHOOL_ADMIN.QA_QUESTION_ANSWER_DETAIL(questionId, answerIndex),
+        {
+          content,
+          authorName,
+        }
+      );
+      return response;
+    } catch (err) {
+      const errorMessage = err.message || 'Cập nhật câu trả lời thất bại';
+      setError(errorMessage);
+      throw new Error(errorMessage);
+    }
+  }, []);
+
   const value = {
     loading,
     error,
@@ -431,6 +449,7 @@ export const SchoolAdminProvider = ({
     updateQuestion,
     deleteQuestion,
     answerQuestion,
+    updateAnswer,
     setError,
   };
 

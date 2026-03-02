@@ -1,5 +1,6 @@
 const { body, param, validationResult } = require('express-validator');
 const Question = require('../models/Question');
+const { createSystemLog } = require('../utils/systemLog');
 
 const validateCreateQuestion = [
   body('title')
@@ -164,6 +165,18 @@ const createAnswer = async (req, res) => {
 
     await question.save();
 
+    // Ghi nhật ký khi SchoolAdmin trả lời câu hỏi
+    try {
+      await createSystemLog({
+        req,
+        action: 'Trả lời câu hỏi Hỏi đáp',
+        detail: `Trả lời câu hỏi: ${question.title || question._id}`,
+      });
+    } catch (logError) {
+      // eslint-disable-next-line no-console
+      console.error('Failed to write system log for createAnswer:', logError);
+    }
+
     return res.status(201).json({
       status: 'success',
       message: 'Đã thêm câu trả lời',
@@ -175,6 +188,90 @@ const createAnswer = async (req, res) => {
     return res.status(500).json({
       status: 'error',
       message: 'Gửi câu trả lời thất bại. Vui lòng thử lại.',
+    });
+  }
+};
+
+// Validate khi cập nhật câu trả lời theo index
+const validateUpdateAnswer = [
+  param('id').isMongoId().withMessage('ID câu hỏi không hợp lệ'),
+  param('answerIndex')
+    .isInt({ min: 0 })
+    .withMessage('Chỉ số câu trả lời không hợp lệ'),
+  body('content')
+    .trim()
+    .notEmpty()
+    .withMessage('Nội dung trả lời không được để trống')
+    .isLength({ max: 2000 })
+    .withMessage('Nội dung trả lời tối đa 2000 ký tự'),
+  body('authorName')
+    .optional()
+    .trim()
+    .isLength({ max: 100 })
+    .withMessage('Tên người trả lời tối đa 100 ký tự'),
+];
+
+const updateAnswer = async (req, res) => {
+  try {
+    const errors = validationResult(req);
+    if (!errors.isEmpty()) {
+      return res.status(400).json({
+        status: 'error',
+        message: 'Dữ liệu không hợp lệ',
+        errors: errors.array().map((e) => ({ field: e.path, message: e.msg })),
+      });
+    }
+
+    const { id, answerIndex } = req.params;
+    const { content, authorName } = req.body;
+    const index = Number(answerIndex);
+
+    const question = await Question.findById(id);
+    if (!question) {
+      return res.status(404).json({
+        status: 'error',
+        message: 'Không tìm thấy câu hỏi',
+      });
+    }
+
+    if (!Array.isArray(question.answers) || index < 0 || index >= question.answers.length) {
+      return res.status(404).json({
+        status: 'error',
+        message: 'Không tìm thấy câu trả lời để cập nhật',
+      });
+    }
+
+    question.answers[index].content = content.trim();
+    if (authorName !== undefined) {
+      question.answers[index].authorName = authorName.trim();
+    }
+
+    // Đánh dấu trường answers đã thay đổi
+    question.markModified('answers');
+    await question.save();
+
+    try {
+      await createSystemLog({
+        req,
+        action: 'Sửa câu trả lời Hỏi đáp',
+        detail: `Sửa câu trả lời cho câu hỏi: ${question.title || question._id}`,
+      });
+    } catch (logError) {
+      // eslint-disable-next-line no-console
+      console.error('Failed to write system log for updateAnswer:', logError);
+    }
+
+    return res.status(200).json({
+      status: 'success',
+      message: 'Cập nhật câu trả lời thành công',
+      data: question,
+    });
+  } catch (err) {
+    // eslint-disable-next-line no-console
+    console.error('updateAnswer error:', err);
+    return res.status(500).json({
+      status: 'error',
+      message: 'Cập nhật câu trả lời thất bại. Vui lòng thử lại.',
     });
   }
 };
@@ -270,6 +367,8 @@ module.exports = {
   getQuestions,
   validateCreateAnswer,
   createAnswer,
+  validateUpdateAnswer,
+  updateAnswer,
   validateQuestionId,
   updateQuestion,
   deleteQuestion,

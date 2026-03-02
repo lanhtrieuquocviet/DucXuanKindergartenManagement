@@ -9,6 +9,8 @@ function QaList() {
   const [message, setMessage] = useState({ type: null, text: null });
   const [answeringId, setAnsweringId] = useState(null);
   const [answerText, setAnswerText] = useState('');
+  const [editingAnswer, setEditingAnswer] = useState(null); // { questionId, answerIndex }
+  const [editingText, setEditingText] = useState('');
   const navigate = useNavigate();
   const { user, logout, isInitializing } = useAuth();
   const {
@@ -16,6 +18,7 @@ function QaList() {
     updateQuestion,
     deleteQuestion,
     answerQuestion,
+    updateAnswer,
     loading,
     error,
     setError,
@@ -102,6 +105,35 @@ function QaList() {
       await refreshQa();
     } catch (err) {
       setMessage({ type: 'error', text: err.message || 'Gửi trả lời thất bại.' });
+    }
+  };
+
+  const handleStartEditAnswer = (questionId, answerIndex, currentContent) => {
+    setMessage({ type: null, text: null });
+    setEditingAnswer({ questionId, answerIndex });
+    setEditingText(currentContent || '');
+  };
+
+  const handleUpdateAnswer = async () => {
+    if (!editingAnswer) return;
+    if (!editingText.trim()) {
+      setMessage({ type: 'error', text: 'Vui lòng nhập nội dung câu trả lời.' });
+      return;
+    }
+    try {
+      setError(null);
+      await updateAnswer(
+        editingAnswer.questionId,
+        editingAnswer.answerIndex,
+        editingText.trim(),
+        'Ban giám hiệu'
+      );
+      setMessage({ type: 'success', text: 'Đã cập nhật câu trả lời.' });
+      setEditingAnswer(null);
+      setEditingText('');
+      await refreshQa();
+    } catch (err) {
+      setMessage({ type: 'error', text: err.message || 'Cập nhật câu trả lời thất bại.' });
     }
   };
 
@@ -206,13 +238,58 @@ function QaList() {
                       {q.content}
                     </p>
                     {Array.isArray(q.answers) && q.answers.length > 0 && (
-                      <div className="mt-2 border-l-4 border-green-500 pl-3 space-y-1">
+                      <div className="mt-2 border-l-4 border-green-500 pl-3 space-y-2">
                         {q.answers.map((a, idx) => (
                           <div key={idx} className="text-sm text-gray-700">
-                            <span className="font-medium text-green-700">
-                              {a.authorName || 'Trả lời'}:
-                            </span>{' '}
-                            <span className="whitespace-pre-wrap">{a.content}</span>
+                            <div className="flex items-start justify-between gap-2">
+                              <div className="flex-1">
+                                <span className="font-medium text-green-700">
+                                  {a.authorName || 'Trả lời'}:
+                                </span>{' '}
+                                <span className="whitespace-pre-wrap">{a.content}</span>
+                              </div>
+                              <button
+                                type="button"
+                                onClick={() =>
+                                  handleStartEditAnswer(q._id, idx, a.content)
+                                }
+                                className="px-2 py-1 bg-blue-50 text-blue-700 text-xs rounded border border-blue-200 hover:bg-blue-100"
+                              >
+                                Sửa
+                              </button>
+                            </div>
+                            {editingAnswer &&
+                              editingAnswer.questionId === q._id &&
+                              editingAnswer.answerIndex === idx && (
+                                <div className="mt-2">
+                                  <textarea
+                                    rows={3}
+                                    value={editingText}
+                                    onChange={(e) => setEditingText(e.target.value)}
+                                    className="w-full border rounded px-3 py-2 text-sm focus:outline-green-500"
+                                    placeholder="Chỉnh sửa nội dung trả lời..."
+                                  />
+                                  <div className="mt-2 flex gap-2">
+                                    <button
+                                      type="button"
+                                      onClick={handleUpdateAnswer}
+                                      className="px-3 py-1.5 bg-green-600 text-white text-xs rounded hover:bg-green-700"
+                                    >
+                                      Lưu
+                                    </button>
+                                    <button
+                                      type="button"
+                                      onClick={() => {
+                                        setEditingAnswer(null);
+                                        setEditingText('');
+                                      }}
+                                      className="px-3 py-1.5 bg-gray-300 text-gray-700 text-xs rounded hover:bg-gray-400"
+                                    >
+                                      Hủy
+                                    </button>
+                                  </div>
+                                </div>
+                              )}
                           </div>
                         ))}
                       </div>

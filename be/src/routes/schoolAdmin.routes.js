@@ -186,6 +186,13 @@ router.post(
   qaController.validateCreateAnswer,
   qaController.createAnswer
 );
+router.patch(
+  '/qa/questions/:id/answers/:answerIndex',
+  authenticate,
+  authorizeRoles('SchoolAdmin'),
+  qaController.validateUpdateAnswer,
+  qaController.updateAnswer
+);
 
 // Chi tiết điểm danh của một lớp
 router.get(
