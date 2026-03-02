@@ -2,6 +2,8 @@ const bcrypt = require('bcryptjs');
 const User = require('../models/User');
 const Role = require('../models/Role');
 const Permission = require('../models/Permission');
+const SystemLog = require('../models/SystemLog');
+const { createSystemLog } = require('../utils/systemLog');
 
 // ============================================
 // Constants & helpers
@@ -127,6 +129,12 @@ const createUser = async (req, res) => {
         select: 'roleName description',
       });
 
+    await createSystemLog({
+      req,
+      action: 'Tạo tài khoản',
+      detail: `Tạo tài khoản ${username || ''}`.trim(),
+    });
+
     return res.status(201).json({
       status: 'success',
       message: 'Tạo tài khoản thành công',
@@ -220,6 +228,12 @@ const updateUser = async (req, res) => {
       });
     }
 
+    await createSystemLog({
+      req,
+      action: 'Cập nhật tài khoản',
+      detail: `Cập nhật tài khoản ${username || id}`,
+    });
+
     return res.status(200).json({
       status: 'success',
       message: 'Cập nhật tài khoản thành công',
@@ -272,6 +286,12 @@ const deleteUser = async (req, res) => {
 
     user.status = 'inactive';
     await user.save();
+
+    await createSystemLog({
+      req,
+      action: 'Khóa tài khoản',
+      detail: `Khóa tài khoản ${id}`,
+    });
 
     return res.status(200).json({
       status: 'success',
@@ -409,6 +429,12 @@ const createRole = async (req, res) => {
       })),
     };
 
+    await createSystemLog({
+      req,
+      action: 'Tạo vai trò',
+      detail: `Tạo vai trò ${roleName || ''}`.trim(),
+    });
+
     return res.status(201).json({
       status: 'success',
       message: 'Tạo vai trò thành công',
@@ -496,6 +522,12 @@ const updateRole = async (req, res) => {
       })),
     };
 
+    await createSystemLog({
+      req,
+      action: 'Cập nhật vai trò',
+      detail: `Cập nhật vai trò ${roleName || id}`,
+    });
+
     return res.status(200).json({
       status: 'success',
       message: 'Cập nhật vai trò thành công',
@@ -540,6 +572,12 @@ const deleteRole = async (req, res) => {
         message: 'Vai trò không tồn tại',
       });
     }
+
+    await createSystemLog({
+      req,
+      action: 'Xóa vai trò',
+      detail: `Xóa vai trò ${id}`,
+    });
 
     return res.status(200).json({
       status: 'success',
@@ -591,6 +629,12 @@ const updateUserRoles = async (req, res) => {
         message: 'Người dùng không tồn tại',
       });
     }
+
+    await createSystemLog({
+      req,
+      action: 'Gán vai trò',
+      detail: `Cập nhật vai trò cho tài khoản ${id}`,
+    });
 
     return res.status(200).json({
       status: 'success',
@@ -693,6 +737,12 @@ const createPermission = async (req, res) => {
 
     await permission.save();
 
+    await createSystemLog({
+      req,
+      action: 'Tạo phân quyền',
+      detail: `Tạo phân quyền ${code || ''}`.trim(),
+    });
+
     return res.status(201).json({
       status: 'success',
       message: 'Tạo phân quyền thành công',
@@ -758,6 +808,12 @@ const updatePermission = async (req, res) => {
       });
     }
 
+    await createSystemLog({
+      req,
+      action: 'Cập nhật phân quyền',
+      detail: `Cập nhật phân quyền ${code || id}`,
+    });
+
     return res.status(200).json({
       status: 'success',
       message: 'Cập nhật phân quyền thành công',
@@ -802,6 +858,12 @@ const deletePermission = async (req, res) => {
         message: 'Phân quyền không tồn tại',
       });
     }
+
+    await createSystemLog({
+      req,
+      action: 'Xóa phân quyền',
+      detail: `Xóa phân quyền ${id}`,
+    });
 
     return res.status(200).json({
       status: 'success',
@@ -864,6 +926,12 @@ const updateRolePermissions = async (req, res) => {
       })),
     };
 
+    await createSystemLog({
+      req,
+      action: 'Cập nhật phân quyền vai trò',
+      detail: `Cập nhật phân quyền cho vai trò ${id}`,
+    });
+
     return res.status(200).json({
       status: 'success',
       message: 'Cập nhật phân quyền cho vai trò thành công',
@@ -873,6 +941,43 @@ const updateRolePermissions = async (req, res) => {
     return res.status(500).json({
       status: 'error',
       message: error.message || 'Không cập nhật được phân quyền cho vai trò',
+    });
+  }
+};
+
+/**
+ * GET /api/system-admin/system-logs
+ * Lấy danh sách nhật ký hệ thống (mới nhất trước)
+ */
+const getSystemLogs = async (req, res) => {
+  try {
+    const page = Math.max(parseInt(req.query.page, 10) || 1, 1);
+    const limit = Math.min(Math.max(parseInt(req.query.limit, 10) || 20, 1), 100);
+    const skip = (page - 1) * limit;
+
+    const [logs, total] = await Promise.all([
+      SystemLog.find()
+        .sort({ createdAt: -1 })
+        .skip(skip)
+        .limit(limit)
+        .lean(),
+      SystemLog.countDocuments(),
+    ]);
+
+    return res.status(200).json({
+      status: 'success',
+      data: logs,
+      pagination: {
+        page,
+        limit,
+        total,
+        totalPages: Math.ceil(total / limit),
+      },
+    });
+  } catch (error) {
+    return res.status(500).json({
+      status: 'error',
+      message: error.message || 'Không lấy được nhật ký hệ thống',
     });
   }
 };
@@ -897,4 +1002,5 @@ module.exports = {
   updatePermission,
   deletePermission,
   updateRolePermissions,
+  getSystemLogs,
 };

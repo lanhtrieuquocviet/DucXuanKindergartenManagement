@@ -2,6 +2,7 @@ const mongoose = require('mongoose');
 const Attendances = require('../models/Attendances');
 const Classes = require('../models/Classes');
 const Students = require('../models/Student');
+const { createSystemLog } = require('../utils/systemLog');
 
 /**
  * Tạo / cập nhật điểm danh (check-in) cho 1 học sinh trong 1 ngày
@@ -70,6 +71,15 @@ const upsertAttendance = async (req, res) => {
     )
       .populate('studentId', 'fullName classId')
       .populate('classId', 'className');
+
+    const studentName = attendance?.studentId?.fullName || studentId;
+    const className = attendance?.classId?.className || classId || '';
+    const statusLabel = status || attendance?.status || '';
+    await createSystemLog({
+      req,
+      action: 'Điểm danh học sinh',
+      detail: `Điểm danh ${studentName}${className ? ` (${className})` : ''} - ${statusLabel}`.trim(),
+    });
 
     return res.status(200).json({
       status: 'success',
@@ -155,6 +165,14 @@ const checkoutAttendance = async (req, res) => {
     )
       .populate('studentId', 'fullName classId')
       .populate('classId', 'className');
+
+    const studentName = attendance?.studentId?.fullName || studentId;
+    const className = attendance?.classId?.className || classId || '';
+    await createSystemLog({
+      req,
+      action: 'Check-out học sinh',
+      detail: `Check-out ${studentName}${className ? ` (${className})` : ''}`,
+    });
 
     return res.status(200).json({
       status: 'success',

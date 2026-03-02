@@ -36,6 +36,7 @@ require('./src/models/Blog');
 require('./src/models/BlogCategory');
 require('./src/models/Question');
 require('./src/models/Document');
+require('./src/models/SystemLog');
 
 // ensure default blog categories exist
 (async () => {

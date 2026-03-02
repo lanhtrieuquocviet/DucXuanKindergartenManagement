@@ -15,6 +15,7 @@ const {
   updatePermission,
   deletePermission,
   updateRolePermissions,
+  getSystemLogs,
 } = require('../controller/systemAdminController');
 
 const router = express.Router();
@@ -119,6 +120,12 @@ router.delete('/permissions/:id', authenticate, authorizeRoles('SystemAdmin'), d
  * body: { permissionCodes: string[] }
  */
 router.put('/roles/:id/permissions', authenticate, authorizeRoles('SystemAdmin'), updateRolePermissions);
+
+/**
+ * GET /api/system-admin/system-logs
+ * Lấy nhật ký hệ thống
+ */
+router.get('/system-logs', authenticate, authorizeRoles('SystemAdmin'), getSystemLogs);
 
 module.exports = router;
 
