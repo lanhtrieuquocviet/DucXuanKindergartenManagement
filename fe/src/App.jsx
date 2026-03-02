@@ -9,6 +9,7 @@ import SystemAdminDashboard from './pages/systemAdmin/AdminDashboard';
 import ManageAccounts from './pages/systemAdmin/ManageAccounts';
 import ManageRoles from './pages/systemAdmin/ManageRoles';
 import ManagePermissions from './pages/systemAdmin/ManagePermissions';
+import SystemLogs from './pages/systemAdmin/SystemLogs';
 import TeacherDashboard from './pages/teacher/TeacherDashboard';
 import TeacherAttendance from './pages/teacher/TeacherAttendance';
 import StudentDashboard from './pages/student/StudentDashboard';
@@ -184,6 +185,14 @@ function App() {
             element={
               <SystemAdminProvider>
                 <ManagePermissions />
+              </SystemAdminProvider>
+            }
+          />
+          <Route
+            path="/system-admin/system-logs"
+            element={
+              <SystemAdminProvider>
+                <SystemLogs />
               </SystemAdminProvider>
             }
           />

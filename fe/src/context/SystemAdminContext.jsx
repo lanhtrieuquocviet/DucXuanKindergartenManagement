@@ -377,6 +377,29 @@ export const SystemAdminProvider = ({
     }
   }, []);
 
+  // Get system logs
+  const getSystemLogs = useCallback(async (params = {}) => {
+    try {
+      setLoading(true);
+      setError(null);
+      const query = new URLSearchParams(params).toString();
+      const endpoint = query
+        ? `${ENDPOINTS.SYSTEM_ADMIN.SYSTEM_LOGS}?${query}`
+        : ENDPOINTS.SYSTEM_ADMIN.SYSTEM_LOGS;
+      const response = await get(endpoint);
+      return response;
+    } catch (err) {
+      const errorMessage = err.data?.message || err.message || 'Không lấy được nhật ký hệ thống';
+      setError(errorMessage);
+      if (onErrorRef.current) {
+        onErrorRef.current(err);
+      }
+      throw new Error(errorMessage);
+    } finally {
+      setLoading(false);
+    }
+  }, []);
+
   const value = {
     loading,
     error,
@@ -395,6 +418,7 @@ export const SystemAdminProvider = ({
     updatePermission,
     deletePermission,
     updateRolePermissions,
+    getSystemLogs,
     setError,
   };
 

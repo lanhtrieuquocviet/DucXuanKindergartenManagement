@@ -189,6 +189,7 @@ export const ENDPOINTS = {
       `/system-admin/permissions/${permissionId}`,
     UPDATE_ROLE_PERMISSIONS: (roleId) =>
       `/system-admin/roles/${roleId}/permissions`,
+    SYSTEM_LOGS: "/system-admin/system-logs",
   },
   // School Admin
   SCHOOL_ADMIN: {

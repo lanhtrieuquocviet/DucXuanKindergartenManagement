@@ -45,6 +45,7 @@ function SystemAdminDashboard() {
     { key: 'accounts', label: 'Quản lý tài khoản' },
     { key: 'roles', label: 'Quản lý vai trò' },
     { key: 'permissions', label: 'Quản lý phân quyền' },
+    { key: 'system-logs', label: 'Nhật ký hệ thống' },
     { key: 'reports', label: 'Báo cáo tổng hợp' },
   ];
 
@@ -62,6 +63,10 @@ function SystemAdminDashboard() {
     }
     if (key === 'permissions') {
       navigate('/system-admin/manage-permissions');
+      return;
+    }
+    if (key === 'system-logs') {
+      navigate('/system-admin/system-logs');
       return;
     }
   };
