@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import Captcha from "../../components/Captcha";
 import { post, ENDPOINTS } from "../../service/api";
 
@@ -83,6 +83,17 @@ export default function AskQuestionModal({ open, onClose, onSubmitted }) {
   const [submitting, setSubmitting] = useState(false);
   const [message, setMessage] = useState(null);
   const [agreed, setAgreed] = useState(false);
+
+  useEffect(() => {
+    if (open) {
+      setForm(initialForm);
+      setErrors(initialErrors);
+      setCaptchaValid(false);
+      setCaptchaError(false);
+      setMessage(null);
+      setAgreed(false);
+    }
+  }, [open]);
 
   if (!open) return null;
 

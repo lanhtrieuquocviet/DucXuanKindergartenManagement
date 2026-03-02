@@ -88,18 +88,40 @@ const createQuestion = async (req, res) => {
 
 const getQuestions = async (req, res) => {
   try {
-    const { page = 1, limit = 20 } = req.query;
+    const {
+      page = 1,
+      limit = 20,
+      q,
+      category,
+    } = req.query;
+
     const pageNum = Math.max(1, parseInt(page, 10) || 1);
     const limitNum = Math.min(50, Math.max(1, parseInt(limit, 10) || 20));
     const skip = (pageNum - 1) * limitNum;
 
+    const filter = {};
+
+    if (category) {
+      filter.category = category;
+    }
+
+    if (q && String(q).trim() !== '') {
+      const keyword = String(q).trim();
+      const regex = new RegExp(keyword.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'), 'i');
+      filter.$or = [
+        { title: regex },
+        { content: regex },
+        { email: regex },
+      ];
+    }
+
     const [items, total] = await Promise.all([
-      Question.find({})
+      Question.find(filter)
         .sort({ createdAt: -1 })
         .skip(skip)
         .limit(limitNum)
         .lean(),
-      Question.countDocuments({}),
+      Question.countDocuments(filter),
     ]);
 
     return res.status(200).json({

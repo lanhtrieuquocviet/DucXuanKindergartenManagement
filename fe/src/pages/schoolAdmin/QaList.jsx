@@ -11,6 +11,8 @@ function QaList() {
   const [answerText, setAnswerText] = useState('');
   const [editingAnswer, setEditingAnswer] = useState(null); // { questionId, answerIndex }
   const [editingText, setEditingText] = useState('');
+  const [page, setPage] = useState(1);
+  const [pagination, setPagination] = useState(null);
   const navigate = useNavigate();
   const { user, logout, isInitializing } = useAuth();
   const {
@@ -24,6 +26,18 @@ function QaList() {
     setError,
   } = useSchoolAdmin();
 
+  const fetchQa = async (targetPage = 1) => {
+    try {
+      setError(null);
+      const qaRes = await getQaQuestions({ page: targetPage, limit: 10 });
+      setQuestionsData(qaRes);
+      setPagination(qaRes?.data?.pagination || null);
+      setPage(targetPage);
+    } catch (_) {
+      // ignore
+    }
+  };
+
   useEffect(() => {
     if (isInitializing) return;
     if (!user) {
@@ -36,21 +50,12 @@ function QaList() {
       return;
     }
 
-    const fetchQa = async () => {
-      try {
-        setError(null);
-        const qaRes = await getQaQuestions();
-        setQuestionsData(qaRes);
-      } catch (_) {}
-    };
-    fetchQa();
+    fetchQa(1);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [navigate, user, isInitializing, getQaQuestions, setError]);
 
   const refreshQa = async () => {
-    try {
-      const qaRes = await getQaQuestions();
-      setQuestionsData(qaRes);
-    } catch (_) {}
+    await fetchQa(page || 1);
   };
 
   const handleEditQuestion = async (q) => {
@@ -357,6 +362,49 @@ function QaList() {
           </div>
         )}
       </div>
+      {pagination && pagination.totalPages > 1 && (
+        <div className="mt-4 flex justify-center items-center gap-2">
+          <button
+            type="button"
+            onClick={() => {
+              if (!loading && page > 1) {
+                fetchQa(page - 1);
+              }
+            }}
+            disabled={loading || page <= 1}
+            className="px-3 py-1.5 border rounded text-xs disabled:opacity-50"
+          >
+            {'<<'}
+          </button>
+          {[...Array(pagination.totalPages)].map((_, idx) => {
+            const p = idx + 1;
+            return (
+              <button
+                key={p}
+                type="button"
+                onClick={() => !loading && fetchQa(p)}
+                className={`px-3 py-1.5 border rounded text-xs ${
+                  p === page ? 'bg-blue-600 text-white' : 'bg-white'
+                }`}
+              >
+                {p}
+              </button>
+            );
+          })}
+          <button
+            type="button"
+            onClick={() => {
+              if (!loading && page < (pagination.totalPages || 1)) {
+                fetchQa(page + 1);
+              }
+            }}
+            disabled={loading || page >= (pagination.totalPages || 1)}
+            className="px-3 py-1.5 border rounded text-xs disabled:opacity-50"
+          >
+            {'>>'}
+          </button>
+        </div>
+      )}
     </RoleLayout>
   );
 }
