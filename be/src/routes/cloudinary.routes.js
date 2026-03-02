@@ -1,6 +1,6 @@
 const express = require('express');
 const multer = require('multer');
-const { getMediaLibrarySignature, uploadAvatar, uploadBlogImage } = require('../controller/cloudinaryController');
+const { getMediaLibrarySignature, uploadAvatar, uploadBlogImage, uploadBlogFile } = require('../controller/cloudinaryController');
 const { authenticate, authorizeRoles } = require('../middleware/auth');
 
 const router = express.Router();
@@ -34,6 +34,30 @@ router.post(
   authorizeRoles('SchoolAdmin'),
   uploadMiddleware.single('image'),
   uploadBlogImage,
+  handleUploadError
+);
+
+const blogFileUploadMiddleware = multer({
+  storage: multer.memoryStorage(),
+  limits: { fileSize: 10 * 1024 * 1024 }, // 10MB
+  fileFilter: (req, file, cb) => {
+    const allowed = [
+      'application/pdf',
+      'application/msword',
+      'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+    ];
+    if (allowed.includes(file.mimetype)) cb(null, true);
+    else cb(new Error('Chỉ chấp nhận file PDF hoặc Word (.doc, .docx).'));
+  },
+});
+
+// Upload file PDF/Word cho blog (cần đăng nhập + SchoolAdmin)
+router.post(
+  '/upload-blog-file',
+  authenticate,
+  authorizeRoles('SchoolAdmin'),
+  blogFileUploadMiddleware.single('file'),
+  uploadBlogFile,
   handleUploadError
 );
 

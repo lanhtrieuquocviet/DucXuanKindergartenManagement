@@ -55,6 +55,7 @@ function TeacherDashboard() {
   const activeKey = useMemo(() => {
     const path = location.pathname || '';
     if (path.startsWith('/teacher/attendance')) return 'attendance';
+    if (path.startsWith('/teacher/pickup-approval')) return 'pickup-approval';
     return 'classes';
   }, [location.pathname]);
 
@@ -65,20 +66,9 @@ function TeacherDashboard() {
   };
 
   const handleMenuSelect = (key) => {
-    if (key === 'classes') {
-      // Sau này có thể điều hướng tới trang lớp cụ thể
-      return;
-    }
-    if (key === 'attendance') {
-      navigate('/teacher/attendance');
-      return;
-    }
-     if (key === "pickup-approval") {
-       navigate("/teacher/pickup-approval");
-       return;
-     }
-     
-    // Các mục khác sẽ mapping route sau
+    if (key === 'classes') { navigate('/teacher'); return; }
+    if (key === 'attendance') { navigate('/teacher/attendance'); return; }
+    if (key === 'pickup-approval') { navigate('/teacher/pickup-approval'); return; }
   };
 
   return (

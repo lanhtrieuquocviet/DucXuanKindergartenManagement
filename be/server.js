@@ -76,6 +76,14 @@ require('./src/models/SystemLog');
       { upsert: true, new: true }
     );
     console.log('✅ MANAGE_DOCUMENTS permission seeded');
+
+    // Ensure MANAGE_BLOG_CATEGORY permission exists
+    await Permission.findOneAndUpdate(
+      { code: 'MANAGE_BLOG_CATEGORY' },
+      { code: 'MANAGE_BLOG_CATEGORY', description: 'Quản lý danh mục blog' },
+      { upsert: true, new: true }
+    );
+    console.log('✅ MANAGE_BLOG_CATEGORY permission seeded');
   } catch (err) {
     console.error('Error seeding/migrating blog categories and permissions', err);
   }

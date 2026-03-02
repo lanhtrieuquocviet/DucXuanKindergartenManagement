@@ -9,6 +9,7 @@ const {
   getStudentAttendanceHistory,
 } = require('../controller/attendanceController');
 const blogController = require('../controller/blogController');
+const blogCategoryController = require('../controller/blogCategoryController');
 const qaController = require('../controller/qaController');
 const documentController = require('../controller/documentController');
 
@@ -124,6 +125,36 @@ router.delete(
   authenticate,
   authorizeRoles('SchoolAdmin'),
   blogController.deleteBlog
+);
+
+// Blog Category CRUD — yêu cầu permission MANAGE_BLOG_CATEGORY
+router.get(
+  '/blog-categories',
+  authenticate,
+  authorizeRoles('SchoolAdmin'),
+  authorizePermissions('MANAGE_BLOG_CATEGORY'),
+  blogCategoryController.listBlogCategories
+);
+router.post(
+  '/blog-categories',
+  authenticate,
+  authorizeRoles('SchoolAdmin'),
+  authorizePermissions('MANAGE_BLOG_CATEGORY'),
+  blogCategoryController.createBlogCategory
+);
+router.put(
+  '/blog-categories/:id',
+  authenticate,
+  authorizeRoles('SchoolAdmin'),
+  authorizePermissions('MANAGE_BLOG_CATEGORY'),
+  blogCategoryController.updateBlogCategory
+);
+router.delete(
+  '/blog-categories/:id',
+  authenticate,
+  authorizeRoles('SchoolAdmin'),
+  authorizePermissions('MANAGE_BLOG_CATEGORY'),
+  blogCategoryController.deleteBlogCategory
 );
 
 // Q&A cho SchoolAdmin

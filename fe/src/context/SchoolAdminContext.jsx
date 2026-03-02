@@ -294,6 +294,58 @@ export const SchoolAdminProvider = ({
     }
   }, []);
 
+  // ==== BLOG CATEGORIES CRUD (requires MANAGE_BLOG_CATEGORY permission) ====
+  const getBlogCategoriesAdmin = useCallback(async () => {
+    try {
+      setLoading(true);
+      setError(null);
+      const response = await get(ENDPOINTS.SCHOOL_ADMIN.BLOG_CATEGORIES);
+      return response;
+    } catch (err) {
+      const errorMessage = err.message || 'Không tải được danh mục blog';
+      setError(errorMessage);
+      throw new Error(errorMessage);
+    } finally {
+      setLoading(false);
+    }
+  }, []);
+
+  const createBlogCategory = useCallback(async (payload) => {
+    try {
+      setError(null);
+      const response = await post(ENDPOINTS.SCHOOL_ADMIN.BLOG_CATEGORIES, payload);
+      return response;
+    } catch (err) {
+      const errorMessage = err.message || 'Tạo danh mục thất bại';
+      setError(errorMessage);
+      throw new Error(errorMessage);
+    }
+  }, []);
+
+  const updateBlogCategory = useCallback(async (id, payload) => {
+    try {
+      setError(null);
+      const response = await put(ENDPOINTS.SCHOOL_ADMIN.BLOG_CATEGORY_DETAIL(id), payload);
+      return response;
+    } catch (err) {
+      const errorMessage = err.message || 'Cập nhật danh mục thất bại';
+      setError(errorMessage);
+      throw new Error(errorMessage);
+    }
+  }, []);
+
+  const deleteBlogCategory = useCallback(async (id) => {
+    try {
+      setError(null);
+      const response = await del(ENDPOINTS.SCHOOL_ADMIN.BLOG_CATEGORY_DETAIL(id));
+      return response;
+    } catch (err) {
+      const errorMessage = err.message || 'Xóa danh mục thất bại';
+      setError(errorMessage);
+      throw new Error(errorMessage);
+    }
+  }, []);
+
   // ==== Q&A (SchoolAdmin) ====
   const getQaQuestions = useCallback(async (params = {}) => {
     try {
@@ -371,6 +423,10 @@ export const SchoolAdminProvider = ({
     createBlog,
     updateBlog,
     deleteBlog,
+    getBlogCategoriesAdmin,
+    createBlogCategory,
+    updateBlogCategory,
+    deleteBlogCategory,
     getQaQuestions,
     updateQuestion,
     deleteQuestion,

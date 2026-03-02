@@ -1,5 +1,5 @@
-import { useEffect, useState } from "react";
-import { useNavigate } from "react-router-dom";
+import { useEffect, useMemo, useState } from "react";
+import { useLocation, useNavigate } from "react-router-dom";
 import { useAuth } from "../../context/AuthContext";
 import RoleLayout from "../../layouts/RoleLayout";
 import { get, post, ENDPOINTS } from "../../service/api";
@@ -23,6 +23,7 @@ const STATUS_LABELS = {
 
 function PickupRequest() {
   const navigate = useNavigate();
+  const location = useLocation();
   const { user, isInitializing } = useAuth();
 
   const [requests, setRequests] = useState([]);
@@ -36,9 +37,9 @@ function PickupRequest() {
   const [selectedRequest, setSelectedRequest] = useState(null);
   const [actionType, setActionType] = useState(""); // 'approve' | 'reject'
 
-  // Sidebar menu giống TeacherAttendance
-  const menuItems = [
+  const menuItems = useMemo(() => [
     { key: "classes", label: "Lớp phụ trách" },
+    { key: "students", label: "Danh sách học sinh" },
     { key: "attendance", label: "Điểm danh" },
     { key: "students", label: "Danh sách học sinh" },
     { key: "pickup-approval", label: "Phê duyệt đưa đón" },
@@ -46,11 +47,17 @@ function PickupRequest() {
     { key: "messages", label: "Thông báo cho phụ huynh" },
   ];
 
-  const activeKey = "pickup-approval";
+  const activeKey = useMemo(() => {
+    const path = location.pathname || '';
+    if (path.startsWith('/teacher/attendance')) return 'attendance';
+    if (path.startsWith('/teacher/pickup-approval')) return 'pickup-approval';
+    return 'classes';
+  }, [location.pathname]);
 
   const handleMenuSelect = (key) => {
-    if (key === "classes") navigate("/teacher");
-    if (key === "attendance") navigate("/teacher/attendance");
+    if (key === "classes") { navigate("/teacher"); return; }
+    if (key === "attendance") { navigate("/teacher/attendance"); return; }
+    if (key === "pickup-approval") { navigate("/teacher/pickup-approval"); return; }
   };
 
   useEffect(() => {

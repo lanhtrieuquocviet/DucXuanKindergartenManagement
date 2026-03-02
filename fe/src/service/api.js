@@ -210,6 +210,8 @@ export const ENDPOINTS = {
       `/school-admin/students/${studentId}/attendance/history`,
     BLOGS: "/school-admin/blogs",
     BLOG_DETAIL: (blogId) => `/school-admin/blogs/${blogId}`,
+    BLOG_CATEGORIES: "/school-admin/blog-categories",
+    BLOG_CATEGORY_DETAIL: (id) => `/school-admin/blog-categories/${id}`,
     DOCUMENTS: "/school-admin/documents",
     DOCUMENT_DETAIL: (documentId) => `/school-admin/documents/${documentId}`,
   },
@@ -239,8 +241,9 @@ export const ENDPOINTS = {
   },
   // Blogs (public)
   BLOGS: {
-    PUBLISHED: "/blogs/published",
-    CATEGORIES: "/blogs/categories",
+    PUBLISHED: '/blogs/published',
+    CATEGORIES: '/blogs/categories',
+    DETAIL: (id) => `/blogs/${id}`,
   },
   // Documents (public)
   DOCUMENTS: {
@@ -259,9 +262,10 @@ export const ENDPOINTS = {
   },
   // Cloudinary
   CLOUDINARY: {
-    MEDIA_LIBRARY_SIGNATURE: "/cloudinary/media-library-signature",
-    UPLOAD_AVATAR: "/cloudinary/upload-avatar",
-    UPLOAD_BLOG_IMAGE: "/cloudinary/upload-blog-image",
+    MEDIA_LIBRARY_SIGNATURE: '/cloudinary/media-library-signature',
+    UPLOAD_AVATAR: '/cloudinary/upload-avatar',
+    UPLOAD_BLOG_IMAGE: '/cloudinary/upload-blog-image',
+    UPLOAD_BLOG_FILE: '/cloudinary/upload-blog-file',
   },
   // OTP
   OTP: {

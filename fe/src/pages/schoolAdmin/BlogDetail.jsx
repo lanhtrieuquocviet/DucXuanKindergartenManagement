@@ -255,6 +255,40 @@ function BlogDetail() {
             </div>
           </div>
 
+          {/* Tệp đính kèm */}
+          {blog.attachmentUrl && (
+            <div className="bg-white rounded-lg shadow p-6">
+              <h3 className="text-sm font-semibold text-gray-900 mb-4 uppercase">
+                Tệp đính kèm ({blog.attachmentType === 'pdf' ? 'PDF' : 'Word'})
+              </h3>
+              <div className="mb-3">
+                {blog.attachmentType === 'pdf' ? (
+                  <iframe
+                    src={blog.attachmentUrl}
+                    className="w-full border border-gray-200 rounded-lg"
+                    style={{ height: '600px' }}
+                    title="PDF Viewer"
+                  />
+                ) : (
+                  <iframe
+                    src={`https://view.officeapps.live.com/op/embed.aspx?src=${encodeURIComponent(blog.attachmentUrl)}`}
+                    className="w-full border border-gray-200 rounded-lg"
+                    style={{ height: '600px' }}
+                    title="Word Viewer"
+                  />
+                )}
+              </div>
+              <a
+                href={blog.attachmentUrl}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="inline-flex items-center gap-2 text-sm font-medium text-blue-600 hover:text-blue-800"
+              >
+                {blog.attachmentType === 'pdf' ? '📄' : '📝'} Tải xuống tệp {blog.attachmentType === 'pdf' ? 'PDF' : 'Word'}
+              </a>
+            </div>
+          )}
+
           {/* Hình ảnh */}
           {blog.images && blog.images.length > 0 && (
             <div className="bg-white rounded-lg shadow p-6">

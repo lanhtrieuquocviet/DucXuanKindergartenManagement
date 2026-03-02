@@ -11,7 +11,10 @@ function StudentDashboard() {
   const [showChildInfo, setShowChildInfo] = useState(false);
   const [pendingOtp, setPendingOtp] = useState(null); // { code, expiresAt, timeLeft }
   const [otpTimeLeft, setOtpTimeLeft] = useState(0);
+  const [showOtpModal, setShowOtpModal] = useState(false);
+  const [otpTotalTime, setOtpTotalTime] = useState(60);
   const pollRef = useRef(null);
+  const lastOtpCodeRef = useRef(null);
 
   useEffect(() => {
     if (isInitializing) return;
@@ -57,11 +60,19 @@ function StudentDashboard() {
         const res = await get(ENDPOINTS.OTP.PENDING(studentInfo._id));
         const data = res.data;
         if (data) {
+          // Nếu là OTP mới (code khác), tự động mở modal
+          if (data.code !== lastOtpCodeRef.current) {
+            lastOtpCodeRef.current = data.code;
+            setOtpTotalTime(data.timeLeft || 60);
+            setShowOtpModal(true);
+          }
           setPendingOtp(data);
           setOtpTimeLeft(data.timeLeft);
         } else {
+          lastOtpCodeRef.current = null;
           setPendingOtp(null);
           setOtpTimeLeft(0);
+          setShowOtpModal(false);
         }
       } catch {
         // ignore lỗi polling
@@ -80,6 +91,8 @@ function StudentDashboard() {
         if (prev <= 1) {
           clearInterval(timer);
           setPendingOtp(null);
+          setShowOtpModal(false);
+          lastOtpCodeRef.current = null;
           return 0;
         }
         return prev - 1;
@@ -211,18 +224,88 @@ function StudentDashboard() {
           ))}
         </div>
 
-        {/* Toast OTP từ tài khoản trường */}
-        {pendingOtp && (
+        {/* Modal OTP từ tài khoản trường */}
+        {showOtpModal && pendingOtp && (() => {
+          const radius = 48;
+          const circumference = 2 * Math.PI * radius;
+          const progress = otpTotalTime > 0 ? otpTimeLeft / otpTotalTime : 0;
+          const strokeDashoffset = circumference * (1 - progress);
+          return (
+            <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40">
+              <div className="bg-white rounded-2xl shadow-2xl w-full max-w-xs mx-4 overflow-hidden">
+                {/* Header */}
+                <div className="flex items-center justify-between px-5 pt-5 pb-3">
+                  <h2 className="text-base font-bold text-gray-800">Mã OTP của bạn</h2>
+                  <button
+                    type="button"
+                    onClick={() => setShowOtpModal(false)}
+                    className="text-gray-400 hover:text-gray-700 text-xl font-bold leading-none"
+                  >
+                    ×
+                  </button>
+                </div>
+
+                {/* OTP code */}
+                <div className="flex justify-center pb-2">
+                  <span className="text-4xl font-bold tracking-[0.3em] text-gray-900">
+                    {pendingOtp.code}
+                  </span>
+                </div>
+
+                {/* Circular countdown */}
+                <div className="flex flex-col items-center py-4 gap-2">
+                  <p className="text-xs text-gray-500 font-medium">Còn lại:</p>
+                  <div className="relative w-28 h-28">
+                    <svg className="w-full h-full -rotate-90" viewBox="0 0 112 112">
+                      {/* Track */}
+                      <circle
+                        cx="56" cy="56" r={radius}
+                        fill="none"
+                        stroke="#e5e7eb"
+                        strokeWidth="8"
+                      />
+                      {/* Progress */}
+                      <circle
+                        cx="56" cy="56" r={radius}
+                        fill="none"
+                        stroke="#10b981"
+                        strokeWidth="8"
+                        strokeLinecap="round"
+                        strokeDasharray={circumference}
+                        strokeDashoffset={strokeDashoffset}
+                        style={{ transition: 'stroke-dashoffset 1s linear' }}
+                      />
+                    </svg>
+                    <div className="absolute inset-0 flex items-center justify-center">
+                      <span className="text-2xl font-bold text-emerald-600">{otpTimeLeft}s</span>
+                    </div>
+                  </div>
+                </div>
+
+                {/* Footer note */}
+                <div className="px-5 pb-5 text-center">
+                  <p className="text-xs text-gray-500">
+                    Mã này dùng để giáo viên nhập hoặc nhấn xác nhận trong vòng{' '}
+                    <span className="font-semibold text-gray-700">{otpTotalTime} giây</span>.
+                  </p>
+                </div>
+              </div>
+            </div>
+          );
+        })()}
+
+        {/* Toast OTP nhỏ góc dưới phải (luôn hiển thị khi có OTP, kể cả khi đóng modal) */}
+        {pendingOtp && !showOtpModal && (
           <div className="fixed bottom-6 right-6 z-50 flex items-center gap-3 bg-emerald-600 text-white px-4 py-3 rounded-xl shadow-2xl text-sm font-semibold">
             <span>🔑</span>
             <span>Mã OTP: <strong className="text-lg tracking-widest">{pendingOtp.code}</strong></span>
             <span className="text-emerald-200">còn {otpTimeLeft}s</span>
             <button
               type="button"
-              onClick={() => setPendingOtp(null)}
-              className="ml-1 text-emerald-200 hover:text-white font-bold"
+              onClick={() => setShowOtpModal(true)}
+              className="ml-1 text-emerald-200 hover:text-white text-xs underline"
             >
-              ×
+              Xem
             </button>
           </div>
         )}

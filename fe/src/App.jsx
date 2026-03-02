@@ -27,6 +27,7 @@ import StudentAttendanceDetail from './pages/schoolAdmin/StudentAttendanceDetail
 import StudentAttendanceHistory from './pages/schoolAdmin/StudentAttendanceHistory';
 import ExportAttendanceReport from './pages/schoolAdmin/ExportAttendanceReport';
 import ManageBlogs from './pages/schoolAdmin/ManageBlogs';
+import ManageBlogCategories from './pages/schoolAdmin/ManageBlogCategories';
 import ManageDocuments from './pages/schoolAdmin/ManageDocuments';
 import BlogDetail from './pages/schoolAdmin/BlogDetail';
 import DocumentDetail from './pages/schoolAdmin/DocumentDetail';
@@ -47,12 +48,9 @@ import BoardOfDirectors from './pages/Introduce/BoardOfDirectors';
 import AdministrativeOffice from './pages/Introduce/AdministrativeOffice';
 import ParentsCouncil from './pages/Introduce/ParentsCouncil';
 import ProfessionalGroup from './pages/Introduce/ProfessionalGroup';
-import SchoolNews from './pages/News/SchoolNews';
+import NewsPage from './pages/News/NewsPage';
+import NewsDetail from './pages/News/NewsDetail';
 import SearchResults from './pages/SearchResults';
-import Notifications from './pages/News/Notifications';
-import DepartmentNews from './pages/News/DepartmentNews';
-import DepartmentNotifications from './pages/News/DepartmentNotifications';
-import ExtracurricularActivities from './pages/News/ExtracurricularActivities';
 import LegalDocuments from './pages/Document/LegalDocuments';
 import DepartmentDocuments from './pages/Document/DepartmentDocuments';
 import WeeklyMenu from './pages/Library/WeeklyMenu';
@@ -96,16 +94,18 @@ function AppContent() {
 
         <Route path="/parent-council" element={<ParentsCouncil />} />
 
-        <Route path="/school-news" element={<SchoolNews />} /> 
+        <Route path="/school-news" element={<NewsPage categoryName="Bản tin trường" />} />
         <Route path="/search" element={<SearchResults />} />
 
-        <Route path="/notifications-news" element={<Notifications />} />
+        <Route path="/notifications-news" element={<NewsPage categoryName="Thông báo" />} />
 
-        <Route path="/department-news" element={<DepartmentNews />} />
+        <Route path="/department-news" element={<NewsPage categoryName="Tin tức từ Phòng" />} />
 
-        <Route path="/department-notifications" element={<DepartmentNotifications />} />
+        <Route path="/department-notifications" element={<NewsPage categoryName="Thông báo từ Phòng" />} />
 
-        <Route path="/extracurricular-activities" element={<ExtracurricularActivities />} />
+        <Route path="/extracurricular-activities" element={<NewsPage categoryName="Hoạt động ngoại khóa" />} />
+
+        <Route path="/news/:blogId" element={<NewsDetail />} />
 
         <Route path="/legal-documents" element={<LegalDocuments />} />
 
@@ -355,6 +355,14 @@ function App() {
             element={
               <SchoolAdminProvider>
                 <ManageBlogs />
+              </SchoolAdminProvider>
+            }
+          />
+          <Route
+            path="/school-admin/blog-categories"
+            element={
+              <SchoolAdminProvider>
+                <ManageBlogCategories />
               </SchoolAdminProvider>
             }
           />
