@@ -267,6 +267,7 @@ export const ENDPOINTS = {
   OTP: {
     SEND: "/otp/send",
     VERIFY: "/otp/verify",
+    PENDING: (studentId) => `/otp/pending/${studentId}`,
   },
   //Pickup
   PICKUP: {
@@ -274,6 +275,7 @@ export const ENDPOINTS = {
     MY_REQUESTS: "/pickup/my-requests",
     REQUESTS: "/pickup/requests",
     UPDATE_STATUS: "/pickup/requests/status",
+    APPROVED_BY_STUDENT: (studentId) => `/pickup/requests/student/${studentId}`,
   },
 };
 

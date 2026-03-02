@@ -148,6 +148,34 @@ exports.getPickupRequests = async (req, res) => {
   }
 };
 
+// 5. Giáo viên xem danh sách người đưa đón đã được duyệt của một học sinh
+exports.getApprovedPickupPersonsByStudent = async (req, res) => {
+  try {
+    const { studentId } = req.params;
+    const student = await Student.findById(studentId);
+    if (!student) {
+      return res.status(404).json({ success: false, message: "Không tìm thấy học sinh" });
+    }
+
+    const classDoc = await Classes.findById(student.classId);
+    if (
+      !classDoc ||
+      !classDoc.teacherIds.some((id) => id.toString() === req.user._id.toString())
+    ) {
+      return res.status(403).json({ success: false, message: "Không có quyền xem thông tin này" });
+    }
+
+    const requests = await PickupRequest.find({
+      student: studentId,
+      status: "approved",
+    }).select("fullName relation phone imageUrl");
+
+    res.json({ success: true, data: requests });
+  } catch (error) {
+    res.status(500).json({ success: false, message: "Lỗi server", error: error.message });
+  }
+};
+
 // 4. Giáo viên duyệt hoặc từ chối
 exports.updatePickupRequestStatus = async (req, res) => {
   const { requestId, status, rejectedReason } = req.body;

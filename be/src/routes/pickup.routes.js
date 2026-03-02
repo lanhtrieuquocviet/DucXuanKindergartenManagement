@@ -15,6 +15,7 @@ const {
   getMyPickupRequests,
   getPickupRequests,
   updatePickupRequestStatus,
+  getApprovedPickupPersonsByStudent,
 } = require("../controller/pickupController");
 
 // 1. Tạo đăng ký mới - Chỉ Parent hoặc StudentParent
@@ -37,6 +38,14 @@ router.get(
   authenticate,
   authorizeRoles("Teacher"), // Chỉ giáo viên
   getPickupRequests
+);
+
+// 5. Giáo viên xem danh sách người đưa đón đã duyệt của một học sinh
+router.get(
+  "/requests/student/:studentId",
+  authenticate,
+  authorizeRoles("Teacher"),
+  getApprovedPickupPersonsByStudent
 );
 
 // 4. Giáo viên duyệt hoặc từ chối

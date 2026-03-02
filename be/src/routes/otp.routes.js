@@ -1,21 +1,16 @@
 const express = require('express');
 const { authenticate } = require('../middleware/auth');
-const { sendOTP, verifyOTP } = require('../controller/otpController');
+const { sendOTP, verifyOTP, getPendingOTP } = require('../controller/otpController');
 
 const router = express.Router();
 
-/**
- * Gửi OTP qua Email hoặc SMS
- * POST /api/otp/send
- * body: { studentId, method: 'email' | 'sms', phoneNumber? }
- */
+// Gửi OTP (method: 'school' → nội bộ; không có → Firebase phía client)
 router.post('/send', authenticate, sendOTP);
 
-/**
- * Xác minh OTP
- * POST /api/otp/verify
- * body: { studentId, otpCode, sentOtpCode }
- */
+// Xác minh OTP nội bộ
 router.post('/verify', authenticate, verifyOTP);
+
+// Phụ huynh poll OTP đang chờ của con mình
+router.get('/pending/:studentId', authenticate, getPendingOTP);
 
 module.exports = router;
