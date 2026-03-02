@@ -12,15 +12,26 @@ export default function QnAPage() {
   const [page, setPage] = useState(1);
   const [pagination, setPagination] = useState(null);
 
-  const fetchQuestions = async (currentPage = 1) => {
+  const fetchQuestions = async (currentPage = 1, currentKeyword = "", currentCategory = "") => {
     try {
       setLoading(true);
       setError(null);
 
-      const res = await get(
-        `${ENDPOINTS.QA.QUESTIONS}?page=${currentPage}&limit=2`,
-        { includeAuth: false }
-      );
+      const params = new URLSearchParams({
+        page: String(currentPage),
+        limit: "5",
+      });
+
+      if (currentKeyword) {
+        params.set("q", currentKeyword);
+      }
+      if (currentCategory) {
+        params.set("category", currentCategory);
+      }
+
+      const res = await get(`${ENDPOINTS.QA.QUESTIONS}?${params.toString()}`, {
+        includeAuth: false,
+      });
 
       setQuestions(res?.data?.questions || []);
       setPagination(res?.data?.pagination);
@@ -33,8 +44,9 @@ export default function QnAPage() {
   };
 
   useEffect(() => {
-    fetchQuestions(page);
-  }, []);
+    fetchQuestions(page, keyword, selectedCategory);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [page, keyword, selectedCategory]);
 
   const handleSubmitted = (created) => {
     setQuestions((prev) => [created, ...prev]);
@@ -105,6 +117,7 @@ export default function QnAPage() {
             onClick={() => {
               setKeyword("");
               setSelectedCategory("");
+              setPage(1);
             }}
             className="bg-red-600 text-white px-6 py-2 rounded shadow hover:bg-red-700"
           >
