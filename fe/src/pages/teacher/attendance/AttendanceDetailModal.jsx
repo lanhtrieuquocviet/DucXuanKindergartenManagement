@@ -29,6 +29,124 @@ const renderImagePreview = (imageValue, altText) => {
   );
 };
 
+// ── OTP Section dùng chung cho cả checkin và checkout ──
+// Phải định nghĩa bên ngoài component cha để tránh bị unmount/remount khi re-render
+function OtpSection({ radioName, mode, detailForm, setDetailForm, student, onSendOtp, otpTimeLeft, otpExpired, onResetOtp }) {
+  return (
+    <div className={mode === 'checkin' ? 'md:col-span-2 border-t border-gray-100 pt-4 mt-2' : 'border-t border-gray-100 pt-4'}>
+      <p className="text-xs font-semibold text-gray-700 mb-3 flex items-center gap-2">
+        <span>📱</span>
+        Phương thức gửi OTP
+      </p>
+
+      <div className="space-y-3 mb-4">
+        <label className="flex items-center gap-2 text-sm text-gray-700">
+          <input
+            type="radio"
+            name={radioName}
+            checked={detailForm.sendOtpSchoolAccount || false}
+            onChange={() =>
+              setDetailForm((prev) => ({ ...prev, sendOtpSchoolAccount: true, sendOtpViaSms: false }))
+            }
+          />
+          Tài khoản trường cấp
+        </label>
+        <label className="flex items-center gap-2 text-sm text-gray-700">
+          <input
+            type="radio"
+            name={radioName}
+            checked={detailForm.sendOtpViaSms || false}
+            onChange={() =>
+              setDetailForm((prev) => ({ ...prev, sendOtpSchoolAccount: false, sendOtpViaSms: true }))
+            }
+          />
+          Gửi qua SMS
+        </label>
+      </div>
+
+      {(detailForm.sendOtpSchoolAccount || detailForm.sendOtpViaSms) && (
+        <>
+          {detailForm.sendOtpViaSms && (
+            <div className="mb-3">
+              <label className="block text-xs font-semibold text-gray-700 mb-1">Chọn phụ huynh nhận SMS</label>
+              <select
+                value={detailForm.selectedParentForOtp || ''}
+                onChange={(e) =>
+                  setDetailForm((prev) => ({ ...prev, selectedParentForOtp: e.target.value }))
+                }
+                className="w-full px-3 py-2 border border-gray-300 rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500"
+              >
+                <option value="">--Chọn--</option>
+                {student?.parentId?.phone && (
+                  <option value={student.parentId.phone}>
+                    {student.parentId.fullName || 'Phụ huynh'} - {student.parentId.phone}
+                  </option>
+                )}
+              </select>
+            </div>
+          )}
+
+          <button
+            type="button"
+            onClick={onSendOtp}
+            disabled={detailForm.otpSent && !otpExpired}
+            className={`w-full px-3 py-2 text-sm font-semibold text-white rounded-md transition-colors mb-3 ${
+              detailForm.otpSent && !otpExpired
+                ? 'bg-blue-300 cursor-not-allowed'
+                : 'bg-blue-600 hover:bg-blue-700'
+            }`}
+          >
+            {detailForm.otpSent && !otpExpired ? `Đã gửi (${Math.floor(otpTimeLeft / 60)}:${String(otpTimeLeft % 60).padStart(2, '0')})` : 'Gửi mã OTP'}
+          </button>
+
+          {detailForm.otpSent && (
+            <div className={`rounded-md p-3 ${otpExpired ? 'bg-red-50 border border-red-200' : 'bg-blue-50 border border-blue-200'}`}>
+              <div className="flex items-center justify-between mb-2">
+                <label className="block text-xs font-semibold text-gray-700">Nhập mã OTP</label>
+                <span className={`text-xs font-semibold ${otpExpired ? 'text-red-600' : 'text-blue-600'}`}>
+                  {otpExpired ? '❌ Hết hạn' : `⏱️ ${Math.floor(otpTimeLeft / 60)}:${String(otpTimeLeft % 60).padStart(2, '0')}`}
+                </span>
+              </div>
+              <input
+                type="text"
+                value={detailForm.otpCode || ''}
+                onChange={(e) =>
+                  setDetailForm((prev) => ({ ...prev, otpCode: e.target.value.slice(0, 6) }))
+                }
+                placeholder="Mã 6 số"
+                maxLength={6}
+                disabled={otpExpired}
+                className={`w-full px-3 py-2 border rounded-md text-sm focus:outline-none ${
+                  otpExpired
+                    ? 'bg-gray-100 border-gray-300 cursor-not-allowed text-gray-500'
+                    : 'border-gray-300 focus:ring-2 focus:ring-blue-500'
+                }`}
+              />
+              {otpExpired && (
+                <div className="mt-3 p-3 bg-red-100 border border-red-300 rounded text-xs text-red-700">
+                  <p className="font-semibold mb-2">⚠️ Mã OTP đã hết hạn</p>
+                  {student?.parentId?.phone && (
+                    <p className="text-red-600 font-semibold mb-2">
+                      📱 {student.parentId.fullName || 'Phụ huynh'}: {student.parentId.phone}
+                    </p>
+                  )}
+                  <button
+                    type="button"
+                    onClick={onResetOtp}
+                    className="w-full mt-2 px-3 py-2 text-xs font-semibold text-white bg-red-600 rounded hover:bg-red-700 transition-colors"
+                  >
+                    Gửi lại mã OTP
+                  </button>
+                </div>
+              )}
+            </div>
+          )}
+        </>
+      )}
+    </div>
+  );
+}
+
 function AttendanceDetailModal({
   isOpen,
   mode,
@@ -116,119 +234,9 @@ function AttendanceDetailModal({
     }
   };
 
-  // ── OTP Section dùng chung cho cả checkin và checkout ──
-  const OtpSection = ({ radioName }) => (
-    <div className={mode === 'checkin' ? 'md:col-span-2 border-t border-gray-100 pt-4 mt-2' : 'border-t border-gray-100 pt-4'}>
-      <p className="text-xs font-semibold text-gray-700 mb-3 flex items-center gap-2">
-        <span>📱</span>
-        Phương thức gửi OTP
-      </p>
-
-      <div className="space-y-3 mb-4">
-        <label className="flex items-center gap-2 text-sm text-gray-700">
-          <input
-            type="radio"
-            name={radioName}
-            checked={detailForm.sendOtpSchoolAccount || false}
-            onChange={() =>
-              setDetailForm((prev) => ({ ...prev, sendOtpSchoolAccount: true, sendOtpViaSms: false }))
-            }
-          />
-          Tài khoản trường cấp
-        </label>
-        <label className="flex items-center gap-2 text-sm text-gray-700">
-          <input
-            type="radio"
-            name={radioName}
-            checked={detailForm.sendOtpViaSms || false}
-            onChange={() =>
-              setDetailForm((prev) => ({ ...prev, sendOtpSchoolAccount: false, sendOtpViaSms: true }))
-            }
-          />
-          Gửi qua SMS
-        </label>
-      </div>
-
-      {(detailForm.sendOtpSchoolAccount || detailForm.sendOtpViaSms) && (
-        <>
-          {detailForm.sendOtpViaSms && (
-            <div className="mb-3">
-              <label className="block text-xs font-semibold text-gray-700 mb-1">Chọn phụ huynh nhận SMS</label>
-              <select
-                value={detailForm.selectedParentForOtp || ''}
-                onChange={(e) =>
-                  setDetailForm((prev) => ({ ...prev, selectedParentForOtp: e.target.value }))
-                }
-                className="w-full px-3 py-2 border border-gray-300 rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500"
-              >
-                <option value="">--Chọn--</option>
-                {student?.parentId?.phone && (
-                  <option value={student.parentId.phone}>
-                    {student.parentId.fullName || 'Phụ huynh'} - {student.parentId.phone}
-                  </option>
-                )}
-              </select>
-            </div>
-          )}
-
-          <button
-            type="button"
-            onClick={handleSendOtp}
-            className="w-full px-3 py-2 text-sm font-semibold text-white bg-blue-600 rounded-md hover:bg-blue-700 transition-colors mb-3"
-          >
-            Gửi mã OTP
-          </button>
-
-          {detailForm.otpSent && (
-            <div className={`rounded-md p-3 ${otpExpired ? 'bg-red-50 border border-red-200' : 'bg-blue-50 border border-blue-200'}`}>
-              <div className="flex items-center justify-between mb-2">
-                <label className="block text-xs font-semibold text-gray-700">Nhập mã OTP</label>
-                <span className={`text-xs font-semibold ${otpExpired ? 'text-red-600' : 'text-blue-600'}`}>
-                  {otpExpired ? '❌ Hết hạn' : `⏱️ ${Math.floor(otpTimeLeft / 60)}:${String(otpTimeLeft % 60).padStart(2, '0')}`}
-                </span>
-              </div>
-              <input
-                type="text"
-                value={detailForm.otpCode || ''}
-                onChange={(e) =>
-                  setDetailForm((prev) => ({ ...prev, otpCode: e.target.value.slice(0, 6) }))
-                }
-                placeholder="Mã 6 số"
-                maxLength={6}
-                disabled={otpExpired}
-                className={`w-full px-3 py-2 border rounded-md text-sm focus:outline-none ${
-                  otpExpired
-                    ? 'bg-gray-100 border-gray-300 cursor-not-allowed text-gray-500'
-                    : 'border-gray-300 focus:ring-2 focus:ring-blue-500'
-                }`}
-              />
-              {otpExpired && (
-                <div className="mt-3 p-3 bg-red-100 border border-red-300 rounded text-xs text-red-700">
-                  <p className="font-semibold mb-2">⚠️ Mã OTP đã hết hạn</p>
-                  {student?.parentId?.phone && (
-                    <p className="text-red-600 font-semibold mb-2">
-                      📱 {student.parentId.fullName || 'Phụ huynh'}: {student.parentId.phone}
-                    </p>
-                  )}
-                  <button
-                    type="button"
-                    onClick={onResetOtp}
-                    className="w-full mt-2 px-3 py-2 text-xs font-semibold text-white bg-red-600 rounded hover:bg-red-700 transition-colors"
-                  >
-                    Gửi lại mã OTP
-                  </button>
-                </div>
-              )}
-            </div>
-          )}
-        </>
-      )}
-    </div>
-  );
-
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40">
-      <div className={`bg-white rounded-xl shadow-2xl mx-4 ${mode === 'view' ? 'w-full max-w-4xl max-h-[90vh] overflow-y-auto' : 'w-full max-w-2xl'}`}>
+      <div className={`bg-white rounded-xl shadow-2xl mx-4 max-h-[90vh] overflow-y-auto ${mode === 'view' ? 'w-full max-w-4xl' : 'w-full max-w-2xl'}`}>
 
         {/* ── CHẾ ĐỘ XEM CHI TIẾT (VIEW) ── */}
         {mode === 'view' ? (
@@ -674,7 +682,17 @@ function AttendanceDetailModal({
                     </>
                   )}
 
-                  <OtpSection radioName="otpMethodCheckout" />
+                  <OtpSection
+                    radioName="otpMethodCheckout"
+                    mode={mode}
+                    detailForm={detailForm}
+                    setDetailForm={setDetailForm}
+                    student={student}
+                    onSendOtp={handleSendOtp}
+                    otpTimeLeft={otpTimeLeft}
+                    otpExpired={otpExpired}
+                    onResetOtp={onResetOtp}
+                  />
 
                   <div>
                     <label className="block text-sm font-semibold text-gray-700 mb-2">Ghi chú</label>
@@ -862,7 +880,17 @@ function AttendanceDetailModal({
                     )}
                   </div>
 
-                  <OtpSection radioName="otpMethodCheckin" />
+                  <OtpSection
+                    radioName="otpMethodCheckin"
+                    mode={mode}
+                    detailForm={detailForm}
+                    setDetailForm={setDetailForm}
+                    student={student}
+                    onSendOtp={handleSendOtp}
+                    otpTimeLeft={otpTimeLeft}
+                    otpExpired={otpExpired}
+                    onResetOtp={onResetOtp}
+                  />
 
                   <div className="md:col-span-2">
                     <label className="block text-xs font-semibold text-gray-700 mb-1">Note chung</label>
