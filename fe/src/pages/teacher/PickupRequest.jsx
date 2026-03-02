@@ -1,5 +1,5 @@
-import { useEffect, useState } from "react";
-import { useNavigate } from "react-router-dom";
+import { useEffect, useMemo, useState } from "react";
+import { useLocation, useNavigate } from "react-router-dom";
 import { useAuth } from "../../context/AuthContext";
 import RoleLayout from "../../layouts/RoleLayout";
 import { get, post, ENDPOINTS } from "../../service/api";
@@ -23,6 +23,7 @@ const STATUS_LABELS = {
 
 function PickupRequest() {
   const navigate = useNavigate();
+  const location = useLocation();
   const { user, isInitializing } = useAuth();
 
   const [requests, setRequests] = useState([]);
@@ -30,24 +31,33 @@ function PickupRequest() {
   const [error, setError] = useState("");
   const [successMessage, setSuccessMessage] = useState("");
   const [filterStatus, setFilterStatus] = useState("pending"); // mặc định chỉ hiển thị chờ duyệt
-
+  const [previewImage, setPreviewImage] = useState(null);// Image max
   // Modal xác nhận
   const [confirmOpen, setConfirmOpen] = useState(false);
   const [selectedRequest, setSelectedRequest] = useState(null);
   const [actionType, setActionType] = useState(""); // 'approve' | 'reject'
 
-  // Sidebar menu giống TeacherAttendance
-  const menuItems = [
+  const menuItems = useMemo(() => [
     { key: "classes", label: "Lớp phụ trách" },
+    { key: "students", label: "Danh sách học sinh" },
     { key: "attendance", label: "Điểm danh" },
+    { key: "students", label: "Danh sách học sinh" },
     { key: "pickup-approval", label: "Phê duyệt đưa đón" },
-  ];
+    { key: "schedule", label: "Lịch dạy & hoạt động" },
+    { key: "messages", label: "Thông báo cho phụ huynh" },
+  ], []);
 
-  const activeKey = "pickup-approval";
+  const activeKey = useMemo(() => {
+    const path = location.pathname || '';
+    if (path.startsWith('/teacher/attendance')) return 'attendance';
+    if (path.startsWith('/teacher/pickup-approval')) return 'pickup-approval';
+    return 'classes';
+  }, [location.pathname]);
 
   const handleMenuSelect = (key) => {
-    if (key === "classes") navigate("/teacher");
-    if (key === "attendance") navigate("/teacher/attendance");
+    if (key === "classes") { navigate("/teacher"); return; }
+    if (key === "attendance") { navigate("/teacher/attendance"); return; }
+    if (key === "pickup-approval") { navigate("/teacher/pickup-approval"); return; }
   };
 
   useEffect(() => {
@@ -237,23 +247,29 @@ function PickupRequest() {
                 {requests.map((req) => {
                   const badge = getStatusBadge(req.status);
                   return (
-                    <tr key={req._id} className="hover:bg-gray-50 transition">
+                    <tr
+                      key={req._id}
+                      className="hover:bg-gray-50 transition align-middle"
+                    >
                       <td className="px-6 py-4 font-medium">
                         {req.student?.fullName || "—"}
                       </td>
                       <td className="px-6 py-4">{req.fullName}</td>
                       <td className="px-6 py-4">{req.relation}</td>
                       <td className="px-6 py-4">{req.phone}</td>
-                      <td className="px-6 py-4">
-                        {req.imageUrl ? (
-                          <img
-                            src={req.imageUrl}
-                            alt={req.fullName}
-                            className="w-10 h-10 rounded-full object-cover border border-gray-200"
-                          />
-                        ) : (
-                          <span className="text-gray-400">—</span>
-                        )}
+                      <td className="px-6 py-6">
+                        <div className="flex justify-center">
+                          {req.imageUrl ? (
+                            <img
+                              src={req.imageUrl}
+                              alt={req.fullName}
+                              onClick={() => setPreviewImage(req.imageUrl)}
+                              className="w-16 h-16 rounded-lg object-cover border border-gray-300 shadow-sm cursor-pointer hover:scale-105 transition"
+                            />
+                          ) : (
+                            <span className="text-gray-400">—</span>
+                          )}
+                        </div>
                       </td>
                       <td className="px-6 py-4">
                         <span
@@ -311,6 +327,30 @@ function PickupRequest() {
           setActionType("");
         }}
       />
+      {previewImage && (
+        <div
+          className="fixed inset-0 bg-black/40 backdrop-blur-sm flex items-center justify-center z-50"
+          onClick={() => setPreviewImage(null)}
+        >
+          <div
+            className="relative max-w-lg w-full px-4"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <img
+              src={previewImage}
+              alt="Preview"
+              className="w-full max-h-[80vh] object-contain rounded-xl shadow-2xl"
+            />
+
+            <button
+              onClick={() => setPreviewImage(null)}
+              className="absolute top-2 right-2 bg-black/60 text-white rounded-full w-8 h-8 flex items-center justify-center hover:bg-black"
+            >
+              ✕
+            </button>
+          </div>
+        </div>
+      )}
     </RoleLayout>
   );
 }

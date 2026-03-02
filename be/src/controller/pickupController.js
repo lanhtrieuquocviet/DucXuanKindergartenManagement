@@ -234,3 +234,104 @@ exports.updatePickupRequestStatus = async (req, res) => {
     });
   }
 };
+
+// 6. Phụ huynh sửa đăng ký (chỉ khi pending)
+exports.updateMyPickupRequest = async (req, res) => {
+  try {
+    const { id } = req.params;
+    const { fullName, relation, phone, imageUrl } = req.body;
+
+    const request = await PickupRequest.findOne({
+      _id: id,
+      parent: req.user._id,
+    });
+
+    if (!request) {
+      return res.status(404).json({
+        success: false,
+        message: "Không tìm thấy đăng ký",
+      });
+    }
+
+    if (request.status !== "pending") {
+      return res.status(400).json({
+        success: false,
+        message: "Chỉ được sửa khi đang ở trạng thái chờ duyệt",
+      });
+    }
+
+    // Check duplicate lại nếu cần
+    const duplicate = await PickupRequest.findOne({
+      _id: { $ne: id },
+      student: request.student,
+      fullName: fullName.trim(),
+      relation: relation.trim(),
+      phone: phone.trim(),
+    });
+
+    if (duplicate) {
+      return res.status(400).json({
+        success: false,
+        message: "Thông tin người đưa đón đã tồn tại",
+      });
+    }
+
+    request.fullName = fullName.trim();
+    request.relation = relation.trim();
+    request.phone = phone.trim();
+    request.imageUrl = imageUrl || "";
+
+    await request.save();
+
+    res.json({
+      success: true,
+      message: "Cập nhật thành công",
+      data: request,
+    });
+  } catch (error) {
+    res.status(500).json({
+      success: false,
+      message: "Lỗi khi cập nhật đăng ký",
+      error: error.message,
+    });
+  }
+};
+
+// 7. Phụ huynh hủy đăng ký (chỉ khi pending)
+exports.deleteMyPickupRequest = async (req, res) => {
+  try {
+    const { id } = req.params;
+
+    const request = await PickupRequest.findOne({
+      _id: id,
+      parent: req.user._id,
+    });
+
+    if (!request) {
+      return res.status(404).json({
+        success: false,
+        message: "Không tìm thấy đăng ký",
+      });
+    }
+
+    if (request.status !== "pending") {
+      return res.status(400).json({
+        success: false,
+        message: "Chỉ được hủy khi đang ở trạng thái chờ duyệt",
+      });
+    }
+
+    await PickupRequest.deleteOne({ _id: id });
+
+    res.json({
+      success: true,
+      message: "Đã hủy đăng ký thành công",
+    });
+  } catch (error) {
+    res.status(500).json({
+      success: false,
+      message: "Lỗi khi hủy đăng ký",
+      error: error.message,
+    });
+  }
+};

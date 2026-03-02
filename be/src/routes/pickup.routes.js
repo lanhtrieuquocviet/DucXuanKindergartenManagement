@@ -16,6 +16,8 @@ const {
   getPickupRequests,
   updatePickupRequestStatus,
   getApprovedPickupPersonsByStudent,
+  updateMyPickupRequest,
+  deleteMyPickupRequest,
 } = require("../controller/pickupController");
 
 // 1. Tạo đăng ký mới - Chỉ Parent hoặc StudentParent
@@ -55,5 +57,9 @@ router.post(
   authorizeRoles("Teacher"),
   updatePickupRequestStatus
 );
+// Update requests by parent
+router.put("/requests/:id", authenticate, updateMyPickupRequest);
+// Delete requests by parent
+router.delete("/requests/:id", authenticate, deleteMyPickupRequest);
 
 module.exports = router;
