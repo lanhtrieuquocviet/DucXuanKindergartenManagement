@@ -228,16 +228,12 @@ router.post(
   '/documents',
   authenticate,
   authorizeRoles('SchoolAdmin'),
-  pdfUploadMiddleware.single('pdf'),
-  handleUploadError,
   documentController.createDocument
 );
 router.put(
   '/documents/:id',
   authenticate,
   authorizeRoles('SchoolAdmin'),
-  pdfUploadMiddleware.single('pdf'),
-  handleUploadError,
   documentController.updateDocument
 );
 router.delete(

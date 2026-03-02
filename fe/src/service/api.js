@@ -248,6 +248,7 @@ export const ENDPOINTS = {
   // Documents (public)
   DOCUMENTS: {
     PUBLISHED: "/documents/published",
+    DETAIL: (id) => `/documents/${id}`,
   },
   // Students
   STUDENTS: {

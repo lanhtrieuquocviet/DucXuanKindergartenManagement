@@ -53,6 +53,7 @@ import NewsDetail from './pages/News/NewsDetail';
 import SearchResults from './pages/SearchResults';
 import LegalDocuments from './pages/Document/LegalDocuments';
 import DepartmentDocuments from './pages/Document/DepartmentDocuments';
+import PublicDocumentDetail from './pages/Document/DocumentDetail';
 import WeeklyMenu from './pages/Library/WeeklyMenu';
 import WeeklyProgram from './pages/Library/WeeklyProgram';
 import PhotoGallery from './pages/Library/PhotoGallery';
@@ -110,6 +111,8 @@ function AppContent() {
         <Route path="/legal-documents" element={<LegalDocuments />} />
 
         <Route path="/department-documents" element={<DepartmentDocuments />} />
+
+        <Route path="/documents/:documentId" element={<PublicDocumentDetail />} />
 
         <Route path="/weekly-program" element={<WeeklyProgram />} />
 

@@ -14,8 +14,8 @@ const validateBlogPayload = (body, isCreate = true) => {
     errors.push('Mô tả không hợp lệ');
   }
 
-  if (body.description && body.description.length > 1000) {
-    errors.push('Mô tả quá dài (tối đa 1000 ký tự)');
+  if (body.description && body.description.length > 500000) {
+    errors.push('Nội dung quá dài');
   }
 
   if (isCreate && !body.category) errors.push('Danh mục không được để trống');
@@ -25,8 +25,8 @@ const validateBlogPayload = (body, isCreate = true) => {
   }
 
   if (body.images && Array.isArray(body.images)) {
-    if (body.images.length > 3) {
-      errors.push('Tối đa 3 ảnh cho mỗi bài viết');
+    if (body.images.length > 1) {
+      errors.push('Tối đa 1 ảnh bìa cho mỗi bài viết');
     }
     body.images.forEach((img, idx) => {
       if (!img || typeof img !== 'string') {
@@ -160,7 +160,7 @@ const createBlog = async (req, res) => {
 
     // Filter images - tối đa 3
     const validImages = Array.isArray(images) 
-      ? images.filter(img => img && typeof img === 'string').slice(0, 3)
+      ? images.filter(img => img && typeof img === 'string').slice(0, 1)
       : [];
 
     const blog = await Blog.create({
@@ -237,7 +237,7 @@ const updateBlog = async (req, res) => {
 
     if (images !== undefined) {
       blog.images = Array.isArray(images)
-        ? images.filter(img => typeof img === 'string' && img.trim()).slice(0, 3)
+        ? images.filter(img => typeof img === 'string' && img.trim()).slice(0, 1)
         : [];
     }
 

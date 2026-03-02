@@ -22,10 +22,21 @@ const documentSchema = new mongoose.Schema(
       type: String,
       trim: true,
     }],
-    // Original PDF file URL
+    // Original PDF file URL (legacy)
     pdfUrl: {
       type: String,
       trim: true,
+    },
+    // Attachment (PDF or Word)
+    attachmentUrl: {
+      type: String,
+      trim: true,
+      default: null,
+    },
+    attachmentType: {
+      type: String,
+      enum: ['pdf', 'word', null],
+      default: null,
     },
     status: {
       type: String,

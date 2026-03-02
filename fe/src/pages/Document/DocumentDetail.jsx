@@ -3,30 +3,29 @@ import { useParams, useNavigate } from "react-router-dom";
 import { get, ENDPOINTS } from "../../service/api";
 import 'quill/dist/quill.snow.css';
 
-function NewsDetail() {
-  const { blogId } = useParams();
+function DocumentDetail() {
+  const { documentId } = useParams();
   const navigate = useNavigate();
 
-  const [blog, setBlog] = useState(null);
+  const [doc, setDoc] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
-  const [selectedImageIdx, setSelectedImageIdx] = useState(0);
 
   useEffect(() => {
     const load = async () => {
       try {
         setLoading(true);
         setError(null);
-        const resp = await get(ENDPOINTS.BLOGS.DETAIL(blogId));
-        setBlog(resp.data);
+        const resp = await get(ENDPOINTS.DOCUMENTS.DETAIL(documentId));
+        setDoc(resp.data);
       } catch (err) {
-        setError(err.message || "Không tìm thấy bài viết");
+        setError(err.message || "Không tìm thấy tài liệu");
       } finally {
         setLoading(false);
       }
     };
-    if (blogId) load();
-  }, [blogId]);
+    if (documentId) load();
+  }, [documentId]);
 
   const formatDate = (d) =>
     d ? new Date(d).toLocaleDateString("vi-VN") : "-";
@@ -39,11 +38,11 @@ function NewsDetail() {
     );
   }
 
-  if (error || !blog) {
+  if (error || !doc) {
     return (
       <div className="max-w-4xl mx-auto px-6 py-12">
         <div className="bg-red-50 border border-red-200 rounded p-4 text-red-700 mb-4">
-          {error || "Không tìm thấy bài viết"}
+          {error || "Không tìm thấy tài liệu"}
         </div>
         <button
           onClick={() => navigate(-1)}
@@ -70,71 +69,40 @@ function NewsDetail() {
           className="hover:text-green-600 cursor-pointer"
           onClick={() => navigate(-1)}
         >
-          {blog.category?.name || "Tin tức"}
+          Văn bản
         </span>
         <span>›</span>
         <span className="text-gray-800 font-medium line-clamp-1">
-          {blog.code}
+          {doc.title}
         </span>
       </div>
 
       {/* Tiêu đề */}
-      <h1 className="text-3xl font-bold text-gray-900 mb-3">{blog.code}</h1>
+      <h1 className="text-3xl font-bold text-gray-900 mb-3">{doc.title}</h1>
 
       {/* Meta */}
       <div className="flex flex-wrap items-center gap-3 text-sm text-gray-500 mb-6">
-        {blog.category?.name && (
-          <span className="inline-flex items-center rounded-full bg-green-50 px-3 py-0.5 text-green-700 font-medium text-xs">
-            {blog.category.name}
-          </span>
-        )}
-        <span>🕒 {formatDate(blog.createdAt)}</span>
-        {blog.author?.fullName && <span>✍ {blog.author.fullName}</span>}
+        <span>🕒 {formatDate(doc.createdAt)}</span>
+        {doc.author?.fullName && <span>✍ {doc.author.fullName}</span>}
       </div>
 
-      {/* Ảnh chính (nếu có) */}
-      {blog.images && blog.images.length > 0 && (
-        <div className="mb-6">
-          <img
-            src={blog.images[selectedImageIdx]}
-            alt={blog.code}
-            className="w-full max-h-[420px] object-cover rounded-lg shadow"
-          />
-          {blog.images.length > 1 && (
-            <div className="flex gap-2 mt-3 flex-wrap">
-              {blog.images.map((url, idx) => (
-                <img
-                  key={idx}
-                  src={url}
-                  alt={`${idx + 1}`}
-                  onClick={() => setSelectedImageIdx(idx)}
-                  className={`w-20 h-20 object-cover rounded cursor-pointer border-2 transition ${
-                    selectedImageIdx === idx
-                      ? "border-green-500 scale-105"
-                      : "border-transparent hover:border-gray-300"
-                  }`}
-                />
-              ))}
-            </div>
-          )}
-        </div>
+      {/* Nội dung */}
+      {doc.description && (
+        <div
+          className="prose max-w-none text-gray-800 text-base leading-relaxed mb-8 ql-editor"
+          dangerouslySetInnerHTML={{ __html: doc.description }}
+        />
       )}
 
-      {/* Nội dung */}
-      <div
-        className="prose max-w-none text-gray-800 text-base leading-relaxed mb-8 ql-editor"
-        dangerouslySetInnerHTML={{ __html: blog.description || '' }}
-      />
-
       {/* Tệp đính kèm */}
-      {blog.attachmentUrl && (
+      {doc.attachmentUrl && (
         <div className="mb-8">
           <h2 className="text-lg font-semibold text-gray-800 mb-3">
-            Tệp đính kèm ({blog.attachmentType === "pdf" ? "PDF" : "Word"})
+            Tệp đính kèm ({doc.attachmentType === "pdf" ? "PDF" : "Word"})
           </h2>
-          {blog.attachmentType === "pdf" ? (
+          {doc.attachmentType === "pdf" ? (
             <iframe
-              src={blog.attachmentUrl}
+              src={doc.attachmentUrl}
               className="w-full border border-gray-200 rounded-lg"
               style={{ height: "600px" }}
               title="PDF Viewer"
@@ -142,7 +110,7 @@ function NewsDetail() {
           ) : (
             <iframe
               src={`https://view.officeapps.live.com/op/embed.aspx?src=${encodeURIComponent(
-                blog.attachmentUrl
+                doc.attachmentUrl
               )}`}
               className="w-full border border-gray-200 rounded-lg"
               style={{ height: "600px" }}
@@ -150,13 +118,13 @@ function NewsDetail() {
             />
           )}
           <a
-            href={blog.attachmentUrl}
+            href={doc.attachmentUrl}
             target="_blank"
             rel="noopener noreferrer"
             className="inline-flex items-center gap-2 mt-3 text-sm font-medium text-blue-600 hover:text-blue-800"
           >
-            {blog.attachmentType === "pdf" ? "📄" : "📝"} Tải xuống tệp{" "}
-            {blog.attachmentType === "pdf" ? "PDF" : "Word"}
+            {doc.attachmentType === "pdf" ? "📄" : "📝"} Tải xuống tệp{" "}
+            {doc.attachmentType === "pdf" ? "PDF" : "Word"}
           </a>
         </div>
       )}
@@ -172,4 +140,4 @@ function NewsDetail() {
   );
 }
 
-export default NewsDetail;
+export default DocumentDetail;

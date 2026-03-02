@@ -1,9 +1,4 @@
 const Document = require('../models/Document');
-const cloudinary = require('cloudinary').v2;
-
-cloudinary.config();
-
-const DOCUMENT_FOLDER = process.env.CLOUDINARY_DOCUMENT_FOLDER || 'documents';
 
 const validateDocumentPayload = (body, isCreate = true) => {
   const errors = [];
@@ -15,78 +10,22 @@ const validateDocumentPayload = (body, isCreate = true) => {
   if (body.description && typeof body.description !== 'string') {
     errors.push('Mô tả không hợp lệ');
   }
-  if (body.description && body.description.length > 5000) {
-    errors.push('Mô tả quá dài (tối đa 5000 ký tự)');
+  if (body.description && body.description.length > 500000) {
+    errors.push('Nội dung quá dài');
   }
 
   if (body.status && !['draft', 'published', 'inactive'].includes(body.status)) {
     errors.push('Trạng thái không hợp lệ');
   }
 
+  if (body.attachmentUrl && typeof body.attachmentUrl !== 'string') {
+    errors.push('URL tệp đính kèm không hợp lệ');
+  }
+  if (body.attachmentType && !['pdf', 'word'].includes(body.attachmentType)) {
+    errors.push('Loại tệp đính kèm không hợp lệ');
+  }
+
   return errors;
-};
-
-/**
- * Generate preview images from PDF using Cloudinary transformations
- * Uses the PDF's public_id to generate image URLs for each page
- */
-const generatePdfPreviewImages = (pdfPublicId, pageCount = 5) => {
-  try {
-    const imageUrls = [];
-
-    // Generate preview images from PDF using Cloudinary image transformation
-    // Uses resource_type: 'image' to convert PDF pages to PNG images
-    for (let page = 1; page <= pageCount; page++) {
-      const imageUrl = cloudinary.url(pdfPublicId, {
-        resource_type: 'image',
-        format: 'png',
-        page: page,
-        width: 1200,
-        crop: 'limit',
-      });
-
-      imageUrls.push(imageUrl);
-    }
-
-    return imageUrls;
-  } catch (error) {
-    console.error('PDF preview generation error:', error);
-    // Return empty array if preview generation fails
-    // The PDF URL will still be available
-    return [];
-  }
-};
-
-/**
- * Upload PDF file to Cloudinary
- * Returns an object with both URL and public_id for further processing
- */
-const uploadPdfToCloudinary = async (pdfBuffer) => {
-  try {
-    return new Promise((resolve, reject) => {
-      cloudinary.uploader.upload_stream(
-        {
-          resource_type: 'raw',
-          folder: DOCUMENT_FOLDER,
-          format: 'pdf',
-        },
-        (error, result) => {
-          if (error) {
-            console.error('PDF upload error:', error);
-            return reject(new Error('Lỗi tải lên file PDF: ' + error.message));
-          }
-          // Return both URL and public_id
-          resolve({
-            url: result.secure_url,
-            public_id: result.public_id,
-          });
-        }
-      ).end(pdfBuffer);
-    });
-  } catch (error) {
-    console.error('PDF upload error:', error);
-    throw new Error('Lỗi tải lên file PDF: ' + error.message);
-  }
 };
 
 /**
@@ -171,92 +110,39 @@ const getDocument = async (req, res) => {
 
 /**
  * POST /api/school-admin/documents
- * Create new document with PDF upload
+ * Create new document (JSON body)
  */
 const createDocument = async (req, res) => {
   try {
-    const { title, description = '', status = 'draft' } = req.body;
+    const { title, description = '', status = 'draft', attachmentUrl, attachmentType } = req.body;
     const user = req.user;
 
-    // Debug logging
-    console.log('createDocument - req.user:', user);
-    console.log('createDocument - user._id:', user ? user._id : undefined);
-    console.log('createDocument - user.id:', user ? user.id : undefined);
-
-    // Check if user exists
-    if (!user || (!user._id && !user.id && !user.rawUser)) {
+    if (!user || (!user._id && !user.id)) {
       return res.status(401).json({
         status: 'error',
         message: 'Người dùng không được xác thực',
       });
     }
 
-    // Get userId - check for _id first, then id, then rawUser._id
-    const userId = user._id || user.id || (user.rawUser && user.rawUser._id);
+    const userId = user._id || user.id;
 
-    // Validate payload
     const errors = validateDocumentPayload(req.body, true);
     if (errors.length > 0) {
       return res.status(400).json({
         status: 'error',
-        message: 'Dữ liệu không hợp lệ',
-        errors,
+        message: errors.join(', '),
       });
     }
 
-    // Check if PDF file exists
-    if (!req.file || !req.file.buffer) {
-      return res.status(400).json({
-        status: 'error',
-        message: 'Vui lòng chọn file PDF',
-      });
-    }
-
-    // Validate PDF file type
-    if (!req.file.mimetype.includes('pdf')) {
-      return res.status(400).json({
-        status: 'error',
-        message: 'Chỉ chấp nhận file PDF',
-      });
-    }
-
-    // Check file size (max 10MB)
-    if (req.file.size > 10 * 1024 * 1024) {
-      return res.status(400).json({
-        status: 'error',
-        message: 'File quá lớn (tối đa 10MB)',
-      });
-    }
-
-    // Check Cloudinary config
-    const config = cloudinary.config();
-    if (!config.api_key || !config.api_secret || !config.cloud_name) {
-      return res.status(500).json({
-        status: 'error',
-        message: 'Cloudinary chưa được cấu hình',
-      });
-    }
-
-    // Upload PDF file to Cloudinary
-    const pdfUploadResult = await uploadPdfToCloudinary(req.file.buffer);
-
-    // Generate preview images from the uploaded PDF using its public_id
-    // Cloudinary can extract pages and convert them to images
-    const imageUrls = generatePdfPreviewImages(pdfUploadResult.public_id, 5);
-
-    // Create document record
-    const newDocument = new Document({
-      title,
-      description,
+    const newDocument = await Document.create({
+      title: title.trim(),
+      description: typeof description === 'string' ? description.trim() : '',
       author: userId,
-      images: imageUrls,
-      pdfUrl: pdfUploadResult.url,
       status,
+      attachmentUrl: attachmentUrl || null,
+      attachmentType: attachmentType || null,
     });
 
-    await newDocument.save();
-
-    // Populate author info before returning
     await newDocument.populate('author', 'username fullName email');
 
     return res.status(201).json({
@@ -275,65 +161,37 @@ const createDocument = async (req, res) => {
 
 /**
  * PUT /api/school-admin/documents/:id
- * Update document
+ * Update document (JSON body)
  */
 const updateDocument = async (req, res) => {
   try {
     const { id } = req.params;
-    const { title, description, status } = req.body;
+    const { title, description, status, attachmentUrl, attachmentType } = req.body;
 
-    // Validate payload
     const errors = validateDocumentPayload(req.body, false);
     if (errors.length > 0) {
       return res.status(400).json({
         status: 'error',
-        message: 'Dữ liệu không hợp lệ',
-        errors,
+        message: errors.join(', '),
       });
     }
 
-    // Find and update document
-    const updateData = {};
-    if (title !== undefined) updateData.title = title;
-    if (description !== undefined) updateData.description = description;
-    if (status !== undefined) updateData.status = status;
-
-    // Handle PDF file update (optional)
-    if (req.file && req.file.buffer) {
-      if (!req.file.mimetype.includes('pdf')) {
-        return res.status(400).json({
-          status: 'error',
-          message: 'Chỉ chấp nhận file PDF',
-        });
-      }
-
-      if (req.file.size > 10 * 1024 * 1024) {
-        return res.status(400).json({
-          status: 'error',
-          message: 'File quá lớn (tối đa 10MB)',
-        });
-      }
-
-      // Upload new PDF
-      const pdfUploadResult = await uploadPdfToCloudinary(req.file.buffer);
-      updateData.pdfUrl = pdfUploadResult.url;
-
-      // Generate preview images from the new PDF using its public_id
-      const imageUrls = generatePdfPreviewImages(pdfUploadResult.public_id, 5);
-      updateData.images = imageUrls;
-    }
-
-    const document = await Document.findByIdAndUpdate(id, updateData, { new: true }).populate(
-      'author',
-      'username fullName email'
-    );
-
+    const document = await Document.findById(id);
     if (!document) {
       return res.status(404).json({
         status: 'error',
         message: 'Không tìm thấy tài liệu',
       });
     }
+
+    if (title !== undefined) document.title = String(title).trim();
+    if (typeof description === 'string') document.description = description.trim();
+    if (status !== undefined) document.status = status;
+    if (attachmentUrl !== undefined) document.attachmentUrl = attachmentUrl || null;
+    if (attachmentType !== undefined) document.attachmentType = attachmentType || null;
+
+    await document.save();
+    await document.populate('author', 'username fullName email');
 
     return res.status(200).json({
       status: 'success',
@@ -429,6 +287,27 @@ const getPublishedDocuments = async (req, res) => {
   }
 };
 
+/**
+ * GET /api/documents/:id
+ * Public endpoint - Get single published document by id
+ */
+const getPublishedDocumentById = async (req, res) => {
+  try {
+    const { id } = req.params;
+    const document = await Document.findOne({ _id: id, status: 'published' })
+      .populate('author', 'username fullName');
+
+    if (!document) {
+      return res.status(404).json({ status: 'error', message: 'Không tìm thấy tài liệu' });
+    }
+
+    return res.status(200).json({ status: 'success', data: document });
+  } catch (error) {
+    console.error('getPublishedDocumentById error:', error);
+    return res.status(500).json({ status: 'error', message: 'Lỗi khi tải tài liệu' });
+  }
+};
+
 module.exports = {
   listDocuments,
   getDocument,
@@ -436,4 +315,5 @@ module.exports = {
   updateDocument,
   deleteDocument,
   getPublishedDocuments,
+  getPublishedDocumentById,
 };

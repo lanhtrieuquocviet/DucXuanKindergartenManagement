@@ -4,6 +4,7 @@ import { useSchoolAdmin } from '../../context/SchoolAdminContext';
 import { useAuth } from '../../context/AuthContext';
 import RoleLayout from '../../layouts/RoleLayout';
 import ConfirmDialog from '../../components/ConfirmDialog';
+import RichTextEditor from '../../components/RichTextEditor';
 import { get, postFormData, ENDPOINTS } from '../../service/api';
 
 // categories will be fetched from backend; each item has {_id, name}
@@ -27,7 +28,6 @@ function BlogFormModal({ open, onClose, initialData, categories, onSubmit, loadi
     attachmentType: null,
   });
   const [uploading, setUploading] = useState(false);
-  const [uploadProgress, setUploadProgress] = useState({});
   const [uploadingFile, setUploadingFile] = useState(false);
   const [formErrors, setFormErrors] = useState({});
 
@@ -45,7 +45,6 @@ function BlogFormModal({ open, onClose, initialData, categories, onSubmit, loadi
         attachmentUrl: initialData?.attachmentUrl || null,
         attachmentType: initialData?.attachmentType || null,
       });
-      setUploadProgress({});
       setFormErrors({});
     }
   }, [open, initialData, categories]);
@@ -58,66 +57,32 @@ function BlogFormModal({ open, onClose, initialData, categories, onSubmit, loadi
     if (formErrors[name]) setFormErrors((prev) => ({ ...prev, [name]: null }));
   };
 
-  const handleUploadImages = async (e) => {
-    const files = Array.from(e.target.files);
-    
-    if (form.images.length + files.length > 3) {
-      alert('Tối đa 3 ảnh cho mỗi bài viết');
-      return;
-    }
-
-    if (files.length === 0) return;
-
+  const handleUploadCoverImage = async (e) => {
+    const file = e.target.files[0];
+    if (!file) return;
     setUploading(true);
-    const newImages = [...form.images];
-
     try {
-      for (let i = 0; i < files.length; i++) {
-        const file = files[i];
-        const formData = new FormData();
-        formData.append('image', file);
-
-        setUploadProgress(prev => ({ ...prev, [i]: 0 }));
-
-        try {
-          const response = await postFormData(ENDPOINTS.CLOUDINARY.UPLOAD_BLOG_IMAGE, formData);
-
-          // Backend trả về { status: 'success', data: { url: '...' } }
-          if (response.status === 'success' && response.data?.url) {
-            newImages.push(response.data.url);
-            console.log(`✓ Ảnh ${i + 1} uploaded:`, response.data.url);
-            setUploadProgress(prev => ({ ...prev, [i]: 100 }));
-          } else {
-            throw new Error(response.message || 'Upload thất bại');
-          }
-        } catch (uploadErr) {
-          const errMsg = uploadErr.message || 'Lỗi upload';
-          console.error(`✗ Upload lỗi cho ảnh ${i + 1}:`, errMsg);
-          throw new Error(`Ảnh ${i + 1}: ${errMsg}`);
-        }
+      const formData = new FormData();
+      formData.append('image', file);
+      const response = await postFormData(ENDPOINTS.CLOUDINARY.UPLOAD_BLOG_IMAGE, formData);
+      if (response.status === 'success' && response.data?.url) {
+        setForm(prev => ({ ...prev, images: [response.data.url] }));
+      } else {
+        throw new Error(response.message || 'Upload thất bại');
       }
-
-      setForm(prev => ({ ...prev, images: newImages }));
     } catch (err) {
-      console.error('Upload error:', err);
       alert(`Upload ảnh thất bại:\n${err.message}`);
     } finally {
       setUploading(false);
-      setUploadProgress({});
+      e.target.value = '';
     }
   };
 
-  const handleRemoveImage = (index) => {
-    setForm(prev => ({
-      ...prev,
-      images: prev.images.filter((_, i) => i !== index),
-    }));
+  const handleRemoveCoverImage = () => {
+    setForm(prev => ({ ...prev, images: [] }));
   };
 
-  const handleUploadFile = async (e) => {
-    const file = e.target.files[0];
-    if (!file) return;
-
+  const handleAttachFile = async (file) => {
     setUploadingFile(true);
     try {
       const formData = new FormData();
@@ -136,12 +101,7 @@ function BlogFormModal({ open, onClose, initialData, categories, onSubmit, loadi
       alert(`Upload file thất bại:\n${err.message}`);
     } finally {
       setUploadingFile(false);
-      e.target.value = '';
     }
-  };
-
-  const handleRemoveFile = () => {
-    setForm(prev => ({ ...prev, attachmentUrl: null, attachmentType: null }));
   };
 
   const handleSubmit = (e) => {
@@ -151,7 +111,6 @@ function BlogFormModal({ open, onClose, initialData, categories, onSubmit, loadi
     else if (form.code.length > 100) errs.code = 'Tiêu đề quá dài (tối đa 100 ký tự)';
     if (!form.category) errs.category = 'Vui lòng chọn danh mục';
     if (!form.description.trim()) errs.description = 'Nội dung không được để trống';
-    else if (form.description.length > 1000) errs.description = 'Nội dung quá dài (tối đa 1000 ký tự)';
     if (Object.keys(errs).length > 0) {
       setFormErrors(errs);
       return;
@@ -162,7 +121,7 @@ function BlogFormModal({ open, onClose, initialData, categories, onSubmit, loadi
 
   return (
     <div className="fixed inset-0 z-40 flex items-center justify-center bg-black/30">
-      <div className="w-full max-w-2xl max-h-[90vh] overflow-y-auto rounded-xl bg-white shadow-lg">
+      <div className="w-full max-w-4xl max-h-[90vh] overflow-y-auto rounded-xl bg-white shadow-lg">
         <div className="flex items-center justify-between border-b px-4 py-3 sticky top-0 bg-white">
           <h2 className="text-base font-semibold text-gray-800">
             {initialData ? 'Chỉnh sửa bài viết' : 'Tạo bài viết mới'}
@@ -230,106 +189,61 @@ function BlogFormModal({ open, onClose, initialData, categories, onSubmit, loadi
             )}
           </div>
 
-          {/* Mô tả */}
+          {/* Nội dung (Rich Text) */}
           <div>
             <label className="block text-xs font-medium text-gray-700 mb-1">
               Nội dung *
             </label>
-            <textarea
-              name="description"
-              value={form.description}
-              onChange={handleChange}
-              rows={5}
-              className={`w-full rounded-md border px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500 ${formErrors.description ? 'border-red-400' : 'border-gray-300'}`}
-              placeholder="Nhập nội dung bài viết"
-            />
-            <div className="flex justify-between items-center mt-1">
-              {formErrors.description
-                ? <p className="text-xs text-red-600">{formErrors.description}</p>
-                : <span />
-              }
-              <p className={`text-xs ${form.description.length > 1000 ? 'text-red-600' : 'text-gray-400'}`}>
-                {form.description.length}/1000
-              </p>
+            <div className={formErrors.description ? 'ring-1 ring-red-400 rounded-md' : ''}>
+              <RichTextEditor
+                initialValue={form.description}
+                onChange={(html) => {
+                  setForm((prev) => ({ ...prev, description: html }));
+                  if (formErrors.description) setFormErrors((prev) => ({ ...prev, description: null }));
+                }}
+                disabled={uploading || uploadingFile}
+                attachmentUrl={form.attachmentUrl}  
+                attachmentType={form.attachmentType}
+                onAttachFile={handleAttachFile}
+                onRemoveFile={() => setForm(prev => ({ ...prev, attachmentUrl: null, attachmentType: null }))}
+              />
             </div>
-          </div>
-
-          {/* Upload ảnh */}
-          <div>
-            <label className="block text-xs font-medium text-gray-700 mb-1">
-              Ảnh ({form.images.length}/3)
-            </label>
-            <input
-              type="file"
-              multiple
-              accept="image/*"
-              onChange={handleUploadImages}
-              disabled={uploading || form.images.length >= 3}
-              className="block w-full text-sm text-gray-500 file:rounded-md file:border-0 file:text-sm file:font-semibold file:bg-emerald-50 file:text-emerald-700 hover:file:bg-emerald-100 disabled:opacity-50"
-            />
-            {form.images.length > 0 && (
-              <div className="mt-2 grid grid-cols-3 gap-2">
-                {form.images.map((url, idx) => (
-                  <div key={idx} className="relative">
-                    <img
-                      src={url}
-                      alt={`Blog ${idx + 1}`}
-                      className="w-full h-20 object-cover rounded-md"
-                    />
-                    <button
-                      type="button"
-                      onClick={() => handleRemoveImage(idx)}
-                      className="absolute top-1 right-1 bg-red-600 text-white rounded-full w-5 h-5 text-xs flex items-center justify-center hover:bg-red-700"
-                    >
-                      ×
-                    </button>
-                  </div>
-                ))}
-              </div>
+            {formErrors.description && (
+              <p className="mt-1 text-xs text-red-600">{formErrors.description}</p>
             )}
           </div>
 
-          {/* Tệp đính kèm (PDF / Word) */}
+          {/* Ảnh bìa */}
           <div>
             <label className="block text-xs font-medium text-gray-700 mb-1">
-              Tệp đính kèm (PDF hoặc Word, tối đa 10MB)
+              Ảnh bìa
             </label>
-            {form.attachmentUrl ? (
-              <div className="flex items-center gap-2 rounded-md border border-gray-200 bg-gray-50 px-3 py-2">
-                <span className="text-sm">
-                  {form.attachmentType === 'pdf' ? '📄' : '📝'}
-                </span>
-                <span className="flex-1 truncate text-xs text-gray-700">
-                  {form.attachmentType === 'pdf' ? 'PDF' : 'Word'}:{' '}
-                  {decodeURIComponent(form.attachmentUrl.split('/').pop())}
-                </span>
-                <a
-                  href={form.attachmentUrl}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="text-xs text-blue-600 hover:underline"
-                >
-                  Xem
-                </a>
+            {form.images[0] ? (
+              <div className="relative inline-block">
+                <img
+                  src={form.images[0]}
+                  alt="Ảnh bìa"
+                  className="h-32 rounded-md object-cover"
+                />
                 <button
                   type="button"
-                  onClick={handleRemoveFile}
-                  className="text-xs text-red-600 hover:underline"
+                  onClick={handleRemoveCoverImage}
+                  className="absolute top-1 right-1 bg-red-600 text-white rounded-full w-5 h-5 text-xs flex items-center justify-center hover:bg-red-700"
                 >
-                  Xóa
+                  ×
                 </button>
               </div>
             ) : (
               <input
                 type="file"
-                accept=".pdf,.doc,.docx,application/pdf,application/msword,application/vnd.openxmlformats-officedocument.wordprocessingml.document"
-                onChange={handleUploadFile}
-                disabled={uploadingFile}
-                className="block w-full text-sm text-gray-500 file:rounded-md file:border-0 file:bg-blue-50 file:px-3 file:py-1 file:text-sm file:font-semibold file:text-blue-700 hover:file:bg-blue-100 disabled:opacity-50"
+                accept="image/*"
+                onChange={handleUploadCoverImage}
+                disabled={uploading}
+                className="block w-full text-sm text-gray-500 file:rounded-md file:border-0 file:text-sm file:font-semibold file:bg-emerald-50 file:text-emerald-700 hover:file:bg-emerald-100 disabled:opacity-50"
               />
             )}
-            {uploadingFile && (
-              <p className="mt-1 text-xs text-blue-600">Đang tải lên tệp...</p>
+            {uploading && (
+              <p className="mt-1 text-xs text-blue-600">Đang tải ảnh lên...</p>
             )}
           </div>
 
@@ -708,7 +622,7 @@ function ManageBlogs() {
                   </td>
                   <td className="px-3 py-2">
                     <div className="text-xs text-gray-900 line-clamp-2">
-                      {blog.description}
+                      {blog.description?.replace(/<[^>]*>/g, '') || '-'}
                     </div>
                   </td>
                   <td className="px-3 py-2 text-xs text-gray-700">

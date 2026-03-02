@@ -4,6 +4,7 @@ import { useAuth } from '../../context/AuthContext';
 import { useSchoolAdmin } from '../../context/SchoolAdminContext';
 import RoleLayout from '../../layouts/RoleLayout';
 import ConfirmDialog from '../../components/ConfirmDialog';
+import 'quill/dist/quill.snow.css';
 
 const STATUS_DISPLAY = {
   draft: { label: 'Nháp', color: 'bg-yellow-50 text-yellow-700' },
@@ -250,9 +251,10 @@ function BlogDetail() {
           {/* Nội dung */}
           <div className="bg-white rounded-lg shadow p-6">
             <h3 className="text-sm font-semibold text-gray-900 mb-3 uppercase">Nội dung</h3>
-            <div className="prose max-w-none text-gray-700 whitespace-pre-wrap break-words text-sm leading-relaxed bg-gray-50 p-4 rounded-md">
-              {blog.description}
-            </div>
+            <div
+              className="prose max-w-none text-gray-700 text-sm leading-relaxed bg-gray-50 p-4 rounded-md ql-editor"
+              dangerouslySetInnerHTML={{ __html: blog.description || '' }}
+            />
           </div>
 
           {/* Tệp đính kèm */}

@@ -4,6 +4,7 @@ import { useAuth } from '../../context/AuthContext';
 import RoleLayout from '../../layouts/RoleLayout';
 import ConfirmDialog from '../../components/ConfirmDialog';
 import { get, del, ENDPOINTS } from '../../service/api';
+import 'quill/dist/quill.snow.css';
 
 const STATUS_DISPLAY = {
   draft: { label: 'Nháp', color: 'bg-yellow-50 text-yellow-700' },
@@ -34,7 +35,6 @@ function DocumentDetail() {
   const [error, setLocalError] = useState(null);
   const [confirmDelete, setConfirmDelete] = useState(false);
   const [deleting, setDeleting] = useState(false);
-  const [selectedImageIdx, setSelectedImageIdx] = useState(0);
 
   // Auth check
   useEffect(() => {
@@ -223,78 +223,46 @@ function DocumentDetail() {
           {/* description */}
           {document.description && (
             <div className="bg-white rounded-lg shadow p-6">
-              <h3 className="text-sm font-semibold text-gray-900 mb-3 uppercase">Mô tả</h3>
-              <div className="prose max-w-none text-gray-700 whitespace-pre-wrap break-words text-sm leading-relaxed bg-gray-50 p-4 rounded-md">
-                {document.description}
-              </div>
+              <h3 className="text-sm font-semibold text-gray-900 mb-3 uppercase">Nội dung</h3>
+              <div
+                className="prose max-w-none text-gray-700 text-sm leading-relaxed bg-gray-50 p-4 rounded-md ql-editor"
+                dangerouslySetInnerHTML={{ __html: document.description }}
+              />
             </div>
           )}
 
-          {/* images gallery */}
-          {document.images && document.images.length > 0 && (
+          {/* attachment */}
+          {document.attachmentUrl && (
             <div className="bg-white rounded-lg shadow p-6">
               <h3 className="text-sm font-semibold text-gray-900 mb-4 uppercase">
-                Danh sách hình ảnh ({document.images.length})
+                Tệp đính kèm ({document.attachmentType === 'pdf' ? 'PDF' : 'Word'})
               </h3>
-
-              {/* main viewer */}
-              <div className="mb-6">
-                {document.images[selectedImageIdx] !== undefined ? (
-                  <div className="relative">
-                    <img
-                      src={document.images[selectedImageIdx]}
-                      alt={`Trang ${selectedImageIdx + 1}`}
-                      className="w-full max-h-96 object-contain rounded-lg shadow-md bg-gray-50"
-                    />
-                    <div className="absolute top-2 right-2 bg-black bg-opacity-60 text-white px-3 py-1 rounded text-sm">
-                      {selectedImageIdx + 1}/{document.images.length}
-                    </div>
-                    <div className="absolute top-2 left-2 flex gap-2">
-                      <button
-                        onClick={() => setSelectedImageIdx(selectedImageIdx === 0 ? document.images.length - 1 : selectedImageIdx - 1)}
-                        className="bg-black bg-opacity-60 hover:bg-opacity-80 text-white p-2 rounded-full transition"
-                      >
-                        ←
-                      </button>
-                      <button
-                        onClick={() => setSelectedImageIdx((selectedImageIdx + 1) % document.images.length)}
-                        className="bg-black bg-opacity-60 hover:bg-opacity-80 text-white p-2 rounded-full transition"
-                      >
-                        →
-                      </button>
-                    </div>
-                  </div>
+              <div className="mb-3">
+                {document.attachmentType === 'pdf' ? (
+                  <iframe
+                    src={document.attachmentUrl}
+                    className="w-full border border-gray-200 rounded-lg"
+                    style={{ height: '600px' }}
+                    title="PDF Viewer"
+                  />
                 ) : (
-                  <div className="w-full h-64 bg-gray-100 rounded-lg flex items-center justify-center">
-                    <p className="text-gray-400">Chọn ảnh từ danh sách bên dưới</p>
-                  </div>
+                  <iframe
+                    src={`https://view.officeapps.live.com/op/embed.aspx?src=${encodeURIComponent(document.attachmentUrl)}`}
+                    className="w-full border border-gray-200 rounded-lg"
+                    style={{ height: '600px' }}
+                    title="Word Viewer"
+                  />
                 )}
               </div>
-
-              {/* thumbnails */}
-              <div>
-                <p className="text-xs font-medium text-gray-600 mb-2">Nhấp để xem</p>
-                <div className="flex gap-2 flex-wrap">
-                  {document.images.map((url, idx) => (
-                    <div
-                      key={idx}
-                      onClick={() => setSelectedImageIdx(idx)}
-                      className={`relative group cursor-pointer transition-all ${
-                        selectedImageIdx === idx ? 'ring-2 ring-blue-400 scale-105' : 'hover:scale-105'
-                      }`}
-                    >
-                      <img
-                        src={url}
-                        alt={`Thumbnail ${idx + 1}`}
-                        className="w-24 h-24 object-cover rounded-lg shadow group-hover:shadow-lg transition-shadow border-2 border-transparent"
-                      />
-                      <div className="absolute inset-0 rounded-lg bg-black bg-opacity-0 group-hover:bg-opacity-20 transition-all flex items-center justify-center">
-                        <span className="text-white text-xs font-semibold opacity-0 group-hover:opacity-100">{idx + 1}</span>
-                      </div>
-                    </div>
-                  ))}
-                </div>
-              </div>
+              <a
+                href={document.attachmentUrl}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="inline-flex items-center gap-2 text-sm font-medium text-blue-600 hover:text-blue-800"
+              >
+                {document.attachmentType === 'pdf' ? '📄' : '📝'} Tải xuống tệp{' '}
+                {document.attachmentType === 'pdf' ? 'PDF' : 'Word'}
+              </a>
             </div>
           )}
         </div>
