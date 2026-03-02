@@ -201,6 +201,8 @@ export const ENDPOINTS = {
     QA_QUESTIONS: "/school-admin/qa/questions",
     QA_QUESTION_DETAIL: (id) => `/school-admin/qa/questions/${id}`,
     QA_QUESTION_ANSWERS: (id) => `/school-admin/qa/questions/${id}/answers`,
+    QA_QUESTION_ANSWER_DETAIL: (id, answerIndex) =>
+      `/school-admin/qa/questions/${id}/answers/${answerIndex}`,
     ATTENDANCE_OVERVIEW: "/school-admin/attendance/overview",
     CLASS_ATTENDANCE_DETAIL: (classId) =>
       `/school-admin/classes/${classId}/attendance`,

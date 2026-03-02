@@ -11,6 +11,12 @@ function SystemLogs() {
   const [logs, setLogs] = useState([]);
   const [selectedLog, setSelectedLog] = useState(null);
   const [localError, setLocalError] = useState('');
+  const [pagination, setPagination] = useState({
+    page: 1,
+    limit: 20,
+    total: 0,
+    totalPages: 1,
+  });
 
   useEffect(() => {
     if (isInitializing) {
@@ -28,20 +34,34 @@ function SystemLogs() {
     }
   }, [navigate, user, isInitializing]);
 
-  useEffect(() => {
-    const fetchLogs = async () => {
-      if (!user) return;
-      try {
-        setLocalError('');
-        setError(null);
-        const response = await getSystemLogs({ page: 1, limit: 50 });
-        setLogs(response.data || []);
-      } catch (err) {
-        setLocalError(err.message || 'Không lấy được nhật ký hệ thống');
+  const fetchLogs = async (page = 1, limit = 20) => {
+    if (!user) return;
+    try {
+      setLocalError('');
+      setError(null);
+      const response = await getSystemLogs({ page, limit });
+      setLogs(response.data || []);
+      if (response.pagination) {
+        setPagination({
+          page: response.pagination.page,
+          limit: response.pagination.limit,
+          total: response.pagination.total,
+          totalPages: response.pagination.totalPages,
+        });
+      } else {
+        setPagination((prev) => ({
+          ...prev,
+          page,
+        }));
       }
-    };
+    } catch (err) {
+      setLocalError(err.message || 'Không lấy được nhật ký hệ thống');
+    }
+  };
 
-    fetchLogs();
+  useEffect(() => {
+    fetchLogs(1, pagination.limit);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [getSystemLogs, setError, user]);
 
   const menuItems = useMemo(
@@ -119,9 +139,9 @@ function SystemLogs() {
           <table className="min-w-full text-sm border border-gray-200 rounded-lg overflow-hidden">
             <thead className="bg-gray-50 text-gray-900">
               <tr>
-                <th className="px-4 py-3 text-left font-semibold border-b border-gray-200">
+                {/* <th className="px-4 py-3 text-left font-semibold border-b border-gray-200">
                   ID
-                </th>
+                </th> */}
                 <th className="px-4 py-3 text-left font-semibold border-b border-gray-200">
                   Thời gian
                 </th>
@@ -139,9 +159,9 @@ function SystemLogs() {
             <tbody>
               {logs.map((log) => (
                 <tr key={log._id} className="hover:bg-gray-50">
-                  <td className="px-4 py-3 border-b border-gray-100 text-gray-900 font-medium">
+                  {/* <td className="px-4 py-3 border-b border-gray-100 text-gray-900 font-medium">
                     {log._id}
-                  </td>
+                  </td> */}
                   <td className="px-4 py-3 border-b border-gray-100 text-gray-800">
                     {log.createdAt
                       ? new Date(log.createdAt).toLocaleString('vi-VN')
@@ -177,6 +197,51 @@ function SystemLogs() {
             </tbody>
           </table>
         </div>
+
+        <div className="mt-4 flex items-center justify-between text-xs text-gray-600">
+          <div>
+            Trang{' '}
+            <span className="font-semibold">
+              {pagination.page}/{pagination.totalPages || 1}
+            </span>{' '}
+            • Tổng{' '}
+            <span className="font-semibold">{pagination.total}</span> bản ghi
+          </div>
+          <div className="flex items-center gap-2">
+            <button
+              type="button"
+              onClick={() => {
+                if (pagination.page > 1 && !loading) {
+                  fetchLogs(pagination.page - 1, pagination.limit);
+                }
+              }}
+              disabled={loading || pagination.page <= 1}
+              className={`px-3 py-1.5 rounded-md border text-xs font-medium ${
+                pagination.page <= 1 || loading
+                  ? 'bg-gray-100 text-gray-400 border-gray-200 cursor-not-allowed'
+                  : 'bg-white text-gray-700 border-gray-300 hover:bg-gray-50'
+              }`}
+            >
+              Trước
+            </button>
+            <button
+              type="button"
+              onClick={() => {
+                if (pagination.page < (pagination.totalPages || 1) && !loading) {
+                  fetchLogs(pagination.page + 1, pagination.limit);
+                }
+              }}
+              disabled={loading || pagination.page >= (pagination.totalPages || 1)}
+              className={`px-3 py-1.5 rounded-md border text-xs font-medium ${
+                pagination.page >= (pagination.totalPages || 1) || loading
+                  ? 'bg-gray-100 text-gray-400 border-gray-200 cursor-not-allowed'
+                  : 'bg-white text-gray-700 border-gray-300 hover:bg-gray-50'
+              }`}
+            >
+              Sau
+            </button>
+          </div>
+        </div>
       </div>
 
       {selectedLog && (
@@ -195,10 +260,10 @@ function SystemLogs() {
               </button>
             </div>
             <div className="px-5 py-4 space-y-3 text-sm text-gray-700">
-              <div className="grid grid-cols-3 gap-2">
+              {/* <div className="grid grid-cols-3 gap-2">
                 <span className="text-gray-500">ID</span>
                 <span className="col-span-2 font-medium">{selectedLog._id}</span>
-              </div>
+              </div> */}
               <div className="grid grid-cols-3 gap-2">
                 <span className="text-gray-500">Thời gian</span>
                 <span className="col-span-2 font-medium">
