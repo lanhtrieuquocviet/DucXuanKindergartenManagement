@@ -49,6 +49,7 @@ function TeacherAttendance() {
   const [isDetailOpen, setIsDetailOpen] = useState(false);
   const [detailStudentId, setDetailStudentId] = useState(null);
   const [detailMode, setDetailMode] = useState('view'); // 'view' | 'checkin' | 'checkout'
+  const [detailOpenedDate, setDetailOpenedDate] = useState(null);
   const [detailForm, setDetailForm] = useState(() => ({
     status: 'empty',
     timeIn: '',
@@ -207,7 +208,7 @@ function TeacherAttendance() {
   // Bắt đầu đếm ngược khi gửi OTP
   useEffect(() => {
     if (detailForm.otpSent && !otpExpired) {
-      setOtpTimeLeft(120);
+      setOtpTimeLeft(60);
     }
   }, [detailForm.otpSent]);
 
@@ -297,9 +298,20 @@ function TeacherAttendance() {
   // ── Detail modal ──
   const openDetail = (studentId, mode = 'view') => {
     setSubmitError(null);
+    const isSameStudentSameMode =
+      (mode === detailMode) &&
+      (studentId === detailStudentId) &&
+      (selectedDate === detailOpenedDate);
+
+    // Nếu đang mở lại cùng học sinh + cùng mode + cùng ngày sau khi đã đóng, giữ nguyên form
+    if (isSameStudentSameMode && !isDetailOpen) {
+      setIsDetailOpen(true);
+      return;
+    }
+
     setDetailStudentId(studentId);
+    setDetailOpenedDate(selectedDate);
     const rec = attendanceByStudent?.[studentId] || defaultRecord();
-    const isSameStudentSameMode = (mode === detailMode) && (studentId === detailStudentId);
 
     setDetailForm({
       status:
@@ -333,15 +345,15 @@ function TeacherAttendance() {
       receiverPhone: parsePersonOtherInfo(rec.receiverOtherInfo).phone,
       receiverOtherImageName: rec.receiverOtherImageName || '',
       checkoutNote: rec.checkoutNote || '',
-      sendOtpSchoolAccount: isSameStudentSameMode ? detailForm.sendOtpSchoolAccount : false,
-      sendOtpViaSms: isSameStudentSameMode ? detailForm.sendOtpViaSms : false,
-      selectedParentForOtp: isSameStudentSameMode ? detailForm.selectedParentForOtp : '',
-      otpCode: isSameStudentSameMode ? detailForm.otpCode : '',
-      otpSent: isSameStudentSameMode ? detailForm.otpSent : false,
+      sendOtpSchoolAccount: false,
+      sendOtpViaSms: false,
+      selectedParentForOtp: '',
+      otpCode: '',
+      otpSent: false,
     });
     setDetailMode(mode);
     setIsDetailOpen(true);
-    if (!isSameStudentSameMode) resetOtpState();
+    resetOtpState();
   };
 
   const resetOtpState = () => {
@@ -718,7 +730,7 @@ function TeacherAttendance() {
 
       {/* Toast thông báo thành công */}
       {successToast.visible && (
-        <div className="fixed top-6 right-6 z-50 flex items-center gap-4 bg-green-600 text-white px-8 py-5 rounded-2xl shadow-2xl text-base font-bold">
+        <div className="fixed bottom-4 left-4 right-4 md:bottom-auto md:top-6 md:left-auto md:right-6 z-50 flex items-center gap-3 bg-green-600 text-white px-5 py-4 rounded-xl shadow-2xl text-sm font-bold">
           <span className="text-2xl">✅</span>
           <span>{successToast.message}</span>
         </div>

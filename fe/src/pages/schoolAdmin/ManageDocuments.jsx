@@ -318,7 +318,9 @@ export default function ManageDocuments() {
     { key: 'assets', label: 'Quản lý tài sản' },
     { key: 'reports', label: 'Báo cáo của trường' },
     { key: 'contacts', label: 'Liên hệ' },
+    { key: 'qa', label: 'Câu hỏi' },
     { key: 'blogs', label: 'Quản lý blog' },
+    { key: 'documents', label: 'Quản lý tài liệu' },
     { key: 'attendance', label: 'Quản lý điểm danh' },
   ];
 
@@ -327,7 +329,9 @@ export default function ManageDocuments() {
       overview: '/school-admin',
       classes: '/school-admin/classes',
       contacts: '/school-admin/contacts',
+      qa: '/school-admin/qa',
       blogs: '/school-admin/blogs',
+      documents: '/school-admin/documents',
       attendance: '/school-admin/attendance/overview',
     };
     if (routes[key]) navigate(routes[key]);

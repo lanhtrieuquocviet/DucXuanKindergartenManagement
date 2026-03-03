@@ -41,8 +41,7 @@ function PickupRequest() {
     { key: "classes", label: "Lớp phụ trách" },
     { key: "students", label: "Danh sách học sinh" },
     { key: "attendance", label: "Điểm danh" },
-    { key: "students", label: "Danh sách học sinh" },
-    { key: "pickup-approval", label: "Phê duyệt đưa đón" },
+    { key: "pickup-approval", label: "Đơn đưa đón" },
     { key: "schedule", label: "Lịch dạy & hoạt động" },
     { key: "messages", label: "Thông báo cho phụ huynh" },
   ], []);
