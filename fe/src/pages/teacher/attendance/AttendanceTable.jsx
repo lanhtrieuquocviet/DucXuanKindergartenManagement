@@ -32,7 +32,7 @@ function AttendanceTable({
             )}
           </p>
         </div>
-        <div className="flex gap-2">
+        <div className="flex flex-wrap gap-2">
           <button
             type="button"
             onClick={onBackToClassList}
@@ -62,7 +62,81 @@ function AttendanceTable({
       {loadingStudents ? (
         <p className="text-sm text-gray-500">Đang tải danh sách học sinh...</p>
       ) : (
-        <div className="overflow-x-auto">
+        <>
+        {/* ── Mobile card view (ẩn trên tablet trở lên) ── */}
+        <div className="md:hidden space-y-3">
+          {(students || []).map((s, idx) => {
+            const rec = attendanceByStudent?.[s._id] || defaultRecord();
+            const badge = getStatusBadge(rec.status);
+            const canCheckIn = rec.status === 'empty' || rec.status === 'absent';
+            const canCheckOut =
+              rec.status === 'checked_in' ||
+              rec.status === 'waiting_parent' ||
+              rec.status === 'parent_confirmed';
+            return (
+              <div key={s._id} className="border border-gray-200 rounded-lg p-3 bg-white shadow-sm">
+                <div className="flex items-start justify-between gap-2 mb-2">
+                  <div className="min-w-0">
+                    <span className="text-xs text-gray-400 mr-1">{idx + 1}.</span>
+                    <span className="text-sm font-semibold text-gray-900">{s.fullName || '—'}</span>
+                  </div>
+                  <span className={`shrink-0 inline-block px-2 py-0.5 text-xs font-medium rounded-full ${badge.cls}`}>
+                    {badge.text}
+                  </span>
+                </div>
+                <div className="flex gap-4 text-xs text-gray-600 mb-2">
+                  <span>Đến: <span className="font-medium text-gray-800">{rec.timeIn || '—'}</span></span>
+                  <span>Về: <span className="font-medium text-gray-800">{rec.timeOut || '—'}</span></span>
+                </div>
+                {rec.note && (
+                  <p className="text-xs text-gray-500 truncate mb-2" title={rec.note}>{rec.note}</p>
+                )}
+                <div className="grid grid-cols-2 gap-1.5">
+                  {canCheckIn && (
+                    <button
+                      type="button"
+                      onClick={() => onCheckin(s._id)}
+                      className="py-1.5 text-xs font-semibold rounded-md bg-green-600 text-white hover:bg-green-700 transition-colors"
+                    >
+                      Check in
+                    </button>
+                  )}
+                  {canCheckOut && (
+                    <button
+                      type="button"
+                      onClick={() => onCheckout(s._id)}
+                      className="py-1.5 text-xs font-semibold rounded-md bg-sky-600 text-white hover:bg-sky-700 transition-colors"
+                    >
+                      Check-out
+                    </button>
+                  )}
+                  <button
+                    type="button"
+                    onClick={() => onViewDetail(s._id)}
+                    className="py-1.5 text-xs font-semibold rounded-md bg-indigo-600 text-white hover:bg-indigo-700 transition-colors"
+                  >
+                    Chi tiết
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => onAbsent(s._id)}
+                    className="py-1.5 text-xs font-semibold rounded-md bg-red-600 text-white hover:bg-red-700 transition-colors"
+                  >
+                    Vắng mặt
+                  </button>
+                </div>
+              </div>
+            );
+          })}
+          {(students || []).length === 0 && (
+            <div className="p-6 border border-dashed border-gray-200 rounded-lg text-center">
+              <p className="text-sm text-gray-600">Lớp chưa có học sinh.</p>
+            </div>
+          )}
+        </div>
+
+        {/* ── Desktop table view (ẩn trên mobile) ── */}
+        <div className="hidden md:block overflow-x-auto">
           <table className="w-full text-sm border border-gray-200 rounded-lg overflow-hidden">
             <thead className="bg-gray-50 border-b border-gray-200">
               <tr>
@@ -149,6 +223,7 @@ function AttendanceTable({
             </div>
           )}
         </div>
+        </>
       )}
     </div>
   );

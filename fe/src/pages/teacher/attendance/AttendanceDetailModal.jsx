@@ -181,15 +181,11 @@ function AttendanceDetailModal({
     isCheckoutMode &&
     !!detailForm.receiverType &&
     !!detailForm.checkoutImageName &&
-    !isReceiverOther;
-
-  const canSendToParent =
-    isCheckoutMode &&
-    isReceiverOther &&
-    !!detailForm.checkoutImageName &&
-    !!detailForm.receiverName?.trim() &&
-    !!detailForm.receiverPhone?.trim() &&
-    !!detailForm.receiverOtherImageName;
+    (!isReceiverOther || (
+      !!detailForm.receiverName?.trim() &&
+      !!detailForm.receiverPhone?.trim() &&
+      !!detailForm.receiverOtherImageName
+    ));
 
   const canSubmitCheckin = mode === 'checkin' ? !!detailForm.checkinImageName : true;
 
@@ -226,7 +222,7 @@ function AttendanceDetailModal({
         const result = await signInWithPhoneNumber(auth, phoneE164, recaptchaVerifierRef.current);
         setConfirmationResult(result);
         setDetailForm((prev) => ({ ...prev, otpSent: true, otpCode: '' }));
-        setOtpTimeLeft(120);
+        setOtpTimeLeft(60);
         setOtpExpired(false);
       }
     } catch (err) {
@@ -241,9 +237,24 @@ function AttendanceDetailModal({
         {/* ── CHẾ ĐỘ XEM CHI TIẾT (VIEW) ── */}
         {mode === 'view' ? (
           <>
-            <div className="border-b px-6 py-4 bg-gray-50">
-              <h2 className="text-lg font-semibold text-gray-900 mb-2"> Chi tiết điểm danh</h2>
-              <p className="text-sm text-gray-600">Cho phép View và Edit trong màn này</p>
+            <div className="border-b px-5 py-4 bg-gray-50 flex items-start justify-between gap-3">
+              <div>
+                <h2 className="text-base font-semibold text-gray-900 mb-1">Chi tiết điểm danh</h2>
+                <p className="text-xs text-gray-500">
+                  {student?.fullName && (
+                    <><span className="font-semibold text-gray-700">{student.fullName}</span>{' · '}</>
+                  )}
+                  Ngày: <span className="font-semibold text-gray-700">{selectedDate}</span>
+                </p>
+              </div>
+              <button
+                type="button"
+                onClick={onClose}
+                className="text-gray-500 hover:text-gray-900 shrink-0 text-lg leading-none"
+                aria-label="Đóng"
+              >
+                ✕
+              </button>
             </div>
 
             <form onSubmit={onSave} className="p-6">
@@ -484,7 +495,7 @@ function AttendanceDetailModal({
                 </div>
               </div>
 
-              <div className="flex justify-end gap-3 pt-4 border-t border-gray-200">
+              <div className="flex flex-wrap justify-end gap-3 pt-4 border-t border-gray-200">
                 <button
                   type="button"
                   onClick={onClose}
@@ -492,20 +503,6 @@ function AttendanceDetailModal({
                 >
                   Hủy
                 </button>
-                {isCheckoutMode && (
-                  <button
-                    type="button"
-                    onClick={onSendToParent}
-                    disabled={!canSendToParent}
-                    className={`px-4 py-2 text-sm font-semibold rounded-md transition-colors ${
-                      canSendToParent
-                        ? 'text-white bg-sky-600 hover:bg-sky-700'
-                        : 'text-gray-400 bg-gray-200 cursor-not-allowed'
-                    }`}
-                  >
-                    Gửi PH
-                  </button>
-                )}
                 <button
                   type="submit"
                   className="px-4 py-2 text-sm font-semibold text-white bg-green-600 rounded-md hover:bg-green-700 transition-colors flex items-center gap-2"
@@ -519,33 +516,29 @@ function AttendanceDetailModal({
         ) : (
           /* ── CHẾ ĐỘ CHECK-IN / CHECK-OUT ── */
           <>
-            <div className="border-b px-5 py-4 flex items-center justify-between">
-              <div>
+            <div className="border-b px-5 py-4 flex items-start justify-between gap-3">
+              <div className="min-w-0">
                 <h3 className="text-sm font-semibold text-gray-900">
                   {mode === 'checkin' ? 'Check-in' : mode === 'checkout' ? 'Check-out' : 'Chi tiết điểm danh'}
                 </h3>
-                <p className="text-xs text-gray-500 mt-1">
-                  {student?.fullName ? (
-                    <>Học sinh: <span className="font-semibold text-gray-700">{student.fullName}</span></>
-                  ) : (
-                    <>Học sinh ID: <span className="font-semibold text-gray-700">{studentId}</span></>
-                  )}
-                  {' · '}
-                  Ngày: <span className="font-semibold text-gray-700">{selectedDate}</span>
+                <p className="text-xs text-gray-500 mt-1 flex flex-wrap gap-x-1">
+                  <span>
+                    {student?.fullName ? (
+                      <><span className="text-gray-400">Học sinh: </span><span className="font-semibold text-gray-700">{student.fullName}</span></>
+                    ) : (
+                      <><span className="text-gray-400">ID: </span><span className="font-semibold text-gray-700">{studentId}</span></>
+                    )}
+                  </span>
+                  <span className="text-gray-300">·</span>
+                  <span><span className="text-gray-400">Ngày: </span><span className="font-semibold text-gray-700">{selectedDate}</span></span>
                 </p>
               </div>
-              <button type="button" onClick={onClose} className="text-gray-500 hover:text-gray-900" aria-label="Đóng">
+              <button type="button" onClick={onClose} className="text-gray-500 hover:text-gray-900 shrink-0 text-lg leading-none" aria-label="Đóng">
                 ✕
               </button>
             </div>
 
             <form onSubmit={onSave} className="p-5">
-              {(submitError || studentsError) && (
-                <div className="mb-4 rounded-md bg-red-50 border border-red-200 px-4 py-2 text-sm text-red-800">
-                  {submitError || studentsError}
-                </div>
-              )}
-
               {isCheckoutMode ? (
                 /* ── CHECKOUT FORM ── */
                 <div className="space-y-4">
@@ -731,7 +724,7 @@ function AttendanceDetailModal({
                     <p className="text-xs font-semibold text-gray-700 mb-2">Ảnh điểm danh / người đưa</p>
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                       <div>
-                        <label className="block text-[11px] font-semibold text-gray-700 mb-1">Ảnh điểm danh (Check-in)</label>
+                        <label className="block text-[11px] font-semibold text-gray-700 mb-1">Ảnh điểm danh (Bắt buộc)</label>
                         <input
                           type="file"
                           accept="image/*"
@@ -911,7 +904,13 @@ function AttendanceDetailModal({
                 </div>
               )}
 
-              <div className="mt-5 flex justify-end gap-2">
+              {(submitError || studentsError) && (
+                <div className="mt-4 rounded-md bg-red-50 border border-red-200 px-4 py-2 text-sm text-red-800">
+                  {submitError || studentsError}
+                </div>
+              )}
+
+              <div className="mt-4 flex justify-end gap-2">
                 <button
                   type="button"
                   onClick={onClose}
@@ -920,31 +919,17 @@ function AttendanceDetailModal({
                   Hủy
                 </button>
                 {isCheckoutMode ? (
-                  <>
-                    <button
-                      type="submit"
-                      disabled={!canSaveCheckout}
-                      className={`px-4 py-2 text-sm font-semibold rounded-md transition-colors ${
-                        canSaveCheckout
-                          ? 'text-white bg-indigo-600 hover:bg-indigo-700'
-                          : 'text-gray-400 bg-gray-200 cursor-not-allowed'
-                      }`}
-                    >
-                      Lưu
-                    </button>
-                    <button
-                      type="button"
-                      onClick={onSendToParent}
-                      disabled={!canSendToParent}
-                      className={`px-4 py-2 text-sm font-semibold rounded-md transition-colors ${
-                        canSendToParent
-                          ? 'text-white bg-sky-600 hover:bg-sky-700'
-                          : 'text-gray-400 bg-gray-200 cursor-not-allowed'
-                      }`}
-                    >
-                      Gửi PH
-                    </button>
-                  </>
+                  <button
+                    type="submit"
+                    disabled={!canSaveCheckout}
+                    className={`px-4 py-2 text-sm font-semibold rounded-md transition-colors ${
+                      canSaveCheckout
+                        ? 'text-white bg-indigo-600 hover:bg-indigo-700'
+                        : 'text-gray-400 bg-gray-200 cursor-not-allowed'
+                    }`}
+                  >
+                    Lưu
+                  </button>
                 ) : (
                   <button
                     type="submit"

@@ -25,9 +25,10 @@ function DocumentDetail() {
     { key: 'assets', label: 'Quản lý tài sản' },
     { key: 'reports', label: 'Báo cáo của trường' },
     { key: 'contacts', label: 'Liên hệ' },
+    { key: 'qa', label: 'Câu hỏi' },
     { key: 'blogs', label: 'Quản lý blog' },
-    { key: 'attendance', label: 'Quản lý điểm danh' },
     { key: 'documents', label: 'Quản lý tài liệu' },
+    { key: 'attendance', label: 'Quản lý điểm danh' },
   ];
 
   const [document, setDocument] = useState(null);
@@ -89,6 +90,10 @@ function DocumentDetail() {
     }
     if (key === 'contacts') {
       navigate('/school-admin/contacts');
+      return;
+    }
+    if (key === 'qa') {
+      navigate('/school-admin/qa');
       return;
     }
     if (key === 'blogs') {

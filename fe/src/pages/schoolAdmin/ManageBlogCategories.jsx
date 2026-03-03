@@ -184,9 +184,14 @@ function ManageBlogCategories() {
   const menuItems = [
     { key: 'overview', label: 'Tổng quan trường' },
     { key: 'classes', label: 'Lớp học' },
-    { key: 'blogs', label: 'Quản lý blog' },
-    { key: 'blog-categories', label: 'Danh mục blog' },
+    { key: 'teachers', label: 'Giáo viên' },
+    { key: 'students', label: 'Học sinh & phụ huynh' },
+    { key: 'assets', label: 'Quản lý tài sản' },
+    { key: 'reports', label: 'Báo cáo của trường' },
     { key: 'contacts', label: 'Liên hệ' },
+    { key: 'qa', label: 'Câu hỏi' },
+    { key: 'blogs', label: 'Quản lý blog' },
+    { key: 'documents', label: 'Quản lý tài liệu' },
     { key: 'attendance', label: 'Quản lý điểm danh' },
   ];
 
@@ -194,9 +199,10 @@ function ManageBlogCategories() {
     const routes = {
       overview: '/school-admin',
       classes: '/school-admin/classes',
-      blogs: '/school-admin/blogs',
-      'blog-categories': '/school-admin/blog-categories',
       contacts: '/school-admin/contacts',
+      qa: '/school-admin/qa',
+      blogs: '/school-admin/blogs',
+      documents: '/school-admin/documents',
       attendance: '/school-admin/attendance/overview',
     };
     if (routes[key]) navigate(routes[key]);
@@ -213,7 +219,7 @@ function ManageBlogCategories() {
       title="Quản lý danh mục blog"
       description="Tạo, chỉnh sửa và xóa các danh mục phân loại bài viết."
       menuItems={menuItems}
-      activeKey="blog-categories"
+      activeKey="blogs"
       onLogout={handleLogout}
       onViewProfile={handleViewProfile}
       onMenuSelect={handleMenuSelect}

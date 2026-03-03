@@ -126,6 +126,9 @@ function StudentAttendanceHistory() {
     { key: 'assets', label: 'Quản lý tài sản' },
     { key: 'reports', label: 'Báo cáo của trường' },
     { key: 'contacts', label: 'Liên hệ' },
+    { key: 'qa', label: 'Câu hỏi' },
+    { key: 'blogs', label: 'Quản lý blog' },
+    { key: 'documents', label: 'Quản lý tài liệu' },
     { key: 'attendance', label: 'Quản lý điểm danh' },
   ];
 
@@ -140,6 +143,18 @@ function StudentAttendanceHistory() {
     }
     if (key === 'contacts') {
       navigate('/school-admin/contacts');
+      return;
+    }
+    if (key === 'qa') {
+      navigate('/school-admin/qa');
+      return;
+    }
+    if (key === 'blogs') {
+      navigate('/school-admin/blogs');
+      return;
+    }
+    if (key === 'documents') {
+      navigate('/school-admin/documents');
       return;
     }
     if (key === 'attendance') {
