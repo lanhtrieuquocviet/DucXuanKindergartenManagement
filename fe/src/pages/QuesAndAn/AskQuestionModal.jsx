@@ -162,7 +162,7 @@ export default function AskQuestionModal({ open, onClose, onSubmitted }) {
       <div className="bg-white w-[520px] rounded-lg shadow-lg relative">
         {/* Header */}
         <div className="border-b px-5 py-3 font-semibold text-center">
-          GỬI THÔNG TIN HỎ ĐÁP
+          GỬI THÔNG TIN HỎI ĐÁP
           <button
             onClick={onClose}
             className="absolute right-3 top-3 text-gray-500 hover:text-black"
