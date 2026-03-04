@@ -73,6 +73,7 @@ function AttendanceTable({
               rec.status === 'checked_in' ||
               rec.status === 'waiting_parent' ||
               rec.status === 'parent_confirmed';
+            const canAbsent = rec.status !== 'checked_out';
             return (
               <div key={s._id} className="border border-gray-200 rounded-lg p-3 bg-white shadow-sm">
                 <div className="flex items-start justify-between gap-2 mb-2">
@@ -117,13 +118,15 @@ function AttendanceTable({
                   >
                     Chi tiết
                   </button>
-                  <button
-                    type="button"
-                    onClick={() => onAbsent(s._id)}
-                    className="py-1.5 text-xs font-semibold rounded-md bg-red-600 text-white hover:bg-red-700 transition-colors"
-                  >
-                    Vắng mặt
-                  </button>
+                  {canAbsent && (
+                    <button
+                      type="button"
+                      onClick={() => onAbsent(s._id)}
+                      className="py-1.5 text-xs font-semibold rounded-md bg-red-600 text-white hover:bg-red-700 transition-colors"
+                    >
+                      Vắng mặt
+                    </button>
+                  )}
                 </div>
               </div>
             );
@@ -158,6 +161,7 @@ function AttendanceTable({
                   rec.status === 'checked_in' ||
                   rec.status === 'waiting_parent' ||
                   rec.status === 'parent_confirmed';
+                const canAbsent = rec.status !== 'checked_out';
                 return (
                   <tr key={s._id} className="border-b border-gray-100 hover:bg-gray-50 transition-colors">
                     <td className="px-4 py-3 text-gray-700">{idx + 1}</td>
@@ -203,13 +207,15 @@ function AttendanceTable({
                         >
                           Xem chi tiết
                         </button>
-                        <button
-                          type="button"
-                          onClick={() => onAbsent(s._id)}
-                          className="px-3 py-2 text-xs font-semibold rounded-md bg-red-600 text-white hover:bg-red-700 transition-colors"
-                        >
-                          Vắng mặt
-                        </button>
+                        {canAbsent && (
+                          <button
+                            type="button"
+                            onClick={() => onAbsent(s._id)}
+                            className="px-3 py-2 text-xs font-semibold rounded-md bg-red-600 text-white hover:bg-red-700 transition-colors"
+                          >
+                            Vắng mặt
+                          </button>
+                        )}
                       </div>
                     </td>
                   </tr>
