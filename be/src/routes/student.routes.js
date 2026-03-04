@@ -59,7 +59,6 @@ router.get('/:studentId', authenticate, getStudentDetail);
 router.put(
   '/:studentId',
   authenticate,
-  authorizeRoles('SchoolAdmin'),
   updateStudent,
 );
 

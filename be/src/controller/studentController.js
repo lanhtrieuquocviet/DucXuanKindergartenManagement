@@ -132,34 +132,68 @@ const updateStudent = async (req, res) => {
       dateOfBirth,
       gender,
       phone,
+      parentPhone,
       address,
       classId,
       status,
     } = req.body;
 
-    const updatedStudent = await Student.findByIdAndUpdate(
-      studentId,
-      {
-        fullName,
-        dateOfBirth,
-        gender,
-        phone,
-        address,
-        classId,
-        status,
-      },
-      { new: true, runValidators: true },
-    )
-      .populate('classId', 'className')
-      .populate('parentId', 'fullName email username avatar');
+    // Kiểm tra quyền trước khi cập nhật
+    const student = await Student.findById(studentId);
 
-    if (!updatedStudent) {
+    if (!student) {
       return res.status(404).json({
         status: 'error',
         message: 'Không tìm thấy học sinh',
         data: null,
       });
     }
+
+    // Kiểm tra: chỉ SchoolAdmin hoặc parent của học sinh mới được phép cập nhật
+    const isSchoolAdmin = req.user?.roles?.includes('SchoolAdmin');
+    const isParent = student.parentId && req.user?.id === student.parentId.toString();
+
+    if (!isSchoolAdmin && !isParent) {
+      return res.status(403).json({
+        status: 'error',
+        message: 'Bạn không có quyền cập nhật thông tin học sinh này',
+      });
+    }
+
+    // Prepare phone value, prefer parentPhone if provided
+    const phoneValue = parentPhone !== undefined ? parentPhone : phone;
+
+    // Nếu là parent, chỉ cho phép cập nhật một số trường
+    let updateData = {
+      fullName,
+      dateOfBirth,
+      gender,
+      phone: phoneValue,
+      parentPhone: phoneValue,
+      address,
+      classId,
+      status,
+    };
+
+    if (isParent && !isSchoolAdmin) {
+      // Parents chỉ có thể cập nhật: fullName, dateOfBirth, phone, address
+      // Không được cập nhật classId, status
+      updateData = {
+        fullName,
+        dateOfBirth,
+        phone: phoneValue,
+        parentPhone: phoneValue,
+        address,
+      };
+    }
+
+    const updatedStudent = await Student.findByIdAndUpdate(
+      studentId,
+      updateData,
+      { new: true, runValidators: true },
+    )
+      .populate('classId', 'className')
+      .populate('parentId', 'fullName email username avatar');
 
     return res.status(200).json({
       status: 'success',

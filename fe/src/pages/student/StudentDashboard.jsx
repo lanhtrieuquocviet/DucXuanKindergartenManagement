@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../../context/AuthContext';
-import { get, ENDPOINTS } from '../../service/api';
+import { get, put, ENDPOINTS } from '../../service/api';
 
 function StudentDashboard() {
   const navigate = useNavigate();
@@ -9,10 +9,15 @@ function StudentDashboard() {
   const [children, setChildren] = useState([]);
   const [loading, setLoading] = useState(true);
   const [showChildInfo, setShowChildInfo] = useState(false);
+  const [isEditMode, setIsEditMode] = useState(false);
+  const [editFormData, setEditFormData] = useState({});
+  const [isSaving, setIsSaving] = useState(false);
+  const [saveMessage, setSaveMessage] = useState(null);
   const [pendingOtp, setPendingOtp] = useState(null); // { code, expiresAt, timeLeft }
   const [otpTimeLeft, setOtpTimeLeft] = useState(0);
   const [showOtpModal, setShowOtpModal] = useState(false);
   const [otpTotalTime, setOtpTotalTime] = useState(60);
+  const [attendanceToday, setAttendanceToday] = useState(null);
   const pollRef = useRef(null);
   const lastOtpCodeRef = useRef(null);
 
@@ -50,7 +55,105 @@ function StudentDashboard() {
     fetchChildren();
   }, [navigate, user, isInitializing]);
 
+  const handleEditClick = () => {
+    if (studentInfo) {
+      setEditFormData({
+        fullName: studentInfo.fullName || '',
+        dateOfBirth: studentInfo.dateOfBirth
+          ? studentInfo.dateOfBirth.split('T')[0]
+          : '',
+        address: studentInfo.address || '',
+        parentPhone: studentInfo.parentPhone || studentInfo.phone || '',
+      });
+      setIsEditMode(true);
+      setSaveMessage(null);
+    }
+  };
+
+  const handleEditFormChange = (e) => {
+    const { name, value } = e.target;
+    setEditFormData((prev) => ({
+      ...prev,
+      [name]: value,
+    }));
+  };
+
+  const handleSaveChanges = async () => {
+    if (!studentInfo?._id) return;
+
+    setIsSaving(true);
+    setSaveMessage(null);
+
+    try {
+      const updateData = {
+        fullName: editFormData.fullName,
+        dateOfBirth: editFormData.dateOfBirth,
+        address: editFormData.address,
+        // send as both phone and parentPhone for compatibility
+        phone: editFormData.parentPhone,
+        parentPhone: editFormData.parentPhone,
+      };
+      const res = await put(ENDPOINTS.STUDENTS.UPDATE(studentInfo._id), updateData);
+
+      // Sử dụng object trả về từ server để cập nhật ngay trong UI
+      const updatedStudent = res.data || res;
+
+      setChildren((prev) =>
+        prev.map((child) => (child._id === (updatedStudent._id || updatedStudent.id)
+          ? ({ ...child, ...updatedStudent })
+          : child
+        ))
+      );
+
+      setSaveMessage({ type: 'success', text: 'Cập nhật thông tin thành công!' });
+
+      // Đóng chế độ chỉnh sửa và modal ngay (hiển thị update trên dashboard)
+      setIsEditMode(false);
+      setShowChildInfo(false);
+    } catch (error) {
+      setSaveMessage({
+        type: 'error',
+        text: error.message || 'Cập nhật thông tin thất bại. Vui lòng thử lại.',
+      });
+    } finally {
+      setIsSaving(false);
+    }
+  };
+
+  const handleCancelEdit = () => {
+    setIsEditMode(false);
+    setSaveMessage(null);
+  };
+
   const studentInfo = children[0] || null;
+
+  // Lấy điểm danh hôm nay cho trẻ (nếu có)
+  useEffect(() => {
+    const fetchTodayAttendance = async () => {
+      if (!studentInfo?._id) {
+        setAttendanceToday(null);
+        return;
+      }
+
+      const today = new Date();
+      const todayQuery = `${today.getFullYear()}-${(today.getMonth() + 1)
+        .toString()
+        .padStart(2, '0')}-${today.getDate().toString().padStart(2, '0')}`;
+
+      try {
+        const res = await get(
+          `${ENDPOINTS.STUDENTS.ATTENDANCE_LIST}?studentId=${studentInfo._id}&date=${todayQuery}`
+        );
+        const list = res.data || [];
+        setAttendanceToday(list[0] || null);
+      } catch (err) {
+        // ignore
+        setAttendanceToday(null);
+      }
+    };
+
+    fetchTodayAttendance();
+  }, [studentInfo?._id]);
 
   // Poll OTP đang chờ mỗi 3 giây
   useEffect(() => {
@@ -103,7 +206,7 @@ function StudentDashboard() {
   const studentName = studentInfo?.fullName || 'Học sinh';
   const className = studentInfo?.classId?.className || 'Chưa xếp lớp';
   const parentName = studentInfo?.parent?.name || '';
-  const parentPhone = studentInfo?.parent?.phone || '';
+  const parentPhone = studentInfo?.parentPhone || studentInfo?.phone || '';
   const parentDisplayName =
     parentName || user?.fullName || user?.username || 'Phụ huynh';
   const arrivalInfo = '07:25 – Bố đưa'; // dữ liệu mẫu
@@ -186,23 +289,29 @@ function StudentDashboard() {
               <p>🏫 Lớp: {className}</p>
               {(parentName || parentPhone) && (
                 <p>
-                  👨‍👩‍👧 Phụ huynh:{' '}
+                  👨‍👩‍👧 Số điện thoại phụ huynh:{' '}
                   <span className="font-semibold">
-                    {parentName || '—'}
+                    {parentName || ''}
                   </span>
                   {parentPhone && (
-                    <span className="text-gray-600"> — {parentPhone}</span>
+                    <span className="text-gray-600">  {parentPhone}</span>
                   )}
                 </p>
               )}
               <p>
-                <span className="inline-block w-2 h-2 rounded-full bg-green-500 mr-2" />
-                Đến: {arrivalInfo}
+                <span className="inline-block w-2 h-2 rounded-full mr-2" style={{ backgroundColor: attendanceToday ? (attendanceToday.time?.checkOut ? '#3b82f6' : attendanceToday.status === 'absent' ? '#ef4444' : '#10b981') : '#9ca3af' }} />
+                Trạng thái: {' '}
+                <strong>
+                  {(() => {
+                    if (!attendanceToday) return 'Chưa điểm danh';
+                    if (attendanceToday.status === 'absent') return 'Vắng mặt';
+                    if (attendanceToday.time?.checkOut) return 'Đã về';
+                    if (attendanceToday.time?.checkIn || attendanceToday.status === 'present') return 'Đã đến';
+                    return 'Chưa điểm danh';
+                  })()}
+                </strong>
               </p>
-              <p>
-                <span className="inline-block w-2 h-2 rounded-full bg-blue-500 mr-2" />
-                Về: {leaveInfo}
-              </p>
+             
             </div>
           )}
         </div>
@@ -326,39 +435,150 @@ function StudentDashboard() {
                   ✕
                 </button>
               </div>
-              <div className="space-y-2 text-sm text-gray-800">
-                <p>
-                  <span className="font-medium">Họ và tên:&nbsp;</span>
-                  {studentInfo.fullName}
-                </p>
-                <p>
-                  <span className="font-medium">Ngày sinh:&nbsp;</span>
-                  {studentInfo.dateOfBirth
-                    ? new Date(studentInfo.dateOfBirth).toLocaleDateString(
-                        'vi-VN',
-                      )
-                    : '—'}
-                </p>
-                <p>
-                  <span className="font-medium">
-                    Số điện thoại phụ huynh:&nbsp;
-                  </span>
-                  {parentPhone || '—'}
-                </p>
-                <p>
-                  <span className="font-medium">Địa chỉ:&nbsp;</span>
-                  {studentInfo.address || '—'}
-                </p>
-              </div>
-              <div className="mt-4 flex justify-end">
-                <button
-                  type="button"
-                  onClick={() => setShowChildInfo(false)}
-                  className="px-4 py-2 text-sm font-medium text-white bg-emerald-600 rounded-lg hover:bg-emerald-700 transition"
-                >
-                  Đóng
-                </button>
-              </div>
+
+              {isEditMode ? (
+                // Chế độ chỉnh sửa
+                <div className="space-y-4">
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">
+                      Họ và tên
+                    </label>
+                    <input
+                      type="text"
+                      name="fullName"
+                      value={editFormData.fullName}
+                      onChange={handleEditFormChange}
+                      className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-emerald-500"
+                    />
+                  </div>
+
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">
+                      Ngày sinh
+                    </label>
+                    <input
+                      type="date"
+                      name="dateOfBirth"
+                      value={editFormData.dateOfBirth}
+                      onChange={handleEditFormChange}
+                      className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-emerald-500"
+                    />
+                  </div>
+
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">
+                      Địa chỉ
+                    </label>
+                    <input
+                      type="text"
+                      name="address"
+                      value={editFormData.address}
+                      onChange={handleEditFormChange}
+                      className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-emerald-500"
+                    />
+                  </div>
+
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">
+                      Số điện thoại phụ huynh
+                    </label>
+                    <input
+                      type="tel"
+                      name="parentPhone"
+                      value={editFormData.parentPhone}
+                      onChange={(e) => {
+                        const value = e.target.value.replace(/\D/g, '');
+                        if (value.length <= 11) {
+                          handleEditFormChange({
+                            target: { name: 'parentPhone', value },
+                          });
+                        }
+                      }}
+                      maxLength="11"
+                      placeholder="Nhập tối đa 11 số"
+                      className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-emerald-500"
+                    />
+                    <p className="text-xs text-gray-500 mt-1">
+                      Tối đa 11 ký tự số
+                    </p>
+                  </div>
+
+                  {saveMessage && (
+                    <div
+                      className={`p-3 rounded-lg text-sm font-medium ${
+                        saveMessage.type === 'success'
+                          ? 'bg-green-50 text-green-800 border border-green-200'
+                          : 'bg-red-50 text-red-800 border border-red-200'
+                      }`}
+                    >
+                      {saveMessage.text}
+                    </div>
+                  )}
+
+                  <div className="flex gap-2 justify-end pt-2">
+                    <button
+                      type="button"
+                      onClick={handleCancelEdit}
+                      disabled={isSaving}
+                      className="px-4 py-2 text-sm font-medium text-gray-700 bg-gray-200 rounded-lg hover:bg-gray-300 transition disabled:opacity-50"
+                    >
+                      Hủy
+                    </button>
+                    <button
+                      type="button"
+                      onClick={handleSaveChanges}
+                      disabled={isSaving}
+                      className="px-4 py-2 text-sm font-medium text-white bg-emerald-600 rounded-lg hover:bg-emerald-700 transition disabled:opacity-50"
+                    >
+                      {isSaving ? 'Đang lưu...' : 'Lưu'}
+                    </button>
+                  </div>
+                </div>
+              ) : (
+                // Chế độ xem thông tin
+                <>
+                  <div className="space-y-2 text-sm text-gray-800">
+                    <p>
+                      <span className="font-medium">Họ và tên:&nbsp;</span>
+                      {studentInfo.fullName}
+                    </p>
+                    <p>
+                      <span className="font-medium">Ngày sinh:&nbsp;</span>
+                      {studentInfo.dateOfBirth
+                        ? new Date(studentInfo.dateOfBirth).toLocaleDateString(
+                            'vi-VN',
+                          )
+                        : '—'}
+                    </p>
+                    <p>
+                      <span className="font-medium">
+                        Số điện thoại phụ huynh:&nbsp;
+                      </span>
+                      {parentPhone || '—'}
+                    </p>
+                    <p>
+                      <span className="font-medium">Địa chỉ:&nbsp;</span>
+                      {studentInfo.address || '—'}
+                    </p>
+                  </div>
+                  <div className="mt-4 flex gap-2 justify-end">
+                    <button
+                      type="button"
+                      onClick={handleEditClick}
+                      className="px-4 py-2 text-sm font-medium text-gray-700 bg-gray-200 rounded-lg hover:bg-gray-300 transition"
+                    >
+                      Chỉnh sửa
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => setShowChildInfo(false)}
+                      className="px-4 py-2 text-sm font-medium text-white bg-emerald-600 rounded-lg hover:bg-emerald-700 transition"
+                    >
+                      Đóng
+                    </button>
+                  </div>
+                </>
+              )}
             </div>
           </div>
         )}
