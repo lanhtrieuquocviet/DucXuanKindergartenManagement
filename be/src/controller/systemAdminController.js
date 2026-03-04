@@ -955,13 +955,58 @@ const getSystemLogs = async (req, res) => {
     const limit = Math.min(Math.max(parseInt(req.query.limit, 10) || 20, 1), 100);
     const skip = (page - 1) * limit;
 
+    const now = new Date();
+    const threeDaysAgo = new Date(now);
+    threeDaysAgo.setDate(now.getDate() - 3);
+
+    // Xóa các log cũ hơn 3 ngày mỗi lần truy vấn
+    await SystemLog.deleteMany({
+      createdAt: { $lt: threeDaysAgo },
+    });
+
+    const { startDate, endDate, action, actor } = req.query;
+
+    let start = threeDaysAgo;
+    let end = now;
+
+    if (startDate) {
+      const parsedStart = new Date(startDate);
+      if (!Number.isNaN(parsedStart.getTime())) {
+        start = parsedStart < threeDaysAgo ? threeDaysAgo : parsedStart;
+      }
+    }
+
+    if (endDate) {
+      const parsedEnd = new Date(endDate);
+      if (!Number.isNaN(parsedEnd.getTime())) {
+        end = parsedEnd;
+      }
+    }
+
+    const filter = {
+      createdAt: {
+        $gte: start,
+        $lte: end,
+      },
+    };
+
+    if (action && String(action).trim() !== '') {
+      filter.action = {
+        $regex: String(action).trim(),
+        $options: 'i',
+      };
+    }
+
+    if (actor && String(actor).trim() !== '') {
+      filter.actorName = {
+        $regex: String(actor).trim(),
+        $options: 'i',
+      };
+    }
+
     const [logs, total] = await Promise.all([
-      SystemLog.find()
-        .sort({ createdAt: -1 })
-        .skip(skip)
-        .limit(limit)
-        .lean(),
-      SystemLog.countDocuments(),
+      SystemLog.find(filter).sort({ createdAt: -1 }).skip(skip).limit(limit).lean(),
+      SystemLog.countDocuments(filter),
     ]);
 
     return res.status(200).json({

@@ -11,6 +11,12 @@ function SystemLogs() {
   const [logs, setLogs] = useState([]);
   const [selectedLog, setSelectedLog] = useState(null);
   const [localError, setLocalError] = useState('');
+  const [filters, setFilters] = useState({
+    startDate: '',
+    endDate: '',
+    action: '',
+    actor: '',
+  });
   const [pagination, setPagination] = useState({
     page: 1,
     limit: 20,
@@ -34,12 +40,23 @@ function SystemLogs() {
     }
   }, [navigate, user, isInitializing]);
 
-  const fetchLogs = async (page = 1, limit = 20) => {
+  const fetchLogs = async (page = 1, limit = 20, extraFilters = {}) => {
     if (!user) return;
     try {
       setLocalError('');
       setError(null);
-      const response = await getSystemLogs({ page, limit });
+      const cleanFilters = {};
+      Object.entries(extraFilters).forEach(([key, value]) => {
+        if (typeof value === 'string' && value.trim() !== '') {
+          cleanFilters[key] = value.trim();
+        }
+      });
+
+      const response = await getSystemLogs({
+        page,
+        limit,
+        ...cleanFilters,
+      });
       setLogs(response.data || []);
       if (response.pagination) {
         setPagination({
@@ -60,9 +77,31 @@ function SystemLogs() {
   };
 
   useEffect(() => {
-    fetchLogs(1, pagination.limit);
+    fetchLogs(1, pagination.limit, filters);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [getSystemLogs, setError, user]);
+
+  const handleFilterChange = (field, value) => {
+    setFilters((prev) => ({
+      ...prev,
+      [field]: value,
+    }));
+  };
+
+  const handleApplyFilters = () => {
+    fetchLogs(1, pagination.limit, filters);
+  };
+
+  const handleResetFilters = () => {
+    const reset = {
+      startDate: '',
+      endDate: '',
+      action: '',
+      actor: '',
+    };
+    setFilters(reset);
+    fetchLogs(1, pagination.limit, reset);
+  };
 
   const menuItems = useMemo(
     () => [
@@ -123,7 +162,7 @@ function SystemLogs() {
             <div>
               <h3 className="text-base font-semibold text-gray-900">System Log</h3>
               <p className="text-xs text-gray-500">
-                Theo dõi thao tác người dùng trong hệ thống.
+                Theo dõi thao tác người dùng trong hệ thống (giới hạn trong 3 ngày gần nhất).
               </p>
             </div>
           </div>
@@ -134,6 +173,73 @@ function SystemLogs() {
             {localError || error}
           </div>
         )}
+
+        <div className="mb-4 grid grid-cols-1 md:grid-cols-4 gap-3 text-xs">
+          <div className="flex flex-col">
+            <label className="mb-1 font-medium text-gray-700">Từ ngày</label>
+            <input
+              type="date"
+              value={filters.startDate}
+              onChange={(e) => handleFilterChange('startDate', e.target.value)}
+              className="rounded-md border border-gray-300 px-2 py-1.5 text-xs focus:outline-none focus:ring-1 focus:ring-blue-500 focus:border-blue-500"
+            />
+          </div>
+          <div className="flex flex-col">
+            <label className="mb-1 font-medium text-gray-700">Đến ngày</label>
+            <input
+              type="date"
+              value={filters.endDate}
+              onChange={(e) => handleFilterChange('endDate', e.target.value)}
+              className="rounded-md border border-gray-300 px-2 py-1.5 text-xs focus:outline-none focus:ring-1 focus:ring-blue-500 focus:border-blue-500"
+            />
+          </div>
+          <div className="flex flex-col">
+            <label className="mb-1 font-medium text-gray-700">Hành động</label>
+            <input
+              type="text"
+              placeholder="Tìm theo hành động..."
+              value={filters.action}
+              onChange={(e) => handleFilterChange('action', e.target.value)}
+              className="rounded-md border border-gray-300 px-2 py-1.5 text-xs focus:outline-none focus:ring-1 focus:ring-blue-500 focus:border-blue-500"
+            />
+          </div>
+          <div className="flex flex-col">
+            <label className="mb-1 font-medium text-gray-700">Người thực hiện</label>
+            <input
+              type="text"
+              placeholder="Tìm theo người thực hiện..."
+              value={filters.actor}
+              onChange={(e) => handleFilterChange('actor', e.target.value)}
+              className="rounded-md border border-gray-300 px-2 py-1.5 text-xs focus:outline-none focus:ring-1 focus:ring-blue-500 focus:border-blue-500"
+            />
+          </div>
+          <div className="md:col-span-4 flex justify-end gap-2 mt-1">
+            <button
+              type="button"
+              onClick={handleResetFilters}
+              disabled={loading}
+              className={`px-3 py-1.5 rounded-md border text-xs font-medium ${
+                loading
+                  ? 'bg-gray-100 text-gray-400 border-gray-200 cursor-not-allowed'
+                  : 'bg-white text-gray-700 border-gray-300 hover:bg-gray-50'
+              }`}
+            >
+              Xóa bộ lọc
+            </button>
+            <button
+              type="button"
+              onClick={handleApplyFilters}
+              disabled={loading}
+              className={`px-3 py-1.5 rounded-md text-xs font-medium ${
+                loading
+                  ? 'bg-blue-300 text-white cursor-not-allowed'
+                  : 'bg-blue-600 text-white hover:bg-blue-700'
+              }`}
+            >
+              Áp dụng
+            </button>
+          </div>
+        </div>
 
         <div className="overflow-x-auto">
           <table className="min-w-full text-sm border border-gray-200 rounded-lg overflow-hidden">
