@@ -241,6 +241,49 @@ exports.updateMyPickupRequest = async (req, res) => {
     const { id } = req.params;
     const { fullName, relation, phone, imageUrl } = req.body;
 
+    // Validate required fields
+    if (!fullName || !fullName.trim()) {
+      return res.status(400).json({
+        success: false,
+        message: "Vui lòng nhập họ tên người đón",
+      });
+    }
+    if (!phone || !phone.trim()) {
+      return res.status(400).json({
+        success: false,
+        message: "Vui lòng nhập số điện thoại",
+      });
+    }
+    if (!relation || !relation.trim()) {
+      return res.status(400).json({
+        success: false,
+        message: "Vui lòng nhập mối quan hệ",
+      });
+    }
+
+    // Validate fullName max 50 characters
+    if (fullName.trim().length > 50) {
+      return res.status(400).json({
+        success: false,
+        message: "Họ tên không được vượt quá 50 ký tự",
+      });
+    }
+
+    // Validate phone: only digits and max 11
+    const phoneDigits = phone.replace(/[^0-9]/g, "");
+    if (phoneDigits.length > 11) {
+      return res.status(400).json({
+        success: false,
+        message: "Số điện thoại không được vượt quá 11 chữ số",
+      });
+    }
+    if (phoneDigits.length === 0) {
+      return res.status(400).json({
+        success: false,
+        message: "Số điện thoại phải chứa ít nhất một chữ số",
+      });
+    }
+
     const request = await PickupRequest.findOne({
       _id: id,
       parent: req.user._id,
@@ -266,7 +309,7 @@ exports.updateMyPickupRequest = async (req, res) => {
       student: request.student,
       fullName: fullName.trim(),
       relation: relation.trim(),
-      phone: phone.trim(),
+      phone: phoneDigits,
     });
 
     if (duplicate) {
@@ -278,7 +321,7 @@ exports.updateMyPickupRequest = async (req, res) => {
 
     request.fullName = fullName.trim();
     request.relation = relation.trim();
-    request.phone = phone.trim();
+    request.phone = phoneDigits;
     request.imageUrl = imageUrl || "";
 
     await request.save();

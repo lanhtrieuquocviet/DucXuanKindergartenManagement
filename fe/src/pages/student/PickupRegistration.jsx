@@ -89,10 +89,15 @@ function PickupRegistration() {
     } 
     // Xử lý logic chọn "Khác" cho mối quan hệ
     else if (name === "relation") {
-      if (value === "Other") {
+      // Nếu đang nhập custom relation (isOtherRelation = true), chỉ cập nhật giá trị
+      if (isOtherRelation) {
+        setForm((prev) => ({ ...prev, relation: value }));
+      } else if (value === "Other") {
+        // Nếu chọn "Khác" từ dropdown
         setIsOtherRelation(true);
         setForm((prev) => ({ ...prev, relation: "" })); // Reset để người dùng nhập mới
       } else {
+        // Chọn mối quan hệ tiêu chuẩn từ dropdown
         setIsOtherRelation(false);
         setForm((prev) => ({ ...prev, [name]: value }));
       }
@@ -108,7 +113,22 @@ function PickupRegistration() {
     setSubmitting(true);
 
     try {
-      let imageUrl = previewUrl || "";
+      // Validate required fields
+      if (!form.fullName.trim()) {
+        throw new Error("Vui lòng nhập họ tên người đón");
+      }
+      if (!form.phone.trim()) {
+        throw new Error("Vui lòng nhập số điện thoại");
+      }
+      if (!form.relation.trim()) {
+        throw new Error("Vui lòng nhập mối quan hệ");
+      }
+      // Image validation: require image for both creating and updating
+      if (!form.imageFile) {
+        throw new Error("Vui lòng chọn ảnh để đăng ký hoặc cập nhật thông tin");
+      }
+
+      let imageUrl = "";
       if (form.imageFile) {
         const formData = new FormData();
         formData.append("avatar", form.imageFile);
@@ -264,21 +284,26 @@ function PickupRegistration() {
                       name="relation"
                       value={form.relation}
                       onChange={handleChange}
-                      placeholder="Nhập mối quan hệ khác"
-                      className="flex-1 border border-emerald-500 rounded-xl px-4 py-2.5 focus:ring-2 focus:ring-emerald-500 outline-none"
+                      placeholder="Nhập mối quan hệ khác (vd: Dì, Chú, Hàng xóm...)"
+                      className="flex-1 border border-emerald-500 rounded-xl px-4 py-2.5 focus:ring-2 focus:ring-emerald-500 outline-none text-sm"
                       autoFocus
-                      required
+                      maxLength="30"
                     />
                     <button 
                       type="button" 
-                      onClick={() => setIsOtherRelation(false)}
-                      className="text-xs text-gray-400 hover:text-red-500"
-                    >Hủy</button>
+                      onClick={() => {
+                        setIsOtherRelation(false);
+                        setForm((prev) => ({ ...prev, relation: "" }));
+                      }}
+                      className="text-xs text-gray-400 hover:text-red-500 whitespace-nowrap font-medium"
+                    >
+                      Hủy
+                    </button>
                   </div>
                 )}
               </div>
 
-              {/* Ảnh - Giữ nguyên thiết kế dấu cộng bạn thích */}
+              {/* Ảnh - Bắt buộc khi thêm mới */}
               <div className="flex flex-col items-center justify-center border-2 border-dashed border-gray-200 rounded-2xl p-4 hover:bg-gray-50 transition-colors relative">
                 <input
                   type="file"
@@ -294,7 +319,7 @@ function PickupRegistration() {
                   ) : (
                     <div className="w-16 h-16 flex flex-col items-center justify-center bg-gray-100 rounded-full">
                       <Plus className="text-gray-400" />
-                      <span className="text-[10px] text-gray-400 mt-1 uppercase font-bold">Ảnh</span>
+                      <span className="text-[10px] text-gray-400 mt-1 uppercase font-bold">Ảnh{!editingId && ' *'}</span>
                     </div>
                   )}
                 </label>
@@ -302,8 +327,10 @@ function PickupRegistration() {
                   <button 
                     type="button" 
                     onClick={() => {setPreviewUrl(null); setForm({...form, imageFile: null})}}
-                    className="absolute top-2 right-2 bg-red-500 text-white rounded-full w-5 h-5 text-[10px]"
-                  >✕</button>
+                    className="absolute top-2 right-2 bg-red-500 text-white rounded-full w-5 h-5 text-[10px] flex items-center justify-center hover:bg-red-600"
+                  >
+                    ✕
+                  </button>
                 )}
               </div>
             </div>

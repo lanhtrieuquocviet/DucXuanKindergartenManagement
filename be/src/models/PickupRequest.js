@@ -28,15 +28,17 @@ const pickupRequestSchema = new mongoose.Schema(
     },
     relation: {
       type: String,
-      enum: ["Bố", "Mẹ", "Ông", "Bà", "Anh/Chị", "Khác"],
       required: true,
+      trim: true,
+      minlength: 1,
+      maxlength: 50,
     },
     phone: {
       type: String,
       required: true,
       trim: true,
-      // validate số điện thoại Việt Nam cơ bản
-      match: [/^(0|\+84)[3|5|7|8|9]\d{8}$/, "Số điện thoại không hợp lệ"],
+      // Số điện thoại Việt Nam: 0[3|5|7|8|9]XXXXXXXXX (11 chữ số)
+      match: [/^0[3|5|7|8|9]\d{8}$|^\+840[3|5|7|8|9]\d{8}$/, "Số điện thoại không hợp lệ"],
     },
 
     // Ảnh người đưa/đón (URL từ Cloudinary)
