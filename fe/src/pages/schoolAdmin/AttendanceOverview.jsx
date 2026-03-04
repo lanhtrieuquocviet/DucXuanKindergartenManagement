@@ -278,8 +278,8 @@ function AttendanceOverview() {
 
       {/* Bộ lọc và tìm kiếm */}
       <div className="bg-white rounded-lg shadow p-4 mb-4">
-        <div className="flex flex-col md:flex-row gap-4 items-end">
-          <div className="flex-1">
+        <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-4 items-end">
+          <div>
             <label className="block text-sm font-semibold text-gray-700 mb-1">Ngày</label>
             <input
               type="date"
@@ -289,7 +289,7 @@ function AttendanceOverview() {
             />
           </div>
 
-          <div className="flex-1">
+          <div>
             <label className="block text-sm font-semibold text-gray-700 mb-1">Khối</label>
             <select
               value={selectedGrade}
@@ -305,7 +305,7 @@ function AttendanceOverview() {
             </select>
           </div>
 
-          <div className="flex-1">
+          <div>
             <label className="block text-sm font-semibold text-gray-700 mb-1">Lớp</label>
             <select
               value={selectedClass}
@@ -321,7 +321,7 @@ function AttendanceOverview() {
             </select>
           </div>
 
-          <div className="flex-1">
+          <div>
             <label className="block text-sm font-semibold text-gray-700 mb-1">Trạng thái</label>
             <select
               value={selectedStatus}
@@ -335,7 +335,7 @@ function AttendanceOverview() {
             </select>
           </div>
 
-          <div className="flex-1">
+          <div>
             <label className="block text-sm font-semibold text-gray-700 mb-1">Tìm theo tên lớp</label>
             <div className="relative">
               <input

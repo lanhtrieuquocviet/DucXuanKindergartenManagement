@@ -277,15 +277,13 @@ function BlogDetail() {
                 {blog.attachmentType === 'pdf' ? (
                   <iframe
                     src={blog.attachmentUrl}
-                    className="w-full border border-gray-200 rounded-lg"
-                    style={{ height: '600px' }}
+                    className="w-full border border-gray-200 rounded-lg h-[320px] sm:h-[480px] md:h-[600px]"
                     title="PDF Viewer"
                   />
                 ) : (
                   <iframe
                     src={`https://view.officeapps.live.com/op/embed.aspx?src=${encodeURIComponent(blog.attachmentUrl)}`}
-                    className="w-full border border-gray-200 rounded-lg"
-                    style={{ height: '600px' }}
+                    className="w-full border border-gray-200 rounded-lg h-[320px] sm:h-[480px] md:h-[600px]"
                     title="Word Viewer"
                   />
                 )}
