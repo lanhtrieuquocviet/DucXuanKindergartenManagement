@@ -1,7 +1,7 @@
 import { useEffect, useState, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
-import { ENDPOINTS, postFormData } from '../service/api';
+import { ENDPOINTS, postFormData, get, put } from '../service/api';
 
 function Profile() {
   const DEFAULT_AVATAR =
@@ -31,6 +31,8 @@ function Profile() {
     email: '',
     status: '',
     avatar: '',
+    address: '',
+    phone: '',
   });
 
   const [passwordForm, setPasswordForm] = useState({
@@ -39,6 +41,7 @@ function Profile() {
     confirmPassword: '',
   });
   const [passwordHint, setPasswordHint] = useState('');
+  const [children, setChildren] = useState([]);
 
   const [savingProfile, setSavingProfile] = useState(false);
   const [changingPassword, setChangingPassword] = useState(false);
@@ -58,6 +61,24 @@ function Profile() {
     };
   }, [avatarPreview]);
 
+  // Fetch children when component mounts
+  useEffect(() => {
+    if (isInitializing || !user) return;
+    
+    const fetchChildren = async () => {
+      try {
+        const response = await get(ENDPOINTS.AUTH.MY_CHILDREN);
+        const list = response.data || [];
+        setChildren(list);
+      } catch (e) {
+        console.error('Failed to load children info', e);
+        setChildren([]);
+      }
+    };
+
+    fetchChildren();
+  }, [user, isInitializing]);
+
   // Điền form từ user ngay khi có user (chỉ lần đầu, không ghi đè khi user đã chỉnh sửa)
   useEffect(() => {
     if (isInitializing || !user) return;
@@ -68,6 +89,8 @@ function Profile() {
       fullName: user.fullName || user.username || '',
       email: user.email || '',
       avatar: user.avatar || '',
+      address: user.address || '',
+      phone: children.length > 0 ? (children[0]?.parentPhone || children[0]?.phone || '') : '',
       status: user.status === 'active' ? 'Đang hoạt động' : 'Đã khóa',
     }));
   }, [user, isInitializing]);
@@ -93,6 +116,8 @@ function Profile() {
             fullName: userData.fullName || userData.username || '',
             email: userData.email || '',
             avatar: userData.avatar || '',
+            address: userData.address || '',
+            phone: children.length > 0 ? (children[0]?.parentPhone || children[0]?.phone || '') : '',
             status: userData.status === 'active' ? 'Đang hoạt động' : 'Đã khóa',
           }));
         }
@@ -105,6 +130,16 @@ function Profile() {
 
     loadProfile();
   }, [navigate, getProfile, user, isInitializing]);
+
+  // nếu danh sách con cập nhật (sau khi reload), phải đảm bảo trường phone được điền lại nếu user chưa tự thay
+  useEffect(() => {
+    if (children.length === 0) return;
+    if (hasUserEditedRef.current) return;
+    setProfileForm((prev) => ({
+      ...prev,
+      phone: children[0]?.parentPhone || children[0]?.phone || '',
+    }));
+  }, [children]);
 
   const handleProfileChange = (e) => {
     hasUserEditedRef.current = true;
@@ -188,11 +223,32 @@ function Profile() {
       setMessage('');
       setError(null);
 
+      // Update profile (fullName, email, avatar, address and phone in User model)
       await updateProfile({
         fullName: profileForm.fullName,
         email: profileForm.email,
         avatar: profileForm.avatar || undefined,
+        address: profileForm.address || '',
+        phone: profileForm.phone || '',
       });
+
+      // Update parentPhone for all children and sync local state
+      if (children.length > 0) {
+        const updatePromises = children.map((child) =>
+          put(`/students/${child._id}`, {
+            parentPhone: profileForm.phone || '',
+          }).then((res) => res.data || res)
+        );
+        const updatedChildren = await Promise.all(updatePromises);
+        setChildren((prev) =>
+          prev.map((child) => {
+            const updated = updatedChildren.find((u) =>
+              u._id === child._id || u.id === child._id
+            );
+            return updated ? { ...child, ...updated } : child;
+          })
+        );
+      }
 
       hasUserEditedRef.current = false;
       setMessage('Cập nhật hồ sơ thành công.');
@@ -386,6 +442,52 @@ function Profile() {
                     className="w-full border border-gray-300 rounded-md px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500"
                     placeholder="Nhập email"
                   />
+                </div>
+
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">
+                    Số điện thoại
+                  </label>
+                  <input
+                    type="tel"
+                    name="phone"
+                    value={profileForm.phone ?? ''}
+                    onChange={(e) => {
+                      const value = e.target.value;
+                      if (value.length <= 50) {
+                        handleProfileChange(e);
+                      }
+                    }}
+                    maxLength="50"
+                    className="w-full border border-gray-300 rounded-md px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500"
+                    placeholder="Nhập số điện thoại (tối đa 50 ký tự)"
+                  />
+                  <p className="text-xs text-gray-500 mt-1">
+                    {profileForm.phone?.length || 0}/50 ký tự
+                  </p>
+                </div>
+
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">
+                    Địa chỉ
+                  </label>
+                  <input
+                    type="text"
+                    name="address"
+                    value={profileForm.address ?? ''}
+                    onChange={(e) => {
+                      const value = e.target.value;
+                      if (value.length <= 50) {
+                        handleProfileChange(e);
+                      }
+                    }}
+                    maxLength="50"
+                    className="w-full border border-gray-300 rounded-md px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500"
+                    placeholder="Nhập địa chỉ (tối đa 50 ký tự)"
+                  />
+                  <p className="text-xs text-gray-500 mt-1">
+                    {profileForm.address?.length || 0}/50 ký tự
+                  </p>
                 </div>
 
                 <div>
@@ -626,6 +728,52 @@ function Profile() {
                   className="w-full border border-gray-300 rounded-md px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
                   placeholder="Nhập email"
                 />
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">
+                  Số điện thoại
+                </label>
+                <input
+                  type="tel"
+                  name="phone"
+                  value={profileForm.phone ?? ''}
+                  onChange={(e) => {
+                    const value = e.target.value;
+                    if (value.length <= 50) {
+                      handleProfileChange(e);
+                    }
+                  }}
+                  maxLength="50"
+                  className="w-full border border-gray-300 rounded-md px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  placeholder="Nhập số điện thoại (tối đa 50 ký tự)"
+                />
+                <p className="text-xs text-gray-500 mt-1">
+                  {profileForm.phone?.length || 0}/50 ký tự
+                </p>
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">
+                  Địa chỉ
+                </label>
+                <input
+                  type="text"
+                  name="address"
+                  value={profileForm.address ?? ''}
+                  onChange={(e) => {
+                    const value = e.target.value;
+                    if (value.length <= 50) {
+                      handleProfileChange(e);
+                    }
+                  }}
+                  maxLength="50"
+                  className="w-full border border-gray-300 rounded-md px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  placeholder="Nhập địa chỉ (tối đa 50 ký tự)"
+                />
+                <p className="text-xs text-gray-500 mt-1">
+                  {profileForm.address?.length || 0}/50 ký tự
+                </p>
               </div>
 
               <div>

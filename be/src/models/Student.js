@@ -19,6 +19,12 @@ const studentSchema = new mongoose.Schema({
     type: String,
     trim: true
   },
+  // stored parent contact number; some existing docs may use parentPhone field
+  parentPhone: {
+    type: String,
+    trim: true,
+    default: ''
+  },
   address: {
     type: String,
     trim: true

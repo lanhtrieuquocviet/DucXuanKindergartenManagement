@@ -308,7 +308,8 @@ const getProfile = async (req, res) => {
  */
 const updateProfile = async (req, res) => {
   try {
-    const { fullName, email, avatar } = req.body;
+    // Hỗ trợ cả phone và parentPhone để tương thích
+    const { fullName, email, avatar, phone, parentPhone, address } = req.body;
 
     const user = await User.findById(req.user.id).populate({
       path: 'roles',
@@ -336,6 +337,16 @@ const updateProfile = async (req, res) => {
 
     if (typeof avatar === 'string') {
       user.avatar = avatar;
+    }
+
+    // Tín tiên phone, nếu không có thì dùng parentPhone
+    const phoneValue = phone !== undefined ? phone : parentPhone;
+    if (typeof phoneValue === 'string') {
+      user.phone = phoneValue.trim();
+    }
+
+    if (typeof address === 'string') {
+      user.address = address.trim();
     }
 
     await user.save();
