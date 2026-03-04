@@ -42,25 +42,28 @@ function LegalDocuments() {
   const formatDate = (d) =>
     d ? new Date(d).toLocaleDateString("vi-VN") : "---";
 
+  const stripHtml = (html) => (html || "").replace(/<[^>]*>/g, "");
+
   return (
-    <div className="max-w-7xl mx-auto px-6 py-8">
+    <div className="max-w-7xl mx-auto px-4 sm:px-6 py-6 sm:py-8">
       {/* Breadcrumb */}
-      <div className="text-sm text-gray-600 mb-6">
+      <div className="text-xs sm:text-sm text-gray-600 mb-4 sm:mb-6 flex flex-wrap items-center gap-1">
         <span
           className="hover:text-green-600 cursor-pointer"
           onClick={() => navigate("/")}
         >
           Trang chủ
         </span>
-        <span className="mx-2">›</span>
-        Văn bản <span className="mx-2">›</span>
+        <span className="mx-1">›</span>
+        Văn bản
+        <span className="mx-1">›</span>
         <span className="font-medium text-gray-800">Văn bản pháp quy</span>
       </div>
 
-      <h1 className="text-3xl font-bold mb-6">Văn bản pháp quy</h1>
+      <h1 className="text-2xl sm:text-3xl font-bold mb-5 sm:mb-6">Văn bản pháp quy</h1>
 
       {error && (
-        <div className="bg-red-50 border border-red-200 rounded p-4 text-red-700 mb-6">
+        <div className="bg-red-50 border border-red-200 rounded p-4 text-red-700 text-sm mb-6">
           {error}
         </div>
       )}
@@ -73,28 +76,28 @@ function LegalDocuments() {
         </div>
       ) : (
         <>
-          <div className="space-y-5">
+          <div className="space-y-4 sm:space-y-5">
             {documents.map((item) => (
               <div
                 key={item._id}
-                className="border border-gray-300 bg-white"
+                className="border border-gray-300 bg-white overflow-hidden rounded"
               >
                 {/* Header */}
                 <div
-                  className="bg-gray-100 px-4 py-2 font-semibold text-gray-800 flex items-center gap-2 cursor-pointer hover:bg-gray-200 transition"
+                  className="bg-gray-100 px-3 sm:px-4 py-2 font-semibold text-gray-800 flex items-start gap-2 cursor-pointer hover:bg-gray-200 transition text-sm sm:text-base"
                   onClick={() => navigate(`/documents/${item._id}`)}
                 >
-                  <span className="text-orange-500">➤</span>
-                  {item.title}
+                  <span className="text-orange-500 mt-0.5 shrink-0">➤</span>
+                  <span className="line-clamp-2">{item.title}</span>
                 </div>
 
                 {/* Content */}
-                <div className="grid grid-cols-1 md:grid-cols-3 gap-4 px-4 py-3 text-sm">
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-3 px-3 sm:px-4 py-3 text-sm">
                   {/* Left */}
-                  <div className="col-span-2 text-gray-700">
+                  <div className="md:col-span-2 text-gray-700">
                     {item.description ? (
-                      <p className="line-clamp-2 mb-2">
-                        {item.description.replace(/<[^>]*>/g, "")}
+                      <p className="line-clamp-2 mb-2 text-xs sm:text-sm">
+                        {stripHtml(item.description)}
                       </p>
                     ) : null}
                     {item.attachmentUrl ? (
@@ -102,14 +105,14 @@ function LegalDocuments() {
                         href={item.attachmentUrl}
                         target="_blank"
                         rel="noopener noreferrer"
-                        className="text-blue-600 hover:underline inline-flex items-center gap-1"
+                        className="text-blue-600 hover:underline inline-flex items-center gap-1 text-xs sm:text-sm"
                       >
                         {item.attachmentType === "pdf" ? "📄" : "📝"} File đính kèm
                       </a>
                     ) : (
                       <button
                         onClick={() => navigate(`/documents/${item._id}`)}
-                        className="text-blue-600 hover:underline"
+                        className="text-blue-600 hover:underline text-xs sm:text-sm"
                       >
                         Xem chi tiết
                       </button>
@@ -117,7 +120,7 @@ function LegalDocuments() {
                   </div>
 
                   {/* Right */}
-                  <div className="space-y-1 text-gray-700">
+                  <div className="space-y-1 text-gray-700 text-xs sm:text-sm pt-2 md:pt-0 border-t md:border-t-0">
                     <div>
                       Ngày đăng:{" "}
                       <span className="text-green-600">
@@ -135,7 +138,7 @@ function LegalDocuments() {
 
           {/* Pagination */}
           {pagination.totalPages > 1 && (
-            <div className="flex justify-center gap-2 mt-8">
+            <div className="flex justify-center gap-1 sm:gap-2 mt-6 sm:mt-8 flex-wrap">
               {Array.from({ length: pagination.totalPages }).map((_, i) => (
                 <button
                   key={i}

@@ -32,7 +32,7 @@ function DocumentDetail() {
 
   if (loading) {
     return (
-      <div className="max-w-4xl mx-auto px-6 py-12 text-center text-gray-500">
+      <div className="max-w-4xl mx-auto px-4 sm:px-6 py-12 text-center text-gray-500">
         Đang tải...
       </div>
     );
@@ -40,8 +40,8 @@ function DocumentDetail() {
 
   if (error || !doc) {
     return (
-      <div className="max-w-4xl mx-auto px-6 py-12">
-        <div className="bg-red-50 border border-red-200 rounded p-4 text-red-700 mb-4">
+      <div className="max-w-4xl mx-auto px-4 sm:px-6 py-12">
+        <div className="bg-red-50 border border-red-200 rounded p-4 text-red-700 text-sm mb-4">
           {error || "Không tìm thấy tài liệu"}
         </div>
         <button
@@ -55,9 +55,9 @@ function DocumentDetail() {
   }
 
   return (
-    <div className="max-w-4xl mx-auto px-6 py-8">
+    <div className="max-w-4xl mx-auto px-4 sm:px-6 py-6 sm:py-8">
       {/* Breadcrumb */}
-      <div className="text-sm text-gray-500 mb-6 flex flex-wrap items-center gap-1">
+      <div className="text-xs sm:text-sm text-gray-500 mb-4 sm:mb-6 flex flex-wrap items-center gap-1">
         <span
           className="hover:text-green-600 cursor-pointer"
           onClick={() => navigate("/")}
@@ -78,10 +78,12 @@ function DocumentDetail() {
       </div>
 
       {/* Tiêu đề */}
-      <h1 className="text-3xl font-bold text-gray-900 mb-3">{doc.title}</h1>
+      <h1 className="text-2xl sm:text-3xl font-bold text-gray-900 mb-3 leading-snug">
+        {doc.title}
+      </h1>
 
       {/* Meta */}
-      <div className="flex flex-wrap items-center gap-3 text-sm text-gray-500 mb-6">
+      <div className="flex flex-wrap items-center gap-2 sm:gap-3 text-xs sm:text-sm text-gray-500 mb-5 sm:mb-6">
         <span>🕒 {formatDate(doc.createdAt)}</span>
         {doc.author?.fullName && <span>✍ {doc.author.fullName}</span>}
       </div>
@@ -89,22 +91,21 @@ function DocumentDetail() {
       {/* Nội dung */}
       {doc.description && (
         <div
-          className="prose max-w-none text-gray-800 text-base leading-relaxed mb-8 ql-editor"
+          className="prose max-w-none text-gray-800 text-sm sm:text-base leading-relaxed mb-6 sm:mb-8 ql-editor"
           dangerouslySetInnerHTML={{ __html: doc.description }}
         />
       )}
 
       {/* Tệp đính kèm */}
       {doc.attachmentUrl && (
-        <div className="mb-8">
-          <h2 className="text-lg font-semibold text-gray-800 mb-3">
+        <div className="mb-6 sm:mb-8">
+          <h2 className="text-base sm:text-lg font-semibold text-gray-800 mb-3">
             Tệp đính kèm ({doc.attachmentType === "pdf" ? "PDF" : "Word"})
           </h2>
           {doc.attachmentType === "pdf" ? (
             <iframe
               src={doc.attachmentUrl}
-              className="w-full border border-gray-200 rounded-lg"
-              style={{ height: "600px" }}
+              className="w-full border border-gray-200 rounded-lg h-[320px] sm:h-[480px] md:h-[600px]"
               title="PDF Viewer"
             />
           ) : (
@@ -112,8 +113,7 @@ function DocumentDetail() {
               src={`https://view.officeapps.live.com/op/embed.aspx?src=${encodeURIComponent(
                 doc.attachmentUrl
               )}`}
-              className="w-full border border-gray-200 rounded-lg"
-              style={{ height: "600px" }}
+              className="w-full border border-gray-200 rounded-lg h-[320px] sm:h-[480px] md:h-[600px]"
               title="Word Viewer"
             />
           )}

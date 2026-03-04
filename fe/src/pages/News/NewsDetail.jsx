@@ -33,7 +33,7 @@ function NewsDetail() {
 
   if (loading) {
     return (
-      <div className="max-w-4xl mx-auto px-6 py-12 text-center text-gray-500">
+      <div className="max-w-4xl mx-auto px-4 sm:px-6 py-12 text-center text-gray-500">
         Đang tải...
       </div>
     );
@@ -41,8 +41,8 @@ function NewsDetail() {
 
   if (error || !blog) {
     return (
-      <div className="max-w-4xl mx-auto px-6 py-12">
-        <div className="bg-red-50 border border-red-200 rounded p-4 text-red-700 mb-4">
+      <div className="max-w-4xl mx-auto px-4 sm:px-6 py-12">
+        <div className="bg-red-50 border border-red-200 rounded p-4 text-red-700 mb-4 text-sm">
           {error || "Không tìm thấy bài viết"}
         </div>
         <button
@@ -56,9 +56,9 @@ function NewsDetail() {
   }
 
   return (
-    <div className="max-w-4xl mx-auto px-6 py-8">
+    <div className="max-w-4xl mx-auto px-4 sm:px-6 py-6 sm:py-8">
       {/* Breadcrumb */}
-      <div className="text-sm text-gray-500 mb-6 flex flex-wrap items-center gap-1">
+      <div className="text-xs sm:text-sm text-gray-500 mb-4 sm:mb-6 flex flex-wrap items-center gap-1">
         <span
           className="hover:text-green-600 cursor-pointer"
           onClick={() => navigate("/")}
@@ -79,12 +79,14 @@ function NewsDetail() {
       </div>
 
       {/* Tiêu đề */}
-      <h1 className="text-3xl font-bold text-gray-900 mb-3">{blog.code}</h1>
+      <h1 className="text-2xl sm:text-3xl font-bold text-gray-900 mb-3 leading-snug">
+        {blog.code}
+      </h1>
 
       {/* Meta */}
-      <div className="flex flex-wrap items-center gap-3 text-sm text-gray-500 mb-6">
+      <div className="flex flex-wrap items-center gap-2 sm:gap-3 text-xs sm:text-sm text-gray-500 mb-5 sm:mb-6">
         {blog.category?.name && (
-          <span className="inline-flex items-center rounded-full bg-green-50 px-3 py-0.5 text-green-700 font-medium text-xs">
+          <span className="inline-flex items-center rounded-full bg-green-50 px-2.5 py-0.5 text-green-700 font-medium text-xs">
             {blog.category.name}
           </span>
         )}
@@ -94,11 +96,11 @@ function NewsDetail() {
 
       {/* Ảnh chính (nếu có) */}
       {blog.images && blog.images.length > 0 && (
-        <div className="mb-6">
+        <div className="mb-5 sm:mb-6">
           <img
             src={blog.images[selectedImageIdx]}
             alt={blog.code}
-            className="w-full max-h-[420px] object-cover rounded-lg shadow"
+            className="w-full max-h-[260px] sm:max-h-[420px] object-cover rounded-lg shadow"
           />
           {blog.images.length > 1 && (
             <div className="flex gap-2 mt-3 flex-wrap">
@@ -108,7 +110,7 @@ function NewsDetail() {
                   src={url}
                   alt={`${idx + 1}`}
                   onClick={() => setSelectedImageIdx(idx)}
-                  className={`w-20 h-20 object-cover rounded cursor-pointer border-2 transition ${
+                  className={`w-14 h-14 sm:w-20 sm:h-20 object-cover rounded cursor-pointer border-2 transition ${
                     selectedImageIdx === idx
                       ? "border-green-500 scale-105"
                       : "border-transparent hover:border-gray-300"
@@ -122,21 +124,20 @@ function NewsDetail() {
 
       {/* Nội dung */}
       <div
-        className="prose max-w-none text-gray-800 text-base leading-relaxed mb-8 ql-editor"
+        className="prose max-w-none text-gray-800 text-sm sm:text-base leading-relaxed mb-6 sm:mb-8 ql-editor"
         dangerouslySetInnerHTML={{ __html: blog.description || '' }}
       />
 
       {/* Tệp đính kèm */}
       {blog.attachmentUrl && (
-        <div className="mb-8">
-          <h2 className="text-lg font-semibold text-gray-800 mb-3">
+        <div className="mb-6 sm:mb-8">
+          <h2 className="text-base sm:text-lg font-semibold text-gray-800 mb-3">
             Tệp đính kèm ({blog.attachmentType === "pdf" ? "PDF" : "Word"})
           </h2>
           {blog.attachmentType === "pdf" ? (
             <iframe
               src={blog.attachmentUrl}
-              className="w-full border border-gray-200 rounded-lg"
-              style={{ height: "600px" }}
+              className="w-full border border-gray-200 rounded-lg h-[320px] sm:h-[480px] md:h-[600px]"
               title="PDF Viewer"
             />
           ) : (
@@ -144,8 +145,7 @@ function NewsDetail() {
               src={`https://view.officeapps.live.com/op/embed.aspx?src=${encodeURIComponent(
                 blog.attachmentUrl
               )}`}
-              className="w-full border border-gray-200 rounded-lg"
-              style={{ height: "600px" }}
+              className="w-full border border-gray-200 rounded-lg h-[320px] sm:h-[480px] md:h-[600px]"
               title="Word Viewer"
             />
           )}

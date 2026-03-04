@@ -42,25 +42,28 @@ function DepartmentDocuments() {
   const formatDate = (d) =>
     d ? new Date(d).toLocaleDateString("vi-VN") : "---";
 
+  const stripHtml = (html) => (html || "").replace(/<[^>]*>/g, "");
+
   return (
-    <div className="max-w-7xl mx-auto px-6 py-8">
+    <div className="max-w-7xl mx-auto px-4 sm:px-6 py-6 sm:py-8">
       {/* Breadcrumb */}
-      <div className="text-sm text-gray-600 mb-6">
+      <div className="text-xs sm:text-sm text-gray-600 mb-4 sm:mb-6 flex flex-wrap items-center gap-1">
         <span
           className="hover:text-green-600 cursor-pointer"
           onClick={() => navigate("/")}
         >
           Trang chủ
         </span>
-        <span className="mx-2">›</span>
-        Văn bản <span className="mx-2">›</span>
+        <span className="mx-1">›</span>
+        Văn bản
+        <span className="mx-1">›</span>
         <span className="font-medium text-gray-800">Văn bản từ Phòng</span>
       </div>
 
-      <h1 className="text-3xl font-bold mb-8">Văn bản từ Phòng</h1>
+      <h1 className="text-2xl sm:text-3xl font-bold mb-6 sm:mb-8">Văn bản từ Phòng</h1>
 
       {error && (
-        <div className="bg-red-50 border border-red-200 rounded p-4 text-red-700 mb-6">
+        <div className="bg-red-50 border border-red-200 rounded p-4 text-red-700 text-sm mb-6">
           {error}
         </div>
       )}
@@ -73,25 +76,25 @@ function DepartmentDocuments() {
         </div>
       ) : (
         <>
-          <div className="space-y-6">
+          <div className="space-y-4 sm:space-y-6">
             {documents.map((item) => (
-              <div key={item._id} className="border rounded">
+              <div key={item._id} className="border rounded overflow-hidden">
                 {/* Header */}
                 <div
-                  className="bg-gray-100 px-4 py-3 font-semibold text-red-600 flex items-center gap-2 cursor-pointer hover:bg-gray-200 transition"
+                  className="bg-gray-100 px-3 sm:px-4 py-3 font-semibold text-red-600 flex items-start gap-2 cursor-pointer hover:bg-gray-200 transition text-sm sm:text-base"
                   onClick={() => navigate(`/documents/${item._id}`)}
                 >
-                  <span>⭕</span>
-                  {item.title}
+                  <span className="mt-0.5 shrink-0">⭕</span>
+                  <span className="line-clamp-2">{item.title}</span>
                 </div>
 
                 {/* Content */}
-                <div className="grid grid-cols-1 md:grid-cols-3 gap-4 p-4 text-sm">
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-3 sm:gap-4 p-3 sm:p-4 text-sm">
                   {/* Left */}
                   <div className="md:col-span-2">
                     {item.description && (
-                      <p className="text-gray-600 line-clamp-2 mb-2">
-                        {item.description.replace(/<[^>]*>/g, "")}
+                      <p className="text-gray-600 line-clamp-2 mb-2 text-xs sm:text-sm">
+                        {stripHtml(item.description)}
                       </p>
                     )}
                     {item.attachmentUrl ? (
@@ -99,14 +102,14 @@ function DepartmentDocuments() {
                         href={item.attachmentUrl}
                         target="_blank"
                         rel="noopener noreferrer"
-                        className="text-blue-600 hover:underline inline-flex items-center gap-1"
+                        className="text-blue-600 hover:underline inline-flex items-center gap-1 text-xs sm:text-sm"
                       >
                         {item.attachmentType === "pdf" ? "📄" : "📝"} File đính kèm
                       </a>
                     ) : (
                       <button
                         onClick={() => navigate(`/documents/${item._id}`)}
-                        className="text-blue-600 hover:underline inline-flex items-center gap-1"
+                        className="text-blue-600 hover:underline text-xs sm:text-sm"
                       >
                         Xem chi tiết
                       </button>
@@ -114,7 +117,7 @@ function DepartmentDocuments() {
                   </div>
 
                   {/* Right */}
-                  <div className="border-l pl-4 space-y-1">
+                  <div className="md:border-l md:pl-4 space-y-1 text-xs sm:text-sm text-gray-600 pt-2 md:pt-0 border-t md:border-t-0">
                     <div>
                       Ngày đăng:{" "}
                       <span className="text-green-600 font-medium">
@@ -132,11 +135,11 @@ function DepartmentDocuments() {
 
           {/* Pagination */}
           {pagination.totalPages > 1 && (
-            <div className="flex justify-center gap-2 mt-8">
+            <div className="flex justify-center gap-1 sm:gap-2 mt-6 sm:mt-8 flex-wrap">
               <button
                 disabled={pagination.page === 1}
                 onClick={() => loadDocuments(pagination.page - 1)}
-                className="px-3 py-1 border rounded hover:bg-gray-100 disabled:opacity-50"
+                className="px-3 py-1 border rounded text-sm hover:bg-gray-100 disabled:opacity-50"
               >
                 ‹
               </button>
@@ -144,7 +147,7 @@ function DepartmentDocuments() {
                 <button
                   key={i}
                   onClick={() => loadDocuments(i + 1)}
-                  className={`px-3 py-1 border rounded ${
+                  className={`px-3 py-1 border rounded text-sm ${
                     pagination.page === i + 1
                       ? "bg-green-600 text-white"
                       : "hover:bg-gray-100"
@@ -156,7 +159,7 @@ function DepartmentDocuments() {
               <button
                 disabled={pagination.page === pagination.totalPages}
                 onClick={() => loadDocuments(pagination.page + 1)}
-                className="px-3 py-1 border rounded hover:bg-gray-100 disabled:opacity-50"
+                className="px-3 py-1 border rounded text-sm hover:bg-gray-100 disabled:opacity-50"
               >
                 ›
               </button>
