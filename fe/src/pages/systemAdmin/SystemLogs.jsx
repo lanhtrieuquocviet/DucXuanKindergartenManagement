@@ -3,6 +3,37 @@ import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../../context/AuthContext';
 import { useSystemAdmin } from '../../context/SystemAdminContext';
 import RoleLayout from '../../layouts/RoleLayout';
+import {
+  Box,
+  Paper,
+  Typography,
+  Button,
+  Alert,
+  Dialog,
+  DialogTitle,
+  DialogContent,
+  DialogActions,
+  TextField,
+  IconButton,
+  Stack,
+  Table,
+  TableBody,
+  TableCell,
+  TableContainer,
+  TableHead,
+  TableRow,
+  Divider,
+} from '@mui/material';
+import {
+  FilterList as FilterIcon,
+  Refresh as RefreshIcon,
+  Visibility as ViewIcon,
+  Close as CloseIcon,
+  Article as LogIcon,
+  CalendarToday as DateIcon,
+  Person as PersonIcon,
+  Bolt as ActionIcon,
+} from '@mui/icons-material';
 
 function SystemLogs() {
   const navigate = useNavigate();
@@ -153,262 +184,410 @@ function SystemLogs() {
       onViewProfile={handleViewProfile}
       onMenuSelect={handleMenuSelect}
     >
-      <div className="bg-white rounded-lg shadow p-6">
-        <div className="flex items-center justify-between mb-4">
-          <div className="flex items-center gap-3">
-            <span className="text-2xl" aria-hidden="true">
-              📜
-            </span>
-            <div>
-              <h3 className="text-base font-semibold text-gray-900">System Log</h3>
-              <p className="text-xs text-gray-500">
-                Theo dõi thao tác người dùng trong hệ thống (giới hạn trong 3 ngày gần nhất).
-              </p>
-            </div>
-          </div>
-        </div>
+      {/* Header Paper */}
+      <Paper
+        elevation={0}
+        sx={{
+          background: 'linear-gradient(135deg, #1e293b 0%, #334155 100%)',
+          borderRadius: 2,
+          px: 3,
+          py: 2.5,
+          mb: 3,
+        }}
+      >
+        <Stack direction="row" alignItems="center" spacing={1.5}>
+          <LogIcon sx={{ color: 'rgba(255,255,255,0.85)', fontSize: 28 }} />
+          <Box>
+            <Typography variant="h6" sx={{ color: '#fff', fontWeight: 700, lineHeight: 1.3 }}>
+              Nhật ký hệ thống
+            </Typography>
+            <Typography variant="caption" sx={{ color: 'rgba(255,255,255,0.65)' }}>
+              Theo dõi thao tác người dùng trong hệ thống (giới hạn trong 3 ngày gần nhất).
+            </Typography>
+          </Box>
+        </Stack>
+      </Paper>
 
-        {(localError || error) && (
-          <div className="mb-4 rounded-md bg-red-50 border border-red-200 px-4 py-2 text-sm text-red-800">
-            {localError || error}
-          </div>
-        )}
-
-        <div className="mb-4 grid grid-cols-1 md:grid-cols-4 gap-3 text-xs">
-          <div className="flex flex-col">
-            <label className="mb-1 font-medium text-gray-700">Từ ngày</label>
-            <input
+      {/* Main Paper */}
+      <Paper elevation={1} sx={{ borderRadius: 2, overflow: 'hidden' }}>
+        {/* Filter Toolbar */}
+        <Box
+          sx={{
+            bgcolor: 'grey.50',
+            borderBottom: '1px solid',
+            borderColor: 'divider',
+            px: 3,
+            py: 2,
+          }}
+        >
+          <Stack
+            direction="row"
+            alignItems="center"
+            spacing={1}
+            sx={{ mb: 2 }}
+          >
+            <FilterIcon sx={{ fontSize: 18, color: 'text.secondary' }} />
+            <Typography variant="body2" fontWeight={600} color="text.secondary">
+              Bộ lọc
+            </Typography>
+          </Stack>
+          <Stack
+            direction={{ xs: 'column', md: 'row' }}
+            spacing={2}
+            alignItems={{ xs: 'stretch', md: 'flex-end' }}
+          >
+            <TextField
+              label="Từ ngày"
               type="date"
+              size="small"
               value={filters.startDate}
               onChange={(e) => handleFilterChange('startDate', e.target.value)}
-              className="rounded-md border border-gray-300 px-2 py-1.5 text-xs focus:outline-none focus:ring-1 focus:ring-blue-500 focus:border-blue-500"
+              InputLabelProps={{ shrink: true }}
+              InputProps={{ startAdornment: null }}
+              sx={{ flex: 1 }}
             />
-          </div>
-          <div className="flex flex-col">
-            <label className="mb-1 font-medium text-gray-700">Đến ngày</label>
-            <input
+            <TextField
+              label="Đến ngày"
               type="date"
+              size="small"
               value={filters.endDate}
               onChange={(e) => handleFilterChange('endDate', e.target.value)}
-              className="rounded-md border border-gray-300 px-2 py-1.5 text-xs focus:outline-none focus:ring-1 focus:ring-blue-500 focus:border-blue-500"
+              InputLabelProps={{ shrink: true }}
+              sx={{ flex: 1 }}
             />
-          </div>
-          <div className="flex flex-col">
-            <label className="mb-1 font-medium text-gray-700">Hành động</label>
-            <input
+            <TextField
+              label="Hành động"
               type="text"
+              size="small"
               placeholder="Tìm theo hành động..."
               value={filters.action}
               onChange={(e) => handleFilterChange('action', e.target.value)}
-              className="rounded-md border border-gray-300 px-2 py-1.5 text-xs focus:outline-none focus:ring-1 focus:ring-blue-500 focus:border-blue-500"
+              sx={{ flex: 1 }}
             />
-          </div>
-          <div className="flex flex-col">
-            <label className="mb-1 font-medium text-gray-700">Người thực hiện</label>
-            <input
+            <TextField
+              label="Người thực hiện"
               type="text"
+              size="small"
               placeholder="Tìm theo người thực hiện..."
               value={filters.actor}
               onChange={(e) => handleFilterChange('actor', e.target.value)}
-              className="rounded-md border border-gray-300 px-2 py-1.5 text-xs focus:outline-none focus:ring-1 focus:ring-blue-500 focus:border-blue-500"
+              sx={{ flex: 1 }}
             />
-          </div>
-          <div className="md:col-span-4 flex justify-end gap-2 mt-1">
-            <button
-              type="button"
-              onClick={handleResetFilters}
-              disabled={loading}
-              className={`px-3 py-1.5 rounded-md border text-xs font-medium ${
-                loading
-                  ? 'bg-gray-100 text-gray-400 border-gray-200 cursor-not-allowed'
-                  : 'bg-white text-gray-700 border-gray-300 hover:bg-gray-50'
-              }`}
-            >
-              Xóa bộ lọc
-            </button>
-            <button
-              type="button"
-              onClick={handleApplyFilters}
-              disabled={loading}
-              className={`px-3 py-1.5 rounded-md text-xs font-medium ${
-                loading
-                  ? 'bg-blue-300 text-white cursor-not-allowed'
-                  : 'bg-blue-600 text-white hover:bg-blue-700'
-              }`}
-            >
-              Áp dụng
-            </button>
-          </div>
-        </div>
+            <Stack direction="row" spacing={1} sx={{ flexShrink: 0 }}>
+              <Button
+                variant="outlined"
+                size="small"
+                onClick={handleResetFilters}
+                disabled={loading}
+                startIcon={<RefreshIcon />}
+                sx={{ whiteSpace: 'nowrap' }}
+              >
+                Xóa bộ lọc
+              </Button>
+              <Button
+                variant="contained"
+                size="small"
+                onClick={handleApplyFilters}
+                disabled={loading}
+                startIcon={<FilterIcon />}
+                sx={{ whiteSpace: 'nowrap' }}
+              >
+                Áp dụng
+              </Button>
+            </Stack>
+          </Stack>
+        </Box>
 
-        <div className="overflow-x-auto">
-          <table className="min-w-full text-sm border border-gray-200 rounded-lg overflow-hidden">
-            <thead className="bg-gray-50 text-gray-900">
-              <tr>
-                {/* <th className="px-4 py-3 text-left font-semibold border-b border-gray-200">
-                  ID
-                </th> */}
-                <th className="px-4 py-3 text-left font-semibold border-b border-gray-200">
-                  Thời gian
-                </th>
-                <th className="px-4 py-3 text-left font-semibold border-b border-gray-200">
-                  Người thực hiện
-                </th>
-                <th className="px-4 py-3 text-left font-semibold border-b border-gray-200">
-                  Hành động
-                </th>
-                <th className="px-4 py-3 text-center font-semibold border-b border-gray-200">
-                  Xem chi tiết
-                </th>
-              </tr>
-            </thead>
-            <tbody>
+        {/* Error Alert */}
+        {(localError || error) && (
+          <Box sx={{ px: 3, pt: 2 }}>
+            <Alert severity="error" onClose={() => { setLocalError(''); setError(null); }}>
+              {localError || error}
+            </Alert>
+          </Box>
+        )}
+
+        {/* Table */}
+        <TableContainer>
+          <Table size="small">
+            <TableHead>
+              <TableRow
+                sx={{
+                  '& th': {
+                    bgcolor: 'grey.50',
+                    fontWeight: 700,
+                    fontSize: 12,
+                    color: 'text.secondary',
+                    textTransform: 'uppercase',
+                    letterSpacing: 0.5,
+                    py: 1.5,
+                    borderBottom: '2px solid',
+                    borderColor: 'divider',
+                  },
+                }}
+              >
+                <TableCell>
+                  <Stack direction="row" alignItems="center" spacing={0.5}>
+                    <DateIcon sx={{ fontSize: 14 }} />
+                    <span>Thời gian</span>
+                  </Stack>
+                </TableCell>
+                <TableCell>
+                  <Stack direction="row" alignItems="center" spacing={0.5}>
+                    <PersonIcon sx={{ fontSize: 14 }} />
+                    <span>Người thực hiện</span>
+                  </Stack>
+                </TableCell>
+                <TableCell>
+                  <Stack direction="row" alignItems="center" spacing={0.5}>
+                    <ActionIcon sx={{ fontSize: 14 }} />
+                    <span>Hành động</span>
+                  </Stack>
+                </TableCell>
+                <TableCell align="center">Xem chi tiết</TableCell>
+              </TableRow>
+            </TableHead>
+            <TableBody>
               {logs.map((log) => (
-                <tr key={log._id} className="hover:bg-gray-50">
-                  {/* <td className="px-4 py-3 border-b border-gray-100 text-gray-900 font-medium">
-                    {log._id}
-                  </td> */}
-                  <td className="px-4 py-3 border-b border-gray-100 text-gray-800">
+                <TableRow
+                  key={log._id}
+                  hover
+                  sx={{ '&:last-child td': { borderBottom: 0 } }}
+                >
+                  <TableCell sx={{ fontSize: 13, color: 'text.primary' }}>
                     {log.createdAt
                       ? new Date(log.createdAt).toLocaleString('vi-VN')
                       : '--'}
-                  </td>
-                  <td className="px-4 py-3 border-b border-gray-100 text-gray-800">
+                  </TableCell>
+                  <TableCell sx={{ fontSize: 13, color: 'text.primary' }}>
                     {log.actorName || 'Không rõ'}
-                  </td>
-                  <td className="px-4 py-3 border-b border-gray-100 text-gray-800">
+                  </TableCell>
+                  <TableCell sx={{ fontSize: 13, color: 'text.primary' }}>
                     {log.action}
-                  </td>
-                  <td className="px-4 py-3 border-b border-gray-100 text-center">
-                    <button
-                      type="button"
+                  </TableCell>
+                  <TableCell align="center">
+                    <Button
+                      size="small"
+                      variant="contained"
+                      startIcon={<ViewIcon />}
                       onClick={() => setSelectedLog(log)}
-                      className="inline-flex items-center rounded-md bg-blue-600 px-4 py-1.5 text-xs font-semibold text-white shadow hover:bg-blue-700 transition-colors"
+                      sx={{ fontSize: 12 }}
                     >
                       Xem
-                    </button>
-                  </td>
-                </tr>
+                    </Button>
+                  </TableCell>
+                </TableRow>
               ))}
               {!loading && logs.length === 0 && (
-                <tr>
-                  <td
-                    colSpan={5}
-                    className="px-4 py-6 text-center text-gray-500"
-                  >
-                    Chưa có nhật ký nào.
-                  </td>
-                </tr>
+                <TableRow>
+                  <TableCell colSpan={4} align="center" sx={{ py: 6, color: 'text.secondary' }}>
+                    <Stack alignItems="center" spacing={1}>
+                      <LogIcon sx={{ fontSize: 40, color: 'grey.300' }} />
+                      <Typography variant="body2" color="text.secondary">
+                        Chưa có nhật ký nào.
+                      </Typography>
+                    </Stack>
+                  </TableCell>
+                </TableRow>
               )}
-            </tbody>
-          </table>
-        </div>
+            </TableBody>
+          </Table>
+        </TableContainer>
 
-        <div className="mt-4 flex items-center justify-between text-xs text-gray-600">
-          <div>
+        {/* Pagination Row */}
+        <Divider />
+        <Box
+          sx={{
+            px: 3,
+            py: 1.5,
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'space-between',
+          }}
+        >
+          <Typography variant="caption" color="text.secondary">
             Trang{' '}
-            <span className="font-semibold">
+            <Box component="span" fontWeight={700} color="text.primary">
               {pagination.page}/{pagination.totalPages || 1}
-            </span>{' '}
-            • Tổng{' '}
-            <span className="font-semibold">{pagination.total}</span> bản ghi
-          </div>
-          <div className="flex items-center gap-2">
-            <button
-              type="button"
+            </Box>
+            {' · '}Tổng{' '}
+            <Box component="span" fontWeight={700} color="text.primary">
+              {pagination.total}
+            </Box>{' '}
+            bản ghi
+          </Typography>
+          <Stack direction="row" spacing={1}>
+            <Button
+              variant="outlined"
+              size="small"
               onClick={() => {
                 if (pagination.page > 1 && !loading) {
                   fetchLogs(pagination.page - 1, pagination.limit);
                 }
               }}
               disabled={loading || pagination.page <= 1}
-              className={`px-3 py-1.5 rounded-md border text-xs font-medium ${
-                pagination.page <= 1 || loading
-                  ? 'bg-gray-100 text-gray-400 border-gray-200 cursor-not-allowed'
-                  : 'bg-white text-gray-700 border-gray-300 hover:bg-gray-50'
-              }`}
             >
               Trước
-            </button>
-            <button
-              type="button"
+            </Button>
+            <Button
+              variant="outlined"
+              size="small"
               onClick={() => {
                 if (pagination.page < (pagination.totalPages || 1) && !loading) {
                   fetchLogs(pagination.page + 1, pagination.limit);
                 }
               }}
               disabled={loading || pagination.page >= (pagination.totalPages || 1)}
-              className={`px-3 py-1.5 rounded-md border text-xs font-medium ${
-                pagination.page >= (pagination.totalPages || 1) || loading
-                  ? 'bg-gray-100 text-gray-400 border-gray-200 cursor-not-allowed'
-                  : 'bg-white text-gray-700 border-gray-300 hover:bg-gray-50'
-              }`}
             >
               Sau
-            </button>
-          </div>
-        </div>
-      </div>
+            </Button>
+          </Stack>
+        </Box>
+      </Paper>
 
-      {selectedLog && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 px-4">
-          <div className="bg-white rounded-lg shadow-xl w-full max-w-lg">
-            <div className="flex items-center justify-between px-5 py-4 border-b border-gray-200">
-              <h4 className="text-base font-semibold text-gray-900">
-                Chi tiết nhật ký
-              </h4>
-              <button
-                type="button"
-                onClick={() => setSelectedLog(null)}
-                className="text-gray-400 hover:text-gray-600"
+      {/* Log Detail Dialog */}
+      <Dialog
+        open={Boolean(selectedLog)}
+        onClose={() => setSelectedLog(null)}
+        maxWidth="sm"
+        fullWidth
+      >
+        {/* Gradient Header */}
+        <DialogTitle
+          sx={{
+            background: 'linear-gradient(135deg, #1e293b 0%, #334155 100%)',
+            color: '#fff',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'space-between',
+            py: 2,
+            px: 3,
+          }}
+        >
+          <Stack direction="row" alignItems="center" spacing={1.5}>
+            <LogIcon sx={{ fontSize: 22, color: 'rgba(255,255,255,0.85)' }} />
+            <Typography variant="subtitle1" fontWeight={700} sx={{ color: '#fff' }}>
+              Chi tiết nhật ký
+            </Typography>
+          </Stack>
+          <IconButton
+            size="small"
+            onClick={() => setSelectedLog(null)}
+            sx={{ color: 'rgba(255,255,255,0.7)', '&:hover': { color: '#fff' } }}
+          >
+            <CloseIcon fontSize="small" />
+          </IconButton>
+        </DialogTitle>
+
+        <DialogContent sx={{ px: 3, py: 3 }}>
+          {selectedLog && (
+            <Stack spacing={2}>
+              {/* Thời gian */}
+              <Box
+                sx={{
+                  display: 'grid',
+                  gridTemplateColumns: '140px 1fr',
+                  alignItems: 'center',
+                  gap: 1,
+                }}
               >
-                ✕
-              </button>
-            </div>
-            <div className="px-5 py-4 space-y-3 text-sm text-gray-700">
-              {/* <div className="grid grid-cols-3 gap-2">
-                <span className="text-gray-500">ID</span>
-                <span className="col-span-2 font-medium">{selectedLog._id}</span>
-              </div> */}
-              <div className="grid grid-cols-3 gap-2">
-                <span className="text-gray-500">Thời gian</span>
-                <span className="col-span-2 font-medium">
+                <Stack direction="row" alignItems="center" spacing={0.5}>
+                  <DateIcon sx={{ fontSize: 16, color: 'text.secondary' }} />
+                  <Typography variant="body2" color="text.secondary" fontWeight={500}>
+                    Thời gian
+                  </Typography>
+                </Stack>
+                <Typography variant="body2" fontWeight={600}>
                   {selectedLog.createdAt
                     ? new Date(selectedLog.createdAt).toLocaleString('vi-VN')
                     : '--'}
-                </span>
-              </div>
-              <div className="grid grid-cols-3 gap-2">
-                <span className="text-gray-500">Người thực hiện</span>
-                <span className="col-span-2 font-medium">
-                  {selectedLog.actorName || 'Không rõ'}
-                </span>
-              </div>
-              <div className="grid grid-cols-3 gap-2">
-                <span className="text-gray-500">Hành động</span>
-                <span className="col-span-2 font-medium">
-                  {selectedLog.action}
-                </span>
-              </div>
-              <div className="pt-2">
-                <div className="text-gray-500 mb-1">Nội dung chi tiết</div>
-                <div className="rounded-md bg-gray-50 border border-gray-200 p-3 text-sm text-gray-700">
-                  {selectedLog.detail || 'Không có nội dung chi tiết.'}
-                </div>
-              </div>
-            </div>
-            <div className="px-5 py-4 border-t border-gray-200 flex justify-end">
-              <button
-                type="button"
-                onClick={() => setSelectedLog(null)}
-                className="rounded-md bg-gray-100 px-4 py-2 text-sm font-medium text-gray-700 hover:bg-gray-200 transition-colors"
+                </Typography>
+              </Box>
+
+              <Divider />
+
+              {/* Người thực hiện */}
+              <Box
+                sx={{
+                  display: 'grid',
+                  gridTemplateColumns: '140px 1fr',
+                  alignItems: 'center',
+                  gap: 1,
+                }}
               >
-                Đóng
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
+                <Stack direction="row" alignItems="center" spacing={0.5}>
+                  <PersonIcon sx={{ fontSize: 16, color: 'text.secondary' }} />
+                  <Typography variant="body2" color="text.secondary" fontWeight={500}>
+                    Người thực hiện
+                  </Typography>
+                </Stack>
+                <Typography variant="body2" fontWeight={600}>
+                  {selectedLog.actorName || 'Không rõ'}
+                </Typography>
+              </Box>
+
+              <Divider />
+
+              {/* Hành động */}
+              <Box
+                sx={{
+                  display: 'grid',
+                  gridTemplateColumns: '140px 1fr',
+                  alignItems: 'center',
+                  gap: 1,
+                }}
+              >
+                <Stack direction="row" alignItems="center" spacing={0.5}>
+                  <ActionIcon sx={{ fontSize: 16, color: 'text.secondary' }} />
+                  <Typography variant="body2" color="text.secondary" fontWeight={500}>
+                    Hành động
+                  </Typography>
+                </Stack>
+                <Typography variant="body2" fontWeight={600}>
+                  {selectedLog.action}
+                </Typography>
+              </Box>
+
+              <Divider />
+
+              {/* Nội dung chi tiết */}
+              <Box>
+                <Typography
+                  variant="body2"
+                  color="text.secondary"
+                  fontWeight={600}
+                  sx={{ mb: 1, textTransform: 'uppercase', fontSize: 11, letterSpacing: 0.5 }}
+                >
+                  Nội dung chi tiết
+                </Typography>
+                <Paper
+                  variant="outlined"
+                  sx={{
+                    bgcolor: 'grey.50',
+                    borderColor: 'divider',
+                    p: 2,
+                    borderRadius: 1.5,
+                  }}
+                >
+                  <Typography variant="body2" color="text.primary" sx={{ whiteSpace: 'pre-wrap', wordBreak: 'break-word' }}>
+                    {selectedLog.detail || 'Không có nội dung chi tiết.'}
+                  </Typography>
+                </Paper>
+              </Box>
+            </Stack>
+          )}
+        </DialogContent>
+
+        <DialogActions sx={{ px: 3, py: 2, borderTop: '1px solid', borderColor: 'divider' }}>
+          <Button
+            variant="outlined"
+            onClick={() => setSelectedLog(null)}
+            startIcon={<CloseIcon />}
+          >
+            Đóng
+          </Button>
+        </DialogActions>
+      </Dialog>
     </RoleLayout>
   );
 }

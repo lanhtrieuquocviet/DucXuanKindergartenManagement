@@ -3,6 +3,23 @@ import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../../context/AuthContext';
 import { useSystemAdmin } from '../../context/SystemAdminContext';
 import RoleLayout from '../../layouts/RoleLayout';
+import {
+  Box,
+  Grid,
+  Paper,
+  Typography,
+  Alert,
+  Skeleton,
+  Chip,
+  Button,
+} from '@mui/material';
+import SecurityIcon from '@mui/icons-material/Security';
+import PeopleIcon from '@mui/icons-material/People';
+import NotificationsIcon from '@mui/icons-material/Notifications';
+import ManageAccountsIcon from '@mui/icons-material/ManageAccounts';
+import ShieldIcon from '@mui/icons-material/Shield';
+import BarChartIcon from '@mui/icons-material/BarChart';
+import ArticleIcon from '@mui/icons-material/Article';
 
 function SystemAdminDashboard() {
   const [data, setData] = useState(null);
@@ -77,6 +94,39 @@ function SystemAdminDashboard() {
     navigate('/profile');
   };
 
+  const statCards = [
+    {
+      label: 'Tổng số trường',
+      value: '3',
+      sub: 'Ví dụ dữ liệu thống kê (mock).',
+      icon: <SecurityIcon sx={{ fontSize: 26, color: 'white' }} />,
+      gradient: 'linear-gradient(135deg, #6366f1 0%, #8b5cf6 100%)',
+      barGradient: 'linear-gradient(90deg, #6366f1, #8b5cf6)',
+      shadow: '0 4px 12px rgba(99,102,241,0.40)',
+      valueColor: '#6366f1',
+    },
+    {
+      label: 'Tài khoản hoạt động',
+      value: '25',
+      sub: 'SystemAdmin / SchoolAdmin / Teacher.',
+      icon: <PeopleIcon sx={{ fontSize: 26, color: 'white' }} />,
+      gradient: 'linear-gradient(135deg, #0ea5e9 0%, #06b6d4 100%)',
+      barGradient: 'linear-gradient(90deg, #0ea5e9, #06b6d4)',
+      shadow: '0 4px 12px rgba(14,165,233,0.40)',
+      valueColor: '#0ea5e9',
+    },
+    {
+      label: 'Thông báo gần đây',
+      value: null,
+      sub: 'Hệ thống hoạt động ổn định. Không có cảnh báo mới.',
+      icon: <NotificationsIcon sx={{ fontSize: 26, color: 'white' }} />,
+      gradient: 'linear-gradient(135deg, #10b981 0%, #14b8a6 100%)',
+      barGradient: 'linear-gradient(90deg, #10b981, #14b8a6)',
+      shadow: '0 4px 12px rgba(16,185,129,0.40)',
+      valueColor: '#10b981',
+    },
+  ];
+
   return (
     <RoleLayout
       title="Bảng điều khiển System Admin"
@@ -92,42 +142,255 @@ function SystemAdminDashboard() {
       onViewProfile={handleViewProfile}
       onMenuSelect={handleMenuSelect}
     >
+      {/* Error Alert */}
       {error && (
-        <div className="mb-4 rounded-md bg-red-50 border border-red-200 px-4 py-2 text-sm text-red-800">
+        <Alert severity="error" sx={{ mb: 3, borderRadius: 2 }}>
           {error}
-        </div>
+        </Alert>
       )}
 
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
-        <div className="bg-white rounded-lg shadow p-6">
-          <h2 className="text-sm font-semibold text-gray-700 mb-1">Tổng số trường</h2>
-          <p className="mt-2 text-2xl font-bold text-gray-800">3</p>
-          <p className="mt-1 text-xs text-gray-500">Ví dụ dữ liệu thống kê (mock).</p>
-        </div>
-        <div className="bg-white rounded-lg shadow p-6">
-          <h2 className="text-sm font-semibold text-gray-700 mb-1">Tài khoản hoạt động</h2>
-          <p className="mt-2 text-2xl font-bold text-gray-800">25</p>
-          <p className="mt-1 text-xs text-gray-500">SystemAdmin / SchoolAdmin / Teacher.</p>
-        </div>
-        <div className="bg-white rounded-lg shadow p-6">
-          <h2 className="text-sm font-semibold text-gray-700 mb-1">Thông báo gần đây</h2>
-          <p className="mt-2 text-xs text-gray-600">
-            Hệ thống hoạt động ổn định. Không có cảnh báo mới.
-          </p>
-        </div>
-      </div>
+      {/* Dashboard Banner */}
+      <Paper
+        elevation={0}
+        sx={{
+          borderRadius: 3,
+          mb: 3,
+          overflow: 'hidden',
+          background: 'linear-gradient(135deg, #6366f1 0%, #8b5cf6 60%, #a855f7 100%)',
+          position: 'relative',
+          p: { xs: 3, md: 4 },
+        }}
+      >
+        {/* Decorative circles */}
+        <Box
+          sx={{
+            position: 'absolute',
+            top: -32,
+            right: -32,
+            width: 160,
+            height: 160,
+            borderRadius: '50%',
+            background: 'rgba(255,255,255,0.08)',
+            pointerEvents: 'none',
+          }}
+        />
+        <Box
+          sx={{
+            position: 'absolute',
+            bottom: -48,
+            right: 80,
+            width: 220,
+            height: 220,
+            borderRadius: '50%',
+            background: 'rgba(255,255,255,0.05)',
+            pointerEvents: 'none',
+          }}
+        />
+        <Box
+          sx={{
+            position: 'absolute',
+            top: 16,
+            right: 160,
+            width: 80,
+            height: 80,
+            borderRadius: '50%',
+            background: 'rgba(255,255,255,0.06)',
+            pointerEvents: 'none',
+          }}
+        />
 
-      <div className="bg-white rounded-lg shadow p-6">
-        <h3 className="text-sm font-semibold text-gray-800 mb-2">Dữ liệu trả về từ API</h3>
-        {loading && (
-          <p className="text-sm text-gray-500">Đang tải...</p>
-        )}
-        {!loading && (
-          <pre className="text-xs text-gray-700 overflow-auto max-h-80 bg-gray-50 p-4 rounded">
-            {JSON.stringify(data, null, 2)}
-          </pre>
-        )}
-      </div>
+        <Box sx={{ position: 'relative', zIndex: 1 }}>
+          <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5, mb: 1 }}>
+            <ShieldIcon sx={{ color: 'rgba(255,255,255,0.9)', fontSize: 28 }} />
+            <Chip
+              label="System Admin"
+              size="small"
+              sx={{
+                bgcolor: 'rgba(255,255,255,0.18)',
+                color: 'white',
+                fontWeight: 700,
+                fontSize: '0.72rem',
+                letterSpacing: 0.5,
+              }}
+            />
+          </Box>
+          <Typography
+            variant="h5"
+            fontWeight={800}
+            sx={{ color: 'white', mb: 0.5, lineHeight: 1.3 }}
+          >
+            Xin chào, {userName}!
+          </Typography>
+          <Typography
+            variant="body2"
+            sx={{ color: 'rgba(255,255,255,0.80)', mb: 2.5, maxWidth: 480 }}
+          >
+            Quản lý toàn bộ hệ thống trường, tài khoản và phân quyền từ một nơi duy nhất.
+          </Typography>
+          <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 1.5 }}>
+            <Button
+              variant="contained"
+              size="small"
+              startIcon={<ManageAccountsIcon />}
+              onClick={() => navigate('/system-admin/manage-accounts')}
+              sx={{
+                bgcolor: 'rgba(255,255,255,0.22)',
+                color: 'white',
+                fontWeight: 700,
+                borderRadius: 2,
+                boxShadow: 'none',
+                '&:hover': { bgcolor: 'rgba(255,255,255,0.32)', boxShadow: 'none' },
+              }}
+            >
+              Quản lý tài khoản
+            </Button>
+            <Button
+              variant="contained"
+              size="small"
+              startIcon={<ArticleIcon />}
+              onClick={() => navigate('/system-admin/system-logs')}
+              sx={{
+                bgcolor: 'rgba(255,255,255,0.22)',
+                color: 'white',
+                fontWeight: 700,
+                borderRadius: 2,
+                boxShadow: 'none',
+                '&:hover': { bgcolor: 'rgba(255,255,255,0.32)', boxShadow: 'none' },
+              }}
+            >
+              Nhật ký hệ thống
+            </Button>
+            <Button
+              variant="contained"
+              size="small"
+              startIcon={<BarChartIcon />}
+              onClick={() => navigate('/system-admin/manage-roles')}
+              sx={{
+                bgcolor: 'rgba(255,255,255,0.22)',
+                color: 'white',
+                fontWeight: 700,
+                borderRadius: 2,
+                boxShadow: 'none',
+                '&:hover': { bgcolor: 'rgba(255,255,255,0.32)', boxShadow: 'none' },
+              }}
+            >
+              Quản lý vai trò
+            </Button>
+          </Box>
+        </Box>
+      </Paper>
+
+      {/* Stat Cards */}
+      <Grid container spacing={2.5} sx={{ mb: 3 }}>
+        {statCards.map((card) => (
+          <Grid item xs={12} md={4} key={card.label}>
+            <Paper
+              elevation={0}
+              sx={{
+                borderRadius: 3,
+                border: '1px solid',
+                borderColor: 'divider',
+                overflow: 'hidden',
+              }}
+            >
+              <Box sx={{ height: 4, background: card.barGradient }} />
+              <Box sx={{ p: 2.5, display: 'flex', alignItems: 'center', gap: 2 }}>
+                <Box
+                  sx={{
+                    width: 48,
+                    height: 48,
+                    borderRadius: 2.5,
+                    background: card.gradient,
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    boxShadow: card.shadow,
+                    flexShrink: 0,
+                  }}
+                >
+                  {card.icon}
+                </Box>
+                <Box>
+                  <Typography variant="caption" color="text.secondary" fontWeight={600}>
+                    {card.label}
+                  </Typography>
+                  {card.value !== null ? (
+                    <Typography
+                      variant="h4"
+                      fontWeight={800}
+                      sx={{ color: card.valueColor, lineHeight: 1.1 }}
+                    >
+                      {card.value}
+                    </Typography>
+                  ) : null}
+                  <Typography variant="caption" color="text.disabled" display="block">
+                    {card.sub}
+                  </Typography>
+                </Box>
+              </Box>
+            </Paper>
+          </Grid>
+        ))}
+      </Grid>
+
+      {/* API Data Section */}
+      <Paper
+        elevation={0}
+        sx={{
+          borderRadius: 3,
+          border: '1px solid',
+          borderColor: 'divider',
+          overflow: 'hidden',
+        }}
+      >
+        <Box
+          sx={{
+            px: 3,
+            py: 2,
+            borderBottom: '1px solid',
+            borderColor: 'divider',
+            display: 'flex',
+            alignItems: 'center',
+            gap: 1.5,
+          }}
+        >
+          <BarChartIcon sx={{ fontSize: 20, color: 'text.secondary' }} />
+          <Typography variant="subtitle2" fontWeight={700} color="text.primary">
+            Dữ liệu trả về từ API
+          </Typography>
+        </Box>
+        <Box sx={{ p: 3 }}>
+          {loading ? (
+            <Box sx={{ display: 'flex', flexDirection: 'column', gap: 1 }}>
+              <Skeleton variant="rectangular" height={20} sx={{ borderRadius: 1 }} />
+              <Skeleton variant="rectangular" height={20} width="80%" sx={{ borderRadius: 1 }} />
+              <Skeleton variant="rectangular" height={20} width="60%" sx={{ borderRadius: 1 }} />
+              <Skeleton variant="rectangular" height={20} width="70%" sx={{ borderRadius: 1 }} />
+            </Box>
+          ) : (
+            <Box
+              component="pre"
+              sx={{
+                m: 0,
+                p: 2,
+                bgcolor: 'grey.50',
+                borderRadius: 2,
+                border: '1px solid',
+                borderColor: 'divider',
+                fontFamily: 'monospace',
+                fontSize: '0.78rem',
+                color: 'text.primary',
+                overflowX: 'auto',
+                maxHeight: 320,
+                overflowY: 'auto',
+                lineHeight: 1.6,
+              }}
+            >
+              {JSON.stringify(data, null, 2)}
+            </Box>
+          )}
+        </Box>
+      </Paper>
     </RoleLayout>
   );
 }

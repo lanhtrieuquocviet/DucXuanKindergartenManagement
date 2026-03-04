@@ -1,4 +1,15 @@
 // Modal đánh vắng mặt học sinh + dialog xác nhận
+import {
+  Dialog, DialogTitle, DialogContent, DialogActions,
+  Box, Typography, Button, TextField, FormControl,
+  InputLabel, Select, MenuItem, Alert, IconButton,
+  Avatar,
+} from '@mui/material';
+import {
+  Close as CloseIcon,
+  PersonOff as AbsentIcon,
+  WarningAmber as WarningIcon,
+} from '@mui/icons-material';
 import ConfirmDialog from '../../../components/ConfirmDialog';
 import { ABSENT_REASONS, MAX_NOTE_LEN, sanitizeMultiLineText } from './attendanceUtils';
 
@@ -17,90 +28,123 @@ function AbsentModal({
   onCancelConfirm,
 }) {
   const studentName = students.find((s) => s._id === studentId)?.fullName || studentId || '';
+  const initial = studentName?.[0]?.toUpperCase() || '?';
 
   return (
     <>
-      {isOpen && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40">
-          <div className="bg-white rounded-xl shadow-2xl w-full max-w-md mx-4">
-            <div className="border-b px-5 py-4 flex items-center justify-between">
-              <h3 className="text-sm font-semibold text-gray-900">Học sinh vắng mặt</h3>
-              <button
-                type="button"
-                onClick={onClose}
-                className="text-red-600 hover:text-red-800"
-                aria-label="Đóng"
+      <Dialog
+        open={isOpen}
+        onClose={onClose}
+        maxWidth="xs"
+        fullWidth
+        slotProps={{ paper: { sx: { borderRadius: 3, overflow: 'hidden' } } }}
+      >
+        {/* Colored header */}
+        <Box
+          sx={{
+            background: 'linear-gradient(135deg, #ef4444 0%, #dc2626 100%)',
+            px: 2.5, pt: 2.5, pb: 2,
+            display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between',
+          }}
+        >
+          <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5 }}>
+            <Avatar sx={{ bgcolor: 'rgba(255,255,255,0.2)', width: 40, height: 40 }}>
+              <AbsentIcon sx={{ color: 'white', fontSize: 22 }} />
+            </Avatar>
+            <Box>
+              <Typography variant="subtitle1" fontWeight={700} color="white">
+                Ghi nhận vắng mặt
+              </Typography>
+              <Typography variant="caption" sx={{ color: 'rgba(255,255,255,0.75)' }}>
+                {selectedDate}
+              </Typography>
+            </Box>
+          </Box>
+          <IconButton size="small" onClick={onClose} sx={{ color: 'rgba(255,255,255,0.8)', mt: -0.5 }}>
+            <CloseIcon fontSize="small" />
+          </IconButton>
+        </Box>
+
+        <Box component="form" onSubmit={onSubmit}>
+          <DialogContent sx={{ pt: 2.5, pb: 1 }}>
+            {absentError && (
+              <Alert severity="error" sx={{ mb: 2, borderRadius: 2 }}>{absentError}</Alert>
+            )}
+
+            {/* Student card */}
+            <Box
+              sx={{
+                mb: 2.5, p: 1.75, borderRadius: 2.5,
+                border: '1.5px solid', borderColor: 'error.200',
+                bgcolor: '#fff5f5',
+                display: 'flex', alignItems: 'center', gap: 1.5,
+              }}
+            >
+              <Avatar sx={{ width: 40, height: 40, background: 'linear-gradient(135deg, #ef4444, #dc2626)', fontWeight: 700, fontSize: 15 }}>
+                {initial}
+              </Avatar>
+              <Box>
+                <Typography variant="body2" fontWeight={700}>{studentName}</Typography>
+                <Typography variant="caption" color="error.main">Sẽ được đánh là vắng mặt</Typography>
+              </Box>
+              <WarningIcon sx={{ color: 'error.main', ml: 'auto', opacity: 0.6 }} fontSize="small" />
+            </Box>
+
+            {/* Reason */}
+            <FormControl fullWidth size="small" sx={{ mb: 2 }}>
+              <InputLabel>Lý do vắng mặt *</InputLabel>
+              <Select
+                value={absentForm.reason}
+                label="Lý do vắng mặt *"
+                onChange={(e) => setAbsentForm((prev) => ({ ...prev, reason: e.target.value }))}
               >
-                ✕
-              </button>
-            </div>
+                <MenuItem value="" disabled>-- Chọn lý do --</MenuItem>
+                {ABSENT_REASONS.map((reason) => (
+                  <MenuItem key={reason} value={reason}>{reason}</MenuItem>
+                ))}
+              </Select>
+            </FormControl>
 
-            <form onSubmit={onSubmit} className="p-5">
-              {absentError && (
-                <div className="mb-4 rounded-md bg-red-50 border border-red-200 px-4 py-2 text-sm text-red-800">
-                  {absentError}
-                </div>
-              )}
+            {/* Note */}
+            <TextField
+              fullWidth
+              multiline
+              rows={3}
+              size="small"
+              label="Ghi chú thêm"
+              placeholder="Ví dụ: Phụ huynh đã báo trước qua điện thoại..."
+              value={absentForm.note}
+              slotProps={{ htmlInput: { maxLength: MAX_NOTE_LEN } }}
+              onChange={(e) =>
+                setAbsentForm((prev) => ({
+                  ...prev,
+                  note: sanitizeMultiLineText(e.target.value, MAX_NOTE_LEN),
+                }))
+              }
+              helperText={`${(absentForm.note || '').length} / ${MAX_NOTE_LEN} ký tự`}
+            />
+          </DialogContent>
 
-              <div className="mb-4">
-                <p className="text-xs text-gray-600 mb-3">
-                  Học sinh:{' '}
-                  <span className="font-semibold text-gray-900">{studentName}</span>
-                </p>
-              </div>
-
-              <div className="mb-4">
-                <label className="block text-xs font-semibold text-gray-700 mb-2">Lý do</label>
-                <select
-                  value={absentForm.reason}
-                  onChange={(e) => setAbsentForm((prev) => ({ ...prev, reason: e.target.value }))}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500"
-                >
-                  <option value="">--Chọn--</option>
-                  {ABSENT_REASONS.map((reason) => (
-                    <option key={reason} value={reason}>
-                      {reason}
-                    </option>
-                  ))}
-                </select>
-              </div>
-
-              <div className="mb-4">
-                <label className="block text-xs font-semibold text-gray-700 mb-2">Ghi chú</label>
-                <textarea
-                  rows={4}
-                  value={absentForm.note}
-                  onChange={(e) =>
-                    setAbsentForm((prev) => ({
-                      ...prev,
-                      note: sanitizeMultiLineText(e.target.value, MAX_NOTE_LEN),
-                    }))
-                  }
-                  placeholder="Nhập ghi chú nếu có"
-                  maxLength={MAX_NOTE_LEN}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500 resize-y"
-                />
-              </div>
-
-              <div className="flex justify-end gap-2 mt-5">
-                <button
-                  type="button"
-                  onClick={onClose}
-                  className="px-4 py-2 text-sm font-medium text-gray-700 bg-gray-100 rounded-md hover:bg-gray-200 transition-colors"
-                >
-                  Hủy
-                </button>
-                <button
-                  type="submit"
-                  className="px-4 py-2 text-sm font-semibold text-white bg-red-600 rounded-md hover:bg-red-700 transition-colors"
-                >
-                  Lưu
-                </button>
-              </div>
-            </form>
-          </div>
-        </div>
-      )}
+          <DialogActions sx={{ px: 2.5, py: 2, borderTop: '1px solid', borderColor: 'divider', gap: 1 }}>
+            <Button
+              variant="outlined"
+              onClick={onClose}
+              sx={{ borderRadius: 2, textTransform: 'none', fontWeight: 600, flex: 1 }}
+            >
+              Hủy bỏ
+            </Button>
+            <Button
+              type="submit"
+              variant="contained"
+              color="error"
+              startIcon={<AbsentIcon />}
+              sx={{ borderRadius: 2, textTransform: 'none', fontWeight: 700, flex: 1.5, boxShadow: 'none' }}
+            >
+              Xác nhận vắng mặt
+            </Button>
+          </DialogActions>
+        </Box>
+      </Dialog>
 
       <ConfirmDialog
         open={isConfirmOpen}
