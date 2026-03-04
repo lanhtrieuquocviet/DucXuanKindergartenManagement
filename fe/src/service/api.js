@@ -216,6 +216,8 @@ export const ENDPOINTS = {
     BLOG_CATEGORY_DETAIL: (id) => `/school-admin/blog-categories/${id}`,
     DOCUMENTS: "/school-admin/documents",
     DOCUMENT_DETAIL: (documentId) => `/school-admin/documents/${documentId}`,
+    PUBLIC_INFOS: "/school-admin/public-info",
+    PUBLIC_INFO_DETAIL: (id) => `/school-admin/public-info/${id}`,
   },
   // Contact (public)
   CONTACT: {
@@ -251,6 +253,11 @@ export const ENDPOINTS = {
   DOCUMENTS: {
     PUBLISHED: "/documents/published",
     DETAIL: (id) => `/documents/${id}`,
+  },
+  // Public Info (public)
+  PUBLIC_INFO: {
+    LIST: "/public-info",
+    DETAIL: (id) => `/public-info/${id}`,
   },
   // Students
   STUDENTS: {

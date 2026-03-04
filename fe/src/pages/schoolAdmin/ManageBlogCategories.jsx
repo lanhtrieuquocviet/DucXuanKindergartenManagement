@@ -192,6 +192,7 @@ function ManageBlogCategories() {
     { key: 'qa', label: 'Câu hỏi' },
     { key: 'blogs', label: 'Quản lý blog' },
     { key: 'documents', label: 'Quản lý tài liệu' },
+    { key: 'public-info', label: 'Thông tin công khai' },
     { key: 'attendance', label: 'Quản lý điểm danh' },
   ];
 
@@ -203,6 +204,7 @@ function ManageBlogCategories() {
       qa: '/school-admin/qa',
       blogs: '/school-admin/blogs',
       documents: '/school-admin/documents',
+      'public-info': '/school-admin/public-info',
       attendance: '/school-admin/attendance/overview',
     };
     if (routes[key]) navigate(routes[key]);

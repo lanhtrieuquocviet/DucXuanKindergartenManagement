@@ -50,6 +50,7 @@ function SchoolAdminDashboard() {
     { key: 'qa', label: 'Câu hỏi' },
     { key: 'blogs', label: 'Quản lý blog' },
     { key: 'documents', label: 'Quản lý tài liệu' },
+    { key: 'public-info', label: 'Thông tin công khai' },
     { key: 'attendance', label: 'Quản lý điểm danh' },
   ];
 
@@ -79,6 +80,10 @@ function SchoolAdminDashboard() {
     }
     if (key === 'documents') {
       navigate('/school-admin/documents');
+      return;
+    }
+    if (key === 'public-info') {
+      navigate('/school-admin/public-info');
       return;
     }
     if (key === 'attendance') {
@@ -120,18 +125,34 @@ function SchoolAdminDashboard() {
         </div>
       </div>
 
-      <div className="bg-white rounded-lg shadow p-6 mb-6">
-        <h3 className="text-sm font-semibold text-gray-800 mb-4">Thông tin điểm danh</h3>
-        <p className="text-sm text-gray-600 mb-4">
-          Xem tổng quan điểm danh của tất cả các lớp trong trường.
-        </p>
-        <button
-          type="button"
-          onClick={() => navigate('/school-admin/attendance/overview')}
-          className="px-4 py-2 bg-indigo-600 text-white text-sm font-semibold rounded-md hover:bg-indigo-700 transition-colors"
-        >
-          Xem điểm danh các lớp
-        </button>
+      <div className="flex flex-col sm:flex-row gap-4 mb-6">
+        <div className="bg-white rounded-lg shadow p-6 flex-1">
+          <h3 className="text-sm font-semibold text-gray-800 mb-4">Thông tin điểm danh</h3>
+          <p className="text-sm text-gray-600 mb-4">
+            Xem tổng quan điểm danh của tất cả các lớp trong trường.
+          </p>
+          <button
+            type="button"
+            onClick={() => navigate('/school-admin/attendance/overview')}
+            className="px-4 py-2 bg-indigo-600 text-white text-sm font-semibold rounded-md hover:bg-indigo-700 transition-colors"
+          >
+            Xem điểm danh các lớp
+          </button>
+        </div>
+
+        <div className="bg-white rounded-lg shadow p-6 flex-1">
+          <h3 className="text-sm font-semibold text-gray-800 mb-4">Thông tin công khai</h3>
+          <p className="text-sm text-gray-600 mb-4">
+            Quản lý các thông tin công khai theo 5 danh mục của trường.
+          </p>
+          <button
+            type="button"
+            onClick={() => navigate('/school-admin/public-info')}
+            className="px-4 py-2 bg-emerald-600 text-white text-sm font-semibold rounded-md hover:bg-emerald-700 transition-colors"
+          >
+            Quản lý thông tin công khai
+          </button>
+        </div>
       </div>
 
       <div className="bg-white rounded-lg shadow p-6">

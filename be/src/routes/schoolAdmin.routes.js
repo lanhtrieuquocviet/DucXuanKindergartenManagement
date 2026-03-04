@@ -12,6 +12,7 @@ const blogController = require('../controller/blogController');
 const blogCategoryController = require('../controller/blogCategoryController');
 const qaController = require('../controller/qaController');
 const documentController = require('../controller/documentController');
+const publicInfoController = require('../controller/publicInfoController');
 
 const router = express.Router();
 
@@ -249,6 +250,13 @@ router.delete(
   authorizeRoles('SchoolAdmin'),
   documentController.deleteDocument
 );
+
+// Public Info CRUD cho SchoolAdmin
+router.get('/public-info', authenticate, authorizeRoles('SchoolAdmin'), publicInfoController.listPublicInfos);
+router.get('/public-info/:id', authenticate, authorizeRoles('SchoolAdmin'), publicInfoController.getPublicInfo);
+router.post('/public-info', authenticate, authorizeRoles('SchoolAdmin'), publicInfoController.createPublicInfo);
+router.put('/public-info/:id', authenticate, authorizeRoles('SchoolAdmin'), publicInfoController.updatePublicInfo);
+router.delete('/public-info/:id', authenticate, authorizeRoles('SchoolAdmin'), publicInfoController.deletePublicInfo);
 
 module.exports = router;
 

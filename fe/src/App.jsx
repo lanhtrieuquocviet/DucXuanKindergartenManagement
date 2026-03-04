@@ -66,6 +66,8 @@ import ThingsToKnow from './pages/Library/ThingsToKnow';
 import PoetryMusic from './pages/Library/PoetryMusic';
 import RelaxPage from './pages/Library/RelaxPage';
 import PublicInformationDetail from './pages/PublicInformation/PublicInformationDetail';
+import PublicInfoDetail from './pages/PublicInformation/PublicInfoDetail';
+import ManagePublicInfo from './pages/schoolAdmin/ManagePublicInfo';
 import PickupRequest from './pages/teacher/PickupRequest';
 
 function AppContent() {
@@ -76,8 +78,8 @@ function AppContent() {
         <Route path="/about" element={<About />} />
         {/* Thông tin công khai */}
         <Route path="/public-information" element={<PublicInfoPage />} />
-        
         <Route path="/public-information/:slug/:year" element={<PublicInformationDetail />} />
+        <Route path="/public-info/:id" element={<PublicInfoDetail />} />
 
         <Route path="/introduce-school" element={<IntroductionSchool />} />
 
@@ -382,6 +384,14 @@ function App() {
             element={
               <SchoolAdminProvider>
                 <DocumentDetail />
+              </SchoolAdminProvider>
+            }
+          />
+          <Route
+            path="/school-admin/public-info"
+            element={
+              <SchoolAdminProvider>
+                <ManagePublicInfo />
               </SchoolAdminProvider>
             }
           />

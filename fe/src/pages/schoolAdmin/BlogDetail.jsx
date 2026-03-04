@@ -96,6 +96,7 @@ function BlogDetail() {
     { key: 'qa', label: 'Câu hỏi' },
     { key: 'blogs', label: 'Quản lý blog' },
     { key: 'documents', label: 'Quản lý tài liệu' },
+    { key: 'public-info', label: 'Thông tin công khai' },
     { key: 'attendance', label: 'Quản lý điểm danh' },
   ];
 
@@ -122,6 +123,10 @@ function BlogDetail() {
     }
     if (key === 'documents') {
       navigate('/school-admin/documents');
+      return;
+    }
+    if (key === 'public-info') {
+      navigate('/school-admin/public-info');
       return;
     }
     if (key === 'attendance') {
