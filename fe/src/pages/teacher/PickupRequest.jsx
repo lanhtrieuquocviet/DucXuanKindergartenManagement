@@ -3,22 +3,28 @@ import { useLocation, useNavigate } from "react-router-dom";
 import { useAuth } from "../../context/AuthContext";
 import RoleLayout from "../../layouts/RoleLayout";
 import { get, post, ENDPOINTS } from "../../service/api";
-import ConfirmDialog from "../../components/ConfirmDialog"; // component bạn đã có
+import ConfirmDialog from "../../components/ConfirmDialog";
+import {
+  Box, Paper, Typography, Button, Select, MenuItem, FormControl,
+  InputLabel, Table, TableBody, TableCell, TableContainer, TableHead,
+  TableRow, Chip, Alert, Skeleton, Stack, Dialog, IconButton, Avatar,
+  ToggleButtonGroup, ToggleButton,
+} from "@mui/material";
+import {
+  Refresh as RefreshIcon,
+  CheckCircle as ApproveIcon,
+  Cancel as RejectIcon,
+  Close as CloseIcon,
+  DirectionsCar as PickupIcon,
+  HourglassEmpty as PendingIcon,
+  CheckCircleOutline as ApprovedIcon,
+  BlockOutlined as RejectedIcon,
+} from "@mui/icons-material";
 
-// Các hằng số trạng thái
-const STATUS_LABELS = {
-  pending: {
-    text: "Chờ duyệt",
-    color: "bg-amber-100 text-amber-800 border-amber-300",
-  },
-  approved: {
-    text: "Đã duyệt",
-    color: "bg-green-100 text-green-800 border-green-300",
-  },
-  rejected: {
-    text: "Từ chối",
-    color: "bg-red-100 text-red-800 border-red-300",
-  },
+const STATUS_META = {
+  pending:  { label: "Chờ duyệt", color: "warning",  icon: <PendingIcon sx={{ fontSize: 14 }} /> },
+  approved: { label: "Đã duyệt",  color: "success",  icon: <ApprovedIcon sx={{ fontSize: 14 }} /> },
+  rejected: { label: "Từ chối",   color: "error",    icon: <RejectedIcon sx={{ fontSize: 14 }} /> },
 };
 
 function PickupRequest() {
@@ -30,48 +36,39 @@ function PickupRequest() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
   const [successMessage, setSuccessMessage] = useState("");
-  const [filterStatus, setFilterStatus] = useState("pending"); // mặc định chỉ hiển thị chờ duyệt
-  const [previewImage, setPreviewImage] = useState(null);// Image max
-  // Modal xác nhận
+  const [filterStatus, setFilterStatus] = useState("pending");
+  const [previewImage, setPreviewImage] = useState(null);
   const [confirmOpen, setConfirmOpen] = useState(false);
   const [selectedRequest, setSelectedRequest] = useState(null);
-  const [actionType, setActionType] = useState(""); // 'approve' | 'reject'
+  const [actionType, setActionType] = useState("");
 
   const menuItems = useMemo(() => [
-    { key: "classes", label: "Lớp phụ trách" },
-    { key: "students", label: "Danh sách học sinh" },
-    { key: "attendance", label: "Điểm danh" },
+    { key: "classes",         label: "Lớp phụ trách" },
+    { key: "students",        label: "Danh sách học sinh" },
+    { key: "attendance",      label: "Điểm danh" },
     { key: "pickup-approval", label: "Đơn đưa đón" },
-    { key: "schedule", label: "Lịch dạy & hoạt động" },
-    { key: "messages", label: "Thông báo cho phụ huynh" },
+    { key: "schedule",        label: "Lịch dạy & hoạt động" },
+    { key: "messages",        label: "Thông báo cho phụ huynh" },
   ], []);
 
   const activeKey = useMemo(() => {
-    const path = location.pathname || '';
-    if (path.startsWith('/teacher/attendance')) return 'attendance';
-    if (path.startsWith('/teacher/pickup-approval')) return 'pickup-approval';
-    return 'classes';
+    const path = location.pathname || "";
+    if (path.startsWith("/teacher/attendance"))      return "attendance";
+    if (path.startsWith("/teacher/pickup-approval")) return "pickup-approval";
+    return "classes";
   }, [location.pathname]);
 
   const handleMenuSelect = (key) => {
-    if (key === "classes") { navigate("/teacher"); return; }
-    if (key === "attendance") { navigate("/teacher/attendance"); return; }
-    if (key === "pickup-approval") { navigate("/teacher/pickup-approval"); return; }
+    if (key === "classes")         { navigate("/teacher");                  return; }
+    if (key === "attendance")      { navigate("/teacher/attendance");        return; }
+    if (key === "pickup-approval") { navigate("/teacher/pickup-approval");   return; }
   };
 
   useEffect(() => {
     if (isInitializing) return;
-    if (!user) {
-      navigate("/login", { replace: true });
-      return;
-    }
-
+    if (!user) { navigate("/login", { replace: true }); return; }
     const userRoles = user?.roles?.map((r) => r.roleName || r) || [];
-    if (!userRoles.includes("Teacher")) {
-      navigate("/", { replace: true });
-      return;
-    }
-
+    if (!userRoles.includes("Teacher")) { navigate("/", { replace: true }); return; }
     fetchPickupRequests();
   }, [isInitializing, user, navigate]);
 
@@ -80,16 +77,10 @@ function PickupRequest() {
       setLoading(true);
       setError("");
       const res = await get(ENDPOINTS.PICKUP.REQUESTS || "/pickup/requests");
-      let filtered = res.data || [];
-
-      // Lọc theo trạng thái nếu không phải "all"
-      if (filterStatus !== "all") {
-        filtered = filtered.filter((r) => r.status === filterStatus);
-      }
-
-      setRequests(filtered);
-    } catch (err) {
-      console.error("Fetch pickup requests failed:", err);
+      let data = res.data || [];
+      if (filterStatus !== "all") data = data.filter((r) => r.status === filterStatus);
+      setRequests(data);
+    } catch (_) {
       setError("Không tải được danh sách. Vui lòng thử lại.");
     } finally {
       setLoading(false);
@@ -104,35 +95,19 @@ function PickupRequest() {
 
   const confirmAction = async () => {
     if (!selectedRequest) return;
-
     try {
       setError("");
       const payload = {
         requestId: selectedRequest._id,
         status: actionType === "approve" ? "approved" : "rejected",
-        // Nếu từ chối, có thể thêm rejectedReason từ modal sau này
       };
-
-      await post(
-        ENDPOINTS.PICKUP.UPDATE_STATUS || "/pickup/requests/status",
-        payload
-      );
-
-      // Cập nhật UI
+      await post(ENDPOINTS.PICKUP.UPDATE_STATUS || "/pickup/requests/status", payload);
       setRequests((prev) =>
-        prev.map((r) =>
-          r._id === selectedRequest._id ? { ...r, status: payload.status } : r
-        )
+        prev.map((r) => r._id === selectedRequest._id ? { ...r, status: payload.status } : r)
       );
-
-      setSuccessMessage(
-        actionType === "approve"
-          ? "Đã duyệt thành công!"
-          : "Đã từ chối đăng ký."
-      );
+      setSuccessMessage(actionType === "approve" ? "Đã duyệt thành công!" : "Đã từ chối đăng ký.");
       setTimeout(() => setSuccessMessage(""), 4000);
     } catch (err) {
-      console.error("Action failed:", err);
       setError(err.message || "Lỗi khi xử lý yêu cầu. Vui lòng thử lại.");
     } finally {
       setConfirmOpen(false);
@@ -141,12 +116,7 @@ function PickupRequest() {
     }
   };
 
-  const getStatusBadge = (status) =>
-    STATUS_LABELS[status] || {
-      text: status,
-      color: "bg-gray-100 text-gray-800",
-    };
-
+  const pendingCount = requests.filter((r) => r.status === "pending").length;
   const userName = user?.fullName || user?.username || "Giáo viên";
 
   return (
@@ -161,150 +131,245 @@ function PickupRequest() {
       onViewProfile={() => navigate("/profile")}
       onMenuSelect={handleMenuSelect}
     >
-      <div className="bg-white rounded-xl shadow-lg border border-gray-200 overflow-hidden">
-        {/* Header & Filter */}
-        <div className="p-6 border-b border-gray-200">
-          <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
-            <div>
-              <h1 className="text-2xl font-bold text-gray-800">
-                Phê duyệt người đưa đón
-              </h1>
-              <p className="text-gray-600 mt-1">
-                Các đăng ký từ phụ huynh chờ giáo viên xác nhận
-              </p>
-            </div>
-
-            <div className="flex items-center gap-4">
-              <select
-                value={filterStatus}
-                onChange={(e) => setFilterStatus(e.target.value)}
-                className="border border-gray-300 rounded-md px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500"
-              >
-                <option value="pending">Chỉ chờ duyệt</option>
-                <option value="all">Tất cả</option>
-                <option value="approved">Đã duyệt</option>
-                <option value="rejected">Từ chối</option>
-              </select>
-
-              <button
-                onClick={fetchPickupRequests}
-                disabled={loading}
-                className={`px-4 py-2 rounded-md text-white font-medium transition ${
-                  loading
-                    ? "bg-gray-400 cursor-not-allowed"
-                    : "bg-indigo-600 hover:bg-indigo-700"
-                }`}
-              >
-                {loading ? "Đang tải..." : "Làm mới"}
-              </button>
-            </div>
-          </div>
-
-          {error && (
-            <div className="mt-4 p-3 bg-red-50 border border-red-200 rounded-md text-red-700 text-sm">
-              {error}
-            </div>
+      {/* Page header banner */}
+      <Paper
+        elevation={0}
+        sx={{
+          mb: 3, borderRadius: 3, overflow: 'hidden',
+          background: 'linear-gradient(135deg, #f59e0b 0%, #d97706 100%)',
+          position: 'relative',
+        }}
+      >
+        <Box sx={{ position:'absolute', right:-20, top:-20, width:100, height:100, borderRadius:'50%', bgcolor:'rgba(255,255,255,0.08)' }} />
+        <Box sx={{ px: { xs: 2.5, md: 3 }, py: 2.5, display:'flex', alignItems:'center', gap:2, position:'relative', zIndex:1 }}>
+          <Avatar sx={{ width:48, height:48, bgcolor:'rgba(255,255,255,0.2)' }}>
+            <PickupIcon sx={{ color:'white', fontSize:26 }} />
+          </Avatar>
+          <Box>
+            <Typography variant="h6" fontWeight={700} color="white">
+              Phê duyệt người đưa đón
+            </Typography>
+            <Typography variant="body2" sx={{ color:'rgba(255,255,255,0.8)' }}>
+              Các đăng ký từ phụ huynh chờ giáo viên xác nhận
+            </Typography>
+          </Box>
+          {pendingCount > 0 && (
+            <Chip
+              label={`${pendingCount} chờ duyệt`}
+              sx={{ ml:'auto', bgcolor:'rgba(255,255,255,0.25)', color:'white', fontWeight:700, fontSize:13 }}
+            />
           )}
+        </Box>
+      </Paper>
 
-          {successMessage && (
-            <div className="mt-4 p-3 bg-green-50 border border-green-200 rounded-md text-green-700 text-sm flex items-center gap-2">
-              <span>✅</span> {successMessage}
-            </div>
-          )}
-        </div>
+      <Paper
+        elevation={0}
+        sx={{ borderRadius: 3, border: "1px solid", borderColor: "divider", overflow: "hidden" }}
+      >
+        {/* Toolbar */}
+        <Box
+          sx={{
+            px: { xs: 2, md: 3 }, py: 2,
+            borderBottom: "1px solid", borderColor: "divider",
+            display: "flex", flexWrap: "wrap",
+            alignItems: "center", justifyContent: "space-between", gap: 2,
+            bgcolor: 'grey.50',
+          }}
+        >
+          <ToggleButtonGroup
+            value={filterStatus}
+            exclusive
+            size="small"
+            onChange={(_, val) => { if (val) setFilterStatus(val); }}
+            sx={{ '& .MuiToggleButton-root': { textTransform: 'none', fontWeight: 600, fontSize: 12, px: 2 } }}
+          >
+            <ToggleButton value="pending">Chờ duyệt</ToggleButton>
+            <ToggleButton value="approved">Đã duyệt</ToggleButton>
+            <ToggleButton value="rejected">Từ chối</ToggleButton>
+            <ToggleButton value="all">Tất cả</ToggleButton>
+          </ToggleButtonGroup>
+
+          <Button
+            variant="outlined"
+            startIcon={<RefreshIcon />}
+            onClick={fetchPickupRequests}
+            disabled={loading}
+            size="small"
+            sx={{ borderRadius: 2, textTransform: "none", fontWeight: 600 }}
+          >
+            Làm mới
+          </Button>
+        </Box>
+
+        {/* Alerts */}
+        {error && <Alert severity="error" sx={{ mx: 3, mt: 2, borderRadius: 2 }}>{error}</Alert>}
+        {successMessage && <Alert severity="success" sx={{ mx: 3, mt: 2, borderRadius: 2 }}>{successMessage}</Alert>}
 
         {/* Table */}
-        <div className="overflow-x-auto">
-          {loading ? (
-            <div className="text-center py-12 text-gray-500">
-              Đang tải danh sách đăng ký...
-            </div>
-          ) : requests.length === 0 ? (
-            <div className="text-center py-12 bg-gray-50">
-              <p className="text-gray-600 text-lg">
-                Hiện chưa có đăng ký nào{" "}
-                {filterStatus === "pending" ? "chờ duyệt" : ""}.
-              </p>
-              <p className="text-sm text-gray-500 mt-2">
-                Khi phụ huynh đăng ký, danh sách sẽ hiển thị tại đây.
-              </p>
-            </div>
-          ) : (
-            <table className="w-full text-sm text-left text-gray-700">
-              <thead className="text-xs uppercase bg-gray-50 border-b border-gray-200">
-                <tr>
-                  <th className="px-6 py-4">Học sinh</th>
-                  <th className="px-6 py-4">Người đăng ký</th>
-                  <th className="px-6 py-4">Quan hệ</th>
-                  <th className="px-6 py-4">SĐT</th>
-                  <th className="px-6 py-4">Ảnh</th>
-                  <th className="px-6 py-4">Trạng thái</th>
-                  <th className="px-6 py-4 text-center">Thao tác</th>
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-gray-200">
+        {loading ? (
+          <Box sx={{ p: 3, display: "flex", flexDirection: "column", gap: 1.5 }}>
+            {[1, 2, 3].map((i) => <Skeleton key={i} variant="rounded" height={60} />)}
+          </Box>
+        ) : requests.length === 0 ? (
+          <Box sx={{ py: 10, textAlign: "center" }}>
+            <Avatar sx={{ width: 60, height: 60, bgcolor: "grey.100", mx: "auto", mb: 2 }}>
+              <PickupIcon sx={{ color: "grey.400", fontSize: 30 }} />
+            </Avatar>
+            <Typography variant="body1" fontWeight={600} color="text.secondary">
+              Không có đăng ký nào{filterStatus === "pending" ? " đang chờ duyệt" : ""}
+            </Typography>
+            <Typography variant="caption" color="text.disabled">
+              Khi phụ huynh đăng ký, danh sách sẽ hiển thị tại đây.
+            </Typography>
+          </Box>
+        ) : (
+          <TableContainer>
+            <Table>
+              <TableHead>
+                <TableRow
+                  sx={{
+                    "& th": {
+                      bgcolor: "grey.50", fontWeight: 700, fontSize: 12,
+                      color: "text.secondary", textTransform: "uppercase",
+                      letterSpacing: 0.5, py: 1.5,
+                      borderBottom: "2px solid", borderColor: "divider",
+                    },
+                  }}
+                >
+                  <TableCell>Học sinh</TableCell>
+                  <TableCell>Người đăng ký</TableCell>
+                  <TableCell>Quan hệ</TableCell>
+                  <TableCell>Số điện thoại</TableCell>
+                  <TableCell align="center">Ảnh</TableCell>
+                  <TableCell align="center">Trạng thái</TableCell>
+                  <TableCell align="center" sx={{ minWidth: 160 }}>Thao tác</TableCell>
+                </TableRow>
+              </TableHead>
+              <TableBody>
                 {requests.map((req) => {
-                  const badge = getStatusBadge(req.status);
+                  const meta = STATUS_META[req.status] || { label: req.status, color: "default" };
+                  const isPending = req.status === "pending";
                   return (
-                    <tr
+                    <TableRow
                       key={req._id}
-                      className="hover:bg-gray-50 transition align-middle"
+                      hover
+                      sx={{
+                        "&:last-child td": { border: 0 },
+                        bgcolor: isPending ? "rgba(245,158,11,0.03)" : "transparent",
+                      }}
                     >
-                      <td className="px-6 py-4 font-medium">
-                        {req.student?.fullName || "—"}
-                      </td>
-                      <td className="px-6 py-4">{req.fullName}</td>
-                      <td className="px-6 py-4">{req.relation}</td>
-                      <td className="px-6 py-4">{req.phone}</td>
-                      <td className="px-6 py-6">
-                        <div className="flex justify-center">
-                          {req.imageUrl ? (
-                            <img
-                              src={req.imageUrl}
-                              alt={req.fullName}
-                              onClick={() => setPreviewImage(req.imageUrl)}
-                              className="w-16 h-16 rounded-lg object-cover border border-gray-300 shadow-sm cursor-pointer hover:scale-105 transition"
-                            />
-                          ) : (
-                            <span className="text-gray-400">—</span>
-                          )}
-                        </div>
-                      </td>
-                      <td className="px-6 py-4">
-                        <span
-                          className={`inline-flex px-3 py-1 rounded-full text-xs font-medium border ${badge.color}`}
-                        >
-                          {badge.text}
-                        </span>
-                      </td>
-                      <td className="px-6 py-4 text-center">
-                        {req.status === "pending" && (
-                          <div className="flex items-center justify-center gap-3">
-                            <button
+                      <TableCell>
+                        <Box sx={{ display: "flex", alignItems: "center", gap: 1.5 }}>
+                          <Avatar
+                            sx={{
+                              width: 34, height: 34, fontSize: 13, fontWeight: 700,
+                              background: "linear-gradient(135deg,#f59e0b,#d97706)",
+                              color: "white",
+                            }}
+                          >
+                            {req.student?.fullName?.[0] || "?"}
+                          </Avatar>
+                          <Typography variant="body2" fontWeight={600}>
+                            {req.student?.fullName || "—"}
+                          </Typography>
+                        </Box>
+                      </TableCell>
+
+                      <TableCell>
+                        <Box sx={{ display: "flex", alignItems: "center", gap: 1 }}>
+                          <Avatar sx={{ width: 28, height: 28, bgcolor: "grey.200", fontSize: 12 }}>
+                            {req.fullName?.[0] || "?"}
+                          </Avatar>
+                          <Typography variant="body2">{req.fullName}</Typography>
+                        </Box>
+                      </TableCell>
+
+                      <TableCell>
+                        <Chip
+                          label={req.relation}
+                          size="small"
+                          variant="outlined"
+                          sx={{ height: 22, fontSize: 11, fontWeight: 600 }}
+                        />
+                      </TableCell>
+
+                      <TableCell>
+                        <Typography variant="body2" sx={{ fontFamily: "monospace", fontWeight: 600 }}>
+                          {req.phone}
+                        </Typography>
+                      </TableCell>
+
+                      <TableCell align="center">
+                        {req.imageUrl ? (
+                          <Box
+                            component="img"
+                            src={req.imageUrl}
+                            alt={req.fullName}
+                            onClick={() => setPreviewImage(req.imageUrl)}
+                            sx={{
+                              width: 48, height: 48,
+                              borderRadius: 2, objectFit: "cover",
+                              border: "2px solid", borderColor: "divider",
+                              cursor: "pointer",
+                              transition: "all 0.15s",
+                              "&:hover": { transform: "scale(1.1)", boxShadow: 3, borderColor: "primary.main" },
+                            }}
+                          />
+                        ) : (
+                          <Avatar sx={{ width: 48, height: 48, bgcolor: "grey.100", mx: "auto" }}>
+                            <Typography variant="caption" color="text.disabled">N/A</Typography>
+                          </Avatar>
+                        )}
+                      </TableCell>
+
+                      <TableCell align="center">
+                        <Chip
+                          label={meta.label}
+                          icon={meta.icon}
+                          color={meta.color}
+                          size="small"
+                          sx={{ fontWeight: 700, fontSize: 11, height: 24 }}
+                        />
+                      </TableCell>
+
+                      <TableCell align="center">
+                        {isPending ? (
+                          <Stack direction="row" spacing={1} justifyContent="center">
+                            <Button
+                              size="small"
+                              variant="contained"
+                              color="success"
+                              startIcon={<ApproveIcon sx={{ fontSize: "14px !important" }} />}
                               onClick={() => handleAction(req, "approve")}
-                              className="px-4 py-1.5 text-xs font-medium rounded bg-green-600 text-white hover:bg-green-700 transition"
+                              sx={{ textTransform: "none", fontSize: 12, fontWeight: 700, borderRadius: 2, boxShadow: "none" }}
                             >
                               Duyệt
-                            </button>
-                            <button
+                            </Button>
+                            <Button
+                              size="small"
+                              variant="outlined"
+                              color="error"
+                              startIcon={<RejectIcon sx={{ fontSize: "14px !important" }} />}
                               onClick={() => handleAction(req, "reject")}
-                              className="px-4 py-1.5 text-xs font-medium rounded bg-red-600 text-white hover:bg-red-700 transition"
+                              sx={{ textTransform: "none", fontSize: 12, fontWeight: 700, borderRadius: 2 }}
                             >
                               Từ chối
-                            </button>
-                          </div>
+                            </Button>
+                          </Stack>
+                        ) : (
+                          <Typography variant="caption" color="text.disabled">—</Typography>
                         )}
-                      </td>
-                    </tr>
+                      </TableCell>
+                    </TableRow>
                   );
                 })}
-              </tbody>
-            </table>
-          )}
-        </div>
-      </div>
+              </TableBody>
+            </Table>
+          </TableContainer>
+        )}
+      </Paper>
 
-      {/* Modal xác nhận */}
+      {/* Confirm dialog */}
       <ConfirmDialog
         open={confirmOpen}
         title={actionType === "approve" ? "Xác nhận duyệt" : "Xác nhận từ chối"}
@@ -314,42 +379,41 @@ function PickupRequest() {
             : `Bạn có chắc muốn từ chối "${selectedRequest?.fullName}" (${selectedRequest?.relation})?`
         }
         confirmText={actionType === "approve" ? "Duyệt" : "Từ chối"}
-        confirmButtonClass={
-          actionType === "approve"
-            ? "bg-green-600 hover:bg-green-700"
-            : "bg-red-600 hover:bg-red-700"
-        }
+        confirmButtonClass={actionType === "approve" ? "bg-green-600 hover:bg-green-700" : "bg-red-600 hover:bg-red-700"}
         onConfirm={confirmAction}
-        onCancel={() => {
-          setConfirmOpen(false);
-          setSelectedRequest(null);
-          setActionType("");
-        }}
+        onCancel={() => { setConfirmOpen(false); setSelectedRequest(null); setActionType(""); }}
       />
-      {previewImage && (
-        <div
-          className="fixed inset-0 bg-black/40 backdrop-blur-sm flex items-center justify-center z-50"
-          onClick={() => setPreviewImage(null)}
-        >
-          <div
-            className="relative max-w-lg w-full px-4"
-            onClick={(e) => e.stopPropagation()}
+
+      {/* Image preview dialog */}
+      <Dialog
+        open={!!previewImage}
+        onClose={() => setPreviewImage(null)}
+        maxWidth="sm"
+        fullWidth
+        slotProps={{ paper: { sx: { borderRadius: 3, bgcolor: "transparent", boxShadow: "none" } } }}
+      >
+        <Box sx={{ position: "relative" }}>
+          <IconButton
+            onClick={() => setPreviewImage(null)}
+            sx={{
+              position: "absolute", top: 8, right: 8,
+              bgcolor: "rgba(0,0,0,0.55)", color: "white",
+              "&:hover": { bgcolor: "rgba(0,0,0,0.8)" }, zIndex: 1,
+            }}
+            size="small"
           >
-            <img
+            <CloseIcon fontSize="small" />
+          </IconButton>
+          {previewImage && (
+            <Box
+              component="img"
               src={previewImage}
               alt="Preview"
-              className="w-full max-h-[80vh] object-contain rounded-xl shadow-2xl"
+              sx={{ width: "100%", maxHeight: "80vh", objectFit: "contain", borderRadius: 3, display: "block" }}
             />
-
-            <button
-              onClick={() => setPreviewImage(null)}
-              className="absolute top-2 right-2 bg-black/60 text-white rounded-full w-8 h-8 flex items-center justify-center hover:bg-black"
-            >
-              ✕
-            </button>
-          </div>
-        </div>
-      )}
+          )}
+        </Box>
+      </Dialog>
     </RoleLayout>
   );
 }

@@ -4,6 +4,36 @@ import { useAuth } from '../../context/AuthContext';
 import { useSystemAdmin } from '../../context/SystemAdminContext';
 import RoleLayout from '../../layouts/RoleLayout';
 import ConfirmDialog from '../../components/ConfirmDialog';
+import {
+  Box,
+  Paper,
+  Typography,
+  Button,
+  Alert,
+  Dialog,
+  DialogTitle,
+  DialogContent,
+  DialogActions,
+  TextField,
+  Chip,
+  IconButton,
+  Checkbox,
+  Divider,
+  Grid,
+  Stack,
+  CircularProgress,
+  List,
+  ListItemButton,
+  ListItemText,
+  ListItemIcon,
+} from '@mui/material';
+import {
+  Add as AddIcon,
+  Edit as EditIcon,
+  Delete as DeleteIcon,
+  Shield as ShieldIcon,
+  Save as SaveIcon,
+} from '@mui/icons-material';
 
 function ManagePermissions() {
   const [roles, setRoles] = useState([]);
@@ -22,16 +52,16 @@ function ManagePermissions() {
   });
   const navigate = useNavigate();
   const { user, logout, isInitializing } = useAuth();
-  const { 
-    getRoles, 
-    getPermissions, 
-    createPermission, 
-    updatePermission, 
+  const {
+    getRoles,
+    getPermissions,
+    createPermission,
+    updatePermission,
     deletePermission,
     updateRolePermissions,
-    loading, 
-    error, 
-    setError 
+    loading,
+    error,
+    setError,
   } = useSystemAdmin();
 
   useEffect(() => {
@@ -145,7 +175,9 @@ function ManagePermissions() {
       // Chỉ cho phép định dạng ACTION_MODULE (chữ in hoa + _)
       const codePattern = /^[A-Z]+_[A-Z]+$/;
       if (!codePattern.test(code)) {
-        setError('Code chỉ được chứa chữ in hoa (A-Z) và dấu gạch dưới (_), theo định dạng ACTION_MODULE. Ví dụ: CREATE_USER');
+        setError(
+          'Code chỉ được chứa chữ in hoa (A-Z) và dấu gạch dưới (_), theo định dạng ACTION_MODULE. Ví dụ: CREATE_USER'
+        );
         return;
       }
 
@@ -153,7 +185,11 @@ function ManagePermissions() {
 
       if (editingPermission) {
         // Cập nhật permission
-        await updatePermission(editingPermission._id || editingPermission.id, payload.code, payload.description);
+        await updatePermission(
+          editingPermission._id || editingPermission.id,
+          payload.code,
+          payload.description
+        );
         setSuccess('Cập nhật phân quyền thành công.');
       } else {
         // Tạo permission mới
@@ -247,14 +283,16 @@ function ManagePermissions() {
 
       setSuccess('Cập nhật phân quyền cho vai trò thành công.');
       setTimeout(() => setSuccess(''), 3000);
-      
+
       // Refresh roles
       try {
         const rolesData = await getRoles();
         setRoles(rolesData || []);
-        
+
         // Update selected role với dữ liệu mới
-        const updatedRole = rolesData.find(r => (r.id || r._id) === (selectedRole.id || selectedRole._id));
+        const updatedRole = rolesData.find(
+          (r) => (r.id || r._id) === (selectedRole.id || selectedRole._id)
+        );
         if (updatedRole) {
           setSelectedRole(updatedRole);
           const rolePerms = new Set();
@@ -294,264 +332,476 @@ function ManagePermissions() {
       onViewProfile={handleViewProfile}
       onMenuSelect={handleMenuSelect}
     >
+      {/* Alert messages */}
       {error && (
-          <div className="mb-4 rounded-md bg-red-50 border border-red-200 px-4 py-2 text-sm text-red-800">
-            {error}
-          </div>
+        <Alert severity="error" sx={{ mb: 2 }}>
+          {error}
+        </Alert>
       )}
       {success && (
-          <div className="mb-4 rounded-md bg-green-50 border border-green-200 px-4 py-2 text-sm text-green-800">
-            {success}
-          </div>
+        <Alert severity="success" sx={{ mb: 2 }}>
+          {success}
+        </Alert>
       )}
 
-      {/* Quản lý Permissions */}
-      <div className="bg-white rounded-lg shadow p-6 mb-6">
-          <div className="flex items-center justify-between mb-4">
-            <div>
-              <h3 className="text-sm font-semibold text-gray-800">Quản lý phân quyền</h3>
-              <p className="text-xs text-gray-500 mt-1">Tổng số: {permissions.length} phân quyền</p>
-            </div>
-            <button
-              type="button"
-              onClick={() => handleOpenPermissionForm()}
-              className="inline-flex items-center rounded-lg bg-indigo-600 px-3 py-1.5 text-xs font-semibold text-white shadow hover:bg-indigo-700 transition-colors"
-            >
-              + Thêm phân quyền
-            </button>
-          </div>
+      {/* Header Paper */}
+      <Paper
+        elevation={0}
+        sx={{
+          mb: 3,
+          p: 3,
+          background: 'linear-gradient(135deg, #6366f1 0%, #4f46e5 100%)',
+          borderRadius: 2,
+        }}
+      >
+        <Typography variant="h6" fontWeight={700} color="white">
+          Quản lý phân quyền
+        </Typography>
+        <Typography variant="body2" color="rgba(255,255,255,0.8)" mt={0.5}>
+          Gán phân quyền (permissions) cho từng vai trò trong hệ thống.
+        </Typography>
+      </Paper>
 
-          <div className="max-h-64 overflow-y-auto border border-gray-200 rounded-lg p-2">
-            {permissions.length === 0 ? (
-              <p className="text-sm text-gray-500 py-4">Chưa có phân quyền nào.</p>
-            ) : (
-              <div className="space-y-2">
-                {permissions.map((perm) => (
-                  <div
-                    key={perm._id || perm.id}
-                    className="flex items-center justify-between p-3 border border-gray-200 rounded-lg hover:bg-gray-50 transition-colors"
-                  >
-                    <div className="flex-1 min-w-0">
-                      <div className="font-medium text-sm text-gray-900 truncate">{perm.code}</div>
-                      <div className="text-xs text-gray-500 mt-1 line-clamp-2">{perm.description}</div>
-                    </div>
-                    <div className="flex gap-2 ml-3 flex-shrink-0">
-                      <button
-                        type="button"
-                        onClick={() => handleOpenPermissionForm(perm)}
-                        className="text-xs text-indigo-600 hover:text-indigo-800 font-medium whitespace-nowrap"
-                      >
-                        Sửa
-                      </button>
-                      <button
-                        type="button"
-                        onClick={() => handleDeletePermission(perm._id || perm.id)}
-                        className="text-xs text-red-600 hover:text-red-800 font-medium whitespace-nowrap"
-                      >
-                        Xóa
-                      </button>
-                    </div>
-                  </div>
-                ))}
-              </div>
-            )}
-          </div>
-      </div>
+      {/* Permissions list section */}
+      <Paper elevation={1} sx={{ borderRadius: 2, p: 3, mb: 3 }}>
+        {/* Section header */}
+        <Stack direction="row" alignItems="center" justifyContent="space-between" mb={2}>
+          <Stack direction="row" alignItems="center" spacing={1.5}>
+            <Typography variant="subtitle2" fontWeight={600} color="text.primary">
+              Danh sách phân quyền
+            </Typography>
+            <Chip
+              label={`${permissions.length} phân quyền`}
+              size="small"
+              color="primary"
+              variant="outlined"
+            />
+          </Stack>
+          <Button
+            variant="contained"
+            size="small"
+            startIcon={<AddIcon />}
+            onClick={() => handleOpenPermissionForm()}
+            sx={{
+              bgcolor: 'primary.main',
+              '&:hover': { bgcolor: 'primary.dark' },
+              borderRadius: 1.5,
+              textTransform: 'none',
+              fontWeight: 600,
+            }}
+          >
+            Thêm phân quyền
+          </Button>
+        </Stack>
 
-      {/* Form thêm/sửa permission */}
-      {showPermissionForm && (
-           <div className="fixed inset-0 bg-black/40 flex items-center justify-center z-50">
-            <div className="bg-white rounded-lg shadow-xl p-6 w-full max-w-md">
-              <h3 className="text-lg font-semibold text-gray-900 mb-4">
-                {editingPermission ? 'Sửa phân quyền' : 'Thêm phân quyền mới'}
-              </h3>
-              {error && (
-                <div className="mb-3 rounded-md bg-red-50 border border-red-200 px-3 py-2 text-xs text-red-800">
-                  {error}
-                </div>
-              )}
-              <form onSubmit={handleSavePermission}>
-                <div className="mb-4">
-                  <label className="block text-sm font-medium text-gray-700 mb-1">
-                    Code <span className="text-red-500">*</span>
-                  </label>
-                  <input
-                    type="text"
-                    value={permissionForm.code}
-                    onChange={(e) => setPermissionForm({ ...permissionForm, code: e.target.value.toUpperCase() })}
-                    className="w-full border border-gray-300 rounded-md px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500"
-                    placeholder="VD: CREATE_USER"
-                    required
-                    disabled={!!editingPermission}
-                    maxLength={64}
-                  />
-                  {editingPermission && (
-                    <p className="text-xs text-gray-500 mt-1">Không thể thay đổi code khi sửa</p>
-                  )}
-                </div>
-                <div className="mb-4">
-                  <label className="block text-sm font-medium text-gray-700 mb-1">
-                    Mô tả <span className="text-red-500">*</span>
-                  </label>
-                  <textarea
-                    value={permissionForm.description}
-                    onChange={(e) => setPermissionForm({ ...permissionForm, description: e.target.value })}
-                    className="w-full border border-gray-300 rounded-md px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500"
-                    placeholder="Mô tả phân quyền này (tối đa 255 ký tự)"
-                    rows={3}
-                    required
-                    maxLength={255}
-                  />
-                </div>
-                <div className="flex justify-end gap-2">
-                  <button
-                    type="button"
-                    onClick={handleClosePermissionForm}
-                    className="px-4 py-2 text-sm font-medium text-gray-700 bg-gray-100 rounded-md hover:bg-gray-200 transition-colors"
-                  >
-                    Hủy
-                  </button>
-                  <button
-                    type="submit"
-                    disabled={loading}
-                    className="px-4 py-2 text-sm font-semibold text-white bg-indigo-600 rounded-md hover:bg-indigo-700 disabled:opacity-60 disabled:cursor-not-allowed transition-colors"
-                  >
-                    {loading ? 'Đang lưu...' : editingPermission ? 'Cập nhật' : 'Tạo mới'}
-                  </button>
-                </div>
-              </form>
-            </div>
-          </div>
-        )}
-
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-          {/* Danh sách vai trò */}
-          <div className="bg-white rounded-lg shadow p-6">
-            <h3 className="text-sm font-semibold text-gray-800 mb-4">Danh sách vai trò</h3>
-            <div className="space-y-2">
-              {roles.length === 0 ? (
-                <p className="text-sm text-gray-500">Chưa có vai trò nào.</p>
-              ) : (
-                roles.map((role) => {
-                  const roleId = role.id || role._id;
-                  const isSelected = selectedRole && (selectedRole.id || selectedRole._id) === roleId;
-                  return (
-                    <button
-                      key={roleId}
-                      type="button"
-                      onClick={() => handleSelectRole(role)}
-                      className={`w-full text-left px-4 py-3 rounded-lg border transition-colors ${
-                        isSelected
-                          ? 'bg-indigo-50 border-indigo-500 text-indigo-900'
-                          : 'bg-gray-50 border-gray-200 text-gray-800 hover:bg-gray-100'
-                      }`}
+        {/* Scrollable permissions list */}
+        <Box
+          sx={{
+            maxHeight: 280,
+            overflowY: 'auto',
+            border: '1px solid',
+            borderColor: 'divider',
+            borderRadius: 1.5,
+            p: 1,
+          }}
+        >
+          {permissions.length === 0 ? (
+            <Typography variant="body2" color="text.secondary" sx={{ py: 3, textAlign: 'center' }}>
+              Chưa có phân quyền nào.
+            </Typography>
+          ) : (
+            <Stack spacing={1}>
+              {permissions.map((perm) => (
+                <Box
+                  key={perm._id || perm.id}
+                  sx={{
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'space-between',
+                    p: 1.5,
+                    border: '1px solid',
+                    borderColor: 'divider',
+                    borderRadius: 1.5,
+                    bgcolor: 'grey.50',
+                    '&:hover': { bgcolor: 'grey.100' },
+                    transition: 'background-color 0.15s',
+                  }}
+                >
+                  <Box sx={{ flex: 1, minWidth: 0 }}>
+                    <Typography
+                      variant="body2"
+                      fontWeight={600}
+                      color="text.primary"
+                      noWrap
+                      sx={{ fontFamily: 'monospace' }}
                     >
-                      <div className="font-medium text-sm text-gray-900 truncate max-w-xs">
-                        {role.roleName}
-                      </div>
-                      {role.description && (
-                        <div className="text-xs text-gray-500 mt-1 line-clamp-2 max-w-xs">
-                          {role.description}
-                        </div>
-                      )}
-                      <div className="text-xs text-gray-400 mt-1">
-                        {role.permissions?.length || 0} phân quyền
-                      </div>
-                    </button>
-                  );
-                })
-              )}
-            </div>
-          </div>
+                      {perm.code}
+                    </Typography>
+                    <Typography
+                      variant="caption"
+                      color="text.secondary"
+                      sx={{
+                        display: '-webkit-box',
+                        WebkitLineClamp: 2,
+                        WebkitBoxOrient: 'vertical',
+                        overflow: 'hidden',
+                        mt: 0.25,
+                      }}
+                    >
+                      {perm.description}
+                    </Typography>
+                  </Box>
+                  <Stack direction="row" spacing={0.5} sx={{ ml: 1.5, flexShrink: 0 }}>
+                    <IconButton
+                      size="small"
+                      color="primary"
+                      onClick={() => handleOpenPermissionForm(perm)}
+                      title="Sửa"
+                    >
+                      <EditIcon fontSize="small" />
+                    </IconButton>
+                    <IconButton
+                      size="small"
+                      color="error"
+                      onClick={() => handleDeletePermission(perm._id || perm.id)}
+                      title="Xóa"
+                    >
+                      <DeleteIcon fontSize="small" />
+                    </IconButton>
+                  </Stack>
+                </Box>
+              ))}
+            </Stack>
+          )}
+        </Box>
+      </Paper>
 
-          {/* Quản lý phân quyền cho vai trò đã chọn */}
-          <div className="bg-white rounded-lg shadow p-6">
+      {/* Bottom two-column grid */}
+      <Grid container spacing={3}>
+        {/* Left: Role list */}
+        <Grid item xs={12} lg={6}>
+          <Paper elevation={1} sx={{ borderRadius: 2, p: 3, height: '100%' }}>
+            <Typography variant="subtitle2" fontWeight={600} color="text.primary" mb={2}>
+              Danh sách vai trò
+            </Typography>
+            {roles.length === 0 ? (
+              <Typography variant="body2" color="text.secondary">
+                Chưa có vai trò nào.
+              </Typography>
+            ) : (
+              <List disablePadding>
+                {roles.map((role) => {
+                  const roleId = role.id || role._id;
+                  const isSelected =
+                    selectedRole && (selectedRole.id || selectedRole._id) === roleId;
+                  return (
+                    <ListItemButton
+                      key={roleId}
+                      onClick={() => handleSelectRole(role)}
+                      sx={{
+                        borderRadius: 1.5,
+                        mb: 1,
+                        bgcolor: isSelected ? 'rgba(99,102,241,0.08)' : 'transparent',
+                        borderLeft: isSelected ? '3px solid' : '3px solid transparent',
+                        borderColor: isSelected ? 'primary.main' : 'transparent',
+                        '&:hover': {
+                          bgcolor: isSelected ? 'rgba(99,102,241,0.12)' : 'action.hover',
+                        },
+                        transition: 'all 0.15s',
+                      }}
+                    >
+                      <ListItemText
+                        primary={
+                          <Typography
+                            variant="body2"
+                            fontWeight={600}
+                            color={isSelected ? 'primary.main' : 'text.primary'}
+                            noWrap
+                          >
+                            {role.roleName}
+                          </Typography>
+                        }
+                        secondary={
+                          <>
+                            {role.description && (
+                              <Typography
+                                variant="caption"
+                                color="text.secondary"
+                                sx={{
+                                  display: '-webkit-box',
+                                  WebkitLineClamp: 2,
+                                  WebkitBoxOrient: 'vertical',
+                                  overflow: 'hidden',
+                                }}
+                              >
+                                {role.description}
+                              </Typography>
+                            )}
+                            <Typography variant="caption" color="text.disabled" display="block">
+                              {role.permissions?.length || 0} phân quyền
+                            </Typography>
+                          </>
+                        }
+                      />
+                    </ListItemButton>
+                  );
+                })}
+              </List>
+            )}
+          </Paper>
+        </Grid>
+
+        {/* Right: Permission assignment for selected role */}
+        <Grid item xs={12} lg={6}>
+          <Paper elevation={1} sx={{ borderRadius: 2, p: 3, height: '100%' }}>
             {selectedRole ? (
               <>
-                <div className="mb-4">
-                  <h3 className="text-sm font-semibold text-gray-800 mb-1">
-                    <span className="inline-block max-w-md truncate align-bottom" title={selectedRole.roleName}>
-                      Phân quyền cho vai trò: {selectedRole.roleName}
-                    </span>
-                  </h3>
+                {/* Role info header */}
+                <Box mb={2}>
+                  <Stack direction="row" alignItems="center" spacing={1} flexWrap="wrap">
+                    <Typography variant="subtitle2" fontWeight={600} color="text.primary" noWrap>
+                      Phân quyền cho: {selectedRole.roleName}
+                    </Typography>
+                    <Chip
+                      label={`${selectedPermissions.size}/${permissions.length} đã chọn`}
+                      size="small"
+                      color="primary"
+                      variant="filled"
+                    />
+                  </Stack>
                   {selectedRole.description && (
-                    <p
-                      className="text-xs text-gray-500 max-w-md line-clamp-2"
-                      title={selectedRole.description}
+                    <Typography
+                      variant="caption"
+                      color="text.secondary"
+                      sx={{
+                        display: '-webkit-box',
+                        WebkitLineClamp: 2,
+                        WebkitBoxOrient: 'vertical',
+                        overflow: 'hidden',
+                        mt: 0.5,
+                      }}
                     >
                       {selectedRole.description}
-                    </p>
+                    </Typography>
                   )}
-                </div>
+                </Box>
 
-                <div className="mb-4">
-                  <div className="text-xs text-gray-500 mb-2">
-                    Chọn phân quyền cho vai trò này ({selectedPermissions.size}/{permissions.length} đã chọn)
-                  </div>
-                  <div className="max-h-96 overflow-y-auto pr-2 border border-gray-200 rounded-lg p-2">
-                    {permissions.length === 0 ? (
-                      <p className="text-sm text-gray-500 py-4">Chưa có phân quyền nào trong hệ thống.</p>
-                    ) : (
-                      <div className="space-y-2">
-                        {permissions.map((perm) => {
-                          const isChecked = selectedPermissions.has(perm.code);
-                          return (
-                            <label
-                              key={perm._id || perm.id}
-                              className={`flex items-start p-3 rounded-lg border cursor-pointer transition-colors ${
-                                isChecked
-                                  ? 'bg-indigo-50 border-indigo-500'
-                                  : 'bg-gray-50 border-gray-200 hover:bg-gray-100'
-                              }`}
-                            >
-                              <input
-                                type="checkbox"
-                                checked={isChecked}
-                                onChange={() => togglePermission(perm.code)}
-                                className="mt-0.5 mr-3 h-4 w-4 text-indigo-600 border-gray-300 rounded focus:ring-indigo-500 cursor-pointer flex-shrink-0"
-                              />
-                              <div className="flex-1 min-w-0">
-                                <div
-                                  className={`font-medium text-sm ${isChecked ? 'text-indigo-900' : 'text-gray-900'} truncate max-w-xs`}
-                                  title={perm.code}
+                {/* Scrollable checkbox list */}
+                <Box
+                  sx={{
+                    maxHeight: 384,
+                    overflowY: 'auto',
+                    border: '1px solid',
+                    borderColor: 'divider',
+                    borderRadius: 1.5,
+                    p: 1,
+                    mb: 2,
+                  }}
+                >
+                  {permissions.length === 0 ? (
+                    <Typography
+                      variant="body2"
+                      color="text.secondary"
+                      sx={{ py: 3, textAlign: 'center' }}
+                    >
+                      Chưa có phân quyền nào trong hệ thống.
+                    </Typography>
+                  ) : (
+                    <Stack spacing={1}>
+                      {permissions.map((perm) => {
+                        const isChecked = selectedPermissions.has(perm.code);
+                        return (
+                          <Box
+                            key={perm._id || perm.id}
+                            onClick={() => togglePermission(perm.code)}
+                            sx={{
+                              display: 'flex',
+                              alignItems: 'flex-start',
+                              p: 1.5,
+                              borderRadius: 1.5,
+                              cursor: 'pointer',
+                              bgcolor: isChecked ? 'rgba(99,102,241,0.07)' : 'grey.50',
+                              border: '1px solid',
+                              borderColor: isChecked ? 'primary.main' : 'divider',
+                              '&:hover': {
+                                bgcolor: isChecked ? 'rgba(99,102,241,0.12)' : 'grey.100',
+                              },
+                              transition: 'all 0.15s',
+                            }}
+                          >
+                            <Checkbox
+                              checked={isChecked}
+                              onChange={() => togglePermission(perm.code)}
+                              size="small"
+                              color="primary"
+                              sx={{ p: 0, mr: 1.5, mt: 0.25, flexShrink: 0 }}
+                              onClick={(e) => e.stopPropagation()}
+                            />
+                            <Box sx={{ flex: 1, minWidth: 0 }}>
+                              <Typography
+                                variant="body2"
+                                fontWeight={600}
+                                color={isChecked ? 'primary.main' : 'text.primary'}
+                                noWrap
+                                title={perm.code}
+                                sx={{ fontFamily: 'monospace' }}
+                              >
+                                {perm.code}
+                              </Typography>
+                              {perm.description && (
+                                <Typography
+                                  variant="caption"
+                                  color="text.secondary"
+                                  sx={{
+                                    display: '-webkit-box',
+                                    WebkitLineClamp: 2,
+                                    WebkitBoxOrient: 'vertical',
+                                    overflow: 'hidden',
+                                    mt: 0.25,
+                                  }}
                                 >
-                                  {perm.code}
-                                </div>
-                                {perm.description && (
-                                  <div className="text-xs text-gray-600 mt-1 line-clamp-2">
-                                    {perm.description}
-                                  </div>
-                                )}
-                              </div>
-                            </label>
-                          );
-                        })}
-                      </div>
-                    )}
-                  </div>
-                </div>
+                                  {perm.description}
+                                </Typography>
+                              )}
+                            </Box>
+                          </Box>
+                        );
+                      })}
+                    </Stack>
+                  )}
+                </Box>
 
-                <div className="flex justify-end">
-                  <button
-                    type="button"
+                {/* Save button */}
+                <Stack direction="row" justifyContent="flex-end">
+                  <Button
+                    variant="contained"
+                    startIcon={loading ? <CircularProgress size={16} color="inherit" /> : <SaveIcon />}
                     disabled={loading}
-                    className="inline-flex items-center rounded-lg bg-indigo-600 px-4 py-2 text-sm font-semibold text-white shadow hover:bg-indigo-700 disabled:opacity-60 disabled:cursor-not-allowed transition-colors"
                     onClick={handleSaveRolePermissions}
+                    sx={{
+                      bgcolor: 'primary.main',
+                      '&:hover': { bgcolor: 'primary.dark' },
+                      borderRadius: 1.5,
+                      textTransform: 'none',
+                      fontWeight: 600,
+                    }}
                   >
                     {loading ? 'Đang lưu...' : 'Lưu phân quyền'}
-                  </button>
-                </div>
+                  </Button>
+                </Stack>
               </>
             ) : (
-              <div className="text-center py-12">
-                <p className="text-sm text-gray-500">
+              /* Empty state */
+              <Stack alignItems="center" justifyContent="center" sx={{ py: 8 }} spacing={2}>
+                <ShieldIcon sx={{ fontSize: 48, color: 'text.disabled' }} />
+                <Typography variant="body2" color="text.secondary" textAlign="center">
                   Vui lòng chọn một vai trò để quản lý phân quyền.
-                </p>
-              </div>
+                </Typography>
+              </Stack>
             )}
-          </div>
-      </div>
+          </Paper>
+        </Grid>
+      </Grid>
 
+      {/* Add/Edit Permission Dialog */}
+      <Dialog
+        open={showPermissionForm}
+        onClose={handleClosePermissionForm}
+        maxWidth="sm"
+        fullWidth
+        PaperProps={{ sx: { borderRadius: 2 } }}
+      >
+        <DialogTitle
+          sx={{
+            background: 'linear-gradient(135deg, #6366f1 0%, #4f46e5 100%)',
+            color: 'white',
+            fontWeight: 700,
+            fontSize: '1rem',
+            pb: 2,
+          }}
+        >
+          {editingPermission ? 'Sửa phân quyền' : 'Thêm phân quyền mới'}
+        </DialogTitle>
+
+        <Box component="form" onSubmit={handleSavePermission}>
+          <DialogContent sx={{ pt: 3 }}>
+            {error && (
+              <Alert severity="error" sx={{ mb: 2 }}>
+                {error}
+              </Alert>
+            )}
+
+            <TextField
+              label={
+                <span>
+                  Code <span style={{ color: 'red' }}>*</span>
+                </span>
+              }
+              value={permissionForm.code}
+              onChange={(e) =>
+                setPermissionForm({ ...permissionForm, code: e.target.value.toUpperCase() })
+              }
+              fullWidth
+              required
+              disabled={!!editingPermission}
+              inputProps={{ maxLength: 64 }}
+              placeholder="VD: CREATE_USER"
+              helperText={
+                editingPermission ? 'Không thể thay đổi code khi sửa' : undefined
+              }
+              sx={{ mb: 2 }}
+              size="small"
+            />
+
+            <TextField
+              label={
+                <span>
+                  Mô tả <span style={{ color: 'red' }}>*</span>
+                </span>
+              }
+              value={permissionForm.description}
+              onChange={(e) =>
+                setPermissionForm({ ...permissionForm, description: e.target.value })
+              }
+              fullWidth
+              required
+              multiline
+              rows={3}
+              inputProps={{ maxLength: 255 }}
+              placeholder="Mô tả phân quyền này (tối đa 255 ký tự)"
+              size="small"
+            />
+          </DialogContent>
+
+          <DialogActions sx={{ px: 3, pb: 2.5 }}>
+            <Button
+              onClick={handleClosePermissionForm}
+              variant="outlined"
+              color="inherit"
+              sx={{ textTransform: 'none', borderRadius: 1.5 }}
+            >
+              Hủy
+            </Button>
+            <Button
+              type="submit"
+              variant="contained"
+              disabled={loading}
+              startIcon={loading ? <CircularProgress size={16} color="inherit" /> : null}
+              sx={{
+                bgcolor: 'primary.main',
+                '&:hover': { bgcolor: 'primary.dark' },
+                textTransform: 'none',
+                fontWeight: 600,
+                borderRadius: 1.5,
+              }}
+            >
+              {loading ? 'Đang lưu...' : editingPermission ? 'Cập nhật' : 'Tạo mới'}
+            </Button>
+          </DialogActions>
+        </Box>
+      </Dialog>
+
+      {/* Confirm delete dialog */}
       <ConfirmDialog
         open={confirmState.open}
         title={confirmState.title}

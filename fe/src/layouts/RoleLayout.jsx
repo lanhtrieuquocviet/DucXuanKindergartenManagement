@@ -1,6 +1,262 @@
 /* Layout admin chung cho các role: sidebar trái + nội dung phải */
 import { useState } from 'react';
+import {
+  Box, Drawer, AppBar, Toolbar, Typography, List, ListItemButton,
+  ListItemIcon, ListItemText, Avatar, IconButton, Menu, MenuItem,
+  Divider, Chip, useMediaQuery, useTheme, Badge, Tooltip,
+} from '@mui/material';
+import {
+  Menu as MenuIcon,
+  Close as CloseIcon,
+  School as SchoolIcon,
+  People as PeopleIcon,
+  ChecklistRtl as ChecklistIcon,
+  Home as HomeIcon,
+  Notifications as NotifIcon,
+  CalendarMonth as CalendarIcon,
+  Shield as ShieldIcon,
+  ManageAccounts as RolesIcon,
+  BarChart as BarChartIcon,
+  Article as BlogIcon,
+  Folder as FolderIcon,
+  QuestionAnswer as QaIcon,
+  Email as EmailIcon,
+  Logout as LogoutIcon,
+  Person as PersonIcon,
+  KeyboardArrowDown as ArrowDownIcon,
+  Circle as DotIcon,
+  ChevronLeft as ChevronLeftIcon,
+  ChevronRight as ChevronRightIcon,
+} from '@mui/icons-material';
 
+const DRAWER_FULL = 260;
+const DRAWER_MINI = 68;
+
+const KEY_ICONS = {
+  classes:               <SchoolIcon fontSize="small" />,
+  students:              <PeopleIcon fontSize="small" />,
+  attendance:            <ChecklistIcon fontSize="small" />,
+  'pickup-approval':     <HomeIcon fontSize="small" />,
+  schedule:              <CalendarIcon fontSize="small" />,
+  messages:              <NotifIcon fontSize="small" />,
+  'class-list':          <SchoolIcon fontSize="small" />,
+  'attendance-overview': <BarChartIcon fontSize="small" />,
+  blogs:                 <BlogIcon fontSize="small" />,
+  documents:             <FolderIcon fontSize="small" />,
+  qa:                    <QaIcon fontSize="small" />,
+  contacts:              <EmailIcon fontSize="small" />,
+  permissions:           <ShieldIcon fontSize="small" />,
+  roles:                 <RolesIcon fontSize="small" />,
+  logs:                  <BarChartIcon fontSize="small" />,
+};
+
+/* ── Sidebar content ── */
+function SidebarContent({
+  menuItems, activeKey, onMenuSelect, onLogout, onViewProfile,
+  userName, userAvatar, collapsed, onToggleCollapse,
+}) {
+  const initials = userName
+    ? userName.split(' ').map((w) => w[0]).slice(-2).join('').toUpperCase()
+    : '?';
+
+  return (
+    <Box sx={{ display: 'flex', flexDirection: 'column', height: '100%', bgcolor: 'background.paper', overflowX: 'hidden' }}>
+
+      {/* ── Brand ── */}
+      <Box
+        sx={{
+          px: collapsed ? 1.5 : 2.5, py: 2.25,
+          background: 'linear-gradient(135deg, #4f46e5 0%, #7c3aed 100%)',
+          display: 'flex', alignItems: 'center',
+          gap: collapsed ? 0 : 1.5,
+          justifyContent: collapsed ? 'center' : 'flex-start',
+          flexShrink: 0,
+          position: 'relative', overflow: 'hidden',
+          transition: 'padding 0.22s ease',
+        }}
+      >
+        {!collapsed && (
+          <>
+            <Box sx={{ position: 'absolute', right: -18, top: -18, width: 80, height: 80, borderRadius: '50%', bgcolor: 'rgba(255,255,255,0.07)' }} />
+            <Box sx={{ position: 'absolute', right: 30, bottom: -25, width: 50, height: 50, borderRadius: '50%', bgcolor: 'rgba(255,255,255,0.05)' }} />
+          </>
+        )}
+        <Avatar sx={{ width: 36, height: 36, bgcolor: 'rgba(255,255,255,0.2)', fontSize: 19, position: 'relative', zIndex: 1, boxShadow: '0 2px 8px rgba(0,0,0,0.15)', flexShrink: 0 }}>
+          🎓
+        </Avatar>
+        {!collapsed && (
+          <Box sx={{ position: 'relative', zIndex: 1, flex: 1, minWidth: 0 }}>
+            <Typography variant="subtitle2" sx={{ color: 'white', fontWeight: 800, lineHeight: 1.2, letterSpacing: 0.3 }}>
+              Đức Xuân
+            </Typography>
+            <Typography variant="caption" sx={{ color: 'rgba(255,255,255,0.65)', fontSize: 10.5 }}>
+              Kindergarten Management
+            </Typography>
+          </Box>
+        )}
+      </Box>
+
+      {/* ── Collapse toggle ── */}
+      <Box sx={{ px: 1, pt: 1, pb: 0.25, display: 'flex', justifyContent: collapsed ? 'center' : 'flex-end' }}>
+        <Tooltip title={collapsed ? 'Mở rộng sidebar' : 'Thu gọn sidebar'} placement="right" arrow>
+          <IconButton
+            size="small"
+            onClick={onToggleCollapse}
+            sx={{
+              width: 26, height: 26,
+              bgcolor: 'grey.100',
+              border: '1px solid', borderColor: 'divider',
+              color: 'text.secondary',
+              '&:hover': { bgcolor: 'rgba(99,102,241,0.1)', color: 'primary.main', borderColor: 'rgba(99,102,241,0.3)' },
+            }}
+          >
+            {collapsed
+              ? <ChevronRightIcon sx={{ fontSize: 15 }} />
+              : <ChevronLeftIcon sx={{ fontSize: 15 }} />}
+          </IconButton>
+        </Tooltip>
+      </Box>
+
+      {/* ── Nav ── */}
+      <Box
+        sx={{
+          flex: 1, overflowY: 'auto', overflowX: 'hidden', pt: 0.75, pb: 1,
+          '&::-webkit-scrollbar': { width: 4 },
+          '&::-webkit-scrollbar-track': { bgcolor: 'transparent' },
+          '&::-webkit-scrollbar-thumb': { bgcolor: 'grey.200', borderRadius: 2 },
+        }}
+      >
+        {!collapsed && (
+          <Typography
+            variant="caption"
+            sx={{ px: 2.5, mb: 1, display: 'block', color: 'text.disabled', fontWeight: 700, letterSpacing: 1.2, fontSize: 10, textTransform: 'uppercase' }}
+          >
+            Menu chính
+          </Typography>
+        )}
+
+        <List dense disablePadding sx={{ px: collapsed ? 0.75 : 1 }}>
+          {menuItems.map((item) => {
+            const isActive = item.key === activeKey;
+            const icon = item.icon || KEY_ICONS[item.key] || <DotIcon fontSize="small" />;
+
+            const btn = (
+              <ListItemButton
+                key={item.key}
+                onClick={() => onMenuSelect(item.key)}
+                sx={{
+                  mb: 0.5, borderRadius: 2,
+                  px: collapsed ? 0 : 1.5,
+                  minHeight: 40,
+                  justifyContent: collapsed ? 'center' : 'flex-start',
+                  position: 'relative', overflow: 'hidden',
+                  bgcolor: isActive ? 'rgba(99,102,241,0.09)' : 'transparent',
+                  color: isActive ? 'primary.main' : 'text.secondary',
+                  '&::before': isActive && !collapsed
+                    ? {
+                        content: '""',
+                        position: 'absolute',
+                        left: 0, top: '18%', bottom: '18%',
+                        width: 3.5, borderRadius: '0 4px 4px 0',
+                        background: 'linear-gradient(180deg, #4f46e5, #7c3aed)',
+                      }
+                    : {},
+                  '&:hover': {
+                    bgcolor: isActive ? 'rgba(99,102,241,0.12)' : 'rgba(0,0,0,0.04)',
+                    color: isActive ? 'primary.main' : 'text.primary',
+                  },
+                  transition: 'background 0.15s, color 0.15s',
+                }}
+              >
+                <ListItemIcon sx={{ minWidth: collapsed ? 0 : 36, color: isActive ? 'primary.main' : 'text.disabled', justifyContent: 'center' }}>
+                  {icon}
+                </ListItemIcon>
+                {!collapsed && (
+                  <ListItemText
+                    primary={item.label}
+                    slotProps={{ primary: { style: { fontSize: 13, fontWeight: isActive ? 700 : 400 } } }}
+                  />
+                )}
+                {!collapsed && item.badge && (
+                  <Chip label={item.badge} size="small" color={isActive ? 'primary' : 'default'} sx={{ height: 18, fontSize: 10 }} />
+                )}
+              </ListItemButton>
+            );
+
+            return collapsed
+              ? <Tooltip key={item.key} title={item.label} placement="right" arrow>{btn}</Tooltip>
+              : <span key={item.key}>{btn}</span>;
+          })}
+        </List>
+      </Box>
+
+      {/* ── User + Logout ── */}
+      <Box sx={{ px: collapsed ? 0.75 : 1.5, pb: 1.5, pt: 1, borderTop: '1px solid', borderColor: 'divider' }}>
+        {collapsed ? (
+          <>
+            <Tooltip title={userName || 'Hồ sơ'} placement="right" arrow>
+              <Box
+                onClick={onViewProfile || undefined}
+                sx={{
+                  display: 'flex', justifyContent: 'center',
+                  mb: 0.5, py: 0.75, borderRadius: 2,
+                  cursor: onViewProfile ? 'pointer' : 'default',
+                  '&:hover': onViewProfile ? { bgcolor: 'rgba(99,102,241,0.06)' } : {},
+                }}
+              >
+                <Avatar src={userAvatar} sx={{ width: 34, height: 34, fontSize: 13, bgcolor: 'primary.main', boxShadow: '0 2px 6px rgba(99,102,241,0.3)' }}>
+                  {initials}
+                </Avatar>
+              </Box>
+            </Tooltip>
+            <Tooltip title="Đăng xuất" placement="right" arrow>
+              <IconButton
+                onClick={onLogout}
+                size="small"
+                sx={{ width: '100%', borderRadius: 2, color: 'error.main', py: 0.875, '&:hover': { bgcolor: 'rgba(211,47,47,0.07)' } }}
+              >
+                <LogoutIcon fontSize="small" />
+              </IconButton>
+            </Tooltip>
+          </>
+        ) : (
+          <>
+            <Box
+              onClick={onViewProfile || undefined}
+              sx={{
+                display: 'flex', alignItems: 'center', gap: 1.5,
+                px: 1.5, py: 1.25, borderRadius: 2.5, mb: 0.75,
+                bgcolor: 'grey.50', border: '1px solid', borderColor: 'divider',
+                cursor: onViewProfile ? 'pointer' : 'default',
+                '&:hover': onViewProfile ? { bgcolor: 'rgba(99,102,241,0.06)', borderColor: 'rgba(99,102,241,0.3)' } : {},
+                transition: 'all 0.15s',
+              }}
+            >
+              <Avatar src={userAvatar} sx={{ width: 34, height: 34, fontSize: 13, bgcolor: 'primary.main', fontWeight: 700, boxShadow: '0 2px 6px rgba(99,102,241,0.3)' }}>
+                {initials}
+              </Avatar>
+              <Box sx={{ flex: 1, minWidth: 0 }}>
+                <Typography variant="body2" fontWeight={700} noWrap>{userName || 'Người dùng'}</Typography>
+                <Typography variant="caption" color="primary.main" sx={{ fontSize: 11, opacity: 0.7 }}>Xem hồ sơ →</Typography>
+              </Box>
+            </Box>
+            <ListItemButton
+              onClick={onLogout}
+              sx={{ borderRadius: 2, px: 1.5, py: 0.875, color: 'error.main', '&:hover': { bgcolor: 'rgba(211,47,47,0.07)' } }}
+            >
+              <ListItemIcon sx={{ minWidth: 36, color: 'error.main' }}>
+                <LogoutIcon fontSize="small" />
+              </ListItemIcon>
+              <ListItemText primary="Đăng xuất" slotProps={{ primary: { style: { fontSize: 13, fontWeight: 500 } } }} />
+            </ListItemButton>
+          </>
+        )}
+      </Box>
+    </Box>
+  );
+}
+
+/* ── RoleLayout ── */
 function RoleLayout({
   title,
   description,
@@ -13,179 +269,237 @@ function RoleLayout({
   onMenuSelect,
   children,
 }) {
-  const [openProfileMenu, setOpenProfileMenu] = useState(false);
-  const [sidebarOpen, setSidebarOpen] = useState(false);
+  const theme = useTheme();
+  const isMobile = useMediaQuery(theme.breakpoints.down('md'));
+  const [mobileOpen, setMobileOpen] = useState(false);
+  const [profileAnchor, setProfileAnchor] = useState(null);
+  const [collapsed, setCollapsed] = useState(false);
+
+  const drawerWidth = isMobile ? DRAWER_FULL : (collapsed ? DRAWER_MINI : DRAWER_FULL);
+
+  const initials = userName
+    ? userName.split(' ').map((w) => w[0]).slice(-2).join('').toUpperCase()
+    : '?';
+
+  const todayLabel = new Date().toLocaleDateString('vi-VN', {
+    weekday: 'short', day: 'numeric', month: 'numeric',
+  });
+
+  const activeItem = menuItems.find((m) => m.key === activeKey);
+  const activeIcon = activeItem?.icon || KEY_ICONS[activeKey];
 
   const handleMenuSelect = (key) => {
-    setSidebarOpen(false);
+    setMobileOpen(false);
     if (onMenuSelect) onMenuSelect(key);
   };
 
+  const sharedSidebarProps = {
+    menuItems, activeKey,
+    onMenuSelect: handleMenuSelect,
+    onLogout: () => { setMobileOpen(false); if (onLogout) onLogout(); },
+    onViewProfile: onViewProfile ? () => { setMobileOpen(false); onViewProfile(); } : null,
+    userName, userAvatar,
+    collapsed: isMobile ? false : collapsed,
+    onToggleCollapse: () => setCollapsed((p) => !p),
+  };
+
   return (
-    <div className="min-h-screen bg-gray-100">
-      <div className="flex h-screen max-h-screen">
+    <Box sx={{ display: 'flex', minHeight: '100vh', bgcolor: '#f5f6fa' }}>
 
-        {/* Mobile overlay khi sidebar mở */}
-        {sidebarOpen && (
-          <div
-            className="fixed inset-0 z-30 bg-black/50 md:hidden"
-            onClick={() => setSidebarOpen(false)}
-          />
+      {/* ── Sidebar ── */}
+      <Drawer
+        variant={isMobile ? 'temporary' : 'permanent'}
+        open={isMobile ? mobileOpen : true}
+        onClose={() => setMobileOpen(false)}
+        ModalProps={{ keepMounted: true }}
+        sx={{
+          width: drawerWidth,
+          flexShrink: 0,
+          transition: 'width 0.22s ease',
+          '& .MuiDrawer-paper': {
+            width: drawerWidth,
+            boxSizing: 'border-box',
+            border: 'none',
+            overflowX: 'hidden',
+            boxShadow: isMobile ? 8 : '1px 0 0 rgba(0,0,0,0.06)',
+            transition: 'width 0.22s ease !important',
+          },
+        }}
+      >
+        {isMobile && (
+          <Box sx={{ position: 'absolute', top: 8, right: 8, zIndex: 10 }}>
+            <IconButton size="small" onClick={() => setMobileOpen(false)}>
+              <CloseIcon fontSize="small" />
+            </IconButton>
+          </Box>
         )}
+        <SidebarContent {...sharedSidebarProps} />
+      </Drawer>
 
-        {/* Sidebar */}
-        <aside
-          className={`
-            fixed inset-y-0 left-0 z-40 w-64 bg-gray-900 text-white flex flex-col
-            transform transition-transform duration-200 ease-in-out
-            md:relative md:translate-x-0 md:flex
-            ${sidebarOpen ? 'translate-x-0' : '-translate-x-full'}
-          `}
+      {/* ── Main ── */}
+      <Box sx={{ flex: 1, display: 'flex', flexDirection: 'column', minWidth: 0, minHeight: '100vh' }}>
+
+        {/* AppBar */}
+        <AppBar
+          position="sticky"
+          elevation={0}
+          sx={{
+            bgcolor: 'rgba(255,255,255,0.92)',
+            backdropFilter: 'blur(16px)',
+            borderBottom: '1px solid', borderColor: 'divider',
+            color: 'text.primary',
+          }}
         >
-          <div className="px-5 py-4 border-b border-gray-800 flex items-center justify-between">
-            <div>
-              <h1 className="text-base font-semibold">Menu</h1>
-              <p className="mt-1 text-xs text-gray-400">Bảng điều khiển</p>
-            </div>
-            {/* Nút đóng sidebar trên mobile */}
-            <button
-              type="button"
-              onClick={() => setSidebarOpen(false)}
-              className="md:hidden text-gray-400 hover:text-white p-1"
-              aria-label="Đóng menu"
-            >
-              ✕
-            </button>
-          </div>
+          <Toolbar sx={{ gap: 1.5, minHeight: { xs: 56, sm: 64 }, px: { xs: 2, md: 3 } }}>
+            {/* Hamburger mobile */}
+            {isMobile && (
+              <IconButton edge="start" onClick={() => setMobileOpen(true)} sx={{ color: 'text.secondary', mr: 0.5 }}>
+                <MenuIcon />
+              </IconButton>
+            )}
 
-          <nav className="flex-1 overflow-y-auto px-3 py-4 space-y-1">
-            {menuItems.map((item) => {
-              const isActive = item.key === activeKey;
-              return (
-                <button
-                  key={item.key}
-                  type="button"
-                  onClick={() => handleMenuSelect(item.key)}
-                  className={`w-full flex items-center justify-between rounded-md px-3 py-2 text-sm font-medium transition ${
-                    isActive
-                      ? 'bg-gray-800 text-white'
-                      : 'text-gray-200 hover:bg-gray-800 hover:text-white'
-                  }`}
-                >
-                  <span>{item.label}</span>
-                  {item.badge && (
-                    <span
-                      className={`ml-2 inline-flex items-center rounded-full px-2 text-[11px] font-semibold ${
-                        isActive
-                          ? 'bg-white/20 text-white'
-                          : 'bg-gray-700 text-gray-100'
-                      }`}
-                    >
-                      {item.badge}
-                    </span>
-                  )}
-                </button>
-              );
-            })}
-          </nav>
-
-          <div className="px-4 py-3 border-t border-gray-800">
-            <button
-              type="button"
-              onClick={() => { setSidebarOpen(false); onLogout && onLogout(); }}
-              className="w-full inline-flex items-center justify-center rounded-md bg-red-500 px-3 py-2 text-xs font-semibold text-white shadow hover:bg-red-600 transition"
-            >
-              Đăng xuất
-            </button>
-          </div>
-        </aside>
-
-        {/* Main content */}
-        <main className="flex-1 overflow-y-auto min-w-0">
-          <div className="max-w-6xl mx-auto px-4 md:px-6 py-4 md:py-8">
-            <header className="mb-5 flex items-start gap-3">
-              {/* Hamburger button - chỉ hiện trên mobile */}
-              <button
-                type="button"
-                onClick={() => setSidebarOpen(true)}
-                className="md:hidden mt-0.5 p-2 rounded-md text-gray-600 hover:bg-gray-200 transition shrink-0"
-                aria-label="Mở menu"
-              >
-                <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-                  <path strokeLinecap="round" strokeLinejoin="round" d="M4 6h16M4 12h16M4 18h16" />
-                </svg>
-              </button>
-
-              <div className="flex-1 min-w-0 flex flex-col md:flex-row md:items-center md:justify-between gap-3">
-                <div className="min-w-0">
-                  <h2 className="text-lg md:text-2xl font-bold text-gray-800 truncate">{title}</h2>
-                  {description && (
-                    <p className="mt-0.5 text-xs md:text-sm text-gray-500">{description}</p>
-                  )}
-                </div>
-
-                {userName && (
-                  <div className="relative shrink-0">
-                    <button
-                      type="button"
-                      onClick={() => setOpenProfileMenu((prev) => !prev)}
-                      className="inline-flex items-center gap-2 rounded-full border border-gray-200 bg-white px-3 py-1.5 text-xs md:text-sm font-medium text-gray-800 shadow-sm hover:bg-gray-50 transition"
-                    >
-                      <span className="inline-flex h-7 w-7 items-center justify-center rounded-full bg-indigo-600 text-white text-xs font-semibold overflow-hidden shrink-0">
-                        {userAvatar ? (
-                          <img src={userAvatar} alt="" className="w-full h-full object-cover" />
-                        ) : (
-                          userName.charAt(0).toUpperCase()
-                        )}
-                      </span>
-                      <span className="max-w-[100px] truncate">{userName}</span>
-                    </button>
-
-                    {openProfileMenu && (
-                      <>
-                        <div className="absolute right-0 mt-2 w-44 rounded-xl border border-gray-200 bg-white shadow-lg text-xs md:text-sm z-10">
-                          <button
-                            type="button"
-                            className={`w-full text-left px-3 py-2 rounded-t-xl ${
-                              onViewProfile
-                                ? 'hover:bg-gray-50 text-gray-800'
-                                : 'text-gray-400 cursor-not-allowed'
-                            }`}
-                            disabled={!onViewProfile}
-                            onClick={() => {
-                              if (onViewProfile) onViewProfile();
-                              setOpenProfileMenu(false);
-                            }}
-                          >
-                            Xem hồ sơ
-                          </button>
-                          <button
-                            type="button"
-                            className="w-full text-left px-3 py-2 hover:bg-red-50 text-red-600 rounded-b-xl"
-                            onClick={() => {
-                              if (onLogout) onLogout();
-                              setOpenProfileMenu(false);
-                            }}
-                          >
-                            Đăng xuất
-                          </button>
-                        </div>
-                        <div
-                          className="fixed inset-0 z-0"
-                          onClick={() => setOpenProfileMenu(false)}
-                        />
-                      </>
-                    )}
-                  </div>
+            {/* Active page icon + Title */}
+            <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.25, flex: 1, minWidth: 0 }}>
+              {activeIcon && (
+                <Avatar sx={{ width: 34, height: 34, bgcolor: 'rgba(99,102,241,0.1)', display: { xs: 'none', sm: 'flex' }, flexShrink: 0 }}>
+                  <Box sx={{ color: 'primary.main', display: 'flex' }}>{activeIcon}</Box>
+                </Avatar>
+              )}
+              <Box sx={{ minWidth: 0 }}>
+                <Typography variant="h6" fontWeight={700} noWrap sx={{ fontSize: { xs: 15, sm: 17 }, lineHeight: 1.3 }}>
+                  {title}
+                </Typography>
+                {description && (
+                  <Typography variant="caption" color="text.secondary" noWrap sx={{ display: { xs: 'none', sm: 'block' }, lineHeight: 1, mt: 0.25 }}>
+                    {description}
+                  </Typography>
                 )}
-              </div>
-            </header>
+              </Box>
+            </Box>
 
+            {/* Date chip */}
+            <Chip
+              label={todayLabel}
+              size="small"
+              variant="outlined"
+              sx={{ display: { xs: 'none', md: 'flex' }, fontSize: 11, fontWeight: 600, height: 28, borderColor: 'divider', color: 'text.secondary' }}
+            />
+
+            {/* Notification */}
+            <Tooltip title="Thông báo" arrow>
+              <IconButton
+                size="small"
+                sx={{
+                  width: 36, height: 36,
+                  border: '1px solid', borderColor: 'divider',
+                  bgcolor: 'background.paper',
+                  color: 'text.secondary',
+                  display: { xs: 'none', md: 'flex' },
+                  '&:hover': { bgcolor: 'grey.50', color: 'text.primary' },
+                }}
+              >
+                <Badge badgeContent={0} color="error">
+                  <NotifIcon sx={{ fontSize: 18 }} />
+                </Badge>
+              </IconButton>
+            </Tooltip>
+
+            {/* User chip */}
+            {userName && (
+              <>
+                <Box
+                  onClick={(e) => setProfileAnchor(e.currentTarget)}
+                  sx={{
+                    display: { xs: 'none', md: 'flex' },
+                    alignItems: 'center', gap: 1,
+                    px: 1.5, py: 0.75,
+                    borderRadius: 10,
+                    border: '1.5px solid', borderColor: 'divider',
+                    bgcolor: 'background.paper',
+                    cursor: 'pointer',
+                    '&:hover': { bgcolor: 'grey.50', borderColor: 'rgba(99,102,241,0.3)' },
+                    transition: 'all 0.15s',
+                  }}
+                >
+                  <Avatar src={userAvatar} sx={{ width: 28, height: 28, fontSize: 12, bgcolor: 'primary.main', boxShadow: '0 2px 4px rgba(99,102,241,0.25)' }}>
+                    {initials}
+                  </Avatar>
+                  <Typography variant="body2" fontWeight={600} noWrap sx={{ maxWidth: 130 }}>
+                    {userName}
+                  </Typography>
+                  <ArrowDownIcon sx={{ color: 'text.disabled', fontSize: 16 }} />
+                </Box>
+
+                <IconButton sx={{ display: { xs: 'flex', md: 'none' }, p: 0.5 }} onClick={(e) => setProfileAnchor(e.currentTarget)}>
+                  <Avatar src={userAvatar} sx={{ width: 32, height: 32, fontSize: 13, bgcolor: 'primary.main' }}>
+                    {initials}
+                  </Avatar>
+                </IconButton>
+
+                <Menu
+                  anchorEl={profileAnchor}
+                  open={Boolean(profileAnchor)}
+                  onClose={() => setProfileAnchor(null)}
+                  transformOrigin={{ horizontal: 'right', vertical: 'top' }}
+                  anchorOrigin={{ horizontal: 'right', vertical: 'bottom' }}
+                  slotProps={{
+                    paper: {
+                      sx: {
+                        mt: 1, minWidth: 210, borderRadius: 3,
+                        boxShadow: '0 8px 32px rgba(0,0,0,0.12)',
+                        border: '1px solid', borderColor: 'divider',
+                        overflow: 'hidden',
+                      },
+                    },
+                  }}
+                >
+                  <Box sx={{ px: 2, py: 1.75, display: 'flex', alignItems: 'center', gap: 1.5, bgcolor: 'grey.50' }}>
+                    <Avatar src={userAvatar} sx={{ width: 38, height: 38, bgcolor: 'primary.main', fontWeight: 700, boxShadow: '0 2px 6px rgba(99,102,241,0.3)' }}>
+                      {initials}
+                    </Avatar>
+                    <Box sx={{ minWidth: 0 }}>
+                      <Typography variant="body2" fontWeight={700} noWrap>{userName}</Typography>
+                      <Typography variant="caption" color="text.disabled" sx={{ fontSize: 11 }}>Đã đăng nhập</Typography>
+                    </Box>
+                  </Box>
+
+                  <Divider />
+
+                  <Box sx={{ p: 0.75 }}>
+                    <MenuItem
+                      disabled={!onViewProfile}
+                      onClick={() => { if (onViewProfile) { onViewProfile(); setProfileAnchor(null); } }}
+                      sx={{ gap: 1.5, py: 1.1, fontSize: 14, borderRadius: 1.5 }}
+                    >
+                      <Avatar sx={{ width: 28, height: 28, bgcolor: 'rgba(99,102,241,0.1)' }}>
+                        <PersonIcon sx={{ fontSize: 15, color: 'primary.main' }} />
+                      </Avatar>
+                      Xem hồ sơ
+                    </MenuItem>
+                    <MenuItem
+                      onClick={() => { if (onLogout) { onLogout(); setProfileAnchor(null); } }}
+                      sx={{ gap: 1.5, py: 1.1, fontSize: 14, color: 'error.main', borderRadius: 1.5 }}
+                    >
+                      <Avatar sx={{ width: 28, height: 28, bgcolor: 'rgba(211,47,47,0.08)' }}>
+                        <LogoutIcon sx={{ fontSize: 15, color: 'error.main' }} />
+                      </Avatar>
+                      Đăng xuất
+                    </MenuItem>
+                  </Box>
+                </Menu>
+              </>
+            )}
+          </Toolbar>
+        </AppBar>
+
+        {/* Page content */}
+        <Box component="main" sx={{ flex: 1, overflow: 'auto' }}>
+          <Box sx={{ px: { xs: 2, md: 3 }, py: { xs: 2.5, md: 3 } }}>
             {children}
-          </div>
-        </main>
-      </div>
-    </div>
+          </Box>
+        </Box>
+      </Box>
+    </Box>
   );
 }
 

@@ -1,5 +1,90 @@
 // Bảng danh sách điểm danh học sinh theo lớp
-import { getStatusBadge, defaultRecord } from './attendanceUtils';
+import {
+  Box, Paper, Typography, Button, TextField, Chip, Alert, Skeleton,
+  Table, TableBody, TableCell, TableContainer, TableHead, TableRow,
+  Stack, Tooltip, Avatar, LinearProgress,
+} from '@mui/material';
+import {
+  ArrowBack as ArrowBackIcon,
+  Login as CheckInIcon,
+  Logout as CheckOutIcon,
+  Visibility as ViewIcon,
+  PersonOff as AbsentIcon,
+  HowToReg as PresentIcon,
+  People as PeopleIcon,
+} from '@mui/icons-material';
+import { defaultRecord } from './attendanceUtils';
+
+const STATUS_CHIP = {
+  empty:            { label: 'Chưa điểm danh', color: 'default',  dotColor: '#9ca3af' },
+  checked_in:       { label: 'Đã đến',          color: 'success',  dotColor: '#10b981' },
+  checked_out:      { label: 'Đã về',            color: 'info',     dotColor: '#0ea5e9' },
+  absent:           { label: 'Vắng mặt',         color: 'error',    dotColor: '#ef4444' },
+  waiting_parent:   { label: 'Chờ PH xác nhận',  color: 'warning',  dotColor: '#f59e0b' },
+  parent_confirmed: { label: 'PH đã xác nhận',   color: 'success',  dotColor: '#10b981' },
+};
+
+function getChipProps(status) {
+  return STATUS_CHIP[status] || { label: status || 'Không rõ', color: 'default', dotColor: '#9ca3af' };
+}
+
+function SummaryBar({ students, attendanceByStudent }) {
+  const counts = { present: 0, out: 0, absent: 0, empty: 0 };
+  (students || []).forEach((s) => {
+    const st = attendanceByStudent?.[s._id]?.status || 'empty';
+    if (st === 'checked_in' || st === 'waiting_parent' || st === 'parent_confirmed') counts.present++;
+    else if (st === 'checked_out') counts.out++;
+    else if (st === 'absent') counts.absent++;
+    else counts.empty++;
+  });
+  const total = students?.length || 0;
+  const attended = counts.present + counts.out;
+
+  const items = [
+    { label: 'Có mặt', value: counts.present, color: 'success.main', bg: '#dcfce7' },
+    { label: 'Đã về',  value: counts.out,     color: 'info.main',    bg: '#e0f2fe' },
+    { label: 'Vắng',   value: counts.absent,  color: 'error.main',   bg: '#fee2e2' },
+    { label: 'Chưa',   value: counts.empty,   color: 'text.disabled', bg: '#f3f4f6' },
+  ];
+
+  return (
+    <Box sx={{ px: { xs: 2, md: 3 }, py: 2, borderBottom: '1px solid', borderColor: 'divider', bgcolor: 'grey.50' }}>
+      <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, mb: 1.5 }}>
+        <PeopleIcon sx={{ fontSize: 16, color: 'text.secondary' }} />
+        <Typography variant="caption" color="text.secondary" fontWeight={600}>
+          Tổng quan: <strong style={{ color: '#111' }}>{attended}/{total}</strong> học sinh điểm danh
+        </Typography>
+        {total > 0 && (
+          <Typography variant="caption" color="primary.main" fontWeight={700} sx={{ ml: 'auto' }}>
+            {Math.round((attended / total) * 100)}%
+          </Typography>
+        )}
+      </Box>
+      {total > 0 && (
+        <LinearProgress
+          variant="determinate"
+          value={(attended / total) * 100}
+          sx={{ height: 5, borderRadius: 3, mb: 1.5, bgcolor: '#e5e7eb' }}
+          color="success"
+        />
+      )}
+      <Stack direction="row" spacing={1} flexWrap="wrap">
+        {items.map((item) => (
+          <Box
+            key={item.label}
+            sx={{
+              display: 'flex', alignItems: 'center', gap: 0.75,
+              px: 1.25, py: 0.5, borderRadius: 1.5, bgcolor: item.bg,
+            }}
+          >
+            <Typography variant="caption" fontWeight={700} sx={{ color: item.color }}>{item.value}</Typography>
+            <Typography variant="caption" color="text.secondary">{item.label}</Typography>
+          </Box>
+        ))}
+      </Stack>
+    </Box>
+  );
+}
 
 function AttendanceTable({
   students,
@@ -18,220 +103,281 @@ function AttendanceTable({
   onBackToClassList,
 }) {
   return (
-    <div className="bg-white rounded-lg shadow p-6">
-      <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-3 mb-4">
-        <div>
-          <h3 className="text-sm font-semibold text-gray-800">Danh sách điểm danh – theo lớp</h3>
-          <p className="text-xs text-gray-500 mt-1">
-            {selectedClassName ? (
-              <>
-                Lớp: <span className="font-semibold text-gray-700">{selectedClassName}</span>
-              </>
-            ) : (
-              <>Lớp ID: <span className="font-semibold text-gray-700">{classId}</span></>
-            )}
-          </p>
-        </div>
-        <div className="flex flex-wrap gap-2">
-          <button
-            type="button"
-            onClick={onBackToClassList}
-            className="px-3 py-2 bg-gray-100 text-gray-700 text-sm font-semibold rounded-md hover:bg-gray-200 transition-colors"
-          >
-            ← Chọn lớp khác
-          </button>
-          <div className="flex items-center gap-2">
-            <label className="text-xs font-semibold text-gray-700">Ngày</label>
-            <input
-              type="date"
-              value={selectedDate}
-              max={todayISO}
-              onChange={(e) => onDateChange(e.target.value)}
-              className="px-3 py-2 border border-gray-300 rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500"
-            />
-          </div>
-        </div>
-      </div>
+    <Paper
+      elevation={0}
+      sx={{ borderRadius: 3, border: '1px solid', borderColor: 'divider', overflow: 'hidden' }}
+    >
+      {/* Header toolbar */}
+      <Box
+        sx={{
+          px: { xs: 2, md: 3 }, py: 2,
+          borderBottom: '1px solid', borderColor: 'divider',
+          display: 'flex', flexWrap: 'wrap',
+          alignItems: 'center', justifyContent: 'space-between', gap: 2,
+          background: 'linear-gradient(135deg, #4f46e5 0%, #7c3aed 100%)',
+        }}
+      >
+        <Box>
+          <Typography variant="subtitle1" fontWeight={700} color="white">
+            Danh sách điểm danh
+          </Typography>
+          <Typography variant="caption" sx={{ color: 'rgba(255,255,255,0.75)' }}>
+            Lớp:{' '}
+            <Box component="span" sx={{ fontWeight: 700, color: 'white' }}>
+              {selectedClassName || classId}
+            </Box>
+          </Typography>
+        </Box>
 
-      {studentsError && (
-        <div className="mb-4 rounded-md bg-red-50 border border-red-200 px-4 py-2 text-sm text-red-800">
-          {studentsError}
-        </div>
+        <Stack direction="row" spacing={1.5} flexWrap="wrap" alignItems="center">
+          <Button
+            size="small"
+            startIcon={<ArrowBackIcon />}
+            onClick={onBackToClassList}
+            variant="contained"
+            sx={{
+              borderRadius: 2, textTransform: 'none', fontWeight: 600,
+              bgcolor: 'rgba(255,255,255,0.18)', color: 'white',
+              border: '1px solid rgba(255,255,255,0.3)',
+              boxShadow: 'none',
+              '&:hover': { bgcolor: 'rgba(255,255,255,0.28)', boxShadow: 'none' },
+            }}
+          >
+            Chọn lớp khác
+          </Button>
+          <TextField
+            type="date"
+            size="small"
+            label="Ngày"
+            value={selectedDate}
+            slotProps={{ htmlInput: { max: todayISO }, inputLabel: { shrink: true } }}
+            onChange={(e) => onDateChange(e.target.value)}
+            sx={{
+              width: 155,
+              '& .MuiOutlinedInput-root': {
+                bgcolor: 'rgba(255,255,255,0.15)',
+                color: 'white',
+                borderRadius: 2,
+                '& fieldset': { borderColor: 'rgba(255,255,255,0.35)' },
+                '&:hover fieldset': { borderColor: 'rgba(255,255,255,0.6)' },
+              },
+              '& .MuiInputLabel-root': { color: 'rgba(255,255,255,0.75)' },
+              '& input': { colorScheme: 'dark' },
+            }}
+          />
+        </Stack>
+      </Box>
+
+      {/* Summary bar */}
+      {!loadingStudents && (students || []).length > 0 && (
+        <SummaryBar students={students} attendanceByStudent={attendanceByStudent} />
       )}
 
-      {loadingStudents ? (
-        <p className="text-sm text-gray-500">Đang tải danh sách học sinh...</p>
-      ) : (
-        <>
-        {/* ── Mobile card view (ẩn trên tablet trở lên) ── */}
-        <div className="md:hidden space-y-3">
-          {(students || []).map((s, idx) => {
-            const rec = attendanceByStudent?.[s._id] || defaultRecord();
-            const badge = getStatusBadge(rec.status);
-            const canCheckIn = rec.status === 'empty' || rec.status === 'absent';
-            const canCheckOut =
-              rec.status === 'checked_in' ||
-              rec.status === 'waiting_parent' ||
-              rec.status === 'parent_confirmed';
-            const canAbsent = rec.status !== 'checked_out';
-            return (
-              <div key={s._id} className="border border-gray-200 rounded-lg p-3 bg-white shadow-sm">
-                <div className="flex items-start justify-between gap-2 mb-2">
-                  <div className="min-w-0">
-                    <span className="text-xs text-gray-400 mr-1">{idx + 1}.</span>
-                    <span className="text-sm font-semibold text-gray-900">{s.fullName || '—'}</span>
-                  </div>
-                  <span className={`shrink-0 inline-block px-2 py-0.5 text-xs font-medium rounded-full ${badge.cls}`}>
-                    {badge.text}
-                  </span>
-                </div>
-                <div className="flex gap-4 text-xs text-gray-600 mb-2">
-                  <span>Đến: <span className="font-medium text-gray-800">{rec.timeIn || '—'}</span></span>
-                  <span>Về: <span className="font-medium text-gray-800">{rec.timeOut || '—'}</span></span>
-                </div>
-                {rec.note && (
-                  <p className="text-xs text-gray-500 truncate mb-2" title={rec.note}>{rec.note}</p>
-                )}
-                <div className="grid grid-cols-2 gap-1.5">
-                  {canCheckIn && (
-                    <button
-                      type="button"
-                      onClick={() => onCheckin(s._id)}
-                      className="py-1.5 text-xs font-semibold rounded-md bg-green-600 text-white hover:bg-green-700 transition-colors"
-                    >
-                      Check in
-                    </button>
-                  )}
-                  {canCheckOut && (
-                    <button
-                      type="button"
-                      onClick={() => onCheckout(s._id)}
-                      className="py-1.5 text-xs font-semibold rounded-md bg-sky-600 text-white hover:bg-sky-700 transition-colors"
-                    >
-                      Check-out
-                    </button>
-                  )}
-                  <button
-                    type="button"
-                    onClick={() => onViewDetail(s._id)}
-                    className="py-1.5 text-xs font-semibold rounded-md bg-indigo-600 text-white hover:bg-indigo-700 transition-colors"
-                  >
-                    Chi tiết
-                  </button>
-                  {canAbsent && (
-                    <button
-                      type="button"
-                      onClick={() => onAbsent(s._id)}
-                      className="py-1.5 text-xs font-semibold rounded-md bg-red-600 text-white hover:bg-red-700 transition-colors"
-                    >
-                      Vắng mặt
-                    </button>
-                  )}
-                </div>
-              </div>
-            );
-          })}
-          {(students || []).length === 0 && (
-            <div className="p-6 border border-dashed border-gray-200 rounded-lg text-center">
-              <p className="text-sm text-gray-600">Lớp chưa có học sinh.</p>
-            </div>
-          )}
-        </div>
+      {/* Error */}
+      {studentsError && (
+        <Alert severity="error" sx={{ mx: 3, mt: 2, borderRadius: 2 }}>{studentsError}</Alert>
+      )}
 
-        {/* ── Desktop table view (ẩn trên mobile) ── */}
-        <div className="hidden md:block overflow-x-auto">
-          <table className="w-full text-sm border border-gray-200 rounded-lg overflow-hidden">
-            <thead className="bg-gray-50 border-b border-gray-200">
-              <tr>
-                <th className="px-4 py-3 text-left font-semibold text-gray-800 w-[70px]">STT</th>
-                <th className="px-4 py-3 text-left font-semibold text-gray-800">Họ tên</th>
-                <th className="px-4 py-3 text-left font-semibold text-gray-800">Trạng thái</th>
-                <th className="px-4 py-3 text-left font-semibold text-gray-800">Giờ đến</th>
-                <th className="px-4 py-3 text-left font-semibold text-gray-800">Giờ về</th>
-                <th className="px-4 py-3 text-left font-semibold text-gray-800">Ghi chú</th>
-                <th className="px-4 py-3 text-center font-semibold text-gray-800 min-w-[220px]">Thao tác</th>
-              </tr>
-            </thead>
-            <tbody>
+      {/* Content */}
+      {loadingStudents ? (
+        <Box sx={{ p: 3, display: 'flex', flexDirection: 'column', gap: 1.5 }}>
+          {[1, 2, 3, 4, 5].map((i) => <Skeleton key={i} variant="rounded" height={52} />)}
+        </Box>
+      ) : (students || []).length === 0 ? (
+        <Box sx={{ py: 10, textAlign: 'center' }}>
+          <Avatar sx={{ width: 56, height: 56, bgcolor: 'grey.100', mx: 'auto', mb: 2 }}>
+            <PresentIcon sx={{ color: 'grey.400', fontSize: 28 }} />
+          </Avatar>
+          <Typography variant="body1" fontWeight={600} color="text.secondary">
+            Lớp chưa có học sinh
+          </Typography>
+          <Typography variant="caption" color="text.disabled">
+            Liên hệ quản trị viên để thêm học sinh vào lớp.
+          </Typography>
+        </Box>
+      ) : (
+        <TableContainer>
+          <Table>
+            <TableHead>
+              <TableRow
+                sx={{
+                  '& th': {
+                    bgcolor: 'grey.50',
+                    fontWeight: 700, fontSize: 12,
+                    color: 'text.secondary',
+                    textTransform: 'uppercase',
+                    letterSpacing: 0.5,
+                    py: 1.5,
+                    borderBottom: '2px solid', borderColor: 'divider',
+                  },
+                }}
+              >
+                <TableCell width={52} align="center">#</TableCell>
+                <TableCell>Học sinh</TableCell>
+                <TableCell>Trạng thái</TableCell>
+                <TableCell align="center">Giờ đến</TableCell>
+                <TableCell align="center">Giờ về</TableCell>
+                <TableCell sx={{ minWidth: 260 }} align="center">Thao tác</TableCell>
+              </TableRow>
+            </TableHead>
+            <TableBody>
               {(students || []).map((s, idx) => {
                 const rec = attendanceByStudent?.[s._id] || defaultRecord();
-                const badge = getStatusBadge(rec.status);
-                const canCheckIn = rec.status === 'empty' || rec.status === 'absent';
-                const canCheckOut =
-                  rec.status === 'checked_in' ||
-                  rec.status === 'waiting_parent' ||
-                  rec.status === 'parent_confirmed';
-                const canAbsent = rec.status !== 'checked_out';
+                const chipProps = getChipProps(rec.status);
+                const canCheckIn  = rec.status === 'empty' || rec.status === 'absent';
+                const canCheckOut = rec.status === 'checked_in' || rec.status === 'waiting_parent' || rec.status === 'parent_confirmed';
+                const canAbsent   = rec.status !== 'checked_out';
+                const isAbsent    = rec.status === 'absent';
+                const isDone      = rec.status === 'checked_out';
+
                 return (
-                  <tr key={s._id} className="border-b border-gray-100 hover:bg-gray-50 transition-colors">
-                    <td className="px-4 py-3 text-gray-700">{idx + 1}</td>
-                    <td className="px-4 py-3">
-                      <div className="font-medium text-gray-900">{s.fullName || '—'}</div>
-                    </td>
-                    <td className="px-4 py-3">
-                      <span className={`inline-block px-2 py-1 text-xs font-medium rounded-full ${badge.cls}`}>
-                        {badge.text}
-                      </span>
-                    </td>
-                    <td className="px-4 py-3 text-gray-700">{rec.timeIn || '—'}</td>
-                    <td className="px-4 py-3 text-gray-700">{rec.timeOut || '—'}</td>
-                    <td className="px-4 py-3 text-gray-700">
-                      <div className="max-w-xs truncate" title={rec.note || ''}>
-                        {rec.note || '—'}
-                      </div>
-                    </td>
-                    <td className="px-4 py-3">
-                      <div className="flex items-center justify-center gap-2">
+                  <TableRow
+                    key={s._id}
+                    hover
+                    sx={{
+                      '&:last-child td': { border: 0 },
+                      bgcolor: isAbsent ? '#fff5f5' : isDone ? '#f0fdf4' : 'transparent',
+                      transition: 'background 0.15s',
+                    }}
+                  >
+                    <TableCell align="center">
+                      <Avatar
+                        sx={{
+                          width: 28, height: 28, fontSize: 12, fontWeight: 700,
+                          bgcolor: chipProps.dotColor + '20',
+                          color: chipProps.dotColor,
+                          mx: 'auto',
+                        }}
+                      >
+                        {idx + 1}
+                      </Avatar>
+                    </TableCell>
+
+                    <TableCell>
+                      <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5 }}>
+                        <Avatar
+                          sx={{
+                            width: 34, height: 34, fontSize: 13, fontWeight: 700,
+                            background: 'linear-gradient(135deg, #6366f1, #8b5cf6)',
+                            color: 'white',
+                          }}
+                        >
+                          {s.fullName?.[0] || '?'}
+                        </Avatar>
+                        <Box>
+                          <Typography variant="body2" fontWeight={600}>
+                            {s.fullName || '—'}
+                          </Typography>
+                          {rec.note && (
+                            <Typography variant="caption" color="text.secondary" noWrap sx={{ maxWidth: 160, display: 'block' }}>
+                              {rec.note}
+                            </Typography>
+                          )}
+                        </Box>
+                      </Box>
+                    </TableCell>
+
+                    <TableCell>
+                      <Chip
+                        label={chipProps.label}
+                        color={chipProps.color}
+                        size="small"
+                        sx={{ fontSize: 11, height: 22, fontWeight: 700 }}
+                      />
+                    </TableCell>
+
+                    <TableCell align="center">
+                      {rec.timeIn ? (
+                        <Chip
+                          label={rec.timeIn}
+                          size="small"
+                          icon={<CheckInIcon sx={{ fontSize: '13px !important' }} />}
+                          sx={{ height: 22, fontSize: 11, fontWeight: 600, bgcolor: '#dcfce7', color: '#15803d' }}
+                        />
+                      ) : (
+                        <Typography variant="caption" color="text.disabled">—</Typography>
+                      )}
+                    </TableCell>
+
+                    <TableCell align="center">
+                      {rec.timeOut ? (
+                        <Chip
+                          label={rec.timeOut}
+                          size="small"
+                          icon={<CheckOutIcon sx={{ fontSize: '13px !important' }} />}
+                          sx={{ height: 22, fontSize: 11, fontWeight: 600, bgcolor: '#e0f2fe', color: '#0369a1' }}
+                        />
+                      ) : (
+                        <Typography variant="caption" color="text.disabled">—</Typography>
+                      )}
+                    </TableCell>
+
+                    <TableCell align="center">
+                      <Stack direction="row" spacing={0.75} justifyContent="center">
                         {canCheckIn && (
-                          <button
-                            type="button"
-                            onClick={() => onCheckin(s._id)}
-                            className="px-3 py-2 text-xs font-semibold rounded-md bg-green-600 text-white hover:bg-green-700 transition-colors"
-                          >
-                            Check in
-                          </button>
+                          <Tooltip title="Check-in" arrow>
+                            <Button
+                              size="small"
+                              variant="contained"
+                              color="success"
+                              onClick={() => onCheckin(s._id)}
+                              startIcon={<CheckInIcon sx={{ fontSize: '13px !important' }} />}
+                              sx={{ textTransform: 'none', fontSize: 12, fontWeight: 700, borderRadius: 1.5, px: 1.5, py: 0.5, minWidth: 0, boxShadow: 'none' }}
+                            >
+                              Check in
+                            </Button>
+                          </Tooltip>
                         )}
                         {canCheckOut && (
-                          <button
-                            type="button"
-                            onClick={() => onCheckout(s._id)}
-                            className="px-3 py-2 text-xs font-semibold rounded-md bg-sky-600 text-white hover:bg-sky-700 transition-colors"
-                          >
-                            Check-out
-                          </button>
+                          <Tooltip title="Check-out" arrow>
+                            <Button
+                              size="small"
+                              variant="contained"
+                              color="info"
+                              onClick={() => onCheckout(s._id)}
+                              startIcon={<CheckOutIcon sx={{ fontSize: '13px !important' }} />}
+                              sx={{ textTransform: 'none', fontSize: 12, fontWeight: 700, borderRadius: 1.5, px: 1.5, py: 0.5, minWidth: 0, boxShadow: 'none' }}
+                            >
+                              Check-out
+                            </Button>
+                          </Tooltip>
                         )}
-                        <button
-                          type="button"
-                          onClick={() => onViewDetail(s._id)}
-                          className="px-3 py-2 text-xs font-semibold rounded-md bg-indigo-600 text-white hover:bg-indigo-700 transition-colors"
-                        >
-                          Xem chi tiết
-                        </button>
+                        <Tooltip title="Xem chi tiết" arrow>
+                          <Button
+                            size="small"
+                            variant="outlined"
+                            color="primary"
+                            onClick={() => onViewDetail(s._id)}
+                            startIcon={<ViewIcon sx={{ fontSize: '13px !important' }} />}
+                            sx={{ textTransform: 'none', fontSize: 12, fontWeight: 700, borderRadius: 1.5, px: 1.5, py: 0.5, minWidth: 0 }}
+                          >
+                            Chi tiết
+                          </Button>
+                        </Tooltip>
                         {canAbsent && (
-                          <button
-                            type="button"
-                            onClick={() => onAbsent(s._id)}
-                            className="px-3 py-2 text-xs font-semibold rounded-md bg-red-600 text-white hover:bg-red-700 transition-colors"
-                          >
-                            Vắng mặt
-                          </button>
+                          <Tooltip title="Đánh vắng mặt" arrow>
+                            <Button
+                              size="small"
+                              variant={isAbsent ? 'outlined' : 'contained'}
+                              color="error"
+                              onClick={() => onAbsent(s._id)}
+                              startIcon={<AbsentIcon sx={{ fontSize: '13px !important' }} />}
+                              sx={{ textTransform: 'none', fontSize: 12, fontWeight: 700, borderRadius: 1.5, px: 1.5, py: 0.5, minWidth: 0, boxShadow: 'none' }}
+                            >
+                              Vắng
+                            </Button>
+                          </Tooltip>
                         )}
-                      </div>
-                    </td>
-                  </tr>
+                      </Stack>
+                    </TableCell>
+                  </TableRow>
                 );
               })}
-            </tbody>
-          </table>
-          {(students || []).length === 0 && (
-            <div className="p-6 border border-dashed border-gray-200 rounded-lg text-center mt-4">
-              <p className="text-sm text-gray-600">Lớp chưa có học sinh.</p>
-            </div>
-          )}
-        </div>
-        </>
+            </TableBody>
+          </Table>
+        </TableContainer>
       )}
-    </div>
+    </Paper>
   );
 }
 
