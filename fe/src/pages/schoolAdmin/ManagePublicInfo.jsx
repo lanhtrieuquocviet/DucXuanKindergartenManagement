@@ -250,6 +250,10 @@ function PublicInfoFormModal({ open, onClose, initialData, onSubmit, loading }) 
 const menuItems = [
   { key: 'overview', label: 'Tổng quan trường' },
   { key: 'classes', label: 'Lớp học' },
+  { key: 'teachers', label: 'Giáo viên' },
+  { key: 'students', label: 'Học sinh & phụ huynh' },
+  { key: 'assets', label: 'Quản lý tài sản' },
+  { key: 'reports', label: 'Báo cáo của trường' },
   { key: 'contacts', label: 'Liên hệ' },
   { key: 'qa', label: 'Câu hỏi' },
   { key: 'blogs', label: 'Quản lý blog' },
@@ -352,6 +356,7 @@ export default function ManagePublicInfo() {
     const routes = {
       overview: '/school-admin',
       classes: '/school-admin/classes',
+      students: '/school-admin/students',
       contacts: '/school-admin/contacts',
       qa: '/school-admin/qa',
       blogs: '/school-admin/blogs',

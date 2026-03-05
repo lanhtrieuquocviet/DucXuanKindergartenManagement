@@ -8,7 +8,7 @@ import {
   Box, Paper, Typography, Button, Select, MenuItem, FormControl,
   InputLabel, Table, TableBody, TableCell, TableContainer, TableHead,
   TableRow, Chip, Alert, Skeleton, Stack, Dialog, IconButton, Avatar,
-  ToggleButtonGroup, ToggleButton,
+  ToggleButtonGroup, ToggleButton, useMediaQuery, useTheme,
 } from "@mui/material";
 import {
   Refresh as RefreshIcon,
@@ -26,6 +26,84 @@ const STATUS_META = {
   approved: { label: "Đã duyệt",  color: "success",  icon: <ApprovedIcon sx={{ fontSize: 14 }} /> },
   rejected: { label: "Từ chối",   color: "error",    icon: <RejectedIcon sx={{ fontSize: 14 }} /> },
 };
+
+// ── Mobile card cho từng đơn đưa đón ──
+function RequestCard({ req, onAction, onPreviewImage }) {
+  const meta = STATUS_META[req.status] || { label: req.status, color: "default" };
+  const isPending = req.status === "pending";
+
+  return (
+    <Box
+      sx={{
+        px: 2, py: 1.75,
+        borderBottom: "1px solid", borderColor: "divider",
+        bgcolor: isPending ? "rgba(245,158,11,0.03)" : "white",
+        "&:last-child": { borderBottom: 0 },
+      }}
+    >
+      {/* Row 1: Học sinh + Trạng thái */}
+      <Box sx={{ display: "flex", alignItems: "center", gap: 1.5, mb: 1 }}>
+        <Avatar
+          sx={{
+            width: 36, height: 36, fontSize: 14, fontWeight: 700,
+            background: "linear-gradient(135deg,#f59e0b,#d97706)", color: "white", flexShrink: 0,
+          }}
+        >
+          {req.student?.fullName?.[0] || "?"}
+        </Avatar>
+        <Box sx={{ flex: 1, minWidth: 0 }}>
+          <Typography variant="body2" fontWeight={700} noWrap>{req.student?.fullName || "—"}</Typography>
+          <Typography variant="caption" color="text.secondary" noWrap>
+            {req.fullName} · {req.relation}
+          </Typography>
+        </Box>
+        <Chip label={meta.label} icon={meta.icon} color={meta.color} size="small" sx={{ fontWeight: 700, fontSize: 11, height: 22 }} />
+      </Box>
+
+      {/* Row 2: SĐT + Ảnh */}
+      <Box sx={{ display: "flex", alignItems: "center", gap: 1.5, mb: isPending ? 1 : 0, pl: 0.5 }}>
+        <Typography variant="caption" sx={{ fontFamily: "monospace", fontWeight: 600, color: "text.secondary" }}>
+          📞 {req.phone}
+        </Typography>
+        {req.imageUrl && (
+          <Box
+            component="img"
+            src={req.imageUrl}
+            alt={req.fullName}
+            onClick={() => onPreviewImage(req.imageUrl)}
+            sx={{
+              width: 40, height: 40, borderRadius: 1.5, objectFit: "cover",
+              border: "2px solid", borderColor: "divider", cursor: "pointer", ml: "auto", flexShrink: 0,
+              "&:hover": { borderColor: "primary.main", boxShadow: 2 },
+            }}
+          />
+        )}
+      </Box>
+
+      {/* Row 3: Actions (chỉ khi pending) */}
+      {isPending && (
+        <Box sx={{ display: "flex", gap: 1 }}>
+          <Button
+            size="small" variant="contained" color="success"
+            startIcon={<ApproveIcon sx={{ fontSize: "13px !important" }} />}
+            onClick={() => onAction(req, "approve")}
+            sx={{ textTransform: "none", fontSize: 12, fontWeight: 700, borderRadius: 2, boxShadow: "none", flex: 1 }}
+          >
+            Duyệt
+          </Button>
+          <Button
+            size="small" variant="outlined" color="error"
+            startIcon={<RejectIcon sx={{ fontSize: "13px !important" }} />}
+            onClick={() => onAction(req, "reject")}
+            sx={{ textTransform: "none", fontSize: 12, fontWeight: 700, borderRadius: 2, flex: 1 }}
+          >
+            Từ chối
+          </Button>
+        </Box>
+      )}
+    </Box>
+  );
+}
 
 function PickupRequest() {
   const navigate = useNavigate();
@@ -118,6 +196,8 @@ function PickupRequest() {
 
   const pendingCount = requests.filter((r) => r.status === "pending").length;
   const userName = user?.fullName || user?.username || "Giáo viên";
+  const theme = useTheme();
+  const isMobile = useMediaQuery(theme.breakpoints.down("sm"));
 
   return (
     <RoleLayout
@@ -181,7 +261,7 @@ function PickupRequest() {
             exclusive
             size="small"
             onChange={(_, val) => { if (val) setFilterStatus(val); }}
-            sx={{ '& .MuiToggleButton-root': { textTransform: 'none', fontWeight: 600, fontSize: 12, px: 2 } }}
+            sx={{ flexWrap: 'wrap', '& .MuiToggleButton-root': { textTransform: 'none', fontWeight: 600, fontSize: 12, px: { xs: 1.25, sm: 2 } } }}
           >
             <ToggleButton value="pending">Chờ duyệt</ToggleButton>
             <ToggleButton value="approved">Đã duyệt</ToggleButton>
@@ -205,10 +285,10 @@ function PickupRequest() {
         {error && <Alert severity="error" sx={{ mx: 3, mt: 2, borderRadius: 2 }}>{error}</Alert>}
         {successMessage && <Alert severity="success" sx={{ mx: 3, mt: 2, borderRadius: 2 }}>{successMessage}</Alert>}
 
-        {/* Table */}
+        {/* Content */}
         {loading ? (
           <Box sx={{ p: 3, display: "flex", flexDirection: "column", gap: 1.5 }}>
-            {[1, 2, 3].map((i) => <Skeleton key={i} variant="rounded" height={60} />)}
+            {[1, 2, 3].map((i) => <Skeleton key={i} variant="rounded" height={isMobile ? 100 : 60} />)}
           </Box>
         ) : requests.length === 0 ? (
           <Box sx={{ py: 10, textAlign: "center" }}>
@@ -222,7 +302,20 @@ function PickupRequest() {
               Khi phụ huynh đăng ký, danh sách sẽ hiển thị tại đây.
             </Typography>
           </Box>
+        ) : isMobile ? (
+          /* ── Mobile: Card list ── */
+          <Box>
+            {requests.map((req) => (
+              <RequestCard
+                key={req._id}
+                req={req}
+                onAction={handleAction}
+                onPreviewImage={setPreviewImage}
+              />
+            ))}
+          </Box>
         ) : (
+          /* ── Desktop: Table ── */
           <TableContainer>
             <Table>
               <TableHead>
@@ -263,15 +356,12 @@ function PickupRequest() {
                           <Avatar
                             sx={{
                               width: 34, height: 34, fontSize: 13, fontWeight: 700,
-                              background: "linear-gradient(135deg,#f59e0b,#d97706)",
-                              color: "white",
+                              background: "linear-gradient(135deg,#f59e0b,#d97706)", color: "white",
                             }}
                           >
                             {req.student?.fullName?.[0] || "?"}
                           </Avatar>
-                          <Typography variant="body2" fontWeight={600}>
-                            {req.student?.fullName || "—"}
-                          </Typography>
+                          <Typography variant="body2" fontWeight={600}>{req.student?.fullName || "—"}</Typography>
                         </Box>
                       </TableCell>
 
@@ -285,32 +375,21 @@ function PickupRequest() {
                       </TableCell>
 
                       <TableCell>
-                        <Chip
-                          label={req.relation}
-                          size="small"
-                          variant="outlined"
-                          sx={{ height: 22, fontSize: 11, fontWeight: 600 }}
-                        />
+                        <Chip label={req.relation} size="small" variant="outlined" sx={{ height: 22, fontSize: 11, fontWeight: 600 }} />
                       </TableCell>
 
                       <TableCell>
-                        <Typography variant="body2" sx={{ fontFamily: "monospace", fontWeight: 600 }}>
-                          {req.phone}
-                        </Typography>
+                        <Typography variant="body2" sx={{ fontFamily: "monospace", fontWeight: 600 }}>{req.phone}</Typography>
                       </TableCell>
 
                       <TableCell align="center">
                         {req.imageUrl ? (
                           <Box
-                            component="img"
-                            src={req.imageUrl}
-                            alt={req.fullName}
+                            component="img" src={req.imageUrl} alt={req.fullName}
                             onClick={() => setPreviewImage(req.imageUrl)}
                             sx={{
-                              width: 48, height: 48,
-                              borderRadius: 2, objectFit: "cover",
-                              border: "2px solid", borderColor: "divider",
-                              cursor: "pointer",
+                              width: 48, height: 48, borderRadius: 2, objectFit: "cover",
+                              border: "2px solid", borderColor: "divider", cursor: "pointer",
                               transition: "all 0.15s",
                               "&:hover": { transform: "scale(1.1)", boxShadow: 3, borderColor: "primary.main" },
                             }}
@@ -323,22 +402,14 @@ function PickupRequest() {
                       </TableCell>
 
                       <TableCell align="center">
-                        <Chip
-                          label={meta.label}
-                          icon={meta.icon}
-                          color={meta.color}
-                          size="small"
-                          sx={{ fontWeight: 700, fontSize: 11, height: 24 }}
-                        />
+                        <Chip label={meta.label} icon={meta.icon} color={meta.color} size="small" sx={{ fontWeight: 700, fontSize: 11, height: 24 }} />
                       </TableCell>
 
                       <TableCell align="center">
                         {isPending ? (
                           <Stack direction="row" spacing={1} justifyContent="center">
                             <Button
-                              size="small"
-                              variant="contained"
-                              color="success"
+                              size="small" variant="contained" color="success"
                               startIcon={<ApproveIcon sx={{ fontSize: "14px !important" }} />}
                               onClick={() => handleAction(req, "approve")}
                               sx={{ textTransform: "none", fontSize: 12, fontWeight: 700, borderRadius: 2, boxShadow: "none" }}
@@ -346,9 +417,7 @@ function PickupRequest() {
                               Duyệt
                             </Button>
                             <Button
-                              size="small"
-                              variant="outlined"
-                              color="error"
+                              size="small" variant="outlined" color="error"
                               startIcon={<RejectIcon sx={{ fontSize: "14px !important" }} />}
                               onClick={() => handleAction(req, "reject")}
                               sx={{ textTransform: "none", fontSize: 12, fontWeight: 700, borderRadius: 2 }}

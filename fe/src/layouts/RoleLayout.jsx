@@ -27,14 +27,22 @@ import {
   Circle as DotIcon,
   ChevronLeft as ChevronLeftIcon,
   ChevronRight as ChevronRightIcon,
+  Public as PublicIcon,
+  Inventory as InventoryIcon,
+  Assessment as AssessmentIcon,
+  Dashboard as DashboardIcon,
 } from '@mui/icons-material';
 
 const DRAWER_FULL = 260;
 const DRAWER_MINI = 68;
 
 const KEY_ICONS = {
+  overview:              <DashboardIcon fontSize="small" />,
   classes:               <SchoolIcon fontSize="small" />,
+  teachers:              <PersonIcon fontSize="small" />,
   students:              <PeopleIcon fontSize="small" />,
+  assets:                <InventoryIcon fontSize="small" />,
+  reports:               <AssessmentIcon fontSize="small" />,
   attendance:            <ChecklistIcon fontSize="small" />,
   'pickup-approval':     <HomeIcon fontSize="small" />,
   schedule:              <CalendarIcon fontSize="small" />,
@@ -43,6 +51,7 @@ const KEY_ICONS = {
   'attendance-overview': <BarChartIcon fontSize="small" />,
   blogs:                 <BlogIcon fontSize="small" />,
   documents:             <FolderIcon fontSize="small" />,
+  'public-info':         <PublicIcon fontSize="small" />,
   qa:                    <QaIcon fontSize="small" />,
   contacts:              <EmailIcon fontSize="small" />,
   permissions:           <ShieldIcon fontSize="small" />,

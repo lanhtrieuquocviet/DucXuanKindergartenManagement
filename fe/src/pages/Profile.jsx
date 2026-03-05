@@ -2,47 +2,82 @@ import { useEffect, useState, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import { ENDPOINTS, postFormData, get, put } from '../service/api';
+import {
+  Box, Button, TextField, Typography, Paper, Alert, Chip,
+  CircularProgress, Stack, Avatar, Divider, IconButton, Tooltip,
+} from '@mui/material';
+import ArrowBackIcon from '@mui/icons-material/ArrowBack';
+import LogoutIcon from '@mui/icons-material/Logout';
+import PhotoCameraIcon from '@mui/icons-material/PhotoCamera';
+import LockOutlinedIcon from '@mui/icons-material/LockOutlined';
+import PersonOutlineIcon from '@mui/icons-material/PersonOutline';
+import CheckCircleIcon from '@mui/icons-material/CheckCircle';
+import EditOutlinedIcon from '@mui/icons-material/EditOutlined';
+
+const DEFAULT_AVATAR = 'https://via.placeholder.com/300x400.png?text=Avatar+3x4';
+
+/* ── Small reusable card ── */
+function SectionCard({ icon, title, accentGradient, children }) {
+  return (
+    <Paper
+      elevation={0}
+      sx={{
+        borderRadius: 3,
+        border: '1px solid',
+        borderColor: 'divider',
+        overflow: 'hidden',
+      }}
+    >
+      {/* Accent bar */}
+      <Box sx={{ height: 4, background: accentGradient }} />
+
+      {/* Header */}
+      <Box sx={{
+        px: 3, py: 2,
+        display: 'flex', alignItems: 'center', gap: 1.25,
+        borderBottom: '1px solid', borderColor: 'divider',
+        bgcolor: 'grey.50',
+      }}>
+        <Avatar sx={{
+          width: 32, height: 32,
+          background: accentGradient,
+          boxShadow: '0 2px 8px rgba(0,0,0,0.15)',
+        }}>
+          {icon}
+        </Avatar>
+        <Typography variant="subtitle2" fontWeight={700} sx={{ fontSize: 14 }}>
+          {title}
+        </Typography>
+      </Box>
+
+      <Box sx={{ p: 3 }}>
+        {children}
+      </Box>
+    </Paper>
+  );
+}
 
 function Profile() {
-  const DEFAULT_AVATAR =
-    'https://via.placeholder.com/300x400.png?text=Avatar+3x4';
-
   const navigate = useNavigate();
   const {
-    user,
-    logout,
-    getProfile,
-    updateProfile,
-    changePassword,
-    error: authError,
-    setError,
-    isInitializing,
+    user, logout, getProfile, updateProfile, changePassword,
+    error: authError, setError, isInitializing,
   } = useAuth();
 
   const userRoles = user?.roles?.map((r) => r.roleName || r) || [];
-  // Student dashboard đang coi Parent/StudentParent/Student là cùng nhóm người dùng
   const isStudentRole =
     userRoles.includes('Student') ||
     userRoles.includes('Parent') ||
     userRoles.includes('StudentParent');
 
   const [profileForm, setProfileForm] = useState({
-    fullName: '',
-    email: '',
-    status: '',
-    avatar: '',
-    address: '',
-    phone: '',
+    fullName: '', email: '', status: '', avatar: '', address: '', phone: '',
   });
-
   const [passwordForm, setPasswordForm] = useState({
-    currentPassword: '',
-    newPassword: '',
-    confirmPassword: '',
+    currentPassword: '', newPassword: '', confirmPassword: '',
   });
   const [passwordHint, setPasswordHint] = useState('');
   const [children, setChildren] = useState([]);
-
   const [savingProfile, setSavingProfile] = useState(false);
   const [changingPassword, setChangingPassword] = useState(false);
   const [message, setMessage] = useState('');
@@ -53,7 +88,6 @@ function Profile() {
   const hasUserEditedRef = useRef(false);
   const fileInputRef = useRef(null);
 
-  // Chỉ reset ref khi rời trang (unmount), không reset khi effect chạy lại vì user thay đổi
   useEffect(() => {
     return () => {
       hasLoadedProfileRef.current = false;
@@ -61,29 +95,23 @@ function Profile() {
     };
   }, [avatarPreview]);
 
-  // Fetch children when component mounts
   useEffect(() => {
     if (isInitializing || !user) return;
-    
     const fetchChildren = async () => {
       try {
         const response = await get(ENDPOINTS.AUTH.MY_CHILDREN);
-        const list = response.data || [];
-        setChildren(list);
+        setChildren(response.data || []);
       } catch (e) {
         console.error('Failed to load children info', e);
         setChildren([]);
       }
     };
-
     fetchChildren();
   }, [user, isInitializing]);
 
-  // Điền form từ user ngay khi có user (chỉ lần đầu, không ghi đè khi user đã chỉnh sửa)
   useEffect(() => {
     if (isInitializing || !user) return;
-    if (hasLoadedProfileRef.current) return;
-    if (hasUserEditedRef.current) return;
+    if (hasLoadedProfileRef.current || hasUserEditedRef.current) return;
     setProfileForm((prev) => ({
       ...prev,
       fullName: user.fullName || user.username || '',
@@ -95,14 +123,9 @@ function Profile() {
     }));
   }, [user, isInitializing]);
 
-  // Load profile từ server một lần khi vào trang
   useEffect(() => {
     if (isInitializing) return;
-    if (!user) {
-      navigate('/login', { replace: true });
-      return;
-    }
-
+    if (!user) { navigate('/login', { replace: true }); return; }
     if (hasLoadedProfileRef.current) return;
     hasLoadedProfileRef.current = true;
 
@@ -121,20 +144,17 @@ function Profile() {
             status: userData.status === 'active' ? 'Đang hoạt động' : 'Đã khóa',
           }));
         }
-      } catch (err) {
+      } catch {
         hasLoadedProfileRef.current = false;
       } finally {
         setProfileFormLoading(false);
       }
     };
-
     loadProfile();
   }, [navigate, getProfile, user, isInitializing]);
 
-  // nếu danh sách con cập nhật (sau khi reload), phải đảm bảo trường phone được điền lại nếu user chưa tự thay
   useEffect(() => {
-    if (children.length === 0) return;
-    if (hasUserEditedRef.current) return;
+    if (children.length === 0 || hasUserEditedRef.current) return;
     setProfileForm((prev) => ({
       ...prev,
       phone: children[0]?.parentPhone || children[0]?.phone || '',
@@ -150,43 +170,28 @@ function Profile() {
   const handleSelectAvatarFile = async (e) => {
     const file = e.target.files?.[0];
     if (!file) return;
-
     if (!/^image\/(jpeg|jpg|png|gif|webp)$/i.test(file.type)) {
       setError('Chỉ chấp nhận file ảnh (JPEG, PNG, GIF, WebP).');
       return;
     }
-
-    // Hiện preview ngay bằng blob URL (không đợi upload)
     if (avatarPreview) URL.revokeObjectURL(avatarPreview);
-    const previewUrl = URL.createObjectURL(file);
-    setAvatarPreview(previewUrl);
+    setAvatarPreview(URL.createObjectURL(file));
     hasUserEditedRef.current = true;
 
     try {
       setError(null);
       setMessage('');
       setUploadingAvatar(true);
-
       const formData = new FormData();
       formData.append('avatar', file);
-
       const response = await postFormData(ENDPOINTS.CLOUDINARY.UPLOAD_AVATAR, formData);
       const url = response.data?.url;
-
-      if (!url) {
-        setError('Không nhận được đường dẫn ảnh từ server.');
-        return;
-      }
-
+      if (!url) { setError('Không nhận được đường dẫn ảnh từ server.'); return; }
       setProfileForm((prev) => ({ ...prev, avatar: url }));
-      setAvatarPreview((prev) => {
-        if (prev) URL.revokeObjectURL(prev);
-        return '';
-      });
+      setAvatarPreview((prev) => { if (prev) URL.revokeObjectURL(prev); return ''; });
       setMessage('Đã tải ảnh lên. Nhấn "Lưu thay đổi" để cập nhật hồ sơ.');
     } catch (err) {
       setError(err.message || 'Không tải lên được ảnh.');
-      // Giữ preview để user vẫn thấy ảnh đã chọn
     } finally {
       setUploadingAvatar(false);
       e.target.value = '';
@@ -196,34 +201,21 @@ function Profile() {
   const handlePasswordChange = (e) => {
     const { name, value } = e.target;
     setPasswordForm((prev) => ({ ...prev, [name]: value }));
-
     if (name === 'newPassword') {
-      const hasUpper = /[A-Z]/.test(value);
-      const hasNumber = /\d/.test(value);
-      const hasSpecial = /[^A-Za-z0-9]/.test(value);
-      if (value && (!hasUpper || !hasNumber || !hasSpecial)) {
-        setPasswordHint(
-          'Mật khẩu mới phải có ít nhất 1 chữ cái viết hoa, 1 số và 1 ký tự đặc biệt, tối thiểu 6 ký tự.'
-        );
-      } else {
-        setPasswordHint('');
-      }
+      const ok = /[A-Z]/.test(value) && /\d/.test(value) && /[^A-Za-z0-9]/.test(value);
+      setPasswordHint(value && !ok
+        ? 'Mật khẩu mới phải có ít nhất 1 chữ cái viết hoa, 1 số và 1 ký tự đặc biệt, tối thiểu 6 ký tự.'
+        : '');
     }
   };
 
   const handleSubmitProfile = async (e) => {
     e.preventDefault();
-    if (!user) {
-      navigate('/login', { replace: true });
-      return;
-    }
-
+    if (!user) { navigate('/login', { replace: true }); return; }
     try {
       setSavingProfile(true);
       setMessage('');
       setError(null);
-
-      // Update profile (fullName, email, avatar, address and phone in User model)
       await updateProfile({
         fullName: profileForm.fullName,
         email: profileForm.email,
@@ -231,29 +223,23 @@ function Profile() {
         address: profileForm.address || '',
         phone: profileForm.phone || '',
       });
-
-      // Update parentPhone for all children and sync local state
       if (children.length > 0) {
-        const updatePromises = children.map((child) =>
-          put(`/students/${child._id}`, {
-            parentPhone: profileForm.phone || '',
-          }).then((res) => res.data || res)
+        const updates = await Promise.all(
+          children.map((c) =>
+            put(`/students/${c._id}`, { parentPhone: profileForm.phone || '' }).then((r) => r.data || r)
+          )
         );
-        const updatedChildren = await Promise.all(updatePromises);
         setChildren((prev) =>
-          prev.map((child) => {
-            const updated = updatedChildren.find((u) =>
-              u._id === child._id || u.id === child._id
-            );
-            return updated ? { ...child, ...updated } : child;
+          prev.map((c) => {
+            const u = updates.find((x) => x._id === c._id || x.id === c._id);
+            return u ? { ...c, ...u } : c;
           })
         );
       }
-
       hasUserEditedRef.current = false;
       setMessage('Cập nhật hồ sơ thành công.');
-    } catch (err) {
-      // Error được xử lý trong context
+    } catch {
+      // handled in context
     } finally {
       setSavingProfile(false);
     }
@@ -265,52 +251,28 @@ function Profile() {
       setError('Mật khẩu mới và xác nhận mật khẩu không khớp.');
       return;
     }
-
-     // Kiểm tra độ mạnh mật khẩu mới
-    const strongPasswordRegex = /^(?=.*[A-Z])(?=.*\d)(?=.*[^A-Za-z0-9]).{6,}$/;
-    if (!strongPasswordRegex.test(passwordForm.newPassword || '')) {
+    if (!/^(?=.*[A-Z])(?=.*\d)(?=.*[^A-Za-z0-9]).{6,}$/.test(passwordForm.newPassword || '')) {
       setError('Mật khẩu mới phải có ít nhất 1 chữ cái viết hoa, 1 số và 1 ký tự đặc biệt, tối thiểu 6 ký tự.');
       return;
     }
-
-    if (!user) {
-      navigate('/login', { replace: true });
-      return;
-    }
-
+    if (!user) { navigate('/login', { replace: true }); return; }
     try {
       setChangingPassword(true);
       setMessage('');
       setError(null);
-
-      await changePassword(
-        passwordForm.currentPassword,
-        passwordForm.newPassword,
-      );
-
+      await changePassword(passwordForm.currentPassword, passwordForm.newPassword);
       setMessage('Đổi mật khẩu thành công.');
-      setPasswordForm({
-        currentPassword: '',
-        newPassword: '',
-        confirmPassword: '',
-      });
-    } catch (err) {
-      // Error được xử lý trong context
+      setPasswordForm({ currentPassword: '', newPassword: '', confirmPassword: '' });
+    } catch {
+      // handled in context
     } finally {
       setChangingPassword(false);
     }
   };
 
-  const handleBack = () => {
-    navigate(-1);
-  };
-
   const handleBackToDashboard = () => {
-    if (isStudentRole) {
-      navigate('/student');
-      return;
-    }
-    handleBack();
+    if (isStudentRole) { navigate('/student'); return; }
+    navigate(-1);
   };
 
   const handleLogout = () => {
@@ -318,595 +280,324 @@ function Profile() {
     navigate('/login', { replace: true });
   };
 
+  const currentAvatar = avatarPreview || profileForm.avatar || user?.avatar || DEFAULT_AVATAR;
+  const displayName = user?.fullName || profileForm.fullName || user?.username || 'Người dùng';
+  const initials = displayName.split(' ').map((w) => w[0]).slice(-2).join('').toUpperCase();
+
+  // ── Shared: Avatar upload ──
+  const AvatarUpload = () => (
+    <Stack direction="row" spacing={2} alignItems="flex-start">
+      <Box sx={{ position: 'relative', flexShrink: 0 }}>
+        <Box sx={{
+          width: 80, aspectRatio: '3/4',
+          borderRadius: 2, overflow: 'hidden',
+          border: '2px solid', borderColor: 'divider',
+          bgcolor: 'grey.100',
+        }}>
+          <img src={currentAvatar} alt="avatar" style={{ width: '100%', height: '100%', objectFit: 'cover', display: 'block' }} />
+        </Box>
+        {uploadingAvatar && (
+          <Box sx={{ position: 'absolute', inset: 0, borderRadius: 2, bgcolor: 'rgba(0,0,0,0.45)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+            <CircularProgress size={22} sx={{ color: 'white' }} />
+          </Box>
+        )}
+        <Tooltip title="Đổi ảnh" arrow>
+          <IconButton
+            size="small"
+            onClick={() => fileInputRef.current?.click()}
+            disabled={uploadingAvatar}
+            sx={{
+              position: 'absolute', bottom: -8, right: -8,
+              width: 28, height: 28,
+              bgcolor: 'primary.main', color: 'white',
+              border: '2px solid white',
+              '&:hover': { bgcolor: 'primary.dark' },
+              '&:disabled': { bgcolor: 'grey.400' },
+            }}
+          >
+            <PhotoCameraIcon sx={{ fontSize: 14 }} />
+          </IconButton>
+        </Tooltip>
+      </Box>
+
+      <Box sx={{ flex: 1, pt: 0.5 }}>
+        <input
+          ref={fileInputRef}
+          type="file"
+          accept="image/jpeg,image/jpg,image/png,image/gif,image/webp"
+          onChange={handleSelectAvatarFile}
+          style={{ display: 'none' }}
+        />
+        <Button
+          variant="outlined"
+          size="small"
+          startIcon={<PhotoCameraIcon />}
+          onClick={() => fileInputRef.current?.click()}
+          disabled={uploadingAvatar}
+          sx={{ mb: 1, borderRadius: 2 }}
+        >
+          {uploadingAvatar ? 'Đang tải lên...' : 'Chọn ảnh'}
+        </Button>
+        <Typography variant="caption" color="text.secondary" display="block" sx={{ lineHeight: 1.5 }}>
+          Tỉ lệ 3×4 · JPEG, PNG, GIF, WebP
+          <br />Nhấn &ldquo;Lưu thay đổi&rdquo; để cập nhật.
+        </Typography>
+      </Box>
+    </Stack>
+  );
+
+  // ── Shared: Profile form ──
+  const ProfileForm = ({ color = 'primary' }) => (
+    <Stack component="form" onSubmit={handleSubmitProfile} spacing={2.5}>
+      <TextField label="Họ và tên" name="fullName" value={profileForm.fullName ?? ''} onChange={handleProfileChange} size="small" fullWidth color={color} />
+      <TextField label="Email" name="email" type="email" value={profileForm.email ?? ''} onChange={handleProfileChange} size="small" fullWidth color={color} />
+      <TextField
+        label="Số điện thoại" name="phone" type="tel"
+        value={profileForm.phone ?? ''}
+        onChange={(e) => { if (e.target.value.length <= 50) handleProfileChange(e); }}
+        inputProps={{ maxLength: 50 }}
+        helperText={`${profileForm.phone?.length || 0}/50 ký tự`}
+        size="small" fullWidth color={color}
+      />
+      <TextField
+        label="Địa chỉ" name="address"
+        value={profileForm.address ?? ''}
+        onChange={(e) => { if (e.target.value.length <= 50) handleProfileChange(e); }}
+        inputProps={{ maxLength: 50 }}
+        helperText={`${profileForm.address?.length || 0}/50 ký tự`}
+        size="small" fullWidth color={color}
+      />
+
+      <Box>
+        <Typography variant="caption" fontWeight={600} color="text.secondary" sx={{ mb: 1, display: 'block' }}>
+          Ảnh đại diện (3×4)
+        </Typography>
+        <AvatarUpload />
+      </Box>
+
+      <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5 }}>
+        <Typography variant="caption" fontWeight={600} color="text.secondary">Trạng thái:</Typography>
+        <Chip
+          icon={<CheckCircleIcon sx={{ fontSize: '14px !important' }} />}
+          label={profileForm.status || 'Đang hoạt động'}
+          size="small"
+          color="success"
+          variant="outlined"
+          sx={{ fontWeight: 600 }}
+        />
+      </Box>
+
+      <Box>
+        <Button
+          type="submit"
+          variant="contained"
+          color={color}
+          disabled={savingProfile}
+          startIcon={savingProfile ? <CircularProgress size={15} color="inherit" /> : <EditOutlinedIcon />}
+          sx={{ borderRadius: 2, fontWeight: 700, px: 3 }}
+        >
+          {savingProfile ? 'Đang lưu...' : 'Lưu thay đổi'}
+        </Button>
+      </Box>
+    </Stack>
+  );
+
+  // ── Shared: Password form ──
+  const PasswordForm = () => (
+    <Stack component="form" onSubmit={handleSubmitPassword} spacing={2.5}>
+      <TextField
+        label="Mật khẩu hiện tại" name="currentPassword" type="password"
+        value={passwordForm.currentPassword} onChange={handlePasswordChange}
+        size="small" fullWidth
+      />
+      <TextField
+        label="Mật khẩu mới" name="newPassword" type="password"
+        value={passwordForm.newPassword} onChange={handlePasswordChange}
+        size="small" fullWidth
+        helperText={passwordHint || ' '}
+        FormHelperTextProps={{ sx: { color: passwordHint ? 'warning.main' : 'transparent', mt: 0.25 } }}
+      />
+      <TextField
+        label="Xác nhận mật khẩu mới" name="confirmPassword" type="password"
+        value={passwordForm.confirmPassword} onChange={handlePasswordChange}
+        size="small" fullWidth
+      />
+      <Box>
+        <Button
+          type="submit"
+          variant="contained"
+          color="warning"
+          disabled={changingPassword}
+          startIcon={changingPassword ? <CircularProgress size={15} color="inherit" /> : <LockOutlinedIcon />}
+          sx={{ borderRadius: 2, fontWeight: 700, px: 3 }}
+        >
+          {changingPassword ? 'Đang đổi...' : 'Đổi mật khẩu'}
+        </Button>
+      </Box>
+    </Stack>
+  );
+
+  // ── Shared: Alert messages ──
+  const Alerts = () => (
+    <>
+      {message && (
+        <Alert severity="success" sx={{ mb: 3, borderRadius: 2 }} onClose={() => setMessage('')}>
+          {message}
+        </Alert>
+      )}
+      {authError && (
+        <Alert severity="error" sx={{ mb: 3, borderRadius: 2 }} onClose={() => setError(null)}>
+          {authError}
+        </Alert>
+      )}
+    </>
+  );
+
+  // ── Shared: Hero banner ──
+  const HeroBanner = ({ gradient, roleLabel, extra }) => (
+    <Paper
+      elevation={0}
+      sx={{
+        mb: 4, borderRadius: 3,
+        background: gradient,
+        color: 'white', overflow: 'hidden', position: 'relative',
+      }}
+    >
+      {/* Decorative circles */}
+      <Box sx={{ position: 'absolute', right: -40, top: -40, width: 160, height: 160, borderRadius: '50%', bgcolor: 'rgba(255,255,255,0.06)' }} />
+      <Box sx={{ position: 'absolute', right: 80, bottom: -50, width: 120, height: 120, borderRadius: '50%', bgcolor: 'rgba(255,255,255,0.05)' }} />
+      <Box sx={{ position: 'absolute', left: -20, bottom: -30, width: 100, height: 100, borderRadius: '50%', bgcolor: 'rgba(255,255,255,0.04)' }} />
+
+      <Box sx={{ position: 'relative', zIndex: 1, p: { xs: 2.5, md: 3 }, display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: 2 }}>
+        {/* Left: avatar + info */}
+        <Stack direction="row" spacing={2} alignItems="center">
+          <Box sx={{ position: 'relative' }}>
+            <Box sx={{
+              width: 72, aspectRatio: '3/4',
+              borderRadius: 2.5, overflow: 'hidden',
+              border: '3px solid rgba(255,255,255,0.4)',
+              bgcolor: 'rgba(255,255,255,0.15)',
+              flexShrink: 0,
+            }}>
+              <img src={currentAvatar} alt="avatar" style={{ width: '100%', height: '100%', objectFit: 'cover', display: 'block' }} />
+            </Box>
+          </Box>
+          <Box>
+            <Typography variant="caption" sx={{ opacity: 0.7, fontSize: 12 }}>{roleLabel}</Typography>
+            <Typography variant="h6" fontWeight={800} sx={{ lineHeight: 1.2, mt: 0.25 }}>
+              {displayName}
+            </Typography>
+            <Typography variant="caption" sx={{ opacity: 0.65 }}>
+              {user?.email ?? profileForm.email}
+            </Typography>
+            {profileFormLoading && (
+              <Stack direction="row" spacing={0.75} alignItems="center" mt={0.5}>
+                <CircularProgress size={12} sx={{ color: 'rgba(255,255,255,0.7)' }} />
+                <Typography variant="caption" sx={{ opacity: 0.65 }}>Đang tải...</Typography>
+              </Stack>
+            )}
+          </Box>
+        </Stack>
+
+        {/* Right: action buttons */}
+        <Stack direction="row" spacing={1} flexWrap="wrap">
+          {extra}
+          <Button
+            variant="outlined"
+            startIcon={<ArrowBackIcon />}
+            onClick={handleBackToDashboard}
+            size="small"
+            sx={{
+              color: 'white', borderColor: 'rgba(255,255,255,0.45)',
+              fontWeight: 600, borderRadius: 2, textTransform: 'none',
+              '&:hover': { bgcolor: 'rgba(255,255,255,0.12)', borderColor: 'rgba(255,255,255,0.7)' },
+            }}
+          >
+            Bảng điều khiển
+          </Button>
+          <Button
+            variant="outlined"
+            startIcon={<LogoutIcon />}
+            onClick={handleLogout}
+            size="small"
+            sx={{
+              color: 'white', borderColor: 'rgba(255,255,255,0.45)',
+              fontWeight: 600, borderRadius: 2, textTransform: 'none',
+              '&:hover': { bgcolor: 'rgba(255,255,255,0.12)', borderColor: 'rgba(255,255,255,0.7)' },
+            }}
+          >
+            Đăng xuất
+          </Button>
+        </Stack>
+      </Box>
+    </Paper>
+  );
+
+  // ═══════════════ STUDENT / PARENT ═══════════════
   if (isStudentRole) {
-    const displayName =
-      user?.fullName || profileForm.fullName || user?.username || 'Phụ huynh';
-
     return (
-      <div className="min-h-screen bg-gray-100">
-        {/* Green banner (giống StudentDashboard) */}
-        <div className="bg-emerald-600 text-white px-4 py-4 md:px-6 md:py-5">
-          <div className="max-w-4xl mx-auto flex items-center justify-between">
-            <h1 className="text-lg md:text-xl font-bold">
-              👋 Xin chào, {displayName}
-            </h1>
-            <div className="flex items-center gap-2">
-              <button
-                type="button"
-                onClick={handleBackToDashboard}
-                className="text-sm px-3 py-1.5 rounded-lg bg-white/20 hover:bg-white/30 transition"
-              >
-                Bảng điều khiển
-              </button>
-              <button
-                type="button"
-                onClick={handleLogout}
-                className="text-sm px-3 py-1.5 rounded-lg bg-white/20 hover:bg-white/30 transition"
-              >
-                Đăng xuất
-              </button>
-            </div>
-          </div>
-        </div>
+      <Box sx={{ minHeight: '100vh', bgcolor: '#f5f6fa' }}>
+        <Box sx={{ maxWidth: 960, mx: 'auto', px: { xs: 2, md: 3 }, py: { xs: 3, md: 4 } }}>
+          <HeroBanner
+            gradient="linear-gradient(135deg, #059669 0%, #0d9488 100%)"
+            roleLabel="Phụ huynh học sinh"
+          />
 
-        <div className="max-w-4xl mx-auto px-4 py-6 md:px-6 md:py-8">
-          {/* Header card */}
-          <div className="bg-white rounded-xl shadow-sm p-4 md:p-5 mb-6">
-            <div className="flex items-start justify-between gap-4">
-              <div>
-                <h2 className="text-lg md:text-xl font-semibold text-gray-800">
-                  Quản lý hồ sơ
-                </h2>
-                <p className="text-sm text-gray-500 mt-1">
-                  Xem và cập nhật thông tin cá nhân, thay đổi mật khẩu đăng nhập.
-                </p>
-              </div>
+          <Alerts />
 
-              <div className="flex items-center gap-3 text-sm text-gray-700">
-                <div className="w-10 h-[52px] overflow-hidden rounded-md border border-gray-300 bg-gray-100 flex items-center justify-center">
-                  <img
-                    src={
-                      avatarPreview ||
-                      profileForm.avatar ||
-                      user?.avatar ||
-                      DEFAULT_AVATAR
-                    }
-                    alt="Avatar"
-                    className="w-full h-full object-cover"
-                  />
-                </div>
-                <div className="flex flex-col">
-                  <span className="font-medium">{displayName}</span>
-                  <span className="text-xs text-gray-500">
-                    {user?.email ?? profileForm.email}
-                  </span>
-                </div>
-              </div>
-            </div>
-          </div>
+          <Box sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr', md: '1fr 1fr' }, gap: 3 }}>
+            <SectionCard
+              icon={<PersonOutlineIcon sx={{ fontSize: 17, color: 'white' }} />}
+              title="Chỉnh sửa hồ sơ"
+              accentGradient="linear-gradient(135deg, #059669 0%, #0d9488 100%)"
+            >
+              <ProfileForm color="success" />
+            </SectionCard>
 
-          {(message || authError) && (
-            <div className="mb-4">
-              {message && (
-                <div className="mb-2 rounded-md bg-green-50 border border-green-200 px-4 py-2 text-sm text-green-800">
-                  {message}
-                </div>
-              )}
-              {authError && (
-                <div className="rounded-md bg-red-50 border border-red-200 px-4 py-2 text-sm text-red-800">
-                  {authError}
-                </div>
-              )}
-            </div>
-          )}
-
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4 md:gap-6">
-            {/* Edit Profile */}
-            <section className="bg-white rounded-xl shadow-sm p-4 md:p-5">
-              <h2 className="text-lg font-semibold text-gray-800 mb-4">
-                Chỉnh sửa hồ sơ
-                {profileFormLoading && (
-                  <span className="ml-2 text-xs font-normal text-gray-400">
-                    Đang tải...
-                  </span>
-                )}
-              </h2>
-              <form onSubmit={handleSubmitProfile} className="space-y-4">
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">
-                    Họ và tên
-                  </label>
-                  <input
-                    type="text"
-                    name="fullName"
-                    value={profileForm.fullName ?? ''}
-                    onChange={handleProfileChange}
-                    readOnly={false}
-                    disabled={false}
-                    className="w-full border border-gray-300 rounded-md px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500"
-                    placeholder="Nhập họ và tên"
-                  />
-                </div>
-
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">
-                    Email
-                  </label>
-                  <input
-                    type="email"
-                    name="email"
-                    value={profileForm.email ?? ''}
-                    onChange={handleProfileChange}
-                    readOnly={false}
-                    disabled={false}
-                    className="w-full border border-gray-300 rounded-md px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500"
-                    placeholder="Nhập email"
-                  />
-                </div>
-
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">
-                    Số điện thoại
-                  </label>
-                  <input
-                    type="tel"
-                    name="phone"
-                    value={profileForm.phone ?? ''}
-                    onChange={(e) => {
-                      const value = e.target.value;
-                      if (value.length <= 50) {
-                        handleProfileChange(e);
-                      }
-                    }}
-                    maxLength="50"
-                    className="w-full border border-gray-300 rounded-md px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500"
-                    placeholder="Nhập số điện thoại (tối đa 50 ký tự)"
-                  />
-                  <p className="text-xs text-gray-500 mt-1">
-                    {profileForm.phone?.length || 0}/50 ký tự
-                  </p>
-                </div>
-
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">
-                    Địa chỉ
-                  </label>
-                  <input
-                    type="text"
-                    name="address"
-                    value={profileForm.address ?? ''}
-                    onChange={(e) => {
-                      const value = e.target.value;
-                      if (value.length <= 50) {
-                        handleProfileChange(e);
-                      }
-                    }}
-                    maxLength="50"
-                    className="w-full border border-gray-300 rounded-md px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500"
-                    placeholder="Nhập địa chỉ (tối đa 50 ký tự)"
-                  />
-                  <p className="text-xs text-gray-500 mt-1">
-                    {profileForm.address?.length || 0}/50 ký tự
-                  </p>
-                </div>
-
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">
-                    Ảnh đại diện (3x4)
-                  </label>
-                  <div className="flex items-start gap-4">
-                    <div className="w-24 aspect-[3/4] overflow-hidden rounded-md border border-gray-300 bg-gray-100 flex items-center justify-center">
-                      <img
-                        src={
-                          avatarPreview ||
-                          profileForm.avatar ||
-                          user?.avatar ||
-                          DEFAULT_AVATAR
-                        }
-                        alt="Avatar preview"
-                        className="w-full h-full object-cover"
-                      />
-                    </div>
-                    <div className="flex flex-col gap-2">
-                      <input
-                        ref={fileInputRef}
-                        type="file"
-                        accept="image/jpeg,image/jpg,image/png,image/gif,image/webp"
-                        onChange={handleSelectAvatarFile}
-                        className="hidden"
-                      />
-                      <button
-                        type="button"
-                        onClick={() => fileInputRef.current?.click()}
-                        disabled={uploadingAvatar}
-                        className="inline-flex items-center justify-center px-4 py-2 rounded-md border border-gray-300 bg-white text-sm font-medium text-gray-700 hover:bg-gray-50 disabled:opacity-60 disabled:cursor-not-allowed"
-                      >
-                        {uploadingAvatar ? 'Đang tải lên...' : 'Chọn ảnh trong máy'}
-                      </button>
-                      <p className="text-xs text-gray-500 max-w-xs">
-                        Ảnh nên có tỉ lệ 3x4. Chọn file (JPEG, PNG, GIF, WebP),
-                        sau đó nhấn &quot;Lưu thay đổi&quot; để cập nhật.
-                      </p>
-                    </div>
-                  </div>
-                </div>
-
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">
-                    Trạng thái tài khoản
-                  </label>
-                  <div className="flex items-center gap-2">
-                    <span className="inline-flex items-center rounded-full bg-green-100 text-green-700 text-xs font-semibold px-3 py-1">
-                      {profileForm.status || 'Đang hoạt động'}
-                    </span>
-                  </div>
-                </div>
-
-                <div className="pt-2">
-                  <button
-                    type="submit"
-                    disabled={savingProfile}
-                    className="inline-flex items-center justify-center px-6 py-2 rounded-lg bg-emerald-600 text-white text-sm font-semibold hover:bg-emerald-700 disabled:opacity-60 disabled:cursor-not-allowed transition"
-                  >
-                    {savingProfile ? 'Đang lưu...' : 'Lưu thay đổi'}
-                  </button>
-                </div>
-              </form>
-            </section>
-
-            {/* Change Password */}
-            <section className="bg-white rounded-xl shadow-sm p-4 md:p-5">
-              <h2 className="text-lg font-semibold text-gray-800 mb-4">
-                Đổi mật khẩu
-              </h2>
-              <form onSubmit={handleSubmitPassword} className="space-y-4">
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">
-                    Mật khẩu hiện tại
-                  </label>
-                  <input
-                    type="password"
-                    name="currentPassword"
-                    value={passwordForm.currentPassword}
-                    onChange={handlePasswordChange}
-                    className="w-full border border-gray-300 rounded-md px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500"
-                    placeholder="Nhập mật khẩu hiện tại"
-                  />
-                </div>
-
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">
-                    Mật khẩu mới
-                  </label>
-                  <input
-                    type="password"
-                    name="newPassword"
-                    value={passwordForm.newPassword}
-                    onChange={handlePasswordChange}
-                    className="w-full border border-gray-300 rounded-md px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500"
-                    placeholder="Nhập mật khẩu mới"
-                  />
-                </div>
-
-                {passwordHint && (
-                  <p className="text-xs text-amber-600">{passwordHint}</p>
-                )}
-
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">
-                    Xác nhận mật khẩu mới
-                  </label>
-                  <input
-                    type="password"
-                    name="confirmPassword"
-                    value={passwordForm.confirmPassword}
-                    onChange={handlePasswordChange}
-                    className="w-full border border-gray-300 rounded-md px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500"
-                    placeholder="Nhập lại mật khẩu mới"
-                  />
-                </div>
-
-                <div className="pt-2">
-                  <button
-                    type="submit"
-                    disabled={changingPassword}
-                    className="inline-flex items-center justify-center px-6 py-2 rounded-lg bg-amber-500 text-white text-sm font-semibold hover:bg-amber-600 disabled:opacity-60 disabled:cursor-not-allowed transition"
-                  >
-                    {changingPassword ? 'Đang đổi...' : 'Đổi mật khẩu'}
-                  </button>
-                </div>
-              </form>
-            </section>
-          </div>
-        </div>
-      </div>
+            <SectionCard
+              icon={<LockOutlinedIcon sx={{ fontSize: 17, color: 'white' }} />}
+              title="Đổi mật khẩu"
+              accentGradient="linear-gradient(135deg, #f59e0b 0%, #f97316 100%)"
+            >
+              <PasswordForm />
+            </SectionCard>
+          </Box>
+        </Box>
+      </Box>
     );
   }
 
+  // ═══════════════ TEACHER / ADMIN ═══════════════
   return (
-    <div className="min-h-screen bg-gray-100 flex">
-      {/* Sidebar giả lập như hình */}
-      <aside className="w-56 bg-gray-900 text-white flex flex-col">
-        <div className="px-6 py-4 font-semibold text-lg border-b border-gray-800">
-          Menu
-        </div>
-        <button
-          type="button"
-          onClick={handleBackToDashboard}
-          className="text-left px-6 py-3 text-sm hover:bg-gray-800 transition"
-        >
-          ← Quay lại bảng điều khiển
-        </button>
-      </aside>
+    <Box sx={{ minHeight: '100vh', bgcolor: '#f5f6fa' }}>
+      <Box sx={{ maxWidth: 1060, mx: 'auto', px: { xs: 2, md: 3 }, py: { xs: 3, md: 4 } }}>
+        <HeroBanner
+          gradient="linear-gradient(135deg, #4f46e5 0%, #7c3aed 100%)"
+          roleLabel={userRoles[0] || 'Quản trị viên'}
+        />
 
-      <main className="flex-1 p-8">
-        <div className="flex items-center justify-between mb-6">
-          <div>
-            <h1 className="text-2xl font-semibold text-gray-800">Quản lý hồ sơ</h1>
-            <p className="text-sm text-gray-500 mt-1">
-              Xem và cập nhật thông tin cá nhân, thay đổi mật khẩu đăng nhập.
-            </p>
-          </div>
-          <div className="flex items-center gap-3 text-sm text-gray-700">
-            <div className="w-10 h-[52px] overflow-hidden rounded-md border border-gray-300 bg-gray-100 flex items-center justify-center">
-              <img
-                src={
-                  avatarPreview ||
-                  profileForm.avatar ||
-                  user?.avatar ||
-                  DEFAULT_AVATAR
-                }
-                alt="Avatar"
-                className="w-full h-full object-cover"
-              />
-            </div>
-            <div className="flex flex-col">
-              <span className="font-medium">
-                {(user?.fullName ?? profileForm.fullName) || 'Người dùng'}
-              </span>
-              <span className="text-xs text-gray-500">
-                {(user?.email ?? profileForm.email)}
-              </span>
-            </div>
-          </div>
-        </div>
+        <Alerts />
 
-        {(message || authError) && (
-          <div className="mb-4">
-            {message && (
-              <div className="mb-2 rounded-md bg-green-50 border border-green-200 px-4 py-2 text-sm text-green-800">
-                {message}
-              </div>
-            )}
-            {authError && (
-              <div className="rounded-md bg-red-50 border border-red-200 px-4 py-2 text-sm text-red-800">
-                {authError}
-              </div>
-            )}
-          </div>
-        )}
+        <Box sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr', lg: '1fr 1fr' }, gap: 3 }}>
+          <SectionCard
+            icon={<PersonOutlineIcon sx={{ fontSize: 17, color: 'white' }} />}
+            title="Chỉnh sửa hồ sơ"
+            accentGradient="linear-gradient(135deg, #4f46e5 0%, #7c3aed 100%)"
+          >
+            <ProfileForm color="primary" />
+          </SectionCard>
 
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
-          {/* Edit Profile */}
-          <section className="bg-white rounded-lg shadow p-6">
-            <h2 className="text-lg font-semibold text-gray-800 mb-4">
-              Chỉnh sửa hồ sơ
-              {profileFormLoading && (
-                <span className="ml-2 text-xs font-normal text-gray-400">
-                  Đang tải...
-                </span>
-              )}
-            </h2>
-            <form onSubmit={handleSubmitProfile} className="space-y-4">
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">
-                  Họ và tên
-                </label>
-                <input
-                  type="text"
-                  name="fullName"
-                  value={profileForm.fullName ?? ''}
-                  onChange={handleProfileChange}
-                  readOnly={false}
-                  disabled={false}
-                  className="w-full border border-gray-300 rounded-md px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
-                  placeholder="Nhập họ và tên"
-                />
-              </div>
-
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">
-                  Email
-                </label>
-                <input
-                  type="email"
-                  name="email"
-                  value={profileForm.email ?? ''}
-                  onChange={handleProfileChange}
-                  readOnly={false}
-                  disabled={false}
-                  className="w-full border border-gray-300 rounded-md px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
-                  placeholder="Nhập email"
-                />
-              </div>
-
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">
-                  Số điện thoại
-                </label>
-                <input
-                  type="tel"
-                  name="phone"
-                  value={profileForm.phone ?? ''}
-                  onChange={(e) => {
-                    const value = e.target.value;
-                    if (value.length <= 50) {
-                      handleProfileChange(e);
-                    }
-                  }}
-                  maxLength="50"
-                  className="w-full border border-gray-300 rounded-md px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
-                  placeholder="Nhập số điện thoại (tối đa 50 ký tự)"
-                />
-                <p className="text-xs text-gray-500 mt-1">
-                  {profileForm.phone?.length || 0}/50 ký tự
-                </p>
-              </div>
-
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">
-                  Địa chỉ
-                </label>
-                <input
-                  type="text"
-                  name="address"
-                  value={profileForm.address ?? ''}
-                  onChange={(e) => {
-                    const value = e.target.value;
-                    if (value.length <= 50) {
-                      handleProfileChange(e);
-                    }
-                  }}
-                  maxLength="50"
-                  className="w-full border border-gray-300 rounded-md px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
-                  placeholder="Nhập địa chỉ (tối đa 50 ký tự)"
-                />
-                <p className="text-xs text-gray-500 mt-1">
-                  {profileForm.address?.length || 0}/50 ký tự
-                </p>
-              </div>
-
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">
-                  Ảnh đại diện (3x4)
-                </label>
-                <div className="flex items-start gap-4">
-                  <div className="w-24 aspect-[3/4] overflow-hidden rounded-md border border-gray-300 bg-gray-100 flex items-center justify-center">
-                    <img
-                      src={
-                        avatarPreview ||
-                        profileForm.avatar ||
-                        user?.avatar ||
-                        DEFAULT_AVATAR
-                      }
-                      alt="Avatar preview"
-                      className="w-full h-full object-cover"
-                    />
-                  </div>
-                  <div className="flex flex-col gap-2">
-                    <input
-                      ref={fileInputRef}
-                      type="file"
-                      accept="image/jpeg,image/jpg,image/png,image/gif,image/webp"
-                      onChange={handleSelectAvatarFile}
-                      className="hidden"
-                    />
-                    <button
-                      type="button"
-                      onClick={() => fileInputRef.current?.click()}
-                      disabled={uploadingAvatar}
-                      className="inline-flex items-center justify-center px-4 py-2 rounded-md border border-gray-300 bg-white text-sm font-medium text-gray-700 hover:bg-gray-50 disabled:opacity-60 disabled:cursor-not-allowed"
-                    >
-                      {uploadingAvatar ? 'Đang tải lên...' : 'Chọn ảnh trong máy'}
-                    </button>
-                    <p className="text-xs text-gray-500 max-w-xs">
-                      Ảnh nên có tỉ lệ 3x4. Chọn file (JPEG, PNG, GIF, WebP), sau đó nhấn &quot;Lưu thay đổi&quot; để cập nhật.
-                    </p>
-                  </div>
-                </div>
-              </div>
-
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">
-                  Trạng thái tài khoản
-                </label>
-                <div className="flex items-center gap-2">
-                  <span className="inline-flex items-center rounded-full bg-green-100 text-green-700 text-xs font-semibold px-3 py-1">
-                    {profileForm.status || 'Đang hoạt động'}
-                  </span>
-                </div>
-              </div>
-
-              <div className="pt-2">
-                <button
-                  type="submit"
-                  disabled={savingProfile}
-                  className="inline-flex items-center justify-center px-6 py-2 rounded-md bg-blue-600 text-white text-sm font-semibold hover:bg-blue-700 disabled:opacity-60 disabled:cursor-not-allowed transition"
-                >
-                  {savingProfile ? 'Đang lưu...' : 'Lưu thay đổi'}
-                </button>
-              </div>
-            </form>
-          </section>
-
-          {/* Change Password */}
-          <section className="bg-white rounded-lg shadow p-6">
-            <h2 className="text-lg font-semibold text-gray-800 mb-4">Đổi mật khẩu</h2>
-            <form onSubmit={handleSubmitPassword} className="space-y-4">
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">
-                  Mật khẩu hiện tại
-                </label>
-                <input
-                  type="password"
-                  name="currentPassword"
-                  value={passwordForm.currentPassword}
-                  onChange={handlePasswordChange}
-                  className="w-full border border-gray-300 rounded-md px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
-                  placeholder="Nhập mật khẩu hiện tại"
-                />
-              </div>
-
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">
-                  Mật khẩu mới
-                </label>
-                <input
-                  type="password"
-                  name="newPassword"
-                  value={passwordForm.newPassword}
-                  onChange={handlePasswordChange}
-                  className="w-full border border-gray-300 rounded-md px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
-                  placeholder="Nhập mật khẩu mới"
-                />
-              </div>
-
-              {passwordHint && (
-                <p className="text-xs text-amber-600">
-                  {passwordHint}
-                </p>
-              )}
-
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">
-                  Xác nhận mật khẩu mới
-                </label>
-                <input
-                  type="password"
-                  name="confirmPassword"
-                  value={passwordForm.confirmPassword}
-                  onChange={handlePasswordChange}
-                  className="w-full border border-gray-300 rounded-md px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
-                  placeholder="Nhập lại mật khẩu mới"
-                />
-              </div>
-
-              <div className="pt-2">
-                <button
-                  type="submit"
-                  disabled={changingPassword}
-                  className="inline-flex items-center justify-center px-6 py-2 rounded-md bg-amber-500 text-white text-sm font-semibold hover:bg-amber-600 disabled:opacity-60 disabled:cursor-not-allowed transition"
-                >
-                  {changingPassword ? 'Đang đổi...' : 'Đổi mật khẩu'}
-                </button>
-              </div>
-            </form>
-          </section>
-        </div>
-      </main>
-    </div>
+          <SectionCard
+            icon={<LockOutlinedIcon sx={{ fontSize: 17, color: 'white' }} />}
+            title="Đổi mật khẩu"
+            accentGradient="linear-gradient(135deg, #f59e0b 0%, #f97316 100%)"
+          >
+            <PasswordForm />
+          </SectionCard>
+        </Box>
+      </Box>
+    </Box>
   );
 }
 
 export default Profile;
-
