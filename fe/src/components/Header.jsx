@@ -347,9 +347,9 @@ function Header() {
             {/* ===== BANNER ===== */}
             <div className="relative h-[200px] m-4 rounded-xl overflow-hidden">
                 <img
-                    src="https://mnducxuanbk.thainguyen.edu.vn/upload/47910/20250714/Anh_nen_banner_1_6186c.jpg"
+                    src="https://demoda.vn/wp-content/uploads/2022/01/phong-nen-mam-non-vui-choi-sieu-dep.jpg"
                     alt="Banner"
-                    className="w-full h-full object-cover"
+                    className="w-full h-full object-cover object-[center_75%]"
                 />
 
                 <div className="absolute inset-0 flex items-center px-8">
