@@ -27,7 +27,9 @@ function AbsentModal({
   onConfirm,
   onCancelConfirm,
 }) {
-  const studentName = students.find((s) => s._id === studentId)?.fullName || studentId || '';
+  const studentObj = students.find((s) => s._id === studentId);
+  const studentName = studentObj?.fullName || studentId || '';
+  const studentAvatar = studentObj?.avatar || '';
   const initial = studentName?.[0]?.toUpperCase() || '?';
 
   return (
@@ -80,7 +82,15 @@ function AbsentModal({
                 display: 'flex', alignItems: 'center', gap: 1.5,
               }}
             >
-              <Avatar sx={{ width: 40, height: 40, background: 'linear-gradient(135deg, #ef4444, #dc2626)', fontWeight: 700, fontSize: 15 }}>
+              <Avatar
+                src={studentAvatar || undefined}
+                sx={{
+                  width: 44, height: 44,
+                  background: 'linear-gradient(135deg, #ef4444, #dc2626)',
+                  fontWeight: 700, fontSize: 15,
+                  border: studentAvatar ? '2px solid #fca5a5' : 'none',
+                }}
+              >
                 {initial}
               </Avatar>
               <Box>

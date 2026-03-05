@@ -1,8 +1,9 @@
 // Bảng danh sách điểm danh học sinh theo lớp
+import { useRef, useState } from 'react';
 import {
   Box, Paper, Typography, Button, TextField, Chip, Alert, Skeleton,
   Table, TableBody, TableCell, TableContainer, TableHead, TableRow,
-  Stack, Tooltip, Avatar, LinearProgress,
+  Stack, Tooltip, Avatar, LinearProgress, IconButton, Dialog, Backdrop,
 } from '@mui/material';
 import {
   Login as CheckInIcon,
@@ -11,6 +12,11 @@ import {
   PersonOff as AbsentIcon,
   HowToReg as PresentIcon,
   People as PeopleIcon,
+  ChevronLeft as PrevIcon,
+  ChevronRight as NextIcon,
+  CalendarMonth as CalendarIcon,
+  Close as CloseIcon,
+  ZoomIn as ZoomInIcon,
 } from '@mui/icons-material';
 import { defaultRecord } from './attendanceUtils';
 
@@ -85,6 +91,152 @@ function SummaryBar({ students, attendanceByStudent }) {
   );
 }
 
+function formatDisplayDate(dateStr) {
+  if (!dateStr) return '';
+  const [y, m, d] = dateStr.split('-');
+  return `${d}/${m}/${y}`;
+}
+
+function addDays(dateStr, delta) {
+  const d = new Date(dateStr);
+  d.setDate(d.getDate() + delta);
+  return d.toISOString().slice(0, 10);
+}
+
+function DateNavigator({ selectedDate, todayISO, onDateChange }) {
+  const inputRef = useRef(null);
+  const isToday = selectedDate >= todayISO;
+
+  return (
+    <Box
+      sx={{
+        display: 'flex', alignItems: 'center', gap: 0.5,
+        bgcolor: 'rgba(255,255,255,0.15)',
+        borderRadius: 2.5,
+        border: '1px solid rgba(255,255,255,0.3)',
+        px: 0.5,
+        py: 0.25,
+      }}
+    >
+      <Tooltip title="Ngày trước" arrow>
+        <IconButton
+          size="small"
+          onClick={() => onDateChange(addDays(selectedDate, -1))}
+          sx={{ color: 'white', p: 0.5, '&:hover': { bgcolor: 'rgba(255,255,255,0.2)' } }}
+        >
+          <PrevIcon fontSize="small" />
+        </IconButton>
+      </Tooltip>
+
+      <Tooltip title="Chọn ngày" arrow>
+        <Box
+          onClick={() => inputRef.current?.showPicker?.()}
+          sx={{
+            display: 'flex', alignItems: 'center', gap: 0.75,
+            cursor: 'pointer', px: 1, py: 0.5, borderRadius: 1.5,
+            '&:hover': { bgcolor: 'rgba(255,255,255,0.15)' },
+            transition: 'background 0.15s',
+          }}
+        >
+          <CalendarIcon sx={{ fontSize: 16, color: 'rgba(255,255,255,0.85)' }} />
+          <Typography variant="body2" fontWeight={700} color="white" sx={{ letterSpacing: 0.3, userSelect: 'none' }}>
+            {formatDisplayDate(selectedDate)}
+          </Typography>
+        </Box>
+      </Tooltip>
+
+      <Tooltip title="Ngày sau" arrow>
+        <span>
+          <IconButton
+            size="small"
+            disabled={isToday}
+            onClick={() => onDateChange(addDays(selectedDate, 1))}
+            sx={{
+              color: isToday ? 'rgba(255,255,255,0.3)' : 'white',
+              p: 0.5,
+              '&:hover': { bgcolor: isToday ? 'transparent' : 'rgba(255,255,255,0.2)' },
+            }}
+          >
+            <NextIcon fontSize="small" />
+          </IconButton>
+        </span>
+      </Tooltip>
+
+      {/* Hidden native date input */}
+      <TextField
+        inputRef={inputRef}
+        type="date"
+        value={selectedDate}
+        slotProps={{ htmlInput: { max: todayISO } }}
+        onChange={(e) => onDateChange(e.target.value)}
+        sx={{ position: 'absolute', opacity: 0, pointerEvents: 'none', width: 0, height: 0 }}
+      />
+    </Box>
+  );
+}
+
+function PhotoLightbox({ src, name, onClose }) {
+  if (!src) return null;
+  return (
+    <Dialog
+      open
+      onClose={onClose}
+      maxWidth={false}
+      slotProps={{
+        paper: {
+          sx: {
+            bgcolor: 'transparent', boxShadow: 'none', overflow: 'visible',
+            m: 2,
+          },
+        },
+        backdrop: { sx: { bgcolor: 'rgba(0,0,0,0.85)' } },
+      }}
+    >
+      <Box sx={{ position: 'relative', display: 'inline-block' }}>
+        <Box
+          component="img"
+          src={src}
+          alt={name}
+          sx={{
+            display: 'block',
+            maxWidth: '80vw',
+            maxHeight: '80vh',
+            borderRadius: 3,
+            objectFit: 'contain',
+            boxShadow: '0 8px 40px rgba(0,0,0,0.6)',
+          }}
+        />
+        {/* Tên học sinh */}
+        <Box
+          sx={{
+            position: 'absolute', bottom: 0, left: 0, right: 0,
+            borderBottomLeftRadius: 12, borderBottomRightRadius: 12,
+            background: 'linear-gradient(0deg, rgba(0,0,0,0.7) 0%, transparent 100%)',
+            px: 2.5, py: 1.5,
+          }}
+        >
+          <Typography variant="subtitle1" fontWeight={700} color="white">
+            {name}
+          </Typography>
+        </Box>
+        {/* Nút đóng */}
+        <IconButton
+          onClick={onClose}
+          size="small"
+          sx={{
+            position: 'absolute', top: -14, right: -14,
+            bgcolor: 'white', color: 'grey.800',
+            boxShadow: '0 2px 8px rgba(0,0,0,0.3)',
+            '&:hover': { bgcolor: 'grey.100' },
+          }}
+        >
+          <CloseIcon fontSize="small" />
+        </IconButton>
+      </Box>
+    </Dialog>
+  );
+}
+
 function AttendanceTable({
   students,
   attendanceByStudent,
@@ -100,7 +252,13 @@ function AttendanceTable({
   selectedClassName,
   classId,
 }) {
+  const [lightbox, setLightbox] = useState(null); // { src, name }
+
   return (
+    <>
+    {lightbox && (
+      <PhotoLightbox src={lightbox.src} name={lightbox.name} onClose={() => setLightbox(null)} />
+    )}
     <Paper
       elevation={0}
       sx={{ borderRadius: 3, border: '1px solid', borderColor: 'divider', overflow: 'hidden' }}
@@ -127,28 +285,11 @@ function AttendanceTable({
           </Typography>
         </Box>
 
-        <Stack direction="row" spacing={1.5} flexWrap="wrap" alignItems="center">
-          <TextField
-            type="date"
-            size="small"
-            label="Ngày"
-            value={selectedDate}
-            slotProps={{ htmlInput: { max: todayISO }, inputLabel: { shrink: true } }}
-            onChange={(e) => onDateChange(e.target.value)}
-            sx={{
-              width: 155,
-              '& .MuiOutlinedInput-root': {
-                bgcolor: 'rgba(255,255,255,0.15)',
-                color: 'white',
-                borderRadius: 2,
-                '& fieldset': { borderColor: 'rgba(255,255,255,0.35)' },
-                '&:hover fieldset': { borderColor: 'rgba(255,255,255,0.6)' },
-              },
-              '& .MuiInputLabel-root': { color: 'rgba(255,255,255,0.75)' },
-              '& input': { colorScheme: 'dark' },
-            }}
-          />
-        </Stack>
+        <DateNavigator
+          selectedDate={selectedDate}
+          todayISO={todayISO}
+          onDateChange={onDateChange}
+        />
       </Box>
 
       {/* Summary bar */}
@@ -223,36 +364,85 @@ function AttendanceTable({
                       transition: 'background 0.15s',
                     }}
                   >
-                    <TableCell align="center">
-                      <Avatar
-                        sx={{
-                          width: 28, height: 28, fontSize: 12, fontWeight: 700,
-                          bgcolor: chipProps.dotColor + '20',
-                          color: chipProps.dotColor,
-                          mx: 'auto',
-                        }}
-                      >
+                    <TableCell align="center" sx={{ width: 48, px: 1 }}>
+                      <Typography variant="caption" fontWeight={700} color="text.disabled">
                         {idx + 1}
-                      </Avatar>
+                      </Typography>
                     </TableCell>
 
-                    <TableCell>
+                    <TableCell sx={{ py: 1 }}>
                       <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5 }}>
-                        <Avatar
-                          sx={{
-                            width: 34, height: 34, fontSize: 13, fontWeight: 700,
-                            background: 'linear-gradient(135deg, #6366f1, #8b5cf6)',
-                            color: 'white',
-                          }}
-                        >
-                          {s.fullName?.[0] || '?'}
-                        </Avatar>
+                        <Box sx={{ position: 'relative', flexShrink: 0 }}>
+                          {s.avatar ? (
+                            <Tooltip title="Xem ảnh" arrow placement="right">
+                              <Box
+                                onClick={() => setLightbox({ src: s.avatar, name: s.fullName })}
+                                sx={{
+                                  position: 'relative', width: 76, height: 76,
+                                  borderRadius: 2.5, overflow: 'hidden', cursor: 'zoom-in',
+                                  border: `2.5px solid ${chipProps.dotColor}`,
+                                  boxShadow: `0 0 0 3px ${chipProps.dotColor}28, 0 3px 12px rgba(0,0,0,0.15)`,
+                                  '&:hover .zoom-overlay': { opacity: 1 },
+                                  '&:hover img': { transform: 'scale(1.08)' },
+                                }}
+                              >
+                                <Box
+                                  component="img"
+                                  src={s.avatar}
+                                  alt={s.fullName}
+                                  sx={{
+                                    width: '100%', height: '100%',
+                                    objectFit: 'cover', display: 'block',
+                                    transition: 'transform 0.2s ease',
+                                  }}
+                                />
+                                {/* Hover overlay */}
+                                <Box
+                                  className="zoom-overlay"
+                                  sx={{
+                                    position: 'absolute', inset: 0,
+                                    bgcolor: 'rgba(0,0,0,0.38)',
+                                    display: 'flex', alignItems: 'center', justifyContent: 'center',
+                                    opacity: 0, transition: 'opacity 0.18s',
+                                  }}
+                                >
+                                  <ZoomInIcon sx={{ color: 'white', fontSize: 26 }} />
+                                </Box>
+                              </Box>
+                            </Tooltip>
+                          ) : (
+                            <Box
+                              sx={{
+                                width: 76, height: 76,
+                                borderRadius: 2.5,
+                                background: 'linear-gradient(135deg, #6366f1, #8b5cf6)',
+                                display: 'flex', alignItems: 'center', justifyContent: 'center',
+                                border: `2.5px solid ${chipProps.dotColor}`,
+                                boxShadow: `0 0 0 3px ${chipProps.dotColor}28, 0 3px 12px rgba(0,0,0,0.15)`,
+                                fontSize: 26, fontWeight: 700, color: 'white',
+                                userSelect: 'none',
+                              }}
+                            >
+                              {s.fullName?.[0]?.toUpperCase() || '?'}
+                            </Box>
+                          )}
+                          {/* Status dot */}
+                          <Box
+                            sx={{
+                              position: 'absolute', bottom: -4, right: -4,
+                              width: 15, height: 15, borderRadius: '50%',
+                              bgcolor: chipProps.dotColor,
+                              border: '2.5px solid white',
+                              boxShadow: '0 1px 4px rgba(0,0,0,0.25)',
+                            }}
+                          />
+                        </Box>
                         <Box>
-                          <Typography variant="body2" fontWeight={600}>
+                          <Typography variant="body2" fontWeight={700}>
                             {s.fullName || '—'}
                           </Typography>
                           {rec.note && (
-                            <Typography variant="caption" color="text.secondary" noWrap sx={{ maxWidth: 160, display: 'block' }}>
+                            <Typography variant="caption" color="text.secondary" noWrap sx={{ maxWidth: 180, display: 'block' }}>
                               {rec.note}
                             </Typography>
                           )}
@@ -361,6 +551,7 @@ function AttendanceTable({
         </TableContainer>
       )}
     </Paper>
+    </>
   );
 }
 
