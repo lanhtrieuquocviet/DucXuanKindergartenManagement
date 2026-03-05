@@ -5,7 +5,6 @@ import {
   Stack, Tooltip, Avatar, LinearProgress,
 } from '@mui/material';
 import {
-  ArrowBack as ArrowBackIcon,
   Login as CheckInIcon,
   Logout as CheckOutIcon,
   Visibility as ViewIcon,
@@ -100,7 +99,6 @@ function AttendanceTable({
   onAbsent,
   selectedClassName,
   classId,
-  onBackToClassList,
 }) {
   return (
     <Paper
@@ -130,21 +128,6 @@ function AttendanceTable({
         </Box>
 
         <Stack direction="row" spacing={1.5} flexWrap="wrap" alignItems="center">
-          <Button
-            size="small"
-            startIcon={<ArrowBackIcon />}
-            onClick={onBackToClassList}
-            variant="contained"
-            sx={{
-              borderRadius: 2, textTransform: 'none', fontWeight: 600,
-              bgcolor: 'rgba(255,255,255,0.18)', color: 'white',
-              border: '1px solid rgba(255,255,255,0.3)',
-              boxShadow: 'none',
-              '&:hover': { bgcolor: 'rgba(255,255,255,0.28)', boxShadow: 'none' },
-            }}
-          >
-            Chọn lớp khác
-          </Button>
           <TextField
             type="date"
             size="small"

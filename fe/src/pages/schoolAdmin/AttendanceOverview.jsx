@@ -3,6 +3,30 @@ import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../../context/AuthContext';
 import { useSchoolAdmin } from '../../context/SchoolAdminContext';
 import RoleLayout from '../../layouts/RoleLayout';
+import {
+  Box,
+  Paper,
+  Typography,
+  Button,
+  Alert,
+  Stack,
+  Chip,
+  TextField,
+  Table,
+  TableBody,
+  TableCell,
+  TableContainer,
+  TableHead,
+  TableRow,
+  CircularProgress,
+  MenuItem,
+  Select,
+  InputLabel,
+  FormControl,
+  InputAdornment,
+} from '@mui/material';
+import SearchIcon from '@mui/icons-material/Search';
+import AssessmentIcon from '@mui/icons-material/Assessment';
 
 const getLocalISODate = () => {
   const d = new Date();
@@ -61,7 +85,6 @@ function AttendanceOverview() {
       setData(response);
     } catch (err) {
       console.error('Error fetching attendance overview:', err);
-      // Nếu API lỗi, vẫn hiển thị trang với dữ liệu rỗng để không bị trắng
       setData({ data: { classes: [] } });
     }
   };
@@ -118,7 +141,6 @@ function AttendanceOverview() {
 
   const userName = user?.fullName || user?.username || 'School Admin';
 
-  // Tính toán thống kê
   const stats = useMemo(() => {
     const currentData = data || { data: { classes: [] } };
     if (!currentData?.data) {
@@ -144,40 +166,35 @@ function AttendanceOverview() {
     };
   }, [data]);
 
-  // Xác định trạng thái lớp
   const getClassStatus = (cls) => {
     const { present = 0, absent = 0, notCheckedOut = 0, totalStudents = 0 } = cls;
 
     if (notCheckedOut > 0) {
-      return { text: 'Cần theo dõi', color: 'text-orange-600' };
+      return { text: 'Cần theo dõi', color: 'warning.main' };
     }
     if (present === totalStudents && absent === 0) {
-      return { text: 'Đầy đủ', color: 'text-green-600' };
+      return { text: 'Đầy đủ', color: 'success.main' };
     }
     if (present < totalStudents) {
-      return { text: 'Thiếu sĩ số', color: 'text-red-600' };
+      return { text: 'Thiếu sĩ số', color: 'error.main' };
     }
-    return { text: 'Bình thường', color: 'text-gray-600' };
+    return { text: 'Bình thường', color: 'text.secondary' };
   };
 
-  // Lọc và tìm kiếm
   const filteredClasses = useMemo(() => {
     const currentData = data || { data: { classes: [] } };
     if (!currentData?.data?.classes) return [];
 
     let filtered = currentData.data.classes;
 
-    // Lọc theo khối
     if (selectedGrade !== 'all') {
       filtered = filtered.filter((cls) => cls.gradeName === selectedGrade);
     }
 
-    // Lọc theo lớp
     if (selectedClass !== 'all') {
       filtered = filtered.filter((cls) => cls._id === selectedClass);
     }
 
-    // Lọc theo trạng thái
     if (selectedStatus !== 'all') {
       filtered = filtered.filter((cls) => {
         const status = getClassStatus(cls);
@@ -188,7 +205,6 @@ function AttendanceOverview() {
       });
     }
 
-    // Lọc theo tên lớp
     if (searchTerm) {
       filtered = filtered.filter((cls) =>
         cls.className?.toLowerCase().includes(searchTerm.toLowerCase())
@@ -198,7 +214,6 @@ function AttendanceOverview() {
     return filtered;
   }, [data, searchTerm, selectedGrade, selectedClass, selectedStatus]);
 
-  // Lấy danh sách khối từ dữ liệu
   const grades = useMemo(() => {
     const currentData = data || { data: { classes: [] } };
     if (!currentData?.data?.classes) return [];
@@ -209,7 +224,6 @@ function AttendanceOverview() {
     return Array.from(gradeSet).sort();
   }, [data]);
 
-  // Lấy danh sách lớp từ dữ liệu
   const classes = useMemo(() => {
     const currentData = data || { data: { classes: [] } };
     if (!currentData?.data?.classes) return [];
@@ -218,6 +232,13 @@ function AttendanceOverview() {
       className: cls.className,
     }));
   }, [data]);
+
+  const statCards = [
+    { label: 'Tổng số lớp', value: stats.totalClasses },
+    { label: 'Tổng sĩ số', value: stats.totalStudents },
+    { label: 'Có mặt', value: stats.present },
+    { label: 'Chưa check-out', value: stats.notCheckedOut },
+  ];
 
   return (
     <RoleLayout
@@ -235,20 +256,24 @@ function AttendanceOverview() {
       onMenuSelect={handleMenuSelect}
     >
       {error && (
-        <div className="mb-4 rounded-md bg-red-50 border border-red-200 px-4 py-2 text-sm text-red-800">
+        <Alert severity="error" sx={{ mb: 2 }}>
           {error}
-        </div>
+        </Alert>
       )}
 
-      {/* Nút điều hướng menu */}
-      <div className="mb-4 bg-white rounded-lg shadow p-4">
-        <div className="flex flex-wrap items-center gap-2 justify-between">
-          <div className="flex flex-wrap items-center gap-2">
-            <span className="text-sm font-semibold text-gray-700">Điều hướng:</span>
+      {/* Navigation buttons */}
+      <Paper sx={{ mb: 2, p: 2 }}>
+        <Stack direction="row" flexWrap="wrap" alignItems="center" justifyContent="space-between" gap={1}>
+          <Stack direction="row" flexWrap="wrap" alignItems="center" gap={1}>
+            <Typography variant="body2" fontWeight={600} color="text.secondary">
+              Điều hướng:
+            </Typography>
             {menuItems.map((item) => (
-              <button
+              <Button
                 key={item.key}
-                type="button"
+                size="small"
+                variant={item.key === 'attendance' ? 'contained' : 'outlined'}
+                color={item.key === 'attendance' ? 'primary' : 'inherit'}
                 onClick={() => {
                   if (item.key === 'overview') {
                     navigate('/school-admin');
@@ -260,185 +285,202 @@ function AttendanceOverview() {
                     handleMenuSelect(item.key);
                   }
                 }}
-                className={`px-3 py-1.5 text-sm font-medium rounded-md transition-colors ${
-                  item.key === 'attendance'
-                    ? 'bg-indigo-600 text-white hover:bg-indigo-700'
-                    : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
-                }`}
+                sx={
+                  item.key !== 'attendance'
+                    ? { color: 'text.primary', borderColor: 'divider' }
+                    : {}
+                }
               >
                 {item.label}
-              </button>
+              </Button>
             ))}
-          </div>
-          <button
-            type="button"
+          </Stack>
+          <Button
+            variant="contained"
+            color="success"
+            startIcon={<AssessmentIcon />}
             onClick={() => navigate('/school-admin/attendance/export')}
-            className="px-4 py-2 bg-green-600 text-white text-sm font-semibold rounded-md hover:bg-green-700 transition-colors flex items-center gap-2"
           >
-            <span>📊</span>
-            <span>Xuất báo cáo điểm danh</span>
-          </button>
-        </div>
-      </div>
+            Xuất báo cáo điểm danh
+          </Button>
+        </Stack>
+      </Paper>
 
-      {/* Bộ lọc và tìm kiếm */}
-      <div className="bg-white rounded-lg shadow p-4 mb-4">
-        <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-4 items-end">
-          <div>
-            <label className="block text-sm font-semibold text-gray-700 mb-1">Ngày</label>
-            <input
-              type="date"
-              value={selectedDate}
-              onChange={(e) => setSelectedDate(e.target.value)}
-              className="w-full px-3 py-2 border border-gray-300 rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500"
-            />
-          </div>
+      {/* Filters */}
+      <Paper sx={{ mb: 2, p: 2 }}>
+        <Stack direction="row" flexWrap="wrap" gap={2} alignItems="flex-end">
+          <TextField
+            label="Ngày"
+            type="date"
+            size="small"
+            value={selectedDate}
+            onChange={(e) => setSelectedDate(e.target.value)}
+            InputLabelProps={{ shrink: true }}
+            sx={{ minWidth: 160 }}
+          />
 
-          <div>
-            <label className="block text-sm font-semibold text-gray-700 mb-1">Khối</label>
-            <select
+          <FormControl size="small" sx={{ minWidth: 160 }}>
+            <InputLabel>Khối</InputLabel>
+            <Select
               value={selectedGrade}
+              label="Khối"
               onChange={(e) => setSelectedGrade(e.target.value)}
-              className="w-full px-3 py-2 border border-gray-300 rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500"
             >
-              <option value="all">Tất cả khối</option>
+              <MenuItem value="all">Tất cả khối</MenuItem>
               {grades.map((grade) => (
-                <option key={grade} value={grade}>
+                <MenuItem key={grade} value={grade}>
                   {grade}
-                </option>
+                </MenuItem>
               ))}
-            </select>
-          </div>
+            </Select>
+          </FormControl>
 
-          <div>
-            <label className="block text-sm font-semibold text-gray-700 mb-1">Lớp</label>
-            <select
+          <FormControl size="small" sx={{ minWidth: 160 }}>
+            <InputLabel>Lớp</InputLabel>
+            <Select
               value={selectedClass}
+              label="Lớp"
               onChange={(e) => setSelectedClass(e.target.value)}
-              className="w-full px-3 py-2 border border-gray-300 rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500"
             >
-              <option value="all">Tất cả lớp</option>
+              <MenuItem value="all">Tất cả lớp</MenuItem>
               {classes.map((cls) => (
-                <option key={cls._id} value={cls._id}>
+                <MenuItem key={cls._id} value={cls._id}>
                   {cls.className}
-                </option>
+                </MenuItem>
               ))}
-            </select>
-          </div>
+            </Select>
+          </FormControl>
 
-          <div>
-            <label className="block text-sm font-semibold text-gray-700 mb-1">Trạng thái</label>
-            <select
+          <FormControl size="small" sx={{ minWidth: 160 }}>
+            <InputLabel>Trạng thái</InputLabel>
+            <Select
               value={selectedStatus}
+              label="Trạng thái"
               onChange={(e) => setSelectedStatus(e.target.value)}
-              className="w-full px-3 py-2 border border-gray-300 rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500"
             >
-              <option value="all">Tất cả trạng thái</option>
-              <option value="complete">Đầy đủ</option>
-              <option value="missing">Thiếu sĩ số</option>
-              <option value="monitoring">Cần theo dõi</option>
-            </select>
-          </div>
+              <MenuItem value="all">Tất cả trạng thái</MenuItem>
+              <MenuItem value="complete">Đầy đủ</MenuItem>
+              <MenuItem value="missing">Thiếu sĩ số</MenuItem>
+              <MenuItem value="monitoring">Cần theo dõi</MenuItem>
+            </Select>
+          </FormControl>
 
-          <div>
-            <label className="block text-sm font-semibold text-gray-700 mb-1">Tìm theo tên lớp</label>
-            <div className="relative">
-              <input
-                type="text"
-                value={searchTerm}
-                onChange={(e) => setSearchTerm(e.target.value)}
-                placeholder="Tìm theo tên lớp"
-                className="w-full px-3 py-2 pl-10 border border-gray-300 rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500"
-              />
-              <span className="absolute left-3 top-2.5 text-gray-400">🔍</span>
-            </div>
-          </div>
-        </div>
-      </div>
+          <TextField
+            label="Tìm theo tên lớp"
+            size="small"
+            value={searchTerm}
+            onChange={(e) => setSearchTerm(e.target.value)}
+            placeholder="Tìm theo tên lớp"
+            InputProps={{
+              startAdornment: (
+                <InputAdornment position="start">
+                  <SearchIcon fontSize="small" />
+                </InputAdornment>
+              ),
+            }}
+            sx={{ minWidth: 200 }}
+          />
+        </Stack>
+      </Paper>
 
-      {/* Thống kê */}
-      <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-4">
-        <div className="bg-blue-50 rounded-lg shadow p-4 border border-blue-100">
-          <div className="text-sm font-semibold text-gray-700 mb-1">Tổng số lớp</div>
-          <div className="text-2xl font-bold text-blue-700">{stats.totalClasses}</div>
-        </div>
-        <div className="bg-blue-50 rounded-lg shadow p-4 border border-blue-100">
-          <div className="text-sm font-semibold text-gray-700 mb-1">Tổng sĩ số</div>
-          <div className="text-2xl font-bold text-blue-700">{stats.totalStudents}</div>
-        </div>
-        <div className="bg-blue-50 rounded-lg shadow p-4 border border-blue-100">
-          <div className="text-sm font-semibold text-gray-700 mb-1">Có mặt</div>
-          <div className="text-2xl font-bold text-blue-700">{stats.present}</div>
-        </div>
-        <div className="bg-blue-50 rounded-lg shadow p-4 border border-blue-100">
-          <div className="text-sm font-semibold text-gray-700 mb-1">Chưa check-out</div>
-          <div className="text-2xl font-bold text-blue-700">{stats.notCheckedOut}</div>
-        </div>
-      </div>
+      {/* Stats */}
+      <Stack direction="row" flexWrap="wrap" gap={2} sx={{ mb: 2 }}>
+        {statCards.map((card) => (
+          <Paper
+            key={card.label}
+            sx={{
+              flex: '1 1 160px',
+              p: 2,
+              bgcolor: 'primary.50',
+              border: '1px solid',
+              borderColor: 'primary.100',
+            }}
+          >
+            <Typography variant="body2" fontWeight={600} color="text.secondary" gutterBottom>
+              {card.label}
+            </Typography>
+            <Typography variant="h5" fontWeight={700} color="primary.main">
+              {card.value}
+            </Typography>
+          </Paper>
+        ))}
+      </Stack>
 
-      {/* Bảng điểm danh */}
-      <div className="bg-white rounded-lg shadow overflow-hidden">
+      {/* Attendance Table */}
+      <Paper sx={{ overflow: 'hidden' }}>
         {loading ? (
-          <div className="p-8 text-center">
-            <div className="inline-block animate-spin">
-              <div className="h-6 w-6 border-3 border-indigo-500 border-t-transparent rounded-full" />
-            </div>
-            <p className="mt-2 text-sm text-gray-500">Đang tải dữ liệu...</p>
-          </div>
+          <Box sx={{ p: 6, textAlign: 'center' }}>
+            <CircularProgress size={32} />
+            <Typography variant="body2" color="text.secondary" sx={{ mt: 1 }}>
+              Đang tải dữ liệu...
+            </Typography>
+          </Box>
         ) : filteredClasses.length === 0 ? (
-          <div className="p-8 text-center text-gray-500">
-            <p>Không có dữ liệu điểm danh.</p>
-          </div>
+          <Box sx={{ p: 6, textAlign: 'center' }}>
+            <Typography color="text.secondary">Không có dữ liệu điểm danh.</Typography>
+          </Box>
         ) : (
-          <div className="overflow-x-auto">
-            <table className="w-full text-sm border border-gray-200">
-              <thead className="bg-gray-50 border-b border-gray-200">
-                <tr>
-                  <th className="px-4 py-3 text-left font-semibold text-gray-800 w-[70px]">STT</th>
-                  <th className="px-4 py-3 text-left font-semibold text-gray-800">Lớp</th>
-                  <th className="px-4 py-3 text-left font-semibold text-gray-800">Khối</th>
-                  <th className="px-4 py-3 text-center font-semibold text-gray-800">Sĩ số</th>
-                  <th className="px-4 py-3 text-center font-semibold text-gray-800">Có mặt</th>
-                  <th className="px-4 py-3 text-center font-semibold text-gray-800">Nghỉ</th>
-                  <th className="px-4 py-3 text-center font-semibold text-gray-800">Chưa check-out</th>
-                  <th className="px-4 py-3 text-left font-semibold text-gray-800">Trạng thái</th>
-                  <th className="px-4 py-3 text-center font-semibold text-gray-800">Chi tiết</th>
-                </tr>
-              </thead>
-              <tbody>
+          <TableContainer>
+            <Table size="small">
+              <TableHead>
+                <TableRow sx={{ bgcolor: 'grey.50' }}>
+                  <TableCell sx={{ fontWeight: 700, width: 70 }}>STT</TableCell>
+                  <TableCell sx={{ fontWeight: 700 }}>Lớp</TableCell>
+                  <TableCell sx={{ fontWeight: 700 }}>Khối</TableCell>
+                  <TableCell align="center" sx={{ fontWeight: 700 }}>Sĩ số</TableCell>
+                  <TableCell align="center" sx={{ fontWeight: 700 }}>Có mặt</TableCell>
+                  <TableCell align="center" sx={{ fontWeight: 700 }}>Nghỉ</TableCell>
+                  <TableCell align="center" sx={{ fontWeight: 700 }}>Chưa check-out</TableCell>
+                  <TableCell sx={{ fontWeight: 700 }}>Trạng thái</TableCell>
+                  <TableCell align="center" sx={{ fontWeight: 700 }}>Chi tiết</TableCell>
+                </TableRow>
+              </TableHead>
+              <TableBody>
                 {filteredClasses.map((cls, idx) => {
                   const status = getClassStatus(cls);
                   return (
-                    <tr key={cls._id || idx} className="border-b border-gray-100 hover:bg-gray-50 transition-colors">
-                      <td className="px-4 py-3 text-gray-700">{idx + 1}</td>
-                      <td className="px-4 py-3">
-                        <div className="font-medium text-gray-900">{cls.className || '—'}</div>
-                      </td>
-                      <td className="px-4 py-3 text-gray-700">{cls.gradeName || '—'}</td>
-                      <td className="px-4 py-3 text-center text-gray-700">{cls.totalStudents || 0}</td>
-                      <td className="px-4 py-3 text-center text-gray-700">{cls.present || 0}</td>
-                      <td className="px-4 py-3 text-center text-gray-700">{cls.absent || 0}</td>
-                      <td className="px-4 py-3 text-center text-gray-700">{cls.notCheckedOut || 0}</td>
-                      <td className="px-4 py-3">
-                        <span className={`font-medium ${status.color}`}>{status.text}</span>
-                      </td>
-                      <td className="px-4 py-3 text-center">
-                        <button
-                          type="button"
-                          onClick={() => navigate(`/school-admin/classes/${cls._id}/attendance?date=${selectedDate}`)}
-                          className="px-3 py-1.5 bg-blue-600 text-white text-sm rounded hover:bg-blue-700 transition-colors"
+                    <TableRow
+                      key={cls._id || idx}
+                      hover
+                      sx={{ '&:last-child td': { border: 0 } }}
+                    >
+                      <TableCell>{idx + 1}</TableCell>
+                      <TableCell>
+                        <Typography variant="body2" fontWeight={600}>
+                          {cls.className || '—'}
+                        </Typography>
+                      </TableCell>
+                      <TableCell>{cls.gradeName || '—'}</TableCell>
+                      <TableCell align="center">{cls.totalStudents || 0}</TableCell>
+                      <TableCell align="center">{cls.present || 0}</TableCell>
+                      <TableCell align="center">{cls.absent || 0}</TableCell>
+                      <TableCell align="center">{cls.notCheckedOut || 0}</TableCell>
+                      <TableCell>
+                        <Typography variant="body2" fontWeight={600} color={status.color}>
+                          {status.text}
+                        </Typography>
+                      </TableCell>
+                      <TableCell align="center">
+                        <Button
+                          size="small"
+                          variant="contained"
+                          onClick={() =>
+                            navigate(
+                              `/school-admin/classes/${cls._id}/attendance?date=${selectedDate}`
+                            )
+                          }
                         >
                           Xem
-                        </button>
-                      </td>
-                    </tr>
+                        </Button>
+                      </TableCell>
+                    </TableRow>
                   );
                 })}
-              </tbody>
-            </table>
-          </div>
+              </TableBody>
+            </Table>
+          </TableContainer>
         )}
-      </div>
+      </Paper>
     </RoleLayout>
   );
 }

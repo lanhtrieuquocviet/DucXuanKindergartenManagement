@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { useLocation, useNavigate, useParams } from 'react-router-dom';
+import { Snackbar, Alert } from '@mui/material';
 import { RecaptchaVerifier } from 'firebase/auth';
 import { auth } from '../../config/firebase';
 import { useAuth } from '../../context/AuthContext';
@@ -20,7 +21,6 @@ import {
   MAX_BELONGINGS_NOTE_LEN,
   MAX_NOTE_LEN,
 } from './attendance/attendanceUtils';
-import ClassSelector from './attendance/ClassSelector';
 import AttendanceTable from './attendance/AttendanceTable';
 import AttendanceDetailModal from './attendance/AttendanceDetailModal';
 import AbsentModal from './attendance/AbsentModal';
@@ -34,8 +34,6 @@ function TeacherAttendance() {
 
   // ── State: lớp & học sinh ──
   const [classes, setClasses] = useState([]);
-  const [loadingClasses, setLoadingClasses] = useState(false);
-  const [classesError, setClassesError] = useState(null);
   const [students, setStudents] = useState([]);
   const [loadingStudents, setLoadingStudents] = useState(false);
   const [studentsError, setStudentsError] = useState(null);
@@ -243,17 +241,16 @@ function TeacherAttendance() {
   // ── API calls ──
   const fetchMyClasses = async () => {
     try {
-      setLoadingClasses(true);
-      setClassesError(null);
       const res = await get(ENDPOINTS.CLASSES.LIST);
       const all = res.data || [];
       const myUserId = user?._id;
       const mine = all.filter((c) => (c.teacherIds || []).some((t) => (t?._id || t) === myUserId));
       setClasses(mine);
-    } catch (err) {
-      setClassesError(err.message || 'Không tải được danh sách lớp');
-    } finally {
-      setLoadingClasses(false);
+      if (mine.length === 1 && !classId) {
+        navigate(`/teacher/attendance/${mine[0]._id || mine[0].id}`, { replace: true });
+      }
+    } catch {
+      // ignore
     }
   };
 
@@ -644,7 +641,7 @@ function TeacherAttendance() {
   return (
     <RoleLayout
       title="Điểm danh"
-      description={classId ? 'Danh sách điểm danh theo lớp.' : 'Chọn lớp để bắt đầu điểm danh.'}
+      description="Danh sách điểm danh theo lớp."
       menuItems={menuItems}
       activeKey={activeKey}
       onLogout={() => { logout(); navigate('/login', { replace: true }); }}
@@ -653,14 +650,7 @@ function TeacherAttendance() {
       onViewProfile={() => navigate('/profile')}
       onMenuSelect={handleMenuSelect}
     >
-      {!classId ? (
-        <ClassSelector
-          classes={classes}
-          loadingClasses={loadingClasses}
-          classesError={classesError}
-          onSelect={(id) => navigate(`/teacher/attendance/${id}`)}
-        />
-      ) : (
+      {classId && (
         <AttendanceTable
           students={students}
           attendanceByStudent={attendanceByStudent}
@@ -680,7 +670,6 @@ function TeacherAttendance() {
           }}
           selectedClassName={selectedClassName}
           classId={classId}
-          onBackToClassList={() => navigate('/teacher/attendance')}
         />
       )}
 
@@ -729,12 +718,15 @@ function TeacherAttendance() {
       <div id="recaptcha-container" />
 
       {/* Toast thông báo thành công */}
-      {successToast.visible && (
-        <div className="fixed bottom-4 left-4 right-4 md:bottom-auto md:top-6 md:left-auto md:right-6 z-50 flex items-center gap-3 bg-green-600 text-white px-5 py-4 rounded-xl shadow-2xl text-sm font-bold">
-          <span className="text-2xl">✅</span>
-          <span>{successToast.message}</span>
-        </div>
-      )}
+      <Snackbar
+        open={successToast.visible}
+        anchorOrigin={{ vertical: 'top', horizontal: 'right' }}
+        sx={{ zIndex: 1500 }}
+      >
+        <Alert severity="success" variant="filled" sx={{ fontWeight: 700, boxShadow: 8 }}>
+          {successToast.message}
+        </Alert>
+      </Snackbar>
     </RoleLayout>
   );
 }

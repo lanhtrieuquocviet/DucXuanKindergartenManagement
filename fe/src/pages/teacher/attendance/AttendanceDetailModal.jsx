@@ -326,7 +326,8 @@ function AttendanceDetailModal({
       onClose={onClose}
       maxWidth={mode === 'view' ? 'md' : 'sm'}
       fullWidth
-      slotProps={{ paper: { sx: { borderRadius: 3, overflow: 'hidden' } } }}
+      scroll="paper"
+      slotProps={{ paper: { sx: { borderRadius: 3, overflow: 'hidden', maxHeight: '90vh' } } }}
     >
       {/* Colored header */}
       <Box
@@ -371,8 +372,8 @@ function AttendanceDetailModal({
       </Box>
 
       {/* Content */}
-      <Box component="form" onSubmit={onSave}>
-        <DialogContent sx={{ pt: 2.5 }}>
+      <Box component="form" onSubmit={onSave} sx={{ display: 'flex', flexDirection: 'column', overflow: 'hidden', flex: 1 }}>
+        <DialogContent sx={{ pt: 2.5, overflowY: 'auto' }}>
           {(submitError || studentsError) && (
             <Alert severity="error" sx={{ mb: 2, borderRadius: 2 }}>
               {submitError || studentsError}

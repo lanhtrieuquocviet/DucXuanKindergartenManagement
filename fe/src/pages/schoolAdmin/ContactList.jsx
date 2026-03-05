@@ -4,6 +4,20 @@ import { useAuth } from '../../context/AuthContext';
 import { useSchoolAdmin } from '../../context/SchoolAdminContext';
 import RoleLayout from '../../layouts/RoleLayout';
 import ConfirmDialog from '../../components/ConfirmDialog';
+import {
+  Box,
+  Paper,
+  Typography,
+  Button,
+  Alert,
+  Stack,
+  Chip,
+  TextField,
+  CircularProgress,
+} from '@mui/material';
+import ReplyIcon from '@mui/icons-material/Reply';
+import SendIcon from '@mui/icons-material/Send';
+import DeleteOutlineIcon from '@mui/icons-material/DeleteOutline';
 
 function ContactList() {
   const [data, setData] = useState(null);
@@ -179,154 +193,255 @@ function ContactList() {
       onViewProfile={() => navigate('/profile')}
       onMenuSelect={handleMenuSelect}
     >
+      {/* Page header */}
+      <Paper
+        elevation={0}
+        sx={{
+          background: 'linear-gradient(135deg, #6366f1 0%, #4f46e5 100%)',
+          borderRadius: 3,
+          px: 4,
+          py: 3,
+          mb: 3,
+        }}
+      >
+        <Typography variant="h5" fontWeight={700} color="white">
+          Quản lý liên hệ
+        </Typography>
+        <Typography variant="body2" sx={{ color: 'rgba(255,255,255,0.8)', mt: 0.5 }}>
+          Xem và phản hồi các liên hệ từ phụ huynh / khách.
+        </Typography>
+      </Paper>
+
       {error && (
-        <div className="mb-4 rounded-md bg-red-50 border border-red-200 px-4 py-2 text-sm text-red-800">
+        <Alert severity="error" sx={{ mb: 2 }}>
           {error}
-        </div>
+        </Alert>
       )}
 
       {message.text && (
-        <div
-          className={`mb-4 rounded-md px-4 py-2 text-sm ${
-            message.type === 'success'
-              ? 'bg-green-50 border border-green-200 text-green-800'
-              : 'bg-red-50 border border-red-200 text-red-800'
-          }`}
-        >
+        <Alert severity={message.type === 'success' ? 'success' : 'error'} sx={{ mb: 2 }}>
           {message.text}
-        </div>
+        </Alert>
       )}
 
-      <div className="mb-4 flex flex-wrap items-center gap-2">
-        <span className="text-sm font-medium text-gray-700">Lọc:</span>
-        <button
-          type="button"
+      {/* Filter bar */}
+      <Stack direction="row" alignItems="center" spacing={1} sx={{ mb: 3 }}>
+        <Typography variant="body2" fontWeight={500} color="text.secondary">
+          Lọc:
+        </Typography>
+        <Button
+          size="small"
+          variant={!filter ? 'contained' : 'outlined'}
           onClick={() => setFilter('')}
-          className={`px-3 py-1 rounded text-sm ${!filter ? 'bg-blue-600 text-white' : 'bg-gray-200 text-gray-700 hover:bg-gray-300'}`}
+          sx={{ borderRadius: 2, textTransform: 'none' }}
         >
           Tất cả
-        </button>
-        <button
-          type="button"
+        </Button>
+        <Button
+          size="small"
+          variant={filter === 'pending' ? 'contained' : 'outlined'}
           onClick={() => setFilter('pending')}
-          className={`px-3 py-1 rounded text-sm ${filter === 'pending' ? 'bg-blue-600 text-white' : 'bg-gray-200 text-gray-700 hover:bg-gray-300'}`}
+          sx={{ borderRadius: 2, textTransform: 'none' }}
         >
           Chưa phản hồi
-        </button>
-        <button
-          type="button"
+        </Button>
+        <Button
+          size="small"
+          variant={filter === 'replied' ? 'contained' : 'outlined'}
           onClick={() => setFilter('replied')}
-          className={`px-3 py-1 rounded text-sm ${filter === 'replied' ? 'bg-blue-600 text-white' : 'bg-gray-200 text-gray-700 hover:bg-gray-300'}`}
+          sx={{ borderRadius: 2, textTransform: 'none' }}
         >
           Đã phản hồi
-        </button>
-      </div>
+        </Button>
+      </Stack>
 
-      <div className="bg-white rounded-lg shadow overflow-hidden">
+      {/* Contact list */}
+      <Paper elevation={2} sx={{ borderRadius: 3, overflow: 'hidden' }}>
         {loading && (
-          <div className="p-6 text-center text-gray-500">Đang tải...</div>
+          <Box sx={{ p: 6, display: 'flex', justifyContent: 'center', alignItems: 'center', gap: 2 }}>
+            <CircularProgress size={24} />
+            <Typography variant="body2" color="text.secondary">
+              Đang tải...
+            </Typography>
+          </Box>
         )}
+
         {!loading && contacts.length === 0 && (
-          <div className="p-6 text-center text-gray-500">Chưa có liên hệ nào.</div>
+          <Box sx={{ p: 6, textAlign: 'center' }}>
+            <Typography variant="body2" color="text.secondary">
+              Chưa có liên hệ nào.
+            </Typography>
+          </Box>
         )}
+
         {!loading && contacts.length > 0 && (
-          <div className="divide-y divide-gray-200">
-            {contacts.map((item) => (
-              <div key={item._id} className="p-4 hover:bg-gray-50">
-                <div className="flex justify-between items-start gap-4">
-                  <div className="flex-1 min-w-0">
-                    <p className="font-semibold text-gray-800">{item.fullName}</p>
-                    <p className="text-sm text-gray-600">
-                      {item.email} {item.phone && ` • ${item.phone}`}
-                    </p>
+          <Box>
+            {contacts.map((item, index) => (
+              <Box
+                key={item._id}
+                sx={{
+                  p: 3,
+                  borderBottom: index < contacts.length - 1 ? '1px solid' : 'none',
+                  borderColor: 'divider',
+                  '&:hover': { bgcolor: 'grey.50' },
+                }}
+              >
+                <Stack direction="row" justifyContent="space-between" alignItems="flex-start" spacing={2}>
+                  {/* Contact info */}
+                  <Box sx={{ flex: 1, minWidth: 0 }}>
+                    <Stack direction="row" alignItems="center" spacing={1} sx={{ mb: 0.5 }}>
+                      <Typography variant="subtitle1" fontWeight={600} color="text.primary">
+                        {item.fullName}
+                      </Typography>
+                      <Chip
+                        label={item.status === 'replied' ? 'Đã phản hồi' : 'Chưa phản hồi'}
+                        size="small"
+                        color={item.status === 'replied' ? 'success' : 'warning'}
+                        variant="outlined"
+                      />
+                    </Stack>
+
+                    <Typography variant="body2" color="text.secondary" sx={{ mb: 0.25 }}>
+                      {item.email}
+                      {item.phone && ` • ${item.phone}`}
+                    </Typography>
+
                     {item.address && (
-                      <p className="text-sm text-gray-500">Địa chỉ: {item.address}</p>
+                      <Typography variant="body2" color="text.secondary" sx={{ mb: 0.25 }}>
+                        Địa chỉ: {item.address}
+                      </Typography>
                     )}
-                    <p className="mt-2 text-sm text-gray-700 whitespace-pre-wrap">
+
+                    <Typography
+                      variant="body2"
+                      color="text.primary"
+                      sx={{ mt: 1, whiteSpace: 'pre-wrap' }}
+                    >
                       {item.content}
-                    </p>
-                    <p className="text-xs text-gray-400 mt-1">
+                    </Typography>
+
+                    <Typography variant="caption" color="text.disabled" sx={{ mt: 0.5, display: 'block' }}>
                       Gửi lúc: {formatDate(item.createdAt)}
-                    </p>
+                    </Typography>
+
+                    {/* Replied block */}
                     {item.status === 'replied' && (
-                      <div className="mt-3 p-3 bg-green-50 rounded border border-green-100">
-                        <p className="text-xs font-medium text-green-800 mb-1">Phản hồi:</p>
-                        <p className="text-sm text-gray-700 whitespace-pre-wrap">
+                      <Paper
+                        variant="outlined"
+                        sx={{
+                          mt: 2,
+                          p: 2,
+                          bgcolor: 'success.50',
+                          borderColor: 'success.200',
+                          borderRadius: 2,
+                        }}
+                      >
+                        <Typography
+                          variant="caption"
+                          fontWeight={600}
+                          color="success.dark"
+                          sx={{ display: 'block', mb: 0.5 }}
+                        >
+                          Phản hồi:
+                        </Typography>
+                        <Typography variant="body2" sx={{ whiteSpace: 'pre-wrap' }}>
                           {item.reply}
-                        </p>
-                        <p className="text-xs text-gray-500 mt-1">
+                        </Typography>
+                        <Typography variant="caption" color="text.secondary" sx={{ mt: 0.5, display: 'block' }}>
                           {formatDate(item.repliedAt)}
                           {item.repliedBy?.fullName && ` • ${item.repliedBy.fullName}`}
-                        </p>
-                        <div className="mt-2 flex gap-2">
-                          <button
-                            type="button"
+                        </Typography>
+                        <Stack direction="row" spacing={1} sx={{ mt: 1.5 }}>
+                          <Button
+                            size="small"
+                            variant="contained"
+                            color="primary"
+                            startIcon={<SendIcon />}
                             onClick={() => handleResendEmail(item._id)}
                             disabled={actioningId === item._id}
-                            className="px-3 py-1.5 text-sm rounded bg-blue-600 text-white hover:bg-blue-700 disabled:opacity-50"
+                            sx={{ textTransform: 'none', borderRadius: 2 }}
                           >
                             {actioningId === item._id ? 'Đang gửi...' : 'Gửi lại email'}
-                          </button>
-                          <button
-                            type="button"
+                          </Button>
+                          <Button
+                            size="small"
+                            variant="contained"
+                            color="error"
+                            startIcon={<DeleteOutlineIcon />}
                             onClick={() => setConfirmClearId(item._id)}
                             disabled={actioningId === item._id}
-                            className="px-3 py-1.5 text-sm rounded bg-red-600 text-white hover:bg-red-700 disabled:opacity-50"
+                            sx={{ textTransform: 'none', borderRadius: 2 }}
                           >
                             Xóa phản hồi
-                          </button>
-                        </div>
-                      </div>
+                          </Button>
+                        </Stack>
+                      </Paper>
                     )}
-                  </div>
-                  <div className="shrink-0">
+                  </Box>
+
+                  {/* Reply button for pending */}
+                  <Box sx={{ flexShrink: 0 }}>
                     {item.status === 'pending' && replyingId !== item._id && (
-                      <button
-                        type="button"
+                      <Button
+                        size="small"
+                        variant="contained"
+                        color="primary"
+                        startIcon={<ReplyIcon />}
                         onClick={() => handleReply(item)}
-                        className="px-3 py-1.5 bg-blue-600 text-white text-sm rounded hover:bg-blue-700"
+                        sx={{ textTransform: 'none', borderRadius: 2 }}
                       >
                         Phản hồi
-                      </button>
+                      </Button>
                     )}
-                  </div>
-                </div>
+                  </Box>
+                </Stack>
 
+                {/* Inline reply form */}
                 {replyingId === item._id && (
-                  <div className="mt-4 p-4 bg-gray-50 rounded border border-gray-200">
-                    <label className="block text-sm font-medium text-gray-700 mb-1">
+                  <Paper
+                    variant="outlined"
+                    sx={{ mt: 2, p: 2, bgcolor: 'grey.50', borderRadius: 2 }}
+                  >
+                    <Typography variant="body2" fontWeight={500} color="text.primary" sx={{ mb: 1 }}>
                       Nội dung phản hồi
-                    </label>
-                    <textarea
+                    </Typography>
+                    <TextField
+                      multiline
+                      rows={4}
+                      fullWidth
+                      size="small"
                       value={replyText}
                       onChange={(e) => setReplyText(e.target.value)}
-                      rows={4}
-                      className="w-full border rounded px-3 py-2 text-sm focus:outline-green-500"
                       placeholder="Nhập nội dung phản hồi..."
+                      sx={{ mb: 1.5 }}
                     />
-                    <div className="mt-2 flex gap-2">
-                      <button
-                        type="button"
+                    <Stack direction="row" spacing={1}>
+                      <Button
+                        variant="contained"
+                        color="success"
+                        size="small"
                         onClick={handleSubmitReply}
-                        className="px-4 py-2 bg-green-600 text-white text-sm rounded hover:bg-green-700"
+                        sx={{ textTransform: 'none', borderRadius: 2 }}
                       >
                         Gửi phản hồi
-                      </button>
-                      <button
-                        type="button"
+                      </Button>
+                      <Button
+                        variant="outlined"
+                        color="inherit"
+                        size="small"
                         onClick={handleCancelReply}
-                        className="px-4 py-2 bg-gray-300 text-gray-700 text-sm rounded hover:bg-gray-400"
+                        sx={{ textTransform: 'none', borderRadius: 2 }}
                       >
                         Hủy
-                      </button>
-                    </div>
-                  </div>
+                      </Button>
+                    </Stack>
+                  </Paper>
                 )}
-              </div>
+              </Box>
             ))}
-          </div>
+          </Box>
         )}
-      </div>
+      </Paper>
 
       <ConfirmDialog
         open={!!confirmClearId}

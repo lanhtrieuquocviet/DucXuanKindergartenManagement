@@ -8,6 +8,31 @@ import jsPDF from 'jspdf';
 import autoTable from 'jspdf-autotable';
 import { get, ENDPOINTS } from '../../service/api';
 
+import {
+  Box,
+  Paper,
+  Typography,
+  Button,
+  Alert,
+  Stack,
+  CircularProgress,
+  FormControl,
+  InputLabel,
+  Select,
+  MenuItem,
+  TextField,
+  RadioGroup,
+  FormControlLabel,
+  Radio,
+  List,
+  ListItem,
+  ListItemText,
+  Divider,
+} from '@mui/material';
+import FileDownloadIcon from '@mui/icons-material/FileDownload';
+import ArrowBackIcon from '@mui/icons-material/ArrowBack';
+import CalendarTodayIcon from '@mui/icons-material/CalendarToday';
+
 const PDF_FONT_FAMILY = 'NotoSans';
 const PDF_FONT_FILE = 'NotoSans-Variable.ttf';
 const PDF_FONT_URL = `${import.meta.env.BASE_URL}fonts/${PDF_FONT_FILE}`;
@@ -193,14 +218,14 @@ function ExportAttendanceReport() {
         // Lấy tất cả lớp
         const classesResponse = await getClasses();
         const allClasses = Array.isArray(classesResponse?.data) ? classesResponse.data : [];
-        
+
         // Lấy điểm danh cho từng lớp, lặp qua từng ngày
         const startDate = new Date(fromDate);
         const endDate = new Date(toDate);
-        
+
         for (let d = new Date(startDate); d <= endDate; d.setDate(d.getDate() + 1)) {
           const currentDate = d.toISOString().split('T')[0];
-          
+
           for (const cls of allClasses) {
             try {
               const response = await get(`${ENDPOINTS.SCHOOL_ADMIN.CLASS_ATTENDANCE_DETAIL(cls._id)}?date=${currentDate}`);
@@ -229,7 +254,7 @@ function ExportAttendanceReport() {
         // Lặp qua từng ngày
         const startDate = new Date(fromDate);
         const endDate = new Date(toDate);
-        
+
         for (let d = new Date(startDate); d <= endDate; d.setDate(d.getDate() + 1)) {
           const currentDate = d.toISOString().split('T')[0];
           try {
@@ -287,7 +312,7 @@ function ExportAttendanceReport() {
     try {
       const doc = new jsPDF('landscape', 'mm', 'a4');
       await registerVietnameseFont(doc);
-      
+
       // Format ngày
       const formatDate = (dateStr) => {
         if (!dateStr) return '';
@@ -302,17 +327,17 @@ function ExportAttendanceReport() {
       doc.setFontSize(16);
       doc.setFont(PDF_FONT_FAMILY, 'bold');
       doc.text('BÁO CÁO ĐIỂM DANH', 148, 15, { align: 'center' });
-      
+
       // Thông tin báo cáo
       doc.setFontSize(10);
       doc.setFont(PDF_FONT_FAMILY, 'normal');
       let yPos = 25;
-      
-      const reportTypeText = 
+
+      const reportTypeText =
         reportType === 'whole-school' ? 'Toàn trường' :
         reportType === 'by-class' ? `Lớp: ${classes.find(c => c._id === selectedClass)?.className || ''}` :
         `Học sinh: ${students.find(s => s._id === selectedStudent)?.fullName || ''}`;
-      
+
       doc.text(`Phạm vi: ${reportTypeText}`, 20, yPos);
       yPos += 5;
       doc.text(`Từ ngày: ${formatDate(fromDate)}`, 20, yPos);
@@ -475,7 +500,7 @@ function ExportAttendanceReport() {
       // Tạo sheet tổng hợp
       const summaryData = [];
       const studentSummary = {};
-      
+
       data.forEach((item) => {
         const key = `${item.className}_${item.studentName}`;
         if (!studentSummary[key]) {
@@ -552,7 +577,7 @@ function ExportAttendanceReport() {
     try {
       // Lấy dữ liệu điểm danh
       const attendanceData = await fetchAttendanceData();
-      
+
       if (attendanceData.length === 0) {
         setNotice({ type: 'error', text: 'Không có dữ liệu điểm danh trong khoảng thời gian đã chọn' });
         setIsExporting(false);
@@ -581,6 +606,27 @@ function ExportAttendanceReport() {
 
   const userName = user?.fullName || user?.username || 'School Admin';
 
+  // Helper: numbered section badge
+  const SectionBadge = ({ number }) => (
+    <Box
+      sx={{
+        width: 32,
+        height: 32,
+        borderRadius: '50%',
+        bgcolor: 'primary.main',
+        color: 'white',
+        display: 'flex',
+        alignItems: 'center',
+        justifyContent: 'center',
+        fontWeight: 700,
+        fontSize: '0.85rem',
+        flexShrink: 0,
+      }}
+    >
+      {number}
+    </Box>
+  );
+
   return (
     <RoleLayout
       title="Xuất báo cáo điểm danh"
@@ -597,235 +643,231 @@ function ExportAttendanceReport() {
       onMenuSelect={handleMenuSelect}
     >
       {error && (
-        <div className="mb-4 rounded-md bg-red-50 border border-red-200 px-4 py-2 text-sm text-red-800">
+        <Alert severity="error" sx={{ mb: 2 }}>
           {error}
-        </div>
+        </Alert>
       )}
       {notice.text && (
-        <div
-          className={`mb-4 rounded-md px-4 py-2 text-sm ${
-            notice.type === 'success'
-              ? 'bg-green-50 border border-green-200 text-green-800'
-              : 'bg-red-50 border border-red-200 text-red-800'
-          }`}
-        >
+        <Alert severity={notice.type === 'success' ? 'success' : 'error'} sx={{ mb: 2 }}>
           {notice.text}
-        </div>
+        </Alert>
       )}
 
-      <div className="max-w-4xl mx-auto">
-        <div className="bg-white rounded-lg shadow p-6 border border-gray-200">
+      <Box sx={{ maxWidth: 800, mx: 'auto' }}>
+        <Paper elevation={1} sx={{ p: 3, borderRadius: 2, border: '1px solid', borderColor: 'divider' }}>
           {/* Header */}
-          <div className="flex items-center gap-2 mb-6">
-            <span className="text-2xl">📤</span>
-            <h2 className="text-xl font-bold text-gray-800">Export Attendance Report</h2>
-          </div>
+          <Stack direction="row" alignItems="center" spacing={1} sx={{ mb: 3 }}>
+            <FileDownloadIcon sx={{ fontSize: 28, color: 'text.secondary' }} />
+            <Typography variant="h6" fontWeight={700} color="text.primary">
+              Export Attendance Report
+            </Typography>
+          </Stack>
 
           {/* Section 1: Phạm vi báo cáo */}
-          <div className="mb-6">
-            <div className="flex items-center gap-2 mb-4">
-              <div className="w-8 h-8 rounded-full bg-blue-600 text-white flex items-center justify-center font-bold text-sm">
-                1
-              </div>
-              <h3 className="text-lg font-semibold text-gray-800">Phạm vi báo cáo</h3>
-            </div>
-            <div className="ml-10 space-y-4">
-              <div>
-                <label className="block text-sm font-semibold text-gray-700 mb-1">
-                  Loại báo cáo
-                </label>
-                <select
+          <Box sx={{ mb: 3 }}>
+            <Stack direction="row" alignItems="center" spacing={1} sx={{ mb: 2 }}>
+              <SectionBadge number={1} />
+              <Typography variant="subtitle1" fontWeight={600} color="text.primary">
+                Phạm vi báo cáo
+              </Typography>
+            </Stack>
+            <Stack spacing={2} sx={{ ml: 5 }}>
+              <FormControl fullWidth size="small">
+                <InputLabel>Loại báo cáo</InputLabel>
+                <Select
                   value={reportType}
                   onChange={(e) => {
                     setReportType(e.target.value);
                     setSelectedClass('');
                     setSelectedStudent('');
                   }}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                  label="Loại báo cáo"
                 >
-                  <option value="whole-school">Toàn trường</option>
-                  <option value="by-class">Theo lớp</option>
-                  <option value="by-student">Theo học sinh</option>
-                </select>
-              </div>
+                  <MenuItem value="whole-school">Toàn trường</MenuItem>
+                  <MenuItem value="by-class">Theo lớp</MenuItem>
+                  <MenuItem value="by-student">Theo học sinh</MenuItem>
+                </Select>
+              </FormControl>
 
               {(reportType === 'by-class' || reportType === 'by-student') && (
-                <div>
-                  <label className="block text-sm font-semibold text-gray-700 mb-1">
-                    Chọn lớp (nếu có)
-                  </label>
-                  <select
+                <FormControl fullWidth size="small">
+                  <InputLabel>Chọn lớp (nếu có)</InputLabel>
+                  <Select
                     value={selectedClass}
                     onChange={(e) => {
                       setSelectedClass(e.target.value);
                       setSelectedStudent('');
                     }}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                    label="Chọn lớp (nếu có)"
                   >
-                    <option value="">- Không -</option>
+                    <MenuItem value="">- Không -</MenuItem>
                     {classes.map((cls) => (
-                      <option key={cls._id} value={cls._id}>
+                      <MenuItem key={cls._id} value={cls._id}>
                         {cls.className}
-                      </option>
+                      </MenuItem>
                     ))}
-                  </select>
-                </div>
+                  </Select>
+                </FormControl>
               )}
 
               {reportType === 'by-student' && (
-                <div>
-                  <label className="block text-sm font-semibold text-gray-700 mb-1">
-                    Chọn học sinh (nếu có)
-                  </label>
-                  <select
+                <FormControl fullWidth size="small" disabled={!selectedClass}>
+                  <InputLabel>Chọn học sinh (nếu có)</InputLabel>
+                  <Select
                     value={selectedStudent}
                     onChange={(e) => setSelectedStudent(e.target.value)}
-                    disabled={!selectedClass}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500 disabled:bg-gray-100 disabled:cursor-not-allowed"
+                    label="Chọn học sinh (nếu có)"
                   >
-                    <option value="">- Không -</option>
+                    <MenuItem value="">- Không -</MenuItem>
                     {students.map((student) => (
-                      <option key={student._id} value={student._id}>
+                      <MenuItem key={student._id} value={student._id}>
                         {student.fullName}
-                      </option>
+                      </MenuItem>
                     ))}
-                  </select>
-                </div>
+                  </Select>
+                </FormControl>
               )}
-            </div>
-          </div>
+            </Stack>
+          </Box>
+
+          <Divider sx={{ mb: 3 }} />
 
           {/* Section 2: Thời gian */}
-          <div className="mb-6">
-            <div className="flex items-center gap-2 mb-4">
-              <div className="w-8 h-8 rounded-full bg-blue-600 text-white flex items-center justify-center font-bold text-sm">
-                2
-              </div>
-              <h3 className="text-lg font-semibold text-gray-800">Thời gian</h3>
-            </div>
-            <div className="ml-10 grid grid-cols-1 md:grid-cols-2 gap-4">
-              <div>
-                <label className="block text-sm font-semibold text-gray-700 mb-1">
-                  Từ ngày
-                </label>
-                <div className="relative">
-                  <input
-                    type="date"
-                    value={fromDate}
-                    onChange={(e) => setFromDate(e.target.value)}
-                    className="w-full px-3 py-2 pr-10 border border-gray-300 rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500"
-                  />
-                  <span className="absolute right-3 top-2.5 text-gray-400">📅</span>
-                </div>
-              </div>
-              <div>
-                <label className="block text-sm font-semibold text-gray-700 mb-1">
-                  Đến ngày
-                </label>
-                <div className="relative">
-                  <input
-                    type="date"
-                    value={toDate}
-                    onChange={(e) => setToDate(e.target.value)}
-                    className="w-full px-3 py-2 pr-10 border border-gray-300 rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500"
-                  />
-                  <span className="absolute right-3 top-2.5 text-gray-400">📅</span>
-                </div>
-              </div>
-            </div>
-          </div>
+          <Box sx={{ mb: 3 }}>
+            <Stack direction="row" alignItems="center" spacing={1} sx={{ mb: 2 }}>
+              <SectionBadge number={2} />
+              <Typography variant="subtitle1" fontWeight={600} color="text.primary">
+                Thời gian
+              </Typography>
+            </Stack>
+            <Box
+              sx={{
+                ml: 5,
+                display: 'grid',
+                gridTemplateColumns: { xs: '1fr', md: '1fr 1fr' },
+                gap: 2,
+              }}
+            >
+              <TextField
+                type="date"
+                size="small"
+                label="Từ ngày"
+                value={fromDate}
+                onChange={(e) => setFromDate(e.target.value)}
+                InputLabelProps={{ shrink: true }}
+                InputProps={{
+                  endAdornment: <CalendarTodayIcon fontSize="small" sx={{ color: 'text.secondary' }} />,
+                }}
+                fullWidth
+              />
+              <TextField
+                type="date"
+                size="small"
+                label="Đến ngày"
+                value={toDate}
+                onChange={(e) => setToDate(e.target.value)}
+                InputLabelProps={{ shrink: true }}
+                InputProps={{
+                  endAdornment: <CalendarTodayIcon fontSize="small" sx={{ color: 'text.secondary' }} />,
+                }}
+                fullWidth
+              />
+            </Box>
+          </Box>
+
+          <Divider sx={{ mb: 3 }} />
 
           {/* Section 3: Định dạng xuất */}
-          <div className="mb-6">
-            <div className="flex items-center gap-2 mb-4">
-              <div className="w-8 h-8 rounded-full bg-blue-600 text-white flex items-center justify-center font-bold text-sm">
-                3
-              </div>
-              <h3 className="text-lg font-semibold text-gray-800">Định dạng xuất</h3>
-            </div>
-            <div className="ml-10 space-y-2">
-              <label className="flex items-center gap-2 cursor-pointer">
-                <input
-                  type="radio"
-                  name="exportFormat"
+          <Box sx={{ mb: 3 }}>
+            <Stack direction="row" alignItems="center" spacing={1} sx={{ mb: 2 }}>
+              <SectionBadge number={3} />
+              <Typography variant="subtitle1" fontWeight={600} color="text.primary">
+                Định dạng xuất
+              </Typography>
+            </Stack>
+            <Box sx={{ ml: 5 }}>
+              <RadioGroup
+                value={exportFormat}
+                onChange={(e) => setExportFormat(e.target.value)}
+              >
+                <FormControlLabel
                   value="pdf"
-                  checked={exportFormat === 'pdf'}
-                  onChange={(e) => setExportFormat(e.target.value)}
-                  className="w-4 h-4 text-indigo-600 focus:ring-indigo-500"
+                  control={<Radio size="small" color="primary" />}
+                  label={<Typography variant="body2" fontWeight={500}>PDF</Typography>}
                 />
-                <span className="text-sm font-medium text-gray-700">PDF</span>
-              </label>
-              <label className="flex items-center gap-2 cursor-pointer">
-                <input
-                  type="radio"
-                  name="exportFormat"
+                <FormControlLabel
                   value="excel"
-                  checked={exportFormat === 'excel'}
-                  onChange={(e) => setExportFormat(e.target.value)}
-                  className="w-4 h-4 text-indigo-600 focus:ring-indigo-500"
+                  control={<Radio size="small" color="primary" />}
+                  label={<Typography variant="body2" fontWeight={500}>Excel (.xlsx)</Typography>}
                 />
-                <span className="text-sm font-medium text-gray-700">Excel (.xlsx)</span>
-              </label>
-            </div>
-          </div>
+              </RadioGroup>
+            </Box>
+          </Box>
+
+          <Divider sx={{ mb: 3 }} />
 
           {/* Section 4: Nội dung báo cáo */}
-          <div className="mb-6">
-            <div className="flex items-center gap-2 mb-4">
-              <div className="w-8 h-8 rounded-full bg-blue-600 text-white flex items-center justify-center font-bold text-sm">
-                4
-              </div>
-              <h3 className="text-lg font-semibold text-gray-800">Nội dung báo cáo</h3>
-            </div>
-            <div className="ml-10">
-              <ul className="list-disc list-inside space-y-1 text-sm text-gray-700">
-                <li>Thông tin trường / lớp</li>
-                <li>Danh sách học sinh</li>
-                <li>Giờ đến – giờ về</li>
-                <li>Người đưa / người đón</li>
-                <li>Trạng thái điểm danh</li>
-                <li>Tổng hợp số ngày có mặt / nghỉ</li>
-              </ul>
-            </div>
-          </div>
+          <Box sx={{ mb: 3 }}>
+            <Stack direction="row" alignItems="center" spacing={1} sx={{ mb: 2 }}>
+              <SectionBadge number={4} />
+              <Typography variant="subtitle1" fontWeight={600} color="text.primary">
+                Nội dung báo cáo
+              </Typography>
+            </Stack>
+            <Box sx={{ ml: 5 }}>
+              <List dense disablePadding>
+                {[
+                  'Thông tin trường / lớp',
+                  'Danh sách học sinh',
+                  'Giờ đến – giờ về',
+                  'Người đưa / người đón',
+                  'Trạng thái điểm danh',
+                  'Tổng hợp số ngày có mặt / nghỉ',
+                ].map((item) => (
+                  <ListItem key={item} disablePadding sx={{ py: 0.25 }}>
+                    <Typography variant="body2" color="text.secondary">
+                      • {item}
+                    </Typography>
+                  </ListItem>
+                ))}
+              </List>
+            </Box>
+          </Box>
 
           {/* Button Xuất báo cáo */}
-          <div className="flex justify-center mt-8">
-            <button
-              type="button"
+          <Box sx={{ display: 'flex', justifyContent: 'center', mt: 4 }}>
+            <Button
+              variant="contained"
+              color="success"
+              size="large"
               onClick={handleExport}
               disabled={loading || isExporting}
-              className="px-6 py-3 bg-green-600 text-white font-semibold rounded-md hover:bg-green-700 transition-colors flex items-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed"
+              startIcon={
+                isExporting
+                  ? <CircularProgress size={18} color="inherit" />
+                  : <FileDownloadIcon />
+              }
+              sx={{ px: 4, fontWeight: 600, minWidth: 180 }}
             >
-              {isExporting ? (
-                <>
-                  <div className="w-5 h-5 border-2 border-white border-t-transparent rounded-full animate-spin" />
-                  <span>Đang xuất...</span>
-                </>
-              ) : (
-                <>
-                  <span className="text-xl">1</span>
-                  <span>Xuất báo cáo</span>
-                </>
-              )}
-            </button>
-          </div>
-        </div>
+              {isExporting ? 'Đang xuất...' : 'Xuất báo cáo'}
+            </Button>
+          </Box>
+        </Paper>
 
         {/* Nút quay lại */}
-        <div className="mt-4 flex justify-center">
-          <button
-            type="button"
-            onClick={() => {
-              navigate('/school-admin/attendance/overview');
-            }}
-            className="px-6 py-3 bg-gray-600 text-white font-semibold rounded-md hover:bg-gray-700 transition-colors flex items-center gap-2"
+        <Box sx={{ mt: 2, display: 'flex', justifyContent: 'center' }}>
+          <Button
+            variant="contained"
+            color="inherit"
+            size="large"
+            startIcon={<ArrowBackIcon />}
+            onClick={() => navigate('/school-admin/attendance/overview')}
+            sx={{ px: 4, fontWeight: 600, bgcolor: 'grey.700', color: 'white', '&:hover': { bgcolor: 'grey.800' } }}
           >
-            <span>←</span>
-            <span>Quay lại</span>
-          </button>
-        </div>
-      </div>
+            Quay lại
+          </Button>
+        </Box>
+      </Box>
     </RoleLayout>
   );
 }
