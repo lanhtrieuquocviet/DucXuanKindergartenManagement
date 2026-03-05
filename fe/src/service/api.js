@@ -264,6 +264,7 @@ export const ENDPOINTS = {
     LIST: "/students",
     DETAIL: (studentId) => `/students/${studentId}`,
     CREATE: "/students",
+    CREATE_WITH_PARENT: "/students/with-parent",
     UPDATE: (studentId) => `/students/${studentId}`,
     DELETE: (studentId) => `/students/${studentId}`,
     ATTENDANCE_CHECKIN: "/students/attendance",

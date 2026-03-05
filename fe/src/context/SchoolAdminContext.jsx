@@ -231,6 +231,74 @@ export const SchoolAdminProvider = ({
     }
   }, []);
 
+  /** Danh sách tất cả học sinh (có thể lọc theo classId) - dùng cho trang Phụ huynh & học sinh */
+  const getAllStudents = useCallback(async (params = {}) => {
+    try {
+      setLoading(true);
+      setError(null);
+      const search = new URLSearchParams(params).toString();
+      const endpoint = search ? `${ENDPOINTS.STUDENTS.LIST}?${search}` : ENDPOINTS.STUDENTS.LIST;
+      const response = await get(endpoint);
+      return response;
+    } catch (err) {
+      const errorMessage = err.message || 'Không tải được danh sách học sinh';
+      setError(errorMessage);
+      throw new Error(errorMessage);
+    } finally {
+      setLoading(false);
+    }
+  }, []);
+
+  /** Tạo tài khoản phụ huynh + học sinh (parentId = _id User) */
+  const createStudentWithParent = useCallback(async (payload) => {
+    try {
+      setLoading(true);
+      setError(null);
+      const response = await post(ENDPOINTS.STUDENTS.CREATE_WITH_PARENT, payload);
+      if (onSuccessRef.current) onSuccessRef.current({ student: response.data });
+      return response;
+    } catch (err) {
+      const errorMessage = err?.data?.message || err.message || 'Tạo phụ huynh và học sinh thất bại';
+      setError(errorMessage);
+      throw new Error(errorMessage);
+    } finally {
+      setLoading(false);
+    }
+  }, []);
+
+  /** Cập nhật học sinh (và thông tin phụ huynh nếu gửi parentFullName, parentEmail, parentPhone) */
+  const updateStudent = useCallback(async (studentId, payload) => {
+    try {
+      setLoading(true);
+      setError(null);
+      const response = await put(ENDPOINTS.STUDENTS.UPDATE(studentId), payload);
+      if (onSuccessRef.current) onSuccessRef.current({ student: response.data });
+      return response;
+    } catch (err) {
+      const errorMessage = err?.data?.message || err.message || 'Cập nhật thất bại';
+      setError(errorMessage);
+      throw new Error(errorMessage);
+    } finally {
+      setLoading(false);
+    }
+  }, []);
+
+  /** Xóa học sinh */
+  const deleteStudent = useCallback(async (studentId) => {
+    try {
+      setLoading(true);
+      setError(null);
+      await del(ENDPOINTS.STUDENTS.DELETE(studentId));
+      if (onSuccessRef.current) onSuccessRef.current({ studentId });
+    } catch (err) {
+      const errorMessage = err?.data?.message || err.message || 'Xóa học sinh thất bại';
+      setError(errorMessage);
+      throw new Error(errorMessage);
+    } finally {
+      setLoading(false);
+    }
+  }, []);
+
   // ==== BLOGS CRUD (SchoolAdmin only, permission-based tại backend) ====
   const getBlogs = useCallback(async (params = {}) => {
     try {
@@ -437,6 +505,10 @@ export const SchoolAdminProvider = ({
     getStudentAttendanceHistory,
     getClasses,
     getStudents,
+    getAllStudents,
+    createStudentWithParent,
+    updateStudent,
+    deleteStudent,
     getBlogs,
     createBlog,
     updateBlog,
