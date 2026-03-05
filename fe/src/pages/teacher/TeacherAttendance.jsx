@@ -72,6 +72,9 @@ function TeacherAttendance() {
     receiverOtherImageName: '',
   }));
 
+  // ── State: draft form per student (key = `${studentId}__${mode}__${date}`) ──
+  const [draftForms, setDraftForms] = useState({});
+
   // ── State: modal vắng mặt ──
   const [isAbsentOpen, setIsAbsentOpen] = useState(false);
   const [absentStudentId, setAbsentStudentId] = useState(null);
@@ -140,6 +143,7 @@ function TeacherAttendance() {
     setSubmitError(null);
     setIsDetailOpen(false);
     setDetailStudentId(null);
+    setDraftForms({});
     if (!classId) return;
     fetchStudentsByClass(classId);
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -345,59 +349,65 @@ function TeacherAttendance() {
   // ── Detail modal ──
   const openDetail = (studentId, mode = 'view') => {
     setSubmitError(null);
-    const isSameStudentSameMode =
-      (mode === detailMode) &&
-      (studentId === detailStudentId) &&
-      (selectedDate === detailOpenedDate);
-
-    // Nếu đang mở lại cùng học sinh + cùng mode + cùng ngày sau khi đã đóng, giữ nguyên form
-    if (isSameStudentSameMode && !isDetailOpen) {
-      setIsDetailOpen(true);
-      return;
-    }
-
     setDetailStudentId(studentId);
     setDetailOpenedDate(selectedDate);
-    const rec = attendanceByStudent?.[studentId] || defaultRecord();
 
-    setDetailForm({
-      status:
-        mode === 'checkin' && (rec.status === 'empty' || rec.status === 'absent')
-          ? 'checked_in'
-          : mode === 'checkout'
-          ? 'checked_out'
-          : rec.status || 'empty',
-      timeIn:
-        mode === 'checkin' && (!rec.timeIn || rec.status === 'empty' || rec.status === 'absent')
-          ? nowHHmm()
-          : rec.timeIn || '',
-      timeOut:
-        mode === 'checkout' && !rec.timeOut ? nowHHmm() : rec.timeOut || '',
-      checkinImageName: rec.checkinImageName || '',
-      delivererType: rec.delivererType || '',
-      delivererPickupPersonId: rec.delivererPickupPersonId || '',
-      delivererOtherInfo: rec.delivererOtherInfo || '',
-      delivererName: parsePersonOtherInfo(rec.delivererOtherInfo).name,
-      delivererPhone: parsePersonOtherInfo(rec.delivererOtherInfo).phone,
-      delivererOtherImageName: rec.delivererOtherImageName || '',
-      hasBelongings: !!rec.hasBelongings,
-      belongingsNote: rec.belongingsNote || '',
-      note: rec.note || '',
-      absentReason: rec.absentReason || '',
-      checkoutImageName: rec.checkoutImageName || '',
-      receiverType: rec.receiverType || '',
-      receiverPickupPersonId: rec.receiverPickupPersonId || '',
-      receiverOtherInfo: rec.receiverOtherInfo || '',
-      receiverName: parsePersonOtherInfo(rec.receiverOtherInfo).name,
-      receiverPhone: parsePersonOtherInfo(rec.receiverOtherInfo).phone,
-      receiverOtherImageName: rec.receiverOtherImageName || '',
-      checkoutNote: rec.checkoutNote || '',
-      sendOtpSchoolAccount: false,
-      sendOtpViaSms: false,
-      selectedParentForOtp: '',
-      otpCode: '',
-      otpSent: false,
-    });
+    const draftKey = `${studentId}__${mode}__${selectedDate}`;
+    const draft = draftForms[draftKey];
+
+    if (draft) {
+      // Có draft: khôi phục form đã nhập, chỉ reset OTP vì OTP hết hạn
+      setDetailForm({
+        ...draft,
+        otpSent: false,
+        otpCode: '',
+        sendOtpSchoolAccount: false,
+        sendOtpViaSms: false,
+        selectedParentForOtp: '',
+      });
+    } else {
+      // Không có draft: khởi tạo form từ bản ghi hiện tại
+      const rec = attendanceByStudent?.[studentId] || defaultRecord();
+      setDetailForm({
+        status:
+          mode === 'checkin' && (rec.status === 'empty' || rec.status === 'absent')
+            ? 'checked_in'
+            : mode === 'checkout'
+            ? 'checked_out'
+            : rec.status || 'empty',
+        timeIn:
+          mode === 'checkin' && (!rec.timeIn || rec.status === 'empty' || rec.status === 'absent')
+            ? nowHHmm()
+            : rec.timeIn || '',
+        timeOut:
+          mode === 'checkout' && !rec.timeOut ? nowHHmm() : rec.timeOut || '',
+        checkinImageName: rec.checkinImageName || '',
+        delivererType: rec.delivererType || '',
+        delivererPickupPersonId: rec.delivererPickupPersonId || '',
+        delivererOtherInfo: rec.delivererOtherInfo || '',
+        delivererName: parsePersonOtherInfo(rec.delivererOtherInfo).name,
+        delivererPhone: parsePersonOtherInfo(rec.delivererOtherInfo).phone,
+        delivererOtherImageName: rec.delivererOtherImageName || '',
+        hasBelongings: !!rec.hasBelongings,
+        belongingsNote: rec.belongingsNote || '',
+        note: rec.note || '',
+        absentReason: rec.absentReason || '',
+        checkoutImageName: rec.checkoutImageName || '',
+        receiverType: rec.receiverType || '',
+        receiverPickupPersonId: rec.receiverPickupPersonId || '',
+        receiverOtherInfo: rec.receiverOtherInfo || '',
+        receiverName: parsePersonOtherInfo(rec.receiverOtherInfo).name,
+        receiverPhone: parsePersonOtherInfo(rec.receiverOtherInfo).phone,
+        receiverOtherImageName: rec.receiverOtherImageName || '',
+        checkoutNote: rec.checkoutNote || '',
+        sendOtpSchoolAccount: false,
+        sendOtpViaSms: false,
+        selectedParentForOtp: '',
+        otpCode: '',
+        otpSent: false,
+      });
+    }
+
     setDetailMode(mode);
     setIsDetailOpen(true);
     resetOtpState();
@@ -411,6 +421,26 @@ function TeacherAttendance() {
   };
 
   const closeDetail = () => {
+    // Lưu draft khi đóng modal (không lưu OTP vì hết hạn)
+    if (detailStudentId) {
+      const draftKey = `${detailStudentId}__${detailMode}__${detailOpenedDate}`;
+      const { otpSent, otpCode, sendOtpSchoolAccount, sendOtpViaSms, selectedParentForOtp, ...formWithoutOtp } = detailForm;
+      setDraftForms((prev) => ({ ...prev, [draftKey]: formWithoutOtp }));
+    }
+    setIsDetailOpen(false);
+    setSubmitError(null);
+  };
+
+  // Đóng modal sau khi lưu thành công — xóa draft thay vì lưu
+  const closeDetailAndClearDraft = () => {
+    if (detailStudentId) {
+      const draftKey = `${detailStudentId}__${detailMode}__${detailOpenedDate}`;
+      setDraftForms((prev) => {
+        const next = { ...prev };
+        delete next[draftKey];
+        return next;
+      });
+    }
     setIsDetailOpen(false);
     setSubmitError(null);
   };
@@ -533,6 +563,7 @@ function TeacherAttendance() {
 
         const studentNameOut = students.find((s) => s._id === detailStudentId)?.fullName || 'Học sinh';
         showSuccessToast(`Điểm danh về thành công cho ${studentNameOut}!`);
+        closeDetailAndClearDraft();
       } else if (detailMode === 'checkin') {
         const timeInHHmm = detailForm.timeIn || nowHHmm();
         const isoIn = buildDateTimeISO(selectedDate, timeInHHmm);
@@ -567,6 +598,7 @@ function TeacherAttendance() {
 
         const studentName = students.find((s) => s._id === detailStudentId)?.fullName || 'Học sinh';
         showSuccessToast(`Điểm danh thành công cho ${studentName}!`);
+        closeDetailAndClearDraft();
       } else {
         // view mode: chỉ lưu local
         updateRecord(detailStudentId, {
@@ -574,9 +606,8 @@ function TeacherAttendance() {
           ...detailForm,
           note: basePayload.note,
         });
+        closeDetailAndClearDraft();
       }
-
-      closeDetail();
     } catch (err) {
       setSubmitError(err.message || 'Lỗi khi lưu điểm danh');
     }
@@ -609,7 +640,7 @@ function TeacherAttendance() {
       receiverOtherInfo: receiverOtherInfoForParent,
       receiverOtherImageName: detailForm.receiverOtherImageName,
     });
-    closeDetail();
+    closeDetailAndClearDraft();
   };
 
   // ── Absent modal ──
