@@ -3,7 +3,7 @@ import { useRef, useState } from 'react';
 import {
   Box, Paper, Typography, Button, TextField, Chip, Alert, Skeleton,
   Table, TableBody, TableCell, TableContainer, TableHead, TableRow,
-  Stack, Tooltip, Avatar, LinearProgress, IconButton, Dialog, Backdrop,
+  Stack, Tooltip, Avatar, LinearProgress, IconButton, Dialog, useMediaQuery, useTheme,
 } from '@mui/material';
 import {
   Login as CheckInIcon,
@@ -237,6 +237,166 @@ function PhotoLightbox({ src, name, onClose }) {
   );
 }
 
+// ── Student avatar (dùng chung giữa card và table) ──
+function StudentAvatar({ student, chipProps, size = 48, onLightbox }) {
+  return (
+    <Box sx={{ position: 'relative', flexShrink: 0 }}>
+      {student.avatar ? (
+        <Tooltip title="Xem ảnh" arrow placement="right">
+          <Box
+            onClick={() => onLightbox({ src: student.avatar, name: student.fullName })}
+            sx={{
+              position: 'relative', width: size, height: size,
+              borderRadius: 2, overflow: 'hidden', cursor: 'zoom-in',
+              border: `2px solid ${chipProps.dotColor}`,
+              boxShadow: `0 0 0 2px ${chipProps.dotColor}28, 0 2px 8px rgba(0,0,0,0.12)`,
+              '&:hover .zoom-overlay': { opacity: 1 },
+              '&:hover img': { transform: 'scale(1.08)' },
+            }}
+          >
+            <Box
+              component="img"
+              src={student.avatar}
+              alt={student.fullName}
+              sx={{ width: '100%', height: '100%', objectFit: 'cover', display: 'block', transition: 'transform 0.2s ease' }}
+            />
+            <Box
+              className="zoom-overlay"
+              sx={{
+                position: 'absolute', inset: 0, bgcolor: 'rgba(0,0,0,0.38)',
+                display: 'flex', alignItems: 'center', justifyContent: 'center',
+                opacity: 0, transition: 'opacity 0.18s',
+              }}
+            >
+              <ZoomInIcon sx={{ color: 'white', fontSize: size * 0.4 }} />
+            </Box>
+          </Box>
+        </Tooltip>
+      ) : (
+        <Box
+          sx={{
+            width: size, height: size, borderRadius: 2,
+            background: 'linear-gradient(135deg, #6366f1, #8b5cf6)',
+            display: 'flex', alignItems: 'center', justifyContent: 'center',
+            border: `2px solid ${chipProps.dotColor}`,
+            boxShadow: `0 0 0 2px ${chipProps.dotColor}28`,
+            fontSize: size * 0.38, fontWeight: 700, color: 'white', userSelect: 'none',
+          }}
+        >
+          {student.fullName?.[0]?.toUpperCase() || '?'}
+        </Box>
+      )}
+      <Box
+        sx={{
+          position: 'absolute', bottom: -3, right: -3,
+          width: 12, height: 12, borderRadius: '50%',
+          bgcolor: chipProps.dotColor, border: '2px solid white',
+          boxShadow: '0 1px 3px rgba(0,0,0,0.2)',
+        }}
+      />
+    </Box>
+  );
+}
+
+// ── Mobile card cho từng học sinh ──
+function StudentCard({ s, idx, rec, chipProps, isPastDate, onCheckin, onCheckout, onViewDetail, onAbsent, onLightbox }) {
+  const canCheckIn  = rec.status === 'empty' || rec.status === 'absent';
+  const canCheckOut = rec.status === 'checked_in' || rec.status === 'waiting_parent' || rec.status === 'parent_confirmed';
+  const canAbsent   = rec.status === 'empty' || rec.status === 'absent';
+  const isAbsent    = rec.status === 'absent';
+  const isDone      = rec.status === 'checked_out';
+
+  return (
+    <Box
+      sx={{
+        px: 2, py: 1.5,
+        borderBottom: '1px solid', borderColor: 'divider',
+        bgcolor: isAbsent ? '#fff5f5' : isDone ? '#f0fdf4' : 'white',
+        '&:last-child': { borderBottom: 0 },
+      }}
+    >
+      {/* Row 1: Avatar + Tên + Trạng thái */}
+      <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5, mb: 1 }}>
+        <Typography variant="caption" fontWeight={700} color="text.disabled" sx={{ minWidth: 18, textAlign: 'center' }}>
+          {idx + 1}
+        </Typography>
+        <StudentAvatar student={s} chipProps={chipProps} size={44} onLightbox={onLightbox} />
+        <Box sx={{ flex: 1, minWidth: 0 }}>
+          <Typography variant="body2" fontWeight={700} noWrap>
+            {s.fullName || '—'}
+          </Typography>
+          <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, mt: 0.25 }}>
+            <Chip label={chipProps.label} color={chipProps.color} size="small" sx={{ fontSize: 10, height: 20, fontWeight: 700 }} />
+            {rec.timeIn && (
+              <Chip
+                label={rec.timeIn}
+                size="small"
+                icon={<CheckInIcon sx={{ fontSize: '11px !important' }} />}
+                sx={{ height: 20, fontSize: 10, fontWeight: 600, bgcolor: '#dcfce7', color: '#15803d' }}
+              />
+            )}
+            {rec.timeOut && (
+              <Chip
+                label={rec.timeOut}
+                size="small"
+                icon={<CheckOutIcon sx={{ fontSize: '11px !important' }} />}
+                sx={{ height: 20, fontSize: 10, fontWeight: 600, bgcolor: '#e0f2fe', color: '#0369a1' }}
+              />
+            )}
+          </Box>
+          {rec.note && (
+            <Typography variant="caption" color="text.secondary" noWrap sx={{ display: 'block', mt: 0.25 }}>
+              {rec.note}
+            </Typography>
+          )}
+        </Box>
+      </Box>
+
+      {/* Row 2: Action buttons */}
+      <Box sx={{ display: 'flex', gap: 0.75, pl: '30px', flexWrap: 'wrap' }}>
+        {!isPastDate && canCheckIn && (
+          <Button
+            size="small" variant="contained" color="success"
+            onClick={() => onCheckin(s._id)}
+            startIcon={<CheckInIcon sx={{ fontSize: '12px !important' }} />}
+            sx={{ textTransform: 'none', fontSize: 11, fontWeight: 700, borderRadius: 1.5, px: 1.25, py: 0.4, minWidth: 0, boxShadow: 'none' }}
+          >
+            Điểm danh
+          </Button>
+        )}
+        {!isPastDate && canCheckOut && (
+          <Button
+            size="small" variant="contained" color="info"
+            onClick={() => onCheckout(s._id)}
+            startIcon={<CheckOutIcon sx={{ fontSize: '12px !important' }} />}
+            sx={{ textTransform: 'none', fontSize: 11, fontWeight: 700, borderRadius: 1.5, px: 1.25, py: 0.4, minWidth: 0, boxShadow: 'none' }}
+          >
+            Đã về
+          </Button>
+        )}
+        <Button
+          size="small" variant="outlined" color="primary"
+          onClick={() => onViewDetail(s._id)}
+          startIcon={<ViewIcon sx={{ fontSize: '12px !important' }} />}
+          sx={{ textTransform: 'none', fontSize: 11, fontWeight: 700, borderRadius: 1.5, px: 1.25, py: 0.4, minWidth: 0 }}
+        >
+          Chi tiết
+        </Button>
+        {!isPastDate && canAbsent && (
+          <Button
+            size="small" variant={isAbsent ? 'outlined' : 'contained'} color="error"
+            onClick={() => onAbsent(s._id)}
+            startIcon={<AbsentIcon sx={{ fontSize: '12px !important' }} />}
+            sx={{ textTransform: 'none', fontSize: 11, fontWeight: 700, borderRadius: 1.5, px: 1.25, py: 0.4, minWidth: 0, boxShadow: 'none' }}
+          >
+            Vắng
+          </Button>
+        )}
+      </Box>
+    </Box>
+  );
+}
+
 function AttendanceTable({
   students,
   attendanceByStudent,
@@ -253,6 +413,9 @@ function AttendanceTable({
   classId,
 }) {
   const [lightbox, setLightbox] = useState(null); // { src, name }
+  const theme = useTheme();
+  const isMobile = useMediaQuery(theme.breakpoints.down('sm'));
+  const isPastDate = selectedDate < todayISO;
 
   return (
     <>
@@ -305,7 +468,7 @@ function AttendanceTable({
       {/* Content */}
       {loadingStudents ? (
         <Box sx={{ p: 3, display: 'flex', flexDirection: 'column', gap: 1.5 }}>
-          {[1, 2, 3, 4, 5].map((i) => <Skeleton key={i} variant="rounded" height={52} />)}
+          {[1, 2, 3, 4, 5].map((i) => <Skeleton key={i} variant="rounded" height={isMobile ? 90 : 52} />)}
         </Box>
       ) : (students || []).length === 0 ? (
         <Box sx={{ py: 10, textAlign: 'center' }}>
@@ -319,7 +482,26 @@ function AttendanceTable({
             Liên hệ quản trị viên để thêm học sinh vào lớp.
           </Typography>
         </Box>
+      ) : isMobile ? (
+        /* ── Mobile: Card list ── */
+        <Box>
+          {(students || []).map((s, idx) => {
+            const rec = attendanceByStudent?.[s._id] || defaultRecord();
+            const chipProps = getChipProps(rec.status);
+            return (
+              <StudentCard
+                key={s._id}
+                s={s} idx={idx} rec={rec} chipProps={chipProps}
+                isPastDate={isPastDate}
+                onCheckin={onCheckin} onCheckout={onCheckout}
+                onViewDetail={onViewDetail} onAbsent={onAbsent}
+                onLightbox={setLightbox}
+              />
+            );
+          })}
+        </Box>
       ) : (
+        /* ── Desktop: Table ── */
         <TableContainer>
           <Table>
             <TableHead>
@@ -350,7 +532,7 @@ function AttendanceTable({
                 const chipProps = getChipProps(rec.status);
                 const canCheckIn  = rec.status === 'empty' || rec.status === 'absent';
                 const canCheckOut = rec.status === 'checked_in' || rec.status === 'waiting_parent' || rec.status === 'parent_confirmed';
-                const canAbsent   = rec.status !== 'checked_out';
+                const canAbsent   = rec.status === 'empty' || rec.status === 'absent';
                 const isAbsent    = rec.status === 'absent';
                 const isDone      = rec.status === 'checked_out';
 
@@ -372,71 +554,7 @@ function AttendanceTable({
 
                     <TableCell sx={{ py: 1 }}>
                       <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5 }}>
-                        <Box sx={{ position: 'relative', flexShrink: 0 }}>
-                          {s.avatar ? (
-                            <Tooltip title="Xem ảnh" arrow placement="right">
-                              <Box
-                                onClick={() => setLightbox({ src: s.avatar, name: s.fullName })}
-                                sx={{
-                                  position: 'relative', width: 76, height: 76,
-                                  borderRadius: 2.5, overflow: 'hidden', cursor: 'zoom-in',
-                                  border: `2.5px solid ${chipProps.dotColor}`,
-                                  boxShadow: `0 0 0 3px ${chipProps.dotColor}28, 0 3px 12px rgba(0,0,0,0.15)`,
-                                  '&:hover .zoom-overlay': { opacity: 1 },
-                                  '&:hover img': { transform: 'scale(1.08)' },
-                                }}
-                              >
-                                <Box
-                                  component="img"
-                                  src={s.avatar}
-                                  alt={s.fullName}
-                                  sx={{
-                                    width: '100%', height: '100%',
-                                    objectFit: 'cover', display: 'block',
-                                    transition: 'transform 0.2s ease',
-                                  }}
-                                />
-                                {/* Hover overlay */}
-                                <Box
-                                  className="zoom-overlay"
-                                  sx={{
-                                    position: 'absolute', inset: 0,
-                                    bgcolor: 'rgba(0,0,0,0.38)',
-                                    display: 'flex', alignItems: 'center', justifyContent: 'center',
-                                    opacity: 0, transition: 'opacity 0.18s',
-                                  }}
-                                >
-                                  <ZoomInIcon sx={{ color: 'white', fontSize: 26 }} />
-                                </Box>
-                              </Box>
-                            </Tooltip>
-                          ) : (
-                            <Box
-                              sx={{
-                                width: 76, height: 76,
-                                borderRadius: 2.5,
-                                background: 'linear-gradient(135deg, #6366f1, #8b5cf6)',
-                                display: 'flex', alignItems: 'center', justifyContent: 'center',
-                                border: `2.5px solid ${chipProps.dotColor}`,
-                                boxShadow: `0 0 0 3px ${chipProps.dotColor}28, 0 3px 12px rgba(0,0,0,0.15)`,
-                                fontSize: 26, fontWeight: 700, color: 'white',
-                                userSelect: 'none',
-                              }}
-                            >
-                              {s.fullName?.[0]?.toUpperCase() || '?'}
-                            </Box>
-                          )}
-                          {/* Status dot */}
-                          <Box
-                            sx={{
-                              position: 'absolute', bottom: -4, right: -4,
-                              width: 15, height: 15, borderRadius: '50%',
-                              bgcolor: chipProps.dotColor,
-                              border: '2.5px solid white',
-                              boxShadow: '0 1px 4px rgba(0,0,0,0.25)',
-                            }}
-                          />
-                        </Box>
+                        <StudentAvatar student={s} chipProps={chipProps} size={64} onLightbox={setLightbox} />
                         <Box>
                           <Typography variant="body2" fontWeight={700}>
                             {s.fullName || '—'}
@@ -487,39 +605,33 @@ function AttendanceTable({
 
                     <TableCell align="center">
                       <Stack direction="row" spacing={0.75} justifyContent="center">
-                        {canCheckIn && (
-                          <Tooltip title="Check-in" arrow>
+                        {!isPastDate && canCheckIn && (
+                          <Tooltip title="Điểm danh" arrow>
                             <Button
-                              size="small"
-                              variant="contained"
-                              color="success"
+                              size="small" variant="contained" color="success"
                               onClick={() => onCheckin(s._id)}
                               startIcon={<CheckInIcon sx={{ fontSize: '13px !important' }} />}
                               sx={{ textTransform: 'none', fontSize: 12, fontWeight: 700, borderRadius: 1.5, px: 1.5, py: 0.5, minWidth: 0, boxShadow: 'none' }}
                             >
-                              Check in
+                              Điểm danh
                             </Button>
                           </Tooltip>
                         )}
-                        {canCheckOut && (
-                          <Tooltip title="Check-out" arrow>
+                        {!isPastDate && canCheckOut && (
+                          <Tooltip title="Điểm danh về" arrow>
                             <Button
-                              size="small"
-                              variant="contained"
-                              color="info"
+                              size="small" variant="contained" color="info"
                               onClick={() => onCheckout(s._id)}
                               startIcon={<CheckOutIcon sx={{ fontSize: '13px !important' }} />}
                               sx={{ textTransform: 'none', fontSize: 12, fontWeight: 700, borderRadius: 1.5, px: 1.5, py: 0.5, minWidth: 0, boxShadow: 'none' }}
                             >
-                              Check-out
+                              Điểm danh về
                             </Button>
                           </Tooltip>
                         )}
                         <Tooltip title="Xem chi tiết" arrow>
                           <Button
-                            size="small"
-                            variant="outlined"
-                            color="primary"
+                            size="small" variant="outlined" color="primary"
                             onClick={() => onViewDetail(s._id)}
                             startIcon={<ViewIcon sx={{ fontSize: '13px !important' }} />}
                             sx={{ textTransform: 'none', fontSize: 12, fontWeight: 700, borderRadius: 1.5, px: 1.5, py: 0.5, minWidth: 0 }}
@@ -527,12 +639,10 @@ function AttendanceTable({
                             Chi tiết
                           </Button>
                         </Tooltip>
-                        {canAbsent && (
+                        {!isPastDate && canAbsent && (
                           <Tooltip title="Đánh vắng mặt" arrow>
                             <Button
-                              size="small"
-                              variant={isAbsent ? 'outlined' : 'contained'}
-                              color="error"
+                              size="small" variant={isAbsent ? 'outlined' : 'contained'} color="error"
                               onClick={() => onAbsent(s._id)}
                               startIcon={<AbsentIcon sx={{ fontSize: '13px !important' }} />}
                               sx={{ textTransform: 'none', fontSize: 12, fontWeight: 700, borderRadius: 1.5, px: 1.5, py: 0.5, minWidth: 0, boxShadow: 'none' }}

@@ -157,12 +157,62 @@ function TeacherAttendance() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [detailStudentId, detailMode]);
 
-  // Load attendance từ localStorage theo classId + date
+  // Chuyển đổi bản ghi điểm danh từ server sang định dạng frontend
+  const mapServerRecord = (serverRec, localRec) => {
+    const base = localRec || defaultRecord();
+    let status;
+    if (serverRec.status === 'absent') {
+      status = 'absent';
+    } else if (serverRec.status === 'present') {
+      status = serverRec.timeString?.checkOut ? 'checked_out' : 'checked_in';
+    } else {
+      status = 'checked_in';
+    }
+    return {
+      ...base,
+      status,
+      timeIn: serverRec.timeString?.checkIn || '',
+      timeOut: serverRec.timeString?.checkOut || '',
+      checkinImageName: serverRec.checkinImageName || '',
+      checkoutImageName: serverRec.checkoutImageName || '',
+      delivererType: serverRec.delivererType || '',
+      delivererOtherInfo: serverRec.delivererOtherInfo || '',
+      delivererOtherImageName: serverRec.delivererOtherImageName || '',
+      receiverType: serverRec.receiverType || '',
+      receiverOtherInfo: serverRec.receiverOtherInfo || '',
+      receiverOtherImageName: serverRec.receiverOtherImageName || '',
+      note: serverRec.note || '',
+      absentReason: serverRec.absentReason || '',
+    };
+  };
+
+  // Load attendance: ưu tiên server, fallback localStorage khi mất mạng
   useEffect(() => {
     if (!classId) return;
-    const all = readAttendanceStorage(classId);
-    const byDate = all?.[selectedDate] || {};
-    setAttendanceByStudent(byDate);
+    const loadAttendance = async () => {
+      try {
+        const res = await get(
+          `${ENDPOINTS.STUDENTS.ATTENDANCE_LIST}?classId=${classId}&date=${selectedDate}`
+        );
+        const serverRecords = res.data || [];
+        const allLocal = readAttendanceStorage(classId);
+        const localByDate = allLocal?.[selectedDate] || {};
+        const merged = { ...localByDate };
+        serverRecords.forEach((rec) => {
+          const sid = rec.studentId?._id?.toString() || rec.studentId?.toString();
+          if (sid) merged[sid] = mapServerRecord(rec, localByDate[sid]);
+        });
+        allLocal[selectedDate] = merged;
+        writeAttendanceStorage(classId, allLocal);
+        setAttendanceByStudent(merged);
+      } catch {
+        // Mất mạng hoặc lỗi server → dùng localStorage
+        const all = readAttendanceStorage(classId);
+        setAttendanceByStudent(all?.[selectedDate] || {});
+      }
+    };
+    loadAttendance();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [classId, selectedDate]);
 
   // Khởi tạo bản ghi mặc định cho học sinh chưa có
@@ -482,7 +532,7 @@ function TeacherAttendance() {
         });
 
         const studentNameOut = students.find((s) => s._id === detailStudentId)?.fullName || 'Học sinh';
-        showSuccessToast(`Check-out thành công cho ${studentNameOut}!`);
+        showSuccessToast(`Điểm danh về thành công cho ${studentNameOut}!`);
       } else if (detailMode === 'checkin') {
         const timeInHHmm = detailForm.timeIn || nowHHmm();
         const isoIn = buildDateTimeISO(selectedDate, timeInHHmm);
@@ -679,6 +729,7 @@ function TeacherAttendance() {
         student={detailStudent}
         studentId={detailStudentId}
         selectedDate={selectedDate}
+        todayISO={todayISO}
         detailForm={detailForm}
         setDetailForm={setDetailForm}
         submitError={submitError}
