@@ -195,42 +195,21 @@ function DocumentFormModal({ open, onClose, initialData, onSubmit, loading }) {
                 </Typography>
               )}
             </Box>
-          {/* Nội dung (Rich Text) */}
-          <div>
-            <label className="block text-xs font-medium text-gray-700 mb-1">Nội dung *</label>
-            <div className={formErrors.description ? 'ring-1 ring-red-400 rounded-md' : ''}>
-              <RichTextEditor
-                initialValue={form.description}
-                onChange={(html) => {
-                  setForm((prev) => ({ ...prev, description: html }));
-                  if (formErrors.description) setFormErrors((prev) => ({ ...prev, description: null }));
-                }}
-                disabled={uploadingFile}
-                attachmentUrl={form.attachmentUrl}
-                attachmentType={form.attachmentType}
-                onAttachFile={handleAttachFile}
-                onRemoveFile={() => setForm((prev) => ({ ...prev, attachmentUrl: null, attachmentType: null }))}
-              />
-            </div>
-            {formErrors.description && (
-              <p className="mt-1 text-xs text-red-600">{formErrors.description}</p>
-            )}
-          </div>
 
-          {/* Danh mục */}
-          <div>
-            <label className="block text-xs font-medium text-gray-700 mb-1">Danh mục</label>
-            <select
-              name="category"
-              value={form.category}
-              onChange={handleChange}
-              className="rounded-md border border-gray-300 px-3 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500 w-full"
-            >
-              <option value="">-- Chọn danh mục --</option>
-              <option value="văn bản pháp quy">Văn bản pháp quy</option>
-              <option value="văn bản từ phòng">Văn bản từ phòng</option>
-            </select>
-          </div>
+            {/* Danh mục */}
+            <FormControl size="small" fullWidth>
+              <InputLabel>Danh mục</InputLabel>
+              <Select
+                name="category"
+                value={form.category}
+                label="Danh mục"
+                onChange={handleChange}
+              >
+                <MenuItem value="">-- Chọn danh mục --</MenuItem>
+                <MenuItem value="văn bản pháp quy">Văn bản pháp quy</MenuItem>
+                <MenuItem value="văn bản từ phòng">Văn bản từ phòng</MenuItem>
+              </Select>
+            </FormControl>
 
             {/* Trạng thái */}
             <FormControl size="small" fullWidth>
@@ -561,6 +540,7 @@ export default function ManageDocuments() {
               <TableHead>
                 <TableRow sx={{ bgcolor: 'grey.50' }}>
                   <TableCell sx={{ fontWeight: 700, fontSize: 12, textTransform: 'uppercase', letterSpacing: 0.5 }}>Tiêu đề</TableCell>
+                  <TableCell sx={{ fontWeight: 700, fontSize: 12, textTransform: 'uppercase', letterSpacing: 0.5 }}>Danh mục</TableCell>
                   <TableCell sx={{ fontWeight: 700, fontSize: 12, textTransform: 'uppercase', letterSpacing: 0.5 }}>Nội dung</TableCell>
                   <TableCell sx={{ fontWeight: 700, fontSize: 12, textTransform: 'uppercase', letterSpacing: 0.5 }}>Tệp đính kèm</TableCell>
                   <TableCell sx={{ fontWeight: 700, fontSize: 12, textTransform: 'uppercase', letterSpacing: 0.5 }}>Trạng thái</TableCell>
@@ -584,6 +564,17 @@ export default function ManageDocuments() {
                       >
                         {doc.title}
                       </Typography>
+                    </TableCell>
+                    <TableCell sx={{ whiteSpace: 'nowrap' }}>
+                      {doc.category === 'văn bản pháp quy' && (
+                        <Chip label="Pháp quy" color="primary" size="small" variant="outlined" />
+                      )}
+                      {doc.category === 'văn bản từ phòng' && (
+                        <Chip label="Từ phòng" color="warning" size="small" variant="outlined" />
+                      )}
+                      {!doc.category && (
+                        <Typography variant="caption" color="text.secondary">-</Typography>
+                      )}
                     </TableCell>
                     <TableCell>
                       <Typography
@@ -655,89 +646,6 @@ export default function ManageDocuments() {
               </TableBody>
             </Table>
           )}
-        <div className="overflow-x-auto">
-          <table className="min-w-full divide-y divide-gray-200 text-sm">
-            <thead className="bg-gray-50">
-              <tr>
-                <th className="px-3 py-2 text-left text-xs font-semibold uppercase tracking-wide text-gray-500">Tiêu đề</th>
-                <th className="px-3 py-2 text-left text-xs font-semibold uppercase tracking-wide text-gray-500">Danh mục</th>
-                <th className="px-3 py-2 text-left text-xs font-semibold uppercase tracking-wide text-gray-500">Nội dung</th>
-                <th className="px-3 py-2 text-left text-xs font-semibold uppercase tracking-wide text-gray-500">Tệp đính kèm</th>
-                <th className="px-3 py-2 text-left text-xs font-semibold uppercase tracking-wide text-gray-500">Trạng thái</th>
-                <th className="px-3 py-2 text-left text-xs font-semibold uppercase tracking-wide text-gray-500">Tác giả</th>
-                <th className="px-3 py-2 text-right text-xs font-semibold uppercase tracking-wide text-gray-500">Hành động</th>
-              </tr>
-            </thead>
-            <tbody className="divide-y divide-gray-100 bg-white">
-              {documents.map((doc) => (
-                <tr key={doc._id}>
-                  <td className="px-3 py-2 text-xs font-medium text-gray-900 max-w-[180px]">
-                    <div className="line-clamp-2">{doc.title}</div>
-                  </td>
-                  <td className="px-3 py-2 text-xs text-gray-700 whitespace-nowrap">
-                    {doc.category || '-'}
-                  </td>
-                  <td className="px-3 py-2">
-                    <div className="text-xs text-gray-700 line-clamp-2">
-                      {doc.description?.replace(/<[^>]*>/g, '') || '-'}
-                    </div>
-                  </td>
-                  <td className="px-3 py-2 text-xs text-gray-700">
-                    {doc.attachmentUrl ? (
-                      <a
-                        href={doc.attachmentUrl}
-                        target="_blank"
-                        rel="noopener noreferrer"
-                        className="inline-flex items-center gap-1 text-blue-600 hover:underline"
-                      >
-                        {doc.attachmentType === 'pdf' ? '📄 PDF' : '📝 Word'}
-                      </a>
-                    ) : (
-                      '-'
-                    )}
-                  </td>
-                  <td className="px-3 py-2 text-xs">
-                    {doc.status === 'published' && (
-                      <span className="inline-flex rounded-full bg-emerald-50 px-2 py-0.5 text-[11px] font-semibold text-emerald-700">Đã xuất bản</span>
-                    )}
-                    {doc.status === 'draft' && (
-                      <span className="inline-flex rounded-full bg-yellow-50 px-2 py-0.5 text-[11px] font-semibold text-yellow-700">Nháp</span>
-                    )}
-                    {doc.status === 'inactive' && (
-                      <span className="inline-flex rounded-full bg-gray-100 px-2 py-0.5 text-[11px] font-semibold text-gray-600">Ngưng hiển thị</span>
-                    )}
-                  </td>
-                  <td className="px-3 py-2 text-xs text-gray-700">
-                    {doc.author?.fullName || doc.author?.username || '-'}
-                  </td>
-                  <td className="px-3 py-2 text-right text-xs">
-                    <button
-                      type="button"
-                      onClick={() => navigate(`/school-admin/documents/${doc._id}`)}
-                      className="mr-2 text-blue-600 hover:underline"
-                    >
-                      Xem
-                    </button>
-                    <button
-                      type="button"
-                      onClick={() => openEditModal(doc)}
-                      className="mr-2 text-emerald-700 hover:underline"
-                    >
-                      Sửa
-                    </button>
-                    <button
-                      type="button"
-                      onClick={() => setConfirmDelete(doc)}
-                      disabled={submitting}
-                      className="text-red-600 hover:underline disabled:opacity-50"
-                    >
-                      Xóa
-                    </button>
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
 
           {canShowEmptyState && (
             <Box sx={{ py: 6, textAlign: 'center' }}>
