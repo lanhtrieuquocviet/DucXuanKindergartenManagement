@@ -56,7 +56,7 @@ const renderImagePreview = (imageValue, altText) => {
 };
 
 // ── OTP Section ──
-function OtpSection({ radioName, detailForm, setDetailForm, student, onSendOtp, otpTimeLeft, otpExpired, onResetOtp }) {
+function OtpSection({ radioName, detailForm, setDetailForm, student, approvedPickupPersons = [], onSendOtp, otpTimeLeft, otpExpired, onResetOtp }) {
   const countdownStr = `${Math.floor(otpTimeLeft / 60)}:${String(otpTimeLeft % 60).padStart(2, '0')}`;
   const otpSelected = detailForm.sendOtpSchoolAccount || detailForm.sendOtpViaSms;
 
@@ -111,11 +111,18 @@ function OtpSection({ radioName, detailForm, setDetailForm, student, onSendOtp, 
                   onChange={(e) => setDetailForm((prev) => ({ ...prev, selectedParentForOtp: e.target.value }))}
                 >
                   <MenuItem value="" disabled>-- Chọn --</MenuItem>
-                  {student?.parentId?.phone && (
-                    <MenuItem value={student.parentId.phone}>
-                      {student.parentId.fullName || 'Phụ huynh'} – {student.parentId.phone}
-                    </MenuItem>
-                  )}
+                  {approvedPickupPersons.length > 0
+                    ? approvedPickupPersons.map((p) => (
+                        <MenuItem key={p._id} value={p.phone}>
+                          {p.fullName} – {p.phone}
+                        </MenuItem>
+                      ))
+                    : student?.parentId?.phone && (
+                        <MenuItem value={student.parentId.phone}>
+                          {student.parentId.fullName || 'Phụ huynh'} – {student.parentId.phone}
+                        </MenuItem>
+                      )
+                  }
                 </Select>
               </FormControl>
             )}
@@ -608,10 +615,10 @@ function AttendanceDetailModal({
 
               <OtpSection
                 radioName="otpMethodCheckout"
-
                 detailForm={detailForm}
                 setDetailForm={setDetailForm}
                 student={student}
+                approvedPickupPersons={approvedPickupPersons}
                 onSendOtp={handleSendOtp}
                 otpTimeLeft={otpTimeLeft}
                 otpExpired={otpExpired}
@@ -749,10 +756,10 @@ function AttendanceDetailModal({
 
               <OtpSection
                 radioName="otpMethodCheckin"
-
                 detailForm={detailForm}
                 setDetailForm={setDetailForm}
                 student={student}
+                approvedPickupPersons={approvedPickupPersons}
                 onSendOtp={handleSendOtp}
                 otpTimeLeft={otpTimeLeft}
                 otpExpired={otpExpired}
