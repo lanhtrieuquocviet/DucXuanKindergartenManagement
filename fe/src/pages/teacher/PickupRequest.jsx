@@ -379,7 +379,6 @@ function PickupRequest() {
             : `Bạn có chắc muốn từ chối "${selectedRequest?.fullName}" (${selectedRequest?.relation})?`
         }
         confirmText={actionType === "approve" ? "Duyệt" : "Từ chối"}
-        confirmButtonClass={actionType === "approve" ? "bg-green-600 hover:bg-green-700" : "bg-red-600 hover:bg-red-700"}
         onConfirm={confirmAction}
         onCancel={() => { setConfirmOpen(false); setSelectedRequest(null); setActionType(""); }}
       />

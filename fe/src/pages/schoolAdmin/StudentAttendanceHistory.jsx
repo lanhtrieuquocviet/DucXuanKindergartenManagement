@@ -3,6 +3,29 @@ import { useNavigate, useParams, useSearchParams } from 'react-router-dom';
 import { useAuth } from '../../context/AuthContext';
 import { useSchoolAdmin } from '../../context/SchoolAdminContext';
 import RoleLayout from '../../layouts/RoleLayout';
+import {
+  Box,
+  Paper,
+  Typography,
+  Button,
+  Alert,
+  Stack,
+  Table,
+  TableBody,
+  TableCell,
+  TableContainer,
+  TableHead,
+  TableRow,
+  CircularProgress,
+  MenuItem,
+  Select,
+  InputLabel,
+  FormControl,
+} from '@mui/material';
+import AssessmentIcon from '@mui/icons-material/Assessment';
+import ChildCareIcon from '@mui/icons-material/ChildCare';
+import HomeIcon from '@mui/icons-material/Home';
+import ArrowBackIcon from '@mui/icons-material/ArrowBack';
 
 const formatDate = (dateStr, showYear = false) => {
   if (!dateStr) return '';
@@ -18,9 +41,7 @@ const formatDate = (dateStr, showYear = false) => {
 
 const formatTime = (timeStr) => {
   if (!timeStr) return '—';
-  // Nếu là format HH:mm thì trả về luôn
   if (/^\d{2}:\d{2}$/.test(timeStr)) return timeStr;
-  // Nếu là Date object hoặc ISO string thì format
   try {
     const d = new Date(timeStr);
     if (isNaN(d.getTime())) return '—';
@@ -32,7 +53,6 @@ const formatTime = (timeStr) => {
   }
 };
 
-// Hàm kiểm tra đi trễ (sau 7:30 sáng)
 const isLate = (checkInTime) => {
   if (!checkInTime) return false;
   try {
@@ -45,7 +65,6 @@ const isLate = (checkInTime) => {
       hours = d.getHours();
       minutes = d.getMinutes();
     }
-    // Đi trễ nếu sau 7:30
     return hours > 7 || (hours === 7 && minutes > 30);
   } catch {
     return false;
@@ -54,16 +73,16 @@ const isLate = (checkInTime) => {
 
 const getStatusText = (attendance) => {
   if (!attendance || attendance.status === 'absent') {
-    return { text: 'Nghỉ học', color: 'text-red-600' };
+    return { text: 'Nghỉ học', color: 'error.main' };
   }
   if (attendance.status === 'present') {
     const checkInTime = attendance?.timeString?.checkIn || attendance?.time?.checkIn;
     if (isLate(checkInTime)) {
-      return { text: 'Đi trễ', color: 'text-orange-600' };
+      return { text: 'Đi trễ', color: 'warning.main' };
     }
-    return { text: 'Có mặt', color: 'text-green-600' };
+    return { text: 'Có mặt', color: 'success.main' };
   }
-  return { text: '—', color: 'text-gray-600' };
+  return { text: '—', color: 'text.secondary' };
 };
 
 function StudentAttendanceHistory() {
@@ -101,11 +120,10 @@ function StudentAttendanceHistory() {
 
   const fetchData = async () => {
     try {
-      // Tính toán từ ngày và đến ngày dựa trên tháng và năm
       const fromDate = `${selectedYear}-${String(selectedMonth).padStart(2, '0')}-01`;
       const lastDay = new Date(selectedYear, selectedMonth, 0).getDate();
       const toDate = `${selectedYear}-${String(selectedMonth).padStart(2, '0')}-${String(lastDay).padStart(2, '0')}`;
-      
+
       const params = { from: fromDate, to: toDate };
       const response = await getStudentAttendanceHistory(studentId, params);
       if (response?.data) {
@@ -170,7 +188,6 @@ function StudentAttendanceHistory() {
 
   const userName = user?.fullName || user?.username || 'School Admin';
 
-  // Tính toán thống kê
   const stats = useMemo(() => {
     if (statsFromApi) {
       return statsFromApi;
@@ -192,10 +209,16 @@ function StudentAttendanceHistory() {
     };
   }, [attendances, statsFromApi]);
 
-  // Tạo danh sách tháng và năm
   const months = Array.from({ length: 12 }, (_, i) => i + 1);
   const currentYear = new Date().getFullYear();
   const years = Array.from({ length: 5 }, (_, i) => currentYear - 2 + i);
+
+  const statCards = [
+    { label: 'Ngày học', value: stats.totalDays },
+    { label: 'Có mặt', value: stats.present },
+    { label: 'Nghỉ học', value: stats.absent },
+    { label: 'Đi trễ', value: stats.late },
+  ];
 
   return (
     <RoleLayout
@@ -213,132 +236,131 @@ function StudentAttendanceHistory() {
       onMenuSelect={handleMenuSelect}
     >
       {error && (
-        <div className="mb-4 rounded-md bg-red-50 border border-red-200 px-4 py-2 text-sm text-red-800">
+        <Alert severity="error" sx={{ mb: 2 }}>
           {error}
-        </div>
+        </Alert>
       )}
 
-      <div className="max-w-6xl mx-auto">
-        {/* Card báo cáo điểm danh */}
-        <div className="bg-white rounded-lg shadow overflow-hidden">
-          {/* Tiêu đề báo cáo */}
-          <div className="bg-gray-50 px-6 py-4 border-b border-gray-200">
-            <div className="flex items-center gap-2">
-              <span className="text-xl">📊</span>
-              <h2 className="text-lg font-semibold text-gray-800">Báo cáo điểm danh</h2>
-            </div>
-          </div>
+      <Box sx={{ maxWidth: 960, mx: 'auto' }}>
+        <Paper sx={{ overflow: 'hidden' }}>
+          {/* Report header */}
+          <Box
+            sx={{
+              background: 'linear-gradient(135deg, #6366f1 0%, #4f46e5 100%)',
+              px: 3,
+              py: 2,
+            }}
+          >
+            <Stack direction="row" alignItems="center" gap={1}>
+              <AssessmentIcon sx={{ color: 'white' }} />
+              <Typography variant="h6" fontWeight={600} color="white">
+                Báo cáo điểm danh
+              </Typography>
+            </Stack>
+          </Box>
 
-          {/* Thông tin học sinh */}
-          <div className="bg-green-50 px-6 py-4 border-b border-gray-200">
-            <div className="flex flex-col md:flex-row gap-4 items-start md:items-center">
-              <div className="flex items-center gap-2">
-                <span className="text-xl">😊</span>
-                <span className="text-sm font-semibold text-gray-700">
+          {/* Student info */}
+          <Box sx={{ bgcolor: 'success.50', px: 3, py: 2, borderBottom: '1px solid', borderColor: 'divider' }}>
+            <Stack direction={{ xs: 'column', md: 'row' }} gap={3} alignItems={{ xs: 'flex-start', md: 'center' }}>
+              <Stack direction="row" alignItems="center" gap={1}>
+                <ChildCareIcon color="success" />
+                <Typography variant="body2" fontWeight={600}>
                   Trẻ: {studentInfo?.fullName || '—'}
-                </span>
-              </div>
-              <div className="flex items-center gap-2">
-                <span className="text-xl">🏠</span>
-                <span className="text-sm font-semibold text-gray-700">
+                </Typography>
+              </Stack>
+              <Stack direction="row" alignItems="center" gap={1}>
+                <HomeIcon color="success" />
+                <Typography variant="body2" fontWeight={600}>
                   Lớp: {studentInfo?.className || '—'}
-                </span>
-              </div>
-            </div>
-          </div>
+                </Typography>
+              </Stack>
+            </Stack>
+          </Box>
 
-          {/* Bộ lọc tháng/năm */}
-          <div className="px-6 py-4 border-b border-gray-200">
-            <div className="flex flex-col md:flex-row gap-4 items-end">
-              <div className="flex-1">
-                <label className="block text-sm font-semibold text-gray-700 mb-1">
-                  Tháng
-                </label>
-                <select
+          {/* Month/Year filter */}
+          <Box sx={{ px: 3, py: 2, borderBottom: '1px solid', borderColor: 'divider' }}>
+            <Stack direction={{ xs: 'column', md: 'row' }} gap={2} alignItems={{ xs: 'stretch', md: 'flex-end' }}>
+              <FormControl size="small" sx={{ flex: 1, minWidth: 140 }}>
+                <InputLabel>Tháng</InputLabel>
+                <Select
                   value={selectedMonth}
+                  label="Tháng"
                   onChange={(e) => setSelectedMonth(Number(e.target.value))}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500"
                 >
                   {months.map((month) => (
-                    <option key={month} value={month}>
+                    <MenuItem key={month} value={month}>
                       Tháng {String(month).padStart(2, '0')}
-                    </option>
+                    </MenuItem>
                   ))}
-                </select>
-              </div>
-              <div className="flex-1">
-                <label className="block text-sm font-semibold text-gray-700 mb-1">
-                  Năm
-                </label>
-                <select
+                </Select>
+              </FormControl>
+
+              <FormControl size="small" sx={{ flex: 1, minWidth: 120 }}>
+                <InputLabel>Năm</InputLabel>
+                <Select
                   value={selectedYear}
+                  label="Năm"
                   onChange={(e) => setSelectedYear(Number(e.target.value))}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500"
                 >
                   {years.map((year) => (
-                    <option key={year} value={year}>
+                    <MenuItem key={year} value={year}>
                       {year}
-                    </option>
+                    </MenuItem>
                   ))}
-                </select>
-              </div>
-            </div>
-          </div>
+                </Select>
+              </FormControl>
+            </Stack>
+          </Box>
 
-          {/* Thẻ thống kê */}
-          <div className="px-6 py-4 border-b border-gray-200">
-            <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-              <div className="bg-green-50 rounded-lg p-4 border border-green-100">
-                <div className="text-sm font-semibold text-gray-700 mb-1">Ngày học</div>
-                <div className="text-2xl font-bold text-green-700">{stats.totalDays}</div>
-              </div>
-              <div className="bg-green-50 rounded-lg p-4 border border-green-100">
-                <div className="text-sm font-semibold text-gray-700 mb-1">Có mặt</div>
-                <div className="text-2xl font-bold text-green-700">{stats.present}</div>
-              </div>
-              <div className="bg-green-50 rounded-lg p-4 border border-green-100">
-                <div className="text-sm font-semibold text-gray-700 mb-1">Nghỉ học</div>
-                <div className="text-2xl font-bold text-green-700">{stats.absent}</div>
-              </div>
-              <div className="bg-green-50 rounded-lg p-4 border border-green-100">
-                <div className="text-sm font-semibold text-gray-700 mb-1">Đi trễ</div>
-                <div className="text-2xl font-bold text-green-700">{stats.late}</div>
-              </div>
-            </div>
-          </div>
+          {/* Stats cards */}
+          <Box sx={{ px: 3, py: 2, borderBottom: '1px solid', borderColor: 'divider' }}>
+            <Stack direction="row" flexWrap="wrap" gap={2}>
+              {statCards.map((card) => (
+                <Paper
+                  key={card.label}
+                  variant="outlined"
+                  sx={{
+                    flex: '1 1 120px',
+                    p: 2,
+                    bgcolor: 'success.50',
+                    borderColor: 'success.100',
+                  }}
+                >
+                  <Typography variant="body2" fontWeight={600} color="text.secondary" gutterBottom>
+                    {card.label}
+                  </Typography>
+                  <Typography variant="h5" fontWeight={700} color="success.main">
+                    {card.value}
+                  </Typography>
+                </Paper>
+              ))}
+            </Stack>
+          </Box>
 
-          {/* Bảng lịch sử */}
+          {/* Attendance history table */}
           {loading ? (
-            <div className="p-8 text-center">
-              <div className="inline-block animate-spin">
-                <div className="h-6 w-6 border-3 border-indigo-500 border-t-transparent rounded-full" />
-              </div>
-              <p className="mt-2 text-sm text-gray-500">Đang tải dữ liệu...</p>
-            </div>
+            <Box sx={{ p: 6, textAlign: 'center' }}>
+              <CircularProgress size={32} />
+              <Typography variant="body2" color="text.secondary" sx={{ mt: 1 }}>
+                Đang tải dữ liệu...
+              </Typography>
+            </Box>
           ) : attendances.length === 0 ? (
-            <div className="p-8 text-center text-gray-500">
-              <p>Không có dữ liệu điểm danh.</p>
-            </div>
+            <Box sx={{ p: 6, textAlign: 'center' }}>
+              <Typography color="text.secondary">Không có dữ liệu điểm danh.</Typography>
+            </Box>
           ) : (
-            <div className="overflow-x-auto">
-              <table className="w-full text-sm">
-                <thead className="bg-gray-50 border-b border-gray-200">
-                  <tr>
-                    <th className="px-4 py-3 text-left font-semibold text-gray-800">
-                      Ngày
-                    </th>
-                    <th className="px-4 py-3 text-center font-semibold text-gray-800">
-                      Đến
-                    </th>
-                    <th className="px-4 py-3 text-center font-semibold text-gray-800">
-                      Về
-                    </th>
-                    <th className="px-4 py-3 text-left font-semibold text-gray-800">
-                      Trạng thái
-                    </th>
-                  </tr>
-                </thead>
-                <tbody>
+            <TableContainer>
+              <Table size="small">
+                <TableHead>
+                  <TableRow sx={{ bgcolor: 'grey.50' }}>
+                    <TableCell sx={{ fontWeight: 700 }}>Ngày</TableCell>
+                    <TableCell align="center" sx={{ fontWeight: 700 }}>Đến</TableCell>
+                    <TableCell align="center" sx={{ fontWeight: 700 }}>Về</TableCell>
+                    <TableCell sx={{ fontWeight: 700 }}>Trạng thái</TableCell>
+                  </TableRow>
+                </TableHead>
+                <TableBody>
                   {attendances.map((attendance, idx) => {
                     const status = getStatusText(attendance);
                     const checkInTime =
@@ -350,39 +372,39 @@ function StudentAttendanceHistory() {
                     const attendanceDate = formatDate(attendance?.date, false);
 
                     return (
-                      <tr
+                      <TableRow
                         key={attendance._id || idx}
-                        className="border-b border-gray-100 hover:bg-gray-50 transition-colors"
+                        hover
+                        sx={{ '&:last-child td': { border: 0 } }}
                       >
-                        <td className="px-4 py-3">
-                          <div className="font-medium text-gray-900">
+                        <TableCell>
+                          <Typography variant="body2" fontWeight={600}>
                             {attendanceDate}
-                          </div>
-                        </td>
-                        <td className="px-4 py-3 text-center text-gray-700">
-                          {checkInTime}
-                        </td>
-                        <td className="px-4 py-3 text-center text-gray-700">
-                          {checkOutTime}
-                        </td>
-                        <td className="px-4 py-3">
-                          <span className={`font-medium ${status.color}`}>
+                          </Typography>
+                        </TableCell>
+                        <TableCell align="center">{checkInTime}</TableCell>
+                        <TableCell align="center">{checkOutTime}</TableCell>
+                        <TableCell>
+                          <Typography variant="body2" fontWeight={600} color={status.color}>
                             {status.text}
-                          </span>
-                        </td>
-                      </tr>
+                          </Typography>
+                        </TableCell>
+                      </TableRow>
                     );
                   })}
-                </tbody>
-              </table>
-            </div>
+                </TableBody>
+              </Table>
+            </TableContainer>
           )}
-        </div>
+        </Paper>
 
-        {/* Nút quay lại */}
-        <div className="mt-4 flex justify-center">
-          <button
-            type="button"
+        {/* Back button */}
+        <Box sx={{ mt: 3, display: 'flex', justifyContent: 'center' }}>
+          <Button
+            variant="contained"
+            color="success"
+            size="large"
+            startIcon={<ArrowBackIcon />}
             onClick={() => {
               const date = searchParams.get('date');
               const classId = searchParams.get('classId');
@@ -394,13 +416,11 @@ function StudentAttendanceHistory() {
                 navigate('/school-admin/attendance/overview');
               }
             }}
-            className="px-6 py-3 bg-green-600 text-white font-semibold rounded-md hover:bg-green-700 transition-colors flex items-center gap-2"
           >
-            <span>←</span>
-            <span>Quay lại Dashboard</span>
-          </button>
-        </div>
-      </div>
+            Quay lại Dashboard
+          </Button>
+        </Box>
+      </Box>
     </RoleLayout>
   );
 }

@@ -5,11 +5,29 @@ import { useSchoolAdmin } from '../../context/SchoolAdminContext';
 import RoleLayout from '../../layouts/RoleLayout';
 import ConfirmDialog from '../../components/ConfirmDialog';
 import 'quill/dist/quill.snow.css';
+import {
+  Box,
+  Paper,
+  Typography,
+  Button,
+  Alert,
+  Stack,
+  Chip,
+  CircularProgress,
+} from '@mui/material';
+import {
+  ArrowBack as ArrowBackIcon,
+  Edit as EditIcon,
+  Delete as DeleteIcon,
+  Article as ArticleIcon,
+  ChevronLeft as PrevIcon,
+  ChevronRight as NextIcon,
+} from '@mui/icons-material';
 
 const STATUS_DISPLAY = {
-  draft: { label: 'Nháp', color: 'bg-yellow-50 text-yellow-700' },
-  published: { label: 'Đã xuất bản', color: 'bg-emerald-50 text-emerald-700' },
-  inactive: { label: 'Ngưng hiển thị', color: 'bg-gray-100 text-gray-600' },
+  draft: { label: 'Nháp', color: 'warning' },
+  published: { label: 'Đã xuất bản', color: 'success' },
+  inactive: { label: 'Ngưng hiển thị', color: 'default' },
 };
 
 function BlogDetail() {
@@ -25,21 +43,13 @@ function BlogDetail() {
   const [deleting, setDeleting] = useState(false);
   const [selectedImageIdx, setSelectedImageIdx] = useState(null);
 
-  // Auth check
   useEffect(() => {
     if (isInitializing) return;
-    if (!user) {
-      navigate('/login', { replace: true });
-      return;
-    }
+    if (!user) { navigate('/login', { replace: true }); return; }
     const userRoles = user?.roles?.map((r) => r.roleName || r) || [];
-    if (!userRoles.includes('SchoolAdmin')) {
-      navigate('/', { replace: true });
-      return;
-    }
+    if (!userRoles.includes('SchoolAdmin')) { navigate('/', { replace: true }); return; }
   }, [navigate, user, isInitializing]);
 
-  // Load blog detail
   useEffect(() => {
     const fetchBlog = async () => {
       try {
@@ -59,10 +69,7 @@ function BlogDetail() {
         setLoading(false);
       }
     };
-
-    if (blogId) {
-      fetchBlog();
-    }
+    if (blogId) fetchBlog();
   }, [blogId, getBlogs]);
 
   const handleDelete = async () => {
@@ -77,13 +84,8 @@ function BlogDetail() {
     }
   };
 
-  const handleEdit = () => {
-    navigate(`/school-admin/blogs/${blogId}/edit`);
-  };
-
-  const handleBack = () => {
-    navigate('/school-admin/blogs', { replace: true });
-  };
+  const handleEdit = () => navigate(`/school-admin/blogs/${blogId}/edit`);
+  const handleBack = () => navigate('/school-admin/blogs', { replace: true });
 
   const menuItems = [
     { key: 'overview', label: 'Tổng quan trường' },
@@ -101,51 +103,17 @@ function BlogDetail() {
   ];
 
   const handleMenuSelect = (key) => {
-    if (key === 'overview') {
-      navigate('/school-admin');
-      return;
-    }
-    if (key === 'classes') {
-      navigate('/school-admin/classes');
-      return;
-    }
-    if (key === 'contacts') {
-      navigate('/school-admin/contacts');
-      return;
-    }
-    if (key === 'qa') {
-      navigate('/school-admin/qa');
-      return;
-    }
-    if (key === 'blogs') {
-      navigate('/school-admin/blogs');
-      return;
-    }
-    if (key === 'documents') {
-      navigate('/school-admin/documents');
-      return;
-    }
-    if (key === 'public-info') {
-      navigate('/school-admin/public-info');
-      return;
-    }
-    if (key === 'attendance') {
-      navigate('/school-admin/attendance/overview');
-      return;
-    }
+    if (key === 'overview') navigate('/school-admin');
+    else if (key === 'classes') navigate('/school-admin/classes');
+    else if (key === 'contacts') navigate('/school-admin/contacts');
+    else if (key === 'qa') navigate('/school-admin/qa');
+    else if (key === 'blogs') navigate('/school-admin/blogs');
+    else if (key === 'documents') navigate('/school-admin/documents');
+    else if (key === 'public-info') navigate('/school-admin/public-info');
+    else if (key === 'attendance') navigate('/school-admin/attendance/overview');
   };
 
   const userName = user?.fullName || user?.username || 'School Admin';
-
-  const handleLogout = () => {
-    logout();
-    navigate('/login', { replace: true });
-  };
-
-  const handleViewProfile = () => {
-    navigate('/profile');
-  };
-
   const formatDate = (dateString) => {
     if (!dateString) return '-';
     return new Date(dateString).toLocaleString('vi-VN');
@@ -157,15 +125,16 @@ function BlogDetail() {
         title="Chi tiết bài viết"
         menuItems={menuItems}
         activeKey="blogs"
-        onLogout={handleLogout}
-        onViewProfile={handleViewProfile}
+        onLogout={() => { logout(); navigate('/login', { replace: true }); }}
+        onViewProfile={() => navigate('/profile')}
         onMenuSelect={handleMenuSelect}
         userName={userName}
         userAvatar={user?.avatar}
       >
-        <div className="flex justify-center items-center h-96">
-          <p className="text-gray-500">Đang tải...</p>
-        </div>
+        <Stack alignItems="center" justifyContent="center" sx={{ height: 384 }} spacing={2}>
+          <CircularProgress size={32} />
+          <Typography variant="body2" color="text.secondary">Đang tải...</Typography>
+        </Stack>
       </RoleLayout>
     );
   }
@@ -176,215 +145,317 @@ function BlogDetail() {
       description={blog?.code || 'Xem thông tin chi tiết bài viết'}
       menuItems={menuItems}
       activeKey="blogs"
-      onLogout={handleLogout}
-      onViewProfile={handleViewProfile}
+      onLogout={() => { logout(); navigate('/login', { replace: true }); }}
+      onViewProfile={() => navigate('/profile')}
       onMenuSelect={handleMenuSelect}
       userName={userName}
       userAvatar={user?.avatar}
     >
-      {error || setLocalError && (
-        <div className="mb-4 rounded-md bg-red-50 border border-red-200 px-4 py-2 text-sm text-red-800">
-          {error || setLocalError}
-        </div>
+      {error && (
+        <Alert severity="error" sx={{ mb: 2 }}>{error}</Alert>
       )}
 
       {blog ? (
-        <div className="space-y-4">
-          {/* Header với nút quay lại */}
-          <div className="flex items-center justify-between">
-            <button
+        <Stack spacing={3}>
+          {/* Header row */}
+          <Stack direction="row" alignItems="center" justifyContent="space-between" flexWrap="wrap" gap={1}>
+            <Button
+              startIcon={<ArrowBackIcon />}
               onClick={handleBack}
-              className="inline-flex items-center gap-2 text-sm font-medium text-gray-600 hover:text-gray-900"
+              variant="text"
+              color="inherit"
+              sx={{ textTransform: 'none', fontWeight: 500, color: 'text.secondary' }}
             >
-              ← Quay lại danh sách
-            </button>
-            <div className="flex gap-2">
-              <button
+              Quay lại danh sách
+            </Button>
+            <Stack direction="row" spacing={1}>
+              <Button
+                variant="contained"
+                startIcon={<EditIcon />}
                 onClick={handleEdit}
-                className="rounded-lg bg-blue-600 px-4 py-2 text-sm font-semibold text-white hover:bg-blue-700"
+                sx={{ textTransform: 'none', fontWeight: 600, borderRadius: 1.5 }}
               >
                 Sửa
-              </button>
-              <button
+              </Button>
+              <Button
+                variant="contained"
+                color="error"
+                startIcon={<DeleteIcon />}
                 onClick={() => setConfirmDelete(true)}
-                className="rounded-lg bg-red-600 px-4 py-2 text-sm font-semibold text-white hover:bg-red-700"
+                sx={{ textTransform: 'none', fontWeight: 600, borderRadius: 1.5 }}
               >
                 Xóa
-              </button>
-            </div>
-          </div>
+              </Button>
+            </Stack>
+          </Stack>
 
-          {/* Thông tin cơ bản */}
-          <div className="bg-white rounded-lg shadow p-6">
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-              {/* Mã */}
-              <div>
-                <h3 className="text-xs font-medium text-gray-500 uppercase mb-1">Tiêu đề</h3>
-                <p className="text-lg font-mono font-semibold text-gray-900">{blog.code}</p>
-              </div>
-
-              {/* Danh mục */}
-              <div>
-                <h3 className="text-xs font-medium text-gray-500 uppercase mb-1">Danh mục</h3>
-                <p className="text-lg font-semibold text-gray-900">{blog.category?.name || '-'}</p>
-              </div>
-
-              {/* Trạng thái */}
-              <div>
-                <h3 className="text-xs font-medium text-gray-500 uppercase mb-1">Trạng thái</h3>
-                <span
-                  className={`inline-flex rounded-full px-3 py-1 text-sm font-semibold ${
-                    STATUS_DISPLAY[blog.status]?.color || 'bg-gray-100 text-gray-600'
-                  }`}
-                >
-                  {STATUS_DISPLAY[blog.status]?.label || blog.status}
-                </span>
-              </div>
-
-              {/* Tác giả */}
-              <div>
-                <h3 className="text-xs font-medium text-gray-500 uppercase mb-1">Tác giả</h3>
-                <p className="text-lg font-semibold text-gray-900">
+          {/* Basic info */}
+          <Paper elevation={1} sx={{ p: 3, borderRadius: 2 }}>
+            <Box
+              sx={{
+                display: 'grid',
+                gridTemplateColumns: { xs: '1fr', md: '1fr 1fr' },
+                gap: 3,
+              }}
+            >
+              <Box>
+                <Typography variant="caption" color="text.disabled" sx={{ textTransform: 'uppercase', fontWeight: 700, letterSpacing: 0.8 }}>
+                  Tiêu đề
+                </Typography>
+                <Typography variant="h6" fontWeight={700} mt={0.5} sx={{ fontFamily: 'monospace' }}>
+                  {blog.code}
+                </Typography>
+              </Box>
+              <Box>
+                <Typography variant="caption" color="text.disabled" sx={{ textTransform: 'uppercase', fontWeight: 700, letterSpacing: 0.8 }}>
+                  Danh mục
+                </Typography>
+                <Typography variant="h6" fontWeight={600} mt={0.5}>
+                  {blog.category?.name || '-'}
+                </Typography>
+              </Box>
+              <Box>
+                <Typography variant="caption" color="text.disabled" sx={{ textTransform: 'uppercase', fontWeight: 700, letterSpacing: 0.8 }}>
+                  Trạng thái
+                </Typography>
+                <Box mt={0.75}>
+                  <Chip
+                    label={STATUS_DISPLAY[blog.status]?.label || blog.status}
+                    color={STATUS_DISPLAY[blog.status]?.color || 'default'}
+                    size="small"
+                    sx={{ fontWeight: 600 }}
+                  />
+                </Box>
+              </Box>
+              <Box>
+                <Typography variant="caption" color="text.disabled" sx={{ textTransform: 'uppercase', fontWeight: 700, letterSpacing: 0.8 }}>
+                  Tác giả
+                </Typography>
+                <Typography variant="h6" fontWeight={600} mt={0.5}>
                   {blog.author?.fullName || blog.author?.username || '-'}
-                </p>
-              </div>
-
-              {/* Ngày tạo */}
-              <div>
-                <h3 className="text-xs font-medium text-gray-500 uppercase mb-1">Ngày tạo</h3>
-                <p className="text-sm text-gray-700">{formatDate(blog.createdAt)}</p>
-              </div>
-
-              {/* Ngày cập nhật */}
-              <div>
-                <h3 className="text-xs font-medium text-gray-500 uppercase mb-1">Ngày cập nhật</h3>
-                <p className="text-sm text-gray-700">{formatDate(blog.updatedAt)}</p>
-              </div>
-            </div>
-          </div>
+                </Typography>
+              </Box>
+              <Box>
+                <Typography variant="caption" color="text.disabled" sx={{ textTransform: 'uppercase', fontWeight: 700, letterSpacing: 0.8 }}>
+                  Ngày tạo
+                </Typography>
+                <Typography variant="body2" mt={0.5}>{formatDate(blog.createdAt)}</Typography>
+              </Box>
+              <Box>
+                <Typography variant="caption" color="text.disabled" sx={{ textTransform: 'uppercase', fontWeight: 700, letterSpacing: 0.8 }}>
+                  Ngày cập nhật
+                </Typography>
+                <Typography variant="body2" mt={0.5}>{formatDate(blog.updatedAt)}</Typography>
+              </Box>
+            </Box>
+          </Paper>
 
           {/* Nội dung */}
-          <div className="bg-white rounded-lg shadow p-6">
-            <h3 className="text-sm font-semibold text-gray-900 mb-3 uppercase">Nội dung</h3>
-            <div
-              className="prose max-w-none text-gray-700 text-sm leading-relaxed bg-gray-50 p-4 rounded-md ql-editor"
+          <Paper elevation={1} sx={{ p: 3, borderRadius: 2 }}>
+            <Typography variant="caption" color="text.disabled" sx={{ textTransform: 'uppercase', fontWeight: 700, letterSpacing: 0.8 }}>
+              Nội dung
+            </Typography>
+            <Box
+              className="ql-editor"
               dangerouslySetInnerHTML={{ __html: blog.description || '' }}
+              sx={{
+                mt: 1.5,
+                p: 2,
+                bgcolor: 'grey.50',
+                borderRadius: 1.5,
+                border: '1px solid',
+                borderColor: 'divider',
+                fontSize: 14,
+                lineHeight: 1.7,
+                color: 'text.primary',
+              }}
             />
-          </div>
+          </Paper>
 
           {/* Tệp đính kèm */}
           {blog.attachmentUrl && (
-            <div className="bg-white rounded-lg shadow p-6">
-              <h3 className="text-sm font-semibold text-gray-900 mb-4 uppercase">
+            <Paper elevation={1} sx={{ p: 3, borderRadius: 2 }}>
+              <Typography variant="caption" color="text.disabled" sx={{ textTransform: 'uppercase', fontWeight: 700, letterSpacing: 0.8 }}>
                 Tệp đính kèm ({blog.attachmentType === 'pdf' ? 'PDF' : 'Word'})
-              </h3>
-              <div className="mb-3">
-                {blog.attachmentType === 'pdf' ? (
-                  <iframe
-                    src={blog.attachmentUrl}
-                    className="w-full border border-gray-200 rounded-lg h-[320px] sm:h-[480px] md:h-[600px]"
-                    title="PDF Viewer"
-                  />
-                ) : (
-                  <iframe
-                    src={`https://view.officeapps.live.com/op/embed.aspx?src=${encodeURIComponent(blog.attachmentUrl)}`}
-                    className="w-full border border-gray-200 rounded-lg h-[320px] sm:h-[480px] md:h-[600px]"
-                    title="Word Viewer"
-                  />
-                )}
-              </div>
-              <a
+              </Typography>
+              <Box mt={1.5}>
+                <Box
+                  component="iframe"
+                  src={
+                    blog.attachmentType === 'pdf'
+                      ? blog.attachmentUrl
+                      : `https://view.officeapps.live.com/op/embed.aspx?src=${encodeURIComponent(blog.attachmentUrl)}`
+                  }
+                  title={blog.attachmentType === 'pdf' ? 'PDF Viewer' : 'Word Viewer'}
+                  sx={{
+                    width: '100%',
+                    height: { xs: 320, sm: 480, md: 600 },
+                    border: '1px solid',
+                    borderColor: 'divider',
+                    borderRadius: 1.5,
+                  }}
+                />
+              </Box>
+              <Button
+                component="a"
                 href={blog.attachmentUrl}
                 target="_blank"
                 rel="noopener noreferrer"
-                className="inline-flex items-center gap-2 text-sm font-medium text-blue-600 hover:text-blue-800"
+                variant="text"
+                sx={{ mt: 1.5, textTransform: 'none', fontWeight: 500 }}
               >
                 {blog.attachmentType === 'pdf' ? '📄' : '📝'} Tải xuống tệp {blog.attachmentType === 'pdf' ? 'PDF' : 'Word'}
-              </a>
-            </div>
+              </Button>
+            </Paper>
           )}
 
           {/* Hình ảnh */}
           {blog.images && blog.images.length > 0 && (
-            <div className="bg-white rounded-lg shadow p-6">
-              <h3 className="text-sm font-semibold text-gray-900 mb-4 uppercase">
+            <Paper elevation={1} sx={{ p: 3, borderRadius: 2 }}>
+              <Typography variant="caption" color="text.disabled" sx={{ textTransform: 'uppercase', fontWeight: 700, letterSpacing: 0.8 }}>
                 Danh sách hình ảnh ({blog.images.length})
-              </h3>
-              
-              {/* Main image viewer */}
-              <div className="mb-6">
+              </Typography>
+
+              {/* Main viewer */}
+              <Box mt={2} mb={2}>
                 {selectedImageIdx !== null ? (
-                  <div className="relative">
-                    <img
+                  <Box sx={{ position: 'relative' }}>
+                    <Box
+                      component="img"
                       src={blog.images[selectedImageIdx]}
                       alt={`Blog ${selectedImageIdx + 1}`}
-                      className="w-full max-h-96 object-contain rounded-lg shadow-md bg-gray-50"
+                      sx={{
+                        width: '100%',
+                        maxHeight: 384,
+                        objectFit: 'contain',
+                        borderRadius: 1.5,
+                        boxShadow: 2,
+                        bgcolor: 'grey.50',
+                      }}
                     />
-                    <div className="absolute top-2 right-2 bg-black bg-opacity-60 text-white px-3 py-1 rounded text-sm">
-                      {selectedImageIdx + 1}/{blog.images.length}
-                    </div>
-                    <div className="absolute top-2 left-2 flex gap-2">
-                      <button
-                        onClick={() => setSelectedImageIdx(selectedImageIdx === 0 ? blog.images.length - 1 : selectedImageIdx - 1)}
-                        className="bg-black bg-opacity-60 hover:bg-opacity-80 text-white p-2 rounded-full transition"
-                      >
-                        ←
-                      </button>
-                      <button
-                        onClick={() => setSelectedImageIdx((selectedImageIdx + 1) % blog.images.length)}
-                        className="bg-black bg-opacity-60 hover:bg-opacity-80 text-white p-2 rounded-full transition"
-                      >
-                        →
-                      </button>
-                    </div>
-                  </div>
-                ) : (
-                  <div className="w-full h-64 bg-gray-100 rounded-lg flex items-center justify-center">
-                    <p className="text-gray-400">Chọn ảnh từ danh sách bên dưới</p>
-                  </div>
-                )}
-              </div>
-
-              {/* Thumbnail list */}
-              <div>
-                <p className="text-xs font-medium text-gray-600 mb-2">Nhấp để xem</p>
-                <div className="flex gap-2 flex-wrap">
-                  {blog.images.map((url, idx) => (
-                    <div
-                      key={idx}
-                      onClick={() => setSelectedImageIdx(idx)}
-                      className={`relative group cursor-pointer transition-all ${
-                        selectedImageIdx === idx ? 'ring-2 ring-blue-400 scale-105' : 'hover:scale-105'
-                      }`}
+                    <Box
+                      sx={{
+                        position: 'absolute',
+                        top: 8,
+                        right: 8,
+                        bgcolor: 'rgba(0,0,0,0.6)',
+                        color: 'white',
+                        px: 1.5,
+                        py: 0.5,
+                        borderRadius: 1,
+                        fontSize: 12,
+                      }}
                     >
-                      <img
-                        src={url}
-                        alt={`Thumbnail ${idx + 1}`}
-                        className="w-24 h-24 object-cover rounded-lg shadow group-hover:shadow-lg transition-shadow border-2 border-transparent"
-                      />
-                      <div className="absolute inset-0 rounded-lg bg-black bg-opacity-0 group-hover:bg-opacity-20 transition-all flex items-center justify-center">
-                        <span className="text-white text-xs font-semibold opacity-0 group-hover:opacity-100">{idx + 1}</span>
-                      </div>
-                    </div>
-                  ))}
-                </div>
-              </div>
-            </div>
+                      {selectedImageIdx + 1}/{blog.images.length}
+                    </Box>
+                    <Stack direction="row" spacing={1} sx={{ position: 'absolute', top: 8, left: 8 }}>
+                      <Box
+                        component="button"
+                        onClick={() => setSelectedImageIdx(selectedImageIdx === 0 ? blog.images.length - 1 : selectedImageIdx - 1)}
+                        sx={{
+                          bgcolor: 'rgba(0,0,0,0.6)',
+                          color: 'white',
+                          border: 'none',
+                          borderRadius: '50%',
+                          width: 36,
+                          height: 36,
+                          cursor: 'pointer',
+                          display: 'flex',
+                          alignItems: 'center',
+                          justifyContent: 'center',
+                          '&:hover': { bgcolor: 'rgba(0,0,0,0.8)' },
+                        }}
+                      >
+                        <PrevIcon />
+                      </Box>
+                      <Box
+                        component="button"
+                        onClick={() => setSelectedImageIdx((selectedImageIdx + 1) % blog.images.length)}
+                        sx={{
+                          bgcolor: 'rgba(0,0,0,0.6)',
+                          color: 'white',
+                          border: 'none',
+                          borderRadius: '50%',
+                          width: 36,
+                          height: 36,
+                          cursor: 'pointer',
+                          display: 'flex',
+                          alignItems: 'center',
+                          justifyContent: 'center',
+                          '&:hover': { bgcolor: 'rgba(0,0,0,0.8)' },
+                        }}
+                      >
+                        <NextIcon />
+                      </Box>
+                    </Stack>
+                  </Box>
+                ) : (
+                  <Stack
+                    alignItems="center"
+                    justifyContent="center"
+                    sx={{
+                      width: '100%',
+                      height: 256,
+                      bgcolor: 'grey.100',
+                      borderRadius: 1.5,
+                    }}
+                  >
+                    <Typography variant="body2" color="text.disabled">
+                      Chọn ảnh từ danh sách bên dưới
+                    </Typography>
+                  </Stack>
+                )}
+              </Box>
+
+              {/* Thumbnails */}
+              <Typography variant="caption" color="text.secondary" fontWeight={500}>
+                Nhấp để xem
+              </Typography>
+              <Stack direction="row" flexWrap="wrap" gap={1} mt={1}>
+                {blog.images.map((url, idx) => (
+                  <Box
+                    key={idx}
+                    onClick={() => setSelectedImageIdx(idx)}
+                    sx={{
+                      position: 'relative',
+                      cursor: 'pointer',
+                      borderRadius: 1.5,
+                      overflow: 'hidden',
+                      border: '2px solid',
+                      borderColor: selectedImageIdx === idx ? 'primary.main' : 'transparent',
+                      transform: selectedImageIdx === idx ? 'scale(1.05)' : 'scale(1)',
+                      transition: 'all 0.15s',
+                      '&:hover': { transform: 'scale(1.05)' },
+                    }}
+                  >
+                    <Box
+                      component="img"
+                      src={url}
+                      alt={`Thumbnail ${idx + 1}`}
+                      sx={{ width: 96, height: 96, objectFit: 'cover', display: 'block' }}
+                    />
+                  </Box>
+                ))}
+              </Stack>
+            </Paper>
           )}
-        </div>
+        </Stack>
       ) : (
-        <div className="bg-white rounded-lg shadow p-6 text-center">
-          <p className="text-gray-500">Không tìm thấy bài viết</p>
-          <button
+        <Paper elevation={1} sx={{ p: 4, borderRadius: 2, textAlign: 'center' }}>
+          <Typography variant="body2" color="text.secondary" mb={2}>
+            Không tìm thấy bài viết
+          </Typography>
+          <Button
+            startIcon={<ArrowBackIcon />}
             onClick={handleBack}
-            className="mt-4 inline-flex items-center gap-2 text-sm font-medium text-blue-600 hover:text-blue-900"
+            variant="text"
+            sx={{ textTransform: 'none' }}
           >
-            ← Quay lại danh sách
-          </button>
-        </div>
+            Quay lại danh sách
+          </Button>
+        </Paper>
       )}
 
-      {/* Delete confirmation */}
       <ConfirmDialog
         open={confirmDelete}
         title="Xác nhận xóa"

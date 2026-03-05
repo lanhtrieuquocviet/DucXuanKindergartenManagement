@@ -6,10 +6,25 @@ import ConfirmDialog from '../../components/ConfirmDialog';
 import { get, del, ENDPOINTS } from '../../service/api';
 import 'quill/dist/quill.snow.css';
 
+import {
+  Box,
+  Paper,
+  Typography,
+  Button,
+  Alert,
+  Stack,
+  Chip,
+  CircularProgress,
+} from '@mui/material';
+import ArrowBackIcon from '@mui/icons-material/ArrowBack';
+import DeleteIcon from '@mui/icons-material/Delete';
+import PictureAsPdfIcon from '@mui/icons-material/PictureAsPdf';
+import DescriptionIcon from '@mui/icons-material/Description';
+
 const STATUS_DISPLAY = {
-  draft: { label: 'Nháp', color: 'bg-yellow-50 text-yellow-700' },
-  published: { label: 'Đã xuất bản', color: 'bg-emerald-50 text-emerald-700' },
-  inactive: { label: 'Ngưng hiển thị', color: 'bg-gray-100 text-gray-600' },
+  draft: { label: 'Nháp', color: 'warning' },
+  published: { label: 'Đã xuất bản', color: 'success' },
+  inactive: { label: 'Ngưng hiển thị', color: 'default' },
 };
 
 function DocumentDetail() {
@@ -153,9 +168,12 @@ function DocumentDetail() {
         userName={user?.fullName || user?.username}
         userAvatar={user?.avatar}
       >
-        <div className="flex justify-center items-center h-96">
-          <p className="text-gray-500">Đang tải...</p>
-        </div>
+        <Box sx={{ display: 'flex', justifyContent: 'center', alignItems: 'center', height: 384 }}>
+          <Stack alignItems="center" spacing={2}>
+            <CircularProgress />
+            <Typography color="text.secondary">Đang tải...</Typography>
+          </Stack>
+        </Box>
       </RoleLayout>
     );
   }
@@ -173,119 +191,190 @@ function DocumentDetail() {
       userAvatar={user?.avatar}
     >
       {error && (
-        <div className="mb-4 rounded-md bg-red-50 border border-red-200 px-4 py-2 text-sm text-red-800">
+        <Alert severity="error" sx={{ mb: 2 }}>
           {error}
-        </div>
+        </Alert>
       )}
 
       {document ? (
-        <div className="space-y-4">
-          {/* header */}
-          <div className="flex items-center justify-between">
-            <button
+        <Stack spacing={3}>
+          {/* Header */}
+          <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+            <Button
+              startIcon={<ArrowBackIcon />}
               onClick={handleBack}
-              className="inline-flex items-center gap-2 text-sm font-medium text-gray-600 hover:text-gray-900"
+              variant="text"
+              sx={{ color: 'text.secondary', fontWeight: 500 }}
             >
-              ← Quay lại danh sách
-            </button>
-            <button
+              Quay lại danh sách
+            </Button>
+            <Button
+              startIcon={<DeleteIcon />}
               onClick={() => setConfirmDelete(true)}
-              className="rounded-lg bg-red-600 px-4 py-2 text-sm font-semibold text-white hover:bg-red-700"
+              variant="contained"
+              color="error"
+              sx={{ fontWeight: 600 }}
             >
               Xóa
-            </button>
-          </div>
+            </Button>
+          </Box>
 
-          {/* basic info */}
-          <div className="bg-white rounded-lg shadow p-6">
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-              <div>
-                <h3 className="text-xs font-medium text-gray-500 uppercase mb-1">Tiêu đề</h3>
-                <p className="text-lg font-mono font-semibold text-gray-900">{document.title}</p>
-              </div>
-              <div>
-                <h3 className="text-xs font-medium text-gray-500 uppercase mb-1">Trạng thái</h3>
-                <span
-                  className={`inline-flex rounded-full px-3 py-1 text-sm font-semibold ${
-                    STATUS_DISPLAY[document.status]?.color || 'bg-gray-100 text-gray-600'
-                  }`}
+          {/* Basic info */}
+          <Paper elevation={2} sx={{ p: 3, borderRadius: 2 }}>
+            <Box
+              sx={{
+                display: 'grid',
+                gridTemplateColumns: { xs: '1fr', md: '1fr 1fr' },
+                gap: 3,
+              }}
+            >
+              <Box>
+                <Typography
+                  variant="caption"
+                  sx={{ fontWeight: 600, color: 'text.secondary', textTransform: 'uppercase', letterSpacing: 1 }}
                 >
-                  {STATUS_DISPLAY[document.status]?.label || document.status}
-                </span>
-              </div>
-              <div>
-                <h3 className="text-xs font-medium text-gray-500 uppercase mb-1">Tác giả</h3>
-                <p className="text-lg font-semibold text-gray-900">
-                  {document.author?.fullName || document.author?.username || '-'}
-                </p>
-              </div>
-              <div>
-                <h3 className="text-xs font-medium text-gray-500 uppercase mb-1">Ngày tạo</h3>
-                <p className="text-sm text-gray-700">{formatDate(document.createdAt)}</p>
-              </div>
-              <div>
-                <h3 className="text-xs font-medium text-gray-500 uppercase mb-1">Ngày cập nhật</h3>
-                <p className="text-sm text-gray-700">{formatDate(document.updatedAt)}</p>
-              </div>
-            </div>
-          </div>
+                  Tiêu đề
+                </Typography>
+                <Typography variant="h6" sx={{ fontFamily: 'monospace', fontWeight: 700, mt: 0.5 }}>
+                  {document.title}
+                </Typography>
+              </Box>
 
-          {/* description */}
+              <Box>
+                <Typography
+                  variant="caption"
+                  sx={{ fontWeight: 600, color: 'text.secondary', textTransform: 'uppercase', letterSpacing: 1 }}
+                >
+                  Trạng thái
+                </Typography>
+                <Box sx={{ mt: 0.5 }}>
+                  <Chip
+                    label={STATUS_DISPLAY[document.status]?.label || document.status}
+                    color={STATUS_DISPLAY[document.status]?.color || 'default'}
+                    size="small"
+                    sx={{ fontWeight: 600 }}
+                  />
+                </Box>
+              </Box>
+
+              <Box>
+                <Typography
+                  variant="caption"
+                  sx={{ fontWeight: 600, color: 'text.secondary', textTransform: 'uppercase', letterSpacing: 1 }}
+                >
+                  Tác giả
+                </Typography>
+                <Typography variant="h6" sx={{ fontWeight: 600, mt: 0.5 }}>
+                  {document.author?.fullName || document.author?.username || '-'}
+                </Typography>
+              </Box>
+
+              <Box>
+                <Typography
+                  variant="caption"
+                  sx={{ fontWeight: 600, color: 'text.secondary', textTransform: 'uppercase', letterSpacing: 1 }}
+                >
+                  Ngày tạo
+                </Typography>
+                <Typography variant="body2" sx={{ color: 'text.primary', mt: 0.5 }}>
+                  {formatDate(document.createdAt)}
+                </Typography>
+              </Box>
+
+              <Box>
+                <Typography
+                  variant="caption"
+                  sx={{ fontWeight: 600, color: 'text.secondary', textTransform: 'uppercase', letterSpacing: 1 }}
+                >
+                  Ngày cập nhật
+                </Typography>
+                <Typography variant="body2" sx={{ color: 'text.primary', mt: 0.5 }}>
+                  {formatDate(document.updatedAt)}
+                </Typography>
+              </Box>
+            </Box>
+          </Paper>
+
+          {/* Description */}
           {document.description && (
-            <div className="bg-white rounded-lg shadow p-6">
-              <h3 className="text-sm font-semibold text-gray-900 mb-3 uppercase">Nội dung</h3>
-              <div
-                className="prose max-w-none text-gray-700 text-sm leading-relaxed bg-gray-50 p-4 rounded-md ql-editor"
+            <Paper elevation={2} sx={{ p: 3, borderRadius: 2 }}>
+              <Typography
+                variant="caption"
+                sx={{ fontWeight: 700, color: 'text.secondary', textTransform: 'uppercase', letterSpacing: 1, display: 'block', mb: 2 }}
+              >
+                Nội dung
+              </Typography>
+              <Box
+                sx={{
+                  bgcolor: 'grey.50',
+                  borderRadius: 1,
+                  p: 2,
+                  color: 'text.primary',
+                  fontSize: '0.875rem',
+                  lineHeight: 1.75,
+                }}
+                className="ql-editor"
                 dangerouslySetInnerHTML={{ __html: document.description }}
               />
-            </div>
+            </Paper>
           )}
 
-          {/* attachment */}
+          {/* Attachment */}
           {document.attachmentUrl && (
-            <div className="bg-white rounded-lg shadow p-6">
-              <h3 className="text-sm font-semibold text-gray-900 mb-4 uppercase">
+            <Paper elevation={2} sx={{ p: 3, borderRadius: 2 }}>
+              <Typography
+                variant="caption"
+                sx={{ fontWeight: 700, color: 'text.secondary', textTransform: 'uppercase', letterSpacing: 1, display: 'block', mb: 2 }}
+              >
                 Tệp đính kèm ({document.attachmentType === 'pdf' ? 'PDF' : 'Word'})
-              </h3>
-              <div className="mb-3">
+              </Typography>
+
+              <Box sx={{ mb: 2 }}>
                 {document.attachmentType === 'pdf' ? (
-                  <iframe
+                  <Box
+                    component="iframe"
                     src={document.attachmentUrl}
-                    className="w-full border border-gray-200 rounded-lg"
-                    style={{ height: '600px' }}
+                    sx={{ width: '100%', height: 600, border: '1px solid', borderColor: 'grey.200', borderRadius: 2 }}
                     title="PDF Viewer"
                   />
                 ) : (
-                  <iframe
+                  <Box
+                    component="iframe"
                     src={`https://view.officeapps.live.com/op/embed.aspx?src=${encodeURIComponent(document.attachmentUrl)}`}
-                    className="w-full border border-gray-200 rounded-lg"
-                    style={{ height: '600px' }}
+                    sx={{ width: '100%', height: 600, border: '1px solid', borderColor: 'grey.200', borderRadius: 2 }}
                     title="Word Viewer"
                   />
                 )}
-              </div>
-              <a
+              </Box>
+
+              <Button
+                component="a"
                 href={document.attachmentUrl}
                 target="_blank"
                 rel="noopener noreferrer"
-                className="inline-flex items-center gap-2 text-sm font-medium text-blue-600 hover:text-blue-800"
+                startIcon={document.attachmentType === 'pdf' ? <PictureAsPdfIcon /> : <DescriptionIcon />}
+                variant="text"
+                sx={{ fontWeight: 500, color: 'primary.main' }}
               >
-                {document.attachmentType === 'pdf' ? '📄' : '📝'} Tải xuống tệp{' '}
-                {document.attachmentType === 'pdf' ? 'PDF' : 'Word'}
-              </a>
-            </div>
+                Tải xuống tệp {document.attachmentType === 'pdf' ? 'PDF' : 'Word'}
+              </Button>
+            </Paper>
           )}
-        </div>
+        </Stack>
       ) : (
-        <div className="bg-white rounded-lg shadow p-6 text-center">
-          <p className="text-gray-500">Không tìm thấy tài liệu</p>
-          <button
+        <Paper elevation={2} sx={{ p: 4, borderRadius: 2, textAlign: 'center' }}>
+          <Typography color="text.secondary" sx={{ mb: 2 }}>
+            Không tìm thấy tài liệu
+          </Typography>
+          <Button
+            startIcon={<ArrowBackIcon />}
             onClick={handleBack}
-            className="mt-4 inline-flex items-center gap-2 text-sm font-medium text-blue-600 hover:text-blue-900"
+            variant="text"
+            sx={{ fontWeight: 500 }}
           >
-            ← Quay lại danh sách
-          </button>
-        </div>
+            Quay lại danh sách
+          </Button>
+        </Paper>
       )}
 
       <ConfirmDialog
