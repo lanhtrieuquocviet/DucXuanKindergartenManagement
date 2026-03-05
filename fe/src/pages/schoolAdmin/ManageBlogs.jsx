@@ -7,6 +7,45 @@ import ConfirmDialog from '../../components/ConfirmDialog';
 import RichTextEditor from '../../components/RichTextEditor';
 import { get, postFormData, ENDPOINTS } from '../../service/api';
 
+import {
+  Box,
+  Paper,
+  Typography,
+  Button,
+  Alert,
+  Stack,
+  Chip,
+  TextField,
+  Table,
+  TableHead,
+  TableBody,
+  TableRow,
+  TableCell,
+  CircularProgress,
+  IconButton,
+  Dialog,
+  DialogTitle,
+  DialogContent,
+  DialogActions,
+  Select,
+  MenuItem,
+  FormControl,
+  InputLabel,
+  FormHelperText,
+} from '@mui/material';
+import AddIcon from '@mui/icons-material/Add';
+import EditIcon from '@mui/icons-material/Edit';
+import DeleteIcon from '@mui/icons-material/Delete';
+import VisibilityIcon from '@mui/icons-material/Visibility';
+import CloseIcon from '@mui/icons-material/Close';
+import CategoryIcon from '@mui/icons-material/Category';
+import NavigateBeforeIcon from '@mui/icons-material/NavigateBefore';
+import NavigateNextIcon from '@mui/icons-material/NavigateNext';
+import SearchIcon from '@mui/icons-material/Search';
+import AttachFileIcon from '@mui/icons-material/AttachFile';
+import PictureAsPdfIcon from '@mui/icons-material/PictureAsPdf';
+import DescriptionIcon from '@mui/icons-material/Description';
+
 // categories will be fetched from backend; each item has {_id, name}
 // we convert to {value,label} when rendering the form
 
@@ -120,170 +159,208 @@ function BlogFormModal({ open, onClose, initialData, categories, onSubmit, loadi
   };
 
   return (
-    <div className="fixed inset-0 z-40 flex items-center justify-center bg-black/30">
-      <div className="w-full max-w-4xl max-h-[90vh] overflow-y-auto rounded-xl bg-white shadow-lg">
-        <div className="flex items-center justify-between border-b px-4 py-3 sticky top-0 bg-white">
-          <h2 className="text-base font-semibold text-gray-800">
-            {initialData ? 'Chỉnh sửa bài viết' : 'Tạo bài viết mới'}
-          </h2>
-          <button
-            type="button"
-            onClick={onClose}
-            className="text-gray-500 hover:text-gray-700"
-          >
-            ×
-          </button>
-        </div>
-        <form onSubmit={handleSubmit} className="space-y-4 px-4 py-4">
-          {/* Code */}
-          <div>
-            <label className="block text-xs font-medium text-gray-700 mb-1">
-              Tiêu đề *
-            </label>
-            <input
-              name="code"
-              value={form.code}
-              onChange={handleChange}
-              maxLength={100}
-              className={`w-full rounded-md border px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500 ${formErrors.code ? 'border-red-400' : 'border-gray-300'}`}
-              placeholder="vd: BLOG_001"
-            />
-            <div className="flex justify-between items-center mt-1">
-              {formErrors.code
-                ? <p className="text-xs text-red-600">{formErrors.code}</p>
-                : <span />
-              }
-              <p className={`text-xs ${form.code.length > 100 ? 'text-red-600' : 'text-gray-400'}`}>
-                {form.code.length}/100
-              </p>
-            </div>
-          </div>
+    <Dialog open={open} onClose={onClose} maxWidth="md" fullWidth PaperProps={{ sx: { maxHeight: '90vh' } }}>
+      <DialogTitle
+        sx={{
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'space-between',
+          borderBottom: '1px solid',
+          borderColor: 'divider',
+          py: 1.5,
+          px: 2,
+        }}
+      >
+        <Typography variant="subtitle1" fontWeight={600}>
+          {initialData ? 'Chỉnh sửa bài viết' : 'Tạo bài viết mới'}
+        </Typography>
+        <IconButton size="small" onClick={onClose}>
+          <CloseIcon fontSize="small" />
+        </IconButton>
+      </DialogTitle>
 
-          {/* Danh mục */}
-          <div>
-            <label className="block text-xs font-medium text-gray-700 mb-1">
-              Danh mục *
-            </label>
-            <select
-              name="category"
-              value={form.category}
-              onChange={handleChange}
-              className={`w-full rounded-md border px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500 ${formErrors.category ? 'border-red-400' : 'border-gray-300'}`}
-              disabled={categories.length === 0}
-            >
-              {categories.length === 0 ? (
-                <option value="">Đang tải danh mục...</option>
-              ) : (
-                <>
-                  <option value="">-- Chọn danh mục --</option>
-                  {categories.map((c) => (
-                    <option key={c._id} value={c._id}>
-                      {c.name}
-                    </option>
-                  ))}
-                </>
-              )}
-            </select>
-            {formErrors.category && (
-              <p className="mt-1 text-xs text-red-600">{formErrors.category}</p>
-            )}
-          </div>
-
-          {/* Nội dung (Rich Text) */}
-          <div>
-            <label className="block text-xs font-medium text-gray-700 mb-1">
-              Nội dung *
-            </label>
-            <div className={formErrors.description ? 'ring-1 ring-red-400 rounded-md' : ''}>
-              <RichTextEditor
-                initialValue={form.description}
-                onChange={(html) => {
-                  setForm((prev) => ({ ...prev, description: html }));
-                  if (formErrors.description) setFormErrors((prev) => ({ ...prev, description: null }));
+      <DialogContent sx={{ px: 2, py: 2 }}>
+        <Box component="form" id="blog-form" onSubmit={handleSubmit}>
+          <Stack spacing={2}>
+            {/* Tiêu đề */}
+            <Box>
+              <TextField
+                fullWidth
+                size="small"
+                label="Tiêu đề *"
+                name="code"
+                value={form.code}
+                onChange={handleChange}
+                inputProps={{ maxLength: 100 }}
+                placeholder="vd: BLOG_001"
+                error={!!formErrors.code}
+                helperText={formErrors.code}
+              />
+              <Typography
+                variant="caption"
+                sx={{
+                  display: 'block',
+                  textAlign: 'right',
+                  color: form.code.length > 100 ? 'error.main' : 'text.secondary',
+                  mt: 0.5,
                 }}
-                disabled={uploading || uploadingFile}
-                attachmentUrl={form.attachmentUrl}  
-                attachmentType={form.attachmentType}
-                onAttachFile={handleAttachFile}
-                onRemoveFile={() => setForm(prev => ({ ...prev, attachmentUrl: null, attachmentType: null }))}
-              />
-            </div>
-            {formErrors.description && (
-              <p className="mt-1 text-xs text-red-600">{formErrors.description}</p>
-            )}
-          </div>
+              >
+                {form.code.length}/100
+              </Typography>
+            </Box>
 
-          {/* Ảnh bìa */}
-          <div>
-            <label className="block text-xs font-medium text-gray-700 mb-1">
-              Ảnh bìa
-            </label>
-            {form.images[0] ? (
-              <div className="relative inline-block">
-                <img
-                  src={form.images[0]}
-                  alt="Ảnh bìa"
-                  className="h-32 rounded-md object-cover"
+            {/* Danh mục */}
+            <FormControl fullWidth size="small" error={!!formErrors.category} disabled={categories.length === 0}>
+              <InputLabel>Danh mục *</InputLabel>
+              <Select
+                name="category"
+                value={form.category}
+                onChange={handleChange}
+                label="Danh mục *"
+              >
+                {categories.length === 0 ? (
+                  <MenuItem value="">Đang tải danh mục...</MenuItem>
+                ) : (
+                  [
+                    <MenuItem key="" value="">-- Chọn danh mục --</MenuItem>,
+                    ...categories.map((c) => (
+                      <MenuItem key={c._id} value={c._id}>
+                        {c.name}
+                      </MenuItem>
+                    )),
+                  ]
+                )}
+              </Select>
+              {formErrors.category && <FormHelperText>{formErrors.category}</FormHelperText>}
+            </FormControl>
+
+            {/* Nội dung (Rich Text) */}
+            <Box>
+              <Typography variant="caption" fontWeight={500} color="text.secondary" sx={{ mb: 0.5, display: 'block' }}>
+                Nội dung *
+              </Typography>
+              <Box
+                sx={
+                  formErrors.description
+                    ? { border: '1px solid', borderColor: 'error.main', borderRadius: 1 }
+                    : {}
+                }
+              >
+                <RichTextEditor
+                  initialValue={form.description}
+                  onChange={(html) => {
+                    setForm((prev) => ({ ...prev, description: html }));
+                    if (formErrors.description) setFormErrors((prev) => ({ ...prev, description: null }));
+                  }}
+                  disabled={uploading || uploadingFile}
+                  attachmentUrl={form.attachmentUrl}
+                  attachmentType={form.attachmentType}
+                  onAttachFile={handleAttachFile}
+                  onRemoveFile={() => setForm(prev => ({ ...prev, attachmentUrl: null, attachmentType: null }))}
                 />
-                <button
-                  type="button"
-                  onClick={handleRemoveCoverImage}
-                  className="absolute top-1 right-1 bg-red-600 text-white rounded-full w-5 h-5 text-xs flex items-center justify-center hover:bg-red-700"
-                >
-                  ×
-                </button>
-              </div>
-            ) : (
-              <input
-                type="file"
-                accept="image/*"
-                onChange={handleUploadCoverImage}
-                disabled={uploading}
-                className="block w-full text-sm text-gray-500 file:rounded-md file:border-0 file:text-sm file:font-semibold file:bg-emerald-50 file:text-emerald-700 hover:file:bg-emerald-100 disabled:opacity-50"
-              />
-            )}
-            {uploading && (
-              <p className="mt-1 text-xs text-blue-600">Đang tải ảnh lên...</p>
-            )}
-          </div>
+              </Box>
+              {formErrors.description && (
+                <Typography variant="caption" color="error" sx={{ mt: 0.5, display: 'block' }}>
+                  {formErrors.description}
+                </Typography>
+              )}
+            </Box>
 
-          {/* Trạng thái */}
-          <div>
-            <label className="block text-xs font-medium text-gray-700 mb-1">
-              Trạng thái
-            </label>
-            <select
-              name="status"
-              value={form.status}
-              onChange={handleChange}
-              className="rounded-md border border-gray-300 px-3 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500 w-full"
-            >
-              <option value="draft">Nháp</option>
-              <option value="published">Đã xuất bản</option>
-              <option value="inactive">Ngưng hiển thị</option>
-            </select>
-          </div>
+            {/* Ảnh bìa */}
+            <Box>
+              <Typography variant="caption" fontWeight={500} color="text.secondary" sx={{ mb: 0.5, display: 'block' }}>
+                Ảnh bìa
+              </Typography>
+              {form.images[0] ? (
+                <Box sx={{ position: 'relative', display: 'inline-block' }}>
+                  <Box
+                    component="img"
+                    src={form.images[0]}
+                    alt="Ảnh bìa"
+                    sx={{ height: 128, borderRadius: 1, objectFit: 'cover', display: 'block' }}
+                  />
+                  <IconButton
+                    size="small"
+                    onClick={handleRemoveCoverImage}
+                    sx={{
+                      position: 'absolute',
+                      top: 4,
+                      right: 4,
+                      bgcolor: 'error.main',
+                      color: 'white',
+                      width: 20,
+                      height: 20,
+                      '&:hover': { bgcolor: 'error.dark' },
+                    }}
+                  >
+                    <CloseIcon sx={{ fontSize: 12 }} />
+                  </IconButton>
+                </Box>
+              ) : (
+                <Box>
+                  <Button
+                    component="label"
+                    variant="outlined"
+                    size="small"
+                    disabled={uploading}
+                    sx={{ fontSize: '0.75rem' }}
+                  >
+                    Chọn ảnh bìa
+                    <input
+                      type="file"
+                      accept="image/*"
+                      hidden
+                      onChange={handleUploadCoverImage}
+                    />
+                  </Button>
+                </Box>
+              )}
+              {uploading && (
+                <Typography variant="caption" color="primary" sx={{ mt: 0.5, display: 'block' }}>
+                  Đang tải ảnh lên...
+                </Typography>
+              )}
+            </Box>
 
-          {/* Buttons */}
-          <div className="flex gap-2 pt-2">
-            <button
-              type="button"
-              onClick={onClose}
-              className="flex-1 rounded-lg border border-gray-300 px-4 py-2 text-sm font-medium text-gray-700 hover:bg-gray-50"
-            >
-              Hủy
-            </button>
-            <button
-              type="submit"
-              disabled={loading || uploading || uploadingFile}
-              className="flex-1 rounded-lg bg-emerald-600 px-4 py-2 text-sm font-semibold text-white hover:bg-emerald-700 disabled:opacity-60 disabled:cursor-not-allowed"
-            >
-              {loading ? 'Đang lưu...' : 'Lưu'}
-            </button>
-          </div>
-        </form>
-      </div>
-    </div>
+            {/* Trạng thái */}
+            <FormControl fullWidth size="small">
+              <InputLabel>Trạng thái</InputLabel>
+              <Select
+                name="status"
+                value={form.status}
+                onChange={handleChange}
+                label="Trạng thái"
+              >
+                <MenuItem value="draft">Nháp</MenuItem>
+                <MenuItem value="published">Đã xuất bản</MenuItem>
+                <MenuItem value="inactive">Ngưng hiển thị</MenuItem>
+              </Select>
+            </FormControl>
+          </Stack>
+        </Box>
+      </DialogContent>
+
+      <DialogActions sx={{ px: 2, py: 1.5, gap: 1 }}>
+        <Button
+          onClick={onClose}
+          variant="outlined"
+          color="inherit"
+          sx={{ flex: 1 }}
+        >
+          Hủy
+        </Button>
+        <Button
+          type="submit"
+          form="blog-form"
+          variant="contained"
+          color="success"
+          disabled={loading || uploading || uploadingFile}
+          sx={{ flex: 1, fontWeight: 600 }}
+        >
+          {loading ? 'Đang lưu...' : 'Lưu'}
+        </Button>
+      </DialogActions>
+    </Dialog>
   );
 }
 
@@ -509,6 +586,14 @@ function ManageBlogs() {
   const handleViewProfile = () => {
     navigate('/profile');
   };
+
+  const statusChip = (status) => {
+    if (status === 'published') return <Chip label="Đã xuất bản" size="small" color="success" variant="outlined" sx={{ fontSize: '0.68rem', fontWeight: 600 }} />;
+    if (status === 'draft') return <Chip label="Nháp" size="small" color="warning" variant="outlined" sx={{ fontSize: '0.68rem', fontWeight: 600 }} />;
+    if (status === 'inactive') return <Chip label="Ngưng hiển thị" size="small" color="default" variant="outlined" sx={{ fontSize: '0.68rem', fontWeight: 600 }} />;
+    return null;
+  };
+
   return (
     <RoleLayout
       title="Quản lý bài viết (Blog)"
@@ -522,241 +607,271 @@ function ManageBlogs() {
       userAvatar={user?.avatar}
     >
       {error && (
-        <div className="mb-4 rounded-md bg-red-50 border border-red-200 px-4 py-2 text-sm text-red-800">
+        <Alert severity="error" sx={{ mb: 2 }}>
           {error}
-        </div>
+        </Alert>
       )}
 
-      <div className="bg-white rounded-lg shadow p-6">
+      <Paper elevation={1} sx={{ p: 3, borderRadius: 2 }}>
         {/* Header + bộ lọc */}
-        <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-3 mb-4">
-          <div>
-            <h3 className="text-sm font-semibold text-gray-800">Danh sách bài viết</h3>
-            <p className="text-xs text-gray-500 mt-1">
-              Tổng bài: <span className="font-semibold">{pagination.total}</span>
-            </p>
-          </div>
-          <div className="flex gap-2">
-            <button
-              type="button"
+        <Stack
+          direction={{ xs: 'column', md: 'row' }}
+          alignItems={{ md: 'center' }}
+          justifyContent="space-between"
+          spacing={2}
+          sx={{ mb: 2 }}
+        >
+          <Box>
+            <Typography variant="subtitle2" fontWeight={600} color="text.primary">
+              Danh sách bài viết
+            </Typography>
+            <Typography variant="caption" color="text.secondary" sx={{ mt: 0.5, display: 'block' }}>
+              Tổng bài:{' '}
+              <Box component="span" fontWeight={600}>
+                {pagination.total}
+              </Box>
+            </Typography>
+          </Box>
+          <Stack direction="row" spacing={1}>
+            <Button
+              variant="outlined"
+              color="success"
+              startIcon={<CategoryIcon />}
               onClick={() => navigate('/school-admin/blog-categories')}
-              className="inline-flex items-center justify-center rounded-lg border border-emerald-600 px-4 py-2 text-sm font-semibold text-emerald-700 hover:bg-emerald-50"
+              size="small"
+              sx={{ fontWeight: 600, whiteSpace: 'nowrap' }}
             >
               Quản lý danh mục
-            </button>
-            <button
-              type="button"
+            </Button>
+            <Button
+              variant="contained"
+              color="success"
+              startIcon={<AddIcon />}
               onClick={openCreateModal}
-              className="inline-flex items-center justify-center rounded-lg bg-emerald-600 px-4 py-2 text-sm font-semibold text-white shadow-sm hover:bg-emerald-700"
+              size="small"
+              sx={{ fontWeight: 600, whiteSpace: 'nowrap' }}
             >
-              + Tạo bài viết mới
-            </button>
-          </div>
-        </div>
+              Tạo bài viết mới
+            </Button>
+          </Stack>
+        </Stack>
 
         {/* Bộ lọc và tìm kiếm */}
-        <form
+        <Box
+          component="form"
           onSubmit={handleSearchSubmit}
-          className="flex flex-col gap-3 border-b border-gray-100 pb-3 md:flex-row md:items-center md:justify-between mb-4"
+          sx={{
+            display: 'flex',
+            flexDirection: { xs: 'column', md: 'row' },
+            alignItems: { md: 'center' },
+            justifyContent: 'space-between',
+            gap: 1.5,
+            borderBottom: '1px solid',
+            borderColor: 'divider',
+            pb: 2,
+            mb: 2,
+          }}
         >
-          <div className="flex flex-1 gap-2">
-            <input
-              type="text"
+          <Stack direction="row" spacing={1} sx={{ flex: 1 }}>
+            <TextField
+              size="small"
+              fullWidth
               value={filters.search}
               onChange={handleSearchChange}
-              className="w-full rounded-md border border-gray-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500"
               placeholder="Tìm theo mã, nội dung..."
+              InputProps={{
+                startAdornment: <SearchIcon fontSize="small" sx={{ mr: 0.5, color: 'text.secondary' }} />,
+              }}
             />
-            <button
+            <Button
               type="submit"
-              className="hidden rounded-md bg-gray-800 px-4 py-2 text-sm font-medium text-white hover:bg-gray-900 md:inline-flex"
+              variant="contained"
+              color="inherit"
+              size="small"
+              sx={{ display: { xs: 'none', md: 'inline-flex' }, bgcolor: 'grey.800', color: 'white', '&:hover': { bgcolor: 'grey.900' }, whiteSpace: 'nowrap' }}
             >
               Tìm kiếm
-            </button>
-          </div>
-          <div className="flex items-center gap-2">
-            <select
-              value={filters.status}
-              onChange={handleStatusChange}
-              className="rounded-md border border-gray-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500"
-            >
-              {STATUS_OPTIONS.map((opt) => (
-                <option key={opt.value} value={opt.value}>
-                  {opt.label}
-                </option>
-              ))}
-            </select>
-            <button
+            </Button>
+          </Stack>
+          <Stack direction="row" alignItems="center" spacing={1}>
+            <FormControl size="small" sx={{ minWidth: 160 }}>
+              <Select value={filters.status} onChange={handleStatusChange} displayEmpty>
+                {STATUS_OPTIONS.map((opt) => (
+                  <MenuItem key={opt.value} value={opt.value}>
+                    {opt.label}
+                  </MenuItem>
+                ))}
+              </Select>
+            </FormControl>
+            <Button
               type="submit"
-              className="inline-flex rounded-md bg-gray-800 px-4 py-2 text-sm font-medium text-white hover:bg-gray-900 md:hidden"
+              variant="contained"
+              color="inherit"
+              size="small"
+              sx={{ display: { xs: 'inline-flex', md: 'none' }, bgcolor: 'grey.800', color: 'white', '&:hover': { bgcolor: 'grey.900' } }}
             >
               Lọc
-            </button>
-          </div>
-        </form>
+            </Button>
+          </Stack>
+        </Box>
 
         {/* Bảng danh sách */}
-        <div className="overflow-x-auto">
-          <table className="min-w-full divide-y divide-gray-200 text-sm">
-            <thead className="bg-gray-50">
-              <tr>
-                <th className="px-3 py-2 text-left text-xs font-semibold uppercase tracking-wide text-gray-500">
-                  Mã
-                </th>
-                <th className="px-3 py-2 text-left text-xs font-semibold uppercase tracking-wide text-gray-500">
-                  Danh mục
-                </th>
-                <th className="px-3 py-2 text-left text-xs font-semibold uppercase tracking-wide text-gray-500">
-                  Nội dung
-                </th>
-                <th className="px-3 py-2 text-left text-xs font-semibold uppercase tracking-wide text-gray-500">
-                  Ảnh
-                </th>
-                <th className="px-3 py-2 text-left text-xs font-semibold uppercase tracking-wide text-gray-500">
-                  Tệp đính kèm
-                </th>
-                <th className="px-3 py-2 text-left text-xs font-semibold uppercase tracking-wide text-gray-500">
-                  Trạng thái
-                </th>
-                <th className="px-3 py-2 text-left text-xs font-semibold uppercase tracking-wide text-gray-500">
-                  Tác giả
-                </th>
-                <th className="px-3 py-2 text-right text-xs font-semibold uppercase tracking-wide text-gray-500">
-                  Hành động
-                </th>
-              </tr>
-            </thead>
-            <tbody className="divide-y divide-gray-100 bg-white">
+        <Box sx={{ overflowX: 'auto' }}>
+          <Table size="small" sx={{ minWidth: 700 }}>
+            <TableHead sx={{ bgcolor: 'grey.50' }}>
+              <TableRow>
+                {['Mã', 'Danh mục', 'Nội dung', 'Ảnh', 'Tệp đính kèm', 'Trạng thái', 'Tác giả', 'Hành động'].map((col) => (
+                  <TableCell
+                    key={col}
+                    align={col === 'Hành động' ? 'right' : 'left'}
+                    sx={{ fontSize: '0.7rem', fontWeight: 700, textTransform: 'uppercase', letterSpacing: 0.5, color: 'text.secondary', py: 1 }}
+                  >
+                    {col}
+                  </TableCell>
+                ))}
+              </TableRow>
+            </TableHead>
+            <TableBody>
               {blogs.map((blog) => (
-                <tr key={blog._id}>
-                  <td className="px-3 py-2 text-xs font-mono text-gray-700">
+                <TableRow key={blog._id} hover>
+                  <TableCell sx={{ fontSize: '0.75rem', fontFamily: 'monospace', color: 'text.primary' }}>
                     {blog.code}
-                  </td>
-                  <td className="px-3 py-2 text-xs text-gray-700">
+                  </TableCell>
+                  <TableCell sx={{ fontSize: '0.75rem', color: 'text.primary' }}>
                     {blog.category?.name || '-'}
-                  </td>
-                  <td className="px-3 py-2">
-                    <div className="text-xs text-gray-900 line-clamp-2">
+                  </TableCell>
+                  <TableCell sx={{ maxWidth: 220 }}>
+                    <Typography
+                      variant="caption"
+                      color="text.primary"
+                      sx={{
+                        display: '-webkit-box',
+                        WebkitLineClamp: 2,
+                        WebkitBoxOrient: 'vertical',
+                        overflow: 'hidden',
+                      }}
+                    >
                       {blog.description?.replace(/<[^>]*>/g, '') || '-'}
-                    </div>
-                  </td>
-                  <td className="px-3 py-2 text-xs text-gray-700">
+                    </Typography>
+                  </TableCell>
+                  <TableCell>
                     {blog.images && blog.images.length > 0 ? (
-                      <div className="flex gap-1">
+                      <Stack direction="row" spacing={0.5} alignItems="center">
                         {blog.images.slice(0, 2).map((img, idx) => (
-                          <img
+                          <Box
                             key={idx}
+                            component="img"
                             src={img}
                             alt={`img-${idx}`}
-                            className="w-8 h-8 rounded object-cover"
+                            sx={{ width: 32, height: 32, borderRadius: 0.5, objectFit: 'cover' }}
                           />
                         ))}
                         {blog.images.length > 2 && (
-                          <span className="text-[10px] text-gray-500">+{blog.images.length - 2}</span>
+                          <Typography variant="caption" color="text.secondary">
+                            +{blog.images.length - 2}
+                          </Typography>
                         )}
-                      </div>
+                      </Stack>
                     ) : (
-                      '-'
+                      <Typography variant="caption" color="text.secondary">-</Typography>
                     )}
-                  </td>
-                  <td className="px-3 py-2 text-xs text-gray-700">
+                  </TableCell>
+                  <TableCell>
                     {blog.attachmentUrl ? (
-                      <a
+                      <Box
+                        component="a"
                         href={blog.attachmentUrl}
                         target="_blank"
                         rel="noopener noreferrer"
-                        className="inline-flex items-center gap-1 text-blue-600 hover:underline"
+                        sx={{ display: 'inline-flex', alignItems: 'center', gap: 0.5, color: 'primary.main', fontSize: '0.75rem', textDecoration: 'none', '&:hover': { textDecoration: 'underline' } }}
                       >
-                        {blog.attachmentType === 'pdf' ? '📄 PDF' : '📝 Word'}
-                      </a>
+                        {blog.attachmentType === 'pdf' ? (
+                          <><PictureAsPdfIcon fontSize="inherit" /> PDF</>
+                        ) : (
+                          <><DescriptionIcon fontSize="inherit" /> Word</>
+                        )}
+                      </Box>
                     ) : (
-                      '-'
+                      <Typography variant="caption" color="text.secondary">-</Typography>
                     )}
-                  </td>
-                  <td className="px-3 py-2 text-xs">
-                    {blog.status === 'published' && (
-                      <span className="inline-flex rounded-full bg-emerald-50 px-2 py-0.5 text-[11px] font-semibold text-emerald-700">
-                        Đã xuất bản
-                      </span>
-                    )}
-                    {blog.status === 'draft' && (
-                      <span className="inline-flex rounded-full bg-yellow-50 px-2 py-0.5 text-[11px] font-semibold text-yellow-700">
-                        Nháp
-                      </span>
-                    )}
-                    {blog.status === 'inactive' && (
-                      <span className="inline-flex rounded-full bg-gray-100 px-2 py-0.5 text-[11px] font-semibold text-gray-600">
-                        Ngưng hiển thị
-                      </span>
-                    )}
-                  </td>
-                  <td className="px-3 py-2 text-xs text-gray-700">
+                  </TableCell>
+                  <TableCell>
+                    {statusChip(blog.status)}
+                  </TableCell>
+                  <TableCell sx={{ fontSize: '0.75rem', color: 'text.primary' }}>
                     {blog.author?.fullName || blog.author?.username || '-'}
-                  </td>
-                  <td className="px-3 py-2 text-right text-xs">
-                    <button
-                      type="button"
-                      onClick={() => navigate(`/school-admin/blogs/${blog._id}`)}
-                      className="mr-2 text-blue-600 hover:underline"
-                    >
-                      Xem
-                    </button>
-                    <button
-                      type="button"
-                      onClick={() => openEditModal(blog)}
-                      className="mr-2 text-emerald-700 hover:underline"
-                    >
-                      Sửa
-                    </button>
-                    <button
-                      type="button"
-                      onClick={() => handleDelete(blog)}
-                      disabled={submitting}
-                      className="text-red-600 hover:underline disabled:opacity-50"
-                    >
-                      Xóa
-                    </button>
-                  </td>
-                </tr>
+                  </TableCell>
+                  <TableCell align="right">
+                    <Stack direction="row" spacing={0.5} justifyContent="flex-end">
+                      <IconButton
+                        size="small"
+                        color="primary"
+                        onClick={() => navigate(`/school-admin/blogs/${blog._id}`)}
+                        title="Xem"
+                      >
+                        <VisibilityIcon fontSize="small" />
+                      </IconButton>
+                      <IconButton
+                        size="small"
+                        color="success"
+                        onClick={() => openEditModal(blog)}
+                        title="Sửa"
+                      >
+                        <EditIcon fontSize="small" />
+                      </IconButton>
+                      <IconButton
+                        size="small"
+                        color="error"
+                        onClick={() => handleDelete(blog)}
+                        disabled={submitting}
+                        title="Xóa"
+                      >
+                        <DeleteIcon fontSize="small" />
+                      </IconButton>
+                    </Stack>
+                  </TableCell>
+                </TableRow>
               ))}
-            </tbody>
-          </table>
+            </TableBody>
+          </Table>
 
           {canShowEmptyState && (
-            <div className="py-8 text-center text-sm text-gray-500">
-              Chưa có bài viết nào. Hãy nhấn &quot;Tạo bài viết mới&quot; để bắt đầu.
-            </div>
+            <Box sx={{ py: 6, textAlign: 'center' }}>
+              <Typography variant="body2" color="text.secondary">
+                Chưa có bài viết nào. Hãy nhấn &quot;Tạo bài viết mới&quot; để bắt đầu.
+              </Typography>
+            </Box>
           )}
-        </div>
+        </Box>
 
         {/* Phân trang */}
         {pagination.totalPages > 1 && (
-          <div className="mt-4 flex items-center justify-between text-xs text-gray-600">
-            <div>
+          <Stack direction="row" alignItems="center" justifyContent="space-between" sx={{ mt: 2 }}>
+            <Typography variant="caption" color="text.secondary">
               Trang {pagination.page}/{pagination.totalPages} · Tổng{' '}
               {pagination.total} bài viết
-            </div>
-            <div className="flex gap-1">
-              <button
-                type="button"
+            </Typography>
+            <Stack direction="row" spacing={0.5}>
+              <IconButton
+                size="small"
                 disabled={pagination.page === 1 || loading}
                 onClick={() => handlePageChange(pagination.page - 1)}
-                className="rounded-md border border-gray-300 px-2 py-1 disabled:opacity-50"
+                sx={{ border: '1px solid', borderColor: 'divider' }}
               >
-                «
-              </button>
-              <button
-                type="button"
+                <NavigateBeforeIcon fontSize="small" />
+              </IconButton>
+              <IconButton
+                size="small"
                 disabled={pagination.page === pagination.totalPages || loading}
                 onClick={() => handlePageChange(pagination.page + 1)}
-                className="rounded-md border border-gray-300 px-2 py-1 disabled:opacity-50"
+                sx={{ border: '1px solid', borderColor: 'divider' }}
               >
-                »
-              </button>
-            </div>
-          </div>
+                <NavigateNextIcon fontSize="small" />
+              </IconButton>
+            </Stack>
+          </Stack>
         )}
-      </div>
+      </Paper>
 
       <BlogFormModal
         open={modalOpen}
@@ -780,4 +895,3 @@ function ManageBlogs() {
 }
 
 export default ManageBlogs;
-

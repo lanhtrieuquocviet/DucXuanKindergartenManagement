@@ -3,6 +3,30 @@ import { useNavigate } from 'react-router-dom';
 import RoleLayout from '../../layouts/RoleLayout';
 import { useAuth } from '../../context/AuthContext';
 import { get, ENDPOINTS } from '../../service/api';
+import {
+  Box,
+  Paper,
+  Typography,
+  Button,
+  Alert,
+  Stack,
+  Chip,
+  TextField,
+  Table,
+  TableBody,
+  TableCell,
+  TableContainer,
+  TableHead,
+  TableRow,
+  CircularProgress,
+} from '@mui/material';
+import {
+  Refresh as RefreshIcon,
+  Add as AddIcon,
+  Visibility as VisibilityIcon,
+  Edit as EditIcon,
+  Class as ClassIcon,
+} from '@mui/icons-material';
 
 function ClassList() {
   const [classes, setClasses] = useState([]);
@@ -121,13 +145,13 @@ function ClassList() {
       { key: 'qa', label: 'Câu hỏi' },
       { key: 'blogs', label: 'Quản lý blog' },
       { key: 'documents', label: 'Quản lý tài liệu' },
-    { key: 'public-info', label: 'Thông tin công khai' },
+      { key: 'public-info', label: 'Thông tin công khai' },
       { key: 'attendance', label: 'Quản lý điểm danh' },
     ];
   };
 
   // Lọc danh sách lớp theo từ khóa tìm kiếm
-  const filteredClasses = classes.filter(cls =>
+  const filteredClasses = classes.filter((cls) =>
     cls.className.toLowerCase().includes(searchTerm.toLowerCase())
   );
 
@@ -147,120 +171,258 @@ function ClassList() {
       userName={user?.fullName || user?.username || 'Admin'}
       userAvatar={user?.avatar}
     >
+      {/* Error alert */}
       {error && (
-        <div className="mb-4 text-sm text-red-600 bg-red-50 border border-red-100 rounded-md px-4 py-3">
+        <Alert severity="error" sx={{ mb: 2 }}>
           {error}
-        </div>
+        </Alert>
       )}
 
-      {/* Card chính: danh sách lớp học */}
-      <div className="bg-white rounded-lg shadow p-6">
-        {/* Header + bộ lọc */}
-        <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-3 mb-4">
-          <div>
-            <h3 className="text-sm font-semibold text-gray-800">Danh sách lớp học</h3>
-            <p className="text-xs text-gray-500 mt-1">
-              Tổng lớp: <span className="font-semibold">{totalClasses}</span> • Lớp hoạt động:{' '}
-              <span className="font-semibold">{activeClasses}</span> • Sức chứa tổng:{' '}
-              <span className="font-semibold">{totalCapacity}</span>
-            </p>
-          </div>
-          <div className="flex flex-col sm:flex-row gap-2 w-full md:w-auto">
-            <input
-              type="text"
+      {/* Header gradient banner */}
+      <Paper
+        elevation={0}
+        sx={{
+          mb: 3,
+          p: 3,
+          background: 'linear-gradient(135deg, #6366f1 0%, #4f46e5 100%)',
+          borderRadius: 2,
+        }}
+      >
+        <Stack direction="row" alignItems="center" spacing={1.5}>
+          <ClassIcon sx={{ color: 'white', fontSize: 28 }} />
+          <Box>
+            <Typography variant="h6" fontWeight={700} color="white">
+              Danh sách lớp học
+            </Typography>
+            <Typography variant="body2" color="rgba(255,255,255,0.8)" mt={0.25}>
+              Xem danh sách tất cả lớp học, quản lý thông tin chi tiết và học sinh.
+            </Typography>
+          </Box>
+        </Stack>
+      </Paper>
+
+      {/* Main card */}
+      <Paper elevation={1} sx={{ borderRadius: 2, p: 3 }}>
+        {/* Header: summary + controls */}
+        <Stack
+          direction={{ xs: 'column', md: 'row' }}
+          alignItems={{ xs: 'flex-start', md: 'center' }}
+          justifyContent="space-between"
+          spacing={2}
+          mb={3}
+        >
+          {/* Summary text */}
+          <Box>
+            <Typography variant="subtitle2" fontWeight={600} color="text.primary">
+              Danh sách lớp học
+            </Typography>
+            <Stack direction="row" spacing={1} mt={0.5} flexWrap="wrap">
+              <Typography variant="caption" color="text.secondary">
+                Tổng lớp:
+              </Typography>
+              <Typography variant="caption" fontWeight={700} color="text.primary">
+                {totalClasses}
+              </Typography>
+              <Typography variant="caption" color="text.disabled">•</Typography>
+              <Typography variant="caption" color="text.secondary">
+                Lớp hoạt động:
+              </Typography>
+              <Typography variant="caption" fontWeight={700} color="text.primary">
+                {activeClasses}
+              </Typography>
+              <Typography variant="caption" color="text.disabled">•</Typography>
+              <Typography variant="caption" color="text.secondary">
+                Sức chứa tổng:
+              </Typography>
+              <Typography variant="caption" fontWeight={700} color="text.primary">
+                {totalCapacity}
+              </Typography>
+            </Stack>
+          </Box>
+
+          {/* Controls */}
+          <Stack direction={{ xs: 'column', sm: 'row' }} spacing={1} sx={{ width: { xs: '100%', md: 'auto' } }}>
+            <TextField
+              size="small"
               placeholder="Tìm kiếm tên lớp..."
               value={searchTerm}
               onChange={(e) => setSearchTerm(e.target.value)}
-              className="flex-1 px-3 py-2 border border-gray-300 rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500"
+              sx={{ minWidth: 220 }}
             />
-            <button
-              type="button"
+            <Button
+              variant="outlined"
+              color="inherit"
+              startIcon={<RefreshIcon />}
               onClick={fetchClasses}
-              className="px-3 py-2 bg-gray-100 text-gray-700 text-sm font-medium rounded-md hover:bg-gray-200 transition-colors"
+              sx={{
+                borderRadius: 1.5,
+                textTransform: 'none',
+                fontWeight: 500,
+                whiteSpace: 'nowrap',
+              }}
             >
               Tải lại
-            </button>
-            <button
-              type="button"
-              className="px-3 py-2 bg-indigo-600 text-white text-sm font-semibold rounded-md hover:bg-indigo-700 transition-colors"
+            </Button>
+            <Button
+              variant="contained"
+              startIcon={<AddIcon />}
+              sx={{
+                bgcolor: '#6366f1',
+                '&:hover': { bgcolor: '#4f46e5' },
+                borderRadius: 1.5,
+                textTransform: 'none',
+                fontWeight: 600,
+                whiteSpace: 'nowrap',
+              }}
             >
-              + Thêm lớp
-            </button>
-          </div>
-        </div>
+              Thêm lớp
+            </Button>
+          </Stack>
+        </Stack>
 
-        {/* Table Section */}
+        {/* Table section */}
         {loading ? (
-          <div className="p-8 text-center">
-            <div className="inline-block animate-spin">
-              <div className="h-6 w-6 border-3 border-indigo-500 border-t-transparent rounded-full" />
-            </div>
-            <p className="mt-2 text-sm text-gray-500">Đang tải danh sách...</p>
-          </div>
+          <Stack alignItems="center" justifyContent="center" spacing={1.5} py={6}>
+            <CircularProgress size={32} thickness={4} sx={{ color: '#6366f1' }} />
+            <Typography variant="body2" color="text.secondary">
+              Đang tải danh sách...
+            </Typography>
+          </Stack>
         ) : filteredClasses.length === 0 ? (
-          <div className="p-8 text-center">
-            <p className="text-sm text-gray-500">Không tìm thấy lớp học nào</p>
-          </div>
+          <Stack alignItems="center" justifyContent="center" py={6}>
+            <Typography variant="body2" color="text.secondary">
+              Không tìm thấy lớp học nào
+            </Typography>
+          </Stack>
         ) : (
-          <div className="overflow-x-auto">
-            <table className="w-full text-sm border border-gray-200 rounded-lg overflow-hidden">
-              <thead className="bg-gray-50 border-b border-gray-200">
-                <tr>
-                  <th className="px-4 py-3 text-left font-semibold text-gray-800">Tên lớp</th>
-                  <th className="px-4 py-3 text-left font-semibold text-gray-800">Khối lớp</th>
-                  <th className="px-4 py-3 text-left font-semibold text-gray-800">Năm học</th>
-                  <th className="px-4 py-3 text-center font-semibold text-gray-800">Sức chứa</th>
-                  <th className="px-4 py-3 text-center font-semibold text-gray-800">Giáo viên</th>
-                  <th className="px-4 py-3 text-center font-semibold text-gray-800">Thao tác</th>
-                </tr>
-              </thead>
-              <tbody>
+          <TableContainer
+            sx={{
+              border: '1px solid',
+              borderColor: 'divider',
+              borderRadius: 1.5,
+              overflow: 'hidden',
+            }}
+          >
+            <Table size="small">
+              <TableHead>
+                <TableRow sx={{ bgcolor: 'grey.50' }}>
+                  <TableCell sx={{ fontWeight: 700, color: 'text.primary', py: 1.5 }}>
+                    Tên lớp
+                  </TableCell>
+                  <TableCell sx={{ fontWeight: 700, color: 'text.primary', py: 1.5 }}>
+                    Khối lớp
+                  </TableCell>
+                  <TableCell sx={{ fontWeight: 700, color: 'text.primary', py: 1.5 }}>
+                    Năm học
+                  </TableCell>
+                  <TableCell align="center" sx={{ fontWeight: 700, color: 'text.primary', py: 1.5 }}>
+                    Sức chứa
+                  </TableCell>
+                  <TableCell align="center" sx={{ fontWeight: 700, color: 'text.primary', py: 1.5 }}>
+                    Giáo viên
+                  </TableCell>
+                  <TableCell align="center" sx={{ fontWeight: 700, color: 'text.primary', py: 1.5 }}>
+                    Thao tác
+                  </TableCell>
+                </TableRow>
+              </TableHead>
+              <TableBody>
                 {filteredClasses.map((cls, index) => (
-                  <tr
+                  <TableRow
                     key={cls._id || index}
-                    className="border-b border-gray-100 hover:bg-gray-50 transition-colors"
+                    hover
+                    sx={{
+                      '&:last-child td': { borderBottom: 0 },
+                      transition: 'background-color 0.15s',
+                    }}
                   >
-                    <td className="px-4 py-3">
-                      <div className="font-medium text-gray-900">{cls.className}</div>
-                    </td>
-                    <td className="px-4 py-3">
-                      <div className="text-gray-700">
+                    <TableCell>
+                      <Typography variant="body2" fontWeight={600} color="text.primary">
+                        {cls.className}
+                      </Typography>
+                    </TableCell>
+                    <TableCell>
+                      <Typography variant="body2" color="text.secondary">
                         {cls.gradeId?.gradeName || 'N/A'}
-                      </div>
-                    </td>
-                    <td className="px-4 py-3">
-                      <div className="text-gray-700">
+                      </Typography>
+                    </TableCell>
+                    <TableCell>
+                      <Typography variant="body2" color="text.secondary">
                         {cls.academicYearId?.yearName || 'N/A'}
-                      </div>
-                    </td>
-                    <td className="px-4 py-3 text-center">
-                      <span className="inline-block px-2 py-1 bg-gray-100 text-gray-800 text-xs font-medium rounded-full">
-                        {cls.maxStudents || 0}
-                      </span>
-                    </td>
-                    <td className="px-4 py-3 text-center">
-                      <span className="text-gray-800 font-medium">
+                      </Typography>
+                    </TableCell>
+                    <TableCell align="center">
+                      <Chip
+                        label={cls.maxStudents || 0}
+                        size="small"
+                        variant="outlined"
+                        sx={{
+                          fontWeight: 600,
+                          fontSize: '0.75rem',
+                          borderColor: 'grey.400',
+                          color: 'text.primary',
+                        }}
+                      />
+                    </TableCell>
+                    <TableCell align="center">
+                      <Typography variant="body2" fontWeight={600} color="text.primary">
                         {cls.teacherIds?.length || 0}
-                      </span>
-                    </td>
-                    <td className="px-4 py-3 text-center space-x-2">
-                      <button
-                        onClick={() => handleViewStudents(cls._id)}
-                        className="inline-flex items-center rounded-lg bg-indigo-50 px-3 py-1.5 text-xs font-medium text-indigo-700 hover:bg-indigo-100 transition-colors"
-                      >
-                        Xem học sinh
-                      </button>
-                      <button className="inline-flex items-center rounded-lg bg-gray-100 px-3 py-1.5 text-xs font-medium text-gray-700 hover:bg-gray-200 transition-colors">
-                        Sửa
-                      </button>
-                    </td>
-                  </tr>
+                      </Typography>
+                    </TableCell>
+                    <TableCell align="center">
+                      <Stack direction="row" spacing={1} justifyContent="center">
+                        <Button
+                          size="small"
+                          variant="contained"
+                          startIcon={<VisibilityIcon sx={{ fontSize: '0.875rem !important' }} />}
+                          onClick={() => handleViewStudents(cls._id)}
+                          sx={{
+                            bgcolor: 'rgba(99,102,241,0.1)',
+                            color: '#6366f1',
+                            boxShadow: 'none',
+                            '&:hover': {
+                              bgcolor: 'rgba(99,102,241,0.2)',
+                              boxShadow: 'none',
+                            },
+                            borderRadius: 1.5,
+                            textTransform: 'none',
+                            fontSize: '0.75rem',
+                            fontWeight: 600,
+                            py: 0.5,
+                          }}
+                        >
+                          Xem học sinh
+                        </Button>
+                        <Button
+                          size="small"
+                          variant="contained"
+                          startIcon={<EditIcon sx={{ fontSize: '0.875rem !important' }} />}
+                          sx={{
+                            bgcolor: 'grey.100',
+                            color: 'text.secondary',
+                            boxShadow: 'none',
+                            '&:hover': {
+                              bgcolor: 'grey.200',
+                              boxShadow: 'none',
+                            },
+                            borderRadius: 1.5,
+                            textTransform: 'none',
+                            fontSize: '0.75rem',
+                            fontWeight: 600,
+                            py: 0.5,
+                          }}
+                        >
+                          Sửa
+                        </Button>
+                      </Stack>
+                    </TableCell>
+                  </TableRow>
                 ))}
-              </tbody>
-            </table>
-          </div>
+              </TableBody>
+            </Table>
+          </TableContainer>
         )}
-      </div>
+      </Paper>
     </RoleLayout>
   );
 }

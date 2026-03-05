@@ -3,13 +3,33 @@ import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../../context/AuthContext';
 import { useSchoolAdmin } from '../../context/SchoolAdminContext';
 import RoleLayout from '../../layouts/RoleLayout';
+import {
+  Box,
+  Paper,
+  Typography,
+  Button,
+  Alert,
+  Stack,
+  CircularProgress,
+  TextField,
+  Divider,
+  IconButton,
+  Chip,
+} from '@mui/material';
+import {
+  Delete as DeleteIcon,
+  Reply as ReplyIcon,
+  Edit as EditIcon,
+  Send as SendIcon,
+  QuestionAnswer as QaIcon,
+} from '@mui/icons-material';
 
 function QaList() {
   const [questionsData, setQuestionsData] = useState(null);
   const [message, setMessage] = useState({ type: null, text: null });
   const [answeringId, setAnsweringId] = useState(null);
   const [answerText, setAnswerText] = useState('');
-  const [editingAnswer, setEditingAnswer] = useState(null); // { questionId, answerIndex }
+  const [editingAnswer, setEditingAnswer] = useState(null);
   const [editingText, setEditingText] = useState('');
   const [page, setPage] = useState(1);
   const [pagination, setPagination] = useState(null);
@@ -33,37 +53,25 @@ function QaList() {
       setQuestionsData(qaRes);
       setPagination(qaRes?.data?.pagination || null);
       setPage(targetPage);
-    } catch (_) {
-      // ignore
-    }
+    } catch (_) {}
   };
 
   useEffect(() => {
     if (isInitializing) return;
-    if (!user) {
-      navigate('/login', { replace: true });
-      return;
-    }
+    if (!user) { navigate('/login', { replace: true }); return; }
     const userRoles = user?.roles?.map((r) => r.roleName || r) || [];
-    if (!userRoles.includes('SchoolAdmin')) {
-      navigate('/', { replace: true });
-      return;
-    }
-
+    if (!userRoles.includes('SchoolAdmin')) { navigate('/', { replace: true }); return; }
     fetchQa(1);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [navigate, user, isInitializing, getQaQuestions, setError]);
 
-  const refreshQa = async () => {
-    await fetchQa(page || 1);
-  };
+  const refreshQa = async () => { await fetchQa(page || 1); };
 
   const handleEditQuestion = async (q) => {
     const newTitle = window.prompt('Sửa tiêu đề câu hỏi:', q.title);
     if (newTitle === null) return;
     const newContent = window.prompt('Sửa nội dung câu hỏi:', q.content);
     if (newContent === null) return;
-
     try {
       setError(null);
       setMessage({ type: null, text: null });
@@ -158,38 +166,14 @@ function QaList() {
   ];
 
   const handleMenuSelect = (key) => {
-    if (key === 'overview') {
-      navigate('/school-admin');
-      return;
-    }
-    if (key === 'classes') {
-      navigate('/school-admin/classes');
-      return;
-    }
-    if (key === 'contacts') {
-      navigate('/school-admin/contacts');
-      return;
-    }
-    if (key === 'qa') {
-      navigate('/school-admin/qa');
-      return;
-    }
-    if (key === 'blogs') {
-      navigate('/school-admin/blogs');
-      return;
-    }
-    if (key === 'documents') {
-      navigate('/school-admin/documents');
-      return;
-    }
-    if (key === 'public-info') {
-      navigate('/school-admin/public-info');
-      return;
-    }
-    if (key === 'attendance') {
-      navigate('/school-admin/attendance/overview');
-      return;
-    }
+    if (key === 'overview') navigate('/school-admin');
+    else if (key === 'classes') navigate('/school-admin/classes');
+    else if (key === 'contacts') navigate('/school-admin/contacts');
+    else if (key === 'qa') navigate('/school-admin/qa');
+    else if (key === 'blogs') navigate('/school-admin/blogs');
+    else if (key === 'documents') navigate('/school-admin/documents');
+    else if (key === 'public-info') navigate('/school-admin/public-info');
+    else if (key === 'attendance') navigate('/school-admin/attendance/overview');
   };
 
   const userName = user?.fullName || user?.username || 'School Admin';
@@ -202,222 +186,255 @@ function QaList() {
       description="Xem, xóa và trả lời câu hỏi từ mục Hỏi đáp."
       menuItems={menuItems}
       activeKey="qa"
-      onLogout={() => {
-        logout();
-        navigate('/login', { replace: true });
-      }}
+      onLogout={() => { logout(); navigate('/login', { replace: true }); }}
       userName={userName}
       userAvatar={user?.avatar}
       onViewProfile={() => navigate('/profile')}
       onMenuSelect={handleMenuSelect}
     >
-      {error && (
-        <div className="mb-4 rounded-md bg-red-50 border border-red-200 px-4 py-2 text-sm text-red-800">
-          {error}
-        </div>
-      )}
+      {/* Header gradient */}
+      <Paper
+        elevation={0}
+        sx={{ mb: 3, p: 3, background: 'linear-gradient(135deg, #6366f1 0%, #4f46e5 100%)', borderRadius: 2 }}
+      >
+        <Stack direction="row" alignItems="center" spacing={1.5}>
+          <QaIcon sx={{ color: 'white', fontSize: 28 }} />
+          <Box>
+            <Typography variant="h6" fontWeight={700} color="white">Quản lý câu hỏi</Typography>
+            <Typography variant="body2" color="rgba(255,255,255,0.8)" mt={0.25}>
+              Xem, xóa và trả lời câu hỏi từ mục Hỏi đáp.
+            </Typography>
+          </Box>
+        </Stack>
+      </Paper>
 
+      {error && <Alert severity="error" sx={{ mb: 2 }}>{error}</Alert>}
       {message.text && (
-        <div
-          className={`mb-4 rounded-md px-4 py-2 text-sm ${
-            message.type === 'success'
-              ? 'bg-green-50 border border-green-200 text-green-800'
-              : 'bg-red-50 border border-red-200 text-red-800'
-          }`}
-        >
+        <Alert severity={message.type === 'success' ? 'success' : 'error'} sx={{ mb: 2 }}>
           {message.text}
-        </div>
+        </Alert>
       )}
 
-      <div className="bg-white rounded-lg shadow p-4">
-        <h2 className="text-base font-semibold text-gray-800 mb-3">
-          Câu hỏi từ mục Hỏi đáp
-        </h2>
-        {loading && (
-          <p className="text-sm text-gray-500">Đang tải...</p>
-        )}
-        {!loading && questions.length === 0 && (
-          <p className="text-sm text-gray-500">Chưa có câu hỏi nào.</p>
-        )}
-        {!loading && questions.length > 0 && (
-          <div className="divide-y divide-gray-200">
+      <Paper elevation={1} sx={{ borderRadius: 2, overflow: 'hidden' }}>
+        <Box sx={{ px: 3, py: 2, borderBottom: '1px solid', borderColor: 'divider' }}>
+          <Typography variant="subtitle2" fontWeight={600}>Câu hỏi từ mục Hỏi đáp</Typography>
+        </Box>
+
+        {loading ? (
+          <Stack alignItems="center" justifyContent="center" spacing={1.5} py={5}>
+            <CircularProgress size={28} />
+            <Typography variant="body2" color="text.secondary">Đang tải...</Typography>
+          </Stack>
+        ) : questions.length === 0 ? (
+          <Box sx={{ py: 5, textAlign: 'center' }}>
+            <Typography variant="body2" color="text.secondary">Chưa có câu hỏi nào.</Typography>
+          </Box>
+        ) : (
+          <Stack divider={<Divider />}>
             {questions.map((q) => (
-              <div key={q._id} className="py-3">
-                <div className="flex justify-between items-start gap-4">
-                  <div className="flex-1">
-                    <p className="font-semibold text-gray-800">{q.title}</p>
-                    <p className="text-xs text-gray-500">
+              <Box key={q._id} sx={{ p: 3 }}>
+                <Stack direction="row" justifyContent="space-between" alignItems="flex-start" gap={2}>
+                  {/* Question content */}
+                  <Box flex={1}>
+                    <Typography variant="body1" fontWeight={600} color="text.primary">
+                      {q.title}
+                    </Typography>
+                    <Typography variant="caption" color="text.secondary" display="block" mt={0.25}>
                       {q.email || 'Ẩn danh'} • {formatDate(q.createdAt)}
-                    </p>
-                    <p className="mt-1 text-sm text-gray-700 whitespace-pre-wrap">
+                    </Typography>
+                    <Typography variant="body2" color="text.secondary" mt={1} sx={{ whiteSpace: 'pre-wrap' }}>
                       {q.content}
-                    </p>
+                    </Typography>
+
+                    {/* Answers */}
                     {Array.isArray(q.answers) && q.answers.length > 0 && (
-                      <div className="mt-2 border-l-4 border-green-500 pl-3 space-y-2">
-                        {q.answers.map((a, idx) => (
-                          <div key={idx} className="text-sm text-gray-700">
-                            <div className="flex items-start justify-between gap-2">
-                              <div className="flex-1">
-                                <span className="font-medium text-green-700">
-                                  {a.authorName || 'Trả lời'}:
-                                </span>{' '}
-                                <span className="whitespace-pre-wrap">{a.content}</span>
-                              </div>
-                              <button
-                                type="button"
-                                onClick={() =>
-                                  handleStartEditAnswer(q._id, idx, a.content)
-                                }
-                                className="px-2 py-1 bg-blue-50 text-blue-700 text-xs rounded border border-blue-200 hover:bg-blue-100"
-                              >
-                                Sửa
-                              </button>
-                            </div>
-                            {editingAnswer &&
-                              editingAnswer.questionId === q._id &&
-                              editingAnswer.answerIndex === idx && (
-                                <div className="mt-2">
-                                  <textarea
-                                    rows={3}
-                                    value={editingText}
-                                    onChange={(e) => setEditingText(e.target.value)}
-                                    className="w-full border rounded px-3 py-2 text-sm focus:outline-green-500"
-                                    placeholder="Chỉnh sửa nội dung trả lời..."
-                                  />
-                                  <div className="mt-2 flex gap-2">
-                                    <button
-                                      type="button"
-                                      onClick={handleUpdateAnswer}
-                                      className="px-3 py-1.5 bg-green-600 text-white text-xs rounded hover:bg-green-700"
-                                    >
-                                      Lưu
-                                    </button>
-                                    <button
-                                      type="button"
-                                      onClick={() => {
-                                        setEditingAnswer(null);
-                                        setEditingText('');
-                                      }}
-                                      className="px-3 py-1.5 bg-gray-300 text-gray-700 text-xs rounded hover:bg-gray-400"
-                                    >
-                                      Hủy
-                                    </button>
-                                  </div>
-                                </div>
-                              )}
-                          </div>
-                        ))}
-                      </div>
+                      <Box
+                        mt={2}
+                        sx={{
+                          borderLeft: '3px solid',
+                          borderColor: 'success.main',
+                          pl: 2,
+                        }}
+                      >
+                        <Stack spacing={1.5}>
+                          {q.answers.map((a, idx) => (
+                            <Box key={idx}>
+                              <Stack direction="row" alignItems="flex-start" justifyContent="space-between" gap={1}>
+                                <Typography variant="body2" color="text.primary" sx={{ flex: 1, whiteSpace: 'pre-wrap' }}>
+                                  <Box component="span" sx={{ fontWeight: 700, color: 'success.dark' }}>
+                                    {a.authorName || 'Trả lời'}:
+                                  </Box>{' '}
+                                  {a.content}
+                                </Typography>
+                                <Button
+                                  size="small"
+                                  startIcon={<EditIcon />}
+                                  onClick={() => handleStartEditAnswer(q._id, idx, a.content)}
+                                  sx={{
+                                    textTransform: 'none',
+                                    fontSize: 12,
+                                    flexShrink: 0,
+                                    borderRadius: 1,
+                                    color: 'primary.main',
+                                    bgcolor: 'rgba(99,102,241,0.07)',
+                                    '&:hover': { bgcolor: 'rgba(99,102,241,0.15)' },
+                                  }}
+                                >
+                                  Sửa
+                                </Button>
+                              </Stack>
+
+                              {editingAnswer &&
+                                editingAnswer.questionId === q._id &&
+                                editingAnswer.answerIndex === idx && (
+                                  <Box mt={1.5}>
+                                    <TextField
+                                      multiline
+                                      rows={3}
+                                      fullWidth
+                                      size="small"
+                                      value={editingText}
+                                      onChange={(e) => setEditingText(e.target.value)}
+                                      placeholder="Chỉnh sửa nội dung trả lời..."
+                                    />
+                                    <Stack direction="row" spacing={1} mt={1}>
+                                      <Button
+                                        size="small"
+                                        variant="contained"
+                                        color="success"
+                                        startIcon={<SendIcon />}
+                                        onClick={handleUpdateAnswer}
+                                        sx={{ textTransform: 'none', borderRadius: 1.5 }}
+                                      >
+                                        Lưu
+                                      </Button>
+                                      <Button
+                                        size="small"
+                                        variant="outlined"
+                                        color="inherit"
+                                        onClick={() => { setEditingAnswer(null); setEditingText(''); }}
+                                        sx={{ textTransform: 'none', borderRadius: 1.5 }}
+                                      >
+                                        Hủy
+                                      </Button>
+                                    </Stack>
+                                  </Box>
+                                )}
+                            </Box>
+                          ))}
+                        </Stack>
+                      </Box>
                     )}
-                  </div>
-                  <div className="shrink-0 flex flex-col gap-2">
-                    {/* <button
-                      type="button"
-                      onClick={() => handleEditQuestion(q)}
-                      className="px-3 py-1.5 bg-blue-600 text-white text-xs rounded hover:bg-blue-700"
-                    >
-                      Sửa
-                    </button> */}
-                    <button
-                      type="button"
+                  </Box>
+
+                  {/* Action buttons */}
+                  <Stack spacing={1} sx={{ flexShrink: 0 }}>
+                    <Button
+                      size="small"
+                      variant="contained"
+                      color="error"
+                      startIcon={<DeleteIcon />}
                       onClick={() => handleDeleteQuestion(q._id)}
-                      className="px-3 py-1.5 bg-red-600 text-white text-xs rounded hover:bg-red-700"
+                      sx={{ textTransform: 'none', borderRadius: 1.5, fontSize: 12 }}
                     >
                       Xóa
-                    </button>
-                    <button
-                      type="button"
-                      onClick={() => {
-                        setAnsweringId(q._id);
-                        setAnswerText('');
-                      }}
-                      className="px-3 py-1.5 bg-green-600 text-white text-xs rounded hover:bg-green-700"
+                    </Button>
+                    <Button
+                      size="small"
+                      variant="contained"
+                      color="success"
+                      startIcon={<ReplyIcon />}
+                      onClick={() => { setAnsweringId(q._id); setAnswerText(''); }}
+                      sx={{ textTransform: 'none', borderRadius: 1.5, fontSize: 12 }}
                     >
                       Trả lời
-                    </button>
-                  </div>
-                </div>
+                    </Button>
+                  </Stack>
+                </Stack>
+
+                {/* Answer box */}
                 {answeringId === q._id && (
-                  <div className="mt-3">
-                    <textarea
+                  <Box mt={2}>
+                    <TextField
+                      multiline
                       rows={3}
+                      fullWidth
+                      size="small"
                       value={answerText}
                       onChange={(e) => setAnswerText(e.target.value)}
-                      className="w-full border rounded px-3 py-2 text-sm focus:outline-green-500"
                       placeholder="Nhập nội dung trả lời..."
                     />
-                    <div className="mt-2 flex gap-2">
-                      <button
-                        type="button"
+                    <Stack direction="row" spacing={1} mt={1}>
+                      <Button
+                        size="small"
+                        variant="contained"
+                        color="success"
+                        startIcon={<SendIcon />}
                         onClick={handleSubmitAnswer}
-                        className="px-3 py-1.5 bg-green-600 text-white text-xs rounded hover:bg-green-700"
+                        sx={{ textTransform: 'none', borderRadius: 1.5 }}
                       >
                         Gửi trả lời
-                      </button>
-                      <button
-                        type="button"
-                        onClick={() => {
-                          setAnsweringId(null);
-                          setAnswerText('');
-                        }}
-                        className="px-3 py-1.5 bg-gray-300 text-gray-700 text-xs rounded hover:bg-gray-400"
+                      </Button>
+                      <Button
+                        size="small"
+                        variant="outlined"
+                        color="inherit"
+                        onClick={() => { setAnsweringId(null); setAnswerText(''); }}
+                        sx={{ textTransform: 'none', borderRadius: 1.5 }}
                       >
                         Hủy
-                      </button>
-                    </div>
-                  </div>
+                      </Button>
+                    </Stack>
+                  </Box>
                 )}
-              </div>
+              </Box>
             ))}
-          </div>
+          </Stack>
         )}
-      </div>
+      </Paper>
+
+      {/* Pagination */}
       {pagination && pagination.totalPages > 1 && (
-        <div className="mt-4 flex justify-center items-center gap-2">
-          <button
-            type="button"
-            onClick={() => {
-              if (!loading && page > 1) {
-                fetchQa(page - 1);
-              }
-            }}
+        <Stack direction="row" justifyContent="center" alignItems="center" spacing={1} mt={3}>
+          <Button
+            size="small"
+            variant="outlined"
+            color="inherit"
+            onClick={() => { if (!loading && page > 1) fetchQa(page - 1); }}
             disabled={loading || page <= 1}
-            className="px-3 py-1.5 border rounded text-xs disabled:opacity-50"
+            sx={{ minWidth: 40, borderRadius: 1.5 }}
           >
             {'<<'}
-          </button>
+          </Button>
           {[...Array(pagination.totalPages)].map((_, idx) => {
             const p = idx + 1;
             return (
-              <button
+              <Button
                 key={p}
-                type="button"
+                size="small"
+                variant={p === page ? 'contained' : 'outlined'}
+                color={p === page ? 'primary' : 'inherit'}
                 onClick={() => !loading && fetchQa(p)}
-                className={`px-3 py-1.5 border rounded text-xs ${
-                  p === page ? 'bg-blue-600 text-white' : 'bg-white'
-                }`}
+                sx={{ minWidth: 40, borderRadius: 1.5 }}
               >
                 {p}
-              </button>
+              </Button>
             );
           })}
-          <button
-            type="button"
-            onClick={() => {
-              if (!loading && page < (pagination.totalPages || 1)) {
-                fetchQa(page + 1);
-              }
-            }}
+          <Button
+            size="small"
+            variant="outlined"
+            color="inherit"
+            onClick={() => { if (!loading && page < (pagination.totalPages || 1)) fetchQa(page + 1); }}
             disabled={loading || page >= (pagination.totalPages || 1)}
-            className="px-3 py-1.5 border rounded text-xs disabled:opacity-50"
+            sx={{ minWidth: 40, borderRadius: 1.5 }}
           >
             {'>>'}
-          </button>
-        </div>
+          </Button>
+        </Stack>
       )}
     </RoleLayout>
   );
 }
 
 export default QaList;
-

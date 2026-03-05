@@ -4,6 +4,31 @@ import { useAuth } from '../../context/AuthContext';
 import { useSchoolAdmin } from '../../context/SchoolAdminContext';
 import RoleLayout from '../../layouts/RoleLayout';
 import ConfirmDialog from '../../components/ConfirmDialog';
+import {
+  Box,
+  Paper,
+  Typography,
+  Button,
+  Alert,
+  Stack,
+  TextField,
+  Table,
+  TableBody,
+  TableCell,
+  TableContainer,
+  TableHead,
+  TableRow,
+  Dialog,
+  DialogTitle,
+  DialogContent,
+  DialogActions,
+  IconButton,
+  CircularProgress,
+} from '@mui/material';
+import AddIcon from '@mui/icons-material/Add';
+import EditIcon from '@mui/icons-material/Edit';
+import DeleteIcon from '@mui/icons-material/Delete';
+import CloseIcon from '@mui/icons-material/Close';
 
 // ─── Form Modal ───────────────────────────────────────────────────────────────
 function CategoryFormModal({ open, onClose, initialData, onSubmit, loading }) {
@@ -19,8 +44,6 @@ function CategoryFormModal({ open, onClose, initialData, onSubmit, loading }) {
       setFormErrors({});
     }
   }, [open, initialData]);
-
-  if (!open) return null;
 
   const handleChange = (e) => {
     const { name, value } = e.target;
@@ -38,69 +61,86 @@ function CategoryFormModal({ open, onClose, initialData, onSubmit, loading }) {
   };
 
   return (
-    <div className="fixed inset-0 z-40 flex items-center justify-center bg-black/30">
-      <div className="w-full max-w-md rounded-xl bg-white shadow-lg">
-        <div className="flex items-center justify-between border-b px-4 py-3">
-          <h2 className="text-base font-semibold text-gray-800">
-            {initialData ? 'Chỉnh sửa danh mục' : 'Tạo danh mục mới'}
-          </h2>
-          <button type="button" onClick={onClose} className="text-gray-500 hover:text-gray-700 text-xl">×</button>
-        </div>
-        <form onSubmit={handleSubmit} className="space-y-4 px-4 py-4">
-          {/* Tên */}
-          <div>
-            <label className="block text-xs font-medium text-gray-700 mb-1">Tên danh mục *</label>
-            <input
-              name="name"
-              value={form.name}
-              onChange={handleChange}
-              maxLength={100}
-              className={`w-full rounded-md border px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500 ${formErrors.name ? 'border-red-400' : 'border-gray-300'}`}
-              placeholder="vd: Bản tin trường"
-            />
-            <div className="flex justify-between mt-1">
-              {formErrors.name
-                ? <p className="text-xs text-red-600">{formErrors.name}</p>
-                : <span />}
-              <p className={`text-xs ${form.name.length > 100 ? 'text-red-600' : 'text-gray-400'}`}>
-                {form.name.length}/100
-              </p>
-            </div>
-          </div>
+    <Dialog open={open} onClose={onClose} maxWidth="sm" fullWidth>
+      <DialogTitle
+        sx={{
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'space-between',
+          pb: 1,
+        }}
+      >
+        <Typography variant="subtitle1" fontWeight={600}>
+          {initialData ? 'Chỉnh sửa danh mục' : 'Tạo danh mục mới'}
+        </Typography>
+        <IconButton size="small" onClick={onClose} aria-label="close">
+          <CloseIcon fontSize="small" />
+        </IconButton>
+      </DialogTitle>
 
-          {/* Mô tả */}
-          <div>
-            <label className="block text-xs font-medium text-gray-700 mb-1">Mô tả</label>
-            <textarea
+      <Box component="form" onSubmit={handleSubmit}>
+        <DialogContent dividers>
+          <Stack spacing={2.5}>
+            {/* Tên */}
+            <Box>
+              <TextField
+                name="name"
+                label="Tên danh mục *"
+                value={form.name}
+                onChange={handleChange}
+                inputProps={{ maxLength: 100 }}
+                fullWidth
+                size="small"
+                error={!!formErrors.name}
+                helperText={formErrors.name || ' '}
+                placeholder="vd: Bản tin trường"
+              />
+              <Typography
+                variant="caption"
+                color={form.name.length > 100 ? 'error' : 'text.secondary'}
+                sx={{ display: 'block', textAlign: 'right', mt: -2 }}
+              >
+                {form.name.length}/100
+              </Typography>
+            </Box>
+
+            {/* Mô tả */}
+            <TextField
               name="description"
+              label="Mô tả"
               value={form.description}
               onChange={handleChange}
+              multiline
               rows={3}
-              className="w-full rounded-md border border-gray-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500"
+              fullWidth
+              size="small"
               placeholder="Mô tả ngắn về danh mục (tuỳ chọn)"
             />
-          </div>
+          </Stack>
+        </DialogContent>
 
-          {/* Buttons */}
-          <div className="flex gap-2 pt-1">
-            <button
-              type="button"
-              onClick={onClose}
-              className="flex-1 rounded-lg border border-gray-300 px-4 py-2 text-sm font-medium text-gray-700 hover:bg-gray-50"
-            >
-              Hủy
-            </button>
-            <button
-              type="submit"
-              disabled={loading}
-              className="flex-1 rounded-lg bg-emerald-600 px-4 py-2 text-sm font-semibold text-white hover:bg-emerald-700 disabled:opacity-60"
-            >
-              {loading ? 'Đang lưu...' : 'Lưu'}
-            </button>
-          </div>
-        </form>
-      </div>
-    </div>
+        <DialogActions sx={{ px: 3, py: 2, gap: 1 }}>
+          <Button
+            variant="outlined"
+            color="inherit"
+            onClick={onClose}
+            sx={{ flex: 1, textTransform: 'none', borderRadius: 2 }}
+          >
+            Hủy
+          </Button>
+          <Button
+            type="submit"
+            variant="contained"
+            color="success"
+            disabled={loading}
+            startIcon={loading ? <CircularProgress size={16} color="inherit" /> : null}
+            sx={{ flex: 1, textTransform: 'none', borderRadius: 2, fontWeight: 600 }}
+          >
+            {loading ? 'Đang lưu...' : 'Lưu'}
+          </Button>
+        </DialogActions>
+      </Box>
+    </Dialog>
   );
 }
 
@@ -228,94 +268,180 @@ function ManageBlogCategories() {
       userName={userName}
       userAvatar={user?.avatar}
     >
-      {/* Không có quyền */}
+      {/* Page header */}
+      <Paper
+        elevation={0}
+        sx={{
+          background: 'linear-gradient(135deg, #6366f1 0%, #4f46e5 100%)',
+          borderRadius: 3,
+          px: 4,
+          py: 3,
+          mb: 3,
+        }}
+      >
+        <Typography variant="h5" fontWeight={700} color="white">
+          Quản lý danh mục blog
+        </Typography>
+        <Typography variant="body2" sx={{ color: 'rgba(255,255,255,0.8)', mt: 0.5 }}>
+          Tạo, chỉnh sửa và xóa các danh mục phân loại bài viết.
+        </Typography>
+      </Paper>
+
+      {/* No permission */}
       {noPermission && (
-        <div className="rounded-lg bg-yellow-50 border border-yellow-200 px-4 py-6 text-center">
-          <p className="text-yellow-800 font-medium">Bạn không có quyền quản lý danh mục blog.</p>
-          <p className="text-yellow-700 text-sm mt-1">Liên hệ quản trị viên để được cấp quyền <code className="bg-yellow-100 px-1 rounded">MANAGE_BLOG_CATEGORY</code>.</p>
-        </div>
+        <Alert severity="warning" sx={{ mb: 2, borderRadius: 2 }}>
+          <Typography variant="body2" fontWeight={500}>
+            Bạn không có quyền quản lý danh mục blog.
+          </Typography>
+          <Typography variant="body2" sx={{ mt: 0.5 }}>
+            Liên hệ quản trị viên để được cấp quyền{' '}
+            <Box
+              component="code"
+              sx={{ bgcolor: 'warning.100', px: 0.75, py: 0.25, borderRadius: 1, fontSize: '0.8rem' }}
+            >
+              MANAGE_BLOG_CATEGORY
+            </Box>
+            .
+          </Typography>
+        </Alert>
       )}
 
       {!noPermission && (
-        <div className="bg-white rounded-lg shadow p-6">
-          {/* Header */}
-          <div className="flex items-center justify-between mb-4">
-            <div>
-              <h3 className="text-sm font-semibold text-gray-800">Danh sách danh mục</h3>
-              <p className="text-xs text-gray-500 mt-1">
-                Tổng: <span className="font-semibold">{categories.length}</span> danh mục
-              </p>
-            </div>
-            <button
-              type="button"
+        <Paper elevation={2} sx={{ borderRadius: 3, p: 3 }}>
+          {/* Header row */}
+          <Stack direction="row" alignItems="center" justifyContent="space-between" sx={{ mb: 2.5 }}>
+            <Box>
+              <Typography variant="subtitle1" fontWeight={600} color="text.primary">
+                Danh sách danh mục
+              </Typography>
+              <Typography variant="caption" color="text.secondary" sx={{ mt: 0.5, display: 'block' }}>
+                Tổng:{' '}
+                <Box component="span" fontWeight={600}>
+                  {categories.length}
+                </Box>{' '}
+                danh mục
+              </Typography>
+            </Box>
+            <Button
+              variant="contained"
+              color="success"
+              startIcon={<AddIcon />}
               onClick={openCreate}
-              className="inline-flex items-center rounded-lg bg-emerald-600 px-4 py-2 text-sm font-semibold text-white hover:bg-emerald-700"
+              sx={{ textTransform: 'none', borderRadius: 2, fontWeight: 600 }}
             >
-              + Tạo danh mục mới
-            </button>
-          </div>
+              Tạo danh mục mới
+            </Button>
+          </Stack>
 
           {/* Error */}
           {error && (
-            <div className="mb-4 rounded-md bg-red-50 border border-red-200 px-4 py-2 text-sm text-red-800">
+            <Alert severity="error" sx={{ mb: 2, borderRadius: 2 }}>
               {error}
-            </div>
+            </Alert>
           )}
 
           {/* Table */}
-          <div className="overflow-x-auto">
-            <table className="min-w-full divide-y divide-gray-200 text-sm">
-              <thead className="bg-gray-50">
-                <tr>
-                  <th className="px-4 py-2 text-left text-xs font-semibold uppercase text-gray-500">Tên danh mục</th>
-                  <th className="px-4 py-2 text-left text-xs font-semibold uppercase text-gray-500">Mô tả</th>
-                  <th className="px-4 py-2 text-left text-xs font-semibold uppercase text-gray-500">Ngày tạo</th>
-                  <th className="px-4 py-2 text-right text-xs font-semibold uppercase text-gray-500">Hành động</th>
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-gray-100 bg-white">
+          <TableContainer>
+            <Table size="small">
+              <TableHead>
+                <TableRow sx={{ bgcolor: 'grey.50' }}>
+                  <TableCell sx={{ fontWeight: 600, fontSize: '0.75rem', textTransform: 'uppercase', color: 'text.secondary' }}>
+                    Tên danh mục
+                  </TableCell>
+                  <TableCell sx={{ fontWeight: 600, fontSize: '0.75rem', textTransform: 'uppercase', color: 'text.secondary' }}>
+                    Mô tả
+                  </TableCell>
+                  <TableCell sx={{ fontWeight: 600, fontSize: '0.75rem', textTransform: 'uppercase', color: 'text.secondary' }}>
+                    Ngày tạo
+                  </TableCell>
+                  <TableCell
+                    align="right"
+                    sx={{ fontWeight: 600, fontSize: '0.75rem', textTransform: 'uppercase', color: 'text.secondary' }}
+                  >
+                    Hành động
+                  </TableCell>
+                </TableRow>
+              </TableHead>
+              <TableBody>
                 {loading && (
-                  <tr>
-                    <td colSpan={4} className="py-8 text-center text-sm text-gray-500">Đang tải...</td>
-                  </tr>
+                  <TableRow>
+                    <TableCell colSpan={4} align="center" sx={{ py: 6 }}>
+                      <Stack direction="row" justifyContent="center" alignItems="center" spacing={1.5}>
+                        <CircularProgress size={20} />
+                        <Typography variant="body2" color="text.secondary">
+                          Đang tải...
+                        </Typography>
+                      </Stack>
+                    </TableCell>
+                  </TableRow>
                 )}
+
                 {!loading && categories.length === 0 && (
-                  <tr>
-                    <td colSpan={4} className="py-8 text-center text-sm text-gray-500">
-                      Chưa có danh mục nào. Nhấn &quot;Tạo danh mục mới&quot; để bắt đầu.
-                    </td>
-                  </tr>
+                  <TableRow>
+                    <TableCell colSpan={4} align="center" sx={{ py: 6 }}>
+                      <Typography variant="body2" color="text.secondary">
+                        Chưa có danh mục nào. Nhấn &quot;Tạo danh mục mới&quot; để bắt đầu.
+                      </Typography>
+                    </TableCell>
+                  </TableRow>
                 )}
+
                 {categories.map((cat) => (
-                  <tr key={cat._id}>
-                    <td className="px-4 py-3 font-medium text-gray-900">{cat.name}</td>
-                    <td className="px-4 py-3 text-gray-600 max-w-xs">
-                      <span className="line-clamp-2">{cat.description || '-'}</span>
-                    </td>
-                    <td className="px-4 py-3 text-gray-600">{formatDate(cat.createdAt)}</td>
-                    <td className="px-4 py-3 text-right">
-                      <button
-                        type="button"
-                        onClick={() => openEdit(cat)}
-                        className="mr-3 text-emerald-700 hover:underline text-xs"
+                  <TableRow
+                    key={cat._id}
+                    sx={{ '&:hover': { bgcolor: 'grey.50' } }}
+                  >
+                    <TableCell>
+                      <Typography variant="body2" fontWeight={500} color="text.primary">
+                        {cat.name}
+                      </Typography>
+                    </TableCell>
+                    <TableCell sx={{ maxWidth: 280 }}>
+                      <Typography
+                        variant="body2"
+                        color="text.secondary"
+                        sx={{
+                          display: '-webkit-box',
+                          WebkitLineClamp: 2,
+                          WebkitBoxOrient: 'vertical',
+                          overflow: 'hidden',
+                        }}
                       >
-                        Sửa
-                      </button>
-                      <button
-                        type="button"
-                        onClick={() => setConfirmDelete(cat)}
-                        disabled={submitting}
-                        className="text-red-600 hover:underline text-xs disabled:opacity-50"
-                      >
-                        Xóa
-                      </button>
-                    </td>
-                  </tr>
+                        {cat.description || '-'}
+                      </Typography>
+                    </TableCell>
+                    <TableCell>
+                      <Typography variant="body2" color="text.secondary">
+                        {formatDate(cat.createdAt)}
+                      </Typography>
+                    </TableCell>
+                    <TableCell align="right">
+                      <Stack direction="row" justifyContent="flex-end" spacing={0.5}>
+                        <IconButton
+                          size="small"
+                          color="success"
+                          onClick={() => openEdit(cat)}
+                          title="Chỉnh sửa"
+                        >
+                          <EditIcon fontSize="small" />
+                        </IconButton>
+                        <IconButton
+                          size="small"
+                          color="error"
+                          onClick={() => setConfirmDelete(cat)}
+                          disabled={submitting}
+                          title="Xóa"
+                        >
+                          <DeleteIcon fontSize="small" />
+                        </IconButton>
+                      </Stack>
+                    </TableCell>
+                  </TableRow>
                 ))}
-              </tbody>
-            </table>
-          </div>
-        </div>
+              </TableBody>
+            </Table>
+          </TableContainer>
+        </Paper>
       )}
 
       <CategoryFormModal

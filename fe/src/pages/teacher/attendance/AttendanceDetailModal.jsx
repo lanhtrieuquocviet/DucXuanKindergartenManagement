@@ -56,7 +56,7 @@ const renderImagePreview = (imageValue, altText) => {
 };
 
 // ── OTP Section ──
-function OtpSection({ radioName, detailForm, setDetailForm, student, onSendOtp, otpTimeLeft, otpExpired, onResetOtp }) {
+function OtpSection({ radioName, detailForm, setDetailForm, student, approvedPickupPersons = [], onSendOtp, otpTimeLeft, otpExpired, onResetOtp }) {
   const countdownStr = `${Math.floor(otpTimeLeft / 60)}:${String(otpTimeLeft % 60).padStart(2, '0')}`;
   const otpSelected = detailForm.sendOtpSchoolAccount || detailForm.sendOtpViaSms;
 
@@ -111,11 +111,18 @@ function OtpSection({ radioName, detailForm, setDetailForm, student, onSendOtp, 
                   onChange={(e) => setDetailForm((prev) => ({ ...prev, selectedParentForOtp: e.target.value }))}
                 >
                   <MenuItem value="" disabled>-- Chọn --</MenuItem>
-                  {student?.parentId?.phone && (
-                    <MenuItem value={student.parentId.phone}>
-                      {student.parentId.fullName || 'Phụ huynh'} – {student.parentId.phone}
-                    </MenuItem>
-                  )}
+                  {approvedPickupPersons.length > 0
+                    ? approvedPickupPersons.map((p) => (
+                        <MenuItem key={p._id} value={p.phone}>
+                          {p.fullName} – {p.phone}
+                        </MenuItem>
+                      ))
+                    : student?.parentId?.phone && (
+                        <MenuItem value={student.parentId.phone}>
+                          {student.parentId.fullName || 'Phụ huynh'} – {student.parentId.phone}
+                        </MenuItem>
+                      )
+                  }
                 </Select>
               </FormControl>
             )}
@@ -326,7 +333,8 @@ function AttendanceDetailModal({
       onClose={onClose}
       maxWidth={mode === 'view' ? 'md' : 'sm'}
       fullWidth
-      slotProps={{ paper: { sx: { borderRadius: 3, overflow: 'hidden' } } }}
+      scroll="paper"
+      slotProps={{ paper: { sx: { borderRadius: 3, overflow: 'hidden', maxHeight: '90vh' } } }}
     >
       {/* Colored header */}
       <Box
@@ -371,8 +379,8 @@ function AttendanceDetailModal({
       </Box>
 
       {/* Content */}
-      <Box component="form" onSubmit={onSave}>
-        <DialogContent sx={{ pt: 2.5 }}>
+      <Box component="form" onSubmit={onSave} sx={{ display: 'flex', flexDirection: 'column', overflow: 'hidden', flex: 1 }}>
+        <DialogContent sx={{ pt: 2.5, overflowY: 'auto' }}>
           {(submitError || studentsError) && (
             <Alert severity="error" sx={{ mb: 2, borderRadius: 2 }}>
               {submitError || studentsError}
@@ -607,10 +615,10 @@ function AttendanceDetailModal({
 
               <OtpSection
                 radioName="otpMethodCheckout"
-
                 detailForm={detailForm}
                 setDetailForm={setDetailForm}
                 student={student}
+                approvedPickupPersons={approvedPickupPersons}
                 onSendOtp={handleSendOtp}
                 otpTimeLeft={otpTimeLeft}
                 otpExpired={otpExpired}
@@ -748,10 +756,10 @@ function AttendanceDetailModal({
 
               <OtpSection
                 radioName="otpMethodCheckin"
-
                 detailForm={detailForm}
                 setDetailForm={setDetailForm}
                 student={student}
+                approvedPickupPersons={approvedPickupPersons}
                 onSendOtp={handleSendOtp}
                 otpTimeLeft={otpTimeLeft}
                 otpExpired={otpExpired}

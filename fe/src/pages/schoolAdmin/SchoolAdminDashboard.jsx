@@ -3,6 +3,21 @@ import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../../context/AuthContext';
 import { useSchoolAdmin } from '../../context/SchoolAdminContext';
 import RoleLayout from '../../layouts/RoleLayout';
+import {
+  Box,
+  Paper,
+  Typography,
+  Button,
+  CircularProgress,
+  Stack,
+} from '@mui/material';
+import {
+  CalendarToday as CalendarIcon,
+  People as PeopleIcon,
+  School as SchoolIcon,
+  Visibility as VisibilityIcon,
+  Public as PublicIcon,
+} from '@mui/icons-material';
 
 function SchoolAdminDashboard() {
   const [data, setData] = useState(null);
@@ -92,6 +107,30 @@ function SchoolAdminDashboard() {
     }
   };
 
+  const statCards = [
+    {
+      label: 'Số lớp đang hoạt động',
+      value: '8',
+      note: 'Ví dụ thống kê số lớp trong trường.',
+      icon: <SchoolIcon sx={{ fontSize: 32, color: '#6366f1' }} />,
+      accent: '#6366f1',
+    },
+    {
+      label: 'Số giáo viên',
+      value: '15',
+      note: 'Tổng số giáo viên thuộc trường.',
+      icon: <PeopleIcon sx={{ fontSize: 32, color: '#0ea5e9' }} />,
+      accent: '#0ea5e9',
+    },
+    {
+      label: 'Học sinh',
+      value: '120',
+      note: 'Tổng số học sinh trong các lớp.',
+      icon: <PeopleIcon sx={{ fontSize: 32, color: '#10b981' }} />,
+      accent: '#10b981',
+    },
+  ];
+
   return (
     <RoleLayout
       title="Bảng điều khiển của Ban giám hiệu"
@@ -107,65 +146,173 @@ function SchoolAdminDashboard() {
       onViewProfile={handleViewProfile}
       onMenuSelect={handleMenuSelect}
     >
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
-        <div className="bg-white rounded-lg shadow p-6">
-          <h2 className="text-sm font-semibold text-gray-700 mb-1">Số lớp đang hoạt động</h2>
-          <p className="mt-2 text-2xl font-bold text-gray-800">8</p>
-          <p className="mt-1 text-xs text-gray-500">Ví dụ thống kê số lớp trong trường.</p>
-        </div>
-        <div className="bg-white rounded-lg shadow p-6">
-          <h2 className="text-sm font-semibold text-gray-700 mb-1">Số giáo viên</h2>
-          <p className="mt-2 text-2xl font-bold text-gray-800">15</p>
-          <p className="mt-1 text-xs text-gray-500">Tổng số giáo viên thuộc trường.</p>
-        </div>
-        <div className="bg-white rounded-lg shadow p-6">
-          <h2 className="text-sm font-semibold text-gray-700 mb-1">Học sinh</h2>
-          <p className="mt-2 text-2xl font-bold text-gray-800">120</p>
-          <p className="mt-1 text-xs text-gray-500">Tổng số học sinh trong các lớp.</p>
-        </div>
-      </div>
+      {/* Header gradient banner */}
+      <Paper
+        elevation={0}
+        sx={{
+          mb: 3,
+          p: 3,
+          background: 'linear-gradient(135deg, #6366f1 0%, #4f46e5 100%)',
+          borderRadius: 2,
+        }}
+      >
+        <Typography variant="h6" fontWeight={700} color="white">
+          Tổng quan trường học
+        </Typography>
+        <Typography variant="body2" color="rgba(255,255,255,0.8)" mt={0.5}>
+          Quản lý trường, lớp học, giáo viên và phụ huynh trong phạm vi trường.
+        </Typography>
+      </Paper>
 
-      <div className="flex flex-col sm:flex-row gap-4 mb-6">
-        <div className="bg-white rounded-lg shadow p-6 flex-1">
-          <h3 className="text-sm font-semibold text-gray-800 mb-4">Thông tin điểm danh</h3>
-          <p className="text-sm text-gray-600 mb-4">
+      {/* Stat cards row */}
+      <Box
+        sx={{
+          display: 'grid',
+          gridTemplateColumns: { xs: '1fr', md: 'repeat(3, 1fr)' },
+          gap: 2,
+          mb: 3,
+        }}
+      >
+        {statCards.map((card) => (
+          <Paper
+            key={card.label}
+            elevation={1}
+            sx={{
+              p: 3,
+              borderRadius: 2,
+              display: 'flex',
+              alignItems: 'flex-start',
+              gap: 2,
+              borderTop: `4px solid ${card.accent}`,
+            }}
+          >
+            <Box
+              sx={{
+                width: 48,
+                height: 48,
+                borderRadius: 1.5,
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                bgcolor: `${card.accent}18`,
+                flexShrink: 0,
+              }}
+            >
+              {card.icon}
+            </Box>
+            <Box>
+              <Typography variant="body2" fontWeight={600} color="text.secondary">
+                {card.label}
+              </Typography>
+              <Typography variant="h4" fontWeight={700} color="text.primary" mt={0.5}>
+                {card.value}
+              </Typography>
+              <Typography variant="caption" color="text.disabled" mt={0.5} display="block">
+                {card.note}
+              </Typography>
+            </Box>
+          </Paper>
+        ))}
+      </Box>
+
+      {/* Action cards row */}
+      <Box
+        sx={{
+          display: 'grid',
+          gridTemplateColumns: { xs: '1fr', sm: 'repeat(2, 1fr)' },
+          gap: 2,
+          mb: 3,
+        }}
+      >
+        {/* Attendance card */}
+        <Paper elevation={1} sx={{ p: 3, borderRadius: 2 }}>
+          <Stack direction="row" alignItems="center" spacing={1.5} mb={1.5}>
+            <CalendarIcon sx={{ color: '#6366f1' }} />
+            <Typography variant="subtitle2" fontWeight={600} color="text.primary">
+              Thông tin điểm danh
+            </Typography>
+          </Stack>
+          <Typography variant="body2" color="text.secondary" mb={2.5}>
             Xem tổng quan điểm danh của tất cả các lớp trong trường.
-          </p>
-          <button
-            type="button"
+          </Typography>
+          <Button
+            variant="contained"
+            startIcon={<VisibilityIcon />}
             onClick={() => navigate('/school-admin/attendance/overview')}
-            className="px-4 py-2 bg-indigo-600 text-white text-sm font-semibold rounded-md hover:bg-indigo-700 transition-colors"
+            sx={{
+              bgcolor: '#6366f1',
+              '&:hover': { bgcolor: '#4f46e5' },
+              borderRadius: 1.5,
+              textTransform: 'none',
+              fontWeight: 600,
+            }}
           >
             Xem điểm danh các lớp
-          </button>
-        </div>
+          </Button>
+        </Paper>
 
-        <div className="bg-white rounded-lg shadow p-6 flex-1">
-          <h3 className="text-sm font-semibold text-gray-800 mb-4">Thông tin công khai</h3>
-          <p className="text-sm text-gray-600 mb-4">
+        {/* Public info card */}
+        <Paper elevation={1} sx={{ p: 3, borderRadius: 2 }}>
+          <Stack direction="row" alignItems="center" spacing={1.5} mb={1.5}>
+            <PublicIcon sx={{ color: '#10b981' }} />
+            <Typography variant="subtitle2" fontWeight={600} color="text.primary">
+              Thông tin công khai
+            </Typography>
+          </Stack>
+          <Typography variant="body2" color="text.secondary" mb={2.5}>
             Quản lý các thông tin công khai theo 5 danh mục của trường.
-          </p>
-          <button
-            type="button"
+          </Typography>
+          <Button
+            variant="contained"
+            startIcon={<PublicIcon />}
             onClick={() => navigate('/school-admin/public-info')}
-            className="px-4 py-2 bg-emerald-600 text-white text-sm font-semibold rounded-md hover:bg-emerald-700 transition-colors"
+            sx={{
+              bgcolor: '#10b981',
+              '&:hover': { bgcolor: '#059669' },
+              borderRadius: 1.5,
+              textTransform: 'none',
+              fontWeight: 600,
+            }}
           >
             Quản lý thông tin công khai
-          </button>
-        </div>
-      </div>
+          </Button>
+        </Paper>
+      </Box>
 
-      <div className="bg-white rounded-lg shadow p-6">
-        <h3 className="text-sm font-semibold text-gray-800 mb-2">Dữ liệu trả về từ API</h3>
+      {/* API data panel */}
+      <Paper elevation={1} sx={{ p: 3, borderRadius: 2 }}>
+        <Typography variant="subtitle2" fontWeight={600} color="text.primary" mb={1.5}>
+          Dữ liệu trả về từ API
+        </Typography>
         {loading && (
-          <p className="text-sm text-gray-500">Đang tải...</p>
+          <Stack direction="row" alignItems="center" spacing={1.5} py={2}>
+            <CircularProgress size={18} thickness={4} />
+            <Typography variant="body2" color="text.secondary">
+              Đang tải...
+            </Typography>
+          </Stack>
         )}
         {!loading && (
-          <pre className="text-xs text-gray-700 overflow-auto max-h-80 bg-gray-50 p-4 rounded">
+          <Box
+            component="pre"
+            sx={{
+              fontSize: '0.75rem',
+              color: 'text.primary',
+              overflowX: 'auto',
+              maxHeight: 320,
+              bgcolor: 'grey.50',
+              border: '1px solid',
+              borderColor: 'divider',
+              borderRadius: 1.5,
+              p: 2,
+              m: 0,
+              fontFamily: 'monospace',
+            }}
+          >
             {JSON.stringify(data, null, 2)}
-          </pre>
+          </Box>
         )}
-      </div>
+      </Paper>
     </RoleLayout>
   );
 }

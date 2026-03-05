@@ -4,6 +4,29 @@ import RoleLayout from '../../layouts/RoleLayout';
 import { useAuth } from '../../context/AuthContext';
 import { get, ENDPOINTS } from '../../service/api';
 
+import {
+  Box,
+  Paper,
+  Typography,
+  Button,
+  Alert,
+  Stack,
+  Chip,
+  TextField,
+  Table,
+  TableBody,
+  TableCell,
+  TableContainer,
+  TableHead,
+  TableRow,
+  CircularProgress,
+} from '@mui/material';
+import ArrowBackIcon from '@mui/icons-material/ArrowBack';
+import RefreshIcon from '@mui/icons-material/Refresh';
+import AddIcon from '@mui/icons-material/Add';
+import VisibilityIcon from '@mui/icons-material/Visibility';
+import EditIcon from '@mui/icons-material/Edit';
+
 function StudentInClass() {
   const { classId } = useParams();
   const [students, setStudents] = useState([]);
@@ -95,7 +118,7 @@ function StudentInClass() {
       { key: 'qa', label: 'Câu hỏi' },
       { key: 'blogs', label: 'Quản lý blog' },
       { key: 'documents', label: 'Quản lý tài liệu' },
-    { key: 'public-info', label: 'Thông tin công khai' },
+      { key: 'public-info', label: 'Thông tin công khai' },
       { key: 'attendance', label: 'Quản lý điểm danh' },
     ];
   };
@@ -157,230 +180,292 @@ function StudentInClass() {
       userAvatar={user?.avatar}
     >
       {error && (
-        <div className="mb-4 rounded-md bg-red-50 border border-red-200 px-4 py-2 text-sm text-red-800">
+        <Alert severity="error" sx={{ mb: 2 }}>
           {error}
-        </div>
+        </Alert>
       )}
 
-      <div className="bg-white rounded-lg shadow p-6">
-        {/* Header + bộ lọc */}
-        <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-3 mb-6">
-          <div>
-            <button
+      <Paper elevation={2} sx={{ p: 3, borderRadius: 2 }}>
+        {/* Header + Filter */}
+        <Box
+          sx={{
+            display: 'flex',
+            flexDirection: { xs: 'column', md: 'row' },
+            alignItems: { md: 'center' },
+            justifyContent: 'space-between',
+            gap: 2,
+            mb: 3,
+          }}
+        >
+          <Box>
+            <Button
+              startIcon={<ArrowBackIcon />}
               onClick={handleGoBack}
-              className="mb-3 inline-flex items-center gap-1 rounded-full border border-gray-200 bg-gray-50 px-3 py-1 text-xs font-medium text-gray-700 hover:bg-gray-100 hover:text-gray-900 transition-colors"
+              variant="outlined"
+              size="small"
+              sx={{
+                mb: 1.5,
+                borderRadius: 5,
+                fontSize: '0.75rem',
+                fontWeight: 500,
+                borderColor: 'grey.300',
+                color: 'text.secondary',
+                bgcolor: 'grey.50',
+                '&:hover': { bgcolor: 'grey.100', borderColor: 'grey.400' },
+              }}
             >
-              <span className="text-sm">←</span>
-              <span>Quay lại danh sách lớp</span>
-            </button>
+              Quay lại danh sách lớp
+            </Button>
 
-            <h3 className="text-sm font-semibold text-gray-800">
+            <Typography variant="subtitle1" sx={{ fontWeight: 700, color: 'text.primary' }}>
               {classInfo ? `Lớp ${classInfo.className}` : 'Danh sách học sinh'}
-            </h3>
-            <p className="text-xs text-gray-500 mt-1">
+            </Typography>
+            <Typography variant="caption" sx={{ color: 'text.secondary', mt: 0.5, display: 'block' }}>
               {classInfo && (
                 <>
                   Khối:{' '}
-                  <span className="font-semibold">
+                  <Box component="span" sx={{ fontWeight: 700 }}>
                     {classInfo.gradeId?.gradeName || 'N/A'}
-                  </span>{' '}
-                  • Năm học:{' '}
-                  <span className="font-semibold">
+                  </Box>
+                  {' '}•{' '}Năm học:{' '}
+                  <Box component="span" sx={{ fontWeight: 700 }}>
                     {classInfo.academicYearId?.yearName || 'N/A'}
-                  </span>{' '}
-                  •{' '}
+                  </Box>
+                  {' '}•{' '}
                 </>
               )}
               Tổng học sinh:{' '}
-              <span className="font-semibold">{students.length}</span>
-            </p>
-          </div>
+              <Box component="span" sx={{ fontWeight: 700 }}>
+                {students.length}
+              </Box>
+            </Typography>
+          </Box>
 
-          <div className="flex flex-col sm:flex-row gap-2 w-full md:w-auto">
-            <input
-              type="text"
+          <Stack direction={{ xs: 'column', sm: 'row' }} spacing={1} sx={{ width: { xs: '100%', md: 'auto' } }}>
+            <TextField
+              size="small"
               placeholder="Tìm kiếm tên học sinh..."
               value={searchTerm}
               onChange={(e) => setSearchTerm(e.target.value)}
-              className="flex-1 px-3 py-2 border border-gray-300 rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500"
+              sx={{ minWidth: 220 }}
             />
-            <button
+            <Button
               type="button"
               onClick={fetchStudents}
-              className="px-3 py-2 bg-gray-100 text-gray-700 text-sm font-medium rounded-md hover:bg-gray-200 transition-colors"
+              variant="outlined"
+              startIcon={<RefreshIcon />}
+              sx={{
+                fontWeight: 500,
+                bgcolor: 'grey.100',
+                borderColor: 'grey.300',
+                color: 'text.primary',
+                '&:hover': { bgcolor: 'grey.200' },
+              }}
             >
               Tải lại
-            </button>
-            <button
+            </Button>
+            <Button
               type="button"
-              className="px-3 py-2 bg-indigo-600 text-white text-sm font-semibold rounded-md hover:bg-indigo-700 transition-colors"
+              variant="contained"
+              startIcon={<AddIcon />}
+              sx={{
+                fontWeight: 600,
+                bgcolor: 'indigo.600',
+                background: 'linear-gradient(135deg, #6366f1 0%, #4f46e5 100%)',
+                '&:hover': { background: 'linear-gradient(135deg, #4f46e5 0%, #4338ca 100%)' },
+              }}
             >
-              + Thêm học sinh
-            </button>
-          </div>
-        </div>
+              Thêm học sinh
+            </Button>
+          </Stack>
+        </Box>
 
         {/* Stats Section */}
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
-          <div className="bg-gray-50 border border-gray-200 rounded-lg p-4">
-            <h4 className="text-xs font-semibold text-gray-700 uppercase tracking-wide">
-              Tổng học sinh
-            </h4>
-            <p className="mt-2 text-2xl font-bold text-gray-900">
-              {students.length}
-            </p>
-          </div>
-          <div className="bg-gray-50 border border-gray-200 rounded-lg p-4">
-            <h4 className="text-xs font-semibold text-gray-700 uppercase tracking-wide">
-              Nam
-            </h4>
-            <p className="mt-2 text-2xl font-bold text-gray-900">
-              {students.filter((s) => s.gender === 'male').length}
-            </p>
-          </div>
-          <div className="bg-gray-50 border border-gray-200 rounded-lg p-4">
-            <h4 className="text-xs font-semibold text-gray-700 uppercase tracking-wide">
-              Nữ
-            </h4>
-            <p className="mt-2 text-2xl font-bold text-gray-900">
-              {students.filter((s) => s.gender === 'female').length}
-            </p>
-          </div>
-        </div>
+        <Box
+          sx={{
+            display: 'grid',
+            gridTemplateColumns: { xs: '1fr', md: '1fr 1fr 1fr' },
+            gap: 2,
+            mb: 3,
+          }}
+        >
+          {[
+            { label: 'Tổng học sinh', value: students.length },
+            { label: 'Nam', value: students.filter((s) => s.gender === 'male').length },
+            { label: 'Nữ', value: students.filter((s) => s.gender === 'female').length },
+          ].map(({ label, value }) => (
+            <Paper
+              key={label}
+              variant="outlined"
+              sx={{ p: 2, borderRadius: 2, bgcolor: 'grey.50' }}
+            >
+              <Typography
+                variant="caption"
+                sx={{ fontWeight: 700, color: 'text.secondary', textTransform: 'uppercase', letterSpacing: 1 }}
+              >
+                {label}
+              </Typography>
+              <Typography variant="h4" sx={{ fontWeight: 800, mt: 1, color: 'text.primary' }}>
+                {value}
+              </Typography>
+            </Paper>
+          ))}
+        </Box>
 
         {/* Table Section */}
         {loading ? (
-          <div className="p-8 text-center">
-            <div className="inline-block animate-spin">
-              <div className="h-6 w-6 border-3 border-indigo-500 border-t-transparent rounded-full" />
-            </div>
-            <p className="mt-2 text-sm text-gray-500">
+          <Box sx={{ p: 4, textAlign: 'center' }}>
+            <CircularProgress size={28} />
+            <Typography variant="body2" color="text.secondary" sx={{ mt: 1.5 }}>
               Đang tải danh sách học sinh...
-            </p>
-          </div>
+            </Typography>
+          </Box>
         ) : filteredStudents.length === 0 ? (
-          <div className="p-8 text-center">
-            <p className="text-sm text-gray-500">
+          <Box sx={{ p: 4, textAlign: 'center' }}>
+            <Typography variant="body2" color="text.secondary">
               Không tìm thấy học sinh nào
-            </p>
-          </div>
+            </Typography>
+          </Box>
         ) : (
-          <div className="overflow-x-auto">
-            <table className="w-full text-sm border border-gray-200 rounded-lg overflow-hidden">
-              <thead className="bg-gray-50 border-b border-gray-200">
-                <tr>
-                  <th className="px-4 py-3 text-left font-semibold text-gray-800">
-                    Tên học sinh
-                  </th>
-                  <th className="px-4 py-3 text-left font-semibold text-gray-800">
-                    Giới tính
-                  </th>
-                  <th className="px-4 py-3 text-left font-semibold text-gray-800">
-                    Ngày sinh
-                  </th>
-                  <th className="px-4 py-3 text-left font-semibold text-gray-800">
-                    Điện thoại
-                  </th>
-                  <th className="px-4 py-3 text-left font-semibold text-gray-800">
-                    Địa chỉ
-                  </th>
-                  <th className="px-4 py-3 text-center font-semibold text-gray-800">
-                    Trạng thái
-                  </th>
-                  <th className="px-4 py-3 text-center font-semibold text-gray-800">
-                    Thao tác
-                  </th>
-                </tr>
-              </thead>
-              <tbody>
+          <TableContainer sx={{ borderRadius: 2, border: '1px solid', borderColor: 'grey.200' }}>
+            <Table size="small">
+              <TableHead>
+                <TableRow sx={{ bgcolor: 'grey.50' }}>
+                  <TableCell sx={{ fontWeight: 700, color: 'text.primary' }}>Tên học sinh</TableCell>
+                  <TableCell sx={{ fontWeight: 700, color: 'text.primary' }}>Giới tính</TableCell>
+                  <TableCell sx={{ fontWeight: 700, color: 'text.primary' }}>Ngày sinh</TableCell>
+                  <TableCell sx={{ fontWeight: 700, color: 'text.primary' }}>Điện thoại</TableCell>
+                  <TableCell sx={{ fontWeight: 700, color: 'text.primary' }}>Địa chỉ</TableCell>
+                  <TableCell align="center" sx={{ fontWeight: 700, color: 'text.primary' }}>Trạng thái</TableCell>
+                  <TableCell align="center" sx={{ fontWeight: 700, color: 'text.primary' }}>Thao tác</TableCell>
+                </TableRow>
+              </TableHead>
+              <TableBody>
                 {filteredStudents.map((student, index) => (
-                  <tr
+                  <TableRow
                     key={student._id || index}
-                    className="border-b border-gray-100 hover:bg-gray-50 transition-colors"
+                    hover
+                    sx={{ '&:last-child td': { border: 0 } }}
                   >
-                    <td className="px-4 py-3">
-                      <div className="font-medium text-gray-900">
+                    <TableCell>
+                      <Typography variant="body2" sx={{ fontWeight: 600, color: 'text.primary' }}>
                         {student.fullName}
-                      </div>
+                      </Typography>
                       {(student.parentId?.email || student.userId?.email) && (
-                        <div className="text-xs text-gray-500">
+                        <Typography variant="caption" color="text.secondary">
                           {student.parentId?.email || student.userId?.email}
-                        </div>
+                        </Typography>
                       )}
-                    </td>
-                    <td className="px-4 py-3">
-                      <span
-                        className={`inline-block px-2 py-1 text-xs font-medium rounded-full ${
+                    </TableCell>
+
+                    <TableCell>
+                      <Chip
+                        label={
                           student.gender === 'male'
-                            ? 'bg-blue-50 text-blue-700'
+                            ? 'Nam'
                             : student.gender === 'female'
-                            ? 'bg-pink-50 text-pink-700'
-                            : 'bg-gray-100 text-gray-700'
-                        }`}
-                      >
-                        {student.gender === 'male'
-                          ? 'Nam'
-                          : student.gender === 'female'
-                          ? 'Nữ'
-                          : 'Khác'}
-                      </span>
-                    </td>
-                    <td className="px-4 py-3">
-                      <div className="text-gray-700">
+                            ? 'Nữ'
+                            : 'Khác'
+                        }
+                        size="small"
+                        sx={{
+                          fontWeight: 600,
+                          fontSize: '0.7rem',
+                          ...(student.gender === 'male'
+                            ? { bgcolor: '#eff6ff', color: '#1d4ed8' }
+                            : student.gender === 'female'
+                            ? { bgcolor: '#fdf2f8', color: '#be185d' }
+                            : { bgcolor: 'grey.100', color: 'text.secondary' }),
+                        }}
+                      />
+                    </TableCell>
+
+                    <TableCell>
+                      <Typography variant="body2" color="text.primary">
                         {student.dateOfBirth
-                          ? new Date(
-                              student.dateOfBirth,
-                            ).toLocaleDateString('vi-VN')
+                          ? new Date(student.dateOfBirth).toLocaleDateString('vi-VN')
                           : 'N/A'}
-                      </div>
-                    </td>
-                    <td className="px-4 py-3">
-                      <div className="text-gray-700">
+                      </Typography>
+                    </TableCell>
+
+                    <TableCell>
+                      <Typography variant="body2" color="text.primary">
                         {student.phone || 'N/A'}
-                      </div>
-                    </td>
-                    <td className="px-4 py-3">
-                      <div
-                        className="text-gray-700 truncate max-w-xs"
+                      </Typography>
+                    </TableCell>
+
+                    <TableCell>
+                      <Typography
+                        variant="body2"
+                        color="text.primary"
                         title={student.address || 'N/A'}
+                        sx={{ maxWidth: 200, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}
                       >
                         {student.address || 'N/A'}
-                      </div>
-                    </td>
-                    <td className="px-4 py-3 text-center">
-                      <span
-                        className={`inline-block px-2 py-1 text-xs font-medium rounded-full ${
-                          student.status === 'active'
-                            ? 'bg-green-50 text-green-700'
-                            : 'bg-gray-100 text-gray-700'
-                        }`}
-                      >
-                        {student.status === 'active'
-                          ? 'Hoạt động'
-                          : 'Không hoạt động'}
-                      </span>
-                    </td>
-                    <td className="px-4 py-3 text-center space-x-2">
-                      <button
-                        type="button"
-                        className="inline-flex items-center rounded-lg bg-indigo-50 px-3 py-1.5 text-xs font-medium text-indigo-700 hover:bg-indigo-100 transition-colors"
-                      >
-                        Xem
-                      </button>
-                      <button
-                        type="button"
-                        className="inline-flex items-center rounded-lg bg-gray-100 px-3 py-1.5 text-xs font-medium text-gray-700 hover:bg-gray-200 transition-colors"
-                      >
-                        Sửa
-                      </button>
-                    </td>
-                  </tr>
+                      </Typography>
+                    </TableCell>
+
+                    <TableCell align="center">
+                      <Chip
+                        label={student.status === 'active' ? 'Hoạt động' : 'Không hoạt động'}
+                        size="small"
+                        sx={{
+                          fontWeight: 600,
+                          fontSize: '0.7rem',
+                          ...(student.status === 'active'
+                            ? { bgcolor: '#f0fdf4', color: '#15803d' }
+                            : { bgcolor: 'grey.100', color: 'text.secondary' }),
+                        }}
+                      />
+                    </TableCell>
+
+                    <TableCell align="center">
+                      <Stack direction="row" spacing={1} justifyContent="center">
+                        <Button
+                          type="button"
+                          size="small"
+                          startIcon={<VisibilityIcon fontSize="inherit" />}
+                          sx={{
+                            fontSize: '0.7rem',
+                            fontWeight: 600,
+                            bgcolor: '#eef2ff',
+                            color: '#4338ca',
+                            '&:hover': { bgcolor: '#e0e7ff' },
+                            borderRadius: 1.5,
+                            px: 1.5,
+                            py: 0.5,
+                            minWidth: 'unset',
+                          }}
+                        >
+                          Xem
+                        </Button>
+                        <Button
+                          type="button"
+                          size="small"
+                          startIcon={<EditIcon fontSize="inherit" />}
+                          sx={{
+                            fontSize: '0.7rem',
+                            fontWeight: 600,
+                            bgcolor: 'grey.100',
+                            color: 'text.secondary',
+                            '&:hover': { bgcolor: 'grey.200' },
+                            borderRadius: 1.5,
+                            px: 1.5,
+                            py: 0.5,
+                            minWidth: 'unset',
+                          }}
+                        >
+                          Sửa
+                        </Button>
+                      </Stack>
+                    </TableCell>
+                  </TableRow>
                 ))}
-              </tbody>
-            </table>
-          </div>
+              </TableBody>
+            </Table>
+          </TableContainer>
         )}
-      </div>
+      </Paper>
     </RoleLayout>
   );
 }

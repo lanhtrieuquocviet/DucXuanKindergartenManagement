@@ -3,6 +3,30 @@ import { useNavigate, useParams, useSearchParams } from 'react-router-dom';
 import { useAuth } from '../../context/AuthContext';
 import { useSchoolAdmin } from '../../context/SchoolAdminContext';
 import RoleLayout from '../../layouts/RoleLayout';
+import {
+  Box,
+  Paper,
+  Typography,
+  Button,
+  Alert,
+  Stack,
+  Chip,
+  TextField,
+  Table,
+  TableHead,
+  TableBody,
+  TableRow,
+  TableCell,
+  CircularProgress,
+  MenuItem,
+  Select,
+  FormControl,
+  InputLabel,
+  Grid,
+} from '@mui/material';
+import ArrowBackIcon from '@mui/icons-material/ArrowBack';
+import SearchIcon from '@mui/icons-material/Search';
+import VisibilityIcon from '@mui/icons-material/Visibility';
 
 const getLocalISODate = () => {
   const d = new Date();
@@ -26,20 +50,20 @@ const formatTime = (timeStr) => {
   }
 };
 
-const getStatusText = (attendance) => {
+const getStatusInfo = (attendance) => {
   if (!attendance || attendance.status === 'absent') {
-    return { text: 'Nghỉ học', color: 'text-red-600' };
+    return { text: 'Nghỉ học', color: 'error' };
   }
   if (attendance.status === 'present') {
     if (attendance.time?.checkIn && !attendance.time?.checkOut) {
-      return { text: 'Chưa check-out', color: 'text-orange-600' };
+      return { text: 'Chưa check-out', color: 'warning' };
     }
     if (attendance.time?.checkIn && attendance.time?.checkOut) {
-      return { text: 'Hoàn thành điểm danh', color: 'text-blue-600' };
+      return { text: 'Hoàn thành điểm danh', color: 'primary' };
     }
-    return { text: 'Có mặt', color: 'text-green-600' };
+    return { text: 'Có mặt', color: 'success' };
   }
-  return { text: '—', color: 'text-gray-600' };
+  return { text: '—', color: 'default' };
 };
 
 function ClassAttendanceDetail() {
@@ -230,223 +254,208 @@ function ClassAttendanceDetail() {
       onMenuSelect={handleMenuSelect}
     >
       {error && (
-        <div className="mb-4 rounded-md bg-red-50 border border-red-200 px-4 py-2 text-sm text-red-800">
+        <Alert severity="error" sx={{ mb: 2 }}>
           {error}
-        </div>
+        </Alert>
       )}
 
       {/* Bộ lọc và tìm kiếm */}
-      <div className="bg-white rounded-lg shadow p-4 mb-4">
-        <div className="flex flex-col md:flex-row gap-4 items-end">
-          <div className="flex-1">
-            <label className="block text-sm font-semibold text-gray-700 mb-1">
-              Ngày
-            </label>
-            <input
+      <Paper elevation={1} sx={{ p: 2, mb: 2, borderRadius: 2 }}>
+        <Grid container spacing={2} alignItems="flex-end">
+          <Grid item xs={12} md={3}>
+            <TextField
+              label="Ngày"
               type="date"
               value={selectedDate}
               onChange={(e) => setSelectedDate(e.target.value)}
-              className="w-full px-3 py-2 border border-gray-300 rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500"
+              size="small"
+              fullWidth
+              InputLabelProps={{ shrink: true }}
             />
-          </div>
+          </Grid>
 
-          <div className="flex-1">
-            <label className="block text-sm font-semibold text-gray-700 mb-1">
-              Lớp
-            </label>
-            <select
-              value={classId || ''}
-              onChange={(e) => handleClassChange(e.target.value)}
-              className="w-full px-3 py-2 border border-gray-300 rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500"
-            >
-              {classes.map((cls) => (
-                <option key={cls._id} value={cls._id}>
-                  {cls.className}
-                </option>
-              ))}
-            </select>
-          </div>
+          <Grid item xs={12} md={3}>
+            <FormControl size="small" fullWidth>
+              <InputLabel>Lớp</InputLabel>
+              <Select
+                value={classId || ''}
+                label="Lớp"
+                onChange={(e) => handleClassChange(e.target.value)}
+              >
+                {classes.map((cls) => (
+                  <MenuItem key={cls._id} value={cls._id}>
+                    {cls.className}
+                  </MenuItem>
+                ))}
+              </Select>
+            </FormControl>
+          </Grid>
 
-          <div className="flex-1">
-            <label className="block text-sm font-semibold text-gray-700 mb-1">
-              Trạng thái
-            </label>
-            <select
-              value={selectedStatus}
-              onChange={(e) => setSelectedStatus(e.target.value)}
-              className="w-full px-3 py-2 border border-gray-300 rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500"
-            >
-              <option value="all">Tất cả trạng thái</option>
-              <option value="present">Có mặt</option>
-              <option value="absent">Nghỉ học</option>
-              <option value="notCheckedOut">Chưa check-out</option>
-            </select>
-          </div>
+          <Grid item xs={12} md={3}>
+            <FormControl size="small" fullWidth>
+              <InputLabel>Trạng thái</InputLabel>
+              <Select
+                value={selectedStatus}
+                label="Trạng thái"
+                onChange={(e) => setSelectedStatus(e.target.value)}
+              >
+                <MenuItem value="all">Tất cả trạng thái</MenuItem>
+                <MenuItem value="present">Có mặt</MenuItem>
+                <MenuItem value="absent">Nghỉ học</MenuItem>
+                <MenuItem value="notCheckedOut">Chưa check-out</MenuItem>
+              </Select>
+            </FormControl>
+          </Grid>
 
-          <div className="flex-1">
-            <label className="block text-sm font-semibold text-gray-700 mb-1">
-              Tìm theo tên học sinh
-            </label>
-            <div className="relative">
-              <input
-                type="text"
-                value={searchTerm}
-                onChange={(e) => setSearchTerm(e.target.value)}
-                placeholder="Tìm theo tên học sinh..."
-                className="w-full px-3 py-2 pl-10 border border-gray-300 rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500"
-              />
-              <span className="absolute left-3 top-2.5 text-gray-400">🔍</span>
-            </div>
-          </div>
-        </div>
-      </div>
+          <Grid item xs={12} md={3}>
+            <TextField
+              label="Tìm theo tên học sinh"
+              type="text"
+              value={searchTerm}
+              onChange={(e) => setSearchTerm(e.target.value)}
+              placeholder="Tìm theo tên học sinh..."
+              size="small"
+              fullWidth
+              InputProps={{
+                startAdornment: (
+                  <SearchIcon fontSize="small" sx={{ mr: 0.5, color: 'text.secondary' }} />
+                ),
+              }}
+            />
+          </Grid>
+        </Grid>
+      </Paper>
 
       {/* Thống kê */}
-      <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-4">
-        <div className="bg-green-50 rounded-lg shadow p-4 border border-green-100">
-          <div className="text-sm font-semibold text-gray-700 mb-1">Sĩ số</div>
-          <div className="text-2xl font-bold text-green-700">
-            {stats.totalStudents}
-          </div>
-        </div>
-        <div className="bg-green-50 rounded-lg shadow p-4 border border-green-100">
-          <div className="text-sm font-semibold text-gray-700 mb-1">Có mặt</div>
-          <div className="text-2xl font-bold text-green-700">
-            {stats.present}
-          </div>
-        </div>
-        <div className="bg-green-50 rounded-lg shadow p-4 border border-green-100">
-          <div className="text-sm font-semibold text-gray-700 mb-1">
-            Nghỉ học
-          </div>
-          <div className="text-2xl font-bold text-green-700">
-            {stats.absent}
-          </div>
-        </div>
-        <div className="bg-green-50 rounded-lg shadow p-4 border border-green-100">
-          <div className="text-sm font-semibold text-gray-700 mb-1">
-            Chưa check-out
-          </div>
-          <div className="text-2xl font-bold text-green-700">
-            {stats.notCheckedOut}
-          </div>
-        </div>
-      </div>
+      <Grid container spacing={2} sx={{ mb: 2 }}>
+        {[
+          { label: 'Sĩ số', value: stats.totalStudents },
+          { label: 'Có mặt', value: stats.present },
+          { label: 'Nghỉ học', value: stats.absent },
+          { label: 'Chưa check-out', value: stats.notCheckedOut },
+        ].map((item) => (
+          <Grid item xs={12} sm={6} md={3} key={item.label}>
+            <Paper
+              elevation={1}
+              sx={{
+                p: 2,
+                borderRadius: 2,
+                bgcolor: 'success.50',
+                border: '1px solid',
+                borderColor: 'success.100',
+              }}
+            >
+              <Typography variant="body2" fontWeight={600} color="text.secondary" mb={0.5}>
+                {item.label}
+              </Typography>
+              <Typography variant="h5" fontWeight={700} color="success.700">
+                {item.value}
+              </Typography>
+            </Paper>
+          </Grid>
+        ))}
+      </Grid>
 
       {/* Bảng điểm danh */}
-      <div className="bg-white rounded-lg shadow overflow-hidden">
+      <Paper elevation={1} sx={{ borderRadius: 2, overflow: 'hidden' }}>
         {loading ? (
-          <div className="p-8 text-center">
-            <div className="inline-block animate-spin">
-              <div className="h-6 w-6 border-3 border-indigo-500 border-t-transparent rounded-full" />
-            </div>
-            <p className="mt-2 text-sm text-gray-500">Đang tải dữ liệu...</p>
-          </div>
+          <Box sx={{ p: 4, textAlign: 'center' }}>
+            <CircularProgress size={32} />
+            <Typography variant="body2" color="text.secondary" mt={1}>
+              Đang tải dữ liệu...
+            </Typography>
+          </Box>
         ) : filteredStudents.length === 0 ? (
-          <div className="p-8 text-center text-gray-500">
-            <p>Không có dữ liệu điểm danh.</p>
-          </div>
+          <Box sx={{ p: 4, textAlign: 'center' }}>
+            <Typography color="text.secondary">Không có dữ liệu điểm danh.</Typography>
+          </Box>
         ) : (
-          <div className="overflow-x-auto">
-            <table className="w-full text-sm border border-gray-200">
-              <thead className="bg-gray-50 border-b border-gray-200">
-                <tr>
-                  <th className="px-4 py-3 text-left font-semibold text-gray-800 w-[70px]">
-                    STT
-                  </th>
-                  <th className="px-4 py-3 text-left font-semibold text-gray-800">
-                    Học sinh
-                  </th>
-                  <th className="px-4 py-3 text-center font-semibold text-gray-800">
-                    Đến
-                  </th>
-                  <th className="px-4 py-3 text-center font-semibold text-gray-800">
-                    Về
-                  </th>
-                  <th className="px-4 py-3 text-left font-semibold text-gray-800">
-                    Người đưa
-                  </th>
-                  <th className="px-4 py-3 text-left font-semibold text-gray-800">
-                    Người đón
-                  </th>
-                  <th className="px-4 py-3 text-left font-semibold text-gray-800">
-                    Trạng thái
-                  </th>
-                  <th className="px-4 py-3 text-center font-semibold text-gray-800">
-                    Chi tiết
-                  </th>
-                </tr>
-              </thead>
-              <tbody>
+          <Box sx={{ overflowX: 'auto' }}>
+            <Table size="small">
+              <TableHead>
+                <TableRow sx={{ bgcolor: 'grey.50' }}>
+                  <TableCell sx={{ fontWeight: 700, width: 70 }}>STT</TableCell>
+                  <TableCell sx={{ fontWeight: 700 }}>Học sinh</TableCell>
+                  <TableCell sx={{ fontWeight: 700, textAlign: 'center' }}>Đến</TableCell>
+                  <TableCell sx={{ fontWeight: 700, textAlign: 'center' }}>Về</TableCell>
+                  <TableCell sx={{ fontWeight: 700 }}>Người đưa</TableCell>
+                  <TableCell sx={{ fontWeight: 700 }}>Người đón</TableCell>
+                  <TableCell sx={{ fontWeight: 700 }}>Trạng thái</TableCell>
+                  <TableCell sx={{ fontWeight: 700, textAlign: 'center' }}>Chi tiết</TableCell>
+                </TableRow>
+              </TableHead>
+              <TableBody>
                 {filteredStudents.map((student, idx) => {
                   const attendance = student.attendance;
-                  const status = getStatusText(attendance);
-                  const checkInTime = attendance?.timeString?.checkIn || 
+                  const statusInfo = getStatusInfo(attendance);
+                  const checkInTime = attendance?.timeString?.checkIn ||
                                      formatTime(attendance?.time?.checkIn);
-                  const checkOutTime = attendance?.timeString?.checkOut || 
+                  const checkOutTime = attendance?.timeString?.checkOut ||
                                       formatTime(attendance?.time?.checkOut);
-                  
+
                   // Lấy thông tin người đưa/đón từ attendance
                   const deliverer = attendance?.delivererType || '—';
                   const receiver = attendance?.receiverType || '—';
 
                   return (
-                    <tr
+                    <TableRow
                       key={student._id || idx}
-                      className="border-b border-gray-100 hover:bg-gray-50 transition-colors"
+                      hover
+                      sx={{ borderBottom: '1px solid', borderColor: 'grey.100' }}
                     >
-                      <td className="px-4 py-3 text-gray-700">{idx + 1}</td>
-                      <td className="px-4 py-3">
-                        <div className="font-medium text-gray-900">
+                      <TableCell>{idx + 1}</TableCell>
+                      <TableCell>
+                        <Typography variant="body2" fontWeight={500}>
                           {student.fullName || '—'}
-                        </div>
-                      </td>
-                      <td className="px-4 py-3 text-center text-gray-700">
-                        {checkInTime}
-                      </td>
-                      <td className="px-4 py-3 text-center text-gray-700">
-                        {checkOutTime}
-                      </td>
-                      <td className="px-4 py-3 text-gray-700">{deliverer}</td>
-                      <td className="px-4 py-3 text-gray-700">{receiver}</td>
-                      <td className="px-4 py-3">
-                        <span className={`font-medium ${status.color}`}>
-                          {status.text}
-                        </span>
-                      </td>
-                      <td className="px-4 py-3 text-center">
-                        <button
-                          type="button"
+                        </Typography>
+                      </TableCell>
+                      <TableCell sx={{ textAlign: 'center' }}>{checkInTime}</TableCell>
+                      <TableCell sx={{ textAlign: 'center' }}>{checkOutTime}</TableCell>
+                      <TableCell>{deliverer}</TableCell>
+                      <TableCell>{receiver}</TableCell>
+                      <TableCell>
+                        <Chip
+                          label={statusInfo.text}
+                          color={statusInfo.color}
+                          size="small"
+                          variant="outlined"
+                        />
+                      </TableCell>
+                      <TableCell sx={{ textAlign: 'center' }}>
+                        <Button
+                          variant="contained"
+                          size="small"
+                          startIcon={<VisibilityIcon />}
                           onClick={() => {
                             navigate(`/school-admin/students/${student._id}/attendance?date=${selectedDate}&classId=${currentClassId}`);
                           }}
-                          className="px-3 py-1.5 bg-blue-600 text-white text-sm rounded hover:bg-blue-700 transition-colors"
                         >
                           Xem
-                        </button>
-                      </td>
-                    </tr>
+                        </Button>
+                      </TableCell>
+                    </TableRow>
                   );
                 })}
-              </tbody>
-            </table>
-          </div>
+              </TableBody>
+            </Table>
+          </Box>
         )}
-      </div>
+      </Paper>
 
       {/* Nút quay lại */}
-      <div className="mt-4 flex justify-center">
-        <button
-          type="button"
+      <Box sx={{ mt: 3, display: 'flex', justifyContent: 'center' }}>
+        <Button
+          variant="contained"
+          color="success"
+          size="large"
+          startIcon={<ArrowBackIcon />}
           onClick={() => {
             navigate('/school-admin/attendance/overview');
           }}
-          className="px-6 py-3 bg-green-600 text-white font-semibold rounded-md hover:bg-green-700 transition-colors flex items-center gap-2"
         >
-          <span>←</span>
-          <span>Quay lại Dashboard</span>
-        </button>
-      </div>
+          Quay lại Dashboard
+        </Button>
+      </Box>
     </RoleLayout>
   );
 }

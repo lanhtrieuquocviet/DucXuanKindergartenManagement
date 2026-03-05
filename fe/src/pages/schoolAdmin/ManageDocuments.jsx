@@ -5,6 +5,40 @@ import RoleLayout from '../../layouts/RoleLayout';
 import ConfirmDialog from '../../components/ConfirmDialog';
 import RichTextEditor from '../../components/RichTextEditor';
 import { get, post, put, del, postFormData, ENDPOINTS } from '../../service/api';
+import {
+  Box,
+  Paper,
+  Typography,
+  Button,
+  Alert,
+  Stack,
+  Chip,
+  TextField,
+  Table,
+  TableHead,
+  TableBody,
+  TableRow,
+  TableCell,
+  CircularProgress,
+  MenuItem,
+  Select,
+  FormControl,
+  InputLabel,
+  Dialog,
+  DialogTitle,
+  DialogContent,
+  DialogActions,
+  IconButton,
+  Link,
+} from '@mui/material';
+import AddIcon from '@mui/icons-material/Add';
+import SearchIcon from '@mui/icons-material/Search';
+import EditIcon from '@mui/icons-material/Edit';
+import DeleteIcon from '@mui/icons-material/Delete';
+import VisibilityIcon from '@mui/icons-material/Visibility';
+import CloseIcon from '@mui/icons-material/Close';
+import PictureAsPdfIcon from '@mui/icons-material/PictureAsPdf';
+import DescriptionIcon from '@mui/icons-material/Description';
 
 const STATUS_OPTIONS = [
   { value: '', label: 'Tất cả trạng thái' },
@@ -84,38 +118,83 @@ function DocumentFormModal({ open, onClose, initialData, onSubmit, loading }) {
   };
 
   return (
-    <div className="fixed inset-0 z-40 flex items-center justify-center bg-black/30">
-      <div className="w-full max-w-4xl max-h-[90vh] overflow-y-auto rounded-xl bg-white shadow-lg">
-        <div className="flex items-center justify-between border-b px-4 py-3 sticky top-0 bg-white">
-          <h2 className="text-base font-semibold text-gray-800">
-            {initialData ? 'Chỉnh sửa tài liệu' : 'Tạo tài liệu mới'}
-          </h2>
-          <button type="button" onClick={onClose} className="text-gray-500 hover:text-gray-700">
-            ×
-          </button>
-        </div>
-        <form onSubmit={handleSubmit} className="space-y-4 px-4 py-4">
-          {/* Tiêu đề */}
-          <div>
-            <label className="block text-xs font-medium text-gray-700 mb-1">Tiêu đề *</label>
-            <input
-              name="title"
-              value={form.title}
-              onChange={handleChange}
-              maxLength={200}
-              className={`w-full rounded-md border px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500 ${formErrors.title ? 'border-red-400' : 'border-gray-300'}`}
-              placeholder="Nhập tiêu đề tài liệu"
-            />
-            <div className="flex justify-between items-center mt-1">
-              {formErrors.title
-                ? <p className="text-xs text-red-600">{formErrors.title}</p>
-                : <span />}
-              <p className={`text-xs ${form.title.length > 200 ? 'text-red-600' : 'text-gray-400'}`}>
-                {form.title.length}/200
-              </p>
-            </div>
-          </div>
+    <Dialog open={open} onClose={onClose} maxWidth="md" fullWidth scroll="paper">
+      <DialogTitle
+        sx={{
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'space-between',
+          borderBottom: '1px solid',
+          borderColor: 'divider',
+          py: 1.5,
+          px: 2,
+        }}
+      >
+        <Typography variant="subtitle1" fontWeight={600}>
+          {initialData ? 'Chỉnh sửa tài liệu' : 'Tạo tài liệu mới'}
+        </Typography>
+        <IconButton size="small" onClick={onClose}>
+          <CloseIcon fontSize="small" />
+        </IconButton>
+      </DialogTitle>
 
+      <DialogContent dividers sx={{ px: 2, py: 2 }}>
+        <Box component="form" id="document-form" onSubmit={handleSubmit}>
+          <Stack spacing={2}>
+            {/* Tiêu đề */}
+            <Box>
+              <TextField
+                name="title"
+                label="Tiêu đề *"
+                value={form.title}
+                onChange={handleChange}
+                inputProps={{ maxLength: 200 }}
+                fullWidth
+                size="small"
+                error={!!formErrors.title}
+                helperText={formErrors.title}
+                placeholder="Nhập tiêu đề tài liệu"
+              />
+              <Typography
+                variant="caption"
+                color={form.title.length > 200 ? 'error' : 'text.secondary'}
+                sx={{ display: 'block', textAlign: 'right', mt: 0.5 }}
+              >
+                {form.title.length}/200
+              </Typography>
+            </Box>
+
+            {/* Nội dung (Rich Text) */}
+            <Box>
+              <Typography variant="caption" fontWeight={500} color="text.secondary" display="block" mb={0.5}>
+                Nội dung *
+              </Typography>
+              <Box
+                sx={
+                  formErrors.description
+                    ? { border: '1px solid', borderColor: 'error.main', borderRadius: 1 }
+                    : {}
+                }
+              >
+                <RichTextEditor
+                  initialValue={form.description}
+                  onChange={(html) => {
+                    setForm((prev) => ({ ...prev, description: html }));
+                    if (formErrors.description) setFormErrors((prev) => ({ ...prev, description: null }));
+                  }}
+                  disabled={uploadingFile}
+                  attachmentUrl={form.attachmentUrl}
+                  attachmentType={form.attachmentType}
+                  onAttachFile={handleAttachFile}
+                  onRemoveFile={() => setForm((prev) => ({ ...prev, attachmentUrl: null, attachmentType: null }))}
+                />
+              </Box>
+              {formErrors.description && (
+                <Typography variant="caption" color="error" mt={0.5} display="block">
+                  {formErrors.description}
+                </Typography>
+              )}
+            </Box>
           {/* Nội dung (Rich Text) */}
           <div>
             <label className="block text-xs font-medium text-gray-700 mb-1">Nội dung *</label>
@@ -153,41 +232,40 @@ function DocumentFormModal({ open, onClose, initialData, onSubmit, loading }) {
             </select>
           </div>
 
-          {/* Trạng thái */}
-          <div>
-            <label className="block text-xs font-medium text-gray-700 mb-1">Trạng thái</label>
-            <select
-              name="status"
-              value={form.status}
-              onChange={handleChange}
-              className="rounded-md border border-gray-300 px-3 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500 w-full"
-            >
-              <option value="draft">Nháp</option>
-              <option value="published">Đã xuất bản</option>
-              <option value="inactive">Ngưng hiển thị</option>
-            </select>
-          </div>
+            {/* Trạng thái */}
+            <FormControl size="small" fullWidth>
+              <InputLabel>Trạng thái</InputLabel>
+              <Select
+                name="status"
+                value={form.status}
+                label="Trạng thái"
+                onChange={handleChange}
+              >
+                <MenuItem value="draft">Nháp</MenuItem>
+                <MenuItem value="published">Đã xuất bản</MenuItem>
+                <MenuItem value="inactive">Ngưng hiển thị</MenuItem>
+              </Select>
+            </FormControl>
+          </Stack>
+        </Box>
+      </DialogContent>
 
-          {/* Buttons */}
-          <div className="flex gap-2 pt-2">
-            <button
-              type="button"
-              onClick={onClose}
-              className="flex-1 rounded-lg border border-gray-300 px-4 py-2 text-sm font-medium text-gray-700 hover:bg-gray-50"
-            >
-              Hủy
-            </button>
-            <button
-              type="submit"
-              disabled={loading || uploadingFile}
-              className="flex-1 rounded-lg bg-emerald-600 px-4 py-2 text-sm font-semibold text-white hover:bg-emerald-700 disabled:opacity-60 disabled:cursor-not-allowed"
-            >
-              {loading ? 'Đang lưu...' : 'Lưu'}
-            </button>
-          </div>
-        </form>
-      </div>
-    </div>
+      <DialogActions sx={{ px: 2, py: 1.5, gap: 1 }}>
+        <Button variant="outlined" onClick={onClose} fullWidth>
+          Hủy
+        </Button>
+        <Button
+          type="submit"
+          form="document-form"
+          variant="contained"
+          color="success"
+          disabled={loading || uploadingFile}
+          fullWidth
+        >
+          {loading ? 'Đang lưu...' : 'Lưu'}
+        </Button>
+      </DialogActions>
+    </Dialog>
   );
 }
 
@@ -360,6 +438,13 @@ export default function ManageDocuments() {
   const handleLogout = () => { logout(); navigate('/login', { replace: true }); };
   const handleViewProfile = () => navigate('/profile');
 
+  const getStatusChip = (status) => {
+    if (status === 'published') return <Chip label="Đã xuất bản" color="success" size="small" />;
+    if (status === 'draft') return <Chip label="Nháp" color="warning" size="small" />;
+    if (status === 'inactive') return <Chip label="Ngưng hiển thị" color="default" size="small" />;
+    return null;
+  };
+
   return (
     <RoleLayout
       title="Quản lý tài liệu"
@@ -373,69 +458,203 @@ export default function ManageDocuments() {
       userAvatar={user?.avatar}
     >
       {error && (
-        <div className="mb-4 rounded-md bg-red-50 border border-red-200 px-4 py-2 text-sm text-red-800">
+        <Alert severity="error" sx={{ mb: 2 }}>
           {error}
-        </div>
+        </Alert>
       )}
 
-      <div className="bg-white rounded-lg shadow p-6">
+      <Paper elevation={1} sx={{ p: 3, borderRadius: 2 }}>
         {/* Header */}
-        <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-3 mb-4">
-          <div>
-            <h3 className="text-sm font-semibold text-gray-800">Danh sách tài liệu</h3>
-            <p className="text-xs text-gray-500 mt-1">
-              Tổng: <span className="font-semibold">{pagination.total}</span>
-            </p>
-          </div>
-          <button
-            type="button"
+        <Stack
+          direction={{ xs: 'column', md: 'row' }}
+          alignItems={{ md: 'center' }}
+          justifyContent="space-between"
+          spacing={2}
+          mb={2}
+        >
+          <Box>
+            <Typography variant="subtitle1" fontWeight={700}>
+              Danh sách tài liệu
+            </Typography>
+            <Typography variant="caption" color="text.secondary">
+              Tổng: <strong>{pagination.total}</strong>
+            </Typography>
+          </Box>
+          <Button
+            variant="contained"
+            color="success"
+            startIcon={<AddIcon />}
             onClick={openCreateModal}
-            className="inline-flex items-center justify-center rounded-lg bg-emerald-600 px-4 py-2 text-sm font-semibold text-white shadow-sm hover:bg-emerald-700"
           >
-            + Tạo tài liệu mới
-          </button>
-        </div>
+            Tạo tài liệu mới
+          </Button>
+        </Stack>
 
         {/* Bộ lọc */}
-        <form
+        <Box
+          component="form"
           onSubmit={handleSearchSubmit}
-          className="flex flex-col gap-3 border-b border-gray-100 pb-3 md:flex-row md:items-center md:justify-between mb-4"
+          sx={{
+            display: 'flex',
+            flexDirection: { xs: 'column', md: 'row' },
+            gap: 2,
+            alignItems: { md: 'center' },
+            justifyContent: 'space-between',
+            borderBottom: '1px solid',
+            borderColor: 'divider',
+            pb: 2,
+            mb: 2,
+          }}
         >
-          <div className="flex flex-1 gap-2">
-            <input
+          <Stack direction="row" spacing={1} flex={1}>
+            <TextField
               type="text"
               value={filters.search}
               onChange={handleSearchChange}
-              className="w-full rounded-md border border-gray-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500"
               placeholder="Tìm theo tiêu đề, nội dung..."
+              size="small"
+              fullWidth
+              InputProps={{
+                startAdornment: (
+                  <SearchIcon fontSize="small" sx={{ mr: 0.5, color: 'text.secondary' }} />
+                ),
+              }}
             />
-            <button
+            <Button
               type="submit"
-              className="hidden rounded-md bg-gray-800 px-4 py-2 text-sm font-medium text-white hover:bg-gray-900 md:inline-flex"
+              variant="contained"
+              color="inherit"
+              sx={{ display: { xs: 'none', md: 'inline-flex' }, whiteSpace: 'nowrap' }}
             >
               Tìm kiếm
-            </button>
-          </div>
-          <div className="flex items-center gap-2">
-            <select
-              value={filters.status}
-              onChange={handleStatusChange}
-              className="rounded-md border border-gray-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500"
-            >
-              {STATUS_OPTIONS.map((opt) => (
-                <option key={opt.value} value={opt.value}>{opt.label}</option>
-              ))}
-            </select>
-            <button
+            </Button>
+          </Stack>
+          <Stack direction="row" spacing={1} alignItems="center">
+            <FormControl size="small" sx={{ minWidth: 160 }}>
+              <Select value={filters.status} onChange={handleStatusChange} displayEmpty>
+                {STATUS_OPTIONS.map((opt) => (
+                  <MenuItem key={opt.value} value={opt.value}>
+                    {opt.label}
+                  </MenuItem>
+                ))}
+              </Select>
+            </FormControl>
+            <Button
               type="submit"
-              className="inline-flex rounded-md bg-gray-800 px-4 py-2 text-sm font-medium text-white hover:bg-gray-900 md:hidden"
+              variant="contained"
+              color="inherit"
+              sx={{ display: { xs: 'inline-flex', md: 'none' } }}
             >
               Lọc
-            </button>
-          </div>
-        </form>
+            </Button>
+          </Stack>
+        </Box>
 
         {/* Bảng danh sách */}
+        <Box sx={{ overflowX: 'auto' }}>
+          {loading ? (
+            <Box sx={{ py: 6, textAlign: 'center' }}>
+              <CircularProgress size={32} />
+            </Box>
+          ) : (
+            <Table size="small">
+              <TableHead>
+                <TableRow sx={{ bgcolor: 'grey.50' }}>
+                  <TableCell sx={{ fontWeight: 700, fontSize: 12, textTransform: 'uppercase', letterSpacing: 0.5 }}>Tiêu đề</TableCell>
+                  <TableCell sx={{ fontWeight: 700, fontSize: 12, textTransform: 'uppercase', letterSpacing: 0.5 }}>Nội dung</TableCell>
+                  <TableCell sx={{ fontWeight: 700, fontSize: 12, textTransform: 'uppercase', letterSpacing: 0.5 }}>Tệp đính kèm</TableCell>
+                  <TableCell sx={{ fontWeight: 700, fontSize: 12, textTransform: 'uppercase', letterSpacing: 0.5 }}>Trạng thái</TableCell>
+                  <TableCell sx={{ fontWeight: 700, fontSize: 12, textTransform: 'uppercase', letterSpacing: 0.5 }}>Tác giả</TableCell>
+                  <TableCell sx={{ fontWeight: 700, fontSize: 12, textTransform: 'uppercase', letterSpacing: 0.5, textAlign: 'right' }}>Hành động</TableCell>
+                </TableRow>
+              </TableHead>
+              <TableBody>
+                {documents.map((doc) => (
+                  <TableRow key={doc._id} hover>
+                    <TableCell sx={{ maxWidth: 180 }}>
+                      <Typography
+                        variant="body2"
+                        fontWeight={500}
+                        sx={{
+                          display: '-webkit-box',
+                          WebkitLineClamp: 2,
+                          WebkitBoxOrient: 'vertical',
+                          overflow: 'hidden',
+                        }}
+                      >
+                        {doc.title}
+                      </Typography>
+                    </TableCell>
+                    <TableCell>
+                      <Typography
+                        variant="caption"
+                        color="text.secondary"
+                        sx={{
+                          display: '-webkit-box',
+                          WebkitLineClamp: 2,
+                          WebkitBoxOrient: 'vertical',
+                          overflow: 'hidden',
+                        }}
+                      >
+                        {doc.description?.replace(/<[^>]*>/g, '') || '-'}
+                      </Typography>
+                    </TableCell>
+                    <TableCell>
+                      {doc.attachmentUrl ? (
+                        <Link
+                          href={doc.attachmentUrl}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          underline="hover"
+                          sx={{ display: 'inline-flex', alignItems: 'center', gap: 0.5 }}
+                        >
+                          {doc.attachmentType === 'pdf' ? (
+                            <><PictureAsPdfIcon fontSize="small" /> PDF</>
+                          ) : (
+                            <><DescriptionIcon fontSize="small" /> Word</>
+                          )}
+                        </Link>
+                      ) : (
+                        <Typography variant="caption" color="text.secondary">-</Typography>
+                      )}
+                    </TableCell>
+                    <TableCell>{getStatusChip(doc.status)}</TableCell>
+                    <TableCell>
+                      <Typography variant="caption">
+                        {doc.author?.fullName || doc.author?.username || '-'}
+                      </Typography>
+                    </TableCell>
+                    <TableCell sx={{ textAlign: 'right' }}>
+                      <Stack direction="row" spacing={0.5} justifyContent="flex-end">
+                        <IconButton
+                          size="small"
+                          color="primary"
+                          onClick={() => navigate(`/school-admin/documents/${doc._id}`)}
+                        >
+                          <VisibilityIcon fontSize="small" />
+                        </IconButton>
+                        <IconButton
+                          size="small"
+                          color="success"
+                          onClick={() => openEditModal(doc)}
+                        >
+                          <EditIcon fontSize="small" />
+                        </IconButton>
+                        <IconButton
+                          size="small"
+                          color="error"
+                          onClick={() => setConfirmDelete(doc)}
+                          disabled={submitting}
+                        >
+                          <DeleteIcon fontSize="small" />
+                        </IconButton>
+                      </Stack>
+                    </TableCell>
+                  </TableRow>
+                ))}
+              </TableBody>
+            </Table>
+          )}
         <div className="overflow-x-auto">
           <table className="min-w-full divide-y divide-gray-200 text-sm">
             <thead className="bg-gray-50">
@@ -521,39 +740,48 @@ export default function ManageDocuments() {
           </table>
 
           {canShowEmptyState && (
-            <div className="py-8 text-center text-sm text-gray-500">
-              Chưa có tài liệu nào. Hãy nhấn &quot;Tạo tài liệu mới&quot; để bắt đầu.
-            </div>
+            <Box sx={{ py: 6, textAlign: 'center' }}>
+              <Typography variant="body2" color="text.secondary">
+                Chưa có tài liệu nào. Hãy nhấn &quot;Tạo tài liệu mới&quot; để bắt đầu.
+              </Typography>
+            </Box>
           )}
-        </div>
+        </Box>
 
         {/* Phân trang */}
         {pagination.totalPages > 1 && (
-          <div className="mt-4 flex items-center justify-between text-xs text-gray-600">
-            <div>
+          <Stack
+            direction="row"
+            alignItems="center"
+            justifyContent="space-between"
+            mt={2}
+          >
+            <Typography variant="caption" color="text.secondary">
               Trang {pagination.page}/{pagination.totalPages} · Tổng {pagination.total} tài liệu
-            </div>
-            <div className="flex gap-1">
-              <button
-                type="button"
+            </Typography>
+            <Stack direction="row" spacing={0.5}>
+              <Button
+                size="small"
+                variant="outlined"
                 disabled={pagination.page === 1 || loading}
                 onClick={() => handlePageChange(pagination.page - 1)}
-                className="rounded-md border border-gray-300 px-2 py-1 disabled:opacity-50"
+                sx={{ minWidth: 36 }}
               >
                 «
-              </button>
-              <button
-                type="button"
+              </Button>
+              <Button
+                size="small"
+                variant="outlined"
                 disabled={pagination.page === pagination.totalPages || loading}
                 onClick={() => handlePageChange(pagination.page + 1)}
-                className="rounded-md border border-gray-300 px-2 py-1 disabled:opacity-50"
+                sx={{ minWidth: 36 }}
               >
                 »
-              </button>
-            </div>
-          </div>
+              </Button>
+            </Stack>
+          </Stack>
         )}
-      </div>
+      </Paper>
 
       <DocumentFormModal
         open={modalOpen}

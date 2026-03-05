@@ -3,6 +3,22 @@ import { useNavigate, useParams, useSearchParams } from 'react-router-dom';
 import { useAuth } from '../../context/AuthContext';
 import { useSchoolAdmin } from '../../context/SchoolAdminContext';
 import RoleLayout from '../../layouts/RoleLayout';
+import {
+  Box,
+  Paper,
+  Typography,
+  Button,
+  Alert,
+  Stack,
+  Chip,
+  TextField,
+  CircularProgress,
+} from '@mui/material';
+import PersonIcon from '@mui/icons-material/Person';
+import SchoolIcon from '@mui/icons-material/School';
+import CalendarTodayIcon from '@mui/icons-material/CalendarToday';
+import HistoryIcon from '@mui/icons-material/History';
+import ArrowBackIcon from '@mui/icons-material/ArrowBack';
 
 const formatDate = (dateStr) => {
   if (!dateStr) return '';
@@ -133,7 +149,7 @@ function StudentAttendanceDetail() {
   const deliverer = attendance?.delivererType || '';
   const receiver = attendance?.receiverType || '';
   const note = attendance?.note || '';
-  
+
   // Lấy URL ảnh từ image field hoặc từ cloudinary
   const getImageUrl = (imageName) => {
     if (!imageName) return null;
@@ -151,6 +167,56 @@ function StudentAttendanceDetail() {
 
   const attendanceDate = date || (attendance?.date ? formatDate(attendance.date) : formatDate(new Date()));
 
+  // Reusable image placeholder box
+  const ImageBox = ({ imageName, alt, label }) => (
+    <Box>
+      <Typography variant="caption" color="text.secondary" display="block" mb={0.5}>
+        {label}
+      </Typography>
+      <Box
+        sx={{
+          width: '100%',
+          height: 128,
+          border: '2px dashed',
+          borderColor: 'grey.300',
+          borderRadius: 1,
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'center',
+          bgcolor: 'grey.50',
+          overflow: 'hidden',
+          position: 'relative',
+        }}
+      >
+        {imageName ? (
+          <>
+            <Box
+              component="img"
+              src={getImageUrl(imageName) || '#'}
+              alt={alt}
+              sx={{ maxWidth: '100%', maxHeight: '100%', objectFit: 'contain' }}
+              onError={(e) => {
+                e.target.style.display = 'none';
+                e.target.nextSibling.style.display = 'block';
+              }}
+            />
+            <Typography
+              variant="caption"
+              color="text.disabled"
+              sx={{ display: 'none', position: 'absolute' }}
+            >
+              Chưa có ảnh
+            </Typography>
+          </>
+        ) : (
+          <Typography variant="caption" color="text.disabled">
+            Chưa có ảnh
+          </Typography>
+        )}
+      </Box>
+    </Box>
+  );
+
   return (
     <RoleLayout
       title="Chi tiết điểm danh"
@@ -167,269 +233,258 @@ function StudentAttendanceDetail() {
       onMenuSelect={handleMenuSelect}
     >
       {error && (
-        <div className="mb-4 rounded-md bg-red-50 border border-red-200 px-4 py-2 text-sm text-red-800">
+        <Alert severity="error" sx={{ mb: 2 }}>
           {error}
-        </div>
+        </Alert>
       )}
 
-      <div className="max-w-4xl mx-auto">
+      <Box sx={{ maxWidth: 896, mx: 'auto' }}>
         {/* Thông tin học sinh */}
-        <div className="bg-green-50 rounded-lg shadow p-4 mb-4 border border-green-100">
-          <div className="flex flex-col md:flex-row gap-4 items-start md:items-center">
-            <div className="flex items-center gap-2">
-              <span className="text-2xl">👤</span>
-              <span className="text-sm font-semibold text-gray-700">
-                Trẻ: {studentInfo?.fullName || '—'}
-              </span>
-            </div>
-            <div className="flex items-center gap-2">
-              <span className="text-2xl">🏫</span>
-              <span className="text-sm font-semibold text-gray-700">
-                Lớp: {studentInfo?.className || '—'}
-              </span>
-            </div>
-            <div className="flex items-center gap-2">
-              <span className="text-2xl">📅</span>
-              <span className="text-sm font-semibold text-gray-700">
+        <Paper
+          elevation={0}
+          sx={{
+            bgcolor: '#f0fdf4',
+            border: '1px solid',
+            borderColor: '#bbf7d0',
+            borderRadius: 2,
+            p: 2,
+            mb: 2,
+          }}
+        >
+          <Stack
+            direction={{ xs: 'column', md: 'row' }}
+            spacing={2}
+            alignItems={{ xs: 'flex-start', md: 'center' }}
+          >
+            <Stack direction="row" alignItems="center" spacing={1}>
+              <PersonIcon sx={{ fontSize: 28, color: 'text.secondary' }} />
+              <Typography variant="body2" fontWeight={600} color="text.primary">
+                Trẻ: {studentInfo?.fullName || '\u2014'}
+              </Typography>
+            </Stack>
+            <Stack direction="row" alignItems="center" spacing={1}>
+              <SchoolIcon sx={{ fontSize: 28, color: 'text.secondary' }} />
+              <Typography variant="body2" fontWeight={600} color="text.primary">
+                Lớp: {studentInfo?.className || '\u2014'}
+              </Typography>
+            </Stack>
+            <Stack direction="row" alignItems="center" spacing={1}>
+              <CalendarTodayIcon sx={{ fontSize: 28, color: 'text.secondary' }} />
+              <Typography variant="body2" fontWeight={600} color="text.primary">
                 Ngày: {attendanceDate}
-              </span>
-            </div>
-          </div>
-        </div>
+              </Typography>
+            </Stack>
+          </Stack>
+        </Paper>
 
         {loading ? (
-          <div className="p-8 text-center">
-            <div className="inline-block animate-spin">
-              <div className="h-6 w-6 border-3 border-indigo-500 border-t-transparent rounded-full" />
-            </div>
-            <p className="mt-2 text-sm text-gray-500">Đang tải dữ liệu...</p>
-          </div>
+          <Box sx={{ py: 6, textAlign: 'center' }}>
+            <CircularProgress size={28} />
+            <Typography variant="body2" color="text.secondary" mt={1}>
+              Đang tải dữ liệu...
+            </Typography>
+          </Box>
         ) : !attendance ? (
-          <div className="bg-white rounded-lg shadow p-8 text-center text-gray-500">
-            <p>Không có dữ liệu điểm danh cho học sinh này.</p>
-          </div>
+          <Paper elevation={1} sx={{ borderRadius: 2, p: 6, textAlign: 'center' }}>
+            <Typography variant="body2" color="text.secondary">
+              Không có dữ liệu điểm danh cho học sinh này.
+            </Typography>
+          </Paper>
         ) : (
-          <div className="space-y-6">
+          <Stack spacing={3}>
             {/* Phần điểm danh đến */}
-            <div className="bg-white rounded-lg shadow p-6 border border-gray-200">
-              <div className="flex items-center gap-2 mb-4">
-                <div className="w-3 h-3 rounded-full bg-green-500"></div>
-                <h3 className="text-lg font-semibold text-gray-800">
+            <Paper elevation={1} sx={{ borderRadius: 2, p: 3 }}>
+              <Stack direction="row" alignItems="center" spacing={1} mb={2}>
+                <Box sx={{ width: 12, height: 12, borderRadius: '50%', bgcolor: '#22c55e' }} />
+                <Typography variant="h6" fontWeight={600} color="text.primary">
                   Điểm danh đến
-                </h3>
-              </div>
+                </Typography>
+              </Stack>
 
-              <div className="mb-3">
-                <span className="inline-block px-3 py-1 bg-green-100 text-green-700 text-sm font-medium rounded">
-                  Trạng thái: {attendance.status === 'present' ? 'Có mặt' : attendance.status === 'absent' ? 'Nghỉ học' : '—'}
-                </span>
-              </div>
-
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
-                <div>
-                  <label className="block text-sm font-semibold text-gray-700 mb-1">
-                    Giờ đến
-                  </label>
-                  <input
-                    type="text"
-                    value={checkInTime}
-                    readOnly
-                    className="w-full px-3 py-2 border border-gray-300 rounded-md text-sm bg-gray-50"
-                  />
-                </div>
-                <div>
-                  <label className="block text-sm font-semibold text-gray-700 mb-1">
-                    Người đưa
-                  </label>
-                  <input
-                    type="text"
-                    value={deliverer}
-                    readOnly
-                    className="w-full px-3 py-2 border border-gray-300 rounded-md text-sm bg-gray-50"
-                  />
-                </div>
-              </div>
-
-              <div className="mb-4">
-                <label className="block text-sm font-semibold text-gray-700 mb-2">
-                  Hình ảnh xác nhận
-                </label>
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                  <div>
-                    <label className="block text-xs text-gray-600 mb-1">
-                      Ảnh check-in
-                    </label>
-                    <div className="w-full h-32 border-2 border-dashed border-gray-300 rounded-md flex items-center justify-center bg-gray-50">
-                      {checkInImage ? (
-                        <img
-                          src={getImageUrl(checkInImage) || '#'}
-                          alt="Check-in"
-                          className="max-w-full max-h-full object-contain"
-                          onError={(e) => {
-                            e.target.style.display = 'none';
-                            e.target.nextSibling.style.display = 'block';
-                          }}
-                        />
-                      ) : null}
-                      <span className="text-xs text-gray-400" style={{ display: checkInImage ? 'none' : 'block' }}>
-                        Chưa có ảnh
-                      </span>
-                    </div>
-                  </div>
-                  <div>
-                    <label className="block text-xs text-gray-600 mb-1">
-                      Ảnh người đưa
-                    </label>
-                    <div className="w-full h-32 border-2 border-dashed border-gray-300 rounded-md flex items-center justify-center bg-gray-50">
-                      {delivererImage ? (
-                        <img
-                          src={getImageUrl(delivererImage) || '#'}
-                          alt="Deliverer"
-                          className="max-w-full max-h-full object-contain"
-                          onError={(e) => {
-                            e.target.style.display = 'none';
-                            e.target.nextSibling.style.display = 'block';
-                          }}
-                        />
-                      ) : null}
-                      <span className="text-xs text-gray-400" style={{ display: delivererImage ? 'none' : 'block' }}>
-                        Chưa có ảnh
-                      </span>
-                    </div>
-                  </div>
-                </div>
-              </div>
-
-              <div>
-                <label className="block text-sm font-semibold text-gray-700 mb-1">
-                  Ghi chú
-                </label>
-                <input
-                  type="text"
-                  value={note}
-                  readOnly
-                  className="w-full px-3 py-2 border border-gray-300 rounded-md text-sm bg-gray-50"
+              <Box mb={2}>
+                <Chip
+                  label={`Trạng thái: ${attendance.status === 'present' ? 'Có mặt' : attendance.status === 'absent' ? 'Nghỉ học' : '—'}`}
+                  size="small"
+                  sx={{
+                    bgcolor: '#dcfce7',
+                    color: '#15803d',
+                    fontWeight: 500,
+                    fontSize: '13px',
+                  }}
                 />
-              </div>
-            </div>
+              </Box>
+
+              <Box
+                sx={{
+                  display: 'grid',
+                  gridTemplateColumns: { xs: '1fr', md: '1fr 1fr' },
+                  gap: 2,
+                  mb: 2,
+                }}
+              >
+                <Box>
+                  <Typography variant="body2" fontWeight={600} color="text.primary" mb={0.5}>
+                    Giờ đến
+                  </Typography>
+                  <TextField
+                    fullWidth
+                    size="small"
+                    value={checkInTime}
+                    InputProps={{ readOnly: true }}
+                    sx={{ '& .MuiInputBase-root': { bgcolor: 'grey.50' } }}
+                  />
+                </Box>
+                <Box>
+                  <Typography variant="body2" fontWeight={600} color="text.primary" mb={0.5}>
+                    Người đưa
+                  </Typography>
+                  <TextField
+                    fullWidth
+                    size="small"
+                    value={deliverer}
+                    InputProps={{ readOnly: true }}
+                    sx={{ '& .MuiInputBase-root': { bgcolor: 'grey.50' } }}
+                  />
+                </Box>
+              </Box>
+
+              <Box mb={2}>
+                <Typography variant="body2" fontWeight={600} color="text.primary" mb={1}>
+                  Hình ảnh xác nhận
+                </Typography>
+                <Box
+                  sx={{
+                    display: 'grid',
+                    gridTemplateColumns: { xs: '1fr', md: '1fr 1fr' },
+                    gap: 2,
+                  }}
+                >
+                  <ImageBox imageName={checkInImage} alt="Check-in" label="Ảnh check-in" />
+                  <ImageBox imageName={delivererImage} alt="Deliverer" label="Ảnh người đưa" />
+                </Box>
+              </Box>
+
+              <Box>
+                <Typography variant="body2" fontWeight={600} color="text.primary" mb={0.5}>
+                  Ghi chú
+                </Typography>
+                <TextField
+                  fullWidth
+                  size="small"
+                  value={note}
+                  InputProps={{ readOnly: true }}
+                  sx={{ '& .MuiInputBase-root': { bgcolor: 'grey.50' } }}
+                />
+              </Box>
+            </Paper>
 
             {/* Phần điểm danh về */}
-            <div className="bg-white rounded-lg shadow p-6 border border-gray-200">
-              <div className="flex items-center gap-2 mb-4">
-                <div className="w-3 h-3 rounded-full bg-blue-500"></div>
-                <h3 className="text-lg font-semibold text-gray-800">
+            <Paper elevation={1} sx={{ borderRadius: 2, p: 3 }}>
+              <Stack direction="row" alignItems="center" spacing={1} mb={2}>
+                <Box sx={{ width: 12, height: 12, borderRadius: '50%', bgcolor: '#3b82f6' }} />
+                <Typography variant="h6" fontWeight={600} color="text.primary">
                   Điểm danh về
-                </h3>
-              </div>
+                </Typography>
+              </Stack>
 
-              <div className="mb-3">
-                <span className="inline-block px-3 py-1 bg-blue-100 text-blue-700 text-sm font-medium rounded">
-                  Trạng thái: {attendance.time?.checkOut ? 'Đã đón' : 'Chưa đón'}
-                </span>
-              </div>
-
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
-                <div>
-                  <label className="block text-sm font-semibold text-gray-700 mb-1">
-                    Giờ về
-                  </label>
-                  <input
-                    type="text"
-                    value={checkOutTime}
-                    readOnly
-                    className="w-full px-3 py-2 border border-gray-300 rounded-md text-sm bg-gray-50"
-                  />
-                </div>
-                <div>
-                  <label className="block text-sm font-semibold text-gray-700 mb-1">
-                    Người đón
-                  </label>
-                  <input
-                    type="text"
-                    value={receiver}
-                    readOnly
-                    className="w-full px-3 py-2 border border-gray-300 rounded-md text-sm bg-gray-50"
-                  />
-                </div>
-              </div>
-
-              <div className="mb-4">
-                <label className="block text-sm font-semibold text-gray-700 mb-2">
-                  Hình ảnh xác nhận
-                </label>
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                  <div>
-                    <label className="block text-xs text-gray-600 mb-1">
-                      Ảnh check-out
-                    </label>
-                    <div className="w-full h-32 border-2 border-dashed border-gray-300 rounded-md flex items-center justify-center bg-gray-50">
-                      {checkOutImage ? (
-                        <img
-                          src={getImageUrl(checkOutImage) || '#'}
-                          alt="Check-out"
-                          className="max-w-full max-h-full object-contain"
-                          onError={(e) => {
-                            e.target.style.display = 'none';
-                            e.target.nextSibling.style.display = 'block';
-                          }}
-                        />
-                      ) : null}
-                      <span className="text-xs text-gray-400" style={{ display: checkOutImage ? 'none' : 'block' }}>
-                        Chưa có ảnh
-                      </span>
-                    </div>
-                  </div>
-                  <div>
-                    <label className="block text-xs text-gray-600 mb-1">
-                      Ảnh người đón
-                    </label>
-                    <div className="w-full h-32 border-2 border-dashed border-gray-300 rounded-md flex items-center justify-center bg-gray-50">
-                      {receiverImage ? (
-                        <img
-                          src={getImageUrl(receiverImage) || '#'}
-                          alt="Receiver"
-                          className="max-w-full max-h-full object-contain"
-                          onError={(e) => {
-                            e.target.style.display = 'none';
-                            e.target.nextSibling.style.display = 'block';
-                          }}
-                        />
-                      ) : null}
-                      <span className="text-xs text-gray-400" style={{ display: receiverImage ? 'none' : 'block' }}>
-                        Chưa có ảnh
-                      </span>
-                    </div>
-                  </div>
-                </div>
-              </div>
-
-              <div>
-                <label className="block text-sm font-semibold text-gray-700 mb-1">
-                  Xác nhận phụ huynh
-                </label>
-                <input
-                  type="text"
-                  value={attendance.time?.checkOut ? 'Đã xác nhận' : 'Chưa xác nhận'}
-                  readOnly
-                  className="w-full px-3 py-2 border border-gray-300 rounded-md text-sm bg-gray-50"
+              <Box mb={2}>
+                <Chip
+                  label={`Trạng thái: ${attendance.time?.checkOut ? 'Đã đón' : 'Chưa đón'}`}
+                  size="small"
+                  sx={{
+                    bgcolor: '#dbeafe',
+                    color: '#1d4ed8',
+                    fontWeight: 500,
+                    fontSize: '13px',
+                  }}
                 />
-              </div>
-            </div>
+              </Box>
+
+              <Box
+                sx={{
+                  display: 'grid',
+                  gridTemplateColumns: { xs: '1fr', md: '1fr 1fr' },
+                  gap: 2,
+                  mb: 2,
+                }}
+              >
+                <Box>
+                  <Typography variant="body2" fontWeight={600} color="text.primary" mb={0.5}>
+                    Giờ về
+                  </Typography>
+                  <TextField
+                    fullWidth
+                    size="small"
+                    value={checkOutTime}
+                    InputProps={{ readOnly: true }}
+                    sx={{ '& .MuiInputBase-root': { bgcolor: 'grey.50' } }}
+                  />
+                </Box>
+                <Box>
+                  <Typography variant="body2" fontWeight={600} color="text.primary" mb={0.5}>
+                    Người đón
+                  </Typography>
+                  <TextField
+                    fullWidth
+                    size="small"
+                    value={receiver}
+                    InputProps={{ readOnly: true }}
+                    sx={{ '& .MuiInputBase-root': { bgcolor: 'grey.50' } }}
+                  />
+                </Box>
+              </Box>
+
+              <Box mb={2}>
+                <Typography variant="body2" fontWeight={600} color="text.primary" mb={1}>
+                  Hình ảnh xác nhận
+                </Typography>
+                <Box
+                  sx={{
+                    display: 'grid',
+                    gridTemplateColumns: { xs: '1fr', md: '1fr 1fr' },
+                    gap: 2,
+                  }}
+                >
+                  <ImageBox imageName={checkOutImage} alt="Check-out" label="Ảnh check-out" />
+                  <ImageBox imageName={receiverImage} alt="Receiver" label="Ảnh người đón" />
+                </Box>
+              </Box>
+
+              <Box>
+                <Typography variant="body2" fontWeight={600} color="text.primary" mb={0.5}>
+                  Xác nhận phụ huynh
+                </Typography>
+                <TextField
+                  fullWidth
+                  size="small"
+                  value={attendance.time?.checkOut ? 'Đã xác nhận' : 'Chưa xác nhận'}
+                  InputProps={{ readOnly: true }}
+                  sx={{ '& .MuiInputBase-root': { bgcolor: 'grey.50' } }}
+                />
+              </Box>
+            </Paper>
 
             {/* Nút quay lại và Lịch sử */}
-            <div className="flex justify-center gap-4">
-              <button
-                type="button"
+            <Stack direction="row" justifyContent="center" spacing={2}>
+              <Button
+                variant="contained"
+                startIcon={<HistoryIcon />}
                 onClick={() => {
                   navigate(`/school-admin/students/${studentId}/attendance/history?classId=${classId}&date=${date}`);
                 }}
-                className="px-6 py-3 bg-blue-600 text-white font-semibold rounded-md hover:bg-blue-700 transition-colors flex items-center gap-2"
+                sx={{
+                  px: 3,
+                  py: 1.5,
+                  fontWeight: 600,
+                  bgcolor: '#2563eb',
+                  '&:hover': { bgcolor: '#1d4ed8' },
+                }}
               >
-                <span>📅</span>
-                <span>Lịch sử điểm danh</span>
-              </button>
-              <button
-                type="button"
+                Lịch sử điểm danh
+              </Button>
+              <Button
+                variant="contained"
+                startIcon={<ArrowBackIcon />}
                 onClick={() => {
                   if (classId && date) {
                     navigate(`/school-admin/classes/${classId}/attendance?date=${date}`);
@@ -437,15 +492,20 @@ function StudentAttendanceDetail() {
                     navigate('/school-admin/attendance/overview');
                   }
                 }}
-                className="px-6 py-3 bg-green-600 text-white font-semibold rounded-md hover:bg-green-700 transition-colors flex items-center gap-2"
+                sx={{
+                  px: 3,
+                  py: 1.5,
+                  fontWeight: 600,
+                  bgcolor: '#16a34a',
+                  '&:hover': { bgcolor: '#15803d' },
+                }}
               >
-                <span>←</span>
-                <span>Quay lại Dashboard</span>
-              </button>
-            </div>
-          </div>
+                Quay lại Dashboard
+              </Button>
+            </Stack>
+          </Stack>
         )}
-      </div>
+      </Box>
     </RoleLayout>
   );
 }
