@@ -1,28 +1,26 @@
+const bcrypt = require('bcryptjs');
 const Student = require('../models/Student');
+const User = require('../models/User');
+const Role = require('../models/Role');
 
 /**
- * Lấy danh sách tất cả học sinh
- * GET /api/students
+ * Lấy danh sách tất cả học sinh (có thể lọc theo classId)
+ * GET /api/students?classId=...
  */
 const getStudents = async (req, res) => {
   try {
-    const students = await Student.find()
-      .populate('classId', 'className')
-      .populate('parentId', 'fullName email username avatar');
+    const { classId } = req.query;
+    const filter = {};
+    if (classId) filter.classId = classId;
 
-    if (!students || students.length === 0) {
-      return res.status(200).json({
-        status: 'success',
-        message: 'Không tìm thấy học sinh nào',
-        data: [],
-        total: 0,
-      });
-    }
+    const students = await Student.find(filter)
+      .populate('classId', 'className gradeId')
+      .populate('parentId', 'fullName email username avatar phone');
 
     return res.status(200).json({
       status: 'success',
       message: 'Lấy danh sách học sinh thành công',
-      data: students,
+      data: students || [],
       total: students.length,
     });
   } catch (error) {
@@ -59,7 +57,6 @@ const createStudent = async (req, res) => {
       phone,
       address,
       classId,
-      // Ưu tiên parentId, fallback sang userId để tương thích dữ liệu cũ
       parentId: parentId || userId,
       status: 'active',
     });
@@ -68,7 +65,7 @@ const createStudent = async (req, res) => {
 
     const populatedStudent = await Student.findById(newStudent._id)
       .populate('classId', 'className')
-      .populate('parentId', 'fullName email username avatar');
+      .populate('parentId', 'fullName email username avatar phone');
 
     return res.status(201).json({
       status: 'success',
@@ -80,6 +77,102 @@ const createStudent = async (req, res) => {
     return res.status(500).json({
       status: 'error',
       message: 'Lỗi khi tạo học sinh',
+      error: error.message,
+    });
+  }
+};
+
+/**
+ * Tạo tài khoản phụ huynh (User) + học sinh (Student), parentId = User._id
+ * POST /api/students/with-parent
+ * body: { parent: { username, password, fullName, email, phone? }, student: { fullName, dateOfBirth, gender, classId?, address?, phone? } }
+ */
+const createStudentWithParent = async (req, res) => {
+  try {
+    const { parent, student: studentData } = req.body;
+
+    if (!parent || !parent.username || !parent.password || !parent.fullName || !parent.email) {
+      return res.status(400).json({
+        status: 'error',
+        message: 'Vui lòng nhập đầy đủ thông tin phụ huynh: tài khoản, mật khẩu, họ tên, email',
+      });
+    }
+
+    if (!studentData || !studentData.fullName || !studentData.dateOfBirth || !studentData.gender) {
+      return res.status(400).json({
+        status: 'error',
+        message: 'Vui lòng nhập đầy đủ thông tin học sinh: họ tên, ngày sinh, giới tính',
+      });
+    }
+
+    const existingUser = await User.findOne({
+      $or: [
+        { username: parent.username.trim() },
+        { email: parent.email.trim().toLowerCase() },
+      ],
+    });
+    if (existingUser) {
+      return res.status(400).json({
+        status: 'error',
+        message: 'Tài khoản hoặc email phụ huynh đã tồn tại trong hệ thống',
+      });
+    }
+
+    // Trong DB có thể dùng role "Parent" hoặc "Student" cho tài khoản phụ huynh
+    let parentRole = await Role.findOne({ roleName: 'Parent' });
+    if (!parentRole) {
+      parentRole = await Role.findOne({ roleName: 'Student' });
+    }
+    if (!parentRole) {
+      return res.status(400).json({
+        status: 'error',
+        message: 'Chưa có vai trò Parent hoặc Student trong hệ thống. Vui lòng tạo vai trò trước.',
+      });
+    }
+
+    const salt = await bcrypt.genSalt(10);
+    const passwordHash = await bcrypt.hash(parent.password, salt);
+
+    const newUser = new User({
+      username: parent.username.trim(),
+      passwordHash,
+      fullName: parent.fullName.trim(),
+      email: parent.email.trim().toLowerCase(),
+      phone: (parent.phone || '').trim(),
+      address: (parent.address || '').trim(),
+      roles: [parentRole._id],
+      status: 'active',
+    });
+    await newUser.save();
+
+    const newStudent = new Student({
+      fullName: studentData.fullName.trim(),
+      dateOfBirth: studentData.dateOfBirth,
+      gender: studentData.gender,
+      phone: (studentData.phone || parent.phone || '').trim(),
+      parentPhone: (studentData.parentPhone || parent.phone || '').trim(),
+      address: (studentData.address || '').trim(),
+      classId: studentData.classId || null,
+      parentId: newUser._id,
+      avatar: (studentData.avatar || '').trim(),
+      status: 'active',
+    });
+    await newStudent.save();
+
+    const populatedStudent = await Student.findById(newStudent._id)
+      .populate('classId', 'className')
+      .populate('parentId', 'fullName email username avatar phone');
+
+    return res.status(201).json({
+      status: 'success',
+      message: 'Tạo tài khoản phụ huynh và học sinh thành công',
+      data: populatedStudent,
+    });
+  } catch (error) {
+    console.error('Error in createStudentWithParent:', error);
+    return res.status(500).json({
+      status: 'error',
+      message: error.message || 'Lỗi khi tạo phụ huynh và học sinh',
       error: error.message,
     });
   }
@@ -136,9 +229,11 @@ const updateStudent = async (req, res) => {
       address,
       classId,
       status,
+      parentFullName,
+      parentEmail,
+      parentPhone: parentPhoneField,
     } = req.body;
 
-    // Kiểm tra quyền trước khi cập nhật
     const student = await Student.findById(studentId);
 
     if (!student) {
@@ -149,8 +244,7 @@ const updateStudent = async (req, res) => {
       });
     }
 
-    // Kiểm tra: chỉ SchoolAdmin hoặc parent của học sinh mới được phép cập nhật
-    const isSchoolAdmin = req.user?.roles?.includes('SchoolAdmin');
+    const isSchoolAdmin = Array.isArray(req.user?.roles) && req.user.roles.includes('SchoolAdmin');
     const isParent = student.parentId && req.user?.id === student.parentId.toString();
 
     if (!isSchoolAdmin && !isParent) {
@@ -160,10 +254,8 @@ const updateStudent = async (req, res) => {
       });
     }
 
-    // Prepare phone value, prefer parentPhone if provided
     const phoneValue = parentPhone !== undefined ? parentPhone : phone;
 
-    // Nếu là parent, chỉ cho phép cập nhật một số trường
     let updateData = {
       fullName,
       dateOfBirth,
@@ -176,8 +268,6 @@ const updateStudent = async (req, res) => {
     };
 
     if (isParent && !isSchoolAdmin) {
-      // Parents chỉ có thể cập nhật: fullName, dateOfBirth, phone, address
-      // Không được cập nhật classId, status
       updateData = {
         fullName,
         dateOfBirth,
@@ -187,13 +277,23 @@ const updateStudent = async (req, res) => {
       };
     }
 
+    if (isSchoolAdmin && student.parentId && (parentFullName !== undefined || parentEmail !== undefined || parentPhoneField !== undefined)) {
+      const parentUpdate = {};
+      if (parentFullName !== undefined) parentUpdate.fullName = parentFullName.trim();
+      if (parentEmail !== undefined) parentUpdate.email = parentEmail.trim().toLowerCase();
+      if (parentPhoneField !== undefined) parentUpdate.phone = parentPhoneField.trim();
+      if (Object.keys(parentUpdate).length > 0) {
+        await User.findByIdAndUpdate(student.parentId, parentUpdate, { new: true, runValidators: true });
+      }
+    }
+
     const updatedStudent = await Student.findByIdAndUpdate(
       studentId,
       updateData,
       { new: true, runValidators: true },
     )
       .populate('classId', 'className')
-      .populate('parentId', 'fullName email username avatar');
+      .populate('parentId', 'fullName email username avatar phone');
 
     return res.status(200).json({
       status: 'success',
@@ -246,6 +346,7 @@ const deleteStudent = async (req, res) => {
 module.exports = {
   getStudents,
   createStudent,
+  createStudentWithParent,
   getStudentDetail,
   updateStudent,
   deleteStudent,

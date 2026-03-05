@@ -19,6 +19,7 @@ import AttendanceReport from './pages/student/AttendanceReport';
 import SchoolAdminDashboard from './pages/schoolAdmin/SchoolAdminDashboard';
 import ClassList from './pages/schoolAdmin/ClassList';
 import StudentInClass from './pages/schoolAdmin/StudentInClass';
+import ManageStudents from './pages/schoolAdmin/ManageStudents';
 import ContactList from './pages/schoolAdmin/ContactList';
 import QaList from './pages/schoolAdmin/QaList';
 import AttendanceOverview from './pages/schoolAdmin/AttendanceOverview';
@@ -280,6 +281,14 @@ function App() {
             element={
               <SchoolAdminProvider>
                 <StudentInClass />
+              </SchoolAdminProvider>
+            }
+          />
+          <Route
+            path="/school-admin/students"
+            element={
+              <SchoolAdminProvider>
+                <ManageStudents />
               </SchoolAdminProvider>
             }
           />

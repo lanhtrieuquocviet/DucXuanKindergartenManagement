@@ -3,6 +3,7 @@ const { authenticate, authorizeRoles } = require('../middleware/auth');
 const {
   getStudents,
   createStudent,
+  createStudentWithParent,
   getStudentDetail,
   updateStudent,
   deleteStudent,
@@ -26,6 +27,12 @@ router.get('/', authenticate, getStudents);
  * POST /api/students
  */
 router.post('/', authenticate, authorizeRoles('SchoolAdmin'), createStudent);
+
+/**
+ * Tạo tài khoản phụ huynh + học sinh (parentId = User._id)
+ * POST /api/students/with-parent
+ */
+router.post('/with-parent', authenticate, authorizeRoles('SchoolAdmin'), createStudentWithParent);
 
 /**
  * Tạo / cập nhật điểm danh cho 1 học sinh trong 1 ngày

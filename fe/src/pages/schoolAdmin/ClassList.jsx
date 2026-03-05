@@ -88,7 +88,10 @@ function ClassList() {
 
   const handleMenuSelect = (key) => {
     if (key === 'classes') {
-      // Đang ở đây rồi
+      return;
+    }
+    if (key === 'students') {
+      navigate('/school-admin/students');
       return;
     }
     if (key === 'contacts') {

@@ -132,6 +132,10 @@ function StudentInClass() {
       }
       return;
     }
+    if (key === 'students') {
+      navigate('/school-admin/students');
+      return;
+    }
     if (key === 'contacts') {
       navigate('/school-admin/contacts');
       return;
