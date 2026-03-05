@@ -8,7 +8,7 @@ function AdministrativeOffice() {
   };
 
   return (
-    <div className="max-w-7xl mx-auto px-6 py-8">
+    <div className="max-w-7xl mx-auto px-4 sm:px-6 py-6 sm:py-8">
       {/* Breadcrumb */}
       <div className="text-sm text-gray-600 mb-6">
         <span className="hover:text-green-600 cursor-pointer">Trang chủ</span>
@@ -25,14 +25,14 @@ function AdministrativeOffice() {
       </div>
 
       {/* Title */}
-      <h1 className="text-3xl font-bold mb-8">
+      <h1 className="text-2xl sm:text-3xl font-bold mb-6 sm:mb-8">
         Tổ Hành chính - Văn phòng
       </h1>
 
       {/* Card */}
-      <div className="border rounded bg-white p-6 flex gap-6">
+      <div className="border rounded bg-white p-4 sm:p-6 flex flex-col sm:flex-row gap-4 sm:gap-6">
         {/* Avatar */}
-        <div className="w-[150px] h-[180px] border bg-gray-100 flex-shrink-0">
+        <div className="w-full sm:w-[150px] h-[200px] sm:h-[180px] border bg-gray-100 sm:flex-shrink-0 mx-auto sm:mx-0 max-w-[200px] sm:max-w-none">
           <img
             src={staff.avatar}
             alt={staff.name}

@@ -1,7 +1,40 @@
 import { useState, useEffect } from "react";
 import { useParams, useNavigate } from "react-router-dom";
+import {
+  Container,
+  Box,
+  Typography,
+  Breadcrumbs,
+  Link,
+  Chip,
+  CircularProgress,
+  Alert,
+  Divider,
+  Button,
+} from "@mui/material";
+import ArrowBackIcon from "@mui/icons-material/ArrowBack";
+import AccessTimeIcon from "@mui/icons-material/AccessTime";
+import PersonIcon from "@mui/icons-material/Person";
+import PictureAsPdfIcon from "@mui/icons-material/PictureAsPdf";
+import ArticleIcon from "@mui/icons-material/Article";
+import DownloadIcon from "@mui/icons-material/Download";
 import { get, ENDPOINTS } from "../../service/api";
-import 'quill/dist/quill.snow.css';
+import "quill/dist/quill.snow.css";
+
+const CATEGORY_COLOR = {
+  "văn bản pháp quy": "#0369a1",
+  "văn bản từ phòng": "#b45309",
+};
+
+const CATEGORY_BACK_ROUTE = {
+  "văn bản pháp quy": "/legal-documents",
+  "văn bản từ phòng": "/department-documents",
+};
+
+const CATEGORY_LABEL = {
+  "văn bản pháp quy": "Văn bản pháp quy",
+  "văn bản từ phòng": "Văn bản từ Phòng",
+};
 
 function DocumentDetail() {
   const { documentId } = useParams();
@@ -32,111 +65,214 @@ function DocumentDetail() {
 
   if (loading) {
     return (
-      <div className="max-w-4xl mx-auto px-4 sm:px-6 py-12 text-center text-gray-500">
-        Đang tải...
-      </div>
+      <Container maxWidth="lg" sx={{ py: 8, textAlign: "center" }}>
+        <CircularProgress color="success" />
+      </Container>
     );
   }
 
   if (error || !doc) {
     return (
-      <div className="max-w-4xl mx-auto px-4 sm:px-6 py-12">
-        <div className="bg-red-50 border border-red-200 rounded p-4 text-red-700 text-sm mb-4">
+      <Container maxWidth="lg" sx={{ py: 6 }}>
+        <Alert severity="error" sx={{ mb: 3 }}>
           {error || "Không tìm thấy tài liệu"}
-        </div>
-        <button
+        </Alert>
+        <Button
+          startIcon={<ArrowBackIcon />}
           onClick={() => navigate(-1)}
-          className="text-sm text-green-700 hover:underline"
+          variant="outlined"
+          color="success"
+          size="small"
         >
-          ← Quay lại
-        </button>
-      </div>
+          Quay lại
+        </Button>
+      </Container>
     );
   }
 
+  const catColor = CATEGORY_COLOR[doc.category] || "#4b5563";
+  const backRoute = CATEGORY_BACK_ROUTE[doc.category] || -1;
+  const catLabel = CATEGORY_LABEL[doc.category] || doc.category || "Văn bản";
+
   return (
-    <div className="max-w-4xl mx-auto px-4 sm:px-6 py-6 sm:py-8">
-      {/* Breadcrumb */}
-      <div className="text-xs sm:text-sm text-gray-500 mb-4 sm:mb-6 flex flex-wrap items-center gap-1">
-        <span
-          className="hover:text-green-600 cursor-pointer"
+    <Container maxWidth="lg" sx={{ py: { xs: 3, sm: 4 } }}>
+      {/* Breadcrumbs */}
+      <Breadcrumbs sx={{ mb: 3, fontSize: "0.8rem" }}>
+        <Link
+          underline="hover"
+          color="inherit"
+          sx={{ cursor: "pointer" }}
           onClick={() => navigate("/")}
         >
           Trang chủ
-        </span>
-        <span>›</span>
-        <span
-          className="hover:text-green-600 cursor-pointer"
-          onClick={() => navigate(-1)}
+        </Link>
+        <Link
+          underline="hover"
+          color="inherit"
+          sx={{ cursor: "pointer" }}
+          onClick={() => typeof backRoute === "string" ? navigate(backRoute) : navigate(-1)}
         >
-          Văn bản
-        </span>
-        <span>›</span>
-        <span className="text-gray-800 font-medium line-clamp-1">
+          {catLabel}
+        </Link>
+        <Typography
+          color="text.primary"
+          fontSize="0.8rem"
+          fontWeight={600}
+          sx={{
+            maxWidth: 300,
+            overflow: "hidden",
+            textOverflow: "ellipsis",
+            whiteSpace: "nowrap",
+          }}
+        >
           {doc.title}
-        </span>
-      </div>
+        </Typography>
+      </Breadcrumbs>
+
+      {/* Category chip */}
+      {doc.category && (
+        <Chip
+          label={catLabel}
+          size="small"
+          sx={{
+            bgcolor: catColor,
+            color: "#fff",
+            fontWeight: 600,
+            mb: 2,
+            fontSize: "0.75rem",
+          }}
+        />
+      )}
 
       {/* Tiêu đề */}
-      <h1 className="text-2xl sm:text-3xl font-bold text-gray-900 mb-3 leading-snug">
+      <Typography
+        variant="h5"
+        fontWeight={700}
+        color="text.primary"
+        sx={{ mb: 2, lineHeight: 1.4 }}
+      >
         {doc.title}
-      </h1>
+      </Typography>
 
       {/* Meta */}
-      <div className="flex flex-wrap items-center gap-2 sm:gap-3 text-xs sm:text-sm text-gray-500 mb-5 sm:mb-6">
-        <span>🕒 {formatDate(doc.createdAt)}</span>
-        {doc.author?.fullName && <span>✍ {doc.author.fullName}</span>}
-      </div>
+      <Box
+        sx={{
+          display: "flex",
+          flexWrap: "wrap",
+          gap: 2,
+          alignItems: "center",
+          color: "text.secondary",
+          mb: 3,
+        }}
+      >
+        <Box sx={{ display: "flex", alignItems: "center", gap: 0.5 }}>
+          <AccessTimeIcon sx={{ fontSize: 16 }} />
+          <Typography variant="body2">{formatDate(doc.createdAt)}</Typography>
+        </Box>
+        {doc.author?.fullName && (
+          <Box sx={{ display: "flex", alignItems: "center", gap: 0.5 }}>
+            <PersonIcon sx={{ fontSize: 16 }} />
+            <Typography variant="body2">{doc.author.fullName}</Typography>
+          </Box>
+        )}
+      </Box>
 
-      {/* Nội dung */}
+      <Divider sx={{ mb: 3 }} />
+
+      {/* Nội dung rich text */}
       {doc.description && (
-        <div
-          className="prose max-w-none text-gray-800 text-sm sm:text-base leading-relaxed mb-6 sm:mb-8 ql-editor"
+        <Box
+          className="ql-editor"
           dangerouslySetInnerHTML={{ __html: doc.description }}
+          sx={{
+            fontSize: { xs: "0.875rem", sm: "1rem" },
+            lineHeight: 1.8,
+            color: "text.primary",
+            mb: 4,
+            "& img": { maxWidth: "100%", height: "auto" },
+            "& a": { color: "success.main" },
+          }}
         />
       )}
 
       {/* Tệp đính kèm */}
       {doc.attachmentUrl && (
-        <div className="mb-6 sm:mb-8">
-          <h2 className="text-base sm:text-lg font-semibold text-gray-800 mb-3">
-            Tệp đính kèm ({doc.attachmentType === "pdf" ? "PDF" : "Word"})
-          </h2>
+        <Box sx={{ mb: 4 }}>
+          <Typography
+            variant="h6"
+            fontWeight={600}
+            sx={{ mb: 2, display: "flex", alignItems: "center", gap: 1 }}
+          >
+            {doc.attachmentType === "pdf" ? (
+              <PictureAsPdfIcon sx={{ color: "#dc2626" }} />
+            ) : (
+              <ArticleIcon sx={{ color: "#2563eb" }} />
+            )}
+            Tệp {doc.attachmentType === "pdf" ? "PDF" : "Word"} đính kèm
+          </Typography>
+
           {doc.attachmentType === "pdf" ? (
-            <iframe
+            <Box
+              component="iframe"
               src={doc.attachmentUrl}
-              className="w-full border border-gray-200 rounded-lg h-[320px] sm:h-[480px] md:h-[600px]"
               title="PDF Viewer"
+              sx={{
+                width: "100%",
+                height: { xs: 320, sm: 480, md: 600 },
+                border: "1px solid",
+                borderColor: "divider",
+                borderRadius: 1,
+                display: "block",
+              }}
             />
           ) : (
-            <iframe
-              src={`https://view.officeapps.live.com/op/embed.aspx?src=${encodeURIComponent(
-                doc.attachmentUrl
-              )}`}
-              className="w-full border border-gray-200 rounded-lg h-[320px] sm:h-[480px] md:h-[600px]"
+            <Box
+              component="iframe"
+              src={`https://view.officeapps.live.com/op/embed.aspx?src=${encodeURIComponent(doc.attachmentUrl)}`}
               title="Word Viewer"
+              sx={{
+                width: "100%",
+                height: { xs: 320, sm: 480, md: 600 },
+                border: "1px solid",
+                borderColor: "divider",
+                borderRadius: 1,
+                display: "block",
+              }}
             />
           )}
-          <a
+
+          <Button
+            component="a"
             href={doc.attachmentUrl}
             target="_blank"
             rel="noopener noreferrer"
-            className="inline-flex items-center gap-2 mt-3 text-sm font-medium text-blue-600 hover:text-blue-800"
+            startIcon={<DownloadIcon />}
+            variant="outlined"
+            size="small"
+            sx={{
+              mt: 1.5,
+              borderColor: "#2563eb",
+              color: "#2563eb",
+              "&:hover": { borderColor: "#1e40af", color: "#1e40af" },
+            }}
           >
-            {doc.attachmentType === "pdf" ? "📄" : "📝"} Tải xuống tệp{" "}
-            {doc.attachmentType === "pdf" ? "PDF" : "Word"}
-          </a>
-        </div>
+            Tải xuống {doc.attachmentType === "pdf" ? "PDF" : "Word"}
+          </Button>
+        </Box>
       )}
 
       {/* Nút quay lại */}
-      <button
-        onClick={() => navigate(-1)}
-        className="inline-flex items-center gap-2 text-sm font-medium text-green-700 hover:text-green-900 border border-green-200 rounded-lg px-4 py-2 hover:bg-green-50 transition"
+      <Divider sx={{ mb: 3 }} />
+      <Button
+        startIcon={<ArrowBackIcon />}
+        onClick={() => typeof backRoute === "string" ? navigate(backRoute) : navigate(-1)}
+        variant="outlined"
+        color="success"
+        size="small"
       >
-        ← Quay lại
-      </button>
-    </div>
+        Quay lại
+      </Button>
+    </Container>
   );
 }
 

@@ -33,7 +33,7 @@ export default function ThingsToKnow() {
   ];
 
   return (
-    <div className="w-full min-h-screen bg-white px-6 py-4 text-gray-800">
+    <div className="w-full min-h-screen bg-white px-4 sm:px-6 py-4 sm:py-6 text-gray-800">
       {/* Breadcrumb */}
       <div className="text-sm text-gray-500 mb-4">
         Trang chủ <span className="mx-1">›</span> Thư viện{" "}

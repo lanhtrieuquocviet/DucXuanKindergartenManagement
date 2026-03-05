@@ -1,266 +1,274 @@
-import { useParams } from "react-router-dom";
-import { useMemo, useState } from "react";
+import { useState, useEffect } from "react";
+import { useParams, useNavigate } from "react-router-dom";
+import {
+  Container,
+  Box,
+  Typography,
+  Breadcrumbs,
+  Link,
+  Chip,
+  CircularProgress,
+  Alert,
+  Pagination,
+  Divider,
+} from "@mui/material";
+import ArticleIcon from "@mui/icons-material/Article";
+import PictureAsPdfIcon from "@mui/icons-material/PictureAsPdf";
+import AccessTimeIcon from "@mui/icons-material/AccessTime";
+import { get, ENDPOINTS } from "../../service/api";
+
+const SLUG_TO_CATEGORY = {
+  "financial-disclosure": "Công khai thu chi tài chính",
+  "education-quality": "Điều kiện đảm bảo chất lượng hoạt động giáo dục",
+  "education-plan-result": "Kế hoạch và kết quả hoạt động giáo dục",
+  "annual-report": "Báo cáo thường niên",
+};
+
+const CATEGORY_COLOR = {
+  "Thông tin chung về cơ sở giáo dục": "#7c3aed",
+  "Công khai thu chi tài chính": "#2563eb",
+  "Điều kiện đảm bảo chất lượng hoạt động giáo dục": "#ea580c",
+  "Kế hoạch và kết quả hoạt động giáo dục": "#16a34a",
+  "Báo cáo thường niên": "#1e3a8a",
+};
+
+const stripHtml = (html) => (html || "").replace(/<[^>]*>/g, "");
+
+const ITEMS_PER_PAGE = 8;
 
 export default function PublicInformationDetail() {
+  const { slug, year } = useParams();
+  const navigate = useNavigate();
 
-    const PUBLIC_INFO_MAP = {
-        "financial-disclosure": "Công khai thu chi tài chính",
-        "education-quality": "Điều kiện đảm bảo chất lượng hoạt động giáo dục",
-        "education-plan-result": "Kế hoạch và kết quả hoạt động giáo dục",
-        "annual-report": "Báo cáo thường niên",
-    };
-    const { slug, year } = useParams();
-    const baseTitle = PUBLIC_INFO_MAP[slug] || "Thông tin công khai";
+  const category = SLUG_TO_CATEGORY[slug];
+  const categoryColor = CATEGORY_COLOR[category] || "#4b5563";
 
-    const title = `${baseTitle} năm ${year}`;
-    const MOCK_DATA = {
-        "financial-disclosure": {
-            2026: [
-                {
-                    title: "Thông báo công khai thu chi tài chính năm 2026",
-                    desc: "Thông báo công khai thu chi tài chính của nhà trường năm 2026",
-                    category: "CÔNG KHAI",
-                    date: "30/09/2026",
-                    image: null,
-                },
-                {
-                    title: "Quyết định phê duyệt dự toán ngân sách năm 2026",
-                    desc: "Quyết định phê duyệt dự toán ngân sách nhà trường năm 2026",
-                    category: "CÔNG KHAI",
-                    date: "15/08/2026",
-                    image: null,
-                },
-                {
-                    title: "Báo cáo quyết toán ngân sách năm 2026",
-                    desc: "Báo cáo quyết toán ngân sách nhà trường năm 2026",
-                    category: "CÔNG KHAI",
-                    date: "10/07/2026",
-                    image: "https://via.placeholder.com/80x100",
-                },
-                {
-                    title: "Công khai các khoản thu đầu năm học 2026–2027",
-                    desc: "Danh mục các khoản thu đầu năm học 2026–2027",
-                    category: "CÔNG KHAI",
-                    date: "01/07/2026",
-                    image: null,
-                },
-            ],
-            2025: [
-                {
-                    title: "Thông báo công khai thu chi tài chính năm 2025",
-                    desc: "Thông báo công khai thu chi tài chính của nhà trường năm 2025",
-                    category: "CÔNG KHAI",
-                    date: "28/09/2025",
-                    image: null,
-                },
-                {
-                    title: "Báo cáo quyết toán ngân sách năm 2025",
-                    desc: "Báo cáo quyết toán ngân sách nhà trường năm 2025",
-                    category: "CÔNG KHAI",
-                    date: "12/07/2025",
-                    image: null,
-                },
-            ],
-        },
+  const [items, setItems] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(null);
+  const [page, setPage] = useState(1);
+  const [totalPages, setTotalPages] = useState(1);
+  const [total, setTotal] = useState(0);
 
-        "education-quality": {
-            2026: [
-                {
-                    title: "Điều kiện cơ sở vật chất năm 2026",
-                    desc: "Báo cáo điều kiện cơ sở vật chất phục vụ hoạt động giáo dục năm 2026",
-                    category: "CHẤT LƯỢNG",
-                    date: "20/09/2026",
-                    image: null,
-                },
-                {
-                    title: "Đội ngũ giáo viên và cán bộ quản lý năm 2026",
-                    desc: "Danh sách và trình độ đội ngũ giáo viên, cán bộ quản lý năm 2026",
-                    category: "CHẤT LƯỢNG",
-                    date: "05/09/2026",
-                    image: null,
-                },
-            ],
-            2025: [
-                {
-                    title: "Điều kiện đảm bảo chất lượng giáo dục năm 2025",
-                    desc: "Báo cáo tổng hợp điều kiện đảm bảo chất lượng giáo dục năm 2025",
-                    category: "CHẤT LƯỢNG",
-                    date: "18/09/2025",
-                    image: null,
-                },
-            ],
-        },
+  const loadItems = async (pg) => {
+    setLoading(true);
+    setError(null);
+    try {
+      const params = new URLSearchParams();
+      params.append("page", pg);
+      params.append("limit", ITEMS_PER_PAGE);
+      if (category) params.append("category", category);
+      if (year) params.append("year", year);
+      const resp = await get(`${ENDPOINTS.PUBLIC_INFO.LIST}?${params.toString()}`);
+      if (resp.status === "success") {
+        setItems(resp.data.items);
+        setTotalPages(resp.data.pagination.totalPages || 1);
+        setTotal(resp.data.pagination.total || 0);
+      }
+    } catch (err) {
+      setError(err.message || "Lỗi tải dữ liệu");
+    } finally {
+      setLoading(false);
+    }
+  };
 
-        "education-plan-result": {
-            2026: [
-                {
-                    title: "Kế hoạch hoạt động giáo dục năm học 2026–2027",
-                    desc: "Kế hoạch tổ chức các hoạt động giáo dục năm học 2026–2027",
-                    category: "KẾ HOẠCH",
-                    date: "25/08/2026",
-                    image: null,
-                },
-                {
-                    title: "Kết quả thực hiện nhiệm vụ giáo dục học kỳ I",
-                    desc: "Báo cáo kết quả thực hiện nhiệm vụ giáo dục học kỳ I năm học 2026–2027",
-                    category: "KẾT QUẢ",
-                    date: "20/12/2026",
-                    image: null,
-                },
-            ],
-            2025: [
-                {
-                    title: "Kế hoạch hoạt động giáo dục năm học 2025–2026",
-                    desc: "Kế hoạch hoạt động giáo dục năm học 2025–2026",
-                    category: "KẾ HOẠCH",
-                    date: "28/08/2025",
-                    image: null,
-                },
-            ],
-        },
+  useEffect(() => {
+    setPage(1);
+    loadItems(1);
+  }, [slug, year]); // eslint-disable-line
 
-        "annual-report": {
-            2026: [
-                {
-                    title: "Báo cáo thường niên năm 2026",
-                    desc: "Báo cáo tổng hợp tình hình hoạt động của nhà trường năm 2026",
-                    category: "BÁO CÁO",
-                    date: "31/12/2026",
-                    image: null,
-                },
-            ],
-            2025: [
-                {
-                    title: "Báo cáo thường niên năm 2025",
-                    desc: "Báo cáo tổng hợp tình hình hoạt động của nhà trường năm 2025",
-                    category: "BÁO CÁO",
-                    date: "31/12/2025",
-                    image: null,
-                },
-            ],
-        },
-    };
+  const handlePageChange = (_, newPage) => {
+    setPage(newPage);
+    loadItems(newPage);
+    window.scrollTo({ top: 0, behavior: "smooth" });
+  };
 
-    const data = useMemo(() => {
-        return MOCK_DATA[slug]?.[year] || [];
-    }, [slug, year]);
+  const formatDate = (d) =>
+    d ? new Date(d).toLocaleDateString("vi-VN") : "";
 
+  return (
+    <Container maxWidth="lg" sx={{ py: { xs: 3, sm: 4 } }}>
+      {/* Breadcrumbs */}
+      <Breadcrumbs sx={{ mb: 3, fontSize: "0.8rem" }}>
+        <Link
+          underline="hover"
+          color="inherit"
+          sx={{ cursor: "pointer" }}
+          onClick={() => navigate("/")}
+        >
+          Trang chủ
+        </Link>
+        <Link
+          underline="hover"
+          color="inherit"
+          sx={{ cursor: "pointer" }}
+          onClick={() => navigate("/public-information")}
+        >
+          Thông tin công khai
+        </Link>
+        <Typography color="text.primary" fontSize="0.8rem" fontWeight={600}>
+          {category || "Thông tin công khai"}
+        </Typography>
+      </Breadcrumbs>
 
-    /* Pagination */
-    const pageSize = 4;
-    const [page, setPage] = useState(1);
-    const totalPages = Math.ceil(data.length / pageSize);
-    const list = data.slice((page - 1) * pageSize, page * pageSize);
+      {/* Tiêu đề trang */}
+      <Box sx={{ mb: 3 }}>
+        <Chip
+          label={category || "Thông tin công khai"}
+          size="small"
+          sx={{
+            bgcolor: categoryColor,
+            color: "#fff",
+            fontWeight: 600,
+            mb: 1.5,
+            fontSize: "0.75rem",
+          }}
+        />
+        <Typography variant="h5" fontWeight={700} color="text.primary">
+          {category || "Thông tin công khai"}
+          {year && (
+            <Typography component="span" variant="h5" fontWeight={400} color="text.secondary">
+              {" "}— Năm {year}
+            </Typography>
+          )}
+        </Typography>
+        {!loading && (
+          <Typography variant="body2" color="text.secondary" mt={0.5}>
+            {total} kết quả
+          </Typography>
+        )}
+      </Box>
 
-    return (
-        <div className="min-h-screen bg-gray-50 px-6 py-6">
-            <div className="max-w-6xl mx-auto space-y-6">
+      <Divider sx={{ mb: 3 }} />
 
-                {/* Breadcrumb */}
-                <div className="text-sm text-gray-600 flex items-center gap-2">
-                    <span>Trang chủ</span>
-                    <span>›</span>
-                    <span>Thông tin công khai</span>
-                    <span>›</span>
-                    <span className="font-semibold text-gray-800">
-                        {baseTitle}
-                    </span>
-                </div>
+      {/* Trạng thái */}
+      {loading && (
+        <Box sx={{ display: "flex", justifyContent: "center", py: 8 }}>
+          <CircularProgress color="success" />
+        </Box>
+      )}
+      {error && (
+        <Alert severity="error" sx={{ mb: 3 }}>{error}</Alert>
+      )}
 
-                {/* Title */}
-                <h1 className="text-2xl font-bold text-gray-800">
-                    {title}
-                </h1>
+      {/* Danh sách bài */}
+      {!loading && !error && items.length === 0 && (
+        <Box sx={{ textAlign: "center", py: 8, color: "text.secondary" }}>
+          <Typography>Chưa có thông tin nào trong mục này.</Typography>
+        </Box>
+      )}
 
-                {/* List */}
-                <div className="bg-white border border-gray-300 rounded-lg divide-y">
-                    {list.map((item, index) => (
-                        <div
-                            key={index}
-                            className="flex gap-5 p-5 hover:bg-gray-50 transition"
-                        >
-                            {/* Image */}
-                            <div className="w-28 h-36 flex-shrink-0 border border-gray-400 bg-gray-100 flex items-center justify-center text-xs text-gray-500">
-                                {item.image ? (
-                                    <img
-                                        src={item.image}
-                                        alt=""
-                                        className="w-full h-full object-cover"
-                                    />
-                                ) : (
-                                    "KHÔNG CÓ HÌNH"
-                                )}
-                            </div>
+      {!loading && items.length > 0 && (
+        <Box sx={{ display: "flex", flexDirection: "column", gap: 0 }}>
+          {items.map((item, idx) => (
+            <Box
+              key={item._id}
+              onClick={() => navigate(`/public-info/${item._id}`)}
+              sx={{
+                display: "flex",
+                gap: 2,
+                p: 2.5,
+                cursor: "pointer",
+                borderBottom: "1px solid",
+                borderColor: "divider",
+                bgcolor: idx % 2 === 0 ? "#fff" : "#f9fafb",
+                "&:hover": { bgcolor: "#f0fdf4" },
+                transition: "background 0.15s",
+                alignItems: "flex-start",
+              }}
+            >
+              {/* Icon / attachment indicator */}
+              <Box
+                sx={{
+                  width: 40,
+                  height: 40,
+                  borderRadius: 1,
+                  bgcolor: categoryColor + "18",
+                  display: "flex",
+                  alignItems: "center",
+                  justifyContent: "center",
+                  flexShrink: 0,
+                  mt: 0.5,
+                }}
+              >
+                {item.attachmentType === "pdf" ? (
+                  <PictureAsPdfIcon sx={{ color: "#dc2626", fontSize: 22 }} />
+                ) : (
+                  <ArticleIcon sx={{ color: categoryColor, fontSize: 22 }} />
+                )}
+              </Box>
 
-                            {/* Content */}
-                            <div className="flex-1 space-y-2">
-                                <h2 className="font-semibold text-gray-900 hover:text-green-700 cursor-pointer">
-                                    {item.title}
-                                </h2>
+              {/* Nội dung */}
+              <Box sx={{ flex: 1, minWidth: 0 }}>
+                <Typography
+                  variant="body1"
+                  fontWeight={600}
+                  color="text.primary"
+                  sx={{
+                    "&:hover": { color: "success.main" },
+                    lineHeight: 1.4,
+                    mb: 0.5,
+                    overflow: "hidden",
+                    display: "-webkit-box",
+                    WebkitLineClamp: 2,
+                    WebkitBoxOrient: "vertical",
+                  }}
+                >
+                  {item.title}
+                </Typography>
+                {item.description && (
+                  <Typography
+                    variant="body2"
+                    color="text.secondary"
+                    sx={{
+                      overflow: "hidden",
+                      display: "-webkit-box",
+                      WebkitLineClamp: 2,
+                      WebkitBoxOrient: "vertical",
+                      mb: 1,
+                      fontSize: "0.8rem",
+                    }}
+                  >
+                    {stripHtml(item.description)}
+                  </Typography>
+                )}
+                <Box sx={{ display: "flex", alignItems: "center", gap: 2, flexWrap: "wrap" }}>
+                  <Box sx={{ display: "flex", alignItems: "center", gap: 0.5, color: "text.disabled", fontSize: "0.75rem" }}>
+                    <AccessTimeIcon sx={{ fontSize: 14 }} />
+                    <Typography variant="caption">{formatDate(item.createdAt)}</Typography>
+                  </Box>
+                  {item.attachmentUrl && (
+                    <Chip
+                      label={item.attachmentType === "pdf" ? "PDF" : "Word"}
+                      size="small"
+                      sx={{
+                        height: 20,
+                        fontSize: "0.7rem",
+                        bgcolor: item.attachmentType === "pdf" ? "#fee2e2" : "#dbeafe",
+                        color: item.attachmentType === "pdf" ? "#dc2626" : "#2563eb",
+                        fontWeight: 600,
+                      }}
+                    />
+                  )}
+                </Box>
+              </Box>
+            </Box>
+          ))}
+        </Box>
+      )}
 
-                                <p className="text-sm text-gray-700 line-clamp-2">
-                                    {item.desc}
-                                </p>
-
-                                <div className="text-xs text-gray-500 flex items-center gap-4">
-                                    <span className="flex items-center gap-1">
-                                        🏷 {item.category}
-                                    </span>
-                                    <span className="flex items-center gap-1">
-                                        🕒 {item.date}
-                                    </span>
-                                </div>
-                            </div>
-                        </div>
-                    ))}
-                </div>
-
-                {/* Pagination */}
-                <div className="flex justify-center items-center gap-2 pt-2">
-
-                    {/* Prev */}
-                    <button
-                        disabled={page === 1}
-                        onClick={() => setPage(page - 1)}
-                        className={`w-9 h-9 border rounded flex items-center justify-center
-          ${page === 1
-                                ? "text-gray-400 border-gray-300 cursor-not-allowed"
-                                : "border-gray-400 hover:bg-gray-100"}`}
-                    >
-                        «
-                    </button>
-
-                    {/* Page numbers */}
-                    {Array.from({ length: totalPages }).map((_, i) => {
-                        const p = i + 1;
-                        return (
-                            <button
-                                key={p}
-                                onClick={() => setPage(p)}
-                                className={`w-9 h-9 border rounded flex items-center justify-center font-medium
-              ${page === p
-                                        ? "bg-green-600 text-white border-green-600"
-                                        : "border-gray-400 hover:bg-gray-100"}`}
-                            >
-                                {p}
-                            </button>
-                        );
-                    })}
-
-                    {/* Next */}
-                    <button
-                        disabled={page === totalPages}
-                        onClick={() => setPage(page + 1)}
-                        className={`w-9 h-9 border rounded flex items-center justify-center
-          ${page === totalPages
-                                ? "text-gray-400 border-gray-300 cursor-not-allowed"
-                                : "border-gray-400 hover:bg-gray-100"}`}
-                    >
-                        »
-                    </button>
-                </div>
-
-            </div>
-        </div>
-    );
+      {/* Phân trang */}
+      {totalPages > 1 && (
+        <Box sx={{ display: "flex", justifyContent: "center", mt: 4 }}>
+          <Pagination
+            count={totalPages}
+            page={page}
+            onChange={handlePageChange}
+            color="success"
+            shape="rounded"
+          />
+        </Box>
+      )}
+    </Container>
+  );
 }

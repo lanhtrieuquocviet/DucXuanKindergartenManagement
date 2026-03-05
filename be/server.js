@@ -71,6 +71,16 @@ require('./src/models/SystemLog');
       console.log(`🔁 Migrated ${blogsToFix.length} blog(s) to use category ObjectId`);
     }
 
+    // Set category: null on documents that don't have the field yet
+    const Document = require('./src/models/Document');
+    const docMigrated = await Document.updateMany(
+      { category: { $exists: false } },
+      { $set: { category: null } }
+    );
+    if (docMigrated.modifiedCount > 0) {
+      console.log(`🔁 Initialized category field on ${docMigrated.modifiedCount} document(s)`);
+    }
+
     // Ensure MANAGE_DOCUMENTS permission exists
     await Permission.findOneAndUpdate(
       { code: 'MANAGE_DOCUMENTS' },

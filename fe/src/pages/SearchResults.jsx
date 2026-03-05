@@ -45,7 +45,7 @@ function SearchResults() {
   }, [q, pageParam]);
 
   return (
-    <div className="max-w-7xl mx-auto px-6 py-8">
+    <div className="max-w-7xl mx-auto px-4 sm:px-6 py-6 sm:py-8">
       <div className="text-sm text-gray-600 mb-6">
         Trang chủ <span className="mx-2">›</span>
         Kết quả tìm kiếm
@@ -63,8 +63,8 @@ function SearchResults() {
       {!loading && results.length > 0 && (
         <div className="space-y-6">
           {results.map((b) => (
-            <div key={b._id} className="flex gap-6 border-b pb-6">
-              <div className="w-[220px] h-[140px] flex-shrink-0 bg-gray-100 border flex items-center justify-center">
+            <div key={b._id} className="flex flex-col sm:flex-row gap-4 sm:gap-6 border-b pb-5 sm:pb-6">
+              <div className="w-full sm:w-[220px] h-[180px] sm:h-[140px] sm:flex-shrink-0 bg-gray-100 border flex items-center justify-center">
                 {b.images && b.images.length > 0 ? (
                   <img src={b.images[0]} alt={b.code} className="w-full h-full object-cover" />
                 ) : (

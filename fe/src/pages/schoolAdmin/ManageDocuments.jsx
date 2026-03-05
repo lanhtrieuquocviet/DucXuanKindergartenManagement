@@ -18,6 +18,7 @@ function DocumentFormModal({ open, onClose, initialData, onSubmit, loading }) {
     title: '',
     description: '',
     status: 'draft',
+    category: '',
     attachmentUrl: null,
     attachmentType: null,
   });
@@ -30,6 +31,7 @@ function DocumentFormModal({ open, onClose, initialData, onSubmit, loading }) {
         title: initialData?.title || '',
         description: initialData?.description || '',
         status: initialData?.status || 'draft',
+        category: initialData?.category || '',
         attachmentUrl: initialData?.attachmentUrl || null,
         attachmentType: initialData?.attachmentType || null,
       });
@@ -134,6 +136,21 @@ function DocumentFormModal({ open, onClose, initialData, onSubmit, loading }) {
             {formErrors.description && (
               <p className="mt-1 text-xs text-red-600">{formErrors.description}</p>
             )}
+          </div>
+
+          {/* Danh mục */}
+          <div>
+            <label className="block text-xs font-medium text-gray-700 mb-1">Danh mục</label>
+            <select
+              name="category"
+              value={form.category}
+              onChange={handleChange}
+              className="rounded-md border border-gray-300 px-3 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500 w-full"
+            >
+              <option value="">-- Chọn danh mục --</option>
+              <option value="văn bản pháp quy">Văn bản pháp quy</option>
+              <option value="văn bản từ phòng">Văn bản từ phòng</option>
+            </select>
           </div>
 
           {/* Trạng thái */}
@@ -424,6 +441,7 @@ export default function ManageDocuments() {
             <thead className="bg-gray-50">
               <tr>
                 <th className="px-3 py-2 text-left text-xs font-semibold uppercase tracking-wide text-gray-500">Tiêu đề</th>
+                <th className="px-3 py-2 text-left text-xs font-semibold uppercase tracking-wide text-gray-500">Danh mục</th>
                 <th className="px-3 py-2 text-left text-xs font-semibold uppercase tracking-wide text-gray-500">Nội dung</th>
                 <th className="px-3 py-2 text-left text-xs font-semibold uppercase tracking-wide text-gray-500">Tệp đính kèm</th>
                 <th className="px-3 py-2 text-left text-xs font-semibold uppercase tracking-wide text-gray-500">Trạng thái</th>
@@ -436,6 +454,9 @@ export default function ManageDocuments() {
                 <tr key={doc._id}>
                   <td className="px-3 py-2 text-xs font-medium text-gray-900 max-w-[180px]">
                     <div className="line-clamp-2">{doc.title}</div>
+                  </td>
+                  <td className="px-3 py-2 text-xs text-gray-700 whitespace-nowrap">
+                    {doc.category || '-'}
                   </td>
                   <td className="px-3 py-2">
                     <div className="text-xs text-gray-700 line-clamp-2">

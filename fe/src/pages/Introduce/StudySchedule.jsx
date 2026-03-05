@@ -1,6 +1,6 @@
 function StudySchedule() {
   return (
-    <div className="max-w-7xl mx-auto px-6 py-8">
+    <div className="max-w-7xl mx-auto px-4 sm:px-6 py-6 sm:py-8">
 
       {/* Breadcrumb */}
       <div className="text-sm text-gray-600 mb-6">

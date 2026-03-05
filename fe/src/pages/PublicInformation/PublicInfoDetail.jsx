@@ -1,14 +1,32 @@
 import { useState, useEffect } from "react";
 import { useParams, useNavigate } from "react-router-dom";
+import {
+  Container,
+  Box,
+  Typography,
+  Breadcrumbs,
+  Link,
+  Chip,
+  CircularProgress,
+  Alert,
+  Divider,
+  Button,
+} from "@mui/material";
+import ArrowBackIcon from "@mui/icons-material/ArrowBack";
+import AccessTimeIcon from "@mui/icons-material/AccessTime";
+import PersonIcon from "@mui/icons-material/Person";
+import PictureAsPdfIcon from "@mui/icons-material/PictureAsPdf";
+import ArticleIcon from "@mui/icons-material/Article";
+import DownloadIcon from "@mui/icons-material/Download";
 import { get, ENDPOINTS } from "../../service/api";
-import 'quill/dist/quill.snow.css';
+import "quill/dist/quill.snow.css";
 
-const CATEGORY_COLORS = {
-  'Thông tin chung về cơ sở giáo dục': 'bg-purple-600',
-  'Công khai thu chi tài chính': 'bg-blue-500',
-  'Điều kiện đảm bảo chất lượng hoạt động giáo dục': 'bg-orange-500',
-  'Kế hoạch và kết quả hoạt động giáo dục': 'bg-green-600',
-  'Báo cáo thường niên': 'bg-blue-800',
+const CATEGORY_COLOR = {
+  "Thông tin chung về cơ sở giáo dục": "#7c3aed",
+  "Công khai thu chi tài chính": "#2563eb",
+  "Điều kiện đảm bảo chất lượng hoạt động giáo dục": "#ea580c",
+  "Kế hoạch và kết quả hoạt động giáo dục": "#16a34a",
+  "Báo cáo thường niên": "#1e3a8a",
 };
 
 function PublicInfoDetail() {
@@ -27,7 +45,7 @@ function PublicInfoDetail() {
         const resp = await get(ENDPOINTS.PUBLIC_INFO.DETAIL(id));
         setItem(resp.data);
       } catch (err) {
-        setError(err.message || 'Không tìm thấy thông tin');
+        setError(err.message || "Không tìm thấy thông tin");
       } finally {
         setLoading(false);
       }
@@ -35,106 +53,215 @@ function PublicInfoDetail() {
     if (id) load();
   }, [id]);
 
-  const formatDate = (d) => d ? new Date(d).toLocaleDateString('vi-VN') : '-';
+  const formatDate = (d) =>
+    d ? new Date(d).toLocaleDateString("vi-VN") : "-";
 
   if (loading) {
     return (
-      <div className="max-w-4xl mx-auto px-4 sm:px-6 py-12 text-center text-gray-500">
-        Đang tải...
-      </div>
+      <Container maxWidth="lg" sx={{ py: 8, textAlign: "center" }}>
+        <CircularProgress color="success" />
+      </Container>
     );
   }
 
   if (error || !item) {
     return (
-      <div className="max-w-4xl mx-auto px-4 sm:px-6 py-12">
-        <div className="bg-red-50 border border-red-200 rounded p-4 text-red-700 text-sm mb-4">
-          {error || 'Không tìm thấy thông tin'}
-        </div>
-        <button onClick={() => navigate(-1)} className="text-sm text-green-700 hover:underline">
-          ← Quay lại
-        </button>
-      </div>
+      <Container maxWidth="lg" sx={{ py: 6 }}>
+        <Alert severity="error" sx={{ mb: 3 }}>
+          {error || "Không tìm thấy thông tin"}
+        </Alert>
+        <Button
+          startIcon={<ArrowBackIcon />}
+          onClick={() => navigate(-1)}
+          variant="outlined"
+          color="success"
+          size="small"
+        >
+          Quay lại
+        </Button>
+      </Container>
     );
   }
 
-  const catColor = CATEGORY_COLORS[item.category] || 'bg-gray-600';
+  const catColor = CATEGORY_COLOR[item.category] || "#4b5563";
 
   return (
-    <div className="max-w-4xl mx-auto px-4 sm:px-6 py-6 sm:py-8">
-      {/* Breadcrumb */}
-      <div className="text-xs sm:text-sm text-gray-500 mb-4 sm:mb-6 flex flex-wrap items-center gap-1">
-        <span className="hover:text-green-600 cursor-pointer" onClick={() => navigate('/')}>Trang chủ</span>
-        <span>›</span>
-        <span className="hover:text-green-600 cursor-pointer" onClick={() => navigate('/public-information')}>Thông tin công khai</span>
-        <span>›</span>
-        <span className="text-gray-800 font-medium line-clamp-1">{item.title}</span>
-      </div>
+    <Container maxWidth="lg" sx={{ py: { xs: 3, sm: 4 } }}>
+      {/* Breadcrumbs */}
+      <Breadcrumbs sx={{ mb: 3, fontSize: "0.8rem" }}>
+        <Link
+          underline="hover"
+          color="inherit"
+          sx={{ cursor: "pointer" }}
+          onClick={() => navigate("/")}
+        >
+          Trang chủ
+        </Link>
+        <Link
+          underline="hover"
+          color="inherit"
+          sx={{ cursor: "pointer" }}
+          onClick={() => navigate("/public-information")}
+        >
+          Thông tin công khai
+        </Link>
+        <Typography
+          color="text.primary"
+          fontSize="0.8rem"
+          fontWeight={600}
+          sx={{
+            maxWidth: 300,
+            overflow: "hidden",
+            textOverflow: "ellipsis",
+            whiteSpace: "nowrap",
+          }}
+        >
+          {item.title}
+        </Typography>
+      </Breadcrumbs>
 
-      {/* Category badge */}
-      <div className="mb-3">
-        <span className={`inline-block px-3 py-1 rounded text-xs font-semibold text-white ${catColor}`}>
-          {item.category}
-        </span>
-      </div>
+      {/* Category chip */}
+      <Chip
+        label={item.category}
+        size="small"
+        sx={{
+          bgcolor: catColor,
+          color: "#fff",
+          fontWeight: 600,
+          mb: 2,
+          fontSize: "0.75rem",
+        }}
+      />
 
       {/* Tiêu đề */}
-      <h1 className="text-xl sm:text-2xl md:text-3xl font-bold text-gray-900 mb-3 leading-snug">
+      <Typography
+        variant="h5"
+        fontWeight={700}
+        color="text.primary"
+        sx={{ mb: 2, lineHeight: 1.4 }}
+      >
         {item.title}
-      </h1>
+      </Typography>
 
       {/* Meta */}
-      <div className="flex flex-wrap items-center gap-2 sm:gap-3 text-xs sm:text-sm text-gray-500 mb-5 sm:mb-6">
-        <span>🕒 {formatDate(item.createdAt)}</span>
-        {item.author?.fullName && <span>✍ {item.author.fullName}</span>}
-      </div>
+      <Box
+        sx={{
+          display: "flex",
+          flexWrap: "wrap",
+          gap: 2,
+          alignItems: "center",
+          color: "text.secondary",
+          mb: 3,
+        }}
+      >
+        <Box sx={{ display: "flex", alignItems: "center", gap: 0.5 }}>
+          <AccessTimeIcon sx={{ fontSize: 16 }} />
+          <Typography variant="body2">{formatDate(item.createdAt)}</Typography>
+        </Box>
+        {item.author?.fullName && (
+          <Box sx={{ display: "flex", alignItems: "center", gap: 0.5 }}>
+            <PersonIcon sx={{ fontSize: 16 }} />
+            <Typography variant="body2">{item.author.fullName}</Typography>
+          </Box>
+        )}
+      </Box>
 
-      {/* Nội dung */}
+      <Divider sx={{ mb: 3 }} />
+
+      {/* Nội dung rich text */}
       {item.description && (
-        <div
-          className="prose max-w-none text-gray-800 text-sm sm:text-base leading-relaxed mb-6 sm:mb-8 ql-editor"
+        <Box
+          className="ql-editor"
           dangerouslySetInnerHTML={{ __html: item.description }}
+          sx={{
+            fontSize: { xs: "0.875rem", sm: "1rem" },
+            lineHeight: 1.8,
+            color: "text.primary",
+            mb: 4,
+            "& img": { maxWidth: "100%", height: "auto" },
+            "& a": { color: "success.main" },
+          }}
         />
       )}
 
       {/* Tệp đính kèm */}
       {item.attachmentUrl && (
-        <div className="mb-6 sm:mb-8">
-          <h2 className="text-base sm:text-lg font-semibold text-gray-800 mb-3">
-            Tệp đính kèm ({item.attachmentType === 'pdf' ? 'PDF' : 'Word'})
-          </h2>
-          {item.attachmentType === 'pdf' ? (
-            <iframe
+        <Box sx={{ mb: 4 }}>
+          <Typography
+            variant="h6"
+            fontWeight={600}
+            sx={{ mb: 2, display: "flex", alignItems: "center", gap: 1 }}
+          >
+            {item.attachmentType === "pdf" ? (
+              <PictureAsPdfIcon sx={{ color: "#dc2626" }} />
+            ) : (
+              <ArticleIcon sx={{ color: "#2563eb" }} />
+            )}
+            Tệp {item.attachmentType === "pdf" ? "PDF" : "Word"} đính kèm
+          </Typography>
+
+          {item.attachmentType === "pdf" ? (
+            <Box
+              component="iframe"
               src={item.attachmentUrl}
-              className="w-full border border-gray-200 rounded-lg h-[320px] sm:h-[480px] md:h-[600px]"
               title="PDF Viewer"
+              sx={{
+                width: "100%",
+                height: { xs: 320, sm: 480, md: 600 },
+                border: "1px solid",
+                borderColor: "divider",
+                borderRadius: 1,
+                display: "block",
+              }}
             />
           ) : (
-            <iframe
+            <Box
+              component="iframe"
               src={`https://view.officeapps.live.com/op/embed.aspx?src=${encodeURIComponent(item.attachmentUrl)}`}
-              className="w-full border border-gray-200 rounded-lg h-[320px] sm:h-[480px] md:h-[600px]"
               title="Word Viewer"
+              sx={{
+                width: "100%",
+                height: { xs: 320, sm: 480, md: 600 },
+                border: "1px solid",
+                borderColor: "divider",
+                borderRadius: 1,
+                display: "block",
+              }}
             />
           )}
-          <a
+
+          <Button
+            component="a"
             href={item.attachmentUrl}
             target="_blank"
             rel="noopener noreferrer"
-            className="inline-flex items-center gap-2 mt-3 text-sm font-medium text-blue-600 hover:text-blue-800"
+            startIcon={<DownloadIcon />}
+            variant="outlined"
+            size="small"
+            sx={{
+              mt: 1.5,
+              borderColor: "#2563eb",
+              color: "#2563eb",
+              "&:hover": { borderColor: "#1e40af", color: "#1e40af" },
+            }}
           >
-            {item.attachmentType === 'pdf' ? '📄' : '📝'} Tải xuống tệp {item.attachmentType === 'pdf' ? 'PDF' : 'Word'}
-          </a>
-        </div>
+            Tải xuống {item.attachmentType === "pdf" ? "PDF" : "Word"}
+          </Button>
+        </Box>
       )}
 
       {/* Nút quay lại */}
-      <button
+      <Divider sx={{ mb: 3 }} />
+      <Button
+        startIcon={<ArrowBackIcon />}
         onClick={() => navigate(-1)}
-        className="inline-flex items-center gap-2 text-sm font-medium text-green-700 hover:text-green-900 border border-green-200 rounded-lg px-4 py-2 hover:bg-green-50 transition"
+        variant="outlined"
+        color="success"
+        size="small"
       >
-        ← Quay lại
-      </button>
-    </div>
+        Quay lại
+      </Button>
+    </Container>
   );
 }
 

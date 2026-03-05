@@ -1,22 +1,27 @@
 import { useState, useEffect } from "react";
+import { useNavigate } from "react-router-dom";
 import { get } from "../service/api";
-
-// we'll fetch latest published blogs to display in news section
 
 const PAGE_SIZE = 4;
 
+const stripHtml = (html) => (html || "").replace(/<[^>]*>/g, "").trim();
+
 function Homepage() {
-  // load categories and their latest published blog
+  const navigate = useNavigate();
+  const [page, setPage] = useState(1);
+  const [featured, setFeatured] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(null);
+
   useEffect(() => {
     const loadFeatured = async () => {
       setLoading(true);
       setError(null);
       try {
-        const resp = await get('/blogs/categories');
+        const resp = await get("/blogs/categories");
         const cats = resp.data || resp;
         const posts = [];
 
-        // fetch one blog per category
         for (const c of cats) {
           try {
             const r2 = await get(`/blogs/published?category=${c._id}&limit=1`);
@@ -26,30 +31,24 @@ function Homepage() {
               posts.push({
                 id: b._id,
                 title: b.code,
-                content: b.description,
+                content: stripHtml(b.description),
+                image: b.images?.[0] || null,
                 category: c.name,
               });
             }
-          } catch (e) {
+          } catch {
             // ignore failures for individual categories
           }
         }
         setFeatured(posts);
       } catch (err) {
-        setError(err.message || 'Không tải được tin nổi bật');
-        console.error('Failed to load featured blogs', err);
+        setError(err.message || "Không tải được tin nổi bật");
       } finally {
         setLoading(false);
       }
     };
     loadFeatured();
   }, []);
-  const [page, setPage] = useState(1);
-  const [featured, setFeatured] = useState([]);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState(null);
-
-  // load categories with latest post (see above useEffect)
 
   const totalPage = Math.ceil(featured.length / PAGE_SIZE);
   const startIndex = (page - 1) * PAGE_SIZE;
@@ -62,16 +61,15 @@ function Homepage() {
     <div className="space-y-10">
 
       {/* ===== SLIDER ===== */}
-      <div className="h-[260px] border-2 border-gray-400 flex items-center justify-center text-xl font-semibold bg-gray-50">
+      <div className="h-[160px] sm:h-[260px] border-2 border-gray-400 flex items-center justify-center text-base sm:text-xl font-semibold bg-gray-50">
         Ảnh Slider
       </div>
 
       {/* ===== TIÊU ĐỀ ===== */}
-      <h3 className="text-xl font-bold border-b pb-2">
+      <h3 className="text-lg sm:text-xl font-bold border-b pb-2">
         Tin tức nổi bật
       </h3>
 
-      {/* ===== BLOG LỚN ===== */}
       {loading && (
         <div className="text-center py-8 text-gray-500">Đang tải...</div>
       )}
@@ -81,13 +79,28 @@ function Homepage() {
       {!loading && !error && featured.length === 0 && (
         <div className="text-center py-8 text-gray-500">Chưa có bài viết</div>
       )}
-      {mainBlog && (
-        <div className="border-2 border-gray-400 p-4 bg-white space-y-3">
-          <div className="h-[220px] border flex items-center justify-center bg-gray-100">
-            Ảnh bài viết
-          </div>
 
-          <h4 className="text-lg font-semibold hover:text-green-700 cursor-pointer">
+      {/* ===== BLOG LỚN ===== */}
+      {mainBlog && (
+        <div
+          className="border-2 border-gray-400 p-4 bg-white space-y-3 cursor-pointer hover:shadow-md transition"
+          onClick={() => navigate(`/news/${mainBlog.id}`)}
+        >
+          {mainBlog.image ? (
+            <img
+              src={mainBlog.image}
+              alt={mainBlog.title}
+              className="w-full h-[160px] sm:h-[220px] object-cover"
+            />
+          ) : (
+            <div className="h-[160px] sm:h-[220px] border flex items-center justify-center bg-gray-100 text-sm text-gray-400">
+              Không có ảnh
+            </div>
+          )}
+
+          <span className="text-xs text-green-700 font-medium">{mainBlog.category}</span>
+
+          <h4 className="text-lg font-semibold hover:text-green-700">
             {mainBlog.title}
           </h4>
 
@@ -98,15 +111,26 @@ function Homepage() {
       )}
 
       {/* ===== BLOG NHỎ ===== */}
-      <div className="grid grid-cols-3 gap-6">
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 sm:gap-6">
         {subBlogs.map((blog) => (
           <div
             key={blog.id}
             className="border p-2 space-y-2 hover:shadow cursor-pointer"
+            onClick={() => navigate(`/news/${blog.id}`)}
           >
-            <div className="h-[140px] border flex items-center justify-center bg-gray-100">
-              Ảnh blog
-            </div>
+            {blog.image ? (
+              <img
+                src={blog.image}
+                alt={blog.title}
+                className="w-full h-[140px] object-cover"
+              />
+            ) : (
+              <div className="h-[140px] border flex items-center justify-center bg-gray-100 text-sm text-gray-400">
+                Không có ảnh
+              </div>
+            )}
+
+            <span className="text-xs text-green-600">{blog.category}</span>
 
             <div className="text-sm font-medium line-clamp-2">
               {blog.title}
@@ -116,42 +140,35 @@ function Homepage() {
       </div>
 
       {/* ===== PHÂN TRANG ===== */}
-      <div className="flex justify-center items-center gap-2 pt-6">
-
-        {/* Prev */}
-        <button
-          disabled={page === 1}
-          onClick={() => setPage(page - 1)}
-          className={`px-3 py-1 border rounded
-            ${page === 1 ? "opacity-50 cursor-not-allowed" : "hover:bg-gray-100"}`}
-        >
-          «
-        </button>
-
-        {/* Page number */}
-        {Array.from({ length: totalPage }).map((_, i) => (
+      {totalPage > 1 && (
+        <div className="flex justify-center items-center gap-2 pt-6">
           <button
-            key={i}
-            onClick={() => setPage(i + 1)}
-            className={`px-4 py-1 border rounded
-              ${page === i + 1
-                ? "bg-green-600 text-white"
-                : "bg-white hover:bg-gray-100"}`}
+            disabled={page === 1}
+            onClick={() => setPage(page - 1)}
+            className={`px-3 py-1 border rounded ${page === 1 ? "opacity-50 cursor-not-allowed" : "hover:bg-gray-100"}`}
           >
-            {i + 1}
+            «
           </button>
-        ))}
 
-        {/* Next */}
-        <button
-          disabled={page === totalPage}
-          onClick={() => setPage(page + 1)}
-          className={`px-3 py-1 border rounded
-            ${page === totalPage ? "opacity-50 cursor-not-allowed" : "hover:bg-gray-100"}`}
-        >
-          »
-        </button>
-      </div>
+          {Array.from({ length: totalPage }).map((_, i) => (
+            <button
+              key={i}
+              onClick={() => setPage(i + 1)}
+              className={`px-4 py-1 border rounded ${page === i + 1 ? "bg-green-600 text-white" : "bg-white hover:bg-gray-100"}`}
+            >
+              {i + 1}
+            </button>
+          ))}
+
+          <button
+            disabled={page === totalPage}
+            onClick={() => setPage(page + 1)}
+            className={`px-3 py-1 border rounded ${page === totalPage ? "opacity-50 cursor-not-allowed" : "hover:bg-gray-100"}`}
+          >
+            »
+          </button>
+        </div>
+      )}
     </div>
   );
 }

@@ -38,6 +38,10 @@ const documentSchema = new mongoose.Schema(
       enum: ['pdf', 'word', null],
       default: null,
     },
+    category: {
+      type: String,
+      default: null,
+    },
     status: {
       type: String,
       enum: ['draft', 'published', 'inactive'],

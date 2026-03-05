@@ -151,9 +151,13 @@ const deletePublicInfo = async (req, res) => {
 /** GET /api/public-info (public - published only) */
 const getPublishedPublicInfos = async (req, res) => {
   try {
-    const { category, page = 1, limit = 10 } = req.query;
+    const { category, year, page = 1, limit = 10 } = req.query;
     const filter = { status: 'published' };
     if (category) filter.category = category;
+    if (year) {
+      const y = Number(year);
+      filter.createdAt = { $gte: new Date(y, 0, 1), $lt: new Date(y + 1, 0, 1) };
+    }
 
     const pageNum = Number(page) || 1;
     const limitNum = Number(limit) || 10;

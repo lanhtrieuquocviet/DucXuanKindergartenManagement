@@ -23,7 +23,7 @@ export default function ProfessionalGroup() {
   );
 
   return (
-    <div className="max-w-7xl mx-auto px-6 py-8">
+    <div className="max-w-7xl mx-auto px-4 sm:px-6 py-6 sm:py-8">
       {/* ===== BREADCRUMB ===== */}
       <div className="text-sm text-gray-600 mb-6">
         <span className="hover:text-green-600 cursor-pointer">Trang chủ</span>
@@ -38,17 +38,17 @@ export default function ProfessionalGroup() {
       </div>
 
       {/* ===== TITLE ===== */}
-      <h1 className="text-3xl font-bold mb-8">Tổ Chuyên môn</h1>
+      <h1 className="text-2xl sm:text-3xl font-bold mb-6 sm:mb-8">Tổ Chuyên môn</h1>
 
       {/* ===== LIST ===== */}
       <div className="space-y-6">
         {currentTeachers.map((item) => (
           <div
             key={item.id}
-            className="border rounded bg-white flex p-6 gap-6"
+            className="border rounded bg-white flex flex-col sm:flex-row p-4 sm:p-6 gap-4 sm:gap-6"
           >
             {/* Avatar */}
-            <div className="w-[150px] h-[180px] flex-shrink-0 border bg-gray-100">
+            <div className="w-full sm:w-[150px] h-[200px] sm:h-[180px] sm:flex-shrink-0 border bg-gray-100 mx-auto sm:mx-0 max-w-[200px] sm:max-w-none">
               <img
                 src={item.avatar}
                 alt={item.name}
@@ -83,7 +83,7 @@ export default function ProfessionalGroup() {
       </div>
 
       {/* ===== PAGINATION ===== */}
-      <div className="flex justify-center mt-8 gap-2">
+      <div className="flex justify-center flex-wrap mt-6 sm:mt-8 gap-1 sm:gap-2">
         {Array.from({ length: totalPages }).map((_, i) => (
           <button
             key={i}

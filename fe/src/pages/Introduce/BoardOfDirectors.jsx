@@ -27,7 +27,7 @@ const directors = [
 
 function BoardOfDirectors() {
   return (
-    <div className="max-w-7xl mx-auto px-6 py-8">
+    <div className="max-w-7xl mx-auto px-4 sm:px-6 py-6 sm:py-8">
 
       {/* Breadcrumb */}
       <div className="text-sm text-gray-600 mb-6">
@@ -41,7 +41,7 @@ function BoardOfDirectors() {
       </div>
 
       {/* Title */}
-      <h1 className="text-3xl font-bold mb-8">
+      <h1 className="text-2xl sm:text-3xl font-bold mb-6 sm:mb-8">
         Ban Giám hiệu
       </h1>
 
@@ -50,10 +50,10 @@ function BoardOfDirectors() {
         {directors.map((item) => (
           <div
             key={item.id}
-            className="border rounded bg-white flex p-6 gap-6"
+            className="border rounded bg-white flex flex-col sm:flex-row p-4 sm:p-6 gap-4 sm:gap-6"
           >
             {/* Avatar */}
-            <div className="w-[150px] h-[180px] flex-shrink-0 border bg-gray-100 flex items-center justify-center">
+            <div className="w-full sm:w-[150px] h-[200px] sm:h-[180px] sm:flex-shrink-0 border bg-gray-100 flex items-center justify-center mx-auto sm:mx-0 max-w-[200px] sm:max-w-none">
               <img
                 src={item.avatar}
                 alt={item.name}

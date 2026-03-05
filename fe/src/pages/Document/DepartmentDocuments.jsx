@@ -21,6 +21,7 @@ function DepartmentDocuments() {
       const params = new URLSearchParams();
       params.append("page", page);
       params.append("limit", ITEMS_PER_PAGE);
+      params.append("category", "văn bản từ phòng");
       const resp = await get(`${ENDPOINTS.DOCUMENTS.PUBLISHED}?${params.toString()}`);
       if (resp.status === "success") {
         setDocuments(resp.data.items);

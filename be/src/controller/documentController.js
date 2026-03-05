@@ -25,6 +25,11 @@ const validateDocumentPayload = (body, isCreate = true) => {
     errors.push('Loại tệp đính kèm không hợp lệ');
   }
 
+  if (body.category !== undefined && body.category !== '' && body.category !== null &&
+      !['văn bản pháp quy', 'văn bản từ phòng'].includes(body.category)) {
+    errors.push('Danh mục không hợp lệ');
+  }
+
   return errors;
 };
 
@@ -114,7 +119,7 @@ const getDocument = async (req, res) => {
  */
 const createDocument = async (req, res) => {
   try {
-    const { title, description = '', status = 'draft', attachmentUrl, attachmentType } = req.body;
+    const { title, description = '', status = 'draft', attachmentUrl, attachmentType, category } = req.body;
     const user = req.user;
 
     if (!user || (!user._id && !user.id)) {
@@ -141,6 +146,7 @@ const createDocument = async (req, res) => {
       status,
       attachmentUrl: attachmentUrl || null,
       attachmentType: attachmentType || null,
+      category: category || null,
     });
 
     await newDocument.populate('author', 'username fullName email');
@@ -166,7 +172,7 @@ const createDocument = async (req, res) => {
 const updateDocument = async (req, res) => {
   try {
     const { id } = req.params;
-    const { title, description, status, attachmentUrl, attachmentType } = req.body;
+    const { title, description, status, attachmentUrl, attachmentType, category } = req.body;
 
     const errors = validateDocumentPayload(req.body, false);
     if (errors.length > 0) {
@@ -189,6 +195,7 @@ const updateDocument = async (req, res) => {
     if (status !== undefined) document.status = status;
     if (attachmentUrl !== undefined) document.attachmentUrl = attachmentUrl || null;
     if (attachmentType !== undefined) document.attachmentType = attachmentType || null;
+    if (category !== undefined) document.category = category || null;
 
     await document.save();
     await document.populate('author', 'username fullName email');
@@ -243,9 +250,10 @@ const deleteDocument = async (req, res) => {
  */
 const getPublishedDocuments = async (req, res) => {
   try {
-    const { search, page = 1, limit = 10 } = req.query;
+    const { search, category, page = 1, limit = 10 } = req.query;
 
     const filter = { status: 'published' };
+    if (category) filter.category = category;
     if (search) {
       filter.$or = [
         { title: new RegExp(search, 'i') },

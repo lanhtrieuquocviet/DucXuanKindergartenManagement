@@ -1,6 +1,6 @@
 export default function RelaxPage() {
     return (
-        <div className="min-h-screen bg-green-50 p-6">
+        <div className="min-h-screen bg-green-50 p-4 sm:p-6">
             {/* Tiêu đề */}
             <div className="text-sm text-gray-500 mb-4">
                 Trang chủ <span className="mx-1">›</span> Thư viện{" "}
