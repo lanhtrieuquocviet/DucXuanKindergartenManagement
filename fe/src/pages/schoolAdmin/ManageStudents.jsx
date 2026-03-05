@@ -27,6 +27,9 @@ import {
   FormControl,
   InputLabel,
   Select,
+  Chip,
+  Divider,
+  Avatar,
 } from '@mui/material';
 import {
   Refresh as RefreshIcon,
@@ -44,9 +47,14 @@ const GENDER_OPTIONS = [
 ];
 
 const PHONE_REGEX = /^[0-9]{10,11}$/;
+const EMAIL_REGEX = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 function isValidPhone(value) {
   if (!value || !value.trim()) return true;
   return PHONE_REGEX.test(value.trim().replace(/\s/g, ''));
+}
+function isValidEmail(value) {
+  if (!value || !value.trim()) return false;
+  return EMAIL_REGEX.test(value.trim());
 }
 
 function ManageStudents() {
@@ -59,15 +67,18 @@ function ManageStudents() {
   const [openAdd, setOpenAdd] = useState(false);
   const [openEdit, setOpenEdit] = useState(false);
   const [openDelete, setOpenDelete] = useState(false);
+  const [openDetail, setOpenDetail] = useState(false);
+  const [detailStudent, setDetailStudent] = useState(null);
   const [selectedStudent, setSelectedStudent] = useState(null);
   const [formAdd, setFormAdd] = useState({
     parent: { username: '', password: '', fullName: '', email: '', phone: '' },
-    student: { fullName: '', dateOfBirth: '', gender: 'male', address: '', phone: '', avatar: '' },
+    student: { fullName: '', dateOfBirth: '', gender: 'male', address: '', avatar: '' },
   });
+  const [formAddErrors, setFormAddErrors] = useState({});
   const [uploadingImage, setUploadingImage] = useState(false);
   const addImageInputRef = useRef(null);
   const [formEdit, setFormEdit] = useState({
-    fullName: '', dateOfBirth: '', gender: 'male', classId: '', address: '', phone: '', status: 'active',
+    fullName: '', dateOfBirth: '', gender: 'male', classId: '', address: '', status: 'active',
     parentFullName: '', parentEmail: '', parentPhone: '',
   });
   const [formEditErrors, setFormEditErrors] = useState({});
@@ -162,8 +173,9 @@ function ManageStudents() {
   const handleOpenAdd = () => {
     setFormAdd({
       parent: { username: '', password: '', fullName: '', email: '', phone: '' },
-      student: { fullName: '', dateOfBirth: '', gender: 'male', address: '', phone: '', avatar: '' },
+      student: { fullName: '', dateOfBirth: '', gender: 'male', address: '', avatar: '' },
     });
+    setFormAddErrors({});
     setOpenAdd(true);
   };
 
@@ -190,14 +202,21 @@ function ManageStudents() {
 
   const handleSubmitAdd = async () => {
     setCtxError(null);
-    if (formAdd.parent.phone && !isValidPhone(formAdd.parent.phone)) {
-      setCtxError('Số điện thoại phụ huynh phải 10–11 chữ số');
+    const errs = {};
+    if (!(formAdd.parent.username || '').trim()) errs.parentUsername = 'Vui lòng nhập tài khoản đăng nhập';
+    if (!(formAdd.parent.password || '').trim()) errs.parentPassword = 'Vui lòng nhập mật khẩu';
+    else if (formAdd.parent.password.trim().length < 6) errs.parentPassword = 'Mật khẩu tối thiểu 6 ký tự';
+    if (!(formAdd.parent.fullName || '').trim()) errs.parentFullName = 'Vui lòng nhập họ tên phụ huynh';
+    if (!isValidEmail(formAdd.parent.email)) errs.parentEmail = 'Email không hợp lệ';
+    if (formAdd.parent.phone && !isValidPhone(formAdd.parent.phone)) errs.parentPhone = 'Số điện thoại phải 10–11 chữ số';
+    if (!(formAdd.student.fullName || '').trim()) errs.studentFullName = 'Vui lòng nhập họ tên học sinh';
+    if (!formAdd.student.dateOfBirth) errs.studentDateOfBirth = 'Vui lòng chọn ngày sinh';
+    else if (new Date(formAdd.student.dateOfBirth) >= new Date()) errs.studentDateOfBirth = 'Ngày sinh phải nhỏ hơn ngày hiện tại';
+    if (Object.keys(errs).length) {
+      setFormAddErrors(errs);
       return;
     }
-    if (formAdd.student.phone && !isValidPhone(formAdd.student.phone)) {
-      setCtxError('Số điện thoại học sinh/phụ huynh phải 10–11 chữ số');
-      return;
-    }
+    setFormAddErrors({});
     try {
       await createStudentWithParent(formAdd);
       setOpenAdd(false);
@@ -210,18 +229,16 @@ function ManageStudents() {
   const handleOpenEdit = (row) => {
     setSelectedStudent(row);
     const d = row.dateOfBirth ? new Date(row.dateOfBirth) : null;
-    const displayPhone = row.phone || row.parentPhone || row.parentId?.phone || '';
     setFormEdit({
       fullName: row.fullName || '',
       dateOfBirth: d ? d.toISOString().slice(0, 10) : '',
       gender: row.gender || 'male',
       classId: row.classId?._id || row.classId || '',
       address: row.address || '',
-      phone: displayPhone,
       status: row.status || 'active',
       parentFullName: row.parentId?.fullName || '',
       parentEmail: row.parentId?.email || '',
-      parentPhone: displayPhone,
+      parentPhone: row.parentId?.phone || row.parentPhone || row.phone || '',
     });
     setFormEditErrors({});
     setOpenEdit(true);
@@ -230,12 +247,12 @@ function ManageStudents() {
   const handleSubmitEdit = async () => {
     if (!selectedStudent?._id) return;
     setCtxError(null);
-    const canonicalPhone = (formEdit.phone || formEdit.parentPhone || '').trim();
     const err = {};
     if (!(formEdit.fullName || '').trim()) err.fullName = 'Vui lòng nhập họ tên học sinh';
     if (!formEdit.dateOfBirth) err.dateOfBirth = 'Vui lòng chọn ngày sinh';
-    if (!isValidPhone(formEdit.phone)) err.phone = 'Số điện thoại 10–11 chữ số';
-    if (!isValidPhone(formEdit.parentPhone)) err.parentPhone = 'SĐT phụ huynh 10–11 chữ số';
+    else if (new Date(formEdit.dateOfBirth) >= new Date()) err.dateOfBirth = 'Ngày sinh phải nhỏ hơn ngày hiện tại';
+    if (formEdit.parentEmail && !isValidEmail(formEdit.parentEmail)) err.parentEmail = 'Email không hợp lệ';
+    if (formEdit.parentPhone && !isValidPhone(formEdit.parentPhone)) err.parentPhone = 'SĐT phụ huynh 10–11 chữ số';
     if (Object.keys(err).length) {
       setFormEditErrors(err);
       return;
@@ -246,14 +263,11 @@ function ManageStudents() {
         fullName: formEdit.fullName,
         dateOfBirth: formEdit.dateOfBirth,
         gender: formEdit.gender,
-        classId: formEdit.classId || undefined,
         address: formEdit.address,
-        phone: canonicalPhone,
-        parentPhone: canonicalPhone,
         status: formEdit.status,
         parentFullName: formEdit.parentFullName,
         parentEmail: formEdit.parentEmail,
-        parentPhone: canonicalPhone,
+        parentPhone: formEdit.parentPhone,
       });
       setOpenEdit(false);
       setSelectedStudent(null);
@@ -279,6 +293,11 @@ function ManageStudents() {
 
   const handleViewStudentsInClass = (classId) => {
     navigate(`/school-admin/classes/${classId}/students`);
+  };
+
+  const handleOpenDetail = (row) => {
+    setDetailStudent(row);
+    setOpenDetail(true);
   };
 
   const formatDate = (d) => {
@@ -380,11 +399,9 @@ function ManageStudents() {
                     <TableCell>{row.parentId?.fullName || '—'}</TableCell>
                     <TableCell>{row.phone || row.parentPhone || row.parentId?.phone || '—'}</TableCell>
                     <TableCell align="right">
-                      {/* {row.classId?._id && (
-                        <Button size="small" startIcon={<VisibilityIcon />} onClick={() => handleViewStudentsInClass(row.classId._id)} sx={{ mr: 0.5 }}>
-                          Xem lớp
-                        </Button>
-                      )} */}
+                      <Button size="small" startIcon={<VisibilityIcon />} onClick={() => handleOpenDetail(row)} sx={{ mr: 0.5 }}>
+                        Xem
+                      </Button>
                       <Button size="small" startIcon={<EditIcon />} onClick={() => handleOpenEdit(row)} sx={{ mr: 0.5 }}>
                         Sửa
                       </Button>
@@ -409,16 +426,16 @@ function ManageStudents() {
         <DialogContent dividers>
           <Typography variant="subtitle2" color="primary" gutterBottom>Thông tin tài khoản phụ huynh</Typography>
           <Stack spacing={1.5} mb={2}>
-            <TextField size="small" label="Tài khoản đăng nhập" value={formAdd.parent.username} onChange={(e) => setFormAdd((prev) => ({ ...prev, parent: { ...prev.parent, username: e.target.value } }))} fullWidth required />
-            <TextField size="small" type="password" label="Mật khẩu" value={formAdd.parent.password} onChange={(e) => setFormAdd((prev) => ({ ...prev, parent: { ...prev.parent, password: e.target.value } }))} fullWidth required />
-            <TextField size="small" label="Họ tên phụ huynh" value={formAdd.parent.fullName} onChange={(e) => setFormAdd((prev) => ({ ...prev, parent: { ...prev.parent, fullName: e.target.value } }))} fullWidth required />
-            <TextField size="small" type="email" label="Email" value={formAdd.parent.email} onChange={(e) => setFormAdd((prev) => ({ ...prev, parent: { ...prev.parent, email: e.target.value } }))} fullWidth required />
-            <TextField size="small" label="Số điện thoại" value={formAdd.parent.phone} onChange={(e) => setFormAdd((prev) => ({ ...prev, parent: { ...prev.parent, phone: e.target.value } }))} fullWidth />
+            <TextField size="small" label="Tài khoản đăng nhập" value={formAdd.parent.username} onChange={(e) => setFormAdd((prev) => ({ ...prev, parent: { ...prev.parent, username: e.target.value } }))} fullWidth required error={!!formAddErrors.parentUsername} helperText={formAddErrors.parentUsername} />
+            <TextField size="small" type="password" label="Mật khẩu" value={formAdd.parent.password} onChange={(e) => setFormAdd((prev) => ({ ...prev, parent: { ...prev.parent, password: e.target.value } }))} fullWidth required error={!!formAddErrors.parentPassword} helperText={formAddErrors.parentPassword} />
+            <TextField size="small" label="Họ tên phụ huynh" value={formAdd.parent.fullName} onChange={(e) => setFormAdd((prev) => ({ ...prev, parent: { ...prev.parent, fullName: e.target.value } }))} fullWidth required error={!!formAddErrors.parentFullName} helperText={formAddErrors.parentFullName} />
+            <TextField size="small" type="email" label="Email" value={formAdd.parent.email} onChange={(e) => setFormAdd((prev) => ({ ...prev, parent: { ...prev.parent, email: e.target.value } }))} fullWidth required error={!!formAddErrors.parentEmail} helperText={formAddErrors.parentEmail} />
+            <TextField size="small" label="Số điện thoại" value={formAdd.parent.phone} onChange={(e) => setFormAdd((prev) => ({ ...prev, parent: { ...prev.parent, phone: e.target.value } }))} fullWidth error={!!formAddErrors.parentPhone} helperText={formAddErrors.parentPhone} placeholder="10–11 chữ số" />
           </Stack>
           <Typography variant="subtitle2" color="primary" gutterBottom>Thông tin học sinh</Typography>
           <Stack spacing={1.5}>
-            <TextField size="small" label="Họ tên học sinh" value={formAdd.student.fullName} onChange={(e) => setFormAdd((prev) => ({ ...prev, student: { ...prev.student, fullName: e.target.value } }))} fullWidth required />
-            <TextField size="small" type="date" label="Ngày sinh" InputLabelProps={{ shrink: true }} value={formAdd.student.dateOfBirth} onChange={(e) => setFormAdd((prev) => ({ ...prev, student: { ...prev.student, dateOfBirth: e.target.value } }))} fullWidth required />
+            <TextField size="small" label="Họ tên học sinh" value={formAdd.student.fullName} onChange={(e) => setFormAdd((prev) => ({ ...prev, student: { ...prev.student, fullName: e.target.value } }))} fullWidth required error={!!formAddErrors.studentFullName} helperText={formAddErrors.studentFullName} />
+            <TextField size="small" type="date" label="Ngày sinh" InputLabelProps={{ shrink: true }} value={formAdd.student.dateOfBirth} onChange={(e) => setFormAdd((prev) => ({ ...prev, student: { ...prev.student, dateOfBirth: e.target.value } }))} fullWidth required error={!!formAddErrors.studentDateOfBirth} helperText={formAddErrors.studentDateOfBirth} />
             <FormControl size="small" fullWidth>
               <InputLabel>Giới tính</InputLabel>
               <Select value={formAdd.student.gender} label="Giới tính" onChange={(e) => setFormAdd((prev) => ({ ...prev, student: { ...prev.student, gender: e.target.value } }))}>
@@ -447,12 +464,11 @@ function ManageStudents() {
               </Stack>
             </Box>
             <TextField size="small" label="Địa chỉ" value={formAdd.student.address} onChange={(e) => setFormAdd((prev) => ({ ...prev, student: { ...prev.student, address: e.target.value } }))} fullWidth />
-            <TextField size="small" label="Số điện thoại (học sinh/phụ huynh)" value={formAdd.student.phone} onChange={(e) => setFormAdd((prev) => ({ ...prev, student: { ...prev.student, phone: e.target.value } }))} fullWidth />
           </Stack>
         </DialogContent>
         <DialogActions>
           <Button onClick={() => setOpenAdd(false)}>Hủy</Button>
-          <Button variant="contained" onClick={handleSubmitAdd} disabled={ctxLoading || !formAdd.parent.username || !formAdd.parent.password || !formAdd.parent.fullName || !formAdd.parent.email || !formAdd.student.fullName || !formAdd.student.dateOfBirth}>
+          <Button variant="contained" onClick={handleSubmitAdd} disabled={ctxLoading}>
             {ctxLoading ? <CircularProgress size={24} /> : 'Tạo'}
           </Button>
         </DialogActions>
@@ -471,24 +487,98 @@ function ManageStudents() {
                 {GENDER_OPTIONS.map((o) => <MenuItem key={o.value} value={o.value}>{o.label}</MenuItem>)}
               </Select>
             </FormControl>
-            <FormControl size="small" fullWidth>
-              <InputLabel>Lớp</InputLabel>
-              <Select value={formEdit.classId} label="Lớp" onChange={(e) => setFormEdit((p) => ({ ...p, classId: e.target.value }))}>
-                <MenuItem value="">— Chọn lớp —</MenuItem>
-                {classes.map((c) => <MenuItem key={c._id} value={c._id}>{c.className}</MenuItem>)}
-              </Select>
-            </FormControl>
             <TextField size="small" label="Địa chỉ" value={formEdit.address} onChange={(e) => setFormEdit((p) => ({ ...p, address: e.target.value }))} fullWidth />
-            <TextField size="small" label="Số điện thoại" value={formEdit.phone} onChange={(e) => setFormEdit((p) => ({ ...p, phone: e.target.value }))} fullWidth error={!!formEditErrors.phone} helperText={formEditErrors.phone} placeholder="10–11 chữ số" />
             <Typography variant="subtitle2" color="text.secondary" sx={{ mt: 1 }}>Thông tin phụ huynh (tài khoản User)</Typography>
             <TextField size="small" label="Họ tên phụ huynh" value={formEdit.parentFullName} onChange={(e) => setFormEdit((p) => ({ ...p, parentFullName: e.target.value }))} fullWidth />
-            <TextField size="small" type="email" label="Email phụ huynh" value={formEdit.parentEmail} onChange={(e) => setFormEdit((p) => ({ ...p, parentEmail: e.target.value }))} fullWidth />
+            <TextField size="small" type="email" label="Email phụ huynh" value={formEdit.parentEmail} onChange={(e) => setFormEdit((p) => ({ ...p, parentEmail: e.target.value }))} fullWidth error={!!formEditErrors.parentEmail} helperText={formEditErrors.parentEmail} />
             <TextField size="small" label="SĐT phụ huynh" value={formEdit.parentPhone} onChange={(e) => setFormEdit((p) => ({ ...p, parentPhone: e.target.value }))} fullWidth error={!!formEditErrors.parentPhone} helperText={formEditErrors.parentPhone} placeholder="10–11 chữ số" />
           </Stack>
         </DialogContent>
         <DialogActions>
           <Button onClick={() => setOpenEdit(false)}>Hủy</Button>
           <Button variant="contained" onClick={handleSubmitEdit} disabled={ctxLoading}>Lưu</Button>
+        </DialogActions>
+      </Dialog>
+
+      {/* Dialog Xem chi tiết */}
+      <Dialog open={openDetail} onClose={() => setOpenDetail(false)} maxWidth="sm" fullWidth>
+        <DialogTitle>Chi tiết học sinh & phụ huynh</DialogTitle>
+        <DialogContent dividers>
+          {detailStudent && (
+            <Stack spacing={2}>
+              {/* Thông tin học sinh */}
+              <Stack direction="row" spacing={2} alignItems="center">
+                <Avatar
+                  src={detailStudent.avatar || ''}
+                  alt={detailStudent.fullName}
+                  sx={{ width: 64, height: 64, fontSize: 28 }}
+                >
+                  {(detailStudent.fullName || '?')[0]}
+                </Avatar>
+                <Box>
+                  <Typography variant="h6" fontWeight={700}>{detailStudent.fullName || '—'}</Typography>
+                  <Chip
+                    size="small"
+                    label={detailStudent.status === 'active' ? 'Đang học' : 'Nghỉ học'}
+                    color={detailStudent.status === 'active' ? 'success' : 'default'}
+                    sx={{ mt: 0.5 }}
+                  />
+                </Box>
+              </Stack>
+
+              <Divider />
+              <Typography variant="subtitle2" color="primary" fontWeight={700}>Thông tin học sinh</Typography>
+              <Stack spacing={0.75}>
+                <Stack direction="row" spacing={1}>
+                  <Typography variant="body2" color="text.secondary" sx={{ minWidth: 110 }}>Ngày sinh:</Typography>
+                  <Typography variant="body2">{formatDate(detailStudent.dateOfBirth)}</Typography>
+                </Stack>
+                <Stack direction="row" spacing={1}>
+                  <Typography variant="body2" color="text.secondary" sx={{ minWidth: 110 }}>Giới tính:</Typography>
+                  <Typography variant="body2">{GENDER_OPTIONS.find((g) => g.value === detailStudent.gender)?.label || detailStudent.gender || '—'}</Typography>
+                </Stack>
+                <Stack direction="row" spacing={1}>
+                  <Typography variant="body2" color="text.secondary" sx={{ minWidth: 110 }}>Lớp:</Typography>
+                  <Typography variant="body2">{detailStudent.classId?.className || '— Chưa có lớp —'}</Typography>
+                </Stack>
+                <Stack direction="row" spacing={1}>
+                  <Typography variant="body2" color="text.secondary" sx={{ minWidth: 110 }}>Địa chỉ:</Typography>
+                  <Typography variant="body2">{detailStudent.address || '—'}</Typography>
+                </Stack>
+              </Stack>
+
+              <Divider />
+              <Typography variant="subtitle2" color="primary" fontWeight={700}>Tài khoản phụ huynh</Typography>
+              {detailStudent.parentId ? (
+                <Stack spacing={0.75}>
+                  <Stack direction="row" spacing={1}>
+                    <Typography variant="body2" color="text.secondary" sx={{ minWidth: 110 }}>Họ tên:</Typography>
+                    <Typography variant="body2">{detailStudent.parentId.fullName || '—'}</Typography>
+                  </Stack>
+                  <Stack direction="row" spacing={1}>
+                    <Typography variant="body2" color="text.secondary" sx={{ minWidth: 110 }}>Tài khoản:</Typography>
+                    <Typography variant="body2">{detailStudent.parentId.username || '—'}</Typography>
+                  </Stack>
+                  <Stack direction="row" spacing={1}>
+                    <Typography variant="body2" color="text.secondary" sx={{ minWidth: 110 }}>Email:</Typography>
+                    <Typography variant="body2">{detailStudent.parentId.email || '—'}</Typography>
+                  </Stack>
+                  <Stack direction="row" spacing={1}>
+                    <Typography variant="body2" color="text.secondary" sx={{ minWidth: 110 }}>Số điện thoại:</Typography>
+                    <Typography variant="body2">{detailStudent.parentId.phone || '—'}</Typography>
+                  </Stack>
+                </Stack>
+              ) : (
+                <Typography variant="body2" color="text.secondary">Chưa có tài khoản phụ huynh.</Typography>
+              )}
+            </Stack>
+          )}
+        </DialogContent>
+        <DialogActions>
+          <Button onClick={() => setOpenDetail(false)}>Đóng</Button>
+          <Button variant="outlined" startIcon={<EditIcon />} onClick={() => { setOpenDetail(false); handleOpenEdit(detailStudent); }}>
+            Sửa
+          </Button>
         </DialogActions>
       </Dialog>
 

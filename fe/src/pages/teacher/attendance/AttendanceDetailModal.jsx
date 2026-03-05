@@ -194,7 +194,23 @@ function OtpSection({ radioName, detailForm, setDetailForm, student, approvedPic
 }
 
 // ── FileUpload helper ──
-function FileUploadField({ label, currentValue, onUpload, required }) {
+function FileUploadField({ label, currentValue, onUpload, required, readOnly }) {
+  if (readOnly) {
+    return (
+      <Box>
+        <Typography variant="caption" fontWeight={700} color="text.secondary" sx={{ display: 'block', mb: 0.75 }}>
+          {label}
+        </Typography>
+        {currentValue
+          ? renderImagePreview(currentValue, label)
+          : (
+            <Typography variant="caption" color="text.disabled" fontStyle="italic">Chưa có ảnh</Typography>
+          )
+        }
+      </Box>
+    );
+  }
+
   return (
     <Box>
       <Typography variant="caption" fontWeight={700} color="text.secondary" sx={{ display: 'block', mb: 0.75 }}>
@@ -348,9 +364,24 @@ function AttendanceDetailModal({
         {/* BG circle decoration */}
         <Box sx={{ position:'absolute', right:-20, top:-20, width:90, height:90, borderRadius:'50%', bgcolor:'rgba(255,255,255,0.08)' }} />
         <Box sx={{ display:'flex', alignItems:'center', gap:1.5, position:'relative', zIndex:1 }}>
-          <Avatar sx={{ width:42, height:42, bgcolor:'rgba(255,255,255,0.2)' }}>
+          <Avatar sx={{ width:38, height:38, bgcolor:'rgba(255,255,255,0.2)', flexShrink:0 }}>
             {cfg.icon}
           </Avatar>
+          {student && (
+            <Avatar
+              src={student.avatar || undefined}
+              sx={{
+                width: 48, height: 48, flexShrink: 0,
+                border: '2.5px solid rgba(255,255,255,0.55)',
+                fontSize: 17, fontWeight: 700,
+                bgcolor: 'rgba(255,255,255,0.25)',
+                color: 'white',
+                boxShadow: '0 2px 8px rgba(0,0,0,0.18)',
+              }}
+            >
+              {student.fullName?.[0] || '?'}
+            </Avatar>
+          )}
           <Box>
             <Typography variant="subtitle1" fontWeight={700} color="white">
               {cfg.title}
@@ -401,135 +432,228 @@ function AttendanceDetailModal({
                 </Alert>
               )}
 
-              {/* Check-in section */}
-              <Paper variant="outlined" sx={{ p: 2, borderRadius: 2, mb: 2, bgcolor: '#f0fdf4', borderColor: '#bbf7d0' }}>
-                <Box sx={{ display:'flex', alignItems:'center', gap:1, mb:2 }}>
-                  <Avatar sx={{ width:28, height:28, bgcolor:'#dcfce7' }}>
-                    <CheckInIcon sx={{ fontSize:16, color:'#15803d' }} />
+              {/* ── Check-in section ── */}
+              <Paper variant="outlined" sx={{ borderRadius: 2.5, mb: 2, overflow: 'hidden', borderColor: '#86efac' }}>
+                {/* Section header */}
+                <Box sx={{ px: 2, py: 1.25, bgcolor: '#dcfce7', display: 'flex', alignItems: 'center', gap: 1 }}>
+                  <Avatar sx={{ width: 26, height: 26, bgcolor: '#15803d' }}>
+                    <CheckInIcon sx={{ fontSize: 14, color: 'white' }} />
                   </Avatar>
                   <Typography variant="body2" fontWeight={700} color="#15803d">Thông tin Check-in</Typography>
-                  {detailForm.timeIn && (
-                    <Chip label={detailForm.timeIn} size="small" icon={<TimeIcon sx={{ fontSize:'12px !important' }} />}
-                      sx={{ height:20, fontSize:11, fontWeight:700, ml:'auto', bgcolor:'#dcfce7', color:'#15803d' }} />
+                  {detailForm.timeIn ? (
+                    <Chip
+                      label={detailForm.timeIn}
+                      size="small"
+                      icon={<TimeIcon sx={{ fontSize: '12px !important' }} />}
+                      sx={{ height: 22, fontSize: 12, fontWeight: 700, ml: 'auto', bgcolor: '#15803d', color: 'white',
+                        '& .MuiChip-icon': { color: 'rgba(255,255,255,0.8)' } }}
+                    />
+                  ) : (
+                    <Chip label="Chưa check-in" size="small" sx={{ height: 22, fontSize: 11, ml: 'auto', bgcolor: '#fef3c7', color: '#92400e' }} />
                   )}
                 </Box>
-                <Grid container spacing={2}>
-                  <Grid size={{ xs: 12, sm: 6 }}>
-                    <TextField
-                      fullWidth size="small" type="time" label="Giờ đến"
-                      value={detailForm.timeIn} disabled
-                      helperText="Tự động lưu, không chỉnh sửa"
-                    />
-                  </Grid>
-                  <Grid size={{ xs: 12, sm: 6 }}>
-                    <Box>
-                      <Typography variant="caption" fontWeight={600} color="text.secondary">Người đưa</Typography>
-                      <Box sx={{ p: 1.5, border: '1px solid', borderColor: 'divider', borderRadius: 1.5, bgcolor: 'background.paper', mt: 0.5, minHeight: 38 }}>
-                        {detailForm.delivererOtherInfo ? (
-                          <Typography variant="body2">
-                            {detailForm.delivererOtherInfo}
-                            {detailForm.delivererType && (
-                              <Chip label={detailForm.delivererType} size="small" sx={{ ml: 1, height: 18, fontSize: 11 }} />
-                            )}
-                          </Typography>
-                        ) : (
-                          <Typography variant="body2" color="text.disabled" fontStyle="italic">Chưa ghi nhận</Typography>
-                        )}
-                      </Box>
-                      {detailForm.delivererOtherImageName && renderImagePreview(detailForm.delivererOtherImageName, 'Ảnh người đưa')}
+
+                <Box sx={{ p: 2 }}>
+                  {/* Main row: image + info */}
+                  <Box sx={{ display: 'flex', gap: 2, mb: 2 }}>
+                    {/* Check-in image */}
+                    <Box sx={{ flexShrink: 0, display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 0.5 }}>
+                      {detailForm.checkinImageName && /^https?:\/\//i.test(detailForm.checkinImageName) ? (
+                        <Box
+                          component="a" href={detailForm.checkinImageName} target="_blank" rel="noreferrer"
+                          sx={{ display: 'block', borderRadius: 2, overflow: 'hidden', border: '2px solid #86efac',
+                            boxShadow: '0 2px 8px rgba(0,0,0,0.12)', transition: 'transform 0.15s', '&:hover': { transform: 'scale(1.03)' } }}
+                        >
+                          <Box component="img" src={detailForm.checkinImageName} alt="Ảnh check-in"
+                            sx={{ width: 110, height: 110, objectFit: 'cover', display: 'block' }} />
+                        </Box>
+                      ) : (
+                        <Box sx={{ width: 110, height: 110, borderRadius: 2, border: '2px dashed #86efac',
+                          bgcolor: '#f0fdf4', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: 0.5 }}>
+                          <CheckInIcon sx={{ fontSize: 28, color: '#bbf7d0' }} />
+                          <Typography variant="caption" color="#86efac" fontWeight={600}>Chưa có ảnh</Typography>
+                        </Box>
+                      )}
+                      <Typography variant="caption" color="text.secondary" fontWeight={600}>Ảnh check-in</Typography>
                     </Box>
-                  </Grid>
-                  <Grid size={{ xs: 12, sm: 6 }}>
-                    <FileUploadField
-                      label="Ảnh check-in"
-                      fieldName="checkinImageName"
-                      currentValue={detailForm.checkinImageName}
-                      onUpload={handleFileUpload('checkinImageName', 'Không tải lên được ảnh check-in.')}
-                    />
-                  </Grid>
-                  <Grid size={{ xs: 12, sm: 6 }}>
-                    <TextField
-                      fullWidth size="small" label="Đồ mang theo"
-                      placeholder="Bình nước, balo..."
-                      value={detailForm.belongingsNote}
-                      slotProps={{ htmlInput: { maxLength: MAX_BELONGINGS_NOTE_LEN } }}
-                      onChange={(e) => setDetailForm((prev) => ({
-                        ...prev, belongingsNote: sanitizeSingleLineText(e.target.value, MAX_BELONGINGS_NOTE_LEN),
-                      }))}
-                    />
-                  </Grid>
-                  <Grid size={{ xs: 12 }}>
-                    <TextField
-                      fullWidth size="small" multiline rows={2} label="Ghi chú"
-                      placeholder="Trẻ hơi mệt..."
-                      value={detailForm.note}
-                      slotProps={{ htmlInput: { maxLength: MAX_NOTE_LEN } }}
-                      onChange={(e) => setDetailForm((prev) => ({
-                        ...prev, note: sanitizeMultiLineText(e.target.value, MAX_NOTE_LEN),
-                      }))}
-                    />
-                  </Grid>
-                </Grid>
+
+                    {/* Info fields */}
+                    <Box sx={{ flex: 1, display: 'flex', flexDirection: 'column', gap: 1.25 }}>
+                      {/* Time + Người đưa row */}
+                      <Box sx={{ display: 'flex', gap: 1.5 }}>
+                        <Box sx={{ flex: 1 }}>
+                          <Typography variant="caption" fontWeight={600} color="text.secondary" sx={{ display: 'block', mb: 0.4 }}>
+                            Giờ đến
+                          </Typography>
+                          <Box sx={{ px: 1.5, py: 0.75, borderRadius: 1.5, bgcolor: '#f0fdf4', border: '1px solid #bbf7d0', minHeight: 34, display: 'flex', alignItems: 'center' }}>
+                            <Typography variant="body2" fontWeight={700} color={detailForm.timeIn ? '#15803d' : 'text.disabled'} fontStyle={detailForm.timeIn ? 'normal' : 'italic'}>
+                              {detailForm.timeIn || 'Chưa ghi nhận'}
+                            </Typography>
+                          </Box>
+                        </Box>
+                        <Box sx={{ flex: 1 }}>
+                          <Typography variant="caption" fontWeight={600} color="text.secondary" sx={{ display: 'block', mb: 0.4 }}>
+                            Người đưa
+                          </Typography>
+                          <Box sx={{ px: 1.5, py: 0.75, borderRadius: 1.5, bgcolor: 'background.paper', border: '1px solid', borderColor: 'divider', minHeight: 34, display: 'flex', alignItems: 'center', flexWrap: 'wrap', gap: 0.5 }}>
+                            {detailForm.delivererOtherInfo ? (
+                              <>
+                                <Typography variant="body2">{detailForm.delivererOtherInfo}</Typography>
+                                {detailForm.delivererType && (
+                                  <Chip label={detailForm.delivererType} size="small" sx={{ height: 18, fontSize: 10 }} />
+                                )}
+                              </>
+                            ) : (
+                              <Typography variant="body2" color="text.disabled" fontStyle="italic">Chưa ghi nhận</Typography>
+                            )}
+                          </Box>
+                        </Box>
+                      </Box>
+
+                      {/* Người đưa image + Đồ mang theo */}
+                      <Box sx={{ display: 'flex', gap: 1.5, alignItems: 'flex-start' }}>
+                        {detailForm.delivererOtherImageName && /^https?:\/\//i.test(detailForm.delivererOtherImageName) && (
+                          <Box sx={{ flexShrink: 0 }}>
+                            <Typography variant="caption" fontWeight={600} color="text.secondary" sx={{ display: 'block', mb: 0.4 }}>Ảnh người đưa</Typography>
+                            <Box component="a" href={detailForm.delivererOtherImageName} target="_blank" rel="noreferrer"
+                              sx={{ display: 'block', borderRadius: 1.5, overflow: 'hidden', border: '1px solid', borderColor: 'divider',
+                                boxShadow: '0 1px 4px rgba(0,0,0,0.1)', '&:hover': { opacity: 0.85 } }}>
+                              <Box component="img" src={detailForm.delivererOtherImageName} alt="Ảnh người đưa"
+                                sx={{ width: 52, height: 52, objectFit: 'cover', display: 'block' }} />
+                            </Box>
+                          </Box>
+                        )}
+                        <Box sx={{ flex: 1 }}>
+                          <TextField
+                            fullWidth size="small" label="Đồ mang theo"
+                            placeholder="Bình nước, balo..."
+                            value={detailForm.belongingsNote}
+                            slotProps={{ htmlInput: { maxLength: MAX_BELONGINGS_NOTE_LEN } }}
+                            onChange={(e) => setDetailForm((prev) => ({
+                              ...prev, belongingsNote: sanitizeSingleLineText(e.target.value, MAX_BELONGINGS_NOTE_LEN),
+                            }))}
+                          />
+                        </Box>
+                      </Box>
+                    </Box>
+                  </Box>
+
+                  {/* Note full width */}
+                  <TextField
+                    fullWidth size="small" multiline rows={2} label="Ghi chú"
+                    placeholder="Trẻ hơi mệt..."
+                    value={detailForm.note}
+                    slotProps={{ htmlInput: { maxLength: MAX_NOTE_LEN } }}
+                    onChange={(e) => setDetailForm((prev) => ({
+                      ...prev, note: sanitizeMultiLineText(e.target.value, MAX_NOTE_LEN),
+                    }))}
+                  />
+                </Box>
               </Paper>
 
-              {/* Check-out section */}
-              <Paper variant="outlined" sx={{ p: 2, borderRadius: 2, bgcolor: '#eff6ff', borderColor: '#bfdbfe' }}>
-                <Box sx={{ display:'flex', alignItems:'center', gap:1, mb:2 }}>
-                  <Avatar sx={{ width:28, height:28, bgcolor:'#dbeafe' }}>
-                    <CheckOutIcon sx={{ fontSize:16, color:'#1d4ed8' }} />
+              {/* ── Check-out section ── */}
+              <Paper variant="outlined" sx={{ borderRadius: 2.5, overflow: 'hidden', borderColor: '#93c5fd' }}>
+                {/* Section header */}
+                <Box sx={{ px: 2, py: 1.25, bgcolor: '#dbeafe', display: 'flex', alignItems: 'center', gap: 1 }}>
+                  <Avatar sx={{ width: 26, height: 26, bgcolor: '#1d4ed8' }}>
+                    <CheckOutIcon sx={{ fontSize: 14, color: 'white' }} />
                   </Avatar>
                   <Typography variant="body2" fontWeight={700} color="#1d4ed8">Thông tin Check-out</Typography>
-                  {detailForm.timeOut && (
-                    <Chip label={detailForm.timeOut} size="small" icon={<TimeIcon sx={{ fontSize:'12px !important' }} />}
-                      sx={{ height:20, fontSize:11, fontWeight:700, ml:'auto', bgcolor:'#dbeafe', color:'#1d4ed8' }} />
+                  {detailForm.timeOut ? (
+                    <Chip
+                      label={detailForm.timeOut}
+                      size="small"
+                      icon={<TimeIcon sx={{ fontSize: '12px !important' }} />}
+                      sx={{ height: 22, fontSize: 12, fontWeight: 700, ml: 'auto', bgcolor: '#1d4ed8', color: 'white',
+                        '& .MuiChip-icon': { color: 'rgba(255,255,255,0.8)' } }}
+                    />
+                  ) : (
+                    <Chip label="Chưa check-out" size="small" sx={{ height: 22, fontSize: 11, ml: 'auto', bgcolor: '#fef3c7', color: '#92400e' }} />
                   )}
                 </Box>
-                <Grid container spacing={2}>
-                  <Grid size={{ xs: 12, sm: 6 }}>
-                    <TextField
-                      fullWidth size="small" type="time" label="Giờ về"
-                      value={detailForm.timeOut} disabled
-                      helperText="Tự động lưu, không chỉnh sửa"
-                    />
-                  </Grid>
-                  <Grid size={{ xs: 12, sm: 6 }}>
-                    <Box>
-                      <Typography variant="caption" fontWeight={600} color="text.secondary">Người đón</Typography>
-                      <Box sx={{ p: 1.5, border: '1px solid', borderColor: 'divider', borderRadius: 1.5, bgcolor: 'background.paper', mt: 0.5, minHeight: 38 }}>
-                        {detailForm.receiverOtherInfo ? (
-                          <Typography variant="body2">
-                            {detailForm.receiverOtherInfo}
-                            {detailForm.receiverType && (
-                              <Chip label={detailForm.receiverType} size="small" sx={{ ml: 1, height: 18, fontSize: 11 }} />
-                            )}
-                          </Typography>
-                        ) : (
-                          <Typography variant="body2" color="text.disabled" fontStyle="italic">Chưa ghi nhận</Typography>
-                        )}
-                      </Box>
-                      {detailForm.receiverOtherImageName && renderImagePreview(detailForm.receiverOtherImageName, 'Ảnh người đón')}
+
+                <Box sx={{ p: 2 }}>
+                  {/* Main row: image + info */}
+                  <Box sx={{ display: 'flex', gap: 2, mb: 2 }}>
+                    {/* Check-out image */}
+                    <Box sx={{ flexShrink: 0, display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 0.5 }}>
+                      {detailForm.checkoutImageName && /^https?:\/\//i.test(detailForm.checkoutImageName) ? (
+                        <Box
+                          component="a" href={detailForm.checkoutImageName} target="_blank" rel="noreferrer"
+                          sx={{ display: 'block', borderRadius: 2, overflow: 'hidden', border: '2px solid #93c5fd',
+                            boxShadow: '0 2px 8px rgba(0,0,0,0.12)', transition: 'transform 0.15s', '&:hover': { transform: 'scale(1.03)' } }}
+                        >
+                          <Box component="img" src={detailForm.checkoutImageName} alt="Ảnh check-out"
+                            sx={{ width: 110, height: 110, objectFit: 'cover', display: 'block' }} />
+                        </Box>
+                      ) : (
+                        <Box sx={{ width: 110, height: 110, borderRadius: 2, border: '2px dashed #93c5fd',
+                          bgcolor: '#eff6ff', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: 0.5 }}>
+                          <CheckOutIcon sx={{ fontSize: 28, color: '#bfdbfe' }} />
+                          <Typography variant="caption" color="#93c5fd" fontWeight={600}>Chưa có ảnh</Typography>
+                        </Box>
+                      )}
+                      <Typography variant="caption" color="text.secondary" fontWeight={600}>Ảnh check-out</Typography>
                     </Box>
-                  </Grid>
-                  <Grid size={{ xs: 12, sm: 6 }}>
-                    <FileUploadField
-                      label="Ảnh check-out"
-                      fieldName="checkoutImageName"
-                      currentValue={detailForm.checkoutImageName}
-                      onUpload={handleFileUpload('checkoutImageName', 'Không tải lên được ảnh check-out.')}
-                    />
-                  </Grid>
-                  <Grid size={{ xs: 12 }}>
-                    <TextField
-                      fullWidth size="small" multiline rows={2} label="Ghi chú check-out"
-                      placeholder="Ví dụ: Bé về sớm..."
-                      value={detailForm.checkoutNote || ''}
-                      slotProps={{ htmlInput: { maxLength: MAX_NOTE_LEN } }}
-                      onChange={(e) => setDetailForm((prev) => ({
-                        ...prev, checkoutNote: sanitizeMultiLineText(e.target.value, MAX_NOTE_LEN),
-                      }))}
-                    />
-                  </Grid>
-                </Grid>
+
+                    {/* Info fields */}
+                    <Box sx={{ flex: 1, display: 'flex', flexDirection: 'column', gap: 1.25 }}>
+                      <Box sx={{ display: 'flex', gap: 1.5 }}>
+                        <Box sx={{ flex: 1 }}>
+                          <Typography variant="caption" fontWeight={600} color="text.secondary" sx={{ display: 'block', mb: 0.4 }}>
+                            Giờ về
+                          </Typography>
+                          <Box sx={{ px: 1.5, py: 0.75, borderRadius: 1.5, bgcolor: '#eff6ff', border: '1px solid #bfdbfe', minHeight: 34, display: 'flex', alignItems: 'center' }}>
+                            <Typography variant="body2" fontWeight={700} color={detailForm.timeOut ? '#1d4ed8' : 'text.disabled'} fontStyle={detailForm.timeOut ? 'normal' : 'italic'}>
+                              {detailForm.timeOut || 'Chưa ghi nhận'}
+                            </Typography>
+                          </Box>
+                        </Box>
+                        <Box sx={{ flex: 1 }}>
+                          <Typography variant="caption" fontWeight={600} color="text.secondary" sx={{ display: 'block', mb: 0.4 }}>
+                            Người đón
+                          </Typography>
+                          <Box sx={{ px: 1.5, py: 0.75, borderRadius: 1.5, bgcolor: 'background.paper', border: '1px solid', borderColor: 'divider', minHeight: 34, display: 'flex', alignItems: 'center', flexWrap: 'wrap', gap: 0.5 }}>
+                            {detailForm.receiverOtherInfo ? (
+                              <>
+                                <Typography variant="body2">{detailForm.receiverOtherInfo}</Typography>
+                                {detailForm.receiverType && (
+                                  <Chip label={detailForm.receiverType} size="small" sx={{ height: 18, fontSize: 10 }} />
+                                )}
+                              </>
+                            ) : (
+                              <Typography variant="body2" color="text.disabled" fontStyle="italic">Chưa ghi nhận</Typography>
+                            )}
+                          </Box>
+                        </Box>
+                      </Box>
+
+                      {/* Người đón image */}
+                      {detailForm.receiverOtherImageName && /^https?:\/\//i.test(detailForm.receiverOtherImageName) && (
+                        <Box>
+                          <Typography variant="caption" fontWeight={600} color="text.secondary" sx={{ display: 'block', mb: 0.4 }}>Ảnh người đón</Typography>
+                          <Box component="a" href={detailForm.receiverOtherImageName} target="_blank" rel="noreferrer"
+                            sx={{ display: 'inline-block', borderRadius: 1.5, overflow: 'hidden', border: '1px solid', borderColor: 'divider',
+                              boxShadow: '0 1px 4px rgba(0,0,0,0.1)', '&:hover': { opacity: 0.85 } }}>
+                            <Box component="img" src={detailForm.receiverOtherImageName} alt="Ảnh người đón"
+                              sx={{ width: 52, height: 52, objectFit: 'cover', display: 'block' }} />
+                          </Box>
+                        </Box>
+                      )}
+                    </Box>
+                  </Box>
+
+                  {/* Note full width */}
+                  <TextField
+                    fullWidth size="small" multiline rows={2} label="Ghi chú check-out"
+                    placeholder="Ví dụ: Bé về sớm..."
+                    value={detailForm.checkoutNote || ''}
+                    slotProps={{ htmlInput: { maxLength: MAX_NOTE_LEN } }}
+                    onChange={(e) => setDetailForm((prev) => ({
+                      ...prev, checkoutNote: sanitizeMultiLineText(e.target.value, MAX_NOTE_LEN),
+                    }))}
+                  />
+                </Box>
               </Paper>
             </Box>
           )}
@@ -537,81 +661,109 @@ function AttendanceDetailModal({
           {/* ── CHECKOUT MODE ── */}
           {mode === 'checkout' && (
             <Stack spacing={2}>
-              <TextField
-                fullWidth size="small" type="time" label="Giờ về"
-                value={detailForm.timeOut} disabled
-                helperText="Tự động lấy theo thời điểm check-out"
-              />
+              {/* Time display */}
+              <Paper variant="outlined" sx={{ borderRadius: 2, overflow: 'hidden', borderColor: '#93c5fd' }}>
+                <Box sx={{ px: 2, py: 1, bgcolor: '#dbeafe', display: 'flex', alignItems: 'center', gap: 1 }}>
+                  <TimeIcon sx={{ fontSize: 15, color: '#1d4ed8' }} />
+                  <Typography variant="caption" fontWeight={700} color="#1d4ed8">Thời gian check-out</Typography>
+                </Box>
+                <Box sx={{ px: 2, py: 1.25, display: 'flex', alignItems: 'center', gap: 1.5 }}>
+                  <Typography variant="h5" fontWeight={800} color="#1d4ed8" sx={{ fontVariantNumeric: 'tabular-nums', letterSpacing: 1 }}>
+                    {detailForm.timeOut || '--:--'}
+                  </Typography>
+                  <Typography variant="caption" color="text.disabled">Tự động lấy theo thời điểm check-out</Typography>
+                </Box>
+              </Paper>
 
-              <FileUploadField
-                label="Ảnh đón trẻ"
-                fieldName="checkoutImageName"
-                currentValue={detailForm.checkoutImageName}
-                onUpload={handleFileUpload('checkoutImageName', 'Không tải lên được ảnh check-out.')}
-                required
-              />
+              {/* Image upload */}
+              <Paper variant="outlined" sx={{ p: 2, borderRadius: 2, borderColor: '#bfdbfe', bgcolor: '#f8faff' }}>
+                <Typography variant="caption" fontWeight={700} color="#1d4ed8" sx={{ display: 'flex', alignItems: 'center', gap: 0.5, mb: 1.5 }}>
+                  📷 Ảnh đón trẻ <Box component="span" sx={{ color: 'error.main' }}>*</Box>
+                </Typography>
+                <FileUploadField
+                  label=""
+                  currentValue={detailForm.checkoutImageName}
+                  onUpload={handleFileUpload('checkoutImageName', 'Không tải lên được ảnh check-out.')}
+                />
+              </Paper>
 
-              <FormControl fullWidth size="small">
-                <InputLabel>Người đón *</InputLabel>
-                <Select
-                  value={detailForm.receiverPickupPersonId}
-                  label="Người đón *"
-                  onChange={(e) => {
-                    const val = e.target.value;
-                    if (val === 'KHAC') {
-                      setDetailForm((prev) => ({
-                        ...prev, receiverPickupPersonId: 'KHAC', receiverType: 'Khác',
-                        receiverOtherInfo: '', receiverName: '', receiverPhone: '', receiverOtherImageName: '',
-                      }));
-                    } else {
-                      const p = approvedPickupPersons.find((x) => x._id === val);
-                      setDetailForm((prev) => ({
-                        ...prev, receiverPickupPersonId: val,
-                        receiverType: p ? p.relation : '',
-                        receiverOtherInfo: p ? `${p.fullName} - ${p.phone}` : '',
-                        receiverName: '', receiverPhone: '',
-                        receiverOtherImageName: p ? (p.imageUrl || '') : '',
-                      }));
-                    }
-                  }}
-                >
-                  <MenuItem value="" disabled>-- Chọn --</MenuItem>
-                  {approvedPickupPersons.map((p) => (
-                    <MenuItem key={p._id} value={p._id}>{p.fullName} ({p.relation})</MenuItem>
-                  ))}
-                  <MenuItem value="KHAC">Khác</MenuItem>
-                </Select>
-              </FormControl>
+              {/* Person selector */}
+              <Paper variant="outlined" sx={{ p: 2, borderRadius: 2, borderColor: 'divider' }}>
+                <Typography variant="caption" fontWeight={700} color="text.secondary" sx={{ display: 'flex', alignItems: 'center', gap: 0.5, mb: 1.5 }}>
+                  👤 Người đón
+                </Typography>
+                <FormControl fullWidth size="small">
+                  <InputLabel>Chọn người đón *</InputLabel>
+                  <Select
+                    value={detailForm.receiverPickupPersonId}
+                    label="Chọn người đón *"
+                    onChange={(e) => {
+                      const val = e.target.value;
+                      if (val === 'KHAC') {
+                        setDetailForm((prev) => ({
+                          ...prev, receiverPickupPersonId: 'KHAC', receiverType: 'Khác',
+                          receiverOtherInfo: '', receiverName: '', receiverPhone: '', receiverOtherImageName: '',
+                        }));
+                      } else {
+                        const p = approvedPickupPersons.find((x) => x._id === val);
+                        setDetailForm((prev) => ({
+                          ...prev, receiverPickupPersonId: val,
+                          receiverType: p ? p.relation : '',
+                          receiverOtherInfo: p ? `${p.fullName} - ${p.phone}` : '',
+                          receiverName: '', receiverPhone: '',
+                          receiverOtherImageName: p ? (p.imageUrl || '') : '',
+                        }));
+                      }
+                    }}
+                  >
+                    <MenuItem value="" disabled>-- Chọn --</MenuItem>
+                    {approvedPickupPersons.map((p) => (
+                      <MenuItem key={p._id} value={p._id}>{p.fullName} ({p.relation})</MenuItem>
+                    ))}
+                    <MenuItem value="KHAC">Khác (người ngoài danh sách)</MenuItem>
+                  </Select>
+                </FormControl>
 
-              {detailForm.receiverType === 'Khác' && (
-                <>
-                  <TextField
-                    fullWidth size="small" label="Tên người đón *"
-                    placeholder="VD: Nguyễn Văn B"
-                    value={detailForm.receiverName}
-                    slotProps={{ htmlInput: { maxLength: MAX_PERSON_NAME_LEN } }}
-                    onChange={(e) => setDetailForm((prev) => ({
-                      ...prev, receiverName: sanitizeSingleLineText(e.target.value, MAX_PERSON_NAME_LEN),
-                    }))}
-                  />
-                  <TextField
-                    fullWidth size="small" label="Số điện thoại người đón *"
-                    placeholder="VD: 0912345678"
-                    value={detailForm.receiverPhone}
-                    slotProps={{ htmlInput: { maxLength: MAX_PERSON_PHONE_LEN } }}
-                    onChange={(e) => setDetailForm((prev) => ({
-                      ...prev, receiverPhone: e.target.value.replace(/[^0-9+\-\s()]/g, '').slice(0, MAX_PERSON_PHONE_LEN),
-                    }))}
-                  />
-                  <FileUploadField
-                    label="Ảnh người đón"
-                    fieldName="receiverOtherImageName"
-                    currentValue={detailForm.receiverOtherImageName}
-                    onUpload={handleFileUpload('receiverOtherImageName', 'Không tải lên được ảnh người đón.')}
-                    required
-                  />
-                </>
-              )}
+                {detailForm.receiverType === 'Khác' && (
+                  <Box sx={{ mt: 2, pt: 2, borderTop: '1px dashed', borderColor: 'divider' }}>
+                    <Typography variant="caption" color="warning.main" fontWeight={600} sx={{ display: 'block', mb: 1.5 }}>
+                      ⚠️ Vui lòng nhập đầy đủ thông tin người đón ngoài danh sách
+                    </Typography>
+                    <Stack spacing={1.5}>
+                      <Grid container spacing={1.5}>
+                        <Grid size={{ xs: 12, sm: 6 }}>
+                          <TextField
+                            fullWidth size="small" label="Tên người đón *"
+                            placeholder="VD: Nguyễn Văn B"
+                            value={detailForm.receiverName}
+                            slotProps={{ htmlInput: { maxLength: MAX_PERSON_NAME_LEN } }}
+                            onChange={(e) => setDetailForm((prev) => ({
+                              ...prev, receiverName: sanitizeSingleLineText(e.target.value, MAX_PERSON_NAME_LEN),
+                            }))}
+                          />
+                        </Grid>
+                        <Grid size={{ xs: 12, sm: 6 }}>
+                          <TextField
+                            fullWidth size="small" label="Số điện thoại *"
+                            placeholder="VD: 0912345678"
+                            value={detailForm.receiverPhone}
+                            slotProps={{ htmlInput: { maxLength: MAX_PERSON_PHONE_LEN } }}
+                            onChange={(e) => setDetailForm((prev) => ({
+                              ...prev, receiverPhone: e.target.value.replace(/[^0-9+\-\s()]/g, '').slice(0, MAX_PERSON_PHONE_LEN),
+                            }))}
+                          />
+                        </Grid>
+                      </Grid>
+                      <FileUploadField
+                        label="Ảnh người đón *"
+                        currentValue={detailForm.receiverOtherImageName}
+                        onUpload={handleFileUpload('receiverOtherImageName', 'Không tải lên được ảnh người đón.')}
+                        required
+                      />
+                    </Stack>
+                  </Box>
+                )}
+              </Paper>
 
               <OtpSection
                 radioName="otpMethodCheckout"
@@ -626,7 +778,7 @@ function AttendanceDetailModal({
               />
 
               <TextField
-                fullWidth size="small" multiline rows={3} label="Ghi chú"
+                fullWidth size="small" multiline rows={2} label="Ghi chú"
                 placeholder="Ví dụ: Bé về sớm..."
                 value={detailForm.checkoutNote || ''}
                 slotProps={{ htmlInput: { maxLength: MAX_NOTE_LEN } }}
@@ -640,93 +792,116 @@ function AttendanceDetailModal({
           {/* ── CHECKIN MODE ── */}
           {mode === 'checkin' && (
             <Stack spacing={2}>
-              <TextField
-                fullWidth size="small" type="time" label="Giờ đến"
-                value={detailForm.timeIn} disabled
-                helperText="Tự động lấy theo thời điểm check-in"
-              />
+              {/* Time display */}
+              <Paper variant="outlined" sx={{ borderRadius: 2, overflow: 'hidden', borderColor: '#86efac' }}>
+                <Box sx={{ px: 2, py: 1, bgcolor: '#dcfce7', display: 'flex', alignItems: 'center', gap: 1 }}>
+                  <TimeIcon sx={{ fontSize: 15, color: '#15803d' }} />
+                  <Typography variant="caption" fontWeight={700} color="#15803d">Thời gian check-in</Typography>
+                </Box>
+                <Box sx={{ px: 2, py: 1.25, display: 'flex', alignItems: 'center', gap: 1.5 }}>
+                  <Typography variant="h5" fontWeight={800} color="#15803d" sx={{ fontVariantNumeric: 'tabular-nums', letterSpacing: 1 }}>
+                    {detailForm.timeIn || '--:--'}
+                  </Typography>
+                  <Typography variant="caption" color="text.disabled">Tự động lấy theo thời điểm check-in</Typography>
+                </Box>
+              </Paper>
 
+              {/* Image + Person side by side */}
               <Grid container spacing={2}>
                 <Grid size={{ xs: 12, sm: 6 }}>
-                  <FileUploadField
-                    label="Ảnh điểm danh"
-                    fieldName="checkinImageName"
-                    currentValue={detailForm.checkinImageName}
-                    onUpload={handleFileUpload('checkinImageName', 'Không tải lên được ảnh check-in.')}
-                    required
-                  />
+                  <Paper variant="outlined" sx={{ p: 2, borderRadius: 2, height: '100%', borderColor: '#bbf7d0', bgcolor: '#f0fdf4' }}>
+                    <Typography variant="caption" fontWeight={700} color="#15803d" sx={{ display: 'flex', alignItems: 'center', gap: 0.5, mb: 1.5 }}>
+                      📷 Ảnh điểm danh <Box component="span" sx={{ color: 'error.main' }}>*</Box>
+                    </Typography>
+                    <FileUploadField
+                      label=""
+                      currentValue={detailForm.checkinImageName}
+                      onUpload={handleFileUpload('checkinImageName', 'Không tải lên được ảnh check-in.')}
+                    />
+                  </Paper>
                 </Grid>
                 <Grid size={{ xs: 12, sm: 6 }}>
-                  <FormControl fullWidth size="small">
-                    <InputLabel>Người đưa *</InputLabel>
-                    <Select
-                      value={detailForm.delivererPickupPersonId}
-                      label="Người đưa *"
-                      onChange={(e) => {
-                        const val = e.target.value;
-                        if (val === 'KHAC') {
-                          setDetailForm((prev) => ({
-                            ...prev, delivererPickupPersonId: 'KHAC', delivererType: 'Khác',
-                            delivererOtherInfo: '', delivererName: '', delivererPhone: '', delivererOtherImageName: '',
-                          }));
-                        } else {
-                          const p = approvedPickupPersons.find((x) => x._id === val);
-                          setDetailForm((prev) => ({
-                            ...prev, delivererPickupPersonId: val,
-                            delivererType: p ? p.relation : '',
-                            delivererOtherInfo: p ? `${p.fullName} - ${p.phone}` : '',
-                            delivererName: '', delivererPhone: '',
-                            delivererOtherImageName: p ? (p.imageUrl || '') : '',
-                          }));
-                        }
-                      }}
-                    >
-                      <MenuItem value="" disabled>-- Chọn --</MenuItem>
-                      {approvedPickupPersons.map((p) => (
-                        <MenuItem key={p._id} value={p._id}>{p.fullName} ({p.relation} - {p.phone})</MenuItem>
-                      ))}
-                      <MenuItem value="KHAC">Khác</MenuItem>
-                    </Select>
-                  </FormControl>
+                  <Paper variant="outlined" sx={{ p: 2, borderRadius: 2, height: '100%', borderColor: 'divider' }}>
+                    <Typography variant="caption" fontWeight={700} color="text.secondary" sx={{ display: 'flex', alignItems: 'center', gap: 0.5, mb: 1.5 }}>
+                      👤 Người đưa
+                    </Typography>
+                    <FormControl fullWidth size="small">
+                      <InputLabel>Chọn người đưa *</InputLabel>
+                      <Select
+                        value={detailForm.delivererPickupPersonId}
+                        label="Chọn người đưa *"
+                        onChange={(e) => {
+                          const val = e.target.value;
+                          if (val === 'KHAC') {
+                            setDetailForm((prev) => ({
+                              ...prev, delivererPickupPersonId: 'KHAC', delivererType: 'Khác',
+                              delivererOtherInfo: '', delivererName: '', delivererPhone: '', delivererOtherImageName: '',
+                            }));
+                          } else {
+                            const p = approvedPickupPersons.find((x) => x._id === val);
+                            setDetailForm((prev) => ({
+                              ...prev, delivererPickupPersonId: val,
+                              delivererType: p ? p.relation : '',
+                              delivererOtherInfo: p ? `${p.fullName} - ${p.phone}` : '',
+                              delivererName: '', delivererPhone: '',
+                              delivererOtherImageName: p ? (p.imageUrl || '') : '',
+                            }));
+                          }
+                        }}
+                      >
+                        <MenuItem value="" disabled>-- Chọn --</MenuItem>
+                        {approvedPickupPersons.map((p) => (
+                          <MenuItem key={p._id} value={p._id}>{p.fullName} ({p.relation} - {p.phone})</MenuItem>
+                        ))}
+                        <MenuItem value="KHAC">Khác (ngoài danh sách)</MenuItem>
+                      </Select>
+                    </FormControl>
+                  </Paper>
                 </Grid>
               </Grid>
 
+              {/* Người đưa "Khác" extra fields */}
               {detailForm.delivererType === 'Khác' && (
-                <Grid container spacing={2}>
-                  <Grid size={{ xs: 12, sm: 6 }}>
-                    <TextField
-                      fullWidth size="small" label="Tên người đưa"
-                      placeholder="VD: Nguyễn Văn A"
-                      value={detailForm.delivererName}
-                      slotProps={{ htmlInput: { maxLength: MAX_PERSON_NAME_LEN } }}
-                      onChange={(e) => setDetailForm((prev) => ({
-                        ...prev, delivererName: sanitizeSingleLineText(e.target.value, MAX_PERSON_NAME_LEN),
-                      }))}
-                    />
-                  </Grid>
-                  <Grid size={{ xs: 12, sm: 6 }}>
-                    <TextField
-                      fullWidth size="small" label="Số điện thoại người đưa"
-                      placeholder="VD: 0912345678"
-                      value={detailForm.delivererPhone}
-                      slotProps={{ htmlInput: { maxLength: MAX_PERSON_PHONE_LEN } }}
-                      onChange={(e) => setDetailForm((prev) => ({
-                        ...prev, delivererPhone: e.target.value.replace(/[^0-9+\-\s()]/g, '').slice(0, MAX_PERSON_PHONE_LEN),
-                      }))}
-                    />
-                  </Grid>
-                  <Grid size={{ xs: 12 }}>
+                <Paper variant="outlined" sx={{ p: 2, borderRadius: 2, borderColor: '#fde68a', bgcolor: '#fffbeb' }}>
+                  <Typography variant="caption" color="warning.main" fontWeight={600} sx={{ display: 'block', mb: 1.5 }}>
+                    ⚠️ Vui lòng nhập đầy đủ thông tin người đưa ngoài danh sách
+                  </Typography>
+                  <Stack spacing={1.5}>
+                    <Grid container spacing={1.5}>
+                      <Grid size={{ xs: 12, sm: 6 }}>
+                        <TextField
+                          fullWidth size="small" label="Tên người đưa"
+                          placeholder="VD: Nguyễn Văn A"
+                          value={detailForm.delivererName}
+                          slotProps={{ htmlInput: { maxLength: MAX_PERSON_NAME_LEN } }}
+                          onChange={(e) => setDetailForm((prev) => ({
+                            ...prev, delivererName: sanitizeSingleLineText(e.target.value, MAX_PERSON_NAME_LEN),
+                          }))}
+                        />
+                      </Grid>
+                      <Grid size={{ xs: 12, sm: 6 }}>
+                        <TextField
+                          fullWidth size="small" label="Số điện thoại"
+                          placeholder="VD: 0912345678"
+                          value={detailForm.delivererPhone}
+                          slotProps={{ htmlInput: { maxLength: MAX_PERSON_PHONE_LEN } }}
+                          onChange={(e) => setDetailForm((prev) => ({
+                            ...prev, delivererPhone: e.target.value.replace(/[^0-9+\-\s()]/g, '').slice(0, MAX_PERSON_PHONE_LEN),
+                          }))}
+                        />
+                      </Grid>
+                    </Grid>
                     <FileUploadField
                       label="Ảnh người đưa"
-                      fieldName="delivererOtherImageName"
                       currentValue={detailForm.delivererOtherImageName}
                       onUpload={handleFileUpload('delivererOtherImageName', 'Không tải lên được ảnh người đưa.')}
                     />
-                  </Grid>
-                </Grid>
+                  </Stack>
+                </Paper>
               )}
 
-              <Box sx={{ pt: 1, borderTop: '1px solid', borderColor: 'divider' }}>
+              {/* Đồ mang theo */}
+              <Paper variant="outlined" sx={{ p: 2, borderRadius: 2, borderColor: 'divider' }}>
                 <FormControlLabel
                   control={
                     <Checkbox
@@ -738,7 +913,7 @@ function AttendanceDetailModal({
                       }))}
                     />
                   }
-                  label={<Typography variant="body2">Có đồ mang theo</Typography>}
+                  label={<Typography variant="body2" fontWeight={600}>🎒 Có đồ mang theo</Typography>}
                 />
                 {detailForm.hasBelongings && (
                   <TextField
@@ -752,7 +927,7 @@ function AttendanceDetailModal({
                     }))}
                   />
                 )}
-              </Box>
+              </Paper>
 
               <OtpSection
                 radioName="otpMethodCheckin"
@@ -767,7 +942,7 @@ function AttendanceDetailModal({
               />
 
               <TextField
-                fullWidth size="small" multiline rows={3} label="Ghi chú"
+                fullWidth size="small" multiline rows={2} label="Ghi chú"
                 placeholder="Ví dụ: Bé đến muộn 10 phút..."
                 value={detailForm.note}
                 slotProps={{ htmlInput: { maxLength: MAX_NOTE_LEN } }}
