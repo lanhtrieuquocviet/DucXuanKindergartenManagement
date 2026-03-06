@@ -85,6 +85,8 @@ function AttendanceReport() {
   const [error, setError] = useState('');
   const [selectedMonth, setSelectedMonth] = useState(initial.month);
   const [selectedYear, setSelectedYear] = useState(initial.year);
+  const [selectedAttendance, setSelectedAttendance] = useState(null);
+  const [showDetailModal, setShowDetailModal] = useState(false);
 
   useEffect(() => {
     if (isInitializing) return;
@@ -311,10 +313,14 @@ function AttendanceReport() {
                     return (
                       <tr
                         key={attendance._id || idx}
-                        className="border-b border-gray-100 hover:bg-gray-50 transition-colors"
+                        className="border-b border-gray-100 hover:bg-gray-50 transition-colors cursor-pointer"
+                        onClick={() => {
+                          setSelectedAttendance(attendance);
+                          setShowDetailModal(true);
+                        }}
                       >
                         <td className="px-4 py-3">
-                          <div className="font-medium text-gray-900">
+                          <div className="font-medium text-gray-900 hover:text-emerald-600 underline">
                             {attendanceDate}
                           </div>
                         </td>
@@ -349,6 +355,354 @@ function AttendanceReport() {
             </button>
           </div>
         </div>
+
+        {/* Modal Chi tiết ngày điểm danh */}
+        {showDetailModal && selectedAttendance && (() => {
+          const checkInTime =
+            selectedAttendance?.timeString?.checkIn ||
+            formatTime(selectedAttendance?.time?.checkIn);
+          const checkOutTime =
+            selectedAttendance?.timeString?.checkOut ||
+            formatTime(selectedAttendance?.time?.checkOut);
+          const attendanceDate = formatDate(selectedAttendance?.date, true);
+
+          // Log để debug
+          console.log('Selected Attendance:', selectedAttendance);
+          console.log('Deliverer Image:', selectedAttendance?.delivererOtherImageName);
+          console.log('Receiver Image:', selectedAttendance?.receiverOtherImageName);
+
+          return (
+            <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/30 px-4 py-4">
+              <div className="bg-white rounded-xl shadow-2xl w-full max-w-2xl max-h-[85vh] overflow-y-auto">
+                {/* Header */}
+                <div className="sticky top-0 bg-white flex items-center justify-between px-6 py-4 border-b border-gray-200">
+                  <div>
+                    <h2 className="text-xl font-bold text-gray-800">
+                      Chi tiết điểm danh
+                    </h2>
+                    <p className="text-sm text-gray-500 mt-1">📅 {attendanceDate}</p>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setShowDetailModal(false);
+                      setSelectedAttendance(null);
+                    }}
+                    className="text-gray-500 hover:text-gray-700 text-2xl font-bold leading-none"
+                  >
+                    ×
+                  </button>
+                </div>
+
+                {/* Content */}
+                <div className="px-6 py-6 space-y-6">
+                  {/* ===== ĐIỂM DANH ĐẾN ===== */}
+                  <div className="border-l-4 border-green-500 pl-4">
+                    <div className="flex items-center gap-2 mb-4">
+                      <div className="w-3 h-3 rounded-full bg-green-500" />
+                      <h3 className="text-base font-bold text-gray-800">
+                        Điểm danh đến
+                      </h3>
+                    </div>
+
+                    <div className="space-y-3">
+                      {/* Status */}
+                      <div>
+                        <label className="block text-xs font-semibold text-blue-600 mb-1">
+                          Trạng thái
+                        </label>
+                        <div className="bg-blue-50 border border-blue-200 rounded-lg px-3 py-2">
+                          <p className="text-sm text-gray-700">
+                            {selectedAttendance?.time?.checkIn ||
+                            selectedAttendance?.timeString?.checkIn
+                              ? 'Có dữ liệu'
+                              : 'Chưa có dữ liệu'}
+                          </p>
+                        </div>
+                      </div>
+
+                      {/* Time */}
+                      <div>
+                        <label className="block text-xs font-semibold text-blue-600 mb-1">
+                          Giờ đến
+                        </label>
+                        <div className="bg-white border border-gray-300 rounded-lg px-3 py-2">
+                          <p className="text-sm text-gray-800 font-semibold">
+                            {checkInTime}
+                          </p>
+                        </div>
+                      </div>
+
+                      {/* Person */}
+                      <div>
+                        <label className="block text-xs font-semibold text-blue-600 mb-1">
+                          Người đưa
+                        </label>
+                        <div className="bg-white border border-gray-300 rounded-lg px-3 py-2">
+                          <p className="text-sm text-gray-700">
+                            {selectedAttendance?.delivererType
+                              ? `${selectedAttendance.delivererType}${selectedAttendance.delivererOtherInfo ? ` - ${selectedAttendance.delivererOtherInfo}` : ''}`
+                              : '(Chưa có thông tin người đưa)'}
+                          </p>
+                        </div>
+                      </div>
+
+                      {/* Two Column Layout for Images */}
+                      <div className="grid grid-cols-2 gap-3">
+                        {/* Check-in Image */}
+                        <div>
+                          <label className="block text-xs font-semibold text-blue-600 mb-1">
+                            Ảnh check-in
+                          </label>
+                          <div className="border-2 border-dashed border-gray-300 rounded-lg p-2 bg-gray-50 flex items-center justify-center min-h-[120px]">
+                            {selectedAttendance?.checkinImageName && selectedAttendance.checkinImageName.trim() ? (
+                              <a
+                                href={selectedAttendance.checkinImageName}
+                                target="_blank"
+                                rel="noopener noreferrer"
+                                className="block hover:opacity-90 transition w-full flex items-center justify-center"
+                              >
+                                <img
+                                  src={selectedAttendance.checkinImageName}
+                                  alt="Check-in"
+                                  className="max-h-[100px] w-auto rounded-lg shadow-sm"
+                                  onError={(e) => {
+                                    e.target.src = "https://via.placeholder.com/300x200?text=Ảnh+lỗi";
+                                    e.target.alt = "Không tải được ảnh";
+                                  }}
+                                />
+                              </a>
+                            ) : (
+                              <div className="text-center">
+                                <p className="text-sm text-gray-500">
+                                  Chưa có ảnh
+                                </p>
+                              </div>
+                            )}
+                          </div>
+                        </div>
+
+                        {/* Deliverer Image */}
+                        <div>
+                          <label className="block text-xs font-semibold text-blue-600 mb-1">
+                            Ảnh người đưa
+                          </label>
+                          <div className="border-2 border-dashed border-gray-300 rounded-lg p-2 bg-gray-50 flex items-center justify-center min-h-[120px]">
+                            {(() => {
+                              // Ưu tiên hiển thị ảnh người đưa thực tế, nếu không có thì hiển thị avatar phụ huynh
+                              const imageUrl = selectedAttendance?.delivererOtherImageName && selectedAttendance.delivererOtherImageName.trim()
+                                ? selectedAttendance.delivererOtherImageName
+                                : user?.avatar && user.avatar.trim()
+                                ? user.avatar
+                                : null;
+
+                              return imageUrl ? (
+                                <a
+                                  href={imageUrl}
+                                  target="_blank"
+                                  rel="noopener noreferrer"
+                                  className="block hover:opacity-90 transition w-full flex items-center justify-center"
+                                >
+                                  <img
+                                    src={imageUrl}
+                                    alt={selectedAttendance?.delivererOtherImageName ? "Người đưa" : "Ảnh phụ huynh"}
+                                    className="w-full h-32 object-cover rounded-lg border border-gray-200 shadow-sm"
+                                    onError={(e) => {
+                                      e.target.src = "https://via.placeholder.com/300x200?text=Ảnh+lỗi";
+                                      e.target.alt = "Không tải được ảnh";
+                                    }}
+                                  />
+                                </a>
+                              ) : (
+                                <div className="text-center">
+                                  <p className="text-sm text-gray-500">
+                                    Chưa có ảnh
+                                  </p>
+                                </div>
+                              );
+                            })()}
+                          </div>
+                        </div>
+                      </div>
+
+                      {/* Notes */}
+                      <div>
+                        <label className="block text-xs font-semibold text-blue-600 mb-1">
+                          Ghi chú
+                        </label>
+                        <div className="bg-white border border-gray-300 rounded-lg px-3 py-2">
+                          <p className="text-sm text-gray-700">
+                            {selectedAttendance?.note || 'Không có ghi chú'}
+                          </p>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Divider */}
+                  <div className="border-t border-gray-200" />
+
+                  {/* ===== ĐIỂM DANH VỀ ===== */}
+                  <div className="border-l-4 border-blue-500 pl-4">
+                    <div className="flex items-center gap-2 mb-4">
+                      <div className="w-3 h-3 rounded-full bg-blue-500" />
+                      <h3 className="text-base font-bold text-gray-800">
+                        Điểm danh về
+                      </h3>
+                    </div>
+
+                    <div className="space-y-3">
+                      {/* Status */}
+                      <div>
+                        <label className="block text-xs font-semibold text-blue-600 mb-1">
+                          Trạng thái
+                        </label>
+                        <div className="bg-blue-50 border border-blue-200 rounded-lg px-3 py-2">
+                          <p className="text-sm text-gray-700">
+                            {selectedAttendance?.time?.checkOut ||
+                            selectedAttendance?.timeString?.checkOut
+                              ? 'Có dữ liệu'
+                              : 'Chưa có dữ liệu'}
+                          </p>
+                        </div>
+                      </div>
+
+                      {/* Time */}
+                      <div>
+                        <label className="block text-xs font-semibold text-blue-600 mb-1">
+                          Giờ về
+                        </label>
+                        <div className="bg-white border border-gray-300 rounded-lg px-3 py-2">
+                          <p className="text-sm text-gray-800 font-semibold">
+                            {checkOutTime}
+                          </p>
+                        </div>
+                      </div>
+
+                      {/* Person */}
+                      <div>
+                        <label className="block text-xs font-semibold text-blue-600 mb-1">
+                          Người đón
+                        </label>
+                        <div className="bg-white border border-gray-300 rounded-lg px-3 py-2">
+                          <p className="text-sm text-gray-700">
+                            {selectedAttendance?.receiverType
+                              ? `${selectedAttendance.receiverType}${selectedAttendance.receiverOtherInfo ? ` - ${selectedAttendance.receiverOtherInfo}` : ''}`
+                              : '(Chưa có thông tin người đón)'}
+                          </p>
+                        </div>
+                      </div>
+
+                      {/* Two Column Layout for Images */}
+                      <div className="grid grid-cols-2 gap-3">
+                        {/* Check-out Image */}
+                        <div>
+                          <label className="block text-xs font-semibold text-blue-600 mb-1">
+                            Ảnh check-out
+                          </label>
+                          <div className="border-2 border-dashed border-gray-300 rounded-lg p-2 bg-gray-50 flex items-center justify-center min-h-[120px]">
+                            {selectedAttendance?.checkoutImageName && selectedAttendance.checkoutImageName.trim() ? (
+                              <a
+                                href={selectedAttendance.checkoutImageName}
+                                target="_blank"
+                                rel="noopener noreferrer"
+                                className="block hover:opacity-90 transition w-full flex items-center justify-center"
+                              >
+                                <img
+                                  src={selectedAttendance.checkoutImageName}
+                                  alt="Check-out"
+                                  className="max-h-[100px] w-auto rounded-lg shadow-sm"
+                                  onError={(e) => {
+                                    e.target.src = "https://via.placeholder.com/300x200?text=Ảnh+lỗi";
+                                    e.target.alt = "Không tải được ảnh";
+                                  }}
+                                />
+                              </a>
+                            ) : (
+                              <div className="text-center">
+                                <p className="text-sm text-gray-500">
+                                  Chưa có ảnh
+                                </p>
+                              </div>
+                            )}
+                          </div>
+                        </div>
+
+                        {/* Receiver Image */}
+                        <div>
+                          <label className="block text-xs font-semibold text-blue-600 mb-1">
+                            Ảnh người đón
+                          </label>
+                          <div className="border-2 border-dashed border-gray-300 rounded-lg p-2 bg-gray-50 flex items-center justify-center min-h-[120px]">
+                            {(() => {
+                              // Ưu tiên hiển thị ảnh người đón thực tế, nếu không có thì hiển thị avatar phụ huynh
+                              const imageUrl = selectedAttendance?.receiverOtherImageName && selectedAttendance.receiverOtherImageName.trim()
+                                ? selectedAttendance.receiverOtherImageName
+                                : user?.avatar && user.avatar.trim()
+                                ? user.avatar
+                                : null;
+
+                              return imageUrl ? (
+                                <a
+                                  href={imageUrl}
+                                  target="_blank"
+                                  rel="noopener noreferrer"
+                                  className="block hover:opacity-90 transition w-full flex items-center justify-center"
+                                >
+                                  <img
+                                    src={imageUrl}
+                                    alt={selectedAttendance?.receiverOtherImageName ? "Người đón" : "Ảnh phụ huynh"}
+                                    className="w-full h-32 object-cover rounded-lg border border-gray-200 shadow-sm"
+                                    onError={(e) => {
+                                      e.target.src = "https://via.placeholder.com/300x200?text=Ảnh+lỗi";
+                                      e.target.alt = "Không tải được ảnh";
+                                    }}
+                                  />
+                                </a>
+                              ) : (
+                                <div className="text-center">
+                                  <p className="text-sm text-gray-500">
+                                    Chưa có ảnh
+                                  </p>
+                                </div>
+                              );
+                            })()}
+                          </div>
+                        </div>
+                      </div>
+
+                      {/* Notes */}
+                      <div>
+                        <label className="block text-xs font-semibold text-blue-600 mb-1">
+                          Ghi chú
+                        </label>
+                        <div className="bg-white border border-gray-300 rounded-lg px-3 py-2">
+                          <p className="text-sm text-gray-700">
+                            {selectedAttendance?.note || 'Không có ghi chú'}
+                          </p>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+
+                {/* Footer */}
+                <div className="sticky bottom-0 bg-white px-6 py-4 border-t border-gray-200 flex justify-end gap-3">
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setShowDetailModal(false);
+                      setSelectedAttendance(null);
+                    }}
+                    className="px-6 py-2 bg-emerald-600 text-white font-semibold rounded-lg hover:bg-emerald-700 transition-colors"
+                  >
+                    Đóng
+                  </button>
+                </div>
+              </div>
+            </div>
+          );
+        })()}
       </div>
     </div>
   );
