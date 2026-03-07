@@ -8,7 +8,7 @@ import {
   Box, Paper, Typography, Button, Select, MenuItem, FormControl,
   InputLabel, Table, TableBody, TableCell, TableContainer, TableHead,
   TableRow, Chip, Alert, Skeleton, Stack, Dialog, IconButton, Avatar,
-  ToggleButtonGroup, ToggleButton, useMediaQuery, useTheme,
+  ToggleButtonGroup, ToggleButton, useMediaQuery, useTheme, TextField,
 } from "@mui/material";
 import {
   Refresh as RefreshIcon,
@@ -31,7 +31,8 @@ const STATUS_META = {
 function RequestCard({ req, onAction, onPreviewImage }) {
   const meta = STATUS_META[req.status] || { label: req.status, color: "default" };
   const isPending = req.status === "pending";
-
+  const isRejected = req.status === "rejected";
+  
   return (
     <Box
       sx={{
@@ -61,7 +62,7 @@ function RequestCard({ req, onAction, onPreviewImage }) {
       </Box>
 
       {/* Row 2: SĐT + Ảnh */}
-      <Box sx={{ display: "flex", alignItems: "center", gap: 1.5, mb: isPending ? 1 : 0, pl: 0.5 }}>
+      <Box sx={{ display: "flex", alignItems: "center", gap: 1.5, mb: isPending || isRejected ? 1 : 0, pl: 0.5 }}>
         <Typography variant="caption" sx={{ fontFamily: "monospace", fontWeight: 600, color: "text.secondary" }}>
           📞 {req.phone}
         </Typography>
@@ -79,6 +80,20 @@ function RequestCard({ req, onAction, onPreviewImage }) {
           />
         )}
       </Box>
+
+      {/* Rejected reason */}
+      {isRejected && req.rejectedReason && (
+        <Box sx={{ pl: 0.5, pr: 0.5, mb: 1 }}>
+          <Alert severity="error" sx={{ py: 0.5, px: 1.5, fontSize: 12, borderRadius: 1.5 }}>
+            <Typography variant="caption" fontWeight={600}>
+              Lý do từ chối:
+            </Typography>
+            <Typography variant="caption" sx={{ display: "block", mt: 0.25 }}>
+              {req.rejectedReason}
+            </Typography>
+          </Alert>
+        </Box>
+      )}
 
       {/* Row 3: Actions (chỉ khi pending) */}
       {isPending && (
@@ -119,6 +134,11 @@ function PickupRequest() {
   const [confirmOpen, setConfirmOpen] = useState(false);
   const [selectedRequest, setSelectedRequest] = useState(null);
   const [actionType, setActionType] = useState("");
+  const [allRequests, setAllRequests] = useState([]);
+  const [rejectReason, setRejectReason] = useState("");
+  const [rejectDialogOpen, setRejectDialogOpen] = useState(false);
+
+
 
   const menuItems = useMemo(() => [
     { key: "classes",         label: "Lớp phụ trách" },
@@ -150,47 +170,91 @@ function PickupRequest() {
     fetchPickupRequests();
   }, [isInitializing, user, navigate]);
 
-  const fetchPickupRequests = async () => {
-    try {
-      setLoading(true);
-      setError("");
-      const res = await get(ENDPOINTS.PICKUP.REQUESTS || "/pickup/requests");
-      let data = res.data || [];
-      if (filterStatus !== "all") data = data.filter((r) => r.status === filterStatus);
-      setRequests(data);
-    } catch (_) {
-      setError("Không tải được danh sách. Vui lòng thử lại.");
-    } finally {
-      setLoading(false);
-    }
-  };
+ const fetchPickupRequests = async () => {
+   try {
+     setLoading(true);
+     setError("");
+
+     const res = await get(ENDPOINTS.PICKUP.REQUESTS || "/pickup/requests");
+     const data = res.data || [];
+
+     setAllRequests(data);
+     setRequests(data);
+   } catch (_) {
+     setError("Không tải được danh sách. Vui lòng thử lại.");
+   } finally {
+     setLoading(false);
+   }
+ };
+ useEffect(() => {
+   if (filterStatus === "all") {
+     setRequests(allRequests);
+   } else {
+     setRequests(allRequests.filter((r) => r.status === filterStatus));
+   }
+ }, [filterStatus, allRequests]);
 
   const handleAction = (request, type) => {
     setSelectedRequest(request);
-    setActionType(type);
-    setConfirmOpen(true);
+    if (type === "reject") {
+      setRejectReason("");
+      setRejectDialogOpen(true);
+    } else {
+      setActionType(type);
+      setConfirmOpen(true);
+    }
   };
 
+  // approval handler (used by confirm dialog for approve)
   const confirmAction = async () => {
     if (!selectedRequest) return;
     try {
       setError("");
       const payload = {
         requestId: selectedRequest._id,
-        status: actionType === "approve" ? "approved" : "rejected",
+        status: "approved",
       };
       await post(ENDPOINTS.PICKUP.UPDATE_STATUS || "/pickup/requests/status", payload);
       setRequests((prev) =>
-        prev.map((r) => r._id === selectedRequest._id ? { ...r, status: payload.status } : r)
+        prev.map((r) =>
+          r._id === selectedRequest._id ? { ...r, status: "approved" } : r
+        )
       );
-      setSuccessMessage(actionType === "approve" ? "Đã duyệt thành công!" : "Đã từ chối đăng ký.");
+      setSuccessMessage("Đã duyệt thành công!");
       setTimeout(() => setSuccessMessage(""), 4000);
     } catch (err) {
       setError(err.message || "Lỗi khi xử lý yêu cầu. Vui lòng thử lại.");
     } finally {
       setConfirmOpen(false);
       setSelectedRequest(null);
-      setActionType("");
+    }
+  };
+
+  const confirmReject = async () => {
+    if (!selectedRequest || !rejectReason.trim()) return;
+    try {
+      setError("");
+      const payload = {
+        requestId: selectedRequest._id,
+        status: "rejected",
+        rejectedReason: rejectReason.trim(),
+      };
+      await post(ENDPOINTS.PICKUP.UPDATE_STATUS || "/pickup/requests/status", payload);
+      setRequests((prev) =>
+        prev.map((r) =>
+          r._id === selectedRequest._id
+            ? { ...r, status: "rejected", rejectedReason: rejectReason.trim() }
+            : r
+        )
+      );
+      setSuccessMessage("Đã từ chối đăng ký với lý do được cung cấp.");
+      setTimeout(() => setSuccessMessage(""), 4000);
+    } catch (err) {
+      setError(err.message || "Lỗi khi từ chối yêu cầu. Vui lòng thử lại.");
+    } finally {
+      setRejectDialogOpen(false);
+      setSelectedRequest(null);
+      setRejectReason("");
     }
   };
 
@@ -342,6 +406,7 @@ function PickupRequest() {
                 {requests.map((req) => {
                   const meta = STATUS_META[req.status] || { label: req.status, color: "default" };
                   const isPending = req.status === "pending";
+                  const isRejected = req.status === "rejected";
                   return (
                     <TableRow
                       key={req._id}
@@ -402,7 +467,16 @@ function PickupRequest() {
                       </TableCell>
 
                       <TableCell align="center">
-                        <Chip label={meta.label} icon={meta.icon} color={meta.color} size="small" sx={{ fontWeight: 700, fontSize: 11, height: 24 }} />
+                        <Box sx={{ display: "flex", flexDirection: "column", alignItems: "center", gap: 0.5 }}>
+                          <Chip label={meta.label} icon={meta.icon} color={meta.color} size="small" sx={{ fontWeight: 700, fontSize: 11, height: 24 }} />
+                          {isRejected && req.rejectedReason && (
+                            <Alert severity="error" sx={{ py: 0.25, px: 1, fontSize: 10, borderRadius: 1, minWidth: 120 }}>
+                              <Typography variant="caption" fontWeight={600} sx={{ fontSize: 10 }}>
+                                Lý do: {req.rejectedReason}
+                              </Typography>
+                            </Alert>
+                          )}
+                        </Box>
                       </TableCell>
 
                       <TableCell align="center">
@@ -438,19 +512,103 @@ function PickupRequest() {
         )}
       </Paper>
 
-      {/* Confirm dialog */}
+      {/* Confirm dialog for approve */}
       <ConfirmDialog
         open={confirmOpen}
-        title={actionType === "approve" ? "Xác nhận duyệt" : "Xác nhận từ chối"}
-        message={
-          actionType === "approve"
-            ? `Bạn có chắc muốn duyệt "${selectedRequest?.fullName}" (${selectedRequest?.relation}) cho học sinh "${selectedRequest?.student?.fullName}"?`
-            : `Bạn có chắc muốn từ chối "${selectedRequest?.fullName}" (${selectedRequest?.relation})?`
-        }
-        confirmText={actionType === "approve" ? "Duyệt" : "Từ chối"}
+        title="Xác nhận duyệt"
+        message={`Bạn có chắc muốn duyệt "${selectedRequest?.fullName}" (${selectedRequest?.relation}) cho học sinh "${selectedRequest?.student?.fullName}"?`}
+        confirmText="Duyệt"
         onConfirm={confirmAction}
         onCancel={() => { setConfirmOpen(false); setSelectedRequest(null); setActionType(""); }}
       />
+
+      {/* Reject dialog with reason */}
+      <Dialog
+        open={rejectDialogOpen}
+        onClose={() => { setRejectDialogOpen(false); setSelectedRequest(null); setRejectReason(""); }}
+        maxWidth="sm"
+        fullWidth
+        slotProps={{
+          paper: {
+            sx: {
+              borderRadius: 3,
+              border: "1px solid",
+              borderColor: "divider",
+            }
+          }
+        }}
+      >
+        <Box sx={{ p: 3 }}>
+          <Box sx={{ display: "flex", alignItems: "center", gap: 1.5, mb: 2 }}>
+            <Avatar sx={{ width: 40, height: 40, bgcolor: "error.main" }}>
+              <RejectIcon sx={{ color: "white" }} />
+            </Avatar>
+            <Box>
+              <Typography variant="h6" fontWeight={700}>
+                Từ chối đăng ký đưa đón
+              </Typography>
+              <Typography variant="body2" color="text.secondary">
+                Vui lòng nhập lý do từ chối
+              </Typography>
+            </Box>
+          </Box>
+
+          {selectedRequest && (
+            <Box sx={{ mb: 3, p: 2, bgcolor: "grey.50", borderRadius: 2 }}>
+              <Typography variant="body2" fontWeight={600} gutterBottom>
+                Thông tin đăng ký:
+              </Typography>
+              <Typography variant="body2">
+                Học sinh: {selectedRequest.student?.fullName}
+              </Typography>
+              <Typography variant="body2">
+                Người đăng ký: {selectedRequest.fullName} ({selectedRequest.relation})
+              </Typography>
+              <Typography variant="body2">
+                SĐT: {selectedRequest.phone}
+              </Typography>
+            </Box>
+          )}
+
+          <Box sx={{ mb: 3 }}>
+            <Typography variant="body2" fontWeight={600} gutterBottom>
+              Lý do từ chối *
+            </Typography>
+            <TextField
+              fullWidth
+              multiline
+              rows={3}
+              placeholder="Nhập lý do từ chối đăng ký này..."
+              value={rejectReason}
+              onChange={(e) => setRejectReason(e.target.value)}
+              sx={{
+                "& .MuiOutlinedInput-root": {
+                  borderRadius: 2,
+                }
+              }}
+            />
+          </Box>
+
+          <Box sx={{ display: "flex", gap: 1.5, justifyContent: "flex-end" }}>
+            <Button
+              variant="outlined"
+              onClick={() => { setRejectDialogOpen(false); setSelectedRequest(null); setRejectReason(""); }}
+              sx={{ textTransform: "none", borderRadius: 2 }}
+            >
+              Hủy
+            </Button>
+            <Button
+              variant="contained"
+              color="error"
+              onClick={confirmReject}
+              disabled={!rejectReason.trim()}
+              sx={{ textTransform: "none", borderRadius: 2, fontWeight: 600 }}
+            >
+              Từ chối
+            </Button>
+          </Box>
+        </Box>
+      </Dialog>
 
       {/* Image preview dialog */}
       <Dialog

@@ -148,8 +148,8 @@ function PickupRegistration() {
         await put(ENDPOINTS.PICKUP.UPDATE(editingId), payload);
         setSuccess("Cập nhật thành công!");
       } else {
-        if (pickupRequests.length >= 3) {
-          throw new Error("Mỗi học sinh tối đa 3 người đưa đón");
+        if (pickupRequests.length >= 5) {
+          throw new Error("Mỗi học sinh tối đa 5 người đưa đón");
         }
         await post(ENDPOINTS.PICKUP.CREATE, payload);
         setSuccess("Đăng ký thành công!");

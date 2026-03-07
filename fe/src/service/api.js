@@ -245,8 +245,8 @@ export const ENDPOINTS = {
   },
   // Blogs (public)
   BLOGS: {
-    PUBLISHED: '/blogs/published',
-    CATEGORIES: '/blogs/categories',
+    PUBLISHED: "/blogs/published",
+    CATEGORIES: "/blogs/categories",
     DETAIL: (id) => `/blogs/${id}`,
   },
   // Documents (public)
@@ -273,10 +273,10 @@ export const ENDPOINTS = {
   },
   // Cloudinary
   CLOUDINARY: {
-    MEDIA_LIBRARY_SIGNATURE: '/cloudinary/media-library-signature',
-    UPLOAD_AVATAR: '/cloudinary/upload-avatar',
-    UPLOAD_BLOG_IMAGE: '/cloudinary/upload-blog-image',
-    UPLOAD_BLOG_FILE: '/cloudinary/upload-blog-file',
+    MEDIA_LIBRARY_SIGNATURE: "/cloudinary/media-library-signature",
+    UPLOAD_AVATAR: "/cloudinary/upload-avatar",
+    UPLOAD_BLOG_IMAGE: "/cloudinary/upload-blog-image",
+    UPLOAD_BLOG_FILE: "/cloudinary/upload-blog-file",
   },
   // OTP
   OTP: {
@@ -293,6 +293,17 @@ export const ENDPOINTS = {
     APPROVED_BY_STUDENT: (studentId) => `/pickup/requests/student/${studentId}`,
     UPDATE: (id) => `/pickup/requests/${id}`,
     DELETE: (id) => `/pickup/requests/${id}`,
+  },
+  // Kitchen
+  KITCHEN: {
+    MENUS: "/menus",
+    CREATE_MENU: "/menus",
+    MENU_DETAIL: (id) => `/menus/${id}`,
+    UPDATE_MENU: (id) => `/menus/${id}`,
+    DELETE_MENU: (id) => `/menus/${id}`,
+    SUBMIT_MENU: (id) => `/menus/${id}/submit`,
+    APPROVE_MENU: (id) => `/menus/${id}/approve`,
+    REJECT_MENU: (id) => `/menus/${id}/reject`,
   },
 };
 

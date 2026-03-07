@@ -90,18 +90,19 @@ function AttendanceOverview() {
   };
 
   const menuItems = [
-    { key: 'overview', label: 'Tổng quan trường' },
-    { key: 'classes', label: 'Lớp học' },
-    { key: 'teachers', label: 'Giáo viên' },
-    { key: 'students', label: 'Học sinh & phụ huynh' },
-    { key: 'assets', label: 'Quản lý tài sản' },
-    { key: 'reports', label: 'Báo cáo của trường' },
-    { key: 'contacts', label: 'Liên hệ' },
-    { key: 'qa', label: 'Câu hỏi' },
-    { key: 'blogs', label: 'Quản lý blog' },
-    { key: 'documents', label: 'Quản lý tài liệu' },
-    { key: 'public-info', label: 'Thông tin công khai' },
-    { key: 'attendance', label: 'Quản lý điểm danh' },
+    { key: "overview", label: "Tổng quan trường" },
+    { key: "classes", label: "Lớp học" },
+    { key: "menu", label: "Quản lý thực đơn" },
+    { key: "teachers", label: "Giáo viên" },
+    { key: "students", label: "Học sinh & phụ huynh" },
+    { key: "assets", label: "Quản lý tài sản" },
+    { key: "reports", label: "Báo cáo của trường" },
+    { key: "contacts", label: "Liên hệ" },
+    { key: "qa", label: "Câu hỏi" },
+    { key: "blogs", label: "Quản lý blog" },
+    { key: "documents", label: "Quản lý tài liệu" },
+    { key: "public-info", label: "Thông tin công khai" },
+    { key: "attendance", label: "Quản lý điểm danh" },
   ];
 
   const handleMenuSelect = (key) => {
@@ -113,6 +114,10 @@ function AttendanceOverview() {
       navigate('/school-admin/classes');
       return;
     }
+      if (key === "menu") {
+        navigate("/school-admin/menus");
+        return;
+      }
     if (key === 'contacts') {
       navigate('/school-admin/contacts');
       return;
