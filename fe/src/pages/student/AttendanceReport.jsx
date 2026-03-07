@@ -86,6 +86,9 @@ function AttendanceReport() {
   const [selectedMonth, setSelectedMonth] = useState(initial.month);
   const [selectedYear, setSelectedYear] = useState(initial.year);
 
+  // expanded row
+  const [expandedId, setExpandedId] = useState(null);
+
   useEffect(() => {
     if (isInitializing) return;
     if (!user) {
@@ -299,6 +302,7 @@ function AttendanceReport() {
                 </thead>
                 <tbody>
                   {attendances.map((attendance, idx) => {
+                    const id = attendance._id || idx;
                     const status = getStatusText(attendance);
                     const checkInTime =
                       attendance?.timeString?.checkIn ||
@@ -307,29 +311,162 @@ function AttendanceReport() {
                       attendance?.timeString?.checkOut ||
                       formatTime(attendance?.time?.checkOut);
                     const attendanceDate = formatDate(attendance?.date, true);
+                    const expanded = expandedId === id;
 
                     return (
-                      <tr
-                        key={attendance._id || idx}
-                        className="border-b border-gray-100 hover:bg-gray-50 transition-colors"
-                      >
-                        <td className="px-4 py-3">
-                          <div className="font-medium text-gray-900">
-                            {attendanceDate}
-                          </div>
-                        </td>
-                        <td className="px-4 py-3 text-center text-gray-700">
-                          {checkInTime}
-                        </td>
-                        <td className="px-4 py-3 text-center text-gray-700">
-                          {checkOutTime}
-                        </td>
-                        <td className="px-4 py-3">
-                          <span className={`font-medium ${status.color}`}>
-                            {status.text}
-                          </span>
-                        </td>
-                      </tr>
+                      <>
+                        <tr
+                          key={id}
+                          onClick={() => {
+                            setExpandedId(expanded ? null : id);
+                          }}
+                          className="border-b border-gray-100 hover:bg-gray-50 transition-colors cursor-pointer"
+                        >
+                          <td className="px-4 py-3">
+                            <div className="font-medium text-gray-900">
+                              {attendanceDate}
+                            </div>
+                          </td>
+                          <td className="px-4 py-3 text-center text-gray-700">
+                            {checkInTime}
+                          </td>
+                          <td className="px-4 py-3 text-center text-gray-700">
+                            {checkOutTime}
+                          </td>
+                          <td className="px-4 py-3">
+                            <span className={`font-medium ${status.color}`}>
+                              {status.text}
+                            </span>
+                          </td>
+                        </tr>
+                        {expanded && (
+                          <tr className="bg-gray-50">
+                            <td colSpan={4} className="px-4 py-3">
+                              <div className="space-y-4">
+                                {/* header repeated */}
+                                <div className="flex items-center justify-between">
+                                  <span className="font-semibold">Chi tiết ngày {attendanceDate}</span>
+                                  <span className={`${status.color} font-semibold`}>{status.text}</span>
+                                </div>
+                                {/* card-style details mimicking TeacherAttendance detail form */}
+                                <div className="space-y-4">
+                                  {/* check-in card */}
+                                  <div className="rounded-lg border border-green-100 overflow-hidden">
+                                    <div className="px-2 py-1 flex items-center gap-1 bg-green-50">
+                                      <span className="w-5 h-5 rounded-full bg-green-500 flex-shrink-0" />
+                                      <span className="text-green-700 font-semibold">Điểm danh đến</span>
+                                      {checkInTime ? (
+                                        <span className="ml-auto inline-flex items-center gap-1 px-2 py-0.5 text-white text-xs font-bold bg-green-600 rounded">
+                                          {checkInTime}
+                                        </span>
+                                      ) : (
+                                        <span className="ml-auto px-2 py-0.5 text-xs bg-yellow-100 text-yellow-800 rounded">Chưa điểm danh</span>
+                                      )}
+                                    </div>
+                                    <div className="p-3 grid grid-cols-1 md:grid-cols-3 gap-3">
+                                      {/* info columns */}
+                                      <div className="space-y-2">
+                                        <div><strong>Giờ đến:</strong> {checkInTime || '—'}</div>
+                                        <div><strong>Người đưa:</strong> {attendance.delivererOtherInfo || '(Chưa có thông tin)'}</div>
+                                        <div><strong>Ghi chú:</strong> {attendance.note || 'Không có ghi chú.'}</div>
+                                      </div>
+                                      <div>
+                                        <div className="text-sm font-semibold mb-1">Ảnh check-in</div>
+                                        {attendance.checkinImageName ? (
+                                          <a href={attendance.checkinImageName} target="_blank" rel="noopener noreferrer">
+                                            <img
+                                              src={attendance.checkinImageName}
+                                              alt="Ảnh check-in"
+                                              className="w-full h-32 object-cover rounded"
+                                              onError={(e)=>{e.target.src="https://via.placeholder.com/300x200?text=Ảnh+lỗi";e.target.alt="Không tải được ảnh";}}
+                                            />
+                                          </a>
+                                        ) : (
+                                          <div className="w-full h-32 border-2 border-dashed border-green-200 flex items-center justify-center text-green-300">
+                                            Chưa có ảnh
+                                          </div>
+                                        )}
+                                      </div>
+                                      <div>
+                                        <div className="text-sm font-semibold mb-1">Ảnh người đưa</div>
+                                        {attendance.delivererOtherImageName ? (
+                                          <a href={attendance.delivererOtherImageName} target="_blank" rel="noopener noreferrer">
+                                            <img
+                                              src={attendance.delivererOtherImageName}
+                                              alt="Ảnh người đưa"
+                                              className="w-full h-32 object-cover rounded"
+                                              onError={(e)=>{e.target.src="https://via.placeholder.com/300x200?text=Ảnh+lỗi";e.target.alt="Không tải được ảnh";}}
+                                            />
+                                          </a>
+                                        ) : (
+                                          <div className="w-full h-32 border-2 border-dashed border-gray-200 flex items-center justify-center text-gray-300">
+                                            Chưa có ảnh
+                                          </div>
+                                        )}
+                                      </div>
+                                    </div>
+                                  </div>
+                                  {/* check-out card */}
+                                  <div className="rounded-lg border border-blue-100 overflow-hidden">
+                                    <div className="px-2 py-1 flex items-center gap-1 bg-blue-50">
+                                      <span className="w-5 h-5 rounded-full bg-blue-500 flex-shrink-0" />
+                                      <span className="text-blue-700 font-semibold">Điểm danh về</span>
+                                      {checkOutTime ? (
+                                        <span className="ml-auto inline-flex items-center gap-1 px-2 py-0.5 text-white text-xs font-bold bg-blue-600 rounded">
+                                          {checkOutTime}
+                                        </span>
+                                      ) : (
+                                        <span className="ml-auto px-2 py-0.5 text-xs bg-yellow-100 text-yellow-800 rounded">Chưa điểm danh</span>
+                                      )}
+                                    </div>
+                                    <div className="p-3 grid grid-cols-1 md:grid-cols-3 gap-3">
+                                      <div className="space-y-2">
+                                        <div><strong>Giờ về:</strong> {checkOutTime || '—'}</div>
+                                        <div><strong>Người đón:</strong> {attendance.receiverOtherInfo || '(Chưa có thông tin)'}</div>
+                                        <div><strong>Xác nhận phụ huynh:</strong> {attendance.parentConfirm || 'Chưa xác nhận'}</div>
+                                      </div>
+                                      <div>
+                                        <div className="text-sm font-semibold mb-1">Ảnh check-out</div>
+                                        {attendance.checkoutImageName ? (
+                                          <a href={attendance.checkoutImageName} target="_blank" rel="noopener noreferrer">
+                                            <img
+                                              src={attendance.checkoutImageName}
+                                              alt="Ảnh check-out"
+                                              className="w-full h-32 object-cover rounded"
+                                              onError={(e)=>{e.target.src="https://via.placeholder.com/300x200?text=Ảnh+lỗi";e.target.alt="Không tải được ảnh";}}
+                                            />
+                                          </a>
+                                        ) : (
+                                          <div className="w-full h-32 border-2 border-dashed border-blue-200 flex items-center justify-center text-blue-300">
+                                            Chưa có ảnh
+                                          </div>
+                                        )}
+                                      </div>
+                                      <div>
+                                        <div className="text-sm font-semibold mb-1">Ảnh người đón</div>
+                                        {attendance.receiverOtherImageName ? (
+                                          <a href={attendance.receiverOtherImageName} target="_blank" rel="noopener noreferrer">
+                                            <img
+                                              src={attendance.receiverOtherImageName}
+                                              alt="Ảnh người đón"
+                                              className="w-full h-32 object-cover rounded"
+                                              onError={(e)=>{e.target.src="https://via.placeholder.com/300x200?text=Ảnh+lỗi";e.target.alt="Không tải được ảnh";}}
+                                            />
+                                          </a>
+                                        ) : (
+                                          <div className="w-full h-32 border-2 border-dashed border-gray-200 flex items-center justify-center text-gray-300">
+                                            Chưa có ảnh
+                                          </div>
+                                        )}
+                                      </div>
+                                    </div>
+                                  </div>
+                                </div>
+                              </div>
+                            </td>
+                          </tr>
+                        )}
+                      </>
                     );
                   })}
                 </tbody>
@@ -337,8 +474,9 @@ function AttendanceReport() {
             </div>
           )}
 
-          {/* Nút quay lại Dashboard (giống bố cục SchoolAdmin) */}
-          <div className="px-6 py-4 border-t border-gray-100 flex justify-center md:hidden">
+          {/* nothing extra - details shown inline below each row */}
+
+          {/* Nút quay lại Dashboard (giống bố cục SchoolAdmin) */}          <div className="px-6 py-4 border-t border-gray-100 flex justify-center md:hidden">
             <button
               type="button"
               onClick={() => navigate('/student')}
