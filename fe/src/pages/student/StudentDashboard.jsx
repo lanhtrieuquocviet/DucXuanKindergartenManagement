@@ -219,8 +219,8 @@ function StudentDashboard() {
 
   const actionButtons = [
     {
-      icon: '👶',
-      label: 'Thông tin của trẻ',
+      icon: "👶",
+      label: "Thông tin của trẻ",
       onClick: () => {
         if (studentInfo) {
           setShowChildInfo(true);
@@ -228,27 +228,32 @@ function StudentDashboard() {
       },
     },
     {
-      icon: '📋',
-      label: 'Điểm danh hôm nay',
-      onClick: () => navigate('/student/attendance/today'),
+      icon: "📋",
+      label: "Điểm danh hôm nay",
+      onClick: () => navigate("/student/attendance/today"),
     },
     {
-      icon: '📈',
-      label: 'Báo cáo điểm danh',
-      onClick: () => navigate('/student/attendance/report'),
+      icon: "📈",
+      label: "Báo cáo điểm danh",
+      onClick: () => navigate("/student/attendance/report"),
     },
     {
-      icon: '👤',
-      label: 'Người đón trẻ',
-      onClick: () => navigate('/student/pickup'),
+      icon: "👤",
+      label: "Người đón trẻ",
+      onClick: () => navigate("/student/pickup"),
     },
     {
-      icon: '🔔',
-      label: 'Thông báo',
-      onClick: () => navigate('/notifications-news'),
+      icon: "🔔",
+      label: "Thông báo",
+      onClick: () => navigate("/notifications-news"),
     },
-    { icon: '📝', label: 'Đơn xin nghỉ học', onClick: () => {} },
-    { icon: '📄', label: 'Chuyển lớp', onClick: () => {} },
+    { icon: "📝", label: "Đơn xin nghỉ học", onClick: () => {} },
+    { icon: "📄", label: "Chuyển lớp", onClick: () => {} },
+    {
+      icon: "📄",
+      label: "Thực đơn",
+      onClick: () => navigate("/student/menus"),
+    },
   ];
 
   return (

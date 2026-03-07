@@ -54,17 +54,19 @@ function Login() {
         navigate('/system-admin', { replace: true });
       } else if (roles.includes('SchoolAdmin')) {
         navigate('/school-admin', { replace: true });
-      } else if (roles.includes('Teacher')) {
-        navigate('/teacher', { replace: true });
+      } else if (roles.includes("Teacher")) {
+        navigate("/teacher", { replace: true });
+      } else if (roles.includes("KitchenStaff")) {// navigate kitchen staff
+        navigate("/kitchen", { replace: true });
       } else if (
-        roles.includes('Parent') ||
-        roles.includes('StudentParent') ||
-        roles.includes('Student')
+        roles.includes("Parent") ||
+        roles.includes("StudentParent") ||
+        roles.includes("Student")
       ) {
         // Phụ huynh / tài khoản xem thông tin trẻ
-        navigate('/student', { replace: true });
+        navigate("/student", { replace: true });
       } else {
-        navigate('/', { replace: true });
+        navigate("/", { replace: true });
       }
     } catch (err) {
       // Error được xử lý trong AuthContext

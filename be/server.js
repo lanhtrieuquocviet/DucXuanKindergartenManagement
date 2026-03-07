@@ -22,7 +22,12 @@ const blogsRoutes = require('./src/routes/blogs.routes');
 const documentsRoutes = require('./src/routes/documents.routes');
 const otpRoutes = require('./src/routes/otp.routes');
 const pickupRoutes = require("./src/routes/pickup.routes");
+const foodRoutes = require("./src/routes/food.routes");
+const menuRoutes = require("./src/routes/menu.routes");
+
+
 const publicInfoRoutes = require('./src/routes/publicInfo.routes');
+const DailyMenu = require('./src/routes/dailyMenu.routes');
 
 // Import models để Mongoose đăng ký schema (tránh lỗi "Schema hasn't been registered for model 'Roles'")
 require('./src/models/Role');
@@ -244,6 +249,10 @@ app.use('/api/otp', otpRoutes);
 // pickup-requets
 app.use("/api/pickup", pickupRoutes);
 
+//menus
+app.use("/api/foods", foodRoutes);
+app.use("/api/menus", menuRoutes);
+app.use("/api/daily-menus",DailyMenu);
 // Public info (public - published only)
 app.use('/api/public-info', publicInfoRoutes);
 // Route kiểm tra sức khỏe hệ thống

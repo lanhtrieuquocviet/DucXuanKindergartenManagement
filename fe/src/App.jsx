@@ -70,6 +70,16 @@ import PublicInformationDetail from './pages/PublicInformation/PublicInformation
 import PublicInfoDetail from './pages/PublicInformation/PublicInfoDetail';
 import ManagePublicInfo from './pages/schoolAdmin/ManagePublicInfo';
 import PickupRequest from './pages/teacher/PickupRequest';
+import KitchenLayout from './pages/kitchenStaff/KitchenLayout';
+import KitchenDashboard from './pages/kitchenStaff/KitchenDashboard';
+import MenuManagement from './pages/kitchenStaff/MenuManagement';
+import MenuDetail from './pages/kitchenStaff/MenuDetails';
+import CreateMenu from './components/CreateMenu';
+import FoodManagement from './pages/kitchenStaff/FoodManagemet';
+import MenuSchoolAdmin from './pages/schoolAdmin/MenuSchoolAdmin';
+import MenuDetailSchoolAdmin from './pages/schoolAdmin/MenuDetailSchoolAdmin';
+import MenuStudent from './pages/student/MenuStudent';
+import MenuDetailStudent from './pages/student/MenuDetailStudent';
 
 function AppContent() {
   return (
@@ -242,6 +252,14 @@ function App() {
               </TeacherProvider>
             }
           />
+          {/* Kitchen Staff */}
+          <Route path="/kitchen" element={<KitchenLayout />}>
+            <Route index element={<KitchenDashboard />} />
+            <Route path="menus" element={<MenuManagement />} />
+            <Route path="menus/:id" element={<MenuDetail />} />
+            <Route path="menus/create" element={<CreateMenu />} />
+            <Route path="foods" element={<FoodManagement />} />
+          </Route>
           <Route
             path="/teacher/attendance/:classId"
             element={
@@ -252,6 +270,9 @@ function App() {
           />
           <Route path="/student" element={<StudentDashboard />} />
           <Route path="/student/pickup" element={<PickupRegistration />} />
+          <Route path="/student/menus" element={<MenuStudent />} />
+          <Route path="/student/menus/:id" element={<MenuDetailStudent/>}/>
+       
           <Route
             path="/student/attendance/today"
             element={<TodayAttendance />}
@@ -396,6 +417,23 @@ function App() {
               </SchoolAdminProvider>
             }
           />
+          <Route
+            path="/school-admin/menus"
+            element={
+              <SchoolAdminProvider>
+                <MenuSchoolAdmin />
+              </SchoolAdminProvider>
+            }
+          />
+          <Route
+            path="/school-admin/menus/:id"
+            element={
+              <SchoolAdminProvider>
+                <MenuDetailSchoolAdmin />
+              </SchoolAdminProvider>
+            }
+          />
+
           <Route
             path="/school-admin/public-info"
             element={
