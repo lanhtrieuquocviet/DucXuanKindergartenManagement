@@ -28,6 +28,7 @@ const menuRoutes = require("./src/routes/menu.routes");
 
 const publicInfoRoutes = require('./src/routes/publicInfo.routes');
 const DailyMenu = require('./src/routes/dailyMenu.routes');
+const mealPhotoRoutes = require('./src/routes/mealPhoto.routes');
 
 // Import models để Mongoose đăng ký schema (tránh lỗi "Schema hasn't been registered for model 'Roles'")
 require('./src/models/Role');
@@ -253,6 +254,7 @@ app.use("/api/pickup", pickupRoutes);
 app.use("/api/foods", foodRoutes);
 app.use("/api/menus", menuRoutes);
 app.use("/api/daily-menus",DailyMenu);
+app.use('/api/meal-photos', mealPhotoRoutes);
 // Public info (public - published only)
 app.use('/api/public-info', publicInfoRoutes);
 // Route kiểm tra sức khỏe hệ thống
