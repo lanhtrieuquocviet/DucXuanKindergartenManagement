@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { Outlet, useNavigate } from 'react-router-dom';
+import { Outlet, useNavigate, useLocation } from 'react-router-dom';
 import { useAuth } from '../../context/AuthContext';
 import {
   Box,
@@ -34,8 +34,11 @@ import {
   Logout as LogoutIcon,
   Notifications as NotifIcon,
   KeyboardArrowDown as ArrowDownIcon,
+  KeyboardArrowUp as ArrowUpIcon,
   ChevronLeft as ChevronLeftIcon,
   ChevronRight as ChevronRightIcon,
+  Restaurant as MealIcon,
+  People as PeopleIcon,
 } from '@mui/icons-material';
 
 const DRAWER_FULL = 260;
@@ -61,6 +64,20 @@ const KITCHEN_MENU = [
     path: '/kitchen/foods',
   },
   {
+    label: 'Quản lý bữa ăn',
+    key: 'meal-management',
+    icon: <MealIcon fontSize="small" />,
+    path: '/kitchen/meal-management',
+    children: [
+      {
+        label: 'Sĩ số & Suất cơm',
+        key: 'headcount',
+        icon: <PeopleIcon fontSize="small" />,
+        path: '/kitchen/headcount',
+      },
+    ],
+  },
+  {
     label: 'Upload ảnh',
     key: 'upload',
     icon: <UploadIcon fontSize="small" />,
@@ -83,6 +100,8 @@ function SidebarContent({
   userAvatar,
   collapsed,
   onToggleCollapse,
+  expandedKeys,
+  onToggleExpand,
 }) {
   const initials = userName
     ? userName
@@ -259,12 +278,22 @@ function SidebarContent({
 
         <List dense disablePadding sx={{ px: collapsed ? 0.75 : 1 }}>
           {KITCHEN_MENU.map((item) => {
+            const hasChildren = item.children?.length > 0;
+            const isChildActive = hasChildren && item.children.some((c) => c.key === activeKey);
             const isActive = item.key === activeKey;
+            const isExpanded = expandedKeys?.includes(item.key);
 
             const btn = (
               <ListItemButton
                 key={item.key}
-                onClick={() => onMenuSelect(item.key)}
+                onClick={() => {
+                  if (hasChildren && !collapsed) {
+                    onToggleExpand(item.key);
+                    if (!isExpanded) onMenuSelect(item.key);
+                  } else {
+                    onMenuSelect(item.key);
+                  }
+                }}
                 sx={{
                   mb: 0.5,
                   borderRadius: 2,
@@ -273,9 +302,9 @@ function SidebarContent({
                   justifyContent: collapsed ? 'center' : 'flex-start',
                   position: 'relative',
                   overflow: 'hidden',
-                  bgcolor: isActive ? 'rgba(99,102,241,0.09)' : 'transparent',
-                  color: isActive ? 'primary.main' : 'text.secondary',
-                  '&::before': isActive && !collapsed
+                  bgcolor: (isActive || isChildActive) ? 'rgba(99,102,241,0.09)' : 'transparent',
+                  color: (isActive || isChildActive) ? 'primary.main' : 'text.secondary',
+                  '&::before': (isActive || isChildActive) && !collapsed
                     ? {
                         content: '""',
                         position: 'absolute',
@@ -288,10 +317,10 @@ function SidebarContent({
                       }
                     : {},
                   '&:hover': {
-                    bgcolor: isActive
+                    bgcolor: (isActive || isChildActive)
                       ? 'rgba(99,102,241,0.12)'
                       : 'rgba(0,0,0,0.04)',
-                    color: isActive ? 'primary.main' : 'text.primary',
+                    color: (isActive || isChildActive) ? 'primary.main' : 'text.primary',
                   },
                   transition: 'background 0.15s, color 0.15s',
                 }}
@@ -299,34 +328,107 @@ function SidebarContent({
                 <ListItemIcon
                   sx={{
                     minWidth: collapsed ? 0 : 36,
-                    color: isActive ? 'primary.main' : 'text.disabled',
+                    color: (isActive || isChildActive) ? 'primary.main' : 'text.disabled',
                     justifyContent: 'center',
                   }}
                 >
                   {item.icon}
                 </ListItemIcon>
                 {!collapsed && (
-                  <ListItemText
-                    primary={item.label}
-                    slotProps={{
-                      primary: {
-                        style: {
-                          fontSize: 13,
-                          fontWeight: isActive ? 700 : 400,
+                  <>
+                    <ListItemText
+                      primary={item.label}
+                      slotProps={{
+                        primary: {
+                          style: {
+                            fontSize: 13,
+                            fontWeight: (isActive || isChildActive) ? 700 : 400,
+                          },
                         },
-                      },
-                    }}
-                  />
+                      }}
+                    />
+                    {hasChildren && (
+                      isExpanded
+                        ? <ArrowUpIcon sx={{ fontSize: 16, color: 'text.disabled' }} />
+                        : <ArrowDownIcon sx={{ fontSize: 16, color: 'text.disabled' }} />
+                    )}
+                  </>
                 )}
               </ListItemButton>
             );
 
-            return collapsed ? (
+            const mainBtn = collapsed ? (
               <Tooltip key={item.key} title={item.label} placement="right" arrow>
                 {btn}
               </Tooltip>
             ) : (
               <span key={item.key}>{btn}</span>
+            );
+
+            return (
+              <span key={item.key}>
+                {mainBtn}
+                {hasChildren && isExpanded && !collapsed && (
+                  <List dense disablePadding sx={{ pl: 2, mb: 0.5 }}>
+                    {item.children.map((child) => {
+                      const isChildItemActive = child.key === activeKey;
+                      return (
+                        <ListItemButton
+                          key={child.key}
+                          onClick={() => onMenuSelect(child.key)}
+                          sx={{
+                            mb: 0.5,
+                            borderRadius: 2,
+                            px: 1.5,
+                            minHeight: 36,
+                            position: 'relative',
+                            bgcolor: isChildItemActive ? 'rgba(99,102,241,0.09)' : 'transparent',
+                            color: isChildItemActive ? 'primary.main' : 'text.secondary',
+                            '&::before': isChildItemActive
+                              ? {
+                                  content: '""',
+                                  position: 'absolute',
+                                  left: 0,
+                                  top: '18%',
+                                  bottom: '18%',
+                                  width: 3,
+                                  borderRadius: '0 4px 4px 0',
+                                  background: 'linear-gradient(180deg, #4f46e5, #7c3aed)',
+                                }
+                              : {},
+                            '&:hover': {
+                              bgcolor: isChildItemActive ? 'rgba(99,102,241,0.12)' : 'rgba(0,0,0,0.04)',
+                              color: isChildItemActive ? 'primary.main' : 'text.primary',
+                            },
+                            transition: 'background 0.15s, color 0.15s',
+                          }}
+                        >
+                          <ListItemIcon
+                            sx={{
+                              minWidth: 32,
+                              color: isChildItemActive ? 'primary.main' : 'text.disabled',
+                              justifyContent: 'center',
+                            }}
+                          >
+                            {child.icon}
+                          </ListItemIcon>
+                          <ListItemText
+                            primary={child.label}
+                            slotProps={{
+                              primary: {
+                                style: {
+                                  fontSize: 12.5,
+                                  fontWeight: isChildItemActive ? 700 : 400,
+                                },
+                              },
+                            }}
+                          />
+                        </ListItemButton>
+                      );
+                    })}
+                  </List>
+                )}
+              </span>
             );
           })}
         </List>
@@ -467,34 +569,42 @@ function SidebarContent({
   );
 }
 
+// Flatten all menu items (including children) for path lookup
+const ALL_MENU_ITEMS = KITCHEN_MENU.flatMap((item) =>
+  item.children ? [item, ...item.children] : [item]
+);
+
 function KitchenLayout() {
   const theme = useTheme();
   const isMobile = useMediaQuery(theme.breakpoints.down('md'));
   const navigate = useNavigate();
+  const location = useLocation();
   const { user, logout, isInitializing } = useAuth();
 
   const [mobileOpen, setMobileOpen] = useState(false);
   const [activeKey, setActiveKey] = useState('dashboard');
   const [profileAnchor, setProfileAnchor] = useState(null);
   const [collapsed, setCollapsed] = useState(false);
+  const [expandedKeys, setExpandedKeys] = useState([]);
 
   useEffect(() => {
-    // Wait for initialization
-    if (isInitializing) {
-      return;
-    }
-
-    if (!user) {
-      navigate('/login', { replace: true });
-      return;
-    }
-
+    if (isInitializing) return;
+    if (!user) { navigate('/login', { replace: true }); return; }
     const userRoles = user?.roles?.map((r) => r.roleName || r) || [];
-    if (!userRoles.includes('KitchenStaff')) {
-      navigate('/', { replace: true });
-      return;
-    }
+    if (!userRoles.includes('KitchenStaff')) { navigate('/', { replace: true }); return; }
   }, [user, isInitializing, navigate]);
+
+  // Sync active key and expanded parents from current URL
+  useEffect(() => {
+    const matched = ALL_MENU_ITEMS.find((item) => item.path === location.pathname);
+    if (!matched) return;
+    setActiveKey(matched.key);
+    // If matched item is a child, auto-expand its parent
+    const parent = KITCHEN_MENU.find((m) => m.children?.some((c) => c.key === matched.key));
+    if (parent) {
+      setExpandedKeys((prev) => prev.includes(parent.key) ? prev : [...prev, parent.key]);
+    }
+  }, [location.pathname]);
 
   const drawerWidth = isMobile
     ? DRAWER_FULL
@@ -518,16 +628,20 @@ function KitchenLayout() {
     month: 'numeric',
   });
 
-  const activeItem = KITCHEN_MENU.find((m) => m.key === activeKey);
+  const activeItem = ALL_MENU_ITEMS.find((m) => m.key === activeKey);
   const activeIcon = activeItem?.icon;
 
   const handleMenuSelect = (key) => {
     setMobileOpen(false);
     setActiveKey(key);
-    const item = KITCHEN_MENU.find((m) => m.key === key);
-    if (item) {
-      navigate(item.path);
-    }
+    const item = ALL_MENU_ITEMS.find((m) => m.key === key);
+    if (item) navigate(item.path);
+  };
+
+  const handleToggleExpand = (key) => {
+    setExpandedKeys((prev) =>
+      prev.includes(key) ? prev.filter((k) => k !== key) : [...prev, key]
+    );
   };
 
   const handleLogout = () => {
@@ -551,6 +665,8 @@ function KitchenLayout() {
     userAvatar,
     collapsed: isMobile ? false : collapsed,
     onToggleCollapse: () => setCollapsed((p) => !p),
+    expandedKeys,
+    onToggleExpand: handleToggleExpand,
   };
 
   return (

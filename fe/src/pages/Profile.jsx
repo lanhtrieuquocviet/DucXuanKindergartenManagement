@@ -57,6 +57,275 @@ function SectionCard({ icon, title, accentGradient, children }) {
   );
 }
 
+function AvatarUpload({ currentAvatar, uploadingAvatar, fileInputRef, onSelectFile }) {
+  return (
+    <Stack direction="row" spacing={2} alignItems="flex-start">
+      <Box sx={{ position: 'relative', flexShrink: 0 }}>
+        <Box sx={{
+          width: 80, aspectRatio: '3/4',
+          borderRadius: 2, overflow: 'hidden',
+          border: '2px solid', borderColor: 'divider',
+          bgcolor: 'grey.100',
+        }}>
+          <img src={currentAvatar} alt="avatar" style={{ width: '100%', height: '100%', objectFit: 'cover', display: 'block' }} />
+        </Box>
+        {uploadingAvatar && (
+          <Box sx={{ position: 'absolute', inset: 0, borderRadius: 2, bgcolor: 'rgba(0,0,0,0.45)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+            <CircularProgress size={22} sx={{ color: 'white' }} />
+          </Box>
+        )}
+        <Tooltip title="Đổi ảnh" arrow>
+          <IconButton
+            size="small"
+            onClick={() => fileInputRef.current?.click()}
+            disabled={uploadingAvatar}
+            sx={{
+              position: 'absolute', bottom: -8, right: -8,
+              width: 28, height: 28,
+              bgcolor: 'primary.main', color: 'white',
+              border: '2px solid white',
+              '&:hover': { bgcolor: 'primary.dark' },
+              '&:disabled': { bgcolor: 'grey.400' },
+            }}
+          >
+            <PhotoCameraIcon sx={{ fontSize: 14 }} />
+          </IconButton>
+        </Tooltip>
+      </Box>
+
+      <Box sx={{ flex: 1, pt: 0.5 }}>
+        <input
+          ref={fileInputRef}
+          type="file"
+          accept="image/jpeg,image/jpg,image/png,image/gif,image/webp"
+          onChange={onSelectFile}
+          style={{ display: 'none' }}
+        />
+        <Button
+          variant="outlined"
+          size="small"
+          startIcon={<PhotoCameraIcon />}
+          onClick={() => fileInputRef.current?.click()}
+          disabled={uploadingAvatar}
+          sx={{ mb: 1, borderRadius: 2 }}
+        >
+          {uploadingAvatar ? 'Đang tải lên...' : 'Chọn ảnh'}
+        </Button>
+        <Typography variant="caption" color="text.secondary" display="block" sx={{ lineHeight: 1.5 }}>
+          Tỉ lệ 3×4 · JPEG, PNG, GIF, WebP
+          <br />Nhấn &ldquo;Lưu thay đổi&rdquo; để cập nhật.
+        </Typography>
+      </Box>
+    </Stack>
+  );
+}
+
+function ProfileForm({
+  color = 'primary',
+  profileForm,
+  onProfileChange,
+  onSubmit,
+  savingProfile,
+  currentAvatar,
+  uploadingAvatar,
+  fileInputRef,
+  onSelectFile,
+}) {
+  return (
+    <Stack component="form" onSubmit={onSubmit} spacing={2.5}>
+      <TextField label="Họ và tên" name="fullName" value={profileForm.fullName ?? ''} onChange={onProfileChange} size="small" fullWidth color={color} />
+      <TextField label="Email" name="email" type="email" value={profileForm.email ?? ''} onChange={onProfileChange} size="small" fullWidth color={color} />
+      <TextField
+        label="Số điện thoại" name="phone" type="tel"
+        value={profileForm.phone ?? ''}
+        onChange={(e) => { if (e.target.value.length <= 50) onProfileChange(e); }}
+        inputProps={{ maxLength: 50 }}
+        helperText={`${profileForm.phone?.length || 0}/50 ký tự`}
+        size="small" fullWidth color={color}
+      />
+      <TextField
+        label="Địa chỉ" name="address"
+        value={profileForm.address ?? ''}
+        onChange={(e) => { if (e.target.value.length <= 50) onProfileChange(e); }}
+        inputProps={{ maxLength: 50 }}
+        helperText={`${profileForm.address?.length || 0}/50 ký tự`}
+        size="small" fullWidth color={color}
+      />
+
+      <Box>
+        <Typography variant="caption" fontWeight={600} color="text.secondary" sx={{ mb: 1, display: 'block' }}>
+          Ảnh đại diện (3×4)
+        </Typography>
+        <AvatarUpload
+          currentAvatar={currentAvatar}
+          uploadingAvatar={uploadingAvatar}
+          fileInputRef={fileInputRef}
+          onSelectFile={onSelectFile}
+        />
+      </Box>
+
+      <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5 }}>
+        <Typography variant="caption" fontWeight={600} color="text.secondary">Trạng thái:</Typography>
+        <Chip
+          icon={<CheckCircleIcon sx={{ fontSize: '14px !important' }} />}
+          label={profileForm.status || 'Đang hoạt động'}
+          size="small"
+          color="success"
+          variant="outlined"
+          sx={{ fontWeight: 600 }}
+        />
+      </Box>
+
+      <Box>
+        <Button
+          type="submit"
+          variant="contained"
+          color={color}
+          disabled={savingProfile}
+          startIcon={savingProfile ? <CircularProgress size={15} color="inherit" /> : <EditOutlinedIcon />}
+          sx={{ borderRadius: 2, fontWeight: 700, px: 3 }}
+        >
+          {savingProfile ? 'Đang lưu...' : 'Lưu thay đổi'}
+        </Button>
+      </Box>
+    </Stack>
+  );
+}
+
+function PasswordForm({ passwordForm, passwordHint, onPasswordChange, onSubmit, changingPassword }) {
+  return (
+    <Stack component="form" onSubmit={onSubmit} spacing={2.5}>
+      <TextField
+        label="Mật khẩu hiện tại" name="currentPassword" type="password"
+        value={passwordForm.currentPassword} onChange={onPasswordChange}
+        size="small" fullWidth
+      />
+      <TextField
+        label="Mật khẩu mới" name="newPassword" type="password"
+        value={passwordForm.newPassword} onChange={onPasswordChange}
+        size="small" fullWidth
+        helperText={passwordHint || ' '}
+        FormHelperTextProps={{ sx: { color: passwordHint ? 'warning.main' : 'transparent', mt: 0.25 } }}
+      />
+      <TextField
+        label="Xác nhận mật khẩu mới" name="confirmPassword" type="password"
+        value={passwordForm.confirmPassword} onChange={onPasswordChange}
+        size="small" fullWidth
+      />
+      <Box>
+        <Button
+          type="submit"
+          variant="contained"
+          color="warning"
+          disabled={changingPassword}
+          startIcon={changingPassword ? <CircularProgress size={15} color="inherit" /> : <LockOutlinedIcon />}
+          sx={{ borderRadius: 2, fontWeight: 700, px: 3 }}
+        >
+          {changingPassword ? 'Đang đổi...' : 'Đổi mật khẩu'}
+        </Button>
+      </Box>
+    </Stack>
+  );
+}
+
+function Alerts({ message, authError, onClearMessage, onClearError }) {
+  return (
+    <>
+      {message && (
+        <Alert severity="success" sx={{ mb: 3, borderRadius: 2 }} onClose={onClearMessage}>
+          {message}
+        </Alert>
+      )}
+      {authError && (
+        <Alert severity="error" sx={{ mb: 3, borderRadius: 2 }} onClose={onClearError}>
+          {authError}
+        </Alert>
+      )}
+    </>
+  );
+}
+
+function HeroBanner({ gradient, roleLabel, extra, currentAvatar, displayName, user, profileFormLoading, profileForm, onBack, onLogout }) {
+  return (
+    <Paper
+      elevation={0}
+      sx={{
+        mb: 4, borderRadius: 3,
+        background: gradient,
+        color: 'white', overflow: 'hidden', position: 'relative',
+      }}
+    >
+      {/* Decorative circles */}
+      <Box sx={{ position: 'absolute', right: -40, top: -40, width: 160, height: 160, borderRadius: '50%', bgcolor: 'rgba(255,255,255,0.06)' }} />
+      <Box sx={{ position: 'absolute', right: 80, bottom: -50, width: 120, height: 120, borderRadius: '50%', bgcolor: 'rgba(255,255,255,0.05)' }} />
+      <Box sx={{ position: 'absolute', left: -20, bottom: -30, width: 100, height: 100, borderRadius: '50%', bgcolor: 'rgba(255,255,255,0.04)' }} />
+
+      <Box sx={{ position: 'relative', zIndex: 1, p: { xs: 2.5, md: 3 }, display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: 2 }}>
+        {/* Left: avatar + info */}
+        <Stack direction="row" spacing={2} alignItems="center">
+          <Box sx={{ position: 'relative' }}>
+            <Box sx={{
+              width: 72, aspectRatio: '3/4',
+              borderRadius: 2.5, overflow: 'hidden',
+              border: '3px solid rgba(255,255,255,0.4)',
+              bgcolor: 'rgba(255,255,255,0.15)',
+              flexShrink: 0,
+            }}>
+              <img src={currentAvatar} alt="avatar" style={{ width: '100%', height: '100%', objectFit: 'cover', display: 'block' }} />
+            </Box>
+          </Box>
+          <Box>
+            <Typography variant="caption" sx={{ opacity: 0.7, fontSize: 12 }}>{roleLabel}</Typography>
+            <Typography variant="h6" fontWeight={800} sx={{ lineHeight: 1.2, mt: 0.25 }}>
+              {displayName}
+            </Typography>
+            <Typography variant="caption" sx={{ opacity: 0.65 }}>
+              {user?.email ?? profileForm.email}
+            </Typography>
+            {profileFormLoading && (
+              <Stack direction="row" spacing={0.75} alignItems="center" mt={0.5}>
+                <CircularProgress size={12} sx={{ color: 'rgba(255,255,255,0.7)' }} />
+                <Typography variant="caption" sx={{ opacity: 0.65 }}>Đang tải...</Typography>
+              </Stack>
+            )}
+          </Box>
+        </Stack>
+
+        {/* Right: action buttons */}
+        <Stack direction="row" spacing={1} flexWrap="wrap">
+          {extra}
+          <Button
+            variant="outlined"
+            startIcon={<ArrowBackIcon />}
+            onClick={onBack}
+            size="small"
+            sx={{
+              color: 'white', borderColor: 'rgba(255,255,255,0.45)',
+              fontWeight: 600, borderRadius: 2, textTransform: 'none',
+              '&:hover': { bgcolor: 'rgba(255,255,255,0.12)', borderColor: 'rgba(255,255,255,0.7)' },
+            }}
+          >
+            Bảng điều khiển
+          </Button>
+          <Button
+            variant="outlined"
+            startIcon={<LogoutIcon />}
+            onClick={onLogout}
+            size="small"
+            sx={{
+              color: 'white', borderColor: 'rgba(255,255,255,0.45)',
+              fontWeight: 600, borderRadius: 2, textTransform: 'none',
+              '&:hover': { bgcolor: 'rgba(255,255,255,0.12)', borderColor: 'rgba(255,255,255,0.7)' },
+            }}
+          >
+            Đăng xuất
+          </Button>
+        </Stack>
+      </Box>
+    </Paper>
+  );
+}
+
 function Profile() {
   const navigate = useNavigate();
   const {
@@ -282,256 +551,42 @@ function Profile() {
 
   const currentAvatar = avatarPreview || profileForm.avatar || user?.avatar || DEFAULT_AVATAR;
   const displayName = user?.fullName || profileForm.fullName || user?.username || 'Người dùng';
-  const initials = displayName.split(' ').map((w) => w[0]).slice(-2).join('').toUpperCase();
 
-  // ── Shared: Avatar upload ──
-  const AvatarUpload = () => (
-    <Stack direction="row" spacing={2} alignItems="flex-start">
-      <Box sx={{ position: 'relative', flexShrink: 0 }}>
-        <Box sx={{
-          width: 80, aspectRatio: '3/4',
-          borderRadius: 2, overflow: 'hidden',
-          border: '2px solid', borderColor: 'divider',
-          bgcolor: 'grey.100',
-        }}>
-          <img src={currentAvatar} alt="avatar" style={{ width: '100%', height: '100%', objectFit: 'cover', display: 'block' }} />
-        </Box>
-        {uploadingAvatar && (
-          <Box sx={{ position: 'absolute', inset: 0, borderRadius: 2, bgcolor: 'rgba(0,0,0,0.45)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-            <CircularProgress size={22} sx={{ color: 'white' }} />
-          </Box>
-        )}
-        <Tooltip title="Đổi ảnh" arrow>
-          <IconButton
-            size="small"
-            onClick={() => fileInputRef.current?.click()}
-            disabled={uploadingAvatar}
-            sx={{
-              position: 'absolute', bottom: -8, right: -8,
-              width: 28, height: 28,
-              bgcolor: 'primary.main', color: 'white',
-              border: '2px solid white',
-              '&:hover': { bgcolor: 'primary.dark' },
-              '&:disabled': { bgcolor: 'grey.400' },
-            }}
-          >
-            <PhotoCameraIcon sx={{ fontSize: 14 }} />
-          </IconButton>
-        </Tooltip>
-      </Box>
+  const sharedBannerProps = {
+    currentAvatar,
+    displayName,
+    user,
+    profileFormLoading,
+    profileForm,
+    onBack: handleBackToDashboard,
+    onLogout: handleLogout,
+  };
 
-      <Box sx={{ flex: 1, pt: 0.5 }}>
-        <input
-          ref={fileInputRef}
-          type="file"
-          accept="image/jpeg,image/jpg,image/png,image/gif,image/webp"
-          onChange={handleSelectAvatarFile}
-          style={{ display: 'none' }}
-        />
-        <Button
-          variant="outlined"
-          size="small"
-          startIcon={<PhotoCameraIcon />}
-          onClick={() => fileInputRef.current?.click()}
-          disabled={uploadingAvatar}
-          sx={{ mb: 1, borderRadius: 2 }}
-        >
-          {uploadingAvatar ? 'Đang tải lên...' : 'Chọn ảnh'}
-        </Button>
-        <Typography variant="caption" color="text.secondary" display="block" sx={{ lineHeight: 1.5 }}>
-          Tỉ lệ 3×4 · JPEG, PNG, GIF, WebP
-          <br />Nhấn &ldquo;Lưu thay đổi&rdquo; để cập nhật.
-        </Typography>
-      </Box>
-    </Stack>
-  );
+  const sharedProfileFormProps = {
+    profileForm,
+    onProfileChange: handleProfileChange,
+    onSubmit: handleSubmitProfile,
+    savingProfile,
+    currentAvatar,
+    uploadingAvatar,
+    fileInputRef,
+    onSelectFile: handleSelectAvatarFile,
+  };
 
-  // ── Shared: Profile form ──
-  const ProfileForm = ({ color = 'primary' }) => (
-    <Stack component="form" onSubmit={handleSubmitProfile} spacing={2.5}>
-      <TextField label="Họ và tên" name="fullName" value={profileForm.fullName ?? ''} onChange={handleProfileChange} size="small" fullWidth color={color} />
-      <TextField label="Email" name="email" type="email" value={profileForm.email ?? ''} onChange={handleProfileChange} size="small" fullWidth color={color} />
-      <TextField
-        label="Số điện thoại" name="phone" type="tel"
-        value={profileForm.phone ?? ''}
-        onChange={(e) => { if (e.target.value.length <= 50) handleProfileChange(e); }}
-        inputProps={{ maxLength: 50 }}
-        helperText={`${profileForm.phone?.length || 0}/50 ký tự`}
-        size="small" fullWidth color={color}
-      />
-      <TextField
-        label="Địa chỉ" name="address"
-        value={profileForm.address ?? ''}
-        onChange={(e) => { if (e.target.value.length <= 50) handleProfileChange(e); }}
-        inputProps={{ maxLength: 50 }}
-        helperText={`${profileForm.address?.length || 0}/50 ký tự`}
-        size="small" fullWidth color={color}
-      />
+  const sharedPasswordFormProps = {
+    passwordForm,
+    passwordHint,
+    onPasswordChange: handlePasswordChange,
+    onSubmit: handleSubmitPassword,
+    changingPassword,
+  };
 
-      <Box>
-        <Typography variant="caption" fontWeight={600} color="text.secondary" sx={{ mb: 1, display: 'block' }}>
-          Ảnh đại diện (3×4)
-        </Typography>
-        <AvatarUpload />
-      </Box>
-
-      <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5 }}>
-        <Typography variant="caption" fontWeight={600} color="text.secondary">Trạng thái:</Typography>
-        <Chip
-          icon={<CheckCircleIcon sx={{ fontSize: '14px !important' }} />}
-          label={profileForm.status || 'Đang hoạt động'}
-          size="small"
-          color="success"
-          variant="outlined"
-          sx={{ fontWeight: 600 }}
-        />
-      </Box>
-
-      <Box>
-        <Button
-          type="submit"
-          variant="contained"
-          color={color}
-          disabled={savingProfile}
-          startIcon={savingProfile ? <CircularProgress size={15} color="inherit" /> : <EditOutlinedIcon />}
-          sx={{ borderRadius: 2, fontWeight: 700, px: 3 }}
-        >
-          {savingProfile ? 'Đang lưu...' : 'Lưu thay đổi'}
-        </Button>
-      </Box>
-    </Stack>
-  );
-
-  // ── Shared: Password form ──
-  const PasswordForm = () => (
-    <Stack component="form" onSubmit={handleSubmitPassword} spacing={2.5}>
-      <TextField
-        label="Mật khẩu hiện tại" name="currentPassword" type="password"
-        value={passwordForm.currentPassword} onChange={handlePasswordChange}
-        size="small" fullWidth
-      />
-      <TextField
-        label="Mật khẩu mới" name="newPassword" type="password"
-        value={passwordForm.newPassword} onChange={handlePasswordChange}
-        size="small" fullWidth
-        helperText={passwordHint || ' '}
-        FormHelperTextProps={{ sx: { color: passwordHint ? 'warning.main' : 'transparent', mt: 0.25 } }}
-      />
-      <TextField
-        label="Xác nhận mật khẩu mới" name="confirmPassword" type="password"
-        value={passwordForm.confirmPassword} onChange={handlePasswordChange}
-        size="small" fullWidth
-      />
-      <Box>
-        <Button
-          type="submit"
-          variant="contained"
-          color="warning"
-          disabled={changingPassword}
-          startIcon={changingPassword ? <CircularProgress size={15} color="inherit" /> : <LockOutlinedIcon />}
-          sx={{ borderRadius: 2, fontWeight: 700, px: 3 }}
-        >
-          {changingPassword ? 'Đang đổi...' : 'Đổi mật khẩu'}
-        </Button>
-      </Box>
-    </Stack>
-  );
-
-  // ── Shared: Alert messages ──
-  const Alerts = () => (
-    <>
-      {message && (
-        <Alert severity="success" sx={{ mb: 3, borderRadius: 2 }} onClose={() => setMessage('')}>
-          {message}
-        </Alert>
-      )}
-      {authError && (
-        <Alert severity="error" sx={{ mb: 3, borderRadius: 2 }} onClose={() => setError(null)}>
-          {authError}
-        </Alert>
-      )}
-    </>
-  );
-
-  // ── Shared: Hero banner ──
-  const HeroBanner = ({ gradient, roleLabel, extra }) => (
-    <Paper
-      elevation={0}
-      sx={{
-        mb: 4, borderRadius: 3,
-        background: gradient,
-        color: 'white', overflow: 'hidden', position: 'relative',
-      }}
-    >
-      {/* Decorative circles */}
-      <Box sx={{ position: 'absolute', right: -40, top: -40, width: 160, height: 160, borderRadius: '50%', bgcolor: 'rgba(255,255,255,0.06)' }} />
-      <Box sx={{ position: 'absolute', right: 80, bottom: -50, width: 120, height: 120, borderRadius: '50%', bgcolor: 'rgba(255,255,255,0.05)' }} />
-      <Box sx={{ position: 'absolute', left: -20, bottom: -30, width: 100, height: 100, borderRadius: '50%', bgcolor: 'rgba(255,255,255,0.04)' }} />
-
-      <Box sx={{ position: 'relative', zIndex: 1, p: { xs: 2.5, md: 3 }, display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: 2 }}>
-        {/* Left: avatar + info */}
-        <Stack direction="row" spacing={2} alignItems="center">
-          <Box sx={{ position: 'relative' }}>
-            <Box sx={{
-              width: 72, aspectRatio: '3/4',
-              borderRadius: 2.5, overflow: 'hidden',
-              border: '3px solid rgba(255,255,255,0.4)',
-              bgcolor: 'rgba(255,255,255,0.15)',
-              flexShrink: 0,
-            }}>
-              <img src={currentAvatar} alt="avatar" style={{ width: '100%', height: '100%', objectFit: 'cover', display: 'block' }} />
-            </Box>
-          </Box>
-          <Box>
-            <Typography variant="caption" sx={{ opacity: 0.7, fontSize: 12 }}>{roleLabel}</Typography>
-            <Typography variant="h6" fontWeight={800} sx={{ lineHeight: 1.2, mt: 0.25 }}>
-              {displayName}
-            </Typography>
-            <Typography variant="caption" sx={{ opacity: 0.65 }}>
-              {user?.email ?? profileForm.email}
-            </Typography>
-            {profileFormLoading && (
-              <Stack direction="row" spacing={0.75} alignItems="center" mt={0.5}>
-                <CircularProgress size={12} sx={{ color: 'rgba(255,255,255,0.7)' }} />
-                <Typography variant="caption" sx={{ opacity: 0.65 }}>Đang tải...</Typography>
-              </Stack>
-            )}
-          </Box>
-        </Stack>
-
-        {/* Right: action buttons */}
-        <Stack direction="row" spacing={1} flexWrap="wrap">
-          {extra}
-          <Button
-            variant="outlined"
-            startIcon={<ArrowBackIcon />}
-            onClick={handleBackToDashboard}
-            size="small"
-            sx={{
-              color: 'white', borderColor: 'rgba(255,255,255,0.45)',
-              fontWeight: 600, borderRadius: 2, textTransform: 'none',
-              '&:hover': { bgcolor: 'rgba(255,255,255,0.12)', borderColor: 'rgba(255,255,255,0.7)' },
-            }}
-          >
-            Bảng điều khiển
-          </Button>
-          <Button
-            variant="outlined"
-            startIcon={<LogoutIcon />}
-            onClick={handleLogout}
-            size="small"
-            sx={{
-              color: 'white', borderColor: 'rgba(255,255,255,0.45)',
-              fontWeight: 600, borderRadius: 2, textTransform: 'none',
-              '&:hover': { bgcolor: 'rgba(255,255,255,0.12)', borderColor: 'rgba(255,255,255,0.7)' },
-            }}
-          >
-            Đăng xuất
-          </Button>
-        </Stack>
-      </Box>
-    </Paper>
-  );
+  const alertProps = {
+    message,
+    authError,
+    onClearMessage: () => setMessage(''),
+    onClearError: () => setError(null),
+  };
 
   // ═══════════════ STUDENT / PARENT ═══════════════
   if (isStudentRole) {
@@ -541,9 +596,10 @@ function Profile() {
           <HeroBanner
             gradient="linear-gradient(135deg, #059669 0%, #0d9488 100%)"
             roleLabel="Phụ huynh học sinh"
+            {...sharedBannerProps}
           />
 
-          <Alerts />
+          <Alerts {...alertProps} />
 
           <Box sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr', md: '1fr 1fr' }, gap: 3 }}>
             <SectionCard
@@ -551,7 +607,7 @@ function Profile() {
               title="Chỉnh sửa hồ sơ"
               accentGradient="linear-gradient(135deg, #059669 0%, #0d9488 100%)"
             >
-              <ProfileForm color="success" />
+              <ProfileForm color="success" {...sharedProfileFormProps} />
             </SectionCard>
 
             <SectionCard
@@ -559,7 +615,7 @@ function Profile() {
               title="Đổi mật khẩu"
               accentGradient="linear-gradient(135deg, #f59e0b 0%, #f97316 100%)"
             >
-              <PasswordForm />
+              <PasswordForm {...sharedPasswordFormProps} />
             </SectionCard>
           </Box>
         </Box>
@@ -574,9 +630,10 @@ function Profile() {
         <HeroBanner
           gradient="linear-gradient(135deg, #4f46e5 0%, #7c3aed 100%)"
           roleLabel={userRoles[0] || 'Quản trị viên'}
+          {...sharedBannerProps}
         />
 
-        <Alerts />
+        <Alerts {...alertProps} />
 
         <Box sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr', lg: '1fr 1fr' }, gap: 3 }}>
           <SectionCard
@@ -584,7 +641,7 @@ function Profile() {
             title="Chỉnh sửa hồ sơ"
             accentGradient="linear-gradient(135deg, #4f46e5 0%, #7c3aed 100%)"
           >
-            <ProfileForm color="primary" />
+            <ProfileForm color="primary" {...sharedProfileFormProps} />
           </SectionCard>
 
           <SectionCard
@@ -592,7 +649,7 @@ function Profile() {
             title="Đổi mật khẩu"
             accentGradient="linear-gradient(135deg, #f59e0b 0%, #f97316 100%)"
           >
-            <PasswordForm />
+            <PasswordForm {...sharedPasswordFormProps} />
           </SectionCard>
         </Box>
       </Box>

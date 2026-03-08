@@ -1,6 +1,6 @@
 const express = require('express');
 const multer = require('multer');
-const { getMediaLibrarySignature, uploadAvatar, uploadBlogImage, uploadBlogFile } = require('../controller/cloudinaryController');
+const { getMediaLibrarySignature, uploadAvatar, uploadBlogImage, uploadBlogFile, uploadKitchenImage } = require('../controller/cloudinaryController');
 const { authenticate, authorizeRoles } = require('../middleware/auth');
 
 const router = express.Router();
@@ -58,6 +58,16 @@ router.post(
   authorizeRoles('SchoolAdmin'),
   blogFileUploadMiddleware.single('file'),
   uploadBlogFile,
+  handleUploadError
+);
+
+// Upload ảnh bếp (ảnh món ăn / mẫu thực phẩm) - KitchenStaff
+router.post(
+  '/upload-kitchen-image',
+  authenticate,
+  authorizeRoles('KitchenStaff'),
+  uploadMiddleware.single('image'),
+  uploadKitchenImage,
   handleUploadError
 );
 

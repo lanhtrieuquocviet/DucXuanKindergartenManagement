@@ -277,6 +277,14 @@ export const ENDPOINTS = {
     UPLOAD_AVATAR: "/cloudinary/upload-avatar",
     UPLOAD_BLOG_IMAGE: "/cloudinary/upload-blog-image",
     UPLOAD_BLOG_FILE: "/cloudinary/upload-blog-file",
+    UPLOAD_KITCHEN_IMAGE: "/cloudinary/upload-kitchen-image",
+  },
+  // Meal Photos (Kitchen Staff)
+  MEAL_PHOTOS: {
+    GET: "/meal-photos",
+    UPSERT: "/meal-photos",
+    UPSERT_MEAL_ENTRY: "/meal-photos/meal-entry",
+    ATTENDANCE_SUMMARY: "/meal-photos/attendance-summary",
   },
   // OTP
   OTP: {
