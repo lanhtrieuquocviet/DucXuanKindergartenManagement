@@ -528,6 +528,18 @@ function ManageBlogs() {
 
   const menuItems = [
     { key: 'overview', label: 'Tổng quan trường' },
+    {
+      key: 'academic-years',
+      label: 'Quản lý năm học',
+      children: [
+        { key: 'academic-plan', label: 'Thiết lập kế hoạch' },
+        { key: 'academic-classes', label: 'Danh sách lớp học' },
+        { key: 'academic-students', label: 'Danh sách trẻ' },
+        { key: 'academic-curriculum', label: 'Chương trình giáo dục' },
+        { key: 'academic-schedule', label: 'Thời khóa biểu' },
+        { key: 'academic-report', label: 'Báo cáo & thống kê' },
+      ],
+    },
     { key: 'classes', label: 'Lớp học' },
     { key: 'teachers', label: 'Giáo viên' },
     { key: 'students', label: 'Học sinh & phụ huynh' },

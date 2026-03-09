@@ -82,6 +82,18 @@ function MenuSchoolAdmin() {
 
   const menuItems = [
     { key: "overview", label: "Tổng quan trường" },
+    {
+      key: "academic-years",
+      label: "Quản lý năm học",
+      children: [
+        { key: "academic-plan", label: "Thiết lập kế hoạch" },
+        { key: "academic-classes", label: "Danh sách lớp học" },
+        { key: "academic-students", label: "Danh sách trẻ" },
+        { key: 'academic-curriculum', label: 'Chương trình giáo dục' },
+        { key: 'academic-schedule', label: 'Thời khóa biểu' },
+        { key: 'academic-report', label: 'Báo cáo & thống kê' },
+      ],
+    },
     { key: "classes", label: "Lớp học" },
     { key: "menu", label: "Quản lý thực đơn" },
     { key: "teachers", label: "Giáo viên" },
@@ -104,6 +116,10 @@ function MenuSchoolAdmin() {
 
   const handleMenuSelect = (key) => {
     if (key === "overview") navigate("/school-admin");
+    if (key === "academic-years" || key === "academic-plan")
+      navigate("/school-admin/academic-years");
+    if (key === "academic-classes") navigate("/school-admin/classes");
+    if (key === "academic-students") navigate("/school-admin/students");
     if (key === "classes") navigate("/school-admin/classes");
     if (key === "menu") navigate("/school-admin/menus");
     if (key === "students") navigate("/school-admin/students");

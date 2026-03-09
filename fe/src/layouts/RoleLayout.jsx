@@ -32,12 +32,20 @@ import {
   Assessment as AssessmentIcon,
   Dashboard as DashboardIcon,
 } from '@mui/icons-material';
+import { CurrencyIcon } from 'lucide-react';
 
 const DRAWER_FULL = 260;
 const DRAWER_MINI = 68;
 
 const KEY_ICONS = {
   overview:              <DashboardIcon fontSize="small" />,
+  'academic-years':      <CalendarIcon fontSize="small" />,
+  'academic-plan':       <CalendarIcon fontSize="small" />,
+  'academic-classes':    <SchoolIcon fontSize="small" />,
+  'academic-students':   <PeopleIcon fontSize="small" />,
+  'academic-curriculum':   <CurrencyIcon fontSize="small" />,
+  'academic-schedule':   <SchoolIcon fontSize="small" />,
+  'academic-report':    <BarChartIcon fontSize="small" />,
   classes:               <SchoolIcon fontSize="small" />,
   teachers:              <PersonIcon fontSize="small" />,
   students:              <PeopleIcon fontSize="small" />,
@@ -64,6 +72,7 @@ function SidebarContent({
   menuItems, activeKey, onMenuSelect, onLogout, onViewProfile,
   userName, userAvatar, collapsed, onToggleCollapse,
 }) {
+  const [openGroups, setOpenGroups] = useState({});
   const initials = userName
     ? userName.split(' ').map((w) => w[0]).slice(-2).join('').toUpperCase()
     : '?';
@@ -146,13 +155,26 @@ function SidebarContent({
 
         <List dense disablePadding sx={{ px: collapsed ? 0.75 : 1 }}>
           {menuItems.map((item) => {
-            const isActive = item.key === activeKey;
+            const hasChildren = Array.isArray(item.children) && item.children.length > 0;
+            const isChildActive = hasChildren
+              ? item.children.some((child) => child.key === activeKey)
+              : false;
+            const isActive = item.key === activeKey || isChildActive;
             const icon = item.icon || KEY_ICONS[item.key] || <DotIcon fontSize="small" />;
+            const isGroupOpen = openGroups[item.key] ?? true;
 
-            const btn = (
+            const parentButton = (
               <ListItemButton
                 key={item.key}
-                onClick={() => onMenuSelect(item.key)}
+                onClick={() => {
+                  if (hasChildren) {
+                    setOpenGroups((prev) => ({
+                      ...prev,
+                      [item.key]: !isGroupOpen,
+                    }));
+                  }
+                  onMenuSelect(item.key);
+                }}
                 sx={{
                   mb: 0.5, borderRadius: 2,
                   px: collapsed ? 0 : 1.5,
@@ -192,9 +214,63 @@ function SidebarContent({
               </ListItemButton>
             );
 
-            return collapsed
-              ? <Tooltip key={item.key} title={item.label} placement="right" arrow>{btn}</Tooltip>
-              : <span key={item.key}>{btn}</span>;
+            if (!hasChildren) {
+              return collapsed
+                ? (
+                  <Tooltip key={item.key} title={item.label} placement="right" arrow>
+                    {parentButton}
+                  </Tooltip>
+                )
+                : (
+                  <span key={item.key}>{parentButton}</span>
+                );
+            }
+
+            return (
+              <Box key={item.key} sx={{ mb: 0.25 }}>
+                {collapsed ? (
+                  <Tooltip title={item.label} placement="right" arrow>
+                    {parentButton}
+                  </Tooltip>
+                ) : (
+                  parentButton
+                )}
+                {!collapsed && isGroupOpen && (
+                  <List dense disablePadding sx={{ pl: 4 }}>
+                    {item.children.map((child) => {
+                      const childIsActive = child.key === activeKey;
+                      const childIcon = child.icon || KEY_ICONS[child.key] || <DotIcon fontSize="small" />;
+                      return (
+                        <ListItemButton
+                          key={child.key}
+                          onClick={() => onMenuSelect(child.key)}
+                          sx={{
+                            mb: 0.25,
+                            borderRadius: 2,
+                            minHeight: 34,
+                            px: 1.5,
+                            bgcolor: childIsActive ? 'rgba(99,102,241,0.08)' : 'transparent',
+                            color: childIsActive ? 'primary.main' : 'text.secondary',
+                            '&:hover': {
+                              bgcolor: childIsActive ? 'rgba(99,102,241,0.12)' : 'rgba(0,0,0,0.03)',
+                              color: childIsActive ? 'primary.main' : 'text.primary',
+                            },
+                          }}
+                        >
+                          <ListItemIcon sx={{ minWidth: 28, color: childIsActive ? 'primary.main' : 'text.disabled' }}>
+                            {childIcon}
+                          </ListItemIcon>
+                          <ListItemText
+                            primary={child.label}
+                            slotProps={{ primary: { style: { fontSize: 12.5, fontWeight: childIsActive ? 600 : 400 } } }}
+                          />
+                        </ListItemButton>
+                      );
+                    })}
+                  </List>
+                )}
+              </Box>
+            );
           })}
         </List>
       </Box>
