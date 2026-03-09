@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import RoleLayout from '../../layouts/RoleLayout';
 import { useAuth } from '../../context/AuthContext';
+import { get, post, patch, ENDPOINTS } from '../../service/api';
 import {
   Box,
   Paper,
@@ -28,16 +29,17 @@ import {
   Search as SearchIcon,
 } from '@mui/icons-material';
 
-function ManageAcademicYears() {
-  const [currentYear] = useState({
-    name: 'Năm học 2025 – 2026',
-    startDate: '01/09/2025',
-    endDate: '31/05/2026',
-    topics: 'Phát triển toàn diện & Kỹ năng sống',
-    status: 'active',
-  });
+function formatDate(dateString) {
+  if (!dateString) return '';
+  const d = new Date(dateString);
+  if (Number.isNaN(d.getTime())) return '';
+  return d.toLocaleDateString('vi-VN');
+}
 
-  const [archiveYear, setArchiveYear] = useState('2024-2025');
+function ManageAcademicYears() {
+  const [currentYear, setCurrentYear] = useState(null);
+  const [years, setYears] = useState([]);
+  const [archiveYear, setArchiveYear] = useState('');
   const [openCreate, setOpenCreate] = useState(false);
   const [createForm, setCreateForm] = useState({
     name: '',
@@ -146,6 +148,36 @@ function ManageAcademicYears() {
   const userName = user?.fullName || user?.username || 'School Admin';
   const canCreateNewYear = !currentYear || currentYear.status !== 'active';
 
+  useEffect(() => {
+    const fetchYears = async () => {
+      try {
+        const [currentResp, listResp] = await Promise.all([
+          get(ENDPOINTS.SCHOOL_ADMIN.ACADEMIC_YEARS.CURRENT),
+          get(ENDPOINTS.SCHOOL_ADMIN.ACADEMIC_YEARS.LIST),
+        ]);
+
+        if (currentResp?.status === 'success') {
+          setCurrentYear(currentResp.data || null);
+        }
+
+        if (listResp?.status === 'success') {
+          const list = Array.isArray(listResp.data) ? listResp.data : [];
+          setYears(list);
+          if (!archiveYear && list.length > 0) {
+            const inactive = list.find((y) => y.status !== 'active');
+            setArchiveYear(inactive?._id || list[0]._id);
+          }
+        }
+      } catch (error) {
+        // eslint-disable-next-line no-console
+        console.error('Error fetching academic years:', error);
+      }
+    };
+
+    fetchYears();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
   const handleOpenCreate = () => {
     if (!canCreateNewYear) return;
     setCreateForm({
@@ -179,9 +211,50 @@ function ManageAcademicYears() {
     setCreateErrors(errors);
     if (Object.keys(errors).length > 0) return;
 
-    // TODO: Gọi API tạo năm học mới ở đây
-    // Tạm thời chỉ đóng dialog.
-    setOpenCreate(false);
+    const payload = {
+      yearName: createForm.name.trim(),
+      startDate: createForm.startDate,
+      endDate: createForm.endDate,
+      termCount: Number(createForm.termCount) || 0,
+      description: createForm.description,
+    };
+
+    post(ENDPOINTS.SCHOOL_ADMIN.ACADEMIC_YEARS.CREATE, payload)
+      .then((resp) => {
+        if (resp?.status === 'success') {
+          const newYear = resp.data;
+          setCurrentYear(newYear);
+          setYears((prev) => [newYear, ...prev]);
+          setOpenCreate(false);
+        }
+      })
+      .catch((error) => {
+        // eslint-disable-next-line no-console
+        console.error('Error creating academic year:', error);
+        setCreateErrors((prev) => ({
+          ...prev,
+          api: error.message || 'Không thể tạo năm học mới',
+        }));
+      });
+  };
+
+  const handleFinishYear = () => {
+    if (!currentYear || currentYear.status !== 'active') return;
+
+    patch(ENDPOINTS.SCHOOL_ADMIN.ACADEMIC_YEARS.FINISH(currentYear._id), {})
+      .then((resp) => {
+        if (resp?.status === 'success') {
+          const updated = resp.data;
+          setCurrentYear(updated);
+          setYears((prev) =>
+            prev.map((y) => (y._id === updated._id ? updated : y)),
+          );
+        }
+      })
+      .catch((error) => {
+        // eslint-disable-next-line no-console
+        console.error('Error finishing academic year:', error);
+      });
   };
 
   return (
@@ -212,7 +285,7 @@ function ManageAcademicYears() {
                 MamNon DX &gt; Ban Giám Hiệu &gt; Quản lý Năm học
               </Typography>
               <Typography variant="h6" fontWeight={700} mt={0.5}>
-                Năm học 2025 – 2026
+                {currentYear?.yearName || 'Chưa có năm học đang hoạt động'}
               </Typography>
               <Typography variant="body2" sx={{ opacity: 0.9 }} mt={0.5}>
                 Tổng quan năm học đang hoạt động. Bạn có thể thiết lập kế hoạch chi tiết ở các menu bên trái.
@@ -271,18 +344,21 @@ function ManageAcademicYears() {
                 Năm học hiện tại
               </Typography>
               <Typography variant="h6" fontWeight={700} color="text.primary" mt={0.5}>
-                {currentYear.name}
+                {currentYear?.yearName || 'Chưa có năm học đang hoạt động'}
               </Typography>
               <Typography variant="body2" color="text.secondary" mt={0.5}>
-                Bắt đầu: {currentYear.startDate} – Kết thúc: {currentYear.endDate} | Chủ đề:{' '}
-                {currentYear.topics}
+                {currentYear
+                  ? `Bắt đầu: ${formatDate(currentYear.startDate)} – Kết thúc: ${formatDate(
+                      currentYear.endDate,
+                    )}`
+                  : 'Chưa thiết lập thời gian năm học'}
               </Typography>
             </Box>
           </Stack>
           <Stack direction="row" spacing={1.5} alignItems="center">
             <Chip
-              label={currentYear.status === 'active' ? 'Đang hoạt động' : 'Đã kết thúc'}
-              color={currentYear.status === 'active' ? 'success' : 'default'}
+              label={currentYear?.status === 'active' ? 'Đang hoạt động' : 'Đã kết thúc'}
+              color={currentYear?.status === 'active' ? 'success' : 'default'}
               sx={{
                 fontWeight: 600,
               }}
@@ -295,6 +371,8 @@ function ManageAcademicYears() {
                 textTransform: 'none',
                 fontWeight: 600,
               }}
+              disabled={!currentYear || currentYear.status !== 'active'}
+              onClick={handleFinishYear}
             >
               Kết thúc năm học
             </Button>
@@ -326,8 +404,13 @@ function ManageAcademicYears() {
                 value={archiveYear}
                 onChange={(e) => setArchiveYear(e.target.value)}
               >
-                <MenuItem value="2024-2025">Năm học 2024 – 2025 (đã kết thúc)</MenuItem>
-                <MenuItem value="2023-2024">Năm học 2023 – 2024 (đã kết thúc)</MenuItem>
+                {years
+                  .filter((y) => y.status !== 'active')
+                  .map((y) => (
+                    <MenuItem key={y._id} value={y._id}>
+                      {y.yearName} (đã kết thúc)
+                    </MenuItem>
+                  ))}
               </Select>
             </FormControl>
             <Button

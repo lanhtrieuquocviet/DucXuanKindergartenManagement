@@ -5,37 +5,42 @@ const academicYearSchema = new mongoose.Schema({
     type: String,
     required: true,
     trim: true,
-    unique: true
+    unique: true,
   },
   startDate: {
     type: Date,
-    required: true
+    required: true,
   },
   endDate: {
     type: Date,
-    required: true
+    required: true,
+  },
+  termCount: {
+    type: Number,
+    default: 0,
+    min: 0,
   },
   description: {
     type: String,
     default: '',
-    trim: true
+    trim: true,
   },
   status: {
     type: String,
     enum: ['active', 'inactive'],
-    default: 'active'
+    default: 'active',
   },
   createdAt: {
     type: Date,
-    default: Date.now
+    default: Date.now,
   },
   updatedAt: {
     type: Date,
-    default: Date.now
-  }
+    default: Date.now,
+  },
 }, {
   timestamps: true,
-  collection: 'AcademicYears'
+  collection: 'AcademicYears',
 });
 
 const AcademicYear = mongoose.model('AcademicYears', academicYearSchema);
