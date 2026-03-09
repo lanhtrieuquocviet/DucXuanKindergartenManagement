@@ -14,6 +14,12 @@ import {
   Select,
   InputLabel,
   FormControl,
+  Dialog,
+  DialogTitle,
+  DialogContent,
+  DialogActions,
+  Divider,
+  FormHelperText,
 } from '@mui/material';
 import {
   CalendarToday as CalendarIcon,
@@ -32,6 +38,15 @@ function ManageAcademicYears() {
   });
 
   const [archiveYear, setArchiveYear] = useState('2024-2025');
+  const [openCreate, setOpenCreate] = useState(false);
+  const [createForm, setCreateForm] = useState({
+    name: '',
+    startDate: '',
+    endDate: '',
+    termCount: '',
+    description: '',
+  });
+  const [createErrors, setCreateErrors] = useState({});
 
   const navigate = useNavigate();
   const { user, logout } = useAuth();
@@ -129,6 +144,45 @@ function ManageAcademicYears() {
   };
 
   const userName = user?.fullName || user?.username || 'School Admin';
+  const canCreateNewYear = !currentYear || currentYear.status !== 'active';
+
+  const handleOpenCreate = () => {
+    if (!canCreateNewYear) return;
+    setCreateForm({
+      name: '',
+      startDate: '',
+      endDate: '',
+      termCount: '',
+      description: '',
+    });
+    setCreateErrors({});
+    setOpenCreate(true);
+  };
+
+  const handleSubmitCreate = () => {
+    if (!canCreateNewYear) return;
+
+    const errors = {};
+    if (!createForm.name.trim()) errors.name = 'Vui lòng nhập tên năm học';
+    if (!createForm.startDate) errors.startDate = 'Vui lòng chọn ngày bắt đầu';
+    if (!createForm.endDate) errors.endDate = 'Vui lòng chọn ngày kết thúc';
+    if (!createForm.termCount) errors.termCount = 'Vui lòng chọn số lượng kỳ/học kỳ';
+
+    if (createForm.startDate && createForm.endDate) {
+      const start = new Date(createForm.startDate);
+      const end = new Date(createForm.endDate);
+      if (start >= end) {
+        errors.endDate = 'Ngày kết thúc phải sau ngày bắt đầu';
+      }
+    }
+
+    setCreateErrors(errors);
+    if (Object.keys(errors).length > 0) return;
+
+    // TODO: Gọi API tạo năm học mới ở đây
+    // Tạm thời chỉ đóng dialog.
+    setOpenCreate(false);
+  };
 
   return (
     <RoleLayout
@@ -177,6 +231,8 @@ function ManageAcademicYears() {
                   bgcolor: '#e5e7ff',
                 },
               }}
+              disabled={!canCreateNewYear}
+              onClick={handleOpenCreate}
             >
               Tạo năm học mới
             </Button>
@@ -225,8 +281,8 @@ function ManageAcademicYears() {
           </Stack>
           <Stack direction="row" spacing={1.5} alignItems="center">
             <Chip
-              label="Đang hoạt động"
-              color="success"
+              label={currentYear.status === 'active' ? 'Đang hoạt động' : 'Đã kết thúc'}
+              color={currentYear.status === 'active' ? 'success' : 'default'}
               sx={{
                 fontWeight: 600,
               }}
@@ -291,6 +347,150 @@ function ManageAcademicYears() {
             <Box sx={{ flexGrow: 1 }} />
           </Stack>
         </Paper>
+
+        {/* Dialog tạo năm học mới */}
+        <Dialog
+          open={openCreate}
+          onClose={() => setOpenCreate(false)}
+          maxWidth="sm"
+          fullWidth
+        >
+          <DialogTitle
+            sx={{
+              pb: 2,
+              background: 'linear-gradient(135deg, #6366f1 0%, #8b5cf6 100%)',
+              color: 'white',
+            }}
+          >
+            <Stack direction="row" alignItems="center" spacing={1.5}>
+              <Box
+                sx={{
+                  width: 32,
+                  height: 32,
+                  borderRadius: '50%',
+                  bgcolor: 'rgba(255,255,255,0.15)',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                }}
+              >
+                <AddIcon fontSize="small" />
+              </Box>
+              <Typography variant="subtitle1" fontWeight={700}>
+                Tạo năm học mới
+              </Typography>
+            </Stack>
+          </DialogTitle>
+          <DialogContent sx={{ pt: 3, pb: 2 }} dividers>
+            <Stack spacing={3}>
+              <Box>
+                <Typography variant="subtitle2" color="primary" fontWeight={700} gutterBottom>
+                  Thông tin năm học
+                </Typography>
+                <TextField
+                  label="Tên năm học *"
+                  placeholder="Ví dụ: 2025 – 2026"
+                  fullWidth
+                  size="small"
+                  value={createForm.name}
+                  onChange={(e) =>
+                    setCreateForm((prev) => ({ ...prev, name: e.target.value }))
+                  }
+                  error={!!createErrors.name}
+                  helperText={createErrors.name}
+                />
+              </Box>
+
+              <Box>
+                <Typography variant="subtitle2" color="primary" fontWeight={700} gutterBottom>
+                  Thời gian &amp; Cấu trúc kỳ
+                </Typography>
+                <Stack direction={{ xs: 'column', sm: 'row' }} spacing={2}>
+                  <TextField
+                    label="Ngày bắt đầu *"
+                    type="date"
+                    InputLabelProps={{ shrink: true }}
+                    fullWidth
+                    size="small"
+                    value={createForm.startDate}
+                    onChange={(e) =>
+                      setCreateForm((prev) => ({ ...prev, startDate: e.target.value }))
+                    }
+                    error={!!createErrors.startDate}
+                    helperText={createErrors.startDate}
+                  />
+                  <TextField
+                    label="Ngày kết thúc *"
+                    type="date"
+                    InputLabelProps={{ shrink: true }}
+                    fullWidth
+                    size="small"
+                    value={createForm.endDate}
+                    onChange={(e) =>
+                      setCreateForm((prev) => ({ ...prev, endDate: e.target.value }))
+                    }
+                    error={!!createErrors.endDate}
+                    helperText={createErrors.endDate}
+                  />
+                </Stack>
+
+                <FormControl
+                  size="small"
+                  sx={{ mt: 2, minWidth: 200 }}
+                  error={!!createErrors.termCount}
+                >
+                  <InputLabel>Số lượng kỳ/học kỳ *</InputLabel>
+                  <Select
+                    label="Số lượng kỳ/học kỳ *"
+                    value={createForm.termCount}
+                    onChange={(e) =>
+                      setCreateForm((prev) => ({ ...prev, termCount: e.target.value }))
+                    }
+                  >
+                    <MenuItem value={1}>1 kỳ</MenuItem>
+                    <MenuItem value={2}>2 kỳ</MenuItem>
+                    <MenuItem value={3}>3 kỳ</MenuItem>
+                  </Select>
+                  {createErrors.termCount && (
+                    <FormHelperText>{createErrors.termCount}</FormHelperText>
+                  )}
+                </FormControl>
+              </Box>
+
+              <Box>
+                <Typography variant="subtitle2" color="primary" fontWeight={700} gutterBottom>
+                  Kế hoạch tổng thể (có thể bổ sung sau)
+                </Typography>
+                <TextField
+                  label="Mô tả ngắn gọn / Mục tiêu năm học"
+                  placeholder="Ví dụ: Tập trung phát triển kỹ năng mềm, tăng cường hoạt động ngoại khóa, đảm bảo dinh dưỡng..."
+                  fullWidth
+                  size="small"
+                  multiline
+                  minRows={3}
+                  value={createForm.description}
+                  onChange={(e) =>
+                    setCreateForm((prev) => ({ ...prev, description: e.target.value }))
+                  }
+                />
+              </Box>
+            </Stack>
+          </DialogContent>
+          <DialogActions sx={{ px: 3, py: 2 }}>
+            <Button onClick={() => setOpenCreate(false)}>Hủy</Button>
+            <Button
+              variant="contained"
+              onClick={handleSubmitCreate}
+              disabled={!canCreateNewYear}
+              sx={{
+                bgcolor: '#6366f1',
+                '&:hover': { bgcolor: '#4f46e5' },
+              }}
+            >
+              Tạo năm học
+            </Button>
+          </DialogActions>
+        </Dialog>
       </Stack>
     </RoleLayout>
   );
