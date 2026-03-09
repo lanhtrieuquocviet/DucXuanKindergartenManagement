@@ -13,6 +13,7 @@ const blogCategoryController = require('../controller/blogCategoryController');
 const qaController = require('../controller/qaController');
 const documentController = require('../controller/documentController');
 const publicInfoController = require('../controller/publicInfoController');
+const academicYearController = require('../controller/academicYearController');
 
 const router = express.Router();
 
@@ -257,6 +258,32 @@ router.get('/public-info/:id', authenticate, authorizeRoles('SchoolAdmin'), publ
 router.post('/public-info', authenticate, authorizeRoles('SchoolAdmin'), publicInfoController.createPublicInfo);
 router.put('/public-info/:id', authenticate, authorizeRoles('SchoolAdmin'), publicInfoController.updatePublicInfo);
 router.delete('/public-info/:id', authenticate, authorizeRoles('SchoolAdmin'), publicInfoController.deletePublicInfo);
+
+// Academic Year management for SchoolAdmin
+router.get(
+  '/academic-years/current',
+  authenticate,
+  authorizeRoles('SchoolAdmin'),
+  academicYearController.getCurrentAcademicYear
+);
+router.get(
+  '/academic-years',
+  authenticate,
+  authorizeRoles('SchoolAdmin'),
+  academicYearController.listAcademicYears
+);
+router.post(
+  '/academic-years',
+  authenticate,
+  authorizeRoles('SchoolAdmin'),
+  academicYearController.createAcademicYear
+);
+router.patch(
+  '/academic-years/:id/finish',
+  authenticate,
+  authorizeRoles('SchoolAdmin'),
+  academicYearController.finishAcademicYear
+);
 
 module.exports = router;
 

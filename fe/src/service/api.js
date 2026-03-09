@@ -218,6 +218,12 @@ export const ENDPOINTS = {
     DOCUMENT_DETAIL: (documentId) => `/school-admin/documents/${documentId}`,
     PUBLIC_INFOS: "/school-admin/public-info",
     PUBLIC_INFO_DETAIL: (id) => `/school-admin/public-info/${id}`,
+    ACADEMIC_YEARS: {
+      LIST: "/school-admin/academic-years",
+      CURRENT: "/school-admin/academic-years/current",
+      CREATE: "/school-admin/academic-years",
+      FINISH: (id) => `/school-admin/academic-years/${id}/finish`,
+    },
   },
   // Contact (public)
   CONTACT: {
