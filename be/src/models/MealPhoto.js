@@ -15,6 +15,29 @@ const mealEntrySchema = new mongoose.Schema(
   { _id: false }
 );
 
+const sampleEntrySchema = new mongoose.Schema(
+  {
+    mealType: {
+      type: String,
+      enum: ['trua', 'chieu', 'sang', 'xe'],
+      required: true,
+    },
+    description: { type: String, default: '' },
+    images: [{ type: String, trim: true }],
+    status: {
+      type: String,
+      enum: ['cho_kiem_tra', 'khong_co_van_de', 'khong_dat'],
+      default: 'cho_kiem_tra',
+    },
+    uploadedAt: { type: Date, default: Date.now },
+    uploadedBy: { type: mongoose.Schema.Types.ObjectId, ref: 'User' },
+    reviewedAt: { type: Date },
+    reviewedBy: { type: mongoose.Schema.Types.ObjectId, ref: 'User' },
+    reviewNote: { type: String, default: '' },
+  },
+  { _id: false }
+);
+
 const mealPhotoSchema = new mongoose.Schema(
   {
     // Ngày dưới dạng chuỗi YYYY-MM-DD để dễ query
@@ -34,6 +57,9 @@ const mealPhotoSchema = new mongoose.Schema(
 
     // Ảnh mẫu thực phẩm (nhiều ảnh)
     sampleImages: [{ type: String, trim: true }],
+
+    // Mẫu thực phẩm có cấu trúc (theo từng bữa, có trạng thái kiểm tra)
+    sampleEntries: [sampleEntrySchema],
 
     // Người upload
     uploadedBy: {

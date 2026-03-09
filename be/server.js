@@ -29,6 +29,7 @@ const menuRoutes = require("./src/routes/menu.routes");
 const publicInfoRoutes = require('./src/routes/publicInfo.routes');
 const DailyMenu = require('./src/routes/dailyMenu.routes');
 const mealPhotoRoutes = require('./src/routes/mealPhoto.routes');
+const { startAutoApproveSampleEntries } = require('./src/jobs/autoApproveSampleEntries');
 
 // Import models để Mongoose đăng ký schema (tránh lỗi "Schema hasn't been registered for model 'Roles'")
 require('./src/models/Role');
@@ -339,6 +340,9 @@ app.listen(PORT, () => {
   console.log(`🚀 Server is running on ${baseUrl}`);
   console.log(`📡 Health check: ${baseUrl}/api/health`);
   console.log(`📘 Swagger docs: ${baseUrl}/api-docs`);
+
+  // Khởi động cron jobs
+  startAutoApproveSampleEntries();
 });
 
 // ============================================

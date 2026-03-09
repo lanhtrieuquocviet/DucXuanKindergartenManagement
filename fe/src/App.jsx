@@ -78,11 +78,13 @@ import CreateMenu from './components/CreateMenu';
 import FoodManagement from './pages/kitchenStaff/FoodManagemet';
 import MealManagement from './pages/kitchenStaff/MealManagement';
 import MealHeadcount from './pages/kitchenStaff/MealHeadcount';
+import UploadSampleFood from './pages/kitchenStaff/UploadSampleFood';
 import MenuSchoolAdmin from './pages/schoolAdmin/MenuSchoolAdmin';
 import MenuDetailSchoolAdmin from './pages/schoolAdmin/MenuDetailSchoolAdmin';
 import MenuStudent from './pages/student/MenuStudent';
 import MenuDetailStudent from './pages/student/MenuDetailStudent';
 import ManageAcademicYears from './pages/schoolAdmin/ManageAcademicYears';
+
 
 function AppContent() {
   return (
@@ -264,6 +266,7 @@ function App() {
             <Route path="foods" element={<FoodManagement />} />
             <Route path="meal-management" element={<MealManagement />} />
             <Route path="headcount" element={<MealHeadcount />} />
+            <Route path="sample-food" element={<UploadSampleFood />} />
           </Route>
           <Route
             path="/teacher/attendance/:classId"
@@ -438,6 +441,14 @@ function App() {
               </SchoolAdminProvider>
             }
           />
+          {/* <Route
+            path="/school-admin/meal-management"
+            element={
+              <SchoolAdminProvider>
+                <MealManagementSchoolAdmin />
+              </SchoolAdminProvider>
+            }
+          /> */}
 
           <Route
             path="/school-admin/public-info"

@@ -1,4 +1,4 @@
-import { get, post, del, postFormData, ENDPOINTS } from './api';
+import { get, post, put, del, postFormData, ENDPOINTS } from './api';
 
 /**
  * Lấy ảnh món ăn & mẫu thực phẩm theo ngày
@@ -34,6 +34,27 @@ export const upsertMealEntry = (data) =>
  */
 export const deleteMealEntry = ({ date, mealType }) =>
   del(`${ENDPOINTS.MEAL_PHOTOS.UPSERT_MEAL_ENTRY}?date=${date}&mealType=${mealType}`);
+
+/**
+ * Thêm / cập nhật mẫu thực phẩm cho một bữa ăn cụ thể
+ * @param {{ date: string, mealType: 'sang'|'trua'|'chieu'|'xe', description?: string, images: string[] }} data
+ */
+export const upsertSampleEntry = (data) =>
+  post(ENDPOINTS.MEAL_PHOTOS.UPSERT_SAMPLE_ENTRY, data);
+
+/**
+ * Xóa một mẫu thực phẩm khỏi ngày
+ * @param {{ date: string, mealType: string }} data
+ */
+export const deleteSampleEntry = ({ date, mealType }) =>
+  del(`${ENDPOINTS.MEAL_PHOTOS.UPSERT_SAMPLE_ENTRY}?date=${date}&mealType=${mealType}`);
+
+/**
+ * School admin duyệt mẫu thực phẩm
+ * @param {{ date: string, mealType: string, status: 'khong_co_van_de'|'khong_dat', reviewNote?: string }} data
+ */
+export const reviewSampleEntry = (data) =>
+  put(ENDPOINTS.MEAL_PHOTOS.REVIEW_SAMPLE_ENTRY, data);
 
 /**
  * Upload ảnh lên Cloudinary qua backend
