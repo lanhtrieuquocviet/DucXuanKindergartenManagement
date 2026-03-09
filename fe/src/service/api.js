@@ -290,6 +290,8 @@ export const ENDPOINTS = {
     GET: "/meal-photos",
     UPSERT: "/meal-photos",
     UPSERT_MEAL_ENTRY: "/meal-photos/meal-entry",
+    UPSERT_SAMPLE_ENTRY: "/meal-photos/sample-entry",
+    REVIEW_SAMPLE_ENTRY: "/meal-photos/sample-entry/review",
     ATTENDANCE_SUMMARY: "/meal-photos/attendance-summary",
   },
   // OTP

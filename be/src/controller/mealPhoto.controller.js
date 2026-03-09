@@ -15,6 +15,7 @@ exports.getMealPhoto = async (req, res) => {
 
     const doc = await MealPhoto.findOne({ date })
       .populate('meals.uploadedBy', 'fullName')
+      .populate('sampleEntries.uploadedBy', 'fullName')
       .lean();
     return res.json({ success: true, data: doc || null });
   } catch (err) {
@@ -116,6 +117,96 @@ exports.upsertMealEntry = async (req, res) => {
 };
 
 /**
+ * POST /api/meal-photos/sample-entry
+ * Thêm hoặc cập nhật mẫu thực phẩm cho một bữa ăn cụ thể
+ * Body: { date, mealType, description, images[] }
+ */
+exports.upsertSampleEntry = async (req, res) => {
+  try {
+    const { date, mealType, description, images } = req.body;
+
+    if (!date || !mealType) {
+      return res.status(400).json({ success: false, message: 'Thiếu date hoặc mealType' });
+    }
+    const validTypes = ['trua', 'chieu', 'sang', 'xe'];
+    if (!validTypes.includes(mealType)) {
+      return res.status(400).json({ success: false, message: 'mealType không hợp lệ' });
+    }
+    if (!images || !Array.isArray(images) || images.length < 1) {
+      return res.status(400).json({ success: false, message: 'Cần ít nhất 1 ảnh' });
+    }
+    if (images.length > 3) {
+      return res.status(400).json({ success: false, message: 'Tối đa 3 ảnh' });
+    }
+
+    // Thử cập nhật mẫu đã tồn tại
+    let doc = await MealPhoto.findOneAndUpdate(
+      { date, 'sampleEntries.mealType': mealType },
+      {
+        $set: {
+          'sampleEntries.$.images': images,
+          'sampleEntries.$.description': description || '',
+          'sampleEntries.$.status': 'cho_kiem_tra',
+          'sampleEntries.$.uploadedAt': new Date(),
+          'sampleEntries.$.uploadedBy': req.user?._id,
+        },
+      },
+      { new: true }
+    );
+
+    if (!doc) {
+      // Thêm mẫu mới
+      doc = await MealPhoto.findOneAndUpdate(
+        { date },
+        {
+          $push: {
+            sampleEntries: {
+              mealType,
+              description: description || '',
+              images,
+              status: 'cho_kiem_tra',
+              uploadedAt: new Date(),
+              uploadedBy: req.user?._id,
+            },
+          },
+          $set: { uploadedBy: req.user?._id },
+        },
+        { upsert: true, new: true }
+      );
+    }
+
+    return res.json({ success: true, data: doc });
+  } catch (err) {
+    return res.status(500).json({ success: false, message: err.message });
+  }
+};
+
+/**
+ * DELETE /api/meal-photos/sample-entry
+ * Xóa một mẫu thực phẩm khỏi ngày
+ * Query: { date, mealType }
+ */
+exports.deleteSampleEntry = async (req, res) => {
+  try {
+    const { date, mealType } = req.query;
+    if (!date || !mealType) {
+      return res.status(400).json({ success: false, message: 'Thiếu date hoặc mealType' });
+    }
+    const doc = await MealPhoto.findOneAndUpdate(
+      { date },
+      { $pull: { sampleEntries: { mealType } } },
+      { new: true }
+    );
+    if (!doc) {
+      return res.status(404).json({ success: false, message: 'Không tìm thấy dữ liệu' });
+    }
+    return res.json({ success: true, data: doc });
+  } catch (err) {
+    return res.status(500).json({ success: false, message: err.message });
+  }
+};
+
+/**
  * DELETE /api/meal-photos/meal-entry
  * Xóa một bữa ăn khỏi ngày
  * Body: { date, mealType }
@@ -133,6 +224,46 @@ exports.deleteMealEntry = async (req, res) => {
     );
     if (!doc) {
       return res.status(404).json({ success: false, message: 'Không tìm thấy dữ liệu' });
+    }
+    return res.json({ success: true, data: doc });
+  } catch (err) {
+    return res.status(500).json({ success: false, message: err.message });
+  }
+};
+
+/**
+ * PUT /api/meal-photos/sample-entry/review
+ * School admin duyệt mẫu thực phẩm (chuyển trạng thái)
+ * Body: { date, mealType, status: 'khong_co_van_de'|'khong_dat', reviewNote? }
+ */
+exports.reviewSampleEntry = async (req, res) => {
+  try {
+    const { date, mealType, status, reviewNote } = req.body;
+    if (!date || !mealType || !status) {
+      return res.status(400).json({ success: false, message: 'Thiếu date, mealType hoặc status' });
+    }
+    const validStatuses = ['khong_co_van_de', 'khong_dat'];
+    if (!validStatuses.includes(status)) {
+      return res.status(400).json({ success: false, message: 'status không hợp lệ' });
+    }
+
+    const doc = await MealPhoto.findOneAndUpdate(
+      { date, 'sampleEntries.mealType': mealType },
+      {
+        $set: {
+          'sampleEntries.$.status': status,
+          'sampleEntries.$.reviewNote': reviewNote || '',
+          'sampleEntries.$.reviewedBy': req.user?._id,
+          'sampleEntries.$.reviewedAt': new Date(),
+        },
+      },
+      { new: true }
+    )
+      .populate('sampleEntries.uploadedBy', 'fullName')
+      .populate('sampleEntries.reviewedBy', 'fullName');
+
+    if (!doc) {
+      return res.status(404).json({ success: false, message: 'Không tìm thấy mẫu thực phẩm' });
     }
     return res.json({ success: true, data: doc });
   } catch (err) {

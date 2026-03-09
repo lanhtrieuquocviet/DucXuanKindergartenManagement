@@ -1,0 +1,7 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(xargs grep -l \"upload-food\\\\|UploadFood\\\\|upload_food\\\\|uploadFood\" find d:/DucXuanKindergartenManagement/fe/src -name \"*Upload*\" -o -name \"*upload*\")"
+    ]
+  }
+}

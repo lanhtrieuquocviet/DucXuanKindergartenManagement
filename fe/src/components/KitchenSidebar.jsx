@@ -18,8 +18,8 @@ function KitchenSidebar() {
       name: "Quản lý dữ liệu",
       children: [
         { name: "Sỉ số & Suất ăn", path: "/kitchen/students" },
-        { name: "Upload ảnh món", path: "/kitchen/upload-food" },
-        { name: "Mẫu thực phẩm", path: "/kitchen/sample-food" },
+        { name: "Upload ảnh món ăn", path: "/kitchen/upload-food" },
+        { name: "Upload mẫu thực phẩm", path: "/kitchen/sample-food" },
       ],
     },
     {

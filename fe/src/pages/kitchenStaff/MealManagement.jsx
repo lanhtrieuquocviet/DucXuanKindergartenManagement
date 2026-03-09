@@ -56,6 +56,7 @@ import {
   upsertMealPhoto,
   upsertMealEntry,
   deleteMealEntry,
+  deleteSampleEntry,
   uploadKitchenImage,
   getAttendanceSummary,
 } from '../../service/mealManagement.api';
@@ -1005,6 +1006,209 @@ function MealEntryCard({ entry, onPreview, onEdit, onDelete }) {
 }
 
 // ─────────────────────────────────────────────
+// SampleEntryCard — card hiển thị mẫu thực phẩm của 1 bữa
+// ─────────────────────────────────────────────
+const SAMPLE_MEAL_TYPES = [
+  { value: 'trua', label: 'Bữa chính trưa', color: '#10b981' },
+  { value: 'chieu', label: 'Bữa phụ chiều', color: '#6366f1' },
+];
+const getSampleMealCfg = (mealType) => SAMPLE_MEAL_TYPES.find((m) => m.value === mealType) || SAMPLE_MEAL_TYPES[0];
+
+function SampleEntryCard({ entry, onPreview, onDelete, selectedDate }) {
+  const navigate = useNavigate();
+  const cfg = getSampleMealCfg(entry.mealType);
+  const [confirmDelete, setConfirmDelete] = useState(false);
+  const [deleting, setDeleting] = useState(false);
+
+  const handleDelete = async () => {
+    try {
+      setDeleting(true);
+      await onDelete(entry.mealType);
+    } finally {
+      setDeleting(false);
+      setConfirmDelete(false);
+    }
+  };
+
+  return (
+    <Card
+      elevation={0}
+      sx={{
+        border: '1.5px solid', borderColor: alpha(cfg.color, 0.2),
+        borderRadius: 3.5, overflow: 'hidden',
+        transition: 'box-shadow 0.2s',
+        '&:hover': { boxShadow: `0 6px 20px ${alpha(cfg.color, 0.18)}` },
+      }}
+    >
+      {/* Card header */}
+      <Box
+        sx={{
+          px: 2, py: 1.25,
+          background: `linear-gradient(135deg, ${alpha(cfg.color, 0.12)} 0%, ${alpha(cfg.color, 0.04)} 100%)`,
+          display: 'flex', alignItems: 'center', gap: 1.25,
+          borderBottom: '1px solid', borderColor: alpha(cfg.color, 0.15),
+        }}
+      >
+        {/* Status badge */}
+        {entry.status === 'khong_co_van_de' ? (
+          <Chip
+            label="Không có vấn đề"
+            size="small"
+            sx={{
+              height: 22, fontSize: 11, fontWeight: 700,
+              bgcolor: alpha('#10b981', 0.15),
+              color: '#059669',
+              border: '1px solid',
+              borderColor: alpha('#10b981', 0.3),
+            }}
+          />
+        ) : entry.status === 'khong_dat' ? (
+          <Chip
+            label="Không đạt"
+            size="small"
+            sx={{
+              height: 22, fontSize: 11, fontWeight: 700,
+              bgcolor: alpha('#ef4444', 0.15),
+              color: '#dc2626',
+              border: '1px solid',
+              borderColor: alpha('#ef4444', 0.3),
+            }}
+          />
+        ) : (
+          <Chip
+            label="Chờ kiểm tra"
+            size="small"
+            sx={{
+              height: 22, fontSize: 11, fontWeight: 700,
+              bgcolor: alpha('#f59e0b', 0.15),
+              color: '#d97706',
+              border: '1px solid',
+              borderColor: alpha('#f59e0b', 0.3),
+            }}
+          />
+        )}
+        <Typography variant="subtitle2" fontWeight={800} sx={{ color: cfg.color, flex: 1 }}>
+          {cfg.label}
+        </Typography>
+        <Chip
+          label={`${entry.images.length} ảnh`}
+          size="small"
+          sx={{ height: 22, fontSize: 11, bgcolor: alpha(cfg.color, 0.1), color: cfg.color, border: 'none' }}
+        />
+        {/* Edit action */}
+        {!confirmDelete && (
+          <Tooltip title="Chỉnh sửa mẫu" arrow>
+            <IconButton
+              size="small"
+              onClick={() => navigate('/kitchen/sample-food', {
+                state: { editData: { date: selectedDate, mealType: entry.mealType, description: entry.description, images: entry.images } }
+              })}
+              sx={{ p: 0.5, color: cfg.color, '&:hover': { bgcolor: alpha(cfg.color, 0.12) } }}
+            >
+              <EditIcon sx={{ fontSize: 15 }} />
+            </IconButton>
+          </Tooltip>
+        )}
+        {/* Delete action */}
+        {!confirmDelete ? (
+          <Tooltip title="Xóa mẫu" arrow>
+            <IconButton
+              size="small"
+              onClick={() => setConfirmDelete(true)}
+              sx={{ p: 0.5, color: '#dc2626', '&:hover': { bgcolor: alpha('#dc2626', 0.1) } }}
+            >
+              <DeleteIcon sx={{ fontSize: 15 }} />
+            </IconButton>
+          </Tooltip>
+        ) : (
+          <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.75, bgcolor: alpha('#dc2626', 0.08), px: 1, py: 0.5, borderRadius: 2 }}>
+            <Typography variant="caption" sx={{ fontSize: 11, color: '#dc2626', fontWeight: 700 }}>Xóa?</Typography>
+            <Button
+              size="small" variant="contained" onClick={handleDelete} disabled={deleting}
+              sx={{ minWidth: 0, px: 1, py: 0.25, fontSize: 11, bgcolor: '#dc2626', '&:hover': { bgcolor: '#b91c1c' }, borderRadius: 1.5, textTransform: 'none', lineHeight: 1.5 }}
+            >
+              {deleting ? <CircularProgress size={11} color="inherit" /> : 'Có'}
+            </Button>
+            <Button
+              size="small" onClick={() => setConfirmDelete(false)} disabled={deleting}
+              sx={{ minWidth: 0, px: 1, py: 0.25, fontSize: 11, color: 'text.secondary', borderRadius: 1.5, textTransform: 'none', lineHeight: 1.5 }}
+            >
+              Không
+            </Button>
+          </Box>
+        )}
+      </Box>
+
+      {/* Image grid */}
+      <Box
+        sx={{
+          p: 1.5,
+          display: 'grid',
+          gridTemplateColumns: 'repeat(auto-fill, minmax(90px, 1fr))',
+          gap: 1,
+          minHeight: 120,
+          bgcolor: 'grey.50',
+        }}
+      >
+        {entry.images.length > 0 ? (
+          entry.images.map((url, idx) => (
+            <Box
+              key={url + idx}
+              onClick={() => onPreview(url)}
+              sx={{
+                aspectRatio: '1', borderRadius: 1.5, overflow: 'hidden',
+                border: '2px solid', borderColor: 'divider',
+                cursor: 'pointer', transition: 'all 0.18s',
+                '&:hover': { borderColor: cfg.color, transform: 'scale(1.04)', boxShadow: `0 4px 12px ${alpha(cfg.color, 0.3)}` },
+              }}
+            >
+              <Box component="img" src={url} alt={`mẫu ${idx + 1}`} sx={{ width: '100%', height: '100%', objectFit: 'cover', display: 'block' }} />
+            </Box>
+          ))
+        ) : (
+          <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'center', py: 3, color: 'text.disabled' }}>
+            <Typography variant="caption">Chưa có ảnh</Typography>
+          </Box>
+        )}
+      </Box>
+
+      {/* Description */}
+      {entry.description && (
+        <Box sx={{ px: 2, py: 1 }}>
+          <Typography variant="body2" color="text.secondary" sx={{ fontSize: 12.5, lineHeight: 1.5, fontStyle: 'italic' }}>
+            {entry.description}
+          </Typography>
+        </Box>
+      )}
+
+      {/* Footer */}
+      <Box sx={{ px: 2, py: 1.25, borderTop: '1px solid', borderColor: 'divider', display: 'flex', alignItems: 'center', gap: 2, bgcolor: 'grey.50', flexWrap: 'wrap' }}>
+        {entry.uploadedAt && (
+          <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.6 }}>
+            <TimeIcon sx={{ fontSize: 13, color: 'text.disabled' }} />
+            <Typography variant="caption" color="text.secondary" sx={{ fontSize: 11.5, fontWeight: 500 }}>
+              Upload lúc{' '}
+              {new Date(entry.uploadedAt).toLocaleString('vi-VN', {
+                day: '2-digit', month: '2-digit', year: 'numeric',
+                hour: '2-digit', minute: '2-digit',
+              })}
+            </Typography>
+          </Box>
+        )}
+        {entry.uploadedBy?.fullName && (
+          <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.6 }}>
+            <PersonIcon sx={{ fontSize: 13, color: 'text.disabled' }} />
+            <Typography variant="caption" color="text.secondary" sx={{ fontSize: 11.5, fontWeight: 600 }}>
+              {entry.uploadedBy.fullName}
+            </Typography>
+          </Box>
+        )}
+      </Box>
+    </Card>
+  );
+}
+
+// ─────────────────────────────────────────────
 // AttendanceSummaryDialog
 // ─────────────────────────────────────────────
 function AttendanceSummaryDialog({ open, onClose, date, summary, loading }) {
@@ -1187,6 +1391,7 @@ function MealManagement() {
   const [meals, setMeals] = useState([]); // per-meal-type entries
   const [mealImages, setMealImages] = useState([]);
   const [sampleImages, setSampleImages] = useState([]);
+  const [sampleEntries, setSampleEntries] = useState([]); // structured sample entries
   const [loadingData, setLoadingData] = useState(false);
   const [uploadingSample, setUploadingSample] = useState(false);
   const [saving, setSaving] = useState(false);
@@ -1211,10 +1416,12 @@ function MealManagement() {
       setMeals(res.data?.meals || []);
       setMealImages(res.data?.mealImages || []);
       setSampleImages(res.data?.sampleImages || []);
+      setSampleEntries(res.data?.sampleEntries || []);
     } catch {
       setMeals([]);
       setMealImages([]);
       setSampleImages([]);
+      setSampleEntries([]);
     } finally {
       setLoadingData(false);
     }
@@ -1263,6 +1470,16 @@ function MealManagement() {
     setSampleImages(next);
     try { await saveImages(mealImages, next); }
     catch { toast.error('Lưu thất bại, vui lòng thử lại'); }
+  };
+
+  const handleDeleteSampleEntry = async (mealType) => {
+    try {
+      await deleteSampleEntry({ date: selectedDate, mealType });
+      setSampleEntries((prev) => prev.filter((s) => s.mealType !== mealType));
+      toast.success('Đã xóa mẫu thực phẩm');
+    } catch {
+      toast.error('Xóa thất bại, vui lòng thử lại');
+    }
   };
 
   const handleOpenAttendance = async () => {
@@ -1453,14 +1670,14 @@ function MealManagement() {
                 />
                 <Chip
                   icon={<SampleIcon sx={{ fontSize: '14px !important' }} />}
-                  label={`${sampleImages.length} ảnh mẫu thực phẩm`}
+                  label={`${sampleEntries.length} mẫu thực phẩm`}
                   size="small"
                   sx={{
                     height: 28,
                     fontSize: 12,
                     fontWeight: 600,
-                    bgcolor: sampleImages.length > 0 ? alpha('#ef4444', 0.1) : 'grey.100',
-                    color: sampleImages.length > 0 ? '#ef4444' : 'text.secondary',
+                    bgcolor: sampleEntries.length > 0 ? alpha('#ef4444', 0.1) : 'grey.100',
+                    color: sampleEntries.length > 0 ? '#ef4444' : 'text.secondary',
                     border: 'none',
                   }}
                 />
@@ -1505,8 +1722,8 @@ function MealManagement() {
           subtitle="Lưu mẫu thực phẩm sử dụng trong ngày"
           color="#ef4444"
           gradient="linear-gradient(135deg, #ef4444 0%, #f87171 100%)"
-          onClick={() => sampleInputRef.current?.click()}
-          badge={sampleImages.length > 0 ? sampleImages.length : null}
+          onClick={() => navigate('/kitchen/sample-food')}
+          badge={sampleEntries.length > 0 ? sampleEntries.length : null}
         />
       </Box>
 
@@ -1590,28 +1807,89 @@ function MealManagement() {
           </CardContent>
         </Card>
 
-        {/* Ảnh mẫu thực phẩm */}
-        {!loadingData ? (
-          <ImageSection
-            title="Ảnh mẫu thực phẩm"
-            date={selectedDate}
-            images={sampleImages}
-            color="#ef4444"
-            gradient="linear-gradient(135deg, #ef4444 0%, #f87171 100%)"
-            onDelete={handleDeleteSample}
-            onPreview={(url) => { setPreviewUrl(url); setPreviewOpen(true); }}
-            onUpload={handleSampleUpload}
-            isUploading={uploadingSample}
-            inputRef={sampleInputRef}
-          />
-        ) : (
-          <Card elevation={0} sx={{ border: '1.5px solid', borderColor: 'divider', borderRadius: 4 }}>
-            <CardContent sx={{ p: 3, pb: '24px !important' }}>
-              <Skeleton variant="text" width={280} height={32} sx={{ mb: 2 }} />
-              <Skeleton variant="rounded" height={200} sx={{ borderRadius: 3 }} />
-            </CardContent>
-          </Card>
-        )}
+        {/* Mẫu thực phẩm - có trạng thái Chờ kiểm tra */}
+        <Card
+          elevation={0}
+          sx={{ border: '1.5px solid', borderColor: sampleEntries.length > 0 ? alpha('#ef4444', 0.2) : 'divider', borderRadius: 4 }}
+        >
+          <CardContent sx={{ p: 3, pb: '24px !important' }}>
+            {/* Section header */}
+            <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', mb: 2.5, flexWrap: 'wrap', gap: 1 }}>
+              <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5 }}>
+                <Box sx={{ width: 5, height: 28, borderRadius: 4, background: 'linear-gradient(135deg, #ef4444 0%, #f87171 100%)', flexShrink: 0 }} />
+                <Typography variant="h6" fontWeight={700} sx={{ lineHeight: 1.2, fontSize: 16 }}>
+                  Mẫu thực phẩm
+                </Typography>
+                <Chip
+                  label={formatDisplayDate(selectedDate)}
+                  size="small"
+                  sx={{ height: 24, fontSize: 11.5, bgcolor: alpha('#ef4444', 0.1), color: '#ef4444', fontWeight: 700, border: 'none' }}
+                />
+                {sampleEntries.length > 0 && (
+                  <Chip
+                    icon={<CheckCircleIcon sx={{ fontSize: '14px !important', color: '#16a34a !important' }} />}
+                    label={`${sampleEntries.length} bữa đã upload`}
+                    size="small"
+                    sx={{ height: 24, fontSize: 11.5, bgcolor: alpha('#16a34a', 0.08), color: '#16a34a', border: '1px solid', borderColor: alpha('#16a34a', 0.25) }}
+                  />
+                )}
+              </Box>
+              <Button
+                variant="contained"
+                startIcon={<AddPhotoIcon />}
+                onClick={() => navigate('/kitchen/sample-food')}
+                sx={{
+                  borderRadius: 2.5, fontSize: 13, fontWeight: 700, px: 2.5, py: 0.9, textTransform: 'none',
+                  bgcolor: '#ef4444', '&:hover': { bgcolor: '#dc2626' },
+                  boxShadow: `0 4px 14px ${alpha('#ef4444', 0.4)}`,
+                }}
+              >
+                Upload mẫu
+              </Button>
+            </Box>
+
+            {loadingData ? (
+              <Box sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr', sm: 'repeat(2, 1fr)' }, gap: 2 }}>
+                {[1, 2].map((i) => <Skeleton key={i} variant="rounded" height={200} sx={{ borderRadius: 3 }} />)}
+              </Box>
+            ) : sampleEntries.length > 0 ? (
+              <Box sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr', sm: 'repeat(2, 1fr)' }, gap: 2 }}>
+                {sampleEntries.map((entry) => (
+                  <SampleEntryCard
+                    key={entry.mealType}
+                    entry={entry}
+                    onPreview={(url) => { setPreviewUrl(url); setPreviewOpen(true); }}
+                    onDelete={handleDeleteSampleEntry}
+                    selectedDate={selectedDate}
+                  />
+                ))}
+              </Box>
+            ) : (
+              <Box
+                onClick={() => navigate('/kitchen/sample-food')}
+                sx={{
+                  display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center',
+                  py: 7, gap: 2, borderRadius: 3, border: '2.5px dashed',
+                  borderColor: alpha('#ef4444', 0.3), bgcolor: alpha('#ef4444', 0.025),
+                  cursor: 'pointer', transition: 'all 0.2s',
+                  '&:hover': { borderColor: '#ef4444', bgcolor: alpha('#ef4444', 0.07) },
+                }}
+              >
+                <Box sx={{ width: 72, height: 72, borderRadius: '50%', bgcolor: alpha('#ef4444', 0.1), display: 'flex', alignItems: 'center', justifyContent: 'center', border: `2px solid ${alpha('#ef4444', 0.2)}` }}>
+                  <AddPhotoIcon sx={{ fontSize: 32, color: '#ef4444' }} />
+                </Box>
+                <Box sx={{ textAlign: 'center' }}>
+                  <Typography variant="body1" fontWeight={600} color="text.secondary" sx={{ mb: 0.5 }}>
+                    Chưa có mẫu thực phẩm cho ngày này
+                  </Typography>
+                  <Typography variant="body2" color="text.disabled" sx={{ fontSize: 12.5 }}>
+                    Nhấn để upload mẫu thực phẩm theo từng bữa
+                  </Typography>
+                </Box>
+              </Box>
+            )}
+          </CardContent>
+        </Card>
       </Box>
 
       {/* ── Upload / Edit Meal Dialog ── */}
