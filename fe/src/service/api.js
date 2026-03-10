@@ -223,6 +223,7 @@ export const ENDPOINTS = {
       CURRENT: "/school-admin/academic-years/current",
       CREATE: "/school-admin/academic-years",
       FINISH: (id) => `/school-admin/academic-years/${id}/finish`,
+      HISTORY: "/school-admin/academic-years/history",
     },
   },
   // Contact (public)

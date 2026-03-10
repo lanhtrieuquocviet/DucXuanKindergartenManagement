@@ -1,4 +1,6 @@
 const AcademicYear = require('../models/AcademicYear');
+const Classes = require('../models/Classes');
+const Student = require('../models/Student');
 
 /**
  * GET /api/school-admin/academic-years/current
@@ -169,10 +171,94 @@ const finishAcademicYear = async (req, res) => {
   }
 };
 
+/**
+ * GET /api/school-admin/academic-years/history
+ * Thống kê lịch sử năm học (số lớp, số trẻ)
+ * Query optional: yearId (lọc 1 năm cụ thể)
+ */
+const getAcademicYearHistory = async (req, res) => {
+  try {
+    const { yearId } = req.query;
+
+    const yearFilter = {
+      status: { $ne: 'active' },
+    };
+    if (yearId) {
+      yearFilter._id = yearId;
+    }
+
+    const years = await AcademicYear.find(yearFilter).sort({ startDate: -1 }).lean();
+    if (!years || years.length === 0) {
+      return res.status(200).json({
+        status: 'success',
+        data: [],
+      });
+    }
+
+    const yearIds = years.map((y) => y._id);
+
+    const classes = await Classes.find({ academicYearId: { $in: yearIds } })
+      .select('_id academicYearId')
+      .lean();
+
+    const classCountByYear = {};
+    const classIdToYearId = {};
+    classes.forEach((cls) => {
+      const yId = String(cls.academicYearId);
+      classCountByYear[yId] = (classCountByYear[yId] || 0) + 1;
+      classIdToYearId[String(cls._id)] = yId;
+    });
+
+    const classIds = classes.map((c) => c._id);
+    let studentCountByYear = {};
+
+    if (classIds.length > 0) {
+      const students = await Student.find({ classId: { $in: classIds } })
+        .select('classId')
+        .lean();
+
+      studentCountByYear = {};
+      students.forEach((st) => {
+        const cId = String(st.classId);
+        const yId = classIdToYearId[cId];
+        if (!yId) return;
+        studentCountByYear[yId] = (studentCountByYear[yId] || 0) + 1;
+      });
+    }
+
+    const result = years.map((y) => {
+      const key = String(y._id);
+      return {
+        _id: y._id,
+        yearName: y.yearName,
+        startDate: y.startDate,
+        endDate: y.endDate,
+        status: y.status,
+        termCount: y.termCount || 0,
+        description: y.description || '',
+        classCount: classCountByYear[key] || 0,
+        studentCount: studentCountByYear[key] || 0,
+      };
+    });
+
+    return res.status(200).json({
+      status: 'success',
+      data: result,
+    });
+  } catch (error) {
+    console.error('getAcademicYearHistory error:', error);
+    return res.status(500).json({
+      status: 'error',
+      message: 'Lỗi khi lấy lịch sử năm học',
+    });
+  }
+};
+
 module.exports = {
   getCurrentAcademicYear,
   listAcademicYears,
   createAcademicYear,
   finishAcademicYear,
+  getAcademicYearHistory,
 };
 
