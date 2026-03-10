@@ -40,6 +40,8 @@ function ManageAcademicYears() {
   const [currentYear, setCurrentYear] = useState(null);
   const [years, setYears] = useState([]);
   const [archiveYear, setArchiveYear] = useState('');
+  const [history, setHistory] = useState([]);
+  const [historyLoading, setHistoryLoading] = useState(false);
   const [openCreate, setOpenCreate] = useState(false);
   const [createForm, setCreateForm] = useState({
     name: '',
@@ -257,6 +259,30 @@ function ManageAcademicYears() {
       });
   };
 
+  const handleSearchHistory = async () => {
+    try {
+      setHistoryLoading(true);
+      setHistory([]);
+
+      let endpoint = ENDPOINTS.SCHOOL_ADMIN.ACADEMIC_YEARS.HISTORY;
+      if (archiveYear) {
+        const params = new URLSearchParams();
+        params.set('yearId', archiveYear);
+        endpoint = `${endpoint}?${params.toString()}`;
+      }
+
+      const resp = await get(endpoint);
+      if (resp?.status === 'success' && Array.isArray(resp.data)) {
+        setHistory(resp.data);
+      }
+    } catch (error) {
+      // eslint-disable-next-line no-console
+      console.error('Error loading academic year history:', error);
+    } finally {
+      setHistoryLoading(false);
+    }
+  };
+
   return (
     <RoleLayout
       title="Quản lý Năm học"
@@ -424,11 +450,83 @@ function ManageAcademicYears() {
                 fontWeight: 600,
                 px: 3,
               }}
+              onClick={handleSearchHistory}
             >
               Tra cứu
             </Button>
             <Box sx={{ flexGrow: 1 }} />
           </Stack>
+
+          {historyLoading && (
+            <Box sx={{ mt: 3, textAlign: 'center' }}>
+              <Typography variant="body2" color="text.secondary">
+                Đang tải kết quả tra cứu...
+              </Typography>
+            </Box>
+          )}
+
+          {!historyLoading && history.length > 0 && (
+            <Box sx={{ mt: 3 }}>
+              <Typography variant="subtitle1" fontWeight={700} mb={2}>
+                Kết quả tìm kiếm
+              </Typography>
+              <Stack
+                direction={{ xs: 'column', md: 'row' }}
+                spacing={2}
+                alignItems="stretch"
+              >
+                {history.map((item) => (
+                  <Paper
+                    key={item._id}
+                    elevation={0}
+                    sx={{
+                      flex: 1,
+                      borderRadius: 2,
+                      border: '1px solid',
+                      borderColor: 'divider',
+                      p: 2.5,
+                      backgroundColor: 'grey.50',
+                    }}
+                  >
+                    <Typography variant="subtitle1" fontWeight={700}>
+                      {item.yearName}
+                    </Typography>
+                    <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
+                      Thời gian: {formatDate(item.startDate)} – {formatDate(item.endDate)}
+                    </Typography>
+                    <Stack spacing={1}>
+                      <Stack direction="row" justifyContent="space-between">
+                        <Typography variant="body2" color="text.secondary">
+                          Số lớp / Số trẻ
+                        </Typography>
+                        <Typography variant="body2" fontWeight={600}>
+                          {item.classCount} lớp | {item.studentCount} trẻ
+                        </Typography>
+                      </Stack>
+                    </Stack>
+                    <Box sx={{ mt: 2 }}>
+                      <Button
+                        size="small"
+                        variant="contained"
+                        sx={{
+                          textTransform: 'none',
+                          borderRadius: 2,
+                          bgcolor: '#e0f2fe',
+                          color: '#0369a1',
+                          '&:hover': {
+                            bgcolor: '#bae6fd',
+                          },
+                        }}
+                        onClick={() => navigate(`/school-admin/academic-years/${item._id}`)}
+                      >
+                        Tra cứu chi tiết năm học
+                      </Button>
+                    </Box>
+                  </Paper>
+                ))}
+              </Stack>
+            </Box>
+          )}
         </Paper>
 
         {/* Dialog tạo năm học mới */}

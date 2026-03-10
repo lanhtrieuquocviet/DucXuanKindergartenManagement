@@ -284,6 +284,12 @@ router.patch(
   authorizeRoles('SchoolAdmin'),
   academicYearController.finishAcademicYear
 );
+router.get(
+  '/academic-years/history',
+  authenticate,
+  authorizeRoles('SchoolAdmin'),
+  academicYearController.getAcademicYearHistory
+);
 
 module.exports = router;
 
