@@ -16,6 +16,7 @@ exports.getMealPhoto = async (req, res) => {
     const doc = await MealPhoto.findOne({ date })
       .populate('meals.uploadedBy', 'fullName')
       .populate('sampleEntries.uploadedBy', 'fullName')
+      .populate('sampleEntries.reviewedBy', 'fullName')
       .lean();
     return res.json({ success: true, data: doc || null });
   } catch (err) {

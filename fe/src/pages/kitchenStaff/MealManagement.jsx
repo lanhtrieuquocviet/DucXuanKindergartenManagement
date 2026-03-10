@@ -91,7 +91,7 @@ const formatDisplayDate = (dateStr) => {
 // ─────────────────────────────────────────────
 // ActionCard — lớn, nổi bật
 // ─────────────────────────────────────────────
-function ActionCard({ icon, title, subtitle, color, gradient, onClick, badge }) {
+function ActionCard({ icon, title, subtitle, color, gradient, onClick, badge, disabled }) {
   return (
     <Card
       elevation={0}
@@ -99,19 +99,22 @@ function ActionCard({ icon, title, subtitle, color, gradient, onClick, badge }) 
         flex: 1,
         minWidth: { xs: '100%', sm: 0 },
         border: '1.5px solid',
-        borderColor: alpha(color, 0.15),
+        borderColor: disabled ? alpha('#94a3b8', 0.2) : alpha(color, 0.15),
         borderRadius: 4,
         overflow: 'hidden',
         transition: 'all 0.22s ease',
-        cursor: 'pointer',
-        '&:hover': {
-          boxShadow: `0 12px 32px ${alpha(color, 0.25)}`,
-          transform: 'translateY(-3px)',
-          borderColor: alpha(color, 0.45),
-        },
+        cursor: disabled ? 'default' : 'pointer',
+        opacity: disabled ? 0.6 : 1,
+        ...(!disabled && {
+          '&:hover': {
+            boxShadow: `0 12px 32px ${alpha(color, 0.25)}`,
+            transform: 'translateY(-3px)',
+            borderColor: alpha(color, 0.45),
+          },
+        }),
       }}
     >
-      <CardActionArea onClick={onClick} sx={{ p: 0 }}>
+      <CardActionArea onClick={disabled ? undefined : onClick} disabled={disabled} sx={{ p: 0 }}>
         <CardContent sx={{ p: 3, pb: '24px !important' }}>
           {/* Icon row */}
           <Box sx={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', mb: 2 }}>
@@ -119,8 +122,8 @@ function ActionCard({ icon, title, subtitle, color, gradient, onClick, badge }) 
               sx={{
                 width: 56,
                 height: 56,
-                background: gradient,
-                boxShadow: `0 6px 18px ${alpha(color, 0.4)}`,
+                background: disabled ? '#e2e8f0' : gradient,
+                boxShadow: disabled ? 'none' : `0 6px 18px ${alpha(color, 0.4)}`,
                 fontSize: 28,
               }}
             >
@@ -159,11 +162,19 @@ function ActionCard({ icon, title, subtitle, color, gradient, onClick, badge }) 
           </Typography>
 
           {/* CTA link */}
-          <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5, mt: 2, color }}>
-            <Typography sx={{ fontSize: 12, fontWeight: 700, color }}>
-              Nhấn để thao tác
-            </Typography>
-            <ArrowIcon sx={{ fontSize: 10 }} />
+          <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5, mt: 2 }}>
+            {disabled ? (
+              <Typography sx={{ fontSize: 12, fontWeight: 700, color: '#94a3b8' }}>
+                Chỉ xem (ngày đã qua)
+              </Typography>
+            ) : (
+              <>
+                <Typography sx={{ fontSize: 12, fontWeight: 700, color }}>
+                  Nhấn để thao tác
+                </Typography>
+                <ArrowIcon sx={{ fontSize: 10, color }} />
+              </>
+            )}
           </Box>
         </CardContent>
       </CardActionArea>
@@ -839,20 +850,8 @@ function UploadMealDialog({ open, onClose, date, onSuccess, editData }) {
 // ─────────────────────────────────────────────
 // MealEntryCard — card hiển thị ảnh của 1 bữa
 // ─────────────────────────────────────────────
-function MealEntryCard({ entry, onPreview, onEdit, onDelete }) {
+function MealEntryCard({ entry, onPreview, onEdit, isToday }) {
   const cfg = getMealConfig(entry.mealType);
-  const [confirmDelete, setConfirmDelete] = useState(false);
-  const [deleting, setDeleting] = useState(false);
-
-  const handleDelete = async () => {
-    try {
-      setDeleting(true);
-      await onDelete(entry.mealType);
-    } finally {
-      setDeleting(false);
-      setConfirmDelete(false);
-    }
-  };
 
   return (
     <Card
@@ -882,56 +881,19 @@ function MealEntryCard({ entry, onPreview, onEdit, onDelete }) {
           sx={{ height: 22, fontSize: 11, bgcolor: alpha('#16a34a', 0.1), color: '#16a34a', border: 'none' }}
         />
         {/* Action buttons */}
-        {!confirmDelete ? (
-          <Box sx={{ display: 'flex', gap: 0.5 }}>
-            <Tooltip title="Chỉnh sửa" arrow>
-              <IconButton
-                size="small"
-                onClick={() => onEdit(entry)}
-                sx={{
-                  p: 0.5, color: cfg.color,
-                  '&:hover': { bgcolor: alpha(cfg.color, 0.12) },
-                }}
-              >
-                <EditIcon sx={{ fontSize: 15 }} />
-              </IconButton>
-            </Tooltip>
-            <Tooltip title="Xóa bữa ăn" arrow>
-              <IconButton
-                size="small"
-                onClick={() => setConfirmDelete(true)}
-                sx={{
-                  p: 0.5, color: '#dc2626',
-                  '&:hover': { bgcolor: alpha('#dc2626', 0.1) },
-                }}
-              >
-                <DeleteIcon sx={{ fontSize: 15 }} />
-              </IconButton>
-            </Tooltip>
-          </Box>
-        ) : (
-          <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.75, bgcolor: alpha('#dc2626', 0.08), px: 1, py: 0.5, borderRadius: 2 }}>
-            <Typography variant="caption" sx={{ fontSize: 11, color: '#dc2626', fontWeight: 700 }}>
-              Xóa?
-            </Typography>
-            <Button
+        {isToday && (
+          <Tooltip title="Chỉnh sửa" arrow>
+            <IconButton
               size="small"
-              variant="contained"
-              onClick={handleDelete}
-              disabled={deleting}
-              sx={{ minWidth: 0, px: 1, py: 0.25, fontSize: 11, bgcolor: '#dc2626', '&:hover': { bgcolor: '#b91c1c' }, borderRadius: 1.5, textTransform: 'none', lineHeight: 1.5 }}
+              onClick={() => onEdit(entry)}
+              sx={{
+                p: 0.5, color: cfg.color,
+                '&:hover': { bgcolor: alpha(cfg.color, 0.12) },
+              }}
             >
-              {deleting ? <CircularProgress size={11} color="inherit" /> : 'Có'}
-            </Button>
-            <Button
-              size="small"
-              onClick={() => setConfirmDelete(false)}
-              disabled={deleting}
-              sx={{ minWidth: 0, px: 1, py: 0.25, fontSize: 11, color: 'text.secondary', borderRadius: 1.5, textTransform: 'none', lineHeight: 1.5 }}
-            >
-              Không
-            </Button>
-          </Box>
+              <EditIcon sx={{ fontSize: 15 }} />
+            </IconButton>
+          </Tooltip>
         )}
       </Box>
 
@@ -1014,21 +976,9 @@ const SAMPLE_MEAL_TYPES = [
 ];
 const getSampleMealCfg = (mealType) => SAMPLE_MEAL_TYPES.find((m) => m.value === mealType) || SAMPLE_MEAL_TYPES[0];
 
-function SampleEntryCard({ entry, onPreview, onDelete, selectedDate }) {
+function SampleEntryCard({ entry, onPreview, selectedDate, isToday }) {
   const navigate = useNavigate();
   const cfg = getSampleMealCfg(entry.mealType);
-  const [confirmDelete, setConfirmDelete] = useState(false);
-  const [deleting, setDeleting] = useState(false);
-
-  const handleDelete = async () => {
-    try {
-      setDeleting(true);
-      await onDelete(entry.mealType);
-    } finally {
-      setDeleting(false);
-      setConfirmDelete(false);
-    }
-  };
 
   return (
     <Card
@@ -1096,7 +1046,7 @@ function SampleEntryCard({ entry, onPreview, onDelete, selectedDate }) {
           sx={{ height: 22, fontSize: 11, bgcolor: alpha(cfg.color, 0.1), color: cfg.color, border: 'none' }}
         />
         {/* Edit action */}
-        {!confirmDelete && (
+        {isToday && (
           <Tooltip title="Chỉnh sửa mẫu" arrow>
             <IconButton
               size="small"
@@ -1108,34 +1058,6 @@ function SampleEntryCard({ entry, onPreview, onDelete, selectedDate }) {
               <EditIcon sx={{ fontSize: 15 }} />
             </IconButton>
           </Tooltip>
-        )}
-        {/* Delete action */}
-        {!confirmDelete ? (
-          <Tooltip title="Xóa mẫu" arrow>
-            <IconButton
-              size="small"
-              onClick={() => setConfirmDelete(true)}
-              sx={{ p: 0.5, color: '#dc2626', '&:hover': { bgcolor: alpha('#dc2626', 0.1) } }}
-            >
-              <DeleteIcon sx={{ fontSize: 15 }} />
-            </IconButton>
-          </Tooltip>
-        ) : (
-          <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.75, bgcolor: alpha('#dc2626', 0.08), px: 1, py: 0.5, borderRadius: 2 }}>
-            <Typography variant="caption" sx={{ fontSize: 11, color: '#dc2626', fontWeight: 700 }}>Xóa?</Typography>
-            <Button
-              size="small" variant="contained" onClick={handleDelete} disabled={deleting}
-              sx={{ minWidth: 0, px: 1, py: 0.25, fontSize: 11, bgcolor: '#dc2626', '&:hover': { bgcolor: '#b91c1c' }, borderRadius: 1.5, textTransform: 'none', lineHeight: 1.5 }}
-            >
-              {deleting ? <CircularProgress size={11} color="inherit" /> : 'Có'}
-            </Button>
-            <Button
-              size="small" onClick={() => setConfirmDelete(false)} disabled={deleting}
-              sx={{ minWidth: 0, px: 1, py: 0.25, fontSize: 11, color: 'text.secondary', borderRadius: 1.5, textTransform: 'none', lineHeight: 1.5 }}
-            >
-              Không
-            </Button>
-          </Box>
         )}
       </Box>
 
@@ -1715,6 +1637,7 @@ function MealManagement() {
           gradient="linear-gradient(135deg, #f97316 0%, #fb923c 100%)"
           onClick={() => { setEditingEntry(null); setUploadDialogOpen(true); }}
           badge={meals.length > 0 ? meals.reduce((s, m) => s + m.images.length, 0) : null}
+          disabled={!isToday}
         />
         <ActionCard
           icon={<SampleIcon sx={{ fontSize: 26, color: 'white' }} />}
@@ -1724,6 +1647,7 @@ function MealManagement() {
           gradient="linear-gradient(135deg, #ef4444 0%, #f87171 100%)"
           onClick={() => navigate('/kitchen/sample-food')}
           badge={sampleEntries.length > 0 ? sampleEntries.length : null}
+          disabled={!isToday}
         />
       </Box>
 
@@ -1750,18 +1674,20 @@ function MealManagement() {
                   sx={{ height: 24, fontSize: 11.5, bgcolor: alpha('#f97316', 0.1), color: '#f97316', fontWeight: 700, border: 'none' }}
                 />
               </Box>
-              <Button
-                variant="contained"
-                startIcon={<AddPhotoIcon />}
-                onClick={() => { setEditingEntry(null); setUploadDialogOpen(true); }}
-                sx={{
-                  borderRadius: 2.5, fontSize: 13, fontWeight: 700, px: 2.5, py: 0.9, textTransform: 'none',
-                  bgcolor: '#f97316', '&:hover': { bgcolor: '#f97316', filter: 'brightness(0.9)' },
-                  boxShadow: `0 4px 14px ${alpha('#f97316', 0.4)}`,
-                }}
-              >
-                Upload ảnh
-              </Button>
+              {isToday && (
+                <Button
+                  variant="contained"
+                  startIcon={<AddPhotoIcon />}
+                  onClick={() => { setEditingEntry(null); setUploadDialogOpen(true); }}
+                  sx={{
+                    borderRadius: 2.5, fontSize: 13, fontWeight: 700, px: 2.5, py: 0.9, textTransform: 'none',
+                    bgcolor: '#f97316', '&:hover': { bgcolor: '#f97316', filter: 'brightness(0.9)' },
+                    boxShadow: `0 4px 14px ${alpha('#f97316', 0.4)}`,
+                  }}
+                >
+                  Upload ảnh
+                </Button>
+              )}
             </Box>
 
             {loadingData ? (
@@ -1776,19 +1702,19 @@ function MealManagement() {
                     entry={entry}
                     onPreview={(url) => { setPreviewUrl(url); setPreviewOpen(true); }}
                     onEdit={(e) => { setEditingEntry(e); setUploadDialogOpen(true); }}
-                    onDelete={handleDeleteMealEntry}
+                    isToday={isToday}
                   />
                 ))}
               </Box>
             ) : (
               <Box
-                onClick={() => { setEditingEntry(null); setUploadDialogOpen(true); }}
+                onClick={isToday ? () => { setEditingEntry(null); setUploadDialogOpen(true); } : undefined}
                 sx={{
                   display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center',
                   py: 7, gap: 2, borderRadius: 3, border: '2.5px dashed',
                   borderColor: alpha('#f97316', 0.3), bgcolor: alpha('#f97316', 0.025),
-                  cursor: 'pointer', transition: 'all 0.2s',
-                  '&:hover': { borderColor: '#f97316', bgcolor: alpha('#f97316', 0.07) },
+                  cursor: isToday ? 'pointer' : 'default', transition: 'all 0.2s',
+                  ...(isToday && { '&:hover': { borderColor: '#f97316', bgcolor: alpha('#f97316', 0.07) } }),
                 }}
               >
                 <Box sx={{ width: 72, height: 72, borderRadius: '50%', bgcolor: alpha('#f97316', 0.1), display: 'flex', alignItems: 'center', justifyContent: 'center', border: `2px solid ${alpha('#f97316', 0.2)}` }}>
@@ -1799,7 +1725,7 @@ function MealManagement() {
                     Chưa có ảnh món ăn cho ngày này
                   </Typography>
                   <Typography variant="body2" color="text.disabled" sx={{ fontSize: 12.5 }}>
-                    Nhấn để upload ảnh theo từng bữa (sáng, trưa, chiều...)
+                    {isToday ? 'Nhấn để upload ảnh theo từng bữa (sáng, trưa, chiều...)' : 'Không có dữ liệu cho ngày này'}
                   </Typography>
                 </Box>
               </Box>
@@ -1834,18 +1760,20 @@ function MealManagement() {
                   />
                 )}
               </Box>
-              <Button
-                variant="contained"
-                startIcon={<AddPhotoIcon />}
-                onClick={() => navigate('/kitchen/sample-food')}
-                sx={{
-                  borderRadius: 2.5, fontSize: 13, fontWeight: 700, px: 2.5, py: 0.9, textTransform: 'none',
-                  bgcolor: '#ef4444', '&:hover': { bgcolor: '#dc2626' },
-                  boxShadow: `0 4px 14px ${alpha('#ef4444', 0.4)}`,
-                }}
-              >
-                Upload mẫu
-              </Button>
+              {isToday && (
+                <Button
+                  variant="contained"
+                  startIcon={<AddPhotoIcon />}
+                  onClick={() => navigate('/kitchen/sample-food')}
+                  sx={{
+                    borderRadius: 2.5, fontSize: 13, fontWeight: 700, px: 2.5, py: 0.9, textTransform: 'none',
+                    bgcolor: '#ef4444', '&:hover': { bgcolor: '#dc2626' },
+                    boxShadow: `0 4px 14px ${alpha('#ef4444', 0.4)}`,
+                  }}
+                >
+                  Upload mẫu
+                </Button>
+              )}
             </Box>
 
             {loadingData ? (
@@ -1859,20 +1787,20 @@ function MealManagement() {
                     key={entry.mealType}
                     entry={entry}
                     onPreview={(url) => { setPreviewUrl(url); setPreviewOpen(true); }}
-                    onDelete={handleDeleteSampleEntry}
                     selectedDate={selectedDate}
+                    isToday={isToday}
                   />
                 ))}
               </Box>
             ) : (
               <Box
-                onClick={() => navigate('/kitchen/sample-food')}
+                onClick={isToday ? () => navigate('/kitchen/sample-food') : undefined}
                 sx={{
                   display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center',
                   py: 7, gap: 2, borderRadius: 3, border: '2.5px dashed',
                   borderColor: alpha('#ef4444', 0.3), bgcolor: alpha('#ef4444', 0.025),
-                  cursor: 'pointer', transition: 'all 0.2s',
-                  '&:hover': { borderColor: '#ef4444', bgcolor: alpha('#ef4444', 0.07) },
+                  cursor: isToday ? 'pointer' : 'default', transition: 'all 0.2s',
+                  ...(isToday && { '&:hover': { borderColor: '#ef4444', bgcolor: alpha('#ef4444', 0.07) } }),
                 }}
               >
                 <Box sx={{ width: 72, height: 72, borderRadius: '50%', bgcolor: alpha('#ef4444', 0.1), display: 'flex', alignItems: 'center', justifyContent: 'center', border: `2px solid ${alpha('#ef4444', 0.2)}` }}>
