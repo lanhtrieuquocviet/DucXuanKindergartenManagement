@@ -36,8 +36,20 @@ export const deleteMealEntry = ({ date, mealType }) =>
   del(`${ENDPOINTS.MEAL_PHOTOS.UPSERT_MEAL_ENTRY}?date=${date}&mealType=${mealType}`);
 
 /**
- * Thêm / cập nhật mẫu thực phẩm cho một bữa ăn cụ thể
- * @param {{ date: string, mealType: 'sang'|'trua'|'chieu'|'xe', description?: string, images: string[] }} data
+ * Upload ảnh lên Cloudinary qua backend
+ * @param {File} file - File ảnh
+ * @returns {Promise<string>} URL ảnh trên Cloudinary
+ */
+export const uploadKitchenImage = async (file) => {
+  const formData = new FormData();
+  formData.append('image', file);
+  const res = await postFormData(ENDPOINTS.CLOUDINARY.UPLOAD_KITCHEN_IMAGE, formData);
+  return res.data.url;
+};
+
+/**
+ * Thêm / cập nhật mẫu thực phẩm cho một bữa ăn
+ * @param {{ date: string, mealType: string, description?: string, images: string[] }} data
  */
 export const upsertSampleEntry = (data) =>
   post(ENDPOINTS.MEAL_PHOTOS.UPSERT_SAMPLE_ENTRY, data);
@@ -55,15 +67,3 @@ export const deleteSampleEntry = ({ date, mealType }) =>
  */
 export const reviewSampleEntry = (data) =>
   put(ENDPOINTS.MEAL_PHOTOS.REVIEW_SAMPLE_ENTRY, data);
-
-/**
- * Upload ảnh lên Cloudinary qua backend
- * @param {File} file - File ảnh
- * @returns {Promise<string>} URL ảnh trên Cloudinary
- */
-export const uploadKitchenImage = async (file) => {
-  const formData = new FormData();
-  formData.append('image', file);
-  const res = await postFormData(ENDPOINTS.CLOUDINARY.UPLOAD_KITCHEN_IMAGE, formData);
-  return res.data.url;
-};
