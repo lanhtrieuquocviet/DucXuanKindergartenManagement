@@ -1,86 +1,318 @@
-import { useEffect, useState } from "react";
+import { useEffect, useState, useMemo } from "react";
 import { getFoods } from "../service/menu.api";
+import {
+  Avatar,
+  Box,
+  Button,
+  Checkbox,
+  Chip,
+  Dialog,
+  DialogActions,
+  DialogContent,
+  DialogTitle,
+  Divider,
+  InputAdornment,
+  List,
+  ListItem,
+  ListItemAvatar,
+  ListItemButton,
+  ListItemText,
+  Skeleton,
+  Stack,
+  TextField,
+  Typography,
+  alpha,
+} from "@mui/material";
+import {
+  Search as SearchIcon,
+  LocalFireDepartment as CalorieIcon,
+  Restaurant as FoodIcon,
+  Clear as ClearIcon,
+  CheckCircle as CheckIcon,
+} from "@mui/icons-material";
 
-function FoodSelectorModal({ open, onClose, onSave }) {
-  const [foods, setFoods] = useState([]);
-  const [selectedFoods, setSelectedFoods] = useState([]);
+function FoodSelectorModal({ open, selectedFoods = [], onClose, onSave }) {
+  const [allFoods, setAllFoods] = useState([]);
+  const [checked, setChecked] = useState([]);
+  const [search, setSearch] = useState("");
+  const [loading, setLoading] = useState(false);
 
   useEffect(() => {
-    fetchFoods();
-  }, []);
+    if (open) fetchFoods();
+  }, [open]);
+
+  useEffect(() => {
+    if (open) setChecked(selectedFoods.map((f) => f._id));
+  }, [open, selectedFoods]);
 
   const fetchFoods = async () => {
-    const res = await getFoods();
-    setFoods(res.data);
-  };
-
-  const toggleFood = (food) => {
-    const exists = selectedFoods.find((f) => f._id === food._id);
-
-    if (exists) {
-      setSelectedFoods(selectedFoods.filter((f) => f._id !== food._id));
-    } else {
-      setSelectedFoods([...selectedFoods, food]);
+    try {
+      setLoading(true);
+      const res = await getFoods();
+      setAllFoods(res.data || []);
+    } finally {
+      setLoading(false);
     }
   };
 
-  const totalCalories = selectedFoods.reduce(
-    (sum, food) => sum + food.calories,
-    0
-  );
+  const filtered = useMemo(() => {
+    const q = search.toLowerCase();
+    return q
+      ? allFoods.filter((f) => f.name.toLowerCase().includes(q))
+      : allFoods;
+  }, [allFoods, search]);
 
-  if (!open) return null;
+  const toggleFood = (id) => {
+    setChecked((prev) =>
+      prev.includes(id) ? prev.filter((x) => x !== id) : [...prev, id]
+    );
+  };
+
+  const selectedList = allFoods.filter((f) => checked.includes(f._id));
+  const totalCalories = selectedList.reduce((s, f) => s + (f.calories || 0), 0);
+  const totalProtein = selectedList.reduce((s, f) => s + (f.protein || 0), 0);
+
+  const handleSave = () => onSave(selectedList);
 
   return (
-    <div className="fixed inset-0 bg-black/40 flex justify-center items-center">
-      <div className="bg-white p-6 w-[500px] rounded-lg">
-        <h2 className="font-semibold mb-3">Chọn món ăn</h2>
+    <Dialog
+      open={open}
+      onClose={onClose}
+      maxWidth="sm"
+      fullWidth
+      PaperProps={{
+        sx: {
+          borderRadius: 3,
+          boxShadow: "0 20px 60px rgba(0,0,0,0.15)",
+          height: "80vh",
+          display: "flex",
+          flexDirection: "column",
+        },
+      }}
+    >
+      <DialogTitle
+        sx={{
+          pb: 1,
+          pt: 2.5,
+          px: 3,
+          fontWeight: 800,
+          fontSize: 17,
+          display: "flex",
+          alignItems: "center",
+          gap: 1.5,
+          flexShrink: 0,
+        }}
+      >
+        <Avatar
+          sx={{
+            width: 36,
+            height: 36,
+            background: "linear-gradient(135deg, #4f46e5, #7c3aed)",
+          }}
+        >
+          <FoodIcon sx={{ fontSize: 18 }} />
+        </Avatar>
+        Chọn món ăn
+        {checked.length > 0 && (
+          <Chip
+            label={`${checked.length} món`}
+            size="small"
+            color="primary"
+            sx={{ ml: "auto", fontWeight: 700 }}
+          />
+        )}
+      </DialogTitle>
 
-        <div className="max-h-[300px] overflow-y-auto border rounded">
-          {foods.map((food) => {
-            const checked = selectedFoods.some((f) => f._id === food._id);
+      <Box sx={{ px: 3, pb: 1.5, flexShrink: 0 }}>
+        <TextField
+          fullWidth
+          size="small"
+          placeholder="Tìm kiếm món ăn..."
+          value={search}
+          onChange={(e) => setSearch(e.target.value)}
+          InputProps={{
+            startAdornment: (
+              <InputAdornment position="start">
+                <SearchIcon sx={{ fontSize: 18, color: "text.disabled" }} />
+              </InputAdornment>
+            ),
+            endAdornment: search && (
+              <InputAdornment position="end">
+                <ClearIcon
+                  sx={{ fontSize: 16, cursor: "pointer", color: "text.disabled" }}
+                  onClick={() => setSearch("")}
+                />
+              </InputAdornment>
+            ),
+            sx: { borderRadius: 2 },
+          }}
+        />
+      </Box>
 
-            return (
-              <div
-                key={food._id}
-                className="flex justify-between items-center p-2 border-b"
-              >
-                <label className="flex gap-2 items-center">
-                  <input
-                    type="checkbox"
-                    checked={checked}
-                    onChange={() => toggleFood(food)}
-                  />
+      <DialogContent
+        sx={{ px: 1.5, py: 0, flex: 1, overflow: "auto", minHeight: 0 }}
+      >
+        {loading ? (
+          <Stack spacing={0.5} sx={{ px: 1.5 }}>
+            {Array.from({ length: 6 }).map((_, i) => (
+              <Skeleton key={i} variant="rectangular" height={52} sx={{ borderRadius: 2 }} />
+            ))}
+          </Stack>
+        ) : filtered.length === 0 ? (
+          <Box sx={{ textAlign: "center", py: 6 }}>
+            <Avatar sx={{ width: 52, height: 52, bgcolor: "grey.100", mx: "auto", mb: 1.5 }}>
+              <FoodIcon sx={{ fontSize: 26, color: "grey.400" }} />
+            </Avatar>
+            <Typography color="text.secondary" fontWeight={600} fontSize={14}>
+              Không tìm thấy món ăn
+            </Typography>
+          </Box>
+        ) : (
+          <List dense disablePadding>
+            {filtered.map((food) => {
+              const isChecked = checked.includes(food._id);
+              return (
+                <ListItem key={food._id} disablePadding sx={{ px: 1.5, mb: 0.25 }}>
+                  <ListItemButton
+                    onClick={() => toggleFood(food._id)}
+                    sx={{
+                      borderRadius: 2,
+                      py: 0.75,
+                      bgcolor: isChecked ? alpha("#4f46e5", 0.07) : "transparent",
+                      border: "1px solid",
+                      borderColor: isChecked
+                        ? alpha("#4f46e5", 0.25)
+                        : "transparent",
+                      "&:hover": {
+                        bgcolor: isChecked
+                          ? alpha("#4f46e5", 0.1)
+                          : "grey.50",
+                      },
+                      transition: "all 0.12s",
+                    }}
+                  >
+                    <Checkbox
+                      checked={isChecked}
+                      edge="start"
+                      disableRipple
+                      size="small"
+                      sx={{
+                        mr: 0.5,
+                        color: "text.disabled",
+                        "&.Mui-checked": { color: "primary.main" },
+                      }}
+                    />
+                    <ListItemAvatar sx={{ minWidth: 38 }}>
+                      <Avatar
+                        sx={{
+                          width: 30,
+                          height: 30,
+                          bgcolor: isChecked
+                            ? alpha("#4f46e5", 0.12)
+                            : "grey.100",
+                          fontSize: 14,
+                        }}
+                      >
+                        🍽️
+                      </Avatar>
+                    </ListItemAvatar>
+                    <ListItemText
+                      primary={
+                        <Typography
+                          variant="body2"
+                          fontWeight={isChecked ? 700 : 500}
+                          color={isChecked ? "primary.main" : "text.primary"}
+                        >
+                          {food.name}
+                        </Typography>
+                      }
+                      secondary={
+                        <Stack direction="row" spacing={1.5} mt={0.25}>
+                          <Typography
+                            variant="caption"
+                            sx={{ color: "#f97316", fontWeight: 600, fontSize: 11 }}
+                          >
+                            🔥 {food.calories} kcal
+                          </Typography>
+                          <Typography variant="caption" color="text.disabled" sx={{ fontSize: 11 }}>
+                            P: {food.protein}g · F: {food.fat}g · C: {food.carb}g
+                          </Typography>
+                        </Stack>
+                      }
+                    />
+                    {isChecked && (
+                      <CheckIcon sx={{ fontSize: 18, color: "primary.main", ml: 1 }} />
+                    )}
+                  </ListItemButton>
+                </ListItem>
+              );
+            })}
+          </List>
+        )}
+      </DialogContent>
 
-                  {food.name}
-                </label>
+      {/* Footer summary */}
+      {checked.length > 0 && (
+        <>
+          <Divider />
+          <Box sx={{ px: 3, py: 1.25, bgcolor: alpha("#4f46e5", 0.04), flexShrink: 0 }}>
+            <Stack direction="row" spacing={2} alignItems="center" flexWrap="wrap">
+              <Typography variant="caption" color="text.secondary" fontWeight={600}>
+                Đã chọn{" "}
+                <Typography component="span" color="primary.main" fontWeight={800}>
+                  {checked.length}
+                </Typography>{" "}
+                món:
+              </Typography>
+              <Stack direction="row" spacing={1}>
+                <Chip
+                  icon={<CalorieIcon sx={{ fontSize: 13, color: "#f97316 !important" }} />}
+                  label={`${totalCalories} kcal`}
+                  size="small"
+                  sx={{ fontSize: 11, fontWeight: 700, bgcolor: alpha("#f97316", 0.1) }}
+                />
+                <Chip
+                  label={`Protein: ${totalProtein}g`}
+                  size="small"
+                  sx={{ fontSize: 11, fontWeight: 700, bgcolor: alpha("#6366f1", 0.1) }}
+                />
+              </Stack>
+            </Stack>
+          </Box>
+        </>
+      )}
 
-                <span className="text-xs text-gray-500">
-                  {food.calories} kcal
-                </span>
-              </div>
-            );
-          })}
-        </div>
-
-        <div className="mt-3 text-sm">
-          Tổng Calories: <b>{totalCalories}</b>
-        </div>
-
-        <div className="flex justify-end gap-2 mt-4">
-          <button onClick={onClose} className="border px-3 py-1 rounded">
-            Huỷ
-          </button>
-
-          <button
-            onClick={() => onSave(selectedFoods)}
-            className="bg-blue-600 text-white px-3 py-1 rounded"
-          >
-            Lưu
-          </button>
-        </div>
-      </div>
-    </div>
+      <DialogActions sx={{ px: 3, pb: 2.5, pt: 1.5, gap: 1, flexShrink: 0 }}>
+        <Button
+          onClick={onClose}
+          sx={{
+            borderRadius: 2,
+            textTransform: "none",
+            color: "text.secondary",
+            fontWeight: 600,
+          }}
+        >
+          Hủy
+        </Button>
+        <Button
+          variant="contained"
+          onClick={handleSave}
+          sx={{
+            borderRadius: 2,
+            px: 3,
+            textTransform: "none",
+            fontWeight: 700,
+            background: "linear-gradient(135deg, #4f46e5 0%, #7c3aed 100%)",
+            boxShadow: "0 4px 14px rgba(99,102,241,0.35)",
+            "&:hover": {
+              background: "linear-gradient(135deg, #4338ca 0%, #6d28d9 100%)",
+            },
+          }}
+        >
+          Lưu {checked.length > 0 ? `(${checked.length} món)` : ""}
+        </Button>
+      </DialogActions>
+    </Dialog>
   );
 }
 
