@@ -1,7 +1,14 @@
 {
   "permissions": {
     "allow": [
-      "Bash(xargs grep -l \"upload-food\\\\|UploadFood\\\\|upload_food\\\\|uploadFood\" find d:/DucXuanKindergartenManagement/fe/src -name \"*Upload*\" -o -name \"*upload*\")"
+      "Bash(xargs grep -l \"upload-food\\\\|UploadFood\\\\|upload_food\\\\|uploadFood\" find d:/DucXuanKindergartenManagement/fe/src -name \"*Upload*\" -o -name \"*upload*\")",
+      "Bash(find /d/DucXuanKindergartenManagement -type f \\\\\\(-name *menu* -o -name *Menu* \\\\\\) ! -path */node_modules/*)",
+      "Bash(grep -r \"mealPhoto\\\\|MealPhoto\" /d/DucXuanKindergartenManagement --include=*.jsx --include=*.js --include=*.tsx --include=*.ts)",
+      "Bash(grep -r \"FoodSelectorModal\\\\|UploadSampleFood\\\\|MealHeadcount\" /d/DucXuanKindergartenManagement --include=*.jsx --include=*.js)",
+      "Bash(grep -r \"dailyMenu\\\\|DailyMenu\" /d/DucXuanKindergartenManagement --include=*.jsx --include=*.js ! -path */node_modules/*)",
+      "Bash(grep -r \"mealManagement\\\\|MealManagement\" /d/DucXuanKindergartenManagement --include=*.jsx --include=*.js ! -path */node_modules/*)",
+      "Bash(xargs grep:*)",
+      "Bash(find /d/DucXuanKindergartenManagement -type f \\\\\\(-path */jobs/* -o -path */utils/* -o -path */helpers/* \\\\\\) -name *.js ! -path */node_modules/*)"
     ]
   }
 }

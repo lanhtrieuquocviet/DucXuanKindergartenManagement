@@ -38,6 +38,32 @@ const sampleEntrySchema = new mongoose.Schema(
   { _id: false }
 );
 
+const editRequestSchema = new mongoose.Schema(
+  {
+    requestType: {
+      type: String,
+      enum: ['meal', 'sample'],
+      required: true,
+    },
+    mealType: {
+      type: String,
+      enum: ['trua', 'chieu', 'sang', 'xe'],
+      required: true,
+    },
+    status: {
+      type: String,
+      enum: ['pending', 'approved', 'rejected'],
+      default: 'pending',
+    },
+    reason: { type: String, default: '' },
+    requestedBy: { type: mongoose.Schema.Types.ObjectId, ref: 'User' },
+    requestedAt: { type: Date, default: Date.now },
+    approvedBy: { type: mongoose.Schema.Types.ObjectId, ref: 'User' },
+    approvedAt: { type: Date },
+  },
+  { _id: false }
+);
+
 const mealPhotoSchema = new mongoose.Schema(
   {
     // Ngày dưới dạng chuỗi YYYY-MM-DD để dễ query
@@ -60,6 +86,9 @@ const mealPhotoSchema = new mongoose.Schema(
 
     // Mẫu thực phẩm có cấu trúc (theo từng bữa, có trạng thái kiểm tra)
     sampleEntries: [sampleEntrySchema],
+
+    // Yêu cầu chỉnh sửa từ bếp trưởng
+    editRequests: [editRequestSchema],
 
     // Người upload
     uploadedBy: {

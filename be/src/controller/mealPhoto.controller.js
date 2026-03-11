@@ -17,6 +17,8 @@ exports.getMealPhoto = async (req, res) => {
       .populate('meals.uploadedBy', 'fullName')
       .populate('sampleEntries.uploadedBy', 'fullName')
       .populate('sampleEntries.reviewedBy', 'fullName')
+      .populate('editRequests.requestedBy', 'fullName')
+      .populate('editRequests.approvedBy', 'fullName')
       .lean();
     return res.json({ success: true, data: doc || null });
   } catch (err) {
@@ -265,6 +267,96 @@ exports.reviewSampleEntry = async (req, res) => {
 
     if (!doc) {
       return res.status(404).json({ success: false, message: 'Không tìm thấy mẫu thực phẩm' });
+    }
+    return res.json({ success: true, data: doc });
+  } catch (err) {
+    return res.status(500).json({ success: false, message: err.message });
+  }
+};
+
+/**
+ * POST /api/meal-photos/edit-request
+ * Bếp trưởng gửi yêu cầu chỉnh sửa ảnh
+ * Body: { date, requestType: 'meal'|'sample', mealType }
+ */
+exports.requestEdit = async (req, res) => {
+  try {
+    const { date, requestType, mealType, reason } = req.body;
+    if (!date || !requestType || !mealType) {
+      return res.status(400).json({ success: false, message: 'Thiếu date, requestType hoặc mealType' });
+    }
+    if (!reason || !reason.trim()) {
+      return res.status(400).json({ success: false, message: 'Vui lòng nhập lý do chỉnh sửa' });
+    }
+    const validTypes = ['trua', 'chieu', 'sang', 'xe'];
+    if (!validTypes.includes(mealType)) {
+      return res.status(400).json({ success: false, message: 'mealType không hợp lệ' });
+    }
+    if (!['meal', 'sample'].includes(requestType)) {
+      return res.status(400).json({ success: false, message: 'requestType không hợp lệ' });
+    }
+
+    // Tìm document, xóa request cũ cùng requestType+mealType, thêm request mới
+    let doc = await MealPhoto.findOne({ date });
+    if (!doc) {
+      doc = new MealPhoto({ date, editRequests: [] });
+    }
+
+    // Xóa request cũ (nếu có) và thêm mới
+    doc.editRequests = doc.editRequests.filter(
+      (r) => !(r.requestType === requestType && r.mealType === mealType)
+    );
+    doc.editRequests.push({
+      requestType,
+      mealType,
+      reason: reason.trim(),
+      status: 'pending',
+      requestedBy: req.user?._id,
+      requestedAt: new Date(),
+    });
+    await doc.save();
+
+    await doc.populate('editRequests.requestedBy', 'fullName');
+    return res.json({ success: true, data: doc });
+  } catch (err) {
+    return res.status(500).json({ success: false, message: err.message });
+  }
+};
+
+/**
+ * PUT /api/meal-photos/edit-request/approve
+ * School admin duyệt yêu cầu chỉnh sửa
+ * Body: { date, requestType: 'meal'|'sample', mealType, action: 'approved'|'rejected' }
+ */
+exports.approveEditRequest = async (req, res) => {
+  try {
+    const { date, requestType, mealType, action } = req.body;
+    if (!date || !requestType || !mealType || !action) {
+      return res.status(400).json({ success: false, message: 'Thiếu tham số' });
+    }
+    if (!['approved', 'rejected'].includes(action)) {
+      return res.status(400).json({ success: false, message: 'action không hợp lệ' });
+    }
+
+    const doc = await MealPhoto.findOneAndUpdate(
+      { date, 'editRequests.requestType': requestType, 'editRequests.mealType': mealType },
+      {
+        $set: {
+          'editRequests.$[elem].status': action,
+          'editRequests.$[elem].approvedBy': req.user?._id,
+          'editRequests.$[elem].approvedAt': new Date(),
+        },
+      },
+      {
+        arrayFilters: [{ 'elem.requestType': requestType, 'elem.mealType': mealType }],
+        new: true,
+      }
+    )
+      .populate('editRequests.requestedBy', 'fullName')
+      .populate('editRequests.approvedBy', 'fullName');
+
+    if (!doc) {
+      return res.status(404).json({ success: false, message: 'Không tìm thấy yêu cầu chỉnh sửa' });
     }
     return res.json({ success: true, data: doc });
   } catch (err) {

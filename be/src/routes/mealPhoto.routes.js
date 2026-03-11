@@ -37,4 +37,20 @@ router.put(
   mealPhotoController.reviewSampleEntry
 );
 
+// Bếp trưởng gửi yêu cầu chỉnh sửa
+router.post(
+  '/edit-request',
+  authenticate,
+  authorizeRoles('KitchenStaff'),
+  mealPhotoController.requestEdit
+);
+
+// School admin duyệt yêu cầu chỉnh sửa
+router.put(
+  '/edit-request/approve',
+  authenticate,
+  authorizeRoles('SchoolAdmin'),
+  mealPhotoController.approveEditRequest
+);
+
 module.exports = router;

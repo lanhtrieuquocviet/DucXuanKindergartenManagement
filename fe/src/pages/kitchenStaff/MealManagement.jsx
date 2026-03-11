@@ -49,6 +49,9 @@ import {
   AccessTime as TimeIcon,
   Person as PersonIcon,
   Edit as EditIcon,
+  Send as SendIcon,
+  HourglassTop as HourglassIcon,
+  LockOpen as LockOpenIcon,
 } from '@mui/icons-material';
 import { toast } from 'react-toastify';
 import {
@@ -59,6 +62,7 @@ import {
   deleteSampleEntry,
   uploadKitchenImage,
   getAttendanceSummary,
+  requestEdit,
 } from '../../service/mealManagement.api';
 
 // ─────────────────────────────────────────────
@@ -850,8 +854,10 @@ function UploadMealDialog({ open, onClose, date, onSuccess, editData }) {
 // ─────────────────────────────────────────────
 // MealEntryCard — card hiển thị ảnh của 1 bữa
 // ─────────────────────────────────────────────
-function MealEntryCard({ entry, onPreview, onEdit, isToday }) {
+function MealEntryCard({ entry, onPreview, onEdit, isToday, editRequest, onRequestEdit }) {
   const cfg = getMealConfig(entry.mealType);
+  const isApproved = editRequest?.status === 'approved';
+  const isPending = editRequest?.status === 'pending';
 
   return (
     <Card
@@ -882,18 +888,34 @@ function MealEntryCard({ entry, onPreview, onEdit, isToday }) {
         />
         {/* Action buttons */}
         {isToday && (
-          <Tooltip title="Chỉnh sửa" arrow>
-            <IconButton
-              size="small"
-              onClick={() => onEdit(entry)}
-              sx={{
-                p: 0.5, color: cfg.color,
-                '&:hover': { bgcolor: alpha(cfg.color, 0.12) },
-              }}
-            >
-              <EditIcon sx={{ fontSize: 15 }} />
-            </IconButton>
-          </Tooltip>
+          isApproved ? (
+            <Tooltip title="Đã được phép chỉnh sửa" arrow>
+              <IconButton
+                size="small"
+                onClick={() => onEdit(entry)}
+                sx={{ p: 0.5, color: '#10b981', '&:hover': { bgcolor: alpha('#10b981', 0.12) } }}
+              >
+                <LockOpenIcon sx={{ fontSize: 15 }} />
+              </IconButton>
+            </Tooltip>
+          ) : isPending ? (
+            <Tooltip title="Đang chờ duyệt" arrow>
+              <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.4, px: 0.75, py: 0.3, bgcolor: alpha('#f59e0b', 0.12), borderRadius: 1 }}>
+                <HourglassIcon sx={{ fontSize: 12, color: '#d97706' }} />
+                <Typography sx={{ fontSize: 10.5, color: '#d97706', fontWeight: 700 }}>Chờ duyệt</Typography>
+              </Box>
+            </Tooltip>
+          ) : (
+            <Tooltip title="Gửi yêu cầu chỉnh sửa lên ban giám hiệu" arrow>
+              <IconButton
+                size="small"
+                onClick={() => onRequestEdit('meal', entry.mealType)}
+                sx={{ p: 0.5, color: cfg.color, '&:hover': { bgcolor: alpha(cfg.color, 0.12) } }}
+              >
+                <SendIcon sx={{ fontSize: 15 }} />
+              </IconButton>
+            </Tooltip>
+          )
         )}
       </Box>
 
@@ -976,9 +998,11 @@ const SAMPLE_MEAL_TYPES = [
 ];
 const getSampleMealCfg = (mealType) => SAMPLE_MEAL_TYPES.find((m) => m.value === mealType) || SAMPLE_MEAL_TYPES[0];
 
-function SampleEntryCard({ entry, onPreview, selectedDate, isToday }) {
+function SampleEntryCard({ entry, onPreview, selectedDate, isToday, editRequest, onRequestEdit }) {
   const navigate = useNavigate();
   const cfg = getSampleMealCfg(entry.mealType);
+  const isApproved = editRequest?.status === 'approved';
+  const isPending = editRequest?.status === 'pending';
 
   return (
     <Card
@@ -1047,17 +1071,36 @@ function SampleEntryCard({ entry, onPreview, selectedDate, isToday }) {
         />
         {/* Edit action */}
         {isToday && (
-          <Tooltip title="Chỉnh sửa mẫu" arrow>
-            <IconButton
-              size="small"
-              onClick={() => navigate('/kitchen/sample-food', {
-                state: { editData: { date: selectedDate, mealType: entry.mealType, description: entry.description, images: entry.images } }
-              })}
-              sx={{ p: 0.5, color: cfg.color, '&:hover': { bgcolor: alpha(cfg.color, 0.12) } }}
-            >
-              <EditIcon sx={{ fontSize: 15 }} />
-            </IconButton>
-          </Tooltip>
+          isApproved ? (
+            <Tooltip title="Đã được phép chỉnh sửa" arrow>
+              <IconButton
+                size="small"
+                onClick={() => navigate('/kitchen/sample-food', {
+                  state: { editData: { date: selectedDate, mealType: entry.mealType, description: entry.description, images: entry.images } }
+                })}
+                sx={{ p: 0.5, color: '#10b981', '&:hover': { bgcolor: alpha('#10b981', 0.12) } }}
+              >
+                <LockOpenIcon sx={{ fontSize: 15 }} />
+              </IconButton>
+            </Tooltip>
+          ) : isPending ? (
+            <Tooltip title="Đang chờ duyệt" arrow>
+              <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.4, px: 0.75, py: 0.3, bgcolor: alpha('#f59e0b', 0.12), borderRadius: 1 }}>
+                <HourglassIcon sx={{ fontSize: 12, color: '#d97706' }} />
+                <Typography sx={{ fontSize: 10.5, color: '#d97706', fontWeight: 700 }}>Chờ duyệt</Typography>
+              </Box>
+            </Tooltip>
+          ) : (
+            <Tooltip title="Gửi yêu cầu chỉnh sửa lên ban giám hiệu" arrow>
+              <IconButton
+                size="small"
+                onClick={() => onRequestEdit('sample', entry.mealType)}
+                sx={{ p: 0.5, color: cfg.color, '&:hover': { bgcolor: alpha(cfg.color, 0.12) } }}
+              >
+                <SendIcon sx={{ fontSize: 15 }} />
+              </IconButton>
+            </Tooltip>
+          )
         )}
       </Box>
 
@@ -1314,6 +1357,10 @@ function MealManagement() {
   const [mealImages, setMealImages] = useState([]);
   const [sampleImages, setSampleImages] = useState([]);
   const [sampleEntries, setSampleEntries] = useState([]); // structured sample entries
+  const [editRequests, setEditRequests] = useState([]); // edit requests for this date
+  const [editReqDialog, setEditReqDialog] = useState(null); // { requestType, mealType }
+  const [editReqReason, setEditReqReason] = useState('');
+  const [sendingReq, setSendingReq] = useState(false);
   const [loadingData, setLoadingData] = useState(false);
   const [uploadingSample, setUploadingSample] = useState(false);
   const [saving, setSaving] = useState(false);
@@ -1339,11 +1386,13 @@ function MealManagement() {
       setMealImages(res.data?.mealImages || []);
       setSampleImages(res.data?.sampleImages || []);
       setSampleEntries(res.data?.sampleEntries || []);
+      setEditRequests(res.data?.editRequests || []);
     } catch {
       setMeals([]);
       setMealImages([]);
       setSampleImages([]);
       setSampleEntries([]);
+      setEditRequests([]);
     } finally {
       setLoadingData(false);
     }
@@ -1355,6 +1404,27 @@ function MealManagement() {
 
   const saveImages = async (nextMeal, nextSample) => {
     await upsertMealPhoto({ date: selectedDate, mealImages: nextMeal, sampleImages: nextSample });
+  };
+
+  const handleRequestEdit = (requestType, mealType) => {
+    setEditReqDialog({ requestType, mealType });
+    setEditReqReason('');
+  };
+
+  const handleConfirmRequestEdit = async () => {
+    if (!editReqReason.trim()) return;
+    setSendingReq(true);
+    try {
+      await requestEdit({ date: selectedDate, ...editReqDialog, reason: editReqReason.trim() });
+      toast.success('Đã gửi yêu cầu chỉnh sửa lên ban giám hiệu');
+      setEditReqDialog(null);
+      setEditReqReason('');
+      fetchMealPhoto(selectedDate);
+    } catch {
+      toast.error('Không thể gửi yêu cầu chỉnh sửa');
+    } finally {
+      setSendingReq(false);
+    }
   };
 
   const handleSampleUpload = async (e) => {
@@ -1637,7 +1707,7 @@ function MealManagement() {
           gradient="linear-gradient(135deg, #f97316 0%, #fb923c 100%)"
           onClick={() => { setEditingEntry(null); setUploadDialogOpen(true); }}
           badge={meals.length > 0 ? meals.reduce((s, m) => s + m.images.length, 0) : null}
-          disabled={!isToday}
+          disabled={!isToday || meals.length > 0}
         />
         <ActionCard
           icon={<SampleIcon sx={{ fontSize: 26, color: 'white' }} />}
@@ -1647,7 +1717,7 @@ function MealManagement() {
           gradient="linear-gradient(135deg, #ef4444 0%, #f87171 100%)"
           onClick={() => navigate('/kitchen/sample-food')}
           badge={sampleEntries.length > 0 ? sampleEntries.length : null}
-          disabled={!isToday}
+          disabled={!isToday || sampleEntries.length > 0}
         />
       </Box>
 
@@ -1674,7 +1744,7 @@ function MealManagement() {
                   sx={{ height: 24, fontSize: 11.5, bgcolor: alpha('#f97316', 0.1), color: '#f97316', fontWeight: 700, border: 'none' }}
                 />
               </Box>
-              {isToday && (
+              {isToday && meals.length === 0 && (
                 <Button
                   variant="contained"
                   startIcon={<AddPhotoIcon />}
@@ -1703,6 +1773,8 @@ function MealManagement() {
                     onPreview={(url) => { setPreviewUrl(url); setPreviewOpen(true); }}
                     onEdit={(e) => { setEditingEntry(e); setUploadDialogOpen(true); }}
                     isToday={isToday}
+                    editRequest={editRequests.find((r) => r.requestType === 'meal' && r.mealType === entry.mealType)}
+                    onRequestEdit={handleRequestEdit}
                   />
                 ))}
               </Box>
@@ -1760,7 +1832,7 @@ function MealManagement() {
                   />
                 )}
               </Box>
-              {isToday && (
+              {isToday && sampleEntries.length === 0 && (
                 <Button
                   variant="contained"
                   startIcon={<AddPhotoIcon />}
@@ -1789,6 +1861,8 @@ function MealManagement() {
                     onPreview={(url) => { setPreviewUrl(url); setPreviewOpen(true); }}
                     selectedDate={selectedDate}
                     isToday={isToday}
+                    editRequest={editRequests.find((r) => r.requestType === 'sample' && r.mealType === entry.mealType)}
+                    onRequestEdit={handleRequestEdit}
                   />
                 ))}
               </Box>
@@ -1828,6 +1902,58 @@ function MealManagement() {
         editData={editingEntry}
         onSuccess={() => fetchMealPhoto(selectedDate)}
       />
+
+      {/* ── Yêu cầu chỉnh sửa Dialog ── */}
+      <Dialog
+        open={Boolean(editReqDialog)}
+        onClose={() => !sendingReq && setEditReqDialog(null)}
+        maxWidth="xs"
+        fullWidth
+        PaperProps={{ sx: { borderRadius: 3 } }}
+      >
+        <DialogTitle sx={{ pb: 1, fontWeight: 700, fontSize: 16, display: 'flex', alignItems: 'center', gap: 1 }}>
+          <SendIcon sx={{ fontSize: 18, color: '#6366f1' }} />
+          Yêu cầu chỉnh sửa
+        </DialogTitle>
+        <DialogContent>
+          <Typography sx={{ fontSize: 13.5, color: '#64748b', mb: 1.5 }}>
+            Vui lòng nhập lý do cần chỉnh sửa để gửi lên ban giám hiệu duyệt.
+          </Typography>
+          <TextField
+            fullWidth
+            multiline
+            minRows={3}
+            maxRows={6}
+            placeholder="Nhập lý do chỉnh sửa..."
+            value={editReqReason}
+            onChange={(e) => setEditReqReason(e.target.value)}
+            size="small"
+            autoFocus
+            sx={{ '& .MuiOutlinedInput-root': { borderRadius: 2 } }}
+          />
+        </DialogContent>
+        <DialogActions sx={{ px: 3, pb: 2.5, gap: 1 }}>
+          <Button
+            onClick={() => setEditReqDialog(null)}
+            disabled={sendingReq}
+            sx={{ textTransform: 'none', color: '#64748b', fontWeight: 600 }}
+          >
+            Hủy
+          </Button>
+          <Button
+            variant="contained"
+            disabled={sendingReq || !editReqReason.trim()}
+            onClick={handleConfirmRequestEdit}
+            startIcon={sendingReq ? <CircularProgress size={14} sx={{ color: 'white' }} /> : <SendIcon sx={{ fontSize: 15 }} />}
+            sx={{
+              bgcolor: '#6366f1', '&:hover': { bgcolor: '#4f46e5' },
+              textTransform: 'none', fontWeight: 700, borderRadius: 2,
+            }}
+          >
+            Gửi yêu cầu
+          </Button>
+        </DialogActions>
+      </Dialog>
 
       {/* ── Dialogs ── */}
       <AttendanceSummaryDialog

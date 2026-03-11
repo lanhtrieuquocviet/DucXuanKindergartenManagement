@@ -62,6 +62,20 @@ export const deleteSampleEntry = ({ date, mealType }) =>
   del(`${ENDPOINTS.MEAL_PHOTOS.UPSERT_SAMPLE_ENTRY}?date=${date}&mealType=${mealType}`);
 
 /**
+ * Bếp trưởng gửi yêu cầu chỉnh sửa
+ * @param {{ date: string, requestType: 'meal'|'sample', mealType: string }} data
+ */
+export const requestEdit = (data) =>
+  post(ENDPOINTS.MEAL_PHOTOS.REQUEST_EDIT, data);
+
+/**
+ * School admin duyệt/từ chối yêu cầu chỉnh sửa
+ * @param {{ date: string, requestType: 'meal'|'sample', mealType: string, action: 'approved'|'rejected' }} data
+ */
+export const approveEditRequest = (data) =>
+  put(ENDPOINTS.MEAL_PHOTOS.APPROVE_EDIT_REQUEST, data);
+
+/**
  * School admin duyệt mẫu thực phẩm
  * @param {{ date: string, mealType: string, status: 'khong_co_van_de'|'khong_dat', reviewNote?: string }} data
  */
