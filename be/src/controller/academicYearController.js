@@ -254,11 +254,74 @@ const getAcademicYearHistory = async (req, res) => {
   }
 };
 
+/**
+ * GET /api/school-admin/academic-years/:yearId/classes
+ * Danh sách lớp học của một năm học (có giáo viên + số trẻ)
+ */
+const getClassesByAcademicYear = async (req, res) => {
+  try {
+    const { yearId } = req.params;
+
+    const year = await AcademicYear.findById(yearId).lean();
+    if (!year) {
+      return res.status(404).json({
+        status: 'error',
+        message: 'Không tìm thấy năm học',
+      });
+    }
+
+    const classes = await Classes.find({ academicYearId: yearId })
+      .populate('gradeId', 'gradeName')
+      .populate('teacherIds', 'fullName')
+      .sort({ className: 1 })
+      .lean();
+
+    const classIds = classes.map((c) => c._id);
+    const studentCounts = {};
+    if (classIds.length > 0) {
+      const counts = await Student.aggregate([
+        { $match: { classId: { $in: classIds } } },
+        { $group: { _id: '$classId', count: { $sum: 1 } } },
+      ]);
+      counts.forEach((r) => {
+        studentCounts[String(r._id)] = r.count;
+      });
+    }
+
+    const result = classes.map((cls) => {
+      const teacherNames = (cls.teacherIds || [])
+        .map((t) => (t && t.fullName ? `Cô ${t.fullName}` : ''))
+        .filter(Boolean);
+      return {
+        _id: cls._id,
+        className: cls.className,
+        gradeName: cls.gradeId?.gradeName || '',
+        teacherIds: cls.teacherIds,
+        teacherNames: teacherNames.join(', ') || '-',
+        studentCount: studentCounts[String(cls._id)] || 0,
+      };
+    });
+
+    return res.status(200).json({
+      status: 'success',
+      data: result,
+      yearName: year.yearName,
+    });
+  } catch (error) {
+    console.error('getClassesByAcademicYear error:', error);
+    return res.status(500).json({
+      status: 'error',
+      message: 'Lỗi khi lấy danh sách lớp học',
+    });
+  }
+};
+
 module.exports = {
   getCurrentAcademicYear,
   listAcademicYears,
   createAcademicYear,
   finishAcademicYear,
   getAcademicYearHistory,
+  getClassesByAcademicYear,
 };
 

@@ -61,8 +61,8 @@ function ManageAcademicYears() {
       key: 'academic-years',
       label: 'Quản lý năm học',
       children: [
+        { key: 'academic-year-setup', label: 'Thiết lập năm học' },
         { key: 'academic-plan', label: 'Thiết lập kế hoạch' },
-        { key: 'academic-classes', label: 'Danh sách lớp học' },
         { key: 'academic-students', label: 'Danh sách trẻ' },
         { key: 'academic-curriculum', label: 'Chương trình giáo dục' },
         { key: 'academic-schedule', label: 'Thời khóa biểu' },
@@ -97,12 +97,12 @@ function ManageAcademicYears() {
       navigate('/school-admin');
       return;
     }
-    if (key === 'academic-years' || key === 'academic-plan') {
+    if (key === 'academic-years' || key === 'academic-year-setup') {
       navigate('/school-admin/academic-years');
       return;
     }
-    if (key === 'academic-classes') {
-      navigate('/school-admin/classes');
+    if (key === 'academic-plan') {
+      navigate('/school-admin/academic-plan');
       return;
     }
     if (key === 'academic-students') {
@@ -285,10 +285,10 @@ function ManageAcademicYears() {
 
   return (
     <RoleLayout
-      title="Quản lý Năm học"
+      title="Thiết lập Năm học"
       description="Tổng quan năm học đang hoạt động, và tra cứu lịch sử các năm học trước."
       menuItems={menuItems}
-      activeKey="academic-plan"
+      activeKey="academic-year-setup"
       onLogout={handleLogout}
       onViewProfile={handleViewProfile}
       onMenuSelect={handleMenuSelect}
@@ -308,7 +308,7 @@ function ManageAcademicYears() {
           <Stack direction="row" justifyContent="space-between" alignItems="center" spacing={2}>
             <Box>
               <Typography variant="overline" sx={{ opacity: 0.8 }}>
-                MamNon DX &gt; Ban Giám Hiệu &gt; Quản lý Năm học
+                MamNon DX &gt; Ban Giám Hiệu &gt; Thiết lập Năm học
               </Typography>
               <Typography variant="h6" fontWeight={700} mt={0.5}>
                 {currentYear?.yearName || 'Chưa có năm học đang hoạt động'}

@@ -86,6 +86,7 @@ import MenuDetailStudent from './pages/student/MenuDetailStudent';
 import ManageAcademicYears from './pages/schoolAdmin/ManageAcademicYears';
 import AcademicYearDetail from './pages/schoolAdmin/AcademicYearDetail';
 import MealManagementSchoolAdmin from './pages/schoolAdmin/MealManagementSchoolAdmin';
+import AcademicYearPlan from './pages/schoolAdmin/AcademicYearPlan';
 
 
 function AppContent() {
@@ -473,6 +474,14 @@ function App() {
             element={
               <SchoolAdminProvider>
                 <AcademicYearDetail />
+              </SchoolAdminProvider>
+            }
+          />
+          <Route
+            path="/school-admin/academic-plan"
+            element={
+              <SchoolAdminProvider>
+                <AcademicYearPlan />
               </SchoolAdminProvider>
             }
           />

@@ -140,8 +140,8 @@ function ManageStudents() {
   const handleMenuSelect = (key) => {
     if (key === 'students') return;
     if (key === 'overview') { navigate('/school-admin'); return; }
-    if (key === 'academic-years' || key === 'academic-plan') { navigate('/school-admin/academic-years'); return; }
-    if (key === 'academic-classes') { navigate('/school-admin/classes'); return; }
+    if (key === 'academic-years' || key === 'academic-year-setup') { navigate('/school-admin/academic-years'); return; }
+    if (key === 'academic-plan') { navigate('/school-admin/academic-plan'); return; }
     if (key === 'academic-students') { navigate('/school-admin/students'); return; }
     if (key === 'classes') { navigate('/school-admin/classes'); return; }
     if (key === 'contacts') { navigate('/school-admin/contacts'); return; }
@@ -158,8 +158,8 @@ function ManageStudents() {
       key: 'academic-years',
       label: 'Quản lý năm học',
       children: [
+        { key: 'academic-year-setup', label: 'Thiết lập năm học' },
         { key: 'academic-plan', label: 'Thiết lập kế hoạch' },
-        { key: 'academic-classes', label: 'Danh sách lớp học' },
         { key: 'academic-students', label: 'Danh sách trẻ' },
         { key: 'academic-curriculum', label: 'Chương trình giáo dục' },
         { key: 'academic-schedule', label: 'Thời khóa biểu' },

@@ -352,11 +352,11 @@ function ClassList() {
     if (key === 'classes') {
       return;
     }
-    if (key === 'academic-years' || key === 'academic-plan') {
+    if (key === 'academic-years' || key === 'academic-year-setup') {
       navigate('/school-admin/academic-years');
       return;
     }
-    if (key === 'academic-classes') {
+    if (key === 'academic-plan') {
       navigate('/school-admin/classes');
       return;
     }
@@ -421,8 +421,8 @@ function ClassList() {
         key: "academic-years",
         label: "Quản lý năm học",
         children: [
+          { key: "academic-year-setup", label: "Thiết lập năm học" },
           { key: "academic-plan", label: "Thiết lập kế hoạch" },
-          { key: "academic-classes", label: "Danh sách lớp học" },
           { key: "academic-students", label: "Danh sách trẻ" },
           { key: 'academic-curriculum', label: 'Chương trình giáo dục' },
           { key: 'academic-schedule', label: 'Thời khóa biểu' },

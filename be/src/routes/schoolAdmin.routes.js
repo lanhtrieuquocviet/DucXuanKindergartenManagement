@@ -292,6 +292,12 @@ router.get(
   authorizeRoles('SchoolAdmin'),
   academicYearController.getAcademicYearHistory
 );
+router.get(
+  '/academic-years/:yearId/classes',
+  authenticate,
+  authorizeRoles('SchoolAdmin'),
+  academicYearController.getClassesByAcademicYear
+);
 
 // Danh sách giáo viên (dùng cho form tạo/cập nhật lớp)
 router.get('/teachers', authenticate, authorizeRoles('SchoolAdmin'), async (req, res) => {
