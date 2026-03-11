@@ -196,10 +196,10 @@ function TodayAttendance() {
                     <label className="block text-sm font-medium text-gray-700 mb-2">
                       Hình ảnh xác nhận
                     </label>
-                    <div className="grid grid-cols-2 gap-4">
+                    <div className="flex justify-center">
                       {/* Ảnh check-in */}
-                      <div className="space-y-1">
-                        <div className="text-xs font-medium text-gray-600">
+                      <div className="space-y-1 max-w-xs w-full">
+                        <div className="text-xs font-medium text-gray-600 text-center">
                           Ảnh check-in
                         </div>
                         {attendance?.checkinImageName ? (
@@ -212,7 +212,7 @@ function TodayAttendance() {
                             <img
                               src={attendance.checkinImageName}
                               alt="Ảnh check-in"
-                              className="w-full h-32 object-cover rounded-lg border border-gray-200 shadow-sm"
+                              className="w-full h-48 object-cover rounded-lg border border-gray-200 shadow-sm"
                               onError={(e) => {
                                 e.target.src =
                                   "https://via.placeholder.com/300x200?text=Ảnh+lỗi";
@@ -221,50 +221,9 @@ function TodayAttendance() {
                             />
                           </a>
                         ) : (
-                          <div className="h-32 bg-gray-50 border border-dashed border-gray-300 rounded-lg flex items-center justify-center text-xs text-gray-500">
+                          <div className="h-48 bg-gray-50 border border-dashed border-gray-300 rounded-lg flex items-center justify-center text-xs text-gray-500">
                             Chưa có ảnh check-in
                           </div>
-                        )}
-                      </div>
-
-                      {/* Ảnh người đưa (nếu có) */}
-                      <div className="space-y-1">
-                        <div className="text-xs font-medium text-gray-600">
-                          Người đưa
-                        </div>
-                        {attendance?.delivererOtherImageName ? (
-                          <a
-                            href={attendance.delivererOtherImageName}
-                            target="_blank"
-                            rel="noopener noreferrer"
-                            className="block hover:opacity-90 transition"
-                          >
-                            <img
-                              src={attendance.delivererOtherImageName}
-                              alt="Ảnh người đưa"
-                              className="w-full h-32 object-cover rounded-lg border border-gray-200 shadow-sm"
-                              onError={(e) => {
-                                e.target.src = parentAvatar; // fallback về avatar phụ huynh
-                                e.target.alt = "Ảnh người đưa (fallback)";
-                              }}
-                            />
-                          </a>
-                        ) : (
-                          <a
-                            href={parentAvatar}
-                            target="_blank"
-                            rel="noopener noreferrer"
-                            className="block hover:opacity-90 transition"
-                          >
-                            <img
-                              src={parentAvatar}
-                              alt="Ảnh phụ huynh (người đưa mặc định)"
-                              className="w-full h-32 object-cover rounded-lg border border-gray-200 shadow-sm"
-                              onError={(e) => {
-                                e.target.src = DEFAULT_AVATAR;
-                              }}
-                            />
-                          </a>
                         )}
                       </div>
                     </div>
@@ -338,10 +297,10 @@ function TodayAttendance() {
                     <label className="block text-sm font-medium text-gray-700 mb-2">
                       Hình ảnh xác nhận
                     </label>
-                    <div className="grid grid-cols-2 gap-4">
+                    <div className="flex justify-center">
                       {/* Ảnh check-out */}
-                      <div className="space-y-1">
-                        <div className="text-xs font-medium text-gray-600">
+                      <div className="space-y-1 max-w-xs w-full">
+                        <div className="text-xs font-medium text-gray-600 text-center">
                           Ảnh check-out
                         </div>
                         {attendance?.checkoutImageName ? (
@@ -354,7 +313,7 @@ function TodayAttendance() {
                             <img
                               src={attendance.checkoutImageName}
                               alt="Ảnh check-out"
-                              className="w-full h-32 object-cover rounded-lg border border-gray-200 shadow-sm"
+                              className="w-full h-48 object-cover rounded-lg border border-gray-200 shadow-sm"
                               onError={(e) => {
                                 e.target.src =
                                   "https://via.placeholder.com/300x200?text=Ảnh+lỗi";
@@ -362,50 +321,9 @@ function TodayAttendance() {
                             />
                           </a>
                         ) : (
-                          <div className="h-32 bg-gray-50 border border-dashed border-gray-300 rounded-lg flex items-center justify-center text-xs text-gray-500">
+                          <div className="h-48 bg-gray-50 border border-dashed border-gray-300 rounded-lg flex items-center justify-center text-xs text-gray-500">
                             Chưa có ảnh check-out
                           </div>
-                        )}
-                      </div>
-
-                      {/* Ảnh người đón */}
-                      <div className="space-y-1">
-                        <div className="text-xs font-medium text-gray-600">
-                          Người đón
-                        </div>
-                        {attendance?.receiverOtherImageName ? (
-                          <a
-                            href={attendance.receiverOtherImageName}
-                            target="_blank"
-                            rel="noopener noreferrer"
-                            className="block hover:opacity-90 transition"
-                          >
-                            <img
-                              src={attendance.receiverOtherImageName}
-                              alt="Ảnh người đón"
-                              className="w-full h-32 object-cover rounded-lg border border-gray-200 shadow-sm"
-                              onError={(e) => {
-                                e.target.src = parentAvatar; // fallback về avatar phụ huynh
-                                e.target.alt = "Ảnh người đón (fallback)";
-                              }}
-                            />
-                          </a>
-                        ) : (
-                          <a
-                            href={parentAvatar}
-                            target="_blank"
-                            rel="noopener noreferrer"
-                            className="block hover:opacity-90 transition"
-                          >
-                            <img
-                              src={parentAvatar}
-                              alt="Ảnh phụ huynh (người đón mặc định)"
-                              className="w-full h-32 object-cover rounded-lg border border-gray-200 shadow-sm"
-                              onError={(e) => {
-                                e.target.src = DEFAULT_AVATAR;
-                              }}
-                            />
-                          </a>
                         )}
                       </div>
                     </div>

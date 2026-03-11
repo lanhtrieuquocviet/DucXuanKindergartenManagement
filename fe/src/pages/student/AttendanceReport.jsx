@@ -363,46 +363,29 @@ function AttendanceReport() {
                                         <span className="ml-auto px-2 py-0.5 text-xs bg-yellow-100 text-yellow-800 rounded">Chưa điểm danh</span>
                                       )}
                                     </div>
-                                    <div className="p-3 grid grid-cols-1 md:grid-cols-3 gap-3">
-                                      {/* info columns */}
+                                    <div className="p-3 space-y-3">
                                       <div className="space-y-2">
                                         <div><strong>Giờ đến:</strong> {checkInTime || '—'}</div>
-                                        <div><strong>Người đưa:</strong> {attendance.delivererOtherInfo || '(Chưa có thông tin)'}</div>
                                         <div><strong>Ghi chú:</strong> {attendance.note || 'Không có ghi chú.'}</div>
                                       </div>
-                                      <div>
-                                        <div className="text-sm font-semibold mb-1">Ảnh check-in</div>
-                                        {attendance.checkinImageName ? (
-                                          <a href={attendance.checkinImageName} target="_blank" rel="noopener noreferrer">
-                                            <img
-                                              src={attendance.checkinImageName}
-                                              alt="Ảnh check-in"
-                                              className="w-full h-32 object-cover rounded"
-                                              onError={(e)=>{e.target.src="https://via.placeholder.com/300x200?text=Ảnh+lỗi";e.target.alt="Không tải được ảnh";}}
-                                            />
-                                          </a>
-                                        ) : (
-                                          <div className="w-full h-32 border-2 border-dashed border-green-200 flex items-center justify-center text-green-300">
-                                            Chưa có ảnh
-                                          </div>
-                                        )}
-                                      </div>
-                                      <div>
-                                        <div className="text-sm font-semibold mb-1">Ảnh người đưa</div>
-                                        {attendance.delivererOtherImageName ? (
-                                          <a href={attendance.delivererOtherImageName} target="_blank" rel="noopener noreferrer">
-                                            <img
-                                              src={attendance.delivererOtherImageName}
-                                              alt="Ảnh người đưa"
-                                              className="w-full h-32 object-cover rounded"
-                                              onError={(e)=>{e.target.src="https://via.placeholder.com/300x200?text=Ảnh+lỗi";e.target.alt="Không tải được ảnh";}}
-                                            />
-                                          </a>
-                                        ) : (
-                                          <div className="w-full h-32 border-2 border-dashed border-gray-200 flex items-center justify-center text-gray-300">
-                                            Chưa có ảnh
-                                          </div>
-                                        )}
+                                      <div className="flex justify-center">
+                                        <div className="max-w-xs w-full">
+                                          <div className="text-sm font-semibold mb-2 text-center">Ảnh check-in</div>
+                                          {attendance.checkinImageName ? (
+                                            <a href={attendance.checkinImageName} target="_blank" rel="noopener noreferrer">
+                                              <img
+                                                src={attendance.checkinImageName}
+                                                alt="Ảnh check-in"
+                                                className="w-full h-40 object-cover rounded"
+                                                onError={(e)=>{e.target.src="https://via.placeholder.com/300x200?text=Ảnh+lỗi";e.target.alt="Không tải được ảnh";}}
+                                              />
+                                            </a>
+                                          ) : (
+                                            <div className="w-full h-40 border-2 border-dashed border-green-200 flex items-center justify-center text-green-300 rounded">
+                                              Chưa có ảnh
+                                            </div>
+                                          )}
+                                        </div>
                                       </div>
                                     </div>
                                   </div>
@@ -419,45 +402,29 @@ function AttendanceReport() {
                                         <span className="ml-auto px-2 py-0.5 text-xs bg-yellow-100 text-yellow-800 rounded">Chưa điểm danh</span>
                                       )}
                                     </div>
-                                    <div className="p-3 grid grid-cols-1 md:grid-cols-3 gap-3">
+                                    <div className="p-3 space-y-3">
                                       <div className="space-y-2">
                                         <div><strong>Giờ về:</strong> {checkOutTime || '—'}</div>
-                                        <div><strong>Người đón:</strong> {attendance.receiverOtherInfo || '(Chưa có thông tin)'}</div>
                                         <div><strong>Xác nhận phụ huynh:</strong> {attendance.parentConfirm || 'Chưa xác nhận'}</div>
                                       </div>
-                                      <div>
-                                        <div className="text-sm font-semibold mb-1">Ảnh check-out</div>
-                                        {attendance.checkoutImageName ? (
-                                          <a href={attendance.checkoutImageName} target="_blank" rel="noopener noreferrer">
-                                            <img
-                                              src={attendance.checkoutImageName}
-                                              alt="Ảnh check-out"
-                                              className="w-full h-32 object-cover rounded"
-                                              onError={(e)=>{e.target.src="https://via.placeholder.com/300x200?text=Ảnh+lỗi";e.target.alt="Không tải được ảnh";}}
-                                            />
-                                          </a>
-                                        ) : (
-                                          <div className="w-full h-32 border-2 border-dashed border-blue-200 flex items-center justify-center text-blue-300">
-                                            Chưa có ảnh
-                                          </div>
-                                        )}
-                                      </div>
-                                      <div>
-                                        <div className="text-sm font-semibold mb-1">Ảnh người đón</div>
-                                        {attendance.receiverOtherImageName ? (
-                                          <a href={attendance.receiverOtherImageName} target="_blank" rel="noopener noreferrer">
-                                            <img
-                                              src={attendance.receiverOtherImageName}
-                                              alt="Ảnh người đón"
-                                              className="w-full h-32 object-cover rounded"
-                                              onError={(e)=>{e.target.src="https://via.placeholder.com/300x200?text=Ảnh+lỗi";e.target.alt="Không tải được ảnh";}}
-                                            />
-                                          </a>
-                                        ) : (
-                                          <div className="w-full h-32 border-2 border-dashed border-gray-200 flex items-center justify-center text-gray-300">
-                                            Chưa có ảnh
-                                          </div>
-                                        )}
+                                      <div className="flex justify-center">
+                                        <div className="max-w-xs w-full">
+                                          <div className="text-sm font-semibold mb-2 text-center">Ảnh check-out</div>
+                                          {attendance.checkoutImageName ? (
+                                            <a href={attendance.checkoutImageName} target="_blank" rel="noopener noreferrer">
+                                              <img
+                                                src={attendance.checkoutImageName}
+                                                alt="Ảnh check-out"
+                                                className="w-full h-40 object-cover rounded"
+                                                onError={(e)=>{e.target.src="https://via.placeholder.com/300x200?text=Ảnh+lỗi";e.target.alt="Không tải được ảnh";}}
+                                              />
+                                            </a>
+                                          ) : (
+                                            <div className="w-full h-40 border-2 border-dashed border-blue-200 flex items-center justify-center text-blue-300 rounded">
+                                              Chưa có ảnh
+                                            </div>
+                                          )}
+                                        </div>
                                       </div>
                                     </div>
                                   </div>
