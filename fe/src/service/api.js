@@ -304,6 +304,8 @@ export const ENDPOINTS = {
     UPSERT_SAMPLE_ENTRY: "/meal-photos/sample-entry",
     REVIEW_SAMPLE_ENTRY: "/meal-photos/sample-entry/review",
     ATTENDANCE_SUMMARY: "/meal-photos/attendance-summary",
+    REQUEST_EDIT: "/meal-photos/edit-request",
+    APPROVE_EDIT_REQUEST: "/meal-photos/edit-request/approve",
   },
   // OTP
   OTP: {

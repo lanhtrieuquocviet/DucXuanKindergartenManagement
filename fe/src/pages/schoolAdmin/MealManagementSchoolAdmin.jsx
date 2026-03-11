@@ -30,6 +30,7 @@ import {
   Close as CloseIcon,
   Restaurant as RestaurantIcon,
   HourglassTop as HourglassIcon,
+  LockOpen as LockOpenIcon,
 } from '@mui/icons-material';
 import { toast } from 'react-toastify';
 import { useAuth } from '../../context/AuthContext';
@@ -38,6 +39,7 @@ import {
   getMealPhoto,
   getAttendanceSummary,
   reviewSampleEntry,
+  approveEditRequest,
 } from '../../service/mealManagement.api';
 
 // ─────────────────────────────────────────────
@@ -155,7 +157,7 @@ function ImagePlaceholder() {
 // ─────────────────────────────────────────────
 // SampleCard
 // ─────────────────────────────────────────────
-function SampleCard({ entry, date, onReview, isToday }) {
+function SampleCard({ entry, date, onReview, isToday, editRequest, onApproveEdit }) {
   const [hovering, setHovering] = useState(false);
   const isPending = entry.status === 'cho_kiem_tra';
   const mealLabel = MEAL_LABELS[entry.mealType] || entry.mealType;
@@ -259,6 +261,45 @@ function SampleCard({ entry, date, onReview, isToday }) {
         )}
       </Box>
 
+      {/* Edit request approval */}
+      {editRequest?.status === 'pending' && (
+        <Box sx={{ px: 2, pb: 1, display: 'flex', flexDirection: 'column', gap: 0.5 }}>
+          {editRequest.reason && (
+            <Typography sx={{ fontSize: 11.5, color: '#64748b', fontStyle: 'italic' }}>
+              Lý do: {editRequest.reason}
+            </Typography>
+          )}
+          <Button
+            fullWidth
+            size="small"
+            variant="contained"
+            startIcon={<LockOpenIcon sx={{ fontSize: 14 }} />}
+            onClick={() => onApproveEdit('sample', entry.mealType)}
+            sx={{
+              fontSize: 12,
+              fontWeight: 700,
+              py: 0.5,
+              borderRadius: 2,
+              bgcolor: '#f59e0b',
+              '&:hover': { bgcolor: '#d97706' },
+              textTransform: 'none',
+            }}
+          >
+            Cho phép chỉnh sửa
+          </Button>
+        </Box>
+      )}
+      {editRequest?.status === 'approved' && (
+        <Box sx={{ px: 2, pb: 1 }}>
+          <Chip
+            icon={<LockOpenIcon sx={{ fontSize: '13px !important', color: '#10b981 !important' }} />}
+            label="Đã cho phép chỉnh sửa"
+            size="small"
+            sx={{ height: 22, fontSize: 11, bgcolor: alpha('#10b981', 0.1), color: '#059669', border: '1px solid', borderColor: alpha('#10b981', 0.3) }}
+          />
+        </Box>
+      )}
+
       {/* Action buttons (only for pending and today) */}
       {isPending && isToday && (
         <Box sx={{ px: 2, pb: 1.75, display: 'flex', gap: 1 }}>
@@ -305,7 +346,7 @@ function SampleCard({ entry, date, onReview, isToday }) {
 // ─────────────────────────────────────────────
 // MealPhotosTab
 // ─────────────────────────────────────────────
-function MealPhotosTab({ meals, onPreview }) {
+function MealPhotosTab({ meals, onPreview, editRequests, onApproveEdit }) {
   if (!meals || meals.length === 0) {
     return (
       <Box sx={{ textAlign: 'center', py: 6, color: '#94a3b8' }}>
@@ -321,15 +362,49 @@ function MealPhotosTab({ meals, onPreview }) {
 
   return (
     <Box sx={{ display: 'flex', flexDirection: 'column', gap: 3 }}>
-      {sorted.map((meal) => (
+      {sorted.map((meal) => {
+        const editReq = editRequests?.find((r) => r.requestType === 'meal' && r.mealType === meal.mealType);
+        const isPendingEdit = editReq?.status === 'pending';
+        const isApprovedEdit = editReq?.status === 'approved';
+        return (
         <Box key={meal.mealType}>
-          <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, mb: 1.5 }}>
+          <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, mb: 1.5, flexWrap: 'wrap' }}>
             <RestaurantIcon sx={{ fontSize: 18, color: '#10b981' }} />
             <Typography sx={{ fontWeight: 700, fontSize: 15, color: '#374151' }}>
               {MEAL_LABELS[meal.mealType] || meal.mealType}
             </Typography>
             {meal.description && (
               <Typography sx={{ fontSize: 13, color: '#64748b' }}>— {meal.description}</Typography>
+            )}
+            {isPendingEdit && (
+              <Box sx={{ ml: 'auto', display: 'flex', flexDirection: 'column', alignItems: 'flex-end', gap: 0.5 }}>
+                {editReq.reason && (
+                  <Typography sx={{ fontSize: 11.5, color: '#64748b', fontStyle: 'italic' }}>
+                    Lý do: {editReq.reason}
+                  </Typography>
+                )}
+                <Button
+                  size="small"
+                  variant="contained"
+                  startIcon={<LockOpenIcon sx={{ fontSize: 14 }} />}
+                  onClick={() => onApproveEdit('meal', meal.mealType)}
+                  sx={{
+                    fontSize: 11.5, fontWeight: 700, py: 0.4, px: 1.25,
+                    bgcolor: '#f59e0b', '&:hover': { bgcolor: '#d97706' },
+                    textTransform: 'none', borderRadius: 1.5,
+                  }}
+                >
+                  Cho phép chỉnh sửa
+                </Button>
+              </Box>
+            )}
+            {isApprovedEdit && (
+              <Chip
+                icon={<LockOpenIcon sx={{ fontSize: '13px !important', color: '#10b981 !important' }} />}
+                label="Đã cho phép chỉnh sửa"
+                size="small"
+                sx={{ ml: 'auto', height: 22, fontSize: 11, bgcolor: alpha('#10b981', 0.1), color: '#059669', border: '1px solid', borderColor: alpha('#10b981', 0.3) }}
+              />
             )}
           </Box>
           <Box
@@ -387,7 +462,8 @@ function MealPhotosTab({ meals, onPreview }) {
             </Typography>
           )}
         </Box>
-      ))}
+        );
+      })}
     </Box>
   );
 }
@@ -401,6 +477,7 @@ function MealManagementSchoolAdmin() {
 
   const [selectedDate, setSelectedDate] = useState(getLocalToday());
   const [mealData, setMealData] = useState(null);
+  const [editRequests, setEditRequests] = useState([]);
   const [attendanceSummary, setAttendanceSummary] = useState(null);
   const [loading, setLoading] = useState(false);
   const [tabValue, setTabValue] = useState(0);
@@ -421,6 +498,7 @@ function MealManagementSchoolAdmin() {
         getAttendanceSummary(date),
       ]);
       setMealData(mealRes.data);
+      setEditRequests(mealRes.data?.editRequests || []);
       setAttendanceSummary(attendRes.data);
     } catch {
       toast.error('Không thể tải dữ liệu bữa ăn');
@@ -476,6 +554,17 @@ function MealManagementSchoolAdmin() {
       toast.error('Không thể cập nhật trạng thái');
     } finally {
       setReviewing(false);
+    }
+  };
+
+  // ── Approve edit request ──
+  const handleApproveEdit = async (requestType, mealType) => {
+    try {
+      await approveEditRequest({ date: selectedDate, requestType, mealType, action: 'approved' });
+      toast.success('Đã cho phép chỉnh sửa');
+      fetchData(selectedDate);
+    } catch {
+      toast.error('Không thể duyệt yêu cầu chỉnh sửa');
     }
   };
 
@@ -686,7 +775,12 @@ function MealManagementSchoolAdmin() {
             <>
               {/* Ảnh món ăn tab */}
               {tabValue === 0 && (
-                <MealPhotosTab meals={meals} onPreview={(url) => setPreviewUrl(url)} />
+                <MealPhotosTab
+                  meals={meals}
+                  onPreview={(url) => setPreviewUrl(url)}
+                  editRequests={editRequests}
+                  onApproveEdit={handleApproveEdit}
+                />
               )}
 
               {/* Mẫu thực phẩm tab */}
@@ -714,6 +808,8 @@ function MealManagementSchoolAdmin() {
                             date={selectedDate}
                             onReview={handleReviewClick}
                             isToday={isToday}
+                            editRequest={editRequests.find((r) => r.requestType === 'sample' && r.mealType === entry.mealType)}
+                            onApproveEdit={handleApproveEdit}
                           />
                         ))}
                     </Box>
