@@ -246,6 +246,7 @@ export const ENDPOINTS = {
   // Classes
   CLASSES: {
     LIST: "/classes",
+    GRADES: "/classes/grades",
     DETAIL: (classId) => `/classes/${classId}`,
     STUDENTS: (classId) => `/classes/${classId}/students`,
     CREATE: "/classes",

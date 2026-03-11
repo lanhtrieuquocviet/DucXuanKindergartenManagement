@@ -2,7 +2,7 @@ import { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import RoleLayout from '../../layouts/RoleLayout';
 import { useAuth } from '../../context/AuthContext';
-import { get, ENDPOINTS } from '../../service/api';
+import { get, post, ENDPOINTS } from '../../service/api';
 import {
   Box,
   Paper,
@@ -19,6 +19,14 @@ import {
   TableHead,
   TableRow,
   CircularProgress,
+  Dialog,
+  DialogTitle,
+  DialogContent,
+  DialogActions,
+  FormControl,
+  InputLabel,
+  Select,
+  MenuItem,
 } from '@mui/material';
 import {
   Refresh as RefreshIcon,
@@ -26,6 +34,7 @@ import {
   Visibility as VisibilityIcon,
   Edit as EditIcon,
   Class as ClassIcon,
+  WarningAmber as WarningAmberIcon,
 } from '@mui/icons-material';
 
 function ClassList() {
@@ -33,6 +42,18 @@ function ClassList() {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
   const [searchTerm, setSearchTerm] = useState('');
+
+  // Create class dialog state
+  const [dialogOpen, setDialogOpen] = useState(false);
+  const [dialogLoading, setDialogLoading] = useState(false);
+  const [fetchingDialogData, setFetchingDialogData] = useState(false);
+  const [dialogError, setDialogError] = useState(null);
+  const [noActiveYear, setNoActiveYear] = useState(false);
+  const [currentAcademicYear, setCurrentAcademicYear] = useState(null);
+  const [grades, setGrades] = useState([]);
+  const [form, setForm] = useState({ className: '', gradeId: '', maxStudents: '' });
+  const [formErrors, setFormErrors] = useState({});
+
   const navigate = useNavigate();
   const { user, hasRole, logout, isInitializing } = useAuth();
 
@@ -70,6 +91,78 @@ function ClassList() {
       console.error('Error fetching classes:', err);
     } finally {
       setLoading(false);
+    }
+  };
+
+  const openCreateDialog = async () => {
+    setDialogError(null);
+    setNoActiveYear(false);
+    setForm({ className: '', gradeId: '', maxStudents: '' });
+    setFormErrors({});
+    setCurrentAcademicYear(null);
+    setGrades([]);
+    setDialogOpen(true);
+    setFetchingDialogData(true);
+    try {
+      const [yearRes, gradesRes] = await Promise.all([
+        get(ENDPOINTS.SCHOOL_ADMIN.ACADEMIC_YEARS.CURRENT),
+        get(ENDPOINTS.CLASSES.GRADES),
+      ]);
+      const year = yearRes.data || null;
+      setCurrentAcademicYear(year);
+      setGrades(gradesRes.data || []);
+      if (!year) {
+        setNoActiveYear(true);
+      }
+    } catch (err) {
+      setDialogError('Không thể tải dữ liệu. Vui lòng thử lại.');
+    } finally {
+      setFetchingDialogData(false);
+    }
+  };
+
+  const validateForm = () => {
+    const errs = {};
+    if (!form.className.trim()) {
+      errs.className = 'Tên lớp không được để trống';
+    } else if (form.className.trim().length > 10) {
+      errs.className = 'Tên lớp không được quá 10 ký tự';
+    }
+    if (!form.gradeId) errs.gradeId = 'Vui lòng chọn khối lớp';
+    if (form.maxStudents !== '') {
+      const val = Number(form.maxStudents);
+      if (isNaN(val) || val < 0) {
+        errs.maxStudents = 'Sĩ số không hợp lệ';
+      } else if (val > 30) {
+        errs.maxStudents = 'Sĩ số tối đa không được vượt quá 30';
+      }
+    }
+    setFormErrors(errs);
+    return Object.keys(errs).length === 0;
+  };
+
+  const handleCreateClass = async () => {
+    if (!validateForm()) return;
+    try {
+      setDialogLoading(true);
+      setDialogError(null);
+      await post(ENDPOINTS.CLASSES.CREATE, {
+        className: form.className.trim(),
+        gradeId: form.gradeId,
+        maxStudents: form.maxStudents !== '' ? Number(form.maxStudents) : 0,
+      });
+      setDialogOpen(false);
+      fetchClasses();
+    } catch (err) {
+      const msg = err.data?.message || err.message || 'Lỗi khi tạo lớp học';
+      const code = err.data?.code;
+      if (code === 'NO_ACTIVE_ACADEMIC_YEAR') {
+        setCurrentAcademicYear(null);
+        setNoActiveYear(true);
+      }
+      setDialogError(msg);
+    } finally {
+      setDialogLoading(false);
     }
   };
 
@@ -298,6 +391,7 @@ function ClassList() {
             <Button
               variant="contained"
               startIcon={<AddIcon />}
+              onClick={openCreateDialog}
               sx={{
                 bgcolor: '#6366f1',
                 '&:hover': { bgcolor: '#4f46e5' },
@@ -455,6 +549,110 @@ function ClassList() {
           </TableContainer>
         )}
       </Paper>
+      {/* Create Class Dialog */}
+      <Dialog open={dialogOpen} onClose={() => setDialogOpen(false)} fullWidth maxWidth="sm">
+        <DialogTitle sx={{ fontWeight: 700 }}>Tạo lớp học mới</DialogTitle>
+        <DialogContent dividers>
+          {/* Loading */}
+          {fetchingDialogData && (
+            <Stack alignItems="center" py={3}>
+              <CircularProgress size={28} />
+            </Stack>
+          )}
+
+          {/* No active academic year warning */}
+          {!fetchingDialogData && noActiveYear && (
+            <Alert
+              severity="warning"
+              icon={<WarningAmberIcon />}
+              sx={{ mb: 2 }}
+              action={
+                <Button
+                  size="small"
+                  color="inherit"
+                  onClick={() => { setDialogOpen(false); navigate('/school-admin/academic-years'); }}
+                >
+                  Tạo năm học
+                </Button>
+              }
+            >
+              Chưa có năm học đang hoạt động. Vui lòng tạo năm học mới trước khi tạo lớp.
+            </Alert>
+          )}
+
+          {/* Error (fetch failure or submit error) */}
+          {!fetchingDialogData && dialogError && (
+            <Alert severity="error" sx={{ mb: 2 }}>
+              {dialogError}
+            </Alert>
+          )}
+
+          {/* Active academic year info */}
+          {!fetchingDialogData && currentAcademicYear && (
+            <Alert severity="info" sx={{ mb: 2 }}>
+              Lớp sẽ được tạo trong năm học: <strong>{currentAcademicYear.yearName}</strong>
+            </Alert>
+          )}
+
+          {/* Form — only show when we have academic year */}
+          {!fetchingDialogData && currentAcademicYear && (
+            <Stack spacing={2.5} mt={1}>
+              <TextField
+                label="Tên lớp"
+                required
+                fullWidth
+                size="small"
+                value={form.className}
+                onChange={(e) => setForm((f) => ({ ...f, className: e.target.value }))}
+                error={!!formErrors.className}
+                helperText={formErrors.className || `${form.className.length}/10 ký tự`}
+                inputProps={{ maxLength: 10 }}
+              />
+              <FormControl fullWidth size="small" required error={!!formErrors.gradeId}>
+                <InputLabel>Khối lớp</InputLabel>
+                <Select
+                  label="Khối lớp"
+                  value={form.gradeId}
+                  onChange={(e) => setForm((f) => ({ ...f, gradeId: e.target.value }))}
+                >
+                  {grades.map((g) => (
+                    <MenuItem key={g._id} value={g._id}>{g.gradeName}</MenuItem>
+                  ))}
+                </Select>
+                {formErrors.gradeId && (
+                  <Typography variant="caption" color="error" sx={{ mt: 0.5, ml: 1.75 }}>
+                    {formErrors.gradeId}
+                  </Typography>
+                )}
+              </FormControl>
+              <TextField
+                label="Sĩ số tối đa"
+                fullWidth
+                size="small"
+                type="number"
+                inputProps={{ min: 0, max: 30 }}
+                value={form.maxStudents}
+                onChange={(e) => setForm((f) => ({ ...f, maxStudents: e.target.value }))}
+                error={!!formErrors.maxStudents}
+                helperText={formErrors.maxStudents || 'Tối đa 30 học sinh'}
+              />
+            </Stack>
+          )}
+        </DialogContent>
+        <DialogActions sx={{ px: 3, py: 2 }}>
+          <Button onClick={() => setDialogOpen(false)} color="inherit" disabled={dialogLoading}>
+            Hủy
+          </Button>
+          <Button
+            variant="contained"
+            onClick={handleCreateClass}
+            disabled={dialogLoading || fetchingDialogData || !currentAcademicYear}
+            sx={{ bgcolor: '#6366f1', '&:hover': { bgcolor: '#4f46e5' }, textTransform: 'none', fontWeight: 600 }}
+          >
+            {dialogLoading ? <CircularProgress size={18} color="inherit" /> : 'Tạo lớp'}
+          </Button>
+        </DialogActions>
+      </Dialog>
     </RoleLayout>
   );
 }

@@ -4,7 +4,8 @@ const {
   getClassList,
   getStudentInClass,
   getClassDetail,
-  createClass
+  getGradeList,
+  createClass,
 } = require('../controller/classController');
 const Classes = require('../models/Classes');
 
@@ -34,6 +35,12 @@ router.get('/debug/raw', authenticate, async (req, res) => {
     });
   }
 });
+
+/**
+ * Lấy danh sách khối lớp (grades) — dùng cho form tạo lớp
+ * GET /api/classes/grades
+ */
+router.get('/grades', authenticate, authorizeRoles('SchoolAdmin'), getGradeList);
 
 /**
  * Lấy danh sách tất cả các lớp học
