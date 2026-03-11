@@ -224,6 +224,7 @@ export const ENDPOINTS = {
       CREATE: "/school-admin/academic-years",
       FINISH: (id) => `/school-admin/academic-years/${id}/finish`,
       HISTORY: "/school-admin/academic-years/history",
+      CLASSES: (yearId) => `/school-admin/academic-years/${yearId}/classes`,
     },
     TEACHERS: "/school-admin/teachers",
   },

@@ -29,6 +29,8 @@ export default function AcademicYearDetail() {
   const [summary, setSummary] = useState(null);
   const [loading, setLoading] = useState(false);
   const [tab, setTab] = useState(0);
+  const [classes, setClasses] = useState([]);
+  const [classesLoading, setClassesLoading] = useState(false);
 
   const menuItems = [
     { key: 'overview', label: 'Tổng quan trường' },
@@ -36,8 +38,8 @@ export default function AcademicYearDetail() {
       key: 'academic-years',
       label: 'Quản lý năm học',
       children: [
+        { key: 'academic-year-setup', label: 'Thiết lập năm học' },
         { key: 'academic-plan', label: 'Thiết lập kế hoạch' },
-        { key: 'academic-classes', label: 'Danh sách lớp học' },
         { key: 'academic-students', label: 'Danh sách trẻ' },
         { key: 'academic-curriculum', label: 'Chương trình giáo dục' },
         { key: 'academic-schedule', label: 'Thời khóa biểu' },
@@ -68,12 +70,12 @@ export default function AcademicYearDetail() {
       navigate('/school-admin');
       return;
     }
-    if (key === 'academic-years' || key === 'academic-plan') {
+    if (key === 'academic-years' || key === 'academic-year-setup') {
       navigate('/school-admin/academic-years');
       return;
     }
-    if (key === 'academic-classes') {
-      navigate('/school-admin/classes');
+    if (key === 'academic-plan') {
+      navigate('/school-admin/academic-plan');
       return;
     }
     if (key === 'academic-students') {
@@ -146,6 +148,28 @@ export default function AcademicYearDetail() {
     }
   }, [yearId]);
 
+  useEffect(() => {
+    const loadClasses = async () => {
+      if (!yearId || tab !== 1) return;
+      try {
+        setClassesLoading(true);
+        const resp = await get(ENDPOINTS.SCHOOL_ADMIN.ACADEMIC_YEARS.CLASSES(yearId));
+        if (resp?.status === 'success' && Array.isArray(resp.data)) {
+          setClasses(resp.data);
+        } else {
+          setClasses([]);
+        }
+      } catch (error) {
+        // eslint-disable-next-line no-console
+        console.error('Error loading classes:', error);
+        setClasses([]);
+      } finally {
+        setClassesLoading(false);
+      }
+    };
+    loadClasses();
+  }, [yearId, tab]);
+
   const userName = user?.fullName || user?.username || 'School Admin';
 
   const passRate = 0;
@@ -156,7 +180,7 @@ export default function AcademicYearDetail() {
       title={summary?.yearName || 'Chi tiết Năm học'}
       description="Thông tin chi tiết năm học đã kết thúc."
       menuItems={menuItems}
-      activeKey="academic-plan"
+      activeKey="academic-year-setup"
       onLogout={handleLogout}
       onViewProfile={() => navigate('/profile')}
       onMenuSelect={handleMenuSelect}
@@ -312,7 +336,7 @@ export default function AcademicYearDetail() {
             sx={{ px: 2, pt: 1 }}
           >
             <Tab label="Tổng quan" />
-            <Tab label="Danh sách lớp học" disabled />
+            <Tab label="Danh sách lớp học" />
             <Tab label="Danh sách trẻ em" disabled />
             <Tab label="Chương trình & Kế hoạch" disabled />
             <Tab label="Báo cáo & Thống kê" disabled />
@@ -341,6 +365,52 @@ export default function AcademicYearDetail() {
                 <Typography variant="body2" color="text.secondary">
                   Đang tải dữ liệu...
                 </Typography>
+              )}
+            </Box>
+          )}
+
+          {tab === 1 && (
+            <Box sx={{ p: 3, borderTop: '1px solid', borderColor: 'divider' }}>
+              <Typography
+                variant="h6"
+                fontWeight={700}
+                color="primary"
+                gutterBottom
+                sx={{ mb: 2 }}
+              >
+                Danh sách lớp học năm {summary?.yearName || ''}
+              </Typography>
+              {classesLoading ? (
+                <Typography variant="body2" color="text.secondary">
+                  Đang tải danh sách lớp...
+                </Typography>
+              ) : classes.length === 0 ? (
+                <Typography variant="body2" color="text.secondary">
+                  Không có lớp học nào trong năm học này.
+                </Typography>
+              ) : (
+                <Stack spacing={2}>
+                  {classes.map((cls) => (
+                    <Paper
+                      key={cls._id}
+                      elevation={0}
+                      sx={{
+                        p: 2,
+                        borderRadius: 2,
+                        border: '1px solid',
+                        borderColor: 'divider',
+                        backgroundColor: 'grey.50',
+                      }}
+                    >
+                      <Typography variant="subtitle1" fontWeight={600} color="text.primary">
+                        {cls.className}
+                      </Typography>
+                      <Typography variant="body2" color="text.secondary" sx={{ mt: 0.5 }}>
+                        Giáo viên: {cls.teacherNames} – {cls.studentCount} trẻ
+                      </Typography>
+                    </Paper>
+                  ))}
+                </Stack>
               )}
             </Box>
           )}

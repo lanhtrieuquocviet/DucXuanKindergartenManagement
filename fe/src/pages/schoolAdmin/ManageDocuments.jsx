@@ -390,8 +390,8 @@ export default function ManageDocuments() {
       key: 'academic-years',
       label: 'Quản lý năm học',
       children: [
+        { key: 'academic-year-setup', label: 'Thiết lập năm học' },
         { key: 'academic-plan', label: 'Thiết lập kế hoạch' },
-        { key: 'academic-classes', label: 'Danh sách lớp học' },
         { key: 'academic-students', label: 'Danh sách trẻ' },
         { key: 'academic-curriculum', label: 'Chương trình giáo dục' },
         { key: 'academic-schedule', label: 'Thời khóa biểu' },
@@ -414,6 +414,8 @@ export default function ManageDocuments() {
   const handleMenuSelect = (key) => {
     const routes = {
       overview: '/school-admin',
+      'academic-year-setup': '/school-admin/academic-years',
+      'academic-plan': '/school-admin/academic-plan',
       classes: '/school-admin/classes',
       contacts: '/school-admin/contacts',
       qa: '/school-admin/qa',
