@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useMemo } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import RoleLayout from '../../layouts/RoleLayout';
 import { useAuth } from '../../context/AuthContext';
@@ -13,168 +13,318 @@ import {
   Stack,
   Chip,
   TextField,
-  Table,
-  TableBody,
-  TableCell,
-  TableContainer,
-  TableHead,
-  TableRow,
   CircularProgress,
+  Tabs,
+  Tab,
+  Avatar,
+  Dialog,
+  DialogTitle,
+  DialogContent,
+  DialogActions,
+  Divider,
+  Grid,
+  IconButton,
 } from '@mui/material';
 import ArrowBackIcon from '@mui/icons-material/ArrowBack';
 import RefreshIcon from '@mui/icons-material/Refresh';
-import AddIcon from '@mui/icons-material/Add';
-import VisibilityIcon from '@mui/icons-material/Visibility';
-import EditIcon from '@mui/icons-material/Edit';
+import PersonIcon from '@mui/icons-material/Person';
+import SchoolIcon from '@mui/icons-material/School';
+import PeopleIcon from '@mui/icons-material/People';
+import CalendarTodayIcon from '@mui/icons-material/CalendarToday';
+import CheckCircleIcon from '@mui/icons-material/CheckCircle';
+import CancelIcon from '@mui/icons-material/Cancel';
+import CloseIcon from '@mui/icons-material/Close';
+import MeetingRoomIcon from '@mui/icons-material/MeetingRoom';
+import ScheduleIcon from '@mui/icons-material/Schedule';
+import BookIcon from '@mui/icons-material/Book';
+import FavoriteIcon from '@mui/icons-material/Favorite';
+import PhoneIcon from '@mui/icons-material/Phone';
+import HomeIcon from '@mui/icons-material/Home';
+
+// ── helpers ────────────────────────────────────────────────────────────────────
+
+function calcAge(dob) {
+  if (!dob) return null;
+  const diff = Date.now() - new Date(dob).getTime();
+  return Math.floor(diff / (365.25 * 24 * 3600 * 1000));
+}
+
+function fmtDate(d) {
+  if (!d) return 'N/A';
+  return new Date(d).toLocaleDateString('vi-VN');
+}
+
+function attendanceColor(status) {
+  if (status === 'present') return { bg: '#f0fdf4', color: '#15803d', label: 'Có mặt' };
+  if (status === 'absent') return { bg: '#fef2f2', color: '#dc2626', label: 'Vắng mặt' };
+  if (status === 'leave') return { bg: '#fffbeb', color: '#d97706', label: 'Xin phép' };
+  return { bg: '#f3f4f6', color: '#6b7280', label: 'Chưa điểm danh' };
+}
+
+// ── sub-components ─────────────────────────────────────────────────────────────
+
+function StatCard({ icon, label, value, sub, color }) {
+  return (
+    <Paper
+      variant="outlined"
+      sx={{
+        p: 2.5,
+        borderRadius: 2,
+        display: 'flex',
+        alignItems: 'center',
+        gap: 2,
+        borderColor: 'grey.200',
+        bgcolor: '#fff',
+        flex: 1,
+        minWidth: 0,
+      }}
+    >
+      <Box
+        sx={{
+          width: 44,
+          height: 44,
+          borderRadius: 2,
+          bgcolor: color + '1a',
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'center',
+          flexShrink: 0,
+        }}
+      >
+        {icon}
+      </Box>
+      <Box minWidth={0}>
+        <Typography variant="caption" sx={{ color: 'text.secondary', fontWeight: 500 }}>
+          {label}
+        </Typography>
+        <Typography variant="h6" sx={{ fontWeight: 700, color: 'text.primary', lineHeight: 1.3 }}>
+          {value}
+        </Typography>
+        {sub && (
+          <Typography variant="caption" color="text.secondary">
+            {sub}
+          </Typography>
+        )}
+      </Box>
+    </Paper>
+  );
+}
+
+function StudentCard({ student, attendanceStatus, onClick }) {
+  const att = attendanceColor(attendanceStatus);
+  const age = calcAge(student.dateOfBirth);
+
+  return (
+    <Paper
+      variant="outlined"
+      onClick={() => onClick(student)}
+      sx={{
+        p: 2,
+        borderRadius: 2,
+        cursor: 'pointer',
+        borderColor: 'grey.200',
+        transition: 'all 0.15s',
+        '&:hover': { boxShadow: 3, borderColor: '#a78bfa', transform: 'translateY(-1px)' },
+      }}
+    >
+      <Stack direction="row" spacing={1.5} alignItems="flex-start">
+        <Avatar
+          sx={{
+            width: 44,
+            height: 44,
+            bgcolor: student.gender === 'female' ? '#fbcfe8' : '#bfdbfe',
+            color: student.gender === 'female' ? '#be185d' : '#1d4ed8',
+            fontWeight: 700,
+            fontSize: '1rem',
+            flexShrink: 0,
+          }}
+        >
+          {student.fullName?.charAt(0)?.toUpperCase() || <PersonIcon />}
+        </Avatar>
+        <Box flex={1} minWidth={0}>
+          <Typography
+            variant="body2"
+            sx={{ fontWeight: 700, color: 'text.primary', mb: 0.3, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}
+          >
+            {student.fullName}
+          </Typography>
+          <Stack direction="row" spacing={0.5} flexWrap="wrap" gap={0.5}>
+            <Chip
+              label={att.label}
+              size="small"
+              sx={{ fontSize: '0.65rem', fontWeight: 600, bgcolor: att.bg, color: att.color, height: 20 }}
+            />
+            {age !== null && (
+              <Chip
+                label={`${age} tuổi`}
+                size="small"
+                sx={{ fontSize: '0.65rem', height: 20, bgcolor: '#f3f4f6', color: '#4b5563' }}
+              />
+            )}
+          </Stack>
+          {student.parentId?.phone && (
+            <Typography variant="caption" color="text.secondary" sx={{ mt: 0.4, display: 'block' }}>
+              PH: {student.parentId.phone}
+            </Typography>
+          )}
+        </Box>
+      </Stack>
+    </Paper>
+  );
+}
+
+// ── main component ─────────────────────────────────────────────────────────────
 
 function StudentInClass() {
   const { classId } = useParams();
-  const [students, setStudents] = useState([]);
-  const [classInfo, setClassInfo] = useState(null);
-  const [loading, setLoading] = useState(false);
-  const [error, setError] = useState(null);
-  const [searchTerm, setSearchTerm] = useState('');
   const navigate = useNavigate();
   const { user, hasRole, logout, isInitializing } = useAuth();
 
+  const [classDetail, setClassDetail] = useState(null);
+  const [students, setStudents] = useState([]);
+  const [attendanceMap, setAttendanceMap] = useState({});
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(null);
+  const [activeTab, setActiveTab] = useState(0);
+  const [searchTerm, setSearchTerm] = useState('');
+  const [selectedStudent, setSelectedStudent] = useState(null);
+
+  // ── auth guard ───────────────────────────────────────────────────────────────
   useEffect(() => {
-    if (isInitializing) {
-      return;
-    }
-
-    if (!user) {
-      navigate('/login', { replace: true });
-      return;
-    }
-
-    if (!hasRole('SchoolAdmin') && !hasRole('SystemAdmin')) {
-      navigate('/', { replace: true });
-      return;
-    }
-
-    if (!classId) {
-      navigate('/school-admin/classes', { replace: true });
-      return;
-    }
-
-    fetchStudents();
+    if (isInitializing) return;
+    if (!user) { navigate('/login', { replace: true }); return; }
+    if (!hasRole('SchoolAdmin') && !hasRole('SystemAdmin')) { navigate('/', { replace: true }); return; }
+    if (!classId) { navigate('/school-admin/classes', { replace: true }); return; }
+    fetchAll();
   }, [navigate, user, hasRole, classId, isInitializing]);
 
-  const fetchStudents = async () => {
+  // ── data fetching ────────────────────────────────────────────────────────────
+  const fetchAll = async () => {
+    setLoading(true);
+    setError(null);
     try {
-      setLoading(true);
-      setError(null);
-      const response = await get(ENDPOINTS.CLASSES.STUDENTS(classId));
-      setStudents(response.data || []);
-      if (response.classInfo) {
-        setClassInfo(response.classInfo);
+      const [detailRes, studentsRes, attRes] = await Promise.allSettled([
+        get(ENDPOINTS.CLASSES.DETAIL(classId)),
+        get(ENDPOINTS.CLASSES.STUDENTS(classId)),
+        get(ENDPOINTS.SCHOOL_ADMIN.CLASS_ATTENDANCE_DETAIL(classId)),
+      ]);
+
+      if (detailRes.status === 'fulfilled') {
+        setClassDetail(detailRes.value.data || null);
+      }
+      if (studentsRes.status === 'fulfilled') {
+        setStudents(studentsRes.value.data || []);
+        // Also pick up classInfo if detail failed
+        if (detailRes.status !== 'fulfilled' && studentsRes.value.classInfo) {
+          setClassDetail(studentsRes.value.classInfo);
+        }
+      }
+      if (attRes.status === 'fulfilled') {
+        const attStudents = attRes.value.data?.students || [];
+        const map = {};
+        attStudents.forEach(s => { map[s._id] = s.attendance?.status || null; });
+        setAttendanceMap(map);
       }
     } catch (err) {
-      setError(err.message || 'Lỗi khi tải danh sách học sinh');
-      console.error('Error fetching students:', err);
+      setError(err.message || 'Lỗi khi tải dữ liệu');
     } finally {
       setLoading(false);
     }
   };
 
-  const handleLogout = () => {
-    logout();
-    navigate('/login', { replace: true });
-  };
+  // ── computed ─────────────────────────────────────────────────────────────────
+  const presentCount = useMemo(
+    () => Object.values(attendanceMap).filter(s => s === 'present').length,
+    [attendanceMap]
+  );
+  const attendanceRate = students.length > 0
+    ? Math.round((presentCount / students.length) * 100)
+    : 0;
 
-  const handleViewProfile = () => {
-    navigate('/profile');
-  };
+  const ageRange = useMemo(() => {
+    const ages = students.map(s => calcAge(s.dateOfBirth)).filter(a => a !== null);
+    if (!ages.length) return 'N/A';
+    const min = Math.min(...ages);
+    const max = Math.max(...ages);
+    return min === max ? `${min} tuổi` : `${min}–${max} tuổi`;
+  }, [students]);
 
-  const handleGoBack = () => {
-    if (hasRole('SystemAdmin')) {
-      navigate('/system-admin/classes');
-    } else {
-      navigate('/school-admin/classes');
-    }
-  };
+  const filteredStudents = useMemo(
+    () => students.filter(s => s.fullName?.toLowerCase().includes(searchTerm.toLowerCase())),
+    [students, searchTerm]
+  );
 
-  // Render menu khác nhau tùy theo role
-  const getMenuItems = () => {
-    if (hasRole('SystemAdmin')) {
-      return [
-        { key: 'overview', label: 'Tổng quan hệ thống' },
-        { key: 'schools', label: 'Quản lý trường' },
-        { key: 'accounts', label: 'Quản lý tài khoản' },
-        { key: 'classes', label: 'Lớp học (toàn hệ thống)' },
-        { key: 'roles', label: 'Phân quyền & vai trò' },
-        { key: 'reports', label: 'Báo cáo tổng hợp' },
-      ];
-    }
-    // Default menu cho SchoolAdmin
-    return [
-      { key: 'overview', label: 'Tổng quan trường' },
-      { key: 'classes', label: 'Lớp học' },
-      { key: 'teachers', label: 'Giáo viên' },
-      { key: 'students', label: 'Học sinh & phụ huynh' },
-      { key: 'assets', label: 'Quản lý tài sản' },
-      { key: 'reports', label: 'Báo cáo của trường' },
-      { key: 'contacts', label: 'Liên hệ' },
-      { key: 'qa', label: 'Câu hỏi' },
-      { key: 'blogs', label: 'Quản lý blog' },
-      { key: 'documents', label: 'Quản lý tài liệu' },
-      { key: 'public-info', label: 'Thông tin công khai' },
-      { key: 'attendance', label: 'Quản lý điểm danh' },
-    ];
-  };
+  // ── layout helpers ───────────────────────────────────────────────────────────
+  const handleLogout = () => { logout(); navigate('/login', { replace: true }); };
+  const handleViewProfile = () => navigate('/profile');
+  const handleGoBack = () => navigate(hasRole('SystemAdmin') ? '/system-admin/classes' : '/school-admin/classes');
+
+  const getMenuItems = () => [
+    { key: 'overview', label: 'Tổng quan trường' },
+    { key: 'classes', label: 'Lớp học' },
+    { key: 'teachers', label: 'Giáo viên' },
+    { key: 'students', label: 'Học sinh & phụ huynh' },
+    { key: 'assets', label: 'Quản lý tài sản' },
+    { key: 'reports', label: 'Báo cáo của trường' },
+    { key: 'contacts', label: 'Liên hệ' },
+    { key: 'qa', label: 'Câu hỏi' },
+    { key: 'blogs', label: 'Quản lý blog' },
+    { key: 'documents', label: 'Quản lý tài liệu' },
+    { key: 'public-info', label: 'Thông tin công khai' },
+    { key: 'attendance', label: 'Quản lý điểm danh' },
+  ];
 
   const handleMenuSelect = (key) => {
-    if (key === 'classes') {
-      if (hasRole('SystemAdmin')) {
-        navigate('/system-admin/classes');
-      } else {
-        navigate('/school-admin/classes');
-      }
-      return;
-    }
-    if (key === 'students') {
-      navigate('/school-admin/students');
-      return;
-    }
-    if (key === 'contacts') {
-      navigate('/school-admin/contacts');
-      return;
-    }
-    if (key === 'overview') {
-      navigate('/school-admin');
-      return;
-    }
-    if (key === 'qa') {
-      navigate('/school-admin/qa');
-      return;
-    }
-    if (key === 'blogs') {
-      navigate('/school-admin/blogs');
-      return;
-    }
-    if (key === 'documents') {
-      navigate('/school-admin/documents');
-      return;
-    }
-    if (key === 'public-info') {
-      navigate('/school-admin/public-info');
-      return;
-    }
-    if (key === 'attendance') {
-      navigate('/school-admin/attendance/overview');
-      return;
-    }
+    const routes = {
+      classes: '/school-admin/classes',
+      students: '/school-admin/students',
+      contacts: '/school-admin/contacts',
+      overview: '/school-admin',
+      qa: '/school-admin/qa',
+      blogs: '/school-admin/blogs',
+      documents: '/school-admin/documents',
+      'public-info': '/school-admin/public-info',
+      attendance: '/school-admin/attendance/overview',
+    };
+    if (routes[key]) navigate(routes[key]);
   };
 
-  // Lọc danh sách học sinh theo từ khóa tìm kiếm
-  const filteredStudents = students.filter(student =>
-    student.fullName.toLowerCase().includes(searchTerm.toLowerCase())
-  );
+  // ── render ───────────────────────────────────────────────────────────────────
+
+  // Loading skeleton
+  if (loading) {
+    return (
+      <RoleLayout
+        title="Chi tiết lớp học"
+        description=""
+        menuItems={getMenuItems()}
+        activeKey="classes"
+        onLogout={handleLogout}
+        onViewProfile={handleViewProfile}
+        onMenuSelect={handleMenuSelect}
+        userName={user?.fullName || user?.username || 'Admin'}
+        userAvatar={user?.avatar}
+      >
+        <Box sx={{ textAlign: 'center', py: 8 }}>
+          <CircularProgress size={36} />
+          <Typography variant="body2" color="text.secondary" sx={{ mt: 2 }}>
+            Đang tải thông tin lớp học...
+          </Typography>
+        </Box>
+      </RoleLayout>
+    );
+  }
+
+  const teachers = classDetail?.teacherIds || [];
+  const className = classDetail?.className || 'Lớp học';
+  const gradeName = classDetail?.gradeId?.gradeName || '';
+  const yearName = classDetail?.academicYearId?.yearName || '';
+  const maxStudents = classDetail?.maxStudents || 0;
 
   return (
     <RoleLayout
-      title="Quản lý Học Sinh"
-      description="Xem danh sách học sinh trong lớp, quản lý thông tin chi tiết."
+      title={`Chi tiết lớp ${className}`}
+      description="Xem thông tin, học sinh và nhật ký của lớp học."
       menuItems={getMenuItems()}
       activeKey="classes"
       onLogout={handleLogout}
@@ -184,292 +334,464 @@ function StudentInClass() {
       userAvatar={user?.avatar}
     >
       {error && (
-        <Alert severity="error" sx={{ mb: 2 }}>
+        <Alert severity="error" sx={{ mb: 2 }} onClose={() => setError(null)}>
           {error}
         </Alert>
       )}
 
-      <Paper elevation={2} sx={{ p: 3, borderRadius: 2 }}>
-        {/* Header + Filter */}
-        <Box
-          sx={{
-            display: 'flex',
-            flexDirection: { xs: 'column', md: 'row' },
-            alignItems: { md: 'center' },
-            justifyContent: 'space-between',
-            gap: 2,
-            mb: 3,
-          }}
-        >
+      {/* ── Header Card ──────────────────────────────────────────────────────── */}
+      <Paper
+        elevation={0}
+        sx={{
+          borderRadius: 3,
+          background: 'linear-gradient(135deg, #7c3aed 0%, #4f46e5 50%, #6366f1 100%)',
+          p: { xs: 2.5, md: 3.5 },
+          mb: 2,
+          color: '#fff',
+          position: 'relative',
+          overflow: 'hidden',
+        }}
+      >
+        {/* decorative circles */}
+        <Box sx={{ position: 'absolute', top: -30, right: -30, width: 160, height: 160, borderRadius: '50%', bgcolor: 'rgba(255,255,255,0.06)', pointerEvents: 'none' }} />
+        <Box sx={{ position: 'absolute', bottom: -20, right: 100, width: 100, height: 100, borderRadius: '50%', bgcolor: 'rgba(255,255,255,0.04)', pointerEvents: 'none' }} />
+
+        <Stack direction={{ xs: 'column', md: 'row' }} justifyContent="space-between" alignItems={{ md: 'flex-start' }} spacing={2}>
           <Box>
             <Button
               startIcon={<ArrowBackIcon />}
               onClick={handleGoBack}
-              variant="outlined"
               size="small"
               sx={{
                 mb: 1.5,
+                color: 'rgba(255,255,255,0.85)',
+                borderColor: 'rgba(255,255,255,0.3)',
+                bgcolor: 'rgba(255,255,255,0.1)',
                 borderRadius: 5,
                 fontSize: '0.75rem',
-                fontWeight: 500,
-                borderColor: 'grey.300',
-                color: 'text.secondary',
-                bgcolor: 'grey.50',
-                '&:hover': { bgcolor: 'grey.100', borderColor: 'grey.400' },
+                '&:hover': { bgcolor: 'rgba(255,255,255,0.2)' },
               }}
+              variant="outlined"
             >
               Quay lại danh sách lớp
             </Button>
-
-            <Typography variant="subtitle1" sx={{ fontWeight: 700, color: 'text.primary' }}>
-              {classInfo ? `Lớp ${classInfo.className}` : 'Danh sách học sinh'}
+            <Typography variant="h5" sx={{ fontWeight: 800, lineHeight: 1.2 }}>
+              Lớp {className}
             </Typography>
-            <Typography variant="caption" sx={{ color: 'text.secondary', mt: 0.5, display: 'block' }}>
-              {classInfo && (
-                <>
-                  Khối:{' '}
-                  <Box component="span" sx={{ fontWeight: 700 }}>
-                    {classInfo.gradeId?.gradeName || 'N/A'}
-                  </Box>
-                  {' '}•{' '}Năm học:{' '}
-                  <Box component="span" sx={{ fontWeight: 700 }}>
-                    {classInfo.academicYearId?.yearName || 'N/A'}
-                  </Box>
-                  {' '}•{' '}
-                </>
+            <Stack direction="row" spacing={1} flexWrap="wrap" gap={0.5} sx={{ mt: 1 }}>
+              {gradeName && (
+                <Chip label={`Khối ${gradeName}`} size="small" sx={{ bgcolor: 'rgba(255,255,255,0.2)', color: '#fff', fontWeight: 600, fontSize: '0.7rem' }} />
               )}
-              Tổng học sinh:{' '}
-              <Box component="span" sx={{ fontWeight: 700 }}>
-                {students.length}
-              </Box>
-            </Typography>
+              {yearName && (
+                <Chip label={yearName} size="small" sx={{ bgcolor: 'rgba(255,255,255,0.15)', color: 'rgba(255,255,255,0.9)', fontSize: '0.7rem' }} />
+              )}
+              <Chip label={`${students.length} học sinh`} size="small" sx={{ bgcolor: 'rgba(255,255,255,0.15)', color: 'rgba(255,255,255,0.9)', fontSize: '0.7rem' }} />
+            </Stack>
           </Box>
 
-          <Stack direction={{ xs: 'column', sm: 'row' }} spacing={1} sx={{ width: { xs: '100%', md: 'auto' } }}>
-            <TextField
-              size="small"
-              placeholder="Tìm kiếm tên học sinh..."
-              value={searchTerm}
-              onChange={(e) => setSearchTerm(e.target.value)}
-              sx={{ minWidth: 220 }}
-            />
-            <Button
-              type="button"
-              onClick={fetchStudents}
-              variant="outlined"
-              startIcon={<RefreshIcon />}
-              sx={{
-                fontWeight: 500,
-                bgcolor: 'grey.100',
-                borderColor: 'grey.300',
-                color: 'text.primary',
-                '&:hover': { bgcolor: 'grey.200' },
-              }}
-            >
-              Tải lại
-            </Button>
-            <Button
-              type="button"
-              variant="contained"
-              startIcon={<AddIcon />}
-              sx={{
-                fontWeight: 600,
-                bgcolor: 'indigo.600',
-                background: 'linear-gradient(135deg, #6366f1 0%, #4f46e5 100%)',
-                '&:hover': { background: 'linear-gradient(135deg, #4f46e5 0%, #4338ca 100%)' },
-              }}
-            >
-              Thêm học sinh
-            </Button>
-          </Stack>
-        </Box>
+          {/* Teachers on the right */}
+          {teachers.length > 0 && (
+            <Box sx={{ textAlign: { md: 'right' } }}>
+              <Typography variant="caption" sx={{ opacity: 0.75, fontWeight: 600, letterSpacing: 0.5 }}>
+                GIÁO VIÊN PHỤ TRÁCH
+              </Typography>
+              <Stack spacing={0.75} sx={{ mt: 0.75 }}>
+                {teachers.map((t, i) => (
+                  <Stack key={t._id || i} direction="row" alignItems="center" spacing={1} justifyContent={{ md: 'flex-end' }}>
+                    <Avatar sx={{ width: 28, height: 28, bgcolor: 'rgba(255,255,255,0.25)', color: '#fff', fontSize: '0.75rem', fontWeight: 700 }}>
+                      {t.fullName?.charAt(0)?.toUpperCase() || 'T'}
+                    </Avatar>
+                    <Typography variant="body2" sx={{ fontWeight: 600, color: '#fff' }}>
+                      {t.fullName}
+                    </Typography>
+                  </Stack>
+                ))}
+              </Stack>
+            </Box>
+          )}
+        </Stack>
 
-        {/* Stats Section */}
-        <Box
+        <Stack direction="row" sx={{ mt: 2, opacity: 0.8 }} spacing={0.5} alignItems="center">
+          <Button
+            size="small"
+            startIcon={<RefreshIcon fontSize="small" />}
+            onClick={fetchAll}
+            sx={{ color: 'rgba(255,255,255,0.85)', fontSize: '0.75rem', minWidth: 'unset', px: 1.5 }}
+          >
+            Tải lại
+          </Button>
+        </Stack>
+      </Paper>
+
+      {/* ── Stats Bar ───────────────────────────────────────────────────────── */}
+      <Stack
+        direction={{ xs: 'column', sm: 'row' }}
+        spacing={1.5}
+        sx={{ mb: 2 }}
+        flexWrap="wrap"
+      >
+        <StatCard
+          icon={<CalendarTodayIcon sx={{ color: '#7c3aed', fontSize: 22 }} />}
+          label="Độ tuổi"
+          value={ageRange}
+          color="#7c3aed"
+        />
+        <StatCard
+          icon={<PeopleIcon sx={{ color: '#2563eb', fontSize: 22 }} />}
+          label="Sĩ số hiện tại"
+          value={students.length}
+          sub={maxStudents > 0 ? `/ ${maxStudents} tối đa` : undefined}
+          color="#2563eb"
+        />
+        <StatCard
+          icon={<CheckCircleIcon sx={{ color: '#16a34a', fontSize: 22 }} />}
+          label="Tỷ lệ có mặt hôm nay"
+          value={`${attendanceRate}%`}
+          sub={`${presentCount} / ${students.length} học sinh`}
+          color="#16a34a"
+        />
+        <StatCard
+          icon={<SchoolIcon sx={{ color: '#d97706', fontSize: 22 }} />}
+          label="Trạng thái lớp"
+          value={
+            <Chip
+              label="Đang hoạt động"
+              size="small"
+              sx={{ bgcolor: '#f0fdf4', color: '#15803d', fontWeight: 700, fontSize: '0.75rem', mt: 0.3 }}
+            />
+          }
+          color="#d97706"
+        />
+      </Stack>
+
+      {/* ── Tabs ────────────────────────────────────────────────────────────── */}
+      <Paper elevation={1} sx={{ borderRadius: 2, overflow: 'hidden' }}>
+        <Tabs
+          value={activeTab}
+          onChange={(_, v) => setActiveTab(v)}
           sx={{
-            display: 'grid',
-            gridTemplateColumns: { xs: '1fr', md: '1fr 1fr 1fr' },
-            gap: 2,
-            mb: 3,
+            borderBottom: '1px solid',
+            borderColor: 'grey.200',
+            bgcolor: 'grey.50',
+            '& .MuiTab-root': { fontWeight: 600, fontSize: '0.85rem', minHeight: 48 },
+            '& .Mui-selected': { color: '#7c3aed' },
+            '& .MuiTabs-indicator': { bgcolor: '#7c3aed', height: 3 },
           }}
         >
-          {[
-            { label: 'Tổng học sinh', value: students.length },
-            { label: 'Nam', value: students.filter((s) => s.gender === 'male').length },
-            { label: 'Nữ', value: students.filter((s) => s.gender === 'female').length },
-          ].map(({ label, value }) => (
-            <Paper
-              key={label}
-              variant="outlined"
-              sx={{ p: 2, borderRadius: 2, bgcolor: 'grey.50' }}
-            >
-              <Typography
-                variant="caption"
-                sx={{ fontWeight: 700, color: 'text.secondary', textTransform: 'uppercase', letterSpacing: 1 }}
-              >
-                {label}
-              </Typography>
-              <Typography variant="h4" sx={{ fontWeight: 800, mt: 1, color: 'text.primary' }}>
-                {value}
-              </Typography>
-            </Paper>
-          ))}
-        </Box>
+          <Tab label="Thông tin lớp" icon={<SchoolIcon fontSize="small" />} iconPosition="start" />
+          <Tab label="Danh sách học sinh" icon={<PeopleIcon fontSize="small" />} iconPosition="start" />
+          <Tab label="Nhật ký lớp" icon={<BookIcon fontSize="small" />} iconPosition="start" />
+        </Tabs>
 
-        {/* Table Section */}
-        {loading ? (
-          <Box sx={{ p: 4, textAlign: 'center' }}>
-            <CircularProgress size={28} />
-            <Typography variant="body2" color="text.secondary" sx={{ mt: 1.5 }}>
-              Đang tải danh sách học sinh...
-            </Typography>
-          </Box>
-        ) : filteredStudents.length === 0 ? (
-          <Box sx={{ p: 4, textAlign: 'center' }}>
-            <Typography variant="body2" color="text.secondary">
-              Không tìm thấy học sinh nào
-            </Typography>
-          </Box>
-        ) : (
-          <TableContainer sx={{ borderRadius: 2, border: '1px solid', borderColor: 'grey.200' }}>
-            <Table size="small">
-              <TableHead>
-                <TableRow sx={{ bgcolor: 'grey.50' }}>
-                  <TableCell sx={{ fontWeight: 700, color: 'text.primary' }}>Tên học sinh</TableCell>
-                  <TableCell sx={{ fontWeight: 700, color: 'text.primary' }}>Giới tính</TableCell>
-                  <TableCell sx={{ fontWeight: 700, color: 'text.primary' }}>Ngày sinh</TableCell>
-                  <TableCell sx={{ fontWeight: 700, color: 'text.primary' }}>Điện thoại</TableCell>
-                  <TableCell sx={{ fontWeight: 700, color: 'text.primary' }}>Địa chỉ</TableCell>
-                  <TableCell align="center" sx={{ fontWeight: 700, color: 'text.primary' }}>Trạng thái</TableCell>
-                  <TableCell align="center" sx={{ fontWeight: 700, color: 'text.primary' }}>Thao tác</TableCell>
-                </TableRow>
-              </TableHead>
-              <TableBody>
-                {filteredStudents.map((student, index) => (
-                  <TableRow
-                    key={student._id || index}
-                    hover
-                    sx={{ '&:last-child td': { border: 0 } }}
-                  >
-                    <TableCell>
-                      <Typography variant="body2" sx={{ fontWeight: 600, color: 'text.primary' }}>
-                        {student.fullName}
-                      </Typography>
-                      {(student.parentId?.email || student.userId?.email) && (
-                        <Typography variant="caption" color="text.secondary">
-                          {student.parentId?.email || student.userId?.email}
-                        </Typography>
-                      )}
-                    </TableCell>
+        <Box sx={{ p: { xs: 2, md: 3 } }}>
+          {/* ── Tab 0: Thông tin lớp ──────────────────────────────────────── */}
+          {activeTab === 0 && (
+            <Grid container spacing={2}>
+              {/* Card: Giáo viên */}
+              <Grid item xs={12} md={4}>
+                <Paper variant="outlined" sx={{ p: 2.5, borderRadius: 2, height: '100%' }}>
+                  <Stack direction="row" alignItems="center" spacing={1} sx={{ mb: 2 }}>
+                    <PersonIcon sx={{ color: '#7c3aed' }} />
+                    <Typography variant="subtitle2" fontWeight={700}>Giáo viên phụ trách</Typography>
+                  </Stack>
+                  {teachers.length === 0 ? (
+                    <Typography variant="body2" color="text.secondary">Chưa phân công giáo viên</Typography>
+                  ) : (
+                    <Stack spacing={1.5}>
+                      {teachers.map((t, i) => (
+                        <Stack key={t._id || i} direction="row" spacing={1.5} alignItems="center">
+                          <Avatar sx={{ width: 40, height: 40, bgcolor: '#ede9fe', color: '#7c3aed', fontWeight: 700 }}>
+                            {t.fullName?.charAt(0)?.toUpperCase() || 'T'}
+                          </Avatar>
+                          <Box>
+                            <Typography variant="body2" fontWeight={600}>{t.fullName}</Typography>
+                            {t.email && (
+                              <Typography variant="caption" color="text.secondary">{t.email}</Typography>
+                            )}
+                          </Box>
+                        </Stack>
+                      ))}
+                    </Stack>
+                  )}
+                </Paper>
+              </Grid>
 
-                    <TableCell>
-                      <Chip
-                        label={
-                          student.gender === 'male'
-                            ? 'Nam'
-                            : student.gender === 'female'
-                            ? 'Nữ'
-                            : 'Khác'
-                        }
-                        size="small"
-                        sx={{
-                          fontWeight: 600,
-                          fontSize: '0.7rem',
-                          ...(student.gender === 'male'
-                            ? { bgcolor: '#eff6ff', color: '#1d4ed8' }
-                            : student.gender === 'female'
-                            ? { bgcolor: '#fdf2f8', color: '#be185d' }
-                            : { bgcolor: 'grey.100', color: 'text.secondary' }),
-                        }}
-                      />
-                    </TableCell>
+              {/* Card: Phòng học */}
+              <Grid item xs={12} md={4}>
+                <Paper variant="outlined" sx={{ p: 2.5, borderRadius: 2, height: '100%' }}>
+                  <Stack direction="row" alignItems="center" spacing={1} sx={{ mb: 2 }}>
+                    <MeetingRoomIcon sx={{ color: '#2563eb' }} />
+                    <Typography variant="subtitle2" fontWeight={700}>Phòng học & cơ sở vật chất</Typography>
+                  </Stack>
+                  <Stack spacing={1.5}>
+                    {[
+                      { label: 'Phòng học', value: 'Phòng ' + (classDetail?.className || 'N/A') },
+                      { label: 'Diện tích', value: 'N/A' },
+                      { label: 'Sức chứa tối đa', value: maxStudents > 0 ? `${maxStudents} học sinh` : 'N/A' },
+                      { label: 'Tình trạng', value: 'Tốt' },
+                    ].map(({ label, value }) => (
+                      <Box key={label}>
+                        <Typography variant="caption" color="text.secondary" fontWeight={600}>{label}</Typography>
+                        <Typography variant="body2" fontWeight={500}>{value}</Typography>
+                      </Box>
+                    ))}
+                  </Stack>
+                </Paper>
+              </Grid>
 
-                    <TableCell>
-                      <Typography variant="body2" color="text.primary">
-                        {student.dateOfBirth
-                          ? new Date(student.dateOfBirth).toLocaleDateString('vi-VN')
-                          : 'N/A'}
-                      </Typography>
-                    </TableCell>
-
-                    <TableCell>
-                      <Typography variant="body2" color="text.primary">
-                        {student.phone || 'N/A'}
-                      </Typography>
-                    </TableCell>
-
-                    <TableCell>
-                      <Typography
-                        variant="body2"
-                        color="text.primary"
-                        title={student.address || 'N/A'}
-                        sx={{ maxWidth: 200, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}
-                      >
-                        {student.address || 'N/A'}
-                      </Typography>
-                    </TableCell>
-
-                    <TableCell align="center">
-                      <Chip
-                        label={student.status === 'active' ? 'Hoạt động' : 'Không hoạt động'}
-                        size="small"
-                        sx={{
-                          fontWeight: 600,
-                          fontSize: '0.7rem',
-                          ...(student.status === 'active'
-                            ? { bgcolor: '#f0fdf4', color: '#15803d' }
-                            : { bgcolor: 'grey.100', color: 'text.secondary' }),
-                        }}
-                      />
-                    </TableCell>
-
-                    <TableCell align="center">
-                      <Stack direction="row" spacing={1} justifyContent="center">
-                        <Button
-                          type="button"
-                          size="small"
-                          startIcon={<VisibilityIcon fontSize="inherit" />}
-                          sx={{
-                            fontSize: '0.7rem',
-                            fontWeight: 600,
-                            bgcolor: '#eef2ff',
-                            color: '#4338ca',
-                            '&:hover': { bgcolor: '#e0e7ff' },
-                            borderRadius: 1.5,
-                            px: 1.5,
-                            py: 0.5,
-                            minWidth: 'unset',
-                          }}
-                        >
-                          Xem
-                        </Button>
-                        <Button
-                          type="button"
-                          size="small"
-                          startIcon={<EditIcon fontSize="inherit" />}
-                          sx={{
-                            fontSize: '0.7rem',
-                            fontWeight: 600,
-                            bgcolor: 'grey.100',
-                            color: 'text.secondary',
-                            '&:hover': { bgcolor: 'grey.200' },
-                            borderRadius: 1.5,
-                            px: 1.5,
-                            py: 0.5,
-                            minWidth: 'unset',
-                          }}
-                        >
-                          Sửa
-                        </Button>
+              {/* Card: Thời khóa biểu mẫu */}
+              <Grid item xs={12} md={4}>
+                <Paper variant="outlined" sx={{ p: 2.5, borderRadius: 2, height: '100%' }}>
+                  <Stack direction="row" alignItems="center" spacing={1} sx={{ mb: 2 }}>
+                    <ScheduleIcon sx={{ color: '#d97706' }} />
+                    <Typography variant="subtitle2" fontWeight={700}>Thời khóa biểu mẫu</Typography>
+                  </Stack>
+                  <Stack spacing={1}>
+                    {[
+                      { time: '07:00 – 08:00', activity: 'Đón trẻ, điểm danh' },
+                      { time: '08:00 – 09:00', activity: 'Thể dục buổi sáng' },
+                      { time: '09:00 – 10:30', activity: 'Học tập, vui chơi' },
+                      { time: '10:30 – 11:00', activity: 'Ăn trưa' },
+                      { time: '11:00 – 14:00', activity: 'Ngủ trưa' },
+                      { time: '14:00 – 16:30', activity: 'Vui chơi, tan học' },
+                    ].map(({ time, activity }) => (
+                      <Stack key={time} direction="row" spacing={1.5} alignItems="center">
+                        <Typography variant="caption" sx={{ width: 100, color: '#7c3aed', fontWeight: 600, flexShrink: 0 }}>{time}</Typography>
+                        <Typography variant="body2" color="text.secondary">{activity}</Typography>
                       </Stack>
-                    </TableCell>
-                  </TableRow>
+                    ))}
+                  </Stack>
+                </Paper>
+              </Grid>
+            </Grid>
+          )}
+
+          {/* ── Tab 1: Danh sách học sinh ────────────────────────────────── */}
+          {activeTab === 1 && (
+            <Box>
+              <Stack direction={{ xs: 'column', sm: 'row' }} justifyContent="space-between" alignItems={{ sm: 'center' }} spacing={1.5} sx={{ mb: 2 }}>
+                <Typography variant="subtitle2" fontWeight={700} color="text.secondary">
+                  {filteredStudents.length} / {students.length} học sinh
+                </Typography>
+                <TextField
+                  size="small"
+                  placeholder="Tìm kiếm theo tên..."
+                  value={searchTerm}
+                  onChange={e => setSearchTerm(e.target.value)}
+                  sx={{ minWidth: 220 }}
+                />
+              </Stack>
+
+              {filteredStudents.length === 0 ? (
+                <Box sx={{ py: 6, textAlign: 'center' }}>
+                  <PeopleIcon sx={{ fontSize: 48, color: 'grey.300', mb: 1 }} />
+                  <Typography variant="body2" color="text.secondary">
+                    {searchTerm ? 'Không tìm thấy học sinh nào khớp' : 'Lớp chưa có học sinh'}
+                  </Typography>
+                </Box>
+              ) : (
+                <Box
+                  sx={{
+                    display: 'grid',
+                    gridTemplateColumns: { xs: '1fr', sm: '1fr 1fr', md: '1fr 1fr 1fr', lg: 'repeat(4, 1fr)' },
+                    gap: 1.5,
+                  }}
+                >
+                  {filteredStudents.map(student => (
+                    <StudentCard
+                      key={student._id}
+                      student={student}
+                      attendanceStatus={attendanceMap[student._id] || null}
+                      onClick={setSelectedStudent}
+                    />
+                  ))}
+                </Box>
+              )}
+            </Box>
+          )}
+
+          {/* ── Tab 2: Nhật ký lớp ──────────────────────────────────────── */}
+          {activeTab === 2 && (
+            <Box>
+              <Stack direction="row" justifyContent="space-between" alignItems="center" sx={{ mb: 2 }}>
+                <Typography variant="subtitle2" fontWeight={700}>
+                  Nhật ký ngày {new Date().toLocaleDateString('vi-VN')}
+                </Typography>
+              </Stack>
+
+              <Stack spacing={1.5}>
+                {[
+                  { time: '07:00', title: 'Đón trẻ', note: `Đã đón ${presentCount}/${students.length} trẻ`, icon: <CheckCircleIcon sx={{ color: '#16a34a', fontSize: 20 }} /> },
+                  { time: '08:00', title: 'Thể dục buổi sáng', note: 'Hoạt động thể chất ngoài sân', icon: <FavoriteIcon sx={{ color: '#d97706', fontSize: 20 }} /> },
+                  { time: '09:00', title: 'Học tập & vui chơi', note: 'Bài học theo chủ đề tuần', icon: <SchoolIcon sx={{ color: '#2563eb', fontSize: 20 }} /> },
+                  { time: '10:30', title: 'Ăn trưa', note: 'Theo thực đơn dinh dưỡng', icon: <ScheduleIcon sx={{ color: '#7c3aed', fontSize: 20 }} /> },
+                  { time: '11:00', title: 'Ngủ trưa', note: 'Nghỉ ngơi theo lịch', icon: <ScheduleIcon sx={{ color: '#9ca3af', fontSize: 20 }} /> },
+                ].map(({ time, title, note, icon }) => (
+                  <Paper
+                    key={time}
+                    variant="outlined"
+                    sx={{ p: 2, borderRadius: 2, display: 'flex', alignItems: 'center', gap: 2, borderColor: 'grey.200' }}
+                  >
+                    <Box sx={{ width: 52, textAlign: 'center', flexShrink: 0 }}>
+                      <Typography variant="caption" sx={{ color: '#7c3aed', fontWeight: 700 }}>{time}</Typography>
+                    </Box>
+                    <Divider orientation="vertical" flexItem />
+                    <Box sx={{ mr: 'auto' }}>
+                      <Typography variant="body2" fontWeight={700}>{title}</Typography>
+                      <Typography variant="caption" color="text.secondary">{note}</Typography>
+                    </Box>
+                    {icon}
+                  </Paper>
                 ))}
-              </TableBody>
-            </Table>
-          </TableContainer>
-        )}
+              </Stack>
+            </Box>
+          )}
+        </Box>
       </Paper>
+
+      {/* ── Student Detail Modal ─────────────────────────────────────────────── */}
+      <Dialog
+        open={!!selectedStudent}
+        onClose={() => setSelectedStudent(null)}
+        maxWidth="sm"
+        fullWidth
+        PaperProps={{ sx: { borderRadius: 3 } }}
+      >
+        {selectedStudent && (
+          <>
+            <DialogTitle sx={{ pb: 1, pr: 6 }}>
+              <Stack direction="row" alignItems="center" spacing={1.5}>
+                <Avatar
+                  sx={{
+                    width: 48,
+                    height: 48,
+                    bgcolor: selectedStudent.gender === 'female' ? '#fbcfe8' : '#bfdbfe',
+                    color: selectedStudent.gender === 'female' ? '#be185d' : '#1d4ed8',
+                    fontWeight: 700,
+                    fontSize: '1.2rem',
+                  }}
+                >
+                  {selectedStudent.fullName?.charAt(0)?.toUpperCase() || <PersonIcon />}
+                </Avatar>
+                <Box>
+                  <Typography variant="subtitle1" fontWeight={700}>{selectedStudent.fullName}</Typography>
+                  <Stack direction="row" spacing={0.75}>
+                    <Chip
+                      label={selectedStudent.gender === 'male' ? 'Nam' : selectedStudent.gender === 'female' ? 'Nữ' : 'Khác'}
+                      size="small"
+                      sx={{ fontSize: '0.65rem', height: 20, bgcolor: selectedStudent.gender === 'female' ? '#fdf2f8' : '#eff6ff', color: selectedStudent.gender === 'female' ? '#be185d' : '#1d4ed8', fontWeight: 600 }}
+                    />
+                    <Chip
+                      label={(() => { const att = attendanceColor(attendanceMap[selectedStudent._id]); return att.label; })()}
+                      size="small"
+                      sx={{ fontSize: '0.65rem', height: 20, bgcolor: attendanceColor(attendanceMap[selectedStudent._id]).bg, color: attendanceColor(attendanceMap[selectedStudent._id]).color, fontWeight: 600 }}
+                    />
+                  </Stack>
+                </Box>
+              </Stack>
+              <IconButton
+                onClick={() => setSelectedStudent(null)}
+                size="small"
+                sx={{ position: 'absolute', top: 12, right: 12 }}
+              >
+                <CloseIcon />
+              </IconButton>
+            </DialogTitle>
+
+            <DialogContent dividers>
+              <Stack spacing={2.5}>
+                {/* Thông tin cá nhân */}
+                <Box>
+                  <Typography variant="caption" fontWeight={700} color="text.secondary" sx={{ letterSpacing: 0.5, mb: 1, display: 'block' }}>
+                    THÔNG TIN CÁ NHÂN
+                  </Typography>
+                  <Grid container spacing={1.5}>
+                    {[
+                      { label: 'Ngày sinh', value: fmtDate(selectedStudent.dateOfBirth) },
+                      { label: 'Tuổi', value: calcAge(selectedStudent.dateOfBirth) !== null ? `${calcAge(selectedStudent.dateOfBirth)} tuổi` : 'N/A' },
+                      { label: 'Lớp', value: classDetail?.className || 'N/A' },
+                      { label: 'Trạng thái', value: selectedStudent.status === 'active' ? 'Đang học' : 'Nghỉ học' },
+                    ].map(({ label, value }) => (
+                      <Grid item xs={6} key={label}>
+                        <Typography variant="caption" color="text.secondary">{label}</Typography>
+                        <Typography variant="body2" fontWeight={600}>{value}</Typography>
+                      </Grid>
+                    ))}
+                  </Grid>
+                </Box>
+
+                <Divider />
+
+                {/* Thông tin phụ huynh */}
+                <Box>
+                  <Typography variant="caption" fontWeight={700} color="text.secondary" sx={{ letterSpacing: 0.5, mb: 1, display: 'block' }}>
+                    THÔNG TIN PHỤ HUYNH
+                  </Typography>
+                  {selectedStudent.parentId ? (
+                    <Stack spacing={1}>
+                      <Stack direction="row" spacing={1.5} alignItems="center">
+                        <Avatar sx={{ width: 36, height: 36, bgcolor: '#ede9fe', color: '#7c3aed', fontWeight: 700, fontSize: '0.9rem' }}>
+                          {selectedStudent.parentId.fullName?.charAt(0)?.toUpperCase() || 'P'}
+                        </Avatar>
+                        <Box>
+                          <Typography variant="body2" fontWeight={600}>{selectedStudent.parentId.fullName || 'N/A'}</Typography>
+                          {selectedStudent.parentId.email && (
+                            <Typography variant="caption" color="text.secondary">{selectedStudent.parentId.email}</Typography>
+                          )}
+                        </Box>
+                      </Stack>
+                      {selectedStudent.parentId.phone && (
+                        <Stack direction="row" spacing={1} alignItems="center">
+                          <PhoneIcon sx={{ fontSize: 16, color: 'text.secondary' }} />
+                          <Typography variant="body2">{selectedStudent.parentId.phone}</Typography>
+                        </Stack>
+                      )}
+                      {selectedStudent.address && (
+                        <Stack direction="row" spacing={1} alignItems="flex-start">
+                          <HomeIcon sx={{ fontSize: 16, color: 'text.secondary', mt: 0.2 }} />
+                          <Typography variant="body2" color="text.secondary">{selectedStudent.address}</Typography>
+                        </Stack>
+                      )}
+                    </Stack>
+                  ) : (
+                    <Typography variant="body2" color="text.secondary">Chưa có thông tin phụ huynh</Typography>
+                  )}
+                </Box>
+
+                {/* SĐT phụ huynh (từ student trực tiếp) */}
+                {selectedStudent.parentPhone && !selectedStudent.parentId?.phone && (
+                  <>
+                    <Divider />
+                    <Stack direction="row" spacing={1} alignItems="center">
+                      <PhoneIcon sx={{ fontSize: 16, color: 'text.secondary' }} />
+                      <Typography variant="body2">SĐT phụ huynh: {selectedStudent.parentPhone}</Typography>
+                    </Stack>
+                  </>
+                )}
+
+                <Divider />
+
+                {/* Sức khỏe */}
+                <Box>
+                  <Stack direction="row" spacing={1} alignItems="center" sx={{ mb: 1 }}>
+                    <FavoriteIcon sx={{ fontSize: 16, color: '#ef4444' }} />
+                    <Typography variant="caption" fontWeight={700} color="text.secondary" sx={{ letterSpacing: 0.5 }}>
+                      SỨC KHỎE
+                    </Typography>
+                  </Stack>
+                  <Typography variant="body2" color="text.secondary">Không có ghi chú đặc biệt</Typography>
+                </Box>
+              </Stack>
+            </DialogContent>
+
+            <DialogActions sx={{ px: 3, py: 1.5 }}>
+              <Button onClick={() => setSelectedStudent(null)} variant="outlined" size="small">
+                Đóng
+              </Button>
+            </DialogActions>
+          </>
+        )}
+      </Dialog>
     </RoleLayout>
   );
 }

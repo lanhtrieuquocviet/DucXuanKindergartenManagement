@@ -14,6 +14,7 @@ const systemAdminRoutes = require('./src/routes/systemAdmin.routes');
 const teacherRoutes = require('./src/routes/teacher.routes');
 const schoolAdminRoutes = require('./src/routes/schoolAdmin.routes');
 const classesRoutes = require('./src/routes/classes.routes');
+const gradeRoutes = require('./src/routes/grade.routes');
 const studentRoutes = require('./src/routes/student.routes');
 const cloudinaryRoutes = require('./src/routes/cloudinary.routes');
 const contactRoutes = require('./src/routes/contact.routes');
@@ -223,6 +224,7 @@ app.use('/api/teacher', teacherRoutes);
 
 // Classes routes
 app.use('/api/classes', classesRoutes);
+app.use('/api/grades', gradeRoutes);
 
 // Student routes
 app.use('/api/students', studentRoutes);

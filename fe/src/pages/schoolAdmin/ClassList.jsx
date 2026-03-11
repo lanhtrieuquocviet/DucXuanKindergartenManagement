@@ -2,7 +2,7 @@ import { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import RoleLayout from '../../layouts/RoleLayout';
 import { useAuth } from '../../context/AuthContext';
-import { get, post, ENDPOINTS } from '../../service/api';
+import { get, post, put, del, ENDPOINTS } from '../../service/api';
 import {
   Box,
   Paper,
@@ -27,6 +27,10 @@ import {
   InputLabel,
   Select,
   MenuItem,
+  Tabs,
+  Tab,
+  IconButton,
+  Tooltip,
 } from '@mui/material';
 import {
   Refresh as RefreshIcon,
@@ -35,6 +39,8 @@ import {
   Edit as EditIcon,
   Class as ClassIcon,
   WarningAmber as WarningAmberIcon,
+  Delete as DeleteIcon,
+  Layers as LayersIcon,
 } from '@mui/icons-material';
 
 function ClassList() {
@@ -53,6 +59,19 @@ function ClassList() {
   const [grades, setGrades] = useState([]);
   const [form, setForm] = useState({ className: '', gradeId: '', maxStudents: '' });
   const [formErrors, setFormErrors] = useState({});
+
+  // Tab state
+  const [activeTab, setActiveTab] = useState(0);
+
+  // Grade CRUD state
+  const [gradeList, setGradeList] = useState([]);
+  const [gradeLoading, setGradeLoading] = useState(false);
+  const [gradeError, setGradeError] = useState(null);
+  const [gradeDialog, setGradeDialog] = useState({ open: false, mode: 'create', data: null });
+  const [gradeForm, setGradeForm] = useState({ gradeName: '', description: '' });
+  const [gradeFormErrors, setGradeFormErrors] = useState({});
+  const [gradeSubmitting, setGradeSubmitting] = useState(false);
+  const [gradeDeleteConfirm, setGradeDeleteConfirm] = useState(null);
 
   const navigate = useNavigate();
   const { user, hasRole, logout, isInitializing } = useAuth();
@@ -73,6 +92,7 @@ function ClassList() {
     }
 
     fetchClasses();
+    fetchGradeList();
   }, [navigate, user, hasRole, isInitializing]);
 
   const fetchClasses = async () => {
@@ -91,6 +111,72 @@ function ClassList() {
       console.error('Error fetching classes:', err);
     } finally {
       setLoading(false);
+    }
+  };
+
+  const fetchGradeList = async () => {
+    try {
+      setGradeLoading(true);
+      setGradeError(null);
+      const res = await get(ENDPOINTS.GRADES.LIST);
+      setGradeList(res.data || []);
+    } catch (err) {
+      setGradeError(err.message || 'Lỗi khi tải danh sách khối lớp');
+    } finally {
+      setGradeLoading(false);
+    }
+  };
+
+  const openGradeDialog = (mode, data = null) => {
+    setGradeFormErrors({});
+    setGradeForm(data ? { gradeName: data.gradeName, description: data.description || '' } : { gradeName: '', description: '' });
+    setGradeDialog({ open: true, mode, data });
+  };
+
+  const validateGradeForm = () => {
+    const errs = {};
+    if (!gradeForm.gradeName.trim()) {
+      errs.gradeName = 'Tên khối lớp không được để trống';
+    } else if (gradeForm.gradeName.trim().length > 10) {
+      errs.gradeName = 'Tên khối lớp không được quá 10 ký tự';
+    }
+    if (gradeForm.description.trim().length > 50) {
+      errs.description = 'Mô tả không được quá 50 ký tự';
+    }
+    setGradeFormErrors(errs);
+    return Object.keys(errs).length === 0;
+  };
+
+  const handleGradeSubmit = async () => {
+    if (!validateGradeForm()) return;
+    try {
+      setGradeSubmitting(true);
+      if (gradeDialog.mode === 'create') {
+        await post(ENDPOINTS.GRADES.CREATE, gradeForm);
+      } else {
+        await put(ENDPOINTS.GRADES.UPDATE(gradeDialog.data._id), gradeForm);
+      }
+      setGradeDialog({ open: false, mode: 'create', data: null });
+      fetchGradeList();
+    } catch (err) {
+      setGradeFormErrors({ submit: err.data?.message || err.message || 'Lỗi khi lưu khối lớp' });
+    } finally {
+      setGradeSubmitting(false);
+    }
+  };
+
+  const handleGradeDelete = async () => {
+    if (!gradeDeleteConfirm) return;
+    try {
+      setGradeSubmitting(true);
+      await del(ENDPOINTS.GRADES.DELETE(gradeDeleteConfirm._id));
+      setGradeDeleteConfirm(null);
+      fetchGradeList();
+    } catch (err) {
+      setGradeError(err.data?.message || err.message || 'Lỗi khi xóa khối lớp');
+      setGradeDeleteConfirm(null);
+    } finally {
+      setGradeSubmitting(false);
     }
   };
 
@@ -327,228 +413,285 @@ function ClassList() {
       </Paper>
 
       {/* Main card */}
-      <Paper elevation={1} sx={{ borderRadius: 2, p: 3 }}>
-        {/* Header: summary + controls */}
-        <Stack
-          direction={{ xs: 'column', md: 'row' }}
-          alignItems={{ xs: 'flex-start', md: 'center' }}
-          justifyContent="space-between"
-          spacing={2}
-          mb={3}
+      <Paper elevation={1} sx={{ borderRadius: 2, overflow: 'hidden' }}>
+        {/* Tabs */}
+        <Tabs
+          value={activeTab}
+          onChange={(_, v) => setActiveTab(v)}
+          sx={{ borderBottom: '1px solid', borderColor: 'divider', px: 2 }}
         >
-          {/* Summary text */}
-          <Box>
-            <Typography variant="subtitle2" fontWeight={600} color="text.primary">
-              Danh sách lớp học
-            </Typography>
-            <Stack direction="row" spacing={1} mt={0.5} flexWrap="wrap">
-              <Typography variant="caption" color="text.secondary">
-                Tổng lớp:
-              </Typography>
-              <Typography variant="caption" fontWeight={700} color="text.primary">
-                {totalClasses}
-              </Typography>
-              <Typography variant="caption" color="text.disabled">•</Typography>
-              <Typography variant="caption" color="text.secondary">
-                Lớp hoạt động:
-              </Typography>
-              <Typography variant="caption" fontWeight={700} color="text.primary">
-                {activeClasses}
-              </Typography>
-              <Typography variant="caption" color="text.disabled">•</Typography>
-              <Typography variant="caption" color="text.secondary">
-                Sức chứa tổng:
-              </Typography>
-              <Typography variant="caption" fontWeight={700} color="text.primary">
-                {totalCapacity}
-              </Typography>
-            </Stack>
-          </Box>
+          <Tab icon={<ClassIcon fontSize="small" />} iconPosition="start" label="Lớp học" sx={{ textTransform: 'none', fontWeight: 600, minHeight: 48 }} />
+          <Tab icon={<LayersIcon fontSize="small" />} iconPosition="start" label="Khối lớp" sx={{ textTransform: 'none', fontWeight: 600, minHeight: 48 }} />
+        </Tabs>
 
-          {/* Controls */}
-          <Stack direction={{ xs: 'column', sm: 'row' }} spacing={1} sx={{ width: { xs: '100%', md: 'auto' } }}>
-            <TextField
-              size="small"
-              placeholder="Tìm kiếm tên lớp..."
-              value={searchTerm}
-              onChange={(e) => setSearchTerm(e.target.value)}
-              sx={{ minWidth: 220 }}
-            />
-            <Button
-              variant="outlined"
-              color="inherit"
-              startIcon={<RefreshIcon />}
-              onClick={fetchClasses}
-              sx={{
-                borderRadius: 1.5,
-                textTransform: 'none',
-                fontWeight: 500,
-                whiteSpace: 'nowrap',
-              }}
-            >
-              Tải lại
-            </Button>
-            <Button
-              variant="contained"
-              startIcon={<AddIcon />}
-              onClick={openCreateDialog}
-              sx={{
-                bgcolor: '#6366f1',
-                '&:hover': { bgcolor: '#4f46e5' },
-                borderRadius: 1.5,
-                textTransform: 'none',
-                fontWeight: 600,
-                whiteSpace: 'nowrap',
-              }}
-            >
-              Thêm lớp
-            </Button>
-          </Stack>
-        </Stack>
-
-        {/* Table section */}
-        {loading ? (
-          <Stack alignItems="center" justifyContent="center" spacing={1.5} py={6}>
-            <CircularProgress size={32} thickness={4} sx={{ color: '#6366f1' }} />
-            <Typography variant="body2" color="text.secondary">
-              Đang tải danh sách...
-            </Typography>
-          </Stack>
-        ) : filteredClasses.length === 0 ? (
-          <Stack alignItems="center" justifyContent="center" py={6}>
-            <Typography variant="body2" color="text.secondary">
-              Không tìm thấy lớp học nào
-            </Typography>
-          </Stack>
-        ) : (
-          <TableContainer
-            sx={{
-              border: '1px solid',
-              borderColor: 'divider',
-              borderRadius: 1.5,
-              overflow: 'hidden',
-            }}
-          >
-            <Table size="small">
-              <TableHead>
-                <TableRow sx={{ bgcolor: 'grey.50' }}>
-                  <TableCell sx={{ fontWeight: 700, color: 'text.primary', py: 1.5 }}>
-                    Tên lớp
-                  </TableCell>
-                  <TableCell sx={{ fontWeight: 700, color: 'text.primary', py: 1.5 }}>
-                    Khối lớp
-                  </TableCell>
-                  <TableCell sx={{ fontWeight: 700, color: 'text.primary', py: 1.5 }}>
-                    Năm học
-                  </TableCell>
-                  <TableCell align="center" sx={{ fontWeight: 700, color: 'text.primary', py: 1.5 }}>
-                    Sức chứa
-                  </TableCell>
-                  <TableCell align="center" sx={{ fontWeight: 700, color: 'text.primary', py: 1.5 }}>
-                    Giáo viên
-                  </TableCell>
-                  <TableCell align="center" sx={{ fontWeight: 700, color: 'text.primary', py: 1.5 }}>
-                    Thao tác
-                  </TableCell>
-                </TableRow>
-              </TableHead>
-              <TableBody>
-                {filteredClasses.map((cls, index) => (
-                  <TableRow
-                    key={cls._id || index}
-                    hover
-                    sx={{
-                      '&:last-child td': { borderBottom: 0 },
-                      transition: 'background-color 0.15s',
-                    }}
+        <Box sx={{ p: 3 }}>
+          {/* ===== TAB 0: CLASSES ===== */}
+          {activeTab === 0 && (
+            <>
+              <Stack
+                direction={{ xs: 'column', md: 'row' }}
+                alignItems={{ xs: 'flex-start', md: 'center' }}
+                justifyContent="space-between"
+                spacing={2}
+                mb={3}
+              >
+                <Box>
+                  <Typography variant="subtitle2" fontWeight={600} color="text.primary">
+                    Danh sách lớp học
+                  </Typography>
+                  <Stack direction="row" spacing={1} mt={0.5} flexWrap="wrap">
+                    <Typography variant="caption" color="text.secondary">Tổng lớp:</Typography>
+                    <Typography variant="caption" fontWeight={700} color="text.primary">{totalClasses}</Typography>
+                    <Typography variant="caption" color="text.disabled">•</Typography>
+                    <Typography variant="caption" color="text.secondary">Sức chứa tổng:</Typography>
+                    <Typography variant="caption" fontWeight={700} color="text.primary">{totalCapacity}</Typography>
+                  </Stack>
+                </Box>
+                <Stack direction={{ xs: 'column', sm: 'row' }} spacing={1} sx={{ width: { xs: '100%', md: 'auto' } }}>
+                  <TextField
+                    size="small"
+                    placeholder="Tìm kiếm tên lớp..."
+                    value={searchTerm}
+                    onChange={(e) => setSearchTerm(e.target.value)}
+                    sx={{ minWidth: 220 }}
+                  />
+                  <Button
+                    variant="outlined"
+                    color="inherit"
+                    startIcon={<RefreshIcon />}
+                    onClick={fetchClasses}
+                    sx={{ borderRadius: 1.5, textTransform: 'none', fontWeight: 500, whiteSpace: 'nowrap' }}
                   >
-                    <TableCell>
-                      <Typography variant="body2" fontWeight={600} color="text.primary">
-                        {cls.className}
-                      </Typography>
-                    </TableCell>
-                    <TableCell>
-                      <Typography variant="body2" color="text.secondary">
-                        {cls.gradeId?.gradeName || 'N/A'}
-                      </Typography>
-                    </TableCell>
-                    <TableCell>
-                      <Typography variant="body2" color="text.secondary">
-                        {cls.academicYearId?.yearName || 'N/A'}
-                      </Typography>
-                    </TableCell>
-                    <TableCell align="center">
-                      <Chip
-                        label={cls.maxStudents || 0}
-                        size="small"
-                        variant="outlined"
-                        sx={{
-                          fontWeight: 600,
-                          fontSize: '0.75rem',
-                          borderColor: 'grey.400',
-                          color: 'text.primary',
-                        }}
-                      />
-                    </TableCell>
-                    <TableCell align="center">
-                      <Typography variant="body2" fontWeight={600} color="text.primary">
-                        {cls.teacherIds?.length || 0}
-                      </Typography>
-                    </TableCell>
-                    <TableCell align="center">
-                      <Stack direction="row" spacing={1} justifyContent="center">
-                        <Button
-                          size="small"
-                          variant="contained"
-                          startIcon={<VisibilityIcon sx={{ fontSize: '0.875rem !important' }} />}
-                          onClick={() => handleViewStudents(cls._id)}
-                          sx={{
-                            bgcolor: 'rgba(99,102,241,0.1)',
-                            color: '#6366f1',
-                            boxShadow: 'none',
-                            '&:hover': {
-                              bgcolor: 'rgba(99,102,241,0.2)',
-                              boxShadow: 'none',
-                            },
-                            borderRadius: 1.5,
-                            textTransform: 'none',
-                            fontSize: '0.75rem',
-                            fontWeight: 600,
-                            py: 0.5,
-                          }}
-                        >
-                          Xem học sinh
-                        </Button>
-                        <Button
-                          size="small"
-                          variant="contained"
-                          startIcon={<EditIcon sx={{ fontSize: '0.875rem !important' }} />}
-                          sx={{
-                            bgcolor: 'grey.100',
-                            color: 'text.secondary',
-                            boxShadow: 'none',
-                            '&:hover': {
-                              bgcolor: 'grey.200',
-                              boxShadow: 'none',
-                            },
-                            borderRadius: 1.5,
-                            textTransform: 'none',
-                            fontSize: '0.75rem',
-                            fontWeight: 600,
-                            py: 0.5,
-                          }}
-                        >
-                          Sửa
-                        </Button>
-                      </Stack>
-                    </TableCell>
-                  </TableRow>
-                ))}
-              </TableBody>
-            </Table>
-          </TableContainer>
-        )}
+                    Tải lại
+                  </Button>
+                  <Button
+                    variant="contained"
+                    startIcon={<AddIcon />}
+                    onClick={openCreateDialog}
+                    sx={{ bgcolor: '#6366f1', '&:hover': { bgcolor: '#4f46e5' }, borderRadius: 1.5, textTransform: 'none', fontWeight: 600, whiteSpace: 'nowrap' }}
+                  >
+                    Thêm lớp
+                  </Button>
+                </Stack>
+              </Stack>
+
+              {loading ? (
+                <Stack alignItems="center" justifyContent="center" spacing={1.5} py={6}>
+                  <CircularProgress size={32} thickness={4} sx={{ color: '#6366f1' }} />
+                  <Typography variant="body2" color="text.secondary">Đang tải danh sách...</Typography>
+                </Stack>
+              ) : filteredClasses.length === 0 ? (
+                <Stack alignItems="center" justifyContent="center" py={6}>
+                  <Typography variant="body2" color="text.secondary">Không tìm thấy lớp học nào</Typography>
+                </Stack>
+              ) : (
+                <TableContainer sx={{ border: '1px solid', borderColor: 'divider', borderRadius: 1.5, overflow: 'hidden' }}>
+                  <Table size="small">
+                    <TableHead>
+                      <TableRow sx={{ bgcolor: 'grey.50' }}>
+                        <TableCell sx={{ fontWeight: 700, color: 'text.primary', py: 1.5 }}>Tên lớp</TableCell>
+                        <TableCell sx={{ fontWeight: 700, color: 'text.primary', py: 1.5 }}>Khối lớp</TableCell>
+                        <TableCell sx={{ fontWeight: 700, color: 'text.primary', py: 1.5 }}>Năm học</TableCell>
+                        <TableCell align="center" sx={{ fontWeight: 700, color: 'text.primary', py: 1.5 }}>Sức chứa</TableCell>
+                        <TableCell align="center" sx={{ fontWeight: 700, color: 'text.primary', py: 1.5 }}>Giáo viên</TableCell>
+                        <TableCell align="center" sx={{ fontWeight: 700, color: 'text.primary', py: 1.5 }}>Thao tác</TableCell>
+                      </TableRow>
+                    </TableHead>
+                    <TableBody>
+                      {filteredClasses.map((cls, index) => (
+                        <TableRow key={cls._id || index} hover sx={{ '&:last-child td': { borderBottom: 0 } }}>
+                          <TableCell>
+                            <Typography variant="body2" fontWeight={600} color="text.primary">{cls.className}</Typography>
+                          </TableCell>
+                          <TableCell>
+                            <Typography variant="body2" color="text.secondary">{cls.gradeId?.gradeName || 'N/A'}</Typography>
+                          </TableCell>
+                          <TableCell>
+                            <Typography variant="body2" color="text.secondary">{cls.academicYearId?.yearName || 'N/A'}</Typography>
+                          </TableCell>
+                          <TableCell align="center">
+                            <Chip label={cls.maxStudents || 0} size="small" variant="outlined" sx={{ fontWeight: 600, fontSize: '0.75rem', borderColor: 'grey.400', color: 'text.primary' }} />
+                          </TableCell>
+                          <TableCell align="center">
+                            <Typography variant="body2" fontWeight={600} color="text.primary">{cls.teacherIds?.length || 0}</Typography>
+                          </TableCell>
+                          <TableCell align="center">
+                            <Stack direction="row" spacing={1} justifyContent="center">
+                              <Button
+                                size="small"
+                                variant="contained"
+                                startIcon={<VisibilityIcon sx={{ fontSize: '0.875rem !important' }} />}
+                                onClick={() => handleViewStudents(cls._id)}
+                                sx={{ bgcolor: 'rgba(99,102,241,0.1)', color: '#6366f1', boxShadow: 'none', '&:hover': { bgcolor: 'rgba(99,102,241,0.2)', boxShadow: 'none' }, borderRadius: 1.5, textTransform: 'none', fontSize: '0.75rem', fontWeight: 600, py: 0.5 }}
+                              >
+                                Xem học sinh
+                              </Button>
+                              <Button
+                                size="small"
+                                variant="contained"
+                                startIcon={<EditIcon sx={{ fontSize: '0.875rem !important' }} />}
+                                sx={{ bgcolor: 'grey.100', color: 'text.secondary', boxShadow: 'none', '&:hover': { bgcolor: 'grey.200', boxShadow: 'none' }, borderRadius: 1.5, textTransform: 'none', fontSize: '0.75rem', fontWeight: 600, py: 0.5 }}
+                              >
+                                Sửa
+                              </Button>
+                            </Stack>
+                          </TableCell>
+                        </TableRow>
+                      ))}
+                    </TableBody>
+                  </Table>
+                </TableContainer>
+              )}
+            </>
+          )}
+
+          {/* ===== TAB 1: GRADES ===== */}
+          {activeTab === 1 && (
+            <>
+              <Stack direction="row" alignItems="center" justifyContent="space-between" mb={3}>
+                <Box>
+                  <Typography variant="subtitle2" fontWeight={600} color="text.primary">Danh sách khối lớp</Typography>
+                  <Typography variant="caption" color="text.secondary">Tổng: {gradeList.length} khối</Typography>
+                </Box>
+                <Stack direction="row" spacing={1}>
+                  <Button
+                    variant="outlined"
+                    color="inherit"
+                    startIcon={<RefreshIcon />}
+                    onClick={fetchGradeList}
+                    sx={{ borderRadius: 1.5, textTransform: 'none', fontWeight: 500 }}
+                  >
+                    Tải lại
+                  </Button>
+                  <Button
+                    variant="contained"
+                    startIcon={<AddIcon />}
+                    onClick={() => openGradeDialog('create')}
+                    sx={{ bgcolor: '#6366f1', '&:hover': { bgcolor: '#4f46e5' }, borderRadius: 1.5, textTransform: 'none', fontWeight: 600 }}
+                  >
+                    Thêm khối lớp
+                  </Button>
+                </Stack>
+              </Stack>
+
+              {gradeError && <Alert severity="error" sx={{ mb: 2 }} onClose={() => setGradeError(null)}>{gradeError}</Alert>}
+
+              {gradeLoading ? (
+                <Stack alignItems="center" py={6}>
+                  <CircularProgress size={32} thickness={4} sx={{ color: '#6366f1' }} />
+                </Stack>
+              ) : gradeList.length === 0 ? (
+                <Stack alignItems="center" py={6}>
+                  <Typography variant="body2" color="text.secondary">Chưa có khối lớp nào. Nhấn "Thêm khối lớp" để bắt đầu.</Typography>
+                </Stack>
+              ) : (
+                <TableContainer sx={{ border: '1px solid', borderColor: 'divider', borderRadius: 1.5, overflow: 'hidden' }}>
+                  <Table size="small">
+                    <TableHead>
+                      <TableRow sx={{ bgcolor: 'grey.50' }}>
+                        <TableCell sx={{ fontWeight: 700, py: 1.5 }}>Tên khối lớp</TableCell>
+                        <TableCell sx={{ fontWeight: 700, py: 1.5 }}>Mô tả</TableCell>
+                        <TableCell align="center" sx={{ fontWeight: 700, py: 1.5 }}>Số lớp</TableCell>
+                        <TableCell align="center" sx={{ fontWeight: 700, py: 1.5 }}>Thao tác</TableCell>
+                      </TableRow>
+                    </TableHead>
+                    <TableBody>
+                      {gradeList.map((g) => (
+                        <TableRow key={g._id} hover sx={{ '&:last-child td': { borderBottom: 0 } }}>
+                          <TableCell>
+                            <Typography variant="body2" fontWeight={600}>{g.gradeName}</Typography>
+                          </TableCell>
+                          <TableCell>
+                            <Typography variant="body2" color="text.secondary">{g.description || '—'}</Typography>
+                          </TableCell>
+                          <TableCell align="center">
+                            <Chip label={g.classList?.length || 0} size="small" variant="outlined" sx={{ fontWeight: 600, fontSize: '0.75rem', borderColor: 'grey.400' }} />
+                          </TableCell>
+                          <TableCell align="center">
+                            <Stack direction="row" spacing={0.5} justifyContent="center">
+                              <Tooltip title="Sửa">
+                                <IconButton size="small" color="primary" onClick={() => openGradeDialog('edit', g)}>
+                                  <EditIcon fontSize="small" />
+                                </IconButton>
+                              </Tooltip>
+                              <Tooltip title="Xóa">
+                                <IconButton size="small" color="error" onClick={() => setGradeDeleteConfirm(g)}>
+                                  <DeleteIcon fontSize="small" />
+                                </IconButton>
+                              </Tooltip>
+                            </Stack>
+                          </TableCell>
+                        </TableRow>
+                      ))}
+                    </TableBody>
+                  </Table>
+                </TableContainer>
+              )}
+            </>
+          )}
+        </Box>
       </Paper>
+
+      {/* Grade Create/Edit Dialog */}
+      <Dialog open={gradeDialog.open} onClose={() => setGradeDialog({ open: false, mode: 'create', data: null })} fullWidth maxWidth="xs">
+        <DialogTitle sx={{ fontWeight: 700 }}>
+          {gradeDialog.mode === 'create' ? 'Thêm khối lớp mới' : 'Chỉnh sửa khối lớp'}
+        </DialogTitle>
+        <DialogContent dividers>
+          {gradeFormErrors.submit && <Alert severity="error" sx={{ mb: 2 }}>{gradeFormErrors.submit}</Alert>}
+          <Stack spacing={2.5} mt={0.5}>
+            <TextField
+              label="Tên khối lớp"
+              required
+              fullWidth
+              size="small"
+              value={gradeForm.gradeName}
+              onChange={(e) => setGradeForm((f) => ({ ...f, gradeName: e.target.value }))}
+              error={!!gradeFormErrors.gradeName}
+              helperText={gradeFormErrors.gradeName || `${gradeForm.gradeName.length}/10 ký tự`}
+              inputProps={{ maxLength: 10 }}
+            />
+            <TextField
+              label="Mô tả"
+              fullWidth
+              size="small"
+              multiline
+              rows={2}
+              value={gradeForm.description}
+              onChange={(e) => setGradeForm((f) => ({ ...f, description: e.target.value }))}
+              error={!!gradeFormErrors.description}
+              helperText={gradeFormErrors.description || `${gradeForm.description.length}/50 ký tự`}
+              inputProps={{ maxLength: 50 }}
+            />
+          </Stack>
+        </DialogContent>
+        <DialogActions sx={{ px: 3, py: 2 }}>
+          <Button onClick={() => setGradeDialog({ open: false, mode: 'create', data: null })} color="inherit" disabled={gradeSubmitting}>Hủy</Button>
+          <Button
+            variant="contained"
+            onClick={handleGradeSubmit}
+            disabled={gradeSubmitting}
+            sx={{ bgcolor: '#6366f1', '&:hover': { bgcolor: '#4f46e5' }, textTransform: 'none', fontWeight: 600 }}
+          >
+            {gradeSubmitting ? <CircularProgress size={18} color="inherit" /> : (gradeDialog.mode === 'create' ? 'Tạo' : 'Lưu')}
+          </Button>
+        </DialogActions>
+      </Dialog>
+
+      {/* Grade Delete Confirm Dialog */}
+      <Dialog open={!!gradeDeleteConfirm} onClose={() => setGradeDeleteConfirm(null)} maxWidth="xs" fullWidth>
+        <DialogTitle sx={{ fontWeight: 700 }}>Xác nhận xóa</DialogTitle>
+        <DialogContent>
+          <Typography>Bạn chắc chắn muốn xóa khối lớp <strong>{gradeDeleteConfirm?.gradeName}</strong>?</Typography>
+          <Typography variant="caption" color="text.secondary">Chỉ có thể xóa khi không có lớp học nào thuộc khối này.</Typography>
+        </DialogContent>
+        <DialogActions sx={{ px: 3, py: 2 }}>
+          <Button onClick={() => setGradeDeleteConfirm(null)} color="inherit" disabled={gradeSubmitting}>Hủy</Button>
+          <Button variant="contained" color="error" onClick={handleGradeDelete} disabled={gradeSubmitting} sx={{ textTransform: 'none', fontWeight: 600 }}>
+            {gradeSubmitting ? <CircularProgress size={18} color="inherit" /> : 'Xóa'}
+          </Button>
+        </DialogActions>
+      </Dialog>
       {/* Create Class Dialog */}
       <Dialog open={dialogOpen} onClose={() => setDialogOpen(false)} fullWidth maxWidth="sm">
         <DialogTitle sx={{ fontWeight: 700 }}>Tạo lớp học mới</DialogTitle>

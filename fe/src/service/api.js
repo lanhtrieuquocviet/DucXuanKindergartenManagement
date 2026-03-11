@@ -251,6 +251,13 @@ export const ENDPOINTS = {
     STUDENTS: (classId) => `/classes/${classId}/students`,
     CREATE: "/classes",
   },
+  // Grades management (SchoolAdmin)
+  GRADES: {
+    LIST: "/grades",
+    CREATE: "/grades",
+    UPDATE: (id) => `/grades/${id}`,
+    DELETE: (id) => `/grades/${id}`,
+  },
   // Blogs (public)
   BLOGS: {
     PUBLISHED: "/blogs/published",
