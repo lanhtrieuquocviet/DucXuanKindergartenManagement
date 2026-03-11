@@ -31,6 +31,10 @@ import {
   Tab,
   IconButton,
   Tooltip,
+  Avatar,
+  Checkbox,
+  ListItemText,
+  OutlinedInput,
 } from '@mui/material';
 import {
   Refresh as RefreshIcon,
@@ -41,6 +45,7 @@ import {
   WarningAmber as WarningAmberIcon,
   Delete as DeleteIcon,
   Layers as LayersIcon,
+  Person as PersonIcon,
 } from '@mui/icons-material';
 
 function ClassList() {
@@ -48,6 +53,9 @@ function ClassList() {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
   const [searchTerm, setSearchTerm] = useState('');
+
+  // Teachers list (shared by create + edit dialog)
+  const [teachers, setTeachers] = useState([]);
 
   // Create class dialog state
   const [dialogOpen, setDialogOpen] = useState(false);
@@ -57,7 +65,16 @@ function ClassList() {
   const [noActiveYear, setNoActiveYear] = useState(false);
   const [currentAcademicYear, setCurrentAcademicYear] = useState(null);
   const [grades, setGrades] = useState([]);
-  const [form, setForm] = useState({ className: '', gradeId: '', maxStudents: '' });
+  const [form, setForm] = useState({ className: '', gradeId: '', maxStudents: '', teacherIds: [] });
+
+  // Edit class dialog state
+  const [editDialogOpen, setEditDialogOpen] = useState(false);
+  const [editDialogLoading, setEditDialogLoading] = useState(false);
+  const [editFetchingData, setEditFetchingData] = useState(false);
+  const [editDialogError, setEditDialogError] = useState(null);
+  const [editForm, setEditForm] = useState({ className: '', gradeId: '', maxStudents: '', teacherIds: [] });
+  const [editFormErrors, setEditFormErrors] = useState({});
+  const [editClassId, setEditClassId] = useState(null);
   const [formErrors, setFormErrors] = useState({});
 
   // Tab state
@@ -183,27 +200,91 @@ function ClassList() {
   const openCreateDialog = async () => {
     setDialogError(null);
     setNoActiveYear(false);
-    setForm({ className: '', gradeId: '', maxStudents: '' });
+    setForm({ className: '', gradeId: '', maxStudents: '', teacherIds: [] });
     setFormErrors({});
     setCurrentAcademicYear(null);
     setGrades([]);
     setDialogOpen(true);
     setFetchingDialogData(true);
     try {
-      const [yearRes, gradesRes] = await Promise.all([
+      const [yearRes, gradesRes, teachersRes] = await Promise.all([
         get(ENDPOINTS.SCHOOL_ADMIN.ACADEMIC_YEARS.CURRENT),
         get(ENDPOINTS.CLASSES.GRADES),
+        get(ENDPOINTS.SCHOOL_ADMIN.TEACHERS),
       ]);
       const year = yearRes.data || null;
       setCurrentAcademicYear(year);
       setGrades(gradesRes.data || []);
-      if (!year) {
-        setNoActiveYear(true);
-      }
+      setTeachers(teachersRes.data || []);
+      if (!year) setNoActiveYear(true);
     } catch (err) {
       setDialogError('Không thể tải dữ liệu. Vui lòng thử lại.');
     } finally {
       setFetchingDialogData(false);
+    }
+  };
+
+  const openEditDialog = async (cls) => {
+    setEditDialogError(null);
+    setEditFormErrors({});
+    setEditClassId(cls._id);
+    setEditForm({
+      className: cls.className || '',
+      gradeId: cls.gradeId?._id || cls.gradeId || '',
+      maxStudents: cls.maxStudents || '',
+      teacherIds: (cls.teacherIds || []).map(t => t._id || t),
+    });
+    setEditDialogOpen(true);
+    setEditFetchingData(true);
+    try {
+      const [gradesRes, teachersRes] = await Promise.all([
+        get(ENDPOINTS.CLASSES.GRADES),
+        get(ENDPOINTS.SCHOOL_ADMIN.TEACHERS),
+      ]);
+      setGrades(gradesRes.data || []);
+      setTeachers(teachersRes.data || []);
+    } catch (err) {
+      setEditDialogError('Không thể tải dữ liệu. Vui lòng thử lại.');
+    } finally {
+      setEditFetchingData(false);
+    }
+  };
+
+  const validateEditForm = () => {
+    const errs = {};
+    if (!editForm.className.trim()) {
+      errs.className = 'Tên lớp không được để trống';
+    } else if (editForm.className.trim().length > 10) {
+      errs.className = 'Tên lớp không được quá 10 ký tự';
+    }
+    if (!editForm.gradeId) errs.gradeId = 'Vui lòng chọn khối lớp';
+    if (editForm.maxStudents !== '') {
+      const val = Number(editForm.maxStudents);
+      if (isNaN(val) || val < 0) errs.maxStudents = 'Sĩ số không hợp lệ';
+      else if (val > 30) errs.maxStudents = 'Sĩ số tối đa không được vượt quá 30';
+    }
+    if (editForm.teacherIds.length > 2) errs.teacherIds = 'Tối đa 2 giáo viên phụ trách';
+    setEditFormErrors(errs);
+    return Object.keys(errs).length === 0;
+  };
+
+  const handleUpdateClass = async () => {
+    if (!validateEditForm()) return;
+    try {
+      setEditDialogLoading(true);
+      setEditDialogError(null);
+      await put(ENDPOINTS.CLASSES.UPDATE(editClassId), {
+        className: editForm.className.trim(),
+        gradeId: editForm.gradeId,
+        maxStudents: editForm.maxStudents !== '' ? Number(editForm.maxStudents) : 0,
+        teacherIds: editForm.teacherIds,
+      });
+      setEditDialogOpen(false);
+      fetchClasses();
+    } catch (err) {
+      setEditDialogError(err.data?.message || err.message || 'Lỗi khi cập nhật lớp học');
+    } finally {
+      setEditDialogLoading(false);
     }
   };
 
@@ -223,6 +304,7 @@ function ClassList() {
         errs.maxStudents = 'Sĩ số tối đa không được vượt quá 30';
       }
     }
+    if (form.teacherIds.length > 2) errs.teacherIds = 'Tối đa 2 giáo viên phụ trách';
     setFormErrors(errs);
     return Object.keys(errs).length === 0;
   };
@@ -236,6 +318,7 @@ function ClassList() {
         className: form.className.trim(),
         gradeId: form.gradeId,
         maxStudents: form.maxStudents !== '' ? Number(form.maxStudents) : 0,
+        teacherIds: form.teacherIds,
       });
       setDialogOpen(false);
       fetchClasses();
@@ -512,8 +595,19 @@ function ClassList() {
                           <TableCell align="center">
                             <Chip label={cls.maxStudents || 0} size="small" variant="outlined" sx={{ fontWeight: 600, fontSize: '0.75rem', borderColor: 'grey.400', color: 'text.primary' }} />
                           </TableCell>
-                          <TableCell align="center">
-                            <Typography variant="body2" fontWeight={600} color="text.primary">{cls.teacherIds?.length || 0}</Typography>
+                          <TableCell>
+                            {cls.teacherIds?.length > 0 ? (
+                              <Stack spacing={0.25}>
+                                {cls.teacherIds.map((t, i) => (
+                                  <Stack key={t._id || i} direction="row" alignItems="center" spacing={0.5}>
+                                    <PersonIcon sx={{ fontSize: 14, color: '#7c3aed' }} />
+                                    <Typography variant="caption" fontWeight={500}>{t.fullName || t}</Typography>
+                                  </Stack>
+                                ))}
+                              </Stack>
+                            ) : (
+                              <Typography variant="caption" color="text.disabled">Chưa có</Typography>
+                            )}
                           </TableCell>
                           <TableCell align="center">
                             <Stack direction="row" spacing={1} justifyContent="center">
@@ -530,6 +624,7 @@ function ClassList() {
                                 size="small"
                                 variant="contained"
                                 startIcon={<EditIcon sx={{ fontSize: '0.875rem !important' }} />}
+                                onClick={() => openEditDialog(cls)}
                                 sx={{ bgcolor: 'grey.100', color: 'text.secondary', boxShadow: 'none', '&:hover': { bgcolor: 'grey.200', boxShadow: 'none' }, borderRadius: 1.5, textTransform: 'none', fontSize: '0.75rem', fontWeight: 600, py: 0.5 }}
                               >
                                 Sửa
@@ -779,6 +874,46 @@ function ClassList() {
                 error={!!formErrors.maxStudents}
                 helperText={formErrors.maxStudents || 'Tối đa 30 học sinh'}
               />
+              {/* Teacher multi-select */}
+              <FormControl fullWidth size="small" error={!!formErrors.teacherIds}>
+                <InputLabel>Giáo viên phụ trách (tối đa 2)</InputLabel>
+                <Select
+                  multiple
+                  label="Giáo viên phụ trách (tối đa 2)"
+                  value={form.teacherIds}
+                  onChange={(e) => {
+                    const val = e.target.value;
+                    if (val.length <= 2) setForm((f) => ({ ...f, teacherIds: val }));
+                  }}
+                  input={<OutlinedInput label="Giáo viên phụ trách (tối đa 2)" />}
+                  renderValue={(selected) =>
+                    teachers
+                      .filter(t => selected.includes(t._id))
+                      .map(t => t.fullName)
+                      .join(', ')
+                  }
+                >
+                  {teachers.length === 0 ? (
+                    <MenuItem disabled><em>Không có giáo viên nào</em></MenuItem>
+                  ) : teachers.map((t) => (
+                    <MenuItem key={t._id} value={t._id}>
+                      <Checkbox checked={form.teacherIds.includes(t._id)} size="small" />
+                      <Avatar sx={{ width: 26, height: 26, mr: 1, bgcolor: '#ede9fe', color: '#7c3aed', fontSize: '0.75rem', fontWeight: 700 }}>
+                        {t.fullName?.charAt(0)}
+                      </Avatar>
+                      <ListItemText primary={t.fullName} secondary={t.email} />
+                    </MenuItem>
+                  ))}
+                </Select>
+                {formErrors.teacherIds && (
+                  <Typography variant="caption" color="error" sx={{ mt: 0.5, ml: 1.75 }}>
+                    {formErrors.teacherIds}
+                  </Typography>
+                )}
+                <Typography variant="caption" color="text.secondary" sx={{ mt: 0.5, ml: 1.75 }}>
+                  Đã chọn: {form.teacherIds.length}/2 giáo viên
+                </Typography>
+              </FormControl>
             </Stack>
           )}
         </DialogContent>
@@ -793,6 +928,118 @@ function ClassList() {
             sx={{ bgcolor: '#6366f1', '&:hover': { bgcolor: '#4f46e5' }, textTransform: 'none', fontWeight: 600 }}
           >
             {dialogLoading ? <CircularProgress size={18} color="inherit" /> : 'Tạo lớp'}
+          </Button>
+        </DialogActions>
+      </Dialog>
+      {/* Edit Class Dialog */}
+      <Dialog open={editDialogOpen} onClose={() => setEditDialogOpen(false)} fullWidth maxWidth="sm">
+        <DialogTitle sx={{ fontWeight: 700 }}>Chỉnh sửa lớp học</DialogTitle>
+        <DialogContent dividers>
+          {editFetchingData && (
+            <Stack alignItems="center" py={3}>
+              <CircularProgress size={28} />
+            </Stack>
+          )}
+
+          {editDialogError && (
+            <Alert severity="error" sx={{ mb: 2 }}>{editDialogError}</Alert>
+          )}
+
+          {!editFetchingData && (
+            <Stack spacing={2.5} mt={1}>
+              <TextField
+                label="Tên lớp"
+                required
+                fullWidth
+                size="small"
+                value={editForm.className}
+                onChange={(e) => setEditForm((f) => ({ ...f, className: e.target.value }))}
+                error={!!editFormErrors.className}
+                helperText={editFormErrors.className || `${editForm.className.length}/10 ký tự`}
+                inputProps={{ maxLength: 10 }}
+              />
+              <FormControl fullWidth size="small" required error={!!editFormErrors.gradeId}>
+                <InputLabel>Khối lớp</InputLabel>
+                <Select
+                  label="Khối lớp"
+                  value={editForm.gradeId}
+                  onChange={(e) => setEditForm((f) => ({ ...f, gradeId: e.target.value }))}
+                >
+                  {grades.map((g) => (
+                    <MenuItem key={g._id} value={g._id}>{g.gradeName}</MenuItem>
+                  ))}
+                </Select>
+                {editFormErrors.gradeId && (
+                  <Typography variant="caption" color="error" sx={{ mt: 0.5, ml: 1.75 }}>
+                    {editFormErrors.gradeId}
+                  </Typography>
+                )}
+              </FormControl>
+              <TextField
+                label="Sĩ số tối đa"
+                fullWidth
+                size="small"
+                type="number"
+                inputProps={{ min: 0, max: 30 }}
+                value={editForm.maxStudents}
+                onChange={(e) => setEditForm((f) => ({ ...f, maxStudents: e.target.value }))}
+                error={!!editFormErrors.maxStudents}
+                helperText={editFormErrors.maxStudents || 'Tối đa 30 học sinh'}
+              />
+              {/* Teacher multi-select */}
+              <FormControl fullWidth size="small" error={!!editFormErrors.teacherIds}>
+                <InputLabel>Giáo viên phụ trách (tối đa 2)</InputLabel>
+                <Select
+                  multiple
+                  label="Giáo viên phụ trách (tối đa 2)"
+                  value={editForm.teacherIds}
+                  onChange={(e) => {
+                    const val = e.target.value;
+                    if (val.length <= 2) setEditForm((f) => ({ ...f, teacherIds: val }));
+                  }}
+                  input={<OutlinedInput label="Giáo viên phụ trách (tối đa 2)" />}
+                  renderValue={(selected) =>
+                    teachers
+                      .filter(t => selected.includes(t._id))
+                      .map(t => t.fullName)
+                      .join(', ')
+                  }
+                >
+                  {teachers.length === 0 ? (
+                    <MenuItem disabled><em>Không có giáo viên nào</em></MenuItem>
+                  ) : teachers.map((t) => (
+                    <MenuItem key={t._id} value={t._id}>
+                      <Checkbox checked={editForm.teacherIds.includes(t._id)} size="small" />
+                      <Avatar sx={{ width: 26, height: 26, mr: 1, bgcolor: '#ede9fe', color: '#7c3aed', fontSize: '0.75rem', fontWeight: 700 }}>
+                        {t.fullName?.charAt(0)}
+                      </Avatar>
+                      <ListItemText primary={t.fullName} secondary={t.email} />
+                    </MenuItem>
+                  ))}
+                </Select>
+                {editFormErrors.teacherIds && (
+                  <Typography variant="caption" color="error" sx={{ mt: 0.5, ml: 1.75 }}>
+                    {editFormErrors.teacherIds}
+                  </Typography>
+                )}
+                <Typography variant="caption" color="text.secondary" sx={{ mt: 0.5, ml: 1.75 }}>
+                  Đã chọn: {editForm.teacherIds.length}/2 giáo viên
+                </Typography>
+              </FormControl>
+            </Stack>
+          )}
+        </DialogContent>
+        <DialogActions sx={{ px: 3, py: 2 }}>
+          <Button onClick={() => setEditDialogOpen(false)} color="inherit" disabled={editDialogLoading}>
+            Hủy
+          </Button>
+          <Button
+            variant="contained"
+            onClick={handleUpdateClass}
+            disabled={editDialogLoading || editFetchingData}
+            sx={{ bgcolor: '#6366f1', '&:hover': { bgcolor: '#4f46e5' }, textTransform: 'none', fontWeight: 600 }}
+          >
+            {editDialogLoading ? <CircularProgress size={18} color="inherit" /> : 'Lưu thay đổi'}
           </Button>
         </DialogActions>
       </Dialog>

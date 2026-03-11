@@ -6,6 +6,7 @@ const {
   getClassDetail,
   getGradeList,
   createClass,
+  updateClass,
 } = require('../controller/classController');
 const Classes = require('../models/Classes');
 
@@ -65,5 +66,11 @@ router.get('/:classId', authenticate, getClassDetail);
  * GET /api/classes/:classId/students
  */
 router.get('/:classId/students', authenticate, getStudentInClass);
+
+/**
+ * Cập nhật lớp học (chỉ SchoolAdmin)
+ * PUT /api/classes/:classId
+ */
+router.put('/:classId', authenticate, authorizeRoles('SchoolAdmin'), updateClass);
 
 module.exports = router;

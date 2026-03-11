@@ -225,6 +225,7 @@ export const ENDPOINTS = {
       FINISH: (id) => `/school-admin/academic-years/${id}/finish`,
       HISTORY: "/school-admin/academic-years/history",
     },
+    TEACHERS: "/school-admin/teachers",
   },
   // Contact (public)
   CONTACT: {
@@ -250,6 +251,7 @@ export const ENDPOINTS = {
     DETAIL: (classId) => `/classes/${classId}`,
     STUDENTS: (classId) => `/classes/${classId}/students`,
     CREATE: "/classes",
+    UPDATE: (classId) => `/classes/${classId}`,
   },
   // Grades management (SchoolAdmin)
   GRADES: {

@@ -2,6 +2,8 @@ const express = require('express');
 const multer = require('multer');
 const { authenticate, authorizeRoles, authorizePermissions } = require('../middleware/auth');
 const contactController = require('../controller/contactController');
+const User = require('../models/User');
+const Role = require('../models/Role');
 const {
   getAttendanceOverview,
   getClassAttendanceDetail,
@@ -290,6 +292,24 @@ router.get(
   authorizeRoles('SchoolAdmin'),
   academicYearController.getAcademicYearHistory
 );
+
+// Danh sách giáo viên (dùng cho form tạo/cập nhật lớp)
+router.get('/teachers', authenticate, authorizeRoles('SchoolAdmin'), async (req, res) => {
+  try {
+    const teacherRole = await Role.findOne({ roleName: 'Teacher' }).lean();
+    if (!teacherRole) {
+      return res.status(200).json({ status: 'success', data: [] });
+    }
+    const teachers = await User.find({ roles: teacherRole._id, status: 'active' })
+      .select('fullName email phone avatar')
+      .sort({ fullName: 1 })
+      .lean();
+    return res.status(200).json({ status: 'success', data: teachers });
+  } catch (error) {
+    console.error('listTeachers error:', error);
+    return res.status(500).json({ status: 'error', message: 'Lỗi khi lấy danh sách giáo viên' });
+  }
+});
 
 module.exports = router;
 
