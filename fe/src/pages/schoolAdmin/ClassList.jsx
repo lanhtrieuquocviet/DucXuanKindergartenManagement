@@ -356,6 +356,10 @@ function ClassList() {
       navigate('/school-admin/academic-years');
       return;
     }
+    if (key === 'academic-curriculum') {
+      navigate('/school-admin/curriculum');
+      return;
+    }
     if (key === 'academic-plan') {
       navigate('/school-admin/classes');
       return;

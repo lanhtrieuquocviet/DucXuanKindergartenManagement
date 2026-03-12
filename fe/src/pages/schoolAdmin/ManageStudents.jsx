@@ -141,6 +141,7 @@ function ManageStudents() {
     if (key === 'students') return;
     if (key === 'overview') { navigate('/school-admin'); return; }
     if (key === 'academic-years' || key === 'academic-year-setup') { navigate('/school-admin/academic-years'); return; }
+    if (key === 'academic-curriculum') { navigate('/school-admin/curriculum'); return; }
     if (key === 'academic-plan') { navigate('/school-admin/academic-plan'); return; }
     if (key === 'academic-students') { navigate('/school-admin/students'); return; }
     if (key === 'classes') { navigate('/school-admin/classes'); return; }

@@ -47,6 +47,7 @@ require('./src/models/Question');
 require('./src/models/Document');
 require('./src/models/PublicInfo');
 require('./src/models/SystemLog');
+require('./src/models/CurriculumTopic');
 
 // ensure default blog categories exist
 (async () => {

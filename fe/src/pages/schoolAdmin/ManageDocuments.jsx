@@ -415,6 +415,7 @@ export default function ManageDocuments() {
     const routes = {
       overview: '/school-admin',
       'academic-year-setup': '/school-admin/academic-years',
+      'academic-curriculum': '/school-admin/curriculum',
       'academic-plan': '/school-admin/academic-plan',
       classes: '/school-admin/classes',
       contacts: '/school-admin/contacts',
