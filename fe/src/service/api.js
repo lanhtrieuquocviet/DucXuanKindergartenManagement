@@ -253,6 +253,7 @@ export const ENDPOINTS = {
     STUDENTS: (classId) => `/classes/${classId}/students`,
     CREATE: "/classes",
     UPDATE: (classId) => `/classes/${classId}`,
+    ADD_STUDENTS: (classId) => `/classes/${classId}/students`,
   },
   // Grades management (SchoolAdmin)
   GRADES: {

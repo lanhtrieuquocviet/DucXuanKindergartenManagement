@@ -327,6 +327,66 @@ const updateClass = async (req, res) => {
   }
 };
 
+/**
+ * Thêm học sinh vào lớp (bulk)
+ * POST /api/classes/:classId/students
+ * body: { studentIds: string[] }
+ */
+const addStudentsToClass = async (req, res) => {
+  try {
+    const { classId } = req.params;
+    const { studentIds } = req.body;
+
+    if (!Array.isArray(studentIds) || studentIds.length === 0) {
+      return res.status(400).json({ status: 'error', message: 'Vui lòng chọn ít nhất 1 học sinh' });
+    }
+
+    const cls = await Classes.findById(classId).lean();
+    if (!cls) {
+      return res.status(404).json({ status: 'error', message: 'Không tìm thấy lớp học' });
+    }
+
+    // Kiểm tra sĩ số tối đa
+    const currentCount = await Student.countDocuments({ classId });
+    if (cls.maxStudents > 0 && currentCount + studentIds.length > cls.maxStudents) {
+      return res.status(400).json({
+        status: 'error',
+        message: `Vượt quá sĩ số tối đa (${cls.maxStudents}). Hiện có ${currentCount} học sinh, không thể thêm ${studentIds.length} học sinh nữa.`,
+      });
+    }
+
+    // Kiểm tra học sinh đã có lớp khác chưa
+    const alreadyAssigned = await Student.find({
+      _id: { $in: studentIds },
+      classId: { $ne: null, $exists: true },
+    }).select('fullName classId').lean();
+
+    if (alreadyAssigned.length > 0) {
+      const names = alreadyAssigned.map(s => s.fullName).join(', ');
+      return res.status(400).json({
+        status: 'error',
+        message: `Các học sinh sau đã thuộc lớp khác: ${names}`,
+      });
+    }
+
+    await Student.updateMany(
+      { _id: { $in: studentIds } },
+      { $set: { classId } }
+    );
+
+    const updatedCount = await Student.countDocuments({ classId });
+
+    return res.status(200).json({
+      status: 'success',
+      message: `Đã thêm ${studentIds.length} học sinh vào lớp thành công`,
+      data: { added: studentIds.length, total: updatedCount },
+    });
+  } catch (error) {
+    console.error('Error in addStudentsToClass:', error);
+    return res.status(500).json({ status: 'error', message: 'Lỗi khi thêm học sinh vào lớp', error: error.message });
+  }
+};
+
 module.exports = {
   getClassList,
   getStudentInClass,
@@ -334,4 +394,5 @@ module.exports = {
   getGradeList,
   createClass,
   updateClass,
+  addStudentsToClass,
 };
