@@ -16,6 +16,7 @@ const qaController = require('../controller/qaController');
 const documentController = require('../controller/documentController');
 const publicInfoController = require('../controller/publicInfoController');
 const academicYearController = require('../controller/academicYearController');
+const curriculumController = require('../controller/curriculumController');
 
 const router = express.Router();
 
@@ -297,6 +298,32 @@ router.get(
   authenticate,
   authorizeRoles('SchoolAdmin'),
   academicYearController.getClassesByAcademicYear
+);
+
+// Chương trình giáo dục (chủ đề theo năm học)
+router.get(
+  '/curriculum',
+  authenticate,
+  authorizeRoles('SchoolAdmin'),
+  curriculumController.listCurriculumTopics
+);
+router.post(
+  '/curriculum',
+  authenticate,
+  authorizeRoles('SchoolAdmin'),
+  curriculumController.createCurriculumTopic
+);
+router.patch(
+  '/curriculum/:id',
+  authenticate,
+  authorizeRoles('SchoolAdmin'),
+  curriculumController.updateCurriculumTopic
+);
+router.delete(
+  '/curriculum/:id',
+  authenticate,
+  authorizeRoles('SchoolAdmin'),
+  curriculumController.deleteCurriculumTopic
 );
 
 // Danh sách giáo viên (dùng cho form tạo/cập nhật lớp)

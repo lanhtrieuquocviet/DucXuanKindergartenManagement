@@ -160,6 +160,10 @@ function ContactList() {
       navigate('/school-admin/academic-years');
       return;
     }
+    if (key === 'academic-curriculum') {
+      navigate('/school-admin/curriculum');
+      return;
+    }
     if (key === 'academic-plan' || key === 'classes') {
       navigate('/school-admin/classes');
       return;

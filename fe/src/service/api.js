@@ -226,6 +226,12 @@ export const ENDPOINTS = {
       HISTORY: "/school-admin/academic-years/history",
       CLASSES: (yearId) => `/school-admin/academic-years/${yearId}/classes`,
     },
+    CURRICULUM: {
+      LIST: (yearId) => (yearId ? `/school-admin/curriculum?yearId=${yearId}` : "/school-admin/curriculum"),
+      CREATE: "/school-admin/curriculum",
+      UPDATE: (id) => `/school-admin/curriculum/${id}`,
+      DELETE: (id) => `/school-admin/curriculum/${id}`,
+    },
     TEACHERS: "/school-admin/teachers",
   },
   // Contact (public)

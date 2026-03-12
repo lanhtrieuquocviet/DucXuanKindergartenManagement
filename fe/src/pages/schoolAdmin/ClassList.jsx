@@ -345,9 +345,13 @@ function ClassList() {
   const handleViewStudents = (classId) => navigate(`/school-admin/classes/${classId}/students`);
 
   const handleMenuSelect = (key) => {
+    if (key === 'classes') {
+      return;
+    }
     const routes = {
       'academic-years': '/school-admin/academic-years',
       'academic-year-setup': '/school-admin/academic-years',
+      'academic-curriculum': '/school-admin/curriculum',
       'academic-plan': '/school-admin/classes',
       'academic-students': '/school-admin/students',
       menu: '/school-admin/menus',

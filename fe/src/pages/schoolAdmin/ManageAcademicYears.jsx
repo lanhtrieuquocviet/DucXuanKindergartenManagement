@@ -145,6 +145,10 @@ function ManageAcademicYears() {
       navigate('/school-admin/attendance/overview');
       return;
     }
+    if (key === 'academic-curriculum') {
+      navigate('/school-admin/curriculum');
+      return;
+    }
   };
 
   const userName = user?.fullName || user?.username || 'School Admin';
@@ -513,9 +517,7 @@ function ManageAcademicYears() {
                           borderRadius: 2,
                           bgcolor: '#e0f2fe',
                           color: '#0369a1',
-                          '&:hover': {
-                            bgcolor: '#bae6fd',
-                          },
+                          '&:hover': { bgcolor: '#bae6fd' },
                         }}
                         onClick={() => navigate(`/school-admin/academic-years/${item._id}`)}
                       >
