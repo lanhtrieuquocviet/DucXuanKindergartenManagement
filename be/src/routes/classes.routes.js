@@ -7,6 +7,7 @@ const {
   getGradeList,
   createClass,
   updateClass,
+  addStudentsToClass,
 } = require('../controller/classController');
 const Classes = require('../models/Classes');
 
@@ -66,6 +67,12 @@ router.get('/:classId', authenticate, getClassDetail);
  * GET /api/classes/:classId/students
  */
 router.get('/:classId/students', authenticate, getStudentInClass);
+
+/**
+ * Thêm học sinh vào lớp (bulk) — chỉ SchoolAdmin
+ * POST /api/classes/:classId/students
+ */
+router.post('/:classId/students', authenticate, authorizeRoles('SchoolAdmin'), addStudentsToClass);
 
 /**
  * Cập nhật lớp học (chỉ SchoolAdmin)
