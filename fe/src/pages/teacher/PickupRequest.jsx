@@ -10,6 +10,7 @@ import {
   TableRow, Chip, Alert, Skeleton, Stack, Dialog, IconButton, Avatar,
   ToggleButtonGroup, ToggleButton, useMediaQuery, useTheme, TextField,
 } from "@mui/material";
+import { EventBusy as EventBusyIcon } from "@mui/icons-material";
 import {
   Refresh as RefreshIcon,
   CheckCircle as ApproveIcon,
@@ -125,6 +126,7 @@ function PickupRequest() {
   const location = useLocation();
   const { user, isInitializing } = useAuth();
 
+  const [myClasses, setMyClasses] = useState(null); // null = chưa load
   const [requests, setRequests] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
@@ -167,7 +169,18 @@ function PickupRequest() {
     if (!user) { navigate("/login", { replace: true }); return; }
     const userRoles = user?.roles?.map((r) => r.roleName || r) || [];
     if (!userRoles.includes("Teacher")) { navigate("/", { replace: true }); return; }
-    fetchPickupRequests();
+
+    // Kiểm tra giáo viên có được phân công lớp không
+    get(ENDPOINTS.CLASSES.LIST).then((res) => {
+      const all = res.data || [];
+      const mine = all.filter((c) => (c.teacherIds || []).some((t) => (t?._id || t) === user._id));
+      setMyClasses(mine);
+      if (mine.length > 0) fetchPickupRequests();
+      else setLoading(false);
+    }).catch(() => {
+      setMyClasses([]);
+      setLoading(false);
+    });
   }, [isInitializing, user, navigate]);
 
  const fetchPickupRequests = async () => {
@@ -275,8 +288,25 @@ function PickupRequest() {
       onViewProfile={() => navigate("/profile")}
       onMenuSelect={handleMenuSelect}
     >
+      {/* Chưa được phân công lớp */}
+      {myClasses !== null && myClasses.length === 0 && (
+        <Box sx={{ display: 'flex', justifyContent: 'center', alignItems: 'center', minHeight: 320 }}>
+          <Paper elevation={0} sx={{ textAlign: 'center', p: 5, borderRadius: 3, border: '1px solid', borderColor: 'divider', maxWidth: 420 }}>
+            <Avatar sx={{ width: 64, height: 64, bgcolor: 'grey.100', mx: 'auto', mb: 2 }}>
+              <EventBusyIcon sx={{ fontSize: 34, color: 'grey.400' }} />
+            </Avatar>
+            <Typography variant="h6" fontWeight={700} gutterBottom>
+              Chưa được phân công lớp
+            </Typography>
+            <Typography variant="body2" color="text.secondary">
+              Giáo viên này chưa được phân công vào lớp nào. Vui lòng liên hệ quản trị viên để được phân công.
+            </Typography>
+          </Paper>
+        </Box>
+      )}
+
       {/* Page header banner */}
-      <Paper
+      {(myClasses === null || myClasses.length > 0) && <><Paper
         elevation={0}
         sx={{
           mb: 3, borderRadius: 3, overflow: 'hidden',
@@ -640,6 +670,7 @@ function PickupRequest() {
           )}
         </Box>
       </Dialog>
+      </>}
     </RoleLayout>
   );
 }
