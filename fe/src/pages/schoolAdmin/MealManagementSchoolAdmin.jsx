@@ -577,7 +577,7 @@ function MealManagementSchoolAdmin() {
       children: [
         { key: 'academic-year-setup', label: 'Thiết lập năm học' },
         { key: 'academic-plan', label: 'Thiết lập kế hoạch' },
-        { key: 'academic-students', label: 'Danh sách trẻ' },
+        { key: 'academic-students', label: 'Danh sách lớp học' },
         { key: 'academic-curriculum', label: 'Chương trình giáo dục' },
         { key: 'academic-schedule', label: 'Thời khóa biểu' },
         { key: 'academic-report', label: 'Báo cáo & thống kê' },
@@ -605,7 +605,8 @@ function MealManagementSchoolAdmin() {
     if (key === 'academic-curriculum') { navigate('/school-admin/curriculum'); return; }
     if (key === 'academic-plan') { navigate('/school-admin/academic-plan'); return; }
     if (key === 'classes') { navigate('/school-admin/classes'); return; }
-    if (key === 'academic-students' || key === 'students') { navigate('/school-admin/students'); return; }
+    if (key === 'academic-students') { navigate('/school-admin/class-list'); return; }
+    if (key === 'students') { navigate('/school-admin/students'); return; }
     if (key === 'menu') { navigate('/school-admin/menus'); return; }
     if (key === 'contacts') { navigate('/school-admin/contacts'); return; }
     if (key === 'qa') { navigate('/school-admin/qa'); return; }

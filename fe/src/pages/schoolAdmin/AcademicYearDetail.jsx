@@ -40,7 +40,7 @@ export default function AcademicYearDetail() {
       children: [
         { key: 'academic-year-setup', label: 'Thiết lập năm học' },
         { key: 'academic-plan', label: 'Thiết lập kế hoạch' },
-        { key: 'academic-students', label: 'Danh sách trẻ' },
+        { key: 'academic-students', label: 'Danh sách lớp học' },
         { key: 'academic-curriculum', label: 'Chương trình giáo dục' },
         { key: 'academic-schedule', label: 'Thời khóa biểu' },
         { key: 'academic-report', label: 'Báo cáo & thống kê' },
@@ -83,7 +83,7 @@ export default function AcademicYearDetail() {
       return;
     }
     if (key === 'academic-students') {
-      navigate('/school-admin/students');
+      navigate('/school-admin/class-list');
       return;
     }
     if (key === 'classes') {
@@ -341,7 +341,7 @@ export default function AcademicYearDetail() {
           >
             <Tab label="Tổng quan" />
             <Tab label="Danh sách lớp học" />
-            <Tab label="Danh sách trẻ em" disabled />
+            <Tab label="Danh sách lớp học" disabled />
             <Tab label="Chương trình & Kế hoạch" disabled />
             <Tab label="Báo cáo & Thống kê" disabled />
             <Tab label="Lưu trữ & Tài liệu" disabled />

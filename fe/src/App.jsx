@@ -88,6 +88,7 @@ import AcademicYearDetail from './pages/schoolAdmin/AcademicYearDetail';
 import MealManagementSchoolAdmin from './pages/schoolAdmin/MealManagementSchoolAdmin';
 import AcademicYearPlan from './pages/schoolAdmin/AcademicYearPlan';
 import CurriculumPage from './pages/schoolAdmin/CurriculumPage';
+import ClassListOverview from './pages/schoolAdmin/ClassListOverview';
 
 
 function AppContent() {
@@ -298,6 +299,14 @@ function App() {
             element={
               <SchoolAdminProvider>
                 <SchoolAdminDashboard />
+              </SchoolAdminProvider>
+            }
+          />
+          <Route
+            path="/school-admin/class-list"
+            element={
+              <SchoolAdminProvider>
+                <ClassListOverview />
               </SchoolAdminProvider>
             }
           />

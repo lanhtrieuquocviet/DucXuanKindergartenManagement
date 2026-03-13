@@ -132,7 +132,7 @@ function ContactList() {
       children: [
         { key: 'academic-year-setup', label: 'Thiết lập năm học' },
         { key: 'academic-plan', label: 'Thiết lập kế hoạch' },
-        { key: 'academic-students', label: 'Danh sách trẻ' },
+        { key: 'academic-students', label: 'Danh sách lớp học' },
         { key: 'academic-curriculum', label: 'Chương trình giáo dục' },
         { key: 'academic-schedule', label: 'Thời khóa biểu' },
         { key: 'academic-report', label: 'Báo cáo & thống kê' },
@@ -162,6 +162,10 @@ function ContactList() {
     }
     if (key === 'academic-curriculum') {
       navigate('/school-admin/curriculum');
+      return;
+    }
+    if (key === 'academic-students') {
+      navigate('/school-admin/class-list');
       return;
     }
     if (key === 'academic-plan' || key === 'classes') {
