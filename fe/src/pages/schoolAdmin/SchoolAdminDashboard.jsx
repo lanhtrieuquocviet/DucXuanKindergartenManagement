@@ -322,7 +322,7 @@ function SchoolAdminDashboard() {
       </Box>
 
       {/* API data panel */}
-      <Paper elevation={1} sx={{ p: 3, borderRadius: 2 }}>
+      {/* <Paper elevation={1} sx={{ p: 3, borderRadius: 2 }}>
         <Typography variant="subtitle2" fontWeight={600} color="text.primary" mb={1.5}>
           Dữ liệu trả về từ API
         </Typography>
@@ -354,7 +354,7 @@ function SchoolAdminDashboard() {
             {JSON.stringify(data, null, 2)}
           </Box>
         )}
-      </Paper>
+      </Paper> */}
     </RoleLayout>
   );
 }
