@@ -1,5 +1,5 @@
 // Modal chi tiết điểm danh: hỗ trợ 3 chế độ view / checkin / checkout
-import { signInWithPhoneNumber } from 'firebase/auth';
+import { signInWithPhoneNumber, RecaptchaVerifier } from 'firebase/auth';
 import { auth } from '../../../config/firebase';
 import { post, postFormData, ENDPOINTS } from '../../../service/api';
 import {
@@ -329,6 +329,19 @@ function AttendanceDetailModal({
           : student?.parentId?.phone;
         if (!phone) { setSubmitError('Vui lòng chọn phụ huynh nhận SMS.'); return; }
         const phoneE164 = formatPhoneForFirebase(phone);
+
+        // Xóa verifier cũ và tạo DOM element mới (truyền element trực tiếp, không dùng ID string để tránh Firebase cache)
+        if (recaptchaVerifierRef.current) {
+          try { recaptchaVerifierRef.current.clear(); } catch { /* ignore */ }
+          recaptchaVerifierRef.current = null;
+        }
+        document.querySelectorAll('.recaptcha-otp-anchor').forEach((el) => el.remove());
+        const freshEl = document.createElement('div');
+        freshEl.className = 'recaptcha-otp-anchor';
+        document.body.appendChild(freshEl);
+
+        recaptchaVerifierRef.current = new RecaptchaVerifier(auth, freshEl, { size: 'invisible' });
+
         const result = await signInWithPhoneNumber(auth, phoneE164, recaptchaVerifierRef.current);
         setConfirmationResult(result);
         setDetailForm((prev) => ({ ...prev, otpSent: true, otpCode: '' }));

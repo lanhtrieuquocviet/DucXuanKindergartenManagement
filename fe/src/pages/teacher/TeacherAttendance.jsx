@@ -1,8 +1,7 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { useLocation, useNavigate, useParams } from 'react-router-dom';
-import { Snackbar, Alert } from '@mui/material';
-import { RecaptchaVerifier } from 'firebase/auth';
-import { auth } from '../../config/firebase';
+import { Snackbar, Alert, Box, Typography, Avatar, Paper } from '@mui/material';
+import { EventBusy as EventBusyIcon } from '@mui/icons-material';
 import { useAuth } from '../../context/AuthContext';
 import RoleLayout from '../../layouts/RoleLayout';
 import { get, post, ENDPOINTS } from '../../service/api';
@@ -100,19 +99,6 @@ function TeacherAttendance() {
   const [otpExpired, setOtpExpired] = useState(false);
 
   // ── Effects ──
-
-  // Khởi tạo RecaptchaVerifier một lần khi mount
-  useEffect(() => {
-    recaptchaVerifierRef.current = new RecaptchaVerifier(auth, 'recaptcha-container', {
-      size: 'invisible',
-    });
-    return () => {
-      if (recaptchaVerifierRef.current) {
-        recaptchaVerifierRef.current.clear();
-        recaptchaVerifierRef.current = null;
-      }
-    };
-  }, []);
 
   // Guard: redirect nếu chưa đăng nhập hoặc không có role Teacher
   useEffect(() => {
@@ -300,7 +286,7 @@ function TeacherAttendance() {
       const myUserId = user?._id;
       const mine = all.filter((c) => (c.teacherIds || []).some((t) => (t?._id || t) === myUserId));
       setClasses(mine);
-      if (mine.length === 1 && !classId) {
+      if (mine.length >= 1 && !classId) {
         navigate(`/teacher/attendance/${mine[0]._id || mine[0].id}`, { replace: true });
       }
     } catch {
@@ -731,6 +717,22 @@ function TeacherAttendance() {
       onViewProfile={() => navigate('/profile')}
       onMenuSelect={handleMenuSelect}
     >
+      {!classId && !isInitializing && classes.length === 0 && (
+        <Box sx={{ display: 'flex', justifyContent: 'center', alignItems: 'center', minHeight: 320 }}>
+          <Paper elevation={0} sx={{ textAlign: 'center', p: 5, borderRadius: 3, border: '1px solid', borderColor: 'divider', maxWidth: 420 }}>
+            <Avatar sx={{ width: 64, height: 64, bgcolor: 'grey.100', mx: 'auto', mb: 2 }}>
+              <EventBusyIcon sx={{ fontSize: 34, color: 'grey.400' }} />
+            </Avatar>
+            <Typography variant="h6" fontWeight={700} gutterBottom>
+              Chưa được phân công lớp
+            </Typography>
+            <Typography variant="body2" color="text.secondary">
+              Giáo viên này chưa được phân công vào lớp nào. Vui lòng liên hệ quản trị viên để được phân công.
+            </Typography>
+          </Paper>
+        </Box>
+      )}
+
       {classId && (
         <AttendanceTable
           students={students}
@@ -795,9 +797,6 @@ function TeacherAttendance() {
         onConfirm={saveAbsentRecord}
         onCancelConfirm={() => setIsConfirmAbsentOpen(false)}
       />
-
-      {/* Firebase invisible reCAPTCHA container */}
-      <div id="recaptcha-container" />
 
       {/* Toast thông báo thành công */}
       <Snackbar
