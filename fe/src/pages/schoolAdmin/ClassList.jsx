@@ -353,7 +353,7 @@ function ClassList() {
       'academic-year-setup': '/school-admin/academic-years',
       'academic-curriculum': '/school-admin/curriculum',
       'academic-plan': '/school-admin/classes',
-      'academic-students': '/school-admin/students',
+      'academic-students': '/school-admin/class-list',
       menu: '/school-admin/menus',
       students: '/school-admin/students',
       contacts: '/school-admin/contacts',
@@ -386,7 +386,7 @@ function ClassList() {
         children: [
           { key: 'academic-year-setup', label: 'Thiết lập năm học' },
           { key: 'academic-plan', label: 'Thiết lập kế hoạch' },
-          { key: 'academic-students', label: 'Danh sách trẻ' },
+          { key: 'academic-students', label: 'Danh sách lớp học' },
           { key: 'academic-curriculum', label: 'Chương trình giáo dục' },
           { key: 'academic-schedule', label: 'Thời khóa biểu' },
           { key: 'academic-report', label: 'Báo cáo & thống kê' },

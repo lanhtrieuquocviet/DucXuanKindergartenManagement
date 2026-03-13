@@ -43,7 +43,7 @@ const menuItems = [
     children: [
       { key: 'academic-year-setup', label: 'Thiết lập năm học' },
       { key: 'academic-plan', label: 'Thiết lập kế hoạch' },
-      { key: 'academic-students', label: 'Danh sách trẻ' },
+      { key: 'academic-students', label: 'Danh sách lớp học' },
       { key: 'academic-curriculum', label: 'Chương trình giáo dục' },
       { key: 'academic-schedule', label: 'Thời khóa biểu' },
       { key: 'academic-report', label: 'Báo cáo & thống kê' },
@@ -260,7 +260,7 @@ export default function CurriculumPage() {
       return;
     }
     if (key === 'academic-plan') navigate('/school-admin/academic-plan');
-    else if (key === 'academic-students') navigate('/school-admin/students');
+    else if (key === 'academic-students') navigate('/school-admin/class-list');
     else if (key === 'classes') navigate('/school-admin/classes');
     else if (key === 'menu') navigate('/school-admin/menus');
     else if (key === 'students') navigate('/school-admin/students');
