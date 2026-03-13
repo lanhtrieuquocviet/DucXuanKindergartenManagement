@@ -31,6 +31,9 @@ import {
   Select,
   MenuItem,
   FormHelperText,
+  useMediaQuery,
+  useTheme,
+  TablePagination,
 } from '@mui/material';
 import {
   Add as AddIcon,
@@ -40,6 +43,10 @@ import {
 } from '@mui/icons-material';
 
 function ManageAccounts() {
+  const theme = useTheme();
+  const isSmDown = useMediaQuery(theme.breakpoints.down('sm'));
+  const isMdDown = useMediaQuery(theme.breakpoints.down('md'));
+
   const [users, setUsers] = useState([]);
   const [roles, setRoles] = useState([]);
   const [success, setSuccess] = useState('');
@@ -64,6 +71,8 @@ function ManageAccounts() {
     status: 'active',
     roleIds: [],
   });
+  const [page, setPage] = useState(0);
+  const [rowsPerPage, setRowsPerPage] = useState(10);
 
   const navigate = useNavigate();
   const { user, logout, isInitializing } = useAuth();
@@ -295,6 +304,20 @@ function ManageAccounts() {
     });
   };
 
+  const paginatedUsers = users.slice(
+    page * rowsPerPage,
+    page * rowsPerPage + rowsPerPage
+  );
+
+  const handleChangePage = (_, newPage) => {
+    setPage(newPage);
+  };
+
+  const handleChangeRowsPerPage = (e) => {
+    setRowsPerPage(parseInt(e.target.value, 10));
+    setPage(0);
+  };
+
   const renderRoleNames = (account) => {
     const roleNames = (account.roles || [])
       .map((r) => r.roleName || (typeof r === 'string' ? r : ''))
@@ -327,13 +350,13 @@ function ManageAccounts() {
       <Paper
         elevation={0}
         sx={{
-          mb: 3,
-          p: 3,
+          mb: { xs: 2, sm: 3 },
+          p: { xs: 2, sm: 3 },
           background: 'linear-gradient(135deg, #6366f1 0%, #4f46e5 100%)',
           borderRadius: 2,
         }}
       >
-        <Typography variant="h6" fontWeight={700} color="white">
+        <Typography variant="h6" fontWeight={700} color="white" sx={{ fontSize: { xs: '1.1rem', sm: '1.25rem' } }}>
           Quản lý tài khoản
         </Typography>
         <Typography variant="body2" color="rgba(255,255,255,0.8)" mt={0.5}>
@@ -345,12 +368,13 @@ function ManageAccounts() {
       <Paper elevation={1} sx={{ borderRadius: 2, overflow: 'hidden' }}>
         {/* Table header */}
         <Stack
-          direction="row"
-          alignItems="center"
+          direction={{ xs: 'column', sm: 'row' }}
+          alignItems={{ xs: 'stretch', sm: 'center' }}
           justifyContent="space-between"
-          sx={{ px: 3, py: 2, borderBottom: '1px solid', borderColor: 'divider' }}
+          spacing={{ xs: 1.5, sm: 0 }}
+          sx={{ px: { xs: 2, sm: 3 }, py: 2, borderBottom: '1px solid', borderColor: 'divider' }}
         >
-          <Stack direction="row" alignItems="center" spacing={1.5}>
+          <Stack direction="row" alignItems="center" spacing={1.5} flexWrap="wrap">
             <Typography variant="subtitle2" fontWeight={600}>
               Danh sách tài khoản
             </Typography>
@@ -370,22 +394,23 @@ function ManageAccounts() {
               borderRadius: 1.5,
               textTransform: 'none',
               fontWeight: 600,
+              width: { xs: '100%', sm: 'auto' },
             }}
           >
             Thêm tài khoản
           </Button>
         </Stack>
 
-        <TableContainer>
-          <Table size="small">
+        <TableContainer sx={{ overflowX: 'auto', maxWidth: '100%' }}>
+          <Table size="small" sx={{ minWidth: isMdDown ? 640 : undefined }}>
             <TableHead>
               <TableRow sx={{ bgcolor: 'grey.50' }}>
-                <TableCell sx={{ fontWeight: 700, fontSize: 13 }}>Tài khoản</TableCell>
-                <TableCell sx={{ fontWeight: 700, fontSize: 13 }}>Họ và tên</TableCell>
-                <TableCell sx={{ fontWeight: 700, fontSize: 13 }}>Email</TableCell>
-                <TableCell sx={{ fontWeight: 700, fontSize: 13 }}>Vai trò</TableCell>
-                <TableCell sx={{ fontWeight: 700, fontSize: 13 }}>Trạng thái</TableCell>
-                <TableCell align="right" sx={{ fontWeight: 700, fontSize: 13 }}>
+                <TableCell sx={{ fontWeight: 700, fontSize: { xs: 12, sm: 13 }, px: { xs: 1.5, sm: 2 }, whiteSpace: 'nowrap' }}>Tài khoản</TableCell>
+                <TableCell sx={{ fontWeight: 700, fontSize: { xs: 12, sm: 13 }, px: { xs: 1.5, sm: 2 }, whiteSpace: 'nowrap' }}>Họ và tên</TableCell>
+                <TableCell sx={{ fontWeight: 700, fontSize: { xs: 12, sm: 13 }, px: { xs: 1.5, sm: 2 }, display: { xs: 'none', md: 'table-cell' } }}>Email</TableCell>
+                <TableCell sx={{ fontWeight: 700, fontSize: { xs: 12, sm: 13 }, px: { xs: 1.5, sm: 2 }, display: { xs: 'none', lg: 'table-cell' } }}>Vai trò</TableCell>
+                <TableCell sx={{ fontWeight: 700, fontSize: { xs: 12, sm: 13 }, px: { xs: 1.5, sm: 2 }, whiteSpace: 'nowrap' }}>Trạng thái</TableCell>
+                <TableCell align="right" sx={{ fontWeight: 700, fontSize: { xs: 12, sm: 13 }, px: { xs: 1, sm: 2 }, whiteSpace: 'nowrap' }}>
                   Thao tác
                 </TableCell>
               </TableRow>
@@ -398,7 +423,7 @@ function ManageAccounts() {
                   </TableCell>
                 </TableRow>
               ) : (
-                users.map((account) => {
+                paginatedUsers.map((account) => {
                   const userId = account._id || account.id;
                   const isActive = account.status === 'active';
                   return (
@@ -407,21 +432,23 @@ function ManageAccounts() {
                       hover
                       sx={{ '&:last-child td': { border: 0 } }}
                     >
-                      <TableCell>
-                        <Typography variant="body2" fontWeight={600}>
+                      <TableCell sx={{ px: { xs: 1.5, sm: 2 }, maxWidth: { xs: 100, sm: 'none' } }}>
+                        <Typography variant="body2" fontWeight={600} noWrap title={account.username}>
                           {account.username}
                         </Typography>
                       </TableCell>
-                      <TableCell>
-                        <Typography variant="body2" color={account.fullName ? 'text.primary' : 'text.disabled'}>
+                      <TableCell sx={{ px: { xs: 1.5, sm: 2 }, maxWidth: { xs: 100, sm: 'none' } }}>
+                        <Typography variant="body2" color={account.fullName ? 'text.primary' : 'text.disabled'} noWrap title={account.fullName || 'Chưa cập nhật'}>
                           {account.fullName || 'Chưa cập nhật'}
                         </Typography>
                       </TableCell>
-                      <TableCell>
-                        <Typography variant="body2">{account.email}</Typography>
+                      <TableCell sx={{ px: { xs: 1.5, sm: 2 }, display: { xs: 'none', md: 'table-cell' } }}>
+                        <Typography variant="body2" sx={{ overflow: 'hidden', textOverflow: 'ellipsis', maxWidth: 160 }} title={account.email}>
+                          {account.email}
+                        </Typography>
                       </TableCell>
-                      <TableCell>{renderRoleNames(account)}</TableCell>
-                      <TableCell>
+                      <TableCell sx={{ px: { xs: 1.5, sm: 2 }, display: { xs: 'none', lg: 'table-cell' } }}>{renderRoleNames(account)}</TableCell>
+                      <TableCell sx={{ px: { xs: 1.5, sm: 2 } }}>
                         <Chip
                           label={isActive ? 'Đang hoạt động' : 'Đã khóa'}
                           size="small"
@@ -430,7 +457,7 @@ function ManageAccounts() {
                           sx={{ fontWeight: 600 }}
                         />
                       </TableCell>
-                      <TableCell align="right">
+                      <TableCell align="right" sx={{ px: { xs: 1, sm: 2 } }}>
                         <Stack direction="row" spacing={0.5} justifyContent="flex-end">
                           <IconButton
                             size="small"
@@ -458,6 +485,32 @@ function ManageAccounts() {
             </TableBody>
           </Table>
         </TableContainer>
+        {users.length > 0 && (
+          <TablePagination
+            component="div"
+            count={users.length}
+            page={page}
+            onPageChange={handleChangePage}
+            rowsPerPage={rowsPerPage}
+            onRowsPerPageChange={handleChangeRowsPerPage}
+            rowsPerPageOptions={[5, 10, 25, 50]}
+            labelRowsPerPage="Số dòng/trang:"
+            labelDisplayedRows={({ from, to, count }) => `${from}–${to} / ${count}`}
+            sx={{
+              borderTop: '1px solid',
+              borderColor: 'divider',
+              flexWrap: 'wrap',
+              '& .MuiTablePagination-toolbar': {
+                flexWrap: 'wrap',
+                minHeight: { xs: 52, sm: 52 },
+                px: { xs: 1.5, sm: 2 },
+              },
+              '& .MuiTablePagination-selectLabel, & .MuiTablePagination-displayedRows': {
+                fontSize: { xs: '0.8rem', sm: '0.875rem' },
+              },
+            }}
+          />
+        )}
       </Paper>
 
       {/* Add/Edit User Dialog */}
@@ -466,7 +519,8 @@ function ManageAccounts() {
         onClose={handleCloseUserForm}
         maxWidth="sm"
         fullWidth
-        PaperProps={{ sx: { borderRadius: 2 } }}
+        fullScreen={isSmDown}
+        PaperProps={{ sx: { borderRadius: isSmDown ? 0 : 2 } }}
       >
         <DialogTitle
           sx={{
@@ -487,7 +541,7 @@ function ManageAccounts() {
               </Alert>
             )}
 
-            <Box sx={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 2 }}>
+            <Box sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr', sm: '1fr 1fr' }, gap: 2 }}>
               <TextField
                 label={<span>Tài khoản <span style={{ color: 'red' }}>*</span></span>}
                 name="username"
@@ -645,7 +699,7 @@ function ManageAccounts() {
             </Box>
           </DialogContent>
 
-          <DialogActions sx={{ px: 3, pb: 2.5 }}>
+          <DialogActions sx={{ px: { xs: 2, sm: 3 }, pb: 2.5, flexWrap: 'wrap', gap: 1 }}>
             <Button
               onClick={handleCloseUserForm}
               variant="outlined"
