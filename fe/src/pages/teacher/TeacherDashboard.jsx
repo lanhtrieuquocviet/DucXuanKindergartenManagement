@@ -351,7 +351,7 @@ function TeacherDashboard() {
           </Paper>
 
           {/* API data */}
-          <Paper
+          {/* <Paper
             elevation={0}
             sx={{ borderRadius: 3, border: '1px solid', borderColor: 'divider', overflow: 'hidden' }}
           >
@@ -376,7 +376,7 @@ function TeacherDashboard() {
                 </Box>
               )}
             </Box>
-          </Paper>
+          </Paper> */}
         </Grid>
       </Grid>
     </RoleLayout>

@@ -334,7 +334,7 @@ function SystemAdminDashboard() {
       </Grid>
 
       {/* API Data Section */}
-      <Paper
+      {/* <Paper
         elevation={0}
         sx={{
           borderRadius: 3,
@@ -390,7 +390,7 @@ function SystemAdminDashboard() {
             </Box>
           )}
         </Box>
-      </Paper>
+      </Paper> */}
     </RoleLayout>
   );
 }
