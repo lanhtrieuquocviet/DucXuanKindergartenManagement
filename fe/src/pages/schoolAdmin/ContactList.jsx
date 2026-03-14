@@ -164,6 +164,10 @@ function ContactList() {
       navigate('/school-admin/curriculum');
       return;
     }
+    if (key === 'academic-schedule') {
+      navigate('/school-admin/timetable');
+      return;
+    }
     if (key === 'academic-students') {
       navigate('/school-admin/class-list');
       return;

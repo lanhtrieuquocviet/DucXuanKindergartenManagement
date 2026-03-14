@@ -260,6 +260,7 @@ export default function CurriculumPage() {
       return;
     }
     if (key === 'academic-plan') navigate('/school-admin/academic-plan');
+    else if (key === 'academic-schedule') navigate('/school-admin/timetable');
     else if (key === 'academic-students') navigate('/school-admin/class-list');
     else if (key === 'classes') navigate('/school-admin/classes');
     else if (key === 'menu') navigate('/school-admin/menus');

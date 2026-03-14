@@ -352,6 +352,7 @@ function ClassList() {
       'academic-years': '/school-admin/academic-years',
       'academic-year-setup': '/school-admin/academic-years',
       'academic-curriculum': '/school-admin/curriculum',
+      'academic-schedule': '/school-admin/timetable',
       'academic-plan': '/school-admin/classes',
       'academic-students': '/school-admin/class-list',
       menu: '/school-admin/menus',

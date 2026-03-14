@@ -181,6 +181,7 @@ function QaList() {
     if (key === 'overview') navigate('/school-admin');
     else if (key === 'academic-year-setup') navigate('/school-admin/academic-years');
     else if (key === 'academic-curriculum') navigate('/school-admin/curriculum');
+    else if (key === 'academic-schedule') navigate('/school-admin/timetable');
     else if (key === 'academic-plan') navigate('/school-admin/academic-plan');
     else if (key === 'academic-students') navigate('/school-admin/class-list');
     else if (key === 'classes') navigate('/school-admin/classes');
