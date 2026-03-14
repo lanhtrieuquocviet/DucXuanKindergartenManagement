@@ -8,7 +8,9 @@
       "Bash(grep -r \"dailyMenu\\\\|DailyMenu\" /d/DucXuanKindergartenManagement --include=*.jsx --include=*.js ! -path */node_modules/*)",
       "Bash(grep -r \"mealManagement\\\\|MealManagement\" /d/DucXuanKindergartenManagement --include=*.jsx --include=*.js ! -path */node_modules/*)",
       "Bash(xargs grep:*)",
-      "Bash(find /d/DucXuanKindergartenManagement -type f \\\\\\(-path */jobs/* -o -path */utils/* -o -path */helpers/* \\\\\\) -name *.js ! -path */node_modules/*)"
+      "Bash(find /d/DucXuanKindergartenManagement -type f \\\\\\(-path */jobs/* -o -path */utils/* -o -path */helpers/* \\\\\\) -name *.js ! -path */node_modules/*)",
+      "Bash(grep -E \"\\\\.js$\")",
+      "Bash(grep \"\\\\.js$\")"
     ]
   }
 }

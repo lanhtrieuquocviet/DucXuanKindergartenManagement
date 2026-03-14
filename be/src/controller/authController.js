@@ -185,7 +185,7 @@ const login = async (req, res) => {
       });
     }
 
-    const user = await User.findOne({ username }).populate({
+    const user = await User.findOne({ username: { $regex: new RegExp(`^${username.trim()}$`, 'i') } }).populate({
       path: 'roles',
       model: 'Roles',
       populate: {

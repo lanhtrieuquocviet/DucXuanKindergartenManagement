@@ -4,7 +4,7 @@ import { post, ENDPOINTS } from '../service/api';
 import './Login.css';
 
 function generateCaptcha(length = 5) {
-  const chars = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
+  const chars = 'ABCDEFGHJKLMNPQRSTUVWXYZabcdefghjkmnpqrstuvwxyz23456789';
   let result = '';
   for (let i = 0; i < length; i += 1) {
     result += chars[Math.floor(Math.random() * chars.length)];
@@ -42,8 +42,8 @@ function ForgotPassword() {
     }
 
     if (captchaInput.trim().toUpperCase() !== captchaCode.toUpperCase()) {
-      setCaptchaError('Mã bảo mật không chính xác');
       refreshCaptcha();
+      setCaptchaError('Mã bảo mật không chính xác');
       return;
     }
 
@@ -80,8 +80,8 @@ function ForgotPassword() {
     }
 
     if (captchaInput.trim().toUpperCase() !== captchaCode.toUpperCase()) {
-      setCaptchaError('Mã bảo mật không chính xác');
       refreshCaptcha();
+      setCaptchaError('Mã bảo mật không chính xác');
       return;
     }
 
@@ -299,8 +299,10 @@ function ForgotPassword() {
                   placeholder="Nhập mã bảo mật"
                 />
               </div>
-              {captchaError && (
+              {captchaError ? (
                 <p className="text-xs text-red-600 mt-1">{captchaError}</p>
+              ) : (
+                <p className="text-xs text-sky-400 mt-1">Không phân biệt chữ hoa/thường</p>
               )}
             </div>
 
@@ -381,8 +383,10 @@ function ForgotPassword() {
                 placeholder="Nhập mã bảo mật"
               />
             </div>
-            {captchaError && (
+            {captchaError ? (
               <p className="text-xs text-red-600 mt-1">{captchaError}</p>
+            ) : (
+              <p className="text-xs text-sky-400 mt-1">Không phân biệt chữ hoa/thường</p>
             )}
           </div>
 

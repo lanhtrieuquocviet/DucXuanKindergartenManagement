@@ -79,6 +79,7 @@ import FoodManagement from './pages/kitchenStaff/FoodManagemet';
 import MealManagement from './pages/kitchenStaff/MealManagement';
 import MealHeadcount from './pages/kitchenStaff/MealHeadcount';
 import UploadSampleFood from './pages/kitchenStaff/UploadSampleFood';
+import MenuReport from './pages/kitchenStaff/MenuReport';
 import MenuSchoolAdmin from './pages/schoolAdmin/MenuSchoolAdmin';
 import MenuDetailSchoolAdmin from './pages/schoolAdmin/MenuDetailSchoolAdmin';
 import MenuStudent from './pages/student/MenuStudent';
@@ -272,6 +273,7 @@ function App() {
             <Route path="meal-management" element={<MealManagement />} />
             <Route path="headcount" element={<MealHeadcount />} />
             <Route path="sample-food" element={<UploadSampleFood />} />
+            <Route path="report" element={<MenuReport />} />
           </Route>
           <Route
             path="/teacher/attendance/:classId"

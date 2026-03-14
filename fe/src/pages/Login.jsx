@@ -37,7 +37,7 @@ function Login() {
 
   const handleSubmit = async (e) => {
     e.preventDefault();
-    const usernameTrimmed = (form.username || '').trim();
+    const usernameTrimmed = (form.username || '').trim().toLowerCase();
     if (/[\s]/.test(usernameTrimmed) || /[^A-Za-z0-9]/.test(usernameTrimmed)) {
       setUsernameWarning('Tài khoản không được chứa khoảng trắng và ký tự đặc biệt.');
       return;
