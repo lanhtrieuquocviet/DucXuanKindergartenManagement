@@ -110,3 +110,4 @@ coverage/
 .playwright/
 reports/
 test-results/
+.claude
