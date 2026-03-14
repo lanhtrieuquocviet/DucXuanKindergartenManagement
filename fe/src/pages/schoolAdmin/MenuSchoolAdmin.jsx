@@ -119,6 +119,7 @@ function MenuSchoolAdmin() {
     if (key === "academic-years" || key === "academic-year-setup")
       navigate("/school-admin/academic-years");
     if (key === "academic-curriculum") navigate("/school-admin/curriculum");
+    if (key === "academic-schedule") navigate("/school-admin/timetable");
     if (key === "academic-plan") navigate("/school-admin/academic-plan");
     if (key === "academic-students") navigate("/school-admin/class-list");
     if (key === "classes") navigate("/school-admin/classes");

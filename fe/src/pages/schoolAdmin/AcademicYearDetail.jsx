@@ -78,6 +78,10 @@ export default function AcademicYearDetail() {
       navigate('/school-admin/curriculum');
       return;
     }
+    if (key === 'academic-schedule') {
+      navigate('/school-admin/timetable');
+      return;
+    }
     if (key === 'academic-plan') {
       navigate('/school-admin/academic-plan');
       return;

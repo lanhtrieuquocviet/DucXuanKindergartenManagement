@@ -90,6 +90,7 @@ import MealManagementSchoolAdmin from './pages/schoolAdmin/MealManagementSchoolA
 import AcademicYearPlan from './pages/schoolAdmin/AcademicYearPlan';
 import CurriculumPage from './pages/schoolAdmin/CurriculumPage';
 import ClassListOverview from './pages/schoolAdmin/ClassListOverview';
+import TimetablePage from './pages/schoolAdmin/TimetablePage';
 
 
 function AppContent() {
@@ -478,6 +479,14 @@ function App() {
             element={
               <SchoolAdminProvider>
                 <CurriculumPage />
+              </SchoolAdminProvider>
+            }
+          />
+          <Route
+            path="/school-admin/timetable"
+            element={
+              <SchoolAdminProvider>
+                <TimetablePage />
               </SchoolAdminProvider>
             }
           />
