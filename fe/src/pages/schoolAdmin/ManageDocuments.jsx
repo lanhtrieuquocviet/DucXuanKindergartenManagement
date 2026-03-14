@@ -417,6 +417,7 @@ export default function ManageDocuments() {
       'academic-year-setup': '/school-admin/academic-years',
       'academic-curriculum': '/school-admin/curriculum',
       'academic-students': '/school-admin/class-list',
+      'academic-schedule': '/school-admin/timetable',
       'academic-plan': '/school-admin/academic-plan',
       classes: '/school-admin/classes',
       contacts: '/school-admin/contacts',

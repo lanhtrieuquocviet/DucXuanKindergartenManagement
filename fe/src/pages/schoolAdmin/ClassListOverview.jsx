@@ -81,6 +81,7 @@ function ClassListOverview() {
     if (key === 'academic-years' || key === 'academic-year-setup') navigate('/school-admin/academic-years');
     if (key === 'academic-students') return;
     if (key === 'academic-curriculum') navigate('/school-admin/curriculum');
+    if (key === 'academic-schedule') navigate('/school-admin/timetable');
     if (key === 'academic-plan') navigate('/school-admin/academic-plan');
     if (key === 'classes') navigate('/school-admin/classes');
     if (key === 'menu') navigate('/school-admin/menus');

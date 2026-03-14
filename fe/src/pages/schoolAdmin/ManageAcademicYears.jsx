@@ -149,6 +149,10 @@ function ManageAcademicYears() {
       navigate('/school-admin/curriculum');
       return;
     }
+    if (key === 'academic-schedule') {
+      navigate('/school-admin/timetable');
+      return;
+    }
   };
 
   const userName = user?.fullName || user?.username || 'School Admin';
