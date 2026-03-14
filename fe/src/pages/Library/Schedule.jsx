@@ -1,94 +1,34 @@
+import { useMemo } from 'react';
+
+const STORAGE_KEY = 'school_timetable_by_grade';
+const DAYS = ['Thứ Hai', 'Thứ Ba', 'Thứ Tư', 'Thứ Năm', 'Thứ Sáu', 'Thứ Bảy'];
+const ROWS = [
+  { key: 'sang', label: 'Sáng' },
+  { key: 'chieu', label: 'Chiều' },
+];
+
+function getTimetablesFromStorage() {
+  try {
+    const raw = localStorage.getItem(STORAGE_KEY);
+    if (!raw) return { data: {}, gradeNames: {} };
+    const parsed = JSON.parse(raw);
+    if (parsed?.data && typeof parsed.data === 'object') {
+      return { data: parsed.data, gradeNames: parsed.gradeNames || {} };
+    }
+    return { data: parsed || {}, gradeNames: {} };
+  } catch (_) {
+    return { data: {}, gradeNames: {} };
+  }
+}
+
 export default function Schedule() {
-  const schedule = [
-    {
-      time: "07:00 - 08:00",
-      monday: "Đón trẻ – Trò chuyện – Chơi tự do",
-      tuesday: "Đón trẻ – Trò chuyện – Chơi tự do",
-      wednesday: "Đón trẻ – Trò chuyện – Chơi tự do",
-      thursday: "Đón trẻ – Trò chuyện – Chơi tự do",
-      friday: "Đón trẻ – Trò chuyện – Chơi tự do",
-    },
-    {
-      time: "08:00 - 08:30",
-      monday: "Thể dục sáng",
-      tuesday: "Thể dục sáng",
-      wednesday: "Thể dục sáng",
-      thursday: "Thể dục sáng",
-      friday: "Thể dục sáng",
-    },
-    {
-      time: "08:30 - 09:15",
-      monday: "Hoạt động học",
-      tuesday: "Hoạt động học",
-      wednesday: "Hoạt động học",
-      thursday: "Hoạt động học",
-      friday: "Hoạt động học",
-    },
-    {
-      time: "09:15 - 09:45",
-      monday: "Hoạt động ngoài trời",
-      tuesday: "Hoạt động ngoài trời",
-      wednesday: "Hoạt động ngoài trời",
-      thursday: "Hoạt động ngoài trời",
-      friday: "Hoạt động ngoài trời",
-    },
-    {
-      time: "09:45 - 10:15",
-      monday: "Ăn nhẹ",
-      tuesday: "Ăn nhẹ",
-      wednesday: "Ăn nhẹ",
-      thursday: "Ăn nhẹ",
-      friday: "Ăn nhẹ",
-    },
-    {
-      time: "10:15 - 11:00",
-      monday: "Chơi – Hoạt động góc",
-      tuesday: "Chơi – Hoạt động góc",
-      wednesday: "Chơi – Hoạt động góc",
-      thursday: "Chơi – Hoạt động góc",
-      friday: "Chơi – Hoạt động góc",
-    },
-    {
-      time: "11:00 - 12:00",
-      monday: "Ăn trưa – Vệ sinh",
-      tuesday: "Ăn trưa – Vệ sinh",
-      wednesday: "Ăn trưa – Vệ sinh",
-      thursday: "Ăn trưa – Vệ sinh",
-      friday: "Ăn trưa – Vệ sinh",
-    },
-    {
-      time: "12:00 - 14:00",
-      monday: "Ngủ trưa",
-      tuesday: "Ngủ trưa",
-      wednesday: "Ngủ trưa",
-      thursday: "Ngủ trưa",
-      friday: "Ngủ trưa",
-    },
-    {
-      time: "14:00 - 15:00",
-      monday: "Thức dậy – Ăn xế",
-      tuesday: "Thức dậy – Ăn xế",
-      wednesday: "Thức dậy – Ăn xế",
-      thursday: "Thức dậy – Ăn xế",
-      friday: "Thức dậy – Ăn xế",
-    },
-    {
-      time: "15:00 - 16:00",
-      monday: "Hoạt động chiều",
-      tuesday: "Hoạt động chiều",
-      wednesday: "Hoạt động chiều",
-      thursday: "Hoạt động chiều",
-      friday: "Hoạt động chiều",
-    },
-    {
-      time: "16:00 - 17:00",
-      monday: "Chơi tự do – Trả trẻ",
-      tuesday: "Chơi tự do – Trả trẻ",
-      wednesday: "Chơi tự do – Trả trẻ",
-      thursday: "Chơi tự do – Trả trẻ",
-      friday: "Chơi tự do – Trả trẻ",
-    },
-  ];
+  const { data: timetablesByGrade, gradeNames } = useMemo(() => getTimetablesFromStorage(), []);
+
+  const entries = useMemo(() => {
+    return Object.entries(timetablesByGrade).filter(
+      ([_, t]) => t?.sang?.length === 6 && t?.chieu?.length === 6
+    );
+  }, [timetablesByGrade]);
 
   return (
     <div className="w-full min-h-screen bg-white px-4 sm:px-6 py-4 sm:py-6 text-gray-800">
@@ -100,39 +40,61 @@ export default function Schedule() {
       </div>
 
       {/* Title */}
-      <h1 className="text-2xl font-semibold mb-4">
-        Thời khóa biểu
+      <h1 className="text-2xl font-semibold mb-2">
+        Thời khóa biểu các khối
       </h1>
+      <p className="text-gray-600 text-sm mb-6">
+        Thời khóa biểu theo từng khối lớp do nhà trường thiết lập.
+      </p>
 
-      {/* Table */}
-      <div className="overflow-x-auto">
-        <table className="min-w-full border text-sm text-center">
-          <thead className="bg-green-100">
-            <tr>
-              <th className="border px-3 py-2">Thời gian</th>
-              <th className="border px-3 py-2">Thứ 2</th>
-              <th className="border px-3 py-2">Thứ 3</th>
-              <th className="border px-3 py-2">Thứ 4</th>
-              <th className="border px-3 py-2">Thứ 5</th>
-              <th className="border px-3 py-2">Thứ 6</th>
-            </tr>
-          </thead>
-          <tbody>
-            {schedule.map((row, index) => (
-              <tr key={index} className="even:bg-gray-50">
-                <td className="border px-3 py-2 font-medium">
-                  {row.time}
-                </td>
-                <td className="border px-3 py-2">{row.monday}</td>
-                <td className="border px-3 py-2">{row.tuesday}</td>
-                <td className="border px-3 py-2">{row.wednesday}</td>
-                <td className="border px-3 py-2">{row.thursday}</td>
-                <td className="border px-3 py-2">{row.friday}</td>
-              </tr>
-            ))}
-          </tbody>
-        </table>
-      </div>
+      {entries.length === 0 ? (
+        <div className="rounded-lg border border-gray-200 bg-gray-50 px-4 py-8 text-center text-gray-500">
+          Chưa có thời khóa biểu nào. Nhà trường sẽ cập nhật tại mục Quản lý năm học → Thời khóa biểu.
+        </div>
+      ) : (
+        <div className="space-y-8">
+          {entries.map(([gradeId, timetable]) => {
+            const gradeName = gradeNames[gradeId] || `Khối ${gradeId.slice(-4)}`;
+            return (
+              <div key={gradeId} className="rounded-lg border border-gray-200 overflow-hidden shadow-sm">
+                <div className="bg-indigo-600 px-4 py-3">
+                  <h2 className="text-lg font-semibold text-white">
+                    Thời khóa biểu khối {gradeName}
+                  </h2>
+                </div>
+                <div className="overflow-x-auto">
+                  <table className="min-w-full border text-sm text-center">
+                    <thead className="bg-indigo-700 text-white">
+                      <tr>
+                        <th className="border border-indigo-600 px-3 py-2 w-24 font-semibold">Buổi</th>
+                        {DAYS.map((d) => (
+                          <th key={d} className="border border-indigo-600 px-3 py-2 font-semibold">
+                            {d}
+                          </th>
+                        ))}
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {ROWS.map((row) => (
+                        <tr key={row.key} className="even:bg-gray-50">
+                          <td className="border border-gray-200 px-3 py-2 font-medium bg-sky-50">
+                            {row.label}
+                          </td>
+                          {(timetable[row.key] || Array(6).fill('')).map((cell, i) => (
+                            <td key={i} className="border border-gray-200 px-3 py-2 align-middle">
+                              {cell || '—'}
+                            </td>
+                          ))}
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              </div>
+            );
+          })}
+        </div>
+      )}
     </div>
   );
 }

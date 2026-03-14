@@ -36,16 +36,25 @@ const DEFAULT_SAMPLE = {
 
 const STORAGE_KEY = 'school_timetable_by_grade';
 
-function getInitialTimetableForGrade(gradeId, gradeName) {
+function getStorageData() {
   try {
     const raw = localStorage.getItem(STORAGE_KEY);
-    if (raw) {
-      const parsed = JSON.parse(raw);
-      if (parsed[gradeId]?.sang?.length === 6 && parsed[gradeId]?.chieu?.length === 6) {
-        return parsed[gradeId];
-      }
+    if (!raw) return { data: {}, gradeNames: {} };
+    const parsed = JSON.parse(raw);
+    if (parsed?.data && typeof parsed.data === 'object') {
+      return { data: parsed.data, gradeNames: parsed.gradeNames || {} };
     }
-  } catch (_) {}
+    return { data: parsed || {}, gradeNames: {} };
+  } catch (_) {
+    return { data: {}, gradeNames: {} };
+  }
+}
+
+function getInitialTimetableForGrade(gradeId, gradeName) {
+  const { data } = getStorageData();
+  if (data[gradeId]?.sang?.length === 6 && data[gradeId]?.chieu?.length === 6) {
+    return data[gradeId];
+  }
   if (gradeName && /nhà trẻ|24-36|mầm/i.test(gradeName)) {
     return { sang: [...DEFAULT_SAMPLE.sang], chieu: [...DEFAULT_SAMPLE.chieu] };
   }
@@ -55,12 +64,12 @@ function getInitialTimetableForGrade(gradeId, gradeName) {
   };
 }
 
-function saveTimetableToStorage(data) {
+function saveTimetableToStorage(data, gradeNames = {}) {
   try {
-    localStorage.setItem(STORAGE_KEY, JSON.stringify(data));
+    localStorage.setItem(STORAGE_KEY, JSON.stringify({ data, gradeNames }));
   } catch (_) {}
-}
-
+} 
+ 
 const menuItems = [
   { key: 'overview', label: 'Tổng quan trường' },
   {
@@ -156,7 +165,8 @@ export default function TimetablePage() {
     const initial = getInitialTimetableForGrade(selectedGradeId, grade?.gradeName);
     setTimetableByGrade((prev) => {
       const next = { ...prev, [selectedGradeId]: initial };
-      saveTimetableToStorage(next);
+      const gradeNames = grades.reduce((acc, g) => ({ ...acc, [g._id]: g.gradeName || '' }), {});
+      saveTimetableToStorage(next, gradeNames);
       return next;
     });
   }, [selectedGradeId, grades]);
@@ -173,11 +183,12 @@ export default function TimetablePage() {
       if (!selectedGradeId) return;
       setTimetableByGrade((prev) => {
         const updated = { ...prev, [selectedGradeId]: next };
-        saveTimetableToStorage(updated);
+        const gradeNames = grades.reduce((acc, g) => ({ ...acc, [g._id]: g.gradeName || '' }), {});
+        saveTimetableToStorage(updated, gradeNames);
         return updated;
       });
     },
-    [selectedGradeId]
+    [selectedGradeId, grades]
   );
 
   const handleCellChange = (rowKey, dayIndex, value) => {
@@ -211,7 +222,8 @@ export default function TimetablePage() {
     if (selectedGradeId && currentTimetable) {
       setTimetableByGrade((prev) => {
         const next = { ...prev, [selectedGradeId]: currentTimetable };
-        saveTimetableToStorage(next);
+        const gradeNames = grades.reduce((acc, g) => ({ ...acc, [g._id]: g.gradeName || '' }), {});
+        saveTimetableToStorage(next, gradeNames);
         return next;
       });
       setIsEditMode(false);
