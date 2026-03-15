@@ -13,6 +13,8 @@ import {
 import ConfirmDialog from '../../../components/ConfirmDialog';
 import { ABSENT_REASONS, MAX_NOTE_LEN, sanitizeMultiLineText } from './attendanceUtils';
 
+
+
 function AbsentModal({
   isOpen,
   studentId,
