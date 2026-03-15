@@ -1,34 +1,55 @@
-import { useMemo } from 'react';
+import { useEffect, useState } from 'react';
+import { get, ENDPOINTS } from '../../service/api';
 
-const STORAGE_KEY = 'school_timetable_by_grade';
 const DAYS = ['Thứ Hai', 'Thứ Ba', 'Thứ Tư', 'Thứ Năm', 'Thứ Sáu', 'Thứ Bảy'];
 const ROWS = [
   { key: 'sang', label: 'Sáng' },
   { key: 'chieu', label: 'Chiều' },
 ];
 
-function getTimetablesFromStorage() {
-  try {
-    const raw = localStorage.getItem(STORAGE_KEY);
-    if (!raw) return { data: {}, gradeNames: {} };
-    const parsed = JSON.parse(raw);
-    if (parsed?.data && typeof parsed.data === 'object') {
-      return { data: parsed.data, gradeNames: parsed.gradeNames || {} };
-    }
-    return { data: parsed || {}, gradeNames: {} };
-  } catch (_) {
-    return { data: {}, gradeNames: {} };
-  }
-}
-
 export default function Schedule() {
-  const { data: timetablesByGrade, gradeNames } = useMemo(() => getTimetablesFromStorage(), []);
+  const [timetablesByGrade, setTimetablesByGrade] = useState({});
+  const [gradeNames, setGradeNames] = useState({});
+  const [loading, setLoading] = useState(true);
 
-  const entries = useMemo(() => {
-    return Object.entries(timetablesByGrade).filter(
-      ([_, t]) => t?.sang?.length === 6 && t?.chieu?.length === 6
-    );
-  }, [timetablesByGrade]);
+  useEffect(() => {
+    let cancelled = false;
+    const load = async () => {
+      try {
+        const res = await get(ENDPOINTS.TIMETABLE_PUBLIC(), { includeAuth: false });
+        if (cancelled) return;
+        if (res?.status === 'success') {
+          const byGrade = {};
+          (res.data || []).forEach((item) => {
+            const id = String(item.gradeId?._id ?? item.gradeId);
+            if (id) {
+              byGrade[id] = {
+                sang: Array.isArray(item.sang) ? item.sang.slice(0, 6) : ['', '', '', '', '', ''],
+                chieu: Array.isArray(item.chieu) ? item.chieu.slice(0, 6) : ['', '', '', '', '', ''],
+              };
+              while (byGrade[id].sang.length < 6) byGrade[id].sang.push('');
+              while (byGrade[id].chieu.length < 6) byGrade[id].chieu.push('');
+            }
+          });
+          setTimetablesByGrade(byGrade);
+          setGradeNames(res.gradeNames || {});
+        }
+      } catch (_) {
+        if (!cancelled) {
+          setTimetablesByGrade({});
+          setGradeNames({});
+        }
+      } finally {
+        if (!cancelled) setLoading(false);
+      }
+    };
+    load();
+    return () => { cancelled = true; };
+  }, []);
+
+  const entries = Object.entries(timetablesByGrade).filter(
+    ([_, t]) => t?.sang?.length === 6 && t?.chieu?.length === 6
+  );
 
   return (
     <div className="w-full min-h-screen bg-white px-4 sm:px-6 py-4 sm:py-6 text-gray-800">
@@ -47,7 +68,11 @@ export default function Schedule() {
         Thời khóa biểu theo từng khối lớp do nhà trường thiết lập.
       </p>
 
-      {entries.length === 0 ? (
+      {loading ? (
+        <div className="rounded-lg border border-gray-200 bg-gray-50 px-4 py-8 text-center text-gray-500">
+          Đang tải...
+        </div>
+      ) : entries.length === 0 ? (
         <div className="rounded-lg border border-gray-200 bg-gray-50 px-4 py-8 text-center text-gray-500">
           Chưa có thời khóa biểu nào. Nhà trường sẽ cập nhật tại mục Quản lý năm học → Thời khóa biểu.
         </div>

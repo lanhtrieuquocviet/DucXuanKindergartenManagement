@@ -49,6 +49,7 @@ require('./src/models/Document');
 require('./src/models/PublicInfo');
 require('./src/models/SystemLog');
 require('./src/models/CurriculumTopic');
+require('./src/models/Timetable');
 
 // ensure default blog categories exist
 (async () => {
@@ -263,6 +264,10 @@ app.use('/api/meal-photos', mealPhotoRoutes);
 app.use('/api/reports', reportRoutes);
 // Public info (public - published only)
 app.use('/api/public-info', publicInfoRoutes);
+
+// Thời khóa biểu (public - không cần đăng nhập)
+const timetableRoutes = require('./src/routes/timetable.routes');
+app.use('/api/timetable', timetableRoutes);
 // Route kiểm tra sức khỏe hệ thống
 /**
  * @openapi

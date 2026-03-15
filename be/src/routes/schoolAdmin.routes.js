@@ -17,6 +17,7 @@ const documentController = require('../controller/documentController');
 const publicInfoController = require('../controller/publicInfoController');
 const academicYearController = require('../controller/academicYearController');
 const curriculumController = require('../controller/curriculumController');
+const timetableController = require('../controller/timetableController');
 
 const router = express.Router();
 
@@ -324,6 +325,20 @@ router.delete(
   authenticate,
   authorizeRoles('SchoolAdmin'),
   curriculumController.deleteCurriculumTopic
+);
+
+// Thời khóa biểu theo năm học / khối
+router.get(
+  '/timetable',
+  authenticate,
+  authorizeRoles('SchoolAdmin'),
+  timetableController.listByYear
+);
+router.put(
+  '/timetable',
+  authenticate,
+  authorizeRoles('SchoolAdmin'),
+  timetableController.upsert
 );
 
 // Danh sách giáo viên (dùng cho form tạo/cập nhật lớp)

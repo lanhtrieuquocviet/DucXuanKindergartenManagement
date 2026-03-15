@@ -232,6 +232,10 @@ export const ENDPOINTS = {
       UPDATE: (id) => `/school-admin/curriculum/${id}`,
       DELETE: (id) => `/school-admin/curriculum/${id}`,
     },
+    TIMETABLE: {
+      LIST: (yearId) => (yearId ? `/school-admin/timetable?yearId=${yearId}` : "/school-admin/timetable"),
+      UPSERT: "/school-admin/timetable",
+    },
     TEACHERS: "/school-admin/teachers",
   },
   // Contact (public)
@@ -284,6 +288,8 @@ export const ENDPOINTS = {
     LIST: "/public-info",
     DETAIL: (id) => `/public-info/${id}`,
   },
+  // Thời khóa biểu công khai (không cần đăng nhập)
+  TIMETABLE_PUBLIC: (yearId) => (yearId ? `/timetable?yearId=${yearId}` : "/timetable"),
   // Students
   STUDENTS: {
     LIST: "/students",
