@@ -453,6 +453,25 @@ export default function ManageDocuments() {
       userName={userName}
       userAvatar={user?.avatar}
     >
+      {/* Page header */}
+      <Paper
+        elevation={0}
+        sx={{
+          background: 'linear-gradient(135deg, #0ea5e9 0%, #0284c7 100%)',
+          borderRadius: 3,
+          px: 4,
+          py: 3,
+          mb: 3,
+        }}
+      >
+        <Typography variant="h5" fontWeight={700} color="white">
+          Quản lý tài liệu
+        </Typography>
+        <Typography variant="body2" sx={{ color: 'rgba(255,255,255,0.8)', mt: 0.5 }}>
+          Tạo, chỉnh sửa, xóa và quản lý tài liệu của trường.
+        </Typography>
+      </Paper>
+
       {error && (
         <Alert severity="error" sx={{ mb: 2 }}>
           {error}
@@ -555,7 +574,7 @@ export default function ManageDocuments() {
           ) : (
             <Table size="small">
               <TableHead>
-                <TableRow sx={{ bgcolor: 'grey.50' }}>
+                <TableRow sx={{ bgcolor: '#e0f2fe' }}>
                   <TableCell sx={{ fontWeight: 700, fontSize: 12, textTransform: 'uppercase', letterSpacing: 0.5 }}>Tiêu đề</TableCell>
                   <TableCell sx={{ fontWeight: 700, fontSize: 12, textTransform: 'uppercase', letterSpacing: 0.5 }}>Danh mục</TableCell>
                   <TableCell sx={{ fontWeight: 700, fontSize: 12, textTransform: 'uppercase', letterSpacing: 0.5 }}>Nội dung</TableCell>

@@ -253,35 +253,28 @@ function ContactList() {
       )}
 
       {/* Filter bar */}
-      <Stack direction="row" alignItems="center" spacing={1} sx={{ mb: 3 }}>
-        <Typography variant="body2" fontWeight={500} color="text.secondary">
-          Lọc:
-        </Typography>
-        <Button
-          size="small"
-          variant={!filter ? 'contained' : 'outlined'}
-          onClick={() => setFilter('')}
-          sx={{ borderRadius: 2, textTransform: 'none' }}
-        >
-          Tất cả
-        </Button>
-        <Button
-          size="small"
-          variant={filter === 'pending' ? 'contained' : 'outlined'}
-          onClick={() => setFilter('pending')}
-          sx={{ borderRadius: 2, textTransform: 'none' }}
-        >
-          Chưa phản hồi
-        </Button>
-        <Button
-          size="small"
-          variant={filter === 'replied' ? 'contained' : 'outlined'}
-          onClick={() => setFilter('replied')}
-          sx={{ borderRadius: 2, textTransform: 'none' }}
-        >
-          Đã phản hồi
-        </Button>
-      </Stack>
+      <Paper elevation={0} sx={{ mb: 3, p: 1.5, borderRadius: 2, border: '1px solid', borderColor: 'divider', display: 'inline-flex', gap: 1 }}>
+        {[
+          { value: '', label: 'Tất cả' },
+          { value: 'pending', label: 'Chưa phản hồi' },
+          { value: 'replied', label: 'Đã phản hồi' },
+        ].map((opt) => (
+          <Button
+            key={opt.value}
+            size="small"
+            variant={filter === opt.value ? 'contained' : 'text'}
+            onClick={() => setFilter(opt.value)}
+            sx={{
+              borderRadius: 2,
+              textTransform: 'none',
+              fontWeight: filter === opt.value ? 700 : 400,
+              px: 2,
+            }}
+          >
+            {opt.label}
+          </Button>
+        ))}
+      </Paper>
 
       {/* Contact list */}
       <Paper elevation={2} sx={{ borderRadius: 3, overflow: 'hidden' }}>

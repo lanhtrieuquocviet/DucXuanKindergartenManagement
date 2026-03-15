@@ -271,10 +271,10 @@ function AttendanceOverview() {
   }, [data]);
 
   const statCards = [
-    { label: 'Tổng số lớp', value: stats.totalClasses },
-    { label: 'Tổng sĩ số', value: stats.totalStudents },
-    { label: 'Có mặt', value: stats.present },
-    { label: 'Chưa check-out', value: stats.notCheckedOut },
+    { label: 'Tổng số lớp', value: stats.totalClasses, bg: '#eff6ff', border: '#bfdbfe', color: '#1d4ed8' },
+    { label: 'Tổng sĩ số', value: stats.totalStudents, bg: '#faf5ff', border: '#e9d5ff', color: '#7c3aed' },
+    { label: 'Có mặt', value: stats.present, bg: '#f0fdf4', border: '#bbf7d0', color: '#16a34a' },
+    { label: 'Chưa check-out', value: stats.notCheckedOut, bg: '#fff7ed', border: '#fed7aa', color: '#ea580c' },
   ];
 
   return (
@@ -292,56 +292,45 @@ function AttendanceOverview() {
       onViewProfile={() => navigate('/profile')}
       onMenuSelect={handleMenuSelect}
     >
+      {/* Page header */}
+      <Paper
+        elevation={0}
+        sx={{
+          background: 'linear-gradient(135deg, #10b981 0%, #059669 100%)',
+          borderRadius: 3,
+          px: 4,
+          py: 3,
+          mb: 3,
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'space-between',
+          flexWrap: 'wrap',
+          gap: 2,
+        }}
+      >
+        <Box>
+          <Typography variant="h5" fontWeight={700} color="white">
+            Điểm danh các lớp
+          </Typography>
+          <Typography variant="body2" sx={{ color: 'rgba(255,255,255,0.8)', mt: 0.5 }}>
+            Xem tổng quan điểm danh của tất cả các lớp trong trường.
+          </Typography>
+        </Box>
+        <Button
+          variant="contained"
+          startIcon={<AssessmentIcon />}
+          onClick={() => navigate('/school-admin/attendance/export')}
+          sx={{ bgcolor: 'white', color: 'success.dark', '&:hover': { bgcolor: 'grey.100' }, fontWeight: 600 }}
+        >
+          Xuất báo cáo điểm danh
+        </Button>
+      </Paper>
+
       {error && (
         <Alert severity="error" sx={{ mb: 2 }}>
           {error}
         </Alert>
       )}
-
-      {/* Navigation buttons */}
-      <Paper sx={{ mb: 2, p: 2 }}>
-        <Stack direction="row" flexWrap="wrap" alignItems="center" justifyContent="space-between" gap={1}>
-          <Stack direction="row" flexWrap="wrap" alignItems="center" gap={1}>
-            <Typography variant="body2" fontWeight={600} color="text.secondary">
-              Điều hướng:
-            </Typography>
-            {menuItems.map((item) => (
-              <Button
-                key={item.key}
-                size="small"
-                variant={item.key === 'attendance' ? 'contained' : 'outlined'}
-                color={item.key === 'attendance' ? 'primary' : 'inherit'}
-                onClick={() => {
-                  if (item.key === 'overview') {
-                    navigate('/school-admin');
-                  } else if (item.key === 'classes') {
-                    navigate('/school-admin/classes');
-                  } else if (item.key === 'contacts') {
-                    navigate('/school-admin/contacts');
-                  } else {
-                    handleMenuSelect(item.key);
-                  }
-                }}
-                sx={
-                  item.key !== 'attendance'
-                    ? { color: 'text.primary', borderColor: 'divider' }
-                    : {}
-                }
-              >
-                {item.label}
-              </Button>
-            ))}
-          </Stack>
-          <Button
-            variant="contained"
-            color="success"
-            startIcon={<AssessmentIcon />}
-            onClick={() => navigate('/school-admin/attendance/export')}
-          >
-            Xuất báo cáo điểm danh
-          </Button>
-        </Stack>
-      </Paper>
 
       {/* Filters */}
       <Paper sx={{ mb: 2, p: 2 }}>
@@ -427,16 +416,17 @@ function AttendanceOverview() {
             key={card.label}
             sx={{
               flex: '1 1 160px',
-              p: 2,
-              bgcolor: 'primary.50',
+              p: 2.5,
+              bgcolor: card.bg,
               border: '1px solid',
-              borderColor: 'primary.100',
+              borderColor: card.border,
+              borderRadius: 2,
             }}
           >
             <Typography variant="body2" fontWeight={600} color="text.secondary" gutterBottom>
               {card.label}
             </Typography>
-            <Typography variant="h5" fontWeight={700} color="primary.main">
+            <Typography variant="h4" fontWeight={700} sx={{ color: card.color }}>
               {card.value}
             </Typography>
           </Paper>
@@ -460,7 +450,7 @@ function AttendanceOverview() {
           <TableContainer>
             <Table size="small">
               <TableHead>
-                <TableRow sx={{ bgcolor: 'grey.50' }}>
+                <TableRow sx={{ bgcolor: '#dcfce7' }}>
                   <TableCell sx={{ fontWeight: 700, width: 70 }}>STT</TableCell>
                   <TableCell sx={{ fontWeight: 700 }}>Lớp</TableCell>
                   <TableCell sx={{ fontWeight: 700 }}>Khối</TableCell>
@@ -493,9 +483,17 @@ function AttendanceOverview() {
                       <TableCell align="center">{cls.absent || 0}</TableCell>
                       <TableCell align="center">{cls.notCheckedOut || 0}</TableCell>
                       <TableCell>
-                        <Typography variant="body2" fontWeight={600} color={status.color}>
-                          {status.text}
-                        </Typography>
+                        <Chip
+                          label={status.text}
+                          size="small"
+                          color={
+                            status.text === 'Đầy đủ' ? 'success' :
+                            status.text === 'Thiếu sĩ số' ? 'error' :
+                            status.text === 'Cần theo dõi' ? 'warning' : 'default'
+                          }
+                          variant="outlined"
+                          sx={{ fontWeight: 600 }}
+                        />
                       </TableCell>
                       <TableCell align="center">
                         <Button

@@ -634,6 +634,25 @@ function ManageBlogs() {
       userName={userName}
       userAvatar={user?.avatar}
     >
+      {/* Page header */}
+      <Paper
+        elevation={0}
+        sx={{
+          background: 'linear-gradient(135deg, #6366f1 0%, #4f46e5 100%)',
+          borderRadius: 3,
+          px: 4,
+          py: 3,
+          mb: 3,
+        }}
+      >
+        <Typography variant="h5" fontWeight={700} color="white">
+          Quản lý bài viết (Blog)
+        </Typography>
+        <Typography variant="body2" sx={{ color: 'rgba(255,255,255,0.8)', mt: 0.5 }}>
+          Tạo, chỉnh sửa, xóa và quản lý các bài viết, tin tức của trường.
+        </Typography>
+      </Paper>
+
       {error && (
         <Alert severity="error" sx={{ mb: 2 }}>
           {error}
@@ -746,7 +765,7 @@ function ManageBlogs() {
         {/* Bảng danh sách */}
         <Box sx={{ overflowX: 'auto' }}>
           <Table size="small" sx={{ minWidth: 700 }}>
-            <TableHead sx={{ bgcolor: 'grey.50' }}>
+            <TableHead sx={{ bgcolor: '#f0f0ff' }}>
               <TableRow>
                 {['Mã', 'Danh mục', 'Nội dung', 'Ảnh', 'Tệp đính kèm', 'Trạng thái', 'Tác giả', 'Hành động'].map((col) => (
                   <TableCell
