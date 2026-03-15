@@ -19,9 +19,10 @@ import {
   TextField,
 } from '@mui/material';
 import { PictureAsPdf as PdfIcon, Edit as EditIcon, Save as SaveIcon } from '@mui/icons-material';
+import { toast } from 'react-toastify';
 import { useAuth } from '../../context/AuthContext';
 import RoleLayout from '../../layouts/RoleLayout';
-import { get, ENDPOINTS } from '../../service/api';
+import { get, put, ENDPOINTS } from '../../service/api';
 
 const DAYS = ['Thứ Hai', 'Thứ Ba', 'Thứ Tư', 'Thứ Năm', 'Thứ Sáu', 'Thứ Bảy'];
 const ROWS = [
@@ -34,27 +35,7 @@ const DEFAULT_SAMPLE = {
   chieu: ['Vệ sinh', 'LQ kiến thức mới', 'Rèn kỹ năng', 'Ôn luyện', 'Nêu gương', 'Ôn luyện trò chơi dân gian'],
 };
 
-const STORAGE_KEY = 'school_timetable_by_grade';
-
-function getStorageData() {
-  try {
-    const raw = localStorage.getItem(STORAGE_KEY);
-    if (!raw) return { data: {}, gradeNames: {} };
-    const parsed = JSON.parse(raw);
-    if (parsed?.data && typeof parsed.data === 'object') {
-      return { data: parsed.data, gradeNames: parsed.gradeNames || {} };
-    }
-    return { data: parsed || {}, gradeNames: {} };
-  } catch (_) {
-    return { data: {}, gradeNames: {} };
-  }
-}
-
-function getInitialTimetableForGrade(gradeId, gradeName) {
-  const { data } = getStorageData();
-  if (data[gradeId]?.sang?.length === 6 && data[gradeId]?.chieu?.length === 6) {
-    return data[gradeId];
-  }
+function getInitialTimetableForGrade(gradeName) {
   if (gradeName && /nhà trẻ|24-36|mầm/i.test(gradeName)) {
     return { sang: [...DEFAULT_SAMPLE.sang], chieu: [...DEFAULT_SAMPLE.chieu] };
   }
@@ -63,12 +44,6 @@ function getInitialTimetableForGrade(gradeId, gradeName) {
     chieu: ['', '', '', '', '', ''],
   };
 }
-
-function saveTimetableToStorage(data, gradeNames = {}) {
-  try {
-    localStorage.setItem(STORAGE_KEY, JSON.stringify({ data, gradeNames }));
-  } catch (_) {}
-} 
  
 const menuItems = [
   { key: 'overview', label: 'Tổng quan trường' },
@@ -106,6 +81,7 @@ export default function TimetablePage() {
   const [selectedGradeId, setSelectedGradeId] = useState('');
   const [timetableByGrade, setTimetableByGrade] = useState({});
   const [loading, setLoading] = useState(true);
+  const [saving, setSaving] = useState(false);
   const [isEditMode, setIsEditMode] = useState(false);
 
   const handleLogout = () => {
@@ -135,9 +111,10 @@ export default function TimetablePage() {
     const load = async () => {
       try {
         setLoading(true);
-        const [yearRes, gradesRes] = await Promise.all([
+        const [yearRes, gradesRes, timetableRes] = await Promise.all([
           get(ENDPOINTS.SCHOOL_ADMIN.ACADEMIC_YEARS.CURRENT),
           get(ENDPOINTS.GRADES.LIST),
+          get(ENDPOINTS.SCHOOL_ADMIN.TIMETABLE.LIST()),
         ]);
         if (yearRes?.status === 'success' && yearRes.data) setAcademicYear(yearRes.data);
         else setAcademicYear(null);
@@ -148,9 +125,25 @@ export default function TimetablePage() {
             setSelectedGradeId(list[0]._id);
           }
         } else setGrades([]);
+        if (timetableRes?.status === 'success' && Array.isArray(timetableRes.data)) {
+          const byGrade = {};
+          timetableRes.data.forEach((item) => {
+            const id = String(item.gradeId?._id ?? item.gradeId);
+            if (id) {
+              byGrade[id] = {
+                sang: Array.isArray(item.sang) ? item.sang.slice(0, 6) : ['', '', '', '', '', ''],
+                chieu: Array.isArray(item.chieu) ? item.chieu.slice(0, 6) : ['', '', '', '', '', ''],
+              };
+              while (byGrade[id].sang.length < 6) byGrade[id].sang.push('');
+              while (byGrade[id].chieu.length < 6) byGrade[id].chieu.push('');
+            }
+          });
+          setTimetableByGrade(byGrade);
+        }
       } catch (_) {
         setAcademicYear(null);
         setGrades([]);
+        setTimetableByGrade({});
       } finally {
         setLoading(false);
       }
@@ -162,34 +155,20 @@ export default function TimetablePage() {
     if (!selectedGradeId || grades.length === 0) return;
     if (timetableByGrade[selectedGradeId]) return;
     const grade = grades.find((g) => g._id === selectedGradeId);
-    const initial = getInitialTimetableForGrade(selectedGradeId, grade?.gradeName);
-    setTimetableByGrade((prev) => {
-      const next = { ...prev, [selectedGradeId]: initial };
-      const gradeNames = grades.reduce((acc, g) => ({ ...acc, [g._id]: g.gradeName || '' }), {});
-      saveTimetableToStorage(next, gradeNames);
-      return next;
-    });
+    const initial = getInitialTimetableForGrade(grade?.gradeName);
+    setTimetableByGrade((prev) => ({ ...prev, [selectedGradeId]: initial }));
   }, [selectedGradeId, grades]);
 
   const currentTimetable = selectedGradeId
     ? timetableByGrade[selectedGradeId] ?? getInitialTimetableForGrade(
-        selectedGradeId,
         grades.find((g) => g._id === selectedGradeId)?.gradeName
       )
     : null;
 
-  const setCurrentTimetable = useCallback(
-    (next) => {
-      if (!selectedGradeId) return;
-      setTimetableByGrade((prev) => {
-        const updated = { ...prev, [selectedGradeId]: next };
-        const gradeNames = grades.reduce((acc, g) => ({ ...acc, [g._id]: g.gradeName || '' }), {});
-        saveTimetableToStorage(updated, gradeNames);
-        return updated;
-      });
-    },
-    [selectedGradeId, grades]
-  );
+  const setCurrentTimetable = useCallback((next) => {
+    if (!selectedGradeId) return;
+    setTimetableByGrade((prev) => ({ ...prev, [selectedGradeId]: next }));
+  }, [selectedGradeId]);
 
   const handleCellChange = (rowKey, dayIndex, value) => {
     if (!currentTimetable) return;
@@ -209,7 +188,7 @@ export default function TimetablePage() {
       const grade = grades.find((g) => g._id === id);
       setTimetableByGrade((prev) => ({
         ...prev,
-        [id]: getInitialTimetableForGrade(id, grade?.gradeName),
+        [id]: getInitialTimetableForGrade(grade?.gradeName),
       }));
     }
   };
@@ -218,15 +197,31 @@ export default function TimetablePage() {
     window.print();
   };
 
-  const handleSave = () => {
-    if (selectedGradeId && currentTimetable) {
-      setTimetableByGrade((prev) => {
-        const next = { ...prev, [selectedGradeId]: currentTimetable };
-        const gradeNames = grades.reduce((acc, g) => ({ ...acc, [g._id]: g.gradeName || '' }), {});
-        saveTimetableToStorage(next, gradeNames);
-        return next;
+  const handleSave = async () => {
+    if (!selectedGradeId || !currentTimetable || !academicYear?._id) {
+      toast.error('Vui lòng chọn năm học và khối lớp.');
+      return;
+    }
+    try {
+      setSaving(true);
+      const res = await put(ENDPOINTS.SCHOOL_ADMIN.TIMETABLE.UPSERT, {
+        academicYearId: academicYear._id,
+        gradeId: selectedGradeId,
+        sang: currentTimetable.sang ?? ['', '', '', '', '', ''],
+        chieu: currentTimetable.chieu ?? ['', '', '', '', '', ''],
       });
-      setIsEditMode(false);
+      if (res?.status === 'success' && res.data) {
+        setTimetableByGrade((prev) => ({
+          ...prev,
+          [selectedGradeId]: { sang: res.data.sang, chieu: res.data.chieu },
+        }));
+        setIsEditMode(false);
+        toast.success('Đã lưu thời khóa biểu.');
+      }
+    } catch (err) {
+      toast.error(err?.message || 'Lưu thời khóa biểu thất bại.');
+    } finally {
+      setSaving(false);
     }
   };
 
@@ -334,6 +329,7 @@ export default function TimetablePage() {
                         size="small"
                         startIcon={<SaveIcon />}
                         onClick={handleSave}
+                        disabled={saving}
                         sx={{
                           bgcolor: '#16a34a',
                           '&:hover': { bgcolor: '#15803d' },
