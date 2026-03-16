@@ -593,26 +593,34 @@ function ClassList() {
                       onClick={() => { setSelectedGrade(g); setSearchTerm(''); }}
                       sx={{
                         p: 2.5,
-                        borderRadius: 2,
+                        borderRadius: 2.5,
                         cursor: 'pointer',
                         borderColor: color.border,
-                        transition: 'all 0.15s',
-                        '&:hover': { boxShadow: 4, transform: 'translateY(-2px)', borderColor: color.icon },
+                        bgcolor: '#fff',
+                        transition: 'all 0.18s ease',
+                        '&:hover': {
+                          boxShadow: `0 6px 20px ${color.icon}22`,
+                          transform: 'translateY(-3px)',
+                          borderColor: color.icon,
+                          bgcolor: color.bg + '33',
+                        },
                         position: 'relative',
                         overflow: 'hidden',
                       }}
                     >
                       {/* top-right decorative circle */}
-                      <Box sx={{ position: 'absolute', top: -20, right: -20, width: 80, height: 80, borderRadius: '50%', bgcolor: color.bg, opacity: 0.6, pointerEvents: 'none' }} />
+                      <Box sx={{ position: 'absolute', top: -24, right: -24, width: 90, height: 90, borderRadius: '50%', bgcolor: color.bg, opacity: 0.55, pointerEvents: 'none' }} />
 
                       <Stack direction="row" alignItems="flex-start" justifyContent="space-between">
                         <Box
                           sx={{
-                            width: 48, height: 48, borderRadius: 2,
-                            bgcolor: color.bg, display: 'flex', alignItems: 'center', justifyContent: 'center', mb: 1.5,
+                            width: 44, height: 44, borderRadius: 2,
+                            bgcolor: color.bg,
+                            border: `1.5px solid ${color.border}`,
+                            display: 'flex', alignItems: 'center', justifyContent: 'center', mb: 1.5,
                           }}
                         >
-                          <LayersIcon sx={{ color: color.icon, fontSize: 24 }} />
+                          <LayersIcon sx={{ color: color.icon, fontSize: 22 }} />
                         </Box>
                         {/* Edit / Delete */}
                         <Stack direction="row" spacing={0.25} onClick={e => e.stopPropagation()}>
@@ -629,26 +637,51 @@ function ClassList() {
                         </Stack>
                       </Stack>
 
-                      <Typography variant="h6" fontWeight={800} color={color.icon} sx={{ mb: 0.25 }}>
+                      <Typography
+                        sx={{
+                          fontSize: '1.35rem',
+                          fontWeight: 700,
+                          color: color.icon,
+                          letterSpacing: '-0.3px',
+                          lineHeight: 1.25,
+                          mb: 0.4,
+                          fontFamily: '"Inter", "Roboto", sans-serif',
+                        }}
+                      >
                         Khối {g.gradeName}
                       </Typography>
-                      {g.description && (
-                        <Typography variant="caption" color="text.secondary" sx={{ display: 'block', mb: 1 }}>
+                      {g.description ? (
+                        <Typography
+                          variant="body2"
+                          color="text.secondary"
+                          sx={{ display: 'block', mb: 1, lineHeight: 1.5, fontSize: '0.82rem' }}
+                        >
                           {g.description}
                         </Typography>
+                      ) : (
+                        <Box sx={{ mb: 1 }} />
                       )}
 
-                      <Stack direction="row" alignItems="center" justifyContent="space-between" mt={1.5}>
+                      <Stack direction="row" alignItems="center" justifyContent="space-between" mt={0.5}>
                         <Stack direction="row" alignItems="center" spacing={0.5}>
-                          <ClassIcon sx={{ fontSize: 15, color: 'text.secondary' }} />
-                          <Typography variant="caption" fontWeight={600} color="text.secondary">
-                            {classCount} lớp
+                          <ClassIcon sx={{ fontSize: 14, color: color.icon, opacity: 0.7 }} />
+                          <Typography
+                            sx={{ fontSize: '0.8rem', fontWeight: 600, color: 'text.secondary' }}
+                          >
+                            {classCount} lớp học
                           </Typography>
                         </Stack>
                         <Chip
                           label="Xem lớp →"
                           size="small"
-                          sx={{ bgcolor: color.bg, color: color.icon, fontWeight: 700, fontSize: '0.7rem', border: `1px solid ${color.border}` }}
+                          sx={{
+                            bgcolor: color.bg,
+                            color: color.icon,
+                            fontWeight: 700,
+                            fontSize: '0.72rem',
+                            border: `1px solid ${color.border}`,
+                            letterSpacing: '0.2px',
+                          }}
                         />
                       </Stack>
                     </Paper>
