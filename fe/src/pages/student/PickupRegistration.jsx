@@ -80,10 +80,10 @@ function PickupRegistration() {
         setForm((prev) => ({ ...prev, [name]: value }));
       }
     }
-    // Validate Số điện thoại: Chỉ số và tối đa 11 số
+    // Validate Số điện thoại: Chỉ số và tối đa 10 số (định dạng VN)
     else if (name === "phone") {
       const onlyNums = value.replace(/[^0-9]/g, "");
-      if (onlyNums.length <= 11) {
+      if (onlyNums.length <= 10) {
         setForm((prev) => ({ ...prev, [name]: onlyNums }));
       }
     } 
@@ -119,6 +119,11 @@ function PickupRegistration() {
       }
       if (!form.phone.trim()) {
         throw new Error("Vui lòng nhập số điện thoại");
+      }
+      // Validate phone number format: 10 digits (VN mobile: 03/05/07/08/09)
+      const phonePattern = /^0[35789]\d{8}$/;
+      if (!phonePattern.test(form.phone.trim())) {
+        throw new Error("Số điện thoại không hợp lệ.");
       }
       if (!form.relation.trim()) {
         throw new Error("Vui lòng nhập mối quan hệ");
@@ -246,13 +251,14 @@ function PickupRegistration() {
 
               {/* SĐT */}
               <div>
-                <label className="block text-sm font-semibold text-gray-700 mb-1">Số điện thoại *</label>
+                <label className="block text-sm font-semibold text-gray-700 mb-1">Số điện thoại (10 số) *</label>
                 <input
-                  type="text"
+                  type="tel"
                   name="phone"
                   value={form.phone}
                   onChange={handleChange}
-                  placeholder="Nhập số điện thoại"
+                  placeholder="Nhập 10 số"
+                  maxLength="10"
                   className="w-full border border-gray-300 rounded-xl px-4 py-2.5 focus:ring-2 focus:ring-emerald-500 outline-none"
                   required
                 />
