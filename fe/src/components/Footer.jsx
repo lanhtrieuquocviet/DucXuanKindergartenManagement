@@ -9,8 +9,7 @@ function Footer() {
           <div className="max-w-7xl mx-auto h-full px-6 py-4 flex flex-col justify-between">
 
             {/* ===== MENU ===== */}
-            <div className="flex flex-wrap gap-6 text-sm font-semibold
-                            h-[32px] items-center ">
+            <div className="flex flex-wrap gap-x-6 gap-y-2 text-sm font-semibold items-center">
 
               {[
                 { label: "Trang chủ", link: "/" },
@@ -42,7 +41,7 @@ function Footer() {
             </div>
 
             {/* ===== CONTENT ===== */}
-            <div className="flex justify-between items-center flex-wrap gap-6">
+            <div className="flex flex-col sm:flex-row sm:justify-between sm:items-center flex-wrap gap-4 sm:gap-6">
 
               {/* LEFT */}
               <div className="flex items-center gap-4">
@@ -58,7 +57,7 @@ function Footer() {
               </div>
 
               {/* RIGHT */}
-              <div className="text-sm text-right leading-relaxed text-white">
+              <div className="text-sm sm:text-right leading-relaxed text-white">
                 <div>Địa chỉ: Tổ 9B, phường Đức Xuân, tỉnh Thái Nguyên</div>
                 <div>Điện thoại: 0869550151</div>
                 <div>Email: cddcuxuan_pgdtbackan@backan.edu.vn</div>

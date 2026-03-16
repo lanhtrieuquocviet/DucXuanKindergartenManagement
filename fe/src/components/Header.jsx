@@ -1,12 +1,15 @@
 import { useState, useRef, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { get, ENDPOINTS } from "../service/api";
+import LeftNav from "./LeftNav";
+import RightNav from "./RightNav";
 
 const CLOSE_DELAY = 300; // 30 tích tắc
 
 function Header() {
     const timerRef = useRef(null);
     const [activeMenu, setActiveMenu] = useState(null);
+    const [mobileOpen, setMobileOpen] = useState(false);
 
     const openMenu = (menuKey) => {
         if (timerRef.current) {
@@ -103,8 +106,22 @@ function Header() {
     return (
         <header className="w-full bg-green-50">
             <div className="bg-gradient-to-r from-green-600 to-green-500">
-                <div className="max-w-7xl mx-auto px-6 py-3 flex items-center justify-between">
-                    <nav className="flex gap-2 text-sm font-semibold text-white">
+                <div className="max-w-7xl mx-auto px-4 sm:px-6 py-3 flex items-center justify-between gap-3">
+                    {/* Mobile menu button */}
+                    <button
+                        type="button"
+                        className="md:hidden inline-flex items-center justify-center w-10 h-10 rounded-full bg-white/10 hover:bg-white/20 text-white"
+                        aria-label="Mở menu"
+                        onClick={() => setMobileOpen(true)}
+                    >
+                        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" className="w-5 h-5">
+                            <line x1="4" y1="6" x2="20" y2="6" />
+                            <line x1="4" y1="12" x2="20" y2="12" />
+                            <line x1="4" y1="18" x2="20" y2="18" />
+                        </svg>
+                    </button>
+
+                    <nav className="hidden md:flex gap-2 text-sm font-semibold text-white">
 
                         <a href="/" className="px-4 py-2 rounded-full hover:bg-white hover:text-green-600">
                             Trang chủ
@@ -272,11 +289,11 @@ function Header() {
                         <a href="/qa" className="px-4 py-2 rounded-full hover:bg-white hover:text-green-600">Hỏi đáp</a>
                     </nav>
                     {/* ===== SEARCH + LOGIN ===== */}
-                    <div className="flex items-center gap-3">
-                        <div className="relative" ref={searchContainerRef}>
-                            <div className="flex items-center bg-white rounded-full px-2 py-2 text-sm shadow">
+                    <div className="flex items-center gap-2 sm:gap-3 flex-1 md:flex-none justify-end">
+                        <div className="relative flex-1 max-w-[520px] md:flex-none" ref={searchContainerRef}>
+                            <div className="flex items-center bg-white rounded-full px-2 py-2 text-sm shadow w-full">
                                 <input
-                                    className="outline-none text-gray-700 w-36 px-3"
+                                    className="outline-none text-gray-700 w-full md:w-36 px-3"
                                     placeholder="Tìm kiếm..."
                                     value={query}
                                     onChange={(e) => handleQueryChange(e.target.value)}
@@ -312,7 +329,7 @@ function Header() {
                             </div>
 
                             {showResults && (
-                                <div className="absolute right-0 mt-2 w-[320px] bg-white rounded-xl shadow-xl z-50 text-gray-800">
+                                <div className="absolute right-0 mt-2 w-full md:w-[320px] bg-white rounded-xl shadow-xl z-50 text-gray-800">
                                     {loading ? (
                                         <div className="px-4 py-3 text-sm text-gray-500">Đang tìm...</div>
                                     ) : results.length === 0 ? (
@@ -334,7 +351,7 @@ function Header() {
                             )}
                         </div>
                         <a href="/login">
-                            <button className="bg-orange-500 hover:bg-orange-600 text-white font-semibold px-5 py-2 rounded-full transition">
+                            <button className="bg-orange-500 hover:bg-orange-600 text-white font-semibold px-4 sm:px-5 py-2 rounded-full transition whitespace-nowrap">
                                 Đăng nhập
                             </button>
                         </a>
@@ -345,34 +362,88 @@ function Header() {
             </div>
 
             {/* ===== BANNER ===== */}
-            <div className="relative h-[200px] m-4 rounded-xl overflow-hidden">
+            <div className="relative h-[180px] sm:h-[200px] md:h-[240px] m-3 sm:m-4 rounded-xl overflow-hidden">
                 <img
                     src="https://demoda.vn/wp-content/uploads/2022/01/phong-nen-mam-non-vui-choi-sieu-dep.jpg"
                     alt="Banner"
                     className="w-full h-full object-cover object-[center_75%]"
                 />
 
-                <div className="absolute inset-0 flex items-center px-8">
+                <div className="absolute inset-0 flex items-center px-4 sm:px-6 md:px-8">
                     <img
                         src="https://i.pinimg.com/736x/be/c5/3c/bec53c7b30f46d9ad2cecdb48c5e1e1f.jpg"
                         alt="Logo"
-                        className="w-[90px] h-[90px] rounded-full mr-4 border-4 border-white"
+                        className="w-[64px] h-[64px] sm:w-[80px] sm:h-[80px] md:w-[90px] md:h-[90px] rounded-full mr-3 sm:mr-4 border-4 border-white shrink-0"
                     />
 
                     <div className="max-w-xl">
-                        <div className="text-red-600 font-bold mb-1">
+                        <div className="text-red-600 font-bold mb-1 text-xs sm:text-sm md:text-base">
                             ỦY BAN NHÂN DÂN PHƯỜNG ĐỨC XUÂN
                         </div>
-                        <div className="text-blue-700 text-2xl font-extrabold">
+                        <div className="text-blue-700 text-lg sm:text-2xl font-extrabold leading-snug">
                             TRƯỜNG MẦM NON ĐỨC XUÂN
                         </div>
-                        <p className="text-black">Điện thoại: 0869550151</p>
-                        <p className="text-black">
+                        <p className="text-black text-sm sm:text-base">Điện thoại: 0869550151</p>
+                        <p className="text-black text-sm sm:text-base">
                             Địa chỉ: Phường Đức Xuân, tỉnh Thái Nguyên
                         </p>
                     </div>
                 </div>
             </div>
+
+            {/* ===== MOBILE MENU OVERLAY (Header + Left/Right nav) ===== */}
+            {mobileOpen && (
+                <div className="fixed inset-0 z-[9999] md:hidden">
+                    <button
+                        type="button"
+                        className="absolute inset-0 bg-black/40"
+                        aria-label="Đóng menu"
+                        onClick={() => setMobileOpen(false)}
+                    />
+                    <div className="absolute left-0 top-0 bottom-0 w-[86%] max-w-[360px] bg-white shadow-2xl overflow-y-auto">
+                        <div className="sticky top-0 bg-white border-b border-gray-200 px-4 py-3 flex items-center justify-between">
+                            <div className="font-semibold text-gray-800">Menu</div>
+                            <button
+                                type="button"
+                                className="w-9 h-9 inline-flex items-center justify-center rounded-full hover:bg-gray-100"
+                                aria-label="Đóng"
+                                onClick={() => setMobileOpen(false)}
+                            >
+                                <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" className="w-5 h-5">
+                                    <line x1="18" y1="6" x2="6" y2="18" />
+                                    <line x1="6" y1="6" x2="18" y2="18" />
+                                </svg>
+                            </button>
+                        </div>
+
+                        <div className="px-4 py-3 space-y-2">
+                            <a href="/" className="block px-3 py-2 rounded-lg hover:bg-green-50 text-gray-800" onClick={() => setMobileOpen(false)}>Trang chủ</a>
+                            <a href="/public-information" className="block px-3 py-2 rounded-lg hover:bg-green-50 text-gray-800" onClick={() => setMobileOpen(false)}>Thông tin công khai</a>
+                            <a href="/introduce-school" className="block px-3 py-2 rounded-lg hover:bg-green-50 text-gray-800" onClick={() => setMobileOpen(false)}>Giới thiệu trường</a>
+                            <a href="/school-news" className="block px-3 py-2 rounded-lg hover:bg-green-50 text-gray-800" onClick={() => setMobileOpen(false)}>Tin tức</a>
+                            <a href="/legal-documents" className="block px-3 py-2 rounded-lg hover:bg-green-50 text-gray-800" onClick={() => setMobileOpen(false)}>Văn bản</a>
+                            <a href="/photo-gallery" className="block px-3 py-2 rounded-lg hover:bg-green-50 text-gray-800" onClick={() => setMobileOpen(false)}>Thư viện</a>
+                            <a href="/contact" className="block px-3 py-2 rounded-lg hover:bg-green-50 text-gray-800" onClick={() => setMobileOpen(false)}>Liên hệ</a>
+                            <a href="/qa" className="block px-3 py-2 rounded-lg hover:bg-green-50 text-gray-800" onClick={() => setMobileOpen(false)}>Hỏi đáp</a>
+                        </div>
+
+                        <div className="px-4 pb-6 space-y-6">
+                            <div>
+                                <div className="text-xs font-semibold text-gray-500 mb-2">Danh mục</div>
+                                <div className="rounded-xl border border-gray-200 bg-gray-50">
+                                    <LeftNav />
+                                </div>
+                            </div>
+                            <div>
+                                <div className="text-xs font-semibold text-gray-500 mb-2">Thông tin</div>
+                                <div className="rounded-xl border border-gray-200 bg-gray-50">
+                                    <RightNav />
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            )}
         </header>
     );
 }
