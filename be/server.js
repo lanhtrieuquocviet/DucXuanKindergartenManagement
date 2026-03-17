@@ -130,6 +130,8 @@ const getAllowedOrigins = () => {
     'http://127.0.0.1:5173',
     'http://localhost:5174',
     'http://127.0.0.1:5174',
+    'https://duc-xuan-kindergarten-management.vercel.app/',
+    'https://duc-xuan-kindergarten-management.vercel.app'
   ];
 
   const envOrigins = process.env.CORS_ORIGINS ||
@@ -259,7 +261,7 @@ app.use("/api/pickup", pickupRoutes);
 //menus
 app.use("/api/foods", foodRoutes);
 app.use("/api/menus", menuRoutes);
-app.use("/api/daily-menus",DailyMenu);
+app.use("/api/daily-menus", DailyMenu);
 app.use('/api/meal-photos', mealPhotoRoutes);
 app.use('/api/reports', reportRoutes);
 // Public info (public - published only)
