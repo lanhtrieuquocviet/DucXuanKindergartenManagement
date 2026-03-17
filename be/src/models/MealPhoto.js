@@ -4,7 +4,7 @@ const mealEntrySchema = new mongoose.Schema(
   {
     mealType: {
       type: String,
-      enum: ['trua', 'chieu', 'sang', 'xe'],
+      enum: ['trua', 'chieu', 'sang', 'xe', 'khac'],
       required: true,
     },
     description: { type: String, default: '' },
@@ -19,7 +19,7 @@ const sampleEntrySchema = new mongoose.Schema(
   {
     mealType: {
       type: String,
-      enum: ['trua', 'chieu', 'sang', 'xe'],
+      enum: ['trua', 'chieu', 'sang', 'xe', 'khac'],
       required: true,
     },
     description: { type: String, default: '' },
@@ -47,7 +47,7 @@ const editRequestSchema = new mongoose.Schema(
     },
     mealType: {
       type: String,
-      enum: ['trua', 'chieu', 'sang', 'xe'],
+      enum: ['trua', 'chieu', 'sang', 'xe', 'khac'],
       required: true,
     },
     status: {
