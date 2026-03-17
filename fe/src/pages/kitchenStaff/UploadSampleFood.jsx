@@ -32,6 +32,8 @@ import {
   TodayOutlined as TodayIcon,
   LunchDining as LunchIcon,
   Cake as SnackIcon,
+  WbSunny as MornIcon,
+  Nightlight as EveIcon,
   AccessTime as TimeIcon,
   ArrowBack as ArrowBackIcon,
 } from '@mui/icons-material';
@@ -44,6 +46,7 @@ import { uploadKitchenImage, upsertSampleEntry } from '../../service/mealManagem
 const MEAL_TYPES = [
   { value: 'trua', label: 'Bữa chính trưa', color: '#10b981', icon: <LunchIcon sx={{ fontSize: 18 }} /> },
   { value: 'chieu', label: 'Bữa phụ chiều', color: '#6366f1', icon: <SnackIcon sx={{ fontSize: 18 }} /> },
+  { value: 'khac', label: 'Khác', color: '#94a3b8', icon: <AddPhotoIcon sx={{ fontSize: 18 }} /> },
 ];
 
 const MIN_PHOTOS = 1;
@@ -76,7 +79,7 @@ function UploadSampleFood() {
   const isEdit = Boolean(editData);
 
   const [selectedDate, setSelectedDate] = useState(editData?.date || today);
-  const [mealType, setMealType] = useState(editData?.mealType || 'trua');
+  const [mealType, setMealType] = useState(editData?.mealType || location.state?.mealType || 'trua');
   const [description, setDescription] = useState(editData?.description || '');
   const [descError, setDescError] = useState('');
   const [previewItems, setPreviewItems] = useState(

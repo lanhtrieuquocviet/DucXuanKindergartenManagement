@@ -18,6 +18,7 @@ import {
   DialogTitle,
   TextField,
   MenuItem,
+  Menu,
   Select,
   FormControl,
   InputLabel,
@@ -52,6 +53,8 @@ import {
   Send as SendIcon,
   HourglassTop as HourglassIcon,
   LockOpen as LockOpenIcon,
+  ChevronLeft as ChevronLeftIcon,
+  ChevronRight as ChevronRightIcon,
 } from '@mui/icons-material';
 import { toast } from 'react-toastify';
 import {
@@ -71,6 +74,7 @@ import {
 const MEAL_TYPES = [
   { value: 'trua', label: 'Bữa chính trưa', color: '#10b981', icon: <LunchIcon sx={{ fontSize: 18 }} /> },
   { value: 'chieu', label: 'Bữa phụ chiều', color: '#6366f1', icon: <SnackIcon sx={{ fontSize: 18 }} /> },
+  { value: 'khac', label: 'Khác', color: '#94a3b8', icon: <AddPhotoIcon sx={{ fontSize: 18 }} /> },
 ];
 
 const getMealConfig = (mealType) => MEAL_TYPES.find((m) => m.value === mealType) || MEAL_TYPES[0];
@@ -508,7 +512,7 @@ const DESC_MAX = 200;
 
 // editData: { mealType, description, images: string[] } | null
 function UploadMealDialog({ open, onClose, date, onSuccess, editData }) {
-  const isEdit = Boolean(editData);
+  const isEdit = Boolean(editData?.images?.length);
 
   // previewItems: { kind: 'existing', url } | { kind: 'new', file, url }
   const [mealType, setMealType] = useState('trua');
@@ -663,8 +667,8 @@ function UploadMealDialog({ open, onClose, date, onSuccess, editData }) {
           </Box>
         </Box>
 
-        {/* Chọn bữa — ẩn khi edit, chỉ hiện khi tạo mới */}
-        {!isEdit && (
+        {/* Chọn bữa — chỉ hiện khi không có mealType được truyền vào */}
+        {!editData && (
           <FormControl fullWidth size="small">
             <InputLabel sx={{ fontWeight: 600 }}>Chọn bữa *</InputLabel>
             <Select
@@ -993,8 +997,9 @@ function MealEntryCard({ entry, onPreview, onEdit, isToday, editRequest, onReque
 // SampleEntryCard — card hiển thị mẫu thực phẩm của 1 bữa
 // ─────────────────────────────────────────────
 const SAMPLE_MEAL_TYPES = [
-  { value: 'trua', label: 'Bữa chính trưa', color: '#10b981' },
-  { value: 'chieu', label: 'Bữa phụ chiều', color: '#6366f1' },
+  { value: 'trua', label: 'Bữa chính trưa', color: '#10b981', icon: <LunchIcon sx={{ fontSize: 18 }} /> },
+  { value: 'chieu', label: 'Bữa phụ chiều', color: '#6366f1', icon: <SnackIcon sx={{ fontSize: 18 }} /> },
+  { value: 'khac', label: 'Khác', color: '#94a3b8', icon: <AddPhotoIcon sx={{ fontSize: 18 }} /> },
 ];
 const getSampleMealCfg = (mealType) => SAMPLE_MEAL_TYPES.find((m) => m.value === mealType) || SAMPLE_MEAL_TYPES[0];
 
@@ -1363,6 +1368,8 @@ function MealManagement() {
   const [sendingReq, setSendingReq] = useState(false);
   const [loadingData, setLoadingData] = useState(false);
   const [uploadingSample, setUploadingSample] = useState(false);
+  const [samplePickerAnchor, setSamplePickerAnchor] = useState(null);
+  const [mealPickerAnchor, setMealPickerAnchor] = useState(null);
   const [saving, setSaving] = useState(false);
 
   const [uploadDialogOpen, setUploadDialogOpen] = useState(false);
@@ -1563,44 +1570,58 @@ function MealManagement() {
           </Box>
 
           {/* Right: Date selector */}
-          <Box
-            sx={{
-              display: 'flex',
-              alignItems: 'center',
-              gap: 1.5,
-              bgcolor: 'rgba(255,255,255,0.18)',
-              backdropFilter: 'blur(8px)',
-              border: '1.5px solid rgba(255,255,255,0.3)',
-              borderRadius: 3,
-              px: 2.5,
-              py: 1.5,
-              cursor: 'pointer',
-            }}
-          >
-            <CalIcon sx={{ color: 'white', fontSize: 22 }} />
-            <Box>
-              <Typography sx={{ color: 'rgba(255,255,255,0.9)', fontSize: 11, fontWeight: 700, mb: 0.1, textShadow: '0 1px 2px rgba(0,0,0,0.2)', WebkitFontSmoothing: 'antialiased' }}>
-                Ngày xem dữ liệu
-              </Typography>
-              <input
-                type="date"
-                value={selectedDate}
-                max={today}
-                onChange={(e) => e.target.value && setSelectedDate(e.target.value)}
-                style={{
-                  border: 'none',
-                  outline: 'none',
-                  background: 'transparent',
-                  fontSize: 16,
-                  fontWeight: 800,
-                  color: 'white',
-                  cursor: 'pointer',
-                  fontFamily: 'inherit',
-                  colorScheme: 'dark',
-                }}
-              />
-            </Box>
-            {isToday && (
+          <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+            {/* Prev day */}
+            <IconButton
+              size="small"
+              onClick={() => {
+                const d = new Date(selectedDate);
+                d.setDate(d.getDate() - 1);
+                setSelectedDate(d.toISOString().slice(0, 10));
+              }}
+              sx={{ color: 'white', bgcolor: 'rgba(255,255,255,0.18)', border: '1.5px solid rgba(255,255,255,0.3)', '&:hover': { bgcolor: 'rgba(255,255,255,0.3)' }, width: 34, height: 34 }}
+            >
+              <ChevronLeftIcon fontSize="small" />
+            </IconButton>
+
+            <Box
+              sx={{
+                display: 'flex',
+                alignItems: 'center',
+                gap: 1.5,
+                bgcolor: 'rgba(255,255,255,0.18)',
+                backdropFilter: 'blur(8px)',
+                border: '1.5px solid rgba(255,255,255,0.3)',
+                borderRadius: 3,
+                px: 2.5,
+                py: 1.5,
+                cursor: 'pointer',
+                minWidth: 210,
+              }}
+            >
+              <CalIcon sx={{ color: 'white', fontSize: 22 }} />
+              <Box sx={{ flex: 1 }}>
+                <Typography sx={{ color: 'rgba(255,255,255,0.9)', fontSize: 11, fontWeight: 700, mb: 0.1, textShadow: '0 1px 2px rgba(0,0,0,0.2)', WebkitFontSmoothing: 'antialiased' }}>
+                  Ngày xem dữ liệu
+                </Typography>
+                <input
+                  type="date"
+                  value={selectedDate}
+                  max={today}
+                  onChange={(e) => e.target.value && setSelectedDate(e.target.value)}
+                  style={{
+                    border: 'none',
+                    outline: 'none',
+                    background: 'transparent',
+                    fontSize: 16,
+                    fontWeight: 800,
+                    color: 'white',
+                    cursor: 'pointer',
+                    fontFamily: 'inherit',
+                    colorScheme: 'dark',
+                  }}
+                />
+              </Box>
               <Chip
                 label="Hôm nay"
                 size="small"
@@ -1608,12 +1629,29 @@ function MealManagement() {
                   height: 22,
                   fontSize: 11,
                   fontWeight: 700,
-                  bgcolor: 'rgba(255,255,255,0.25)',
-                  color: 'white',
+                  bgcolor: isToday ? 'rgba(255,255,255,0.25)' : 'transparent',
+                  color: isToday ? 'white' : 'transparent',
                   border: 'none',
+                  pointerEvents: 'none',
+                  visibility: isToday ? 'visible' : 'hidden',
                 }}
               />
-            )}
+            </Box>
+
+            {/* Next day */}
+            <IconButton
+              size="small"
+              onClick={() => {
+                const d = new Date(selectedDate);
+                d.setDate(d.getDate() + 1);
+                const next = d.toISOString().slice(0, 10);
+                if (next <= today) setSelectedDate(next);
+              }}
+              disabled={isToday}
+              sx={{ color: 'white', bgcolor: 'rgba(255,255,255,0.18)', border: '1.5px solid rgba(255,255,255,0.3)', '&:hover': { bgcolor: 'rgba(255,255,255,0.3)' }, '&.Mui-disabled': { color: 'rgba(255,255,255,0.3)', bgcolor: 'rgba(255,255,255,0.08)', borderColor: 'rgba(255,255,255,0.15)' }, width: 34, height: 34 }}
+            >
+              <ChevronRightIcon fontSize="small" />
+            </IconButton>
           </Box>
         </Box>
       </Paper>
@@ -1699,26 +1737,6 @@ function MealManagement() {
           onClick={() => navigate('/kitchen/headcount')}
           badge={null}
         />
-        <ActionCard
-          icon={<CameraIcon sx={{ fontSize: 26, color: 'white' }} />}
-          title="Upload ảnh món ăn"
-          subtitle="Chụp ảnh món ăn theo từng bữa"
-          color="#f97316"
-          gradient="linear-gradient(135deg, #f97316 0%, #fb923c 100%)"
-          onClick={() => { setEditingEntry(null); setUploadDialogOpen(true); }}
-          badge={meals.length > 0 ? meals.reduce((s, m) => s + m.images.length, 0) : null}
-          disabled={!isToday || meals.length > 0}
-        />
-        <ActionCard
-          icon={<SampleIcon sx={{ fontSize: 26, color: 'white' }} />}
-          title="Upload ảnh mẫu thực phẩm"
-          subtitle="Lưu mẫu thực phẩm sử dụng trong ngày"
-          color="#ef4444"
-          gradient="linear-gradient(135deg, #ef4444 0%, #f87171 100%)"
-          onClick={() => navigate('/kitchen/sample-food')}
-          badge={sampleEntries.length > 0 ? sampleEntries.length : null}
-          disabled={!isToday || sampleEntries.length > 0}
-        />
       </Box>
 
       {/* ═══════════════════════════════════════
@@ -1744,11 +1762,11 @@ function MealManagement() {
                   sx={{ height: 24, fontSize: 11.5, bgcolor: alpha('#f97316', 0.1), color: '#f97316', fontWeight: 700, border: 'none' }}
                 />
               </Box>
-              {isToday && meals.length === 0 && (
+              {isToday && meals.length < MEAL_TYPES.length && (
                 <Button
                   variant="contained"
                   startIcon={<AddPhotoIcon />}
-                  onClick={() => { setEditingEntry(null); setUploadDialogOpen(true); }}
+                  onClick={(e) => setMealPickerAnchor(e.currentTarget)}
                   sx={{
                     borderRadius: 2.5, fontSize: 13, fontWeight: 700, px: 2.5, py: 0.9, textTransform: 'none',
                     bgcolor: '#f97316', '&:hover': { bgcolor: '#f97316', filter: 'brightness(0.9)' },
@@ -1764,29 +1782,68 @@ function MealManagement() {
               <Box sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr', sm: 'repeat(2, 1fr)' }, gap: 2 }}>
                 {[1, 2].map((i) => <Skeleton key={i} variant="rounded" height={180} sx={{ borderRadius: 3 }} />)}
               </Box>
-            ) : meals.length > 0 ? (
-              <Box sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr', sm: 'repeat(2, 1fr)' }, gap: 2 }}>
-                {meals.map((entry) => (
-                  <MealEntryCard
-                    key={entry.mealType}
-                    entry={entry}
-                    onPreview={(url) => { setPreviewUrl(url); setPreviewOpen(true); }}
-                    onEdit={(e) => { setEditingEntry(e); setUploadDialogOpen(true); }}
-                    isToday={isToday}
-                    editRequest={editRequests.find((r) => r.requestType === 'meal' && r.mealType === entry.mealType)}
-                    onRequestEdit={handleRequestEdit}
-                  />
-                ))}
+            ) : meals.length > 0 || isToday ? (
+              <Box sx={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
+                {meals.length > 0 && (
+                  <Box sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr', sm: 'repeat(2, 1fr)' }, gap: 2 }}>
+                    {meals.map((entry) => (
+                      <MealEntryCard
+                        key={entry.mealType}
+                        entry={entry}
+                        onPreview={(url) => { setPreviewUrl(url); setPreviewOpen(true); }}
+                        onEdit={(e) => { setEditingEntry(e); setUploadDialogOpen(true); }}
+                        isToday={isToday}
+                        editRequest={editRequests.find((r) => r.requestType === 'meal' && r.mealType === entry.mealType)}
+                        onRequestEdit={handleRequestEdit}
+                      />
+                    ))}
+                  </Box>
+                )}
+                {isToday && meals.length < MEAL_TYPES.length && (
+                  <>
+                    <Box
+                      onClick={(e) => setMealPickerAnchor(e.currentTarget)}
+                      sx={{
+                        display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 1.5,
+                        py: 3, borderRadius: 3, border: '2px dashed',
+                        borderColor: alpha('#f97316', 0.35), bgcolor: alpha('#f97316', 0.025),
+                        cursor: 'pointer', transition: 'all 0.2s',
+                        '&:hover': { borderColor: '#f97316', bgcolor: alpha('#f97316', 0.07) },
+                      }}
+                    >
+                      <Box sx={{ width: 36, height: 36, borderRadius: '50%', bgcolor: alpha('#f97316', 0.1), display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                        <AddPhotoIcon sx={{ fontSize: 20, color: '#f97316' }} />
+                      </Box>
+                      <Typography variant="body2" fontWeight={700} color="#f97316">
+                        Thêm bữa ăn
+                      </Typography>
+                    </Box>
+                    <Menu
+                      anchorEl={mealPickerAnchor}
+                      open={Boolean(mealPickerAnchor)}
+                      onClose={() => setMealPickerAnchor(null)}
+                      PaperProps={{ sx: { borderRadius: 2.5, minWidth: 220, boxShadow: '0 8px 24px rgba(0,0,0,0.12)' } }}
+                    >
+                      {MEAL_TYPES.filter((cfg) => !meals.find((m) => m.mealType === cfg.value)).map((cfg) => (
+                        <MenuItem
+                          key={cfg.value}
+                          onClick={() => { setMealPickerAnchor(null); setEditingEntry({ mealType: cfg.value, description: '', images: [] }); setUploadDialogOpen(true); }}
+                          sx={{ gap: 1.5, py: 1.25 }}
+                        >
+                          <Box sx={{ color: cfg.color, display: 'flex' }}>{cfg.icon}</Box>
+                          <Typography variant="body2" fontWeight={600}>{cfg.label}</Typography>
+                        </MenuItem>
+                      ))}
+                    </Menu>
+                  </>
+                )}
               </Box>
             ) : (
               <Box
-                onClick={isToday ? () => { setEditingEntry(null); setUploadDialogOpen(true); } : undefined}
                 sx={{
                   display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center',
                   py: 7, gap: 2, borderRadius: 3, border: '2.5px dashed',
                   borderColor: alpha('#f97316', 0.3), bgcolor: alpha('#f97316', 0.025),
-                  cursor: isToday ? 'pointer' : 'default', transition: 'all 0.2s',
-                  ...(isToday && { '&:hover': { borderColor: '#f97316', bgcolor: alpha('#f97316', 0.07) } }),
                 }}
               >
                 <Box sx={{ width: 72, height: 72, borderRadius: '50%', bgcolor: alpha('#f97316', 0.1), display: 'flex', alignItems: 'center', justifyContent: 'center', border: `2px solid ${alpha('#f97316', 0.2)}` }}>
@@ -1797,7 +1854,7 @@ function MealManagement() {
                     Chưa có ảnh món ăn cho ngày này
                   </Typography>
                   <Typography variant="body2" color="text.disabled" sx={{ fontSize: 12.5 }}>
-                    {isToday ? 'Nhấn để upload ảnh theo từng bữa (sáng, trưa, chiều...)' : 'Không có dữ liệu cho ngày này'}
+                    Không có dữ liệu cho ngày này
                   </Typography>
                 </Box>
               </Box>
@@ -1832,7 +1889,7 @@ function MealManagement() {
                   />
                 )}
               </Box>
-              {isToday && sampleEntries.length === 0 && (
+              {isToday && sampleEntries.length < SAMPLE_MEAL_TYPES.length && (
                 <Button
                   variant="contained"
                   startIcon={<AddPhotoIcon />}
@@ -1850,31 +1907,78 @@ function MealManagement() {
 
             {loadingData ? (
               <Box sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr', sm: 'repeat(2, 1fr)' }, gap: 2 }}>
-                {[1, 2].map((i) => <Skeleton key={i} variant="rounded" height={200} sx={{ borderRadius: 3 }} />)}
+                {[1, 2, 3, 4].map((i) => <Skeleton key={i} variant="rounded" height={200} sx={{ borderRadius: 3 }} />)}
               </Box>
-            ) : sampleEntries.length > 0 ? (
-              <Box sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr', sm: 'repeat(2, 1fr)' }, gap: 2 }}>
-                {sampleEntries.map((entry) => (
-                  <SampleEntryCard
-                    key={entry.mealType}
-                    entry={entry}
-                    onPreview={(url) => { setPreviewUrl(url); setPreviewOpen(true); }}
-                    selectedDate={selectedDate}
-                    isToday={isToday}
-                    editRequest={editRequests.find((r) => r.requestType === 'sample' && r.mealType === entry.mealType)}
-                    onRequestEdit={handleRequestEdit}
-                  />
-                ))}
+            ) : sampleEntries.length > 0 || isToday ? (
+              <Box sx={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
+                {sampleEntries.length > 0 && (
+                  <Box sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr', sm: 'repeat(2, 1fr)' }, gap: 2 }}>
+                    {sampleEntries.map((entry) => (
+                      <SampleEntryCard
+                        key={entry.mealType}
+                        entry={entry}
+                        onPreview={(url) => { setPreviewUrl(url); setPreviewOpen(true); }}
+                        selectedDate={selectedDate}
+                        isToday={isToday}
+                        editRequest={editRequests.find((r) => r.requestType === 'sample' && r.mealType === entry.mealType)}
+                        onRequestEdit={handleRequestEdit}
+                      />
+                    ))}
+                  </Box>
+                )}
+                {isToday && sampleEntries.length < SAMPLE_MEAL_TYPES.length && (
+                  <>
+                    <Box
+                      onClick={(e) => setSamplePickerAnchor(e.currentTarget)}
+                      sx={{
+                        display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 1.5,
+                        py: 3, borderRadius: 3, border: '2px dashed',
+                        borderColor: alpha('#ef4444', 0.35), bgcolor: alpha('#ef4444', 0.025),
+                        cursor: 'pointer', transition: 'all 0.2s',
+                        '&:hover': { borderColor: '#ef4444', bgcolor: alpha('#ef4444', 0.07) },
+                      }}
+                    >
+                      <Box sx={{ width: 36, height: 36, borderRadius: '50%', bgcolor: alpha('#ef4444', 0.1), display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                        <AddPhotoIcon sx={{ fontSize: 20, color: '#ef4444' }} />
+                      </Box>
+                      <Typography variant="body2" fontWeight={700} color="#ef4444">
+                        Thêm bữa mẫu
+                      </Typography>
+                    </Box>
+                    <Menu
+                      anchorEl={samplePickerAnchor}
+                      open={Boolean(samplePickerAnchor)}
+                      onClose={() => setSamplePickerAnchor(null)}
+                      PaperProps={{ sx: { borderRadius: 2.5, minWidth: 220, boxShadow: '0 8px 24px rgba(0,0,0,0.12)' } }}
+                    >
+                      {SAMPLE_MEAL_TYPES.filter((cfg) => !sampleEntries.find((e) => e.mealType === cfg.value)).map((cfg) => (
+                        <MenuItem
+                          key={cfg.value}
+                          onClick={() => { setSamplePickerAnchor(null); navigate('/kitchen/sample-food', { state: { mealType: cfg.value } }); }}
+                          sx={{ gap: 1.5, py: 1.25 }}
+                        >
+                          <Box sx={{ color: cfg.color, display: 'flex' }}>{cfg.icon}</Box>
+                          <Typography variant="body2" fontWeight={600}>{cfg.label}</Typography>
+                        </MenuItem>
+                      ))}
+                      <Divider sx={{ my: 0.5 }} />
+                      <MenuItem
+                        onClick={() => { setSamplePickerAnchor(null); navigate('/kitchen/sample-food'); }}
+                        sx={{ gap: 1.5, py: 1.25 }}
+                      >
+                        <Box sx={{ color: 'text.disabled', display: 'flex' }}><AddPhotoIcon sx={{ fontSize: 18 }} /></Box>
+                        <Typography variant="body2" fontWeight={600} color="text.secondary">Khác...</Typography>
+                      </MenuItem>
+                    </Menu>
+                  </>
+                )}
               </Box>
             ) : (
               <Box
-                onClick={isToday ? () => navigate('/kitchen/sample-food') : undefined}
                 sx={{
                   display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center',
                   py: 7, gap: 2, borderRadius: 3, border: '2.5px dashed',
                   borderColor: alpha('#ef4444', 0.3), bgcolor: alpha('#ef4444', 0.025),
-                  cursor: isToday ? 'pointer' : 'default', transition: 'all 0.2s',
-                  ...(isToday && { '&:hover': { borderColor: '#ef4444', bgcolor: alpha('#ef4444', 0.07) } }),
                 }}
               >
                 <Box sx={{ width: 72, height: 72, borderRadius: '50%', bgcolor: alpha('#ef4444', 0.1), display: 'flex', alignItems: 'center', justifyContent: 'center', border: `2px solid ${alpha('#ef4444', 0.2)}` }}>
@@ -1885,7 +1989,7 @@ function MealManagement() {
                     Chưa có mẫu thực phẩm cho ngày này
                   </Typography>
                   <Typography variant="body2" color="text.disabled" sx={{ fontSize: 12.5 }}>
-                    Nhấn để upload mẫu thực phẩm theo từng bữa
+                    Không có dữ liệu cho ngày này
                   </Typography>
                 </Box>
               </Box>

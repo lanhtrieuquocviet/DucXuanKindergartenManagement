@@ -68,7 +68,7 @@ exports.upsertMealEntry = async (req, res) => {
     if (!date || !mealType) {
       return res.status(400).json({ success: false, message: 'Thiếu date hoặc mealType' });
     }
-    const validTypes = ['trua', 'chieu', 'sang', 'xe'];
+    const validTypes = ['trua', 'chieu', 'sang', 'xe', 'khac'];
     if (!validTypes.includes(mealType)) {
       return res.status(400).json({ success: false, message: 'mealType không hợp lệ' });
     }
@@ -131,7 +131,7 @@ exports.upsertSampleEntry = async (req, res) => {
     if (!date || !mealType) {
       return res.status(400).json({ success: false, message: 'Thiếu date hoặc mealType' });
     }
-    const validTypes = ['trua', 'chieu', 'sang', 'xe'];
+    const validTypes = ['trua', 'chieu', 'sang', 'xe', 'khac'];
     if (!validTypes.includes(mealType)) {
       return res.status(400).json({ success: false, message: 'mealType không hợp lệ' });
     }
