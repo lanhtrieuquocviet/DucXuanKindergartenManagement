@@ -41,6 +41,29 @@
   padding: 0 32px;
 }
 
+/* ===== RESPONSIVE ===== */
+@media (max-width: 1024px) {
+  .layout {
+    display: block;
+  }
+
+  /* Ẩn 2 sidebar trên tablet/mobile để tránh bị ép ngang */
+  .sidebar {
+    display: none;
+  }
+
+  .content {
+    max-width: 100%;
+    padding: 0 16px;
+  }
+}
+
+@media (min-width: 1025px) and (max-width: 1280px) {
+  .content {
+    padding: 0 24px;
+  }
+}
+
 
 /* ===== SIDEBAR ===== */
 .sidebar {

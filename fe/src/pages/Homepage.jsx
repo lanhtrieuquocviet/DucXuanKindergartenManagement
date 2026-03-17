@@ -326,7 +326,7 @@ function Homepage() {
         </div>
 
         {totalPage > 1 && (
-          <div className="flex justify-center gap-2 mt-6">
+          <div className="flex flex-wrap justify-center gap-2 mt-6">
             <button
               type="button"
               disabled={page === 1}
