@@ -96,7 +96,7 @@ function ClassList() {
   const [gradeLoading, setGradeLoading] = useState(false);
   const [gradeError, setGradeError] = useState(null);
   const [gradeDialog, setGradeDialog] = useState({ open: false, mode: 'create', data: null });
-  const [gradeForm, setGradeForm] = useState({ gradeName: '', description: '' });
+  const [gradeForm, setGradeForm] = useState({ gradeName: '', description: '', maxClasses: 10 });
   const [gradeFormErrors, setGradeFormErrors] = useState({});
   const [gradeSubmitting, setGradeSubmitting] = useState(false);
   const [gradeDeleteConfirm, setGradeDeleteConfirm] = useState(null);
@@ -143,7 +143,7 @@ function ClassList() {
   // ── grade CRUD ────────────────────────────────────────────────────────────────
   const openGradeDialog = (mode, data = null) => {
     setGradeFormErrors({});
-    setGradeForm(data ? { gradeName: data.gradeName, description: data.description || '' } : { gradeName: '', description: '' });
+    setGradeForm(data ? { gradeName: data.gradeName, description: data.description || '', maxClasses: data.maxClasses ?? 10 } : { gradeName: '', description: '', maxClasses: 10 });
     setGradeDialog({ open: true, mode, data });
   };
 
@@ -156,6 +156,10 @@ function ClassList() {
     }
     if (gradeForm.description.trim().length > 50) {
       errs.description = 'Mô tả không được quá 50 ký tự';
+    }
+    const mc = Number(gradeForm.maxClasses);
+    if (!Number.isInteger(mc) || mc < 1 || mc > 10) {
+      errs.maxClasses = 'Số lớp tối đa phải từ 1 đến 10';
     }
     setGradeFormErrors(errs);
     return Object.keys(errs).length === 0;
@@ -668,7 +672,7 @@ function ClassList() {
                           <Typography
                             sx={{ fontSize: '0.8rem', fontWeight: 600, color: 'text.secondary' }}
                           >
-                            {classCount} lớp học
+                            {classCount}/{g.maxClasses ?? 10} lớp
                           </Typography>
                         </Stack>
                         <Chip
@@ -715,7 +719,7 @@ function ClassList() {
                   <Typography variant="subtitle2" fontWeight={700}>
                     Khối {selectedGrade.gradeName}
                   </Typography>
-                  <Chip label={`${classesInSelectedGrade.length} lớp`} size="small" sx={{ fontWeight: 600, fontSize: '0.7rem' }} />
+                  <Chip label={`${classesInSelectedGrade.length}/${selectedGrade.maxClasses ?? 10} lớp`} size="small" sx={{ fontWeight: 600, fontSize: '0.7rem' }} />
                 </Stack>
                 {selectedGrade.description && (
                   <Typography variant="caption" color="text.secondary" sx={{ ml: 5 }}>
@@ -880,6 +884,18 @@ function ClassList() {
               error={!!gradeFormErrors.description}
               helperText={gradeFormErrors.description || `${gradeForm.description.length}/50 ký tự`}
               inputProps={{ maxLength: 50 }}
+            />
+            <TextField
+              label="Số lớp tối đa"
+              required
+              fullWidth
+              size="small"
+              type="number"
+              value={gradeForm.maxClasses}
+              onChange={(e) => setGradeForm((f) => ({ ...f, maxClasses: e.target.value }))}
+              error={!!gradeFormErrors.maxClasses}
+              helperText={gradeFormErrors.maxClasses || 'Tối đa 10 lớp trong một khối'}
+              inputProps={{ min: 1, max: 10 }}
             />
           </Stack>
         </DialogContent>

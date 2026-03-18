@@ -242,6 +242,20 @@ const createClass = async (req, res) => {
       });
     }
 
+    // Validate số lớp tối đa trong khối
+    const grade = await Grade.findById(gradeId);
+    if (!grade) {
+      return res.status(400).json({ status: 'error', message: 'Không tìm thấy khối lớp' });
+    }
+    const currentClassCount = await Classes.countDocuments({ gradeId });
+    const maxAllowed = grade.maxClasses ?? 10;
+    if (currentClassCount >= maxAllowed) {
+      return res.status(400).json({
+        status: 'error',
+        message: `Khối ${grade.gradeName} đã đạt tối đa ${maxAllowed} lớp học`,
+      });
+    }
+
     // Validate giáo viên
     const tIds = Array.isArray(teacherIds) ? teacherIds.filter(Boolean) : [];
     const teacherError = await validateTeacherAssignment(tIds, activeYear._id, className, null);
