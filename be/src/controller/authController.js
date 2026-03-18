@@ -4,6 +4,7 @@ const User = require('../models/User');
 const Student = require('../models/Student');
 const { sendPasswordResetEmail, sendOTPEmail, generateRandomPassword } = require('../utils/email');
 const { createSystemLog } = require('../utils/systemLog');
+const { addToBlacklist } = require('../utils/tokenBlacklist');
 
 // ============================================
 // Hằng số
@@ -903,8 +904,34 @@ const deleteMyChild = async (req, res) => {
   }
 };
 
+/**
+ * POST /api/auth/logout
+ * Đăng xuất - thêm token hiện tại vào blacklist
+ */
+const logout = async (req, res) => {
+  try {
+    const authHeader = req.headers.authorization || '';
+    const token = authHeader.startsWith('Bearer ') ? authHeader.slice(7) : null;
+
+    if (token) {
+      addToBlacklist(token);
+    }
+
+    return res.status(200).json({
+      status: 'success',
+      message: 'Đăng xuất thành công',
+    });
+  } catch (error) {
+    return res.status(500).json({
+      status: 'error',
+      message: 'Lỗi đăng xuất',
+    });
+  }
+};
+
 module.exports = {
   login,
+  logout,
   getProfile,
   updateProfile,
   changePassword,

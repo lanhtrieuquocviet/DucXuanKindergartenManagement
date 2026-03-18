@@ -161,6 +161,7 @@ export const ENDPOINTS = {
   // Authentication
   AUTH: {
     LOGIN: "/auth/login",
+    LOGOUT: "/auth/logout",
     ME: "/auth/me",
     ME_STUDENT: "/auth/me/student",
     MY_CHILDREN: "/auth/me/children",

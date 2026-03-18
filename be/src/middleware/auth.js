@@ -1,5 +1,6 @@
 const { verifyToken } = require('../utils/jwt');
 const User = require('../models/User');
+const { isBlacklisted } = require('../utils/tokenBlacklist');
 
 /**
  * Middleware: kiểm tra JWT từ header Authorization: Bearer <token>
@@ -16,6 +17,14 @@ const authenticate = async (req, res, next) => {
       return res.status(401).json({
         status: 'error',
         message: 'Thiếu token xác thực',
+      });
+    }
+
+    // Kiểm tra token đã bị blacklist (logout) chưa
+    if (isBlacklisted(token)) {
+      return res.status(401).json({
+        status: 'error',
+        message: 'Token đã bị vô hiệu hóa. Vui lòng đăng nhập lại',
       });
     }
 

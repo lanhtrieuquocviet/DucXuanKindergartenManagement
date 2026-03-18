@@ -15,31 +15,9 @@ const uploadMiddleware = multer({
   },
 });
 
-// Tạo chữ ký cho Media Library widget
-router.get('/media-library-signature', getMediaLibrarySignature);
-
-// Upload ảnh đại diện từ máy (cần đăng nhập)
-router.post(
-  '/upload-avatar',
-  authenticate,
-  uploadMiddleware.single('avatar'),
-  uploadAvatar,
-  handleUploadError
-);
-
-// Upload ảnh blog từ máy (cần đăng nhập + SchoolAdmin)
-router.post(
-  '/upload-blog-image',
-  authenticate,
-  authorizeRoles('SchoolAdmin'),
-  uploadMiddleware.single('image'),
-  uploadBlogImage,
-  handleUploadError
-);
-
 const blogFileUploadMiddleware = multer({
   storage: multer.memoryStorage(),
-  limits: { fileSize: 10 * 1024 * 1024 }, // 10MB
+  limits: { fileSize: 10 * 1024 * 1024 },
   fileFilter: (req, file, cb) => {
     const allowed = [
       'application/pdf',
@@ -51,48 +29,144 @@ const blogFileUploadMiddleware = multer({
   },
 });
 
-// Upload file PDF/Word cho blog (cần đăng nhập + SchoolAdmin)
-router.post(
-  '/upload-blog-file',
-  authenticate,
-  authorizeRoles('SchoolAdmin'),
-  blogFileUploadMiddleware.single('file'),
-  uploadBlogFile,
-  handleUploadError
-);
+/**
+ * @openapi
+ * /api/cloudinary/media-library-signature:
+ *   get:
+ *     summary: Lấy chữ ký cho Cloudinary Media Library widget
+ *     tags:
+ *       - Cloudinary
+ *     responses:
+ *       200:
+ *         description: Chữ ký Cloudinary
+ */
+router.get('/media-library-signature', getMediaLibrarySignature);
 
-// Upload ảnh bếp (ảnh món ăn / mẫu thực phẩm) - KitchenStaff
-router.post(
-  '/upload-kitchen-image',
-  authenticate,
-  authorizeRoles('KitchenStaff'),
-  uploadMiddleware.single('image'),
-  uploadKitchenImage,
-  handleUploadError
-);
+/**
+ * @openapi
+ * /api/cloudinary/upload-avatar:
+ *   post:
+ *     summary: Upload ảnh đại diện người dùng
+ *     tags:
+ *       - Cloudinary
+ *     security:
+ *       - bearerAuth: []
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         multipart/form-data:
+ *           schema:
+ *             type: object
+ *             properties:
+ *               avatar:
+ *                 type: string
+ *                 format: binary
+ *                 description: File ảnh (JPEG, PNG, GIF, WebP, tối đa 5MB)
+ *     responses:
+ *       200:
+ *         description: Upload thành công, trả về URL ảnh
+ *       400:
+ *         description: File không hợp lệ hoặc quá lớn
+ */
+router.post('/upload-avatar', authenticate, uploadMiddleware.single('avatar'), uploadAvatar, handleUploadError);
 
-// Middleware xử lý lỗi upload
+/**
+ * @openapi
+ * /api/cloudinary/upload-blog-image:
+ *   post:
+ *     summary: Upload ảnh cho bài viết blog (SchoolAdmin)
+ *     tags:
+ *       - Cloudinary
+ *     security:
+ *       - bearerAuth: []
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         multipart/form-data:
+ *           schema:
+ *             type: object
+ *             properties:
+ *               image:
+ *                 type: string
+ *                 format: binary
+ *                 description: File ảnh (tối đa 5MB)
+ *     responses:
+ *       200:
+ *         description: Upload thành công
+ *       403:
+ *         description: Không có quyền SchoolAdmin
+ */
+router.post('/upload-blog-image', authenticate, authorizeRoles('SchoolAdmin'), uploadMiddleware.single('image'), uploadBlogImage, handleUploadError);
+
+/**
+ * @openapi
+ * /api/cloudinary/upload-blog-file:
+ *   post:
+ *     summary: Upload file PDF/Word cho bài viết blog (SchoolAdmin)
+ *     tags:
+ *       - Cloudinary
+ *     security:
+ *       - bearerAuth: []
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         multipart/form-data:
+ *           schema:
+ *             type: object
+ *             properties:
+ *               file:
+ *                 type: string
+ *                 format: binary
+ *                 description: File PDF hoặc Word (tối đa 10MB)
+ *     responses:
+ *       200:
+ *         description: Upload thành công
+ *       400:
+ *         description: File không hợp lệ
+ *       403:
+ *         description: Không có quyền SchoolAdmin
+ */
+router.post('/upload-blog-file', authenticate, authorizeRoles('SchoolAdmin'), blogFileUploadMiddleware.single('file'), uploadBlogFile, handleUploadError);
+
+/**
+ * @openapi
+ * /api/cloudinary/upload-kitchen-image:
+ *   post:
+ *     summary: Upload ảnh bếp (ảnh món ăn / mẫu thực phẩm) - KitchenStaff
+ *     tags:
+ *       - Cloudinary
+ *     security:
+ *       - bearerAuth: []
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         multipart/form-data:
+ *           schema:
+ *             type: object
+ *             properties:
+ *               image:
+ *                 type: string
+ *                 format: binary
+ *                 description: File ảnh (tối đa 5MB)
+ *     responses:
+ *       200:
+ *         description: Upload thành công
+ *       403:
+ *         description: Không có quyền KitchenStaff
+ */
+router.post('/upload-kitchen-image', authenticate, authorizeRoles('KitchenStaff'), uploadMiddleware.single('image'), uploadKitchenImage, handleUploadError);
+
 function handleUploadError(err, req, res, next) {
   if (err instanceof multer.MulterError) {
     if (err.code === 'FILE_TOO_LARGE') {
-      return res.status(400).json({
-        status: 'error',
-        message: 'File quá lớn (tối đa 5MB)',
-      });
+      return res.status(400).json({ status: 'error', message: 'File quá lớn (tối đa 5MB)' });
     }
-    return res.status(400).json({
-      status: 'error',
-      message: err.message || 'Lỗi upload file',
-    });
+    return res.status(400).json({ status: 'error', message: err.message || 'Lỗi upload file' });
   }
   if (err) {
-    return res.status(400).json({
-      status: 'error',
-      message: err.message || 'Lỗi xử lý file',
-    });
+    return res.status(400).json({ status: 'error', message: err.message || 'Lỗi xử lý file' });
   }
   next();
 }
 
 module.exports = router;
-
