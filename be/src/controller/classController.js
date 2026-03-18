@@ -51,44 +51,26 @@ async function validateTeacherAssignment(teacherIds, academicYearId, className, 
  */
 const getClassList = async (req, res) => {
   try {
-    console.log('\n=== CLASSLIST DEBUG ===');
-    console.log('Step 1: Starting getClassList');
-    
-    // Step 1: Find all classes without populate
-    const rawClasses = await Classes.find();
-    console.log(`Step 2: Found ${rawClasses.length} raw classes`);
-    
-    // Step 2: Check if references exist
-    if (rawClasses.length > 0) {
-      const firstClass = rawClasses[0];
-      console.log('Step 3: First class raw data - gradeId:', firstClass.gradeId, 'academicYearId:', firstClass.academicYearId);
-    }
-    
-    // Step 3: Try to populate
-    const classes = await Classes.find()
+    const activeYear = await AcademicYear.findOne({ status: 'active' }).sort({ startDate: -1 }).lean();
+
+    const filter = activeYear ? { academicYearId: activeYear._id } : {};
+
+    const classes = await Classes.find(filter)
       .populate('gradeId', 'gradeName description')
       .populate('academicYearId', 'yearName startDate endDate')
       .populate('teacherIds', 'fullName email');
 
-    console.log(`Step 4: Found ${classes.length} populated classes`);
-    if (classes.length > 0) {
-      const firstClass = classes[0];
-      console.log('Step 5: First class after populate - gradeId:', firstClass.gradeId, 'academicYearId:', firstClass.academicYearId);
-    }
-    console.log('=== END DEBUG ===\n');
-
-    // Return 200 (success) whether data exists or not
     return res.status(200).json({
       status: 'success',
-      message: classes.length === 0 
-        ? 'Không có lớp học nào' 
+      message: classes.length === 0
+        ? 'Không có lớp học nào trong năm học hiện tại'
         : 'Lấy danh sách lớp học thành công',
       data: classes || [],
-      total: classes.length
+      total: classes.length,
+      academicYear: activeYear || null,
     });
   } catch (error) {
     console.error('Error in getClassList:', error);
-    console.error('Error details:', error.stack);
     return res.status(500).json({
       status: 'error',
       message: 'Lỗi khi lấy danh sách lớp học',
