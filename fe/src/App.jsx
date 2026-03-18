@@ -90,7 +90,7 @@ import MealManagementSchoolAdmin from './pages/schoolAdmin/MealManagementSchoolA
 import AcademicYearPlan from './pages/schoolAdmin/AcademicYearPlan';
 import CurriculumPage from './pages/schoolAdmin/CurriculumPage';
 import ClassListOverview from './pages/schoolAdmin/ClassListOverview';
-import TimetablePage from './pages/schoolAdmin/TimetablePage';
+import TimetableActivitiesPage from './pages/schoolAdmin/TimetableActivitiesPage';
 import ProtectedRoute from './components/ProtectedRoute';
 
 
@@ -555,7 +555,7 @@ function App() {
             element={
               <ProtectedRoute>
                 <SchoolAdminProvider>
-                  <TimetablePage />
+                  <TimetableActivitiesPage />
                 </SchoolAdminProvider>
               </ProtectedRoute>
             }
