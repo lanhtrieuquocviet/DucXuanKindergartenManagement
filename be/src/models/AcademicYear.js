@@ -20,6 +20,23 @@ const academicYearSchema = new mongoose.Schema({
     default: 0,
     min: 0,
   },
+  // 2 kỳ học cố định
+  term1StartDate: {
+    type: Date,
+    default: null,
+  },
+  term1EndDate: {
+    type: Date,
+    default: null,
+  },
+  term2StartDate: {
+    type: Date,
+    default: null,
+  },
+  term2EndDate: {
+    type: Date,
+    default: null,
+  },
   description: {
     type: String,
     default: '',
