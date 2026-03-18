@@ -8,6 +8,7 @@ const {
   createClass,
   updateClass,
   addStudentsToClass,
+  deleteClass,
 } = require('../controller/classController');
 const Classes = require('../models/Classes');
 
@@ -79,5 +80,11 @@ router.post('/:classId/students', authenticate, authorizeRoles('SchoolAdmin'), a
  * PUT /api/classes/:classId
  */
 router.put('/:classId', authenticate, authorizeRoles('SchoolAdmin'), updateClass);
+
+/**
+ * Xóa lớp học (chỉ SchoolAdmin)
+ * DELETE /api/classes/:classId
+ */
+router.delete('/:classId', authenticate, authorizeRoles('SchoolAdmin'), deleteClass);
 
 module.exports = router;

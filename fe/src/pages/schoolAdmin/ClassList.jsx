@@ -91,6 +91,10 @@ function ClassList() {
   const [editFormErrors, setEditFormErrors] = useState({});
   const [editClassId, setEditClassId] = useState(null);
 
+  // Delete class state
+  const [classDeleteConfirm, setClassDeleteConfirm] = useState(null);
+  const [classDeleteLoading, setClassDeleteLoading] = useState(false);
+
   // Grade CRUD state
   const [gradeList, setGradeList] = useState([]);
   const [gradeLoading, setGradeLoading] = useState(false);
@@ -340,6 +344,22 @@ function ClassList() {
       setEditDialogError(err.data?.message || err.message || 'Lỗi khi cập nhật lớp học');
     } finally {
       setEditDialogLoading(false);
+    }
+  };
+
+  // ── delete class ──────────────────────────────────────────────────────────────
+  const handleDeleteClass = async () => {
+    if (!classDeleteConfirm) return;
+    try {
+      setClassDeleteLoading(true);
+      await del(ENDPOINTS.CLASSES.DELETE(classDeleteConfirm._id));
+      setClassDeleteConfirm(null);
+      fetchClasses();
+    } catch (err) {
+      setError(err.data?.message || err.message || 'Lỗi khi xóa lớp học');
+      setClassDeleteConfirm(null);
+    } finally {
+      setClassDeleteLoading(false);
     }
   };
 
@@ -838,6 +858,15 @@ function ClassList() {
                             >
                               Sửa
                             </Button>
+                            <Button
+                              size="small"
+                              variant="contained"
+                              startIcon={<DeleteIcon sx={{ fontSize: '0.875rem !important' }} />}
+                              onClick={() => setClassDeleteConfirm(cls)}
+                              sx={{ bgcolor: 'rgba(220,38,38,0.08)', color: '#dc2626', boxShadow: 'none', '&:hover': { bgcolor: 'rgba(220,38,38,0.18)', boxShadow: 'none' }, borderRadius: 1.5, textTransform: 'none', fontSize: '0.75rem', fontWeight: 600, py: 0.5 }}
+                            >
+                              Xóa
+                            </Button>
                           </Stack>
                         </TableCell>
                       </TableRow>
@@ -1082,6 +1111,20 @@ function ClassList() {
             sx={{ bgcolor: '#6366f1', '&:hover': { bgcolor: '#4f46e5' }, textTransform: 'none', fontWeight: 600 }}
           >
             {editDialogLoading ? <CircularProgress size={18} color="inherit" /> : 'Lưu thay đổi'}
+          </Button>
+        </DialogActions>
+      </Dialog>
+      {/* Delete Class Confirm Dialog */}
+      <Dialog open={!!classDeleteConfirm} onClose={() => setClassDeleteConfirm(null)} maxWidth="xs" fullWidth>
+        <DialogTitle sx={{ fontWeight: 700 }}>Xác nhận xóa lớp học</DialogTitle>
+        <DialogContent>
+          <Typography>Bạn chắc chắn muốn xóa lớp <strong>{classDeleteConfirm?.className}</strong>?</Typography>
+          <Typography variant="caption" color="text.secondary">Chỉ có thể xóa khi lớp không có học sinh nào.</Typography>
+        </DialogContent>
+        <DialogActions sx={{ px: 3, py: 2 }}>
+          <Button onClick={() => setClassDeleteConfirm(null)} color="inherit" disabled={classDeleteLoading}>Hủy</Button>
+          <Button variant="contained" color="error" onClick={handleDeleteClass} disabled={classDeleteLoading} sx={{ textTransform: 'none', fontWeight: 600 }}>
+            {classDeleteLoading ? <CircularProgress size={18} color="inherit" /> : 'Xóa'}
           </Button>
         </DialogActions>
       </Dialog>

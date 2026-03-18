@@ -401,6 +401,35 @@ const addStudentsToClass = async (req, res) => {
   }
 };
 
+/**
+ * Xóa lớp học
+ * DELETE /api/classes/:classId
+ */
+const deleteClass = async (req, res) => {
+  try {
+    const { classId } = req.params;
+
+    const cls = await Classes.findById(classId);
+    if (!cls) {
+      return res.status(404).json({ status: 'error', message: 'Không tìm thấy lớp học' });
+    }
+
+    const studentCount = await Student.countDocuments({ classId });
+    if (studentCount > 0) {
+      return res.status(400).json({
+        status: 'error',
+        message: `Không thể xóa: lớp đang có ${studentCount} học sinh`,
+      });
+    }
+
+    await Classes.findByIdAndDelete(classId);
+    return res.status(200).json({ status: 'success', message: 'Xóa lớp học thành công' });
+  } catch (error) {
+    console.error('Error in deleteClass:', error);
+    return res.status(500).json({ status: 'error', message: 'Lỗi khi xóa lớp học', error: error.message });
+  }
+};
+
 module.exports = {
   getClassList,
   getStudentInClass,
@@ -409,4 +438,5 @@ module.exports = {
   createClass,
   updateClass,
   addStudentsToClass,
+  deleteClass,
 };
