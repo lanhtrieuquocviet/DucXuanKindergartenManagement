@@ -278,6 +278,20 @@ function FoodManagement() {
 
   const handleSubmit = async () => {
     if (!validateForm()) return;
+
+    // KIỂM TRA TRÙNG LẶP TÊN MÓN
+    const isDuplicate = foods.some((f) => {
+      // Nếu đang edit, bỏ qua chính nó khi kiểm tra trùng tên
+      if (editingFood && f._id === editingFood._id) return false;
+      return f.name.trim().toLowerCase() === form.name.trim().toLowerCase();
+    });
+
+    if (isDuplicate) {
+      toast.error(`Món ăn "${form.name}" đã có trong danh sách!`);
+      setErrors((prev) => ({ ...prev, name: " Món ăn đã tồn tại" }));
+      return;
+    }
+
     try {
       setSaving(true);
       const data = {
@@ -320,7 +334,7 @@ function FoodManagement() {
 
   const isFormValid =
     Object.values(errors).every((e) => !e) &&
-    Object.values(form).every((v) => String(v) !== "");
+    Object.values(form).every((v) => String(v).trim() !== "");
 
   return (
     <Box>

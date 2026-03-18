@@ -493,18 +493,18 @@ function StudentDashboard() {
                       value={editFormData.parentPhone}
                       onChange={(e) => {
                         const value = e.target.value.replace(/\D/g, '');
-                        if (value.length <= 11) {
+                        if (value.length <= 10) {
                           handleEditFormChange({
                             target: { name: 'parentPhone', value },
                           });
                         }
                       }}
-                      maxLength="11"
-                      placeholder="Nhập tối đa 11 số"
+                      maxLength="10"
+                      placeholder="Nhập 10 số"
                       className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-emerald-500"
                     />
                     <p className="text-xs text-gray-500 mt-1">
-                      Tối đa 11 ký tự số
+                      Tối đa 10 ký tự số
                     </p>
                   </div>
 
