@@ -1650,7 +1650,7 @@ function MealManagement() {
                 px: 2.5,
                 py: 1.5,
                 cursor: 'pointer',
-                minWidth: 210,
+                minWidth: { xs: 160, sm: 210 },
               }}
             >
               <CalIcon sx={{ color: 'white', fontSize: 22 }} />

@@ -91,6 +91,7 @@ import AcademicYearPlan from './pages/schoolAdmin/AcademicYearPlan';
 import CurriculumPage from './pages/schoolAdmin/CurriculumPage';
 import ClassListOverview from './pages/schoolAdmin/ClassListOverview';
 import TimetablePage from './pages/schoolAdmin/TimetablePage';
+import ProtectedRoute from './components/ProtectedRoute';
 
 
 function AppContent() {
@@ -187,85 +188,112 @@ function App() {
           <Route
             path="/system-admin"
             element={
-              <SystemAdminProvider>
-                <SystemAdminDashboard />
-              </SystemAdminProvider>
+              <ProtectedRoute>
+                <SystemAdminProvider>
+                  <SystemAdminDashboard />
+                </SystemAdminProvider>
+              </ProtectedRoute>
             }
           />
           <Route
             path="/system-admin/manage-accounts"
             element={
-              <SystemAdminProvider>
-                <ManageAccounts />
-              </SystemAdminProvider>
+              <ProtectedRoute>
+                <SystemAdminProvider>
+                  <ManageAccounts />
+                </SystemAdminProvider>
+              </ProtectedRoute>
             }
           />
           <Route
             path="/system-admin/manage-roles"
             element={
-              <SystemAdminProvider>
-                <ManageRoles />
-              </SystemAdminProvider>
+              <ProtectedRoute>
+                <SystemAdminProvider>
+                  <ManageRoles />
+                </SystemAdminProvider>
+              </ProtectedRoute>
             }
           />
           <Route
             path="/system-admin/manage-permissions"
             element={
-              <SystemAdminProvider>
-                <ManagePermissions />
-              </SystemAdminProvider>
+              <ProtectedRoute>
+                <SystemAdminProvider>
+                  <ManagePermissions />
+                </SystemAdminProvider>
+              </ProtectedRoute>
             }
           />
           <Route
             path="/system-admin/system-logs"
             element={
-              <SystemAdminProvider>
-                <SystemLogs />
-              </SystemAdminProvider>
+              <ProtectedRoute>
+                <SystemAdminProvider>
+                  <SystemLogs />
+                </SystemAdminProvider>
+              </ProtectedRoute>
             }
           />
           <Route
             path="/system-admin/classes"
             element={
-              <SystemAdminProvider>
-                <ClassList />
-              </SystemAdminProvider>
+              <ProtectedRoute>
+                <SystemAdminProvider>
+                  <ClassList />
+                </SystemAdminProvider>
+              </ProtectedRoute>
             }
           />
           <Route
             path="/system-admin/classes/:classId/students"
             element={
-              <SystemAdminProvider>
-                <StudentInClass />
-              </SystemAdminProvider>
+              <ProtectedRoute>
+                <SystemAdminProvider>
+                  <StudentInClass />
+                </SystemAdminProvider>
+              </ProtectedRoute>
             }
           />
           <Route
             path="/teacher"
             element={
-              <TeacherProvider>
-                <TeacherDashboard />
-              </TeacherProvider>
+              <ProtectedRoute>
+                <TeacherProvider>
+                  <TeacherDashboard />
+                </TeacherProvider>
+              </ProtectedRoute>
             }
           />
           <Route
             path="/teacher/attendance"
             element={
-              <TeacherProvider>
-                <TeacherAttendance />
-              </TeacherProvider>
+              <ProtectedRoute>
+                <TeacherProvider>
+                  <TeacherAttendance />
+                </TeacherProvider>
+              </ProtectedRoute>
             }
           />
           <Route
             path="/teacher/pickup-approval"
             element={
-              <TeacherProvider>
-                <PickupRequest />
-              </TeacherProvider>
+              <ProtectedRoute>
+                <TeacherProvider>
+                  <PickupRequest />
+                </TeacherProvider>
+              </ProtectedRoute>
             }
           />
           {/* Kitchen Staff */}
-          <Route path="/kitchen" element={<KitchenLayout />}>
+          <Route
+            path="/kitchen"
+            element={
+              <ProtectedRoute>
+                <KitchenLayout />
+              </ProtectedRoute>
+            }
+          >
             <Route index element={<KitchenDashboard />} />
             <Route path="menus" element={<MenuManagement />} />
             <Route path="menus/:id" element={<MenuDetail />} />
@@ -279,242 +307,290 @@ function App() {
           <Route
             path="/teacher/attendance/:classId"
             element={
-              <TeacherProvider>
-                <TeacherAttendance />
-              </TeacherProvider>
+              <ProtectedRoute>
+                <TeacherProvider>
+                  <TeacherAttendance />
+                </TeacherProvider>
+              </ProtectedRoute>
             }
           />
-          <Route path="/student" element={<StudentDashboard />} />
-          <Route path="/student/pickup" element={<PickupRegistration />} />
-          <Route path="/student/menus" element={<MenuStudent />} />
-          <Route path="/student/menus/:id" element={<MenuDetailStudent/>}/>
-       
-          <Route
-            path="/student/attendance/today"
-            element={<TodayAttendance />}
-          />
-          <Route
-            path="/student/attendance/report"
-            element={<AttendanceReport />}
-          />
+          <Route path="/student" element={<ProtectedRoute><StudentDashboard /></ProtectedRoute>} />
+          <Route path="/student/pickup" element={<ProtectedRoute><PickupRegistration /></ProtectedRoute>} />
+          <Route path="/student/menus" element={<ProtectedRoute><MenuStudent /></ProtectedRoute>} />
+          <Route path="/student/menus/:id" element={<ProtectedRoute><MenuDetailStudent /></ProtectedRoute>} />
+          <Route path="/student/attendance/today" element={<ProtectedRoute><TodayAttendance /></ProtectedRoute>} />
+          <Route path="/student/attendance/report" element={<ProtectedRoute><AttendanceReport /></ProtectedRoute>} />
           <Route
             path="/school-admin"
             element={
-              <SchoolAdminProvider>
-                <SchoolAdminDashboard />
-              </SchoolAdminProvider>
+              <ProtectedRoute>
+                <SchoolAdminProvider>
+                  <SchoolAdminDashboard />
+                </SchoolAdminProvider>
+              </ProtectedRoute>
             }
           />
           <Route
             path="/school-admin/class-list"
             element={
-              <SchoolAdminProvider>
-                <ClassListOverview />
-              </SchoolAdminProvider>
+              <ProtectedRoute>
+                <SchoolAdminProvider>
+                  <ClassListOverview />
+                </SchoolAdminProvider>
+              </ProtectedRoute>
             }
           />
           <Route
             path="/school-admin/classes"
             element={
-              <SchoolAdminProvider>
-                <ClassList />
-              </SchoolAdminProvider>
+              <ProtectedRoute>
+                <SchoolAdminProvider>
+                  <ClassList />
+                </SchoolAdminProvider>
+              </ProtectedRoute>
             }
           />
           <Route
             path="/school-admin/classes/:classId/students"
             element={
-              <SchoolAdminProvider>
-                <StudentInClass />
-              </SchoolAdminProvider>
+              <ProtectedRoute>
+                <SchoolAdminProvider>
+                  <StudentInClass />
+                </SchoolAdminProvider>
+              </ProtectedRoute>
             }
           />
           <Route
             path="/school-admin/students"
             element={
-              <SchoolAdminProvider>
-                <ManageStudents />
-              </SchoolAdminProvider>
+              <ProtectedRoute>
+                <SchoolAdminProvider>
+                  <ManageStudents />
+                </SchoolAdminProvider>
+              </ProtectedRoute>
             }
           />
           <Route
             path="/school-admin/contacts"
             element={
-              <SchoolAdminProvider>
-                <ContactList />
-              </SchoolAdminProvider>
+              <ProtectedRoute>
+                <SchoolAdminProvider>
+                  <ContactList />
+                </SchoolAdminProvider>
+              </ProtectedRoute>
             }
           />
           <Route
             path="/school-admin/qa"
             element={
-              <SchoolAdminProvider>
-                <QaList />
-              </SchoolAdminProvider>
+              <ProtectedRoute>
+                <SchoolAdminProvider>
+                  <QaList />
+                </SchoolAdminProvider>
+              </ProtectedRoute>
             }
           />
           <Route
             path="/school-admin/attendance/overview"
             element={
-              <SchoolAdminProvider>
-                <AttendanceOverview />
-              </SchoolAdminProvider>
+              <ProtectedRoute>
+                <SchoolAdminProvider>
+                  <AttendanceOverview />
+                </SchoolAdminProvider>
+              </ProtectedRoute>
             }
           />
           <Route
             path="/school-admin/classes/:classId/attendance"
             element={
-              <SchoolAdminProvider>
-                <ClassAttendanceDetail />
-              </SchoolAdminProvider>
+              <ProtectedRoute>
+                <SchoolAdminProvider>
+                  <ClassAttendanceDetail />
+                </SchoolAdminProvider>
+              </ProtectedRoute>
             }
           />
           <Route
             path="/school-admin/students/:studentId/attendance"
             element={
-              <SchoolAdminProvider>
-                <StudentAttendanceDetail />
-              </SchoolAdminProvider>
+              <ProtectedRoute>
+                <SchoolAdminProvider>
+                  <StudentAttendanceDetail />
+                </SchoolAdminProvider>
+              </ProtectedRoute>
             }
           />
           <Route
             path="/school-admin/students/:studentId/attendance/history"
             element={
-              <SchoolAdminProvider>
-                <StudentAttendanceHistory />
-              </SchoolAdminProvider>
+              <ProtectedRoute>
+                <SchoolAdminProvider>
+                  <StudentAttendanceHistory />
+                </SchoolAdminProvider>
+              </ProtectedRoute>
             }
           />
           <Route
             path="/school-admin/attendance/export"
             element={
-              <SchoolAdminProvider>
-                <ExportAttendanceReport />
-              </SchoolAdminProvider>
+              <ProtectedRoute>
+                <SchoolAdminProvider>
+                  <ExportAttendanceReport />
+                </SchoolAdminProvider>
+              </ProtectedRoute>
             }
           />
           <Route
             path="/school-admin/blogs"
             element={
-              <SchoolAdminProvider>
-                <ManageBlogs />
-              </SchoolAdminProvider>
+              <ProtectedRoute>
+                <SchoolAdminProvider>
+                  <ManageBlogs />
+                </SchoolAdminProvider>
+              </ProtectedRoute>
             }
           />
           <Route
             path="/school-admin/blogs/:blogId"
             element={
-              <SchoolAdminProvider>
-                <BlogDetail />
-              </SchoolAdminProvider>
+              <ProtectedRoute>
+                <SchoolAdminProvider>
+                  <BlogDetail />
+                </SchoolAdminProvider>
+              </ProtectedRoute>
             }
           />
           <Route
             path="/school-admin/manage-blogs"
             element={
-              <SchoolAdminProvider>
-                <ManageBlogs />
-              </SchoolAdminProvider>
+              <ProtectedRoute>
+                <SchoolAdminProvider>
+                  <ManageBlogs />
+                </SchoolAdminProvider>
+              </ProtectedRoute>
             }
           />
           <Route
             path="/school-admin/blog-categories"
             element={
-              <SchoolAdminProvider>
-                <ManageBlogCategories />
-              </SchoolAdminProvider>
+              <ProtectedRoute>
+                <SchoolAdminProvider>
+                  <ManageBlogCategories />
+                </SchoolAdminProvider>
+              </ProtectedRoute>
             }
           />
           <Route
             path="/school-admin/documents"
             element={
-              <SchoolAdminProvider>
-                <ManageDocuments />
-              </SchoolAdminProvider>
+              <ProtectedRoute>
+                <SchoolAdminProvider>
+                  <ManageDocuments />
+                </SchoolAdminProvider>
+              </ProtectedRoute>
             }
           />
           <Route
             path="/school-admin/documents/:documentId"
             element={
-              <SchoolAdminProvider>
-                <DocumentDetail />
-              </SchoolAdminProvider>
+              <ProtectedRoute>
+                <SchoolAdminProvider>
+                  <DocumentDetail />
+                </SchoolAdminProvider>
+              </ProtectedRoute>
             }
           />
           <Route
             path="/school-admin/menus"
             element={
-              <SchoolAdminProvider>
-                <MenuSchoolAdmin />
-              </SchoolAdminProvider>
+              <ProtectedRoute>
+                <SchoolAdminProvider>
+                  <MenuSchoolAdmin />
+                </SchoolAdminProvider>
+              </ProtectedRoute>
             }
           />
           <Route
             path="/school-admin/menus/:id"
             element={
-              <SchoolAdminProvider>
-                <MenuDetailSchoolAdmin />
-              </SchoolAdminProvider>
+              <ProtectedRoute>
+                <SchoolAdminProvider>
+                  <MenuDetailSchoolAdmin />
+                </SchoolAdminProvider>
+              </ProtectedRoute>
             }
           />
           <Route
             path="/school-admin/meal-management"
             element={
-              <SchoolAdminProvider>
-                <MealManagementSchoolAdmin />
-              </SchoolAdminProvider>
+              <ProtectedRoute>
+                <SchoolAdminProvider>
+                  <MealManagementSchoolAdmin />
+                </SchoolAdminProvider>
+              </ProtectedRoute>
             }
           />
-
           <Route
             path="/school-admin/public-info"
             element={
-              <SchoolAdminProvider>
-                <ManagePublicInfo />
-              </SchoolAdminProvider>
+              <ProtectedRoute>
+                <SchoolAdminProvider>
+                  <ManagePublicInfo />
+                </SchoolAdminProvider>
+              </ProtectedRoute>
             }
           />
           <Route
             path="/school-admin/curriculum"
             element={
-              <SchoolAdminProvider>
-                <CurriculumPage />
-              </SchoolAdminProvider>
+              <ProtectedRoute>
+                <SchoolAdminProvider>
+                  <CurriculumPage />
+                </SchoolAdminProvider>
+              </ProtectedRoute>
             }
           />
           <Route
             path="/school-admin/timetable"
             element={
-              <SchoolAdminProvider>
-                <TimetablePage />
-              </SchoolAdminProvider>
+              <ProtectedRoute>
+                <SchoolAdminProvider>
+                  <TimetablePage />
+                </SchoolAdminProvider>
+              </ProtectedRoute>
             }
           />
           <Route
             path="/school-admin/academic-years"
             element={
-              <SchoolAdminProvider>
-                <ManageAcademicYears />
-              </SchoolAdminProvider>
+              <ProtectedRoute>
+                <SchoolAdminProvider>
+                  <ManageAcademicYears />
+                </SchoolAdminProvider>
+              </ProtectedRoute>
             }
           />
           <Route
             path="/school-admin/academic-years/:yearId"
             element={
-              <SchoolAdminProvider>
-                <AcademicYearDetail />
-              </SchoolAdminProvider>
+              <ProtectedRoute>
+                <SchoolAdminProvider>
+                  <AcademicYearDetail />
+                </SchoolAdminProvider>
+              </ProtectedRoute>
             }
           />
           <Route
             path="/school-admin/academic-plan"
             element={
-              <SchoolAdminProvider>
-                <AcademicYearPlan />
-              </SchoolAdminProvider>
+              <ProtectedRoute>
+                <SchoolAdminProvider>
+                  <AcademicYearPlan />
+                </SchoolAdminProvider>
+              </ProtectedRoute>
             }
           />
-          <Route path="/profile" element={<Profile />} />
+          <Route path="/profile" element={<ProtectedRoute><Profile /></ProtectedRoute>} />
 
           <Route
             path="/contact"

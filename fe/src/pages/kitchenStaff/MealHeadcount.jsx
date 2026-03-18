@@ -20,6 +20,9 @@ import {
   Button,
   IconButton,
   Tooltip,
+  Stack,
+  useTheme,
+  useMediaQuery,
 } from '@mui/material';
 import {
   People as PeopleIcon,
@@ -82,40 +85,23 @@ function StatCard({ icon, label, value, sub, color, gradient, loading }) {
         },
       }}
     >
-      <CardContent sx={{ p: 3, pb: '24px !important' }}>
-        <Box sx={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', mb: 2 }}>
-          <Avatar
-            sx={{
-              width: 52,
-              height: 52,
-              background: gradient,
-              boxShadow: `0 6px 16px ${alpha(color, 0.38)}`,
-            }}
-          >
+      <CardContent sx={{ p: { xs: 1.5, sm: 3 }, pb: { xs: '12px !important', sm: '24px !important' } }}>
+        <Box sx={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', mb: { xs: 1, sm: 2 } }}>
+          <Avatar sx={{ width: { xs: 36, sm: 52 }, height: { xs: 36, sm: 52 }, background: gradient, boxShadow: `0 4px 12px ${alpha(color, 0.35)}` }}>
             {icon}
           </Avatar>
           {sub && !loading && (
-            <Chip
-              label={sub}
-              size="small"
-              sx={{
-                height: 26,
-                fontSize: 12,
-                fontWeight: 800,
-                bgcolor: alpha(color, 0.1),
-                color,
-                border: `1px solid ${alpha(color, 0.2)}`,
-              }}
-            />
+            <Chip label={sub} size="small"
+              sx={{ height: { xs: 20, sm: 26 }, fontSize: { xs: 10, sm: 12 }, fontWeight: 800, bgcolor: alpha(color, 0.1), color, border: `1px solid ${alpha(color, 0.2)}` }} />
           )}
         </Box>
-        <Typography variant="body2" color="text.secondary" sx={{ fontSize: 13, mb: 0.75, fontWeight: 500 }}>
+        <Typography color="text.secondary" sx={{ fontSize: { xs: 10, sm: 13 }, mb: 0.5, fontWeight: 500, lineHeight: 1.3 }}>
           {label}
         </Typography>
         {loading ? (
-          <Skeleton variant="text" width={80} height={44} />
+          <Skeleton variant="text" width={60} height={36} />
         ) : (
-          <Typography variant="h3" fontWeight={900} sx={{ color, lineHeight: 1, fontSize: { xs: 32, md: 38 } }}>
+          <Typography fontWeight={900} sx={{ color, lineHeight: 1, fontSize: { xs: 22, sm: 32, md: 38 } }}>
             {value ?? '—'}
           </Typography>
         )}
@@ -128,65 +114,103 @@ function StatCard({ icon, label, value, sub, color, gradient, loading }) {
 // ClassTable
 // ─────────────────────────────────────────────
 function ClassTable({ rows, loading }) {
+  const theme = useTheme();
+  const isMobile = useMediaQuery(theme.breakpoints.down('sm'));
+
   const totals = rows.reduce(
     (acc, r) => ({ total: acc.total + r.total, present: acc.present + r.present, absent: acc.absent + r.absent }),
     { total: 0, present: 0, absent: 0 }
   );
 
-  const headerCell = (label, align = 'left') => (
-    <TableCell
-      align={align}
-      sx={{
-        fontWeight: 700,
-        fontSize: 13,
-        color: 'text.secondary',
-        bgcolor: 'grey.50',
-        borderBottom: '2px solid',
-        borderColor: 'divider',
-        py: 1.5,
-        whiteSpace: 'nowrap',
-      }}
-    >
-      {label}
-    </TableCell>
-  );
-
   if (loading) {
     return (
-      <Box sx={{ display: 'flex', flexDirection: 'column', gap: 1 }}>
+      <Stack spacing={1.5}>
         {[1, 2, 3, 4, 5].map((i) => (
-          <Skeleton key={i} variant="rounded" height={48} sx={{ borderRadius: 1.5 }} />
+          <Skeleton key={i} variant="rounded" height={isMobile ? 72 : 48} sx={{ borderRadius: 1.5 }} />
         ))}
-      </Box>
+      </Stack>
     );
   }
 
   if (!rows.length) {
     return (
-      <Box
-        sx={{
-          py: 8,
-          textAlign: 'center',
-          bgcolor: 'grey.50',
-          borderRadius: 2.5,
-          border: '1.5px dashed',
-          borderColor: 'divider',
-        }}
-      >
+      <Box sx={{ py: 8, textAlign: 'center', bgcolor: 'grey.50', borderRadius: 2.5, border: '1.5px dashed', borderColor: 'divider' }}>
         <Typography sx={{ fontSize: 40, mb: 1.5 }}>📋</Typography>
-        <Typography variant="body1" fontWeight={700} color="text.secondary">
-          Chưa có dữ liệu điểm danh
-        </Typography>
-        <Typography variant="body2" color="text.disabled" sx={{ mt: 0.5 }}>
-          Chọn một ngày khác để xem thông tin
-        </Typography>
+        <Typography variant="body1" fontWeight={700} color="text.secondary">Chưa có dữ liệu điểm danh</Typography>
+        <Typography variant="body2" color="text.disabled" sx={{ mt: 0.5 }}>Chọn một ngày khác để xem thông tin</Typography>
       </Box>
     );
   }
 
+  /* ── Mobile: card per class ── */
+  if (isMobile) {
+    return (
+      <Stack spacing={1.5}>
+        {rows.map((row) => {
+          const pct = row.total > 0 ? Math.round((row.present / row.total) * 100) : 0;
+          return (
+            <Card key={row.className} elevation={0} sx={{ border: '1px solid', borderColor: 'divider', borderRadius: 2.5 }}>
+              <CardContent sx={{ p: 2, '&:last-child': { pb: 2 } }}>
+                <Stack direction="row" justifyContent="space-between" alignItems="center" mb={1}>
+                  <Typography fontWeight={700} sx={{ fontSize: 14 }}>{row.className}</Typography>
+                  <Chip label={`${pct}%`} size="small"
+                    sx={{ height: 22, fontSize: 11, fontWeight: 700, bgcolor: alpha('#4f46e5', 0.08), color: '#4f46e5', border: 'none' }} />
+                </Stack>
+                <Box sx={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 1, mb: 1 }}>
+                  <Box sx={{ textAlign: 'center', bgcolor: 'grey.50', borderRadius: 1.5, py: 0.75 }}>
+                    <Typography sx={{ fontSize: 15, fontWeight: 800, color: 'text.primary' }}>{row.total}</Typography>
+                    <Typography sx={{ fontSize: 10, color: 'text.disabled' }}>Sĩ số</Typography>
+                  </Box>
+                  <Box sx={{ textAlign: 'center', bgcolor: alpha('#16a34a', 0.08), borderRadius: 1.5, py: 0.75 }}>
+                    <Typography sx={{ fontSize: 15, fontWeight: 800, color: '#16a34a' }}>{row.present}</Typography>
+                    <Typography sx={{ fontSize: 10, color: 'text.disabled' }}>Có mặt</Typography>
+                  </Box>
+                  <Box sx={{ textAlign: 'center', bgcolor: row.absent > 0 ? alpha('#dc2626', 0.07) : 'grey.50', borderRadius: 1.5, py: 0.75 }}>
+                    <Typography sx={{ fontSize: 15, fontWeight: 800, color: row.absent > 0 ? '#dc2626' : 'text.disabled' }}>{row.absent}</Typography>
+                    <Typography sx={{ fontSize: 10, color: 'text.disabled' }}>Vắng</Typography>
+                  </Box>
+                </Box>
+                <LinearProgress variant="determinate" value={pct}
+                  sx={{ height: 5, borderRadius: 3, bgcolor: alpha('#4f46e5', 0.1),
+                    '& .MuiLinearProgress-bar': { background: 'linear-gradient(90deg,#4f46e5,#7c3aed)', borderRadius: 3 } }} />
+              </CardContent>
+            </Card>
+          );
+        })}
+        {/* Tổng cộng */}
+        <Card elevation={0} sx={{ border: '2px solid', borderColor: alpha('#4f46e5', 0.2), borderRadius: 2.5, bgcolor: alpha('#4f46e5', 0.03) }}>
+          <CardContent sx={{ p: 2, '&:last-child': { pb: 2 } }}>
+            <Typography fontWeight={800} sx={{ fontSize: 13, mb: 1, color: '#4f46e5' }}>Tổng cộng</Typography>
+            <Box sx={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 1 }}>
+              <Box sx={{ textAlign: 'center' }}>
+                <Typography sx={{ fontSize: 18, fontWeight: 900, color: 'text.primary' }}>{totals.total}</Typography>
+                <Typography sx={{ fontSize: 10, color: 'text.disabled' }}>Sĩ số</Typography>
+              </Box>
+              <Box sx={{ textAlign: 'center' }}>
+                <Typography sx={{ fontSize: 18, fontWeight: 900, color: '#16a34a' }}>{totals.present}</Typography>
+                <Typography sx={{ fontSize: 10, color: 'text.disabled' }}>Có mặt</Typography>
+              </Box>
+              <Box sx={{ textAlign: 'center' }}>
+                <Typography sx={{ fontSize: 18, fontWeight: 900, color: '#dc2626' }}>{totals.absent}</Typography>
+                <Typography sx={{ fontSize: 10, color: 'text.disabled' }}>Vắng</Typography>
+              </Box>
+            </Box>
+          </CardContent>
+        </Card>
+      </Stack>
+    );
+  }
+
+  /* ── Desktop: table ── */
+  const headerCell = (label, align = 'left') => (
+    <TableCell align={align} sx={{ fontWeight: 700, fontSize: 13, color: 'text.secondary', bgcolor: 'grey.50', borderBottom: '2px solid', borderColor: 'divider', py: 1.5, whiteSpace: 'nowrap' }}>
+      {label}
+    </TableCell>
+  );
+
   return (
-    <TableContainer sx={{ borderRadius: 2.5, overflow: 'hidden', border: '1px solid', borderColor: 'divider' }}>
-      <Table size="medium">
+    <TableContainer sx={{ borderRadius: 2.5, overflowX: 'auto', border: '1px solid', borderColor: 'divider' }}>
+      <Table size="medium" sx={{ minWidth: 480 }}>
         <TableHead>
           <TableRow>
             {headerCell('Lớp')}
@@ -198,59 +222,28 @@ function ClassTable({ rows, loading }) {
         </TableHead>
         <TableBody>
           {rows.map((row, idx) => (
-            <TableRow
-              key={row.className}
-              sx={{
-                bgcolor: idx % 2 === 0 ? 'background.paper' : alpha('#f5f6fa', 0.7),
-                '&:hover': { bgcolor: alpha('#4f46e5', 0.04) },
-                transition: 'background 0.15s',
-              }}
-            >
-              <TableCell sx={{ fontSize: 14, fontWeight: 600, py: 1.75 }}>
-                {row.className}
-              </TableCell>
-              <TableCell align="center" sx={{ fontSize: 14, fontWeight: 600 }}>
-                {row.total}
+            <TableRow key={row.className} sx={{ bgcolor: idx % 2 === 0 ? 'background.paper' : alpha('#f5f6fa', 0.7), '&:hover': { bgcolor: alpha('#4f46e5', 0.04) }, transition: 'background 0.15s' }}>
+              <TableCell sx={{ fontSize: 14, fontWeight: 600, py: 1.75 }}>{row.className}</TableCell>
+              <TableCell align="center" sx={{ fontSize: 14, fontWeight: 600 }}>{row.total}</TableCell>
+              <TableCell align="center">
+                <Chip label={row.present} size="small" sx={{ minWidth: 36, height: 28, fontSize: 13, fontWeight: 700, bgcolor: alpha('#16a34a', 0.1), color: '#16a34a', border: 'none' }} />
               </TableCell>
               <TableCell align="center">
-                <Chip
-                  label={row.present}
-                  size="small"
-                  sx={{ minWidth: 36, height: 28, fontSize: 13, fontWeight: 700, bgcolor: alpha('#16a34a', 0.1), color: '#16a34a', border: 'none' }}
-                />
+                {row.absent > 0
+                  ? <Chip label={row.absent} size="small" sx={{ minWidth: 36, height: 28, fontSize: 13, fontWeight: 700, bgcolor: alpha('#dc2626', 0.08), color: '#dc2626', border: 'none' }} />
+                  : <Typography sx={{ fontSize: 14, color: 'text.disabled' }}>0</Typography>}
               </TableCell>
               <TableCell align="center">
-                {row.absent > 0 ? (
-                  <Chip
-                    label={row.absent}
-                    size="small"
-                    sx={{ minWidth: 36, height: 28, fontSize: 13, fontWeight: 700, bgcolor: alpha('#dc2626', 0.08), color: '#dc2626', border: 'none' }}
-                  />
-                ) : (
-                  <Typography sx={{ fontSize: 14, color: 'text.disabled' }}>0</Typography>
-                )}
-              </TableCell>
-              <TableCell align="center">
-                <Typography sx={{ fontSize: 14, fontWeight: 800, color: '#4f46e5' }}>
-                  {row.present}
-                </Typography>
+                <Typography sx={{ fontSize: 14, fontWeight: 800, color: '#4f46e5' }}>{row.present}</Typography>
               </TableCell>
             </TableRow>
           ))}
-
-          {/* Tổng cộng */}
           <TableRow sx={{ bgcolor: alpha('#4f46e5', 0.04), borderTop: '2px solid', borderColor: alpha('#4f46e5', 0.15) }}>
-            <TableCell sx={{ fontSize: 14, fontWeight: 800, py: 2, color: 'text.primary' }}>Tổng cộng</TableCell>
+            <TableCell sx={{ fontSize: 14, fontWeight: 800, py: 2 }}>Tổng cộng</TableCell>
             <TableCell align="center" sx={{ fontSize: 14, fontWeight: 800 }}>{totals.total}</TableCell>
-            <TableCell align="center">
-              <Typography sx={{ fontSize: 14, fontWeight: 800, color: '#16a34a' }}>{totals.present}</Typography>
-            </TableCell>
-            <TableCell align="center">
-              <Typography sx={{ fontSize: 14, fontWeight: 800, color: '#dc2626' }}>{totals.absent}</Typography>
-            </TableCell>
-            <TableCell align="center">
-              <Typography sx={{ fontSize: 14, fontWeight: 800, color: '#4f46e5' }}>{totals.present}</Typography>
-            </TableCell>
+            <TableCell align="center"><Typography sx={{ fontSize: 14, fontWeight: 800, color: '#16a34a' }}>{totals.present}</Typography></TableCell>
+            <TableCell align="center"><Typography sx={{ fontSize: 14, fontWeight: 800, color: '#dc2626' }}>{totals.absent}</Typography></TableCell>
+            <TableCell align="center"><Typography sx={{ fontSize: 14, fontWeight: 800, color: '#4f46e5' }}>{totals.present}</Typography></TableCell>
           </TableRow>
         </TableBody>
       </Table>
@@ -313,57 +306,31 @@ function MealHeadcount() {
             position: 'relative',
             zIndex: 1,
             px: { xs: 3, md: 4 },
-            py: { xs: 2.5, md: 3 },
+            py: { xs: 2, md: 3 },
             display: 'flex',
-            alignItems: 'center',
+            flexDirection: { xs: 'column', sm: 'row' },
+            alignItems: { xs: 'flex-start', sm: 'center' },
             justifyContent: 'space-between',
-            flexWrap: 'wrap',
             gap: 2,
           }}
         >
           {/* Left: icon + title */}
-          <Box sx={{ display: 'flex', alignItems: 'center', gap: 2 }}>
-            <Avatar
-              sx={{
-                width: 54,
-                height: 54,
-                bgcolor: 'rgba(255,255,255,0.18)',
-                border: '2px solid rgba(255,255,255,0.3)',
-                boxShadow: '0 4px 16px rgba(0,0,0,0.18)',
-              }}
-            >
-              <PeopleIcon sx={{ fontSize: 28, color: 'white' }} />
+          <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5 }}>
+            <Avatar sx={{ width: { xs: 44, md: 54 }, height: { xs: 44, md: 54 }, bgcolor: 'rgba(255,255,255,0.18)', border: '2px solid rgba(255,255,255,0.3)' }}>
+              <PeopleIcon sx={{ fontSize: { xs: 22, md: 28 }, color: 'white' }} />
             </Avatar>
             <Box>
-              <Typography
-                variant="h5"
-                sx={{
-                  fontWeight: 800,
-                  color: 'white',
-                  fontSize: { xs: 19, md: 22 },
-                  lineHeight: 1.25,
-                  letterSpacing: 0.3,
-                  textShadow: '0 2px 6px rgba(0,0,0,0.25)',
-                }}
-              >
+              <Typography variant="h5" sx={{ fontWeight: 800, color: 'white', fontSize: { xs: 17, md: 22 }, lineHeight: 1.25 }}>
                 Sĩ số & Suất cơm
               </Typography>
-              <Typography
-                sx={{
-                  color: 'rgba(255,255,255,0.88)',
-                  fontSize: 13,
-                  mt: 0.3,
-                  fontWeight: 600,
-                  textShadow: '0 1px 3px rgba(0,0,0,0.2)',
-                }}
-              >
-                Dữ liệu điểm danh hôm nay · Tính số suất cơm
+              <Typography sx={{ color: 'rgba(255,255,255,0.88)', fontSize: { xs: 11.5, md: 13 }, mt: 0.3, fontWeight: 500 }}>
+                Dữ liệu điểm danh · Tính số suất cơm
               </Typography>
             </Box>
           </Box>
 
           {/* Right: actions */}
-          <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5, flexWrap: 'wrap' }}>
+          <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5, flexWrap: 'wrap', width: { xs: '100%', sm: 'auto' } }}>
             {/* Back button */}
             <Button
               variant="outlined"
@@ -413,20 +380,15 @@ function MealHeadcount() {
             {/* Date picker */}
             <Box
               sx={{
-                display: 'flex',
-                alignItems: 'center',
-                gap: 1.25,
-                bgcolor: 'rgba(255,255,255,0.14)',
-                backdropFilter: 'blur(10px)',
-                border: '1.5px solid rgba(255,255,255,0.3)',
-                borderRadius: 2.5,
-                px: 2,
-                py: 1.1,
+                display: 'flex', alignItems: 'center', gap: 1,
+                bgcolor: 'rgba(255,255,255,0.14)', backdropFilter: 'blur(10px)',
+                border: '1.5px solid rgba(255,255,255,0.3)', borderRadius: 2.5,
+                px: { xs: 1.5, sm: 2 }, py: 1, flex: { xs: 1, sm: 'none' },
               }}
             >
-              <CalIcon sx={{ color: 'rgba(255,255,255,0.85)', fontSize: 20 }} />
-              <Box>
-                <Typography sx={{ color: 'rgba(255,255,255,0.75)', fontSize: 10.5, fontWeight: 700, mb: 0.1, letterSpacing: 0.5, textTransform: 'uppercase' }}>
+              <CalIcon sx={{ color: 'rgba(255,255,255,0.85)', fontSize: 18, flexShrink: 0 }} />
+              <Box sx={{ flex: 1, minWidth: 0 }}>
+                <Typography sx={{ color: 'rgba(255,255,255,0.75)', fontSize: 10, fontWeight: 700, mb: 0.1, textTransform: 'uppercase' }}>
                   Ngày xem
                 </Typography>
                 <input
@@ -435,24 +397,16 @@ function MealHeadcount() {
                   max={today}
                   onChange={(e) => e.target.value && setSelectedDate(e.target.value)}
                   style={{
-                    border: 'none',
-                    outline: 'none',
-                    background: 'transparent',
-                    fontSize: 15,
-                    fontWeight: 800,
-                    color: 'white',
-                    cursor: 'pointer',
-                    fontFamily: 'inherit',
-                    colorScheme: 'dark',
+                    border: 'none', outline: 'none', background: 'transparent',
+                    fontSize: 14, fontWeight: 800, color: 'white',
+                    cursor: 'pointer', fontFamily: 'inherit', colorScheme: 'dark',
+                    width: '100%',
                   }}
                 />
               </Box>
               {isToday && (
-                <Chip
-                  label="Hôm nay"
-                  size="small"
-                  sx={{ height: 20, fontSize: 10.5, fontWeight: 800, bgcolor: 'rgba(255,255,255,0.22)', color: 'white', border: 'none', letterSpacing: 0.3 }}
-                />
+                <Chip label="Hôm nay" size="small"
+                  sx={{ height: 20, fontSize: 10, fontWeight: 700, bgcolor: 'rgba(255,255,255,0.22)', color: 'white', border: 'none', flexShrink: 0 }} />
               )}
             </Box>
           </Box>
@@ -466,8 +420,8 @@ function MealHeadcount() {
       <Box
         sx={{
           display: 'grid',
-          gridTemplateColumns: { xs: '1fr', sm: 'repeat(3, 1fr)' },
-          gap: 2.5,
+          gridTemplateColumns: 'repeat(3, 1fr)',
+          gap: { xs: 1.5, sm: 2.5 },
           mb: 3,
         }}
       >

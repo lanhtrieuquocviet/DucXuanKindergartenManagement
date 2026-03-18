@@ -75,7 +75,7 @@ function Login() {
 
   return (
     <div className="min-h-screen w-full bg-gradient-to-br from-sky-50 via-emerald-50 to-amber-50 flex items-center justify-center px-4">
-      <div className="w-full max-w-4xl bg-white/95 backdrop-blur shadow-2xl rounded-3xl border border-sky-100 p-8 md:p-10">
+      <div className="w-full max-w-4xl bg-white/95 backdrop-blur shadow-2xl rounded-3xl border border-sky-100 p-5 sm:p-8 md:p-10">
         <div className="flex flex-col md:flex-row gap-8 items-stretch">
           {/* Cột trái: logo + thông tin trường */}
           <div className="md:w-5/12 flex flex-col items-center md:items-start text-center md:text-left">

@@ -34,6 +34,8 @@ import {
   Typography,
   alpha,
   Avatar,
+  useTheme,
+  useMediaQuery,
 } from "@mui/material";
 import {
   Add as AddIcon,
@@ -89,36 +91,17 @@ const NUTRITION_CONFIG = [
 
 function StatCard({ icon, label, value, color }) {
   return (
-    <Card
-      elevation={0}
-      sx={{
-        border: "1px solid",
-        borderColor: "divider",
-        borderRadius: 3,
-        flex: 1,
-      }}
-    >
-      <CardContent sx={{ p: 2, "&:last-child": { pb: 2 } }}>
-        <Stack direction="row" alignItems="center" spacing={1.5}>
-          <Avatar
-            sx={{
-              width: 40,
-              height: 40,
-              bgcolor: alpha(color, 0.12),
-              flexShrink: 0,
-            }}
-          >
-            <Box sx={{ color, display: "flex" }}>{icon}</Box>
+    <Card elevation={0} sx={{ border: "1px solid", borderColor: "divider", borderRadius: 2.5 }}>
+      <CardContent sx={{ p: { xs: 1.5, sm: 2 }, "&:last-child": { pb: { xs: 1.5, sm: 2 } } }}>
+        <Box sx={{ display: "flex", flexDirection: { xs: "column", sm: "row" }, alignItems: { xs: "flex-start", sm: "center" }, gap: { xs: 0.5, sm: 1.5 } }}>
+          <Avatar sx={{ width: { xs: 32, sm: 40 }, height: { xs: 32, sm: 40 }, bgcolor: alpha(color, 0.12), flexShrink: 0 }}>
+            <Box sx={{ color, display: "flex", fontSize: { xs: 14, sm: 16 } }}>{icon}</Box>
           </Avatar>
           <Box>
-            <Typography variant="h6" fontWeight={700} lineHeight={1.2}>
-              {value}
-            </Typography>
-            <Typography variant="caption" color="text.secondary">
-              {label}
-            </Typography>
+            <Typography fontWeight={700} lineHeight={1.2} sx={{ fontSize: { xs: 16, sm: 20 } }}>{value}</Typography>
+            <Typography variant="caption" color="text.secondary" sx={{ fontSize: { xs: 10, sm: 12 } }}>{label}</Typography>
           </Box>
-        </Stack>
+        </Box>
       </CardContent>
     </Card>
   );
@@ -176,7 +159,48 @@ function FormField({ config, value, error, onChange }) {
   );
 }
 
+function FoodCard({ food, maxValues, onEdit, onDelete }) {
+  const nutrients = [
+    { key: "calories", label: "Cal", unit: "kcal", color: "#f97316" },
+    { key: "protein", label: "Pro", unit: "g", color: "#6366f1" },
+    { key: "fat", label: "Fat", unit: "g", color: "#eab308" },
+    { key: "carb", label: "Carb", unit: "g", color: "#22c55e" },
+  ];
+  return (
+    <Card elevation={0} sx={{ border: "1px solid", borderColor: "divider", borderRadius: 2.5 }}>
+      <CardContent sx={{ p: 2, "&:last-child": { pb: 2 } }}>
+        <Stack direction="row" alignItems="center" justifyContent="space-between" mb={1.5}>
+          <Stack direction="row" alignItems="center" spacing={1.25}>
+            <Avatar sx={{ width: 34, height: 34, bgcolor: alpha("#4f46e5", 0.1), fontSize: 15 }}>🍽️</Avatar>
+            <Typography variant="body2" fontWeight={700}>{food.name}</Typography>
+          </Stack>
+          <Stack direction="row" spacing={0.5}>
+            <IconButton size="small" onClick={() => onEdit(food)}
+              sx={{ color: "#4f46e5", bgcolor: alpha("#4f46e5", 0.07), borderRadius: 1.5, "&:hover": { bgcolor: alpha("#4f46e5", 0.14) } }}>
+              <EditIcon sx={{ fontSize: 16 }} />
+            </IconButton>
+            <IconButton size="small" onClick={() => onDelete(food)}
+              sx={{ color: "error.main", bgcolor: alpha("#ef4444", 0.07), borderRadius: 1.5, "&:hover": { bgcolor: alpha("#ef4444", 0.14) } }}>
+              <DeleteIcon sx={{ fontSize: 16 }} />
+            </IconButton>
+          </Stack>
+        </Stack>
+        <Box sx={{ display: "grid", gridTemplateColumns: "repeat(4, 1fr)", gap: 1 }}>
+          {nutrients.map((n) => (
+            <Box key={n.key} sx={{ textAlign: "center", bgcolor: alpha(n.color, 0.06), borderRadius: 1.5, py: 0.75, px: 0.5 }}>
+              <Typography sx={{ fontSize: 13, fontWeight: 800, color: n.color, lineHeight: 1.2 }}>{food[n.key]}</Typography>
+              <Typography sx={{ fontSize: 9.5, color: "text.disabled", lineHeight: 1.3 }}>{n.label}<br/>{n.unit}</Typography>
+            </Box>
+          ))}
+        </Box>
+      </CardContent>
+    </Card>
+  );
+}
+
 function FoodManagement() {
+  const theme = useTheme();
+  const isMobile = useMediaQuery(theme.breakpoints.down("sm"));
   const [foods, setFoods] = useState([]);
   const [loading, setLoading] = useState(false);
   const [search, setSearch] = useState("");
@@ -358,6 +382,7 @@ function FoodManagement() {
           variant="contained"
           startIcon={<AddIcon />}
           onClick={handleOpenCreate}
+          fullWidth={isMobile}
           sx={{
             borderRadius: 2.5,
             px: 2.5,
@@ -377,26 +402,11 @@ function FoodManagement() {
       </Stack>
 
       {/* Stats */}
-      <Stack direction={{ xs: "column", sm: "row" }} spacing={2} mb={3}>
-        <StatCard
-          icon={<FoodIcon />}
-          label="Tổng số món"
-          value={foods.length}
-          color="#4f46e5"
-        />
-        <StatCard
-          icon={<CalorieIcon />}
-          label="Calories trung bình"
-          value={`${avgCalories} kcal`}
-          color="#f97316"
-        />
-        <StatCard
-          icon={<SearchIcon />}
-          label="Kết quả tìm kiếm"
-          value={filtered.length}
-          color="#22c55e"
-        />
-      </Stack>
+      <Box sx={{ display: "grid", gridTemplateColumns: { xs: "repeat(3, 1fr)", sm: "repeat(3, 1fr)" }, gap: { xs: 1.5, sm: 2 }, mb: 3 }}>
+        <StatCard icon={<FoodIcon />} label="Tổng số món" value={foods.length} color="#4f46e5" />
+        <StatCard icon={<CalorieIcon />} label="Cal TB" value={`${avgCalories}`} color="#f97316" />
+        <StatCard icon={<SearchIcon />} label="Kết quả" value={filtered.length} color="#22c55e" />
+      </Box>
 
       {/* Search */}
       <Card
@@ -428,185 +438,130 @@ function FoodManagement() {
           />
         </Box>
 
-        {/* Table */}
-        <TableContainer>
-          <Table>
-            <TableHead>
-              <TableRow sx={{ bgcolor: "grey.50" }}>
-                <TableCell sx={{ fontWeight: 700, fontSize: 13, py: 1.5 }}>
-                  Tên món
-                </TableCell>
-                {NUTRITION_CONFIG.map((n) => (
-                  <TableCell
-                    key={n.key}
-                    align="center"
-                    sx={{ fontWeight: 700, fontSize: 13, py: 1.5 }}
-                  >
-                    <Stack
-                      direction="row"
-                      alignItems="center"
-                      justifyContent="center"
-                      spacing={0.5}
-                    >
-                      <Box sx={{ color: n.color, display: "flex" }}>{n.icon}</Box>
-                      <span>{n.label}</span>
-                    </Stack>
-                  </TableCell>
+        {/* Mobile: card list | Desktop: table */}
+        {isMobile ? (
+          <Box sx={{ px: 1.5, pb: 1.5 }}>
+            {loading ? (
+              <Stack spacing={1.5}>
+                {Array.from({ length: 4 }).map((_, i) => (
+                  <Skeleton key={i} variant="rounded" height={96} sx={{ borderRadius: 2.5 }} />
                 ))}
-                <TableCell
-                  align="center"
-                  sx={{ fontWeight: 700, fontSize: 13, py: 1.5, width: 120 }}
-                >
-                  Hành động
-                </TableCell>
-              </TableRow>
-            </TableHead>
-
-            <TableBody>
-              {loading ? (
-                Array.from({ length: 5 }).map((_, i) => (
-                  <TableRow key={i}>
-                    {Array.from({ length: 6 }).map((__, j) => (
-                      <TableCell key={j}>
-                        <Skeleton variant="text" height={32} />
-                      </TableCell>
-                    ))}
-                  </TableRow>
-                ))
-              ) : filtered.length === 0 ? (
-                <TableRow>
-                  <TableCell colSpan={6} align="center" sx={{ py: 6 }}>
-                    <Stack alignItems="center" spacing={1}>
-                      <Avatar
-                        sx={{ width: 56, height: 56, bgcolor: "grey.100" }}
-                      >
-                        <FoodIcon sx={{ fontSize: 28, color: "grey.400" }} />
-                      </Avatar>
-                      <Typography color="text.secondary" fontWeight={600}>
-                        {search ? "Không tìm thấy món ăn phù hợp" : "Chưa có món ăn nào"}
-                      </Typography>
-                      {!search && (
-                        <Button
-                          size="small"
-                          startIcon={<AddIcon />}
-                          onClick={handleOpenCreate}
-                          sx={{ textTransform: "none" }}
-                        >
-                          Thêm món đầu tiên
-                        </Button>
-                      )}
-                    </Stack>
-                  </TableCell>
-                </TableRow>
-              ) : (
-                filtered.map((food) => (
-                  <TableRow
-                    key={food._id}
-                    hover
-                    sx={{
-                      "&:hover": { bgcolor: "rgba(99,102,241,0.03)" },
-                      transition: "background 0.15s",
-                    }}
-                  >
-                    <TableCell>
-                      <Stack direction="row" alignItems="center" spacing={1.5}>
-                        <Avatar
-                          sx={{
-                            width: 34,
-                            height: 34,
-                            bgcolor: alpha("#4f46e5", 0.1),
-                            fontSize: 15,
-                          }}
-                        >
-                          🍽️
-                        </Avatar>
-                        <Typography variant="body2" fontWeight={600}>
-                          {food.name}
-                        </Typography>
-                      </Stack>
-                    </TableCell>
-
+              </Stack>
+            ) : filtered.length === 0 ? (
+              <Box sx={{ py: 6, textAlign: "center" }}>
+                <Avatar sx={{ width: 56, height: 56, bgcolor: "grey.100", mx: "auto", mb: 1.5 }}>
+                  <FoodIcon sx={{ fontSize: 28, color: "grey.400" }} />
+                </Avatar>
+                <Typography color="text.secondary" fontWeight={600} variant="body2">
+                  {search ? "Không tìm thấy món ăn phù hợp" : "Chưa có món ăn nào"}
+                </Typography>
+                {!search && (
+                  <Button size="small" startIcon={<AddIcon />} onClick={handleOpenCreate} sx={{ mt: 1, textTransform: "none" }}>
+                    Thêm món đầu tiên
+                  </Button>
+                )}
+              </Box>
+            ) : (
+              <Stack spacing={1.5}>
+                {filtered.map((food) => (
+                  <FoodCard key={food._id} food={food} maxValues={maxValues} onEdit={handleOpenEdit} onDelete={setDeleteTarget} />
+                ))}
+              </Stack>
+            )}
+          </Box>
+        ) : (
+          <>
+            <TableContainer sx={{ overflowX: 'auto' }}>
+              <Table sx={{ minWidth: 600 }}>
+                <TableHead>
+                  <TableRow sx={{ bgcolor: "grey.50" }}>
+                    <TableCell sx={{ fontWeight: 700, fontSize: 13, py: 1.5 }}>Tên món</TableCell>
                     {NUTRITION_CONFIG.map((n) => (
-                      <TableCell key={n.key} align="center">
-                        <Stack alignItems="center" spacing={0.25} sx={{ px: 1 }}>
-                          <NutritionBar
-                            value={food[n.key]}
-                            max={maxValues[n.key]}
-                            color={n.color}
-                          />
-                          <Typography variant="caption" color="text.secondary">
-                            {n.unit}
-                          </Typography>
+                      <TableCell key={n.key} align="center" sx={{ fontWeight: 700, fontSize: 13, py: 1.5 }}>
+                        <Stack direction="row" alignItems="center" justifyContent="center" spacing={0.5}>
+                          <Box sx={{ color: n.color, display: "flex" }}>{n.icon}</Box>
+                          <span>{n.label}</span>
                         </Stack>
                       </TableCell>
                     ))}
-
-                    <TableCell align="center">
-                      <Stack
-                        direction="row"
-                        spacing={0.5}
-                        justifyContent="center"
-                      >
-                        <Tooltip title="Chỉnh sửa" arrow>
-                          <IconButton
-                            size="small"
-                            onClick={() => handleOpenEdit(food)}
-                            sx={{
-                              color: "#4f46e5",
-                              bgcolor: alpha("#4f46e5", 0.07),
-                              "&:hover": { bgcolor: alpha("#4f46e5", 0.14) },
-                              borderRadius: 1.5,
-                            }}
-                          >
-                            <EditIcon sx={{ fontSize: 16 }} />
-                          </IconButton>
-                        </Tooltip>
-                        <Tooltip title="Xóa" arrow>
-                          <IconButton
-                            size="small"
-                            onClick={() => setDeleteTarget(food)}
-                            sx={{
-                              color: "error.main",
-                              bgcolor: alpha("#ef4444", 0.07),
-                              "&:hover": { bgcolor: alpha("#ef4444", 0.14) },
-                              borderRadius: 1.5,
-                            }}
-                          >
-                            <DeleteIcon sx={{ fontSize: 16 }} />
-                          </IconButton>
-                        </Tooltip>
-                      </Stack>
-                    </TableCell>
+                    <TableCell align="center" sx={{ fontWeight: 700, fontSize: 13, py: 1.5, width: 120 }}>Hành động</TableCell>
                   </TableRow>
-                ))
-              )}
-            </TableBody>
-          </Table>
-        </TableContainer>
+                </TableHead>
+                <TableBody>
+                  {loading ? (
+                    Array.from({ length: 5 }).map((_, i) => (
+                      <TableRow key={i}>
+                        {Array.from({ length: 6 }).map((__, j) => (
+                          <TableCell key={j}><Skeleton variant="text" height={32} /></TableCell>
+                        ))}
+                      </TableRow>
+                    ))
+                  ) : filtered.length === 0 ? (
+                    <TableRow>
+                      <TableCell colSpan={6} align="center" sx={{ py: 6 }}>
+                        <Stack alignItems="center" spacing={1}>
+                          <Avatar sx={{ width: 56, height: 56, bgcolor: "grey.100" }}>
+                            <FoodIcon sx={{ fontSize: 28, color: "grey.400" }} />
+                          </Avatar>
+                          <Typography color="text.secondary" fontWeight={600}>
+                            {search ? "Không tìm thấy món ăn phù hợp" : "Chưa có món ăn nào"}
+                          </Typography>
+                          {!search && (
+                            <Button size="small" startIcon={<AddIcon />} onClick={handleOpenCreate} sx={{ textTransform: "none" }}>
+                              Thêm món đầu tiên
+                            </Button>
+                          )}
+                        </Stack>
+                      </TableCell>
+                    </TableRow>
+                  ) : (
+                    filtered.map((food) => (
+                      <TableRow key={food._id} hover sx={{ "&:hover": { bgcolor: "rgba(99,102,241,0.03)" }, transition: "background 0.15s" }}>
+                        <TableCell>
+                          <Stack direction="row" alignItems="center" spacing={1.5}>
+                            <Avatar sx={{ width: 34, height: 34, bgcolor: alpha("#4f46e5", 0.1), fontSize: 15 }}>🍽️</Avatar>
+                            <Typography variant="body2" fontWeight={600}>{food.name}</Typography>
+                          </Stack>
+                        </TableCell>
+                        {NUTRITION_CONFIG.map((n) => (
+                          <TableCell key={n.key} align="center">
+                            <Stack alignItems="center" spacing={0.25} sx={{ px: 1 }}>
+                              <NutritionBar value={food[n.key]} max={maxValues[n.key]} color={n.color} />
+                              <Typography variant="caption" color="text.secondary">{n.unit}</Typography>
+                            </Stack>
+                          </TableCell>
+                        ))}
+                        <TableCell align="center">
+                          <Stack direction="row" spacing={0.5} justifyContent="center">
+                            <Tooltip title="Chỉnh sửa" arrow>
+                              <IconButton size="small" onClick={() => handleOpenEdit(food)}
+                                sx={{ color: "#4f46e5", bgcolor: alpha("#4f46e5", 0.07), "&:hover": { bgcolor: alpha("#4f46e5", 0.14) }, borderRadius: 1.5 }}>
+                                <EditIcon sx={{ fontSize: 16 }} />
+                              </IconButton>
+                            </Tooltip>
+                            <Tooltip title="Xóa" arrow>
+                              <IconButton size="small" onClick={() => setDeleteTarget(food)}
+                                sx={{ color: "error.main", bgcolor: alpha("#ef4444", 0.07), "&:hover": { bgcolor: alpha("#ef4444", 0.14) }, borderRadius: 1.5 }}>
+                                <DeleteIcon sx={{ fontSize: 16 }} />
+                              </IconButton>
+                            </Tooltip>
+                          </Stack>
+                        </TableCell>
+                      </TableRow>
+                    ))
+                  )}
+                </TableBody>
+              </Table>
+            </TableContainer>
+          </>
+        )}
 
         {!loading && filtered.length > 0 && (
-          <Box
-            sx={{
-              px: 2,
-              py: 1.25,
-              borderTop: "1px solid",
-              borderColor: "divider",
-              bgcolor: "grey.50",
-            }}
-          >
+          <Box sx={{ px: 2, py: 1.25, borderTop: "1px solid", borderColor: "divider", bgcolor: "grey.50" }}>
             <Typography variant="caption" color="text.secondary">
-              Hiển thị{" "}
-              <strong>
-                {filtered.length}/{foods.length}
-              </strong>{" "}
-              món ăn
+              Hiển thị <strong>{filtered.length}/{foods.length}</strong> món ăn
               {search && (
-                <Chip
-                  label={`Lọc: "${search}"`}
-                  size="small"
-                  onDelete={() => setSearch("")}
-                  sx={{ ml: 1, height: 20, fontSize: 11 }}
-                />
+                <Chip label={`Lọc: "${search}"`} size="small" onDelete={() => setSearch("")} sx={{ ml: 1, height: 20, fontSize: 11 }} />
               )}
             </Typography>
           </Box>
