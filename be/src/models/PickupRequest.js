@@ -37,7 +37,7 @@ const pickupRequestSchema = new mongoose.Schema(
       type: String,
       required: true,
       trim: true,
-      // Số điện thoại Việt Nam: 0[3|5|7|8|9]XXXXXXXXX (11 chữ số)
+    // Số điện thoại Việt Nam: 0[3|5|7|8|9]XXXXXXXX (10 chữ số)
       match: [/^0[3|5|7|8|9]\d{8}$|^\+840[3|5|7|8|9]\d{8}$/, "Số điện thoại không hợp lệ"],
     },
 
