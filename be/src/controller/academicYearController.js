@@ -77,6 +77,9 @@ const createAcademicYear = async (req, res) => {
     if (!endDate) {
       errors.push('Ngày kết thúc không được để trống');
     }
+    if (!description || !String(description).trim()) {
+      errors.push('Mô tả / mục tiêu năm học không được để trống');
+    }
 
     if (startDate && endDate) {
       const start = new Date(startDate);

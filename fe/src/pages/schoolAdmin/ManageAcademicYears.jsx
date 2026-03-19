@@ -221,6 +221,7 @@ function ManageAcademicYears() {
     if (!createForm.term1EndDate) errors.term1EndDate = 'Vui lòng chọn ngày kết thúc kỳ 1';
     if (!createForm.term2StartDate) errors.term2StartDate = 'Vui lòng chọn ngày bắt đầu kỳ 2';
     if (!createForm.term2EndDate) errors.term2EndDate = 'Vui lòng chọn ngày kết thúc kỳ 2';
+    if (!createForm.description.trim()) errors.description = 'Vui lòng nhập mô tả / mục tiêu năm học';
 
     if (createForm.startDate && createForm.endDate) {
       const start = new Date(createForm.startDate);
@@ -263,7 +264,7 @@ function ManageAcademicYears() {
       term1EndDate: createForm.term1EndDate,
       term2StartDate: createForm.term2StartDate,
       term2EndDate: createForm.term2EndDate,
-      description: createForm.description,
+      description: createForm.description.trim(),
     };
 
     post(ENDPOINTS.SCHOOL_ADMIN.ACADEMIC_YEARS.CREATE, payload)
@@ -781,6 +782,8 @@ function ManageAcademicYears() {
                   onChange={(e) =>
                     setCreateForm((prev) => ({ ...prev, description: e.target.value }))
                   }
+                  error={!!createErrors.description}
+                  helperText={createErrors.description}
                 />
               </Box>
             </Stack>
