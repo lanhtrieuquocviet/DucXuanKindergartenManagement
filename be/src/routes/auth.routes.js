@@ -2,6 +2,7 @@ const express = require('express');
 const { authenticate, authorizeRoles } = require('../middleware/auth');
 const {
   login,
+  logout,
   getProfile,
   updateProfile,
   changePassword,
@@ -56,51 +57,227 @@ const router = express.Router();
 router.post('/login', login);
 
 /**
- * GET /api/auth/me
- * Lấy thông tin hồ sơ người dùng hiện tại (dựa trên token)
+ * @openapi
+ * /api/auth/logout:
+ *   post:
+ *     summary: Đăng xuất
+ *     description: Vô hiệu hóa token hiện tại bằng cách thêm vào blacklist. Token sẽ không thể dùng lại cho đến khi hết hạn.
+ *     tags:
+ *       - Auth
+ *     security:
+ *       - bearerAuth: []
+ *     responses:
+ *       200:
+ *         description: Đăng xuất thành công
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 status:
+ *                   type: string
+ *                   example: success
+ *                 message:
+ *                   type: string
+ *                   example: Đăng xuất thành công
+ *       401:
+ *         description: Thiếu token xác thực
+ *       500:
+ *         description: Lỗi server
  */
-router.get('/me', authenticate, getProfile);
+router.post('/logout', authenticate, logout);
 
 /**
- * PUT /api/auth/me
- * Cập nhật thông tin cơ bản của người dùng hiện tại
- * (fullName, email, avatar; các field khác có thể bổ sung sau)
+ * @openapi
+ * /api/auth/me:
+ *   get:
+ *     summary: Lấy thông tin hồ sơ người dùng hiện tại
+ *     tags:
+ *       - Auth
+ *     security:
+ *       - bearerAuth: []
+ *     responses:
+ *       200:
+ *         description: Thông tin người dùng
+ *       401:
+ *         description: Token không hợp lệ hoặc hết hạn
+ *   put:
+ *     summary: Cập nhật thông tin hồ sơ người dùng hiện tại
+ *     tags:
+ *       - Auth
+ *     security:
+ *       - bearerAuth: []
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             properties:
+ *               fullName:
+ *                 type: string
+ *                 example: Nguyễn Văn A
+ *               email:
+ *                 type: string
+ *                 format: email
+ *                 example: user@example.com
+ *               avatar:
+ *                 type: string
+ *                 example: https://res.cloudinary.com/...
+ *     responses:
+ *       200:
+ *         description: Cập nhật thành công
+ *       401:
+ *         description: Chưa xác thực
  */
+router.get('/me', authenticate, getProfile);
 router.put('/me', authenticate, updateProfile);
 
 /**
- * POST /api/auth/change-password
- * Đổi mật khẩu cho người dùng hiện tại
+ * @openapi
+ * /api/auth/change-password:
+ *   post:
+ *     summary: Đổi mật khẩu
+ *     tags:
+ *       - Auth
+ *     security:
+ *       - bearerAuth: []
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             required:
+ *               - currentPassword
+ *               - newPassword
+ *             properties:
+ *               currentPassword:
+ *                 type: string
+ *                 format: password
+ *                 example: OldPass@123
+ *               newPassword:
+ *                 type: string
+ *                 format: password
+ *                 example: NewPass@456
+ *     responses:
+ *       200:
+ *         description: Đổi mật khẩu thành công
+ *       400:
+ *         description: Mật khẩu hiện tại không đúng hoặc mật khẩu mới không hợp lệ
+ *       401:
+ *         description: Chưa xác thực
  */
 router.post('/change-password', authenticate, changePassword);
 
 /**
- * GET /api/auth/me/children
- * Lấy danh sách con (cho role Phụ huynh)
+ * @openapi
+ * /api/auth/me/children:
+ *   get:
+ *     summary: Lấy danh sách con của phụ huynh
+ *     tags:
+ *       - Auth
+ *     security:
+ *       - bearerAuth: []
+ *     responses:
+ *       200:
+ *         description: Danh sách học sinh con của phụ huynh
+ *       401:
+ *         description: Chưa xác thực
+ *   post:
+ *     summary: Thêm học sinh con cho phụ huynh hiện tại
+ *     tags:
+ *       - Auth
+ *     security:
+ *       - bearerAuth: []
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             required:
+ *               - studentId
+ *             properties:
+ *               studentId:
+ *                 type: string
+ *                 example: 664abc123def456789012345
+ *     responses:
+ *       200:
+ *         description: Thêm thành công
+ *       400:
+ *         description: Học sinh không tồn tại hoặc đã liên kết
+ *       401:
+ *         description: Chưa xác thực
  */
 router.get('/me/children', authenticate, getMyChildren);
-
-/**
- * POST /api/auth/me/children
- * Thêm con cho phụ huynh hiện tại
- */
 router.post('/me/children', authenticate, createMyChild);
 
 /**
- * PUT /api/auth/me/children/:studentId
- * Cập nhật thông tin con
+ * @openapi
+ * /api/auth/me/children/{studentId}:
+ *   put:
+ *     summary: Cập nhật thông tin liên kết con
+ *     tags:
+ *       - Auth
+ *     security:
+ *       - bearerAuth: []
+ *     parameters:
+ *       - in: path
+ *         name: studentId
+ *         required: true
+ *         schema:
+ *           type: string
+ *         description: ID học sinh
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *     responses:
+ *       200:
+ *         description: Cập nhật thành công
+ *       404:
+ *         description: Không tìm thấy học sinh
+ *   delete:
+ *     summary: Xóa liên kết con
+ *     tags:
+ *       - Auth
+ *     security:
+ *       - bearerAuth: []
+ *     parameters:
+ *       - in: path
+ *         name: studentId
+ *         required: true
+ *         schema:
+ *           type: string
+ *         description: ID học sinh
+ *     responses:
+ *       200:
+ *         description: Xóa thành công
+ *       404:
+ *         description: Không tìm thấy học sinh
  */
 router.put('/me/children/:studentId', authenticate, updateMyChild);
-
-/**
- * DELETE /api/auth/me/children/:studentId
- * Xóa thông tin con
- */
 router.delete('/me/children/:studentId', authenticate, deleteMyChild);
 
 /**
- * GET /api/auth/me/student
- * Lấy thông tin học sinh (cho role Student)
+ * @openapi
+ * /api/auth/me/student:
+ *   get:
+ *     summary: Lấy thông tin học sinh (dành cho role Student)
+ *     tags:
+ *       - Auth
+ *     security:
+ *       - bearerAuth: []
+ *     responses:
+ *       200:
+ *         description: Thông tin học sinh
+ *       401:
+ *         description: Chưa xác thực
+ *       403:
+ *         description: Không phải Student
  */
 router.get('/me/student', authenticate, getMyStudentInfo);
 

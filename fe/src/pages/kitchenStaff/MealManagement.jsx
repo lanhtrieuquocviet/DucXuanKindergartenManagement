@@ -994,6 +994,57 @@ function MealEntryCard({ entry, onPreview, onEdit, isToday, editRequest, onReque
 }
 
 // ─────────────────────────────────────────────
+// Countdown — đếm ngược đến khi tự động duyệt (24h)
+// ─────────────────────────────────────────────
+function Countdown({ uploadedAt }) {
+  const calcRemaining = () => {
+    const deadline = new Date(uploadedAt).getTime() + 24 * 60 * 60 * 1000;
+    return Math.max(0, Math.floor((deadline - Date.now()) / 1000));
+  };
+  const [remaining, setRemaining] = useState(calcRemaining);
+
+  useEffect(() => {
+    const r = calcRemaining();
+    setRemaining(r);
+    if (r <= 0) return;
+    const timer = setInterval(() => {
+      const next = calcRemaining();
+      setRemaining(next);
+      if (next <= 0) clearInterval(timer);
+    }, 1000);
+    return () => clearInterval(timer);
+  }, [uploadedAt]);
+
+  if (remaining <= 0) {
+    return (
+      <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5, ml: 'auto' }}>
+        <CheckCircleIcon sx={{ fontSize: 13, color: '#10b981' }} />
+        <Typography variant="caption" sx={{ fontSize: 11, color: '#10b981', fontWeight: 700 }}>
+          Tự động duyệt đã kích hoạt
+        </Typography>
+      </Box>
+    );
+  }
+
+  const h = Math.floor(remaining / 3600);
+  const m = Math.floor((remaining % 3600) / 60);
+  const s = remaining % 60;
+  const fmt = `${String(h).padStart(2, '0')}:${String(m).padStart(2, '0')}:${String(s).padStart(2, '0')}`;
+
+  return (
+    <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5, ml: 'auto' }}>
+      <HourglassIcon sx={{ fontSize: 13, color: '#d97706' }} />
+      <Typography
+        variant="caption"
+        sx={{ fontSize: 11, color: '#d97706', fontWeight: 700, fontVariantNumeric: 'tabular-nums' }}
+      >
+        Tự động duyệt sau {fmt}
+      </Typography>
+    </Box>
+  );
+}
+
+// ─────────────────────────────────────────────
 // SampleEntryCard — card hiển thị mẫu thực phẩm của 1 bữa
 // ─────────────────────────────────────────────
 const SAMPLE_MEAL_TYPES = [
@@ -1172,6 +1223,9 @@ function SampleEntryCard({ entry, onPreview, selectedDate, isToday, editRequest,
               {entry.uploadedBy.fullName}
             </Typography>
           </Box>
+        )}
+        {entry.status === 'cho_kiem_tra' && entry.uploadedAt && (
+          <Countdown uploadedAt={entry.uploadedAt} />
         )}
       </Box>
     </Card>
@@ -1596,7 +1650,7 @@ function MealManagement() {
                 px: 2.5,
                 py: 1.5,
                 cursor: 'pointer',
-                minWidth: 210,
+                minWidth: { xs: 160, sm: 210 },
               }}
             >
               <CalIcon sx={{ color: 'white', fontSize: 22 }} />

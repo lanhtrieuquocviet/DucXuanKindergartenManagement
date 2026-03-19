@@ -60,6 +60,10 @@ const createAcademicYear = async (req, res) => {
       startDate,
       endDate,
       termCount,
+      term1StartDate,
+      term1EndDate,
+      term2StartDate,
+      term2EndDate,
       description = '',
     } = req.body;
 
@@ -72,6 +76,9 @@ const createAcademicYear = async (req, res) => {
     }
     if (!endDate) {
       errors.push('Ngày kết thúc không được để trống');
+    }
+    if (!description || !String(description).trim()) {
+      errors.push('Mô tả / mục tiêu năm học không được để trống');
     }
 
     if (startDate && endDate) {
@@ -88,6 +95,61 @@ const createAcademicYear = async (req, res) => {
       return res.status(400).json({
         status: 'error',
         message: errors.join(', '),
+      });
+    }
+
+    // Validate 2 kỳ học (UI cố định)
+    const mustDates = [
+      { key: 'term1StartDate', label: 'Ngày bắt đầu kỳ 1', value: term1StartDate },
+      { key: 'term1EndDate', label: 'Ngày kết thúc kỳ 1', value: term1EndDate },
+      { key: 'term2StartDate', label: 'Ngày bắt đầu kỳ 2', value: term2StartDate },
+      { key: 'term2EndDate', label: 'Ngày kết thúc kỳ 2', value: term2EndDate },
+    ];
+
+    const missing = mustDates.filter((d) => !d.value);
+    if (missing.length > 0) {
+      return res.status(400).json({
+        status: 'error',
+        message: missing.map((m) => m.label).join(', '),
+      });
+    }
+
+    const t1s = new Date(term1StartDate);
+    const t1e = new Date(term1EndDate);
+    const t2s = new Date(term2StartDate);
+    const t2e = new Date(term2EndDate);
+
+    const anyInvalid =
+      Number.isNaN(t1s.getTime()) ||
+      Number.isNaN(t1e.getTime()) ||
+      Number.isNaN(t2s.getTime()) ||
+      Number.isNaN(t2e.getTime());
+
+    if (anyInvalid) {
+      return res.status(400).json({
+        status: 'error',
+        message: 'Ngày bắt đầu/kết thúc kỳ học không hợp lệ',
+      });
+    }
+
+    if (t1s >= t1e) {
+      return res.status(400).json({
+        status: 'error',
+        message: 'Kỳ 1: ngày kết thúc phải sau ngày bắt đầu',
+      });
+    }
+
+    if (t2s >= t2e) {
+      return res.status(400).json({
+        status: 'error',
+        message: 'Kỳ 2: ngày kết thúc phải sau ngày bắt đầu',
+      });
+    }
+
+    if (t1e > t2s) {
+      return res.status(400).json({
+        status: 'error',
+        message: 'Kỳ 2 không thể bắt đầu trước khi kỳ 1 kết thúc',
       });
     }
 
@@ -112,6 +174,10 @@ const createAcademicYear = async (req, res) => {
       startDate,
       endDate,
       termCount: termCount ? Number(termCount) : 0,
+      term1StartDate,
+      term1EndDate,
+      term2StartDate,
+      term2EndDate,
       description: typeof description === 'string' ? description.trim() : '',
       status: 'active',
     });
@@ -235,6 +301,10 @@ const getAcademicYearHistory = async (req, res) => {
         endDate: y.endDate,
         status: y.status,
         termCount: y.termCount || 0,
+        term1StartDate: y.term1StartDate || null,
+        term1EndDate: y.term1EndDate || null,
+        term2StartDate: y.term2StartDate || null,
+        term2EndDate: y.term2EndDate || null,
         description: y.description || '',
         classCount: classCountByYear[key] || 0,
         studentCount: studentCountByYear[key] || 0,

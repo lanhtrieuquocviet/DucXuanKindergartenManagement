@@ -114,8 +114,8 @@ function WeekTable({ title, weekData, isEditable, onCellClick, onRemoveFood }) {
         <Typography variant="subtitle1" fontWeight={700}>{title}</Typography>
       </Stack>
       <Card elevation={0} sx={{ border: "1px solid", borderColor: "divider", borderRadius: 3, overflow: "hidden" }}>
-        <TableContainer>
-          <Table size="small">
+        <TableContainer sx={{ overflowX: 'auto' }}>
+          <Table size="small" sx={{ minWidth: 560 }}>
             <TableHead>
               <TableRow sx={{ bgcolor: "grey.50" }}>
                 <TableCell sx={{ fontWeight: 700, fontSize: 12, width: 110, borderRight: "1px solid", borderColor: "divider", py: 1.5 }}>Bữa ăn</TableCell>
@@ -270,7 +270,7 @@ function MenuDetail() {
   if (!menu) return null;
 
   return (
-    <Box p={3}>
+    <Box>
       <Stack direction="row" alignItems="center" spacing={1.5} mb={2.5}>
         <Button startIcon={<BackIcon />} onClick={() => navigate(-1)} size="small" sx={{ textTransform: 'none' }}>Quay lại</Button>
         <Chip 
@@ -281,7 +281,7 @@ function MenuDetail() {
         />
       </Stack>
 
-      <Stack direction="row" justifyContent="space-between" alignItems="center" mb={3}>
+      <Stack direction={{ xs: "column", sm: "row" }} justifyContent="space-between" alignItems={{ xs: "flex-start", sm: "center" }} spacing={1.5} mb={3}>
         <Box>
           <Typography variant="h5" fontWeight={800}>Thực đơn Tháng {menu.month}/{menu.year}</Typography>
           {menu.status === "rejected" && (
@@ -303,9 +303,9 @@ function MenuDetail() {
         )}
       </Stack>
 
-      <Stack direction="row" spacing={2} mb={4}>
+      <Box sx={{ display: 'grid', gridTemplateColumns: { xs: 'repeat(2, 1fr)', sm: 'repeat(4, 1fr)' }, gap: 2, mb: 4 }}>
         {NUTRITION_INFO.map((item) => <NutritionCard key={item.key} item={item} value={menu.nutrition?.[item.key]} />)}
-      </Stack>
+      </Box>
 
       <WeekTable title="Tuần lẻ" weekData={menu.weeks?.odd} isEditable={isEditable} onCellClick={handleCellClick} onRemoveFood={handleRemoveFood} />
       <WeekTable title="Tuần chẵn" weekData={menu.weeks?.even} isEditable={isEditable} onCellClick={handleCellClick} onRemoveFood={handleRemoveFood} />

@@ -20,7 +20,6 @@ import {
   DialogContent,
   DialogActions,
   Divider,
-  FormHelperText,
 } from '@mui/material';
 import {
   CalendarToday as CalendarIcon,
@@ -47,7 +46,11 @@ function ManageAcademicYears() {
     name: '',
     startDate: '',
     endDate: '',
-    termCount: '',
+    termCount: 2,
+    term1StartDate: '',
+    term1EndDate: '',
+    term2StartDate: '',
+    term2EndDate: '',
     description: '',
   });
   const [createErrors, setCreateErrors] = useState({});
@@ -65,7 +68,7 @@ function ManageAcademicYears() {
         { key: 'academic-plan', label: 'Thiết lập kế hoạch' },
         { key: 'academic-students', label: 'Danh sách lớp học' },
         { key: 'academic-curriculum', label: 'Chương trình giáo dục' },
-        { key: 'academic-schedule', label: 'Thời khóa biểu' },
+        { key: 'academic-schedule', label: 'Thời gian biểu' },
         { key: 'academic-report', label: 'Báo cáo & thống kê' },
       ],
     },
@@ -194,7 +197,11 @@ function ManageAcademicYears() {
       name: '',
       startDate: '',
       endDate: '',
-      termCount: '',
+      termCount: 2,
+      term1StartDate: '',
+      term1EndDate: '',
+      term2StartDate: '',
+      term2EndDate: '',
       description: '',
     });
     setCreateErrors({});
@@ -208,7 +215,13 @@ function ManageAcademicYears() {
     if (!createForm.name.trim()) errors.name = 'Vui lòng nhập tên năm học';
     if (!createForm.startDate) errors.startDate = 'Vui lòng chọn ngày bắt đầu';
     if (!createForm.endDate) errors.endDate = 'Vui lòng chọn ngày kết thúc';
-    if (!createForm.termCount) errors.termCount = 'Vui lòng chọn số lượng kỳ/học kỳ';
+
+    // Cố định 2 kỳ, validate thời gian từng kỳ theo UI
+    if (!createForm.term1StartDate) errors.term1StartDate = 'Vui lòng chọn ngày bắt đầu kỳ 1';
+    if (!createForm.term1EndDate) errors.term1EndDate = 'Vui lòng chọn ngày kết thúc kỳ 1';
+    if (!createForm.term2StartDate) errors.term2StartDate = 'Vui lòng chọn ngày bắt đầu kỳ 2';
+    if (!createForm.term2EndDate) errors.term2EndDate = 'Vui lòng chọn ngày kết thúc kỳ 2';
+    if (!createForm.description.trim()) errors.description = 'Vui lòng nhập mô tả / mục tiêu năm học';
 
     if (createForm.startDate && createForm.endDate) {
       const start = new Date(createForm.startDate);
@@ -218,6 +231,27 @@ function ManageAcademicYears() {
       }
     }
 
+    if (createForm.term1StartDate && createForm.term1EndDate) {
+      const t1s = new Date(createForm.term1StartDate);
+      const t1e = new Date(createForm.term1EndDate);
+      if (t1s >= t1e) errors.term1EndDate = 'Ngày kết thúc kỳ 1 phải sau ngày bắt đầu kỳ 1';
+    }
+
+    if (createForm.term2StartDate && createForm.term2EndDate) {
+      const t2s = new Date(createForm.term2StartDate);
+      const t2e = new Date(createForm.term2EndDate);
+      if (t2s >= t2e) errors.term2EndDate = 'Ngày kết thúc kỳ 2 phải sau ngày bắt đầu kỳ 2';
+    }
+
+    if (
+      createForm.term1EndDate &&
+      createForm.term2StartDate
+    ) {
+      const t1e = new Date(createForm.term1EndDate);
+      const t2s = new Date(createForm.term2StartDate);
+      if (t1e > t2s) errors.term2StartDate = 'Kỳ 2 không thể bắt đầu trước khi kết thúc kỳ 1';
+    }
+
     setCreateErrors(errors);
     if (Object.keys(errors).length > 0) return;
 
@@ -225,8 +259,12 @@ function ManageAcademicYears() {
       yearName: createForm.name.trim(),
       startDate: createForm.startDate,
       endDate: createForm.endDate,
-      termCount: Number(createForm.termCount) || 0,
-      description: createForm.description,
+      termCount: 2,
+      term1StartDate: createForm.term1StartDate,
+      term1EndDate: createForm.term1EndDate,
+      term2StartDate: createForm.term2StartDate,
+      term2EndDate: createForm.term2EndDate,
+      description: createForm.description.trim(),
     };
 
     post(ENDPOINTS.SCHOOL_ADMIN.ACADEMIC_YEARS.CREATE, payload)
@@ -624,24 +662,109 @@ function ManageAcademicYears() {
                 <FormControl
                   size="small"
                   sx={{ mt: 2, minWidth: 200 }}
-                  error={!!createErrors.termCount}
+                  error={false}
                 >
                   <InputLabel>Số lượng kỳ/học kỳ *</InputLabel>
                   <Select
                     label="Số lượng kỳ/học kỳ *"
                     value={createForm.termCount}
-                    onChange={(e) =>
-                      setCreateForm((prev) => ({ ...prev, termCount: e.target.value }))
-                    }
+                    disabled
                   >
-                    <MenuItem value={1}>1 kỳ</MenuItem>
                     <MenuItem value={2}>2 kỳ</MenuItem>
-                    <MenuItem value={3}>3 kỳ</MenuItem>
                   </Select>
-                  {createErrors.termCount && (
-                    <FormHelperText>{createErrors.termCount}</FormHelperText>
-                  )}
                 </FormControl>
+
+                <Box sx={{ mt: 2 }}>
+                  <Typography variant="subtitle2" color="primary" fontWeight={700} gutterBottom>
+                    Chi tiết thời gian từng kỳ học
+                  </Typography>
+
+                  <Stack spacing={2}>
+                    <Paper
+                      elevation={0}
+                      sx={{
+                        p: 2,
+                        borderRadius: 2,
+                        border: '1px solid',
+                        borderColor: 'divider',
+                      }}
+                    >
+                      <Typography variant="subtitle2" fontWeight={700} mb={1}>
+                        Kỳ 1
+                      </Typography>
+                      <Stack direction={{ xs: 'column', sm: 'row' }} spacing={2}>
+                        <TextField
+                          type="date"
+                          InputLabelProps={{ shrink: true }}
+                          fullWidth
+                          size="small"
+                          value={createForm.term1StartDate}
+                          onChange={(e) =>
+                            setCreateForm((prev) => ({ ...prev, term1StartDate: e.target.value }))
+                          }
+                          error={!!createErrors.term1StartDate}
+                          helperText={createErrors.term1StartDate}
+                          label="Ngày bắt đầu kỳ 1 *"
+                        />
+                        <TextField
+                          type="date"
+                          InputLabelProps={{ shrink: true }}
+                          fullWidth
+                          size="small"
+                          value={createForm.term1EndDate}
+                          onChange={(e) =>
+                            setCreateForm((prev) => ({ ...prev, term1EndDate: e.target.value }))
+                          }
+                          error={!!createErrors.term1EndDate}
+                          helperText={createErrors.term1EndDate}
+                          label="Ngày kết thúc kỳ 1 *"
+                        />
+                      </Stack>
+                    </Paper>
+
+                    <Paper
+                      elevation={0}
+                      sx={{
+                        p: 2,
+                        borderRadius: 2,
+                        border: '1px solid',
+                        borderColor: 'divider',
+                      }}
+                    >
+                      <Typography variant="subtitle2" fontWeight={700} mb={1}>
+                        Kỳ 2
+                      </Typography>
+                      <Stack direction={{ xs: 'column', sm: 'row' }} spacing={2}>
+                        <TextField
+                          type="date"
+                          InputLabelProps={{ shrink: true }}
+                          fullWidth
+                          size="small"
+                          value={createForm.term2StartDate}
+                          onChange={(e) =>
+                            setCreateForm((prev) => ({ ...prev, term2StartDate: e.target.value }))
+                          }
+                          error={!!createErrors.term2StartDate}
+                          helperText={createErrors.term2StartDate}
+                          label="Ngày bắt đầu kỳ 2 *"
+                        />
+                        <TextField
+                          type="date"
+                          InputLabelProps={{ shrink: true }}
+                          fullWidth
+                          size="small"
+                          value={createForm.term2EndDate}
+                          onChange={(e) =>
+                            setCreateForm((prev) => ({ ...prev, term2EndDate: e.target.value }))
+                          }
+                          error={!!createErrors.term2EndDate}
+                          helperText={createErrors.term2EndDate}
+                          label="Ngày kết thúc kỳ 2 *"
+                        />
+                      </Stack>
+                    </Paper>
+                  </Stack>
+                </Box>
               </Box>
 
               <Box>
@@ -659,12 +782,25 @@ function ManageAcademicYears() {
                   onChange={(e) =>
                     setCreateForm((prev) => ({ ...prev, description: e.target.value }))
                   }
+                  error={!!createErrors.description}
+                  helperText={createErrors.description}
                 />
               </Box>
             </Stack>
           </DialogContent>
           <DialogActions sx={{ px: 3, py: 2 }}>
-            <Button onClick={() => setOpenCreate(false)}>Hủy</Button>
+            <Button
+              onClick={() => setOpenCreate(false)}
+              sx={{
+                textTransform: 'none',
+                borderRadius: 2,
+                bgcolor: '#f3f4f6',
+                color: '#6b7280',
+                '&:hover': { bgcolor: '#e5e7eb' },
+              }}
+            >
+              Hủy
+            </Button>
             <Button
               variant="contained"
               onClick={handleSubmitCreate}

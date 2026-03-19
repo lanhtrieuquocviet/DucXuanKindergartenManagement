@@ -209,7 +209,7 @@ function ForgotPassword() {
 
   return (
     <div className="min-h-screen w-full bg-gradient-to-br from-sky-50 via-emerald-50 to-amber-50 flex items-center justify-center px-4">
-      <div className="w-full max-w-lg bg-white/95 backdrop-blur shadow-2xl rounded-3xl border border-sky-100 p-8 md:p-10">
+      <div className="w-full max-w-lg bg-white/95 backdrop-blur shadow-2xl rounded-3xl border border-sky-100 p-5 sm:p-8 md:p-10">
         <div className="mb-6 text-center">
           <h1 className="text-xl md:text-2xl font-bold text-sky-900">
             Quên mật khẩu
@@ -264,47 +264,49 @@ function ForgotPassword() {
             <label className="block text-sm font-medium text-sky-900">
               Mã bảo mật <span className="text-red-500">*</span>
             </label>
-            <div className="flex items-center gap-3">
-              <div className="flex items-center justify-center rounded-md bg-slate-900 text-white px-4 py-3 font-mono text-lg tracking-widest select-none shadow-inner">
-                {captchaCode.split('').map((ch) => (
-                  <span
-                    key={ch + Math.random()}
-                    className="mx-0.5"
-                    style={{
-                      transform: `rotate(${(Math.random() - 0.5) * 20}deg)`,
-                    }}
-                  >
-                    {ch}
-                  </span>
-                ))}
-              </div>
-              <button
-                type="button"
-                onClick={refreshCaptcha}
+            <div className="flex flex-col gap-2">
+              <div className="flex items-center gap-2">
+                <div className="flex items-center justify-center rounded-md bg-slate-900 text-white px-4 py-3 font-mono text-lg tracking-widest select-none shadow-inner">
+                  {captchaCode.split('').map((ch) => (
+                    <span
+                      key={ch + Math.random()}
+                      className="mx-0.5"
+                      style={{
+                        transform: `rotate(${(Math.random() - 0.5) * 20}deg)`,
+                      }}
+                    >
+                      {ch}
+                    </span>
+                  ))}
+                </div>
+                <button
+                  type="button"
+                  onClick={refreshCaptcha}
                   disabled={loading}
-                  className="inline-flex h-9 w-9 items-center justify-center rounded-full border border-sky-200 text-sky-600 hover:bg-sky-50 hover:text-sky-800 text-sm disabled:opacity-50 disabled:cursor-not-allowed"
-              >
-                ↻
-              </button>
+                  className="inline-flex h-9 w-9 shrink-0 items-center justify-center rounded-full border border-sky-200 text-sky-600 hover:bg-sky-50 hover:text-sky-800 text-sm disabled:opacity-50 disabled:cursor-not-allowed"
+                >
+                  ↻
+                </button>
+              </div>
               <input
                 type="text"
                 value={captchaInput}
                 onChange={(e) => setCaptchaInput(e.target.value)}
-                  disabled={loading}
-                  className={`flex-1 rounded-xl border px-3 py-2.5 text-sm shadow-sm focus:outline-none focus:ring-2 disabled:opacity-50 disabled:cursor-not-allowed ${
-                    captchaError
-                      ? 'border-red-400 focus:border-red-400 focus:ring-red-200'
-                      : 'border-sky-100 bg-sky-50/60 text-sky-900 placeholder-sky-400 focus:border-sky-400 focus:bg-white focus:ring-sky-200'
-                  }`}
-                  placeholder="Nhập mã bảo mật"
-                />
-              </div>
-              {captchaError ? (
-                <p className="text-xs text-red-600 mt-1">{captchaError}</p>
-              ) : (
-                <p className="text-xs text-sky-400 mt-1">Không phân biệt chữ hoa/thường</p>
-              )}
+                disabled={loading}
+                className={`w-full rounded-xl border px-3 py-2.5 text-sm shadow-sm focus:outline-none focus:ring-2 disabled:opacity-50 disabled:cursor-not-allowed ${
+                  captchaError
+                    ? 'border-red-400 focus:border-red-400 focus:ring-red-200'
+                    : 'border-sky-100 bg-sky-50/60 text-sky-900 placeholder-sky-400 focus:border-sky-400 focus:bg-white focus:ring-sky-200'
+                }`}
+                placeholder="Nhập mã bảo mật"
+              />
             </div>
+            {captchaError ? (
+              <p className="text-xs text-red-600 mt-1">{captchaError}</p>
+            ) : (
+              <p className="text-xs text-sky-400 mt-1">Không phân biệt chữ hoa/thường</p>
+            )}
+          </div>
 
             <button
               type="submit"
@@ -348,47 +350,49 @@ function ForgotPassword() {
               <label className="block text-sm font-medium text-sky-900">
                 Mã bảo mật <span className="text-red-500">*</span>
               </label>
-              <div className="flex items-center gap-3">
-                <div className="flex items-center justify-center rounded-md bg-slate-900 text-white px-4 py-3 font-mono text-lg tracking-widest select-none shadow-inner">
-                  {captchaCode.split('').map((ch) => (
-                    <span
-                      key={ch + Math.random()}
-                      className="mx-0.5"
-                      style={{
-                        transform: `rotate(${(Math.random() - 0.5) * 20}deg)`,
-                      }}
-                    >
-                      {ch}
-                    </span>
-                  ))}
+              <div className="flex flex-col gap-2">
+                <div className="flex items-center gap-2">
+                  <div className="flex items-center justify-center rounded-md bg-slate-900 text-white px-4 py-3 font-mono text-lg tracking-widest select-none shadow-inner">
+                    {captchaCode.split('').map((ch) => (
+                      <span
+                        key={ch + Math.random()}
+                        className="mx-0.5"
+                        style={{
+                          transform: `rotate(${(Math.random() - 0.5) * 20}deg)`,
+                        }}
+                      >
+                        {ch}
+                      </span>
+                    ))}
+                  </div>
+                  <button
+                    type="button"
+                    onClick={refreshCaptcha}
+                    disabled={loading || sent}
+                    className="inline-flex h-9 w-9 shrink-0 items-center justify-center rounded-full border border-sky-200 text-sky-600 hover:bg-sky-50 hover:text-sky-800 text-sm disabled:opacity-50 disabled:cursor-not-allowed"
+                  >
+                    ↻
+                  </button>
                 </div>
-                <button
-                  type="button"
-                  onClick={refreshCaptcha}
-                  disabled={loading || sent}
-                  className="inline-flex h-9 w-9 items-center justify-center rounded-full border border-sky-200 text-sky-600 hover:bg-sky-50 hover:text-sky-800 text-sm disabled:opacity-50 disabled:cursor-not-allowed"
-                >
-                  ↻
-                </button>
                 <input
                   type="text"
                   value={captchaInput}
                   onChange={(e) => setCaptchaInput(e.target.value)}
                   disabled={loading || sent}
-                  className={`flex-1 rounded-xl border px-3 py-2.5 text-sm shadow-sm focus:outline-none focus:ring-2 disabled:opacity-50 disabled:cursor-not-allowed ${
-                  captchaError
-                    ? 'border-red-400 focus:border-red-400 focus:ring-red-200'
-                    : 'border-sky-100 bg-sky-50/60 text-sky-900 placeholder-sky-400 focus:border-sky-400 focus:bg-white focus:ring-sky-200'
-                }`}
-                placeholder="Nhập mã bảo mật"
-              />
+                  className={`w-full rounded-xl border px-3 py-2.5 text-sm shadow-sm focus:outline-none focus:ring-2 disabled:opacity-50 disabled:cursor-not-allowed ${
+                    captchaError
+                      ? 'border-red-400 focus:border-red-400 focus:ring-red-200'
+                      : 'border-sky-100 bg-sky-50/60 text-sky-900 placeholder-sky-400 focus:border-sky-400 focus:bg-white focus:ring-sky-200'
+                  }`}
+                  placeholder="Nhập mã bảo mật"
+                />
+              </div>
+              {captchaError ? (
+                <p className="text-xs text-red-600 mt-1">{captchaError}</p>
+              ) : (
+                <p className="text-xs text-sky-400 mt-1">Không phân biệt chữ hoa/thường</p>
+              )}
             </div>
-            {captchaError ? (
-              <p className="text-xs text-red-600 mt-1">{captchaError}</p>
-            ) : (
-              <p className="text-xs text-sky-400 mt-1">Không phân biệt chữ hoa/thường</p>
-            )}
-          </div>
 
             <div className="flex gap-3">
               <button

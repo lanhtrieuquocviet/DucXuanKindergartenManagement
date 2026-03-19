@@ -60,7 +60,7 @@ export default function AcademicYearPlan() {
         { key: 'academic-plan', label: 'Thiết lập kế hoạch' },
         { key: 'academic-students', label: 'Danh sách lớp học' },
         { key: 'academic-curriculum', label: 'Chương trình giáo dục' },
-        { key: 'academic-schedule', label: 'Thời khóa biểu' },
+        { key: 'academic-schedule', label: 'Thời gian biểu' },
         { key: 'academic-report', label: 'Báo cáo & thống kê' },
       ],
     },

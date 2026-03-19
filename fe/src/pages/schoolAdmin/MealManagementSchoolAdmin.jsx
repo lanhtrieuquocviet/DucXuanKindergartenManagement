@@ -31,6 +31,7 @@ import {
   Restaurant as RestaurantIcon,
   HourglassTop as HourglassIcon,
   LockOpen as LockOpenIcon,
+  Block as BlockIcon,
 } from '@mui/icons-material';
 import { toast } from 'react-toastify';
 import { useAuth } from '../../context/AuthContext';
@@ -104,6 +105,54 @@ const formatDateTime = (dateVal) => {
 };
 
 // ─────────────────────────────────────────────
+// Countdown — đếm ngược đến khi tự động duyệt (24h)
+// ─────────────────────────────────────────────
+function Countdown({ uploadedAt }) {
+  const calcRemaining = () => {
+    const deadline = new Date(uploadedAt).getTime() + 24 * 60 * 60 * 1000;
+    return Math.max(0, Math.floor((deadline - Date.now()) / 1000));
+  };
+  const [remaining, setRemaining] = useState(calcRemaining);
+
+  useEffect(() => {
+    const r = calcRemaining();
+    setRemaining(r);
+    if (r <= 0) return;
+    const timer = setInterval(() => {
+      const next = calcRemaining();
+      setRemaining(next);
+      if (next <= 0) clearInterval(timer);
+    }, 1000);
+    return () => clearInterval(timer);
+  }, [uploadedAt]);
+
+  if (remaining <= 0) {
+    return (
+      <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5, mt: 0.5 }}>
+        <CheckCircleIcon sx={{ fontSize: 12, color: '#10b981' }} />
+        <Typography sx={{ fontSize: 11, color: '#10b981', fontWeight: 700 }}>
+          Tự động duyệt đã kích hoạt
+        </Typography>
+      </Box>
+    );
+  }
+
+  const h = Math.floor(remaining / 3600);
+  const m = Math.floor((remaining % 3600) / 60);
+  const s = remaining % 60;
+  const fmt = `${String(h).padStart(2, '0')}:${String(m).padStart(2, '0')}:${String(s).padStart(2, '0')}`;
+
+  return (
+    <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5, mt: 0.5 }}>
+      <HourglassIcon sx={{ fontSize: 12, color: '#d97706' }} />
+      <Typography sx={{ fontSize: 11, color: '#d97706', fontWeight: 700, fontVariantNumeric: 'tabular-nums' }}>
+        Tự động duyệt sau {fmt}
+      </Typography>
+    </Box>
+  );
+}
+
+// ─────────────────────────────────────────────
 // StatusBadge
 // ─────────────────────────────────────────────
 function StatusBadge({ status }) {
@@ -157,7 +206,7 @@ function ImagePlaceholder() {
 // ─────────────────────────────────────────────
 // SampleCard
 // ─────────────────────────────────────────────
-function SampleCard({ entry, date, onReview, isToday, editRequest, onApproveEdit }) {
+function SampleCard({ entry, date, onReview, isToday, editRequest, onApproveEdit, onRejectEdit }) {
   const [hovering, setHovering] = useState(false);
   const isPending = entry.status === 'cho_kiem_tra';
   const mealLabel = MEAL_LABELS[entry.mealType] || entry.mealType;
@@ -244,6 +293,9 @@ function SampleCard({ entry, date, onReview, isToday, editRequest, onApproveEdit
             </Typography>
           </Box>
         )}
+        {isPending && entry.uploadedAt && (
+          <Countdown uploadedAt={entry.uploadedAt} />
+        )}
         {entry.reviewedBy && (
           <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5, mt: 0.25 }}>
             <PersonIcon sx={{ fontSize: 12, color: '#94a3b8' }} />
@@ -269,24 +321,44 @@ function SampleCard({ entry, date, onReview, isToday, editRequest, onApproveEdit
               Lý do: {editRequest.reason}
             </Typography>
           )}
-          <Button
-            fullWidth
-            size="small"
-            variant="contained"
-            startIcon={<LockOpenIcon sx={{ fontSize: 14 }} />}
-            onClick={() => onApproveEdit('sample', entry.mealType)}
-            sx={{
-              fontSize: 12,
-              fontWeight: 700,
-              py: 0.5,
-              borderRadius: 2,
-              bgcolor: '#f59e0b',
-              '&:hover': { bgcolor: '#d97706' },
-              textTransform: 'none',
-            }}
-          >
-            Cho phép chỉnh sửa
-          </Button>
+          <Box sx={{ display: 'flex', gap: 0.75 }}>
+            <Button
+              fullWidth
+              size="small"
+              variant="contained"
+              startIcon={<LockOpenIcon sx={{ fontSize: 14 }} />}
+              onClick={() => onApproveEdit('sample', entry.mealType)}
+              sx={{
+                fontSize: 12,
+                fontWeight: 700,
+                py: 0.5,
+                borderRadius: 2,
+                bgcolor: '#f59e0b',
+                '&:hover': { bgcolor: '#d97706' },
+                textTransform: 'none',
+              }}
+            >
+              Cho phép
+            </Button>
+            <Button
+              fullWidth
+              size="small"
+              variant="contained"
+              startIcon={<BlockIcon sx={{ fontSize: 14 }} />}
+              onClick={() => onRejectEdit('sample', entry.mealType)}
+              sx={{
+                fontSize: 12,
+                fontWeight: 700,
+                py: 0.5,
+                borderRadius: 2,
+                bgcolor: '#ef4444',
+                '&:hover': { bgcolor: '#dc2626' },
+                textTransform: 'none',
+              }}
+            >
+              Từ chối
+            </Button>
+          </Box>
         </Box>
       )}
       {editRequest?.status === 'approved' && (
@@ -296,6 +368,16 @@ function SampleCard({ entry, date, onReview, isToday, editRequest, onApproveEdit
             label="Đã cho phép chỉnh sửa"
             size="small"
             sx={{ height: 22, fontSize: 11, bgcolor: alpha('#10b981', 0.1), color: '#059669', border: '1px solid', borderColor: alpha('#10b981', 0.3) }}
+          />
+        </Box>
+      )}
+      {editRequest?.status === 'rejected' && (
+        <Box sx={{ px: 2, pb: 1 }}>
+          <Chip
+            icon={<BlockIcon sx={{ fontSize: '13px !important', color: '#ef4444 !important' }} />}
+            label="Đã từ chối chỉnh sửa"
+            size="small"
+            sx={{ height: 22, fontSize: 11, bgcolor: alpha('#ef4444', 0.1), color: '#dc2626', border: '1px solid', borderColor: alpha('#ef4444', 0.3) }}
           />
         </Box>
       )}
@@ -346,7 +428,7 @@ function SampleCard({ entry, date, onReview, isToday, editRequest, onApproveEdit
 // ─────────────────────────────────────────────
 // MealPhotosTab
 // ─────────────────────────────────────────────
-function MealPhotosTab({ meals, onPreview, editRequests, onApproveEdit }) {
+function MealPhotosTab({ meals, onPreview, editRequests, onApproveEdit, onRejectEdit }) {
   if (!meals || meals.length === 0) {
     return (
       <Box sx={{ textAlign: 'center', py: 6, color: '#94a3b8' }}>
@@ -383,19 +465,34 @@ function MealPhotosTab({ meals, onPreview, editRequests, onApproveEdit }) {
                     Lý do: {editReq.reason}
                   </Typography>
                 )}
-                <Button
-                  size="small"
-                  variant="contained"
-                  startIcon={<LockOpenIcon sx={{ fontSize: 14 }} />}
-                  onClick={() => onApproveEdit('meal', meal.mealType)}
-                  sx={{
-                    fontSize: 11.5, fontWeight: 700, py: 0.4, px: 1.25,
-                    bgcolor: '#f59e0b', '&:hover': { bgcolor: '#d97706' },
-                    textTransform: 'none', borderRadius: 1.5,
-                  }}
-                >
-                  Cho phép chỉnh sửa
-                </Button>
+                <Box sx={{ display: 'flex', gap: 0.75 }}>
+                  <Button
+                    size="small"
+                    variant="contained"
+                    startIcon={<LockOpenIcon sx={{ fontSize: 14 }} />}
+                    onClick={() => onApproveEdit('meal', meal.mealType)}
+                    sx={{
+                      fontSize: 11.5, fontWeight: 700, py: 0.4, px: 1.25,
+                      bgcolor: '#f59e0b', '&:hover': { bgcolor: '#d97706' },
+                      textTransform: 'none', borderRadius: 1.5,
+                    }}
+                  >
+                    Cho phép chỉnh sửa
+                  </Button>
+                  <Button
+                    size="small"
+                    variant="contained"
+                    startIcon={<BlockIcon sx={{ fontSize: 14 }} />}
+                    onClick={() => onRejectEdit('meal', meal.mealType)}
+                    sx={{
+                      fontSize: 11.5, fontWeight: 700, py: 0.4, px: 1.25,
+                      bgcolor: '#ef4444', '&:hover': { bgcolor: '#dc2626' },
+                      textTransform: 'none', borderRadius: 1.5,
+                    }}
+                  >
+                    Từ chối
+                  </Button>
+                </Box>
               </Box>
             )}
             {isApprovedEdit && (
@@ -404,6 +501,14 @@ function MealPhotosTab({ meals, onPreview, editRequests, onApproveEdit }) {
                 label="Đã cho phép chỉnh sửa"
                 size="small"
                 sx={{ ml: 'auto', height: 22, fontSize: 11, bgcolor: alpha('#10b981', 0.1), color: '#059669', border: '1px solid', borderColor: alpha('#10b981', 0.3) }}
+              />
+            )}
+            {editReq?.status === 'rejected' && (
+              <Chip
+                icon={<BlockIcon sx={{ fontSize: '13px !important', color: '#ef4444 !important' }} />}
+                label="Đã từ chối chỉnh sửa"
+                size="small"
+                sx={{ ml: 'auto', height: 22, fontSize: 11, bgcolor: alpha('#ef4444', 0.1), color: '#dc2626', border: '1px solid', borderColor: alpha('#ef4444', 0.3) }}
               />
             )}
           </Box>
@@ -568,6 +673,17 @@ function MealManagementSchoolAdmin() {
     }
   };
 
+  // ── Reject edit request ──
+  const handleRejectEdit = async (requestType, mealType) => {
+    try {
+      await approveEditRequest({ date: selectedDate, requestType, mealType, action: 'rejected' });
+      toast.success('Đã từ chối yêu cầu chỉnh sửa');
+      fetchData(selectedDate);
+    } catch {
+      toast.error('Không thể từ chối yêu cầu chỉnh sửa');
+    }
+  };
+
   // ── Menu ──
   const menuItems = [
     { key: 'overview', label: 'Tổng quan trường' },
@@ -579,7 +695,7 @@ function MealManagementSchoolAdmin() {
         { key: 'academic-plan', label: 'Thiết lập kế hoạch' },
         { key: 'academic-students', label: 'Danh sách lớp học' },
         { key: 'academic-curriculum', label: 'Chương trình giáo dục' },
-        { key: 'academic-schedule', label: 'Thời khóa biểu' },
+        { key: 'academic-schedule', label: 'Thời gian biểu' },
         { key: 'academic-report', label: 'Báo cáo & thống kê' },
       ],
     },
@@ -784,6 +900,7 @@ function MealManagementSchoolAdmin() {
                   onPreview={(url) => setPreviewUrl(url)}
                   editRequests={editRequests}
                   onApproveEdit={handleApproveEdit}
+                  onRejectEdit={handleRejectEdit}
                 />
               )}
 
@@ -814,6 +931,7 @@ function MealManagementSchoolAdmin() {
                             isToday={isToday}
                             editRequest={editRequests.find((r) => r.requestType === 'sample' && r.mealType === entry.mealType)}
                             onApproveEdit={handleApproveEdit}
+                            onRejectEdit={handleRejectEdit}
                           />
                         ))}
                     </Box>

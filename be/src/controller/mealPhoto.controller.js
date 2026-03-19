@@ -288,7 +288,7 @@ exports.requestEdit = async (req, res) => {
     if (!reason || !reason.trim()) {
       return res.status(400).json({ success: false, message: 'Vui lòng nhập lý do chỉnh sửa' });
     }
-    const validTypes = ['trua', 'chieu', 'sang', 'xe'];
+    const validTypes = ['trua', 'chieu', 'sang', 'xe', 'khac'];
     if (!validTypes.includes(mealType)) {
       return res.status(400).json({ success: false, message: 'mealType không hợp lệ' });
     }
