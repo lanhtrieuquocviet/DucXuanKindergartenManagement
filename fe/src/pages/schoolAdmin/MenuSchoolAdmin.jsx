@@ -5,6 +5,7 @@ import { useNavigate } from "react-router-dom";
 import RoleLayout from "../../layouts/RoleLayout";
 import { useAuth } from "../../context/AuthContext";
 import ConfirmDialog from "../../components/ConfirmDialog";
+import { get, ENDPOINTS } from "../../service/api";
 import { Check, Eye, X } from "lucide-react";
 import {
   Dialog,
@@ -114,13 +115,24 @@ function MenuSchoolAdmin() {
     navigate("/profile");
   };
 
-  const handleMenuSelect = (key) => {
+  const handleMenuSelect = async (key) => {
     if (key === "overview") navigate("/school-admin");
     if (key === "academic-years" || key === "academic-year-setup")
       navigate("/school-admin/academic-years");
     if (key === "academic-curriculum") navigate("/school-admin/curriculum");
     if (key === "academic-schedule") navigate("/school-admin/timetable");
     if (key === "academic-plan") navigate("/school-admin/academic-plan");
+    if (key === "academic-report") {
+      try {
+        const resp = await get(ENDPOINTS.SCHOOL_ADMIN.ACADEMIC_YEARS.CURRENT);
+        const yearId = resp?.status === "success" ? resp?.data?._id : null;
+        if (yearId) navigate(`/school-admin/academic-years/${yearId}/report`);
+        else navigate("/school-admin/academic-years");
+      } catch (_) {
+        navigate("/school-admin/academic-years");
+      }
+      return;
+    }
     if (key === "academic-students") navigate("/school-admin/class-list");
     if (key === "classes") navigate("/school-admin/classes");
     if (key === "menu") navigate("/school-admin/menus");

@@ -260,6 +260,12 @@ export default function CurriculumPage() {
       return;
     }
     if (key === 'academic-plan') navigate('/school-admin/academic-plan');
+    else if (key === 'academic-report') {
+      const yearId = academicYear?._id;
+      if (yearId) navigate(`/school-admin/academic-years/${yearId}/report`);
+      else navigate('/school-admin/academic-years');
+      return;
+    }
     else if (key === 'academic-schedule') navigate('/school-admin/timetable');
     else if (key === 'academic-students') navigate('/school-admin/class-list');
     else if (key === 'classes') navigate('/school-admin/classes');

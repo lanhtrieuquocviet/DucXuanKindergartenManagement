@@ -86,6 +86,7 @@ import MenuStudent from './pages/student/MenuStudent';
 import MenuDetailStudent from './pages/student/MenuDetailStudent';
 import ManageAcademicYears from './pages/schoolAdmin/ManageAcademicYears';
 import AcademicYearDetail from './pages/schoolAdmin/AcademicYearDetail';
+import AcademicYearReport from './pages/schoolAdmin/AcademicYearReport';
 import MealManagementSchoolAdmin from './pages/schoolAdmin/MealManagementSchoolAdmin';
 import AcademicYearPlan from './pages/schoolAdmin/AcademicYearPlan';
 import CurriculumPage from './pages/schoolAdmin/CurriculumPage';
@@ -576,6 +577,16 @@ function App() {
               <ProtectedRoute>
                 <SchoolAdminProvider>
                   <AcademicYearDetail />
+                </SchoolAdminProvider>
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/school-admin/academic-years/:yearId/report"
+            element={
+              <ProtectedRoute>
+                <SchoolAdminProvider>
+                  <AcademicYearReport />
                 </SchoolAdminProvider>
               </ProtectedRoute>
             }

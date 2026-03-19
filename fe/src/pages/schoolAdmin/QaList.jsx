@@ -23,6 +23,7 @@ import {
   Send as SendIcon,
   QuestionAnswer as QaIcon,
 } from '@mui/icons-material';
+import { get, ENDPOINTS } from '../../service/api';
 
 function QaList() {
   const [questionsData, setQuestionsData] = useState(null);
@@ -177,13 +178,24 @@ function QaList() {
     { key: 'attendance', label: 'Quản lý điểm danh' },
   ];
 
-  const handleMenuSelect = (key) => {
+  const handleMenuSelect = async (key) => {
     if (key === 'overview') navigate('/school-admin');
     else if (key === 'academic-year-setup') navigate('/school-admin/academic-years');
     else if (key === 'academic-curriculum') navigate('/school-admin/curriculum');
     else if (key === 'academic-schedule') navigate('/school-admin/timetable');
     else if (key === 'academic-plan') navigate('/school-admin/academic-plan');
     else if (key === 'academic-students') navigate('/school-admin/class-list');
+    else if (key === 'academic-report') {
+      try {
+        const resp = await get(ENDPOINTS.SCHOOL_ADMIN.ACADEMIC_YEARS.CURRENT);
+        const yearId = resp?.status === 'success' ? resp?.data?._id : null;
+        if (yearId) navigate(`/school-admin/academic-years/${yearId}/report`);
+        else navigate('/school-admin/academic-years');
+      } catch (_) {
+        navigate('/school-admin/academic-years');
+      }
+      return;
+    }
     else if (key === 'classes') navigate('/school-admin/classes');
     else if (key === 'contacts') navigate('/school-admin/contacts');
     else if (key === 'qa') navigate('/school-admin/qa');

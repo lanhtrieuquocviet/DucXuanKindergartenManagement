@@ -3,7 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import RoleLayout from '../../layouts/RoleLayout';
 import { useAuth } from '../../context/AuthContext';
 import { useSchoolAdmin } from '../../context/SchoolAdminContext';
-import { postFormData, ENDPOINTS } from '../../service/api';
+import { postFormData, ENDPOINTS, get } from '../../service/api';
 import {
   Box,
   Paper,
@@ -137,13 +137,24 @@ function ManageStudents() {
   };
   const handleViewProfile = () => navigate('/profile');
 
-  const handleMenuSelect = (key) => {
+  const handleMenuSelect = async (key) => {
     if (key === 'students') return;
     if (key === 'overview') { navigate('/school-admin'); return; }
     if (key === 'academic-years' || key === 'academic-year-setup') { navigate('/school-admin/academic-years'); return; }
     if (key === 'academic-curriculum') { navigate('/school-admin/curriculum'); return; }
     if (key === 'academic-schedule') { navigate('/school-admin/timetable'); return; }
     if (key === 'academic-plan') { navigate('/school-admin/academic-plan'); return; }
+    if (key === 'academic-report') {
+      try {
+        const resp = await get(ENDPOINTS.SCHOOL_ADMIN.ACADEMIC_YEARS.CURRENT);
+        const yearId = resp?.status === 'success' ? resp?.data?._id : null;
+        if (yearId) navigate(`/school-admin/academic-years/${yearId}/report`);
+        else navigate('/school-admin/academic-years');
+      } catch (_) {
+        navigate('/school-admin/academic-years');
+      }
+      return;
+    }
     if (key === 'academic-students') { navigate('/school-admin/class-list'); return; }
     if (key === 'classes') { navigate('/school-admin/classes'); return; }
     if (key === 'contacts') { navigate('/school-admin/contacts'); return; }
