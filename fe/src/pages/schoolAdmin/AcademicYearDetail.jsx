@@ -182,6 +182,13 @@ export default function AcademicYearDetail() {
 
   const passRate = 0;
   const reportCount = 0;
+  const totalStudents = Number(summary?.studentCount) || 0;
+  // Tạm thời fix cứng theo yêu cầu
+  const fixedDevelopedStudents = 262;
+  const fixedNeedSupportStudents = 23;
+  const developedRate = totalStudents > 0
+    ? Math.round((fixedDevelopedStudents / totalStudents) * 100)
+    : 0;
 
   return (
     <RoleLayout
@@ -345,7 +352,7 @@ export default function AcademicYearDetail() {
           >
             <Tab label="Tổng quan" />
             <Tab label="Danh sách lớp học" />
-            <Tab label="Danh sách lớp học" disabled />
+            <Tab label="Danh sách trẻ em" />
             <Tab label="Chương trình & Kế hoạch" disabled />
             <Tab label="Báo cáo & Thống kê" disabled />
             <Tab label="Lưu trữ & Tài liệu" disabled />
@@ -420,6 +427,52 @@ export default function AcademicYearDetail() {
                   ))}
                 </Stack>
               )}
+            </Box>
+          )}
+
+          {tab === 2 && (
+            <Box sx={{ p: 3, borderTop: '1px solid', borderColor: 'divider' }}>
+              <Paper
+                elevation={0}
+                sx={{
+                  borderRadius: 2,
+                  border: '1px solid',
+                  borderColor: 'divider',
+                  p: 3,
+                  backgroundColor: 'grey.50',
+                }}
+              >
+                <Typography variant="h6" fontWeight={700} color="#4f46e5" gutterBottom>
+                  Danh sách trẻ em (tóm tắt)
+                </Typography>
+                <Stack spacing={1}>
+                  <Typography variant="body1" color="text.primary">
+                    Tổng số: {totalStudents} trẻ
+                  </Typography>
+                  <Typography variant="body1" color="text.primary">
+                    Đạt chuẩn phát triển: {fixedDevelopedStudents} trẻ ({developedRate}%)
+                  </Typography>
+                  <Typography variant="body1" color="text.primary">
+                    Cần hỗ trợ đặc biệt: {fixedNeedSupportStudents} trẻ
+                  </Typography>
+                </Stack>
+
+                <Box sx={{ mt: 3 }}>
+                  <Button
+                    variant="contained"
+                    sx={{
+                      borderRadius: 2,
+                      textTransform: 'none',
+                      fontWeight: 700,
+                      bgcolor: '#6366f1',
+                      '&:hover': { bgcolor: '#4f46e5' },
+                    }}
+                    onClick={() => navigate('/school-admin/students')}
+                  >
+                    Xem danh sách đầy đủ &amp; hồ sơ cá nhân
+                  </Button>
+                </Box>
+              </Paper>
             </Box>
           )}
         </Paper>
