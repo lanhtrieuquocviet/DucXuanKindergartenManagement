@@ -354,8 +354,8 @@ export default function AcademicYearDetail() {
             <Tab label="Danh sách lớp học" />
             <Tab label="Danh sách trẻ em" />
             <Tab label="Chương trình & Kế hoạch" disabled />
-            <Tab label="Báo cáo & Thống kê" disabled />
-            <Tab label="Lưu trữ & Tài liệu" disabled />
+            <Tab label="Báo cáo & Thống kê" />
+            <Tab label="Lưu trữ & Tài liệu" />
           </Tabs>
 
           {tab === 0 && (
@@ -470,6 +470,90 @@ export default function AcademicYearDetail() {
                     onClick={() => navigate('/school-admin/students')}
                   >
                     Xem danh sách đầy đủ &amp; hồ sơ cá nhân
+                  </Button>
+                </Box>
+              </Paper>
+            </Box>
+          )}
+
+          {tab === 4 && (
+            <Box sx={{ p: 3, borderTop: '1px solid', borderColor: 'divider' }}>
+              <Paper
+                elevation={0}
+                sx={{
+                  borderRadius: 2,
+                  border: '1px solid',
+                  borderColor: 'divider',
+                  p: 3,
+                  backgroundColor: 'grey.50',
+                }}
+              >
+                <Typography variant="h6" fontWeight={700} color="#4f46e5" gutterBottom>
+                  Báo cáo &amp; Thống kê
+                </Typography>
+                <Stack spacing={1.5}>
+                  <Typography variant="body1" color="text.primary">
+                    Số báo cáo định kỳ: 8 báo cáo (hàng tháng + tổng kết)
+                  </Typography>
+                  <Typography variant="body1" color="text.primary">
+                    Báo cáo nổi bật: Báo cáo tổng kết năm học - Tỷ lệ đạt chuẩn cao nhất trong 3 năm gần đây
+                  </Typography>
+                </Stack>
+
+                <Box sx={{ mt: 3 }}>
+                  <Button
+                    variant="contained"
+                    sx={{
+                      borderRadius: 2,
+                      textTransform: 'none',
+                      fontWeight: 700,
+                      bgcolor: '#10b981',
+                      '&:hover': { bgcolor: '#059669' },
+                    }}
+                  >
+                    Export báo cáo
+                  </Button>
+                </Box>
+              </Paper>
+            </Box>
+          )}
+
+          {tab === 5 && (
+            <Box sx={{ p: 3, borderTop: '1px solid', borderColor: 'divider' }}>
+              <Paper
+                elevation={0}
+                sx={{
+                  borderRadius: 2,
+                  border: '1px solid',
+                  borderColor: 'divider',
+                  p: 3,
+                  backgroundColor: 'grey.50',
+                }}
+              >
+                <Typography variant="h6" fontWeight={700} color="#4f46e5" gutterBottom>
+                  Lưu trữ &amp; Tài liệu
+                </Typography>
+                <Stack spacing={1.5}>
+                  <Typography variant="body1" color="text.primary">
+                    Tài liệu lưu trữ: Hồ sơ lớp, ảnh hoạt động, video sự kiện, biên bản họp phụ huynh...
+                  </Typography>
+                  <Typography variant="body1" color="text.primary">
+                    Dung lượng lưu trữ: 4.2 GB
+                  </Typography>
+                </Stack>
+
+                <Box sx={{ mt: 3 }}>
+                  <Button
+                    variant="contained"
+                    sx={{
+                      borderRadius: 2,
+                      textTransform: 'none',
+                      fontWeight: 700,
+                      bgcolor: '#6366f1',
+                      '&:hover': { bgcolor: '#4f46e5' },
+                    }}
+                  >
+                    Truy cập kho lưu trữ
                   </Button>
                 </Box>
               </Paper>
