@@ -104,6 +104,14 @@ export default function AcademicYearPlan() {
       navigate('/school-admin/academic-plan');
       return;
     }
+    if (key === 'academic-report') {
+      if (currentYear?._id) {
+        navigate(`/school-admin/academic-years/${currentYear._id}/report`);
+      } else {
+        navigate('/school-admin/academic-years');
+      }
+      return;
+    }
     if (key === 'academic-students') {
       navigate('/school-admin/class-list');
       return;

@@ -32,10 +32,14 @@ import {
   HourglassTop as HourglassIcon,
   LockOpen as LockOpenIcon,
   Block as BlockIcon,
+  OpenInFull as OpenInFullIcon,
+  ChevronLeft as ChevronLeftIcon,
+  ChevronRight as ChevronRightIcon,
 } from '@mui/icons-material';
 import { toast } from 'react-toastify';
 import { useAuth } from '../../context/AuthContext';
 import RoleLayout from '../../layouts/RoleLayout';
+import { get, ENDPOINTS } from '../../service/api';
 import {
   getMealPhoto,
   getAttendanceSummary,
@@ -204,10 +208,249 @@ function ImagePlaceholder() {
 }
 
 // ─────────────────────────────────────────────
+// SampleDetailDialog — xem chi tiết tất cả ảnh + thông tin
+// ─────────────────────────────────────────────
+function SampleDetailDialog({ open, onClose, entry, date }) {
+  const [activeIdx, setActiveIdx] = useState(0);
+  const images = entry?.images || [];
+  const mealLabel = MEAL_LABELS[entry?.mealType] || entry?.mealType || '';
+
+  // reset khi mở dialog mới
+  useEffect(() => { if (open) setActiveIdx(0); }, [open]);
+
+  if (!entry) return null;
+
+  const goPrev = () => setActiveIdx((i) => (i - 1 + images.length) % images.length);
+  const goNext = () => setActiveIdx((i) => (i + 1) % images.length);
+
+  return (
+    <Dialog
+      open={open}
+      onClose={onClose}
+      maxWidth="md"
+      fullWidth
+      PaperProps={{ sx: { borderRadius: 3, overflow: 'hidden' } }}
+    >
+      {/* Header */}
+      <Box sx={{
+        px: 3, py: 2,
+        display: 'flex', alignItems: 'center', justifyContent: 'space-between',
+        borderBottom: '1px solid', borderColor: 'divider',
+        bgcolor: '#f8fafc',
+      }}>
+        <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5 }}>
+          <SampleIcon sx={{ fontSize: 20, color: '#6366f1' }} />
+          <Box>
+            <Typography sx={{ fontWeight: 700, fontSize: 15, color: '#1e293b' }}>
+              Chi tiết mẫu thực phẩm — {mealLabel}
+            </Typography>
+            <Typography sx={{ fontSize: 12, color: '#64748b' }}>
+              Ngày {formatDisplayDate(date)}
+            </Typography>
+          </Box>
+        </Box>
+        <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+          <StatusBadge status={entry.status} />
+          <Tooltip title="Đóng">
+            <IconButton size="small" onClick={onClose} sx={{ color: '#64748b' }}>
+              <CloseIcon fontSize="small" />
+            </IconButton>
+          </Tooltip>
+        </Box>
+      </Box>
+
+      <DialogContent sx={{ p: 0 }}>
+        <Box sx={{ display: 'flex', flexDirection: { xs: 'column', md: 'row' }, minHeight: 420 }}>
+
+          {/* Left: image viewer */}
+          <Box sx={{ flex: '0 0 55%', bgcolor: '#0f172a', position: 'relative', display: 'flex', flexDirection: 'column' }}>
+            {images.length > 0 ? (
+              <>
+                {/* Main image */}
+                <Box sx={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', p: 2, minHeight: 280 }}>
+                  <Box
+                    component="img"
+                    src={images[activeIdx]}
+                    alt={`Ảnh ${activeIdx + 1}`}
+                    sx={{ maxWidth: '100%', maxHeight: 320, objectFit: 'contain', borderRadius: 2, display: 'block' }}
+                  />
+                </Box>
+
+                {/* Navigation */}
+                {images.length > 1 && (
+                  <>
+                    <IconButton
+                      onClick={goPrev}
+                      sx={{
+                        position: 'absolute', left: 8, top: '50%', transform: 'translateY(-50%)',
+                        bgcolor: 'rgba(255,255,255,0.15)', color: 'white',
+                        '&:hover': { bgcolor: 'rgba(255,255,255,0.3)' },
+                      }}
+                    >
+                      <ChevronLeftIcon />
+                    </IconButton>
+                    <IconButton
+                      onClick={goNext}
+                      sx={{
+                        position: 'absolute', right: 8, top: '50%', transform: 'translateY(-50%)',
+                        bgcolor: 'rgba(255,255,255,0.15)', color: 'white',
+                        '&:hover': { bgcolor: 'rgba(255,255,255,0.3)' },
+                      }}
+                    >
+                      <ChevronRightIcon />
+                    </IconButton>
+
+                    {/* Counter */}
+                    <Box sx={{
+                      position: 'absolute', bottom: 60, left: '50%', transform: 'translateX(-50%)',
+                      bgcolor: 'rgba(0,0,0,0.55)', color: 'white',
+                      px: 1.5, py: 0.25, borderRadius: 10, fontSize: 12, fontWeight: 700,
+                    }}>
+                      {activeIdx + 1} / {images.length}
+                    </Box>
+                  </>
+                )}
+
+                {/* Thumbnail strip */}
+                {images.length > 1 && (
+                  <Box sx={{
+                    display: 'flex', gap: 0.75, px: 2, pb: 1.5, pt: 0.5,
+                    overflowX: 'auto',
+                    '&::-webkit-scrollbar': { height: 4 },
+                    '&::-webkit-scrollbar-thumb': { bgcolor: 'rgba(255,255,255,0.3)', borderRadius: 2 },
+                  }}>
+                    {images.map((url, idx) => (
+                      <Box
+                        key={url + idx}
+                        onClick={() => setActiveIdx(idx)}
+                        component="img"
+                        src={url}
+                        alt={`thumb ${idx + 1}`}
+                        sx={{
+                          width: 52, height: 52, objectFit: 'cover',
+                          borderRadius: 1.5, flexShrink: 0, cursor: 'pointer',
+                          border: '2px solid',
+                          borderColor: idx === activeIdx ? '#6366f1' : 'transparent',
+                          opacity: idx === activeIdx ? 1 : 0.55,
+                          transition: 'all 0.15s',
+                          '&:hover': { opacity: 1 },
+                        }}
+                      />
+                    ))}
+                  </Box>
+                )}
+              </>
+            ) : (
+              <Box sx={{ flex: 1, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', color: 'rgba(255,255,255,0.3)' }}>
+                <CameraIcon sx={{ fontSize: 48, mb: 1 }} />
+                <Typography sx={{ fontSize: 13 }}>Chưa có ảnh</Typography>
+              </Box>
+            )}
+          </Box>
+
+          {/* Right: info panel */}
+          <Box sx={{ flex: 1, p: 3, display: 'flex', flexDirection: 'column', gap: 2, overflowY: 'auto' }}>
+
+            {/* Description */}
+            {entry.description && (
+              <Box>
+                <Typography sx={{ fontSize: 11, fontWeight: 700, color: '#94a3b8', textTransform: 'uppercase', letterSpacing: 0.8, mb: 0.5 }}>
+                  Mô tả
+                </Typography>
+                <Typography sx={{ fontSize: 13.5, color: '#1e293b', lineHeight: 1.6 }}>
+                  {entry.description}
+                </Typography>
+              </Box>
+            )}
+
+            {/* Upload info */}
+            <Box>
+              <Typography sx={{ fontSize: 11, fontWeight: 700, color: '#94a3b8', textTransform: 'uppercase', letterSpacing: 0.8, mb: 0.75 }}>
+                Thông tin tải lên
+              </Typography>
+              <Box sx={{ display: 'flex', flexDirection: 'column', gap: 0.75 }}>
+                {entry.uploadedAt && (
+                  <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                    <TimeIcon sx={{ fontSize: 15, color: '#94a3b8' }} />
+                    <Typography sx={{ fontSize: 13, color: '#374151' }}>
+                      {formatDateTime(entry.uploadedAt)}
+                    </Typography>
+                  </Box>
+                )}
+                {entry.uploadedBy?.fullName && (
+                  <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                    <PersonIcon sx={{ fontSize: 15, color: '#94a3b8' }} />
+                    <Typography sx={{ fontSize: 13, color: '#374151' }}>
+                      {entry.uploadedBy.fullName}
+                    </Typography>
+                  </Box>
+                )}
+              </Box>
+            </Box>
+
+            {/* Review info */}
+            {entry.reviewedBy && (
+              <Box>
+                <Typography sx={{ fontSize: 11, fontWeight: 700, color: '#94a3b8', textTransform: 'uppercase', letterSpacing: 0.8, mb: 0.75 }}>
+                  Kết quả kiểm tra
+                </Typography>
+                <Box sx={{ display: 'flex', flexDirection: 'column', gap: 0.75 }}>
+                  <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                    <PersonIcon sx={{ fontSize: 15, color: '#94a3b8' }} />
+                    <Typography sx={{ fontSize: 13, color: '#374151' }}>
+                      Duyệt bởi: {entry.reviewedBy.fullName || 'Hiệu trưởng'}
+                    </Typography>
+                  </Box>
+                  {entry.reviewedAt && (
+                    <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                      <TimeIcon sx={{ fontSize: 15, color: '#94a3b8' }} />
+                      <Typography sx={{ fontSize: 13, color: '#374151' }}>
+                        {formatDateTime(entry.reviewedAt)}
+                      </Typography>
+                    </Box>
+                  )}
+                </Box>
+              </Box>
+            )}
+
+            {/* Review note */}
+            {entry.reviewNote && (
+              <Box sx={{ p: 1.5, bgcolor: '#fef2f2', borderRadius: 2, border: '1px solid #fecaca' }}>
+                <Typography sx={{ fontSize: 11, fontWeight: 700, color: '#dc2626', mb: 0.5, textTransform: 'uppercase', letterSpacing: 0.8 }}>
+                  Vấn đề phát hiện
+                </Typography>
+                <Typography sx={{ fontSize: 13, color: '#dc2626', lineHeight: 1.6 }}>
+                  {entry.reviewNote}
+                </Typography>
+              </Box>
+            )}
+
+            {/* Pending countdown */}
+            {entry.status === 'cho_kiem_tra' && entry.uploadedAt && (
+              <Box sx={{ p: 1.5, bgcolor: '#fefce8', borderRadius: 2, border: '1px solid #fef08a' }}>
+                <Countdown uploadedAt={entry.uploadedAt} />
+              </Box>
+            )}
+
+            {/* Image count */}
+            <Box sx={{ mt: 'auto', pt: 1, borderTop: '1px solid', borderColor: 'divider' }}>
+              <Typography sx={{ fontSize: 12, color: '#94a3b8' }}>
+                {images.length} ảnh đính kèm
+              </Typography>
+            </Box>
+          </Box>
+        </Box>
+      </DialogContent>
+    </Dialog>
+  );
+}
+
+// ─────────────────────────────────────────────
 // SampleCard
 // ─────────────────────────────────────────────
 function SampleCard({ entry, date, onReview, isToday, editRequest, onApproveEdit, onRejectEdit }) {
   const [hovering, setHovering] = useState(false);
+  const [detailOpen, setDetailOpen] = useState(false);
   const isPending = entry.status === 'cho_kiem_tra';
   const mealLabel = MEAL_LABELS[entry.mealType] || entry.mealType;
   const firstImage = entry.images?.[0];
@@ -238,9 +481,10 @@ function SampleCard({ entry, date, onReview, isToday, editRequest, onApproveEdit
 
       {/* Image */}
       <Box
-        sx={{ px: 2, position: 'relative' }}
+        sx={{ px: 2, position: 'relative', cursor: 'pointer' }}
         onMouseEnter={() => setHovering(true)}
         onMouseLeave={() => setHovering(false)}
+        onClick={() => setDetailOpen(true)}
       >
         {firstImage ? (
           <Box sx={{ position: 'relative', borderRadius: 2, overflow: 'hidden' }}>
@@ -250,6 +494,18 @@ function SampleCard({ entry, date, onReview, isToday, editRequest, onApproveEdit
               alt="Mẫu thực phẩm"
               sx={{ width: '100%', aspectRatio: '4/3', objectFit: 'cover', display: 'block' }}
             />
+            {/* Hover overlay */}
+            <Box sx={{
+              position: 'absolute', inset: 0,
+              bgcolor: 'rgba(0,0,0,0.4)',
+              display: 'flex', alignItems: 'center', justifyContent: 'center',
+              opacity: hovering ? 1 : 0,
+              transition: 'opacity 0.18s',
+              gap: 0.75,
+            }}>
+              <OpenInFullIcon sx={{ color: 'white', fontSize: 20 }} />
+              <Typography sx={{ color: 'white', fontSize: 12.5, fontWeight: 700 }}>Xem chi tiết</Typography>
+            </Box>
             {entry.images.length > 1 && (
               <Box
                 sx={{
@@ -382,6 +638,29 @@ function SampleCard({ entry, date, onReview, isToday, editRequest, onApproveEdit
         </Box>
       )}
 
+      {/* View detail button */}
+      <Box sx={{ px: 2, pb: 1 }}>
+        <Button
+          fullWidth
+          size="small"
+          variant="outlined"
+          startIcon={<OpenInFullIcon sx={{ fontSize: 14 }} />}
+          onClick={() => setDetailOpen(true)}
+          sx={{
+            fontSize: 12,
+            fontWeight: 600,
+            py: 0.5,
+            borderRadius: 2,
+            borderColor: '#e2e8f0',
+            color: '#475569',
+            textTransform: 'none',
+            '&:hover': { borderColor: '#6366f1', color: '#6366f1', bgcolor: 'rgba(99,102,241,0.04)' },
+          }}
+        >
+          Xem chi tiết ({entry.images?.length || 0} ảnh)
+        </Button>
+      </Box>
+
       {/* Action buttons (only for pending and today) */}
       {isPending && isToday && (
         <Box sx={{ px: 2, pb: 1.75, display: 'flex', gap: 1 }}>
@@ -421,6 +700,14 @@ function SampleCard({ entry, date, onReview, isToday, editRequest, onApproveEdit
           </Button>
         </Box>
       )}
+
+      {/* Detail dialog */}
+      <SampleDetailDialog
+        open={detailOpen}
+        onClose={() => setDetailOpen(false)}
+        entry={entry}
+        date={date}
+      />
     </Paper>
   );
 }
@@ -714,13 +1001,24 @@ function MealManagementSchoolAdmin() {
     { key: 'attendance', label: 'Quản lý điểm danh' },
   ];
 
-  const handleMenuSelect = (key) => {
+  const handleMenuSelect = async (key) => {
     if (key === 'meal-management') return;
     if (key === 'overview') { navigate('/school-admin'); return; }
     if (key === 'academic-years' || key === 'academic-year-setup') { navigate('/school-admin/academic-years'); return; }
     if (key === 'academic-curriculum') { navigate('/school-admin/curriculum'); return; }
     if (key === 'academic-schedule') { navigate('/school-admin/timetable'); return; }
     if (key === 'academic-plan') { navigate('/school-admin/academic-plan'); return; }
+    if (key === 'academic-report') {
+      try {
+        const resp = await get(ENDPOINTS.SCHOOL_ADMIN.ACADEMIC_YEARS.CURRENT);
+        const yearId = resp?.status === 'success' ? resp?.data?._id : null;
+        if (yearId) navigate(`/school-admin/academic-years/${yearId}/report`);
+        else navigate('/school-admin/academic-years');
+      } catch (_) {
+        navigate('/school-admin/academic-years');
+      }
+      return;
+    }
     if (key === 'classes') { navigate('/school-admin/classes'); return; }
     if (key === 'academic-students') { navigate('/school-admin/class-list'); return; }
     if (key === 'students') { navigate('/school-admin/students'); return; }

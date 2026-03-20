@@ -553,7 +553,7 @@ function ManageBlogs() {
     { key: 'attendance', label: 'Quản lý điểm danh' },
   ];
 
-  const handleMenuSelect = (key) => {
+  const handleMenuSelect = async (key) => {
     if (key === 'overview') {
       navigate('/school-admin');
       return;
@@ -572,6 +572,17 @@ function ManageBlogs() {
     }
     if (key === 'academic-plan') {
       navigate('/school-admin/academic-plan');
+      return;
+    }
+    if (key === 'academic-report') {
+      try {
+        const resp = await get(ENDPOINTS.SCHOOL_ADMIN.ACADEMIC_YEARS.CURRENT);
+        const yearId = resp?.status === 'success' ? resp?.data?._id : null;
+        if (yearId) navigate(`/school-admin/academic-years/${yearId}/report`);
+        else navigate('/school-admin/academic-years');
+      } catch (_) {
+        navigate('/school-admin/academic-years');
+      }
       return;
     }
     if (key === 'classes') {

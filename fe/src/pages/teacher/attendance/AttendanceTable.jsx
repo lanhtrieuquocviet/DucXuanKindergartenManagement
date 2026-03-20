@@ -4,6 +4,7 @@ import {
   Box, Paper, Typography, Button, TextField, Chip, Alert, Skeleton,
   Table, TableBody, TableCell, TableContainer, TableHead, TableRow,
   Stack, Tooltip, Avatar, LinearProgress, IconButton, Dialog, useMediaQuery, useTheme,
+  InputAdornment,
 } from '@mui/material';
 import {
   Login as CheckInIcon,
@@ -17,6 +18,7 @@ import {
   CalendarMonth as CalendarIcon,
   Close as CloseIcon,
   ZoomIn as ZoomInIcon,
+  Search as SearchIcon,
 } from '@mui/icons-material';
 import { defaultRecord } from './attendanceUtils';
 
@@ -77,10 +79,7 @@ function SummaryBar({ students, attendanceByStudent }) {
         {items.map((item) => (
           <Box
             key={item.label}
-            sx={{
-              display: 'flex', alignItems: 'center', gap: 0.75,
-              px: 1.25, py: 0.5, borderRadius: 1.5, bgcolor: item.bg,
-            }}
+            sx={{ display: 'flex', alignItems: 'center', gap: 0.75, px: 1.25, py: 0.5, borderRadius: 1.5, bgcolor: item.bg }}
           >
             <Typography variant="caption" fontWeight={700} sx={{ color: item.color }}>{item.value}</Typography>
             <Typography variant="caption" color="text.secondary">{item.label}</Typography>
@@ -90,6 +89,15 @@ function SummaryBar({ students, attendanceByStudent }) {
     </Box>
   );
 }
+
+const FILTER_OPTIONS = [
+  { key: 'all',         label: 'Tất cả',             color: 'default' },
+  { key: 'empty',       label: 'Chưa điểm danh',     color: 'default' },
+  { key: 'checked_in',  label: 'Đã điểm danh đến',   color: 'success' },
+  { key: 'not_left',    label: 'Chưa điểm danh về',  color: 'warning' },
+  { key: 'present',     label: 'Có mặt',              color: 'info'    },
+  { key: 'absent',      label: 'Vắng mặt',            color: 'error'   },
+];
 
 function formatDisplayDate(dateStr) {
   if (!dateStr) return '';
@@ -413,9 +421,24 @@ function AttendanceTable({
   classId,
 }) {
   const [lightbox, setLightbox] = useState(null); // { src, name }
+  const [searchText, setSearchText] = useState('');
+  const [filterStatus, setFilterStatus] = useState('all');
   const theme = useTheme();
   const isMobile = useMediaQuery(theme.breakpoints.down('sm'));
   const isPastDate = selectedDate < todayISO;
+
+  const filteredStudents = (students || []).filter((s) => {
+    const matchName = s.fullName?.toLowerCase().includes(searchText.toLowerCase().trim());
+    if (!matchName) return false;
+    if (filterStatus === 'all') return true;
+    const st = attendanceByStudent?.[s._id]?.status || 'empty';
+    if (filterStatus === 'empty')      return st === 'empty';
+    if (filterStatus === 'checked_in') return st === 'checked_in';
+    if (filterStatus === 'not_left')   return st === 'checked_in' || st === 'waiting_parent' || st === 'parent_confirmed';
+    if (filterStatus === 'present')    return st === 'checked_in' || st === 'waiting_parent' || st === 'parent_confirmed' || st === 'checked_out';
+    if (filterStatus === 'absent')     return st === 'absent';
+    return true;
+  });
 
   return (
     <>
@@ -460,6 +483,48 @@ function AttendanceTable({
         <SummaryBar students={students} attendanceByStudent={attendanceByStudent} />
       )}
 
+      {/* Search + Filter bar */}
+      {!loadingStudents && (students || []).length > 0 && (
+        <Box sx={{ px: { xs: 2, md: 3 }, py: 1.5, borderBottom: '1px solid', borderColor: 'divider', display: 'flex', flexDirection: 'column', gap: 1.25 }}>
+          <TextField
+            size="small"
+            placeholder="Tìm kiếm học sinh..."
+            value={searchText}
+            onChange={(e) => setSearchText(e.target.value)}
+            slotProps={{
+              input: {
+                startAdornment: (
+                  <InputAdornment position="start">
+                    <SearchIcon sx={{ fontSize: 18, color: 'text.disabled' }} />
+                  </InputAdornment>
+                ),
+                endAdornment: searchText ? (
+                  <InputAdornment position="end">
+                    <IconButton size="small" onClick={() => setSearchText('')} edge="end">
+                      <CloseIcon sx={{ fontSize: 16 }} />
+                    </IconButton>
+                  </InputAdornment>
+                ) : null,
+              },
+            }}
+            sx={{ width: { xs: '100%', sm: 320 } }}
+          />
+          <Stack direction="row" spacing={0.75} flexWrap="wrap" useFlexGap>
+            {FILTER_OPTIONS.map((opt) => (
+              <Chip
+                key={opt.key}
+                label={opt.label}
+                size="small"
+                color={filterStatus === opt.key ? opt.color : 'default'}
+                variant={filterStatus === opt.key ? 'filled' : 'outlined'}
+                onClick={() => setFilterStatus(filterStatus === opt.key && opt.key !== 'all' ? 'all' : opt.key)}
+                sx={{ fontWeight: filterStatus === opt.key ? 700 : 500, fontSize: 12, cursor: 'pointer' }}
+              />
+            ))}
+          </Stack>
+        </Box>
+      )}
+
       {/* Error */}
       {studentsError && (
         <Alert severity="error" sx={{ mx: 3, mt: 2, borderRadius: 2 }}>{studentsError}</Alert>
@@ -482,10 +547,22 @@ function AttendanceTable({
             Liên hệ quản trị viên để thêm học sinh vào lớp.
           </Typography>
         </Box>
+      ) : filteredStudents.length === 0 ? (
+        <Box sx={{ py: 8, textAlign: 'center' }}>
+          <Avatar sx={{ width: 56, height: 56, bgcolor: 'grey.100', mx: 'auto', mb: 2 }}>
+            <SearchIcon sx={{ color: 'grey.400', fontSize: 28 }} />
+          </Avatar>
+          <Typography variant="body1" fontWeight={600} color="text.secondary">
+            Không tìm thấy học sinh
+          </Typography>
+          <Typography variant="caption" color="text.disabled">
+            Thử thay đổi từ khóa hoặc bỏ bộ lọc trạng thái.
+          </Typography>
+        </Box>
       ) : isMobile ? (
         /* ── Mobile: Card list ── */
         <Box>
-          {(students || []).map((s, idx) => {
+          {filteredStudents.map((s, idx) => {
             const rec = attendanceByStudent?.[s._id] || defaultRecord();
             const chipProps = getChipProps(rec.status);
             return (
@@ -527,7 +604,7 @@ function AttendanceTable({
               </TableRow>
             </TableHead>
             <TableBody>
-              {(students || []).map((s, idx) => {
+              {filteredStudents.map((s, idx) => {
                 const rec = attendanceByStudent?.[s._id] || defaultRecord();
                 const chipProps = getChipProps(rec.status);
                 const canCheckIn  = rec.status === 'empty' || rec.status === 'absent';

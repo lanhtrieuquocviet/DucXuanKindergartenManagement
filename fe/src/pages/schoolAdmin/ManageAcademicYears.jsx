@@ -156,6 +156,14 @@ function ManageAcademicYears() {
       navigate('/school-admin/timetable');
       return;
     }
+    if (key === 'academic-report') {
+      if (currentYear?._id) {
+        navigate(`/school-admin/academic-years/${currentYear._id}/report`);
+      } else {
+        navigate('/school-admin/academic-years');
+      }
+      return;
+    }
   };
 
   const userName = user?.fullName || user?.username || 'School Admin';

@@ -86,6 +86,12 @@ export default function AcademicYearDetail() {
       navigate('/school-admin/academic-plan');
       return;
     }
+    if (key === 'academic-report') {
+      if (yearId) {
+        navigate(`/school-admin/academic-years/${yearId}/report`);
+      }
+      return;
+    }
     if (key === 'academic-students') {
       navigate('/school-admin/class-list');
       return;
@@ -493,25 +499,28 @@ export default function AcademicYearDetail() {
                 </Typography>
                 <Stack spacing={1.5}>
                   <Typography variant="body1" color="text.primary">
-                    Số báo cáo định kỳ: 8 báo cáo (hàng tháng + tổng kết)
+                    Mở màn hình báo cáo đầy đủ theo năm học.
                   </Typography>
                   <Typography variant="body1" color="text.primary">
-                    Báo cáo nổi bật: Báo cáo tổng kết năm học - Tỷ lệ đạt chuẩn cao nhất trong 3 năm gần đây
+                    Bạn sẽ thấy KPI, thanh tìm kiếm và danh sách sự kiện giống giao diện mẫu.
                   </Typography>
                 </Stack>
 
                 <Box sx={{ mt: 3 }}>
                   <Button
                     variant="contained"
+                    onClick={() => {
+                      if (yearId) navigate(`/school-admin/academic-years/${yearId}/report`);
+                    }}
                     sx={{
                       borderRadius: 2,
                       textTransform: 'none',
                       fontWeight: 700,
-                      bgcolor: '#10b981',
-                      '&:hover': { bgcolor: '#059669' },
+                      bgcolor: '#4f46e5',
+                      '&:hover': { bgcolor: '#4338ca' },
                     }}
                   >
-                    Export báo cáo
+                    Mở trang Báo cáo &amp; Thống kê
                   </Button>
                 </Box>
               </Paper>
