@@ -30,6 +30,7 @@ const menuRoutes = require("./src/routes/menu.routes");
 const publicInfoRoutes = require('./src/routes/publicInfo.routes');
 const DailyMenu = require('./src/routes/dailyMenu.routes');
 const mealPhotoRoutes = require('./src/routes/mealPhoto.routes');
+const notificationRoutes = require('./src/routes/notification.routes');
 const reportRoutes = require('./src/routes/report.routes');
 const { startAutoApproveSampleEntries } = require('./src/jobs/autoApproveSampleEntries');
 
@@ -50,6 +51,7 @@ require('./src/models/PublicInfo');
 require('./src/models/SystemLog');
 require('./src/models/CurriculumTopic');
 require('./src/models/Timetable');
+require('./src/models/Notification');
 
 // ensure default blog categories exist
 (async () => {
@@ -263,6 +265,7 @@ app.use("/api/foods", foodRoutes);
 app.use("/api/menus", menuRoutes);
 app.use("/api/daily-menus",DailyMenu);
 app.use('/api/meal-photos', mealPhotoRoutes);
+app.use('/api/notifications', notificationRoutes);
 app.use('/api/reports', reportRoutes);
 // Public info (public - published only)
 app.use('/api/public-info', publicInfoRoutes);

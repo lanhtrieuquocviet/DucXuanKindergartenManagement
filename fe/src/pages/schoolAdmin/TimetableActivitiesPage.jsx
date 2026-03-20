@@ -61,6 +61,73 @@ const menuItems = [
   { key: 'attendance', label: 'Quản lý điểm danh' },
 ];
 
+// Dùng initialValue + key để reset khi modal mở — không cần sync phức tạp
+function TimeSelect({ label, initialValue = '', onChange }) {
+  const [h, setH] = useState(initialValue ? initialValue.split(':')[0] : '');
+  const [m, setM] = useState(initialValue ? initialValue.split(':')[1] : '');
+
+  const notify = (newH, newM) => {
+    const hh = newH.padStart(2, '0');
+    const mm = newM.padStart(2, '0');
+    onChange(newH && newM ? `${hh}:${mm}` : '');
+  };
+
+  const onChangeH = (e) => {
+    let v = e.target.value.replace(/\D/g, '').slice(0, 2);
+    if (v.length === 2 && Number(v) > 23) v = '23';
+    setH(v);
+    notify(v, m);
+  };
+
+  const onChangeM = (e) => {
+    let v = e.target.value.replace(/\D/g, '').slice(0, 2);
+    if (v.length === 2 && Number(v) > 59) v = '59';
+    setM(v);
+    notify(h, v);
+  };
+
+  const onBlurH = () => {
+    const padded = h ? h.padStart(2, '0') : '';
+    setH(padded);
+    notify(padded, m);
+  };
+
+  const onBlurM = () => {
+    const padded = m ? m.padStart(2, '0') : '';
+    setM(padded);
+    notify(h, padded);
+  };
+
+  return (
+    <Box>
+      <Typography variant="caption" color="text.secondary" fontWeight={600} sx={{ mb: 0.75, display: 'block' }}>
+        {label}
+      </Typography>
+      <Stack direction="row" alignItems="center" spacing={0.5}>
+        <TextField
+          size="small"
+          placeholder="GG"
+          value={h}
+          onChange={onChangeH}
+          onBlur={onBlurH}
+          inputProps={{ inputMode: 'numeric', maxLength: 2 }}
+          sx={{ width: 64, '& input': { textAlign: 'center', fontWeight: 700, fontSize: 15 } }}
+        />
+        <Typography fontWeight={900} fontSize={18} color="text.secondary" sx={{ userSelect: 'none', pb: '2px' }}>:</Typography>
+        <TextField
+          size="small"
+          placeholder="PP"
+          value={m}
+          onChange={onChangeM}
+          onBlur={onBlurM}
+          inputProps={{ inputMode: 'numeric', maxLength: 2 }}
+          sx={{ width: 64, '& input': { textAlign: 'center', fontWeight: 700, fontSize: 15 } }}
+        />
+      </Stack>
+    </Box>
+  );
+}
+
 function minutesToHHMM(minutes) {
   const m = Number(minutes);
   if (Number.isNaN(m)) return '';
@@ -76,19 +143,6 @@ function seasonContentLabel(appliesToSeason) {
   return 'Nội dung hoạt động';
 }
 
-function normalizeHHMM(value) {
-  if (value === null || value === undefined) return '';
-  const s = String(value).trim();
-  if (!s) return '';
-  // Lấy phần HH:MM đầu tiên (hỗ trợ cả dạng "08:00 AM" hoặc "08:00 --")
-  const match = s.match(/(\d{1,2})\s*:\s*(\d{2})/);
-  if (!match) return s;
-  const hh = String(match[1]).padStart(2, '0');
-  const mm = match[2];
-  // Giữ lại AM/PM nếu có để backend parse đúng giờ (PM vs AM)
-  const ampm = s.match(/\b(AM|PM)\b/i)?.[1]?.toUpperCase();
-  return ampm ? `${hh}:${mm} ${ampm}` : `${hh}:${mm}`;
-}
 
 export default function TimetableActivitiesPage() {
   const navigate = useNavigate();
@@ -220,10 +274,43 @@ export default function TimetableActivitiesPage() {
       toast.error('Vui lòng chọn mùa áp dụng.');
       return;
     }
-    if (!form.startTime || !form.endTime) {
-      toast.error('Vui lòng nhập thời gian (từ giờ / đến giờ).');
+    if (!form.startTime) {
+      toast.error('Vui lòng chọn "Từ giờ".');
       return;
     }
+    if (!form.endTime) {
+      toast.error('Vui lòng chọn "Đến giờ".');
+      return;
+    }
+
+    // Parse sang số phút để so sánh (input type="time" luôn trả về HH:MM 24h)
+    const [startH, startM] = form.startTime.split(':').map(Number);
+    const [endH, endM] = form.endTime.split(':').map(Number);
+    const startMins = startH * 60 + startM;
+    const endMins = endH * 60 + endM;
+
+    if (startMins >= endMins) {
+      toast.error('Giờ bắt đầu phải nhỏ hơn giờ kết thúc.');
+      return;
+    }
+
+    // Check overlap ngay trên frontend
+    const conflicting = activities.find((a) => {
+      if (modalMode === 'edit' && String(a._id) === String(editingId)) return false;
+      const sameSeasonGroup =
+        a.appliesToSeason === 'both' ||
+        form.appliesToSeason === 'both' ||
+        a.appliesToSeason === form.appliesToSeason;
+      if (!sameSeasonGroup) return false;
+      return startMins < a.endMinutes && endMins > a.startMinutes;
+    });
+    if (conflicting) {
+      toast.error(
+        `Trùng giờ với hoạt động ${minutesToHHMM(conflicting.startMinutes)} – ${minutesToHHMM(conflicting.endMinutes)}. Vui lòng chọn giờ khác.`
+      );
+      return;
+    }
+
     if (!form.content.trim()) {
       toast.error('Vui lòng nhập nội dung hoạt động.');
       return;
@@ -231,23 +318,21 @@ export default function TimetableActivitiesPage() {
 
     try {
       setSaving(true);
-      const startTime = normalizeHHMM(form.startTime);
-      const endTime = normalizeHHMM(form.endTime);
       const payload = {
         id: modalMode === 'edit' ? editingId : undefined,
         academicYearId: academicYear._id,
         appliesToSeason: form.appliesToSeason,
-        startTime,
-        endTime,
-        content: form.content,
+        startTime: form.startTime,
+        endTime: form.endTime,
+        content: form.content.trim(),
       };
 
       await put(ENDPOINTS.SCHOOL_ADMIN.TIMETABLE.UPSERT, payload);
       await loadActivities(academicYear._id);
       setOpenModal(false);
-      toast.success(modalMode === 'edit' ? 'Đã cập nhật hoạt động.' : 'Đã thêm hoạt động.');
+      toast.success(modalMode === 'edit' ? 'Đã cập nhật hoạt động.' : 'Đã thêm hoạt động mới.');
     } catch (err) {
-      toast.error(err?.message || 'Lưu thất bại. Vui lòng kiểm tra trùng giờ.');
+      toast.error(err?.message || 'Lưu thất bại.');
     } finally {
       setSaving(false);
     }
@@ -346,6 +431,7 @@ export default function TimetableActivitiesPage() {
 
       <Dialog open={openModal} onClose={handleCloseModal} maxWidth="sm" fullWidth>
         <DialogTitle
+          component="div"
           sx={{
             pb: 1.5,
             background: 'linear-gradient(135deg, #6366f1 0%, #8b5cf6 100%)',
@@ -362,24 +448,19 @@ export default function TimetableActivitiesPage() {
             <Typography variant="body2" color="text.secondary" sx={{ fontWeight: 800 }}>
               Thời gian
             </Typography>
-            <Stack direction={{ xs: 'column', sm: 'row' }} spacing={2}>
-              <TextField
+            <Stack direction="row" spacing={3} alignItems="flex-start">
+              <TimeSelect
+                key={`start-${editingId || 'new'}-${openModal}`}
                 label="Từ giờ"
-                type="time"
-                size="small"
-                fullWidth
-                InputLabelProps={{ shrink: true }}
-                value={form.startTime}
-                onChange={(e) => setForm((prev) => ({ ...prev, startTime: e.target.value }))}
+                initialValue={form.startTime}
+                onChange={(v) => setForm((prev) => ({ ...prev, startTime: v }))}
               />
-              <TextField
+              <Typography fontWeight={700} color="text.disabled" sx={{ pt: '28px' }}>→</Typography>
+              <TimeSelect
+                key={`end-${editingId || 'new'}-${openModal}`}
                 label="Đến giờ"
-                type="time"
-                size="small"
-                fullWidth
-                InputLabelProps={{ shrink: true }}
-                value={form.endTime}
-                onChange={(e) => setForm((prev) => ({ ...prev, endTime: e.target.value }))}
+                initialValue={form.endTime}
+                onChange={(v) => setForm((prev) => ({ ...prev, endTime: v }))}
               />
             </Stack>
 
@@ -414,7 +495,22 @@ export default function TimetableActivitiesPage() {
               multiline
               minRows={3}
               value={form.content}
-              onChange={(e) => setForm((prev) => ({ ...prev, content: e.target.value }))}
+              onChange={(e) => {
+                if (e.target.value.length <= 300) {
+                  setForm((prev) => ({ ...prev, content: e.target.value }));
+                }
+              }}
+              error={form.content.length > 280}
+              helperText={
+                <Box component="span" sx={{ display: 'flex', justifyContent: 'flex-end' }}>
+                  <Typography
+                    variant="caption"
+                    color={form.content.length > 280 ? 'error' : 'text.disabled'}
+                  >
+                    {form.content.length}/300
+                  </Typography>
+                </Box>
+              }
             />
           </Stack>
         </DialogContent>

@@ -327,6 +327,13 @@ export const ENDPOINTS = {
     REQUEST_EDIT: "/meal-photos/edit-request",
     APPROVE_EDIT_REQUEST: "/meal-photos/edit-request/approve",
   },
+  // Notifications (Parent)
+  NOTIFICATIONS: {
+    LIST: '/notifications',
+    UNREAD_COUNT: '/notifications/unread-count',
+    MARK_READ: (id) => `/notifications/${id}/read`,
+    MARK_ALL_READ: '/notifications/read-all',
+  },
   // OTP
   OTP: {
     SEND: "/otp/send",

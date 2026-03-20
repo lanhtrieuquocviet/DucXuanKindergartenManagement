@@ -78,12 +78,6 @@ const KITCHEN_MENU = [
     ],
   },
   {
-    label: 'Upload ảnh',
-    key: 'upload',
-    icon: <UploadIcon fontSize="small" />,
-    path: '/kitchen/upload-food',
-  },
-  {
     label: 'Báo cáo',
     key: 'report',
     icon: <ReportIcon fontSize="small" />,
