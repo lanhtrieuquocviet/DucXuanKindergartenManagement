@@ -1,15 +1,8 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { get, ENDPOINTS } from '../../service/api';
 
-const DAYS = ['Thứ Hai', 'Thứ Ba', 'Thứ Tư', 'Thứ Năm', 'Thứ Sáu', 'Thứ Bảy'];
-const ROWS = [
-  { key: 'sang', label: 'Sáng' },
-  { key: 'chieu', label: 'Chiều' },
-];
-
 export default function Schedule() {
-  const [timetablesByGrade, setTimetablesByGrade] = useState({});
-  const [gradeNames, setGradeNames] = useState({});
+  const [activities, setActivities] = useState([]);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
@@ -18,26 +11,10 @@ export default function Schedule() {
       try {
         const res = await get(ENDPOINTS.TIMETABLE_PUBLIC(), { includeAuth: false });
         if (cancelled) return;
-        if (res?.status === 'success') {
-          const byGrade = {};
-          (res.data || []).forEach((item) => {
-            const id = String(item.gradeId?._id ?? item.gradeId);
-            if (id) {
-              byGrade[id] = {
-                sang: Array.isArray(item.sang) ? item.sang.slice(0, 6) : ['', '', '', '', '', ''],
-                chieu: Array.isArray(item.chieu) ? item.chieu.slice(0, 6) : ['', '', '', '', '', ''],
-              };
-              while (byGrade[id].sang.length < 6) byGrade[id].sang.push('');
-              while (byGrade[id].chieu.length < 6) byGrade[id].chieu.push('');
-            }
-          });
-          setTimetablesByGrade(byGrade);
-          setGradeNames(res.gradeNames || {});
-        }
+        if (res?.status === 'success') setActivities(Array.isArray(res.data) ? res.data : []);
       } catch (_) {
         if (!cancelled) {
-          setTimetablesByGrade({});
-          setGradeNames({});
+          setActivities([]);
         }
       } finally {
         if (!cancelled) setLoading(false);
@@ -47,9 +24,51 @@ export default function Schedule() {
     return () => { cancelled = true; };
   }, []);
 
-  const entries = Object.entries(timetablesByGrade).filter(
-    ([_, t]) => t?.sang?.length === 6 && t?.chieu?.length === 6
-  );
+  const grouped = useMemo(() => {
+    const summer = activities.filter((a) => a.appliesToSeason === 'summer' || a.appliesToSeason === 'both');
+    const winter = activities.filter((a) => a.appliesToSeason === 'winter' || a.appliesToSeason === 'both');
+    return { summer, winter };
+  }, [activities]);
+
+  const renderSeasonTable = (title, list) => {
+    return (
+      <div className="rounded-lg border border-gray-200 overflow-hidden shadow-sm">
+        <div className="bg-indigo-600 px-4 py-3">
+          <h2 className="text-lg font-semibold text-white">{title}</h2>
+        </div>
+        <div className="overflow-x-auto">
+          <table className="min-w-full border text-sm text-center">
+            <thead className="bg-indigo-700 text-white">
+              <tr>
+                <th className="border border-indigo-600 px-3 py-2 w-40 font-semibold">GIỜ</th>
+                <th className="border border-indigo-600 px-3 py-2 font-semibold">NỘI DUNG HOẠT ĐỘNG</th>
+              </tr>
+            </thead>
+            <tbody>
+              {list.length === 0 ? (
+                <tr>
+                  <td colSpan={2} className="border border-gray-200 px-3 py-6 text-gray-500">
+                    Chưa có hoạt động.
+                  </td>
+                </tr>
+              ) : (
+                list.map((a) => (
+                  <tr key={a._id} className="even:bg-gray-50">
+                    <td className="border border-gray-200 px-3 py-2 font-medium bg-sky-50">
+                      {a.startLabel} - {a.endLabel}
+                    </td>
+                    <td className="border border-gray-200 px-3 py-2 text-gray-800 text-left">
+                      {a.content || '—'}
+                    </td>
+                  </tr>
+                ))
+              )}
+            </tbody>
+          </table>
+        </div>
+      </div>
+    );
+  };
 
   return (
     <div className="w-full min-h-screen bg-white px-4 sm:px-6 py-4 sm:py-6 text-gray-800">
@@ -61,63 +80,21 @@ export default function Schedule() {
       </div>
 
       {/* Title */}
-      <h1 className="text-2xl font-semibold mb-2">
-        Thời khóa biểu các khối
-      </h1>
-      <p className="text-gray-600 text-sm mb-6">
-        Thời khóa biểu theo từng khối lớp do nhà trường thiết lập.
-      </p>
+      <h1 className="text-2xl font-semibold mb-2">Thời gian biểu hoạt động hằng ngày</h1>
+      <p className="text-gray-600 text-sm mb-6">Thời gian biểu theo mùa do nhà trường thiết lập.</p>
 
       {loading ? (
         <div className="rounded-lg border border-gray-200 bg-gray-50 px-4 py-8 text-center text-gray-500">
           Đang tải...
         </div>
-      ) : entries.length === 0 ? (
+      ) : activities.length === 0 ? (
         <div className="rounded-lg border border-gray-200 bg-gray-50 px-4 py-8 text-center text-gray-500">
           Chưa có thời khóa biểu nào. Nhà trường sẽ cập nhật tại mục Quản lý năm học → Thời khóa biểu.
         </div>
       ) : (
         <div className="space-y-8">
-          {entries.map(([gradeId, timetable]) => {
-            const gradeName = gradeNames[gradeId] || `Khối ${gradeId.slice(-4)}`;
-            return (
-              <div key={gradeId} className="rounded-lg border border-gray-200 overflow-hidden shadow-sm">
-                <div className="bg-indigo-600 px-4 py-3">
-                  <h2 className="text-lg font-semibold text-white">
-                    Thời khóa biểu khối {gradeName}
-                  </h2>
-                </div>
-                <div className="overflow-x-auto">
-                  <table className="min-w-full border text-sm text-center">
-                    <thead className="bg-indigo-700 text-white">
-                      <tr>
-                        <th className="border border-indigo-600 px-3 py-2 w-24 font-semibold">Buổi</th>
-                        {DAYS.map((d) => (
-                          <th key={d} className="border border-indigo-600 px-3 py-2 font-semibold">
-                            {d}
-                          </th>
-                        ))}
-                      </tr>
-                    </thead>
-                    <tbody>
-                      {ROWS.map((row) => (
-                        <tr key={row.key} className="even:bg-gray-50">
-                          <td className="border border-gray-200 px-3 py-2 font-medium bg-sky-50">
-                            {row.label}
-                          </td>
-                          {(timetable[row.key] || Array(6).fill('')).map((cell, i) => (
-                            <td key={i} className="border border-gray-200 px-3 py-2 align-middle">
-                              {cell || '—'}
-                            </td>
-                          ))}
-                        </tr>
-                      ))}
-                    </tbody>
-                  </table>
-                </div>
-              </div>
-            );
-          })}
+          {renderSeasonTable('Mùa Hè', grouped.summer)}
+          {renderSeasonTable('Mùa Đông', grouped.winter)}
         </div>
       )}
     </div>

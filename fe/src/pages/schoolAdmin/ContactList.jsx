@@ -18,6 +18,7 @@ import {
 import ReplyIcon from '@mui/icons-material/Reply';
 import SendIcon from '@mui/icons-material/Send';
 import DeleteOutlineIcon from '@mui/icons-material/DeleteOutline';
+import { get, ENDPOINTS } from '../../service/api';
 
 function ContactList() {
   const [data, setData] = useState(null);
@@ -134,7 +135,7 @@ function ContactList() {
         { key: 'academic-plan', label: 'Thiết lập kế hoạch' },
         { key: 'academic-students', label: 'Danh sách lớp học' },
         { key: 'academic-curriculum', label: 'Chương trình giáo dục' },
-        { key: 'academic-schedule', label: 'Thời khóa biểu' },
+        { key: 'academic-schedule', label: 'Thời gian biểu' },
         { key: 'academic-report', label: 'Báo cáo & thống kê' },
       ],
     },
@@ -151,7 +152,7 @@ function ContactList() {
     { key: 'attendance', label: 'Quản lý điểm danh' },
   ];
 
-  const handleMenuSelect = (key) => {
+  const handleMenuSelect = async (key) => {
     if (key === 'overview') {
       navigate('/school-admin');
       return;
@@ -166,6 +167,17 @@ function ContactList() {
     }
     if (key === 'academic-schedule') {
       navigate('/school-admin/timetable');
+      return;
+    }
+    if (key === 'academic-report') {
+      try {
+        const resp = await get(ENDPOINTS.SCHOOL_ADMIN.ACADEMIC_YEARS.CURRENT);
+        const yearId = resp?.status === 'success' ? resp?.data?._id : null;
+        if (yearId) navigate(`/school-admin/academic-years/${yearId}/report`);
+        else navigate('/school-admin/academic-years');
+      } catch (_) {
+        navigate('/school-admin/academic-years');
+      }
       return;
     }
     if (key === 'academic-students') {

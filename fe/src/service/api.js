@@ -161,6 +161,7 @@ export const ENDPOINTS = {
   // Authentication
   AUTH: {
     LOGIN: "/auth/login",
+    LOGOUT: "/auth/logout",
     ME: "/auth/me",
     ME_STUDENT: "/auth/me/student",
     MY_CHILDREN: "/auth/me/children",
@@ -235,6 +236,11 @@ export const ENDPOINTS = {
     TIMETABLE: {
       LIST: (yearId) => (yearId ? `/school-admin/timetable?yearId=${yearId}` : "/school-admin/timetable"),
       UPSERT: "/school-admin/timetable",
+    },
+    TIMETABLE_ACTIVITIES: {
+      LIST: (yearId) => (yearId ? `/school-admin/timetable/activities?yearId=${yearId}` : "/school-admin/timetable/activities"),
+      CREATE: "/school-admin/timetable/activities",
+      UPDATE: (id) => `/school-admin/timetable/activities/${id}`,
     },
     TEACHERS: "/school-admin/teachers",
   },

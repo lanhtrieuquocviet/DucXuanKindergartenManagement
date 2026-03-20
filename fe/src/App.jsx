@@ -86,11 +86,12 @@ import MenuStudent from './pages/student/MenuStudent';
 import MenuDetailStudent from './pages/student/MenuDetailStudent';
 import ManageAcademicYears from './pages/schoolAdmin/ManageAcademicYears';
 import AcademicYearDetail from './pages/schoolAdmin/AcademicYearDetail';
+import AcademicYearReport from './pages/schoolAdmin/AcademicYearReport';
 import MealManagementSchoolAdmin from './pages/schoolAdmin/MealManagementSchoolAdmin';
 import AcademicYearPlan from './pages/schoolAdmin/AcademicYearPlan';
 import CurriculumPage from './pages/schoolAdmin/CurriculumPage';
 import ClassListOverview from './pages/schoolAdmin/ClassListOverview';
-import TimetablePage from './pages/schoolAdmin/TimetablePage';
+import TimetableActivitiesPage from './pages/schoolAdmin/TimetableActivitiesPage';
 import ProtectedRoute from './components/ProtectedRoute';
 
 
@@ -555,7 +556,7 @@ function App() {
             element={
               <ProtectedRoute>
                 <SchoolAdminProvider>
-                  <TimetablePage />
+                  <TimetableActivitiesPage />
                 </SchoolAdminProvider>
               </ProtectedRoute>
             }
@@ -576,6 +577,16 @@ function App() {
               <ProtectedRoute>
                 <SchoolAdminProvider>
                   <AcademicYearDetail />
+                </SchoolAdminProvider>
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/school-admin/academic-years/:yearId/report"
+            element={
+              <ProtectedRoute>
+                <SchoolAdminProvider>
+                  <AcademicYearReport />
                 </SchoolAdminProvider>
               </ProtectedRoute>
             }

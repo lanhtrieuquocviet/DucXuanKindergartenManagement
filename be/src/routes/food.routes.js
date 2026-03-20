@@ -4,72 +4,77 @@ const foodController = require("../controller/foodController");
 
 /**
  * @openapi
- * /api/food:
- *   post:
- *     summary: Tạo món ăn mới
+ * /api/foods:
+ *   get:
+ *     summary: Lấy danh sách thực phẩm
  *     tags:
- *       - Food
+ *       - Foods
+ *     security:
+ *       - bearerAuth: []
+ *     responses:
+ *       200:
+ *         description: Danh sách thực phẩm
+ *   post:
+ *     summary: Tạo thực phẩm mới
+ *     tags:
+ *       - Foods
+ *     security:
+ *       - bearerAuth: []
  *     requestBody:
  *       required: true
  *       content:
  *         application/json:
  *           schema:
- *             $ref: '#/components/schemas/Food'
+ *             type: object
+ *             required:
+ *               - name
+ *             properties:
+ *               name:
+ *                 type: string
+ *                 example: Thịt bò
+ *               unit:
+ *                 type: string
+ *                 example: kg
+ *               calories:
+ *                 type: number
+ *                 example: 250
+ *               category:
+ *                 type: string
+ *                 example: Thịt
  *     responses:
  *       201:
- *         description: Tạo món ăn thành công
+ *         description: Tạo thực phẩm thành công
  */
+router.get("/", foodController.getFoods);
 router.post("/", foodController.createFood);
 
 /**
  * @openapi
- * /api/food:
+ * /api/foods/{id}:
  *   get:
- *     summary: Lấy danh sách tất cả món ăn
+ *     summary: Lấy chi tiết thực phẩm
  *     tags:
- *       - Food
- *     responses:
- *       200:
- *         description: Danh sách món ăn
- *         content:
- *           application/json:
- *             schema:
- *               type: array
- *               items:
- *                 $ref: '#/components/schemas/Food'
- */
-router.get("/", foodController.getFoods);
-
-/**
- * @openapi
- * /api/food/{id}:
- *   get:
- *     summary: Lấy thông tin món ăn theo ID
- *     tags:
- *       - Food
+ *       - Foods
+ *     security:
+ *       - bearerAuth: []
  *     parameters:
  *       - in: path
  *         name: id
  *         required: true
  *         schema:
  *           type: string
+ *         description: ID thực phẩm
  *     responses:
  *       200:
- *         description: Thông tin món ăn
- *         content:
- *           application/json:
- *             schema:
- *               $ref: '#/components/schemas/Food'
- */
-router.get("/:id", foodController.getFoodById);
-
-/**
- * @openapi
- * /api/food/{id}:
+ *         description: Chi tiết thực phẩm
+ *       404:
+ *         description: Không tìm thấy thực phẩm
  *   put:
- *     summary: Cập nhật thông tin món ăn theo ID
+ *     summary: Cập nhật thực phẩm
  *     tags:
- *       - Food
+ *       - Foods
+ *     security:
+ *       - bearerAuth: []
  *     parameters:
  *       - in: path
  *         name: id
@@ -81,20 +86,23 @@ router.get("/:id", foodController.getFoodById);
  *       content:
  *         application/json:
  *           schema:
- *             $ref: '#/components/schemas/Food'
+ *             type: object
+ *             properties:
+ *               name:
+ *                 type: string
+ *               unit:
+ *                 type: string
+ *               calories:
+ *                 type: number
  *     responses:
  *       200:
  *         description: Cập nhật thành công
- */
-router.put("/:id", foodController.updateFood);
-
-/**
- * @openapi
- * /api/food/{id}:
  *   delete:
- *     summary: Xóa món ăn theo ID
+ *     summary: Xóa thực phẩm
  *     tags:
- *       - Food
+ *       - Foods
+ *     security:
+ *       - bearerAuth: []
  *     parameters:
  *       - in: path
  *         name: id
@@ -105,6 +113,8 @@ router.put("/:id", foodController.updateFood);
  *       200:
  *         description: Xóa thành công
  */
+router.get("/:id", foodController.getFoodById);
+router.put("/:id", foodController.updateFood);
 router.delete("/:id", foodController.deleteFood);
 
 module.exports = router;

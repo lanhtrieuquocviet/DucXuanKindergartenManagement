@@ -8,37 +8,39 @@ const timetableSchema = new mongoose.Schema(
       required: true,
       index: true,
     },
-    gradeId: {
-      type: mongoose.Schema.Types.ObjectId,
-      ref: 'Grades',
+    // summer = Mùa Hè, winter = Mùa Đông, both = Cả 2 mùa
+    appliesToSeason: {
+      type: String,
+      enum: ['summer', 'winter', 'both'],
       required: true,
       index: true,
     },
-    sang: {
-      type: [String],
-      default: () => ['', '', '', '', '', ''],
-      validate: {
-        validator(v) {
-          return Array.isArray(v) && v.length === 6;
-        },
-        message: 'sang phải có đúng 6 phần tử (Thứ Hai → Thứ Bảy)',
-      },
+    // minutes since midnight (0..1439)
+    startMinutes: {
+      type: Number,
+      required: true,
+      min: 0,
+      max: 24 * 60 - 1,
+      index: true,
     },
-    chieu: {
-      type: [String],
-      default: () => ['', '', '', '', '', ''],
-      validate: {
-        validator(v) {
-          return Array.isArray(v) && v.length === 6;
-        },
-        message: 'chieu phải có đúng 6 phần tử (Thứ Hai → Thứ Bảy)',
-      },
+    endMinutes: {
+      type: Number,
+      required: true,
+      min: 0,
+      max: 24 * 60,
+    },
+    content: {
+      type: String,
+      default: '',
+      trim: true,
     },
   },
-  { timestamps: true, collection: 'Timetables' }
+  // Dùng collection riêng để tránh dính unique index cũ của schema trước đó.
+  { timestamps: true, collection: 'TimetableSeasonActivities' }
 );
 
-timetableSchema.index({ academicYear: 1, gradeId: 1 }, { unique: true });
+// Phục vụ sort nhanh theo thời gian
+timetableSchema.index({ academicYear: 1, appliesToSeason: 1, startMinutes: 1 });
 
 const Timetable = mongoose.model('Timetables', timetableSchema);
 module.exports = Timetable;

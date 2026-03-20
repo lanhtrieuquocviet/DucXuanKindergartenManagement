@@ -2,6 +2,7 @@ const express = require('express');
 const { authenticate, authorizeRoles } = require('../middleware/auth');
 const {
   login,
+  logout,
   getProfile,
   updateProfile,
   changePassword,
@@ -57,6 +58,37 @@ router.post('/login', login);
 
 /**
  * @openapi
+ * /api/auth/logout:
+ *   post:
+ *     summary: Đăng xuất
+ *     description: Vô hiệu hóa token hiện tại bằng cách thêm vào blacklist. Token sẽ không thể dùng lại cho đến khi hết hạn.
+ *     tags:
+ *       - Auth
+ *     security:
+ *       - bearerAuth: []
+ *     responses:
+ *       200:
+ *         description: Đăng xuất thành công
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 status:
+ *                   type: string
+ *                   example: success
+ *                 message:
+ *                   type: string
+ *                   example: Đăng xuất thành công
+ *       401:
+ *         description: Thiếu token xác thực
+ *       500:
+ *         description: Lỗi server
+ */
+router.post('/logout', authenticate, logout);
+
+/**
+ * @openapi
  * /api/auth/me:
  *   get:
  *     summary: Lấy thông tin hồ sơ người dùng hiện tại
@@ -66,21 +98,11 @@ router.post('/login', login);
  *       - bearerAuth: []
  *     responses:
  *       200:
- *         description: Trả về thông tin người dùng
- *         content:
- *           application/json:
- *             schema:
- *               $ref: '#/components/schemas/SuccessResponse'
+ *         description: Thông tin người dùng
  *       401:
- *         $ref: '#/components/responses/UnauthorizedError'
- */
-router.get('/me', authenticate, getProfile);
-
-/**
- * @openapi
- * /api/auth/me:
+ *         description: Token không hợp lệ hoặc hết hạn
  *   put:
- *     summary: Cập nhật thông tin cơ bản của người dùng hiện tại
+ *     summary: Cập nhật thông tin hồ sơ người dùng hiện tại
  *     tags:
  *       - Auth
  *     security:
@@ -94,24 +116,28 @@ router.get('/me', authenticate, getProfile);
  *             properties:
  *               fullName:
  *                 type: string
+ *                 example: Nguyễn Văn A
  *               email:
  *                 type: string
  *                 format: email
+ *                 example: user@example.com
  *               avatar:
  *                 type: string
+ *                 example: https://res.cloudinary.com/...
  *     responses:
  *       200:
  *         description: Cập nhật thành công
  *       401:
- *         $ref: '#/components/responses/UnauthorizedError'
+ *         description: Chưa xác thực
  */
+router.get('/me', authenticate, getProfile);
 router.put('/me', authenticate, updateProfile);
 
 /**
  * @openapi
  * /api/auth/change-password:
  *   post:
- *     summary: Đổi mật khẩu cho người dùng hiện tại
+ *     summary: Đổi mật khẩu
  *     tags:
  *       - Auth
  *     security:
@@ -123,22 +149,24 @@ router.put('/me', authenticate, updateProfile);
  *           schema:
  *             type: object
  *             required:
- *               - oldPassword
+ *               - currentPassword
  *               - newPassword
  *             properties:
- *               oldPassword:
+ *               currentPassword:
  *                 type: string
  *                 format: password
+ *                 example: OldPass@123
  *               newPassword:
  *                 type: string
  *                 format: password
+ *                 example: NewPass@456
  *     responses:
  *       200:
  *         description: Đổi mật khẩu thành công
  *       400:
- *         description: Mật khẩu cũ không đúng
+ *         description: Mật khẩu hiện tại không đúng hoặc mật khẩu mới không hợp lệ
  *       401:
- *         $ref: '#/components/responses/UnauthorizedError'
+ *         description: Chưa xác thực
  */
 router.post('/change-password', authenticate, changePassword);
 
@@ -146,30 +174,18 @@ router.post('/change-password', authenticate, changePassword);
  * @openapi
  * /api/auth/me/children:
  *   get:
- *     summary: Lấy danh sách con (cho role Phụ huynh)
+ *     summary: Lấy danh sách con của phụ huynh
  *     tags:
  *       - Auth
  *     security:
  *       - bearerAuth: []
  *     responses:
  *       200:
- *         description: Danh sách con của phụ huynh
- *         content:
- *           application/json:
- *             schema:
- *               type: array
- *               items:
- *                 $ref: '#/components/schemas/Student'
+ *         description: Danh sách học sinh con của phụ huynh
  *       401:
- *         $ref: '#/components/responses/UnauthorizedError'
- */
-router.get('/me/children', authenticate, getMyChildren);
-
-/**
- * @openapi
- * /api/auth/me/children:
+ *         description: Chưa xác thực
  *   post:
- *     summary: Thêm con cho phụ huynh hiện tại
+ *     summary: Thêm học sinh con cho phụ huynh hiện tại
  *     tags:
  *       - Auth
  *     security:
@@ -179,20 +195,29 @@ router.get('/me/children', authenticate, getMyChildren);
  *       content:
  *         application/json:
  *           schema:
- *             $ref: '#/components/schemas/Student'
+ *             type: object
+ *             required:
+ *               - studentId
+ *             properties:
+ *               studentId:
+ *                 type: string
+ *                 example: 664abc123def456789012345
  *     responses:
- *       201:
- *         description: Tạo mới thành công
+ *       200:
+ *         description: Thêm thành công
+ *       400:
+ *         description: Học sinh không tồn tại hoặc đã liên kết
  *       401:
- *         $ref: '#/components/responses/UnauthorizedError'
+ *         description: Chưa xác thực
  */
+router.get('/me/children', authenticate, getMyChildren);
 router.post('/me/children', authenticate, createMyChild);
 
 /**
  * @openapi
  * /api/auth/me/children/{studentId}:
  *   put:
- *     summary: Cập nhật thông tin con
+ *     summary: Cập nhật thông tin liên kết con
  *     tags:
  *       - Auth
  *     security:
@@ -203,25 +228,20 @@ router.post('/me/children', authenticate, createMyChild);
  *         required: true
  *         schema:
  *           type: string
+ *         description: ID học sinh
  *     requestBody:
  *       required: true
  *       content:
  *         application/json:
  *           schema:
- *             $ref: '#/components/schemas/Student'
+ *             type: object
  *     responses:
  *       200:
  *         description: Cập nhật thành công
- *       401:
- *         $ref: '#/components/responses/UnauthorizedError'
- */
-router.put('/me/children/:studentId', authenticate, updateMyChild);
-
-/**
- * @openapi
- * /api/auth/me/children/{studentId}:
+ *       404:
+ *         description: Không tìm thấy học sinh
  *   delete:
- *     summary: Xóa thông tin con
+ *     summary: Xóa liên kết con
  *     tags:
  *       - Auth
  *     security:
@@ -232,19 +252,21 @@ router.put('/me/children/:studentId', authenticate, updateMyChild);
  *         required: true
  *         schema:
  *           type: string
+ *         description: ID học sinh
  *     responses:
  *       200:
  *         description: Xóa thành công
- *       401:
- *         $ref: '#/components/responses/UnauthorizedError'
+ *       404:
+ *         description: Không tìm thấy học sinh
  */
+router.put('/me/children/:studentId', authenticate, updateMyChild);
 router.delete('/me/children/:studentId', authenticate, deleteMyChild);
 
 /**
  * @openapi
  * /api/auth/me/student:
  *   get:
- *     summary: Lấy thông tin học sinh (cho role Student)
+ *     summary: Lấy thông tin học sinh (dành cho role Student)
  *     tags:
  *       - Auth
  *     security:
@@ -252,12 +274,10 @@ router.delete('/me/children/:studentId', authenticate, deleteMyChild);
  *     responses:
  *       200:
  *         description: Thông tin học sinh
- *         content:
- *           application/json:
- *             schema:
- *               $ref: '#/components/schemas/Student'
  *       401:
- *         $ref: '#/components/responses/UnauthorizedError'
+ *         description: Chưa xác thực
+ *       403:
+ *         description: Không phải Student
  */
 router.get('/me/student', authenticate, getMyStudentInfo);
 

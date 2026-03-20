@@ -1,5 +1,5 @@
 import { createContext, useContext, useState, useEffect, useRef, useCallback } from 'react';
-import { get, post, put, ENDPOINTS } from '../service/api';
+import { get, post, put, getToken, ENDPOINTS } from '../service/api';
 
 const AuthContext = createContext(null);
 
@@ -147,12 +147,22 @@ export const AuthProvider = ({
   }, []);
 
   // Logout
-  const logout = useCallback(() => {
+  const logout = useCallback(async () => {
+    // Gọi API logout để blacklist token phía server
+    try {
+      const currentToken = getToken();
+      if (currentToken) {
+        await post(ENDPOINTS.AUTH.LOGOUT, {});
+      }
+    } catch {
+      // Bỏ qua lỗi API - vẫn tiếp tục xóa local state
+    }
+
     setToken(null);
     setUser(null);
     localStorage.removeItem('token');
     localStorage.removeItem('user');
-    
+
     // Callback khi logout
     if (onLogoutRef.current) {
       onLogoutRef.current();

@@ -344,8 +344,19 @@ function ClassList() {
   const handleViewProfile = () => navigate('/profile');
   const handleViewStudents = (classId) => navigate(`/school-admin/classes/${classId}/students`);
 
-  const handleMenuSelect = (key) => {
+  const handleMenuSelect = async (key) => {
     if (key === 'classes') {
+      return;
+    }
+    if (key === 'academic-report') {
+      try {
+        const resp = await get(ENDPOINTS.SCHOOL_ADMIN.ACADEMIC_YEARS.CURRENT);
+        const yearId = resp?.status === 'success' ? resp?.data?._id : null;
+        if (yearId) navigate(`/school-admin/academic-years/${yearId}/report`);
+        else navigate('/school-admin/academic-years');
+      } catch (_) {
+        navigate('/school-admin/academic-years');
+      }
       return;
     }
     const routes = {
@@ -389,7 +400,7 @@ function ClassList() {
           { key: 'academic-plan', label: 'Thiết lập kế hoạch' },
           { key: 'academic-students', label: 'Danh sách lớp học' },
           { key: 'academic-curriculum', label: 'Chương trình giáo dục' },
-          { key: 'academic-schedule', label: 'Thời khóa biểu' },
+            { key: 'academic-schedule', label: 'Thời gian biểu' },
           { key: 'academic-report', label: 'Báo cáo & thống kê' },
         ],
       },

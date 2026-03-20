@@ -8,34 +8,8 @@ const router = express.Router();
  * @openapi
  * /api/otp/send:
  *   post:
- *     summary: Gửi mã OTP
- *     tags:
- *       - OTP
- *     security:
- *       - bearerAuth: []
- *     requestBody:
- *       required: true
- *       content:
- *         application/json:
- *           schema:
- *             type: object
- *             properties:
- *               phone:
- *                 type: string
- *               method:
- *                 type: string
- *                 enum: ['school']
- *     responses:
- *       200:
- *         description: Gửi thành công
- */
-router.post('/send', authenticate, sendOTP);
-
-/**
- * @openapi
- * /api/otp/verify:
- *   post:
- *     summary: Xác minh mã OTP
+ *     summary: Gửi mã OTP cho việc đón trẻ
+ *     description: Gửi mã OTP qua phương thức nội bộ (method=school). Phụ huynh nhận OTP để xác thực người đón trẻ.
  *     tags:
  *       - OTP
  *     security:
@@ -47,16 +21,54 @@ router.post('/send', authenticate, sendOTP);
  *           schema:
  *             type: object
  *             required:
- *               - phone
- *               - otp
+ *               - studentId
  *             properties:
- *               phone:
+ *               studentId:
  *                 type: string
- *               otp:
+ *                 example: 664abc123def456789012345
+ *               method:
  *                 type: string
+ *                 enum: [school, firebase]
+ *                 example: school
  *     responses:
  *       200:
- *         description: Xác minh thành công
+ *         description: Gửi OTP thành công
+ *       400:
+ *         description: Dữ liệu không hợp lệ
+ *       404:
+ *         description: Không tìm thấy học sinh
+ */
+router.post('/send', authenticate, sendOTP);
+
+/**
+ * @openapi
+ * /api/otp/verify:
+ *   post:
+ *     summary: Xác minh mã OTP đón trẻ
+ *     tags:
+ *       - OTP
+ *     security:
+ *       - bearerAuth: []
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             required:
+ *               - studentId
+ *               - otpCode
+ *             properties:
+ *               studentId:
+ *                 type: string
+ *               otpCode:
+ *                 type: string
+ *                 example: "123456"
+ *     responses:
+ *       200:
+ *         description: OTP hợp lệ
+ *       400:
+ *         description: OTP không đúng hoặc đã hết hạn
  */
 router.post('/verify', authenticate, verifyOTP);
 
@@ -64,7 +76,7 @@ router.post('/verify', authenticate, verifyOTP);
  * @openapi
  * /api/otp/pending/{studentId}:
  *   get:
- *     summary: Lấy mã OTP đang chờ cho học sinh
+ *     summary: Phụ huynh poll OTP đang chờ của con
  *     tags:
  *       - OTP
  *     security:
@@ -75,9 +87,12 @@ router.post('/verify', authenticate, verifyOTP);
  *         required: true
  *         schema:
  *           type: string
+ *         description: ID học sinh
  *     responses:
  *       200:
- *         description: Mã OTP đang chờ
+ *         description: Thông tin OTP đang chờ (nếu có)
+ *       404:
+ *         description: Không có OTP nào đang chờ
  */
 router.get('/pending/:studentId', authenticate, getPendingOTP);
 

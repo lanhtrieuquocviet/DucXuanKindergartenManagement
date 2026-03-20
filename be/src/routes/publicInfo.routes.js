@@ -7,18 +7,12 @@ const router = express.Router();
  * @openapi
  * /api/public-info:
  *   get:
- *     summary: Lấy danh sách các thông tin công khai đã phát hành
+ *     summary: Lấy danh sách thông tin công khai đã đăng (public)
  *     tags:
- *       - PublicInfo
+ *       - Public Info (Public)
  *     responses:
  *       200:
- *         description: Danh sách thông tin
- *         content:
- *           application/json:
- *             schema:
- *               type: array
- *               items:
- *                 $ref: '#/components/schemas/PublicInfo'
+ *         description: Danh sách thông tin công khai
  */
 router.get('/', getPublishedPublicInfos);
 
@@ -26,22 +20,21 @@ router.get('/', getPublishedPublicInfos);
  * @openapi
  * /api/public-info/{id}:
  *   get:
- *     summary: Lấy chi tiết thông tin công khai theo ID
+ *     summary: Lấy chi tiết thông tin công khai (public)
  *     tags:
- *       - PublicInfo
+ *       - Public Info (Public)
  *     parameters:
  *       - in: path
  *         name: id
  *         required: true
  *         schema:
  *           type: string
+ *         description: ID thông tin
  *     responses:
  *       200:
  *         description: Chi tiết thông tin
- *         content:
- *           application/json:
- *             schema:
- *               $ref: '#/components/schemas/PublicInfo'
+ *       404:
+ *         description: Không tìm thấy
  */
 router.get('/:id', getPublishedPublicInfoById);
 

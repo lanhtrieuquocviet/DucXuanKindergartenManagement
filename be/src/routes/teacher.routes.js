@@ -3,19 +3,20 @@ const { authenticate, authorizeRoles } = require('../middleware/auth');
 
 const router = express.Router();
 
-// Chỉ Teacher mới truy cập được
 /**
  * @openapi
  * /api/teacher/dashboard:
  *   get:
- *     summary: Trang Dashboard dành cho Teacher
+ *     summary: Dashboard giáo viên
  *     tags:
  *       - Teacher
  *     security:
  *       - bearerAuth: []
  *     responses:
  *       200:
- *         description: Thông tin dashboard
+ *         description: Thông tin dashboard giáo viên
+ *       403:
+ *         description: Không có quyền Teacher
  */
 router.get('/dashboard', authenticate, authorizeRoles('Teacher'), (req, res) => {
   return res.status(200).json({
@@ -28,4 +29,3 @@ router.get('/dashboard', authenticate, authorizeRoles('Teacher'), (req, res) => 
 });
 
 module.exports = router;
-

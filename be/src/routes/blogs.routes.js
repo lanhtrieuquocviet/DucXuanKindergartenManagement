@@ -7,18 +7,28 @@ const router = express.Router();
  * @openapi
  * /api/blogs/published:
  *   get:
- *     summary: Lấy danh sách các bài viết đã xuất bản
+ *     summary: Lấy danh sách bài viết đã đăng (public)
  *     tags:
- *       - Blogs
+ *       - Blogs (Public)
+ *     parameters:
+ *       - in: query
+ *         name: category
+ *         schema:
+ *           type: string
+ *         description: Lọc theo danh mục
+ *       - in: query
+ *         name: page
+ *         schema:
+ *           type: integer
+ *           example: 1
+ *       - in: query
+ *         name: limit
+ *         schema:
+ *           type: integer
+ *           example: 10
  *     responses:
  *       200:
- *         description: Danh sách bài viết
- *         content:
- *           application/json:
- *             schema:
- *               type: array
- *               items:
- *                 $ref: '#/components/schemas/Blog'
+ *         description: Danh sách bài viết đã đăng
  */
 router.get('/published', blogController.getPublishedBlogs);
 
@@ -26,18 +36,12 @@ router.get('/published', blogController.getPublishedBlogs);
  * @openapi
  * /api/blogs/categories:
  *   get:
- *     summary: Lấy danh sách các danh mục bài viết
+ *     summary: Lấy danh sách danh mục blog (public)
  *     tags:
- *       - Blogs
+ *       - Blogs (Public)
  *     responses:
  *       200:
  *         description: Danh sách danh mục
- *         content:
- *           application/json:
- *             schema:
- *               type: array
- *               items:
- *                 $ref: '#/components/schemas/BlogCategory'
  */
 router.get('/categories', blogController.getBlogCategories);
 
@@ -45,24 +49,21 @@ router.get('/categories', blogController.getBlogCategories);
  * @openapi
  * /api/blogs/{id}:
  *   get:
- *     summary: Lấy chi tiết một bài viết đã xuất bản theo ID
+ *     summary: Lấy chi tiết bài viết đã đăng (public)
  *     tags:
- *       - Blogs
+ *       - Blogs (Public)
  *     parameters:
  *       - in: path
  *         name: id
  *         required: true
  *         schema:
  *           type: string
+ *         description: ID bài viết
  *     responses:
  *       200:
  *         description: Chi tiết bài viết
- *         content:
- *           application/json:
- *             schema:
- *               $ref: '#/components/schemas/Blog'
  *       404:
- *         description: Không tìm thấy bài viết
+ *         description: Không tìm thấy bài viết hoặc chưa được đăng
  */
 router.get('/:id', blogController.getPublishedBlogById);
 

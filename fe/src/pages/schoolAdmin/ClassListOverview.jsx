@@ -34,7 +34,7 @@ const menuItems = [
       { key: 'academic-plan', label: 'Thiết lập kế hoạch' },
       { key: 'academic-students', label: 'Danh sách lớp học' },
       { key: 'academic-curriculum', label: 'Chương trình giáo dục' },
-      { key: 'academic-schedule', label: 'Thời khóa biểu' },
+      { key: 'academic-schedule', label: 'Thời gian biểu' },
       { key: 'academic-report', label: 'Báo cáo & thống kê' },
     ],
   },
@@ -79,6 +79,12 @@ function ClassListOverview() {
   const handleMenuSelect = (key) => {
     if (key === 'overview') navigate('/school-admin');
     if (key === 'academic-years' || key === 'academic-year-setup') navigate('/school-admin/academic-years');
+    if (key === 'academic-report') {
+      const yearId = academicYear?._id;
+      if (yearId) navigate(`/school-admin/academic-years/${yearId}/report`);
+      else navigate('/school-admin/academic-years');
+      return;
+    }
     if (key === 'academic-students') return;
     if (key === 'academic-curriculum') navigate('/school-admin/curriculum');
     if (key === 'academic-schedule') navigate('/school-admin/timetable');
