@@ -56,51 +56,208 @@ const router = express.Router();
 router.post('/login', login);
 
 /**
- * GET /api/auth/me
- * Lấy thông tin hồ sơ người dùng hiện tại (dựa trên token)
+ * @openapi
+ * /api/auth/me:
+ *   get:
+ *     summary: Lấy thông tin hồ sơ người dùng hiện tại
+ *     tags:
+ *       - Auth
+ *     security:
+ *       - bearerAuth: []
+ *     responses:
+ *       200:
+ *         description: Trả về thông tin người dùng
+ *         content:
+ *           application/json:
+ *             schema:
+ *               $ref: '#/components/schemas/SuccessResponse'
+ *       401:
+ *         $ref: '#/components/responses/UnauthorizedError'
  */
 router.get('/me', authenticate, getProfile);
 
 /**
- * PUT /api/auth/me
- * Cập nhật thông tin cơ bản của người dùng hiện tại
- * (fullName, email, avatar; các field khác có thể bổ sung sau)
+ * @openapi
+ * /api/auth/me:
+ *   put:
+ *     summary: Cập nhật thông tin cơ bản của người dùng hiện tại
+ *     tags:
+ *       - Auth
+ *     security:
+ *       - bearerAuth: []
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             properties:
+ *               fullName:
+ *                 type: string
+ *               email:
+ *                 type: string
+ *                 format: email
+ *               avatar:
+ *                 type: string
+ *     responses:
+ *       200:
+ *         description: Cập nhật thành công
+ *       401:
+ *         $ref: '#/components/responses/UnauthorizedError'
  */
 router.put('/me', authenticate, updateProfile);
 
 /**
- * POST /api/auth/change-password
- * Đổi mật khẩu cho người dùng hiện tại
+ * @openapi
+ * /api/auth/change-password:
+ *   post:
+ *     summary: Đổi mật khẩu cho người dùng hiện tại
+ *     tags:
+ *       - Auth
+ *     security:
+ *       - bearerAuth: []
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             required:
+ *               - oldPassword
+ *               - newPassword
+ *             properties:
+ *               oldPassword:
+ *                 type: string
+ *                 format: password
+ *               newPassword:
+ *                 type: string
+ *                 format: password
+ *     responses:
+ *       200:
+ *         description: Đổi mật khẩu thành công
+ *       400:
+ *         description: Mật khẩu cũ không đúng
+ *       401:
+ *         $ref: '#/components/responses/UnauthorizedError'
  */
 router.post('/change-password', authenticate, changePassword);
 
 /**
- * GET /api/auth/me/children
- * Lấy danh sách con (cho role Phụ huynh)
+ * @openapi
+ * /api/auth/me/children:
+ *   get:
+ *     summary: Lấy danh sách con (cho role Phụ huynh)
+ *     tags:
+ *       - Auth
+ *     security:
+ *       - bearerAuth: []
+ *     responses:
+ *       200:
+ *         description: Danh sách con của phụ huynh
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: array
+ *               items:
+ *                 $ref: '#/components/schemas/Student'
+ *       401:
+ *         $ref: '#/components/responses/UnauthorizedError'
  */
 router.get('/me/children', authenticate, getMyChildren);
 
 /**
- * POST /api/auth/me/children
- * Thêm con cho phụ huynh hiện tại
+ * @openapi
+ * /api/auth/me/children:
+ *   post:
+ *     summary: Thêm con cho phụ huynh hiện tại
+ *     tags:
+ *       - Auth
+ *     security:
+ *       - bearerAuth: []
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             $ref: '#/components/schemas/Student'
+ *     responses:
+ *       201:
+ *         description: Tạo mới thành công
+ *       401:
+ *         $ref: '#/components/responses/UnauthorizedError'
  */
 router.post('/me/children', authenticate, createMyChild);
 
 /**
- * PUT /api/auth/me/children/:studentId
- * Cập nhật thông tin con
+ * @openapi
+ * /api/auth/me/children/{studentId}:
+ *   put:
+ *     summary: Cập nhật thông tin con
+ *     tags:
+ *       - Auth
+ *     security:
+ *       - bearerAuth: []
+ *     parameters:
+ *       - in: path
+ *         name: studentId
+ *         required: true
+ *         schema:
+ *           type: string
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             $ref: '#/components/schemas/Student'
+ *     responses:
+ *       200:
+ *         description: Cập nhật thành công
+ *       401:
+ *         $ref: '#/components/responses/UnauthorizedError'
  */
 router.put('/me/children/:studentId', authenticate, updateMyChild);
 
 /**
- * DELETE /api/auth/me/children/:studentId
- * Xóa thông tin con
+ * @openapi
+ * /api/auth/me/children/{studentId}:
+ *   delete:
+ *     summary: Xóa thông tin con
+ *     tags:
+ *       - Auth
+ *     security:
+ *       - bearerAuth: []
+ *     parameters:
+ *       - in: path
+ *         name: studentId
+ *         required: true
+ *         schema:
+ *           type: string
+ *     responses:
+ *       200:
+ *         description: Xóa thành công
+ *       401:
+ *         $ref: '#/components/responses/UnauthorizedError'
  */
 router.delete('/me/children/:studentId', authenticate, deleteMyChild);
 
 /**
- * GET /api/auth/me/student
- * Lấy thông tin học sinh (cho role Student)
+ * @openapi
+ * /api/auth/me/student:
+ *   get:
+ *     summary: Lấy thông tin học sinh (cho role Student)
+ *     tags:
+ *       - Auth
+ *     security:
+ *       - bearerAuth: []
+ *     responses:
+ *       200:
+ *         description: Thông tin học sinh
+ *         content:
+ *           application/json:
+ *             schema:
+ *               $ref: '#/components/schemas/Student'
+ *       401:
+ *         $ref: '#/components/responses/UnauthorizedError'
  */
 router.get('/me/student', authenticate, getMyStudentInfo);
 

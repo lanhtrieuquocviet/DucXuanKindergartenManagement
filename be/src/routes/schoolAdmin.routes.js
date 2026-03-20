@@ -55,7 +55,19 @@ function handleUploadError(err, req, res, next) {
   next();
 }
 
-// Chỉ SchoolAdmin mới truy cập được
+/**
+ * @openapi
+ * /api/school-admin/dashboard:
+ *   get:
+ *     summary: Trang Dashboard dành cho SchoolAdmin
+ *     tags:
+ *       - SchoolAdmin
+ *     security:
+ *       - bearerAuth: []
+ *     responses:
+ *       200:
+ *         description: Thông tin dashboard
+ */
 router.get('/dashboard', authenticate, authorizeRoles('SchoolAdmin'), (req, res) => {
   return res.status(200).json({
     status: 'success',
@@ -66,13 +78,60 @@ router.get('/dashboard', authenticate, authorizeRoles('SchoolAdmin'), (req, res)
   });
 });
 
-// Liên hệ: danh sách + phản hồi
+/**
+ * @openapi
+ * /api/school-admin/contacts:
+ *   get:
+ *     summary: Lấy danh sách liên hệ (Chỉ SchoolAdmin)
+ *     tags:
+ *       - SchoolAdmin
+ *     security:
+ *       - bearerAuth: []
+ *     responses:
+ *       200:
+ *         description: Danh sách liên hệ
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: array
+ *               items:
+ *                 $ref: '#/components/schemas/Contact'
+ */
 router.get(
   '/contacts',
   authenticate,
   authorizeRoles('SchoolAdmin'),
   contactController.listContacts
 );
+
+/**
+ * @openapi
+ * /api/school-admin/contacts/{id}/reply:
+ *   patch:
+ *     summary: Phản hồi liên hệ (Chỉ SchoolAdmin)
+ *     tags:
+ *       - SchoolAdmin
+ *     security:
+ *       - bearerAuth: []
+ *     parameters:
+ *       - in: path
+ *         name: id
+ *         required: true
+ *         schema:
+ *           type: string
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             properties:
+ *               replyContent:
+ *                 type: string
+ *     responses:
+ *       200:
+ *         description: Phản hồi thành công
+ */
 router.patch(
   '/contacts/:id/reply',
   authenticate,
@@ -80,12 +139,52 @@ router.patch(
   contactController.validateReplyContact,
   contactController.replyContact
 );
+
+/**
+ * @openapi
+ * /api/school-admin/contacts/{id}/clear-reply:
+ *   patch:
+ *     summary: Xóa phản hồi liên hệ (Chỉ SchoolAdmin)
+ *     tags:
+ *       - SchoolAdmin
+ *     security:
+ *       - bearerAuth: []
+ *     parameters:
+ *       - in: path
+ *         name: id
+ *         required: true
+ *         schema:
+ *           type: string
+ *     responses:
+ *       200:
+ *         description: Xóa phản hồi thành công
+ */
 router.patch(
   '/contacts/:id/clear-reply',
   authenticate,
   authorizeRoles('SchoolAdmin'),
   contactController.clearReplyContact
 );
+
+/**
+ * @openapi
+ * /api/school-admin/contacts/{id}/resend-email:
+ *   post:
+ *     summary: Gửi lại email phản hồi (Chỉ SchoolAdmin)
+ *     tags:
+ *       - SchoolAdmin
+ *     security:
+ *       - bearerAuth: []
+ *     parameters:
+ *       - in: path
+ *         name: id
+ *         required: true
+ *         schema:
+ *           type: string
+ *     responses:
+ *       200:
+ *         description: Gửi thành công
+ */
 router.post(
   '/contacts/:id/resend-email',
   authenticate,
@@ -93,7 +192,19 @@ router.post(
   contactController.resendReplyEmail
 );
 
-// Tổng quan điểm danh các lớp
+/**
+ * @openapi
+ * /api/school-admin/attendance/overview:
+ *   get:
+ *     summary: Tổng quan điểm danh các lớp (Chỉ SchoolAdmin)
+ *     tags:
+ *       - SchoolAdmin
+ *     security:
+ *       - bearerAuth: []
+ *     responses:
+ *       200:
+ *         description: Dữ liệu tổng quan
+ */
 router.get(
   '/attendance/overview',
   authenticate,
@@ -101,31 +212,139 @@ router.get(
   getAttendanceOverview
 );
 
-// Blog CRUD cho SchoolAdmin
+/**
+ * @openapi
+ * /api/school-admin/blogs:
+ *   get:
+ *     summary: Lấy danh sách blog (Chỉ SchoolAdmin)
+ *     tags:
+ *       - SchoolAdmin
+ *     security:
+ *       - bearerAuth: []
+ *     responses:
+ *       200:
+ *         description: Danh sách blog
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: array
+ *               items:
+ *                 $ref: '#/components/schemas/Blog'
+ */
 router.get(
   '/blogs',
   authenticate,
   authorizeRoles('SchoolAdmin'),
   blogController.listBlogs
 );
+
+/**
+ * @openapi
+ * /api/school-admin/blogs/{id}:
+ *   get:
+ *     summary: Lấy chi tiết blog (Chỉ SchoolAdmin)
+ *     tags:
+ *       - SchoolAdmin
+ *     security:
+ *       - bearerAuth: []
+ *     parameters:
+ *       - in: path
+ *         name: id
+ *         required: true
+ *         schema:
+ *           type: string
+ *     responses:
+ *       200:
+ *         description: Chi tiết blog
+ *         content:
+ *           application/json:
+ *             schema:
+ *               $ref: '#/components/schemas/Blog'
+ */
 router.get(
   '/blogs/:id',
   authenticate,
   authorizeRoles('SchoolAdmin'),
   blogController.getBlog
 );
+
+/**
+ * @openapi
+ * /api/school-admin/blogs:
+ *   post:
+ *     summary: Tạo blog mới (Chỉ SchoolAdmin)
+ *     tags:
+ *       - SchoolAdmin
+ *     security:
+ *       - bearerAuth: []
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             $ref: '#/components/schemas/Blog'
+ *     responses:
+ *       201:
+ *         description: Tạo mới thành công
+ */
 router.post(
   '/blogs',
   authenticate,
   authorizeRoles('SchoolAdmin'),
   blogController.createBlog
 );
+
+/**
+ * @openapi
+ * /api/school-admin/blogs/{id}:
+ *   put:
+ *     summary: Cập nhật blog (Chỉ SchoolAdmin)
+ *     tags:
+ *       - SchoolAdmin
+ *     security:
+ *       - bearerAuth: []
+ *     parameters:
+ *       - in: path
+ *         name: id
+ *         required: true
+ *         schema:
+ *           type: string
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             $ref: '#/components/schemas/Blog'
+ *     responses:
+ *       200:
+ *         description: Cập nhật thành công
+ */
 router.put(
   '/blogs/:id',
   authenticate,
   authorizeRoles('SchoolAdmin'),
   blogController.updateBlog
 );
+
+/**
+ * @openapi
+ * /api/school-admin/blogs/{id}:
+ *   delete:
+ *     summary: Xóa blog (Chỉ SchoolAdmin)
+ *     tags:
+ *       - SchoolAdmin
+ *     security:
+ *       - bearerAuth: []
+ *     parameters:
+ *       - in: path
+ *         name: id
+ *         required: true
+ *         schema:
+ *           type: string
+ *     responses:
+ *       200:
+ *         description: Xóa thành công
+ */
 router.delete(
   '/blogs/:id',
   authenticate,
@@ -133,7 +352,19 @@ router.delete(
   blogController.deleteBlog
 );
 
-// Blog Category CRUD — yêu cầu permission MANAGE_BLOG_CATEGORY
+/**
+ * @openapi
+ * /api/school-admin/blog-categories:
+ *   get:
+ *     summary: Lấy danh sách danh mục blog (Chỉ SchoolAdmin, Yêu cầu MANAGE_BLOG_CATEGORY)
+ *     tags:
+ *       - SchoolAdmin
+ *     security:
+ *       - bearerAuth: []
+ *     responses:
+ *       200:
+ *         description: Danh sách danh mục
+ */
 router.get(
   '/blog-categories',
   authenticate,
@@ -141,6 +372,26 @@ router.get(
   authorizePermissions('MANAGE_BLOG_CATEGORY'),
   blogCategoryController.listBlogCategories
 );
+
+/**
+ * @openapi
+ * /api/school-admin/blog-categories:
+ *   post:
+ *     summary: Tạo danh mục blog mới (Chỉ SchoolAdmin, Yêu cầu MANAGE_BLOG_CATEGORY)
+ *     tags:
+ *       - SchoolAdmin
+ *     security:
+ *       - bearerAuth: []
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             $ref: '#/components/schemas/BlogCategory'
+ *     responses:
+ *       201:
+ *         description: Tạo mới thành công
+ */
 router.post(
   '/blog-categories',
   authenticate,
@@ -148,6 +399,32 @@ router.post(
   authorizePermissions('MANAGE_BLOG_CATEGORY'),
   blogCategoryController.createBlogCategory
 );
+
+/**
+ * @openapi
+ * /api/school-admin/blog-categories/{id}:
+ *   put:
+ *     summary: Cập nhật danh mục blog (Chỉ SchoolAdmin, Yêu cầu MANAGE_BLOG_CATEGORY)
+ *     tags:
+ *       - SchoolAdmin
+ *     security:
+ *       - bearerAuth: []
+ *     parameters:
+ *       - in: path
+ *         name: id
+ *         required: true
+ *         schema:
+ *           type: string
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             $ref: '#/components/schemas/BlogCategory'
+ *     responses:
+ *       200:
+ *         description: Cập nhật thành công
+ */
 router.put(
   '/blog-categories/:id',
   authenticate,
@@ -155,6 +432,26 @@ router.put(
   authorizePermissions('MANAGE_BLOG_CATEGORY'),
   blogCategoryController.updateBlogCategory
 );
+
+/**
+ * @openapi
+ * /api/school-admin/blog-categories/{id}:
+ *   delete:
+ *     summary: Xóa danh mục blog (Chỉ SchoolAdmin, Yêu cầu MANAGE_BLOG_CATEGORY)
+ *     tags:
+ *       - SchoolAdmin
+ *     security:
+ *       - bearerAuth: []
+ *     parameters:
+ *       - in: path
+ *         name: id
+ *         required: true
+ *         schema:
+ *           type: string
+ *     responses:
+ *       200:
+ *         description: Xóa thành công
+ */
 router.delete(
   '/blog-categories/:id',
   authenticate,
@@ -163,13 +460,51 @@ router.delete(
   blogCategoryController.deleteBlogCategory
 );
 
-// Q&A cho SchoolAdmin
+/**
+ * @openapi
+ * /api/school-admin/qa/questions:
+ *   get:
+ *     summary: Lấy danh sách câu hỏi Q&A (Chỉ SchoolAdmin)
+ *     tags:
+ *       - SchoolAdmin
+ *     security:
+ *       - bearerAuth: []
+ *     responses:
+ *       200:
+ *         description: Danh sách câu hỏi
+ */
 router.get(
   '/qa/questions',
   authenticate,
   authorizeRoles('SchoolAdmin'),
   qaController.getQuestions
 );
+
+/**
+ * @openapi
+ * /api/school-admin/qa/questions/{id}:
+ *   patch:
+ *     summary: Cập nhật câu hỏi Q&A (Chỉ SchoolAdmin)
+ *     tags:
+ *       - SchoolAdmin
+ *     security:
+ *       - bearerAuth: []
+ *     parameters:
+ *       - in: path
+ *         name: id
+ *         required: true
+ *         schema:
+ *           type: string
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             $ref: '#/components/schemas/Question'
+ *     responses:
+ *       200:
+ *         description: Cập nhật thành công
+ */
 router.patch(
   '/qa/questions/:id',
   authenticate,
@@ -178,6 +513,26 @@ router.patch(
   qaController.validateCreateQuestion,
   qaController.updateQuestion
 );
+
+/**
+ * @openapi
+ * /api/school-admin/qa/questions/{id}:
+ *   delete:
+ *     summary: Xóa câu hỏi Q&A (Chỉ SchoolAdmin)
+ *     tags:
+ *       - SchoolAdmin
+ *     security:
+ *       - bearerAuth: []
+ *     parameters:
+ *       - in: path
+ *         name: id
+ *         required: true
+ *         schema:
+ *           type: string
+ *     responses:
+ *       200:
+ *         description: Xóa thành công
+ */
 router.delete(
   '/qa/questions/:id',
   authenticate,
@@ -185,6 +540,35 @@ router.delete(
   qaController.validateQuestionId,
   qaController.deleteQuestion
 );
+
+/**
+ * @openapi
+ * /api/school-admin/qa/questions/{id}/answers:
+ *   post:
+ *     summary: Trả lời câu hỏi Q&A (Chỉ SchoolAdmin)
+ *     tags:
+ *       - SchoolAdmin
+ *     security:
+ *       - bearerAuth: []
+ *     parameters:
+ *       - in: path
+ *         name: id
+ *         required: true
+ *         schema:
+ *           type: string
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             properties:
+ *               authorName: { type: 'string' }
+ *               content: { type: 'string' }
+ *     responses:
+ *       201:
+ *         description: Trả lời thành công
+ */
 router.post(
   '/qa/questions/:id/answers',
   authenticate,
@@ -192,6 +576,38 @@ router.post(
   qaController.validateCreateAnswer,
   qaController.createAnswer
 );
+
+/**
+ * @openapi
+ * /api/school-admin/qa/questions/{id}/answers/{answerIndex}:
+ *   patch:
+ *     summary: Cập nhật câu trả lời Q&A (Chỉ SchoolAdmin)
+ *     tags:
+ *       - SchoolAdmin
+ *     security:
+ *       - bearerAuth: []
+ *     parameters:
+ *       - in: path
+ *         name: id
+ *         required: true
+ *         schema: { type: 'string' }
+ *       - in: path
+ *         name: answerIndex
+ *         required: true
+ *         schema: { type: 'integer' }
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             properties:
+ *               authorName: { type: 'string' }
+ *               content: { type: 'string' }
+ *     responses:
+ *       200:
+ *         description: Cập nhật thành công
+ */
 router.patch(
   '/qa/questions/:id/answers/:answerIndex',
   authenticate,
@@ -200,7 +616,25 @@ router.patch(
   qaController.updateAnswer
 );
 
-// Chi tiết điểm danh của một lớp
+/**
+ * @openapi
+ * /api/school-admin/classes/{classId}/attendance:
+ *   get:
+ *     summary: Chi tiết điểm danh của một lớp (Chỉ SchoolAdmin)
+ *     tags:
+ *       - SchoolAdmin
+ *     security:
+ *       - bearerAuth: []
+ *     parameters:
+ *       - in: path
+ *         name: classId
+ *         required: true
+ *         schema:
+ *           type: string
+ *     responses:
+ *       200:
+ *         description: Dữ liệu điểm danh lớp
+ */
 router.get(
   '/classes/:classId/attendance',
   authenticate,
@@ -208,7 +642,25 @@ router.get(
   getClassAttendanceDetail
 );
 
-// Chi tiết điểm danh của một học sinh
+/**
+ * @openapi
+ * /api/school-admin/students/{studentId}/attendance:
+ *   get:
+ *     summary: Chi tiết điểm danh của một học sinh (Chỉ SchoolAdmin)
+ *     tags:
+ *       - SchoolAdmin
+ *     security:
+ *       - bearerAuth: []
+ *     parameters:
+ *       - in: path
+ *         name: studentId
+ *         required: true
+ *         schema:
+ *           type: string
+ *     responses:
+ *       200:
+ *         description: Dữ liệu điểm danh học sinh
+ */
 router.get(
   '/students/:studentId/attendance',
   authenticate,
@@ -216,7 +668,25 @@ router.get(
   getStudentAttendanceDetail
 );
 
-// Lịch sử điểm danh của một học sinh
+/**
+ * @openapi
+ * /api/school-admin/students/{studentId}/attendance/history:
+ *   get:
+ *     summary: Lịch sử điểm danh của một học sinh (Chỉ SchoolAdmin)
+ *     tags:
+ *       - SchoolAdmin
+ *     security:
+ *       - bearerAuth: []
+ *     parameters:
+ *       - in: path
+ *         name: studentId
+ *         required: true
+ *         schema:
+ *           type: string
+ *     responses:
+ *       200:
+ *         description: Lịch sử điểm danh
+ */
 router.get(
   '/students/:studentId/attendance/history',
   authenticate,
@@ -224,31 +694,139 @@ router.get(
   getStudentAttendanceHistory
 );
 
-// Document Management CRUD cho SchoolAdmin
+/**
+ * @openapi
+ * /api/school-admin/documents:
+ *   get:
+ *     summary: Lấy danh sách tài liệu (Chỉ SchoolAdmin)
+ *     tags:
+ *       - SchoolAdmin
+ *     security:
+ *       - bearerAuth: []
+ *     responses:
+ *       200:
+ *         description: Danh sách tài liệu
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: array
+ *               items:
+ *                 $ref: '#/components/schemas/Document'
+ */
 router.get(
   '/documents',
   authenticate,
   authorizeRoles('SchoolAdmin'),
   documentController.listDocuments
 );
+
+/**
+ * @openapi
+ * /api/school-admin/documents/{id}:
+ *   get:
+ *     summary: Lấy chi tiết tài liệu (Chỉ SchoolAdmin)
+ *     tags:
+ *       - SchoolAdmin
+ *     security:
+ *       - bearerAuth: []
+ *     parameters:
+ *       - in: path
+ *         name: id
+ *         required: true
+ *         schema:
+ *           type: string
+ *     responses:
+ *       200:
+ *         description: Chi tiết tài liệu
+ *         content:
+ *           application/json:
+ *             schema:
+ *               $ref: '#/components/schemas/Document'
+ */
 router.get(
   '/documents/:id',
   authenticate,
   authorizeRoles('SchoolAdmin'),
   documentController.getDocument
 );
+
+/**
+ * @openapi
+ * /api/school-admin/documents:
+ *   post:
+ *     summary: Tạo tài liệu mới (Chỉ SchoolAdmin)
+ *     tags:
+ *       - SchoolAdmin
+ *     security:
+ *       - bearerAuth: []
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             $ref: '#/components/schemas/Document'
+ *     responses:
+ *       201:
+ *         description: Tạo mới thành công
+ */
 router.post(
   '/documents',
   authenticate,
   authorizeRoles('SchoolAdmin'),
   documentController.createDocument
 );
+
+/**
+ * @openapi
+ * /api/school-admin/documents/{id}:
+ *   put:
+ *     summary: Cập nhật tài liệu (Chỉ SchoolAdmin)
+ *     tags:
+ *       - SchoolAdmin
+ *     security:
+ *       - bearerAuth: []
+ *     parameters:
+ *       - in: path
+ *         name: id
+ *         required: true
+ *         schema:
+ *           type: string
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             $ref: '#/components/schemas/Document'
+ *     responses:
+ *       200:
+ *         description: Cập nhật thành công
+ */
 router.put(
   '/documents/:id',
   authenticate,
   authorizeRoles('SchoolAdmin'),
   documentController.updateDocument
 );
+
+/**
+ * @openapi
+ * /api/school-admin/documents/{id}:
+ *   delete:
+ *     summary: Xóa tài liệu (Chỉ SchoolAdmin)
+ *     tags:
+ *       - SchoolAdmin
+ *     security:
+ *       - bearerAuth: []
+ *     parameters:
+ *       - in: path
+ *         name: id
+ *         required: true
+ *         schema:
+ *           type: string
+ *     responses:
+ *       200:
+ *         description: Xóa thành công
+ */
 router.delete(
   '/documents/:id',
   authenticate,
@@ -256,44 +834,252 @@ router.delete(
   documentController.deleteDocument
 );
 
-// Public Info CRUD cho SchoolAdmin
+/**
+ * @openapi
+ * /api/school-admin/public-info:
+ *   get:
+ *     summary: Lấy danh sách thông tin công khai (Chỉ SchoolAdmin)
+ *     tags:
+ *       - SchoolAdmin
+ *     security:
+ *       - bearerAuth: []
+ *     responses:
+ *       200:
+ *         description: Danh sách thông tin
+ */
 router.get('/public-info', authenticate, authorizeRoles('SchoolAdmin'), publicInfoController.listPublicInfos);
+
+/**
+ * @openapi
+ * /api/school-admin/public-info/{id}:
+ *   get:
+ *     summary: Lấy chi tiết thông tin công khai (Chỉ SchoolAdmin)
+ *     tags:
+ *       - SchoolAdmin
+ *     security:
+ *       - bearerAuth: []
+ *     parameters:
+ *       - in: path
+ *         name: id
+ *         required: true
+ *         schema:
+ *           type: string
+ *     responses:
+ *       200:
+ *         description: Chi tiết thông tin
+ */
 router.get('/public-info/:id', authenticate, authorizeRoles('SchoolAdmin'), publicInfoController.getPublicInfo);
+
+/**
+ * @openapi
+ * /api/school-admin/public-info:
+ *   post:
+ *     summary: Tạo thông tin công khai mới (Chỉ SchoolAdmin)
+ *     tags:
+ *       - SchoolAdmin
+ *     security:
+ *       - bearerAuth: []
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             $ref: '#/components/schemas/PublicInfo'
+ *     responses:
+ *       201:
+ *         description: Tạo thành công
+ */
 router.post('/public-info', authenticate, authorizeRoles('SchoolAdmin'), publicInfoController.createPublicInfo);
+
+/**
+ * @openapi
+ * /api/school-admin/public-info/{id}:
+ *   put:
+ *     summary: Cập nhật thông tin công khai (Chỉ SchoolAdmin)
+ *     tags:
+ *       - SchoolAdmin
+ *     security:
+ *       - bearerAuth: []
+ *     parameters:
+ *       - in: path
+ *         name: id
+ *         required: true
+ *         schema:
+ *           type: string
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             $ref: '#/components/schemas/PublicInfo'
+ *     responses:
+ *       200:
+ *         description: Cập nhật thành công
+ */
 router.put('/public-info/:id', authenticate, authorizeRoles('SchoolAdmin'), publicInfoController.updatePublicInfo);
+
+/**
+ * @openapi
+ * /api/school-admin/public-info/{id}:
+ *   delete:
+ *     summary: Xóa thông tin công khai (Chỉ SchoolAdmin)
+ *     tags:
+ *       - SchoolAdmin
+ *     security:
+ *       - bearerAuth: []
+ *     parameters:
+ *       - in: path
+ *         name: id
+ *         required: true
+ *         schema:
+ *           type: string
+ *     responses:
+ *       200:
+ *         description: Xóa thành công
+ */
 router.delete('/public-info/:id', authenticate, authorizeRoles('SchoolAdmin'), publicInfoController.deletePublicInfo);
 
-// Academic Year management for SchoolAdmin
+/**
+ * @openapi
+ * /api/school-admin/academic-years/current:
+ *   get:
+ *     summary: Lấy năm học hiện tại (Chỉ SchoolAdmin)
+ *     tags:
+ *       - SchoolAdmin
+ *     security:
+ *       - bearerAuth: []
+ *     responses:
+ *       200:
+ *         description: Năm học hiện tại
+ *         content:
+ *           application/json:
+ *             schema:
+ *               $ref: '#/components/schemas/AcademicYear'
+ */
 router.get(
   '/academic-years/current',
   authenticate,
   authorizeRoles('SchoolAdmin'),
   academicYearController.getCurrentAcademicYear
 );
+
+/**
+ * @openapi
+ * /api/school-admin/academic-years:
+ *   get:
+ *     summary: Lấy danh sách năm học (Chỉ SchoolAdmin)
+ *     tags:
+ *       - SchoolAdmin
+ *     security:
+ *       - bearerAuth: []
+ *     responses:
+ *       200:
+ *         description: Danh sách năm học
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: array
+ *               items:
+ *                 $ref: '#/components/schemas/AcademicYear'
+ */
 router.get(
   '/academic-years',
   authenticate,
   authorizeRoles('SchoolAdmin'),
   academicYearController.listAcademicYears
 );
+
+/**
+ * @openapi
+ * /api/school-admin/academic-years:
+ *   post:
+ *     summary: Tạo năm học mới (Chỉ SchoolAdmin)
+ *     tags:
+ *       - SchoolAdmin
+ *     security:
+ *       - bearerAuth: []
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             $ref: '#/components/schemas/AcademicYear'
+ *     responses:
+ *       201:
+ *         description: Tạo mới thành công
+ */
 router.post(
   '/academic-years',
   authenticate,
   authorizeRoles('SchoolAdmin'),
   academicYearController.createAcademicYear
 );
+
+/**
+ * @openapi
+ * /api/school-admin/academic-years/{id}/finish:
+ *   patch:
+ *     summary: Kết thúc năm học (Chỉ SchoolAdmin)
+ *     tags:
+ *       - SchoolAdmin
+ *     security:
+ *       - bearerAuth: []
+ *     parameters:
+ *       - in: path
+ *         name: id
+ *         required: true
+ *         schema:
+ *           type: string
+ *     responses:
+ *       200:
+ *         description: Kết thúc thành công
+ */
 router.patch(
   '/academic-years/:id/finish',
   authenticate,
   authorizeRoles('SchoolAdmin'),
   academicYearController.finishAcademicYear
 );
+
+/**
+ * @openapi
+ * /api/school-admin/academic-years/history:
+ *   get:
+ *     summary: Lịch sử năm học (Chỉ SchoolAdmin)
+ *     tags:
+ *       - SchoolAdmin
+ *     security:
+ *       - bearerAuth: []
+ *     responses:
+ *       200:
+ *         description: Danh sách lịch sử
+ */
 router.get(
   '/academic-years/history',
   authenticate,
   authorizeRoles('SchoolAdmin'),
   academicYearController.getAcademicYearHistory
 );
+
+/**
+ * @openapi
+ * /api/school-admin/academic-years/{yearId}/classes:
+ *   get:
+ *     summary: Lấy danh sách lớp theo năm học (Chỉ SchoolAdmin)
+ *     tags:
+ *       - SchoolAdmin
+ *     security:
+ *       - bearerAuth: []
+ *     parameters:
+ *       - in: path
+ *         name: yearId
+ *         required: true
+ *         schema:
+ *           type: string
+ *     responses:
+ *       200:
+ *         description: Danh sách lớp
+ */
 router.get(
   '/academic-years/:yearId/classes',
   authenticate,
@@ -301,25 +1087,109 @@ router.get(
   academicYearController.getClassesByAcademicYear
 );
 
-// Chương trình giáo dục (chủ đề theo năm học)
+/**
+ * @openapi
+ * /api/school-admin/curriculum:
+ *   get:
+ *     summary: Lấy danh sách chủ đề chương trình giáo dục (Chỉ SchoolAdmin)
+ *     tags:
+ *       - SchoolAdmin
+ *     security:
+ *       - bearerAuth: []
+ *     responses:
+ *       200:
+ *         description: Danh sách chủ đề
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: array
+ *               items:
+ *                 $ref: '#/components/schemas/CurriculumTopic'
+ */
 router.get(
   '/curriculum',
   authenticate,
   authorizeRoles('SchoolAdmin'),
   curriculumController.listCurriculumTopics
 );
+
+/**
+ * @openapi
+ * /api/school-admin/curriculum:
+ *   post:
+ *     summary: Tạo chủ đề chương trình giáo dục mới (Chỉ SchoolAdmin)
+ *     tags:
+ *       - SchoolAdmin
+ *     security:
+ *       - bearerAuth: []
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             $ref: '#/components/schemas/CurriculumTopic'
+ *     responses:
+ *       201:
+ *         description: Tạo mới thành công
+ */
 router.post(
   '/curriculum',
   authenticate,
   authorizeRoles('SchoolAdmin'),
   curriculumController.createCurriculumTopic
 );
+
+/**
+ * @openapi
+ * /api/school-admin/curriculum/{id}:
+ *   patch:
+ *     summary: Cập nhật chủ đề chương trình giáo dục (Chỉ SchoolAdmin)
+ *     tags:
+ *       - SchoolAdmin
+ *     security:
+ *       - bearerAuth: []
+ *     parameters:
+ *       - in: path
+ *         name: id
+ *         required: true
+ *         schema:
+ *           type: string
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             $ref: '#/components/schemas/CurriculumTopic'
+ *     responses:
+ *       200:
+ *         description: Cập nhật thành công
+ */
 router.patch(
   '/curriculum/:id',
   authenticate,
   authorizeRoles('SchoolAdmin'),
   curriculumController.updateCurriculumTopic
 );
+
+/**
+ * @openapi
+ * /api/school-admin/curriculum/{id}:
+ *   delete:
+ *     summary: Xóa chủ đề chương trình giáo dục (Chỉ SchoolAdmin)
+ *     tags:
+ *       - SchoolAdmin
+ *     security:
+ *       - bearerAuth: []
+ *     parameters:
+ *       - in: path
+ *         name: id
+ *         required: true
+ *         schema:
+ *           type: string
+ *     responses:
+ *       200:
+ *         description: Xóa thành công
+ */
 router.delete(
   '/curriculum/:id',
   authenticate,
@@ -327,13 +1197,45 @@ router.delete(
   curriculumController.deleteCurriculumTopic
 );
 
-// Thời khóa biểu theo năm học / khối
+/**
+ * @openapi
+ * /api/school-admin/timetable:
+ *   get:
+ *     summary: Lấy thời khóa biểu (Chỉ SchoolAdmin)
+ *     tags:
+ *       - SchoolAdmin
+ *     security:
+ *       - bearerAuth: []
+ *     responses:
+ *       200:
+ *         description: Thông tin thời khóa biểu
+ */
 router.get(
   '/timetable',
   authenticate,
   authorizeRoles('SchoolAdmin'),
   timetableController.listByYear
 );
+
+/**
+ * @openapi
+ * /api/school-admin/timetable:
+ *   put:
+ *     summary: Tạo hoặc cập nhật thời khóa biểu (Chỉ SchoolAdmin)
+ *     tags:
+ *       - SchoolAdmin
+ *     security:
+ *       - bearerAuth: []
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             $ref: '#/components/schemas/Timetable'
+ *     responses:
+ *       200:
+ *         description: Cập nhật thành công
+ */
 router.put(
   '/timetable',
   authenticate,
@@ -341,7 +1243,19 @@ router.put(
   timetableController.upsert
 );
 
-// Danh sách giáo viên (dùng cho form tạo/cập nhật lớp)
+/**
+ * @openapi
+ * /api/school-admin/teachers:
+ *   get:
+ *     summary: Lấy danh sách giáo viên đang hoạt động (Chỉ SchoolAdmin)
+ *     tags:
+ *       - SchoolAdmin
+ *     security:
+ *       - bearerAuth: []
+ *     responses:
+ *       200:
+ *         description: Danh sách giáo viên
+ */
 router.get('/teachers', authenticate, authorizeRoles('SchoolAdmin'), async (req, res) => {
   try {
     const teacherRole = await Role.findOne({ roleName: 'Teacher' }).lean();

@@ -15,10 +15,42 @@ const uploadMiddleware = multer({
   },
 });
 
-// Tạo chữ ký cho Media Library widget
+/**
+ * @openapi
+ * /api/cloudinary/media-library-signature:
+ *   get:
+ *     summary: Tạo chữ ký cho Media Library widget
+ *     tags:
+ *       - Media
+ *     responses:
+ *       200:
+ *         description: Trả về signature và các thông số cần thiết
+ */
 router.get('/media-library-signature', getMediaLibrarySignature);
 
-// Upload ảnh đại diện từ máy (cần đăng nhập)
+/**
+ * @openapi
+ * /api/cloudinary/upload-avatar:
+ *   post:
+ *     summary: Upload ảnh đại diện từ máy
+ *     tags:
+ *       - Media
+ *     security:
+ *       - bearerAuth: []
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         multipart/form-data:
+ *           schema:
+ *             type: object
+ *             properties:
+ *               avatar:
+ *                 type: string
+ *                 format: binary
+ *     responses:
+ *       200:
+ *         description: Upload thành công
+ */
 router.post(
   '/upload-avatar',
   authenticate,
@@ -27,7 +59,29 @@ router.post(
   handleUploadError
 );
 
-// Upload ảnh blog từ máy (cần đăng nhập + SchoolAdmin)
+/**
+ * @openapi
+ * /api/cloudinary/upload-blog-image:
+ *   post:
+ *     summary: Upload ảnh blog từ máy
+ *     tags:
+ *       - Media
+ *     security:
+ *       - bearerAuth: []
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         multipart/form-data:
+ *           schema:
+ *             type: object
+ *             properties:
+ *               image:
+ *                 type: string
+ *                 format: binary
+ *     responses:
+ *       200:
+ *         description: Upload thành công
+ */
 router.post(
   '/upload-blog-image',
   authenticate,
@@ -51,7 +105,29 @@ const blogFileUploadMiddleware = multer({
   },
 });
 
-// Upload file PDF/Word cho blog (cần đăng nhập + SchoolAdmin)
+/**
+ * @openapi
+ * /api/cloudinary/upload-blog-file:
+ *   post:
+ *     summary: Upload file PDF/Word cho blog
+ *     tags:
+ *       - Media
+ *     security:
+ *       - bearerAuth: []
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         multipart/form-data:
+ *           schema:
+ *             type: object
+ *             properties:
+ *               file:
+ *                 type: string
+ *                 format: binary
+ *     responses:
+ *       200:
+ *         description: Upload thành công
+ */
 router.post(
   '/upload-blog-file',
   authenticate,
@@ -61,7 +137,29 @@ router.post(
   handleUploadError
 );
 
-// Upload ảnh bếp (ảnh món ăn / mẫu thực phẩm) - KitchenStaff
+/**
+ * @openapi
+ * /api/cloudinary/upload-kitchen-image:
+ *   post:
+ *     summary: Upload ảnh bếp (ảnh món ăn / mẫu thực phẩm)
+ *     tags:
+ *       - Media
+ *     security:
+ *       - bearerAuth: []
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         multipart/form-data:
+ *           schema:
+ *             type: object
+ *             properties:
+ *               image:
+ *                 type: string
+ *                 format: binary
+ *     responses:
+ *       200:
+ *         description: Upload thành công
+ */
 router.post(
   '/upload-kitchen-image',
   authenticate,

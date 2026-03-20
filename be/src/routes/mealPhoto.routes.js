@@ -3,10 +3,50 @@ const router = express.Router();
 const mealPhotoController = require('../controller/mealPhoto.controller');
 const { authenticate, authorizeRoles } = require('../middleware/auth');
 
-// Lấy ảnh theo ngày (KitchenStaff + SchoolAdmin)
+/**
+ * @openapi
+ * /api/meal-photo:
+ *   get:
+ *     summary: Lấy ảnh bữa ăn theo ngày
+ *     tags:
+ *       - MealPhoto
+ *     security:
+ *       - bearerAuth: []
+ *     parameters:
+ *       - in: query
+ *         name: date
+ *         schema:
+ *           type: string
+ *           format: date
+ *     responses:
+ *       200:
+ *         description: Thông tin ảnh bữa ăn
+ *         content:
+ *           application/json:
+ *             schema:
+ *               $ref: '#/components/schemas/MealPhoto'
+ */
 router.get('/', authenticate, authorizeRoles('KitchenStaff', 'SchoolAdmin'), mealPhotoController.getMealPhoto);
 
-// Tạo / cập nhật ảnh cho ngày (upsert)
+/**
+ * @openapi
+ * /api/meal-photo:
+ *   post:
+ *     summary: Tạo hoặc cập nhật ảnh bữa ăn cho ngày (upsert)
+ *     tags:
+ *       - MealPhoto
+ *     security:
+ *       - bearerAuth: []
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             $ref: '#/components/schemas/MealPhoto'
+ *     responses:
+ *       200:
+ *         description: Thành công
+ */
 router.post('/', authenticate, authorizeRoles('KitchenStaff'), mealPhotoController.upsertMealPhoto);
 
 // Thêm / cập nhật ảnh cho một bữa ăn cụ thể
