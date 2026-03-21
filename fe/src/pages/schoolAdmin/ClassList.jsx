@@ -61,6 +61,7 @@ const GRADE_COLORS = [
 
 function ClassList() {
   const [classes, setClasses] = useState([]);
+  const [activeAcademicYear, setActiveAcademicYear] = useState(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
   const [searchTerm, setSearchTerm] = useState('');
@@ -124,6 +125,7 @@ function ClassList() {
       setError(null);
       const response = await get(ENDPOINTS.CLASSES.LIST);
       setClasses(response.data || []);
+      setActiveAcademicYear(response.academicYear || null);
     } catch (err) {
       setError(err.message || 'Lỗi khi tải danh sách lớp học');
     } finally {
@@ -551,9 +553,16 @@ function ClassList() {
       {/* ── Header gradient banner ──────────────────────────────────────────── */}
       <Paper
         elevation={0}
-        sx={{ mb: 3, p: 3, background: 'linear-gradient(135deg, #6366f1 0%, #4f46e5 100%)', borderRadius: 2 }}
+        sx={{ mb: 3, p: 3, background: 'linear-gradient(135deg, #6366f1 0%, #4f46e5 100%)', borderRadius: 2, position: 'relative' }}
       >
         <Stack direction="row" alignItems="center" justifyContent="space-between">
+          {activeAcademicYear && (
+            <Chip
+              label={`Năm học: ${activeAcademicYear.yearName}`}
+              size="small"
+              sx={{ position: 'absolute', top: 12, right: 16, bgcolor: 'rgba(255,255,255,0.18)', color: '#fff', fontWeight: 600, fontSize: '0.72rem', border: '1px solid rgba(255,255,255,0.3)' }}
+            />
+          )}
           <Stack direction="row" alignItems="center" spacing={1.5}>
             {selectedGrade && (
               <IconButton

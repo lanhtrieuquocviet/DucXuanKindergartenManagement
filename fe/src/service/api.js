@@ -271,6 +271,7 @@ export const ENDPOINTS = {
     UPDATE: (classId) => `/classes/${classId}`,
     DELETE: (classId) => `/classes/${classId}`,
     ADD_STUDENTS: (classId) => `/classes/${classId}/students`,
+    REMOVE_STUDENT: (classId, studentId) => `/classes/${classId}/students/${studentId}`,
   },
   // Grades management (SchoolAdmin)
   GRADES: {

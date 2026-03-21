@@ -8,6 +8,7 @@ const {
   createClass,
   updateClass,
   addStudentsToClass,
+  removeStudentFromClass,
   deleteClass,
 } = require('../controller/classController');
 const Classes = require('../models/Classes');
@@ -174,5 +175,6 @@ router.delete('/:classId', authenticate, authorizeRoles('SchoolAdmin'), deleteCl
  */
 router.get('/:classId/students', authenticate, getStudentInClass);
 router.post('/:classId/students', authenticate, authorizeRoles('SchoolAdmin'), addStudentsToClass);
+router.delete('/:classId/students/:studentId', authenticate, authorizeRoles('SchoolAdmin'), removeStudentFromClass);
 
 module.exports = router;

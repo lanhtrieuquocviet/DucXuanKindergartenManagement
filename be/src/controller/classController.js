@@ -53,7 +53,17 @@ const getClassList = async (req, res) => {
   try {
     const activeYear = await AcademicYear.findOne({ status: 'active' }).sort({ startDate: -1 }).lean();
 
-    const filter = activeYear ? { academicYearId: activeYear._id } : {};
+    if (!activeYear) {
+      return res.status(200).json({
+        status: 'success',
+        message: 'Chưa có năm học đang hoạt động',
+        data: [],
+        total: 0,
+        academicYear: null,
+      });
+    }
+
+    const filter = { academicYearId: activeYear._id };
 
     const classes = await Classes.find(filter)
       .populate('gradeId', 'gradeName description')
@@ -387,6 +397,28 @@ const addStudentsToClass = async (req, res) => {
 };
 
 /**
+ * Xóa học sinh khỏi lớp (set classId = null)
+ * DELETE /api/classes/:classId/students/:studentId
+ */
+const removeStudentFromClass = async (req, res) => {
+  try {
+    const { classId, studentId } = req.params;
+
+    const student = await Student.findOne({ _id: studentId, classId });
+    if (!student) {
+      return res.status(404).json({ status: 'error', message: 'Học sinh không thuộc lớp này' });
+    }
+
+    await Student.findByIdAndUpdate(studentId, { $unset: { classId: '' } });
+
+    return res.status(200).json({ status: 'success', message: 'Đã xóa học sinh khỏi lớp' });
+  } catch (error) {
+    console.error('Error in removeStudentFromClass:', error);
+    return res.status(500).json({ status: 'error', message: 'Lỗi khi xóa học sinh khỏi lớp', error: error.message });
+  }
+};
+
+/**
  * Xóa lớp học
  * DELETE /api/classes/:classId
  */
@@ -423,5 +455,6 @@ module.exports = {
   createClass,
   updateClass,
   addStudentsToClass,
+  removeStudentFromClass,
   deleteClass,
 };

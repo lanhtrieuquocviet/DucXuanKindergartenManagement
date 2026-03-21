@@ -2,7 +2,7 @@ import { useEffect, useState, useMemo } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import RoleLayout from '../../layouts/RoleLayout';
 import { useAuth } from '../../context/AuthContext';
-import { get, post, ENDPOINTS } from '../../service/api';
+import { get, post, del, ENDPOINTS } from '../../service/api';
 
 import {
   Box,
@@ -30,7 +30,9 @@ import {
   ListItemAvatar,
   ListItemText,
   Badge,
+  Tooltip,
 } from '@mui/material';
+import DeleteOutlineIcon from '@mui/icons-material/DeleteOutline';
 import ArrowBackIcon from '@mui/icons-material/ArrowBack';
 import RefreshIcon from '@mui/icons-material/Refresh';
 import AddIcon from '@mui/icons-material/Add';
@@ -117,7 +119,7 @@ function StatCard({ icon, label, value, sub, color }) {
   );
 }
 
-function StudentCard({ student, attendanceStatus, onClick }) {
+function StudentCard({ student, attendanceStatus, onClick, onRemove }) {
   const att = attendanceColor(attendanceStatus);
   const age = calcAge(student.dateOfBirth);
 
@@ -131,9 +133,28 @@ function StudentCard({ student, attendanceStatus, onClick }) {
         cursor: 'pointer',
         borderColor: 'grey.200',
         transition: 'all 0.15s',
+        position: 'relative',
         '&:hover': { boxShadow: 3, borderColor: '#a78bfa', transform: 'translateY(-1px)' },
+        '&:hover .remove-btn': { opacity: 1 },
       }}
     >
+      <Tooltip title="Xóa khỏi lớp">
+        <IconButton
+          className="remove-btn"
+          size="small"
+          onClick={(e) => { e.stopPropagation(); onRemove(student); }}
+          sx={{
+            position: 'absolute', top: 6, right: 6,
+            opacity: 0, transition: 'opacity 0.15s',
+            color: 'error.main',
+            bgcolor: 'rgba(255,255,255,0.85)',
+            '&:hover': { bgcolor: '#fee2e2' },
+            p: 0.5,
+          }}
+        >
+          <DeleteOutlineIcon sx={{ fontSize: 16 }} />
+        </IconButton>
+      </Tooltip>
       <Stack direction="row" spacing={1.5} alignItems="flex-start">
         <Avatar
           sx={{
@@ -195,6 +216,11 @@ function StudentInClass() {
   const [activeTab, setActiveTab] = useState(0);
   const [searchTerm, setSearchTerm] = useState('');
   const [selectedStudent, setSelectedStudent] = useState(null);
+
+  // Remove student from class
+  const [removeConfirm, setRemoveConfirm] = useState(null); // student object
+  const [removeLoading, setRemoveLoading] = useState(false);
+  const [removeError, setRemoveError] = useState(null);
 
   // Add students to class dialog
   const [addOpen, setAddOpen] = useState(false);
@@ -277,6 +303,22 @@ function StudentInClass() {
       setAddError(err.data?.message || err.message || 'Lỗi khi thêm học sinh');
     } finally {
       setAddSubmitting(false);
+    }
+  };
+
+  const handleRemoveStudent = async () => {
+    if (!removeConfirm) return;
+    setRemoveLoading(true);
+    setRemoveError(null);
+    try {
+      await del(ENDPOINTS.CLASSES.REMOVE_STUDENT(classId, removeConfirm._id));
+      setRemoveConfirm(null);
+      if (selectedStudent?._id === removeConfirm._id) setSelectedStudent(null);
+      fetchAll();
+    } catch (err) {
+      setRemoveError(err.data?.message || err.message || 'Lỗi khi xóa học sinh khỏi lớp');
+    } finally {
+      setRemoveLoading(false);
     }
   };
 
@@ -675,6 +717,7 @@ function StudentInClass() {
                       student={student}
                       attendanceStatus={attendanceMap[student._id] || null}
                       onClick={setSelectedStudent}
+                      onRemove={setRemoveConfirm}
                     />
                   ))}
                 </Box>
@@ -914,14 +957,18 @@ function StudentInClass() {
             </Stack>
           ) : (() => {
             const currentClassStudentIds = new Set(students.map(s => String(s._id)));
-            const filtered = allStudents.filter(s =>
+            // Chỉ hiện học sinh chưa có lớp nào (classId null/undefined)
+            const available = allStudents.filter(s => !s.classId);
+            const filtered = available.filter(s =>
               s.fullName?.toLowerCase().includes(addSearch.toLowerCase())
             );
             if (filtered.length === 0) {
               return (
                 <Stack alignItems="center" py={5}>
                   <PeopleIcon sx={{ fontSize: 40, color: 'grey.300' }} />
-                  <Typography variant="body2" color="text.secondary" mt={1}>Không có học sinh nào</Typography>
+                  <Typography variant="body2" color="text.secondary" mt={1}>
+                    {addSearch ? 'Không tìm thấy học sinh' : 'Tất cả học sinh đã được xếp vào lớp'}
+                  </Typography>
                 </Stack>
               );
             }
@@ -929,8 +976,7 @@ function StudentInClass() {
               <List disablePadding>
                 {filtered.map((s, idx) => {
                   const inThisClass = currentClassStudentIds.has(String(s._id));
-                  const inOtherClass = !inThisClass && s.classId && String(s.classId) !== String(classId);
-                  const isDisabled = inThisClass || !!inOtherClass;
+                  const isDisabled = inThisClass;
                   const isSelected = addSelected.includes(s._id);
                   const age = calcAge(s.dateOfBirth);
 
@@ -972,13 +1018,6 @@ function StudentInClass() {
                             )}
                             {inThisClass && (
                               <Chip label="Đã trong lớp" size="small" sx={{ height: 18, fontSize: '0.62rem', bgcolor: '#f0fdf4', color: '#15803d', fontWeight: 600 }} />
-                            )}
-                            {inOtherClass && (
-                              <Chip
-                                label={`Lớp ${s.classId?.className || 'khác'}`}
-                                size="small"
-                                sx={{ height: 18, fontSize: '0.62rem', bgcolor: '#fef9c3', color: '#92400e', fontWeight: 600 }}
-                              />
                             )}
                           </Stack>
                         }
@@ -1024,6 +1063,28 @@ function StudentInClass() {
           </Button>
         </DialogActions>
       </Dialog>
+      {/* ── Confirm remove student dialog ───────────────────────────────── */}
+      <Dialog open={!!removeConfirm} onClose={() => !removeLoading && setRemoveConfirm(null)} maxWidth="xs" fullWidth>
+        <DialogTitle sx={{ fontWeight: 700 }}>Xóa học sinh khỏi lớp</DialogTitle>
+        <DialogContent>
+          {removeError && <Alert severity="error" sx={{ mb: 1.5 }}>{removeError}</Alert>}
+          <Typography variant="body2">
+            Bạn có chắc muốn xóa <strong>{removeConfirm?.fullName}</strong> khỏi lớp này? Học sinh sẽ không còn thuộc lớp nào.
+          </Typography>
+        </DialogContent>
+        <DialogActions sx={{ px: 3, py: 2 }}>
+          <Button onClick={() => setRemoveConfirm(null)} color="inherit" disabled={removeLoading}>Hủy</Button>
+          <Button
+            variant="contained"
+            color="error"
+            onClick={handleRemoveStudent}
+            disabled={removeLoading}
+          >
+            {removeLoading ? <CircularProgress size={18} color="inherit" /> : 'Xóa khỏi lớp'}
+          </Button>
+        </DialogActions>
+      </Dialog>
+
     </RoleLayout>
   );
 }
