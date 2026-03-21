@@ -238,8 +238,11 @@ const createClass = async (req, res) => {
       });
     }
 
-    // Validate giáo viên
+    // Validate giáo viên — bắt buộc đúng 2 giáo viên
     const tIds = Array.isArray(teacherIds) ? teacherIds.filter(Boolean) : [];
+    if (tIds.length !== 2) {
+      return res.status(400).json({ status: 'error', message: 'Mỗi lớp bắt buộc phải có đúng 2 giáo viên phụ trách' });
+    }
     const teacherError = await validateTeacherAssignment(tIds, activeYear._id, className, null);
     if (teacherError) {
       return res.status(400).json({ status: 'error', message: teacherError });
