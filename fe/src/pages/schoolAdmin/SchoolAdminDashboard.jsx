@@ -135,6 +135,10 @@ function SchoolAdminDashboard() {
       navigate("/school-admin/meal-management");
       return;
     }
+    if (key === 'teachers') {
+      navigate('/school-admin/teachers');
+      return;
+    }
     if (key === 'students') {
       navigate('/school-admin/students');
       return;

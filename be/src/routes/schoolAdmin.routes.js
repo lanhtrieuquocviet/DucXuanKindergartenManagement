@@ -1155,20 +1155,31 @@ router.put('/timetable', authenticate, authorizeRoles('SchoolAdmin'), timetableC
  */
 router.get('/teachers', authenticate, authorizeRoles('SchoolAdmin'), async (req, res) => {
   try {
-    // Lấy từ bảng Teacher, populate User để lấy fullName, email, phone, avatar
-    const teacherDocs = await Teacher.find({ status: 'active' })
+    const teacherRole = await Role.findOne({ roleName: 'Teacher' }).lean();
+
+    // Đồng bộ: tạo Teacher record cho TẤT CẢ User có role Teacher (kể cả inactive)
+    if (teacherRole) {
+      const teacherUsers = await User.find({ roles: teacherRole._id }).lean();
+      for (const u of teacherUsers) {
+        const exists = await Teacher.findOne({ userId: u._id }).lean();
+        if (!exists) await Teacher.create({ userId: u._id, status: u.status === 'active' ? 'active' : 'inactive' });
+      }
+    }
+
+    const teacherDocs = await Teacher.find()
       .populate('userId', 'fullName email phone avatar status')
       .sort({ createdAt: 1 })
       .lean();
 
     const teachers = teacherDocs
-      .filter(t => t.userId && t.userId.status === 'active')
+      .filter(t => t.userId)
       .map(t => ({
-        _id: t._id,           // Teacher._id — lưu vào Classes.teacherIds
+        _id: t._id,
         fullName: t.userId.fullName,
         email: t.userId.email,
         phone: t.userId.phone,
         avatar: t.userId.avatar,
+        status: t.userId.status,
         degree: t.degree,
         experienceYears: t.experienceYears,
         hireDate: t.hireDate,
@@ -1178,6 +1189,140 @@ router.get('/teachers', authenticate, authorizeRoles('SchoolAdmin'), async (req,
   } catch (error) {
     console.error('listTeachers error:', error);
     return res.status(500).json({ status: 'error', message: 'Lỗi khi lấy danh sách giáo viên' });
+  }
+});
+
+// POST /school-admin/teachers — tạo giáo viên mới (User + Teacher record)
+router.post('/teachers', authenticate, authorizeRoles('SchoolAdmin'), async (req, res) => {
+  try {
+    const { fullName, email, phone, password, degree, experienceYears, hireDate, avatar } = req.body;
+    if (!fullName?.trim()) return res.status(400).json({ status: 'error', message: 'Họ tên không được để trống' });
+    if (!email?.trim()) return res.status(400).json({ status: 'error', message: 'Email không được để trống' });
+    if (!password || password.length < 6) return res.status(400).json({ status: 'error', message: 'Mật khẩu tối thiểu 6 ký tự' });
+
+    const existingUser = await User.findOne({ email: email.trim().toLowerCase() }).lean();
+    if (existingUser) return res.status(400).json({ status: 'error', message: 'Email đã được sử dụng' });
+
+    const teacherRole = await Role.findOne({ roleName: 'Teacher' }).lean();
+    if (!teacherRole) return res.status(500).json({ status: 'error', message: 'Không tìm thấy role Teacher trong hệ thống' });
+
+    const bcrypt = require('bcryptjs');
+    const salt = await bcrypt.genSalt(10);
+    const passwordHash = await bcrypt.hash(password, salt);
+
+    const user = await User.create({
+      username: email.trim().toLowerCase().split('@')[0] + '_' + Date.now(),
+      passwordHash,
+      fullName: fullName.trim(),
+      email: email.trim().toLowerCase(),
+      phone: phone?.trim() || '',
+      avatar: avatar || '',
+      roles: [teacherRole._id],
+      status: 'active',
+    });
+
+    const teacher = await Teacher.create({
+      userId: user._id,
+      degree: degree?.trim() || '',
+      experienceYears: Number(experienceYears) || 0,
+      hireDate: hireDate || null,
+      status: 'active',
+    });
+
+    await teacher.populate('userId', 'fullName email phone avatar');
+    return res.status(201).json({
+      status: 'success',
+      message: 'Tạo giáo viên thành công',
+      data: {
+        _id: teacher._id,
+        fullName: teacher.userId.fullName,
+        email: teacher.userId.email,
+        phone: teacher.userId.phone,
+        avatar: teacher.userId.avatar,
+        degree: teacher.degree,
+        experienceYears: teacher.experienceYears,
+        hireDate: teacher.hireDate,
+      },
+    });
+  } catch (error) {
+    console.error('createTeacher error:', error);
+    return res.status(500).json({ status: 'error', message: 'Lỗi khi tạo giáo viên', error: error.message });
+  }
+});
+
+// PUT /school-admin/teachers/:id — cập nhật giáo viên
+router.put('/teachers/:id', authenticate, authorizeRoles('SchoolAdmin'), async (req, res) => {
+  try {
+    const teacher = await Teacher.findById(req.params.id).populate('userId');
+    if (!teacher) return res.status(404).json({ status: 'error', message: 'Không tìm thấy giáo viên' });
+
+    const { fullName, email, phone, password, degree, experienceYears, hireDate, avatar, status } = req.body;
+
+    // Cập nhật User
+    const userUpdate = {};
+    if (fullName?.trim()) userUpdate.fullName = fullName.trim();
+    if (phone !== undefined) userUpdate.phone = phone?.trim() || '';
+    if (avatar !== undefined) userUpdate.avatar = avatar;
+    if (email?.trim() && email.trim().toLowerCase() !== teacher.userId.email) {
+      const dup = await User.findOne({ email: email.trim().toLowerCase(), _id: { $ne: teacher.userId._id } }).lean();
+      if (dup) return res.status(400).json({ status: 'error', message: 'Email đã được sử dụng' });
+      userUpdate.email = email.trim().toLowerCase();
+    }
+    if (password && password.length >= 6) {
+      const bcrypt = require('bcryptjs');
+      const salt = await bcrypt.genSalt(10);
+      userUpdate.passwordHash = await bcrypt.hash(password, salt);
+    }
+    if (Object.keys(userUpdate).length > 0) {
+      await User.findByIdAndUpdate(teacher.userId._id, userUpdate);
+    }
+
+    // Cập nhật Teacher
+    if (degree !== undefined) teacher.degree = degree?.trim() || '';
+    if (experienceYears !== undefined) teacher.experienceYears = Number(experienceYears) || 0;
+    if (hireDate !== undefined) teacher.hireDate = hireDate || null;
+    if (status) teacher.status = status;
+    await teacher.save();
+
+    await teacher.populate('userId', 'fullName email phone avatar');
+    return res.status(200).json({
+      status: 'success',
+      message: 'Cập nhật giáo viên thành công',
+      data: {
+        _id: teacher._id,
+        fullName: teacher.userId.fullName,
+        email: teacher.userId.email,
+        phone: teacher.userId.phone,
+        avatar: teacher.userId.avatar,
+        degree: teacher.degree,
+        experienceYears: teacher.experienceYears,
+        hireDate: teacher.hireDate,
+        status: teacher.status,
+      },
+    });
+  } catch (error) {
+    console.error('updateTeacher error:', error);
+    return res.status(500).json({ status: 'error', message: 'Lỗi khi cập nhật giáo viên', error: error.message });
+  }
+});
+
+// DELETE /school-admin/teachers/:id — xóa giáo viên
+router.delete('/teachers/:id', authenticate, authorizeRoles('SchoolAdmin'), async (req, res) => {
+  try {
+    const teacher = await Teacher.findById(req.params.id).lean();
+    if (!teacher) return res.status(404).json({ status: 'error', message: 'Không tìm thấy giáo viên' });
+
+    const Classes = require('../models/Classes');
+    const inUse = await Classes.countDocuments({ teacherIds: teacher._id });
+    if (inUse > 0) return res.status(400).json({ status: 'error', message: `Không thể xóa: giáo viên đang phụ trách ${inUse} lớp học` });
+
+    await Teacher.findByIdAndDelete(teacher._id);
+    await User.findByIdAndUpdate(teacher.userId, { status: 'inactive' });
+
+    return res.status(200).json({ status: 'success', message: 'Đã xóa giáo viên' });
+  } catch (error) {
+    console.error('deleteTeacher error:', error);
+    return res.status(500).json({ status: 'error', message: 'Lỗi khi xóa giáo viên', error: error.message });
   }
 });
 

@@ -105,6 +105,7 @@ function BlogDetail() {
   const handleMenuSelect = (key) => {
     if (key === 'overview') navigate('/school-admin');
     else if (key === 'classes') navigate('/school-admin/classes');
+    if (key === 'teachers') { navigate('/school-admin/teachers'); return; }
     else if (key === 'contacts') navigate('/school-admin/contacts');
     else if (key === 'qa') navigate('/school-admin/qa');
     else if (key === 'blogs') navigate('/school-admin/blogs');

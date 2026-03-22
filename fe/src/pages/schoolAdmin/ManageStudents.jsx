@@ -143,6 +143,7 @@ function ManageStudents() {
   const handleViewProfile = () => navigate('/profile');
 
   const handleMenuSelect = async (key) => {
+    if (key === 'teachers') { navigate('/school-admin/teachers'); return; }
     if (key === 'students') return;
     if (key === 'overview') { navigate('/school-admin'); return; }
     if (key === 'academic-years' || key === 'academic-year-setup') { navigate('/school-admin/academic-years'); return; }

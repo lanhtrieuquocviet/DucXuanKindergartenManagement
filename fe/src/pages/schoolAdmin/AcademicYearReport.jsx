@@ -139,6 +139,7 @@ export default function AcademicYearReport() {
       navigate('/school-admin/menus');
       return;
     }
+    if (key === 'teachers') { navigate('/school-admin/teachers'); return; }
     if (key === 'students') {
       navigate('/school-admin/students');
       return;

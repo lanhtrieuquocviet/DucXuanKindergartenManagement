@@ -1021,6 +1021,7 @@ function MealManagementSchoolAdmin() {
     }
     if (key === 'classes') { navigate('/school-admin/classes'); return; }
     if (key === 'academic-students') { navigate('/school-admin/class-list'); return; }
+    if (key === 'teachers') { navigate('/school-admin/teachers'); return; }
     if (key === 'students') { navigate('/school-admin/students'); return; }
     if (key === 'menu') { navigate('/school-admin/menus'); return; }
     if (key === 'contacts') { navigate('/school-admin/contacts'); return; }

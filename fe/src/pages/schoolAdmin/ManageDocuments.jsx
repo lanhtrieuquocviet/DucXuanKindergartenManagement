@@ -432,6 +432,7 @@ export default function ManageDocuments() {
       'academic-schedule': '/school-admin/timetable',
       'academic-plan': '/school-admin/academic-plan',
       classes: '/school-admin/classes',
+      teachers: '/school-admin/teachers',
       contacts: '/school-admin/contacts',
       qa: '/school-admin/qa',
       blogs: '/school-admin/blogs',

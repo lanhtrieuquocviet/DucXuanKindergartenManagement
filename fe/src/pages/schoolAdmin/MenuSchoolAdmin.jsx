@@ -136,6 +136,7 @@ function MenuSchoolAdmin() {
     if (key === "academic-students") navigate("/school-admin/class-list");
     if (key === "classes") navigate("/school-admin/classes");
     if (key === "menu") navigate("/school-admin/menus");
+    if (key === "teachers") navigate("/school-admin/teachers");
     if (key === "students") navigate("/school-admin/students");
     if (key === "contacts") navigate("/school-admin/contacts");
     if (key === "qa") navigate("/school-admin/qa");

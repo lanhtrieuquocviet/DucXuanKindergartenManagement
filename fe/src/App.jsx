@@ -20,6 +20,7 @@ import SchoolAdminDashboard from './pages/schoolAdmin/SchoolAdminDashboard';
 import ClassList from './pages/schoolAdmin/ClassList';
 import StudentInClass from './pages/schoolAdmin/StudentInClass';
 import ManageStudents from './pages/schoolAdmin/ManageStudents';
+import ManageTeachers from './pages/schoolAdmin/ManageTeachers';
 import ContactList from './pages/schoolAdmin/ContactList';
 import QaList from './pages/schoolAdmin/QaList';
 import AttendanceOverview from './pages/schoolAdmin/AttendanceOverview';
@@ -368,6 +369,14 @@ function App() {
                 <SchoolAdminProvider>
                   <ManageStudents />
                 </SchoolAdminProvider>
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/school-admin/teachers"
+            element={
+              <ProtectedRoute>
+                <ManageTeachers />
               </ProtectedRoute>
             }
           />

@@ -356,6 +356,7 @@ export default function ManagePublicInfo() {
     const routes = {
       overview: '/school-admin',
       classes: '/school-admin/classes',
+      teachers: '/school-admin/teachers',
       students: '/school-admin/students',
       contacts: '/school-admin/contacts',
       qa: '/school-admin/qa',

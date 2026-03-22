@@ -162,6 +162,7 @@ function AttendanceOverview() {
       navigate("/school-admin/menus");
       return;
     }
+    if (key === 'teachers') { navigate('/school-admin/teachers'); return; }
     if (key === 'contacts') {
       navigate('/school-admin/contacts');
       return;

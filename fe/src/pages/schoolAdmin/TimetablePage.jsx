@@ -104,6 +104,7 @@ export default function TimetablePage() {
     if (key === 'academic-schedule') return;
     if (key === 'classes') navigate('/school-admin/classes');
     if (key === 'menu') navigate('/school-admin/menus');
+    if (key === 'teachers') { navigate('/school-admin/teachers'); return; }
     if (key === 'students') navigate('/school-admin/students');
     if (key === 'contacts') navigate('/school-admin/contacts');
     if (key === 'qa') navigate('/school-admin/qa');

@@ -281,18 +281,19 @@ function ClassList() {
     setDialogOpen(true);
     setFetchingDialogData(true);
     try {
-      const [yearRes, gradesRes, teachersRes, roomsRes] = await Promise.all([
+      const [yearRes, gradesRes, teachersRes, roomsRes] = await Promise.allSettled([
         get(ENDPOINTS.SCHOOL_ADMIN.ACADEMIC_YEARS.CURRENT),
         get(ENDPOINTS.CLASSES.GRADES),
         get(ENDPOINTS.SCHOOL_ADMIN.TEACHERS),
         get(ENDPOINTS.SCHOOL_ADMIN.CLASSROOMS),
       ]);
-      const year = yearRes.data || null;
+      const year = yearRes.status === 'fulfilled' ? (yearRes.value?.data || null) : null;
       setCurrentAcademicYear(year);
-      setGrades(gradesRes.data || []);
-      setTeachers(teachersRes.data || []);
-      setRooms(roomsRes.data || []);
+      setGrades(gradesRes.status === 'fulfilled' ? (gradesRes.value?.data || []) : []);
+      setTeachers(teachersRes.status === 'fulfilled' ? (teachersRes.value?.data || []) : []);
+      setRooms(roomsRes.status === 'fulfilled' ? (roomsRes.value?.data || []) : []);
       if (!year) setNoActiveYear(true);
+      if (teachersRes.status === 'rejected') console.error('Lấy giáo viên thất bại:', teachersRes.reason);
     } catch (err) {
       setDialogError('Không thể tải dữ liệu. Vui lòng thử lại.');
     } finally {
@@ -360,14 +361,15 @@ function ClassList() {
     setEditDialogOpen(true);
     setEditFetchingData(true);
     try {
-      const [gradesRes, teachersRes, roomsRes] = await Promise.all([
+      const [gradesRes, teachersRes, roomsRes] = await Promise.allSettled([
         get(ENDPOINTS.CLASSES.GRADES),
         get(ENDPOINTS.SCHOOL_ADMIN.TEACHERS),
         get(ENDPOINTS.SCHOOL_ADMIN.CLASSROOMS),
       ]);
-      setGrades(gradesRes.data || []);
-      setTeachers(teachersRes.data || []);
-      setRooms(roomsRes.data || []);
+      setGrades(gradesRes.status === 'fulfilled' ? (gradesRes.value?.data || []) : []);
+      setTeachers(teachersRes.status === 'fulfilled' ? (teachersRes.value?.data || []) : []);
+      setRooms(roomsRes.status === 'fulfilled' ? (roomsRes.value?.data || []) : []);
+      if (teachersRes.status === 'rejected') console.error('Lấy giáo viên thất bại:', teachersRes.reason);
     } catch (err) {
       setEditDialogError('Không thể tải dữ liệu. Vui lòng thử lại.');
     } finally {
@@ -457,6 +459,7 @@ function ClassList() {
       'academic-schedule': '/school-admin/timetable',
       'academic-plan': '/school-admin/classes',
       'academic-students': '/school-admin/class-list',
+      teachers: '/school-admin/teachers',
       menu: '/school-admin/menus',
       students: '/school-admin/students',
       contacts: '/school-admin/contacts',

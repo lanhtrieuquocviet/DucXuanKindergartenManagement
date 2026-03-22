@@ -160,6 +160,7 @@ function StudentAttendanceHistory() {
       navigate('/school-admin/classes');
       return;
     }
+    if (key === 'teachers') { navigate('/school-admin/teachers'); return; }
     if (key === 'contacts') {
       navigate('/school-admin/contacts');
       return;

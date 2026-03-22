@@ -385,6 +385,7 @@ function StudentInClass() {
   const handleMenuSelect = (key) => {
     const routes = {
       classes: '/school-admin/classes',
+      teachers: '/school-admin/teachers',
       students: '/school-admin/students',
       contacts: '/school-admin/contacts',
       overview: '/school-admin',

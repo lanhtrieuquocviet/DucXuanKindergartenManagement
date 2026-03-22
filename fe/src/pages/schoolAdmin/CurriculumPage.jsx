@@ -270,6 +270,7 @@ export default function CurriculumPage() {
     else if (key === 'academic-students') navigate('/school-admin/class-list');
     else if (key === 'classes') navigate('/school-admin/classes');
     else if (key === 'menu') navigate('/school-admin/menus');
+    if (key === 'teachers') { navigate('/school-admin/teachers'); return; }
     else if (key === 'students') navigate('/school-admin/students');
     else if (key === 'contacts') navigate('/school-admin/contacts');
     else if (key === 'qa') navigate('/school-admin/qa');
