@@ -504,16 +504,19 @@ function StudentInClass() {
                 GIÁO VIÊN PHỤ TRÁCH
               </Typography>
               <Stack spacing={0.75} sx={{ mt: 0.75 }}>
-                {teachers.map((t, i) => (
-                  <Stack key={t._id || i} direction="row" alignItems="center" spacing={1} justifyContent={{ md: 'flex-end' }}>
-                    <Avatar sx={{ width: 28, height: 28, bgcolor: 'rgba(255,255,255,0.25)', color: '#fff', fontSize: '0.75rem', fontWeight: 700 }}>
-                      {t.fullName?.charAt(0)?.toUpperCase() || 'T'}
-                    </Avatar>
-                    <Typography variant="body2" sx={{ fontWeight: 600, color: '#fff' }}>
-                      {t.fullName}
-                    </Typography>
-                  </Stack>
-                ))}
+                {teachers.map((t, i) => {
+                  const name = t.userId?.fullName || t.fullName || '';
+                  return (
+                    <Stack key={t._id || i} direction="row" alignItems="center" spacing={1} justifyContent={{ md: 'flex-end' }}>
+                      <Avatar sx={{ width: 28, height: 28, bgcolor: 'rgba(255,255,255,0.25)', color: '#fff', fontSize: '0.75rem', fontWeight: 700 }}>
+                        {name.charAt(0)?.toUpperCase() || 'T'}
+                      </Avatar>
+                      <Typography variant="body2" sx={{ fontWeight: 600, color: '#fff' }}>
+                        {name}
+                      </Typography>
+                    </Stack>
+                  );
+                })}
               </Stack>
             </Box>
           )}
@@ -606,19 +609,23 @@ function StudentInClass() {
                     <Typography variant="body2" color="text.secondary">Chưa phân công giáo viên</Typography>
                   ) : (
                     <Stack spacing={1.5}>
-                      {teachers.map((t, i) => (
-                        <Stack key={t._id || i} direction="row" spacing={1.5} alignItems="center">
-                          <Avatar sx={{ width: 40, height: 40, bgcolor: '#ede9fe', color: '#7c3aed', fontWeight: 700 }}>
-                            {t.fullName?.charAt(0)?.toUpperCase() || 'T'}
-                          </Avatar>
-                          <Box>
-                            <Typography variant="body2" fontWeight={600}>{t.fullName}</Typography>
-                            {t.email && (
-                              <Typography variant="caption" color="text.secondary">{t.email}</Typography>
-                            )}
-                          </Box>
-                        </Stack>
-                      ))}
+                      {teachers.map((t, i) => {
+                        const name = t.userId?.fullName || t.fullName || '';
+                        const email = t.userId?.email || t.email || '';
+                        return (
+                          <Stack key={t._id || i} direction="row" spacing={1.5} alignItems="center">
+                            <Avatar sx={{ width: 40, height: 40, bgcolor: '#ede9fe', color: '#7c3aed', fontWeight: 700 }}>
+                              {name.charAt(0)?.toUpperCase() || 'T'}
+                            </Avatar>
+                            <Box>
+                              <Typography variant="body2" fontWeight={600}>{name}</Typography>
+                              {email && (
+                                <Typography variant="caption" color="text.secondary">{email}</Typography>
+                              )}
+                            </Box>
+                          </Stack>
+                        );
+                      })}
                     </Stack>
                   )}
                 </Paper>

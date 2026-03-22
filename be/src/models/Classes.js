@@ -21,8 +21,13 @@ const classesSchema = new mongoose.Schema({
   },
   teacherIds: [{
     type: mongoose.Schema.Types.ObjectId,
-    ref: 'User'
+    ref: 'Teacher',
   }],
+  roomId: {
+    type: mongoose.Schema.Types.ObjectId,
+    ref: 'Classroom',
+    default: null,
+  },
   maxStudents: {
     type: Number,
     default: 0

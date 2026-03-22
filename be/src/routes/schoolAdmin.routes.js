@@ -4,6 +4,8 @@ const { authenticate, authorizeRoles, authorizePermissions } = require('../middl
 const contactController = require('../controller/contactController');
 const User = require('../models/User');
 const Role = require('../models/Role');
+const Teacher = require('../models/Teacher');
+const { listClassrooms, createClassroom, updateClassroom, deleteClassroom } = require('../controller/classroomController');
 const {
   getAttendanceOverview,
   getClassAttendanceDetail,
@@ -1153,19 +1155,60 @@ router.put('/timetable', authenticate, authorizeRoles('SchoolAdmin'), timetableC
  */
 router.get('/teachers', authenticate, authorizeRoles('SchoolAdmin'), async (req, res) => {
   try {
-    const teacherRole = await Role.findOne({ roleName: 'Teacher' }).lean();
-    if (!teacherRole) {
-      return res.status(200).json({ status: 'success', data: [] });
-    }
-    const teachers = await User.find({ roles: teacherRole._id, status: 'active' })
-      .select('fullName email phone avatar')
-      .sort({ fullName: 1 })
+    // Lấy từ bảng Teacher, populate User để lấy fullName, email, phone, avatar
+    const teacherDocs = await Teacher.find({ status: 'active' })
+      .populate('userId', 'fullName email phone avatar status')
+      .sort({ createdAt: 1 })
       .lean();
+
+    const teachers = teacherDocs
+      .filter(t => t.userId && t.userId.status === 'active')
+      .map(t => ({
+        _id: t._id,           // Teacher._id — lưu vào Classes.teacherIds
+        fullName: t.userId.fullName,
+        email: t.userId.email,
+        phone: t.userId.phone,
+        avatar: t.userId.avatar,
+        degree: t.degree,
+        experienceYears: t.experienceYears,
+        hireDate: t.hireDate,
+      }));
+
     return res.status(200).json({ status: 'success', data: teachers });
   } catch (error) {
     console.error('listTeachers error:', error);
     return res.status(500).json({ status: 'error', message: 'Lỗi khi lấy danh sách giáo viên' });
   }
 });
+
+// Migration: tạo Teacher record cho User có role Teacher chưa có record
+router.post('/teachers/migrate', authenticate, authorizeRoles('SchoolAdmin'), async (req, res) => {
+  try {
+    const teacherRole = await Role.findOne({ roleName: 'Teacher' }).lean();
+    if (!teacherRole) return res.status(200).json({ status: 'success', message: 'Không tìm thấy role Teacher', created: 0 });
+
+    const users = await User.find({ roles: teacherRole._id }).select('_id').lean();
+    let created = 0;
+    for (const u of users) {
+      const result = await Teacher.findOneAndUpdate(
+        { userId: u._id },
+        { $setOnInsert: { userId: u._id, status: 'active' } },
+        { upsert: true, new: true, rawResult: true }
+      );
+      if (result.lastErrorObject?.upserted) created++;
+    }
+    return res.status(200).json({ status: 'success', message: `Đã tạo ${created} Teacher record mới`, created });
+  } catch (error) {
+    return res.status(500).json({ status: 'error', message: error.message });
+  }
+});
+
+// ============================================
+// Classrooms
+// ============================================
+router.get('/classrooms', authenticate, authorizeRoles('SchoolAdmin'), listClassrooms);
+router.post('/classrooms', authenticate, authorizeRoles('SchoolAdmin'), createClassroom);
+router.put('/classrooms/:id', authenticate, authorizeRoles('SchoolAdmin'), updateClassroom);
+router.delete('/classrooms/:id', authenticate, authorizeRoles('SchoolAdmin'), deleteClassroom);
 
 module.exports = router;

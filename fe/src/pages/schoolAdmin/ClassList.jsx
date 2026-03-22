@@ -126,8 +126,9 @@ function ClassList() {
   // Drill-down state: null = grade list, object = selected grade
   const [selectedGrade, setSelectedGrade] = useState(null);
 
-  // Teachers list (shared by create + edit dialog)
+  // Teachers & Rooms list (shared by create + edit dialog)
   const [teachers, setTeachers] = useState([]);
+  const [rooms, setRooms] = useState([]);
 
   // Create class dialog state
   const [dialogOpen, setDialogOpen] = useState(false);
@@ -137,7 +138,7 @@ function ClassList() {
   const [noActiveYear, setNoActiveYear] = useState(false);
   const [currentAcademicYear, setCurrentAcademicYear] = useState(null);
   const [grades, setGrades] = useState([]);
-  const [form, setForm] = useState({ className: '', gradeId: '', maxStudents: '', teacherIds: [] });
+  const [form, setForm] = useState({ className: '', gradeId: '', maxStudents: '', teacherIds: [], roomId: '' });
   const [formErrors, setFormErrors] = useState({});
 
   // Edit class dialog state
@@ -145,7 +146,7 @@ function ClassList() {
   const [editDialogLoading, setEditDialogLoading] = useState(false);
   const [editFetchingData, setEditFetchingData] = useState(false);
   const [editDialogError, setEditDialogError] = useState(null);
-  const [editForm, setEditForm] = useState({ className: '', gradeId: '', maxStudents: '', teacherIds: [] });
+  const [editForm, setEditForm] = useState({ className: '', gradeId: '', maxStudents: '', teacherIds: [], roomId: '' });
   const [editFormErrors, setEditFormErrors] = useState({});
   const [editClassId, setEditClassId] = useState(null);
 
@@ -273,22 +274,24 @@ function ClassList() {
   const openCreateDialog = async (presetGradeId = '') => {
     setDialogError(null);
     setNoActiveYear(false);
-    setForm({ className: '', gradeId: presetGradeId, maxStudents: '', teacherIds: [] });
+    setForm({ className: '', gradeId: presetGradeId, maxStudents: '', teacherIds: [], roomId: '' });
     setFormErrors({});
     setCurrentAcademicYear(null);
     setGrades([]);
     setDialogOpen(true);
     setFetchingDialogData(true);
     try {
-      const [yearRes, gradesRes, teachersRes] = await Promise.all([
+      const [yearRes, gradesRes, teachersRes, roomsRes] = await Promise.all([
         get(ENDPOINTS.SCHOOL_ADMIN.ACADEMIC_YEARS.CURRENT),
         get(ENDPOINTS.CLASSES.GRADES),
         get(ENDPOINTS.SCHOOL_ADMIN.TEACHERS),
+        get(ENDPOINTS.SCHOOL_ADMIN.CLASSROOMS),
       ]);
       const year = yearRes.data || null;
       setCurrentAcademicYear(year);
       setGrades(gradesRes.data || []);
       setTeachers(teachersRes.data || []);
+      setRooms(roomsRes.data || []);
       if (!year) setNoActiveYear(true);
     } catch (err) {
       setDialogError('Không thể tải dữ liệu. Vui lòng thử lại.');
@@ -325,6 +328,7 @@ function ClassList() {
         gradeId: form.gradeId,
         maxStudents: form.maxStudents !== '' ? Number(form.maxStudents) : 0,
         teacherIds: form.teacherIds,
+        roomId: form.roomId || null,
       });
       setDialogOpen(false);
       fetchClasses();
@@ -351,16 +355,19 @@ function ClassList() {
       gradeId: cls.gradeId?._id || cls.gradeId || '',
       maxStudents: cls.maxStudents || '',
       teacherIds: (cls.teacherIds || []).map(t => t._id || t),
+      roomId: cls.roomId?._id || cls.roomId || '',
     });
     setEditDialogOpen(true);
     setEditFetchingData(true);
     try {
-      const [gradesRes, teachersRes] = await Promise.all([
+      const [gradesRes, teachersRes, roomsRes] = await Promise.all([
         get(ENDPOINTS.CLASSES.GRADES),
         get(ENDPOINTS.SCHOOL_ADMIN.TEACHERS),
+        get(ENDPOINTS.SCHOOL_ADMIN.CLASSROOMS),
       ]);
       setGrades(gradesRes.data || []);
       setTeachers(teachersRes.data || []);
+      setRooms(roomsRes.data || []);
     } catch (err) {
       setEditDialogError('Không thể tải dữ liệu. Vui lòng thử lại.');
     } finally {
@@ -396,6 +403,7 @@ function ClassList() {
         gradeId: editForm.gradeId,
         maxStudents: editForm.maxStudents !== '' ? Number(editForm.maxStudents) : 0,
         teacherIds: editForm.teacherIds,
+        roomId: editForm.roomId || null,
       });
       setEditDialogOpen(false);
       fetchClasses();
@@ -860,6 +868,7 @@ function ClassList() {
                       <TableCell sx={{ fontWeight: 700, py: 1.5 }}>Năm học</TableCell>
                       <TableCell align="center" sx={{ fontWeight: 700, py: 1.5 }}>Sĩ số tối đa</TableCell>
                       <TableCell sx={{ fontWeight: 700, py: 1.5 }}>Giáo viên</TableCell>
+                      <TableCell sx={{ fontWeight: 700, py: 1.5 }}>Phòng học</TableCell>
                       <TableCell align="center" sx={{ fontWeight: 700, py: 1.5 }}>Thao tác</TableCell>
                     </TableRow>
                   </TableHead>
@@ -881,9 +890,19 @@ function ClassList() {
                               {cls.teacherIds.map((t, i) => (
                                 <Stack key={t._id || i} direction="row" alignItems="center" spacing={0.5}>
                                   <PersonIcon sx={{ fontSize: 13, color: '#7c3aed' }} />
-                                  <Typography variant="caption" fontWeight={500}>{t.fullName || t}</Typography>
+                                  <Typography variant="caption" fontWeight={500}>{t.userId?.fullName || t.fullName || t}</Typography>
                                 </Stack>
                               ))}
+                            </Stack>
+                          ) : (
+                            <Typography variant="caption" color="text.disabled">Chưa có</Typography>
+                          )}
+                        </TableCell>
+                        <TableCell>
+                          {cls.roomId ? (
+                            <Stack spacing={0}>
+                              <Typography variant="caption" fontWeight={600}>{cls.roomId.roomName}</Typography>
+                              <Typography variant="caption" color="text.secondary">Tầng {cls.roomId.floor}</Typography>
                             </Stack>
                           ) : (
                             <Typography variant="caption" color="text.disabled">Chưa có</Typography>
@@ -1083,6 +1102,22 @@ function ClassList() {
                 error={formErrors.teacherIds}
                 helperText={`Đã chọn: ${form.teacherIds.length}/2 giáo viên (bắt buộc chọn đủ 2)`}
               />
+              <FormControl fullWidth size="small">
+                <InputLabel>Phòng học</InputLabel>
+                <Select
+                  label="Phòng học"
+                  value={form.roomId}
+                  onChange={(e) => setForm(f => ({ ...f, roomId: e.target.value }))}
+                >
+                  <MenuItem value=""><em>Chưa chọn phòng</em></MenuItem>
+                  {rooms.map(r => (
+                    <MenuItem key={r._id} value={r._id}>
+                      {r.roomName} — Tầng {r.floor}
+                      {r.status === 'in_use' ? ' (Đang dùng)' : r.status === 'maintenance' ? ' (Bảo trì)' : ''}
+                    </MenuItem>
+                  ))}
+                </Select>
+              </FormControl>
             </Stack>
           )}
         </DialogContent>
@@ -1155,6 +1190,22 @@ function ClassList() {
                 helperText={`Đã chọn: ${editForm.teacherIds.length}/2 giáo viên`}
                 excludeIds={editForm.teacherIds}
               />
+              <FormControl fullWidth size="small">
+                <InputLabel>Phòng học</InputLabel>
+                <Select
+                  label="Phòng học"
+                  value={editForm.roomId}
+                  onChange={(e) => setEditForm(f => ({ ...f, roomId: e.target.value }))}
+                >
+                  <MenuItem value=""><em>Chưa chọn phòng</em></MenuItem>
+                  {rooms.map(r => (
+                    <MenuItem key={r._id} value={r._id}>
+                      {r.roomName} — Tầng {r.floor}
+                      {r.status === 'in_use' ? ' (Đang dùng)' : r.status === 'maintenance' ? ' (Bảo trì)' : ''}
+                    </MenuItem>
+                  ))}
+                </Select>
+              </FormControl>
             </Stack>
           )}
         </DialogContent>

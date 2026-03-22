@@ -3,6 +3,7 @@ const Student = require('../models/Student');
 const Grade = require('../models/Grade');
 const AcademicYear = require('../models/AcademicYear');
 const User = require('../models/User');
+const Teacher = require('../models/Teacher');
 
 /**
  * Validate teacher assignment rules:
@@ -28,8 +29,9 @@ async function validateTeacherAssignment(teacherIds, academicYearId, className, 
     if (excludeClassId) yearQuery._id = { $ne: excludeClassId };
     const classInYear = await Classes.findOne(yearQuery).lean();
     if (classInYear) {
-      const teacher = await User.findById(tid).select('fullName').lean();
-      return `Giáo viên "${teacher?.fullName || tid}" đã phụ trách lớp "${classInYear.className}" trong năm học này`;
+      const t = await Teacher.findById(tid).populate('userId', 'fullName').lean();
+      const name = t?.userId?.fullName || tid;
+      return `Giáo viên "${name}" đã phụ trách lớp "${classInYear.className}" trong năm học này`;
     }
 
     // Rule 3: tối đa 2 năm / cùng tên lớp
@@ -37,8 +39,9 @@ async function validateTeacherAssignment(teacherIds, academicYearId, className, 
     if (excludeClassId) nameQuery._id = { $ne: excludeClassId };
     const yearCount = await Classes.countDocuments(nameQuery);
     if (yearCount >= 2) {
-      const teacher = await User.findById(tid).select('fullName').lean();
-      return `Giáo viên "${teacher?.fullName || tid}" đã phụ trách lớp "${className}" trong 2 năm, không thể phân công thêm`;
+      const t = await Teacher.findById(tid).populate('userId', 'fullName').lean();
+      const name = t?.userId?.fullName || tid;
+      return `Giáo viên "${name}" đã phụ trách lớp "${className}" trong 2 năm, không thể phân công thêm`;
     }
   }
 
@@ -67,8 +70,9 @@ const getClassList = async (req, res) => {
 
     const classes = await Classes.find(filter)
       .populate('gradeId', 'gradeName description')
+      .populate('roomId', 'roomName floor capacity status')
       .populate('academicYearId', 'yearName startDate endDate')
-      .populate('teacherIds', 'fullName email');
+      .populate({ path: 'teacherIds', populate: { path: 'userId', select: 'fullName email phone avatar' } });
 
     return res.status(200).json({
       status: 'success',
@@ -100,6 +104,7 @@ const getStudentInClass = async (req, res) => {
     // Kiểm tra lớp có tồn tại không
     const classInfo = await Classes.findById(classId)
       .populate('gradeId', 'gradeName')
+      .populate('roomId', 'roomName floor capacity status')
       .populate('academicYearId', 'yearName');
 
     if (!classInfo) {
@@ -152,8 +157,9 @@ const getClassDetail = async (req, res) => {
 
     const classInfo = await Classes.findById(classId)
       .populate('gradeId', 'gradeName description')
+      .populate('roomId', 'roomName floor capacity status')
       .populate('academicYearId', 'yearName startDate endDate')
-      .populate('teacherIds', 'fullName email');
+      .populate({ path: 'teacherIds', populate: { path: 'userId', select: 'fullName email phone avatar' } });
 
     if (!classInfo) {
       return res.status(404).json({
@@ -208,7 +214,7 @@ const getGradeList = async (req, res) => {
  */
 const createClass = async (req, res) => {
   try {
-    const { className, capacity, gradeId, teacherIds, maxStudents } = req.body;
+    const { className, capacity, gradeId, teacherIds, maxStudents, roomId } = req.body;
 
     if (!className || !gradeId) {
       return res.status(400).json({
@@ -265,14 +271,16 @@ const createClass = async (req, res) => {
       academicYearId: activeYear._id,
       teacherIds: tIds,
       maxStudents: maxStudents || 0,
+      roomId: roomId || null,
     });
 
     await newClass.save();
 
     const populatedClass = await Classes.findById(newClass._id)
       .populate('gradeId', 'gradeName')
+      .populate('roomId', 'roomName floor capacity status')
       .populate('academicYearId', 'yearName')
-      .populate('teacherIds', 'fullName email');
+      .populate({ path: 'teacherIds', populate: { path: 'userId', select: 'fullName email phone avatar' } });
 
     return res.status(201).json({
       status: 'success',
@@ -296,7 +304,7 @@ const createClass = async (req, res) => {
 const updateClass = async (req, res) => {
   try {
     const { classId } = req.params;
-    const { className, gradeId, teacherIds, maxStudents } = req.body;
+    const { className, gradeId, teacherIds, maxStudents, roomId } = req.body;
 
     const cls = await Classes.findById(classId);
     if (!cls) {
@@ -322,12 +330,14 @@ const updateClass = async (req, res) => {
     if (gradeId) cls.gradeId = gradeId;
     cls.teacherIds = tIds;
     if (maxStudents !== undefined) cls.maxStudents = Number(maxStudents) || 0;
+    if (roomId !== undefined) cls.roomId = roomId || null;
     await cls.save();
 
     const populated = await Classes.findById(classId)
       .populate('gradeId', 'gradeName')
+      .populate('roomId', 'roomName floor capacity status')
       .populate('academicYearId', 'yearName')
-      .populate('teacherIds', 'fullName email');
+      .populate({ path: 'teacherIds', populate: { path: 'userId', select: 'fullName email phone avatar' } });
 
     return res.status(200).json({ status: 'success', message: 'Cập nhật lớp học thành công', data: populated });
   } catch (error) {

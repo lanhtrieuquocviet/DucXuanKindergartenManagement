@@ -243,6 +243,9 @@ export const ENDPOINTS = {
       UPDATE: (id) => `/school-admin/timetable/activities/${id}`,
     },
     TEACHERS: "/school-admin/teachers",
+    CLASSROOMS: "/school-admin/classrooms",
+    CLASSROOM_UPDATE: (id) => `/school-admin/classrooms/${id}`,
+    CLASSROOM_DELETE: (id) => `/school-admin/classrooms/${id}`,
   },
   // Contact (public)
   CONTACT: {
