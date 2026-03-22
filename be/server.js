@@ -52,6 +52,8 @@ require('./src/models/SystemLog');
 require('./src/models/CurriculumTopic');
 require('./src/models/Timetable');
 require('./src/models/Notification');
+require('./src/models/Classroom');
+require('./src/models/Teacher');
 
 // Seed default roles on startup
 (async () => {

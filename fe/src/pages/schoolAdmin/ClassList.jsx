@@ -60,9 +60,108 @@ const GRADE_COLORS = [
 ];
 
 // ── TeacherSelect phải đặt ngoài ClassList để tránh unmount khi re-render ──────
-function TeacherSelect({ teachers, occupiedTeacherIds, value, onChange, error, helperText, excludeIds = [] }) {
-  const available = teachers.filter(t => !occupiedTeacherIds.has(t._id) || excludeIds.includes(t._id) || value.includes(t._id));
-  const occupied  = teachers.filter(t => occupiedTeacherIds.has(t._id) && !excludeIds.includes(t._id) && !value.includes(t._id));
+function TeacherSelect({ availability, value, onChange, error, helperText, loading }) {
+  const all       = availability || [];
+  const available = all.filter(t => !t.inCurrentYear && !t.maxYearsReached && !value.includes(t._id));
+  const selected  = all.filter(t => value.includes(t._id));
+  const inYear    = all.filter(t => t.inCurrentYear  && !value.includes(t._id));
+  const maxYears  = all.filter(t => t.maxYearsReached && !t.inCurrentYear && !value.includes(t._id));
+
+  // Xây dựng danh sách children dạng phẳng (flat) để MUI Select xử lý đúng
+  const menuItems = [];
+
+  if (loading) {
+    menuItems.push(<MenuItem key="__loading" disabled><em>Đang tải...</em></MenuItem>);
+  } else if (all.length === 0) {
+    menuItems.push(<MenuItem key="__empty" disabled><em>Không có giáo viên nào</em></MenuItem>);
+  } else {
+    // Đang được chọn
+    selected.forEach(t => {
+      menuItems.push(
+        <MenuItem key={t._id} value={t._id}>
+          <Box sx={{ display: 'flex', alignItems: 'center', width: '100%', pointerEvents: 'none' }}>
+            <Checkbox checked size="small" onChange={() => {}} sx={{ p: 0.5 }} />
+            <Avatar sx={{ width: 26, height: 26, mx: 1, bgcolor: '#ede9fe', color: '#7c3aed', fontSize: '0.75rem', fontWeight: 700 }}>
+              {t.fullName?.charAt(0)}
+            </Avatar>
+            <ListItemText
+              primary={t.fullName}
+              secondary={`${t.email}${t.yearsInClass > 0 ? ` · ${t.yearsInClass}/2 năm dạy lớp này` : ''}`}
+            />
+          </Box>
+        </MenuItem>
+      );
+    });
+
+    // Divider "Có thể chọn"
+    if (selected.length > 0 && available.length > 0) {
+      menuItems.push(
+        <MenuItem key="__div_available" disabled sx={{ fontSize: '0.72rem', color: 'text.disabled', py: 0.3, minHeight: 'unset', opacity: 1 }}>
+          — Có thể chọn —
+        </MenuItem>
+      );
+    }
+
+    // Khả dụng
+    available.forEach(t => {
+      menuItems.push(
+        <MenuItem key={t._id} value={t._id}>
+          <Box sx={{ display: 'flex', alignItems: 'center', width: '100%', pointerEvents: 'none' }}>
+            <Checkbox checked={false} size="small" onChange={() => {}} sx={{ p: 0.5 }} />
+            <Avatar sx={{ width: 26, height: 26, mx: 1, bgcolor: '#ede9fe', color: '#7c3aed', fontSize: '0.75rem', fontWeight: 700 }}>
+              {t.fullName?.charAt(0)}
+            </Avatar>
+            <ListItemText
+              primary={t.fullName}
+              secondary={`${t.email}${t.yearsInClass > 0 ? ` · ${t.yearsInClass}/2 năm dạy lớp này` : ''}`}
+            />
+          </Box>
+        </MenuItem>
+      );
+    });
+
+    // Đã có lớp trong năm
+    if (inYear.length > 0) {
+      menuItems.push(
+        <MenuItem key="__div_inyear" disabled sx={{ fontSize: '0.72rem', color: 'text.disabled', py: 0.3, minHeight: 'unset', opacity: 1 }}>
+          — Đã phụ trách lớp khác năm nay —
+        </MenuItem>
+      );
+      inYear.forEach(t => {
+        menuItems.push(
+          <MenuItem key={t._id} value={t._id} disabled sx={{ opacity: 0.5 }}>
+            <Box sx={{ display: 'flex', alignItems: 'center', width: '100%' }}>
+              <Avatar sx={{ width: 26, height: 26, mx: 1, bgcolor: '#f3f4f6', color: '#9ca3af', fontSize: '0.75rem', fontWeight: 700 }}>
+                {t.fullName?.charAt(0)}
+              </Avatar>
+              <ListItemText primary={t.fullName} secondary={`Đang dạy lớp: ${t.inCurrentYear}`} />
+            </Box>
+          </MenuItem>
+        );
+      });
+    }
+
+    // Đã đủ 2 năm
+    if (maxYears.length > 0) {
+      menuItems.push(
+        <MenuItem key="__div_maxyears" disabled sx={{ fontSize: '0.72rem', color: 'text.disabled', py: 0.3, minHeight: 'unset', opacity: 1 }}>
+          — Đã dạy lớp này đủ 2 năm —
+        </MenuItem>
+      );
+      maxYears.forEach(t => {
+        menuItems.push(
+          <MenuItem key={t._id} value={t._id} disabled sx={{ opacity: 0.5 }}>
+            <Box sx={{ display: 'flex', alignItems: 'center', width: '100%' }}>
+              <Avatar sx={{ width: 26, height: 26, mx: 1, bgcolor: '#f3f4f6', color: '#9ca3af', fontSize: '0.75rem', fontWeight: 700 }}>
+                {t.fullName?.charAt(0)}
+              </Avatar>
+              <ListItemText primary={t.fullName} secondary="Đã phụ trách lớp này 2 năm (tối đa)" />
+            </Box>
+          </MenuItem>
+        );
+      });
+    }
+  }
 
   return (
     <FormControl fullWidth size="small" error={!!error} required>
@@ -71,44 +170,11 @@ function TeacherSelect({ teachers, occupiedTeacherIds, value, onChange, error, h
         multiple
         label="Giáo viên phụ trách (bắt buộc 2)"
         value={value}
-        onChange={(e) => {
-          const val = e.target.value;
-          if (val.length <= 2) onChange(val);
-        }}
+        onChange={(e) => { if (e.target.value.length <= 2) onChange(e.target.value); }}
         input={<OutlinedInput label="Giáo viên phụ trách (bắt buộc 2)" />}
-        renderValue={(selected) =>
-          teachers.filter(t => selected.includes(t._id)).map(t => t.fullName).join(', ')
-        }
+        renderValue={(sel) => all.filter(t => sel.includes(t._id)).map(t => t.fullName).join(', ')}
       >
-        {teachers.length === 0 ? (
-          <MenuItem disabled><em>Không có giáo viên nào</em></MenuItem>
-        ) : (
-          <>
-            {available.map((t) => (
-              <MenuItem key={t._id} value={t._id}>
-                <Checkbox checked={value.includes(t._id)} size="small" />
-                <Avatar sx={{ width: 26, height: 26, mr: 1, bgcolor: '#ede9fe', color: '#7c3aed', fontSize: '0.75rem', fontWeight: 700 }}>
-                  {t.fullName?.charAt(0)}
-                </Avatar>
-                <ListItemText primary={t.fullName} secondary={t.email} />
-              </MenuItem>
-            ))}
-            {occupied.length > 0 && [
-              <MenuItem key="__divider__" disabled sx={{ fontSize: '0.75rem', color: 'text.disabled', py: 0.5, minHeight: 'unset' }}>
-                — Đã phụ trách lớp khác —
-              </MenuItem>,
-              ...occupied.map((t) => (
-                <MenuItem key={t._id} value={t._id} disabled sx={{ opacity: 0.45 }}>
-                  <Checkbox checked={false} size="small" disabled />
-                  <Avatar sx={{ width: 26, height: 26, mr: 1, bgcolor: '#f3f4f6', color: '#9ca3af', fontSize: '0.75rem', fontWeight: 700 }}>
-                    {t.fullName?.charAt(0)}
-                  </Avatar>
-                  <ListItemText primary={t.fullName} secondary={t.email} />
-                </MenuItem>
-              ))
-            ]}
-          </>
-        )}
+        {menuItems}
       </Select>
       {error && <Typography variant="caption" color="error" sx={{ mt: 0.5, ml: 1.75 }}>{error}</Typography>}
       {helperText && <Typography variant="caption" color="text.secondary" sx={{ mt: 0.5, ml: 1.75 }}>{helperText}</Typography>}
@@ -129,6 +195,12 @@ function ClassList() {
   // Teachers & Rooms list (shared by create + edit dialog)
   const [teachers, setTeachers] = useState([]);
   const [rooms, setRooms] = useState([]);
+
+  // Teacher availability (theo nghiệp vụ 3 rule)
+  const [createAvailability, setCreateAvailability] = useState([]);
+  const [createAvailLoading, setCreateAvailLoading] = useState(false);
+  const [editAvailability, setEditAvailability] = useState([]);
+  const [editAvailLoading, setEditAvailLoading] = useState(false);
 
   // Create class dialog state
   const [dialogOpen, setDialogOpen] = useState(false);
@@ -166,6 +238,50 @@ function ClassList() {
 
   const navigate = useNavigate();
   const { user, hasRole, logout, isInitializing } = useAuth();
+
+  // ── fetch teacher availability when className changes (create dialog) ────────
+  useEffect(() => {
+    if (!dialogOpen) return;
+    let cancelled = false;
+    const fetchAvail = async () => {
+      setCreateAvailLoading(true);
+      try {
+        const params = form.className.trim() ? `?className=${encodeURIComponent(form.className.trim())}` : '';
+        const res = await get(`${ENDPOINTS.SCHOOL_ADMIN.TEACHER_AVAILABILITY}${params}`);
+        if (!cancelled) setCreateAvailability(res.data || []);
+      } catch (_) {
+        if (!cancelled) setCreateAvailability([]);
+      } finally {
+        if (!cancelled) setCreateAvailLoading(false);
+      }
+    };
+    const timer = setTimeout(fetchAvail, 300);
+    return () => { cancelled = true; clearTimeout(timer); };
+  }, [form.className, dialogOpen]);
+
+  // ── fetch teacher availability when className changes (edit dialog) ───────────
+  useEffect(() => {
+    if (!editDialogOpen) return;
+    let cancelled = false;
+    const fetchAvail = async () => {
+      setEditAvailLoading(true);
+      try {
+        const cn = editForm.className.trim();
+        const params = new URLSearchParams();
+        if (cn) params.set('className', cn);
+        if (editClassId) params.set('excludeClassId', editClassId);
+        const qs = params.toString() ? `?${params.toString()}` : '';
+        const res = await get(`${ENDPOINTS.SCHOOL_ADMIN.TEACHER_AVAILABILITY}${qs}`);
+        if (!cancelled) setEditAvailability(res.data || []);
+      } catch (_) {
+        if (!cancelled) setEditAvailability([]);
+      } finally {
+        if (!cancelled) setEditAvailLoading(false);
+      }
+    };
+    const timer = setTimeout(fetchAvail, 300);
+    return () => { cancelled = true; clearTimeout(timer); };
+  }, [editForm.className, editDialogOpen, editClassId]);
 
   // ── auth guard ────────────────────────────────────────────────────────────────
   useEffect(() => {
@@ -1098,8 +1214,8 @@ function ClassList() {
                 helperText={formErrors.maxStudents || 'Tối đa 30 học sinh'}
               />
               <TeacherSelect
-                teachers={teachers}
-                occupiedTeacherIds={occupiedTeacherIds}
+                availability={createAvailability}
+                loading={createAvailLoading}
                 value={form.teacherIds}
                 onChange={(val) => setForm(f => ({ ...f, teacherIds: val }))}
                 error={formErrors.teacherIds}
@@ -1185,13 +1301,12 @@ function ClassList() {
                 helperText={editFormErrors.maxStudents || 'Tối đa 30 học sinh'}
               />
               <TeacherSelect
-                teachers={teachers}
-                occupiedTeacherIds={occupiedTeacherIds}
+                availability={editAvailability}
+                loading={editAvailLoading}
                 value={editForm.teacherIds}
                 onChange={(val) => setEditForm(f => ({ ...f, teacherIds: val }))}
                 error={editFormErrors.teacherIds}
                 helperText={`Đã chọn: ${editForm.teacherIds.length}/2 giáo viên`}
-                excludeIds={editForm.teacherIds}
               />
               <FormControl fullWidth size="small">
                 <InputLabel>Phòng học</InputLabel>

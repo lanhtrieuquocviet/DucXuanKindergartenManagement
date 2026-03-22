@@ -18,6 +18,7 @@ const qaController = require('../controller/qaController');
 const documentController = require('../controller/documentController');
 const publicInfoController = require('../controller/publicInfoController');
 const academicYearController = require('../controller/academicYearController');
+const AcademicYear = require('../models/AcademicYear');
 const curriculumController = require('../controller/curriculumController');
 const timetableController = require('../controller/timetableController');
 
@@ -1153,6 +1154,62 @@ router.put('/timetable', authenticate, authorizeRoles('SchoolAdmin'), timetableC
  *       200:
  *         description: Danh sách giáo viên đang active
  */
+// GET /school-admin/teachers/availability?className=...&excludeClassId=...
+// Trả về trạng thái từng giáo viên theo nghiệp vụ phân công lớp
+router.get('/teachers/availability', authenticate, authorizeRoles('SchoolAdmin'), async (req, res) => {
+  try {
+    const { className, excludeClassId } = req.query;
+    const Classes = require('../models/Classes');
+
+    // Lấy năm học hiện tại
+    const activeYear = await AcademicYear.findOne({ status: 'active' }).lean();
+
+    // Lấy tất cả Teacher active
+    const teacherDocs = await Teacher.find({ status: 'active' })
+      .populate('userId', 'fullName email status')
+      .lean();
+
+    const result = await Promise.all(
+      teacherDocs
+        .filter(t => t.userId && t.userId.status === 'active')
+        .map(async (t) => {
+          // Rule 2: đã phụ trách lớp khác trong năm này chưa?
+          let inCurrentYear = false;
+          if (activeYear) {
+            const q = { academicYearId: activeYear._id, teacherIds: t._id };
+            if (excludeClassId) q._id = { $ne: excludeClassId };
+            const existing = await Classes.findOne(q).select('className').lean();
+            if (existing) inCurrentYear = existing.className;
+          }
+
+          // Rule 3: đã dạy className này bao nhiêu năm?
+          let yearsInClass = 0;
+          if (className?.trim()) {
+            const q = { className: className.trim(), teacherIds: t._id };
+            if (excludeClassId) q._id = { $ne: excludeClassId };
+            yearsInClass = await Classes.countDocuments(q);
+          }
+
+          return {
+            _id: t._id,
+            fullName: t.userId.fullName,
+            email: t.userId.email,
+            degree: t.degree,
+            experienceYears: t.experienceYears,
+            inCurrentYear,   // false | tên lớp đang phụ trách
+            yearsInClass,    // 0 | 1 | 2
+            maxYearsReached: yearsInClass >= 2,
+          };
+        })
+    );
+
+    return res.status(200).json({ status: 'success', data: result });
+  } catch (error) {
+    console.error('teacherAvailability error:', error);
+    return res.status(500).json({ status: 'error', message: 'Lỗi khi kiểm tra giáo viên' });
+  }
+});
+
 router.get('/teachers', authenticate, authorizeRoles('SchoolAdmin'), async (req, res) => {
   try {
     const teacherRole = await Role.findOne({ roleName: 'Teacher' }).lean();
@@ -1253,51 +1310,56 @@ router.post('/teachers', authenticate, authorizeRoles('SchoolAdmin'), async (req
 // PUT /school-admin/teachers/:id — cập nhật giáo viên
 router.put('/teachers/:id', authenticate, authorizeRoles('SchoolAdmin'), async (req, res) => {
   try {
-    const teacher = await Teacher.findById(req.params.id).populate('userId');
+    const teacher = await Teacher.findById(req.params.id).lean();
     if (!teacher) return res.status(404).json({ status: 'error', message: 'Không tìm thấy giáo viên' });
 
-    const { fullName, email, phone, password, degree, experienceYears, hireDate, avatar, status } = req.body;
+    const { fullName, email, phone, degree, experienceYears, hireDate, avatar, status } = req.body;
 
     // Cập nhật User
     const userUpdate = {};
     if (fullName?.trim()) userUpdate.fullName = fullName.trim();
     if (phone !== undefined) userUpdate.phone = phone?.trim() || '';
     if (avatar !== undefined) userUpdate.avatar = avatar;
-    if (email?.trim() && email.trim().toLowerCase() !== teacher.userId.email) {
-      const dup = await User.findOne({ email: email.trim().toLowerCase(), _id: { $ne: teacher.userId._id } }).lean();
-      if (dup) return res.status(400).json({ status: 'error', message: 'Email đã được sử dụng' });
-      userUpdate.email = email.trim().toLowerCase();
+    if (email?.trim()) {
+      const currentUser = await User.findById(teacher.userId).select('email').lean();
+      if (email.trim().toLowerCase() !== currentUser?.email) {
+        const dup = await User.findOne({ email: email.trim().toLowerCase(), _id: { $ne: teacher.userId } }).lean();
+        if (dup) return res.status(400).json({ status: 'error', message: 'Email đã được sử dụng' });
+        userUpdate.email = email.trim().toLowerCase();
+      }
     }
-    if (password && password.length >= 6) {
-      const bcrypt = require('bcryptjs');
-      const salt = await bcrypt.genSalt(10);
-      userUpdate.passwordHash = await bcrypt.hash(password, salt);
+    if (status && ['active', 'inactive'].includes(status)) {
+      userUpdate.status = status;
     }
     if (Object.keys(userUpdate).length > 0) {
-      await User.findByIdAndUpdate(teacher.userId._id, userUpdate);
+      await User.findByIdAndUpdate(teacher.userId, userUpdate);
     }
 
     // Cập nhật Teacher
-    if (degree !== undefined) teacher.degree = degree?.trim() || '';
-    if (experienceYears !== undefined) teacher.experienceYears = Number(experienceYears) || 0;
-    if (hireDate !== undefined) teacher.hireDate = hireDate || null;
-    if (status) teacher.status = status;
-    await teacher.save();
+    const teacherUpdate = {};
+    if (degree !== undefined) teacherUpdate.degree = degree?.trim() || '';
+    if (experienceYears !== undefined) teacherUpdate.experienceYears = Number(experienceYears) || 0;
+    if (hireDate !== undefined) teacherUpdate.hireDate = hireDate || null;
+    if (status && ['active', 'inactive'].includes(status)) teacherUpdate.status = status;
+    await Teacher.findByIdAndUpdate(teacher._id, teacherUpdate);
 
-    await teacher.populate('userId', 'fullName email phone avatar');
+    const updated = await Teacher.findById(teacher._id)
+      .populate('userId', 'fullName email phone avatar status')
+      .lean();
+
     return res.status(200).json({
       status: 'success',
       message: 'Cập nhật giáo viên thành công',
       data: {
-        _id: teacher._id,
-        fullName: teacher.userId.fullName,
-        email: teacher.userId.email,
-        phone: teacher.userId.phone,
-        avatar: teacher.userId.avatar,
-        degree: teacher.degree,
-        experienceYears: teacher.experienceYears,
-        hireDate: teacher.hireDate,
-        status: teacher.status,
+        _id: updated._id,
+        fullName: updated.userId.fullName,
+        email: updated.userId.email,
+        phone: updated.userId.phone,
+        avatar: updated.userId.avatar,
+        status: updated.userId.status,
+        degree: updated.degree,
+        experienceYears: updated.experienceYears,
+        hireDate: updated.hireDate,
       },
     });
   } catch (error) {

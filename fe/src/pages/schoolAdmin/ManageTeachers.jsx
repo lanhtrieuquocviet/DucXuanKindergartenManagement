@@ -8,6 +8,7 @@ import {
   Dialog, DialogTitle, DialogContent, DialogActions, Alert,
   Table, TableHead, TableBody, TableRow, TableCell, TableContainer,
   IconButton, Tooltip, Chip, CircularProgress, InputAdornment,
+  FormControl, InputLabel, Select, MenuItem,
 } from '@mui/material';
 import AddIcon from '@mui/icons-material/Add';
 import EditIcon from '@mui/icons-material/Edit';
@@ -126,10 +127,10 @@ export default function ManageTeachers() {
       fullName: t.fullName || '',
       email: t.email || '',
       phone: t.phone || '',
-      password: '',
       degree: t.degree || '',
       experienceYears: t.experienceYears?.toString() || '',
       hireDate: t.hireDate ? t.hireDate.split('T')[0] : '',
+      status: t.status || 'active',
     });
     setEditErrors({});
     setEditError(null);
@@ -141,7 +142,6 @@ export default function ManageTeachers() {
     if (!editForm.fullName.trim()) e.fullName = 'Vui lòng nhập họ tên';
     if (!editForm.email.trim()) e.email = 'Vui lòng nhập email';
     else if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(editForm.email)) e.email = 'Email không hợp lệ';
-    if (editForm.password && editForm.password.length < 6) e.password = 'Mật khẩu tối thiểu 6 ký tự';
     if (editForm.experienceYears && isNaN(Number(editForm.experienceYears))) e.experienceYears = 'Phải là số';
     return e;
   };
@@ -153,7 +153,7 @@ export default function ManageTeachers() {
     setEditError(null);
     try {
       const payload = { ...editForm, experienceYears: Number(editForm.experienceYears) || 0 };
-      if (!payload.password) delete payload.password;
+      delete payload.password;
       await put(ENDPOINTS.SCHOOL_ADMIN.TEACHER_UPDATE(editTarget._id), payload);
       setEditOpen(false);
       fetchTeachers();
@@ -409,13 +409,8 @@ export default function ManageTeachers() {
                 onChange={e => setEditForm(p => ({ ...p, email: e.target.value }))}
                 error={!!editErrors.email} helperText={editErrors.email} />
             </Stack>
-            <Stack direction={{ xs: 'column', sm: 'row' }} spacing={2}>
-              <TextField size="small" label="Số điện thoại" fullWidth value={editForm.phone}
-                onChange={e => setEditForm(p => ({ ...p, phone: e.target.value }))} />
-              <TextField size="small" label="Mật khẩu mới (bỏ trống nếu không đổi)" type="password" fullWidth value={editForm.password}
-                onChange={e => setEditForm(p => ({ ...p, password: e.target.value }))}
-                error={!!editErrors.password} helperText={editErrors.password} />
-            </Stack>
+            <TextField size="small" label="Số điện thoại" fullWidth value={editForm.phone}
+              onChange={e => setEditForm(p => ({ ...p, phone: e.target.value }))} />
             <Stack direction={{ xs: 'column', sm: 'row' }} spacing={2}>
               <TextField size="small" label="Bằng cấp" fullWidth value={editForm.degree}
                 onChange={e => setEditForm(p => ({ ...p, degree: e.target.value }))} />
@@ -423,9 +418,22 @@ export default function ManageTeachers() {
                 onChange={e => setEditForm(p => ({ ...p, experienceYears: e.target.value }))}
                 error={!!editErrors.experienceYears} helperText={editErrors.experienceYears} />
             </Stack>
-            <TextField size="small" label="Ngày vào làm" type="date" fullWidth value={editForm.hireDate}
-              onChange={e => setEditForm(p => ({ ...p, hireDate: e.target.value }))}
-              InputLabelProps={{ shrink: true }} />
+            <Stack direction={{ xs: 'column', sm: 'row' }} spacing={2}>
+              <TextField size="small" label="Ngày vào làm" type="date" fullWidth value={editForm.hireDate}
+                onChange={e => setEditForm(p => ({ ...p, hireDate: e.target.value }))}
+                InputLabelProps={{ shrink: true }} />
+              <FormControl size="small" fullWidth>
+                <InputLabel>Trạng thái</InputLabel>
+                <Select
+                  label="Trạng thái"
+                  value={editForm.status}
+                  onChange={e => setEditForm(p => ({ ...p, status: e.target.value }))}
+                >
+                  <MenuItem value="active">Hoạt động</MenuItem>
+                  <MenuItem value="inactive">Ngừng hoạt động</MenuItem>
+                </Select>
+              </FormControl>
+            </Stack>
           </Stack>
         </DialogContent>
         <DialogActions sx={{ px: 3, py: 2 }}>

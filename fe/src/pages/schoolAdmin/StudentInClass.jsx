@@ -222,6 +222,7 @@ function StudentInClass() {
   const [classDetail, setClassDetail] = useState(null);
   const [students, setStudents] = useState([]);
   const [attendanceMap, setAttendanceMap] = useState({});
+  const [timetable, setTimetable] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const [activeTab, setActiveTab] = useState(0);
@@ -256,10 +257,11 @@ function StudentInClass() {
     setLoading(true);
     setError(null);
     try {
-      const [detailRes, studentsRes, attRes] = await Promise.allSettled([
+      const [detailRes, studentsRes, attRes, timetableRes] = await Promise.allSettled([
         get(ENDPOINTS.CLASSES.DETAIL(classId)),
         get(ENDPOINTS.CLASSES.STUDENTS(classId)),
         get(ENDPOINTS.SCHOOL_ADMIN.CLASS_ATTENDANCE_DETAIL(classId)),
+        get(ENDPOINTS.SCHOOL_ADMIN.TIMETABLE.LIST()),
       ]);
 
       if (detailRes.status === 'fulfilled') {
@@ -277,6 +279,9 @@ function StudentInClass() {
         const map = {};
         attStudents.forEach(s => { map[s._id] = s.attendance?.status || null; });
         setAttendanceMap(map);
+      }
+      if (timetableRes.status === 'fulfilled') {
+        setTimetable(timetableRes.value.data || []);
       }
     } catch (err) {
       setError(err.message || 'Lỗi khi tải dữ liệu');
@@ -639,44 +644,60 @@ function StudentInClass() {
                     <MeetingRoomIcon sx={{ color: '#2563eb' }} />
                     <Typography variant="subtitle2" fontWeight={700}>Phòng học & cơ sở vật chất</Typography>
                   </Stack>
-                  <Stack spacing={1.5}>
-                    {[
-                      { label: 'Phòng học', value: 'Phòng ' + (classDetail?.className || 'N/A') },
-                      { label: 'Diện tích', value: 'N/A' },
-                      { label: 'Sức chứa tối đa', value: maxStudents > 0 ? `${maxStudents} học sinh` : 'N/A' },
-                      { label: 'Tình trạng', value: 'Tốt' },
-                    ].map(({ label, value }) => (
-                      <Box key={label}>
-                        <Typography variant="caption" color="text.secondary" fontWeight={600}>{label}</Typography>
-                        <Typography variant="body2" fontWeight={500}>{value}</Typography>
-                      </Box>
-                    ))}
-                  </Stack>
+                  {classDetail?.roomId ? (
+                    <Stack spacing={1.5}>
+                      {[
+                        { label: 'Phòng học', value: classDetail.roomId.roomName },
+                        { label: 'Tầng', value: classDetail.roomId.floor ? `Tầng ${classDetail.roomId.floor}` : 'N/A' },
+                        { label: 'Sức chứa tối đa', value: classDetail.roomId.capacity > 0 ? `${classDetail.roomId.capacity} học sinh` : 'N/A' },
+                        {
+                          label: 'Tình trạng',
+                          value: classDetail.roomId.status === 'available' ? 'Tốt'
+                               : classDetail.roomId.status === 'in_use' ? 'Đang sử dụng'
+                               : classDetail.roomId.status === 'maintenance' ? 'Bảo trì'
+                               : 'N/A',
+                        },
+                      ].map(({ label, value }) => (
+                        <Box key={label}>
+                          <Typography variant="caption" color="text.secondary" fontWeight={600}>{label}</Typography>
+                          <Typography variant="body2" fontWeight={500}>{value}</Typography>
+                        </Box>
+                      ))}
+                    </Stack>
+                  ) : (
+                    <Typography variant="body2" color="text.secondary">Chưa phân phòng học</Typography>
+                  )}
                 </Paper>
               </Grid>
 
-              {/* Card: Thời khóa biểu mẫu */}
+              {/* Card: Thời khóa biểu */}
               <Grid item xs={12} md={4}>
                 <Paper variant="outlined" sx={{ p: 2.5, borderRadius: 2, height: '100%' }}>
                   <Stack direction="row" alignItems="center" spacing={1} sx={{ mb: 2 }}>
                     <ScheduleIcon sx={{ color: '#d97706' }} />
-                    <Typography variant="subtitle2" fontWeight={700}>Thời khóa biểu mẫu</Typography>
+                    <Typography variant="subtitle2" fontWeight={700}>Thời khóa biểu</Typography>
                   </Stack>
-                  <Stack spacing={1}>
-                    {[
-                      { time: '07:00 – 08:00', activity: 'Đón trẻ, điểm danh' },
-                      { time: '08:00 – 09:00', activity: 'Thể dục buổi sáng' },
-                      { time: '09:00 – 10:30', activity: 'Học tập, vui chơi' },
-                      { time: '10:30 – 11:00', activity: 'Ăn trưa' },
-                      { time: '11:00 – 14:00', activity: 'Ngủ trưa' },
-                      { time: '14:00 – 16:30', activity: 'Vui chơi, tan học' },
-                    ].map(({ time, activity }) => (
-                      <Stack key={time} direction="row" spacing={1.5} alignItems="center">
-                        <Typography variant="caption" sx={{ width: 100, color: '#7c3aed', fontWeight: 600, flexShrink: 0 }}>{time}</Typography>
-                        <Typography variant="body2" color="text.secondary">{activity}</Typography>
-                      </Stack>
-                    ))}
-                  </Stack>
+                  {timetable.length === 0 ? (
+                    <Typography variant="body2" color="text.secondary">Chưa có thời khóa biểu</Typography>
+                  ) : (
+                    <Stack spacing={1}>
+                      {timetable.map(item => (
+                        <Stack key={item._id} direction="row" spacing={1.5} alignItems="flex-start">
+                          <Typography variant="caption" sx={{ width: 95, color: '#7c3aed', fontWeight: 600, flexShrink: 0, pt: 0.2 }}>
+                            {item.startLabel} – {item.endLabel}
+                          </Typography>
+                          <Box flex={1}>
+                            <Typography variant="body2">{item.content}</Typography>
+                            {item.appliesToSeason !== 'both' && (
+                              <Typography variant="caption" sx={{ color: item.appliesToSeason === 'summer' ? '#d97706' : '#2563eb' }}>
+                                {item.appliesToSeason === 'summer' ? 'Mùa hè' : 'Mùa đông'}
+                              </Typography>
+                            )}
+                          </Box>
+                        </Stack>
+                      ))}
+                    </Stack>
+                  )}
                 </Paper>
               </Grid>
             </Grid>

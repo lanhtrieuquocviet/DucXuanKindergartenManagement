@@ -243,6 +243,7 @@ export const ENDPOINTS = {
       UPDATE: (id) => `/school-admin/timetable/activities/${id}`,
     },
     TEACHERS: "/school-admin/teachers",
+    TEACHER_AVAILABILITY: "/school-admin/teachers/availability",
     TEACHER_UPDATE: (id) => `/school-admin/teachers/${id}`,
     TEACHER_DELETE: (id) => `/school-admin/teachers/${id}`,
     TEACHER_MIGRATE: "/school-admin/teachers/migrate",
