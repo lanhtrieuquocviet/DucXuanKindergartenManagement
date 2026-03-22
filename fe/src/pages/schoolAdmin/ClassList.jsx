@@ -59,6 +59,63 @@ const GRADE_COLORS = [
   { bg: '#e0f2fe', icon: '#0284c7', border: '#7dd3fc' },
 ];
 
+// ── TeacherSelect phải đặt ngoài ClassList để tránh unmount khi re-render ──────
+function TeacherSelect({ teachers, occupiedTeacherIds, value, onChange, error, helperText, excludeIds = [] }) {
+  const available = teachers.filter(t => !occupiedTeacherIds.has(t._id) || excludeIds.includes(t._id) || value.includes(t._id));
+  const occupied  = teachers.filter(t => occupiedTeacherIds.has(t._id) && !excludeIds.includes(t._id) && !value.includes(t._id));
+
+  return (
+    <FormControl fullWidth size="small" error={!!error} required>
+      <InputLabel>Giáo viên phụ trách (bắt buộc 2)</InputLabel>
+      <Select
+        multiple
+        label="Giáo viên phụ trách (bắt buộc 2)"
+        value={value}
+        onChange={(e) => {
+          const val = e.target.value;
+          if (val.length <= 2) onChange(val);
+        }}
+        input={<OutlinedInput label="Giáo viên phụ trách (bắt buộc 2)" />}
+        renderValue={(selected) =>
+          teachers.filter(t => selected.includes(t._id)).map(t => t.fullName).join(', ')
+        }
+      >
+        {teachers.length === 0 ? (
+          <MenuItem disabled><em>Không có giáo viên nào</em></MenuItem>
+        ) : (
+          <>
+            {available.map((t) => (
+              <MenuItem key={t._id} value={t._id}>
+                <Checkbox checked={value.includes(t._id)} size="small" />
+                <Avatar sx={{ width: 26, height: 26, mr: 1, bgcolor: '#ede9fe', color: '#7c3aed', fontSize: '0.75rem', fontWeight: 700 }}>
+                  {t.fullName?.charAt(0)}
+                </Avatar>
+                <ListItemText primary={t.fullName} secondary={t.email} />
+              </MenuItem>
+            ))}
+            {occupied.length > 0 && [
+              <MenuItem key="__divider__" disabled sx={{ fontSize: '0.75rem', color: 'text.disabled', py: 0.5, minHeight: 'unset' }}>
+                — Đã phụ trách lớp khác —
+              </MenuItem>,
+              ...occupied.map((t) => (
+                <MenuItem key={t._id} value={t._id} disabled sx={{ opacity: 0.45 }}>
+                  <Checkbox checked={false} size="small" disabled />
+                  <Avatar sx={{ width: 26, height: 26, mr: 1, bgcolor: '#f3f4f6', color: '#9ca3af', fontSize: '0.75rem', fontWeight: 700 }}>
+                    {t.fullName?.charAt(0)}
+                  </Avatar>
+                  <ListItemText primary={t.fullName} secondary={t.email} />
+                </MenuItem>
+              ))
+            ]}
+          </>
+        )}
+      </Select>
+      {error && <Typography variant="caption" color="error" sx={{ mt: 0.5, ml: 1.75 }}>{error}</Typography>}
+      {helperText && <Typography variant="caption" color="text.secondary" sx={{ mt: 0.5, ml: 1.75 }}>{helperText}</Typography>}
+    </FormControl>
+  );
+}
+
 function ClassList() {
   const [classes, setClasses] = useState([]);
   const [activeAcademicYear, setActiveAcademicYear] = useState(null);
@@ -477,63 +534,6 @@ function ClassList() {
     return ids;
   }, [classes]);
 
-  // ── teacher multi-select helper ───────────────────────────────────────────────
-  // excludeIds: teacher IDs belonging to the class being edited (not counted as occupied)
-  const TeacherSelect = ({ value, onChange, error, helperText, excludeIds = [] }) => {
-    const available = teachers.filter(t => !occupiedTeacherIds.has(t._id) || excludeIds.includes(t._id) || value.includes(t._id));
-    const occupied  = teachers.filter(t => occupiedTeacherIds.has(t._id) && !excludeIds.includes(t._id) && !value.includes(t._id));
-
-    return (
-      <FormControl fullWidth size="small" error={!!error} required>
-        <InputLabel>Giáo viên phụ trách (bắt buộc 2)</InputLabel>
-        <Select
-          multiple
-          label="Giáo viên phụ trách (bắt buộc 2)"
-          value={value}
-          onChange={(e) => {
-            const val = e.target.value;
-            if (val.length <= 2) onChange(val);
-          }}
-          input={<OutlinedInput label="Giáo viên phụ trách (bắt buộc 2)" />}
-          renderValue={(selected) =>
-            teachers.filter(t => selected.includes(t._id)).map(t => t.fullName).join(', ')
-          }
-        >
-          {teachers.length === 0 ? (
-            <MenuItem disabled><em>Không có giáo viên nào</em></MenuItem>
-          ) : (
-            <>
-              {available.map((t) => (
-                <MenuItem key={t._id} value={t._id}>
-                  <Checkbox checked={value.includes(t._id)} size="small" />
-                  <Avatar sx={{ width: 26, height: 26, mr: 1, bgcolor: '#ede9fe', color: '#7c3aed', fontSize: '0.75rem', fontWeight: 700 }}>
-                    {t.fullName?.charAt(0)}
-                  </Avatar>
-                  <ListItemText primary={t.fullName} secondary={t.email} />
-                </MenuItem>
-              ))}
-              {occupied.length > 0 && [
-                <MenuItem key="__divider__" disabled sx={{ fontSize: '0.75rem', color: 'text.disabled', py: 0.5, minHeight: 'unset' }}>
-                  — Đã phụ trách lớp khác —
-                </MenuItem>,
-                ...occupied.map((t) => (
-                  <MenuItem key={t._id} value={t._id} disabled sx={{ opacity: 0.45 }}>
-                    <Checkbox checked={false} size="small" disabled />
-                    <Avatar sx={{ width: 26, height: 26, mr: 1, bgcolor: '#f3f4f6', color: '#9ca3af', fontSize: '0.75rem', fontWeight: 700 }}>
-                      {t.fullName?.charAt(0)}
-                    </Avatar>
-                    <ListItemText primary={t.fullName} secondary={t.email} />
-                  </MenuItem>
-                ))
-              ]}
-            </>
-          )}
-        </Select>
-        {error && <Typography variant="caption" color="error" sx={{ mt: 0.5, ml: 1.75 }}>{error}</Typography>}
-        {helperText && <Typography variant="caption" color="text.secondary" sx={{ mt: 0.5, ml: 1.75 }}>{helperText}</Typography>}
-      </FormControl>
-    );
-  };
 
   // ── render ────────────────────────────────────────────────────────────────────
   return (
@@ -1076,6 +1076,8 @@ function ClassList() {
                 helperText={formErrors.maxStudents || 'Tối đa 30 học sinh'}
               />
               <TeacherSelect
+                teachers={teachers}
+                occupiedTeacherIds={occupiedTeacherIds}
                 value={form.teacherIds}
                 onChange={(val) => setForm(f => ({ ...f, teacherIds: val }))}
                 error={formErrors.teacherIds}
@@ -1145,6 +1147,8 @@ function ClassList() {
                 helperText={editFormErrors.maxStudents || 'Tối đa 30 học sinh'}
               />
               <TeacherSelect
+                teachers={teachers}
+                occupiedTeacherIds={occupiedTeacherIds}
                 value={editForm.teacherIds}
                 onChange={(val) => setEditForm(f => ({ ...f, teacherIds: val }))}
                 error={editFormErrors.teacherIds}

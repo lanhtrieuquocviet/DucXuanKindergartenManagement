@@ -48,6 +48,15 @@ const studentSchema = new mongoose.Schema({
     trim: true,
     default: ''
   },
+  needsSpecialAttention: {
+    type: Boolean,
+    default: false
+  },
+  specialNote: {
+    type: String,
+    trim: true,
+    default: ''
+  },
   createdAt: {
     type: Date,
     default: Date.now

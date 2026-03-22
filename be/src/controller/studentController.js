@@ -232,6 +232,8 @@ const updateStudent = async (req, res) => {
       parentFullName,
       parentEmail,
       parentPhone: parentPhoneField,
+      needsSpecialAttention,
+      specialNote,
     } = req.body;
 
     const student = await Student.findById(studentId);
@@ -265,6 +267,8 @@ const updateStudent = async (req, res) => {
       address,
       classId,
       status,
+      ...(needsSpecialAttention !== undefined && { needsSpecialAttention: !!needsSpecialAttention }),
+      ...(specialNote !== undefined && { specialNote: String(specialNote).trim() }),
     };
 
     if (isParent && !isSchoolAdmin) {

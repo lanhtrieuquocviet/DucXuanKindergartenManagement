@@ -33,6 +33,7 @@ import {
   Tooltip,
 } from '@mui/material';
 import DeleteOutlineIcon from '@mui/icons-material/DeleteOutline';
+import WarningAmberIcon from '@mui/icons-material/WarningAmber';
 import ArrowBackIcon from '@mui/icons-material/ArrowBack';
 import RefreshIcon from '@mui/icons-material/Refresh';
 import AddIcon from '@mui/icons-material/Add';
@@ -190,6 +191,16 @@ function StudentCard({ student, attendanceStatus, onClick, onRemove }) {
               />
             )}
           </Stack>
+          {student.needsSpecialAttention && (
+            <Tooltip title={student.specialNote || 'Cần chú ý đặc biệt'} arrow>
+              <Chip
+                icon={<WarningAmberIcon sx={{ fontSize: '0.7rem !important' }} />}
+                label={student.specialNote ? 'Chú ý' : 'Cần chú ý'}
+                size="small"
+                sx={{ fontSize: '0.65rem', height: 20, mt: 0.5, bgcolor: '#fef3c7', color: '#92400e', fontWeight: 600, cursor: 'help' }}
+              />
+            </Tooltip>
+          )}
           {student.parentId?.phone && (
             <Typography variant="caption" color="text.secondary" sx={{ mt: 0.4, display: 'block' }}>
               PH: {student.parentId.phone}
@@ -886,15 +897,26 @@ function StudentInClass() {
 
                 <Divider />
 
-                {/* Sức khỏe */}
+                {/* Chú ý đặc biệt */}
                 <Box>
                   <Stack direction="row" spacing={1} alignItems="center" sx={{ mb: 1 }}>
-                    <FavoriteIcon sx={{ fontSize: 16, color: '#ef4444' }} />
+                    <WarningAmberIcon sx={{ fontSize: 16, color: '#f59e0b' }} />
                     <Typography variant="caption" fontWeight={700} color="text.secondary" sx={{ letterSpacing: 0.5 }}>
-                      SỨC KHỎE
+                      CHÚ Ý ĐẶC BIỆT
                     </Typography>
                   </Stack>
-                  <Typography variant="body2" color="text.secondary">Không có ghi chú đặc biệt</Typography>
+                  {selectedStudent.needsSpecialAttention ? (
+                    <Box sx={{ bgcolor: '#fffbeb', border: '1px solid #fde68a', borderRadius: 1.5, px: 1.5, py: 1 }}>
+                      <Stack direction="row" spacing={1} alignItems="flex-start">
+                        <WarningAmberIcon sx={{ fontSize: 16, color: '#d97706', mt: 0.2, flexShrink: 0 }} />
+                        <Typography variant="body2" color="#92400e" sx={{ whiteSpace: 'pre-wrap' }}>
+                          {selectedStudent.specialNote || 'Học sinh cần được chú ý đặc biệt'}
+                        </Typography>
+                      </Stack>
+                    </Box>
+                  ) : (
+                    <Typography variant="body2" color="text.secondary">Không có</Typography>
+                  )}
                 </Box>
               </Stack>
             </DialogContent>
@@ -1011,13 +1033,23 @@ function StudentInClass() {
                       </ListItemAvatar>
                       <ListItemText
                         primary={
-                          <Stack direction="row" alignItems="center" spacing={0.75}>
+                          <Stack direction="row" alignItems="center" spacing={0.75} flexWrap="wrap">
                             <Typography variant="body2" fontWeight={600}>{s.fullName}</Typography>
                             {age !== null && (
                               <Chip label={`${age} tuổi`} size="small" sx={{ height: 18, fontSize: '0.62rem', bgcolor: 'grey.100', color: 'grey.600' }} />
                             )}
                             {inThisClass && (
                               <Chip label="Đã trong lớp" size="small" sx={{ height: 18, fontSize: '0.62rem', bgcolor: '#f0fdf4', color: '#15803d', fontWeight: 600 }} />
+                            )}
+                            {s.needsSpecialAttention && (
+                              <Tooltip title={s.specialNote || 'Cần chú ý đặc biệt'} arrow>
+                                <Chip
+                                  icon={<WarningAmberIcon sx={{ fontSize: '0.65rem !important' }} />}
+                                  label="Chú ý"
+                                  size="small"
+                                  sx={{ height: 18, fontSize: '0.62rem', bgcolor: '#fef3c7', color: '#92400e', fontWeight: 600, cursor: 'help' }}
+                                />
+                              </Tooltip>
                             )}
                           </Stack>
                         }
