@@ -3,7 +3,9 @@ import {
   Box,
   Button,
   Dialog,
+  DialogTitle,
   DialogContent,
+  DialogActions,
   IconButton,
   FormControl,
   InputLabel,
@@ -26,9 +28,10 @@ import {
 } from '@mui/material';
 import CloseIcon from '@mui/icons-material/Close';
 import { useNavigate } from 'react-router-dom';
+import { toast } from 'react-toastify';
 import { useAuth } from '../../context/AuthContext';
 import RoleLayout from '../../layouts/RoleLayout';
-import { get, post, patch, ENDPOINTS } from '../../service/api';
+import { get, post, patch, del, ENDPOINTS } from '../../service/api';
 
 function formatDateInput(dateString) {
   if (!dateString) return '';
@@ -88,6 +91,9 @@ export default function AcademicYearPlan() {
   const [teachersByBlock, setTeachersByBlock] = useState({});
   const [openCreateDialog, setOpenCreateDialog] = useState(false);
   const [openDetailDialog, setOpenDetailDialog] = useState(false);
+  const [openDeleteDialog, setOpenDeleteDialog] = useState(false);
+  const [deletingTopicId, setDeletingTopicId] = useState(null);
+  const [deletingTopic, setDeletingTopic] = useState(false);
   const [selectedTopic, setSelectedTopic] = useState(null);
   const [dialogMode, setDialogMode] = useState('create');
   const [editingTopicId, setEditingTopicId] = useState(null);
@@ -356,7 +362,7 @@ export default function AcademicYearPlan() {
   };
 
   const handleSavePlan = () => {
-    alert('Dữ liệu chủ đề đã được lưu theo từng lần thêm mới.');
+    toast.info('Dữ liệu chủ đề đã được lưu theo từng lần thêm mới.');
   };
 
   const handleOpenDialog = () => {
@@ -394,13 +400,39 @@ export default function AcademicYearPlan() {
     setOpenDetailDialog(true);
   };
 
+  const handleOpenDeleteDialog = (topicId) => {
+    setDeletingTopicId(topicId);
+    setOpenDeleteDialog(true);
+  };
+
+  const handleCloseDeleteDialog = () => {
+    if (deletingTopic) return;
+    setOpenDeleteDialog(false);
+    setDeletingTopicId(null);
+  };
+
+  const handleConfirmDeleteTopic = async () => {
+    if (!deletingTopicId) return;
+    try {
+      setDeletingTopic(true);
+      await del(ENDPOINTS.SCHOOL_ADMIN.ACADEMIC_PLAN.DELETE_TOPIC(deletingTopicId));
+      setTopics((prev) => prev.filter((topic) => String(topic.id) !== String(deletingTopicId)));
+      toast.success('Đã xóa chủ đề.');
+      handleCloseDeleteDialog();
+    } catch (error) {
+      toast.error(error?.message || 'Xóa chủ đề thất bại');
+    } finally {
+      setDeletingTopic(false);
+    }
+  };
+
   const handleSubmitTopic = async () => {
     if (!topicForm.topicName.trim() || !topicForm.startDate || !topicForm.endDate) {
-      alert('Vui lòng nhập đủ Tên chủ đề chính, Từ ngày và Đến ngày.');
+      toast.error('Vui lòng nhập đủ Tên chủ đề chính, Từ ngày và Đến ngày.');
       return;
     }
     if (!currentYear?._id || !activeBlock) {
-      alert('Chưa có khối lớp để thêm chủ đề.');
+      toast.error('Chưa có khối lớp để thêm chủ đề.');
       return;
     }
 
@@ -494,8 +526,9 @@ export default function AcademicYearPlan() {
         }
       }
       setOpenCreateDialog(false);
+      toast.success(dialogMode === 'edit' ? 'Đã cập nhật chủ đề.' : 'Đã thêm chủ đề mới.');
     } catch (error) {
-      alert(error?.message || 'Lưu chủ đề thất bại');
+      toast.error(error?.message || 'Lưu chủ đề thất bại');
     } finally {
       setSavingTopic(false);
     }
@@ -537,13 +570,16 @@ export default function AcademicYearPlan() {
           <Typography variant="subtitle1" fontWeight={700} mb={2}>
             1. Thông tin cơ bản năm học
           </Typography>
-          <Stack direction={{ xs: 'column', md: 'row' }} spacing={2}>
+          <Stack direction={{ xs: 'column', md: 'row' }} spacing={2} alignItems="flex-start">
             <TextField
               label="Tên năm học"
               value={currentYear?.yearName || ''}
-              fullWidth
               size="small"
               InputProps={{ readOnly: true }}
+              sx={{
+                width: { xs: '100%', md: 300 },
+                flexShrink: 0,
+              }}
             />
             <TextField
               label="Thời gian bắt đầu"
@@ -552,6 +588,10 @@ export default function AcademicYearPlan() {
               InputLabelProps={{ shrink: true }}
               value={formatDateInput(currentYear?.startDate)}
               InputProps={{ readOnly: true }}
+              sx={{
+                flex: 1,
+                minWidth: { xs: '100%', md: 220 },
+              }}
             />
             <TextField
               label="Thời gian kết thúc"
@@ -560,6 +600,10 @@ export default function AcademicYearPlan() {
               InputLabelProps={{ shrink: true }}
               value={formatDateInput(currentYear?.endDate)}
               InputProps={{ readOnly: true }}
+              sx={{
+                flex: 1,
+                minWidth: { xs: '100%', md: 220 },
+              }}
             />
           </Stack>
           {loadingYear && (
@@ -686,6 +730,15 @@ export default function AcademicYearPlan() {
                           sx={{ textTransform: 'none', minWidth: 70 }}
                         >
                           Sửa
+                        </Button>
+                        <Button
+                          size="small"
+                          variant="contained"
+                          color="error"
+                          onClick={() => handleOpenDeleteDialog(topic.id)}
+                          sx={{ textTransform: 'none', minWidth: 70 }}
+                        >
+                          Xóa
                         </Button>
                       </Stack>
                     </TableCell>
@@ -961,6 +1014,36 @@ export default function AcademicYearPlan() {
             </Stack>
           )}
         </DialogContent>
+      </Dialog>
+
+      <Dialog
+        open={openDeleteDialog}
+        onClose={handleCloseDeleteDialog}
+        maxWidth="xs"
+        fullWidth
+      >
+        <DialogTitle sx={{ fontWeight: 800 }}>Xác nhận xóa</DialogTitle>
+        <DialogContent dividers>
+          <Typography>Bạn có muốn xóa chủ đề này không.</Typography>
+        </DialogContent>
+        <DialogActions sx={{ px: 3, py: 2 }}>
+          <Button
+            onClick={handleCloseDeleteDialog}
+            disabled={deletingTopic}
+            sx={{ textTransform: 'none' }}
+          >
+            Hủy
+          </Button>
+          <Button
+            variant="contained"
+            color="error"
+            onClick={handleConfirmDeleteTopic}
+            disabled={deletingTopic}
+            sx={{ textTransform: 'none' }}
+          >
+            {deletingTopic ? 'Đang xóa...' : 'Xác nhận'}
+          </Button>
+        </DialogActions>
       </Dialog>
     </RoleLayout>
   );
