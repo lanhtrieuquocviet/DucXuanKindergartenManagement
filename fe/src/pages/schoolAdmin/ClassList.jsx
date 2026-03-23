@@ -1229,12 +1229,21 @@ function ClassList() {
                   onChange={(e) => setForm(f => ({ ...f, roomId: e.target.value }))}
                 >
                   <MenuItem value=""><em>Chưa chọn phòng</em></MenuItem>
-                  {rooms.map(r => (
-                    <MenuItem key={r._id} value={r._id}>
-                      {r.roomName} — Tầng {r.floor}
-                      {r.status === 'in_use' ? ' (Đang dùng)' : r.status === 'maintenance' ? ' (Bảo trì)' : ''}
-                    </MenuItem>
-                  ))}
+                  {rooms.map(r => {
+                    const occupied = r.occupiedByClass && r.occupiedByClass !== form.className;
+                    const unavailable = r.status !== 'available';
+                    const disabled = !!occupied || unavailable;
+                    const label = occupied
+                      ? ` (Đang dùng bởi lớp ${r.occupiedByClass})`
+                      : r.status === 'in_use' ? ' (Đang sử dụng)'
+                      : r.status === 'maintenance' ? ' (Bảo trì)'
+                      : '';
+                    return (
+                      <MenuItem key={r._id} value={r._id} disabled={disabled}>
+                        {r.roomName} — Tầng {r.floor}{label}
+                      </MenuItem>
+                    );
+                  })}
                 </Select>
               </FormControl>
             </Stack>
@@ -1316,12 +1325,21 @@ function ClassList() {
                   onChange={(e) => setEditForm(f => ({ ...f, roomId: e.target.value }))}
                 >
                   <MenuItem value=""><em>Chưa chọn phòng</em></MenuItem>
-                  {rooms.map(r => (
-                    <MenuItem key={r._id} value={r._id}>
-                      {r.roomName} — Tầng {r.floor}
-                      {r.status === 'in_use' ? ' (Đang dùng)' : r.status === 'maintenance' ? ' (Bảo trì)' : ''}
-                    </MenuItem>
-                  ))}
+                  {rooms.map(r => {
+                    const occupied = r.occupiedByClass && r.occupiedByClass !== editForm.className;
+                    const unavailable = r.status !== 'available';
+                    const disabled = !!occupied || unavailable;
+                    const label = occupied
+                      ? ` (Đang dùng bởi lớp ${r.occupiedByClass})`
+                      : r.status === 'in_use' ? ' (Đang sử dụng)'
+                      : r.status === 'maintenance' ? ' (Bảo trì)'
+                      : '';
+                    return (
+                      <MenuItem key={r._id} value={r._id} disabled={disabled}>
+                        {r.roomName} — Tầng {r.floor}{label}
+                      </MenuItem>
+                    );
+                  })}
                 </Select>
               </FormControl>
             </Stack>
