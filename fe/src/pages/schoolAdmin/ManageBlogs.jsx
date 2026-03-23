@@ -539,6 +539,7 @@ function ManageBlogs() {
       ],
     },
     { key: 'classes', label: 'Lớp học' },
+    { key: 'meal-management', label: 'Quản lý bữa ăn' },
     { key: 'teachers', label: 'Giáo viên' },
     { key: 'students', label: 'Học sinh & phụ huynh' },
     { key: 'assets', label: 'Quản lý tài sản' },
@@ -585,6 +586,10 @@ function ManageBlogs() {
     }
     if (key === 'classes') {
       navigate('/school-admin/classes');
+      return;
+    }
+    if (key === 'meal-management') {
+      navigate('/school-admin/meal-management');
       return;
     }
     if (key === 'teachers') { navigate('/school-admin/teachers'); return; }

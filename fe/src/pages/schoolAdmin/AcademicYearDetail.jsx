@@ -46,6 +46,7 @@ export default function AcademicYearDetail() {
     },
     { key: 'classes', label: 'Lớp học' },
     { key: 'menu', label: 'Quản lý thực đơn' },
+    { key: 'meal-management', label: 'Quản lý bữa ăn' },
     { key: 'teachers', label: 'Giáo viên' },
     { key: 'students', label: 'Học sinh & phụ huynh' },
     { key: 'assets', label: 'Quản lý tài sản' },
@@ -100,6 +101,10 @@ export default function AcademicYearDetail() {
     }
     if (key === 'menu') {
       navigate('/school-admin/menus');
+      return;
+    }
+    if (key === 'meal-management') {
+      navigate('/school-admin/meal-management');
       return;
     }
     if (key === 'teachers') { navigate('/school-admin/teachers'); return; }
