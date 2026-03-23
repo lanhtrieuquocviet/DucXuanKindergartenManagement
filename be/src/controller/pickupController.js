@@ -1,6 +1,7 @@
 const PickupRequest = require("../models/PickupRequest");
 const Student = require("../models/Student"); // Students
 const Classes = require("../models/Classes"); // Classes
+const Teacher = require("../models/Teacher"); // Teachers
 const mongoose = require("mongoose");
 // 1. Tạo đăng ký mới (phụ huynh)
 exports.createPickupRequest = async (req, res) => {
@@ -112,8 +113,12 @@ exports.getPickupRequests = async (req, res) => {
   try {
     const { status } = req.query; // lấy từ query string
 
+    // Tìm Teacher document tương ứng với user hiện tại
+    const teacher = await Teacher.findOne({ userId: req.user._id }).lean();
+    const myTeacherId = teacher?._id;
+
     // Tìm các lớp giáo viên phụ trách
-    const classes = await Classes.find({ teacherIds: req.user._id }).select(
+    const classes = await Classes.find({ teacherIds: myTeacherId }).select(
       "_id"
     );
     const classIds = classes.map((c) => c._id);
@@ -157,10 +162,12 @@ exports.getApprovedPickupPersonsByStudent = async (req, res) => {
       return res.status(404).json({ success: false, message: "Không tìm thấy học sinh" });
     }
 
+    const myTeacher = await Teacher.findOne({ userId: req.user._id }).lean();
+    const myTeacherId = myTeacher?._id?.toString();
     const classDoc = await Classes.findById(student.classId);
     if (
-      !classDoc ||
-      !classDoc.teacherIds.some((id) => id.toString() === req.user._id.toString())
+      !classDoc || !myTeacherId ||
+      !classDoc.teacherIds.some((id) => id.toString() === myTeacherId)
     ) {
       return res.status(403).json({ success: false, message: "Không có quyền xem thông tin này" });
     }
@@ -198,12 +205,12 @@ exports.updatePickupRequestStatus = async (req, res) => {
 
     // Kiểm tra quyền: giáo viên có phụ trách lớp của học sinh không
     const student = await Student.findById(request.student);
-    const classDoc = await Classes.findById(student.classId);
+    const myTeacher2 = await Teacher.findOne({ userId: req.user._id }).lean();
+    const myTeacherId2 = myTeacher2?._id?.toString();
+    const classDoc = await Classes.findById(student?.classId);
     if (
-      !classDoc ||
-      !classDoc.teacherIds.some(
-        (id) => id.toString() === req.user._id.toString()
-      )
+      !classDoc || !myTeacherId2 ||
+      !classDoc.teacherIds.some((id) => id.toString() === myTeacherId2)
     ) {
       return res.status(403).json({
         success: false,

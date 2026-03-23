@@ -8,6 +8,8 @@ const {
   createClass,
   updateClass,
   addStudentsToClass,
+  removeStudentFromClass,
+  deleteClass,
 } = require('../controller/classController');
 const Classes = require('../models/Classes');
 
@@ -162,54 +164,17 @@ router.get('/:classId', authenticate, getClassDetail);
 router.put('/:classId', authenticate, authorizeRoles('SchoolAdmin'), updateClass);
 
 /**
- * @openapi
- * /api/classes/{classId}/students:
- *   get:
- *     summary: Lấy danh sách học sinh trong lớp
- *     tags:
- *       - Classes
- *     security:
- *       - bearerAuth: []
- *     parameters:
- *       - in: path
- *         name: classId
- *         required: true
- *         schema:
- *           type: string
- *     responses:
- *       200:
- *         description: Danh sách học sinh
- *   post:
- *     summary: Thêm học sinh vào lớp (bulk, chỉ SchoolAdmin)
- *     tags:
- *       - Classes
- *     security:
- *       - bearerAuth: []
- *     parameters:
- *       - in: path
- *         name: classId
- *         required: true
- *         schema:
- *           type: string
- *     requestBody:
- *       required: true
- *       content:
- *         application/json:
- *           schema:
- *             type: object
- *             required:
- *               - studentIds
- *             properties:
- *               studentIds:
- *                 type: array
- *                 items:
- *                   type: string
- *                 example: ["664abc123def456789012345"]
- *     responses:
- *       200:
- *         description: Thêm học sinh thành công
+ * Xóa lớp học (chỉ SchoolAdmin)
+ * DELETE /api/classes/:classId
+ */
+router.delete('/:classId', authenticate, authorizeRoles('SchoolAdmin'), deleteClass);
+
+/**
+ * Lấy danh sách / thêm học sinh trong lớp
+ * GET|POST /api/classes/:classId/students
  */
 router.get('/:classId/students', authenticate, getStudentInClass);
 router.post('/:classId/students', authenticate, authorizeRoles('SchoolAdmin'), addStudentsToClass);
+router.delete('/:classId/students/:studentId', authenticate, authorizeRoles('SchoolAdmin'), removeStudentFromClass);
 
 module.exports = router;

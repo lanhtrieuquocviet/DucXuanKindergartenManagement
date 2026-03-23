@@ -3,6 +3,7 @@ const Student = require('../models/Student');
 const Grade = require('../models/Grade');
 const AcademicYear = require('../models/AcademicYear');
 const User = require('../models/User');
+const Teacher = require('../models/Teacher');
 
 /**
  * Validate teacher assignment rules:
@@ -28,8 +29,9 @@ async function validateTeacherAssignment(teacherIds, academicYearId, className, 
     if (excludeClassId) yearQuery._id = { $ne: excludeClassId };
     const classInYear = await Classes.findOne(yearQuery).lean();
     if (classInYear) {
-      const teacher = await User.findById(tid).select('fullName').lean();
-      return `Giáo viên "${teacher?.fullName || tid}" đã phụ trách lớp "${classInYear.className}" trong năm học này`;
+      const t = await Teacher.findById(tid).populate('userId', 'fullName').lean();
+      const name = t?.userId?.fullName || tid;
+      return `Giáo viên "${name}" đã phụ trách lớp "${classInYear.className}" trong năm học này`;
     }
 
     // Rule 3: tối đa 2 năm / cùng tên lớp
@@ -37,8 +39,9 @@ async function validateTeacherAssignment(teacherIds, academicYearId, className, 
     if (excludeClassId) nameQuery._id = { $ne: excludeClassId };
     const yearCount = await Classes.countDocuments(nameQuery);
     if (yearCount >= 2) {
-      const teacher = await User.findById(tid).select('fullName').lean();
-      return `Giáo viên "${teacher?.fullName || tid}" đã phụ trách lớp "${className}" trong 2 năm, không thể phân công thêm`;
+      const t = await Teacher.findById(tid).populate('userId', 'fullName').lean();
+      const name = t?.userId?.fullName || tid;
+      return `Giáo viên "${name}" đã phụ trách lớp "${className}" trong 2 năm, không thể phân công thêm`;
     }
   }
 
@@ -51,44 +54,37 @@ async function validateTeacherAssignment(teacherIds, academicYearId, className, 
  */
 const getClassList = async (req, res) => {
   try {
-    console.log('\n=== CLASSLIST DEBUG ===');
-    console.log('Step 1: Starting getClassList');
-    
-    // Step 1: Find all classes without populate
-    const rawClasses = await Classes.find();
-    console.log(`Step 2: Found ${rawClasses.length} raw classes`);
-    
-    // Step 2: Check if references exist
-    if (rawClasses.length > 0) {
-      const firstClass = rawClasses[0];
-      console.log('Step 3: First class raw data - gradeId:', firstClass.gradeId, 'academicYearId:', firstClass.academicYearId);
+    const activeYear = await AcademicYear.findOne({ status: 'active' }).sort({ startDate: -1 }).lean();
+
+    if (!activeYear) {
+      return res.status(200).json({
+        status: 'success',
+        message: 'Chưa có năm học đang hoạt động',
+        data: [],
+        total: 0,
+        academicYear: null,
+      });
     }
-    
-    // Step 3: Try to populate
-    const classes = await Classes.find()
+
+    const filter = { academicYearId: activeYear._id };
+
+    const classes = await Classes.find(filter)
       .populate('gradeId', 'gradeName description')
+      .populate('roomId', 'roomName floor capacity status')
       .populate('academicYearId', 'yearName startDate endDate')
-      .populate('teacherIds', 'fullName email');
+      .populate({ path: 'teacherIds', populate: { path: 'userId', select: 'fullName email phone avatar' } });
 
-    console.log(`Step 4: Found ${classes.length} populated classes`);
-    if (classes.length > 0) {
-      const firstClass = classes[0];
-      console.log('Step 5: First class after populate - gradeId:', firstClass.gradeId, 'academicYearId:', firstClass.academicYearId);
-    }
-    console.log('=== END DEBUG ===\n');
-
-    // Return 200 (success) whether data exists or not
     return res.status(200).json({
       status: 'success',
-      message: classes.length === 0 
-        ? 'Không có lớp học nào' 
+      message: classes.length === 0
+        ? 'Không có lớp học nào trong năm học hiện tại'
         : 'Lấy danh sách lớp học thành công',
       data: classes || [],
-      total: classes.length
+      total: classes.length,
+      academicYear: activeYear || null,
     });
   } catch (error) {
     console.error('Error in getClassList:', error);
-    console.error('Error details:', error.stack);
     return res.status(500).json({
       status: 'error',
       message: 'Lỗi khi lấy danh sách lớp học',
@@ -108,6 +104,7 @@ const getStudentInClass = async (req, res) => {
     // Kiểm tra lớp có tồn tại không
     const classInfo = await Classes.findById(classId)
       .populate('gradeId', 'gradeName')
+      .populate('roomId', 'roomName floor capacity status')
       .populate('academicYearId', 'yearName');
 
     if (!classInfo) {
@@ -160,8 +157,9 @@ const getClassDetail = async (req, res) => {
 
     const classInfo = await Classes.findById(classId)
       .populate('gradeId', 'gradeName description')
+      .populate('roomId', 'roomName floor capacity status')
       .populate('academicYearId', 'yearName startDate endDate')
-      .populate('teacherIds', 'fullName email');
+      .populate({ path: 'teacherIds', populate: { path: 'userId', select: 'fullName email phone avatar' } });
 
     if (!classInfo) {
       return res.status(404).json({
@@ -216,7 +214,7 @@ const getGradeList = async (req, res) => {
  */
 const createClass = async (req, res) => {
   try {
-    const { className, capacity, gradeId, teacherIds, maxStudents } = req.body;
+    const { className, capacity, gradeId, teacherIds, maxStudents, roomId } = req.body;
 
     if (!className || !gradeId) {
       return res.status(400).json({
@@ -242,8 +240,25 @@ const createClass = async (req, res) => {
       });
     }
 
-    // Validate giáo viên
+    // Validate số lớp tối đa trong khối
+    const grade = await Grade.findById(gradeId);
+    if (!grade) {
+      return res.status(400).json({ status: 'error', message: 'Không tìm thấy khối lớp' });
+    }
+    const currentClassCount = await Classes.countDocuments({ gradeId });
+    const maxAllowed = grade.maxClasses ?? 10;
+    if (currentClassCount >= maxAllowed) {
+      return res.status(400).json({
+        status: 'error',
+        message: `Khối ${grade.gradeName} đã đạt tối đa ${maxAllowed} lớp học`,
+      });
+    }
+
+    // Validate giáo viên — bắt buộc đúng 2 giáo viên
     const tIds = Array.isArray(teacherIds) ? teacherIds.filter(Boolean) : [];
+    if (tIds.length !== 2) {
+      return res.status(400).json({ status: 'error', message: 'Mỗi lớp bắt buộc phải có đúng 2 giáo viên phụ trách' });
+    }
     const teacherError = await validateTeacherAssignment(tIds, activeYear._id, className, null);
     if (teacherError) {
       return res.status(400).json({ status: 'error', message: teacherError });
@@ -256,14 +271,16 @@ const createClass = async (req, res) => {
       academicYearId: activeYear._id,
       teacherIds: tIds,
       maxStudents: maxStudents || 0,
+      roomId: roomId || null,
     });
 
     await newClass.save();
 
     const populatedClass = await Classes.findById(newClass._id)
       .populate('gradeId', 'gradeName')
+      .populate('roomId', 'roomName floor capacity status')
       .populate('academicYearId', 'yearName')
-      .populate('teacherIds', 'fullName email');
+      .populate({ path: 'teacherIds', populate: { path: 'userId', select: 'fullName email phone avatar' } });
 
     return res.status(201).json({
       status: 'success',
@@ -287,7 +304,7 @@ const createClass = async (req, res) => {
 const updateClass = async (req, res) => {
   try {
     const { classId } = req.params;
-    const { className, gradeId, teacherIds, maxStudents } = req.body;
+    const { className, gradeId, teacherIds, maxStudents, roomId } = req.body;
 
     const cls = await Classes.findById(classId);
     if (!cls) {
@@ -313,12 +330,14 @@ const updateClass = async (req, res) => {
     if (gradeId) cls.gradeId = gradeId;
     cls.teacherIds = tIds;
     if (maxStudents !== undefined) cls.maxStudents = Number(maxStudents) || 0;
+    if (roomId !== undefined) cls.roomId = roomId || null;
     await cls.save();
 
     const populated = await Classes.findById(classId)
       .populate('gradeId', 'gradeName')
+      .populate('roomId', 'roomName floor capacity status')
       .populate('academicYearId', 'yearName')
-      .populate('teacherIds', 'fullName email');
+      .populate({ path: 'teacherIds', populate: { path: 'userId', select: 'fullName email phone avatar' } });
 
     return res.status(200).json({ status: 'success', message: 'Cập nhật lớp học thành công', data: populated });
   } catch (error) {
@@ -387,6 +406,57 @@ const addStudentsToClass = async (req, res) => {
   }
 };
 
+/**
+ * Xóa học sinh khỏi lớp (set classId = null)
+ * DELETE /api/classes/:classId/students/:studentId
+ */
+const removeStudentFromClass = async (req, res) => {
+  try {
+    const { classId, studentId } = req.params;
+
+    const student = await Student.findOne({ _id: studentId, classId });
+    if (!student) {
+      return res.status(404).json({ status: 'error', message: 'Học sinh không thuộc lớp này' });
+    }
+
+    await Student.findByIdAndUpdate(studentId, { $unset: { classId: '' } });
+
+    return res.status(200).json({ status: 'success', message: 'Đã xóa học sinh khỏi lớp' });
+  } catch (error) {
+    console.error('Error in removeStudentFromClass:', error);
+    return res.status(500).json({ status: 'error', message: 'Lỗi khi xóa học sinh khỏi lớp', error: error.message });
+  }
+};
+
+/**
+ * Xóa lớp học
+ * DELETE /api/classes/:classId
+ */
+const deleteClass = async (req, res) => {
+  try {
+    const { classId } = req.params;
+
+    const cls = await Classes.findById(classId);
+    if (!cls) {
+      return res.status(404).json({ status: 'error', message: 'Không tìm thấy lớp học' });
+    }
+
+    const studentCount = await Student.countDocuments({ classId });
+    if (studentCount > 0) {
+      return res.status(400).json({
+        status: 'error',
+        message: `Không thể xóa: lớp đang có ${studentCount} học sinh`,
+      });
+    }
+
+    await Classes.findByIdAndDelete(classId);
+    return res.status(200).json({ status: 'success', message: 'Xóa lớp học thành công' });
+  } catch (error) {
+    console.error('Error in deleteClass:', error);
+    return res.status(500).json({ status: 'error', message: 'Lỗi khi xóa lớp học', error: error.message });
+  }
+};
+
 module.exports = {
   getClassList,
   getStudentInClass,
@@ -395,4 +465,6 @@ module.exports = {
   createClass,
   updateClass,
   addStudentsToClass,
+  removeStudentFromClass,
+  deleteClass,
 };

@@ -24,13 +24,16 @@ const documentsRoutes = require('./src/routes/documents.routes');
 const otpRoutes = require('./src/routes/otp.routes');
 const pickupRoutes = require("./src/routes/pickup.routes");
 const foodRoutes = require("./src/routes/food.routes");
+const ingredientRoutes = require("./src/routes/ingredient.routes");
 const menuRoutes = require("./src/routes/menu.routes");
 
 
 const publicInfoRoutes = require('./src/routes/publicInfo.routes');
 const DailyMenu = require('./src/routes/dailyMenu.routes');
 const mealPhotoRoutes = require('./src/routes/mealPhoto.routes');
+const notificationRoutes = require('./src/routes/notification.routes');
 const reportRoutes = require('./src/routes/report.routes');
+const faceRoutes = require('./src/routes/face.routes');
 const { startAutoApproveSampleEntries } = require('./src/jobs/autoApproveSampleEntries');
 
 // Import models để Mongoose đăng ký schema (tránh lỗi "Schema hasn't been registered for model 'Roles'")
@@ -49,7 +52,48 @@ require('./src/models/Document');
 require('./src/models/PublicInfo');
 require('./src/models/SystemLog');
 require('./src/models/CurriculumTopic');
+require('./src/models/AcademicPlanTopic');
 require('./src/models/Timetable');
+require('./src/models/Notification');
+require('./src/models/Classroom');
+require('./src/models/Teacher');
+require('./src/models/Ingredient');
+
+// Seed default roles on startup
+(async () => {
+  try {
+    const Role = require('./src/models/Role');
+    const defaultRoles = ['SystemAdmin', 'SchoolAdmin', 'Teacher', 'Parent', 'KitchenStaff'];
+    for (const roleName of defaultRoles) {
+      await Role.findOneAndUpdate(
+        { roleName },
+        { roleName },
+        { upsert: true, new: true }
+      );
+    }
+    console.log('✅ Default roles seeded');
+
+    // Đồng bộ Teacher records từ User có role Teacher
+    const User = require('./src/models/User');
+    const Teacher = require('./src/models/Teacher');
+    const teacherRole = await Role.findOne({ roleName: 'Teacher' }).lean();
+    if (teacherRole) {
+      const teacherUsers = await User.find({ roles: teacherRole._id }).lean();
+      let synced = 0;
+      for (const u of teacherUsers) {
+        const result = await Teacher.findOneAndUpdate(
+          { userId: u._id },
+          { $setOnInsert: { userId: u._id, status: 'active' } },
+          { upsert: true, new: true, rawResult: true }
+        );
+        if (result.lastErrorObject?.upserted) synced++;
+      }
+      if (synced > 0) console.log(`✅ Synced ${synced} Teacher record(s) from User accounts`);
+    }
+  } catch (err) {
+    console.error('Error seeding roles:', err);
+  }
+})();
 
 // ensure default blog categories exist
 (async () => {
@@ -261,10 +305,16 @@ app.use("/api/pickup", pickupRoutes);
 
 //menus
 app.use("/api/foods", foodRoutes);
+app.use("/api/ingredients", ingredientRoutes);
 app.use("/api/menus", menuRoutes);
 app.use("/api/daily-menus", DailyMenu);
 app.use('/api/meal-photos', mealPhotoRoutes);
+app.use('/api/notifications', notificationRoutes);
 app.use('/api/reports', reportRoutes);
+
+// Face attendance routes (nhận diện khuôn mặt)
+app.use('/api/face', faceRoutes);
+
 // Public info (public - published only)
 app.use('/api/public-info', publicInfoRoutes);
 

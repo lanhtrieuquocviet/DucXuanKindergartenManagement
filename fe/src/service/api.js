@@ -227,6 +227,18 @@ export const ENDPOINTS = {
       HISTORY: "/school-admin/academic-years/history",
       CLASSES: (yearId) => `/school-admin/academic-years/${yearId}/classes`,
     },
+    ACADEMIC_PLAN: {
+      LIST_TOPICS: (yearId, gradeId) => {
+        const q = new URLSearchParams();
+        if (yearId) q.set('yearId', yearId);
+        if (gradeId) q.set('gradeId', gradeId);
+        const query = q.toString();
+        return query ? `/school-admin/academic-plan/topics?${query}` : '/school-admin/academic-plan/topics';
+      },
+      CREATE_TOPIC: '/school-admin/academic-plan/topics',
+      UPDATE_TOPIC: (id) => `/school-admin/academic-plan/topics/${id}`,
+      DELETE_TOPIC: (id) => `/school-admin/academic-plan/topics/${id}`,
+    },
     CURRICULUM: {
       LIST: (yearId) => (yearId ? `/school-admin/curriculum?yearId=${yearId}` : "/school-admin/curriculum"),
       CREATE: "/school-admin/curriculum",
@@ -236,6 +248,8 @@ export const ENDPOINTS = {
     TIMETABLE: {
       LIST: (yearId) => (yearId ? `/school-admin/timetable?yearId=${yearId}` : "/school-admin/timetable"),
       UPSERT: "/school-admin/timetable",
+      DELETE: (id, yearId) =>
+        yearId ? `/school-admin/timetable/${id}?yearId=${yearId}` : `/school-admin/timetable/${id}`,
     },
     TIMETABLE_ACTIVITIES: {
       LIST: (yearId) => (yearId ? `/school-admin/timetable/activities?yearId=${yearId}` : "/school-admin/timetable/activities"),
@@ -243,6 +257,13 @@ export const ENDPOINTS = {
       UPDATE: (id) => `/school-admin/timetable/activities/${id}`,
     },
     TEACHERS: "/school-admin/teachers",
+    TEACHER_AVAILABILITY: "/school-admin/teachers/availability",
+    TEACHER_UPDATE: (id) => `/school-admin/teachers/${id}`,
+    TEACHER_DELETE: (id) => `/school-admin/teachers/${id}`,
+    TEACHER_MIGRATE: "/school-admin/teachers/migrate",
+    CLASSROOMS: "/school-admin/classrooms",
+    CLASSROOM_UPDATE: (id) => `/school-admin/classrooms/${id}`,
+    CLASSROOM_DELETE: (id) => `/school-admin/classrooms/${id}`,
   },
   // Contact (public)
   CONTACT: {
@@ -269,7 +290,9 @@ export const ENDPOINTS = {
     STUDENTS: (classId) => `/classes/${classId}/students`,
     CREATE: "/classes",
     UPDATE: (classId) => `/classes/${classId}`,
+    DELETE: (classId) => `/classes/${classId}`,
     ADD_STUDENTS: (classId) => `/classes/${classId}/students`,
+    REMOVE_STUDENT: (classId, studentId) => `/classes/${classId}/students/${studentId}`,
   },
   // Grades management (SchoolAdmin)
   GRADES: {
@@ -326,6 +349,13 @@ export const ENDPOINTS = {
     ATTENDANCE_SUMMARY: "/meal-photos/attendance-summary",
     REQUEST_EDIT: "/meal-photos/edit-request",
     APPROVE_EDIT_REQUEST: "/meal-photos/edit-request/approve",
+  },
+  // Notifications (Parent)
+  NOTIFICATIONS: {
+    LIST: '/notifications',
+    UNREAD_COUNT: '/notifications/unread-count',
+    MARK_READ: (id) => `/notifications/${id}/read`,
+    MARK_ALL_READ: '/notifications/read-all',
   },
   // OTP
   OTP: {

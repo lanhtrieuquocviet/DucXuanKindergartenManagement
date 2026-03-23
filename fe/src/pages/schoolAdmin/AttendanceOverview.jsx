@@ -98,8 +98,6 @@ function AttendanceOverview() {
       children: [
         { key: "academic-year-setup", label: "Thiết lập năm học" },
         { key: "academic-plan", label: "Thiết lập kế hoạch" },
-        { key: "academic-students", label: "Danh sách lớp học" },
-        { key: 'academic-curriculum', label: 'Chương trình giáo dục' },
         { key: 'academic-schedule', label: 'Thời gian biểu' },
         { key: 'academic-report', label: 'Báo cáo & thống kê' },
       ],
@@ -162,6 +160,7 @@ function AttendanceOverview() {
       navigate("/school-admin/menus");
       return;
     }
+    if (key === 'teachers') { navigate('/school-admin/teachers'); return; }
     if (key === 'contacts') {
       navigate('/school-admin/contacts');
       return;

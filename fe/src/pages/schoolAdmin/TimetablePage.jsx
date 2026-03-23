@@ -53,8 +53,6 @@ const menuItems = [
     children: [
       { key: 'academic-year-setup', label: 'Thiết lập năm học' },
       { key: 'academic-plan', label: 'Thiết lập kế hoạch' },
-      { key: 'academic-students', label: 'Danh sách lớp học' },
-      { key: 'academic-curriculum', label: 'Chương trình giáo dục' },
         { key: 'academic-schedule', label: 'Thời gian biểu' },
       { key: 'academic-report', label: 'Báo cáo & thống kê' },
     ],
@@ -104,6 +102,7 @@ export default function TimetablePage() {
     if (key === 'academic-schedule') return;
     if (key === 'classes') navigate('/school-admin/classes');
     if (key === 'menu') navigate('/school-admin/menus');
+    if (key === 'teachers') { navigate('/school-admin/teachers'); return; }
     if (key === 'students') navigate('/school-admin/students');
     if (key === 'contacts') navigate('/school-admin/contacts');
     if (key === 'qa') navigate('/school-admin/qa');

@@ -3,7 +3,37 @@ const User = require('../models/User');
 const Role = require('../models/Role');
 const Permission = require('../models/Permission');
 const SystemLog = require('../models/SystemLog');
+const Teacher = require('../models/Teacher');
 const { createSystemLog } = require('../utils/systemLog');
+
+/** Tạo Teacher record nếu userId có role Teacher và chưa có record */
+async function ensureTeacherRecord(userId, roleIds) {
+  const teacherRole = await Role.findOne({ roleName: 'Teacher' }).lean();
+  if (!teacherRole) return;
+  const hasTeacherRole = roleIds.some(id => String(id) === String(teacherRole._id));
+  if (!hasTeacherRole) return;
+  await Teacher.findOneAndUpdate(
+    { userId },
+    { $setOnInsert: { userId, status: 'active' } },
+    { upsert: true, new: true }
+  );
+}
+
+/** Đồng bộ trạng thái Teacher record khi role thay đổi */
+async function syncTeacherStatus(userId, roleIds) {
+  const teacherRole = await Role.findOne({ roleName: 'Teacher' }).lean();
+  if (!teacherRole) return;
+  const hasTeacherRole = roleIds.some(id => String(id) === String(teacherRole._id));
+  if (hasTeacherRole) {
+    await Teacher.findOneAndUpdate(
+      { userId },
+      { $setOnInsert: { userId }, $set: { status: 'active' } },
+      { upsert: true, new: true }
+    );
+  } else {
+    await Teacher.findOneAndUpdate({ userId }, { $set: { status: 'inactive' } });
+  }
+}
 
 // ============================================
 // Constants & helpers
@@ -120,6 +150,7 @@ const createUser = async (req, res) => {
     });
 
     await user.save();
+    await ensureTeacherRecord(user._id, validRoleIds);
 
     const populatedUser = await User.findById(user._id)
       .select('username fullName email roles status')
@@ -226,6 +257,10 @@ const updateUser = async (req, res) => {
         status: 'error',
         message: 'Tài khoản không tồn tại',
       });
+    }
+
+    if (updateData.roles) {
+      await syncTeacherStatus(id, updateData.roles);
     }
 
     await createSystemLog({
@@ -629,6 +664,8 @@ const updateUserRoles = async (req, res) => {
         message: 'Người dùng không tồn tại',
       });
     }
+
+    await syncTeacherStatus(id, validRoleIds);
 
     await createSystemLog({
       req,

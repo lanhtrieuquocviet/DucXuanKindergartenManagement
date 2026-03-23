@@ -1,6 +1,7 @@
 const MealPhoto = require('../models/MealPhoto');
 const Attendance = require('../models/Attendances');
 const Student = require('../models/Student');
+const { createNotification } = require('./notification.controller');
 
 /**
  * GET /api/meal-photos?date=YYYY-MM-DD
@@ -268,6 +269,22 @@ exports.reviewSampleEntry = async (req, res) => {
     if (!doc) {
       return res.status(404).json({ success: false, message: 'Không tìm thấy mẫu thực phẩm' });
     }
+
+    // Gửi thông báo cho phụ huynh nếu mẫu có vấn đề
+    if (status === 'khong_dat') {
+      const MEAL_LABELS = { sang: 'bữa sáng', trua: 'bữa trưa', chieu: 'bữa chiều', xe: 'bữa xế' };
+      const mealLabel = MEAL_LABELS[mealType] || mealType;
+      const displayDate = date.split('-').reverse().join('/');
+      await createNotification({
+        title: `⚠️ Mẫu thực phẩm ${mealLabel} có vấn đề`,
+        body: reviewNote
+          ? `Ngày ${displayDate}: ${reviewNote}`
+          : `Mẫu thực phẩm ${mealLabel} ngày ${displayDate} đã được kiểm tra và phát hiện có vấn đề.`,
+        type: 'meal_issue',
+        extra: { date, mealType, reviewNote },
+      });
+    }
+
     return res.json({ success: true, data: doc });
   } catch (err) {
     return res.status(500).json({ success: false, message: err.message });

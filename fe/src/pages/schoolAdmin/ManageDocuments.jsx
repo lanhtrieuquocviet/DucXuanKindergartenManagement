@@ -392,8 +392,6 @@ export default function ManageDocuments() {
       children: [
         { key: 'academic-year-setup', label: 'Thiết lập năm học' },
         { key: 'academic-plan', label: 'Thiết lập kế hoạch' },
-        { key: 'academic-students', label: 'Danh sách lớp học' },
-        { key: 'academic-curriculum', label: 'Chương trình giáo dục' },
         { key: 'academic-schedule', label: 'Thời gian biểu' },
         { key: 'academic-report', label: 'Báo cáo & thống kê' },
       ],
@@ -432,6 +430,7 @@ export default function ManageDocuments() {
       'academic-schedule': '/school-admin/timetable',
       'academic-plan': '/school-admin/academic-plan',
       classes: '/school-admin/classes',
+      teachers: '/school-admin/teachers',
       contacts: '/school-admin/contacts',
       qa: '/school-admin/qa',
       blogs: '/school-admin/blogs',

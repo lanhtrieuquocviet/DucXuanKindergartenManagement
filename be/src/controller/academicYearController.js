@@ -342,7 +342,11 @@ const getClassesByAcademicYear = async (req, res) => {
 
     const classes = await Classes.find({ academicYearId: yearId })
       .populate('gradeId', 'gradeName')
-      .populate('teacherIds', 'fullName')
+      .populate({
+        path: 'teacherIds',
+        select: 'userId',
+        populate: { path: 'userId', select: 'fullName' },
+      })
       .sort({ className: 1 })
       .lean();
 
@@ -359,14 +363,19 @@ const getClassesByAcademicYear = async (req, res) => {
     }
 
     const result = classes.map((cls) => {
-      const teacherNames = (cls.teacherIds || [])
-        .map((t) => (t && t.fullName ? `Cô ${t.fullName}` : ''))
-        .filter(Boolean);
+      const teachers = (cls.teacherIds || [])
+        .map((t) => ({
+          _id: t?._id || null,
+          fullName: t?.userId?.fullName || '',
+        }))
+        .filter((t) => t._id && t.fullName);
+      const teacherNames = teachers.map((t) => `Cô ${t.fullName}`);
       return {
         _id: cls._id,
         className: cls.className,
+        gradeId: cls.gradeId?._id || null,
         gradeName: cls.gradeId?.gradeName || '',
-        teacherIds: cls.teacherIds,
+        teacherIds: teachers,
         teacherNames: teacherNames.join(', ') || '-',
         studentCount: studentCounts[String(cls._id)] || 0,
       };

@@ -240,6 +240,7 @@ function ManageBlogCategories() {
     const routes = {
       overview: '/school-admin',
       classes: '/school-admin/classes',
+      teachers: '/school-admin/teachers',
       contacts: '/school-admin/contacts',
       qa: '/school-admin/qa',
       blogs: '/school-admin/blogs',

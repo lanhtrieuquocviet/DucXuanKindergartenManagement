@@ -17,11 +17,20 @@ const getStudents = async (req, res) => {
       .populate('classId', 'className gradeId')
       .populate('parentId', 'fullName email username avatar phone');
 
+    // Không gửi mảng embedding 128 số về client (tốn bandwidth)
+    // Thay bằng flag hasFaceEmbedding và faceRegisteredAt
+    const data = students.map((s) => {
+      const obj = s.toObject();
+      obj.hasFaceEmbedding = Array.isArray(obj.faceEmbedding) && obj.faceEmbedding.length > 0;
+      delete obj.faceEmbedding;
+      return obj;
+    });
+
     return res.status(200).json({
       status: 'success',
       message: 'Lấy danh sách học sinh thành công',
-      data: students || [],
-      total: students.length,
+      data,
+      total: data.length,
     });
   } catch (error) {
     console.error('Error in getStudents:', error);
@@ -198,10 +207,15 @@ const getStudentDetail = async (req, res) => {
       });
     }
 
+    // Không trả embedding (biometric) về client — chỉ trả flag + thời điểm đăng ký
+    const obj = student.toObject();
+    obj.hasFaceEmbedding = Array.isArray(obj.faceEmbedding) && obj.faceEmbedding.length > 0;
+    delete obj.faceEmbedding;
+
     return res.status(200).json({
       status: 'success',
       message: 'Lấy thông tin học sinh thành công',
-      data: student,
+      data: obj,
     });
   } catch (error) {
     console.error('Error in getStudentDetail:', error);
@@ -232,6 +246,8 @@ const updateStudent = async (req, res) => {
       parentFullName,
       parentEmail,
       parentPhone: parentPhoneField,
+      needsSpecialAttention,
+      specialNote,
     } = req.body;
 
     const student = await Student.findById(studentId);
@@ -265,6 +281,8 @@ const updateStudent = async (req, res) => {
       address,
       classId,
       status,
+      ...(needsSpecialAttention !== undefined && { needsSpecialAttention: !!needsSpecialAttention }),
+      ...(specialNote !== undefined && { specialNote: String(specialNote).trim() }),
     };
 
     if (isParent && !isSchoolAdmin) {

@@ -20,6 +20,7 @@ import SchoolAdminDashboard from './pages/schoolAdmin/SchoolAdminDashboard';
 import ClassList from './pages/schoolAdmin/ClassList';
 import StudentInClass from './pages/schoolAdmin/StudentInClass';
 import ManageStudents from './pages/schoolAdmin/ManageStudents';
+import ManageTeachers from './pages/schoolAdmin/ManageTeachers';
 import ContactList from './pages/schoolAdmin/ContactList';
 import QaList from './pages/schoolAdmin/QaList';
 import AttendanceOverview from './pages/schoolAdmin/AttendanceOverview';
@@ -92,6 +93,7 @@ import AcademicYearPlan from './pages/schoolAdmin/AcademicYearPlan';
 import CurriculumPage from './pages/schoolAdmin/CurriculumPage';
 import ClassListOverview from './pages/schoolAdmin/ClassListOverview';
 import TimetableActivitiesPage from './pages/schoolAdmin/TimetableActivitiesPage';
+import FaceAttendancePage from './pages/schoolAdmin/FaceAttendancePage';
 import ProtectedRoute from './components/ProtectedRoute';
 
 
@@ -372,6 +374,14 @@ function App() {
             }
           />
           <Route
+            path="/school-admin/teachers"
+            element={
+              <ProtectedRoute>
+                <ManageTeachers />
+              </ProtectedRoute>
+            }
+          />
+          <Route
             path="/school-admin/contacts"
             element={
               <ProtectedRoute>
@@ -587,6 +597,16 @@ function App() {
               <ProtectedRoute>
                 <SchoolAdminProvider>
                   <AcademicYearReport />
+                </SchoolAdminProvider>
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/school-admin/face-attendance"
+            element={
+              <ProtectedRoute>
+                <SchoolAdminProvider>
+                  <FaceAttendancePage />
                 </SchoolAdminProvider>
               </ProtectedRoute>
             }

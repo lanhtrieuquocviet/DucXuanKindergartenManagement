@@ -33,6 +33,17 @@ const foodSchema = new mongoose.Schema(
       default: 0,
     },
 
+    ingredients: [
+      {
+        name: { type: String, required: true, trim: true },
+        quantity: { type: String, default: "" },
+        calories: { type: Number, default: 0 },
+        protein: { type: Number, default: 0 },
+        fat: { type: Number, default: 0 },
+        carb: { type: Number, default: 0 },
+      },
+    ],
+
     createdAt: {
       type: Date,
       default: Date.now,
