@@ -1,10 +1,40 @@
-import { useEffect, useMemo, useRef, useState } from 'react';
+import { useEffect, useMemo, useRef, useState, Component } from 'react';
 import { useLocation, useNavigate, useParams } from 'react-router-dom';
-import { Snackbar, Alert, Box, Typography, Avatar, Paper } from '@mui/material';
+import { Snackbar, Alert, Box, Typography, Avatar, Paper, Button } from '@mui/material';
 import { EventBusy as EventBusyIcon } from '@mui/icons-material';
 import { useAuth } from '../../context/AuthContext';
 import RoleLayout from '../../layouts/RoleLayout';
 import { get, post, ENDPOINTS } from '../../service/api';
+import FaceAttendanceModal from '../../components/face/FaceAttendanceModal';
+
+class FaceModalErrorBoundary extends Component {
+  constructor(props) {
+    super(props);
+    this.state = { hasError: false, error: null };
+  }
+  static getDerivedStateFromError(error) {
+    return { hasError: true, error };
+  }
+  componentDidCatch(error, info) {
+    console.error('FaceAttendanceModal error:', error, info);
+  }
+  render() {
+    if (this.state.hasError) {
+      return (
+        <div style={{ position: 'fixed', inset: 0, zIndex: 50, display: 'flex', alignItems: 'center', justifyContent: 'center', background: 'rgba(0,0,0,0.5)' }}>
+          <div style={{ background: '#fff', borderRadius: 12, padding: 32, maxWidth: 400, textAlign: 'center' }}>
+            <p style={{ color: '#dc2626', fontWeight: 600, marginBottom: 8 }}>Không thể mở điểm danh khuôn mặt</p>
+            <p style={{ color: '#6b7280', fontSize: 14, marginBottom: 16 }}>{this.state.error?.message || 'Lỗi không xác định. Kiểm tra console để biết chi tiết.'}</p>
+            <Button variant="contained" onClick={() => { this.setState({ hasError: false, error: null }); this.props.onClose?.(); }}>
+              Đóng
+            </Button>
+          </div>
+        </div>
+      );
+    }
+    return this.props.children;
+  }
+}
 import {
   getLocalISODate,
   isValidHHmm,
@@ -83,6 +113,9 @@ function TeacherAttendance() {
 
   // ── State: danh sách người đưa/đón đã duyệt ──
   const [approvedPickupPersons, setApprovedPickupPersons] = useState([]);
+
+  // ── State: modal điểm danh khuôn mặt ──
+  const [isFaceModalOpen, setIsFaceModalOpen] = useState(false);
 
   // ── State: Toast thành công ──
   const [successToast, setSuccessToast] = useState({ visible: false, message: '' });
@@ -284,7 +317,10 @@ function TeacherAttendance() {
       const res = await get(ENDPOINTS.CLASSES.LIST);
       const all = res.data || [];
       const myUserId = user?._id;
-      const mine = all.filter((c) => (c.teacherIds || []).some((t) => (t?._id || t) === myUserId));
+      const mine = all.filter((c) => (c.teacherIds || []).some((t) => {
+        const uid = t?.userId?._id || t?.userId || t?._id || t;
+        return uid?.toString() === myUserId?.toString();
+      }));
       setClasses(mine);
       if (mine.length >= 1 && !classId) {
         navigate(`/teacher/attendance/${mine[0]._id || mine[0].id}`, { replace: true });
@@ -734,6 +770,17 @@ function TeacherAttendance() {
       )}
 
       {classId && (
+        <div className="mb-3 flex justify-end">
+          <button
+            onClick={() => setIsFaceModalOpen(true)}
+            className="flex items-center gap-2 px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white text-sm font-medium rounded-lg shadow"
+          >
+            <span>📷</span> Điểm danh khuôn mặt
+          </button>
+        </div>
+      )}
+
+      {classId && (
         <AttendanceTable
           students={students}
           attendanceByStudent={attendanceByStudent}
@@ -808,6 +855,15 @@ function TeacherAttendance() {
           {successToast.message}
         </Alert>
       </Snackbar>
+
+      <FaceModalErrorBoundary onClose={() => setIsFaceModalOpen(false)}>
+        <FaceAttendanceModal
+          open={isFaceModalOpen}
+          onClose={() => setIsFaceModalOpen(false)}
+          classId={classId}
+          className={selectedClassName}
+        />
+      </FaceModalErrorBoundary>
     </RoleLayout>
   );
 }

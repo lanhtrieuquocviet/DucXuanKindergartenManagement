@@ -32,6 +32,7 @@ const DailyMenu = require('./src/routes/dailyMenu.routes');
 const mealPhotoRoutes = require('./src/routes/mealPhoto.routes');
 const notificationRoutes = require('./src/routes/notification.routes');
 const reportRoutes = require('./src/routes/report.routes');
+const faceRoutes = require('./src/routes/face.routes');
 const { startAutoApproveSampleEntries } = require('./src/jobs/autoApproveSampleEntries');
 
 // Import models để Mongoose đăng ký schema (tránh lỗi "Schema hasn't been registered for model 'Roles'")
@@ -306,6 +307,10 @@ app.use("/api/daily-menus",DailyMenu);
 app.use('/api/meal-photos', mealPhotoRoutes);
 app.use('/api/notifications', notificationRoutes);
 app.use('/api/reports', reportRoutes);
+
+// Face attendance routes (nhận diện khuôn mặt)
+app.use('/api/face', faceRoutes);
+
 // Public info (public - published only)
 app.use('/api/public-info', publicInfoRoutes);
 

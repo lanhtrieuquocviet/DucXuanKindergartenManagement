@@ -57,6 +57,15 @@ const studentSchema = new mongoose.Schema({
     trim: true,
     default: ''
   },
+  // Embedding khuôn mặt (128 chiều từ face-api.js)
+  faceEmbedding: {
+    type: [Number],
+    default: []
+  },
+  faceRegisteredAt: {
+    type: Date,
+    default: null
+  },
   createdAt: {
     type: Date,
     default: Date.now

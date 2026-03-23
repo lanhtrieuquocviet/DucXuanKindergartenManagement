@@ -93,6 +93,7 @@ import AcademicYearPlan from './pages/schoolAdmin/AcademicYearPlan';
 import CurriculumPage from './pages/schoolAdmin/CurriculumPage';
 import ClassListOverview from './pages/schoolAdmin/ClassListOverview';
 import TimetableActivitiesPage from './pages/schoolAdmin/TimetableActivitiesPage';
+import FaceAttendancePage from './pages/schoolAdmin/FaceAttendancePage';
 import ProtectedRoute from './components/ProtectedRoute';
 
 
@@ -596,6 +597,16 @@ function App() {
               <ProtectedRoute>
                 <SchoolAdminProvider>
                   <AcademicYearReport />
+                </SchoolAdminProvider>
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/school-admin/face-attendance"
+            element={
+              <ProtectedRoute>
+                <SchoolAdminProvider>
+                  <FaceAttendancePage />
                 </SchoolAdminProvider>
               </ProtectedRoute>
             }

@@ -4,6 +4,7 @@ import RoleLayout from '../../layouts/RoleLayout';
 import { useAuth } from '../../context/AuthContext';
 import { useSchoolAdmin } from '../../context/SchoolAdminContext';
 import { postFormData, ENDPOINTS, get } from '../../service/api';
+import FaceRegisterModal from '../../components/face/FaceRegisterModal';
 import {
   Box,
   Paper,
@@ -87,6 +88,7 @@ function ManageStudents() {
   });
   const [formEditErrors, setFormEditErrors] = useState({});
   const [editError, setEditError] = useState(null);
+  const [faceModal, setFaceModal] = useState({ open: false, student: null });
 
   const navigate = useNavigate();
   const { user, hasRole, logout, isInitializing } = useAuth();
@@ -169,6 +171,7 @@ function ManageStudents() {
     if (key === 'documents') { navigate('/school-admin/documents'); return; }
     if (key === 'public-info') { navigate('/school-admin/public-info'); return; }
     if (key === 'attendance') { navigate('/school-admin/attendance/overview'); return; }
+    if (key === 'face-attendance') { navigate('/school-admin/face-attendance'); return; }
   };
 
   const getMenuItems = () => [
@@ -188,6 +191,7 @@ function ManageStudents() {
     { key: 'classes', label: 'Lớp học' },
     { key: 'teachers', label: 'Giáo viên' },
     { key: 'students', label: 'Học sinh & phụ huynh' },
+    { key: 'face-attendance', label: '📷 Đăng ký khuôn mặt' },
     { key: 'assets', label: 'Quản lý tài sản' },
     { key: 'reports', label: 'Báo cáo của trường' },
     { key: 'contacts', label: 'Liên hệ' },
@@ -431,6 +435,7 @@ function ManageStudents() {
                   <TableCell><strong>SĐT</strong></TableCell>
                   <TableCell align="center"><strong>Cần chú ý</strong></TableCell>
                   <TableCell><strong>Ghi chú đặc biệt</strong></TableCell>
+                  <TableCell align="center"><strong>Khuôn mặt</strong></TableCell>
                   <TableCell align="right"><strong>Thao tác</strong></TableCell>
                 </TableRow>
               </TableHead>
@@ -452,6 +457,16 @@ function ManageStudents() {
                       {row.specialNote
                         ? <Tooltip title={row.specialNote}><Typography variant="body2" noWrap sx={{ maxWidth: 160 }}>{row.specialNote}</Typography></Tooltip>
                         : '—'}
+                    </TableCell>
+                    <TableCell align="center">
+                      <Chip
+                        label={row.hasFaceEmbedding ? '✓ Đã đăng ký' : 'Chưa đăng ký'}
+                        size="small"
+                        color={row.hasFaceEmbedding ? 'success' : 'default'}
+                        variant={row.hasFaceEmbedding ? 'filled' : 'outlined'}
+                        onClick={() => setFaceModal({ open: true, student: row })}
+                        sx={{ cursor: 'pointer' }}
+                      />
                     </TableCell>
                     <TableCell align="right">
                       <Button size="small" startIcon={<VisibilityIcon />} onClick={() => handleOpenDetail(row)} sx={{ mr: 0.5 }}>
@@ -684,6 +699,16 @@ function ManageStudents() {
           </Button>
         </DialogActions>
       </Dialog>
+
+      <FaceRegisterModal
+        open={faceModal.open}
+        student={faceModal.student}
+        onClose={() => setFaceModal({ open: false, student: null })}
+        onSuccess={() => {
+          setFaceModal({ open: false, student: null });
+          fetchData();
+        }}
+      />
     </RoleLayout>
   );
 }
