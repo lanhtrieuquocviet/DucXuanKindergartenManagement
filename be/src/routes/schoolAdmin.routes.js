@@ -1145,6 +1145,7 @@ router.delete('/curriculum/:id', authenticate, authorizeRoles('SchoolAdmin'), cu
  */
 router.get('/timetable', authenticate, authorizeRoles('SchoolAdmin'), timetableController.listByYear);
 router.put('/timetable', authenticate, authorizeRoles('SchoolAdmin'), timetableController.upsert);
+router.delete('/timetable/:id', authenticate, authorizeRoles('SchoolAdmin'), timetableController.remove);
 
 // ============================================
 // Teachers

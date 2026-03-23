@@ -23,10 +23,15 @@ import {
   TextField,
 } from '@mui/material';
 import { toast } from 'react-toastify';
-import { Add as AddIcon, Edit as EditIcon, Print as PrintIcon } from '@mui/icons-material';
+import {
+  Add as AddIcon,
+  Edit as EditIcon,
+  Print as PrintIcon,
+  Delete as DeleteIcon,
+} from '@mui/icons-material';
 import { useAuth } from '../../context/AuthContext';
 import RoleLayout from '../../layouts/RoleLayout';
-import { get, put, ENDPOINTS } from '../../service/api';
+import { get, put, del, ENDPOINTS } from '../../service/api';
 
 const SEASON_OPTIONS = [
   { value: 'summer', label: 'Mùa Hè' },
@@ -156,6 +161,8 @@ export default function TimetableActivitiesPage() {
   const [modalMode, setModalMode] = useState('create'); // 'create' | 'edit'
   const [editingId, setEditingId] = useState(null);
   const [saving, setSaving] = useState(false);
+  const [deleteTargetId, setDeleteTargetId] = useState(null);
+  const [deleting, setDeleting] = useState(false);
 
   const [form, setForm] = useState({
     appliesToSeason: '',
@@ -341,6 +348,30 @@ export default function TimetableActivitiesPage() {
 
   const handlePrint = () => window.print();
 
+  const handleDeleteRequest = (id) => {
+    setDeleteTargetId(id);
+  };
+
+  const handleCloseDeleteDialog = () => {
+    if (deleting) return;
+    setDeleteTargetId(null);
+  };
+
+  const handleConfirmDelete = async () => {
+    if (!academicYear?._id || !deleteTargetId) return;
+    try {
+      setDeleting(true);
+      await del(ENDPOINTS.SCHOOL_ADMIN.TIMETABLE.DELETE(deleteTargetId, academicYear._id));
+      await loadActivities(academicYear._id);
+      setDeleteTargetId(null);
+      toast.success('Đã xóa hoạt động.');
+    } catch (err) {
+      toast.error(err?.message || 'Xóa thất bại.');
+    } finally {
+      setDeleting(false);
+    }
+  };
+
   return (
     <RoleLayout
       title={`Thời gian biểu cả trường -- ${yearName || '—'}`}
@@ -424,8 +455,8 @@ export default function TimetableActivitiesPage() {
           <Box sx={{ p: 4, textAlign: 'center', color: 'text.secondary' }}>Đang tải...</Box>
         ) : (
           <>
-            <SeasonTable title="MÙA HÈ" activities={grouped.summer} onEdit={openEditModal} />
-            <SeasonTable title="MÙA ĐÔNG" activities={grouped.winter} onEdit={openEditModal} />
+            <SeasonTable title="MÙA HÈ" activities={grouped.summer} onEdit={openEditModal} onDelete={handleDeleteRequest} />
+            <SeasonTable title="MÙA ĐÔNG" activities={grouped.winter} onEdit={openEditModal} onDelete={handleDeleteRequest} />
           </>
         )}
       </Stack>
@@ -545,11 +576,41 @@ export default function TimetableActivitiesPage() {
           </Button>
         </DialogActions>
       </Dialog>
+
+      <Dialog
+        open={Boolean(deleteTargetId)}
+        onClose={handleCloseDeleteDialog}
+        maxWidth="xs"
+        fullWidth
+      >
+        <DialogTitle sx={{ fontWeight: 800 }}>Xác nhận xóa</DialogTitle>
+        <DialogContent dividers>
+          <Typography>Bạn có muốn xóa hoạt động này không.</Typography>
+        </DialogContent>
+        <DialogActions sx={{ px: 3, py: 2 }}>
+          <Button
+            onClick={handleCloseDeleteDialog}
+            disabled={deleting}
+            sx={{ textTransform: 'none' }}
+          >
+            Hủy
+          </Button>
+          <Button
+            variant="contained"
+            color="error"
+            onClick={handleConfirmDelete}
+            disabled={deleting}
+            sx={{ textTransform: 'none' }}
+          >
+            {deleting ? 'Đang xóa...' : 'Xác nhận'}
+          </Button>
+        </DialogActions>
+      </Dialog>
     </RoleLayout>
   );
 }
 
-function SeasonTable({ title, activities, onEdit }) {
+function SeasonTable({ title, activities, onEdit, onDelete }) {
   return (
     <Box>
       <Typography variant="subtitle2" sx={{ fontWeight: 900, color: '#1e3a8a', mb: 1 }}>
@@ -594,20 +655,32 @@ function SeasonTable({ title, activities, onEdit }) {
                       </Typography>
                     </TableCell>
                     <TableCell>
-                      <Button
-                        variant="contained"
-                        size="small"
-                        startIcon={<EditIcon fontSize="small" />}
-                        onClick={() => onEdit(a._id)}
-                        sx={{
-                          bgcolor: '#f97316',
-                          '&:hover': { bgcolor: '#ea580c' },
-                          textTransform: 'none',
-                          fontWeight: 700,
-                        }}
-                      >
-                        Sửa
-                      </Button>
+                      <Stack direction="row" spacing={1}>
+                        <Button
+                          variant="contained"
+                          size="small"
+                          startIcon={<EditIcon fontSize="small" />}
+                          onClick={() => onEdit(a._id)}
+                          sx={{
+                            bgcolor: '#f97316',
+                            '&:hover': { bgcolor: '#ea580c' },
+                            textTransform: 'none',
+                            fontWeight: 700,
+                          }}
+                        >
+                          Sửa
+                        </Button>
+                        <Button
+                          variant="contained"
+                          size="small"
+                          color="error"
+                          startIcon={<DeleteIcon fontSize="small" />}
+                          onClick={() => onDelete(a._id)}
+                          sx={{ textTransform: 'none', fontWeight: 700 }}
+                        >
+                          Xóa
+                        </Button>
+                      </Stack>
                     </TableCell>
                   </TableRow>
                 ))

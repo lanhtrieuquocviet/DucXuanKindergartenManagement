@@ -248,6 +248,8 @@ export const ENDPOINTS = {
     TIMETABLE: {
       LIST: (yearId) => (yearId ? `/school-admin/timetable?yearId=${yearId}` : "/school-admin/timetable"),
       UPSERT: "/school-admin/timetable",
+      DELETE: (id, yearId) =>
+        yearId ? `/school-admin/timetable/${id}?yearId=${yearId}` : `/school-admin/timetable/${id}`,
     },
     TIMETABLE_ACTIVITIES: {
       LIST: (yearId) => (yearId ? `/school-admin/timetable/activities?yearId=${yearId}` : "/school-admin/timetable/activities"),
