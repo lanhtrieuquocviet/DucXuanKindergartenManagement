@@ -56,6 +56,12 @@ const academicPlanTopicSchema = new mongoose.Schema(
       trim: true,
       default: '',
     },
+    teacherIds: [
+      {
+        type: mongoose.Schema.Types.ObjectId,
+        ref: 'Teacher',
+      },
+    ],
     weeklyDetails: {
       type: [weeklyDetailSchema],
       default: [],

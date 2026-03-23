@@ -44,6 +44,10 @@ function normalizeWeeklyDetails(rawWeeklyDetails, weeks) {
 }
 
 function mapTopic(topic) {
+  const teacherRows = Array.isArray(topic.teacherIds) ? topic.teacherIds : [];
+  const teacherNames = teacherRows
+    .map((t) => t?.userId?.fullName || t?.fullName || '')
+    .filter(Boolean);
   return {
     id: topic._id,
     academicYearId: topic.academicYear?._id || topic.academicYear,
@@ -55,6 +59,8 @@ function mapTopic(topic) {
     endDate: topic.endDate,
     weeks: topic.weeks,
     teachers: topic.teachers || '',
+    teacherIds: teacherRows.map((t) => t?._id || t).filter(Boolean),
+    teacherNames,
     weeklyDetails: (topic.weeklyDetails || []).map((w) => ({
       weekIndex: w.weekIndex,
       weekName: w.weekName || '',
@@ -79,6 +85,15 @@ async function validateGradeInAcademicYear(academicYearId, gradeId) {
   return !!cls;
 }
 
+async function getValidTeacherIdsByGrade(academicYearId, gradeId) {
+  const classes = await Classes.find({ academicYearId, gradeId }).select('teacherIds').lean();
+  const set = new Set();
+  classes.forEach((cls) => {
+    (cls.teacherIds || []).forEach((id) => set.add(String(id)));
+  });
+  return set;
+}
+
 const listTopics = async (req, res) => {
   try {
     const academicYearId = await getAcademicYearIdFromInput(req.query.yearId);
@@ -95,6 +110,7 @@ const listTopics = async (req, res) => {
     const topics = await AcademicPlanTopic.find(filter)
       .populate('academicYear', 'yearName')
       .populate('grade', 'gradeName')
+      .populate({ path: 'teacherIds', select: 'userId', populate: { path: 'userId', select: 'fullName' } })
       .sort({ startDate: 1, createdAt: 1 });
 
     return res.status(200).json({
@@ -112,6 +128,7 @@ const createTopic = async (req, res) => {
     const {
       academicYearId: rawYearId,
       gradeId,
+      teacherIds,
       topicName,
       startDate,
       endDate,
@@ -146,6 +163,13 @@ const createTopic = async (req, res) => {
       return res.status(400).json({ status: 'error', message: 'Khối lớp không thuộc năm học đã chọn' });
     }
 
+    const validTeacherIds = await getValidTeacherIdsByGrade(academicYearId, gradeId);
+    const selectedTeacherIds = Array.isArray(teacherIds)
+      ? teacherIds
+          .map((id) => String(id))
+          .filter((id) => mongoose.Types.ObjectId.isValid(id) && validTeacherIds.has(id))
+      : [];
+
     const totalWeeks = Math.max(1, Number(weeks) || 1);
     const topic = await AcademicPlanTopic.create({
       academicYear: academicYearId,
@@ -155,11 +179,13 @@ const createTopic = async (req, res) => {
       endDate: end,
       weeks: totalWeeks,
       teachers: String(teachers || '').trim(),
+      teacherIds: selectedTeacherIds,
       weeklyDetails: normalizeWeeklyDetails(weeklyDetails, totalWeeks),
     });
 
     await topic.populate('academicYear', 'yearName');
     await topic.populate('grade', 'gradeName');
+    await topic.populate({ path: 'teacherIds', select: 'userId', populate: { path: 'userId', select: 'fullName' } });
 
     return res.status(201).json({
       status: 'success',
@@ -192,8 +218,19 @@ const updateTopic = async (req, res) => {
       return res.status(400).json({ status: 'error', message: 'Khoảng thời gian không hợp lệ' });
     }
 
+    const validTeacherIds = await getValidTeacherIdsByGrade(String(topic.academicYear), String(topic.grade));
+    let nextTeacherIds = topic.teacherIds || [];
+    if (req.body.teacherIds !== undefined) {
+      nextTeacherIds = Array.isArray(req.body.teacherIds)
+        ? req.body.teacherIds
+            .map((id) => String(id))
+            .filter((id) => mongoose.Types.ObjectId.isValid(id) && validTeacherIds.has(id))
+        : [];
+    }
+
     topic.topicName = nextTopicName;
     topic.teachers = nextTeachers;
+    topic.teacherIds = nextTeacherIds;
     topic.weeks = nextWeeks;
     topic.startDate = nextStart;
     topic.endDate = nextEnd;
@@ -203,6 +240,7 @@ const updateTopic = async (req, res) => {
     await topic.save();
     await topic.populate('academicYear', 'yearName');
     await topic.populate('grade', 'gradeName');
+    await topic.populate({ path: 'teacherIds', select: 'userId', populate: { path: 'userId', select: 'fullName' } });
 
     return res.status(200).json({
       status: 'success',

@@ -4,6 +4,13 @@ import {
   Button,
   Dialog,
   DialogContent,
+  IconButton,
+  FormControl,
+  InputLabel,
+  Select,
+  MenuItem,
+  OutlinedInput,
+  Chip,
   Paper,
   Stack,
   Tab,
@@ -17,10 +24,11 @@ import {
   TextField,
   Typography,
 } from '@mui/material';
+import CloseIcon from '@mui/icons-material/Close';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../../context/AuthContext';
 import RoleLayout from '../../layouts/RoleLayout';
-import { get, post, ENDPOINTS } from '../../service/api';
+import { get, post, patch, ENDPOINTS } from '../../service/api';
 
 function formatDateInput(dateString) {
   if (!dateString) return '';
@@ -77,12 +85,18 @@ export default function AcademicYearPlan() {
   const [topics, setTopics] = useState([]);
   const [loadingTopics, setLoadingTopics] = useState(false);
   const [savingTopic, setSavingTopic] = useState(false);
+  const [teachersByBlock, setTeachersByBlock] = useState({});
   const [openCreateDialog, setOpenCreateDialog] = useState(false);
+  const [openDetailDialog, setOpenDetailDialog] = useState(false);
+  const [selectedTopic, setSelectedTopic] = useState(null);
+  const [dialogMode, setDialogMode] = useState('create');
+  const [editingTopicId, setEditingTopicId] = useState(null);
   const [topicForm, setTopicForm] = useState({
     topicName: '',
     startDate: '',
     endDate: '',
     weeks: 1,
+    teacherIds: [],
     teachers: '',
     weeklyDetails: buildWeeks(1),
   });
@@ -215,20 +229,41 @@ export default function AcademicYearPlan() {
       if (!currentYear?._id) {
         setBlocks([]);
         setActiveBlock('');
+        setTeachersByBlock({});
         return;
       }
       try {
         const resp = await get(ENDPOINTS.SCHOOL_ADMIN.ACADEMIC_YEARS.CLASSES(currentYear._id));
         const rows = Array.isArray(resp?.data) ? resp.data : [];
         const gradeMap = new Map();
+        const teacherMapByGrade = new Map();
         rows.forEach((row) => {
           const gradeId = row?.gradeId || row?.grade?._id;
           const gradeName = row?.gradeName || row?.grade?.gradeName || '';
           if (gradeId && !gradeMap.has(String(gradeId))) {
             gradeMap.set(String(gradeId), { key: String(gradeId), label: gradeName || 'Khối lớp' });
           }
+          if (gradeId) {
+            const gKey = String(gradeId);
+            if (!teacherMapByGrade.has(gKey)) teacherMapByGrade.set(gKey, new Map());
+            const teachers = Array.isArray(row?.teacherIds) ? row.teacherIds : [];
+            teachers.forEach((t) => {
+              const tId = String(t?._id || '');
+              const fullName = String(t?.fullName || '').trim();
+              if (tId && fullName) {
+                teacherMapByGrade.get(gKey).set(tId, { _id: tId, fullName });
+              }
+            });
+          }
         });
         const nextBlocks = Array.from(gradeMap.values());
+        const nextTeachersByBlock = {};
+        teacherMapByGrade.forEach((value, key) => {
+          nextTeachersByBlock[key] = Array.from(value.values()).sort((a, b) =>
+            a.fullName.localeCompare(b.fullName, 'vi'),
+          );
+        });
+        setTeachersByBlock(nextTeachersByBlock);
         setBlocks(nextBlocks);
         setActiveBlock((prev) => (prev && nextBlocks.some((b) => b.key === prev) ? prev : (nextBlocks[0]?.key || '')));
       } catch (error) {
@@ -236,6 +271,7 @@ export default function AcademicYearPlan() {
         console.error('Error loading blocks by academic year:', error);
         setBlocks([]);
         setActiveBlock('');
+        setTeachersByBlock({});
       }
     };
     loadBlocksByYear();
@@ -257,6 +293,7 @@ export default function AcademicYearPlan() {
           startDate: formatDateInput(row.startDate),
           endDate: formatDateInput(row.endDate),
           weeks: row.weeks || 1,
+          teacherIds: Array.isArray(row.teacherIds) ? row.teacherIds.map(String) : [],
           teachers: row.teachers || '',
           weeklyDetails: (row.weeklyDetails || []).map((w, idx) => ({
             weekName: w.weekName || `Tuần ${idx + 1}`,
@@ -323,18 +360,41 @@ export default function AcademicYearPlan() {
   };
 
   const handleOpenDialog = () => {
+    setDialogMode('create');
+    setEditingTopicId(null);
     setTopicForm({
       topicName: '',
       startDate: '',
       endDate: '',
       weeks: 1,
+      teacherIds: [],
       teachers: '',
       weeklyDetails: buildWeeks(1),
     });
     setOpenCreateDialog(true);
   };
 
-  const handleCreateTopic = async () => {
+  const handleOpenEditDialog = (topic) => {
+    setDialogMode('edit');
+    setEditingTopicId(topic.id);
+    setTopicForm({
+      topicName: topic.topicName || '',
+      startDate: topic.startDate || '',
+      endDate: topic.endDate || '',
+      weeks: Number(topic.weeks) || 1,
+      teacherIds: Array.isArray(topic.teacherIds) ? topic.teacherIds.map(String) : [],
+      teachers: topic.teachers || '',
+      weeklyDetails: buildWeeks(Number(topic.weeks) || 1, topic.weeklyDetails || []),
+    });
+    setOpenCreateDialog(true);
+  };
+
+  const handleOpenDetailDialog = (topic) => {
+    setSelectedTopic(topic);
+    setOpenDetailDialog(true);
+  };
+
+  const handleSubmitTopic = async () => {
     if (!topicForm.topicName.trim() || !topicForm.startDate || !topicForm.endDate) {
       alert('Vui lòng nhập đủ Tên chủ đề chính, Từ ngày và Đến ngày.');
       return;
@@ -353,7 +413,13 @@ export default function AcademicYearPlan() {
         startDate: topicForm.startDate,
         endDate: topicForm.endDate,
         weeks: Number(topicForm.weeks) || 1,
-        teachers: topicForm.teachers.trim(),
+        teacherIds: topicForm.teacherIds,
+        teachers:
+          (teachersByBlock[activeBlock] || [])
+            .filter((t) => topicForm.teacherIds.includes(String(t._id)))
+            .map((t) => t.fullName)
+            .join(', ')
+            .trim() || topicForm.teachers.trim(),
         weeklyDetails: topicForm.weeklyDetails.map((week, index) => ({
           weekIndex: index + 1,
           weekName: week.weekName || `Tuần ${index + 1}`,
@@ -368,21 +434,64 @@ export default function AcademicYearPlan() {
           },
         })),
       };
-      const resp = await post(ENDPOINTS.SCHOOL_ADMIN.ACADEMIC_PLAN.CREATE_TOPIC, payload);
-      const created = resp?.data;
-      if (created?.id) {
-        setTopics((prev) => [
-          ...prev,
-          {
-            id: created.id,
-            topicName: created.topicName || '',
-            startDate: formatDateInput(created.startDate),
-            endDate: formatDateInput(created.endDate),
-            weeks: created.weeks || 1,
-            teachers: created.teachers || '',
-            weeklyDetails: topicForm.weeklyDetails,
-          },
-        ]);
+      if (dialogMode === 'edit' && editingTopicId) {
+        const resp = await patch(
+          ENDPOINTS.SCHOOL_ADMIN.ACADEMIC_PLAN.UPDATE_TOPIC(editingTopicId),
+          payload,
+        );
+        const updated = resp?.data;
+        if (updated?.id) {
+          setTopics((prev) =>
+            prev.map((item) =>
+              item.id === updated.id
+                ? {
+                    ...item,
+                    topicName: updated.topicName || '',
+                    startDate: formatDateInput(updated.startDate),
+                    endDate: formatDateInput(updated.endDate),
+                    weeks: updated.weeks || 1,
+                    teacherIds: Array.isArray(updated.teacherIds)
+                      ? updated.teacherIds.map(String)
+                      : item.teacherIds || [],
+                    teachers: updated.teachers || '',
+                    weeklyDetails: buildWeeks(
+                      updated.weeks || 1,
+                      (updated.weeklyDetails || []).map((w, idx) => ({
+                        weekName: w.weekName || `Tuần ${idx + 1}`,
+                        weekTopic: w.weekTopic || '',
+                        weekRange: w.weekRange || '',
+                        dayPlans: {
+                          'Thứ 2': w?.dayPlans?.thu2 || '',
+                          'Thứ 3': w?.dayPlans?.thu3 || '',
+                          'Thứ 4': w?.dayPlans?.thu4 || '',
+                          'Thứ 5': w?.dayPlans?.thu5 || '',
+                          'Thứ 6': w?.dayPlans?.thu6 || '',
+                        },
+                      })),
+                    ),
+                  }
+                : item,
+            ),
+          );
+        }
+      } else {
+        const resp = await post(ENDPOINTS.SCHOOL_ADMIN.ACADEMIC_PLAN.CREATE_TOPIC, payload);
+        const created = resp?.data;
+        if (created?.id) {
+          setTopics((prev) => [
+            ...prev,
+            {
+              id: created.id,
+              topicName: created.topicName || '',
+              startDate: formatDateInput(created.startDate),
+              endDate: formatDateInput(created.endDate),
+              weeks: created.weeks || 1,
+              teacherIds: Array.isArray(created.teacherIds) ? created.teacherIds.map(String) : [],
+              teachers: created.teachers || '',
+              weeklyDetails: topicForm.weeklyDetails,
+            },
+          ]);
+        }
       }
       setOpenCreateDialog(false);
     } catch (error) {
@@ -564,6 +673,7 @@ export default function AcademicYearPlan() {
                         <Button
                           size="small"
                           variant="contained"
+                          onClick={() => handleOpenDetailDialog(topic)}
                           sx={{ textTransform: 'none', minWidth: 70 }}
                         >
                           Chi tiết
@@ -572,6 +682,7 @@ export default function AcademicYearPlan() {
                           size="small"
                           variant="contained"
                           color="success"
+                          onClick={() => handleOpenEditDialog(topic)}
                           sx={{ textTransform: 'none', minWidth: 70 }}
                         >
                           Sửa
@@ -598,7 +709,7 @@ export default function AcademicYearPlan() {
             </Table>
           </TableContainer>
 
-          <Box
+          {/* <Box
             sx={{
               display: 'flex',
               justifyContent: 'flex-end',
@@ -618,7 +729,7 @@ export default function AcademicYearPlan() {
             >
               Lưu kế hoạch
             </Button>
-          </Box>
+          </Box> */}
         </Paper>
       </Stack>
 
@@ -629,6 +740,13 @@ export default function AcademicYearPlan() {
         fullWidth
       >
         <DialogContent sx={{ p: { xs: 2, md: 3 } }}>
+          <IconButton
+            aria-label="Đóng"
+            onClick={() => setOpenCreateDialog(false)}
+            sx={{ position: 'absolute', top: 8, right: 8 }}
+          >
+            <CloseIcon />
+          </IconButton>
           <Stack spacing={2}>
             <Typography variant="h5" textAlign="center" fontWeight={800} color="#1f3b5b">
               Thêm chủ đề mới
@@ -673,15 +791,32 @@ export default function AcademicYearPlan() {
               fullWidth
             />
 
-            <TextField
-              label="Giáo viên thực hiện"
-              placeholder="VD: Nguyễn Thị Nhàn + Tạ Thị Đính + Dương Thị Nghiệp"
-              value={topicForm.teachers}
-              onChange={(e) => handleFormChange('teachers', e.target.value)}
-              fullWidth
-              multiline
-              minRows={2}
-            />
+            <FormControl fullWidth>
+              <InputLabel id="teacher-select-label">Giáo viên thực hiện</InputLabel>
+              <Select
+                labelId="teacher-select-label"
+                multiple
+                value={topicForm.teacherIds}
+                onChange={(e) => handleFormChange('teacherIds', e.target.value)}
+                input={<OutlinedInput label="Giáo viên thực hiện" />}
+                renderValue={(selected) => (
+                  <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 0.5 }}>
+                    {(selected || []).map((id) => {
+                      const teacher = (teachersByBlock[activeBlock] || []).find(
+                        (t) => String(t._id) === String(id),
+                      );
+                      return <Chip key={String(id)} label={teacher?.fullName || String(id)} size="small" />;
+                    })}
+                  </Box>
+                )}
+              >
+                {(teachersByBlock[activeBlock] || []).map((teacher) => (
+                  <MenuItem key={teacher._id} value={String(teacher._id)}>
+                    {teacher.fullName}
+                  </MenuItem>
+                ))}
+              </Select>
+            </FormControl>
 
             <Box sx={{ borderTop: '2px solid #3b82f6', pt: 2.5 }}>
               <Typography variant="h6" fontWeight={800} textAlign="center" sx={{ mb: 2 }}>
@@ -748,7 +883,7 @@ export default function AcademicYearPlan() {
 
             <Button
               variant="contained"
-              onClick={handleCreateTopic}
+              onClick={handleSubmitTopic}
               disabled={savingTopic}
               sx={{
                 mt: 1,
@@ -759,9 +894,72 @@ export default function AcademicYearPlan() {
                 '&:hover': { bgcolor: '#2b7db1' },
               }}
             >
-              {savingTopic ? 'Đang lưu...' : 'Lưu chủ đề'}
+              {savingTopic ? 'Đang lưu...' : dialogMode === 'edit' ? 'Cập nhật chủ đề' : 'Lưu chủ đề'}
             </Button>
           </Stack>
+        </DialogContent>
+      </Dialog>
+
+      <Dialog
+        open={openDetailDialog}
+        onClose={() => setOpenDetailDialog(false)}
+        maxWidth="lg"
+        fullWidth
+      >
+        <DialogContent sx={{ p: { xs: 2, md: 3 }, bgcolor: '#f4f6f8' }}>
+          <IconButton
+            aria-label="Đóng"
+            onClick={() => setOpenDetailDialog(false)}
+            sx={{ position: 'absolute', top: 8, right: 8 }}
+          >
+            <CloseIcon />
+          </IconButton>
+          {selectedTopic && (
+            <Stack spacing={2}>
+              <Typography variant="h5" textAlign="center" fontWeight={800}>
+                {selectedTopic.topicName?.toUpperCase() || 'CHI TIẾT CHỦ ĐỀ'}
+              </Typography>
+              <Typography variant="h6" textAlign="center" fontWeight={700}>
+                Thời gian thực hiện {selectedTopic.weeks} tuần: (Từ {toDMY(selectedTopic.startDate)} đến {toDMY(selectedTopic.endDate)})
+              </Typography>
+
+              <TableContainer component={Paper} sx={{ borderRadius: 1 }}>
+                <Table size="small">
+                  <TableHead sx={{ bgcolor: '#2f3ea8' }}>
+                    <TableRow>
+                      <TableCell sx={{ color: 'white', fontWeight: 700 }}>Thứ</TableCell>
+                      {(selectedTopic.weeklyDetails || []).map((week, idx) => (
+                        <TableCell key={`w-${idx}`} sx={{ color: 'white', fontWeight: 700, minWidth: 180 }}>
+                          {week.weekName || `Tuần ${idx + 1}`}
+                        </TableCell>
+                      ))}
+                    </TableRow>
+                    <TableRow sx={{ bgcolor: '#3a4bc0' }}>
+                      <TableCell sx={{ color: 'white', fontWeight: 700 }} />
+                      {(selectedTopic.weeklyDetails || []).map((week, idx) => (
+                        <TableCell key={`wh-${idx}`} sx={{ color: 'white', fontWeight: 700 }}>
+                          {week.weekTopic || 'Chưa cập nhật'}
+                          {week.weekRange ? ` (${week.weekRange})` : ''}
+                        </TableCell>
+                      ))}
+                    </TableRow>
+                  </TableHead>
+                  <TableBody>
+                    {WEEK_DAYS.map((day) => (
+                      <TableRow key={day}>
+                        <TableCell sx={{ fontWeight: 700 }}>{day}</TableCell>
+                        {(selectedTopic.weeklyDetails || []).map((week, idx) => (
+                          <TableCell key={`${day}-${idx}`}>
+                            {week?.dayPlans?.[day] || '-'}
+                          </TableCell>
+                        ))}
+                      </TableRow>
+                    ))}
+                  </TableBody>
+                </Table>
+              </TableContainer>
+            </Stack>
+          )}
         </DialogContent>
       </Dialog>
     </RoleLayout>
