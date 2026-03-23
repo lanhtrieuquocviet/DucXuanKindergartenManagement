@@ -20,6 +20,7 @@ const publicInfoController = require('../controller/publicInfoController');
 const academicYearController = require('../controller/academicYearController');
 const AcademicYear = require('../models/AcademicYear');
 const curriculumController = require('../controller/curriculumController');
+const academicPlanController = require('../controller/academicPlanController');
 const timetableController = require('../controller/timetableController');
 
 const router = express.Router();
@@ -983,6 +984,14 @@ router.patch('/academic-years/:id/finish', authenticate, authorizeRoles('SchoolA
  *         description: Danh sách lớp của năm học
  */
 router.get('/academic-years/:yearId/classes', authenticate, authorizeRoles('SchoolAdmin'), academicYearController.getClassesByAcademicYear);
+
+// ============================================
+// Academic Plan
+// ============================================
+router.get('/academic-plan/topics', authenticate, authorizeRoles('SchoolAdmin'), academicPlanController.listTopics);
+router.post('/academic-plan/topics', authenticate, authorizeRoles('SchoolAdmin'), academicPlanController.createTopic);
+router.patch('/academic-plan/topics/:id', authenticate, authorizeRoles('SchoolAdmin'), academicPlanController.updateTopic);
+router.delete('/academic-plan/topics/:id', authenticate, authorizeRoles('SchoolAdmin'), academicPlanController.deleteTopic);
 
 // ============================================
 // Curriculum

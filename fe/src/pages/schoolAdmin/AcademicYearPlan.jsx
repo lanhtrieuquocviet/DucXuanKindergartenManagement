@@ -1,16 +1,26 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useState } from 'react';
 import {
   Box,
-  Paper,
-  Typography,
-  Stack,
   Button,
+  Dialog,
+  DialogContent,
+  Paper,
+  Stack,
+  Tab,
+  Tabs,
+  Table,
+  TableBody,
+  TableCell,
+  TableContainer,
+  TableHead,
+  TableRow,
   TextField,
+  Typography,
 } from '@mui/material';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../../context/AuthContext';
 import RoleLayout from '../../layouts/RoleLayout';
-import { get, ENDPOINTS } from '../../service/api';
+import { get, post, ENDPOINTS } from '../../service/api';
 
 function formatDateInput(dateString) {
   if (!dateString) return '';
@@ -19,27 +29,41 @@ function formatDateInput(dateString) {
   return d.toISOString().slice(0, 10);
 }
 
-function getMonthsBetween(startDate, endDate) {
-  if (!startDate || !endDate) return [];
-  const start = new Date(startDate);
-  const end = new Date(endDate);
-  if (Number.isNaN(start.getTime()) || Number.isNaN(end.getTime())) return [];
+const WEEK_DAYS = ['Thứ 2', 'Thứ 3', 'Thứ 4', 'Thứ 5', 'Thứ 6'];
 
-  const months = [];
-  const current = new Date(start.getFullYear(), start.getMonth(), 1);
+function toDMY(dateStr) {
+  if (!dateStr) return '';
+  const d = new Date(dateStr);
+  if (Number.isNaN(d.getTime())) return '';
+  const dd = String(d.getDate()).padStart(2, '0');
+  const mm = String(d.getMonth() + 1).padStart(2, '0');
+  const yyyy = d.getFullYear();
+  return `${dd}/${mm}/${yyyy}`;
+}
 
-  while (current <= end) {
-    const month = current.getMonth() + 1;
-    const year = current.getFullYear();
-    months.push({
-      key: `${year}-${month.toString().padStart(2, '0')}`,
-      month,
-      year,
-    });
-    current.setMonth(current.getMonth() + 1);
-  }
+function createWeek(index) {
+  return {
+    weekName: `Tuần ${index + 1}`,
+    weekTopic: '',
+    weekRange: '',
+    dayPlans: {
+      'Thứ 2': '',
+      'Thứ 3': '',
+      'Thứ 4': '',
+      'Thứ 5': '',
+      'Thứ 6': '',
+    },
+  };
+}
 
-  return months;
+function buildWeeks(count, currentWeeks = []) {
+  const total = Math.max(1, Number(count) || 1);
+  return Array.from({ length: total }, (_, index) => {
+    const old = currentWeeks[index];
+    return old
+      ? { ...old, weekName: `Tuần ${index + 1}` }
+      : createWeek(index);
+  });
 }
 
 export default function AcademicYearPlan() {
@@ -48,7 +72,20 @@ export default function AcademicYearPlan() {
 
   const [currentYear, setCurrentYear] = useState(null);
   const [loadingYear, setLoadingYear] = useState(false);
-  const [eventsByMonth, setEventsByMonth] = useState({});
+  const [blocks, setBlocks] = useState([]);
+  const [activeBlock, setActiveBlock] = useState('');
+  const [topics, setTopics] = useState([]);
+  const [loadingTopics, setLoadingTopics] = useState(false);
+  const [savingTopic, setSavingTopic] = useState(false);
+  const [openCreateDialog, setOpenCreateDialog] = useState(false);
+  const [topicForm, setTopicForm] = useState({
+    topicName: '',
+    startDate: '',
+    endDate: '',
+    weeks: 1,
+    teachers: '',
+    weeklyDetails: buildWeeks(1),
+  });
 
   const menuItems = [
     { key: 'overview', label: 'Tổng quan trường' },
@@ -105,11 +142,7 @@ export default function AcademicYearPlan() {
       return;
     }
     if (key === 'academic-report') {
-      if (currentYear?._id) {
-        navigate(`/school-admin/academic-years/${currentYear._id}/report`);
-      } else {
-        navigate('/school-admin/academic-years');
-      }
+      navigate('/school-admin/academic-report');
       return;
     }
     if (key === 'academic-students') {
@@ -177,49 +210,186 @@ export default function AcademicYearPlan() {
     loadCurrentYear();
   }, []);
 
-  const months = useMemo(
-    () => (currentYear ? getMonthsBetween(currentYear.startDate, currentYear.endDate) : []),
-    [currentYear],
-  );
+  useEffect(() => {
+    const loadBlocksByYear = async () => {
+      if (!currentYear?._id) {
+        setBlocks([]);
+        setActiveBlock('');
+        return;
+      }
+      try {
+        const resp = await get(ENDPOINTS.SCHOOL_ADMIN.ACADEMIC_YEARS.CLASSES(currentYear._id));
+        const rows = Array.isArray(resp?.data) ? resp.data : [];
+        const gradeMap = new Map();
+        rows.forEach((row) => {
+          const gradeId = row?.gradeId || row?.grade?._id;
+          const gradeName = row?.gradeName || row?.grade?.gradeName || '';
+          if (gradeId && !gradeMap.has(String(gradeId))) {
+            gradeMap.set(String(gradeId), { key: String(gradeId), label: gradeName || 'Khối lớp' });
+          }
+        });
+        const nextBlocks = Array.from(gradeMap.values());
+        setBlocks(nextBlocks);
+        setActiveBlock((prev) => (prev && nextBlocks.some((b) => b.key === prev) ? prev : (nextBlocks[0]?.key || '')));
+      } catch (error) {
+        // eslint-disable-next-line no-console
+        console.error('Error loading blocks by academic year:', error);
+        setBlocks([]);
+        setActiveBlock('');
+      }
+    };
+    loadBlocksByYear();
+  }, [currentYear]);
 
-  const handleAddEvent = (monthKey) => {
-    setEventsByMonth((prev) => {
-      const events = prev[monthKey] || [];
-      return {
-        ...prev,
-        [monthKey]: [...events, { id: Date.now(), text: '' }],
-      };
+  useEffect(() => {
+    const loadTopics = async () => {
+      if (!currentYear?._id || !activeBlock) {
+        setTopics([]);
+        return;
+      }
+      try {
+        setLoadingTopics(true);
+        const resp = await get(ENDPOINTS.SCHOOL_ADMIN.ACADEMIC_PLAN.LIST_TOPICS(currentYear._id, activeBlock));
+        const rows = Array.isArray(resp?.data) ? resp.data : [];
+        const normalized = rows.map((row) => ({
+          id: row.id,
+          topicName: row.topicName || '',
+          startDate: formatDateInput(row.startDate),
+          endDate: formatDateInput(row.endDate),
+          weeks: row.weeks || 1,
+          teachers: row.teachers || '',
+          weeklyDetails: (row.weeklyDetails || []).map((w, idx) => ({
+            weekName: w.weekName || `Tuần ${idx + 1}`,
+            weekTopic: w.weekTopic || '',
+            weekRange: w.weekRange || '',
+            dayPlans: {
+              'Thứ 2': w?.dayPlans?.thu2 || '',
+              'Thứ 3': w?.dayPlans?.thu3 || '',
+              'Thứ 4': w?.dayPlans?.thu4 || '',
+              'Thứ 5': w?.dayPlans?.thu5 || '',
+              'Thứ 6': w?.dayPlans?.thu6 || '',
+            },
+          })),
+        }));
+        setTopics(normalized);
+      } catch (error) {
+        // eslint-disable-next-line no-console
+        console.error('Error loading academic plan topics:', error);
+        setTopics([]);
+      } finally {
+        setLoadingTopics(false);
+      }
+    };
+    loadTopics();
+  }, [currentYear, activeBlock]);
+
+  const handleFormChange = (field, value) => {
+    setTopicForm((prev) => ({ ...prev, [field]: value }));
+  };
+
+  const handleWeeksChange = (value) => {
+    const nextWeeks = Math.max(1, Number(value) || 1);
+    setTopicForm((prev) => ({
+      ...prev,
+      weeks: nextWeeks,
+      weeklyDetails: buildWeeks(nextWeeks, prev.weeklyDetails),
+    }));
+  };
+
+  const handleWeekDetailChange = (index, field, value) => {
+    setTopicForm((prev) => {
+      const next = [...prev.weeklyDetails];
+      next[index] = { ...next[index], [field]: value };
+      return { ...prev, weeklyDetails: next };
     });
   };
 
-  const handleChangeEvent = (monthKey, id, text) => {
-    setEventsByMonth((prev) => {
-      const events = prev[monthKey] || [];
-      return {
-        ...prev,
-        [monthKey]: events.map((e) => (e.id === id ? { ...e, text } : e)),
+  const handleWeekDayChange = (index, day, value) => {
+    setTopicForm((prev) => {
+      const next = [...prev.weeklyDetails];
+      next[index] = {
+        ...next[index],
+        dayPlans: {
+          ...next[index].dayPlans,
+          [day]: value,
+        },
       };
-    });
-  };
-
-  const handleRemoveEvent = (monthKey, id) => {
-    setEventsByMonth((prev) => {
-      const events = prev[monthKey] || [];
-      return {
-        ...prev,
-        [monthKey]: events.filter((e) => e.id !== id),
-      };
+      return { ...prev, weeklyDetails: next };
     });
   };
 
   const handleSavePlan = () => {
-    // Hiện tại chỉ log ra console. Sau có thể kết nối backend.
-    // eslint-disable-next-line no-console
-    console.log('Academic year plan:', {
-      academicYearId: currentYear?._id,
-      eventsByMonth,
+    alert('Dữ liệu chủ đề đã được lưu theo từng lần thêm mới.');
+  };
+
+  const handleOpenDialog = () => {
+    setTopicForm({
+      topicName: '',
+      startDate: '',
+      endDate: '',
+      weeks: 1,
+      teachers: '',
+      weeklyDetails: buildWeeks(1),
     });
-    alert('Đã lưu kế hoạch (demo, chưa lưu về server).');
+    setOpenCreateDialog(true);
+  };
+
+  const handleCreateTopic = async () => {
+    if (!topicForm.topicName.trim() || !topicForm.startDate || !topicForm.endDate) {
+      alert('Vui lòng nhập đủ Tên chủ đề chính, Từ ngày và Đến ngày.');
+      return;
+    }
+    if (!currentYear?._id || !activeBlock) {
+      alert('Chưa có khối lớp để thêm chủ đề.');
+      return;
+    }
+
+    try {
+      setSavingTopic(true);
+      const payload = {
+        academicYearId: currentYear._id,
+        gradeId: activeBlock,
+        topicName: topicForm.topicName.trim(),
+        startDate: topicForm.startDate,
+        endDate: topicForm.endDate,
+        weeks: Number(topicForm.weeks) || 1,
+        teachers: topicForm.teachers.trim(),
+        weeklyDetails: topicForm.weeklyDetails.map((week, index) => ({
+          weekIndex: index + 1,
+          weekName: week.weekName || `Tuần ${index + 1}`,
+          weekTopic: week.weekTopic || '',
+          weekRange: week.weekRange || '',
+          dayPlans: {
+            thu2: week.dayPlans?.['Thứ 2'] || '',
+            thu3: week.dayPlans?.['Thứ 3'] || '',
+            thu4: week.dayPlans?.['Thứ 4'] || '',
+            thu5: week.dayPlans?.['Thứ 5'] || '',
+            thu6: week.dayPlans?.['Thứ 6'] || '',
+          },
+        })),
+      };
+      const resp = await post(ENDPOINTS.SCHOOL_ADMIN.ACADEMIC_PLAN.CREATE_TOPIC, payload);
+      const created = resp?.data;
+      if (created?.id) {
+        setTopics((prev) => [
+          ...prev,
+          {
+            id: created.id,
+            topicName: created.topicName || '',
+            startDate: formatDateInput(created.startDate),
+            endDate: formatDateInput(created.endDate),
+            weeks: created.weeks || 1,
+            teachers: created.teachers || '',
+            weeklyDetails: topicForm.weeklyDetails,
+          },
+        ]);
+      }
+      setOpenCreateDialog(false);
+    } catch (error) {
+      alert(error?.message || 'Lưu chủ đề thất bại');
+    } finally {
+      setSavingTopic(false);
+    }
   };
 
   const userName = user?.fullName || user?.username || 'School Admin';
@@ -228,10 +398,10 @@ export default function AcademicYearPlan() {
     <RoleLayout
       title={
         currentYear
-          ? `Thiết lập kế hoạch năm học ${currentYear.yearName}`
-          : 'Thiết lập kế hoạch năm học'
+          ? `Kế hoạch chủ đề năm học ${currentYear.yearName}`
+          : 'Kế hoạch chủ đề năm học'
       }
-      description="Nhập danh sách sự kiện nổi bật theo từng tháng. Bạn có thể thêm, sửa, xóa từng sự kiện."
+      description="Quản lý danh sách chủ đề theo từng khối lớp và chi tiết hoạt động theo tuần."
       menuItems={menuItems}
       activeKey="academic-plan"
       onLogout={handleLogout}
@@ -298,92 +468,138 @@ export default function AcademicYearPlan() {
         <Paper
           elevation={0}
           sx={{
-            p: 3,
+            p: { xs: 2, md: 3 },
             borderRadius: 2,
             border: '1px solid',
             borderColor: 'divider',
             backgroundColor: 'white',
-            position: 'relative',
           }}
         >
-          <Typography variant="subtitle1" fontWeight={700} mb={2}>
-            2. Danh sách sự kiện theo tháng
+          <Typography
+            variant="h5"
+            fontWeight={800}
+            textAlign="center"
+            color="#1f3b5b"
+            sx={{ mb: 2.5 }}
+          >
+            KẾ HOẠCH CHỦ ĐỀ NĂM HỌC {currentYear?.yearName || '2025-2026'}
           </Typography>
 
-          <Stack
-            direction={{ xs: 'column', md: 'row' }}
-            spacing={2}
-            useFlexGap
-            flexWrap="wrap"
+          <Tabs
+            value={activeBlock}
+            onChange={(_, value) => setActiveBlock(value)}
+            sx={{
+              mb: 2.5,
+              '& .MuiTabs-indicator': { display: 'none' },
+              '& .MuiTab-root': {
+                textTransform: 'none',
+                fontWeight: 700,
+                borderRadius: 1.5,
+                minHeight: 36,
+                mr: 1,
+                border: '1px solid transparent',
+              },
+              '& .Mui-selected': {
+                bgcolor: '#3794d1',
+                color: 'white !important',
+              },
+            }}
           >
-            {months.map((m) => {
-              const monthKey = m.key;
-              const events = eventsByMonth[monthKey] || [];
-              return (
-                <Paper
-                  key={monthKey}
-                  elevation={0}
-                  sx={{
-                    flex: '1 1 260px',
-                    borderRadius: 2,
-                    border: '1px solid',
-                    borderColor: 'divider',
-                    backgroundColor: '#f9fafb',
-                    p: 2,
-                  }}
-                >
-                  <Typography variant="subtitle2" fontWeight={700} mb={1}>
-                    Tháng {m.month}/{m.year}
-                  </Typography>
-                  <Stack spacing={1.5}>
-                    {events.map((e) => (
-                      <Stack key={e.id} direction="row" spacing={1}>
-                        <TextField
-                          placeholder="Sự kiện mới (ví dụ: Lễ khai giảng)"
-                          size="small"
-                          fullWidth
-                          value={e.text}
-                          onChange={(evt) =>
-                            handleChangeEvent(monthKey, e.id, evt.target.value)
-                          }
-                        />
+            {blocks.map((block) => (
+              <Tab key={block.key} value={block.key} label={block.label} />
+            ))}
+          </Tabs>
+
+          <Typography
+            variant="h6"
+            fontWeight={800}
+            textAlign="center"
+            color="#1f3b5b"
+            sx={{ mb: 2 }}
+          >
+            Khối {blocks.find((b) => b.key === activeBlock)?.label || ''}
+          </Typography>
+
+          <Button
+            variant="contained"
+            onClick={handleOpenDialog}
+            disabled={!activeBlock}
+            sx={{
+              mb: 1.5,
+              bgcolor: '#16a34a',
+              textTransform: 'none',
+              fontWeight: 700,
+              '&:hover': { bgcolor: '#15803d' },
+            }}
+          >
+            + Thêm chủ đề mới
+          </Button>
+
+          <TableContainer
+            component={Paper}
+            elevation={0}
+            sx={{ border: '1px solid', borderColor: 'divider', borderRadius: 2 }}
+          >
+            <Table size="small">
+              <TableHead sx={{ bgcolor: '#3794d1' }}>
+                <TableRow>
+                  <TableCell sx={{ color: 'white', fontWeight: 700 }}>STT</TableCell>
+                  <TableCell sx={{ color: 'white', fontWeight: 700 }}>Tên chủ đề</TableCell>
+                  <TableCell sx={{ color: 'white', fontWeight: 700 }}>Thời gian</TableCell>
+                  <TableCell sx={{ color: 'white', fontWeight: 700 }}>Số tuần</TableCell>
+                  <TableCell sx={{ color: 'white', fontWeight: 700 }}>Giáo viên</TableCell>
+                  <TableCell sx={{ color: 'white', fontWeight: 700 }}>Hành động</TableCell>
+                </TableRow>
+              </TableHead>
+              <TableBody>
+                {topics.map((topic, index) => (
+                  <TableRow key={topic.id} hover>
+                    <TableCell>{index + 1}</TableCell>
+                    <TableCell>{topic.topicName}</TableCell>
+                    <TableCell>{`${toDMY(topic.startDate)} - ${toDMY(topic.endDate)}`}</TableCell>
+                    <TableCell>{topic.weeks}</TableCell>
+                    <TableCell>{topic.teachers || '—'}</TableCell>
+                    <TableCell>
+                      <Stack direction="row" spacing={1}>
                         <Button
-                          variant="outlined"
-                          color="error"
                           size="small"
-                          onClick={() => handleRemoveEvent(monthKey, e.id)}
+                          variant="contained"
+                          sx={{ textTransform: 'none', minWidth: 70 }}
                         >
-                          Xóa
+                          Chi tiết
+                        </Button>
+                        <Button
+                          size="small"
+                          variant="contained"
+                          color="success"
+                          sx={{ textTransform: 'none', minWidth: 70 }}
+                        >
+                          Sửa
                         </Button>
                       </Stack>
-                    ))}
-                    <Button
-                      variant="contained"
-                      size="small"
-                      onClick={() => handleAddEvent(monthKey)}
-                      sx={{
-                        mt: 0.5,
-                        alignSelf: 'flex-start',
-                        textTransform: 'none',
-                      }}
-                    >
-                      + Thêm sự kiện
-                    </Button>
-                  </Stack>
-                </Paper>
-              );
-            })}
-            {months.length === 0 && (
-              <Typography variant="body2" color="text.secondary">
-                Chưa có thông tin tháng do chưa có năm học hoạt động.
-              </Typography>
-            )}
-          </Stack>
+                    </TableCell>
+                  </TableRow>
+                ))}
+                {!loadingTopics && topics.length === 0 && (
+                  <TableRow>
+                    <TableCell colSpan={6} align="center" sx={{ py: 4, color: 'text.secondary' }}>
+                      Chưa có chủ đề cho khối này.
+                    </TableCell>
+                  </TableRow>
+                )}
+                {loadingTopics && (
+                  <TableRow>
+                    <TableCell colSpan={6} align="center" sx={{ py: 3, color: 'text.secondary' }}>
+                      Đang tải danh sách chủ đề...
+                    </TableCell>
+                  </TableRow>
+                )}
+              </TableBody>
+            </Table>
+          </TableContainer>
 
           <Box
             sx={{
-              position: 'sticky',
-              bottom: 0,
               display: 'flex',
               justifyContent: 'flex-end',
               mt: 3,
@@ -405,6 +621,149 @@ export default function AcademicYearPlan() {
           </Box>
         </Paper>
       </Stack>
+
+      <Dialog
+        open={openCreateDialog}
+        onClose={() => setOpenCreateDialog(false)}
+        maxWidth="lg"
+        fullWidth
+      >
+        <DialogContent sx={{ p: { xs: 2, md: 3 } }}>
+          <Stack spacing={2}>
+            <Typography variant="h5" textAlign="center" fontWeight={800} color="#1f3b5b">
+              Thêm chủ đề mới
+            </Typography>
+
+            <TextField
+              label="Tên chủ đề chính"
+              placeholder="VD: TRƯỜNG MẦM NON ĐỨC XUÂN"
+              value={topicForm.topicName}
+              onChange={(e) => handleFormChange('topicName', e.target.value)}
+              fullWidth
+            />
+
+            <Typography variant="subtitle2" fontWeight={700}>
+              Thời gian thực hiện (chủ đề tổng)
+            </Typography>
+            <Stack direction={{ xs: 'column', md: 'row' }} spacing={1.5}>
+              <TextField
+                label="Từ ngày"
+                type="date"
+                InputLabelProps={{ shrink: true }}
+                value={topicForm.startDate}
+                onChange={(e) => handleFormChange('startDate', e.target.value)}
+                fullWidth
+              />
+              <TextField
+                label="Đến ngày"
+                type="date"
+                InputLabelProps={{ shrink: true }}
+                value={topicForm.endDate}
+                onChange={(e) => handleFormChange('endDate', e.target.value)}
+                fullWidth
+              />
+            </Stack>
+
+            <TextField
+              label="Số tuần"
+              type="number"
+              inputProps={{ min: 1, max: 20 }}
+              value={topicForm.weeks}
+              onChange={(e) => handleWeeksChange(e.target.value)}
+              fullWidth
+            />
+
+            <TextField
+              label="Giáo viên thực hiện"
+              placeholder="VD: Nguyễn Thị Nhàn + Tạ Thị Đính + Dương Thị Nghiệp"
+              value={topicForm.teachers}
+              onChange={(e) => handleFormChange('teachers', e.target.value)}
+              fullWidth
+              multiline
+              minRows={2}
+            />
+
+            <Box sx={{ borderTop: '2px solid #3b82f6', pt: 2.5 }}>
+              <Typography variant="h6" fontWeight={800} textAlign="center" sx={{ mb: 2 }}>
+                Chi tiết từng tuần
+              </Typography>
+              <Stack spacing={2}>
+                {topicForm.weeklyDetails.map((week, weekIndex) => (
+                  <Paper
+                    key={week.weekName}
+                    elevation={0}
+                    sx={{
+                      p: 2,
+                      borderRadius: 2,
+                      border: '1px solid',
+                      borderColor: 'divider',
+                      bgcolor: '#f8fafc',
+                    }}
+                  >
+                    <Typography variant="subtitle1" fontWeight={700} sx={{ mb: 1.5 }}>
+                      {week.weekName}
+                    </Typography>
+                    <Stack direction={{ xs: 'column', md: 'row' }} spacing={1.5} sx={{ mb: 1.5 }}>
+                      <TextField
+                        label="Chủ đề tuần"
+                        placeholder="VD: Trường mầm non bé yêu"
+                        value={week.weekTopic}
+                        onChange={(e) =>
+                          handleWeekDetailChange(weekIndex, 'weekTopic', e.target.value)
+                        }
+                        fullWidth
+                      />
+                      <TextField
+                        label="Thời gian tuần"
+                        placeholder="VD: Từ 15/09 đến 19/09/2025"
+                        value={week.weekRange}
+                        onChange={(e) =>
+                          handleWeekDetailChange(weekIndex, 'weekRange', e.target.value)
+                        }
+                        fullWidth
+                      />
+                    </Stack>
+
+                    <Stack direction="row" flexWrap="wrap" useFlexGap gap={1.5}>
+                      {WEEK_DAYS.map((day) => (
+                        <Box key={day} sx={{ minWidth: 200, flex: '1 1 200px' }}>
+                          <Typography variant="body2" fontWeight={700} sx={{ mb: 0.5 }}>
+                            {day}
+                          </Typography>
+                          <TextField
+                            placeholder="Nội dung hoạt động..."
+                            value={week.dayPlans[day] || ''}
+                            onChange={(e) => handleWeekDayChange(weekIndex, day, e.target.value)}
+                            fullWidth
+                            multiline
+                            minRows={3}
+                          />
+                        </Box>
+                      ))}
+                    </Stack>
+                  </Paper>
+                ))}
+              </Stack>
+            </Box>
+
+            <Button
+              variant="contained"
+              onClick={handleCreateTopic}
+              disabled={savingTopic}
+              sx={{
+                mt: 1,
+                py: 1.2,
+                bgcolor: '#3794d1',
+                textTransform: 'none',
+                fontWeight: 700,
+                '&:hover': { bgcolor: '#2b7db1' },
+              }}
+            >
+              {savingTopic ? 'Đang lưu...' : 'Lưu chủ đề'}
+            </Button>
+          </Stack>
+        </DialogContent>
+      </Dialog>
     </RoleLayout>
   );
 }

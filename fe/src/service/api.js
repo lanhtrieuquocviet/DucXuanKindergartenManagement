@@ -227,6 +227,18 @@ export const ENDPOINTS = {
       HISTORY: "/school-admin/academic-years/history",
       CLASSES: (yearId) => `/school-admin/academic-years/${yearId}/classes`,
     },
+    ACADEMIC_PLAN: {
+      LIST_TOPICS: (yearId, gradeId) => {
+        const q = new URLSearchParams();
+        if (yearId) q.set('yearId', yearId);
+        if (gradeId) q.set('gradeId', gradeId);
+        const query = q.toString();
+        return query ? `/school-admin/academic-plan/topics?${query}` : '/school-admin/academic-plan/topics';
+      },
+      CREATE_TOPIC: '/school-admin/academic-plan/topics',
+      UPDATE_TOPIC: (id) => `/school-admin/academic-plan/topics/${id}`,
+      DELETE_TOPIC: (id) => `/school-admin/academic-plan/topics/${id}`,
+    },
     CURRICULUM: {
       LIST: (yearId) => (yearId ? `/school-admin/curriculum?yearId=${yearId}` : "/school-admin/curriculum"),
       CREATE: "/school-admin/curriculum",

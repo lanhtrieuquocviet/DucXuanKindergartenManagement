@@ -365,6 +365,7 @@ const getClassesByAcademicYear = async (req, res) => {
       return {
         _id: cls._id,
         className: cls.className,
+        gradeId: cls.gradeId?._id || null,
         gradeName: cls.gradeId?.gradeName || '',
         teacherIds: cls.teacherIds,
         teacherNames: teacherNames.join(', ') || '-',
