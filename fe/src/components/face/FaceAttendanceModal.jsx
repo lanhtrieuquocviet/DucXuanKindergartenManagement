@@ -18,7 +18,7 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { toast } from 'react-toastify';
 import FaceCamera from './FaceCamera';
-import { matchFaceEmbedding, getClassEmbeddings } from '../../service/faceAttendance.api';
+import { matchFaceEmbedding, getClassEmbeddings, uploadAttendanceImage } from '../../service/faceAttendance.api';
 import { useOfflineSync } from '../../hooks/useOfflineSync';
 
 // Cosine similarity (dùng khi offline - giống backend)
@@ -50,6 +50,9 @@ export default function FaceAttendanceModal({ open, onClose, classId, className 
 
   // Cooldown: ngừng detect tạm thời sau khi nhận diện
   const cooldownRef = useRef(false);
+
+  // Ref tới FaceCamera để gọi captureFrame()
+  const cameraRef = useRef(null);
 
   // ── Tải embeddings về local khi modal mở ─────────────────────────────────
   useEffect(() => {
@@ -139,13 +142,24 @@ export default function FaceAttendanceModal({ open, onClose, classId, className 
       cooldownRef.current = true;
       setIsProcessing(true);
 
+      // Chụp frame ngay tại thời điểm nhận diện
+      const capturedFrame = cameraRef.current?.captureFrame() || null;
+
       try {
         let result;
 
         if (isOnline) {
-          // ── ONLINE: gửi lên server ─────────────────────────────────────────
+          // ── ONLINE: upload ảnh trước, rồi gửi embedding + URL lên server ──
           const today = new Date().toISOString().split('T')[0];
-          result = await matchFaceEmbedding(embedding, classId, today);
+          let checkinImageUrl = '';
+          if (capturedFrame) {
+            try {
+              checkinImageUrl = await uploadAttendanceImage(capturedFrame);
+            } catch {
+              // Không chặn điểm danh nếu upload ảnh lỗi
+            }
+          }
+          result = await matchFaceEmbedding(embedding, classId, today, checkinImageUrl);
         } else {
           // ── OFFLINE: so sánh local ─────────────────────────────────────────
           result = await matchOffline(embedding);
@@ -154,7 +168,7 @@ export default function FaceAttendanceModal({ open, onClose, classId, className 
           }
         }
 
-        setMatchResult({ ...result, isOnline, timestamp: new Date() });
+        setMatchResult({ ...result, isOnline, timestamp: new Date(), capturedFrame });
 
         // Cập nhật ds đã điểm danh (cho online)
         if (result.status === 'success' && result.student?._id) {
@@ -221,6 +235,7 @@ export default function FaceAttendanceModal({ open, onClose, classId, className 
               </div>
             ) : (
               <FaceCamera
+                ref={cameraRef}
                 onDetected={handleDetected}
                 isActive={open && !loadingEmbeddings}
               />
@@ -250,8 +265,14 @@ export default function FaceAttendanceModal({ open, onClose, classId, className 
 
               {matchResult?.status === 'success' && (
                 <div className="flex items-center gap-3 p-3 bg-green-50 rounded-lg border border-green-200">
-                  <div className="w-12 h-12 rounded-full overflow-hidden bg-gray-200 flex-shrink-0">
-                    {matchResult.student?.avatar ? (
+                  <div className="w-16 h-16 rounded-lg overflow-hidden bg-gray-200 flex-shrink-0 border-2 border-green-300">
+                    {matchResult.capturedFrame ? (
+                      <img
+                        src={matchResult.capturedFrame}
+                        alt="Ảnh điểm danh"
+                        className="w-full h-full object-cover"
+                      />
+                    ) : matchResult.student?.avatar ? (
                       <img
                         src={matchResult.student.avatar}
                         alt={matchResult.student.fullName}

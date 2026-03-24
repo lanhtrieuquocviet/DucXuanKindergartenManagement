@@ -47,6 +47,16 @@ const pickupRequestSchema = new mongoose.Schema(
       default: "",
     },
 
+    // Embedding khuôn mặt (128 chiều từ face-api.js)
+    faceEmbedding: {
+      type: [Number],
+      default: [],
+    },
+    faceRegisteredAt: {
+      type: Date,
+      default: null,
+    },
+
     // Trạng thái duyệt
     status: {
       type: String,

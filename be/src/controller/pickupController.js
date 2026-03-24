@@ -162,20 +162,24 @@ exports.getApprovedPickupPersonsByStudent = async (req, res) => {
       return res.status(404).json({ success: false, message: "Không tìm thấy học sinh" });
     }
 
-    const myTeacher = await Teacher.findOne({ userId: req.user._id }).lean();
-    const myTeacherId = myTeacher?._id?.toString();
-    const classDoc = await Classes.findById(student.classId);
-    if (
-      !classDoc || !myTeacherId ||
-      !classDoc.teacherIds.some((id) => id.toString() === myTeacherId)
-    ) {
-      return res.status(403).json({ success: false, message: "Không có quyền xem thông tin này" });
+    // SchoolAdmin có thể xem tất cả, Teacher chỉ xem lớp mình phụ trách
+    const isSchoolAdmin = (req.user.roles || []).includes("SchoolAdmin");
+    if (!isSchoolAdmin) {
+      const myTeacher = await Teacher.findOne({ userId: req.user._id }).lean();
+      const myTeacherId = myTeacher?._id?.toString();
+      const classDoc = await Classes.findById(student.classId);
+      if (
+        !classDoc || !myTeacherId ||
+        !classDoc.teacherIds.some((id) => id.toString() === myTeacherId)
+      ) {
+        return res.status(403).json({ success: false, message: "Không có quyền xem thông tin này" });
+      }
     }
 
     const requests = await PickupRequest.find({
       student: studentId,
       status: "approved",
-    }).select("fullName relation phone imageUrl");
+    }).select("fullName relation phone imageUrl faceEmbedding faceRegisteredAt");
 
     res.json({ success: true, data: requests });
   } catch (error) {

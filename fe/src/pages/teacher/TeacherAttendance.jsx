@@ -6,6 +6,7 @@ import { useAuth } from '../../context/AuthContext';
 import RoleLayout from '../../layouts/RoleLayout';
 import { get, post, ENDPOINTS } from '../../service/api';
 import FaceAttendanceModal from '../../components/face/FaceAttendanceModal';
+import PickupFaceAttendanceModal from '../../components/face/PickupFaceAttendanceModal';
 
 class FaceModalErrorBoundary extends Component {
   constructor(props) {
@@ -116,6 +117,7 @@ function TeacherAttendance() {
 
   // ── State: modal điểm danh khuôn mặt ──
   const [isFaceModalOpen, setIsFaceModalOpen] = useState(false);
+  const [isPickupFaceModalOpen, setIsPickupFaceModalOpen] = useState(false);
 
   // ── State: Toast thành công ──
   const [successToast, setSuccessToast] = useState({ visible: false, message: '' });
@@ -775,7 +777,19 @@ function TeacherAttendance() {
             onClick={() => setIsFaceModalOpen(true)}
             className="flex items-center gap-2 px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white text-sm font-medium rounded-lg shadow"
           >
-            <span>📷</span> Điểm danh khuôn mặt
+            <span>📷</span> Điểm danh đến
+          </button>
+          <button
+            onClick={() => {
+              if (new Date().getHours() < 17) {
+                alert('Chưa đến 17:00 — chưa được điểm danh về.');
+                return;
+              }
+              setIsPickupFaceModalOpen(true);
+            }}
+            className="flex items-center gap-2 px-4 py-2 bg-emerald-600 hover:bg-emerald-700 text-white text-sm font-medium rounded-lg shadow"
+          >
+            <span>🚶</span> Điểm danh về
           </button>
         </div>
       )}
@@ -864,6 +878,25 @@ function TeacherAttendance() {
           className={selectedClassName}
         />
       </FaceModalErrorBoundary>
+
+      <PickupFaceAttendanceModal
+        open={isPickupFaceModalOpen}
+        onClose={() => setIsPickupFaceModalOpen(false)}
+        classId={classId}
+        className={selectedClassName}
+        onCheckoutSuccess={() => {
+          if (classId && selectedDate) {
+            get(`${ENDPOINTS.STUDENTS.ATTENDANCE_LIST}?classId=${classId}&date=${selectedDate}`)
+              .then((res) => {
+                const records = res?.data || res || [];
+                const map = {};
+                records.forEach((r) => { map[r.studentId] = r; });
+                setAttendanceByStudent(map);
+              })
+              .catch(() => {});
+          }
+        }}
+      />
     </RoleLayout>
   );
 }
