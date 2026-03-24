@@ -1,5 +1,6 @@
 import { useEffect, useRef } from 'react';
 import Quill from 'quill';
+import { toast } from 'react-toastify';
 import 'quill/dist/quill.snow.css';
 import { postFormData, ENDPOINTS } from '../service/api';
 
@@ -65,10 +66,10 @@ function RichTextEditor({
                     quill.insertEmbed(range.index, 'image', res.data.url, 'user');
                     quill.setSelection(range.index + 1, 0);
                   } else {
-                    alert('Upload ảnh thất bại');
+                    toast.error('Upload ảnh thất bại');
                   }
                 } catch (err) {
-                  alert('Upload ảnh thất bại: ' + err.message);
+                  toast.error('Upload ảnh thất bại: ' + err.message);
                 }
               };
             },

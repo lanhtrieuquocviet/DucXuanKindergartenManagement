@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import RoleLayout from '../../layouts/RoleLayout';
 import { useAuth } from '../../context/AuthContext';
+import { toast } from 'react-toastify';
 import { get, post, patch, ENDPOINTS } from '../../service/api';
 import {
   Box,
@@ -286,6 +287,7 @@ function ManageAcademicYears() {
           setCurrentYear(newYear);
           setYears((prev) => [newYear, ...prev]);
           setOpenCreate(false);
+          toast.success('Tạo năm học mới thành công.');
         }
       })
       .catch((error) => {

@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
+import { toast } from 'react-toastify';
 import { useSchoolAdmin } from '../../context/SchoolAdminContext';
 import { useAuth } from '../../context/AuthContext';
 import RoleLayout from '../../layouts/RoleLayout';
@@ -110,7 +111,7 @@ function BlogFormModal({ open, onClose, initialData, categories, onSubmit, loadi
         throw new Error(response.message || 'Upload thất bại');
       }
     } catch (err) {
-      alert(`Upload ảnh thất bại:\n${err.message}`);
+      toast.error(`Upload ảnh thất bại: ${err.message}`);
     } finally {
       setUploading(false);
       e.target.value = '';
@@ -137,7 +138,7 @@ function BlogFormModal({ open, onClose, initialData, categories, onSubmit, loadi
         throw new Error(response.message || 'Upload thất bại');
       }
     } catch (err) {
-      alert(`Upload file thất bại:\n${err.message}`);
+      toast.error(`Upload file thất bại: ${err.message}`);
     } finally {
       setUploadingFile(false);
     }
