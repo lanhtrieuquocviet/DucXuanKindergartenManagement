@@ -146,7 +146,7 @@ export default function FaceCamera({ onDetected, onError, isActive = true }) {
   // ── Lifecycle: bật/tắt camera theo isActive ──────────────────────────────
   useEffect(() => {
     // Không bật camera nếu model lỗi
-    if (isActive && isReady && !error) {
+    if (isActive && isReady && !modelError) {
       startCamera().then(() => {
         startDetectionLoop();
       });
@@ -155,7 +155,7 @@ export default function FaceCamera({ onDetected, onError, isActive = true }) {
     }
 
     return () => stopCamera();
-  }, [isActive, isReady, error]); // eslint-disable-line react-hooks/exhaustive-deps
+  }, [isActive, isReady, modelError]); // eslint-disable-line react-hooks/exhaustive-deps
 
   // ── Render ────────────────────────────────────────────────────────────────
 
