@@ -3,11 +3,30 @@ const Classes = require('../models/Classes');
 const Student = require('../models/Student');
 
 /**
+ * Tự động kết thúc năm học đã quá hạn endDate.
+ * Quy ước: chỉ tự kết thúc khi đã qua ngày kết thúc (tức từ 00:00 ngày hôm sau).
+ */
+const autoFinishExpiredAcademicYears = async () => {
+  const startOfToday = new Date();
+  startOfToday.setHours(0, 0, 0, 0);
+
+  await AcademicYear.updateMany(
+    {
+      status: 'active',
+      endDate: { $lt: startOfToday },
+    },
+    { $set: { status: 'inactive' } },
+  );
+};
+
+/**
  * GET /api/school-admin/academic-years/current
  * Lấy năm học đang hoạt động (active) mới nhất
  */
 const getCurrentAcademicYear = async (req, res) => {
   try {
+    await autoFinishExpiredAcademicYears();
+
     const currentYear = await AcademicYear.findOne({ status: 'active' })
       .sort({ startDate: -1 })
       .lean();
@@ -31,6 +50,8 @@ const getCurrentAcademicYear = async (req, res) => {
  */
 const listAcademicYears = async (req, res) => {
   try {
+    await autoFinishExpiredAcademicYears();
+
     const years = await AcademicYear.find()
       .sort({ startDate: -1 })
       .lean();
@@ -244,6 +265,8 @@ const finishAcademicYear = async (req, res) => {
  */
 const getAcademicYearHistory = async (req, res) => {
   try {
+    await autoFinishExpiredAcademicYears();
+
     const { yearId } = req.query;
 
     const yearFilter = {
