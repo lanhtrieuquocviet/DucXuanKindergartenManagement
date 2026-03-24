@@ -173,7 +173,10 @@ function PickupRequest() {
     // Kiểm tra giáo viên có được phân công lớp không
     get(ENDPOINTS.CLASSES.LIST).then((res) => {
       const all = res.data || [];
-      const mine = all.filter((c) => (c.teacherIds || []).some((t) => (t?._id || t) === user._id));
+      const mine = all.filter((c) => (c.teacherIds || []).some((t) => {
+        const uid = t?.userId?._id || t?.userId || t?._id || t;
+        return uid?.toString() === user._id?.toString();
+      }));
       setMyClasses(mine);
       if (mine.length > 0) fetchPickupRequests();
       else setLoading(false);

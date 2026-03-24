@@ -46,14 +46,13 @@ const menuItems = [
     children: [
       { key: 'academic-year-setup', label: 'Thiết lập năm học' },
       { key: 'academic-plan', label: 'Thiết lập kế hoạch' },
-      { key: 'academic-students', label: 'Danh sách lớp học' },
-      { key: 'academic-curriculum', label: 'Chương trình giáo dục' },
       { key: 'academic-schedule', label: 'Thời gian biểu' },
       { key: 'academic-report', label: 'Báo cáo & thống kê' },
     ],
   },
   { key: 'classes', label: 'Lớp học' },
   { key: 'menu', label: 'Quản lý thực đơn' },
+  { key: 'meal-management', label: 'Quản lý bữa ăn' },
   { key: 'teachers', label: 'Giáo viên' },
   { key: 'students', label: 'Học sinh & phụ huynh' },
   { key: 'assets', label: 'Quản lý tài sản' },
@@ -191,6 +190,7 @@ export default function TimetableActivitiesPage() {
     if (key === 'academic-schedule') return;
     if (key === 'classes') navigate('/school-admin/classes');
     if (key === 'menu') navigate('/school-admin/menus');
+    if (key === 'meal-management') navigate('/school-admin/meal-management');
     if (key === 'teachers') { navigate('/school-admin/teachers'); return; }
     if (key === 'students') navigate('/school-admin/students');
     if (key === 'contacts') navigate('/school-admin/contacts');

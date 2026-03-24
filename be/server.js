@@ -24,6 +24,7 @@ const documentsRoutes = require('./src/routes/documents.routes');
 const otpRoutes = require('./src/routes/otp.routes');
 const pickupRoutes = require("./src/routes/pickup.routes");
 const foodRoutes = require("./src/routes/food.routes");
+const ingredientRoutes = require("./src/routes/ingredient.routes");
 const menuRoutes = require("./src/routes/menu.routes");
 
 
@@ -32,6 +33,7 @@ const DailyMenu = require('./src/routes/dailyMenu.routes');
 const mealPhotoRoutes = require('./src/routes/mealPhoto.routes');
 const notificationRoutes = require('./src/routes/notification.routes');
 const reportRoutes = require('./src/routes/report.routes');
+const faceRoutes = require('./src/routes/face.routes');
 const { startAutoApproveSampleEntries } = require('./src/jobs/autoApproveSampleEntries');
 
 // Import models để Mongoose đăng ký schema (tránh lỗi "Schema hasn't been registered for model 'Roles'")
@@ -55,6 +57,7 @@ require('./src/models/Timetable');
 require('./src/models/Notification');
 require('./src/models/Classroom');
 require('./src/models/Teacher');
+require('./src/models/Ingredient');
 
 // Seed default roles on startup
 (async () => {
@@ -301,11 +304,16 @@ app.use("/api/pickup", pickupRoutes);
 
 //menus
 app.use("/api/foods", foodRoutes);
+app.use("/api/ingredients", ingredientRoutes);
 app.use("/api/menus", menuRoutes);
 app.use("/api/daily-menus",DailyMenu);
 app.use('/api/meal-photos', mealPhotoRoutes);
 app.use('/api/notifications', notificationRoutes);
 app.use('/api/reports', reportRoutes);
+
+// Face attendance routes (nhận diện khuôn mặt)
+app.use('/api/face', faceRoutes);
+
 // Public info (public - published only)
 app.use('/api/public-info', publicInfoRoutes);
 

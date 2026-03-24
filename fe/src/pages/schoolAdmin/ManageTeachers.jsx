@@ -187,13 +187,12 @@ export default function ManageTeachers() {
       children: [
         { key: 'academic-year-setup', label: 'Thiết lập năm học' },
         { key: 'academic-plan', label: 'Thiết lập kế hoạch' },
-        { key: 'academic-students', label: 'Danh sách lớp học' },
-        { key: 'academic-curriculum', label: 'Chương trình giáo dục' },
         { key: 'academic-schedule', label: 'Thời gian biểu' },
         { key: 'academic-report', label: 'Báo cáo & thống kê' },
       ],
     },
     { key: 'classes', label: 'Lớp học' },
+    { key: 'meal-management', label: 'Quản lý bữa ăn' },
     { key: 'teachers', label: 'Giáo viên' },
     { key: 'students', label: 'Học sinh & phụ huynh' },
     { key: 'assets', label: 'Quản lý tài sản' },
@@ -215,6 +214,7 @@ export default function ManageTeachers() {
     if (key === 'academic-report') { navigate('/school-admin/academic-years'); return; }
     if (key === 'academic-students') { navigate('/school-admin/class-list'); return; }
     if (key === 'classes') { navigate('/school-admin/classes'); return; }
+    if (key === 'meal-management') { navigate('/school-admin/meal-management'); return; }
     if (key === 'teachers') { navigate('/school-admin/teachers'); return; }
     if (key === 'students') { navigate('/school-admin/students'); return; }
     if (key === 'contacts') { navigate('/school-admin/contacts'); return; }

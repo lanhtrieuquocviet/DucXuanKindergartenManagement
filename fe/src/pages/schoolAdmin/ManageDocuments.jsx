@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
+import { toast } from 'react-toastify';
 import { useAuth } from '../../context/AuthContext';
 import RoleLayout from '../../layouts/RoleLayout';
 import ConfirmDialog from '../../components/ConfirmDialog';
@@ -97,7 +98,7 @@ function DocumentFormModal({ open, onClose, initialData, onSubmit, loading }) {
         throw new Error(response.message || 'Upload thất bại');
       }
     } catch (err) {
-      alert(`Upload file thất bại:\n${err.message}`);
+      toast.error(`Upload file thất bại: ${err.message}`);
     } finally {
       setUploadingFile(false);
     }
@@ -392,8 +393,6 @@ export default function ManageDocuments() {
       children: [
         { key: 'academic-year-setup', label: 'Thiết lập năm học' },
         { key: 'academic-plan', label: 'Thiết lập kế hoạch' },
-        { key: 'academic-students', label: 'Danh sách lớp học' },
-        { key: 'academic-curriculum', label: 'Chương trình giáo dục' },
         { key: 'academic-schedule', label: 'Thời gian biểu' },
         { key: 'academic-report', label: 'Báo cáo & thống kê' },
       ],
