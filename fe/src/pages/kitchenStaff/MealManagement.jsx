@@ -747,7 +747,7 @@ function UploadMealDialog({ open, onClose, date, onSuccess, editData }) {
             >
               <AddPhotoIcon sx={{ fontSize: 32, color: cfg.color }} />
               <Typography variant="body2" fontWeight={600} color="text.secondary">
-                Nhấn để chọn ảnh
+                Nhấn để chụp ảnh
               </Typography>
               <Typography variant="caption" color="text.disabled">
                 Tối thiểu {MIN_PHOTOS} ảnh, tối đa {MAX_PHOTOS} ảnh · JPG, PNG, WebP
@@ -759,6 +759,7 @@ function UploadMealDialog({ open, onClose, date, onSuccess, editData }) {
             ref={fileInputRef}
             type="file"
             accept="image/jpeg,image/jpg,image/png,image/webp"
+            capture="environment"
             multiple
             style={{ display: 'none' }}
             onChange={handleFileChange}
@@ -1082,7 +1083,7 @@ function SampleEntryCard({ entry, onPreview, selectedDate, isToday, editRequest,
         {/* Status badge */}
         {entry.status === 'khong_co_van_de' ? (
           <Chip
-            label="Không có vấn đề"
+            label="BGH duyệt — Không có vấn đề"
             size="small"
             sx={{
               height: 22, fontSize: 11, fontWeight: 700,
@@ -1090,6 +1091,18 @@ function SampleEntryCard({ entry, onPreview, selectedDate, isToday, editRequest,
               color: '#059669',
               border: '1px solid',
               borderColor: alpha('#10b981', 0.3),
+            }}
+          />
+        ) : entry.status === 'tu_dong_duyet' ? (
+          <Chip
+            label="Tự động duyệt — Không có vấn đề"
+            size="small"
+            sx={{
+              height: 22, fontSize: 11, fontWeight: 700,
+              bgcolor: alpha('#6366f1', 0.12),
+              color: '#4f46e5',
+              border: '1px solid',
+              borderColor: alpha('#6366f1', 0.3),
             }}
           />
         ) : entry.status === 'khong_dat' ? (
@@ -1118,7 +1131,7 @@ function SampleEntryCard({ entry, onPreview, selectedDate, isToday, editRequest,
           />
         )}
         <Typography variant="subtitle2" fontWeight={800} sx={{ color: cfg.color, flex: 1 }}>
-          {cfg.label}
+          Mẫu thực phẩm
         </Typography>
         <Chip
           label={`${entry.images.length} ảnh`}
@@ -1422,7 +1435,6 @@ function MealManagement() {
   const [sendingReq, setSendingReq] = useState(false);
   const [loadingData, setLoadingData] = useState(false);
   const [uploadingSample, setUploadingSample] = useState(false);
-  const [samplePickerAnchor, setSamplePickerAnchor] = useState(null);
   const [mealPickerAnchor, setMealPickerAnchor] = useState(null);
   const [saving, setSaving] = useState(false);
 
@@ -1869,7 +1881,7 @@ function MealManagement() {
                         <AddPhotoIcon sx={{ fontSize: 20, color: '#f97316' }} />
                       </Box>
                       <Typography variant="body2" fontWeight={700} color="#f97316">
-                        Thêm bữa ăn
+                        Thêm ảnh bữa ăn
                       </Typography>
                     </Box>
                     <Menu
@@ -1937,13 +1949,13 @@ function MealManagement() {
                 {sampleEntries.length > 0 && (
                   <Chip
                     icon={<CheckCircleIcon sx={{ fontSize: '14px !important', color: '#16a34a !important' }} />}
-                    label={`${sampleEntries.length} bữa đã upload`}
+                    label="Đã upload"
                     size="small"
                     sx={{ height: 24, fontSize: 11.5, bgcolor: alpha('#16a34a', 0.08), color: '#16a34a', border: '1px solid', borderColor: alpha('#16a34a', 0.25) }}
                   />
                 )}
               </Box>
-              {isToday && sampleEntries.length < SAMPLE_MEAL_TYPES.length && (
+              {isToday && sampleEntries.length < 1 && (
                 <Button
                   variant="contained"
                   startIcon={<AddPhotoIcon />}
@@ -1979,52 +1991,6 @@ function MealManagement() {
                       />
                     ))}
                   </Box>
-                )}
-                {isToday && sampleEntries.length < SAMPLE_MEAL_TYPES.length && (
-                  <>
-                    <Box
-                      onClick={(e) => setSamplePickerAnchor(e.currentTarget)}
-                      sx={{
-                        display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 1.5,
-                        py: 3, borderRadius: 3, border: '2px dashed',
-                        borderColor: alpha('#ef4444', 0.35), bgcolor: alpha('#ef4444', 0.025),
-                        cursor: 'pointer', transition: 'all 0.2s',
-                        '&:hover': { borderColor: '#ef4444', bgcolor: alpha('#ef4444', 0.07) },
-                      }}
-                    >
-                      <Box sx={{ width: 36, height: 36, borderRadius: '50%', bgcolor: alpha('#ef4444', 0.1), display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-                        <AddPhotoIcon sx={{ fontSize: 20, color: '#ef4444' }} />
-                      </Box>
-                      <Typography variant="body2" fontWeight={700} color="#ef4444">
-                        Thêm bữa mẫu
-                      </Typography>
-                    </Box>
-                    <Menu
-                      anchorEl={samplePickerAnchor}
-                      open={Boolean(samplePickerAnchor)}
-                      onClose={() => setSamplePickerAnchor(null)}
-                      PaperProps={{ sx: { borderRadius: 2.5, minWidth: 220, boxShadow: '0 8px 24px rgba(0,0,0,0.12)' } }}
-                    >
-                      {SAMPLE_MEAL_TYPES.filter((cfg) => !sampleEntries.find((e) => e.mealType === cfg.value)).map((cfg) => (
-                        <MenuItem
-                          key={cfg.value}
-                          onClick={() => { setSamplePickerAnchor(null); navigate('/kitchen/sample-food', { state: { mealType: cfg.value } }); }}
-                          sx={{ gap: 1.5, py: 1.25 }}
-                        >
-                          <Box sx={{ color: cfg.color, display: 'flex' }}>{cfg.icon}</Box>
-                          <Typography variant="body2" fontWeight={600}>{cfg.label}</Typography>
-                        </MenuItem>
-                      ))}
-                      <Divider sx={{ my: 0.5 }} />
-                      <MenuItem
-                        onClick={() => { setSamplePickerAnchor(null); navigate('/kitchen/sample-food'); }}
-                        sx={{ gap: 1.5, py: 1.25 }}
-                      >
-                        <Box sx={{ color: 'text.disabled', display: 'flex' }}><AddPhotoIcon sx={{ fontSize: 18 }} /></Box>
-                        <Typography variant="body2" fontWeight={600} color="text.secondary">Khác...</Typography>
-                      </MenuItem>
-                    </Menu>
-                  </>
                 )}
               </Box>
             ) : (

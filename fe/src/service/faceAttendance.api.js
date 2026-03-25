@@ -6,6 +6,16 @@
 import { get, post } from './api';
 
 /**
+ * Upload ảnh điểm danh (base64 từ camera) lên Cloudinary
+ * @param {string} imageBase64 - dataURL "data:image/jpeg;base64,..."
+ * @returns {Promise<string>} URL ảnh trên Cloudinary
+ */
+export const uploadAttendanceImage = async (imageBase64) => {
+  const res = await post('/cloudinary/upload-attendance-image', { imageBase64 });
+  return res.data?.url || '';
+};
+
+/**
  * Đăng ký embedding khuôn mặt cho học sinh
  * @param {string} studentId
  * @param {number[]} embedding - mảng 128 số float từ face-api.js
@@ -19,8 +29,8 @@ export const registerFaceEmbedding = (studentId, embedding) =>
  * @param {string} classId
  * @param {string} [date] - YYYY-MM-DD, mặc định hôm nay
  */
-export const matchFaceEmbedding = (embedding, classId, date) =>
-  post('/face/match', { embedding, classId, date });
+export const matchFaceEmbedding = (embedding, classId, date, checkinImageUrl = '') =>
+  post('/face/match', { embedding, classId, date, checkinImageUrl });
 
 /**
  * Tải toàn bộ embeddings của lớp về thiết bị (cho chế độ OFFLINE)
@@ -35,3 +45,29 @@ export const getClassEmbeddings = (classId) =>
  */
 export const syncOfflineAttendance = (records) =>
   post('/face/sync', { records });
+
+/**
+ * Đăng ký embedding khuôn mặt cho người đưa/đón đã duyệt
+ * @param {string} pickupRequestId
+ * @param {number[]} embedding - mảng 128 số float
+ */
+export const registerPickupFaceEmbedding = (pickupRequestId, embedding) =>
+  post('/face/pickup/register', { pickupRequestId, embedding });
+
+/**
+ * So sánh khuôn mặt với danh sách người đưa/đón của học sinh
+ * @param {number[]} embedding
+ * @param {string} studentId
+ */
+export const matchPickupFace = (embedding, studentId) =>
+  post('/face/pickup/match', { embedding, studentId });
+
+/**
+ * Quét mặt người đến đón → tự động ghi điểm danh về cho học sinh trong lớp
+ * @param {number[]} embedding
+ * @param {string} classId
+ * @param {string} [date]
+ * @param {string} [checkoutImageUrl]
+ */
+export const matchPickupFaceForCheckout = (embedding, classId, date, checkoutImageUrl = '') =>
+  post('/face/pickup/checkout', { embedding, classId, date, checkoutImageUrl });

@@ -1,8 +1,11 @@
-import { useEffect, useState } from "react";
+import { useEffect, useState, useRef } from "react";
 import { useParams, useNavigate } from "react-router-dom";
-import { getMenuDetail, submitMenu, updateDailyMenu } from "../../service/menu.api";
+import { getMenuDetail, submitMenu, updateDailyMenu, getFoods } from "../../service/menu.api";
 import { toast } from "react-toastify";
 import FoodSelectorModal from "../../components/FoodSelectorModal";
+import AIFloatingButton from "../../components/AIFloatingButton";
+import { downloadMenuTemplate, exportMenuToExcel } from "../../utils/excelMenuTemplate";
+import { parseMenuExcel, formatImportErrors } from "../../utils/excelMenuImporter";
 import {
   Avatar,
   Box,
@@ -42,6 +45,8 @@ import {
   Send as SendIcon,
   Warning as WarningIcon,
   ErrorOutline as ErrorIcon,
+  Download as DownloadIcon,
+  Upload as UploadIcon,
 } from "@mui/icons-material";
 
 const days = ["mon", "tue", "wed", "thu", "fri"];
@@ -168,6 +173,7 @@ function WeekTable({ title, weekData, isEditable, onCellClick, onRemoveFood }) {
 function MenuDetail() {
   const { id } = useParams();
   const navigate = useNavigate();
+  const fileInputRef = useRef(null);
   const [menu, setMenu] = useState(null);
   const [loading, setLoading] = useState(false);
   const [showFoodModal, setShowFoodModal] = useState(false);
@@ -177,11 +183,20 @@ function MenuDetail() {
   const [cellFoods, setCellFoods] = useState([]);
   const [incompleteItems, setIncompleteItems] = useState([]);
   const [showErrorDialog, setShowErrorDialog] = useState(false);
+  const [importDialogOpen, setImportDialogOpen] = useState(false);
+  const [importErrors, setImportErrors] = useState([]);
+  const [importUpdates, setImportUpdates] = useState([]);
+  const [confirmImportOpen, setConfirmImportOpen] = useState(false);
+  const [importLoading, setImportLoading] = useState(false);
+  const [availableFoods, setAvailableFoods] = useState([]);
 
   // LOGIC: Cho phép sửa nếu ở trạng thái Nháp hoặc Bị từ chối
   const isEditable = menu && (menu.status === "draft" || menu.status === "rejected");
 
-  useEffect(() => { fetchMenuDetail(); }, []);
+  useEffect(() => { 
+    fetchMenuDetail();
+    fetchAvailableFoods();
+  }, []);
 
   const fetchMenuDetail = async () => {
     try {
@@ -192,6 +207,90 @@ function MenuDetail() {
       toast.error("Không thể tải chi tiết thực đơn");
     } finally {
       setLoading(false);
+    }
+  };
+
+  const fetchAvailableFoods = async () => {
+    try {
+      const res = await getFoods();
+      setAvailableFoods(res.data || []);
+    } catch {
+      console.error("Không thể tải danh sách món ăn");
+    }
+  };
+
+  const handleDownloadTemplate = () => {
+    try {
+      downloadMenuTemplate(menu.month, menu.year);
+      toast.success("Tải biểu mẫu thành công");
+    } catch (error) {
+      toast.error("Lỗi khi tải biểu mẫu");
+      console.error(error);
+    }
+  };
+
+  const handleExportMenu = () => {
+    try {
+      exportMenuToExcel(menu);
+      toast.success("Xuất thực đơn thành công");
+    } catch (error) {
+      toast.error("Lỗi khi xuất thực đơn");
+      console.error(error);
+    }
+  };
+
+  const handleImportClick = () => {
+    fileInputRef.current?.click();
+  };
+
+  const handleFileChange = async (event) => {
+    const file = event.target.files?.[0];
+    if (!file) return;
+
+    try {
+      setImportLoading(true);
+      const { updates, errors } = await parseMenuExcel(file, menu, availableFoods);
+
+      if (errors.length > 0) {
+        setImportErrors(errors);
+        setImportDialogOpen(true);
+      } else if (updates.length === 0) {
+        toast.error("Không có dữ liệu hợp lệ trong file");
+      } else {
+        setImportUpdates(updates);
+        setImportErrors([]);
+        setConfirmImportOpen(true);
+      }
+    } catch (error) {
+      toast.error("Lỗi khi đọc file: " + error.message);
+      console.error(error);
+    } finally {
+      setImportLoading(false);
+      if (fileInputRef.current) {
+        fileInputRef.current.value = '';
+      }
+    }
+  };
+
+  const handleConfirmImport = async () => {
+    try {
+      setImportLoading(true);
+      
+      for (const update of importUpdates) {
+        await updateDailyMenu(update.dailyMenuId, {
+          [update.mealType]: update.foodIds
+        });
+      }
+
+      toast.success(`Cập nhật thành công ${importUpdates.length} bữa ăn`);
+      setConfirmImportOpen(false);
+      setImportUpdates([]);
+      fetchMenuDetail();
+    } catch (error) {
+      toast.error("Lỗi khi cập nhật: " + error.message);
+      console.error(error);
+    } finally {
+      setImportLoading(false);
     }
   };
 
@@ -290,18 +389,58 @@ function MenuDetail() {
             </Typography>
           )}
         </Box>
-        {isEditable && (
+        <Stack direction="row" spacing={1} flexWrap="wrap" justifyContent={{ xs: "flex-start", sm: "flex-end" }}>
           <Button 
-            variant="contained" 
-            color={menu.status === "rejected" ? "primary" : "success"} 
-            startIcon={<SendIcon />} 
-            onClick={handleOpenSubmitDialog} 
-            sx={{ borderRadius: 2.5, px: 3, fontWeight: 700, textTransform: 'none' }}
+            variant="outlined" 
+            size="small"
+            startIcon={<DownloadIcon />} 
+            onClick={handleDownloadTemplate}
+            sx={{ textTransform: 'none', borderRadius: 2 }}
           >
-            {menu.status === "rejected" ? "Gửi lại thực đơn" : "Gửi duyệt"}
+            Tải mẫu
           </Button>
-        )}
+          {menu && (menu.status === "draft" || menu.status === "rejected") && (
+            <Button 
+              variant="outlined" 
+              size="small"
+              startIcon={<UploadIcon />} 
+              onClick={handleImportClick}
+              disabled={importLoading}
+              sx={{ textTransform: 'none', borderRadius: 2 }}
+            >
+              {importLoading ? "Đang nhập..." : "Nhập Excel"}
+            </Button>
+          )}
+          <Button 
+            variant="outlined" 
+            size="small"
+            startIcon={<DownloadIcon />} 
+            onClick={handleExportMenu}
+            sx={{ textTransform: 'none', borderRadius: 2 }}
+          >
+            Xuất Excel
+          </Button>
+          {isEditable && (
+            <Button 
+              variant="contained" 
+              color={menu.status === "rejected" ? "primary" : "success"} 
+              startIcon={<SendIcon />} 
+              onClick={handleOpenSubmitDialog} 
+              sx={{ borderRadius: 2.5, px: 3, fontWeight: 700, textTransform: 'none' }}
+            >
+              {menu.status === "rejected" ? "Gửi lại thực đơn" : "Gửi duyệt"}
+            </Button>
+          )}
+        </Stack>
       </Stack>
+
+      <input 
+        ref={fileInputRef} 
+        type="file" 
+        accept=".xlsx,.xls" 
+        onChange={handleFileChange} 
+        style={{ display: 'none' }} 
+      />
 
       <Box sx={{ display: 'grid', gridTemplateColumns: { xs: 'repeat(2, 1fr)', sm: 'repeat(4, 1fr)' }, gap: 2, mb: 4 }}>
         {NUTRITION_INFO.map((item) => <NutritionCard key={item.key} item={item} value={menu.nutrition?.[item.key]} />)}
@@ -354,6 +493,59 @@ function MenuDetail() {
           </Button>
         </DialogActions>
       </Dialog>
+
+      {/* DIALOG IMPORT ERRORS */}
+      <Dialog open={importDialogOpen} onClose={() => setImportDialogOpen(false)} maxWidth="sm" fullWidth PaperProps={{ sx: { borderRadius: 3 } }}>
+        <DialogTitle sx={{ display: 'flex', alignItems: 'center', gap: 1, color: 'error.main', fontWeight: 700 }}>
+          <ErrorIcon color="error" /> Lỗi khi nhập dữ liệu
+        </DialogTitle>
+        <DialogContent>
+          <Typography variant="body2" color="text.secondary" mb={2}>
+            Phát hiện một số vấn đề trong file:
+          </Typography>
+          <Box sx={{ maxHeight: 300, overflow: 'auto', bgcolor: 'grey.50', borderRadius: 2, p: 1.5, border: '1px solid #eee', whiteSpace: 'pre-wrap', fontFamily: 'monospace', fontSize: '0.75rem' }}>
+            {formatImportErrors(importErrors)}
+          </Box>
+        </DialogContent>
+        <DialogActions sx={{ p: 2.5 }}>
+          <Button onClick={() => setImportDialogOpen(false)} variant="contained" color="inherit" fullWidth sx={{ borderRadius: 2, textTransform: 'none' }}>
+            Đóng
+          </Button>
+        </DialogActions>
+      </Dialog>
+
+      {/* DIALOG CONFIRM IMPORT */}
+      <Dialog open={confirmImportOpen} onClose={() => !importLoading && setConfirmImportOpen(false)} maxWidth="sm" fullWidth PaperProps={{ sx: { borderRadius: 3 } }}>
+        <DialogTitle sx={{ fontWeight: 700 }}>Xác nhận nhập dữ liệu</DialogTitle>
+        <DialogContent>
+          <Typography variant="body2" color="text.secondary" mb={2}>
+            Sắp cập nhật {importUpdates.length} bữa ăn từ file Excel:
+          </Typography>
+          <Box sx={{ maxHeight: 300, overflow: 'auto', bgcolor: 'grey.50', borderRadius: 2, p: 1.5, border: '1px solid #eee' }}>
+            <List dense>
+              {importUpdates.map((update, index) => (
+                <ListItem key={index} sx={{ py: 0.5 }}>
+                  <ListItemText 
+                    primary={update.displayName} 
+                    primaryTypographyProps={{ variant: 'caption', fontWeight: 600, fontSize: '0.8rem' }}
+                    secondary={`${update.foodIds.length} món ăn`}
+                    secondaryTypographyProps={{ variant: 'caption', fontSize: '0.7rem' }}
+                  />
+                </ListItem>
+              ))}
+            </List>
+          </Box>
+        </DialogContent>
+        <DialogActions sx={{ pb: 2.5, px: 3 }}>
+          <Button onClick={() => setConfirmImportOpen(false)} disabled={importLoading} sx={{ textTransform: 'none' }}>Hủy</Button>
+          <Button variant="contained" color="primary" onClick={handleConfirmImport} disabled={importLoading} sx={{ borderRadius: 2, px: 3, textTransform: 'none', fontWeight: 700 }}>
+            {importLoading ? "Đang cập nhật..." : "Xác nhận nhập"}
+          </Button>
+        </DialogActions>
+      </Dialog>
+
+      {/* AI Floating Button */}
+      {menu && menu._id && <AIFloatingButton menu={menu} isEditable={isEditable} />}
     </Box>
   );
 }

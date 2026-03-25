@@ -235,13 +235,13 @@ function FileUploadField({ label, currentValue, onUpload, required, readOnly }) 
         </Avatar>
         <Box>
           <Typography variant="caption" fontWeight={600} color={currentValue ? 'success.main' : 'text.secondary'}>
-            {currentValue ? 'Đã chọn ảnh' : 'Nhấn để chọn ảnh'}
+            {currentValue ? 'Đã chụp ảnh' : 'Nhấn để chụp ảnh'}
           </Typography>
           <Typography variant="caption" color="text.disabled" sx={{ display: 'block' }}>
-            JPEG, PNG, WebP
+            Chụp bằng camera
           </Typography>
         </Box>
-        <input type="file" accept="image/*" style={{ display: 'none' }} onChange={onUpload} />
+        <input type="file" accept="image/*" capture="environment" style={{ display: 'none' }} onChange={onUpload} />
       </Box>
       {currentValue && renderImagePreview(currentValue, label)}
     </Box>

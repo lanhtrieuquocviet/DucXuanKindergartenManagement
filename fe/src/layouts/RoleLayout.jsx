@@ -31,6 +31,7 @@ import {
   Inventory as InventoryIcon,
   Assessment as AssessmentIcon,
   Dashboard as DashboardIcon,
+  CameraAlt as CameraAltIcon,
 } from '@mui/icons-material';
 import { CurrencyIcon } from 'lucide-react';
 
@@ -52,6 +53,7 @@ const KEY_ICONS = {
   assets:                <InventoryIcon fontSize="small" />,
   reports:               <AssessmentIcon fontSize="small" />,
   attendance:            <ChecklistIcon fontSize="small" />,
+  'face-attendance':     <CameraAltIcon fontSize="small" />,
   'pickup-approval':     <HomeIcon fontSize="small" />,
   schedule:              <CalendarIcon fontSize="small" />,
   messages:              <NotifIcon fontSize="small" />,

@@ -11,7 +11,7 @@
  *  5. Vẽ hình chữ nhật xanh quanh khuôn mặt lên canvas để feedback cho user
  */
 
-import { useCallback, useEffect, useRef, useState } from 'react';
+import { useCallback, useEffect, useImperativeHandle, useRef, useState, forwardRef } from 'react';
 import * as faceapi from '@vladmandic/face-api';
 import { useFaceApi, detectAndEmbed } from '../../hooks/useFaceApi';
 
@@ -19,7 +19,7 @@ import { useFaceApi, detectAndEmbed } from '../../hooks/useFaceApi';
 // 800ms = ~1.25 lần/giây, đủ nhanh mà không quá tải CPU
 const DETECTION_INTERVAL_MS = 800;
 
-export default function FaceCamera({ onDetected, onError, isActive = true }) {
+const FaceCamera = forwardRef(function FaceCamera({ onDetected, onError, isActive = true }, ref) {
   const videoRef = useRef(null);
   const canvasRef = useRef(null);
   const intervalRef = useRef(null);
@@ -118,8 +118,14 @@ export default function FaceCamera({ onDetected, onError, isActive = true }) {
     } catch (err) {
       console.error('Camera error:', err);
       let msg = 'Không thể bật camera';
-      if (err.name === 'NotAllowedError') msg = 'Vui lòng cho phép truy cập camera';
-      if (err.name === 'NotFoundError') msg = 'Không tìm thấy camera trên thiết bị này';
+      if (err.name === 'NotAllowedError' || err.name === 'PermissionDeniedError')
+        msg = 'Trình duyệt chặn quyền camera — vào Settings > Privacy > Camera để cấp quyền';
+      else if (err.name === 'NotFoundError' || err.name === 'DevicesNotFoundError')
+        msg = 'Không tìm thấy camera trên thiết bị này';
+      else if (err.name === 'NotReadableError' || err.name === 'TrackStartError')
+        msg = 'Camera đang được dùng bởi ứng dụng khác — hãy đóng các tab/app đang dùng camera rồi thử lại';
+      else if (err.name === 'OverconstrainedError')
+        msg = 'Camera không hỗ trợ độ phân giải yêu cầu';
       setCameraError(msg);
       setCameraStatus('error');
       if (onError) onError(msg);
@@ -143,10 +149,23 @@ export default function FaceCamera({ onDetected, onError, isActive = true }) {
     setFaceStatus('waiting');
   }, []);
 
+  // ── Expose captureFrame() cho parent component qua ref ───────────────────
+  useImperativeHandle(ref, () => ({
+    captureFrame: () => {
+      const video = videoRef.current;
+      if (!video || video.readyState < 2) return null;
+      const canvas = document.createElement('canvas');
+      canvas.width = video.videoWidth || 640;
+      canvas.height = video.videoHeight || 480;
+      canvas.getContext('2d').drawImage(video, 0, 0);
+      return canvas.toDataURL('image/jpeg', 0.8);
+    },
+  }));
+
   // ── Lifecycle: bật/tắt camera theo isActive ──────────────────────────────
   useEffect(() => {
     // Không bật camera nếu model lỗi
-    if (isActive && isReady && !error) {
+    if (isActive && isReady && !modelError) {
       startCamera().then(() => {
         startDetectionLoop();
       });
@@ -155,7 +174,7 @@ export default function FaceCamera({ onDetected, onError, isActive = true }) {
     }
 
     return () => stopCamera();
-  }, [isActive, isReady, error]); // eslint-disable-line react-hooks/exhaustive-deps
+  }, [isActive, isReady, modelError]); // eslint-disable-line react-hooks/exhaustive-deps
 
   // ── Render ────────────────────────────────────────────────────────────────
 
@@ -198,9 +217,15 @@ export default function FaceCamera({ onDetected, onError, isActive = true }) {
       )}
 
       {cameraStatus === 'error' && (
-        <div className="flex flex-col items-center justify-center h-64 bg-red-50 rounded-xl border border-red-200">
-          <span className="text-red-500 text-4xl mb-2">📷</span>
-          <p className="text-red-600 font-medium">{cameraError}</p>
+        <div className="flex flex-col items-center justify-center h-64 bg-red-50 rounded-xl border border-red-200 px-4 text-center gap-3">
+          <span className="text-red-500 text-4xl">📷</span>
+          <p className="text-red-600 font-medium text-sm">{cameraError}</p>
+          <button
+            onClick={() => startCamera().then(() => startDetectionLoop())}
+            className="px-4 py-1.5 bg-red-600 text-white text-xs font-semibold rounded-lg hover:bg-red-700"
+          >
+            🔄 Thử lại
+          </button>
         </div>
       )}
 
@@ -218,4 +243,6 @@ export default function FaceCamera({ onDetected, onError, isActive = true }) {
       )}
     </div>
   );
-}
+});
+
+export default FaceCamera;

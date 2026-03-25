@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useState } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
+import { toast } from 'react-toastify';
 import {
   Box,
   Button,
@@ -331,7 +332,7 @@ export default function AcademicYearReport() {
                     fontWeight: 700,
                     px: 2.2,
                   }}
-                  onClick={() => window.alert('Chưa tích hợp xuất Excel trong bản demo.')}
+                  onClick={() => toast.info('Chưa tích hợp xuất Excel trong bản demo.')}
                 >
                   Excel
                 </Button>

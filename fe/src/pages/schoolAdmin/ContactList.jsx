@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
+import { toast } from 'react-toastify';
 import { useAuth } from '../../context/AuthContext';
 import { useSchoolAdmin } from '../../context/SchoolAdminContext';
 import RoleLayout from '../../layouts/RoleLayout';
@@ -9,7 +10,6 @@ import {
   Paper,
   Typography,
   Button,
-  Alert,
   Stack,
   Chip,
   TextField,
@@ -25,7 +25,6 @@ function ContactList() {
   const [filter, setFilter] = useState(''); // '' | 'pending' | 'replied'
   const [replyingId, setReplyingId] = useState(null);
   const [replyText, setReplyText] = useState('');
-  const [message, setMessage] = useState({ type: null, text: null });
   const [confirmClearId, setConfirmClearId] = useState(null);
   const navigate = useNavigate();
   const { user, logout, isInitializing } = useAuth();
@@ -62,6 +61,10 @@ function ContactList() {
     fetchData();
   }, [navigate, user, isInitializing, filter]);
 
+  useEffect(() => {
+    if (error) toast.error(error);
+  }, [error]);
+
   const handleReply = (item) => {
     setReplyingId(item._id);
     setReplyText(item.reply || '');
@@ -70,26 +73,24 @@ function ContactList() {
   const handleCancelReply = () => {
     setReplyingId(null);
     setReplyText('');
-    setMessage({ type: null, text: null });
   };
 
   const handleSubmitReply = async () => {
     if (!replyText.trim()) {
-      setMessage({ type: 'error', text: 'Vui lòng nhập nội dung phản hồi.' });
+      toast.error('Vui lòng nhập nội dung phản hồi.');
       return;
     }
     try {
       setError(null);
-      setMessage({ type: null, text: null });
       await replyContact(replyingId, replyText.trim());
-      setMessage({ type: 'success', text: 'Đã phản hồi thành công.' });
+      toast.success('Đã phản hồi thành công.');
       const params = filter ? { status: filter } : {};
       const response = await getContacts(params);
       setData(response);
       setReplyingId(null);
       setReplyText('');
     } catch (err) {
-      setMessage({ type: 'error', text: err.message || 'Phản hồi thất bại.' });
+      toast.error(err.message || 'Phản hồi thất bại.');
     }
   };
 
@@ -97,14 +98,13 @@ function ContactList() {
     try {
       setActioningId(contactId);
       setError(null);
-      setMessage({ type: null, text: null });
       await clearReplyContact(contactId);
-      setMessage({ type: 'success', text: 'Đã xóa phản hồi.' });
+      toast.success('Đã xóa phản hồi.');
       const params = filter ? { status: filter } : {};
       const response = await getContacts(params);
       setData(response);
     } catch (err) {
-      setMessage({ type: 'error', text: err.message || 'Xóa phản hồi thất bại.' });
+      toast.error(err.message || 'Xóa phản hồi thất bại.');
     } finally {
       setActioningId(null);
       setConfirmClearId(null);
@@ -115,11 +115,10 @@ function ContactList() {
     try {
       setActioningId(contactId);
       setError(null);
-      setMessage({ type: null, text: null });
       await resendReplyEmail(contactId);
-      setMessage({ type: 'success', text: 'Đã gửi lại email phản hồi.' });
+      toast.success('Đã gửi lại email phản hồi.');
     } catch (err) {
-      setMessage({ type: 'error', text: err.message || 'Gửi lại email thất bại.' });
+      toast.error(err.message || 'Gửi lại email thất bại.');
     } finally {
       setActioningId(null);
     }
@@ -260,18 +259,6 @@ function ContactList() {
           Xem và phản hồi các liên hệ từ phụ huynh / khách.
         </Typography>
       </Paper>
-
-      {error && (
-        <Alert severity="error" sx={{ mb: 2 }}>
-          {error}
-        </Alert>
-      )}
-
-      {message.text && (
-        <Alert severity={message.type === 'success' ? 'success' : 'error'} sx={{ mb: 2 }}>
-          {message.text}
-        </Alert>
-      )}
 
       {/* Filter bar */}
       <Paper elevation={0} sx={{ mb: 3, p: 1.5, borderRadius: 2, border: '1px solid', borderColor: 'divider', display: 'inline-flex', gap: 1 }}>

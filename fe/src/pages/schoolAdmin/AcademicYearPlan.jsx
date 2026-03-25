@@ -7,11 +7,7 @@ import {
   DialogContent,
   DialogActions,
   IconButton,
-  FormControl,
-  InputLabel,
-  Select,
-  MenuItem,
-  OutlinedInput,
+  Autocomplete,
   Chip,
   Paper,
   Stack,
@@ -56,6 +52,8 @@ function createWeek(index) {
   return {
     weekName: `Tuần ${index + 1}`,
     weekTopic: '',
+    weekStartDate: '',
+    weekEndDate: '',
     weekRange: '',
     dayPlans: {
       'Thứ 2': '',
@@ -307,6 +305,8 @@ export default function AcademicYearPlan() {
           weeklyDetails: (row.weeklyDetails || []).map((w, idx) => ({
             weekName: w.weekName || `Tuần ${idx + 1}`,
             weekTopic: w.weekTopic || '',
+            weekStartDate: formatDateInput(w.weekStartDate),
+            weekEndDate: formatDateInput(w.weekEndDate),
             weekRange: w.weekRange || '',
             dayPlans: {
               'Thứ 2': w?.dayPlans?.thu2 || '',
@@ -459,7 +459,12 @@ export default function AcademicYearPlan() {
           weekIndex: index + 1,
           weekName: week.weekName || `Tuần ${index + 1}`,
           weekTopic: week.weekTopic || '',
-          weekRange: week.weekRange || '',
+          weekStartDate: week.weekStartDate || '',
+          weekEndDate: week.weekEndDate || '',
+          weekRange:
+            week.weekStartDate && week.weekEndDate
+              ? `Từ ${toDMY(week.weekStartDate)} đến ${toDMY(week.weekEndDate)}`
+              : week.weekRange || '',
           dayPlans: {
             thu2: week.dayPlans?.['Thứ 2'] || '',
             thu3: week.dayPlans?.['Thứ 3'] || '',
@@ -494,6 +499,8 @@ export default function AcademicYearPlan() {
                       (updated.weeklyDetails || []).map((w, idx) => ({
                         weekName: w.weekName || `Tuần ${idx + 1}`,
                         weekTopic: w.weekTopic || '',
+                        weekStartDate: formatDateInput(w.weekStartDate),
+                        weekEndDate: formatDateInput(w.weekEndDate),
                         weekRange: w.weekRange || '',
                         dayPlans: {
                           'Thứ 2': w?.dayPlans?.thu2 || '',
@@ -847,32 +854,41 @@ export default function AcademicYearPlan() {
               fullWidth
             />
 
-            <FormControl fullWidth>
-              <InputLabel id="teacher-select-label">Giáo viên thực hiện</InputLabel>
-              <Select
-                labelId="teacher-select-label"
-                multiple
-                value={topicForm.teacherIds}
-                onChange={(e) => handleFormChange('teacherIds', e.target.value)}
-                input={<OutlinedInput label="Giáo viên thực hiện" />}
-                renderValue={(selected) => (
-                  <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 0.5 }}>
-                    {(selected || []).map((id) => {
-                      const teacher = (teachersByBlock[activeBlock] || []).find(
-                        (t) => String(t._id) === String(id),
-                      );
-                      return <Chip key={String(id)} label={teacher?.fullName || String(id)} size="small" />;
-                    })}
-                  </Box>
-                )}
-              >
-                {(teachersByBlock[activeBlock] || []).map((teacher) => (
-                  <MenuItem key={teacher._id} value={String(teacher._id)}>
-                    {teacher.fullName}
-                  </MenuItem>
-                ))}
-              </Select>
-            </FormControl>
+            <Autocomplete
+              multiple
+              options={teachersByBlock[activeBlock] || []}
+              value={(teachersByBlock[activeBlock] || []).filter((t) =>
+                topicForm.teacherIds.includes(String(t._id)),
+              )}
+              onChange={(_, selectedOptions) => {
+                handleFormChange(
+                  'teacherIds',
+                  selectedOptions.map((t) => String(t._id)),
+                );
+              }}
+              getOptionLabel={(option) => option?.fullName || ''}
+              isOptionEqualToValue={(option, value) =>
+                String(option?._id) === String(value?._id)
+              }
+              noOptionsText="Không tìm thấy giáo viên"
+              renderTags={(value, getTagProps) =>
+                value.map((option, index) => (
+                  <Chip
+                    {...getTagProps({ index })}
+                    key={String(option._id)}
+                    label={option.fullName}
+                    size="small"
+                  />
+                ))
+              }
+              renderInput={(params) => (
+                <TextField
+                  {...params}
+                  label="Giáo viên thực hiện"
+                  placeholder="Tìm và chọn giáo viên..."
+                />
+              )}
+            />
 
             <Box sx={{ borderTop: '2px solid #3b82f6', pt: 2.5 }}>
               <Typography variant="h6" fontWeight={800} textAlign="center" sx={{ mb: 2 }}>
@@ -904,12 +920,26 @@ export default function AcademicYearPlan() {
                         }
                         fullWidth
                       />
+                    </Stack>
+
+                    <Stack direction={{ xs: 'column', md: 'row' }} spacing={1.5} sx={{ mb: 1.5 }}>
                       <TextField
-                        label="Thời gian tuần"
-                        placeholder="VD: Từ 15/09 đến 19/09/2025"
-                        value={week.weekRange}
+                        label="Từ ngày"
+                        type="date"
+                        InputLabelProps={{ shrink: true }}
+                        value={week.weekStartDate || ''}
                         onChange={(e) =>
-                          handleWeekDetailChange(weekIndex, 'weekRange', e.target.value)
+                          handleWeekDetailChange(weekIndex, 'weekStartDate', e.target.value)
+                        }
+                        fullWidth
+                      />
+                      <TextField
+                        label="Đến ngày"
+                        type="date"
+                        InputLabelProps={{ shrink: true }}
+                        value={week.weekEndDate || ''}
+                        onChange={(e) =>
+                          handleWeekDetailChange(weekIndex, 'weekEndDate', e.target.value)
                         }
                         fullWidth
                       />
@@ -995,7 +1025,14 @@ export default function AcademicYearPlan() {
                       {(selectedTopic.weeklyDetails || []).map((week, idx) => (
                         <TableCell key={`wh-${idx}`} sx={{ color: 'white', fontWeight: 700 }}>
                           {week.weekTopic || 'Chưa cập nhật'}
-                          {week.weekRange ? ` (${week.weekRange})` : ''}
+                          {(
+                            week.weekRange ||
+                            (week.weekStartDate && week.weekEndDate
+                              ? `Từ ${toDMY(week.weekStartDate)} đến ${toDMY(week.weekEndDate)}`
+                              : '')
+                          )
+                            ? ` (${week.weekRange || `Từ ${toDMY(week.weekStartDate)} đến ${toDMY(week.weekEndDate)}`})`
+                            : ''}
                         </TableCell>
                       ))}
                     </TableRow>
