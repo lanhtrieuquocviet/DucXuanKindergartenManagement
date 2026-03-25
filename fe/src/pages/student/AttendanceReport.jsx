@@ -2,6 +2,7 @@ import { useEffect, useMemo, useState } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import { useAuth } from '../../context/AuthContext';
 import { get, ENDPOINTS } from '../../service/api';
+import { ArrowLeft, ChevronDown, ChevronUp } from 'lucide-react';
 
 const formatDate = (dateStr, showYear = false) => {
   if (!dateStr) return '';
@@ -170,299 +171,342 @@ function AttendanceReport() {
   const currentYear = new Date().getFullYear();
   const years = Array.from({ length: 5 }, (_, i) => currentYear - 2 + i);
 
+  const getStatusBadgeClasses = (statusText) => {
+    if (statusText === 'Có mặt') return 'bg-green-100 text-green-700 border border-green-200';
+    if (statusText === 'Nghỉ học') return 'bg-red-100 text-red-700 border border-red-200';
+    if (statusText === 'Đi trễ') return 'bg-orange-100 text-orange-700 border border-orange-200';
+    return 'bg-gray-100 text-gray-600 border border-gray-200';
+  };
+
+  const getStatusDotClass = (statusText) => {
+    if (statusText === 'Có mặt') return 'bg-green-500';
+    if (statusText === 'Nghỉ học') return 'bg-red-500';
+    if (statusText === 'Đi trễ') return 'bg-orange-500';
+    return 'bg-gray-400';
+  };
+
   return (
-    <div className="min-h-screen bg-gray-100">
-      <div className="max-w-4xl mx-auto px-4 py-6 md:px-6 md:py-8">
-        {error && (
-          <div className="mb-4 rounded-md bg-red-50 border border-red-200 px-4 py-2 text-sm text-red-800">
-            {error}
-          </div>
-        )}
+    <div className="min-h-screen bg-gray-50">
+      {/* Sticky green header */}
+      <div className="sticky top-0 z-20 bg-emerald-600 shadow-md">
+        <div className="flex items-center gap-3 px-4 py-3">
+          <button
+            type="button"
+            onClick={() => navigate('/student')}
+            className="flex items-center justify-center w-9 h-9 rounded-full bg-emerald-500 hover:bg-emerald-400 transition-colors text-white flex-shrink-0"
+            aria-label="Quay lại"
+          >
+            <ArrowLeft size={20} />
+          </button>
+          <h1 className="text-white font-bold text-lg leading-tight">Báo cáo điểm danh</h1>
+        </div>
+      </div>
 
-        <div className="bg-white rounded-lg shadow overflow-hidden">
-          {/* Tiêu đề giống màn SchoolAdmin */}
-          <div className="bg-gray-50 px-6 py-4 border-b border-gray-200">
-            <div className="flex items-center justify-between gap-4">
-              <div className="flex items-center gap-2">
-                <span className="text-xl">📊</span>
-                <h2 className="text-lg font-semibold text-gray-800">Báo cáo điểm danh</h2>
-              </div>
-              <button
-                type="button"
-                onClick={() => navigate('/student')}
-                className="hidden md:inline-flex px-4 py-2 text-sm font-semibold rounded-md bg-emerald-600 text-white hover:bg-emerald-700 transition-colors"
-              >
-                ← Quay lại Dashboard
-              </button>
-            </div>
-          </div>
+      {/* Error banner */}
+      {error && (
+        <div className="mx-4 mt-3 rounded-lg bg-red-50 border border-red-200 px-4 py-3 text-sm text-red-800">
+          {error}
+        </div>
+      )}
 
-          {/* Thông tin học sinh */}
-          <div className="bg-green-50 px-6 py-4 border-b border-gray-200">
-            <div className="flex flex-col md:flex-row gap-3 items-start md:items-center text-sm md:text-base text-gray-800">
-              <p>
-                👶 Trẻ: <span className="font-semibold">{studentName}</span>
-              </p>
-              <p>
-                🏫 Lớp: <span className="font-semibold">{className}</span>
-              </p>
-            </div>
-          </div>
+      {/* Student info chip */}
+      <div className="mx-4 mt-3 bg-white rounded-xl shadow-sm border border-gray-100 px-4 py-3 flex items-center gap-3">
+        <div className="w-10 h-10 rounded-full bg-emerald-100 flex items-center justify-center flex-shrink-0">
+          <span className="text-emerald-600 text-lg font-bold">
+            {studentName !== '—' ? studentName.charAt(0).toUpperCase() : '?'}
+          </span>
+        </div>
+        <div className="min-w-0">
+          <p className="font-semibold text-gray-900 text-sm truncate">{studentName}</p>
+          <p className="text-xs text-gray-500 truncate">{className}</p>
+        </div>
+      </div>
 
-          {/* Bộ lọc tháng/năm */}
-          <div className="px-6 py-4 border-b border-gray-200">
-            <div className="flex flex-col md:flex-row gap-4 items-end">
-              <div className="flex-1">
-                <label className="block text-sm font-semibold text-gray-700 mb-1">
-                  Tháng
-                </label>
-                <select
-                  value={selectedMonth}
-                  onChange={(e) => setSelectedMonth(Number(e.target.value))}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500"
-                >
-                  {months.map((month) => (
-                    <option key={month} value={month}>
-                      Tháng {String(month).padStart(2, '0')}
-                    </option>
-                  ))}
-                </select>
-              </div>
-              <div className="flex-1">
-                <label className="block text-sm font-semibold text-gray-700 mb-1">
-                  Năm
-                </label>
-                <select
-                  value={selectedYear}
-                  onChange={(e) => setSelectedYear(Number(e.target.value))}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500"
-                >
-                  {years.map((year) => (
-                    <option key={year} value={year}>
-                      {year}
-                    </option>
-                  ))}
-                </select>
-              </div>
-            </div>
-          </div>
-
-          {/* Thẻ thống kê */}
-          <div className="px-6 py-4 border-b border-gray-200">
-            <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-              <div className="bg-green-50 rounded-lg p-4 border border-green-100">
-                <div className="text-sm font-semibold text-gray-700 mb-1">Ngày học</div>
-                <div className="text-2xl font-bold text-green-700">{stats.totalDays}</div>
-              </div>
-              <div className="bg-green-50 rounded-lg p-4 border border-green-100">
-                <div className="text-sm font-semibold text-gray-700 mb-1">Có mặt</div>
-                <div className="text-2xl font-bold text-green-700">{stats.present}</div>
-              </div>
-              <div className="bg-green-50 rounded-lg p-4 border border-green-100">
-                <div className="text-sm font-semibold text-gray-700 mb-1">Nghỉ học</div>
-                <div className="text-2xl font-bold text-green-700">{stats.absent}</div>
-              </div>
-              <div className="bg-green-50 rounded-lg p-4 border border-green-100">
-                <div className="text-sm font-semibold text-gray-700 mb-1">Đi trễ</div>
-                <div className="text-2xl font-bold text-green-700">{stats.late}</div>
-              </div>
-            </div>
-          </div>
-
-          {/* Bảng lịch sử */}
-          {loading ? (
-            <div className="p-8 text-center">
-              <div className="inline-block animate-spin">
-                <div className="h-6 w-6 border-3 border-emerald-500 border-t-transparent rounded-full" />
-              </div>
-              <p className="mt-2 text-sm text-gray-500">Đang tải dữ liệu...</p>
-            </div>
-          ) : attendances.length === 0 ? (
-            <div className="p-8 text-center text-gray-500">
-              <p>Không có dữ liệu điểm danh.</p>
-            </div>
-          ) : (
-            <div className="overflow-x-auto">
-              <table className="w-full text-sm">
-                <thead className="bg-gray-50 border-b border-gray-200">
-                  <tr>
-                    <th className="px-4 py-3 text-left font-semibold text-gray-800">
-                      Ngày
-                    </th>
-                    <th className="px-4 py-3 text-center font-semibold text-gray-800">
-                      Đến
-                    </th>
-                    <th className="px-4 py-3 text-center font-semibold text-gray-800">
-                      Về
-                    </th>
-                    <th className="px-4 py-3 text-left font-semibold text-gray-800">
-                      Trạng thái
-                    </th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {attendances.map((attendance, idx) => {
-                    const id = attendance._id || idx;
-                    const status = getStatusText(attendance);
-                    const checkInTime =
-                      attendance?.timeString?.checkIn ||
-                      formatTime(attendance?.time?.checkIn);
-                    const checkOutTime =
-                      attendance?.timeString?.checkOut ||
-                      formatTime(attendance?.time?.checkOut);
-                    const attendanceDate = formatDate(attendance?.date, true);
-                    const expanded = expandedId === id;
-
-                    return (
-                      <>
-                        <tr
-                          key={id}
-                          onClick={() => {
-                            setExpandedId(expanded ? null : id);
-                          }}
-                          className="border-b border-gray-100 hover:bg-gray-50 transition-colors cursor-pointer"
-                        >
-                          <td className="px-4 py-3">
-                            <div className="font-medium text-gray-900">
-                              {attendanceDate}
-                            </div>
-                          </td>
-                          <td className="px-4 py-3 text-center text-gray-700">
-                            {checkInTime}
-                          </td>
-                          <td className="px-4 py-3 text-center text-gray-700">
-                            {checkOutTime}
-                          </td>
-                          <td className="px-4 py-3">
-                            <span className={`font-medium ${status.color}`}>
-                              {status.text}
-                            </span>
-                          </td>
-                        </tr>
-                        {expanded && (
-                          <tr className="bg-gray-50">
-                            <td colSpan={4} className="px-4 py-3">
-                              <div className="space-y-4">
-                                {/* header repeated */}
-                                <div className="flex items-center justify-between">
-                                  <span className="font-semibold">Chi tiết ngày {attendanceDate}</span>
-                                  <span className={`${status.color} font-semibold`}>{status.text}</span>
-                                </div>
-                                {/* card-style details mimicking TeacherAttendance detail form */}
-                                <div className="space-y-4">
-                                  {/* check-in card */}
-                                  <div className="rounded-lg border border-green-100 overflow-hidden">
-                                    <div className="px-2 py-1 flex items-center gap-1 bg-green-50">
-                                      <span className="w-5 h-5 rounded-full bg-green-500 flex-shrink-0" />
-                                      <span className="text-green-700 font-semibold">Điểm danh đến</span>
-                                      {checkInTime ? (
-                                        <span className="ml-auto inline-flex items-center gap-1 px-2 py-0.5 text-white text-xs font-bold bg-green-600 rounded">
-                                          {checkInTime}
-                                        </span>
-                                      ) : (
-                                        <span className="ml-auto px-2 py-0.5 text-xs bg-yellow-100 text-yellow-800 rounded">Chưa điểm danh</span>
-                                      )}
-                                    </div>
-                                    <div className="p-3 space-y-3">
-                                      <div className="space-y-2">
-                                        <div><strong>Giờ đến:</strong> {checkInTime || '—'}</div>
-                                        <div><strong>Ghi chú:</strong> {attendance.note || 'Không có ghi chú.'}</div>
-                                      </div>
-                                      <div className="flex justify-center">
-                                        <div className="max-w-xs w-full">
-                                          <div className="text-sm font-semibold mb-2 text-center">Ảnh check-in</div>
-                                          {attendance.checkinImageName ? (
-                                            <a href={attendance.checkinImageName} target="_blank" rel="noopener noreferrer">
-                                              <img
-                                                src={attendance.checkinImageName}
-                                                alt="Ảnh check-in"
-                                                className="w-full h-40 object-cover rounded"
-                                                onError={(e)=>{e.target.src="https://via.placeholder.com/300x200?text=Ảnh+lỗi";e.target.alt="Không tải được ảnh";}}
-                                              />
-                                            </a>
-                                          ) : (
-                                            <div className="w-full h-40 border-2 border-dashed border-green-200 flex items-center justify-center text-green-300 rounded">
-                                              Chưa có ảnh
-                                            </div>
-                                          )}
-                                        </div>
-                                      </div>
-                                    </div>
-                                  </div>
-                                  {/* check-out card */}
-                                  <div className="rounded-lg border border-blue-100 overflow-hidden">
-                                    <div className="px-2 py-1 flex items-center gap-1 bg-blue-50">
-                                      <span className="w-5 h-5 rounded-full bg-blue-500 flex-shrink-0" />
-                                      <span className="text-blue-700 font-semibold">Điểm danh về</span>
-                                      {checkOutTime ? (
-                                        <span className="ml-auto inline-flex items-center gap-1 px-2 py-0.5 text-white text-xs font-bold bg-blue-600 rounded">
-                                          {checkOutTime}
-                                        </span>
-                                      ) : (
-                                        <span className="ml-auto px-2 py-0.5 text-xs bg-yellow-100 text-yellow-800 rounded">Chưa điểm danh</span>
-                                      )}
-                                    </div>
-                                    <div className="p-3 space-y-3">
-                                      <div className="space-y-2">
-                                        <div><strong>Giờ về:</strong> {checkOutTime || '—'}</div>
-                                        <div><strong>Xác nhận phụ huynh:</strong> {attendance.parentConfirm || 'Chưa xác nhận'}</div>
-                                      </div>
-                                      <div className="flex justify-center">
-                                        <div className="max-w-xs w-full">
-                                          <div className="text-sm font-semibold mb-2 text-center">Ảnh check-out</div>
-                                          {attendance.checkoutImageName ? (
-                                            <a href={attendance.checkoutImageName} target="_blank" rel="noopener noreferrer">
-                                              <img
-                                                src={attendance.checkoutImageName}
-                                                alt="Ảnh check-out"
-                                                className="w-full h-40 object-cover rounded"
-                                                onError={(e)=>{e.target.src="https://via.placeholder.com/300x200?text=Ảnh+lỗi";e.target.alt="Không tải được ảnh";}}
-                                              />
-                                            </a>
-                                          ) : (
-                                            <div className="w-full h-40 border-2 border-dashed border-blue-200 flex items-center justify-center text-blue-300 rounded">
-                                              Chưa có ảnh
-                                            </div>
-                                          )}
-                                        </div>
-                                      </div>
-                                    </div>
-                                  </div>
-                                </div>
-                              </div>
-                            </td>
-                          </tr>
-                        )}
-                      </>
-                    );
-                  })}
-                </tbody>
-              </table>
-            </div>
-          )}
-
-          {/* nothing extra - details shown inline below each row */}
-
-          {/* Nút quay lại Dashboard (giống bố cục SchoolAdmin) */}          <div className="px-6 py-4 border-t border-gray-100 flex justify-center md:hidden">
-            <button
-              type="button"
-              onClick={() => navigate('/student')}
-              className="px-6 py-3 bg-green-600 text-white font-semibold rounded-md hover:bg-green-700 transition-colors flex items-center gap-2 text-sm"
+      {/* Month / Year filter */}
+      <div className="mx-4 mt-3 bg-white rounded-xl shadow-sm border border-gray-100 px-4 py-4">
+        <p className="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-3">Lọc theo thời gian</p>
+        <div className="grid grid-cols-2 gap-3">
+          <div>
+            <label className="block text-xs font-medium text-gray-600 mb-1">Tháng</label>
+            <select
+              value={selectedMonth}
+              onChange={(e) => setSelectedMonth(Number(e.target.value))}
+              className="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm bg-gray-50 focus:outline-none focus:ring-2 focus:ring-emerald-400 focus:border-transparent"
             >
-              <span>←</span>
-              <span>Quay lại Dashboard</span>
-            </button>
+              {months.map((month) => (
+                <option key={month} value={month}>
+                  Tháng {String(month).padStart(2, '0')}
+                </option>
+              ))}
+            </select>
+          </div>
+          <div>
+            <label className="block text-xs font-medium text-gray-600 mb-1">Năm</label>
+            <select
+              value={selectedYear}
+              onChange={(e) => setSelectedYear(Number(e.target.value))}
+              className="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm bg-gray-50 focus:outline-none focus:ring-2 focus:ring-emerald-400 focus:border-transparent"
+            >
+              {years.map((year) => (
+                <option key={year} value={year}>
+                  {year}
+                </option>
+              ))}
+            </select>
           </div>
         </div>
+      </div>
+
+      {/* Stats 2x2 grid */}
+      <div className="mx-4 mt-3 grid grid-cols-2 gap-3">
+        {/* Ngày học */}
+        <div className="bg-white rounded-xl shadow-sm border border-gray-100 px-4 py-4 flex flex-col gap-1">
+          <div className="flex items-center justify-between">
+            <span className="text-xs font-semibold text-gray-500 uppercase tracking-wide">Ngày học</span>
+            <span className="text-2xl">📅</span>
+          </div>
+          <p className="text-3xl font-extrabold text-gray-800">{stats.totalDays}</p>
+          <p className="text-xs text-gray-400">ngày trong tháng</p>
+        </div>
+
+        {/* Có mặt */}
+        <div className="bg-white rounded-xl shadow-sm border border-green-100 px-4 py-4 flex flex-col gap-1">
+          <div className="flex items-center justify-between">
+            <span className="text-xs font-semibold text-green-600 uppercase tracking-wide">Có mặt</span>
+            <span className="text-2xl">✅</span>
+          </div>
+          <p className="text-3xl font-extrabold text-green-600">{stats.present}</p>
+          <p className="text-xs text-green-400">ngày có mặt</p>
+        </div>
+
+        {/* Nghỉ học */}
+        <div className="bg-white rounded-xl shadow-sm border border-red-100 px-4 py-4 flex flex-col gap-1">
+          <div className="flex items-center justify-between">
+            <span className="text-xs font-semibold text-red-600 uppercase tracking-wide">Nghỉ học</span>
+            <span className="text-2xl">❌</span>
+          </div>
+          <p className="text-3xl font-extrabold text-red-600">{stats.absent}</p>
+          <p className="text-xs text-red-400">ngày nghỉ</p>
+        </div>
+
+        {/* Đi trễ */}
+        <div className="bg-white rounded-xl shadow-sm border border-orange-100 px-4 py-4 flex flex-col gap-1">
+          <div className="flex items-center justify-between">
+            <span className="text-xs font-semibold text-orange-600 uppercase tracking-wide">Đi trễ</span>
+            <span className="text-2xl">⏰</span>
+          </div>
+          <p className="text-3xl font-extrabold text-orange-600">{stats.late}</p>
+          <p className="text-xs text-orange-400">ngày đi trễ</p>
+        </div>
+      </div>
+
+      {/* Attendance list */}
+      <div className="mx-4 mt-3 mb-6">
+        <p className="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-2 px-1">
+          Lịch sử điểm danh
+        </p>
+
+        {/* Loading skeleton */}
+        {loading ? (
+          <div className="space-y-3">
+            {[1, 2, 3].map((i) => (
+              <div key={i} className="bg-white rounded-xl shadow-sm border border-gray-100 px-4 py-4 animate-pulse">
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-3">
+                    <div className="w-3 h-3 rounded-full bg-gray-200" />
+                    <div className="space-y-1.5">
+                      <div className="h-3 w-20 bg-gray-200 rounded" />
+                      <div className="h-2.5 w-14 bg-gray-100 rounded" />
+                    </div>
+                  </div>
+                  <div className="h-3 w-24 bg-gray-200 rounded" />
+                </div>
+              </div>
+            ))}
+          </div>
+        ) : attendances.length === 0 ? (
+          /* Empty state */
+          <div className="bg-white rounded-xl shadow-sm border border-gray-100 px-6 py-12 flex flex-col items-center gap-3">
+            <span className="text-5xl">📭</span>
+            <p className="text-gray-500 font-medium text-sm text-center">
+              Không có dữ liệu điểm danh trong tháng này.
+            </p>
+          </div>
+        ) : (
+          /* Card list */
+          <div className="space-y-3">
+            {attendances.map((attendance, idx) => {
+              const id = attendance._id || idx;
+              const status = getStatusText(attendance);
+              const checkInTime =
+                attendance?.timeString?.checkIn ||
+                formatTime(attendance?.time?.checkIn);
+              const checkOutTime =
+                attendance?.timeString?.checkOut ||
+                formatTime(attendance?.time?.checkOut);
+              const attendanceDate = formatDate(attendance?.date, true);
+              const expanded = expandedId === id;
+
+              return (
+                <div
+                  key={id}
+                  className="bg-white rounded-xl shadow-sm border border-gray-100 overflow-hidden"
+                >
+                  {/* Card header row — tap to expand */}
+                  <button
+                    type="button"
+                    onClick={() => setExpandedId(expanded ? null : id)}
+                    className="w-full text-left px-4 py-4 flex items-center gap-3 focus:outline-none active:bg-gray-50"
+                  >
+                    {/* Status dot */}
+                    <span
+                      className={`w-3 h-3 rounded-full flex-shrink-0 ${getStatusDotClass(status.text)}`}
+                    />
+
+                    {/* Date + status badge */}
+                    <div className="flex-1 min-w-0">
+                      <div className="flex items-center gap-2 flex-wrap">
+                        <span className="font-semibold text-gray-900 text-sm">{attendanceDate}</span>
+                        <span
+                          className={`text-xs font-semibold px-2 py-0.5 rounded-full ${getStatusBadgeClasses(status.text)}`}
+                        >
+                          {status.text}
+                        </span>
+                      </div>
+                      {/* Check-in → check-out times */}
+                      <p className="text-xs text-gray-500 mt-0.5">
+                        Đến: <span className="font-medium text-gray-700">{checkInTime}</span>
+                        <span className="mx-1.5 text-gray-300">→</span>
+                        Về: <span className="font-medium text-gray-700">{checkOutTime}</span>
+                      </p>
+                    </div>
+
+                    {/* Chevron */}
+                    <span className="text-gray-400 flex-shrink-0">
+                      {expanded ? <ChevronUp size={18} /> : <ChevronDown size={18} />}
+                    </span>
+                  </button>
+
+                  {/* Expanded detail */}
+                  {expanded && (
+                    <div className="border-t border-gray-100 px-4 py-4 space-y-4 bg-gray-50">
+                      {/* Check-in section */}
+                      <div className="rounded-lg border border-green-200 overflow-hidden">
+                        <div className="flex items-center gap-2 px-3 py-2 bg-green-50">
+                          <span className="w-2.5 h-2.5 rounded-full bg-green-500 flex-shrink-0" />
+                          <span className="text-green-700 font-semibold text-sm">Điểm danh đến</span>
+                          {checkInTime && checkInTime !== '—' ? (
+                            <span className="ml-auto text-xs font-bold px-2 py-0.5 bg-green-600 text-white rounded-full">
+                              {checkInTime}
+                            </span>
+                          ) : (
+                            <span className="ml-auto text-xs px-2 py-0.5 bg-yellow-100 text-yellow-700 rounded-full">
+                              Chưa điểm danh
+                            </span>
+                          )}
+                        </div>
+                        <div className="px-3 py-3 space-y-3">
+                          <div className="space-y-1.5 text-sm">
+                            <div className="flex gap-2">
+                              <span className="text-gray-500 w-20 flex-shrink-0">Giờ đến:</span>
+                              <span className="font-medium text-gray-800">{checkInTime || '—'}</span>
+                            </div>
+                            <div className="flex gap-2">
+                              <span className="text-gray-500 w-20 flex-shrink-0">Người đưa:</span>
+                              <span className="font-medium text-gray-800">{attendance.deliverer || '—'}</span>
+                            </div>
+                            <div className="flex gap-2">
+                              <span className="text-gray-500 w-20 flex-shrink-0">Ghi chú:</span>
+                              <span className="font-medium text-gray-800">{attendance.note || 'Không có ghi chú.'}</span>
+                            </div>
+                          </div>
+                          {/* Check-in photo */}
+                          <div>
+                            <p className="text-xs font-semibold text-gray-500 mb-1.5">Ảnh check-in</p>
+                            {attendance.checkinImageName ? (
+                              <a href={attendance.checkinImageName} target="_blank" rel="noopener noreferrer">
+                                <img
+                                  src={attendance.checkinImageName}
+                                  alt="Ảnh check-in"
+                                  className="w-full h-40 object-cover rounded-lg"
+                                  onError={(e) => {
+                                    e.target.src = 'https://via.placeholder.com/300x200?text=Ảnh+lỗi';
+                                    e.target.alt = 'Không tải được ảnh';
+                                  }}
+                                />
+                              </a>
+                            ) : (
+                              <div className="w-full h-32 border-2 border-dashed border-green-200 rounded-lg flex items-center justify-center text-green-300 text-xs">
+                                Chưa có ảnh
+                              </div>
+                            )}
+                          </div>
+                        </div>
+                      </div>
+
+                      {/* Check-out section */}
+                      <div className="rounded-lg border border-blue-200 overflow-hidden">
+                        <div className="flex items-center gap-2 px-3 py-2 bg-blue-50">
+                          <span className="w-2.5 h-2.5 rounded-full bg-blue-500 flex-shrink-0" />
+                          <span className="text-blue-700 font-semibold text-sm">Điểm danh về</span>
+                          {checkOutTime && checkOutTime !== '—' ? (
+                            <span className="ml-auto text-xs font-bold px-2 py-0.5 bg-blue-600 text-white rounded-full">
+                              {checkOutTime}
+                            </span>
+                          ) : (
+                            <span className="ml-auto text-xs px-2 py-0.5 bg-yellow-100 text-yellow-700 rounded-full">
+                              Chưa điểm danh
+                            </span>
+                          )}
+                        </div>
+                        <div className="px-3 py-3 space-y-3">
+                          <div className="space-y-1.5 text-sm">
+                            <div className="flex gap-2">
+                              <span className="text-gray-500 w-20 flex-shrink-0">Giờ về:</span>
+                              <span className="font-medium text-gray-800">{checkOutTime || '—'}</span>
+                            </div>
+                            <div className="flex gap-2">
+                              <span className="text-gray-500 w-20 flex-shrink-0">Người nhận:</span>
+                              <span className="font-medium text-gray-800">{attendance.receiver || '—'}</span>
+                            </div>
+                            <div className="flex gap-2">
+                              <span className="text-gray-500 w-20 flex-shrink-0">Xác nhận:</span>
+                              <span className="font-medium text-gray-800">{attendance.parentConfirm || 'Chưa xác nhận'}</span>
+                            </div>
+                          </div>
+                          {/* Check-out photo */}
+                          <div>
+                            <p className="text-xs font-semibold text-gray-500 mb-1.5">Ảnh check-out</p>
+                            {attendance.checkoutImageName ? (
+                              <a href={attendance.checkoutImageName} target="_blank" rel="noopener noreferrer">
+                                <img
+                                  src={attendance.checkoutImageName}
+                                  alt="Ảnh check-out"
+                                  className="w-full h-40 object-cover rounded-lg"
+                                  onError={(e) => {
+                                    e.target.src = 'https://via.placeholder.com/300x200?text=Ảnh+lỗi';
+                                    e.target.alt = 'Không tải được ảnh';
+                                  }}
+                                />
+                              </a>
+                            ) : (
+                              <div className="w-full h-32 border-2 border-dashed border-blue-200 rounded-lg flex items-center justify-center text-blue-300 text-xs">
+                                Chưa có ảnh
+                              </div>
+                            )}
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+                  )}
+                </div>
+              );
+            })}
+          </div>
+        )}
       </div>
     </div>
   );
 }
 
 export default AttendanceReport;
-
-
-
-
-
-
