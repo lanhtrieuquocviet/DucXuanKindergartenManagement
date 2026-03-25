@@ -47,7 +47,7 @@ const { authenticate, authorizeRoles } = require('../middleware/auth');
  *       200:
  *         description: Tạo / cập nhật thành công
  */
-router.get('/', authenticate, authorizeRoles('KitchenStaff', 'SchoolAdmin'), mealPhotoController.getMealPhoto);
+router.get('/', authenticate, authorizeRoles('KitchenStaff', 'SchoolAdmin', 'Student', 'Parent', 'StudentParent'), mealPhotoController.getMealPhoto);
 router.post('/', authenticate, authorizeRoles('KitchenStaff'), mealPhotoController.upsertMealPhoto);
 
 /**

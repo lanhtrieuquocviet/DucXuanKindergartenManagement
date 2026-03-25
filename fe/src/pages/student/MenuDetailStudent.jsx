@@ -2,7 +2,7 @@ import { useEffect, useState } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import { getMenuDetail } from "../../service/menu.api";
 import { toast } from "react-toastify";
-import { ArrowLeft, Calendar, User, Flame, Beef, Droplets, Wheat } from "lucide-react";
+import { ArrowLeft, Flame, Beef, Droplets, Wheat } from "lucide-react";
 
 const days = ["mon", "tue", "wed", "thu", "fri"];
 
@@ -40,6 +40,7 @@ function MenuDetailStudent() {
 
   const [menu, setMenu] = useState(null);
   const [loading, setLoading] = useState(false);
+  const [activeWeek, setActiveWeek] = useState("odd");
 
   useEffect(() => {
     fetchMenuDetail();
@@ -70,82 +71,22 @@ function MenuDetailStudent() {
     return (
       <div className="text-sm space-y-1">
         {foods.map((food, index) => (
-          <div key={index} className="flex items-center gap-1">
-            <span>•</span>
-            <span>{food.name}</span>
-            <span className="text-gray-500">({food.calories} kcal)</span>
+          <div key={index} className="flex items-start gap-1">
+            <span className="text-emerald-500 mt-0.5">•</span>
+            <span className="text-gray-700">{food.name}</span>
+            <span className="text-gray-400 text-xs whitespace-nowrap ml-1">({food.calories} kcal)</span>
           </div>
         ))}
-
-        <div className="flex gap-3 text-xs text-gray-500 mt-2 pt-2 border-t border-gray-100">
-          <span className="flex items-center gap-1">
-            <Flame size={12} />
-            {dayMenu.totalCalories} kcal
-          </span>
-          <span className="flex items-center gap-1">
-            <Beef size={12} />
-            {dayMenu.totalProtein} g
-          </span>
-        </div>
       </div>
     );
   };
 
-  const renderWeek = (title, weekData) => (
-    <div className="mb-10">
-      <h2 className="font-semibold mb-4 text-xl text-gray-800 flex items-center gap-2">
-        <Calendar size={20} />
-        {title}
-      </h2>
-
-      <div className="overflow-x-auto border border-gray-200 rounded-xl shadow-sm bg-white">
-        <table className="w-full text-sm border-collapse min-w-[600px]">
-          <thead className="bg-gradient-to-r from-blue-50 to-indigo-50 text-gray-700">
-            <tr>
-              <th className="border border-gray-200 p-4 w-32 text-center font-semibold">
-                Bữa ăn
-              </th>
-
-              {days.map((day) => (
-                <th key={day} className="border border-gray-200 p-4 font-semibold">
-                  {dayMap[day]}
-                </th>
-              ))}
-            </tr>
-          </thead>
-
-          <tbody>
-            {mealTypes.map((meal, index) => (
-              <tr key={meal.key} className={index % 2 === 0 ? "bg-gray-50" : "bg-white"}>
-                <td className="border border-gray-200 p-4 font-medium text-center bg-gray-100">
-                  <div className="flex items-center justify-center gap-2">
-                    <span>{meal.icon}</span>
-                    <span>{meal.label}</span>
-                  </div>
-                </td>
-
-                {days.map((day) => (
-                  <td
-                    key={day}
-                    className="border border-gray-200 p-4 align-top hover:bg-blue-50 transition-colors"
-                  >
-                    {renderCell(weekData, day, meal.key)}
-                  </td>
-                ))}
-              </tr>
-            ))}
-          </tbody>
-        </table>
-      </div>
-    </div>
-  );
-
   if (loading) {
     return (
-      <div className="p-6 max-w-6xl mx-auto flex items-center justify-center min-h-[400px]">
+      <div className="flex items-center justify-center min-h-screen bg-gray-50">
         <div className="text-center">
-          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-500 mx-auto mb-4"></div>
-          <p className="text-gray-600">Đang tải dữ liệu...</p>
+          <div className="animate-spin rounded-full h-12 w-12 border-4 border-emerald-500 border-t-transparent mx-auto mb-4"></div>
+          <p className="text-gray-500 text-sm">Đang tải dữ liệu...</p>
         </div>
       </div>
     );
@@ -153,67 +94,154 @@ function MenuDetailStudent() {
 
   if (!menu) return null;
 
-  return (
-    <div className="p-6 max-w-6xl mx-auto bg-gray-50 min-h-screen">
-      {/* HEADER */}
-      <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between mb-8 bg-white p-6 rounded-xl shadow-sm">
-        <button
-          onClick={() => navigate(-1)}
-          className="flex items-center gap-2 px-4 py-2 text-sm font-medium
-          bg-gray-100 border border-gray-200 rounded-lg shadow-sm
-          hover:bg-gray-200 transition-all duration-200 mb-4 sm:mb-0"
-        >
-          <ArrowLeft size={18} />
-          Quay lại
-        </button>
+  const weekData = activeWeek === "odd" ? menu.weeks?.odd : menu.weeks?.even;
 
-        <div className="flex items-center gap-3">
+  return (
+    <div className="min-h-screen bg-gray-50">
+      {/* Sticky green header */}
+      <div className="sticky top-0 z-20 bg-emerald-600 shadow-md">
+        <div className="max-w-lg mx-auto px-4 py-3 flex items-center gap-3">
+          <button
+            onClick={() => navigate(-1)}
+            className="p-2 rounded-full bg-emerald-500 hover:bg-emerald-400 transition-colors text-white flex-shrink-0"
+          >
+            <ArrowLeft size={20} />
+          </button>
+          <div className="flex-1 min-w-0">
+            <h1 className="text-white font-bold text-base leading-tight truncate">
+              Thực đơn Tháng {menu.month}/{menu.year}
+            </h1>
+          </div>
           <span
-            className={`px-4 py-2 text-sm font-medium rounded-full border ${statusMap[menu.status]?.color || 'bg-gray-100 text-gray-700 border-gray-200'}`}
+            className={`px-3 py-1 text-xs font-semibold rounded-full border flex-shrink-0 ${statusMap[menu.status]?.color || "bg-gray-100 text-gray-700 border-gray-200"}`}
           >
             {statusMap[menu.status]?.label || menu.status}
           </span>
         </div>
       </div>
 
-      {/* TITLE */}
-      <div className="mb-8 bg-white p-6 rounded-xl shadow-sm">
-        <h1 className="text-3xl font-bold text-gray-800 mb-2">
-          Thực đơn Tháng {menu.month}/{menu.year}
-        </h1>
+      <div className="max-w-lg mx-auto px-4 py-4 space-y-4">
+        {/* Nutrition summary: 2x2 grid */}
+        <div className="grid grid-cols-2 gap-3">
+          {/* Calories */}
+          <div className="bg-white rounded-2xl p-3 shadow-sm border border-orange-100 flex items-center gap-3">
+            <div className="w-10 h-10 rounded-xl bg-orange-100 flex items-center justify-center flex-shrink-0">
+              <Flame size={20} className="text-orange-500" />
+            </div>
+            <div className="min-w-0">
+              <p className="text-xs text-gray-500 font-medium">Calories</p>
+              <p className="font-bold text-gray-800 text-sm leading-tight">
+                {menu.nutrition?.calories}
+                <span className="text-xs font-normal text-gray-400 ml-1">kcal</span>
+              </p>
+            </div>
+          </div>
+
+          {/* Protein */}
+          <div className="bg-white rounded-2xl p-3 shadow-sm border border-blue-100 flex items-center gap-3">
+            <div className="w-10 h-10 rounded-xl bg-blue-100 flex items-center justify-center flex-shrink-0">
+              <Beef size={20} className="text-blue-500" />
+            </div>
+            <div className="min-w-0">
+              <p className="text-xs text-gray-500 font-medium">Protein</p>
+              <p className="font-bold text-gray-800 text-sm leading-tight">
+                {menu.nutrition?.protein}
+                <span className="text-xs font-normal text-gray-400 ml-1">g</span>
+              </p>
+            </div>
+          </div>
+
+          {/* Chất béo */}
+          <div className="bg-white rounded-2xl p-3 shadow-sm border border-emerald-100 flex items-center gap-3">
+            <div className="w-10 h-10 rounded-xl bg-emerald-100 flex items-center justify-center flex-shrink-0">
+              <Droplets size={20} className="text-emerald-500" />
+            </div>
+            <div className="min-w-0">
+              <p className="text-xs text-gray-500 font-medium">Chất béo</p>
+              <p className="font-bold text-gray-800 text-sm leading-tight">
+                {menu.nutrition?.fat}
+                <span className="text-xs font-normal text-gray-400 ml-1">g</span>
+              </p>
+            </div>
+          </div>
+
+          {/* Tinh bột */}
+          <div className="bg-white rounded-2xl p-3 shadow-sm border border-yellow-100 flex items-center gap-3">
+            <div className="w-10 h-10 rounded-xl bg-yellow-100 flex items-center justify-center flex-shrink-0">
+              <Wheat size={20} className="text-yellow-500" />
+            </div>
+            <div className="min-w-0">
+              <p className="text-xs text-gray-500 font-medium">Tinh bột</p>
+              <p className="font-bold text-gray-800 text-sm leading-tight">
+                {menu.nutrition?.carb}
+                <span className="text-xs font-normal text-gray-400 ml-1">g</span>
+              </p>
+            </div>
+          </div>
+        </div>
+
+        {/* Week tabs */}
+        <div className="bg-white rounded-2xl p-1.5 shadow-sm border border-gray-100 flex gap-1">
+          <button
+            onClick={() => setActiveWeek("odd")}
+            className={`flex-1 py-2 px-4 rounded-xl text-sm font-semibold transition-all duration-200 ${
+              activeWeek === "odd"
+                ? "bg-emerald-600 text-white shadow-sm"
+                : "text-gray-500 hover:text-gray-700 hover:bg-gray-50"
+            }`}
+          >
+            Tuần lẻ
+          </button>
+          <button
+            onClick={() => setActiveWeek("even")}
+            className={`flex-1 py-2 px-4 rounded-xl text-sm font-semibold transition-all duration-200 ${
+              activeWeek === "even"
+                ? "bg-emerald-600 text-white shadow-sm"
+                : "text-gray-500 hover:text-gray-700 hover:bg-gray-50"
+            }`}
+          >
+            Tuần chẵn
+          </button>
+        </div>
+
+        {/* Day cards */}
+        <div className="space-y-3">
+          {days.map((day) => {
+            const dayMenu = weekData?.[day];
+            return (
+              <div
+                key={day}
+                className="bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden"
+              >
+                {/* Day header */}
+                <div className="flex items-center justify-between px-4 py-3 border-l-4 border-emerald-500 bg-emerald-50">
+                  <span className="font-bold text-gray-800 text-sm">{dayMap[day]}</span>
+                  {dayMenu?.totalCalories != null && (
+                    <span className="flex items-center gap-1 bg-orange-100 text-orange-600 text-xs font-semibold px-2.5 py-1 rounded-full">
+                      <Flame size={12} />
+                      {dayMenu.totalCalories} kcal
+                    </span>
+                  )}
+                </div>
+
+                {/* Meal sections */}
+                <div className="divide-y divide-gray-50">
+                  {mealTypes.map((meal) => (
+                    <div key={meal.key} className="px-4 py-3">
+                      <p className="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-2">
+                        {meal.icon} {meal.label}
+                      </p>
+                      {renderCell(weekData, day, meal.key)}
+                    </div>
+                  ))}
+                </div>
+              </div>
+            );
+          })}
+        </div>
+
+        <div className="h-4" />
       </div>
-
-      {/* NUTRITION */}
-      <div className="grid grid-cols-2 md:grid-cols-4 gap-4 bg-white border border-gray-200 rounded-xl p-6 mb-10 shadow-sm">
-        <div className="text-center p-4 bg-gradient-to-br from-orange-50 to-red-50 rounded-lg">
-          <Flame className="mx-auto mb-2 text-orange-500" size={24} />
-          <p className="text-gray-600 text-sm font-medium">Calories</p>
-          <p className="font-bold text-xl text-gray-800">{menu.nutrition?.calories}</p>
-          <p className="text-xs text-gray-500">kcal/ngày</p>
-        </div>
-
-        <div className="text-center p-4 bg-gradient-to-br from-blue-50 to-indigo-50 rounded-lg">
-          <Beef className="mx-auto mb-2 text-blue-500" size={24} />
-          <p className="text-gray-600 text-sm font-medium">Protein</p>
-          <p className="font-bold text-xl text-gray-800">{menu.nutrition?.protein} g</p>
-        </div>
-
-        <div className="text-center p-4 bg-gradient-to-br from-green-50 to-emerald-50 rounded-lg">
-          <Droplets className="mx-auto mb-2 text-green-500" size={24} />
-          <p className="text-gray-600 text-sm font-medium">Chất béo</p>
-          <p className="font-bold text-xl text-gray-800">{menu.nutrition?.fat} g</p>
-        </div>
-
-        <div className="text-center p-4 bg-gradient-to-br from-yellow-50 to-amber-50 rounded-lg">
-          <Wheat className="mx-auto mb-2 text-yellow-500" size={24} />
-          <p className="text-gray-600 text-sm font-medium">Tinh bột</p>
-          <p className="font-bold text-xl text-gray-800">{menu.nutrition?.carb} g</p>
-        </div>
-      </div>
-
-      {/* MENU TABLE */}
-      {renderWeek("Tuần lẻ", menu.weeks?.odd)}
-      {renderWeek("Tuần chẵn", menu.weeks?.even)}
     </div>
   );
 }
