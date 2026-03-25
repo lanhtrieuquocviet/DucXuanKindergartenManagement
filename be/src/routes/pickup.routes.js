@@ -106,7 +106,7 @@ router.get("/my-requests", authenticate, getMyPickupRequests);
  *       403:
  *         description: Không có quyền Teacher
  */
-router.get("/requests/student/:studentId", authenticate, authorizeRoles("Teacher"), getApprovedPickupPersonsByStudent);
+router.get("/requests/student/:studentId", authenticate, authorizeRoles("Teacher", "SchoolAdmin"), getApprovedPickupPersonsByStudent);
 
 /**
  * @openapi

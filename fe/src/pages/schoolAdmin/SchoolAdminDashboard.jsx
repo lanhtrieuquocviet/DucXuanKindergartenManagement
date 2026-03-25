@@ -139,8 +139,6 @@ function SchoolAdminDashboard() {
       children: [
         { key: 'academic-year-setup', label: 'Thiết lập năm học' },
         { key: 'academic-plan', label: 'Thiết lập kế hoạch' },
-        { key: 'academic-students', label: 'Danh sách lớp học' },
-        { key: 'academic-curriculum', label: 'Chương trình giáo dục' },
         { key: 'academic-schedule', label: 'Thời gian biểu' },
         { key: 'academic-report', label: 'Báo cáo & thống kê' },
       ],
@@ -158,6 +156,7 @@ function SchoolAdminDashboard() {
     { key: 'documents', label: 'Quản lý tài liệu' },
     { key: 'public-info', label: 'Thông tin công khai' },
     { key: 'attendance', label: 'Quản lý điểm danh' },
+    { key: 'face-attendance', label: 'Đăng ký khuôn mặt' },
   ];
 
   const userName = user?.fullName || user?.username || 'School Admin';
@@ -191,6 +190,7 @@ function SchoolAdminDashboard() {
     if (key === 'documents') return navigate('/school-admin/documents');
     if (key === 'public-info') return navigate('/school-admin/public-info');
     if (key === 'attendance') return navigate('/school-admin/attendance/overview');
+    if (key === 'face-attendance') return navigate('/school-admin/face-attendance');
   };
 
   const dateTimeText = useMemo(() => {

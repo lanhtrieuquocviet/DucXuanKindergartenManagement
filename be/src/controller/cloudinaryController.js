@@ -6,6 +6,7 @@ cloudinary.config();
 const MEDIA_FOLDER = process.env.CLOUDINARY_MEDIA_FOLDER || 'avatars';
 const BLOG_FOLDER = process.env.CLOUDINARY_BLOG_FOLDER || 'blogs';
 const KITCHEN_FOLDER = process.env.CLOUDINARY_KITCHEN_FOLDER || 'kitchen';
+const ATTENDANCE_FOLDER = process.env.CLOUDINARY_ATTENDANCE_FOLDER || 'attendance';
 
 /**
  * POST /api/cloudinary/upload-avatar
@@ -221,11 +222,40 @@ const uploadKitchenImage = async (req, res) => {
   }
 };
 
+/**
+ * POST /api/cloudinary/upload-attendance-image
+ * Upload ảnh điểm danh từ base64 (chụp từ camera AI)
+ * Body: { imageBase64: "data:image/jpeg;base64,..." }
+ */
+const uploadAttendanceImage = async (req, res) => {
+  try {
+    const { imageBase64 } = req.body;
+    if (!imageBase64 || !imageBase64.startsWith('data:image')) {
+      return res.status(400).json({ status: 'error', message: 'Thiếu imageBase64 hợp lệ' });
+    }
+
+    const result = await cloudinary.uploader.upload(imageBase64, {
+      folder: ATTENDANCE_FOLDER,
+      resource_type: 'image',
+      quality: 'auto:low', // Nén nhẹ để tiết kiệm dung lượng
+    });
+
+    return res.status(200).json({
+      status: 'success',
+      data: { url: result.secure_url },
+    });
+  } catch (error) {
+    console.error('uploadAttendanceImage error:', error);
+    return res.status(500).json({ status: 'error', message: error.message || 'Lỗi upload ảnh điểm danh' });
+  }
+};
+
 module.exports = {
   getMediaLibrarySignature,
   uploadAvatar,
   uploadBlogImage,
   uploadBlogFile,
   uploadKitchenImage,
+  uploadAttendanceImage,
 };
 

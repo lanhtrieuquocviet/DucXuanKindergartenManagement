@@ -59,3 +59,48 @@ export const updateFood = (id, data) => {
 export const deleteFood = (id) => {
   return api.delete(`/foods/${id}`);
 };
+
+// Ingredient support
+export const getIngredients = () => {
+  return api.get(`/ingredients`);
+};
+
+export const createIngredient = (data) => {
+  return api.post(`/ingredients`, data);
+};
+
+export const updateIngredient = (id, data) => {
+  return api.put(`/ingredients/${id}`, data);
+};
+
+export const deleteIngredient = (id) => {
+  return api.delete(`/ingredients/${id}`);
+};
+
+// ============================================
+// AI Menu Assistant APIs
+// ============================================
+
+export const aiAnalyzeMenu = (dailyMenuId) => {
+  return api.post("/ai/analyze-menu", { dailyMenuId });
+};
+
+export const aiImproveDish = (foodId) => {
+  return api.post("/ai/improve-dish", { foodId });
+};
+
+export const aiSuggestNewDishes = () => {
+  return api.post("/ai/suggest-dishes");
+};
+
+export const aiChatAboutMenu = (message, dailyMenuId) => {
+  return api.post("/ai/chat", { message, dailyMenuId });
+};
+
+export const aiCreateDishFromSuggestion = (data) => {
+  return api.post("/ai/create-from-suggestion", data);
+};
+
+export const aiHealthCheck = () => {
+  return api.get("/ai/health");
+};

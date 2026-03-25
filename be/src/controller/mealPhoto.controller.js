@@ -139,8 +139,8 @@ exports.upsertSampleEntry = async (req, res) => {
     if (!images || !Array.isArray(images) || images.length < 1) {
       return res.status(400).json({ success: false, message: 'Cần ít nhất 1 ảnh' });
     }
-    if (images.length > 3) {
-      return res.status(400).json({ success: false, message: 'Tối đa 3 ảnh' });
+    if (images.length > 10) {
+      return res.status(400).json({ success: false, message: 'Tối đa 10 ảnh' });
     }
 
     // Thử cập nhật mẫu đã tồn tại

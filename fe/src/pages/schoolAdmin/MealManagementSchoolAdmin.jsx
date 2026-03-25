@@ -67,10 +67,16 @@ const STATUS_CONFIG = {
     icon: <HourglassIcon sx={{ fontSize: 13 }} />,
   },
   khong_co_van_de: {
-    label: 'Không có vấn đề',
+    label: 'BGH duyệt — Không có vấn đề',
     color: '#10b981',
     bgcolor: '#d1fae5',
     icon: <CheckCircleIcon sx={{ fontSize: 13 }} />,
+  },
+  tu_dong_duyet: {
+    label: 'Tự động duyệt — Không có vấn đề',
+    color: '#6366f1',
+    bgcolor: '#ede9fe',
+    icon: <HourglassIcon sx={{ fontSize: 13 }} />,
   },
   khong_dat: {
     label: 'Có vấn đề',
@@ -452,6 +458,7 @@ function SampleCard({ entry, date, onReview, isToday, editRequest, onApproveEdit
   const [hovering, setHovering] = useState(false);
   const [detailOpen, setDetailOpen] = useState(false);
   const isPending = entry.status === 'cho_kiem_tra';
+  const isAutoApproved = entry.status === 'tu_dong_duyet';
   const mealLabel = MEAL_LABELS[entry.mealType] || entry.mealType;
   const firstImage = entry.images?.[0];
 
@@ -460,7 +467,7 @@ function SampleCard({ entry, date, onReview, isToday, editRequest, onApproveEdit
       elevation={0}
       sx={{
         border: '1.5px solid',
-        borderColor: isPending ? alpha('#f59e0b', 0.35) : 'divider',
+        borderColor: isPending ? alpha('#f59e0b', 0.35) : isAutoApproved ? alpha('#6366f1', 0.3) : 'divider',
         borderRadius: 3,
         overflow: 'hidden',
         display: 'flex',
@@ -910,7 +917,7 @@ function MealManagementSchoolAdmin() {
   const sampleEntries = mealData?.sampleEntries || [];
   const totalMealImages = meals.reduce((acc, m) => acc + (m.images?.length || 0), 0);
   const pendingCount = sampleEntries.filter((s) => s.status === 'cho_kiem_tra').length;
-  const okCount = sampleEntries.filter((s) => s.status === 'khong_co_van_de').length;
+  const okCount = sampleEntries.filter((s) => s.status === 'khong_co_van_de' || s.status === 'tu_dong_duyet').length;
   const issueCount = sampleEntries.filter((s) => s.status === 'khong_dat').length;
   const mealCount = attendanceSummary?.mealCount ?? 0;
 
@@ -980,8 +987,6 @@ function MealManagementSchoolAdmin() {
       children: [
         { key: 'academic-year-setup', label: 'Thiết lập năm học' },
         { key: 'academic-plan', label: 'Thiết lập kế hoạch' },
-        { key: 'academic-students', label: 'Danh sách lớp học' },
-        { key: 'academic-curriculum', label: 'Chương trình giáo dục' },
         { key: 'academic-schedule', label: 'Thời gian biểu' },
         { key: 'academic-report', label: 'Báo cáo & thống kê' },
       ],

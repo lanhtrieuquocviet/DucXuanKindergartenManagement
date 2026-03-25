@@ -12,10 +12,6 @@ import {
   Chip,
   Tooltip,
   TextField,
-  MenuItem,
-  Select,
-  FormControl,
-  InputLabel,
   alpha,
   Paper,
   Divider,
@@ -24,16 +20,10 @@ import {
   Inventory2 as SampleIcon,
   CloudUpload as UploadIcon,
   CalendarMonth as CalIcon,
-  Delete as DeleteIcon,
   AddPhotoAlternate as AddPhotoIcon,
   Close as CloseIcon,
-  CheckCircleOutline as CheckCircleIcon,
   WarningAmber as WarningIcon,
   TodayOutlined as TodayIcon,
-  LunchDining as LunchIcon,
-  Cake as SnackIcon,
-  WbSunny as MornIcon,
-  Nightlight as EveIcon,
   AccessTime as TimeIcon,
   ArrowBack as ArrowBackIcon,
 } from '@mui/icons-material';
@@ -43,14 +33,12 @@ import { uploadKitchenImage, upsertSampleEntry } from '../../service/mealManagem
 // ─────────────────────────────────────────────
 // Config
 // ─────────────────────────────────────────────
-const MEAL_TYPES = [
-  { value: 'trua', label: 'Bữa chính trưa', color: '#10b981', icon: <LunchIcon sx={{ fontSize: 18 }} /> },
-  { value: 'chieu', label: 'Bữa phụ chiều', color: '#6366f1', icon: <SnackIcon sx={{ fontSize: 18 }} /> },
-  { value: 'khac', label: 'Khác', color: '#94a3b8', icon: <AddPhotoIcon sx={{ fontSize: 18 }} /> },
-];
+const FIXED_MEAL_TYPE = 'khac';
+const FIXED_MEAL_LABEL = 'Mẫu thực phẩm';
+const FIXED_MEAL_COLOR = '#ef4444';
 
 const MIN_PHOTOS = 1;
-const MAX_PHOTOS = 3;
+const MAX_PHOTOS = 10;
 const DESC_MAX = 200;
 
 const getLocalToday = () => {
@@ -67,6 +55,71 @@ const formatDisplayDate = (dateStr) => {
   return `${d}/${m}/${y}`;
 };
 
+const formatTime = (date) => {
+  if (!date) return '';
+  const h = String(date.getHours()).padStart(2, '0');
+  const m = String(date.getMinutes()).padStart(2, '0');
+  const s = String(date.getSeconds()).padStart(2, '0');
+  return `${h}:${m}:${s}`;
+};
+
+const stampImage = (file, dateStr, mealLabel) =>
+  new Promise((resolve) => {
+    const img = new Image();
+    const blobUrl = URL.createObjectURL(file);
+    img.onload = () => {
+      const canvas = document.createElement('canvas');
+      canvas.width = img.width;
+      canvas.height = img.height;
+      const ctx = canvas.getContext('2d');
+
+      // Vẽ ảnh gốc
+      ctx.drawImage(img, 0, 0);
+      URL.revokeObjectURL(blobUrl);
+
+      const now = new Date();
+      const line1 = mealLabel;
+      const line2 = `${formatDisplayDate(dateStr)} · ${formatTime(now)}`;
+
+      const fontSize = Math.max(18, Math.round(img.width * 0.028));
+      const pad = Math.round(fontSize * 0.55);
+      const lineH = fontSize * 1.35;
+      const blockH = lineH * 2 + pad * 2;
+      const blockW = img.width;
+
+      // Nền gradient tối ở dưới
+      const grad = ctx.createLinearGradient(0, img.height - blockH - pad, 0, img.height);
+      grad.addColorStop(0, 'rgba(0,0,0,0)');
+      grad.addColorStop(1, 'rgba(0,0,0,0.72)');
+      ctx.fillStyle = grad;
+      ctx.fillRect(0, img.height - blockH - pad, blockW, blockH + pad);
+
+      // Text line 1: tên bữa (trắng đậm)
+      ctx.font = `bold ${fontSize}px Arial, sans-serif`;
+      ctx.fillStyle = 'rgba(255,255,255,0.97)';
+      ctx.shadowColor = 'rgba(0,0,0,0.7)';
+      ctx.shadowBlur = 4;
+      ctx.fillText(line1, pad, img.height - pad - lineH);
+
+      // Text line 2: ngày giờ (vàng nhạt)
+      ctx.font = `${Math.round(fontSize * 0.85)}px Arial, sans-serif`;
+      ctx.fillStyle = 'rgba(255,220,100,0.95)';
+      ctx.fillText(line2, pad, img.height - pad);
+
+      ctx.shadowBlur = 0;
+
+      canvas.toBlob(
+        (blob) => {
+          const stampedFile = new File([blob], file.name, { type: 'image/jpeg' });
+          resolve({ file: stampedFile, url: URL.createObjectURL(stampedFile) });
+        },
+        'image/jpeg',
+        0.92
+      );
+    };
+    img.src = blobUrl;
+  });
+
 // ─────────────────────────────────────────────
 // Main component
 // ─────────────────────────────────────────────
@@ -79,7 +132,6 @@ function UploadSampleFood() {
   const isEdit = Boolean(editData);
 
   const [selectedDate, setSelectedDate] = useState(editData?.date || today);
-  const [mealType, setMealType] = useState(editData?.mealType || location.state?.mealType || 'trua');
   const [description, setDescription] = useState(editData?.description || '');
   const [descError, setDescError] = useState('');
   const [previewItems, setPreviewItems] = useState(
@@ -97,8 +149,6 @@ function UploadSampleFood() {
     };
   }, []);
 
-  const selectedMealCfg = MEAL_TYPES.find((m) => m.value === mealType) || MEAL_TYPES[0];
-
   const validateDesc = (val) => {
     if (val.length > DESC_MAX) return `Ghi chú tối đa ${DESC_MAX} ký tự`;
     return '';
@@ -110,7 +160,7 @@ function UploadSampleFood() {
     setDescError(validateDesc(val));
   };
 
-  const handleFileChange = (e) => {
+  const handleFileChange = async (e) => {
     const files = Array.from(e.target.files || []);
     if (!files.length) return;
     e.target.value = '';
@@ -119,11 +169,13 @@ function UploadSampleFood() {
       toast.warning(`Tối đa ${MAX_PHOTOS} ảnh`);
       return;
     }
-    const toAdd = files.slice(0, remaining).map((file) => ({
-      kind: 'new',
-      file,
-      url: URL.createObjectURL(file),
-    }));
+    const sliced = files.slice(0, remaining);
+    const toAdd = await Promise.all(
+      sliced.map(async (file) => {
+        const { file: stampedFile, url } = await stampImage(file, selectedDate, FIXED_MEAL_LABEL);
+        return { kind: 'new', file: stampedFile, url };
+      })
+    );
     setPreviewItems((prev) => [...prev, ...toAdd]);
   };
 
@@ -151,7 +203,7 @@ function UploadSampleFood() {
       );
       await upsertSampleEntry({
         date: selectedDate,
-        mealType,
+        mealType: FIXED_MEAL_TYPE,
         description: description.trim(),
         images,
       });
@@ -229,7 +281,7 @@ function UploadSampleFood() {
       </Paper>
 
       {/* ── Form card ── */}
-      <Card elevation={0} sx={{ border: '1.5px solid', borderColor: alpha(selectedMealCfg.color, 0.2), borderRadius: 4, maxWidth: 680, mx: 'auto' }}>
+      <Card elevation={0} sx={{ border: '1.5px solid', borderColor: alpha(FIXED_MEAL_COLOR, 0.2), borderRadius: 4, maxWidth: 680, mx: 'auto' }}>
         <CardContent sx={{ p: 3, pb: '24px !important' }}>
           {/* Section header */}
           <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5, mb: 3 }}>
@@ -253,27 +305,6 @@ function UploadSampleFood() {
                 </Typography>
               </Box>
             </Box>
-
-            {/* Meal type selector */}
-            <FormControl fullWidth size="small">
-              <InputLabel sx={{ fontWeight: 600 }}>Chọn bữa *</InputLabel>
-              <Select
-                value={mealType}
-                label="Chọn bữa *"
-                onChange={(e) => !isEdit && setMealType(e.target.value)}
-                readOnly={isEdit}
-                sx={{ borderRadius: 2.5, fontWeight: 600 }}
-              >
-                {MEAL_TYPES.map((m) => (
-                  <MenuItem key={m.value} value={m.value}>
-                    <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-                      <Box sx={{ color: m.color, display: 'flex' }}>{m.icon}</Box>
-                      <Typography fontWeight={600}>{m.label}</Typography>
-                    </Box>
-                  </MenuItem>
-                ))}
-              </Select>
-            </FormControl>
 
             {/* Description */}
             <TextField
@@ -321,19 +352,19 @@ function UploadSampleFood() {
                   onClick={() => fileInputRef.current?.click()}
                   sx={{
                     border: '2.5px dashed',
-                    borderColor: alpha(selectedMealCfg.color, 0.4),
+                    borderColor: alpha(FIXED_MEAL_COLOR, 0.4),
                     borderRadius: 3,
                     py: 3.5,
                     display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 1,
                     cursor: 'pointer', transition: 'all 0.2s',
-                    bgcolor: alpha(selectedMealCfg.color, 0.03),
-                    '&:hover': { borderColor: selectedMealCfg.color, bgcolor: alpha(selectedMealCfg.color, 0.07) },
+                    bgcolor: alpha(FIXED_MEAL_COLOR, 0.03),
+                    '&:hover': { borderColor: FIXED_MEAL_COLOR, bgcolor: alpha(FIXED_MEAL_COLOR, 0.07) },
                     mb: previewItems.length > 0 ? 2 : 0,
                   }}
                 >
-                  <AddPhotoIcon sx={{ fontSize: 36, color: selectedMealCfg.color }} />
+                  <AddPhotoIcon sx={{ fontSize: 36, color: FIXED_MEAL_COLOR }} />
                   <Typography variant="body2" fontWeight={600} color="text.secondary">
-                    Nhấn để chọn ảnh mẫu thực phẩm
+                    Nhấn để chụp ảnh mẫu thực phẩm
                   </Typography>
                   <Typography variant="caption" color="text.disabled">
                     Tối thiểu {MIN_PHOTOS} ảnh, tối đa {MAX_PHOTOS} ảnh · JPG, PNG, WebP
@@ -345,6 +376,7 @@ function UploadSampleFood() {
                 ref={fileInputRef}
                 type="file"
                 accept="image/jpeg,image/jpg,image/png,image/webp"
+                capture="environment"
                 multiple
                 style={{ display: 'none' }}
                 onChange={handleFileChange}
@@ -352,7 +384,7 @@ function UploadSampleFood() {
 
               {/* Thumbnails */}
               {previewItems.length > 0 && (
-                <Box sx={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 1.5 }}>
+                <Box sx={{ display: 'grid', gridTemplateColumns: 'repeat(5, 1fr)', gap: 1 }}>
                   {previewItems.map((p, idx) => (
                     <Box
                       key={p.url}
@@ -360,7 +392,7 @@ function UploadSampleFood() {
                         position: 'relative', aspectRatio: '1',
                         borderRadius: 2.5, overflow: 'hidden',
                         border: '2px solid',
-                        borderColor: alpha(selectedMealCfg.color, 0.4),
+                        borderColor: alpha(FIXED_MEAL_COLOR, 0.4),
                         '&:hover .rm-btn': { opacity: 1 },
                       }}
                     >
@@ -386,15 +418,6 @@ function UploadSampleFood() {
                           <CloseIcon sx={{ fontSize: 14 }} />
                         </IconButton>
                       </Tooltip>
-                      <Box
-                        sx={{
-                          position: 'absolute', bottom: 4, left: 4,
-                          bgcolor: 'rgba(0,0,0,0.55)', color: 'white',
-                          fontSize: 10, fontWeight: 700, px: 0.75, py: 0.25, borderRadius: 1, lineHeight: 1.5,
-                        }}
-                      >
-                        #{idx + 1}
-                      </Box>
                     </Box>
                   ))}
                   {/* Add more button if under max */}
@@ -403,14 +426,14 @@ function UploadSampleFood() {
                       onClick={() => fileInputRef.current?.click()}
                       sx={{
                         aspectRatio: '1', borderRadius: 2.5,
-                        border: '2.5px dashed', borderColor: alpha(selectedMealCfg.color, 0.3),
+                        border: '2.5px dashed', borderColor: alpha(FIXED_MEAL_COLOR, 0.3),
                         display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: 0.75,
                         cursor: 'pointer', transition: 'all 0.2s',
-                        bgcolor: alpha(selectedMealCfg.color, 0.02),
-                        '&:hover': { borderColor: selectedMealCfg.color, bgcolor: alpha(selectedMealCfg.color, 0.07) },
+                        bgcolor: alpha(FIXED_MEAL_COLOR, 0.02),
+                        '&:hover': { borderColor: FIXED_MEAL_COLOR, bgcolor: alpha(FIXED_MEAL_COLOR, 0.07) },
                       }}
                     >
-                      <AddPhotoIcon sx={{ fontSize: 24, color: selectedMealCfg.color }} />
+                      <AddPhotoIcon sx={{ fontSize: 24, color: FIXED_MEAL_COLOR }} />
                       <Typography variant="caption" color="text.disabled" sx={{ fontSize: 10, textAlign: 'center' }}>
                         Thêm ảnh
                       </Typography>
