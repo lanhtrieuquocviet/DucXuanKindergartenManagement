@@ -1083,7 +1083,7 @@ function SampleEntryCard({ entry, onPreview, selectedDate, isToday, editRequest,
         {/* Status badge */}
         {entry.status === 'khong_co_van_de' ? (
           <Chip
-            label="Không có vấn đề"
+            label="BGH duyệt — Không có vấn đề"
             size="small"
             sx={{
               height: 22, fontSize: 11, fontWeight: 700,
@@ -1091,6 +1091,18 @@ function SampleEntryCard({ entry, onPreview, selectedDate, isToday, editRequest,
               color: '#059669',
               border: '1px solid',
               borderColor: alpha('#10b981', 0.3),
+            }}
+          />
+        ) : entry.status === 'tu_dong_duyet' ? (
+          <Chip
+            label="Tự động duyệt — Không có vấn đề"
+            size="small"
+            sx={{
+              height: 22, fontSize: 11, fontWeight: 700,
+              bgcolor: alpha('#6366f1', 0.12),
+              color: '#4f46e5',
+              border: '1px solid',
+              borderColor: alpha('#6366f1', 0.3),
             }}
           />
         ) : entry.status === 'khong_dat' ? (

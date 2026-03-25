@@ -16,6 +16,9 @@ const {
   matchFaceEmbedding,
   getClassEmbeddings,
   syncOfflineAttendance,
+  registerPickupFaceEmbedding,
+  matchPickupFace,
+  matchPickupFaceForCheckout,
 } = require('../controller/faceAttendanceController');
 
 const router = express.Router();
@@ -181,5 +184,15 @@ router.get('/embeddings', authenticate, getClassEmbeddings);
  *         description: Sync hoàn tất (kèm báo cáo tạo mới / bỏ qua / lỗi)
  */
 router.post('/sync', authenticate, syncOfflineAttendance);
+
+// ── Người đưa/đón ─────────────────────────────────────────────────────────────
+// Đăng ký embedding khuôn mặt cho người đưa/đón đã duyệt
+router.post('/pickup/register', authenticate, authorizeRoles('SchoolAdmin', 'Teacher'), registerPickupFaceEmbedding);
+
+// So sánh khuôn mặt với danh sách người đưa/đón của học sinh
+router.post('/pickup/match', authenticate, matchPickupFace);
+
+// Quét mặt người đến đón → tự động ghi điểm danh về cho học sinh trong lớp
+router.post('/pickup/checkout', authenticate, authorizeRoles('Teacher', 'SchoolAdmin'), matchPickupFaceForCheckout);
 
 module.exports = router;

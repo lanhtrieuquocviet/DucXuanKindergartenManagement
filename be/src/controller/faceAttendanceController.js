@@ -9,6 +9,7 @@
 
 const Students = require('../models/Student');
 const Attendances = require('../models/Attendances');
+const PickupRequest = require('../models/PickupRequest');
 
 // ─── Hàm toán học ─────────────────────────────────────────────────────────────
 
@@ -125,7 +126,7 @@ const registerFaceEmbedding = async (req, res) => {
  */
 const matchFaceEmbedding = async (req, res) => {
   try {
-    const { embedding, classId, date, autoCheckIn = true } = req.body;
+    const { embedding, classId, date, autoCheckIn = true, checkinImageUrl = '' } = req.body;
 
     // Validate embedding
     if (!Array.isArray(embedding) || embedding.length !== 128) {
@@ -221,7 +222,7 @@ const matchFaceEmbedding = async (req, res) => {
         status: 'present',
         time: { checkIn: checkInTime, checkOut: null },
         timeString: { checkIn: checkInTimeString, checkOut: '' },
-        checkinImageName: '', // Frontend có thể upload ảnh sau
+        checkinImageName: checkinImageUrl,
       });
     }
 
@@ -386,9 +387,263 @@ const syncOfflineAttendance = async (req, res) => {
   }
 };
 
+/**
+ * Đăng ký / cập nhật embedding khuôn mặt cho người đưa/đón
+ * POST /api/face/pickup/register
+ * Body: { pickupRequestId, embedding: [128 số float] }
+ * Chỉ hoạt động với pickup request đã được duyệt (status = 'approved')
+ */
+const registerPickupFaceEmbedding = async (req, res) => {
+  try {
+    const { pickupRequestId, embedding } = req.body;
+
+    if (!pickupRequestId) {
+      return res.status(400).json({ status: 'error', message: 'Thiếu pickupRequestId' });
+    }
+    if (!Array.isArray(embedding) || embedding.length !== 128) {
+      return res.status(400).json({ status: 'error', message: 'embedding phải là mảng 128 số float' });
+    }
+
+    const pickup = await PickupRequest.findById(pickupRequestId);
+    if (!pickup) {
+      return res.status(404).json({ status: 'error', message: 'Không tìm thấy người đưa/đón' });
+    }
+    if (pickup.status !== 'approved') {
+      return res.status(400).json({ status: 'error', message: 'Chỉ đăng ký khuôn mặt cho người đã được duyệt' });
+    }
+
+    pickup.faceEmbedding = embedding;
+    pickup.faceRegisteredAt = new Date();
+    await pickup.save();
+
+    return res.status(200).json({
+      status: 'success',
+      message: `Đã đăng ký khuôn mặt cho ${pickup.fullName}`,
+      data: {
+        pickupRequestId: pickup._id,
+        fullName: pickup.fullName,
+        faceRegisteredAt: pickup.faceRegisteredAt,
+      },
+    });
+  } catch (error) {
+    console.error('registerPickupFaceEmbedding error:', error);
+    return res.status(500).json({ status: 'error', message: 'Lỗi server', error: error.message });
+  }
+};
+
+/**
+ * So sánh embedding với danh sách người đưa/đón đã duyệt của một học sinh
+ * POST /api/face/pickup/match
+ * Body: { embedding: [128 số float], studentId }
+ */
+const matchPickupFace = async (req, res) => {
+  try {
+    const { embedding, studentId } = req.body;
+
+    if (!Array.isArray(embedding) || embedding.length !== 128) {
+      return res.status(400).json({ status: 'error', message: 'embedding phải là mảng 128 số float' });
+    }
+    if (!studentId) {
+      return res.status(400).json({ status: 'error', message: 'Thiếu studentId' });
+    }
+
+    // Lấy tất cả người đưa/đón đã duyệt của học sinh và đã đăng ký khuôn mặt
+    const pickupPersons = await PickupRequest.find({
+      student: studentId,
+      status: 'approved',
+      faceEmbedding: { $exists: true, $not: { $size: 0 } },
+    }).select('_id fullName relation phone imageUrl faceEmbedding faceRegisteredAt');
+
+    if (pickupPersons.length === 0) {
+      return res.status(200).json({
+        status: 'no_data',
+        message: 'Học sinh này chưa có người đưa/đón nào đăng ký khuôn mặt',
+        matched: false,
+      });
+    }
+
+    let bestMatch = null;
+    let bestSimilarity = -1;
+
+    for (const person of pickupPersons) {
+      const similarity = cosineSimilarity(embedding, person.faceEmbedding);
+      if (similarity > bestSimilarity) {
+        bestSimilarity = similarity;
+        bestMatch = person;
+      }
+    }
+
+    if (bestSimilarity < MATCH_THRESHOLD) {
+      return res.status(200).json({
+        status: 'no_match',
+        message: 'Không nhận diện được — người này không có trong danh sách đưa đón',
+        matched: false,
+        bestSimilarity: bestSimilarity.toFixed(4),
+      });
+    }
+
+    return res.status(200).json({
+      status: 'success',
+      message: `Nhận diện thành công: ${bestMatch.fullName} (${bestMatch.relation})`,
+      matched: true,
+      person: {
+        _id: bestMatch._id,
+        fullName: bestMatch.fullName,
+        relation: bestMatch.relation,
+        phone: bestMatch.phone,
+        imageUrl: bestMatch.imageUrl,
+      },
+      similarity: bestSimilarity.toFixed(4),
+    });
+  } catch (error) {
+    console.error('matchPickupFace error:', error);
+    return res.status(500).json({ status: 'error', message: 'Lỗi server', error: error.message });
+  }
+};
+
+/**
+ * Quét mặt người đến đón → tự động ghi điểm danh về cho học sinh
+ * POST /api/face/pickup/checkout
+ * Body: { embedding, classId, date?, checkoutImageUrl? }
+ *
+ * Luồng:
+ *  1. Lấy tất cả học sinh trong lớp
+ *  2. Lấy tất cả pickup persons đã duyệt + có embedding của cả lớp
+ *  3. Match embedding với danh sách đó
+ *  4. Nếu match → tìm học sinh tương ứng → ghi checkout
+ */
+const matchPickupFaceForCheckout = async (req, res) => {
+  try {
+    const { embedding, classId, date, checkoutImageUrl = '' } = req.body;
+
+    if (!Array.isArray(embedding) || embedding.length !== 128) {
+      return res.status(400).json({ status: 'error', message: 'embedding phải là mảng 128 số float' });
+    }
+    if (!classId) {
+      return res.status(400).json({ status: 'error', message: 'Thiếu classId' });
+    }
+
+    const now = new Date();
+
+    // Chỉ cho phép điểm danh về từ 17:00
+    if (now.getHours() < 17) {
+      return res.status(400).json({
+        status: 'too_early',
+        message: 'Chưa đến giờ điểm danh về. Điểm danh về chỉ được thực hiện từ 17:00.',
+      });
+    }
+
+    const attendanceDate = date ? new Date(date) : new Date(now);
+    attendanceDate.setHours(0, 0, 0, 0);
+
+    // Lấy tất cả học sinh active trong lớp
+    const students = await Students.find({ classId, status: 'active' }).select('_id fullName avatar');
+    if (students.length === 0) {
+      return res.status(200).json({ status: 'no_data', message: 'Lớp này không có học sinh', matched: false });
+    }
+
+    const studentIds = students.map((s) => s._id);
+
+    // Lấy tất cả pickup persons đã duyệt + có embedding của cả lớp
+    const allPickupPersons = await PickupRequest.find({
+      student: { $in: studentIds },
+      status: 'approved',
+      faceEmbedding: { $exists: true, $not: { $size: 0 } },
+    }).select('_id fullName relation phone imageUrl faceEmbedding student');
+
+    if (allPickupPersons.length === 0) {
+      return res.status(200).json({
+        status: 'no_data',
+        message: 'Lớp này chưa có người đưa/đón nào đăng ký khuôn mặt',
+        matched: false,
+      });
+    }
+
+    // Match embedding với toàn bộ pickup persons của lớp
+    let bestMatch = null;
+    let bestSimilarity = -1;
+
+    for (const person of allPickupPersons) {
+      const similarity = cosineSimilarity(embedding, person.faceEmbedding);
+      if (similarity > bestSimilarity) {
+        bestSimilarity = similarity;
+        bestMatch = person;
+      }
+    }
+
+    if (bestSimilarity < MATCH_THRESHOLD) {
+      return res.status(200).json({
+        status: 'no_match',
+        message: 'Người này không có trong danh sách đưa đón của lớp',
+        matched: false,
+        bestSimilarity: bestSimilarity.toFixed(4),
+      });
+    }
+
+    // Tìm học sinh tương ứng
+    const student = students.find((s) => s._id.toString() === bestMatch.student.toString());
+    if (!student) {
+      return res.status(200).json({ status: 'no_match', message: 'Không tìm thấy học sinh liên quan', matched: false });
+    }
+
+    // Kiểm tra học sinh đã check-in chưa
+    const existingAttendance = await Attendances.findOne({ studentId: student._id, date: attendanceDate });
+    if (!existingAttendance) {
+      return res.status(200).json({
+        status: 'not_checked_in',
+        message: `${student.fullName} chưa điểm danh đến hôm nay`,
+        matched: true,
+        student: { _id: student._id, fullName: student.fullName, avatar: student.avatar },
+        person: { fullName: bestMatch.fullName, relation: bestMatch.relation },
+      });
+    }
+
+    // Ghi checkout
+    const checkOutTime = now;
+    const checkOutTimeString = `${now.getHours().toString().padStart(2, '0')}:${now.getMinutes().toString().padStart(2, '0')}`;
+
+    const attendance = await Attendances.findOneAndUpdate(
+      { studentId: student._id, date: attendanceDate },
+      {
+        $set: {
+          'time.checkOut': checkOutTime,
+          'timeString.checkOut': checkOutTimeString,
+          checkoutImageName: checkoutImageUrl,
+          receiverType: 'other',
+          receiverOtherInfo: `${bestMatch.fullName} (${bestMatch.relation})`,
+          receiverOtherImageName: bestMatch.imageUrl || '',
+        },
+      },
+      { new: true }
+    );
+
+    return res.status(200).json({
+      status: 'success',
+      message: `Điểm danh về: ${student.fullName} — đón bởi ${bestMatch.fullName} (${bestMatch.relation})`,
+      matched: true,
+      student: { _id: student._id, fullName: student.fullName, avatar: student.avatar },
+      person: {
+        _id: bestMatch._id,
+        fullName: bestMatch.fullName,
+        relation: bestMatch.relation,
+        phone: bestMatch.phone,
+        imageUrl: bestMatch.imageUrl,
+      },
+      similarity: bestSimilarity.toFixed(4),
+      attendance,
+    });
+  } catch (error) {
+    console.error('matchPickupFaceForCheckout error:', error);
+    return res.status(500).json({ status: 'error', message: 'Lỗi server', error: error.message });
+  }
+};
+
 module.exports = {
   registerFaceEmbedding,
   matchFaceEmbedding,
   getClassEmbeddings,
   syncOfflineAttendance,
+  registerPickupFaceEmbedding,
+  matchPickupFace,
+  matchPickupFaceForCheckout,
 };
