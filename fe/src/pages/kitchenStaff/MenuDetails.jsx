@@ -3,6 +3,7 @@ import { useParams, useNavigate } from "react-router-dom";
 import { getMenuDetail, submitMenu, updateDailyMenu, getFoods } from "../../service/menu.api";
 import { toast } from "react-toastify";
 import FoodSelectorModal from "../../components/FoodSelectorModal";
+import AIFloatingButton from "../../components/AIFloatingButton";
 import { downloadMenuTemplate, exportMenuToExcel } from "../../utils/excelMenuTemplate";
 import { parseMenuExcel, formatImportErrors } from "../../utils/excelMenuImporter";
 import {
@@ -542,6 +543,9 @@ function MenuDetail() {
           </Button>
         </DialogActions>
       </Dialog>
+
+      {/* AI Floating Button */}
+      {menu && menu._id && <AIFloatingButton menu={menu} isEditable={isEditable} />}
     </Box>
   );
 }
