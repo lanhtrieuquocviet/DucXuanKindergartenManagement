@@ -177,7 +177,8 @@ const getAllowedOrigins = () => {
     'http://localhost:5174',
     'http://127.0.0.1:5174',
     'https://duc-xuan-kindergarten-management.vercel.app/',
-    'https://ducxuankindergartenmanagement-production.up.railway.app/api-docs/'
+    'https://duc-xuan-kindergarten-management.vercel.app',
+    'https://ducxuankindergartenmanagement-production.up.railway.app'
   ];
 
   const envOrigins = process.env.CORS_ORIGINS ||

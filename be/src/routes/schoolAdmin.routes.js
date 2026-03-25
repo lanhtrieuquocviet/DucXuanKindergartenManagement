@@ -858,6 +858,26 @@ router.post('/public-info', authenticate, authorizeRoles('SchoolAdmin'), publicI
  */
 router.get('/public-info/:id', authenticate, authorizeRoles('SchoolAdmin'), publicInfoController.getPublicInfo);
 router.put('/public-info/:id', authenticate, authorizeRoles('SchoolAdmin'), publicInfoController.updatePublicInfo);
+
+/**
+ * @openapi
+ * /api/school-admin/public-info/{id}:
+ *   delete:
+ *     summary: Xóa thông tin công khai (Chỉ SchoolAdmin)
+ *     tags:
+ *       - SchoolAdmin
+ *     security:
+ *       - bearerAuth: []
+ *     parameters:
+ *       - in: path
+ *         name: id
+ *         required: true
+ *         schema:
+ *           type: string
+ *     responses:
+ *       200:
+ *         description: Xóa thành công
+ */
 router.delete('/public-info/:id', authenticate, authorizeRoles('SchoolAdmin'), publicInfoController.deletePublicInfo);
 
 // ============================================

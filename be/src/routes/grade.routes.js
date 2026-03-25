@@ -44,6 +44,26 @@ const router = express.Router();
  *         description: Tạo khối lớp thành công
  */
 router.get('/', authenticate, authorizeRoles('SchoolAdmin'), listGrades);
+
+/**
+ * @openapi
+ * /api/grades:
+ *   post:
+ *     summary: Tạo khối lớp mới (Chỉ SchoolAdmin)
+ *     tags:
+ *       - Grades
+ *     security:
+ *       - bearerAuth: []
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             $ref: '#/components/schemas/Grade'
+ *     responses:
+ *       201:
+ *         description: Tạo mới thành công
+ */
 router.post('/', authenticate, authorizeRoles('SchoolAdmin'), createGrade);
 
 /**
@@ -98,6 +118,26 @@ router.post('/', authenticate, authorizeRoles('SchoolAdmin'), createGrade);
  *         description: Không tìm thấy khối lớp
  */
 router.put('/:id', authenticate, authorizeRoles('SchoolAdmin'), updateGrade);
+
+/**
+ * @openapi
+ * /api/grades/{id}:
+ *   delete:
+ *     summary: Xóa khối lớp (Chỉ SchoolAdmin)
+ *     tags:
+ *       - Grades
+ *     security:
+ *       - bearerAuth: []
+ *     parameters:
+ *       - in: path
+ *         name: id
+ *         required: true
+ *         schema:
+ *           type: string
+ *     responses:
+ *       200:
+ *         description: Xóa thành công
+ */
 router.delete('/:id', authenticate, authorizeRoles('SchoolAdmin'), deleteGrade);
 
 module.exports = router;
