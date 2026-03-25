@@ -18,6 +18,7 @@ const gradeRoutes = require('./src/routes/grade.routes');
 const studentRoutes = require('./src/routes/student.routes');
 const cloudinaryRoutes = require('./src/routes/cloudinary.routes');
 const contactRoutes = require('./src/routes/contact.routes');
+const bannerRoutes = require('./src/routes/banner.routes');
 const qaRoutes = require('./src/routes/qa.routes');
 const blogsRoutes = require('./src/routes/blogs.routes');
 const documentsRoutes = require('./src/routes/documents.routes');
@@ -60,6 +61,7 @@ require('./src/models/Classroom');
 require('./src/models/Teacher');
 require('./src/models/Ingredient');
 require('./src/models/HealthCheck');
+require('./src/models/HomepageBannerSetting');
 
 // Seed default roles on startup
 (async () => {
@@ -288,6 +290,7 @@ app.use('/api/school-admin', schoolAdminRoutes);
 
 // Contact (public submit)
 app.use('/api/contact', contactRoutes);
+app.use('/api/banners', bannerRoutes);
 
 // Q&A (public)
 app.use('/api/qa', qaRoutes);

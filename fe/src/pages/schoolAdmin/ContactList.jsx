@@ -168,6 +168,7 @@ function ContactList() {
     { key: 'blogs', label: 'Quản lý blog' },
     { key: 'documents', label: 'Quản lý tài liệu' },
     { key: 'public-info', label: 'Thông tin công khai' },
+    { key: 'banner-management', label: 'Quản lý banner' },
     { key: 'attendance', label: 'Quản lý điểm danh' },
   ];
 
@@ -234,6 +235,10 @@ function ContactList() {
     }
     if (key === 'public-info') {
       navigate('/school-admin/public-info');
+      return;
+    }
+    if (key === 'banner-management') {
+      navigate('/school-admin/banners');
       return;
     }
     if (key === 'attendance') {

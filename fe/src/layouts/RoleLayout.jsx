@@ -62,6 +62,7 @@ const KEY_ICONS = {
   blogs:                 <BlogIcon fontSize="small" />,
   documents:             <FolderIcon fontSize="small" />,
   'public-info':         <PublicIcon fontSize="small" />,
+  'banner-management':   <DashboardIcon fontSize="small" />,
   qa:                    <QaIcon fontSize="small" />,
   contacts:              <EmailIcon fontSize="small" />,
   permissions:           <ShieldIcon fontSize="small" />,

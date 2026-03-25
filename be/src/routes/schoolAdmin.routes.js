@@ -17,6 +17,7 @@ const blogCategoryController = require('../controller/blogCategoryController');
 const qaController = require('../controller/qaController');
 const documentController = require('../controller/documentController');
 const publicInfoController = require('../controller/publicInfoController');
+const bannerController = require('../controller/bannerController');
 const academicYearController = require('../controller/academicYearController');
 const AcademicYear = require('../models/AcademicYear');
 const curriculumController = require('../controller/curriculumController');
@@ -180,6 +181,15 @@ router.patch('/contacts/:id/clear-reply', authenticate, authorizeRoles('SchoolAd
  *         description: Gửi lại email thành công
  */
 router.post('/contacts/:id/resend-email', authenticate, authorizeRoles('SchoolAdmin'), contactController.resendReplyEmail);
+
+// ============================================
+// Homepage banners
+// ============================================
+router.get('/banners', authenticate, authorizeRoles('SchoolAdmin'), bannerController.getAdminHomepageBanners);
+router.post('/banners', authenticate, authorizeRoles('SchoolAdmin'), bannerController.createAdminHomepageBanner);
+router.put('/banners', authenticate, authorizeRoles('SchoolAdmin'), bannerController.updateAdminHomepageBanners);
+router.patch('/banners/:bannerId', authenticate, authorizeRoles('SchoolAdmin'), bannerController.updateAdminHomepageBannerById);
+router.delete('/banners/:bannerId', authenticate, authorizeRoles('SchoolAdmin'), bannerController.deleteAdminHomepageBannerById);
 
 // ============================================
 // Attendance

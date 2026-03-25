@@ -195,6 +195,7 @@ function QaList() {
     { key: 'blogs', label: 'Quản lý blog' },
     { key: 'documents', label: 'Quản lý tài liệu' },
     { key: 'public-info', label: 'Thông tin công khai' },
+    { key: 'banner-management', label: 'Quản lý banner' },
     { key: 'attendance', label: 'Quản lý điểm danh' },
   ];
 
@@ -225,6 +226,7 @@ function QaList() {
     else if (key === 'blogs') navigate('/school-admin/blogs');
     else if (key === 'documents') navigate('/school-admin/documents');
     else if (key === 'public-info') navigate('/school-admin/public-info');
+    else if (key === 'banner-management') navigate('/school-admin/banners');
     else if (key === 'attendance') navigate('/school-admin/attendance/overview');
   };
 

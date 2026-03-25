@@ -155,6 +155,7 @@ function SchoolAdminDashboard() {
     { key: 'blogs', label: 'Quản lý blog' },
     { key: 'documents', label: 'Quản lý tài liệu' },
     { key: 'public-info', label: 'Thông tin công khai' },
+    { key: 'banner-management', label: 'Quản lý banner' },
     { key: 'attendance', label: 'Quản lý điểm danh' },
     { key: 'face-attendance', label: 'Đăng ký khuôn mặt' },
   ];
@@ -189,6 +190,7 @@ function SchoolAdminDashboard() {
     if (key === 'blogs') return navigate('/school-admin/blogs');
     if (key === 'documents') return navigate('/school-admin/documents');
     if (key === 'public-info') return navigate('/school-admin/public-info');
+    if (key === 'banner-management') return navigate('/school-admin/banners');
     if (key === 'attendance') return navigate('/school-admin/attendance/overview');
     if (key === 'face-attendance') return navigate('/school-admin/face-attendance');
   };

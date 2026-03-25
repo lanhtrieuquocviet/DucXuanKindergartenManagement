@@ -76,6 +76,7 @@ import RelaxPage from './pages/Library/RelaxPage';
 import PublicInformationDetail from './pages/PublicInformation/PublicInformationDetail';
 import PublicInfoDetail from './pages/PublicInformation/PublicInfoDetail';
 import ManagePublicInfo from './pages/schoolAdmin/ManagePublicInfo';
+import ManageBanners from './pages/schoolAdmin/ManageBanners';
 import PickupRequest from './pages/teacher/PickupRequest';
 import KitchenLayout from './pages/kitchenStaff/KitchenLayout';
 import KitchenDashboard from './pages/kitchenStaff/KitchenDashboard';
@@ -555,6 +556,16 @@ function App() {
               <ProtectedRoute>
                 <SchoolAdminProvider>
                   <ManagePublicInfo />
+                </SchoolAdminProvider>
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/school-admin/banners"
+            element={
+              <ProtectedRoute>
+                <SchoolAdminProvider>
+                  <ManageBanners />
                 </SchoolAdminProvider>
               </ProtectedRoute>
             }

@@ -219,6 +219,8 @@ export const ENDPOINTS = {
     DOCUMENT_DETAIL: (documentId) => `/school-admin/documents/${documentId}`,
     PUBLIC_INFOS: "/school-admin/public-info",
     PUBLIC_INFO_DETAIL: (id) => `/school-admin/public-info/${id}`,
+    BANNERS: '/school-admin/banners',
+    BANNER_DETAIL: (id) => `/school-admin/banners/${id}`,
     ACADEMIC_YEARS: {
       LIST: "/school-admin/academic-years",
       CURRENT: "/school-admin/academic-years/current",
@@ -268,6 +270,9 @@ export const ENDPOINTS = {
   // Contact (public)
   CONTACT: {
     SUBMIT: "/contact",
+  },
+  BANNERS: {
+    HOMEPAGE: '/banners/homepage',
   },
   // Q&A (public)
   QA: {

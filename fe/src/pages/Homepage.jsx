@@ -1,9 +1,9 @@
 import { useState, useEffect } from "react";
 import { useNavigate, Link } from "react-router-dom";
-import { get } from "../service/api";
+import { get, ENDPOINTS } from "../service/api";
 
 const PAGE_SIZE = 4;
-const BANNERS = [
+const FALLBACK_BANNERS = [
   "https://scontent.fhan18-1.fna.fbcdn.net/v/t39.30808-6/618702160_1461727552619714_6463649032824992629_n.jpg?_nc_cat=109&ccb=1-7&_nc_sid=7b2446&_nc_ohc=8UXWgBpzLxMQ7kNvwFsL2cd&_nc_oc=Adn2GokDE7vW5jDYFVhEl_A53mJ7nAlgyDGYyPr8OGuGVg9YN_oKx-ccfJ9rZUkXBgc&_nc_zt=23&_nc_ht=scontent.fhan18-1.fna&_nc_gid=WI4fgCQc9CPNue1S1l_lfQ&_nc_ss=8&oh=00_AfznI0DF0gohfCHL4Qg33uKR3Xx9Kty4YmKoH1Ktob_Qew&oe=69AEDF05",
   "https://scontent.fhan18-1.fna.fbcdn.net/v/t39.30808-6/605784091_1450941177031685_6354221922736986229_n.jpg?_nc_cat=103&ccb=1-7&_nc_sid=7b2446&_nc_ohc=Qp6WlASTTo4Q7kNvwGzxwyj&_nc_oc=AdmOk6t9GPWsJ-T7vZbkB2-5s99RtYwZn1_2mSICMFA9y9uXx3xw8_LrVXyyw4hjJnc&_nc_zt=23&_nc_ht=scontent.fhan18-1.fna&_nc_gid=Y9vLx29hQie4KSWmrMHBoQ&_nc_ss=8&oh=00_AfxDbY9JZvb3B2QwMZYeqYpCO2V3r9gsbZbUjKKIgouhvQ&oe=69AEE281",
   "https://scontent.fhan18-1.fna.fbcdn.net/v/t39.30808-6/499477487_1247164254076046_8931851791991323309_n.jpg?_nc_cat=106&ccb=1-7&_nc_sid=2a1932&_nc_ohc=6lJx5z9dK8YQ7kNvwGY3aZJ&_nc_oc=AdlHBCPQgn8gdJnHiZaW9oiNn8F9PHdjGKD_4P0dqaY0Fz2sLihiSN3d4RIlbOUEc2g&_nc_zt=23&_nc_ht=scontent.fhan18-1.fna&_nc_gid=qKaxPIWOGGOZBr5Ax9LlPA&_nc_ss=8&oh=00_AfxiCUy42tIEH9To5fdvdqqWM9u6KXVLalRAFbxNwkqFLQ&oe=69AEF39A",
@@ -61,6 +61,7 @@ function Homepage() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const [currentBanner, setCurrentBanner] = useState(0);
+  const [banners, setBanners] = useState(FALLBACK_BANNERS);
 
   useEffect(() => {
     const loadFeatured = async () => {
@@ -101,12 +102,36 @@ function Homepage() {
   }, []);
 
   useEffect(() => {
-    if (BANNERS.length <= 1) return undefined;
+    const loadBanners = async () => {
+      try {
+        const resp = await get(ENDPOINTS.BANNERS.HOMEPAGE, { includeAuth: false });
+        const list = resp?.data?.banners || [];
+        const urls = list
+          .map((item) => item?.imageUrl)
+          .filter(Boolean);
+        // Nếu backend trả về rỗng thì homepage cũng phải rỗng, không giữ fallback.
+        setBanners(urls);
+      } catch {
+        // fallback chỉ dùng khi API lỗi hoàn toàn
+        setBanners(FALLBACK_BANNERS);
+      }
+    };
+    loadBanners();
+  }, []);
+
+  useEffect(() => {
+    if (banners.length <= 1) return undefined;
     const id = setInterval(() => {
-      setCurrentBanner((prev) => (prev + 1) % BANNERS.length);
+      setCurrentBanner((prev) => (prev + 1) % banners.length);
     }, 5000);
     return () => clearInterval(id);
-  }, []);
+  }, [banners.length]);
+
+  useEffect(() => {
+    if (currentBanner >= banners.length) {
+      setCurrentBanner(0);
+    }
+  }, [banners.length, currentBanner]);
 
   const totalPage = Math.ceil(featured.length / PAGE_SIZE);
   const startIndex = (page - 1) * PAGE_SIZE;
@@ -120,23 +145,31 @@ function Homepage() {
       {/* ===== SLIDER BANNER ===== */}
       <div className="rounded-2xl overflow-hidden shadow-md bg-white">
         <div className="relative h-48 sm:h-72 md:h-80">
-          <img
-            src={BANNERS[currentBanner]}
-            alt="Banner trường mầm non"
-            className="w-full h-full object-cover object-center"
-          />
-        </div>
-        <div className="flex justify-center gap-2 py-2 bg-white">
-          {BANNERS.map((_, i) => (
-            <button
-              key={i}
-              type="button"
-              onClick={() => setCurrentBanner(i)}
-              className={`w-2.5 h-2.5 rounded-full transition ${currentBanner === i ? "bg-green-600" : "bg-green-200"}`}
-              aria-label={`Ảnh ${i + 1}`}
+          {banners.length > 0 ? (
+            <img
+              src={banners[currentBanner]}
+              alt="Banner trường mầm non"
+              className="w-full h-full object-cover object-center"
             />
-          ))}
+          ) : (
+            <div className="w-full h-full flex items-center justify-center text-gray-400 text-sm">
+              Chưa có banner hiển thị
+            </div>
+          )}
         </div>
+        {banners.length > 0 && (
+          <div className="flex justify-center gap-2 py-2 bg-white">
+            {banners.map((_, i) => (
+              <button
+                key={i}
+                type="button"
+                onClick={() => setCurrentBanner(i)}
+                className={`w-2.5 h-2.5 rounded-full transition ${currentBanner === i ? "bg-green-600" : "bg-green-200"}`}
+                aria-label={`Ảnh ${i + 1}`}
+              />
+            ))}
+          </div>
+        )}
       </div>
 
       {/* ===== THẺ GIÁ TRỊ / SỨ MỆNH (như mnhoamai) ===== */}
