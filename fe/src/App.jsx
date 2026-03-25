@@ -17,6 +17,11 @@ import PickupRegistration from './pages/student/PickupRegistration';
 import TodayAttendance from './pages/student/TodayAttendance';
 import AttendanceReport from './pages/student/AttendanceReport';
 import SchoolAdminDashboard from './pages/schoolAdmin/SchoolAdminDashboard';
+import SchoolNurseDashboard from './pages/schoolNurse/SchoolNurseDashboard';
+import HealthCheckList from './pages/schoolNurse/HealthCheckList';
+import HealthCheckForm from './pages/schoolNurse/HealthCheckForm';
+import FollowUpManagement from './pages/schoolNurse/FollowUpManagement';
+import HealthReports from './pages/schoolNurse/HealthReports';
 import ClassList from './pages/schoolAdmin/ClassList';
 import StudentInClass from './pages/schoolAdmin/StudentInClass';
 import ManageStudents from './pages/schoolAdmin/ManageStudents';
@@ -38,6 +43,7 @@ import Profile from './pages/Profile';
 import { AuthProvider } from './context/AuthContext';
 import { SystemAdminProvider } from './context/SystemAdminContext';
 import { SchoolAdminProvider } from './context/SchoolAdminContext';
+import { SchoolNurseProvider } from './context/SchoolNurseContext';
 import { TeacherProvider } from './context/TeacherContext';
 import SimpleLayout from './layouts/SimpleLayout';
 import QnAPage from './pages/QuesAndAn/QnAPage';
@@ -85,6 +91,7 @@ import MenuSchoolAdmin from './pages/schoolAdmin/MenuSchoolAdmin';
 import MenuDetailSchoolAdmin from './pages/schoolAdmin/MenuDetailSchoolAdmin';
 import MenuStudent from './pages/student/MenuStudent';
 import MenuDetailStudent from './pages/student/MenuDetailStudent';
+import MealPhotosStudent from './pages/student/MealPhotosStudent';
 import ManageAcademicYears from './pages/schoolAdmin/ManageAcademicYears';
 import AcademicYearDetail from './pages/schoolAdmin/AcademicYearDetail';
 import AcademicYearReport from './pages/schoolAdmin/AcademicYearReport';
@@ -323,6 +330,7 @@ function App() {
           <Route path="/student/menus/:id" element={<ProtectedRoute><MenuDetailStudent /></ProtectedRoute>} />
           <Route path="/student/attendance/today" element={<ProtectedRoute><TodayAttendance /></ProtectedRoute>} />
           <Route path="/student/attendance/report" element={<ProtectedRoute><AttendanceReport /></ProtectedRoute>} />
+          <Route path="/student/meal-photos" element={<ProtectedRoute><MealPhotosStudent /></ProtectedRoute>} />
           <Route
             path="/school-admin"
             element={
@@ -622,6 +630,68 @@ function App() {
             }
           />
           <Route path="/profile" element={<ProtectedRoute><Profile /></ProtectedRoute>} />
+
+          {/* School Nurse Routes */}
+          <Route
+            path="/school-nurse"
+            element={
+              <ProtectedRoute>
+                <SchoolNurseProvider>
+                  <SchoolNurseDashboard />
+                </SchoolNurseProvider>
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/school-nurse/health-list"
+            element={
+              <ProtectedRoute>
+                <SchoolNurseProvider>
+                  <HealthCheckList />
+                </SchoolNurseProvider>
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/school-nurse/health-create"
+            element={
+              <ProtectedRoute>
+                <SchoolNurseProvider>
+                  <HealthCheckForm />
+                </SchoolNurseProvider>
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/school-nurse/health-create/:id"
+            element={
+              <ProtectedRoute>
+                <SchoolNurseProvider>
+                  <HealthCheckForm />
+                </SchoolNurseProvider>
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/school-nurse/follow-up"
+            element={
+              <ProtectedRoute>
+                <SchoolNurseProvider>
+                  <FollowUpManagement />
+                </SchoolNurseProvider>
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/school-nurse/health-reports"
+            element={
+              <ProtectedRoute>
+                <SchoolNurseProvider>
+                  <HealthReports />
+                </SchoolNurseProvider>
+              </ProtectedRoute>
+            }
+          />
 
           <Route
             path="/contact"
