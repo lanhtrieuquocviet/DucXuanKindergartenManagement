@@ -1975,43 +1975,65 @@ function MealManagement() {
               <Box sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr', sm: 'repeat(2, 1fr)' }, gap: 2 }}>
                 {[1, 2, 3, 4].map((i) => <Skeleton key={i} variant="rounded" height={200} sx={{ borderRadius: 3 }} />)}
               </Box>
-            ) : sampleEntries.length > 0 || isToday ? (
-              <Box sx={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
-                {sampleEntries.length > 0 && (
-                  <Box sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr', sm: 'repeat(2, 1fr)' }, gap: 2 }}>
-                    {sampleEntries.map((entry) => (
-                      <SampleEntryCard
-                        key={entry.mealType}
-                        entry={entry}
-                        onPreview={(url) => { setPreviewUrl(url); setPreviewOpen(true); }}
-                        selectedDate={selectedDate}
-                        isToday={isToday}
-                        editRequest={editRequests.find((r) => r.requestType === 'sample' && r.mealType === entry.mealType)}
-                        onRequestEdit={handleRequestEdit}
-                      />
-                    ))}
-                  </Box>
-                )}
+            ) : sampleEntries.length > 0 ? (
+              <Box sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr', sm: 'repeat(2, 1fr)' }, gap: 2 }}>
+                {sampleEntries.map((entry) => (
+                  <SampleEntryCard
+                    key={entry.mealType}
+                    entry={entry}
+                    onPreview={(url) => { setPreviewUrl(url); setPreviewOpen(true); }}
+                    selectedDate={selectedDate}
+                    isToday={isToday}
+                    editRequest={editRequests.find((r) => r.requestType === 'sample' && r.mealType === entry.mealType)}
+                    onRequestEdit={handleRequestEdit}
+                  />
+                ))}
               </Box>
             ) : (
+              /* Empty state — hiển thị cho cả hôm nay (chưa upload) lẫn ngày khác (không có dữ liệu) */
               <Box
                 sx={{
                   display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center',
-                  py: 7, gap: 2, borderRadius: 3, border: '2.5px dashed',
-                  borderColor: alpha('#ef4444', 0.3), bgcolor: alpha('#ef4444', 0.025),
+                  py: 6, gap: 2.5, borderRadius: 3, border: '2px dashed',
+                  borderColor: alpha('#ef4444', 0.3), bgcolor: alpha('#ef4444', 0.02),
+                  cursor: isToday ? 'pointer' : 'default',
+                  transition: 'background 0.2s',
+                  '&:hover': isToday ? { bgcolor: alpha('#ef4444', 0.05) } : {},
                 }}
+                onClick={isToday ? () => navigate('/kitchen/sample-food') : undefined}
               >
-                <Box sx={{ width: 72, height: 72, borderRadius: '50%', bgcolor: alpha('#ef4444', 0.1), display: 'flex', alignItems: 'center', justifyContent: 'center', border: `2px solid ${alpha('#ef4444', 0.2)}` }}>
-                  <AddPhotoIcon sx={{ fontSize: 32, color: '#ef4444' }} />
+                <Box
+                  sx={{
+                    width: 72, height: 72, borderRadius: '50%',
+                    bgcolor: alpha('#ef4444', 0.08),
+                    display: 'flex', alignItems: 'center', justifyContent: 'center',
+                    border: `2px solid ${alpha('#ef4444', 0.18)}`,
+                  }}
+                >
+                  <AddPhotoIcon sx={{ fontSize: 34, color: '#ef4444' }} />
                 </Box>
                 <Box sx={{ textAlign: 'center' }}>
-                  <Typography variant="body1" fontWeight={600} color="text.secondary" sx={{ mb: 0.5 }}>
-                    Chưa có mẫu thực phẩm cho ngày này
+                  <Typography variant="body1" fontWeight={700} sx={{ mb: 0.5, color: 'text.secondary' }}>
+                    {isToday ? 'Chưa có mẫu thực phẩm hôm nay' : 'Không có mẫu thực phẩm cho ngày này'}
                   </Typography>
                   <Typography variant="body2" color="text.disabled" sx={{ fontSize: 12.5 }}>
-                    Không có dữ liệu cho ngày này
+                    {isToday ? 'Nhấn vào đây hoặc nút "Upload mẫu" để bắt đầu' : 'Không có dữ liệu lưu trữ cho ngày đã chọn'}
                   </Typography>
                 </Box>
+                {isToday && (
+                  <Button
+                    variant="outlined"
+                    startIcon={<AddPhotoIcon />}
+                    onClick={(e) => { e.stopPropagation(); navigate('/kitchen/sample-food'); }}
+                    sx={{
+                      borderRadius: 2.5, fontSize: 13, fontWeight: 600, px: 3, py: 0.8, textTransform: 'none',
+                      borderColor: alpha('#ef4444', 0.5), color: '#ef4444',
+                      '&:hover': { borderColor: '#ef4444', bgcolor: alpha('#ef4444', 0.06) },
+                    }}
+                  >
+                    Upload mẫu ngay
+                  </Button>
+                )}
               </Box>
             )}
           </CardContent>
