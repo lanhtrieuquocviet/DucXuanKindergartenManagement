@@ -12,7 +12,7 @@ import { useRef, useState, useEffect } from 'react';
 import { toast } from 'react-toastify';
 import * as faceapi from '@vladmandic/face-api';
 import { useFaceApi } from '../../hooks/useFaceApi';
-import { registerFaceEmbedding } from '../../service/faceAttendance.api';
+import { registerFaceEmbedding, uploadAttendanceImage } from '../../service/faceAttendance.api';
 
 export default function FaceRegisterModal({ open, onClose, student, onSuccess }) {
   const { isReady, loadingProgress } = useFaceApi();
@@ -121,7 +121,16 @@ export default function FaceRegisterModal({ open, onClose, student, onSuccess })
     if (!pendingEmbedding || !student?._id) return;
     setSaving(true);
     try {
-      await registerFaceEmbedding(student._id, pendingEmbedding);
+      // Upload ảnh khuôn mặt lên Cloudinary
+      let faceImageUrl = '';
+      if (previewSrc) {
+        try {
+          faceImageUrl = await uploadAttendanceImage(previewSrc);
+        } catch {
+          // Không bắt buộc phải có ảnh
+        }
+      }
+      await registerFaceEmbedding(student._id, pendingEmbedding, faceImageUrl);
       toast.success(`Đã đăng ký khuôn mặt cho ${student.fullName}`);
       onSuccess?.();
       handleClose();

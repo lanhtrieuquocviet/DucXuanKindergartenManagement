@@ -923,6 +923,26 @@ function TeacherAttendance() {
             </span>
             <span style={{ position: 'relative' }} className="hidden sm:inline">Đăng ký khuôn mặt</span>
             <span style={{ position: 'relative' }} className="sm:hidden">Đăng ký</span>
+            {/* Badge số học sinh đã đăng ký */}
+            {students.length > 0 && (
+              <span
+                style={{
+                  position: 'relative',
+                  background: students.filter(s => s.hasFaceEmbedding).length === students.length
+                    ? 'rgba(16,185,129,0.9)'
+                    : 'rgba(255,255,255,0.25)',
+                  borderRadius: 99,
+                  padding: '1px 7px',
+                  fontSize: 10,
+                  fontWeight: 700,
+                  lineHeight: '16px',
+                  letterSpacing: '0.02em',
+                }}
+                className="hidden sm:inline"
+              >
+                {students.filter(s => s.hasFaceEmbedding).length}/{students.length}
+              </span>
+            )}
           </button>
 
           <style>{`

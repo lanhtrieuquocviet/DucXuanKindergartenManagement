@@ -190,25 +190,8 @@ const FaceCamera = forwardRef(function FaceCamera({ onDetected, onError, isActiv
   }
 
   return (
-    <div className="relative w-full" style={{ maxWidth: 640 }}>
-      {/* Video stream */}
-      <video
-        ref={videoRef}
-        autoPlay
-        muted
-        playsInline
-        className="w-full rounded-xl bg-black"
-        style={{ display: cameraStatus === 'active' ? 'block' : 'none' }}
-      />
-
-      {/* Canvas overlay: vẽ bounding box lên video */}
-      <canvas
-        ref={canvasRef}
-        className="absolute top-0 left-0 w-full h-full"
-        style={{ pointerEvents: 'none' }}
-      />
-
-      {/* Trạng thái camera */}
+    <div className="w-full">
+      {/* Trạng thái camera loading */}
       {cameraStatus === 'loading' && (
         <div className="flex items-center justify-center h-64 bg-gray-100 rounded-xl">
           <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600 mr-2" />
@@ -216,6 +199,7 @@ const FaceCamera = forwardRef(function FaceCamera({ onDetected, onError, isActiv
         </div>
       )}
 
+      {/* Lỗi camera */}
       {cameraStatus === 'error' && (
         <div className="flex flex-col items-center justify-center h-64 bg-red-50 rounded-xl border border-red-200 px-4 text-center gap-3">
           <span className="text-red-500 text-4xl">📷</span>
@@ -229,8 +213,36 @@ const FaceCamera = forwardRef(function FaceCamera({ onDetected, onError, isActiv
         </div>
       )}
 
-      {/* Thanh trạng thái khuôn mặt (hiện khi camera active) */}
-      {cameraStatus === 'active' && (
+      {/* Video + canvas overlay — chỉ hiện khi active */}
+      <div
+        className="relative w-full rounded-xl overflow-hidden bg-black"
+        style={{ display: cameraStatus === 'active' ? 'block' : 'none', aspectRatio: '4/3' }}
+      >
+        <video
+          ref={videoRef}
+          autoPlay
+          muted
+          playsInline
+          style={{
+            position: 'absolute',
+            top: 0, left: 0,
+            width: '100%',
+            height: '100%',
+            objectFit: 'cover',
+          }}
+        />
+        <canvas
+          ref={canvasRef}
+          style={{
+            position: 'absolute',
+            top: 0, left: 0,
+            width: '100%',
+            height: '100%',
+            pointerEvents: 'none',
+          }}
+        />
+
+        {/* Thanh trạng thái khuôn mặt */}
         <div
           className={`absolute bottom-3 left-3 right-3 text-center text-sm font-medium py-1 px-3 rounded-full ${
             faceStatus === 'detected'
@@ -240,7 +252,7 @@ const FaceCamera = forwardRef(function FaceCamera({ onDetected, onError, isActiv
         >
           {faceStatus === 'detected' ? '✓ Phát hiện khuôn mặt' : 'Đưa khuôn mặt vào khung hình'}
         </div>
-      )}
+      </div>
     </div>
   );
 });

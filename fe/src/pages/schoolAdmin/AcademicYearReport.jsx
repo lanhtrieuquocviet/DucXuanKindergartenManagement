@@ -22,6 +22,7 @@ import { Download as DownloadIcon, Search as SearchIcon, PictureAsPdf as PdfIcon
 import { useAuth } from '../../context/AuthContext';
 import RoleLayout from '../../layouts/RoleLayout';
 import { get, ENDPOINTS } from '../../service/api';
+import { SCHOOL_ADMIN_MENU_ITEMS, createSchoolAdminMenuSelect } from './schoolAdminMenuConfig';
 
 const EVENTS_TEMPLATE = [
   { name: 'Lễ khai giảng năm học', time: '05/09/2025', classes: 'Toàn trường', status: 'Đã tổ chức', statusTone: 'done' },
@@ -66,33 +67,6 @@ export default function AcademicYearReport() {
   const [loading, setLoading] = useState(true);
   const [searchQuery, setSearchQuery] = useState('');
 
-  const menuItems = [
-    { key: 'overview', label: 'Tổng quan trường' },
-    {
-      key: 'academic-years',
-      label: 'Quản lý năm học',
-      children: [
-        { key: 'academic-year-setup', label: 'Thiết lập năm học' },
-        { key: 'academic-plan', label: 'Thiết lập kế hoạch' },
-        { key: 'academic-schedule', label: 'Thời gian biểu' },
-        { key: 'academic-report', label: 'Báo cáo & thống kê' },
-      ],
-    },
-    { key: 'classes', label: 'Lớp học' },
-    { key: 'menu', label: 'Quản lý thực đơn' },
-    { key: 'meal-management', label: 'Quản lý bữa ăn' },
-    { key: 'teachers', label: 'Giáo viên' },
-    { key: 'students', label: 'Học sinh & phụ huynh' },
-    { key: 'assets', label: 'Quản lý tài sản' },
-    { key: 'reports', label: 'Báo cáo của trường' },
-    { key: 'contacts', label: 'Liên hệ' },
-    { key: 'qa', label: 'Câu hỏi' },
-    { key: 'blogs', label: 'Quản lý blog' },
-    { key: 'documents', label: 'Quản lý tài liệu' },
-    { key: 'public-info', label: 'Thông tin công khai' },
-    { key: 'attendance', label: 'Quản lý điểm danh' },
-  ];
-
   const handleLogout = () => {
     logout();
     navigate('/login', { replace: true });
@@ -102,76 +76,7 @@ export default function AcademicYearReport() {
     navigate('/profile');
   };
 
-  const handleMenuSelect = (key) => {
-    if (key === 'overview') {
-      navigate('/school-admin');
-      return;
-    }
-    if (key === 'academic-years' || key === 'academic-year-setup') {
-      navigate('/school-admin/academic-years');
-      return;
-    }
-    if (key === 'academic-plan') {
-      navigate('/school-admin/academic-plan');
-      return;
-    }
-    if (key === 'academic-students') {
-      navigate('/school-admin/class-list');
-      return;
-    }
-    if (key === 'academic-curriculum') {
-      navigate('/school-admin/curriculum');
-      return;
-    }
-    if (key === 'academic-schedule') {
-      navigate('/school-admin/timetable');
-      return;
-    }
-    if (key === 'academic-report') {
-      if (yearId) navigate(`/school-admin/academic-years/${yearId}/report`);
-      return;
-    }
-    if (key === 'classes') {
-      navigate('/school-admin/classes');
-      return;
-    }
-    if (key === 'menu') {
-      navigate('/school-admin/menus');
-      return;
-    }
-    if (key === 'meal-management') {
-      navigate('/school-admin/meal-management');
-      return;
-    }
-    if (key === 'teachers') { navigate('/school-admin/teachers'); return; }
-    if (key === 'students') {
-      navigate('/school-admin/students');
-      return;
-    }
-    if (key === 'contacts') {
-      navigate('/school-admin/contacts');
-      return;
-    }
-    if (key === 'qa') {
-      navigate('/school-admin/qa');
-      return;
-    }
-    if (key === 'blogs') {
-      navigate('/school-admin/blogs');
-      return;
-    }
-    if (key === 'documents') {
-      navigate('/school-admin/documents');
-      return;
-    }
-    if (key === 'public-info') {
-      navigate('/school-admin/public-info');
-      return;
-    }
-    if (key === 'attendance') {
-      navigate('/school-admin/attendance/overview');
-    }
-  };
+  const handleMenuSelect = createSchoolAdminMenuSelect(navigate);
 
   useEffect(() => {
     let cancelled = false;
@@ -250,7 +155,7 @@ export default function AcademicYearReport() {
     <RoleLayout
       title={`Báo cáo & Thống kê - Năm học ${yearName}`}
       description="Tổng hợp dữ liệu và báo cáo qua từng năm học."
-      menuItems={menuItems}
+      menuItems={SCHOOL_ADMIN_MENU_ITEMS}
       activeKey="academic-report"
       onLogout={handleLogout}
       onViewProfile={handleViewProfile}

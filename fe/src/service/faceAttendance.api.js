@@ -20,8 +20,8 @@ export const uploadAttendanceImage = async (imageBase64) => {
  * @param {string} studentId
  * @param {number[]} embedding - mảng 128 số float từ face-api.js
  */
-export const registerFaceEmbedding = (studentId, embedding) =>
-  post('/face/register', { studentId, embedding });
+export const registerFaceEmbedding = (studentId, embedding, faceImageUrl = '') =>
+  post('/face/register', { studentId, embedding, faceImageUrl });
 
 /**
  * Nhận diện khuôn mặt + tự động check-in (chế độ ONLINE)

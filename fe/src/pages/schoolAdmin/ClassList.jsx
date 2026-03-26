@@ -3,6 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import RoleLayout from '../../layouts/RoleLayout';
 import { useAuth } from '../../context/AuthContext';
 import { get, post, put, del, ENDPOINTS } from '../../service/api';
+import { SCHOOL_ADMIN_MENU_ITEMS, createSchoolAdminMenuSelect } from './schoolAdminMenuConfig';
 import {
   Box,
   Paper,
@@ -553,81 +554,7 @@ function ClassList() {
   const handleViewProfile = () => navigate('/profile');
   const handleViewStudents = (classId) => navigate(`/school-admin/classes/${classId}/students`);
 
-  const handleMenuSelect = async (key) => {
-    if (key === 'classes') {
-      return;
-    }
-    if (key === 'academic-report') {
-      try {
-        const resp = await get(ENDPOINTS.SCHOOL_ADMIN.ACADEMIC_YEARS.CURRENT);
-        const yearId = resp?.status === 'success' ? resp?.data?._id : null;
-        if (yearId) navigate(`/school-admin/academic-years/${yearId}/report`);
-        else navigate('/school-admin/academic-years');
-      } catch (_) {
-        navigate('/school-admin/academic-years');
-      }
-      return;
-    }
-    const routes = {
-      'academic-years': '/school-admin/academic-years',
-      'academic-year-setup': '/school-admin/academic-years',
-      'academic-curriculum': '/school-admin/curriculum',
-      'academic-schedule': '/school-admin/timetable',
-      'academic-plan': '/school-admin/classes',
-      'academic-students': '/school-admin/class-list',
-      teachers: '/school-admin/teachers',
-      menu: '/school-admin/menus',
-      'meal-management': '/school-admin/meal-management',
-      students: '/school-admin/students',
-      contacts: '/school-admin/contacts',
-      overview: '/school-admin',
-      qa: '/school-admin/qa',
-      blogs: '/school-admin/blogs',
-      documents: '/school-admin/documents',
-      'public-info': '/school-admin/public-info',
-      attendance: '/school-admin/attendance/overview',
-    };
-    if (routes[key]) navigate(routes[key]);
-  };
-
-  const getMenuItems = () => {
-    if (hasRole('SystemAdmin')) {
-      return [
-        { key: 'overview', label: 'Tổng quan hệ thống' },
-        { key: 'schools', label: 'Quản lý trường' },
-        { key: 'accounts', label: 'Quản lý tài khoản' },
-        { key: 'classes', label: 'Lớp học (toàn hệ thống)' },
-        { key: 'roles', label: 'Phân quyền & vai trò' },
-        { key: 'reports', label: 'Báo cáo tổng hợp' },
-      ];
-    }
-    return [
-      { key: 'overview', label: 'Tổng quan trường' },
-      {
-        key: 'academic-years',
-        label: 'Quản lý năm học',
-        children: [
-          { key: 'academic-year-setup', label: 'Thiết lập năm học' },
-          { key: 'academic-plan', label: 'Thiết lập kế hoạch' },
-            { key: 'academic-schedule', label: 'Thời gian biểu' },
-          { key: 'academic-report', label: 'Báo cáo & thống kê' },
-        ],
-      },
-      { key: 'classes', label: 'Lớp học' },
-      { key: 'menu', label: 'Quản lý thực đơn' },
-      { key: 'meal-management', label: 'Quản lý bữa ăn' },
-      { key: 'teachers', label: 'Giáo viên' },
-      { key: 'students', label: 'Học sinh & phụ huynh' },
-      { key: 'assets', label: 'Quản lý tài sản' },
-      { key: 'reports', label: 'Báo cáo của trường' },
-      { key: 'contacts', label: 'Liên hệ' },
-      { key: 'qa', label: 'Câu hỏi' },
-      { key: 'blogs', label: 'Quản lý blog' },
-      { key: 'documents', label: 'Quản lý tài liệu' },
-      { key: 'public-info', label: 'Thông tin công khai' },
-      { key: 'attendance', label: 'Quản lý điểm danh' },
-    ];
-  };
+  const handleMenuSelect = createSchoolAdminMenuSelect(navigate);
 
   // ── computed ──────────────────────────────────────────────────────────────────
   const classesInSelectedGrade = useMemo(() => {
@@ -667,7 +594,7 @@ function ClassList() {
     <RoleLayout
       title="Quản lý Lớp Học"
       description="Quản lý khối lớp và danh sách lớp học."
-      menuItems={getMenuItems()}
+      menuItems={SCHOOL_ADMIN_MENU_ITEMS}
       activeKey="classes"
       onLogout={handleLogout}
       onViewProfile={handleViewProfile}

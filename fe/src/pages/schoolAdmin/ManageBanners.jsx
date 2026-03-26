@@ -23,6 +23,7 @@ import EditIcon from '@mui/icons-material/Edit';
 import RoleLayout from '../../layouts/RoleLayout';
 import { useAuth } from '../../context/AuthContext';
 import { del, get, post, patch, put, postFormData, ENDPOINTS } from '../../service/api';
+import { SCHOOL_ADMIN_MENU_ITEMS, createSchoolAdminMenuSelect } from './schoolAdminMenuConfig';
 
 const createBanner = (index = 0) => ({
   imageUrl: '',
@@ -294,58 +295,13 @@ export default function ManageBanners() {
     }
   };
 
-  const menuItems = [
-    { key: 'overview', label: 'Tổng quan trường' },
-    {
-      key: 'academic-years',
-      label: 'Quản lý năm học',
-      children: [
-        { key: 'academic-year-setup', label: 'Thiết lập năm học' },
-        { key: 'academic-plan', label: 'Thiết lập kế hoạch' },
-        { key: 'academic-schedule', label: 'Thời gian biểu' },
-        { key: 'academic-report', label: 'Báo cáo & thống kê' },
-      ],
-    },
-    { key: 'classes', label: 'Lớp học' },
-    { key: 'menu', label: 'Quản lý thực đơn' },
-    { key: 'meal-management', label: 'Quản lý bữa ăn' },
-    { key: 'teachers', label: 'Giáo viên' },
-    { key: 'students', label: 'Học sinh & phụ huynh' },
-    { key: 'assets', label: 'Quản lý tài sản' },
-    { key: 'reports', label: 'Báo cáo của trường' },
-    { key: 'contacts', label: 'Liên hệ' },
-    { key: 'qa', label: 'Câu hỏi' },
-    { key: 'blogs', label: 'Quản lý blog' },
-    { key: 'documents', label: 'Quản lý tài liệu' },
-    { key: 'public-info', label: 'Thông tin công khai' },
-    { key: 'banner-management', label: 'Quản lý banner' },
-    { key: 'attendance', label: 'Quản lý điểm danh' },
-  ];
-
-  const handleMenuSelect = (key) => {
-    if (key === 'overview') navigate('/school-admin');
-    else if (key === 'academic-year-setup') navigate('/school-admin/academic-years');
-    else if (key === 'academic-report') navigate('/school-admin/academic-years');
-    else if (key === 'academic-schedule') navigate('/school-admin/timetable');
-    else if (key === 'academic-plan') navigate('/school-admin/academic-plan');
-    else if (key === 'classes') navigate('/school-admin/classes');
-    else if (key === 'menu') navigate('/school-admin/menus');
-    else if (key === 'meal-management') navigate('/school-admin/meal-management');
-    else if (key === 'teachers') navigate('/school-admin/teachers');
-    else if (key === 'contacts') navigate('/school-admin/contacts');
-    else if (key === 'qa') navigate('/school-admin/qa');
-    else if (key === 'blogs') navigate('/school-admin/blogs');
-    else if (key === 'documents') navigate('/school-admin/documents');
-    else if (key === 'public-info') navigate('/school-admin/public-info');
-    else if (key === 'banner-management') navigate('/school-admin/banners');
-    else if (key === 'attendance') navigate('/school-admin/attendance/overview');
-  };
+  const handleMenuSelect = createSchoolAdminMenuSelect(navigate);
 
   return (
     <RoleLayout
       title="Quản lý banner"
       description="Kiểm soát banner hiển thị trên trang chủ."
-      menuItems={menuItems}
+      menuItems={SCHOOL_ADMIN_MENU_ITEMS}
       activeKey="banner-management"
       onLogout={() => {
         logout();
