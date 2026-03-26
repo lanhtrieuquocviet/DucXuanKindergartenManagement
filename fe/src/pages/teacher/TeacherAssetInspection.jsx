@@ -33,6 +33,7 @@ import DeleteIcon from '@mui/icons-material/Delete';
 import EditIcon from '@mui/icons-material/Edit';
 import RoleLayout from '../../layouts/RoleLayout';
 import { useAuth } from '../../context/AuthContext';
+import { useTeacher } from '../../context/TeacherContext';
 import { get, post, put, del, ENDPOINTS } from '../../service/api';
 
 const STATUS_LABEL = {
@@ -44,6 +45,7 @@ const STATUS_LABEL = {
 
 const emptyAssetRow = () => ({ category: '', assetCode: '', name: '', unit: 'Cái', quantity: 0, targetUser: '', notes: '' });
 const emptyForm = () => ({
+  className: '',
   scope: '',
   location: 'Đức Xuân',
   inspectionDate: new Date().toISOString().slice(0, 10),
@@ -142,6 +144,7 @@ export default function TeacherAssetInspection() {
   const handleOpenEdit = m => {
     setEditing(m);
     setForm({
+      className:        m.className || '',
       scope:            m.scope || '',
       location:         m.location || 'Đức Xuân',
       inspectionDate:   m.inspectionDate ? new Date(m.inspectionDate).toISOString().slice(0, 10) : '',
@@ -168,7 +171,7 @@ export default function TeacherAssetInspection() {
   const handleAddCategory = name  => setForm(prev => ({ ...prev, assets: [...prev.assets, { ...emptyAssetRow(), category: name }] }));
 
   const handleSave = async () => {
-    if (!form.scope.trim())    { toast.error('Vui lòng nhập Lớp / Phạm vi.'); return; }
+    if (!form.className.trim()) { toast.error('Vui lòng nhập Lớp.'); return; }
     if (!form.inspectionDate)  { toast.error('Vui lòng chọn ngày kiểm kê.'); return; }
     setSaving(true);
     try {
@@ -204,15 +207,20 @@ export default function TeacherAssetInspection() {
   const cellBorder = { border: '1px solid #555', padding: '4px 6px', fontSize: 13 };
   const headerCell = { ...cellBorder, fontWeight: 700, textAlign: 'center', background: '#f3f4f6' };
 
+  const { isCommitteeMember } = useTeacher();
   const menuItems = [
-    { key: 'classes', label: 'Lớp phụ trách' },
-    { key: 'attendance', label: 'Điểm danh' },
-    { key: 'pickup-approval', label: 'Đơn đưa đón' },
-    { key: 'asset-inspection', label: 'Kiểm kê tài sản' },
+    { key: 'classes',          label: 'Lớp phụ trách' },
+    { key: 'students',         label: 'Danh sách học sinh' },
+    { key: 'attendance',       label: 'Điểm danh' },
+    { key: 'pickup-approval',  label: 'Đơn đưa đón' },
+    { key: 'schedule',         label: 'Lịch dạy & hoạt động' },
+    { key: 'messages',         label: 'Thông báo cho phụ huynh' },
+    ...(isCommitteeMember ? [{ key: 'asset-inspection', label: 'Kiểm kê tài sản' }] : []),
   ];
 
   const handleMenuSelect = key => {
     if (key === 'classes')          navigate('/teacher');
+    if (key === 'students')         navigate('/teacher');
     if (key === 'attendance')       navigate('/teacher/attendance');
     if (key === 'pickup-approval')  navigate('/teacher/pickup-approval');
     if (key === 'asset-inspection') navigate('/teacher/asset-inspection');
@@ -264,7 +272,7 @@ export default function TeacherAssetInspection() {
                     <Box>
                       <Typography fontWeight={600}>{m.minutesNumber || '—'}</Typography>
                       <Typography variant="body2" color="text.secondary">{formatDate(m.createdAt)}</Typography>
-                      <Typography variant="body2">{m.scope || '—'}</Typography>
+                      <Typography variant="body2">{[m.className, m.scope].filter(Boolean).join(' - ') || '—'}</Typography>
                     </Box>
                     <Chip label={s.label} color={s.color} size="small" />
                   </Stack>
@@ -304,7 +312,7 @@ export default function TeacherAssetInspection() {
                     <TableRow key={m._id} hover>
                       <TableCell>{m.minutesNumber || '—'}</TableCell>
                       <TableCell>{formatDate(m.createdAt)}</TableCell>
-                      <TableCell>{m.scope || '—'}</TableCell>
+                      <TableCell>{[m.className, m.scope].filter(Boolean).join(' - ') || '—'}</TableCell>
                       <TableCell>
                         <Stack spacing={0.3}>
                           <Chip label={s.label} color={s.color} size="small" sx={{ alignSelf: 'flex-start' }} />
@@ -359,11 +367,15 @@ export default function TeacherAssetInspection() {
           <Paper variant="outlined" sx={{ p: { xs: 1.5, sm: 2 }, mb: 3, borderRadius: 2, bgcolor: '#f9fafb' }}>
             <Typography variant="body2" fontWeight={600} mb={1.5} color="text.secondary">Thông tin biên bản</Typography>
             <Stack direction={{ xs: 'column', sm: 'row' }} spacing={2} mb={2} flexWrap="wrap">
-              <TextField label="Lớp / Phạm vi *" size="small" value={form.scope}
-                onChange={e => setForm(p => ({ ...p, scope: e.target.value }))} disabled={isReadOnly}
+              <TextField label="Lớp *" size="small" value={form.className}
+                onChange={e => setForm(p => ({ ...p, className: e.target.value }))} disabled={isReadOnly}
                 placeholder="VD: MẪU GIÁO LỚN 1" required
-                error={!form.scope && !isReadOnly}
-                helperText={!form.scope && !isReadOnly ? 'Bắt buộc nhập' : ''}
+                error={!form.className && !isReadOnly}
+                helperText={!form.className && !isReadOnly ? 'Bắt buộc nhập' : ''}
+                sx={{ flex: 1, minWidth: { xs: '100%', sm: 150 } }} />
+              <TextField label="Phạm vi" size="small" value={form.scope}
+                onChange={e => setForm(p => ({ ...p, scope: e.target.value }))} disabled={isReadOnly}
+                placeholder="VD: Phòng học, Nhà bếp"
                 sx={{ flex: 1, minWidth: { xs: '100%', sm: 160 } }} />
               <TextField label="Địa điểm" size="small" value={form.location}
                 onChange={e => setForm(p => ({ ...p, location: e.target.value }))} disabled={isReadOnly}
@@ -405,7 +417,7 @@ export default function TeacherAssetInspection() {
               Độc lập - Tự do - Hạnh phúc
             </Typography>
             <Typography sx={{ textAlign: 'center', fontWeight: 700, fontSize: { xs: 13, sm: 15 }, textTransform: 'uppercase', mb: 0.5, fontFamily: 'inherit' }}>
-              BIÊN BẢN KIỂM KÊ TÀI SẢN {form.scope ? form.scope.toUpperCase() : ''}
+              BIÊN BẢN KIỂM KÊ TÀI SẢN {[form.className, form.scope].filter(Boolean).map(s => s.toUpperCase()).join(' - ')}
             </Typography>
             <Typography sx={{ textAlign: 'center', fontStyle: 'italic', mb: 2, fontFamily: 'inherit', fontSize: { xs: 11, sm: 13 } }}>
               {form.location}, ngày {dayStr} tháng {monthStr} năm {yearStr}

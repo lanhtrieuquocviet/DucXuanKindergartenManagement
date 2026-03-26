@@ -7,6 +7,7 @@ const Role = require('../models/Role');
 const Teacher = require('../models/Teacher');
 const { listClassrooms, createClassroom, updateClassroom, deleteClassroom } = require('../controller/classroomController');
 const assetCtrl = require('../controller/assetInspectionController');
+const assetCrudCtrl = require('../controller/assetController');
 const {
   getAttendanceOverview,
   getClassAttendanceDetail,
@@ -1440,6 +1441,21 @@ router.put('/classrooms/:id', authenticate, authorizeRoles('SchoolAdmin'), updat
 router.delete('/classrooms/:id', authenticate, authorizeRoles('SchoolAdmin'), deleteClassroom);
 
 // ============================================
+// GET /school-admin/staff — danh sách user có role SchoolAdmin (để chọn thành viên ban kiểm kê)
+router.get('/staff', authenticate, authorizeRoles('SchoolAdmin'), async (req, res) => {
+  try {
+    const role = await Role.findOne({ roleName: 'SchoolAdmin' }).lean();
+    if (!role) return res.status(200).json({ status: 'success', data: [] });
+    const users = await User.find({ roles: role._id, status: 'active' })
+      .select('fullName email')
+      .sort({ fullName: 1 })
+      .lean();
+    return res.status(200).json({ status: 'success', data: users });
+  } catch (err) {
+    return res.status(500).json({ status: 'error', message: 'Lỗi khi lấy danh sách nhân viên' });
+  }
+});
+
 // Asset Inspection - Committees (Ban kiểm kê)
 // ============================================
 router.get('/asset-committees', authenticate, authorizeRoles('SchoolAdmin'), assetCtrl.listCommittees);
@@ -1458,5 +1474,14 @@ router.put('/asset-minutes/:id', authenticate, authorizeRoles('SchoolAdmin'), as
 router.delete('/asset-minutes/:id', authenticate, authorizeRoles('SchoolAdmin'), assetCtrl.deleteMinutes);
 router.patch('/asset-minutes/:id/approve', authenticate, authorizeRoles('SchoolAdmin'), assetCtrl.approveMinutes);
 router.patch('/asset-minutes/:id/reject', authenticate, authorizeRoles('SchoolAdmin'), assetCtrl.rejectMinutes);
+
+// ============================================
+// Assets CRUD (Danh sách tài sản)
+// ============================================
+router.get('/assets', authenticate, authorizeRoles('SchoolAdmin'), assetCrudCtrl.listAssets);
+router.post('/assets', authenticate, authorizeRoles('SchoolAdmin'), assetCrudCtrl.createAsset);
+router.get('/assets/:id', authenticate, authorizeRoles('SchoolAdmin'), assetCrudCtrl.getAsset);
+router.put('/assets/:id', authenticate, authorizeRoles('SchoolAdmin'), assetCrudCtrl.updateAsset);
+router.delete('/assets/:id', authenticate, authorizeRoles('SchoolAdmin'), assetCrudCtrl.deleteAsset);
 
 module.exports = router;

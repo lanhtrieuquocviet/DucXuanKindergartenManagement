@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useState } from "react";
 import { useLocation, useNavigate } from "react-router-dom";
 import { useAuth } from "../../context/AuthContext";
+import { useTeacher } from "../../context/TeacherContext";
 import RoleLayout from "../../layouts/RoleLayout";
 import { get, post, ENDPOINTS } from "../../service/api";
 import ConfirmDialog from "../../components/ConfirmDialog";
@@ -142,6 +143,7 @@ function PickupRequest() {
 
 
 
+  const { isCommitteeMember } = useTeacher();
   const menuItems = useMemo(() => [
     { key: "classes",         label: "Lớp phụ trách" },
     { key: "students",        label: "Danh sách học sinh" },
@@ -149,7 +151,8 @@ function PickupRequest() {
     { key: "pickup-approval", label: "Đơn đưa đón" },
     { key: "schedule",        label: "Lịch dạy & hoạt động" },
     { key: "messages",        label: "Thông báo cho phụ huynh" },
-  ], []);
+    ...(isCommitteeMember ? [{ key: "asset-inspection", label: "Kiểm kê tài sản" }] : []),
+  ], [isCommitteeMember]);
 
   const activeKey = useMemo(() => {
     const path = location.pathname || "";
@@ -161,7 +164,8 @@ function PickupRequest() {
   const handleMenuSelect = (key) => {
     if (key === "classes")         { navigate("/teacher");                  return; }
     if (key === "attendance")      { navigate("/teacher/attendance");        return; }
-    if (key === "pickup-approval") { navigate("/teacher/pickup-approval");   return; }
+    if (key === "pickup-approval")  { navigate("/teacher/pickup-approval");   return; }
+    if (key === "asset-inspection") { navigate("/teacher/asset-inspection");  return; }
   };
 
   useEffect(() => {

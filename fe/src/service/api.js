@@ -258,6 +258,7 @@ export const ENDPOINTS = {
       CREATE: "/school-admin/timetable/activities",
       UPDATE: (id) => `/school-admin/timetable/activities/${id}`,
     },
+    STAFF: "/school-admin/staff",
     TEACHERS: "/school-admin/teachers",
     TEACHER_AVAILABILITY: "/school-admin/teachers/availability",
     TEACHER_UPDATE: (id) => `/school-admin/teachers/${id}`,
@@ -273,6 +274,9 @@ export const ENDPOINTS = {
     ASSET_MINUTES_DETAIL: (id) => `/school-admin/asset-minutes/${id}`,
     ASSET_MINUTES_APPROVE: (id) => `/school-admin/asset-minutes/${id}/approve`,
     ASSET_MINUTES_REJECT: (id) => `/school-admin/asset-minutes/${id}/reject`,
+    // Asset CRUD
+    ASSETS: "/school-admin/assets",
+    ASSET_DETAIL: (id) => `/school-admin/assets/${id}`,
   },
   // Contact (public)
   CONTACT: {
@@ -290,6 +294,7 @@ export const ENDPOINTS = {
   TEACHER: {
     DASHBOARD: "/teacher/dashboard",
     ASSET_COMMITTEES: "/teacher/asset-committees",
+    ASSET_COMMITTEE_IS_MEMBER: "/teacher/asset-committees/is-member",
     ASSET_MINUTES: "/teacher/asset-minutes",
     ASSET_MINUTES_DETAIL: (id) => `/teacher/asset-minutes/${id}`,
     ATTENDANCES: "/teacher/attendances",
