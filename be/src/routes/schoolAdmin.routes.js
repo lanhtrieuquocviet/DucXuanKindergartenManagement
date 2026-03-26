@@ -6,6 +6,7 @@ const User = require('../models/User');
 const Role = require('../models/Role');
 const Teacher = require('../models/Teacher');
 const { listClassrooms, createClassroom, updateClassroom, deleteClassroom } = require('../controller/classroomController');
+const assetCtrl = require('../controller/assetInspectionController');
 const {
   getAttendanceOverview,
   getClassAttendanceDetail,
@@ -1437,5 +1438,25 @@ router.get('/classrooms', authenticate, authorizeRoles('SchoolAdmin'), listClass
 router.post('/classrooms', authenticate, authorizeRoles('SchoolAdmin'), createClassroom);
 router.put('/classrooms/:id', authenticate, authorizeRoles('SchoolAdmin'), updateClassroom);
 router.delete('/classrooms/:id', authenticate, authorizeRoles('SchoolAdmin'), deleteClassroom);
+
+// ============================================
+// Asset Inspection - Committees (Ban kiểm kê)
+// ============================================
+router.get('/asset-committees', authenticate, authorizeRoles('SchoolAdmin'), assetCtrl.listCommittees);
+router.post('/asset-committees', authenticate, authorizeRoles('SchoolAdmin'), assetCtrl.createCommittee);
+router.get('/asset-committees/:id', authenticate, authorizeRoles('SchoolAdmin'), assetCtrl.getCommittee);
+router.put('/asset-committees/:id', authenticate, authorizeRoles('SchoolAdmin'), assetCtrl.updateCommittee);
+router.delete('/asset-committees/:id', authenticate, authorizeRoles('SchoolAdmin'), assetCtrl.deleteCommittee);
+
+// ============================================
+// Asset Inspection - Minutes (Biên bản kiểm kê)
+// ============================================
+router.get('/asset-minutes', authenticate, authorizeRoles('SchoolAdmin'), assetCtrl.listMinutes);
+router.post('/asset-minutes', authenticate, authorizeRoles('SchoolAdmin'), assetCtrl.createMinutes);
+router.get('/asset-minutes/:id', authenticate, authorizeRoles('SchoolAdmin'), assetCtrl.getMinutes);
+router.put('/asset-minutes/:id', authenticate, authorizeRoles('SchoolAdmin'), assetCtrl.updateMinutes);
+router.delete('/asset-minutes/:id', authenticate, authorizeRoles('SchoolAdmin'), assetCtrl.deleteMinutes);
+router.patch('/asset-minutes/:id/approve', authenticate, authorizeRoles('SchoolAdmin'), assetCtrl.approveMinutes);
+router.patch('/asset-minutes/:id/reject', authenticate, authorizeRoles('SchoolAdmin'), assetCtrl.rejectMinutes);
 
 module.exports = router;

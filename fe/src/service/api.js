@@ -266,6 +266,13 @@ export const ENDPOINTS = {
     CLASSROOMS: "/school-admin/classrooms",
     CLASSROOM_UPDATE: (id) => `/school-admin/classrooms/${id}`,
     CLASSROOM_DELETE: (id) => `/school-admin/classrooms/${id}`,
+    // Asset Inspection
+    ASSET_COMMITTEES: "/school-admin/asset-committees",
+    ASSET_COMMITTEE_DETAIL: (id) => `/school-admin/asset-committees/${id}`,
+    ASSET_MINUTES: "/school-admin/asset-minutes",
+    ASSET_MINUTES_DETAIL: (id) => `/school-admin/asset-minutes/${id}`,
+    ASSET_MINUTES_APPROVE: (id) => `/school-admin/asset-minutes/${id}/approve`,
+    ASSET_MINUTES_REJECT: (id) => `/school-admin/asset-minutes/${id}/reject`,
   },
   // Contact (public)
   CONTACT: {
@@ -282,6 +289,9 @@ export const ENDPOINTS = {
   // Teacher
   TEACHER: {
     DASHBOARD: "/teacher/dashboard",
+    ASSET_COMMITTEES: "/teacher/asset-committees",
+    ASSET_MINUTES: "/teacher/asset-minutes",
+    ASSET_MINUTES_DETAIL: (id) => `/teacher/asset-minutes/${id}`,
     ATTENDANCES: "/teacher/attendances",
     ATTENDANCE_BY_CLASS: (classId) => `/teacher/attendances/class/${classId}`,
     ATTENDANCE_BY_CLASS_DATE: (classId, date) =>

@@ -58,6 +58,7 @@ export const createSchoolAdminMenuSelect = (navigate) => (key) => {
     documents: '/school-admin/documents',
     'public-info': '/school-admin/public-info',
     'banner-management': '/school-admin/banners',
+    assets: '/school-admin/assets',
     attendance: '/school-admin/attendance/overview',
     'face-attendance': '/school-admin/face-attendance',
   };

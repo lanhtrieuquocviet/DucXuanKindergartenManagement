@@ -78,6 +78,7 @@ import PublicInfoDetail from './pages/PublicInformation/PublicInfoDetail';
 import ManagePublicInfo from './pages/schoolAdmin/ManagePublicInfo';
 import ManageBanners from './pages/schoolAdmin/ManageBanners';
 import PickupRequest from './pages/teacher/PickupRequest';
+import TeacherAssetInspection from './pages/teacher/TeacherAssetInspection';
 import KitchenLayout from './pages/kitchenStaff/KitchenLayout';
 import KitchenDashboard from './pages/kitchenStaff/KitchenDashboard';
 import MenuManagement from './pages/kitchenStaff/MenuManagement';
@@ -102,6 +103,7 @@ import CurriculumPage from './pages/schoolAdmin/CurriculumPage';
 import ClassListOverview from './pages/schoolAdmin/ClassListOverview';
 import TimetableActivitiesPage from './pages/schoolAdmin/TimetableActivitiesPage';
 import FaceAttendancePage from './pages/schoolAdmin/FaceAttendancePage';
+import ManageAssets from './pages/schoolAdmin/ManageAssets';
 import ProtectedRoute from './components/ProtectedRoute';
 
 
@@ -292,6 +294,16 @@ function App() {
               <ProtectedRoute>
                 <TeacherProvider>
                   <PickupRequest />
+                </TeacherProvider>
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/teacher/asset-inspection"
+            element={
+              <ProtectedRoute>
+                <TeacherProvider>
+                  <TeacherAssetInspection />
                 </TeacherProvider>
               </ProtectedRoute>
             }
@@ -626,6 +638,16 @@ function App() {
               <ProtectedRoute>
                 <SchoolAdminProvider>
                   <FaceAttendancePage />
+                </SchoolAdminProvider>
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/school-admin/assets"
+            element={
+              <ProtectedRoute>
+                <SchoolAdminProvider>
+                  <ManageAssets />
                 </SchoolAdminProvider>
               </ProtectedRoute>
             }

@@ -1,5 +1,6 @@
 const express = require('express');
 const { authenticate, authorizeRoles } = require('../middleware/auth');
+const assetCtrl = require('../controller/assetInspectionController');
 
 const router = express.Router();
 
@@ -27,5 +28,12 @@ router.get('/dashboard', authenticate, authorizeRoles('Teacher'), (req, res) => 
     },
   });
 });
+
+// ── Asset Inspection (Teacher creates/edits own minutes) ──
+router.get('/asset-committees', authenticate, authorizeRoles('Teacher'), assetCtrl.listCommittees);
+router.get('/asset-minutes', authenticate, authorizeRoles('Teacher'), assetCtrl.listMyMinutes);
+router.post('/asset-minutes', authenticate, authorizeRoles('Teacher'), assetCtrl.createMinutes);
+router.get('/asset-minutes/:id', authenticate, authorizeRoles('Teacher'), assetCtrl.getMinutes);
+router.put('/asset-minutes/:id', authenticate, authorizeRoles('Teacher'), assetCtrl.updateMinutes);
 
 module.exports = router;

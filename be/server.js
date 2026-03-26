@@ -62,6 +62,8 @@ require('./src/models/Teacher');
 require('./src/models/Ingredient');
 require('./src/models/HealthCheck');
 require('./src/models/HomepageBannerSetting');
+require('./src/models/InspectionCommittee');
+require('./src/models/InspectionMinutes');
 
 // Seed default roles on startup
 (async () => {
