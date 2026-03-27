@@ -633,6 +633,16 @@ function App() {
             }
           />
           <Route
+            path="/school-admin/academic-report"
+            element={
+              <ProtectedRoute>
+                <SchoolAdminProvider>
+                  <AcademicYearReport />
+                </SchoolAdminProvider>
+              </ProtectedRoute>
+            }
+          />
+          <Route
             path="/school-admin/face-attendance"
             element={
               <ProtectedRoute>

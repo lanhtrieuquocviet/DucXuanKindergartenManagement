@@ -46,7 +46,7 @@ export const createSchoolAdminMenuSelect = (navigate) => (key) => {
     'academic-schedule': '/school-admin/timetable',
     'academic-plan': '/school-admin/academic-plan',
     'academic-students': '/school-admin/class-list',
-    'academic-report': '/school-admin/academic-years',
+    'academic-report': '/school-admin/academic-report',
     classes: '/school-admin/classes',
     menu: '/school-admin/menus',
     'meal-management': '/school-admin/meal-management',
