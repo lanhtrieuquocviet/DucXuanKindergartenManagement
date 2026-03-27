@@ -28,9 +28,7 @@ import { chatWithAI } from "../service/ai.api";
  * AIMenuChatBox - Real-time chat component for menu suggestions
  * Allows users to ask questions and get AI suggestions for menu updates
  */
-function AIMenuChatBox({ menu, isEditable, onClose }) {
-  if (!menu?._id) return null;
-
+function AIMenuChatBox({ menu, onClose }) {
   const [messages, setMessages] = useState([
     {
       id: 1,
@@ -51,6 +49,8 @@ function AIMenuChatBox({ menu, isEditable, onClose }) {
   useEffect(() => {
     scrollToBottom();
   }, [messages]);
+
+  if (!menu?._id) return null;
 
   // Sample suggestions for quick actions
   const quickSuggestions = [

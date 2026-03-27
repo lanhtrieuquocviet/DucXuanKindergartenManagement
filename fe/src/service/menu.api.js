@@ -101,6 +101,10 @@ export const aiCreateDishFromSuggestion = (data) => {
   return api.post("/ai/create-from-suggestion", data);
 };
 
+export const aiBalanceMenu = (dailyMenuId) => {
+  return api.post("/ai/balance-menu", { dailyMenuId });
+};
+
 export const aiHealthCheck = () => {
   return api.get("/ai/health");
 };

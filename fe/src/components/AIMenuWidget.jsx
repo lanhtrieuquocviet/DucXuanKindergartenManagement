@@ -24,12 +24,12 @@ import AIMenuChatBox from "./AIMenuChatBox";
  * AIMenuWidget - Floating widget in top-right corner
  * Shows "AI Thông Minh hỗ trợ lên thực đơn" with quick access to features
  */
-function AIMenuWidget({ menu, isEditable, onMenuUpdate }) {
-  if (!menu) return null;
-
+function AIMenuWidget({ menu, isEditable }) {
   const [dialogOpen, setDialogOpen] = useState(false);
   const [chatOpen, setChatOpen] = useState(false);
   const [collapsed, setCollapsed] = useState(false);
+
+  if (!menu) return null;
 
   if (collapsed) {
     return (
@@ -108,15 +108,15 @@ function AIMenuWidget({ menu, isEditable, onMenuUpdate }) {
               <Box
                 onClick={() => setDialogOpen(true)}
                 sx={{
-                  bgcolor: alpha("white", 0.12),
-                  border: "1px solid " + alpha("white", 0.25),
+                  bgcolor: alpha("#fff", 0.12),
+                  border: "1px solid " + alpha("#fff", 0.25),
                   borderRadius: 1.5,
                   p: 1.2,
                   textAlign: "center",
                   cursor: "pointer",
                   transition: "all 0.2s",
                   "&:hover": {
-                    bgcolor: alpha("white", 0.18),
+                    bgcolor: alpha("#fff", 0.18),
                   },
                 }}
               >
@@ -129,15 +129,15 @@ function AIMenuWidget({ menu, isEditable, onMenuUpdate }) {
             <Box
               onClick={() => setDialogOpen(true)}
               sx={{
-                bgcolor: alpha("white", 0.12),
-                border: "1px solid " + alpha("white", 0.25),
+                bgcolor: alpha("#fff", 0.12),
+                border: "1px solid " + alpha("#fff", 0.25),
                 borderRadius: 1.5,
                 p: 1.2,
                 textAlign: "center",
                 cursor: "pointer",
                 transition: "all 0.2s",
                 "&:hover": {
-                  bgcolor: alpha("white", 0.18),
+                  bgcolor: alpha("#fff", 0.18),
                 },
               }}
             >
@@ -149,15 +149,15 @@ function AIMenuWidget({ menu, isEditable, onMenuUpdate }) {
             <Box
               onClick={() => setChatOpen(true)}
               sx={{
-                bgcolor: alpha("white", 0.12),
-                border: "1px solid " + alpha("white", 0.25),
+                bgcolor: alpha("#fff", 0.12),
+                border: "1px solid " + alpha("#fff", 0.25),
                 borderRadius: 1.5,
                 p: 1.2,
                 textAlign: "center",
                 cursor: "pointer",
                 transition: "all 0.2s",
                 "&:hover": {
-                  bgcolor: alpha("white", 0.18),
+                  bgcolor: alpha("#fff", 0.18),
                 },
               }}
             >
@@ -168,7 +168,7 @@ function AIMenuWidget({ menu, isEditable, onMenuUpdate }) {
           </Stack>
 
           {/* Status */}
-          <Box sx={{ mt: 1.5, pt: 1, borderTop: "1px solid " + alpha("white", 0.15), textAlign: "center" }}>
+          <Box sx={{ mt: 1.5, pt: 1, borderTop: "1px solid " + alpha("#fff", 0.15), textAlign: "center" }}>
             <Typography variant="caption" sx={{ fontSize: 9, opacity: 0.7 }}>
               {isEditable ? "✏️ Chế độ chỉnh sửa" : "👁️ Chế độ xem"}
             </Typography>

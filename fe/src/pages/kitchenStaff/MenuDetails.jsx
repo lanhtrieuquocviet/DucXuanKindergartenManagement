@@ -1,9 +1,9 @@
-import { useEffect, useState, useRef } from "react";
+import { useEffect, useState, useRef, useMemo } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import { getMenuDetail, submitMenu, updateDailyMenu, getFoods } from "../../service/menu.api";
 import { toast } from "react-toastify";
 import FoodSelectorModal from "../../components/FoodSelectorModal";
-import AIFloatingButton from "../../components/AIFloatingButton";
+import AIMenuWidget from "../../components/AIMenuWidget";
 import { downloadMenuTemplate, exportMenuToExcel } from "../../utils/excelMenuTemplate";
 import { parseMenuExcel, formatImportErrors } from "../../utils/excelMenuImporter";
 import {
@@ -80,6 +80,57 @@ const NUTRITION_INFO = [
   { key: "carb", label: "Tinh bột", unit: "g", color: "#22c55e", icon: <CarbIcon sx={{ fontSize: 20 }} /> },
 ];
 
+const NUTRITION_RANGES = {
+  avgCalories: { min: 615, max: 726 },
+  protein: { min: 13, max: 20 },
+  fat: { min: 25, max: 35 },
+  carb: { min: 52, max: 60 },
+};
+
+const evaluateNutrition = (nutrition = {}) => {
+  const avgCalories = Number(nutrition.avgCalories || 0);
+
+  const protein = Number(nutrition.protein || 0);
+  const fat = Number(nutrition.fat || 0);
+  const carb = Number(nutrition.carb || 0);
+
+  const pKcal = protein * 4;
+  const fKcal = fat * 9;
+  const cKcal = carb * 4;
+  const totalMacroKcal = pKcal + fKcal + cKcal;
+
+  const proteinPercent = totalMacroKcal > 0 ? Number(((pKcal / totalMacroKcal) * 100).toFixed(2)) : 0;
+  const fatPercent = totalMacroKcal > 0 ? Number(((fKcal / totalMacroKcal) * 100).toFixed(2)) : 0;
+  const carbPercent = totalMacroKcal > 0 ? Number(((cKcal / totalMacroKcal) * 100).toFixed(2)) : 0;
+
+  const result = {
+    calories: {
+      value: avgCalories,
+      pass: avgCalories >= NUTRITION_RANGES.avgCalories.min && avgCalories <= NUTRITION_RANGES.avgCalories.max,
+      range: `${NUTRITION_RANGES.avgCalories.min} - ${NUTRITION_RANGES.avgCalories.max}`,
+    },
+    protein: {
+      value: proteinPercent,
+      pass: proteinPercent >= NUTRITION_RANGES.protein.min && proteinPercent <= NUTRITION_RANGES.protein.max,
+      range: `${NUTRITION_RANGES.protein.min}% - ${NUTRITION_RANGES.protein.max}%`,
+    },
+    fat: {
+      value: fatPercent,
+      pass: fatPercent >= NUTRITION_RANGES.fat.min && fatPercent <= NUTRITION_RANGES.fat.max,
+      range: `${NUTRITION_RANGES.fat.min}% - ${NUTRITION_RANGES.fat.max}%`,
+    },
+    carb: {
+      value: carbPercent,
+      pass: carbPercent >= NUTRITION_RANGES.carb.min && carbPercent <= NUTRITION_RANGES.carb.max,
+      range: `${NUTRITION_RANGES.carb.min}% - ${NUTRITION_RANGES.carb.max}%`,
+    },
+  };
+
+  result.overallPass = result.calories.pass && result.protein.pass && result.fat.pass && result.carb.pass;
+
+  return result;
+};
+
 // --- Sub-components ---
 
 function NutritionCard({ item, value }) {
@@ -143,12 +194,7 @@ function WeekTable({ title, weekData, isEditable, onCellClick, onRemoveFood }) {
                           {foods.map((food) => (
                             <FoodTag key={food._id} food={food} canDelete={isEditable} onDelete={(e) => { e.stopPropagation(); onRemoveFood(dayMenu._id, meal.key, food._id, foods); }} />
                           ))}
-                          {foods.length > 0 && (
-                            <Stack direction="row" spacing={1.5} mt={0.75} flexWrap="wrap">
-                              <Typography variant="caption" sx={{ color: "#f97316", fontWeight: 600, fontSize: 10, display: "flex", alignItems: "center", gap: 0.25 }}>🔥 {dayMenu.totalCalories} kcal</Typography>
-                              <Typography variant="caption" sx={{ color: "#6366f1", fontWeight: 600, fontSize: 10, display: "flex", alignItems: "center", gap: 0.25 }}>🥩 {dayMenu.totalProtein} g</Typography>
-                            </Stack>
-                          )}
+
                           {isEditable && (
                             <IconButton size="small" sx={{ mt: 0.5, width: 22, height: 22, bgcolor: alpha("#4f46e5", 0.08), color: "primary.main", border: "1px dashed", borderColor: alpha("#4f46e5", 0.3), borderRadius: 1 }}>
                               <AddIcon sx={{ fontSize: 14 }} />
@@ -187,11 +233,14 @@ function MenuDetail() {
   const [importErrors, setImportErrors] = useState([]);
   const [importUpdates, setImportUpdates] = useState([]);
   const [confirmImportOpen, setConfirmImportOpen] = useState(false);
+  const [fetchError, setFetchError] = useState(null);
   const [importLoading, setImportLoading] = useState(false);
   const [availableFoods, setAvailableFoods] = useState([]);
 
   // LOGIC: Cho phép sửa nếu ở trạng thái Nháp hoặc Bị từ chối
   const isEditable = menu && (menu.status === "draft" || menu.status === "rejected");
+
+  const nutritionEvaluation = useMemo(() => evaluateNutrition(menu?.nutrition), [menu]);
 
   useEffect(() => { 
     fetchMenuDetail();
@@ -201,9 +250,11 @@ function MenuDetail() {
   const fetchMenuDetail = async () => {
     try {
       setLoading(true);
+      setFetchError(null);
       const res = await getMenuDetail(id);
       setMenu(res.data);
-    } catch {
+    } catch (error) {
+      setFetchError(error.response?.data?.message || "Không thể tải chi tiết thực đơn");
       toast.error("Không thể tải chi tiết thực đơn");
     } finally {
       setLoading(false);
@@ -366,7 +417,8 @@ function MenuDetail() {
   };
 
   if (loading) return <Box p={3}><Skeleton variant="rectangular" height={400} sx={{ borderRadius: 3 }} /></Box>;
-  if (!menu) return null;
+  if (fetchError) return <Box p={3}><Typography color="error">{fetchError}</Typography></Box>;
+  if (!menu) return <Box p={3}><Typography>Không tìm thấy thực đơn. Vui lòng kiểm tra lại ID.</Typography></Box>;
 
   return (
     <Box>
@@ -445,6 +497,77 @@ function MenuDetail() {
       <Box sx={{ display: 'grid', gridTemplateColumns: { xs: 'repeat(2, 1fr)', sm: 'repeat(4, 1fr)' }, gap: 2, mb: 4 }}>
         {NUTRITION_INFO.map((item) => <NutritionCard key={item.key} item={item} value={menu.nutrition?.[item.key]} />)}
       </Box>
+
+      {menu?.nutrition && (
+        <Card elevation={0} sx={{ border: '1px solid', borderColor: nutritionEvaluation.overallPass ? 'success.main' : 'warning.main', borderRadius: 3, mb: 4, p: 2, bgcolor: nutritionEvaluation.overallPass ? 'success.50' : 'warning.50' }}>
+          <CardContent>
+            <Typography variant="subtitle1" sx={{ fontWeight: 700, mb: 1, color: nutritionEvaluation.overallPass ? 'success.main' : 'warning.main' }}>
+              Đánh giá dinh dưỡng
+            </Typography>
+
+            <Stack direction={{ xs: 'column', sm: 'row' }} spacing={2} mb={1} alignItems="center">
+              <Typography variant="body2" sx={{ fontWeight: 600 }}>
+                Calo trung bình/ngày: {menu.nutrition.avgCalories?.toFixed(1) || 0} kcal
+              </Typography>
+              <Chip label={nutritionEvaluation.calories.pass ? 'PASS' : 'CẦN CHỈNH'} color={nutritionEvaluation.calories.pass ? 'success' : 'warning'} size="small" />
+              <Typography variant="caption" color="text.secondary">
+                (Tiêu chuẩn {nutritionEvaluation.calories.range} kcal)
+              </Typography>
+            </Stack>
+
+            <Stack direction={{ xs: 'column', sm: 'row' }} spacing={2} alignItems="stretch">
+              {['protein', 'fat', 'carb'].map((key) => (
+                <Box key={key} sx={{ flex: 1, p: 1, borderRadius: 2, border: '1px solid', borderColor: nutritionEvaluation[key].pass ? 'success.main' : 'warning.main' }}>
+                  <Typography variant="body2" sx={{ fontWeight: 700, color: nutritionEvaluation[key].pass ? 'success.main' : 'warning.main' }}>
+                    {key === 'carb' ? 'Gluxit (Carb)' : key === 'fat' ? 'Lipit (Fat)' : 'Protit (Protein)'}
+                  </Typography>
+                  <Typography variant="caption" sx={{ display: 'block', mt: 0.5 }}>
+                    {nutritionEvaluation[key].value.toFixed(1)}% / {nutritionEvaluation[key].range}
+                  </Typography>
+                  <Chip label={nutritionEvaluation[key].pass ? 'PASS' : 'CẦN CHỈNH'} color={nutritionEvaluation[key].pass ? 'success' : 'warning'} size="small" sx={{ mt: 0.75 }} />
+                </Box>
+              ))}
+            </Stack>
+
+            <Box mt={2}>
+              {nutritionEvaluation.overallPass ? (
+                <Typography variant="body2" color="success.main" sx={{ fontWeight: 700 }}>
+                  Kết luận: Thực đơn đạt chuẩn dinh dưỡng.
+                </Typography>
+              ) : (
+                <Box>
+                  <Typography variant="body2" color="warning.main" sx={{ fontWeight: 700, mb: 1 }}>
+                    Kết luận: Thực đơn chưa đạt chuẩn
+                  </Typography>
+                  <List dense>
+                    {!nutritionEvaluation.calories.pass && (
+                      <ListItem>
+                        <ListItemText primary={`Calo trung bình/ngày: ${menu.nutrition.avgCalories?.toFixed(1) || 0} kcal (mục tiêu ${nutritionEvaluation.calories.range} kcal)`} />
+                      </ListItem>
+                    )}
+                    {!nutritionEvaluation.protein.pass && (
+                      <ListItem>
+                        <ListItemText primary={`Protit: ${nutritionEvaluation.protein.value.toFixed(1)}% (mục tiêu ${nutritionEvaluation.protein.range})`} />
+                      </ListItem>
+                    )}
+                    {!nutritionEvaluation.fat.pass && (
+                      <ListItem>
+                        <ListItemText primary={`Lipit: ${nutritionEvaluation.fat.value.toFixed(1)}% (mục tiêu ${nutritionEvaluation.fat.range})`} />
+                      </ListItem>
+                    )}
+                    {!nutritionEvaluation.carb.pass && (
+                      <ListItem>
+                        <ListItemText primary={`Gluxit: ${nutritionEvaluation.carb.value.toFixed(1)}% (mục tiêu ${nutritionEvaluation.carb.range})`} />
+                      </ListItem>
+                    )}
+                  </List>
+                </Box>
+              )}
+            </Box>
+          </CardContent>
+        </Card>
+      )}
+       
 
       <WeekTable title="Tuần lẻ" weekData={menu.weeks?.odd} isEditable={isEditable} onCellClick={handleCellClick} onRemoveFood={handleRemoveFood} />
       <WeekTable title="Tuần chẵn" weekData={menu.weeks?.even} isEditable={isEditable} onCellClick={handleCellClick} onRemoveFood={handleRemoveFood} />
@@ -544,8 +667,8 @@ function MenuDetail() {
         </DialogActions>
       </Dialog>
 
-      {/* AI Floating Button */}
-      {menu && menu._id && <AIFloatingButton menu={menu} isEditable={isEditable} />}
+      {/* AI Menu Widget (GPT-4 chat + gợi ý) */}
+      {menu && menu._id && <AIMenuWidget menu={menu} isEditable={isEditable} />}
     </Box>
   );
 }
