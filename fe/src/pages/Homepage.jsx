@@ -1,13 +1,8 @@
 import { useState, useEffect } from "react";
 import { useNavigate, Link } from "react-router-dom";
-import { get, ENDPOINTS } from "../service/api";
+import { get } from "../service/api";
 
 const PAGE_SIZE = 4;
-const FALLBACK_BANNERS = [
-  "https://scontent.fhan18-1.fna.fbcdn.net/v/t39.30808-6/618702160_1461727552619714_6463649032824992629_n.jpg?_nc_cat=109&ccb=1-7&_nc_sid=7b2446&_nc_ohc=8UXWgBpzLxMQ7kNvwFsL2cd&_nc_oc=Adn2GokDE7vW5jDYFVhEl_A53mJ7nAlgyDGYyPr8OGuGVg9YN_oKx-ccfJ9rZUkXBgc&_nc_zt=23&_nc_ht=scontent.fhan18-1.fna&_nc_gid=WI4fgCQc9CPNue1S1l_lfQ&_nc_ss=8&oh=00_AfznI0DF0gohfCHL4Qg33uKR3Xx9Kty4YmKoH1Ktob_Qew&oe=69AEDF05",
-  "https://scontent.fhan18-1.fna.fbcdn.net/v/t39.30808-6/605784091_1450941177031685_6354221922736986229_n.jpg?_nc_cat=103&ccb=1-7&_nc_sid=7b2446&_nc_ohc=Qp6WlASTTo4Q7kNvwGzxwyj&_nc_oc=AdmOk6t9GPWsJ-T7vZbkB2-5s99RtYwZn1_2mSICMFA9y9uXx3xw8_LrVXyyw4hjJnc&_nc_zt=23&_nc_ht=scontent.fhan18-1.fna&_nc_gid=Y9vLx29hQie4KSWmrMHBoQ&_nc_ss=8&oh=00_AfxDbY9JZvb3B2QwMZYeqYpCO2V3r9gsbZbUjKKIgouhvQ&oe=69AEE281",
-  "https://scontent.fhan18-1.fna.fbcdn.net/v/t39.30808-6/499477487_1247164254076046_8931851791991323309_n.jpg?_nc_cat=106&ccb=1-7&_nc_sid=2a1932&_nc_ohc=6lJx5z9dK8YQ7kNvwGY3aZJ&_nc_oc=AdlHBCPQgn8gdJnHiZaW9oiNn8F9PHdjGKD_4P0dqaY0Fz2sLihiSN3d4RIlbOUEc2g&_nc_zt=23&_nc_ht=scontent.fhan18-1.fna&_nc_gid=qKaxPIWOGGOZBr5Ax9LlPA&_nc_ss=8&oh=00_AfxiCUy42tIEH9To5fdvdqqWM9u6KXVLalRAFbxNwkqFLQ&oe=69AEF39A",
-];
 
 const VALUE_CARDS = [
   {
@@ -54,14 +49,28 @@ const PROGRAM_ITEMS = [
 
 const stripHtml = (html) => (html || "").replace(/<[^>]*>/g, "").trim();
 
+function SectionHeading({ title, linkTo, linkLabel = "Xem thêm" }) {
+  return (
+    <div className="flex items-center justify-between gap-3 mb-5">
+      <h2 className="text-xl md:text-2xl font-bold text-green-800 tracking-tight">{title}</h2>
+      {linkTo ? (
+        <Link
+          to={linkTo}
+          className="text-sm font-semibold text-green-700 hover:text-green-800 whitespace-nowrap"
+        >
+          {linkLabel}
+        </Link>
+      ) : null}
+    </div>
+  );
+}
+
 function Homepage() {
   const navigate = useNavigate();
   const [page, setPage] = useState(1);
   const [featured, setFeatured] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
-  const [currentBanner, setCurrentBanner] = useState(0);
-  const [banners, setBanners] = useState(FALLBACK_BANNERS);
 
   useEffect(() => {
     const loadFeatured = async () => {
@@ -101,37 +110,6 @@ function Homepage() {
     loadFeatured();
   }, []);
 
-  useEffect(() => {
-    const loadBanners = async () => {
-      try {
-        const resp = await get(ENDPOINTS.BANNERS.HOMEPAGE, { includeAuth: false });
-        const list = resp?.data?.banners || [];
-        const urls = list
-          .map((item) => item?.imageUrl)
-          .filter(Boolean);
-        // Nếu backend trả về rỗng thì homepage cũng phải rỗng, không giữ fallback.
-        setBanners(urls);
-      } catch {
-        // fallback chỉ dùng khi API lỗi hoàn toàn
-        setBanners(FALLBACK_BANNERS);
-      }
-    };
-    loadBanners();
-  }, []);
-
-  useEffect(() => {
-    if (banners.length <= 1) return undefined;
-    const id = setInterval(() => {
-      setCurrentBanner((prev) => (prev + 1) % banners.length);
-    }, 5000);
-    return () => clearInterval(id);
-  }, [banners.length]);
-
-  useEffect(() => {
-    if (currentBanner >= banners.length) {
-      setCurrentBanner(0);
-    }
-  }, [banners.length, currentBanner]);
 
   const totalPage = Math.ceil(featured.length / PAGE_SIZE);
   const startIndex = (page - 1) * PAGE_SIZE;
@@ -141,54 +119,27 @@ function Homepage() {
   const newsList = featured.slice(0, 5);
 
   return (
-    <div className="space-y-12 pb-10">
-      {/* ===== SLIDER BANNER ===== */}
-      <div className="rounded-2xl overflow-hidden shadow-md bg-white">
-        <div className="relative h-48 sm:h-72 md:h-80">
-          {banners.length > 0 ? (
-            <img
-              src={banners[currentBanner]}
-              alt="Banner trường mầm non"
-              className="w-full h-full object-cover object-center"
-            />
-          ) : (
-            <div className="w-full h-full flex items-center justify-center text-gray-400 text-sm">
-              Chưa có banner hiển thị
-            </div>
-          )}
-        </div>
-        {banners.length > 0 && (
-          <div className="flex justify-center gap-2 py-2 bg-white">
-            {banners.map((_, i) => (
-              <button
-                key={i}
-                type="button"
-                onClick={() => setCurrentBanner(i)}
-                className={`w-2.5 h-2.5 rounded-full transition ${currentBanner === i ? "bg-green-600" : "bg-green-200"}`}
-                aria-label={`Ảnh ${i + 1}`}
-              />
-            ))}
-          </div>
-        )}
-      </div>
-
+    <div className="max-w-7xl mx-auto px-3 sm:px-4 lg:px-6 space-y-14 pb-14 pt-2">
       {/* ===== THẺ GIÁ TRỊ / SỨ MỆNH (như mnhoamai) ===== */}
-      <section className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+      <section>
+        <SectionHeading title="Giá trị cốt lõi" />
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
         {VALUE_CARDS.map((card, i) => (
           <div
             key={i}
-            className="bg-white rounded-xl p-5 shadow-sm border border-green-50 hover:shadow-md transition"
+            className="bg-white rounded-2xl p-5 shadow-sm border border-green-100 hover:shadow-md hover:-translate-y-0.5 transition"
           >
-            <h3 className="text-base font-semibold text-green-800 mb-2">{card.title}</h3>
-            <p className="text-sm text-gray-600 leading-relaxed">{card.text}</p>
+            <h3 className="text-base font-semibold text-green-800 mb-2.5">{card.title}</h3>
+            <p className="text-sm text-gray-600 leading-relaxed line-clamp-5">{card.text}</p>
           </div>
         ))}
+        </div>
       </section>
 
       {/* ===== GIỚI THIỆU TRƯỜNG (block lớn như mnhoamai) ===== */}
-      <section className="bg-white rounded-2xl p-6 md:p-10 shadow-sm border border-green-50">
-        <h2 className="text-xl md:text-2xl font-bold text-green-800 text-center mb-2">
-          TRƯỜNG MẦM NON ĐỨC XUÂN
+      <section className="bg-white rounded-3xl p-6 md:p-10 shadow-sm border border-green-100">
+        <h2 className="text-2xl md:text-3xl font-bold text-green-800 text-center mb-2 tracking-tight">
+          Trường mầm non Đức Xuân
         </h2>
         <p className="text-center text-amber-700 font-medium mb-4">
           &ldquo;Hôm nay gieo hạt giống tốt, ngày mai ươm trồng những tài năng&rdquo;
@@ -205,17 +156,15 @@ function Homepage() {
 
       {/* ===== TRƯỜNG MẦM NON ĐỨC XUÂN MANG LẠI CHO CON BẠN ===== */}
       <section>
-        <h2 className="text-lg md:text-xl font-bold text-green-800 text-center mb-6">
-          TRƯỜNG MẦM NON ĐỨC XUÂN MANG LẠI CHO CON BẠN
-        </h2>
+        <SectionHeading title="Những điều nhà trường mang lại cho bé" />
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5 gap-4">
           {BENEFIT_CARDS.map((card, i) => (
             <div
               key={i}
-              className="bg-white rounded-xl p-5 shadow-sm border border-green-50 hover:shadow-md transition"
+              className="bg-white rounded-2xl p-5 shadow-sm border border-green-100 hover:shadow-md transition"
             >
               <h3 className="text-base font-semibold text-green-800 mb-2">{card.title}</h3>
-              <p className="text-sm text-gray-600 leading-relaxed">{card.text}</p>
+              <p className="text-sm text-gray-600 leading-relaxed line-clamp-6">{card.text}</p>
             </div>
           ))}
         </div>
@@ -223,14 +172,12 @@ function Homepage() {
 
       {/* ===== TỔNG QUAN CHƯƠNG TRÌNH ===== */}
       <section>
-        <h2 className="text-lg md:text-xl font-bold text-green-800 text-center mb-6">
-          TỔNG QUAN CHƯƠNG TRÌNH
-        </h2>
+        <SectionHeading title="Tổng quan chương trình" />
         <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-5 gap-3">
           {PROGRAM_ITEMS.map((item, i) => (
             <div
               key={i}
-              className="bg-white rounded-xl py-4 px-3 text-center shadow-sm border border-green-50 font-medium text-green-800 text-sm hover:shadow-md hover:bg-green-50/50 transition"
+              className="bg-white rounded-xl py-4 px-3 text-center shadow-sm border border-green-100 font-medium text-green-800 text-sm hover:shadow-md hover:bg-green-50/50 transition"
             >
               {item.toUpperCase()}
             </div>
@@ -240,21 +187,13 @@ function Homepage() {
 
       {/* ===== GALLERY (placeholder + Xem thêm) ===== */}
       <section>
-        <div className="flex items-center justify-between mb-4">
-          <h2 className="text-lg md:text-xl font-bold text-green-800">Gallery</h2>
-          <Link
-            to="/photo-gallery"
-            className="text-sm font-medium text-green-600 hover:text-green-700"
-          >
-            Xem thêm
-          </Link>
-        </div>
+        <SectionHeading title="Thư viện ảnh" linkTo="/photo-gallery" />
         <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
           {[1, 2, 3, 4].map((i) => (
             <Link
               key={i}
               to="/photo-gallery"
-              className="aspect-[4/3] rounded-xl overflow-hidden bg-green-100 border border-green-100 hover:opacity-90 transition"
+              className="aspect-[4/3] rounded-2xl overflow-hidden bg-green-100 border border-green-100 hover:opacity-90 transition"
             >
               <div className="w-full h-full flex items-center justify-center text-green-600 text-sm">
                 Ảnh hoạt động
@@ -266,15 +205,7 @@ function Homepage() {
 
       {/* ===== TIN TỨC (như mnhoamai: list + Xem thêm) ===== */}
       <section>
-        <div className="flex items-center justify-between mb-4">
-          <h2 className="text-lg md:text-xl font-bold text-green-800">Tin tức</h2>
-          <Link
-            to="/school-news"
-            className="text-sm font-medium text-green-600 hover:text-green-700"
-          >
-            Xem thêm
-          </Link>
-        </div>
+        <SectionHeading title="Tin tức mới nhất" linkTo="/school-news" />
 
         {loading && <p className="text-center py-6 text-gray-500">Đang tải...</p>}
         {error && <p className="text-center py-6 text-red-600">{error}</p>}
@@ -308,7 +239,7 @@ function Homepage() {
         {/* Bài nổi bật + grid bài nhỏ (giữ logic cũ) */}
         {mainBlog && (
           <div
-            className="bg-white rounded-xl overflow-hidden shadow-sm border border-green-50 mb-6 cursor-pointer hover:shadow-md transition"
+            className="bg-white rounded-2xl overflow-hidden shadow-sm border border-green-100 mb-6 cursor-pointer hover:shadow-md transition"
             onClick={() => navigate(`/news/${mainBlog.id}`)}
           >
             {mainBlog.image ? (
@@ -334,7 +265,7 @@ function Homepage() {
           {subBlogs.map((blog) => (
             <div
               key={blog.id}
-              className="bg-white rounded-xl overflow-hidden shadow-sm border border-green-50 cursor-pointer hover:shadow-md transition"
+              className="bg-white rounded-2xl overflow-hidden shadow-sm border border-green-100 cursor-pointer hover:shadow-md transition"
               onClick={() => navigate(`/news/${blog.id}`)}
             >
               {blog.image ? (
