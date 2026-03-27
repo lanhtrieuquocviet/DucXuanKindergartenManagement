@@ -3,6 +3,7 @@ import { useLocation, useNavigate, useParams } from 'react-router-dom';
 import { Snackbar, Alert, Box, Typography, Avatar, Paper, Button } from '@mui/material';
 import { EventBusy as EventBusyIcon } from '@mui/icons-material';
 import { useAuth } from '../../context/AuthContext';
+import { useTeacher } from '../../context/TeacherContext';
 import RoleLayout from '../../layouts/RoleLayout';
 import { get, post, ENDPOINTS } from '../../service/api';
 import FaceAttendanceModal from '../../components/face/FaceAttendanceModal';
@@ -294,6 +295,7 @@ function TeacherAttendance() {
   }, [detailForm.otpSent]);
 
   // ── Menu layout ──
+  const { isCommitteeMember } = useTeacher();
   const menuItems = useMemo(
     () => [
       { key: 'classes', label: 'Lớp phụ trách' },
@@ -302,8 +304,9 @@ function TeacherAttendance() {
       { key: 'pickup-approval', label: 'Đơn đưa đón' },
       { key: 'schedule', label: 'Lịch dạy & hoạt động' },
       { key: 'messages', label: 'Thông báo cho phụ huynh' },
+      ...(isCommitteeMember ? [{ key: 'asset-inspection', label: 'Kiểm kê tài sản' }] : []),
     ],
-    []
+    [isCommitteeMember]
   );
 
   const activeKey = useMemo(() => {
@@ -318,7 +321,8 @@ function TeacherAttendance() {
   const handleMenuSelect = (key) => {
     if (key === 'classes') { navigate('/teacher'); return; }
     if (key === 'attendance') { navigate('/teacher/attendance'); return; }
-    if (key === 'pickup-approval') { navigate('/teacher/pickup-approval'); return; }
+    if (key === 'pickup-approval')  { navigate('/teacher/pickup-approval');  return; }
+    if (key === 'asset-inspection') { navigate('/teacher/asset-inspection'); return; }
   };
 
   // ── API calls ──
@@ -923,6 +927,26 @@ function TeacherAttendance() {
             </span>
             <span style={{ position: 'relative' }} className="hidden sm:inline">Đăng ký khuôn mặt</span>
             <span style={{ position: 'relative' }} className="sm:hidden">Đăng ký</span>
+            {/* Badge số học sinh đã đăng ký */}
+            {students.length > 0 && (
+              <span
+                style={{
+                  position: 'relative',
+                  background: students.filter(s => s.hasFaceEmbedding).length === students.length
+                    ? 'rgba(16,185,129,0.9)'
+                    : 'rgba(255,255,255,0.25)',
+                  borderRadius: 99,
+                  padding: '1px 7px',
+                  fontSize: 10,
+                  fontWeight: 700,
+                  lineHeight: '16px',
+                  letterSpacing: '0.02em',
+                }}
+                className="hidden sm:inline"
+              >
+                {students.filter(s => s.hasFaceEmbedding).length}/{students.length}
+              </span>
+            )}
           </button>
 
           <style>{`

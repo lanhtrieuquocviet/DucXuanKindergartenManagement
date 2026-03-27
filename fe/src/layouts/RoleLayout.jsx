@@ -32,6 +32,8 @@ import {
   Assessment as AssessmentIcon,
   Dashboard as DashboardIcon,
   CameraAlt as CameraAltIcon,
+  MenuBook as MenuBookIcon,
+  Restaurant as RestaurantIcon,
 } from '@mui/icons-material';
 import { CurrencyIcon } from 'lucide-react';
 
@@ -62,7 +64,10 @@ const KEY_ICONS = {
   blogs:                 <BlogIcon fontSize="small" />,
   documents:             <FolderIcon fontSize="small" />,
   'public-info':         <PublicIcon fontSize="small" />,
+  'banner-management':   <DashboardIcon fontSize="small" />,
   qa:                    <QaIcon fontSize="small" />,
+  menu:                  <MenuBookIcon fontSize="small" />,
+  'meal-management':     <RestaurantIcon fontSize="small" />,
   contacts:              <EmailIcon fontSize="small" />,
   permissions:           <ShieldIcon fontSize="small" />,
   roles:                 <RolesIcon fontSize="small" />,

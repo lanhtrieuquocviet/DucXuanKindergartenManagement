@@ -219,6 +219,8 @@ export const ENDPOINTS = {
     DOCUMENT_DETAIL: (documentId) => `/school-admin/documents/${documentId}`,
     PUBLIC_INFOS: "/school-admin/public-info",
     PUBLIC_INFO_DETAIL: (id) => `/school-admin/public-info/${id}`,
+    BANNERS: '/school-admin/banners',
+    BANNER_DETAIL: (id) => `/school-admin/banners/${id}`,
     ACADEMIC_YEARS: {
       LIST: "/school-admin/academic-years",
       CURRENT: "/school-admin/academic-years/current",
@@ -256,6 +258,7 @@ export const ENDPOINTS = {
       CREATE: "/school-admin/timetable/activities",
       UPDATE: (id) => `/school-admin/timetable/activities/${id}`,
     },
+    STAFF: "/school-admin/staff",
     TEACHERS: "/school-admin/teachers",
     TEACHER_AVAILABILITY: "/school-admin/teachers/availability",
     TEACHER_UPDATE: (id) => `/school-admin/teachers/${id}`,
@@ -264,10 +267,23 @@ export const ENDPOINTS = {
     CLASSROOMS: "/school-admin/classrooms",
     CLASSROOM_UPDATE: (id) => `/school-admin/classrooms/${id}`,
     CLASSROOM_DELETE: (id) => `/school-admin/classrooms/${id}`,
+    // Asset Inspection
+    ASSET_COMMITTEES: "/school-admin/asset-committees",
+    ASSET_COMMITTEE_DETAIL: (id) => `/school-admin/asset-committees/${id}`,
+    ASSET_MINUTES: "/school-admin/asset-minutes",
+    ASSET_MINUTES_DETAIL: (id) => `/school-admin/asset-minutes/${id}`,
+    ASSET_MINUTES_APPROVE: (id) => `/school-admin/asset-minutes/${id}/approve`,
+    ASSET_MINUTES_REJECT: (id) => `/school-admin/asset-minutes/${id}/reject`,
+    // Asset CRUD
+    ASSETS: "/school-admin/assets",
+    ASSET_DETAIL: (id) => `/school-admin/assets/${id}`,
   },
   // Contact (public)
   CONTACT: {
     SUBMIT: "/contact",
+  },
+  BANNERS: {
+    HOMEPAGE: '/banners/homepage',
   },
   // Q&A (public)
   QA: {
@@ -277,6 +293,10 @@ export const ENDPOINTS = {
   // Teacher
   TEACHER: {
     DASHBOARD: "/teacher/dashboard",
+    ASSET_COMMITTEES: "/teacher/asset-committees",
+    ASSET_COMMITTEE_IS_MEMBER: "/teacher/asset-committees/is-member",
+    ASSET_MINUTES: "/teacher/asset-minutes",
+    ASSET_MINUTES_DETAIL: (id) => `/teacher/asset-minutes/${id}`,
     ATTENDANCES: "/teacher/attendances",
     ATTENDANCE_BY_CLASS: (classId) => `/teacher/attendances/class/${classId}`,
     ATTENDANCE_BY_CLASS_DATE: (classId, date) =>

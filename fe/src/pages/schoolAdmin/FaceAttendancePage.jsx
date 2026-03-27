@@ -11,17 +11,10 @@ import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../../context/AuthContext';
 import RoleLayout from '../../layouts/RoleLayout';
 import { get } from '../../service/api';
+import { SCHOOL_ADMIN_MENU_ITEMS, createSchoolAdminMenuSelect } from './schoolAdminMenuConfig';
 import FaceRegisterModal from '../../components/face/FaceRegisterModal';
 import PickupFaceRegisterModal from '../../components/face/PickupFaceRegisterModal';
 
-function getMenuItems() {
-  return [
-    { key: 'dashboard', label: 'Dashboard', path: '/school-admin' },
-    { key: 'students', label: 'Học sinh', path: '/school-admin/students' },
-    { key: 'face', label: 'Đăng ký khuôn mặt', path: '/school-admin/face-attendance' },
-    { key: 'attendance', label: 'Điểm danh', path: '/school-admin/attendance/overview' },
-  ];
-}
 
 const CLASS_COLORS = [
   { bg: 'from-indigo-500 to-purple-600', light: 'bg-indigo-50', border: 'border-indigo-200', text: 'text-indigo-700' },
@@ -462,6 +455,7 @@ export default function FaceAttendancePage() {
 
   const [classes, setClasses] = useState([]);
   const [loadingClasses, setLoadingClasses] = useState(true);
+  const handleMenuSelect = createSchoolAdminMenuSelect(navigate);
   const [activeTab, setActiveTab] = useState('student');
 
   useEffect(() => {
@@ -475,11 +469,11 @@ export default function FaceAttendancePage() {
     <RoleLayout
       title="Đăng ký khuôn mặt"
       description="Đăng ký và quản lý khuôn mặt cho hệ thống điểm danh AI."
-      menuItems={getMenuItems()}
-      activeKey="face"
+      menuItems={SCHOOL_ADMIN_MENU_ITEMS}
+      activeKey="face-attendance"
       onLogout={() => { logout(); navigate('/login'); }}
       onViewProfile={() => navigate('/profile')}
-      onMenuSelect={(item) => navigate(item.path)}
+      onMenuSelect={handleMenuSelect}
       userName={user?.fullName || user?.username || 'Admin'}
       userAvatar={user?.avatar}
     >

@@ -6,6 +6,8 @@ const User = require('../models/User');
 const Role = require('../models/Role');
 const Teacher = require('../models/Teacher');
 const { listClassrooms, createClassroom, updateClassroom, deleteClassroom } = require('../controller/classroomController');
+const assetCtrl = require('../controller/assetInspectionController');
+const assetCrudCtrl = require('../controller/assetController');
 const {
   getAttendanceOverview,
   getClassAttendanceDetail,
@@ -17,6 +19,7 @@ const blogCategoryController = require('../controller/blogCategoryController');
 const qaController = require('../controller/qaController');
 const documentController = require('../controller/documentController');
 const publicInfoController = require('../controller/publicInfoController');
+const bannerController = require('../controller/bannerController');
 const academicYearController = require('../controller/academicYearController');
 const AcademicYear = require('../models/AcademicYear');
 const curriculumController = require('../controller/curriculumController');
@@ -180,6 +183,15 @@ router.patch('/contacts/:id/clear-reply', authenticate, authorizeRoles('SchoolAd
  *         description: Gửi lại email thành công
  */
 router.post('/contacts/:id/resend-email', authenticate, authorizeRoles('SchoolAdmin'), contactController.resendReplyEmail);
+
+// ============================================
+// Homepage banners
+// ============================================
+router.get('/banners', authenticate, authorizeRoles('SchoolAdmin'), bannerController.getAdminHomepageBanners);
+router.post('/banners', authenticate, authorizeRoles('SchoolAdmin'), bannerController.createAdminHomepageBanner);
+router.put('/banners', authenticate, authorizeRoles('SchoolAdmin'), bannerController.updateAdminHomepageBanners);
+router.patch('/banners/:bannerId', authenticate, authorizeRoles('SchoolAdmin'), bannerController.updateAdminHomepageBannerById);
+router.delete('/banners/:bannerId', authenticate, authorizeRoles('SchoolAdmin'), bannerController.deleteAdminHomepageBannerById);
 
 // ============================================
 // Attendance
@@ -1427,5 +1439,49 @@ router.get('/classrooms', authenticate, authorizeRoles('SchoolAdmin'), listClass
 router.post('/classrooms', authenticate, authorizeRoles('SchoolAdmin'), createClassroom);
 router.put('/classrooms/:id', authenticate, authorizeRoles('SchoolAdmin'), updateClassroom);
 router.delete('/classrooms/:id', authenticate, authorizeRoles('SchoolAdmin'), deleteClassroom);
+
+// ============================================
+// GET /school-admin/staff — danh sách user có role SchoolAdmin (để chọn thành viên ban kiểm kê)
+router.get('/staff', authenticate, authorizeRoles('SchoolAdmin'), async (req, res) => {
+  try {
+    const role = await Role.findOne({ roleName: 'SchoolAdmin' }).lean();
+    if (!role) return res.status(200).json({ status: 'success', data: [] });
+    const users = await User.find({ roles: role._id, status: 'active' })
+      .select('fullName email')
+      .sort({ fullName: 1 })
+      .lean();
+    return res.status(200).json({ status: 'success', data: users });
+  } catch (err) {
+    return res.status(500).json({ status: 'error', message: 'Lỗi khi lấy danh sách nhân viên' });
+  }
+});
+
+// Asset Inspection - Committees (Ban kiểm kê)
+// ============================================
+router.get('/asset-committees', authenticate, authorizeRoles('SchoolAdmin'), assetCtrl.listCommittees);
+router.post('/asset-committees', authenticate, authorizeRoles('SchoolAdmin'), assetCtrl.createCommittee);
+router.get('/asset-committees/:id', authenticate, authorizeRoles('SchoolAdmin'), assetCtrl.getCommittee);
+router.put('/asset-committees/:id', authenticate, authorizeRoles('SchoolAdmin'), assetCtrl.updateCommittee);
+router.delete('/asset-committees/:id', authenticate, authorizeRoles('SchoolAdmin'), assetCtrl.deleteCommittee);
+
+// ============================================
+// Asset Inspection - Minutes (Biên bản kiểm kê)
+// ============================================
+router.get('/asset-minutes', authenticate, authorizeRoles('SchoolAdmin'), assetCtrl.listMinutes);
+router.post('/asset-minutes', authenticate, authorizeRoles('SchoolAdmin'), assetCtrl.createMinutes);
+router.get('/asset-minutes/:id', authenticate, authorizeRoles('SchoolAdmin'), assetCtrl.getMinutes);
+router.put('/asset-minutes/:id', authenticate, authorizeRoles('SchoolAdmin'), assetCtrl.updateMinutes);
+router.delete('/asset-minutes/:id', authenticate, authorizeRoles('SchoolAdmin'), assetCtrl.deleteMinutes);
+router.patch('/asset-minutes/:id/approve', authenticate, authorizeRoles('SchoolAdmin'), assetCtrl.approveMinutes);
+router.patch('/asset-minutes/:id/reject', authenticate, authorizeRoles('SchoolAdmin'), assetCtrl.rejectMinutes);
+
+// ============================================
+// Assets CRUD (Danh sách tài sản)
+// ============================================
+router.get('/assets', authenticate, authorizeRoles('SchoolAdmin'), assetCrudCtrl.listAssets);
+router.post('/assets', authenticate, authorizeRoles('SchoolAdmin'), assetCrudCtrl.createAsset);
+router.get('/assets/:id', authenticate, authorizeRoles('SchoolAdmin'), assetCrudCtrl.getAsset);
+router.put('/assets/:id', authenticate, authorizeRoles('SchoolAdmin'), assetCrudCtrl.updateAsset);
+router.delete('/assets/:id', authenticate, authorizeRoles('SchoolAdmin'), assetCrudCtrl.deleteAsset);
 
 module.exports = router;

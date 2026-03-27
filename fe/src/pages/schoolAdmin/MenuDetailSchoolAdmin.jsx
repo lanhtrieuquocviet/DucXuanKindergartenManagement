@@ -3,6 +3,7 @@ import { useParams, useNavigate } from "react-router-dom";
 import { getMenuDetail } from "../../service/menu.api";
 import { toast } from "react-toastify";
 import RoleLayout from "../../layouts/RoleLayout";
+import { SCHOOL_ADMIN_MENU_ITEMS, createSchoolAdminMenuSelect } from './schoolAdminMenuConfig';
 import { useAuth } from "../../context/AuthContext";
 
 const days = ["mon", "tue", "wed", "thu", "fri"];
@@ -122,23 +123,7 @@ const MenuDetailSchoolAdmin = () => {
     </div>
   );
 
-  const menuItems = [
-    { key: "overview", label: "Tổng quan trường" },
-    { key: "classes", label: "Lớp học" },
-    { key: "menu", label: "Quản lý thực đơn" },
-    { key: "students", label: "Học sinh & phụ huynh" },
-    { key: "contacts", label: "Liên hệ" },
-    { key: "blogs", label: "Quản lý blog" },
-  ];
-
-  const handleMenuSelect = (key) => {
-    if (key === "overview") navigate("/school-admin");
-    if (key === "classes") navigate("/school-admin/classes");
-    if (key === "menu") navigate("/school-admin/menus");
-    if (key === "students") navigate("/school-admin/students");
-    if (key === "contacts") navigate("/school-admin/contacts");
-    if (key === "blogs") navigate("/school-admin/blogs");
-  };
+  const handleMenuSelect = createSchoolAdminMenuSelect(navigate);
 
   if (loading) return <p className="p-6">Đang tải dữ liệu...</p>;
   if (!menu) return null;
@@ -147,7 +132,7 @@ const MenuDetailSchoolAdmin = () => {
     <RoleLayout
       title="Chi tiết thực đơn"
       description="Xem chi tiết thực đơn của trường"
-      menuItems={menuItems}
+      menuItems={SCHOOL_ADMIN_MENU_ITEMS}
       activeKey="menu"
       userName={user?.fullName || user?.username}
       userAvatar={user?.avatar}

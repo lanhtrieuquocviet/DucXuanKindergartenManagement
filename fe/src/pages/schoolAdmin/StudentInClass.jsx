@@ -3,6 +3,7 @@ import { useNavigate, useParams } from 'react-router-dom';
 import RoleLayout from '../../layouts/RoleLayout';
 import { useAuth } from '../../context/AuthContext';
 import { get, post, del, ENDPOINTS } from '../../service/api';
+import { SCHOOL_ADMIN_MENU_ITEMS, createSchoolAdminMenuSelect } from './schoolAdminMenuConfig';
 
 import {
   Box,
@@ -372,36 +373,7 @@ function StudentInClass() {
   const handleViewProfile = () => navigate('/profile');
   const handleGoBack = () => navigate(hasRole('SystemAdmin') ? '/system-admin/classes' : '/school-admin/classes');
 
-  const getMenuItems = () => [
-    { key: 'overview', label: 'Tổng quan trường' },
-    { key: 'classes', label: 'Lớp học' },
-    { key: 'teachers', label: 'Giáo viên' },
-    { key: 'students', label: 'Học sinh & phụ huynh' },
-    { key: 'assets', label: 'Quản lý tài sản' },
-    { key: 'reports', label: 'Báo cáo của trường' },
-    { key: 'contacts', label: 'Liên hệ' },
-    { key: 'qa', label: 'Câu hỏi' },
-    { key: 'blogs', label: 'Quản lý blog' },
-    { key: 'documents', label: 'Quản lý tài liệu' },
-    { key: 'public-info', label: 'Thông tin công khai' },
-    { key: 'attendance', label: 'Quản lý điểm danh' },
-  ];
-
-  const handleMenuSelect = (key) => {
-    const routes = {
-      classes: '/school-admin/classes',
-      teachers: '/school-admin/teachers',
-      students: '/school-admin/students',
-      contacts: '/school-admin/contacts',
-      overview: '/school-admin',
-      qa: '/school-admin/qa',
-      blogs: '/school-admin/blogs',
-      documents: '/school-admin/documents',
-      'public-info': '/school-admin/public-info',
-      attendance: '/school-admin/attendance/overview',
-    };
-    if (routes[key]) navigate(routes[key]);
-  };
+  const handleMenuSelect = createSchoolAdminMenuSelect(navigate);
 
   // ── render ───────────────────────────────────────────────────────────────────
 
@@ -411,7 +383,7 @@ function StudentInClass() {
       <RoleLayout
         title="Chi tiết lớp học"
         description=""
-        menuItems={getMenuItems()}
+        menuItems={SCHOOL_ADMIN_MENU_ITEMS}
         activeKey="classes"
         onLogout={handleLogout}
         onViewProfile={handleViewProfile}

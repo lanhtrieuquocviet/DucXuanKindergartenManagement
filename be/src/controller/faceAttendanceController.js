@@ -53,7 +53,7 @@ const MATCH_THRESHOLD = 0.75;
  */
 const registerFaceEmbedding = async (req, res) => {
   try {
-    const { studentId, embedding } = req.body;
+    const { studentId, embedding, faceImageUrl } = req.body;
 
     // Validate input
     if (!studentId) {
@@ -90,6 +90,7 @@ const registerFaceEmbedding = async (req, res) => {
     // Lưu embedding vào DB
     student.faceEmbedding = embedding;
     student.faceRegisteredAt = new Date();
+    if (faceImageUrl) student.faceImageUrl = faceImageUrl;
     await student.save();
 
     return res.status(200).json({

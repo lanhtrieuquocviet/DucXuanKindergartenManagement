@@ -66,6 +66,10 @@ const studentSchema = new mongoose.Schema({
     type: Date,
     default: null
   },
+  faceImageUrl: {
+    type: String,
+    default: ''
+  },
   createdAt: {
     type: Date,
     default: Date.now

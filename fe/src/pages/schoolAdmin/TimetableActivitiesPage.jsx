@@ -32,38 +32,13 @@ import {
 import { useAuth } from '../../context/AuthContext';
 import RoleLayout from '../../layouts/RoleLayout';
 import { get, put, del, ENDPOINTS } from '../../service/api';
+import { SCHOOL_ADMIN_MENU_ITEMS, createSchoolAdminMenuSelect } from './schoolAdminMenuConfig';
 
 const SEASON_OPTIONS = [
   { value: 'summer', label: 'Mùa Hè' },
   { value: 'winter', label: 'Mùa Đông' },
 ];
 
-const menuItems = [
-  { key: 'overview', label: 'Tổng quan trường' },
-  {
-    key: 'academic-years',
-    label: 'Quản lý năm học',
-    children: [
-      { key: 'academic-year-setup', label: 'Thiết lập năm học' },
-      { key: 'academic-plan', label: 'Thiết lập kế hoạch' },
-      { key: 'academic-schedule', label: 'Thời gian biểu' },
-      { key: 'academic-report', label: 'Báo cáo & thống kê' },
-    ],
-  },
-  { key: 'classes', label: 'Lớp học' },
-  { key: 'menu', label: 'Quản lý thực đơn' },
-  { key: 'meal-management', label: 'Quản lý bữa ăn' },
-  { key: 'teachers', label: 'Giáo viên' },
-  { key: 'students', label: 'Học sinh & phụ huynh' },
-  { key: 'assets', label: 'Quản lý tài sản' },
-  { key: 'reports', label: 'Báo cáo của trường' },
-  { key: 'contacts', label: 'Liên hệ' },
-  { key: 'qa', label: 'Câu hỏi' },
-  { key: 'blogs', label: 'Quản lý blog' },
-  { key: 'documents', label: 'Quản lý tài liệu' },
-  { key: 'public-info', label: 'Thông tin công khai' },
-  { key: 'attendance', label: 'Quản lý điểm danh' },
-];
 
 // Dùng initialValue + key để reset khi modal mở — không cần sync phức tạp
 function TimeSelect({ label, initialValue = '', onChange }) {
@@ -175,31 +150,7 @@ export default function TimetableActivitiesPage() {
     navigate('/login', { replace: true });
   };
 
-  const handleMenuSelect = (key) => {
-    if (key === 'overview') navigate('/school-admin');
-    if (key === 'academic-years' || key === 'academic-year-setup') navigate('/school-admin/academic-years');
-    if (key === 'academic-plan') navigate('/school-admin/academic-plan');
-    if (key === 'academic-report') {
-      const yearId = academicYear?._id;
-      if (yearId) navigate(`/school-admin/academic-years/${yearId}/report`);
-      else navigate('/school-admin/academic-years');
-      return;
-    }
-    if (key === 'academic-students') navigate('/school-admin/class-list');
-    if (key === 'academic-curriculum') navigate('/school-admin/curriculum');
-    if (key === 'academic-schedule') return;
-    if (key === 'classes') navigate('/school-admin/classes');
-    if (key === 'menu') navigate('/school-admin/menus');
-    if (key === 'meal-management') navigate('/school-admin/meal-management');
-    if (key === 'teachers') { navigate('/school-admin/teachers'); return; }
-    if (key === 'students') navigate('/school-admin/students');
-    if (key === 'contacts') navigate('/school-admin/contacts');
-    if (key === 'qa') navigate('/school-admin/qa');
-    if (key === 'blogs') navigate('/school-admin/blogs');
-    if (key === 'documents') navigate('/school-admin/documents');
-    if (key === 'public-info') navigate('/school-admin/public-info');
-    if (key === 'attendance') navigate('/school-admin/attendance/overview');
-  };
+  const handleMenuSelect = createSchoolAdminMenuSelect(navigate);
 
   const yearName = academicYear?.yearName || '';
 
@@ -376,7 +327,7 @@ export default function TimetableActivitiesPage() {
     <RoleLayout
       title={`Thời gian biểu cả trường -- ${yearName || '—'}`}
       description="Thiết lập thời gian biểu hoạt động hằng ngày theo mùa."
-      menuItems={menuItems}
+      menuItems={SCHOOL_ADMIN_MENU_ITEMS}
       activeKey="academic-schedule"
       onLogout={handleLogout}
       onViewProfile={() => navigate('/profile')}

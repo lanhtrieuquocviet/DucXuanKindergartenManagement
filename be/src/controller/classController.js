@@ -157,12 +157,20 @@ const getStudentInClass = async (req, res) => {
       });
     }
 
+    const data = students.map((s) => {
+      const obj = { ...s };
+      obj.hasFaceEmbedding = Array.isArray(obj.faceEmbedding) && obj.faceEmbedding.length > 0;
+      obj.faceImageUrl = obj.faceImageUrl || '';
+      delete obj.faceEmbedding;
+      return obj;
+    });
+
     return res.status(200).json({
       status: 'success',
       message: 'Lấy danh sách học sinh thành công',
-      data: students,
+      data,
       classInfo: classInfo,
-      total: students.length
+      total: data.length
     });
   } catch (error) {
     console.error('Error in getStudentInClass:', error);

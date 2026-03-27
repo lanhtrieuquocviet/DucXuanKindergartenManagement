@@ -27,7 +27,7 @@ import {
   Send as SendIcon,
   QuestionAnswer as QaIcon,
 } from '@mui/icons-material';
-import { get, ENDPOINTS } from '../../service/api';
+import { SCHOOL_ADMIN_MENU_ITEMS, createSchoolAdminMenuSelect } from './schoolAdminMenuConfig';
 
 function QaList() {
   const [questionsData, setQuestionsData] = useState(null);
@@ -171,62 +171,7 @@ function QaList() {
     }
   };
 
-  const menuItems = [
-    { key: 'overview', label: 'Tổng quan trường' },
-    {
-      key: 'academic-years',
-      label: 'Quản lý năm học',
-      children: [
-        { key: 'academic-year-setup', label: 'Thiết lập năm học' },
-        { key: 'academic-plan', label: 'Thiết lập kế hoạch' },
-        { key: 'academic-schedule', label: 'Thời gian biểu' },
-        { key: 'academic-report', label: 'Báo cáo & thống kê' },
-      ],
-    },
-    { key: 'classes', label: 'Lớp học' },
-    { key: 'menu', label: 'Quản lý thực đơn' },
-    { key: 'meal-management', label: 'Quản lý bữa ăn' },
-    { key: 'teachers', label: 'Giáo viên' },
-    { key: 'students', label: 'Học sinh & phụ huynh' },
-    { key: 'assets', label: 'Quản lý tài sản' },
-    { key: 'reports', label: 'Báo cáo của trường' },
-    { key: 'contacts', label: 'Liên hệ' },
-    { key: 'qa', label: 'Câu hỏi' },
-    { key: 'blogs', label: 'Quản lý blog' },
-    { key: 'documents', label: 'Quản lý tài liệu' },
-    { key: 'public-info', label: 'Thông tin công khai' },
-    { key: 'attendance', label: 'Quản lý điểm danh' },
-  ];
-
-  const handleMenuSelect = async (key) => {
-    if (key === 'overview') navigate('/school-admin');
-    else if (key === 'academic-year-setup') navigate('/school-admin/academic-years');
-    else if (key === 'academic-curriculum') navigate('/school-admin/curriculum');
-    else if (key === 'academic-schedule') navigate('/school-admin/timetable');
-    else if (key === 'academic-plan') navigate('/school-admin/academic-plan');
-    else if (key === 'academic-students') navigate('/school-admin/class-list');
-    else if (key === 'academic-report') {
-      try {
-        const resp = await get(ENDPOINTS.SCHOOL_ADMIN.ACADEMIC_YEARS.CURRENT);
-        const yearId = resp?.status === 'success' ? resp?.data?._id : null;
-        if (yearId) navigate(`/school-admin/academic-years/${yearId}/report`);
-        else navigate('/school-admin/academic-years');
-      } catch (_) {
-        navigate('/school-admin/academic-years');
-      }
-      return;
-    }
-    else if (key === 'classes') navigate('/school-admin/classes');
-    else if (key === 'menu') navigate('/school-admin/menus');
-    else if (key === 'meal-management') navigate('/school-admin/meal-management');
-    if (key === 'teachers') { navigate('/school-admin/teachers'); return; }
-    else if (key === 'contacts') navigate('/school-admin/contacts');
-    else if (key === 'qa') navigate('/school-admin/qa');
-    else if (key === 'blogs') navigate('/school-admin/blogs');
-    else if (key === 'documents') navigate('/school-admin/documents');
-    else if (key === 'public-info') navigate('/school-admin/public-info');
-    else if (key === 'attendance') navigate('/school-admin/attendance/overview');
-  };
+  const handleMenuSelect = createSchoolAdminMenuSelect(navigate);
 
   const userName = user?.fullName || user?.username || 'School Admin';
   const questions = questionsData?.data?.questions || [];
@@ -236,7 +181,7 @@ function QaList() {
     <RoleLayout
       title="Quản lý câu hỏi"
       description="Xem, xóa và trả lời câu hỏi từ mục Hỏi đáp."
-      menuItems={menuItems}
+      menuItems={SCHOOL_ADMIN_MENU_ITEMS}
       activeKey="qa"
       onLogout={() => { logout(); navigate('/login', { replace: true }); }}
       userName={userName}
