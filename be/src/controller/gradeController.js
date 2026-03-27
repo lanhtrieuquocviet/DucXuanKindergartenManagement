@@ -58,7 +58,7 @@ const listGrades = async (req, res) => {
  */
 const createGrade = async (req, res) => {
   try {
-    const { gradeName, description, maxClasses, minAge, maxAge } = req.body;
+    const { gradeName, description, maxClasses, minAge, maxAge, ageRange } = req.body;
 
     if (!gradeName || !String(gradeName).trim()) {
       return res.status(400).json({ status: 'error', message: 'Tên khối lớp không được để trống' });
@@ -89,8 +89,9 @@ const createGrade = async (req, res) => {
 
     const minAgeVal = minAge !== undefined ? Number(minAge) : 0;
     const maxAgeVal = maxAge !== undefined ? Number(maxAge) : 0;
+    const ageRangeVal = typeof ageRange === 'string' ? ageRange.trim() : '';
 
-    const grade = await Grade.create({ gradeName: trimmed, description: desc, maxClasses: maxCls, minAge: minAgeVal, maxAge: maxAgeVal });
+    const grade = await Grade.create({ gradeName: trimmed, description: desc, maxClasses: maxCls, minAge: minAgeVal, maxAge: maxAgeVal, ageRange: ageRangeVal });
 
     return res.status(201).json({ status: 'success', message: 'Tạo khối lớp thành công', data: grade });
   } catch (error) {
@@ -106,7 +107,7 @@ const createGrade = async (req, res) => {
 const updateGrade = async (req, res) => {
   try {
     const { id } = req.params;
-    const { gradeName, description, maxClasses, minAge, maxAge } = req.body;
+    const { gradeName, description, maxClasses, minAge, maxAge, ageRange } = req.body;
 
     const grade = await Grade.findById(id);
     if (!grade) {
@@ -156,6 +157,7 @@ const updateGrade = async (req, res) => {
     grade.gradeName = trimmed;
     if (minAge !== undefined) grade.minAge = Number(minAge) || 0;
     if (maxAge !== undefined) grade.maxAge = Number(maxAge) || 0;
+    if (ageRange !== undefined) grade.ageRange = typeof ageRange === 'string' ? ageRange.trim() : '';
     await grade.save();
 
     return res.status(200).json({ status: 'success', message: 'Cập nhật khối lớp thành công', data: grade });

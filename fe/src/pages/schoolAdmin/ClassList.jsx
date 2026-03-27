@@ -233,7 +233,7 @@ function ClassList() {
   const [gradeError, setGradeError] = useState(null);
   const [gradeSearchTerm, setGradeSearchTerm] = useState('');
   const [gradeDialog, setGradeDialog] = useState({ open: false, mode: 'create', data: null });
-  const [gradeForm, setGradeForm] = useState({ gradeName: '', description: '', maxClasses: 10, minAge: '', maxAge: '' });
+  const [gradeForm, setGradeForm] = useState({ gradeName: '', description: '', maxClasses: 10, minAge: '', maxAge: '', ageRange: '' });
   const [gradeFormErrors, setGradeFormErrors] = useState({});
   const [gradeSubmitting, setGradeSubmitting] = useState(false);
   const [gradeDeleteConfirm, setGradeDeleteConfirm] = useState(null);
@@ -326,8 +326,8 @@ function ClassList() {
   const openGradeDialog = (mode, data = null) => {
     setGradeFormErrors({});
     setGradeForm(data
-      ? { gradeName: data.gradeName, description: data.description || '', maxClasses: data.maxClasses ?? 10, minAge: data.minAge || '', maxAge: data.maxAge || '' }
-      : { gradeName: '', description: '', maxClasses: 10, minAge: '', maxAge: '' }
+      ? { gradeName: data.gradeName, description: data.description || '', maxClasses: data.maxClasses ?? 10, minAge: data.minAge || '', maxAge: data.maxAge || '', ageRange: data.ageRange || '' }
+      : { gradeName: '', description: '', maxClasses: 10, minAge: '', maxAge: '', ageRange: '' }
     );
     setGradeDialog({ open: true, mode, data });
   };
@@ -727,21 +727,16 @@ function ClassList() {
                 .filter(g => {
                   const term = gradeSearchTerm.toLowerCase();
                   if (!term) return true;
-                  const ageLabel = g.minAge || g.maxAge
-                    ? `${g.minAge || 0} ${g.maxAge || 0} tháng`
-                    : '';
                   return (
                     g.gradeName.toLowerCase().includes(term) ||
                     (g.description || '').toLowerCase().includes(term) ||
-                    ageLabel.includes(term)
+                    (g.ageRange || '').toLowerCase().includes(term)
                   );
                 })
                 .map((g, idx) => {
                   const color = GRADE_COLORS[idx % GRADE_COLORS.length];
                   const classCount = classCountByGrade[String(g._id)] || 0;
-                  const ageLabel = g.minAge || g.maxAge
-                    ? `${g.minAge || 0} – ${g.maxAge || 0} tháng`
-                    : 'Chưa cập nhật';
+                  const ageLabel = g.ageRange || 'Chưa cập nhật';
                   const teacherNames = (g.teacherNames || []).slice(0, 4);
                   return (
                     <Grid item xs={12} sm={6} md={4} key={g._id}>
@@ -786,14 +781,6 @@ function ClassList() {
                             <Stack direction="row" spacing={0.5}>
                               <Typography variant="body2" color="text.secondary" sx={{ minWidth: 90 }}>Tổng số trẻ:</Typography>
                               <Typography variant="body2" fontWeight={600}>{g.totalStudents ?? 0}</Typography>
-                            </Stack>
-                            <Stack direction="row" spacing={0.5} alignItems="flex-start">
-                              <Typography variant="body2" color="text.secondary" sx={{ minWidth: 90, flexShrink: 0 }}>Giáo viên:</Typography>
-                              <Typography variant="body2" fontWeight={600} sx={{ color: teacherNames.length ? 'text.primary' : 'text.disabled' }}>
-                                {teacherNames.length
-                                  ? teacherNames.join(', ') + (g.teacherNames?.length > 4 ? '...' : '')
-                                  : 'Chưa phân công'}
-                              </Typography>
                             </Stack>
                           </Stack>
                         </Box>
@@ -1060,30 +1047,16 @@ function ClassList() {
               helperText={gradeFormErrors.maxClasses || 'Tối đa 10 lớp trong một khối'}
               inputProps={{ min: 1, max: 10 }}
             />
-            <Stack direction="row" spacing={1.5}>
-              <TextField
-                label="Độ tuổi tối thiểu (tháng)"
-                fullWidth
-                size="small"
-                type="number"
-                value={gradeForm.minAge}
-                onChange={(e) => setGradeForm((f) => ({ ...f, minAge: e.target.value }))}
-                error={!!gradeFormErrors.minAge}
-                helperText={gradeFormErrors.minAge || 'Ví dụ: 18'}
-                inputProps={{ min: 0 }}
-              />
-              <TextField
-                label="Độ tuổi tối đa (tháng)"
-                fullWidth
-                size="small"
-                type="number"
-                value={gradeForm.maxAge}
-                onChange={(e) => setGradeForm((f) => ({ ...f, maxAge: e.target.value }))}
-                error={!!gradeFormErrors.maxAge}
-                helperText={gradeFormErrors.maxAge || 'Ví dụ: 36'}
-                inputProps={{ min: 0 }}
-              />
-            </Stack>
+            <TextField
+              label="Độ tuổi"
+              fullWidth
+              size="small"
+              value={gradeForm.ageRange}
+              onChange={(e) => setGradeForm((f) => ({ ...f, ageRange: e.target.value }))}
+              error={!!gradeFormErrors.ageRange}
+              helperText={gradeFormErrors.ageRange || 'Ví dụ: 18 – 36 tháng'}
+              inputProps={{ maxLength: 50 }}
+            />
           </Stack>
         </DialogContent>
         <DialogActions sx={{ px: 3, py: 2 }}>
