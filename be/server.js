@@ -349,18 +349,18 @@ app.use('/api/timetable', timetableRoutes);
  *               properties:
  *                 status:
  *                   type: string
-                   example: success
-                 message:
-                   type: string
-                   example: SEP490_G54 API is running
-                 timestamp:
-                   type: string
-                   format: date-time
-                 environment:
-                   type: string
-                 mongodb:
-                   type: string
-                   example: connected
+ *                   example: success
+ *                 message:
+ *                   type: string
+ *                   example: SEP490_G54 API is running
+ *                 timestamp:
+ *                   type: string
+ *                   format: date-time
+ *                 environment:
+ *                   type: string
+ *                 mongodb:
+ *                   type: string
+ *                   example: connected
  */
 app.get('/api/health', (req, res) => {
   const healthStatus = {

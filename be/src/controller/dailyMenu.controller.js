@@ -1,5 +1,8 @@
 const DailyMenu = require("../models/DailyMenu");
 const Food = require("../models/Food");
+const {
+  aggregateNutritionFromFoods,
+} = require("../utils/nutritionCalculator");
 
 exports.updateDailyMenu = async (req, res) => {
   try {
@@ -23,6 +26,7 @@ exports.updateDailyMenu = async (req, res) => {
       dailyMenu.afternoonFoods = afternoonFoods;
     }
 
+    // Lấy toàn bộ foods từ lunch và afternoon
     const allFoods = await Food.find({
       _id: {
         $in: [
@@ -32,22 +36,23 @@ exports.updateDailyMenu = async (req, res) => {
       },
     });
 
-    let calories = 0;
-    let protein = 0;
-    let fat = 0;
-    let carb = 0;
+    // Sử dụng nutrition calculator để tính toán giá trị dinh dưỡng
+    const nutritionData = aggregateNutritionFromFoods(allFoods);
 
-    allFoods.forEach((food) => {
-      calories += food.calories || 0;
-      protein += food.protein || 0;
-      fat += food.fat || 0;
-      carb += food.carb || 0;
-    });
-
-    dailyMenu.totalCalories = calories;
-    dailyMenu.totalProtein = protein;
-    dailyMenu.totalFat = fat;
-    dailyMenu.totalCarb = carb;
+    // Cập nhật các giá trị dinh dưỡng
+    dailyMenu.totalCalories = nutritionData.totalCalories;
+    dailyMenu.totalProtein = nutritionData.totalProteinGrams;
+    dailyMenu.totalFat = nutritionData.totalFatGrams;
+    dailyMenu.totalCarb = nutritionData.totalCarbGrams;
+    dailyMenu.proteinPercentage = nutritionData.proteinPercentage;
+    dailyMenu.fatPercentage = nutritionData.fatPercentage;
+    dailyMenu.carbPercentage = nutritionData.carbPercentage;
+    dailyMenu.nutritionDetails = {
+      kcalFromProtein: nutritionData.details.kcalFromProtein,
+      kcalFromFat: nutritionData.details.kcalFromFat,
+      kcalFromCarb: nutritionData.details.kcalFromCarb,
+      calculatedTotalKcal: nutritionData.calculatedTotalKcal,
+    };
 
     await dailyMenu.save();
 

@@ -111,8 +111,8 @@ POST /api/ai/chat                     → Chat với AI
 ```
 
 ### Yêu cầu:
-- ✅ Backend phải có GEMINI_API_KEY cấu hình
-- ✅ Gemini API service setup in `be/src/utils/geminiService.js`
+- ✅ Backend phải có OPENAI_API_KEY cấu hình
+- ✅ OpenAI GPT-4 service setup in `be/src/utils/openaiService.js`
 - ✅ Controller setup in `be/src/controller/aiMenuController.js`
 
 ---

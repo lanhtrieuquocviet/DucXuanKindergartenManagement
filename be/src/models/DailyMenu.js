@@ -39,25 +39,66 @@ const dailyMenuSchema = new mongoose.Schema(
       },
     ],
 
-    // tổng dinh dưỡng
+    // tổng dinh dưỡng (Calories từ database)
     totalCalories: {
       type: Number,
       default: 0,
     },
 
+    // Tổng Protein (grams)
     totalProtein: {
       type: Number,
       default: 0,
     },
 
+    // Tổng Fat/Lipid (grams)
     totalFat: {
       type: Number,
       default: 0,
     },
 
+    // Tổng Carb/Glucid (grams)
     totalCarb: {
       type: Number,
       default: 0,
+    },
+
+    // Tỉ lệ % của Protein so với tổng Kcal
+    proteinPercentage: {
+      type: Number,
+      default: 0,
+    },
+
+    // Tỉ lệ % của Fat so với tổng Kcal
+    fatPercentage: {
+      type: Number,
+      default: 0,
+    },
+
+    // Tỉ lệ % của Carb so với tổng Kcal
+    carbPercentage: {
+      type: Number,
+      default: 0,
+    },
+
+    // Chi tiết quy đổi Kcal từ P-L-G
+    nutritionDetails: {
+      kcalFromProtein: {
+        type: Number,
+        default: 0,
+      },
+      kcalFromFat: {
+        type: Number,
+        default: 0,
+      },
+      kcalFromCarb: {
+        type: Number,
+        default: 0,
+      },
+      calculatedTotalKcal: {
+        type: Number,
+        default: 0,
+      },
     },
   },
   {
