@@ -1,6 +1,8 @@
 const express = require('express');
 const { authenticate, authorizeRoles } = require('../middleware/auth');
 const assetCtrl = require('../controller/assetInspectionController');
+const purchaseCtrl = require('../controller/purchaseRequestController');
+const incidentCtrl = require('../controller/assetIncidentController');
 const InspectionCommittee = require('../models/InspectionCommittee');
 const User = require('../models/User');
 
@@ -51,5 +53,21 @@ router.get('/asset-minutes', authenticate, authorizeRoles('Teacher'), assetCtrl.
 router.post('/asset-minutes', authenticate, authorizeRoles('Teacher'), assetCtrl.createMinutes);
 router.get('/asset-minutes/:id', authenticate, authorizeRoles('Teacher'), assetCtrl.getMinutes);
 router.put('/asset-minutes/:id', authenticate, authorizeRoles('Teacher'), assetCtrl.updateMinutes);
+
+// ── Purchase Requests (Yêu cầu mua sắm) ──
+router.get('/my-classes', authenticate, authorizeRoles('Teacher'), purchaseCtrl.getMyClasses);
+router.get('/purchase-requests', authenticate, authorizeRoles('Teacher'), purchaseCtrl.listMyRequests);
+router.post('/purchase-requests', authenticate, authorizeRoles('Teacher'), purchaseCtrl.createRequest);
+router.get('/purchase-requests/:id', authenticate, authorizeRoles('Teacher'), purchaseCtrl.getRequest);
+router.put('/purchase-requests/:id', authenticate, authorizeRoles('Teacher'), purchaseCtrl.updateRequest);
+router.delete('/purchase-requests/:id', authenticate, authorizeRoles('Teacher'), purchaseCtrl.deleteRequest);
+
+// ── Asset Allocation (Tài sản lớp) ──
+router.get('/asset-allocations', authenticate, authorizeRoles('Teacher'), incidentCtrl.getMyAllocation);
+
+// ── Asset Incidents (Báo cáo sự cố) ──
+router.get('/asset-incidents',     authenticate, authorizeRoles('Teacher'), incidentCtrl.listMyIncidents);
+router.post('/asset-incidents',    authenticate, authorizeRoles('Teacher'), incidentCtrl.createIncident);
+router.get('/asset-incidents/:id', authenticate, authorizeRoles('Teacher'), incidentCtrl.getIncident);
 
 module.exports = router;

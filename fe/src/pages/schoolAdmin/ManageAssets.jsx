@@ -5,6 +5,7 @@ import {
   Autocomplete,
   Box,
   Button,
+  Checkbox,
   Chip,
   CircularProgress,
   Dialog,
@@ -27,12 +28,14 @@ import {
   TableRow,
   Tabs,
   TextField,
+  Tooltip,
   Typography,
   useMediaQuery,
   useTheme,
 } from '@mui/material';
 import AddIcon from '@mui/icons-material/Add';
 import DeleteIcon from '@mui/icons-material/Delete';
+import DownloadIcon from '@mui/icons-material/Download';
 import EditIcon from '@mui/icons-material/Edit';
 import UploadFileIcon from '@mui/icons-material/UploadFile';
 import RoleLayout from '../../layouts/RoleLayout';
@@ -985,11 +988,20 @@ function MinutesTab() {
 // ─── Assets Tab (CRUD Tài sản) ────────────────────────────────────────────────
 const CONDITION_OPTIONS  = ['Tốt', 'Hỏng', 'Cần sửa chữa'];
 const CONDITION_COLOR    = { 'Tốt': 'success', 'Hỏng': 'error', 'Cần sửa chữa': 'warning' };
-const CATEGORY_OPTIONS   = ['Phòng học', 'Bàn ghế', 'Thiết bị dạy học', 'Đồ dùng', 'Khác'];
+const CATEGORY_OPTIONS   = [
+  'Phòng nuôi dưỡng, chăm sóc, giáo dục trẻ em',
+  'Số bàn, ghế ngồi',
+  'Khối phòng phục vụ học tập',
+  'Phòng tổ chức ăn, nghỉ',
+  'Công trình công cộng và khối phòng phục vụ khác',
+  'Khối phòng hành chính quản trị',
+  'Diện tích đất',
+  'Thiết bị dạy học và CNTT',
+];
 const CONSTRUCTION_OPTIONS = ['Kiên cố', 'Bán kiên cố', 'Tạm', 'Không áp dụng'];
 
 const emptyAsset = () => ({
-  assetCode: '', name: '', category: 'Khác', room: '',
+  assetCode: '', name: '', category: 'Phòng nuôi dưỡng, chăm sóc, giáo dục trẻ em', room: '',
   requiredQuantity: 0, quantity: 1, area: '', constructionType: 'Không áp dụng',
   condition: 'Tốt', notes: '',
 });
@@ -1009,6 +1021,17 @@ function AssetsTab() {
   const [deleteTarget, setDeleteTarget] = useState(null);
   const [deleting, setDeleting]         = useState(false);
 
+  // Import Excel
+  const importRef                             = useRef();
+  const [importPreview, setImportPreview]     = useState([]);
+  const [importOpen, setImportOpen]           = useState(false);
+  const [importing, setImporting]             = useState(false);
+
+  // Bulk select & delete
+  const [selected, setSelected]               = useState(new Set());
+  const [bulkDeleteOpen, setBulkDeleteOpen]   = useState(false);
+  const [bulkDeleting, setBulkDeleting]       = useState(false);
+
   const load = async () => {
     setLoading(true);
     try {
@@ -1022,6 +1045,8 @@ function AssetsTab() {
   };
 
   useEffect(() => { load(); }, []);
+
+  useEffect(() => { setSelected(new Set()); }, [search, filterCategory]);
 
   const handleOpen = (asset = null) => {
     if (asset) {
@@ -1084,6 +1109,283 @@ function AssetsTab() {
     }
   };
 
+  const toggleSelect = id =>
+    setSelected(prev => { const s = new Set(prev); s.has(id) ? s.delete(id) : s.add(id); return s; });
+
+  const toggleSelectAll = () =>
+    setSelected(prev => prev.size === filtered.length ? new Set() : new Set(filtered.map(a => a._id)));
+
+  const handleBulkDelete = async () => {
+    setBulkDeleting(true);
+    try {
+      await Promise.all([...selected].map(id => del(ENDPOINTS.SCHOOL_ADMIN.ASSET_DETAIL(id))));
+      toast.success(`Đã xóa ${selected.size} tài sản.`);
+      setSelected(new Set());
+      setBulkDeleteOpen(false);
+      load();
+    } catch (err) {
+      toast.error(err?.message || 'Xóa thất bại.');
+    } finally {
+      setBulkDeleting(false);
+    }
+  };
+
+  const handleImportFile = e => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    import('xlsx').then(XLSX => {
+      const reader = new FileReader();
+      reader.onload = evt => {
+        const wb   = XLSX.read(evt.target.result, { type: 'array' });
+        const ws   = wb.Sheets[wb.SheetNames[0]];
+        const rows = XLSX.utils.sheet_to_json(ws, { header: 1, defval: '' });
+        if (!rows?.length) { toast.error('File rỗng hoặc sai định dạng.'); return; }
+
+        // ── Section header mapping (theo số thứ tự trong Excel báo cáo) ──
+        const SECTION_PATTERNS = [
+          { re: /^1[\.\s\)]/,  cat: 'Phòng nuôi dưỡng, chăm sóc, giáo dục trẻ em', fmt: 'room' },
+          { re: /^2[\.\s\)]/,  cat: 'Số bàn, ghế ngồi',                             fmt: 'count' },
+          { re: /^3[\.\s\)]/,  cat: 'Khối phòng phục vụ học tập',                   fmt: 'room' },
+          { re: /^4[\.\s\)]/,  cat: 'Phòng tổ chức ăn, nghỉ',                       fmt: 'room' },
+          { re: /^5[\.\s\)]/,  cat: 'Công trình công cộng và khối phòng phục vụ khác', fmt: 'room' },
+          { re: /^6[\.\s\)]/,  cat: 'Khối phòng hành chính quản trị',               fmt: 'room' },
+          { re: /^7\.1/,       cat: 'Diện tích đất',                                fmt: 'equip' },
+          { re: /^7\.2/,       cat: 'Thiết bị dạy học và CNTT',                     fmt: 'equip' },
+          { re: /^7[\.\s\)]/,  cat: 'Thiết bị dạy học và CNTT',                     fmt: 'equip' },
+        ];
+
+        // Prefix tự động sinh mã TS theo category
+        const CODE_PREFIX = {
+          'Phòng nuôi dưỡng, chăm sóc, giáo dục trẻ em': 'PH',
+          'Số bàn, ghế ngồi':                             'BG',
+          'Khối phòng phục vụ học tập':                   'HT',
+          'Phòng tổ chức ăn, nghỉ':                       'AN',
+          'Công trình công cộng và khối phòng phục vụ khác': 'CC',
+          'Khối phòng hành chính quản trị':               'HC',
+          'Diện tích đất':                                 'DT',
+          'Thiết bị dạy học và CNTT':                      'TB',
+        };
+        const codeCounters = {};
+
+        const toNum = v => {
+          if (typeof v === 'number') return v;
+          const s = String(v ?? '').trim();
+          if (!s) return 0;
+          // Số kiểu Việt Nam: dấu chấm = phân nghìn, dấu phẩy = thập phân (vd: 3.943,3)
+          // Nhận biết: có cả '.' lẫn ',' → bỏ dấu chấm, đổi phẩy thành chấm
+          const cleaned = s.includes('.') && s.includes(',')
+            ? s.replace(/\./g, '').replace(',', '.')
+            : s.replace(',', '.');
+          const n = parseFloat(cleaned);
+          return isNaN(n) ? 0 : n;
+        };
+        const isNum = v => typeof v === 'number' || (typeof v === 'string' && /^[\d,\.]+$/.test(v.trim()) && v.trim() !== '');
+
+        // Các tên dòng cần bỏ qua (tiêu đề cột, dòng tổng hợp không phải tài sản)
+        const SKIP_ROW = /^(tổng số:?|trong đó|chia ra|tổng cộng|đvt|ghi chú|nguồn nước|thư viện nhà trường)$/i;
+
+        let currentCat = '';
+        let currentFmt = 'room';
+        const parsed = [];
+
+        for (const row of rows) {
+          const col0 = String(row[0] ?? '').trim();
+          if (!col0) continue;
+
+          // Kiểm tra header đầu mục (1., 2., ..., 7.1, 7.2)
+          const sec = SECTION_PATTERNS.find(s => s.re.test(col0));
+          if (sec) {
+            currentCat = sec.cat;
+            currentFmt = sec.fmt;
+            continue;
+          }
+
+          // Bỏ qua dòng tiêu đề cột (toàn chữ, không có số) hoặc dòng gộp chung
+          if (!currentCat) continue;
+          const numCols = row.slice(1).filter(v => isNum(v));
+          if (numCols.length === 0) continue;
+
+          // Làm sạch tên – bỏ ký tự đầu dòng như "- ", "+ ", "* "
+          const name = col0.replace(/^[\-\+\*\•\–\—\s]+/, '').trim();
+          if (!name || name.length < 2) continue;
+          if (SKIP_ROW.test(name)) continue;
+
+          // Sinh mã tài sản tự động
+          const prefix = CODE_PREFIX[currentCat] || 'TS';
+          codeCounters[prefix] = (codeCounters[prefix] || 0) + 1;
+          const assetCode = `${prefix}${String(codeCounters[prefix]).padStart(3, '0')}`;
+
+          let asset;
+
+          if (currentFmt === 'equip') {
+            // Thiết bị: scan toàn bộ row để tìm ĐVT (text đầu tiên) và số lượng (số đầu tiên)
+            // Cần thiết vì Excel gốc để ĐVT/Số lượng ở cột 8-9, còn file mẫu để ở cột 1-2
+            let dvt = '';
+            let qty = 0;
+            for (let ci = 1; ci < row.length; ci++) {
+              const v = row[ci];
+              if (v === '' || v == null) continue;
+              if (isNum(v)) { qty = toNum(v); break; }
+              if (!dvt && typeof v === 'string') dvt = v.trim();
+            }
+            asset = {
+              assetCode, name,
+              category:         currentCat,
+              room:             '',
+              requiredQuantity: 0,
+              quantity:         qty,
+              area:             null,
+              constructionType: 'Không áp dụng',
+              condition:        'Tốt',
+              notes:            dvt,
+            };
+          } else {
+            // Phòng / Bàn ghế: col[1]=nhu cầu QĐ, col[2]=tổng số, col[3]=diện tích
+            // col[4,5]=Kiên cố; col[6,7]=Bán kiên cố; col[8,9]=Tạm
+            const requiredQuantity = toNum(row[1]);
+            const quantity         = toNum(row[2]);
+            const areaRaw          = row[3];
+            const area = areaRaw !== '' && areaRaw != null ? toNum(areaRaw) || null : null;
+
+            const kienCo   = toNum(row[4]);
+            const banKienCo = toNum(row[6]);
+            const tam       = toNum(row[8]);
+            let constructionType = 'Không áp dụng';
+            if (kienCo > 0 && !banKienCo && !tam)       constructionType = 'Kiên cố';
+            else if (banKienCo > 0 && !kienCo && !tam)  constructionType = 'Bán kiên cố';
+            else if (tam > 0 && !kienCo && !banKienCo)  constructionType = 'Tạm';
+
+            asset = {
+              assetCode, name,
+              category:         currentCat,
+              room:             '',
+              requiredQuantity,
+              quantity,
+              area,
+              constructionType,
+              condition:        'Tốt',
+              notes:            '',
+            };
+          }
+
+          parsed.push(asset);
+        }
+
+        if (!parsed.length) {
+          toast.error('Không nhận ra cấu trúc file. Hãy dùng file báo cáo cơ sở vật chất đúng định dạng hoặc tải file mẫu.');
+          return;
+        }
+        setImportPreview(parsed);
+        setImportOpen(true);
+        toast.info(`Đọc được ${parsed.length} tài sản. Kiểm tra trước khi nhập.`);
+      };
+      reader.readAsArrayBuffer(file);
+    }).catch(() => toast.error('Không hỗ trợ import Excel.'));
+    e.target.value = '';
+  };
+
+  const handleDownloadTemplate = () => {
+    import('xlsx').then(XLSX => {
+      const aoa = [
+        // Tiêu đề chính
+        ['I. CƠ SỞ VẬT CHẤT', 'Tổng nhu cầu theo QĐ', 'Tổng số', 'Diện tích (m²)', 'Kiên cố - Số', 'Kiên cố - DT', 'Bán kiên cố - Số', 'Bán kiên cố - DT', 'Tạm - Số', 'Tạm - DT'],
+        // Section 1
+        ['1. Phòng nuôi dưỡng, chăm sóc, giáo dục trẻ em'],
+        ['- Tổng số phòng học',             17, 17, 695, 17, 695, '', '', '', ''],
+        ['+ Khu sinh hoạt chung',           17, 17, 695, 17, 695, '', '', '', ''],
+        ['+ Khu ngủ',                       17, 10, 472.2, 10, 472.2, '', '', '', ''],
+        ['+ Khu vệ sinh',                   17, 17, 223.81, 17, 223.81, '', '', '', ''],
+        ['+ Hiên chơi, đón trẻ',            17, 17, 560.75, 17, 560.75, '', '', '', ''],
+        ['+ Kho nhóm, lớp',                 17, '', '', '', '', '', '', '', ''],
+        ['+ Phòng giáo viên',                2, '', '', '', '', '', '',  '', ''],
+        // Section 2
+        ['2. Số bàn, ghế ngồi', 'Tổng nhu cầu theo QĐ', 'Tổng số', '', '', '', '', '', '', ''],
+        ['- Tổng số bàn',   300, 277, '', '', '', '', '', '', ''],
+        ['+ Bàn giáo viên',  38,  17, '', '', '', '', '', '', ''],
+        ['+ Bàn học sinh',  260, 260, '', '', '', '', '', '', ''],
+        ['- Tổng số ghế',   558, 558, '', '', '', '', '', '', ''],
+        ['+ Ghế giáo viên',  38,  17, '', '', '', '', '', '', ''],
+        ['+ Ghế học sinh',  520, 520, '', '', '', '', '', '', ''],
+        // Section 3
+        ['3. Khối phòng phục vụ học tập'],
+        ['- Phòng thư viện',      1, 1,  40, 1,  40, '', '', '', ''],
+        ['- Phòng Giáo dục thể chất', 1, '', '', '', '', '', '', '', ''],
+        ['- Phòng Giáo dục nghệ thuật', 1, 1, 73, 1, 73, '', '', '', ''],
+        ['- Phòng Y tế học đường', 1, 1, 12, 1, 12, '', '', '', ''],
+        ['- Nhà tập đa năng',     1, '', '', '', '', '', '', '', ''],
+        ['- Phòng làm quen với máy tính', 1, 1, 16, 1, 16, '', '', '', ''],
+        ['- Sân chơi riêng',      2, 1, 540, 1, 540, '', '', '', ''],
+        // Section 4
+        ['4. Phòng tổ chức ăn, nghỉ'],
+        ['- Nhà bếp',   2, 2,  75, 1, 45, 1, 30, '', ''],
+        ['- Phòng ăn',  1, 1,   9, '', '', '', '', 1, 9],
+        ['- Kho bếp',   2, 2,  12, 1,  6, 1,  6, '', ''],
+        // Section 5
+        ['5. Công trình công cộng và khối phòng phục vụ khác'],
+        ['- Nhà để xe GV',        1, 1, 108, '', '', '', '', 1, 108],
+        ['- Nhà để xe HS',        0, '', '', '', '', '', '', '', ''],
+        ['- Nhà vệ sinh dành cho GV', 3, 2, 12, 2, 12, '', '', '', ''],
+        // Section 6
+        ['6. Khối phòng hành chính quản trị'],
+        ['- Phòng Hiệu trưởng',     1, 1, 18, 1, 18, '', '', '', ''],
+        ['- Phòng phó Hiệu trưởng', 2, 2, 36, 2, 36, '', '', '', ''],
+        ['- Phòng họp Hội đồng',    1, '', '', '', '', '', '', '', ''],
+        ['- Phòng họp (Tổ chuyên môn)', 1, 1, 18, 1, 18, '', '', '', ''],
+        ['- Văn phòng nhà trường',  1, 1, 40, 1, 40, '', '', '', ''],
+        ['- Phòng thường trực (Bảo vệ)', 2, 1, 6.2, '', '', '', '', 1, 6.2],
+        ['- Nhà công vụ giáo viên', 0, '', '', '', '', '', '', '', ''],
+        ['- Phòng kho lưu trữ tài liệu', 1, 1, 18, 1, 18, '', '', '', ''],
+        // Section 7.1
+        ['7.1. Diện tích đất (Tính đến thời điểm hiện tại)', 'ĐVT', 'Số lượng'],
+        ['- Tổng diện tích khuôn viên đất', 'm²', 3943.3],
+        ['- Diện tích sân chơi',             'm²',  540],
+        ['- Diện tích sân vườn',             'm²',  250],
+        // Section 7.2
+        ['7.2. Thiết bị dạy học và thiết bị CNTT', 'ĐVT', 'Số lượng'],
+        ['- Thiết bị dạy học tối thiểu',                  'Bộ',   17],
+        ['- Thiết bị đồ chơi ngoài trời',                 'Loại', 10],
+        ['- Tổng số máy tính đang được sử dụng',           'Bộ',   28],
+        ['- Tổng số đường truyền Internet',                'Bộ',    2],
+        ['- Số máy tính được kết nối Internet',            'Bộ',   28],
+        ['- Số máy tính phục vụ công tác Quản lý',         'Bộ',    8],
+        ['- Số máy tính phục vụ công tác Giảng dạy, Học tập', 'Bộ', 20],
+        ['- Máy chiếu',    'Chiếc',  2],
+        ['- Máy Photocopy', 'Chiếc', 1],
+        ['- Máy in',        'Chiếc', 6],
+        ['- Máy Scaner',    'Chiếc', 2],
+        ['- Máy ép Plastic','Chiếc', 0],
+        ['- Tivi dùng cho công tác quản lý',  'Chiếc',  4],
+        ['- Tivi dùng tại các phòng học',     'Chiếc', 17],
+        ['- Đàn phím điện tử',                'Chiếc',  2],
+        ['- Tủ đựng đồ',                      'Chiếc', 51],
+      ];
+
+      const ws = XLSX.utils.aoa_to_sheet(aoa);
+      ws['!cols'] = [{ wch: 48 }, { wch: 16 }, { wch: 12 }, { wch: 14 }, { wch: 12 }, { wch: 14 }, { wch: 14 }, { wch: 14 }, { wch: 10 }, { wch: 12 }];
+      const wb = XLSX.utils.book_new();
+      XLSX.utils.book_append_sheet(wb, ws, 'CoSoVatChat');
+      XLSX.writeFile(wb, 'mau_co_so_vat_chat.xlsx');
+    });
+  };
+
+  const handleBulkImport = async () => {
+    if (!importPreview.length) return;
+    setImporting(true);
+    try {
+      const res = await post(ENDPOINTS.SCHOOL_ADMIN.ASSETS_BULK, { assets: importPreview });
+      const { created, skipped, errors } = res?.data || {};
+      toast.success(`Nhập thành công ${created} tài sản${skipped ? `, bỏ qua ${skipped}` : ''}.`);
+      if (errors?.length) toast.warning(errors.slice(0, 3).join(' | '));
+      setImportOpen(false);
+      setImportPreview([]);
+      load();
+    } catch (err) {
+      toast.error(err?.message || 'Nhập thất bại.');
+    } finally {
+      setImporting(false);
+    }
+  };
+
   const filtered = assets.filter(a => {
     const matchSearch = !search ||
       a.name?.toLowerCase().includes(search.toLowerCase()) ||
@@ -1092,6 +1394,14 @@ function AssetsTab() {
     const matchCategory = !filterCategory || a.category === filterCategory;
     return matchSearch && matchCategory;
   });
+
+  // Nhóm theo category theo thứ tự CATEGORY_OPTIONS, phần không khớp vào cuối
+  const grouped = CATEGORY_OPTIONS.map(cat => ({
+    cat,
+    rows: filtered.filter(a => a.category === cat),
+  })).filter(g => g.rows.length > 0);
+  const uncategorized = filtered.filter(a => !CATEGORY_OPTIONS.includes(a.category));
+  if (uncategorized.length) grouped.push({ cat: 'Khác', rows: uncategorized });
 
   // Tổng hợp nhanh
   const totalRequired = filtered.reduce((s, a) => s + (a.requiredQuantity || 0), 0);
@@ -1119,6 +1429,23 @@ function AssetsTab() {
             {CATEGORY_OPTIONS.map(o => <MenuItem key={o} value={o}>{o}</MenuItem>)}
           </Select>
         </FormControl>
+        {selected.size > 0 && (
+          <Button
+            variant="contained" color="error"
+            startIcon={<DeleteIcon />}
+            onClick={() => setBulkDeleteOpen(true)}
+            sx={{ whiteSpace: 'nowrap', textTransform: 'none' }}
+          >
+            Xóa {selected.size} mục
+          </Button>
+        )}
+        <Button variant="outlined" startIcon={<UploadFileIcon />} onClick={() => importRef.current?.click()} sx={{ whiteSpace: 'nowrap', textTransform: 'none' }}>
+          Import Excel
+        </Button>
+        <input ref={importRef} hidden type="file" accept=".xlsx,.xls" onChange={handleImportFile} />
+        <Button variant="outlined" startIcon={<DownloadIcon />} onClick={handleDownloadTemplate} sx={{ whiteSpace: 'nowrap', textTransform: 'none' }}>
+          Tải mẫu
+        </Button>
         <Button variant="contained" startIcon={<AddIcon />} onClick={() => handleOpen()} sx={{ whiteSpace: 'nowrap' }}>
           Thêm tài sản
         </Button>
@@ -1140,9 +1467,18 @@ function AssetsTab() {
           <Table size="small">
             <TableHead>
               <TableRow sx={{ backgroundColor: '#f0f4f8' }}>
+                <TableCell padding="checkbox">
+                  <Tooltip title={selected.size === filtered.length && filtered.length > 0 ? 'Bỏ chọn tất cả' : 'Chọn tất cả'}>
+                    <Checkbox
+                      size="small"
+                      checked={filtered.length > 0 && selected.size === filtered.length}
+                      indeterminate={selected.size > 0 && selected.size < filtered.length}
+                      onChange={toggleSelectAll}
+                    />
+                  </Tooltip>
+                </TableCell>
                 <TableCell sx={{ fontWeight: 700 }}>Mã TS</TableCell>
                 <TableCell sx={{ fontWeight: 700 }}>Tên tài sản</TableCell>
-                {!isMobile && <TableCell sx={{ fontWeight: 700 }}>Loại</TableCell>}
                 {!isMobile && <TableCell sx={{ fontWeight: 700 }}>Phòng</TableCell>}
                 <TableCell sx={{ fontWeight: 700 }} align="center">Nhu cầu QĐ</TableCell>
                 <TableCell sx={{ fontWeight: 700 }} align="center">Thực tế</TableCell>
@@ -1155,54 +1491,74 @@ function AssetsTab() {
             <TableBody>
               {filtered.length === 0 ? (
                 <TableRow>
-                  <TableCell colSpan={10} align="center">
+                  <TableCell colSpan={11} align="center">
                     <Typography variant="body2" color="text.secondary" py={2}>
                       {search || filterCategory ? 'Không tìm thấy kết quả.' : 'Chưa có tài sản nào.'}
                     </Typography>
                   </TableCell>
                 </TableRow>
-              ) : filtered.map(a => (
-                <TableRow key={a._id} hover>
-                  <TableCell sx={{ fontWeight: 600 }}>{a.assetCode}</TableCell>
-                  <TableCell>{a.name}</TableCell>
-                  {!isMobile && (
-                    <TableCell>
-                      <Chip label={a.category || 'Khác'} size="small" variant="outlined" />
-                    </TableCell>
-                  )}
-                  {!isMobile && <TableCell>{a.room || '—'}</TableCell>}
-                  <TableCell align="center">{a.requiredQuantity || 0}</TableCell>
-                  <TableCell align="center">
-                    <Typography
-                      variant="body2" fontWeight={600}
-                      color={(a.quantity || 0) >= (a.requiredQuantity || 0) ? 'success.main' : 'warning.main'}
-                    >
-                      {a.quantity}
+              ) : grouped.map(({ cat, rows }, gi) => [
+                <TableRow key={`cat-${gi}`}>
+                  <TableCell
+                    colSpan={11}
+                    sx={{
+                      backgroundColor: '#e8f0fe',
+                      fontWeight: 700,
+                      fontSize: '0.8rem',
+                      color: '#1a56db',
+                      py: 0.75,
+                      borderBottom: '2px solid #c7d7f8',
+                    }}
+                  >
+                    {CATEGORY_OPTIONS.indexOf(cat) >= 0
+                      ? `${CATEGORY_OPTIONS.indexOf(cat) + 1}. ${cat}`
+                      : cat}
+                    <Typography component="span" sx={{ fontWeight: 400, color: 'text.secondary', ml: 1, fontSize: '0.75rem' }}>
+                      ({rows.length} mục)
                     </Typography>
                   </TableCell>
-                  {!isMobile && <TableCell align="center">{a.area != null ? `${a.area}` : '—'}</TableCell>}
-                  {!isMobile && (
-                    <TableCell align="center">
-                      {a.constructionType !== 'Không áp dụng' ? (
-                        <Chip label={a.constructionType} size="small" variant="outlined" color="info" />
-                      ) : '—'}
+                </TableRow>,
+                ...rows.map(a => (
+                  <TableRow key={a._id} hover selected={selected.has(a._id)}>
+                    <TableCell padding="checkbox">
+                      <Checkbox size="small" checked={selected.has(a._id)} onChange={() => toggleSelect(a._id)} />
                     </TableCell>
-                  )}
-                  <TableCell align="center">
-                    <Chip label={a.condition} color={CONDITION_COLOR[a.condition] || 'default'} size="small" />
-                  </TableCell>
-                  <TableCell align="center">
-                    <Stack direction="row" justifyContent="center" gap={0.5}>
-                      <IconButton size="small" color="primary" onClick={() => handleOpen(a)}>
-                        <EditIcon fontSize="small" />
-                      </IconButton>
-                      <IconButton size="small" color="error" onClick={() => setDeleteTarget(a)}>
-                        <DeleteIcon fontSize="small" />
-                      </IconButton>
-                    </Stack>
-                  </TableCell>
-                </TableRow>
-              ))}
+                    <TableCell sx={{ fontWeight: 600 }}>{a.assetCode}</TableCell>
+                    <TableCell>{a.name}</TableCell>
+                    {!isMobile && <TableCell>{a.room || '—'}</TableCell>}
+                    <TableCell align="center">{a.requiredQuantity || 0}</TableCell>
+                    <TableCell align="center">
+                      <Typography
+                        variant="body2" fontWeight={600}
+                        color={(a.quantity || 0) >= (a.requiredQuantity || 0) ? 'success.main' : 'warning.main'}
+                      >
+                        {a.quantity}
+                      </Typography>
+                    </TableCell>
+                    {!isMobile && <TableCell align="center">{a.area != null ? `${a.area}` : '—'}</TableCell>}
+                    {!isMobile && (
+                      <TableCell align="center">
+                        {a.constructionType !== 'Không áp dụng' ? (
+                          <Chip label={a.constructionType} size="small" variant="outlined" color="info" />
+                        ) : '—'}
+                      </TableCell>
+                    )}
+                    <TableCell align="center">
+                      <Chip label={a.condition} color={CONDITION_COLOR[a.condition] || 'default'} size="small" />
+                    </TableCell>
+                    <TableCell align="center">
+                      <Stack direction="row" justifyContent="center" gap={0.5}>
+                        <IconButton size="small" color="primary" onClick={() => handleOpen(a)}>
+                          <EditIcon fontSize="small" />
+                        </IconButton>
+                        <IconButton size="small" color="error" onClick={() => setDeleteTarget(a)}>
+                          <DeleteIcon fontSize="small" />
+                        </IconButton>
+                      </Stack>
+                    </TableCell>
+                  </TableRow>
+                )),
+              ])}
             </TableBody>
           </Table>
         </Box>
@@ -1338,6 +1694,76 @@ function AssetsTab() {
         onCancel={() => setDeleteTarget(null)}
         loading={deleting}
       />
+
+      {/* Bulk Delete Confirm */}
+      <Dialog open={bulkDeleteOpen} onClose={() => !bulkDeleting && setBulkDeleteOpen(false)} maxWidth="xs" fullWidth>
+        <DialogTitle>Xác nhận xóa hàng loạt</DialogTitle>
+        <DialogContent>
+          <Typography variant="body2">
+            Bạn có chắc muốn xóa <strong>{selected.size}</strong> tài sản đã chọn? Hành động này không thể hoàn tác.
+          </Typography>
+        </DialogContent>
+        <DialogActions sx={{ px: 2, pb: 2 }}>
+          <Button onClick={() => setBulkDeleteOpen(false)} disabled={bulkDeleting}>Hủy</Button>
+          <Button variant="contained" color="error" onClick={handleBulkDelete} disabled={bulkDeleting}>
+            {bulkDeleting ? 'Đang xóa...' : `Xóa ${selected.size} mục`}
+          </Button>
+        </DialogActions>
+      </Dialog>
+
+      {/* Import Preview Dialog */}
+      <Dialog open={importOpen} onClose={() => !importing && setImportOpen(false)} maxWidth="lg" fullWidth>
+        <DialogTitle>Xem trước dữ liệu Import ({importPreview.length} dòng)</DialogTitle>
+        <DialogContent sx={{ p: 0 }}>
+          <Box sx={{ overflowX: 'auto', maxHeight: 420 }}>
+            <Table size="small" stickyHeader>
+              <TableHead>
+                <TableRow sx={{ backgroundColor: '#f0f4f8' }}>
+                  <TableCell sx={{ fontWeight: 700 }}>#</TableCell>
+                  <TableCell sx={{ fontWeight: 700 }}>Mã TS</TableCell>
+                  <TableCell sx={{ fontWeight: 700 }}>Tên tài sản</TableCell>
+                  <TableCell sx={{ fontWeight: 700 }}>Loại</TableCell>
+                  <TableCell sx={{ fontWeight: 700 }}>Phòng</TableCell>
+                  <TableCell sx={{ fontWeight: 700 }} align="center">Nhu cầu QĐ</TableCell>
+                  <TableCell sx={{ fontWeight: 700 }} align="center">Thực tế</TableCell>
+                  <TableCell sx={{ fontWeight: 700 }} align="center">Diện tích</TableCell>
+                  <TableCell sx={{ fontWeight: 700 }}>Loại CT</TableCell>
+                  <TableCell sx={{ fontWeight: 700 }}>Tình trạng</TableCell>
+                  <TableCell sx={{ fontWeight: 700 }}>Ghi chú</TableCell>
+                </TableRow>
+              </TableHead>
+              <TableBody>
+                {importPreview.map((row, i) => (
+                  <TableRow key={i} hover sx={!row.assetCode || !row.name ? { backgroundColor: '#fff3cd' } : {}}>
+                    <TableCell>{i + 1}</TableCell>
+                    <TableCell sx={{ fontWeight: 600, color: !row.assetCode ? 'error.main' : 'inherit' }}>{row.assetCode || '(trống)'}</TableCell>
+                    <TableCell sx={{ color: !row.name ? 'error.main' : 'inherit' }}>{row.name || '(trống)'}</TableCell>
+                    <TableCell>{row.category}</TableCell>
+                    <TableCell>{row.room || '—'}</TableCell>
+                    <TableCell align="center">{row.requiredQuantity}</TableCell>
+                    <TableCell align="center">{row.quantity}</TableCell>
+                    <TableCell align="center">{row.area ?? '—'}</TableCell>
+                    <TableCell>{row.constructionType}</TableCell>
+                    <TableCell>{row.condition}</TableCell>
+                    <TableCell>{row.notes || '—'}</TableCell>
+                  </TableRow>
+                ))}
+              </TableBody>
+            </Table>
+          </Box>
+          <Box px={2} py={1}>
+            <Typography variant="caption" color="text.secondary">
+              Các dòng thiếu Mã TS hoặc Tên sẽ bị bỏ qua. Mã trùng với dữ liệu đã có cũng sẽ bị bỏ qua.
+            </Typography>
+          </Box>
+        </DialogContent>
+        <DialogActions sx={{ px: 2, pb: 2 }}>
+          <Button onClick={() => setImportOpen(false)} disabled={importing}>Hủy</Button>
+          <Button variant="contained" onClick={handleBulkImport} disabled={importing}>
+            {importing ? 'Đang nhập...' : `Nhập ${importPreview.length} tài sản`}
+          </Button>
+        </DialogActions>
+      </Dialog>
     </Box>
   );
 }

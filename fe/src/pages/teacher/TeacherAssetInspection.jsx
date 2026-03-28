@@ -215,6 +215,7 @@ export default function TeacherAssetInspection() {
     { key: 'pickup-approval',  label: 'Đơn đưa đón' },
     { key: 'schedule',         label: 'Lịch dạy & hoạt động' },
     { key: 'messages',         label: 'Thông báo cho phụ huynh' },
+    { key: 'purchase-request', label: 'Cơ sở vật chất' },
     ...(isCommitteeMember ? [{ key: 'asset-inspection', label: 'Kiểm kê tài sản' }] : []),
   ];
 
@@ -223,6 +224,7 @@ export default function TeacherAssetInspection() {
     if (key === 'students')         navigate('/teacher');
     if (key === 'attendance')       navigate('/teacher/attendance');
     if (key === 'pickup-approval')  navigate('/teacher/pickup-approval');
+    if (key === 'purchase-request') navigate('/teacher/purchase-request');
     if (key === 'asset-inspection') navigate('/teacher/asset-inspection');
   };
 

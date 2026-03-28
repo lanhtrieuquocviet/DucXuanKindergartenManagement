@@ -8,6 +8,9 @@ const Teacher = require('../models/Teacher');
 const { listClassrooms, createClassroom, updateClassroom, deleteClassroom } = require('../controller/classroomController');
 const assetCtrl = require('../controller/assetInspectionController');
 const assetCrudCtrl = require('../controller/assetController');
+const purchaseCtrl = require('../controller/purchaseRequestController');
+const allocationCtrl  = require('../controller/assetAllocationController');
+const incidentCtrl    = require('../controller/assetIncidentController');
 const {
   getAttendanceOverview,
   getClassAttendanceDetail,
@@ -1480,8 +1483,35 @@ router.patch('/asset-minutes/:id/reject', authenticate, authorizeRoles('SchoolAd
 // ============================================
 router.get('/assets', authenticate, authorizeRoles('SchoolAdmin'), assetCrudCtrl.listAssets);
 router.post('/assets', authenticate, authorizeRoles('SchoolAdmin'), assetCrudCtrl.createAsset);
+router.post('/assets/bulk', authenticate, authorizeRoles('SchoolAdmin'), assetCrudCtrl.bulkCreateAssets);
 router.get('/assets/:id', authenticate, authorizeRoles('SchoolAdmin'), assetCrudCtrl.getAsset);
 router.put('/assets/:id', authenticate, authorizeRoles('SchoolAdmin'), assetCrudCtrl.updateAsset);
 router.delete('/assets/:id', authenticate, authorizeRoles('SchoolAdmin'), assetCrudCtrl.deleteAsset);
+
+// ============================================
+// Asset Allocations (Biên bản bàn giao tài sản)
+// ============================================
+const wordUpload = multer({ storage: multer.memoryStorage(), limits: { fileSize: 20 * 1024 * 1024 } });
+router.get('/asset-allocations', authenticate, authorizeRoles('SchoolAdmin'), allocationCtrl.listAllocations);
+router.post('/asset-allocations', authenticate, authorizeRoles('SchoolAdmin'), allocationCtrl.createAllocation);
+router.post('/asset-allocations/parse-word', authenticate, authorizeRoles('SchoolAdmin'), wordUpload.single('file'), allocationCtrl.parseWordFile);
+router.get('/asset-allocations/classes', authenticate, authorizeRoles('SchoolAdmin'), allocationCtrl.listClasses);
+router.get('/asset-allocations/:id', authenticate, authorizeRoles('SchoolAdmin'), allocationCtrl.getAllocation);
+router.put('/asset-allocations/:id', authenticate, authorizeRoles('SchoolAdmin'), allocationCtrl.updateAllocation);
+router.delete('/asset-allocations/:id', authenticate, authorizeRoles('SchoolAdmin'), allocationCtrl.deleteAllocation);
+router.patch('/asset-allocations/:id/transfer', authenticate, authorizeRoles('SchoolAdmin'), allocationCtrl.transferAllocation);
+
+// ============================================
+// Purchase Requests (Yêu cầu mua sắm)
+// ============================================
+router.get('/purchase-requests', authenticate, authorizeRoles('SchoolAdmin'), purchaseCtrl.listAllRequests);
+router.patch('/purchase-requests/:id/approve', authenticate, authorizeRoles('SchoolAdmin'), purchaseCtrl.approveRequest);
+router.patch('/purchase-requests/:id/reject', authenticate, authorizeRoles('SchoolAdmin'), purchaseCtrl.rejectRequest);
+
+// ============================================
+// Asset Incidents (Báo cáo sự cố tài sản)
+// ============================================
+router.get('/asset-incidents',          authenticate, authorizeRoles('SchoolAdmin'), incidentCtrl.listAllIncidents);
+router.patch('/asset-incidents/:id',    authenticate, authorizeRoles('SchoolAdmin'), incidentCtrl.updateIncidentStatus);
 
 module.exports = router;
