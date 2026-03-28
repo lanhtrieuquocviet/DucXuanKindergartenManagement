@@ -968,7 +968,7 @@ function ClassList() {
                               onClick={() => handleViewStudents(cls._id)}
                               sx={{ bgcolor: 'rgba(99,102,241,0.1)', color: '#6366f1', boxShadow: 'none', '&:hover': { bgcolor: 'rgba(99,102,241,0.2)', boxShadow: 'none' }, borderRadius: 1.5, textTransform: 'none', fontSize: '0.75rem', fontWeight: 600, py: 0.5 }}
                             >
-                              Xem học sinh
+                              Xem chi tiết
                             </Button>
                             <Button
                               size="small"

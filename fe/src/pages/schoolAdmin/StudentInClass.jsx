@@ -411,7 +411,7 @@ function StudentInClass() {
     <RoleLayout
       title={`Chi tiết lớp ${className}`}
       description="Xem thông tin, học sinh và nhật ký của lớp học."
-      menuItems={getMenuItems()}
+      menuItems={SCHOOL_ADMIN_MENU_ITEMS}
       activeKey="classes"
       onLogout={handleLogout}
       onViewProfile={handleViewProfile}
@@ -577,7 +577,7 @@ function StudentInClass() {
           {activeTab === 0 && (
             <Grid container spacing={2}>
               {/* Card: Giáo viên */}
-              <Grid item xs={12} md={4}>
+              <Grid item xs={12} md={6}>
                 <Paper variant="outlined" sx={{ p: 2.5, borderRadius: 2, height: '100%' }}>
                   <Stack direction="row" alignItems="center" spacing={1} sx={{ mb: 2 }}>
                     <PersonIcon sx={{ color: '#7c3aed' }} />
@@ -610,7 +610,7 @@ function StudentInClass() {
               </Grid>
 
               {/* Card: Phòng học */}
-              <Grid item xs={12} md={4}>
+              <Grid item xs={12} md={6}>
                 <Paper variant="outlined" sx={{ p: 2.5, borderRadius: 2, height: '100%' }}>
                   <Stack direction="row" alignItems="center" spacing={1} sx={{ mb: 2 }}>
                     <MeetingRoomIcon sx={{ color: '#2563eb' }} />
@@ -642,9 +642,9 @@ function StudentInClass() {
                 </Paper>
               </Grid>
 
-              {/* Card: Thời khóa biểu */}
-              <Grid item xs={12} md={4}>
-                <Paper variant="outlined" sx={{ p: 2.5, borderRadius: 2, height: '100%' }}>
+              {/* Card: Thời khóa biểu — full width */}
+              <Grid item xs={12}>
+                <Paper variant="outlined" sx={{ p: 2.5, borderRadius: 2 }}>
                   <Stack direction="row" alignItems="center" spacing={1} sx={{ mb: 2 }}>
                     <ScheduleIcon sx={{ color: '#d97706' }} />
                     <Typography variant="subtitle2" fontWeight={700}>Thời khóa biểu</Typography>
@@ -652,13 +652,13 @@ function StudentInClass() {
                   {timetable.length === 0 ? (
                     <Typography variant="body2" color="text.secondary">Chưa có thời khóa biểu</Typography>
                   ) : (
-                    <Stack spacing={1}>
+                    <Stack divider={<Divider />}>
                       {timetable.map(item => (
-                        <Stack key={item._id} direction="row" spacing={1.5} alignItems="flex-start">
-                          <Typography variant="caption" sx={{ width: 95, color: '#7c3aed', fontWeight: 600, flexShrink: 0, pt: 0.2 }}>
+                        <Stack key={item._id} direction="row" spacing={2} alignItems="flex-start" sx={{ py: 1.25 }}>
+                          <Typography variant="body2" sx={{ minWidth: 110, color: '#7c3aed', fontWeight: 600, flexShrink: 0 }}>
                             {item.startLabel} – {item.endLabel}
                           </Typography>
-                          <Box flex={1}>
+                          <Box>
                             <Typography variant="body2">{item.content}</Typography>
                             {item.appliesToSeason !== 'both' && (
                               <Typography variant="caption" sx={{ color: item.appliesToSeason === 'summer' ? '#d97706' : '#2563eb' }}>
@@ -740,37 +740,51 @@ function StudentInClass() {
           {/* ── Tab 2: Nhật ký lớp ──────────────────────────────────────── */}
           {activeTab === 2 && (
             <Box>
-              <Stack direction="row" justifyContent="space-between" alignItems="center" sx={{ mb: 2 }}>
-                <Typography variant="subtitle2" fontWeight={700}>
-                  Nhật ký ngày {new Date().toLocaleDateString('vi-VN')}
-                </Typography>
-              </Stack>
+              <Typography variant="subtitle2" fontWeight={700} sx={{ mb: 2 }}>
+                Nhật ký ngày {new Date().toLocaleDateString('vi-VN')}
+              </Typography>
 
-              <Stack spacing={1.5}>
-                {[
-                  { time: '07:00', title: 'Đón trẻ', note: `Đã đón ${presentCount}/${students.length} trẻ`, icon: <CheckCircleIcon sx={{ color: '#16a34a', fontSize: 20 }} /> },
-                  { time: '08:00', title: 'Thể dục buổi sáng', note: 'Hoạt động thể chất ngoài sân', icon: <FavoriteIcon sx={{ color: '#d97706', fontSize: 20 }} /> },
-                  { time: '09:00', title: 'Học tập & vui chơi', note: 'Bài học theo chủ đề tuần', icon: <SchoolIcon sx={{ color: '#2563eb', fontSize: 20 }} /> },
-                  { time: '10:30', title: 'Ăn trưa', note: 'Theo thực đơn dinh dưỡng', icon: <ScheduleIcon sx={{ color: '#7c3aed', fontSize: 20 }} /> },
-                  { time: '11:00', title: 'Ngủ trưa', note: 'Nghỉ ngơi theo lịch', icon: <ScheduleIcon sx={{ color: '#9ca3af', fontSize: 20 }} /> },
-                ].map(({ time, title, note, icon }) => (
-                  <Paper
-                    key={time}
-                    variant="outlined"
-                    sx={{ p: 2, borderRadius: 2, display: 'flex', alignItems: 'center', gap: 2, borderColor: 'grey.200' }}
-                  >
-                    <Box sx={{ width: 52, textAlign: 'center', flexShrink: 0 }}>
-                      <Typography variant="caption" sx={{ color: '#7c3aed', fontWeight: 700 }}>{time}</Typography>
-                    </Box>
-                    <Divider orientation="vertical" flexItem />
-                    <Box sx={{ mr: 'auto' }}>
-                      <Typography variant="body2" fontWeight={700}>{title}</Typography>
-                      <Typography variant="caption" color="text.secondary">{note}</Typography>
-                    </Box>
-                    {icon}
-                  </Paper>
-                ))}
-              </Stack>
+              {timetable.length === 0 ? (
+                <Typography variant="body2" color="text.secondary">Chưa có thời khóa biểu</Typography>
+              ) : (
+                <Stack spacing={1.5}>
+                  {timetable.map((item, idx) => {
+                    const ICONS = [
+                      <CheckCircleIcon sx={{ color: '#16a34a', fontSize: 24 }} />,
+                      <FavoriteIcon    sx={{ color: '#d97706', fontSize: 24 }} />,
+                      <SchoolIcon      sx={{ color: '#2563eb', fontSize: 24 }} />,
+                      <ScheduleIcon    sx={{ color: '#7c3aed', fontSize: 24 }} />,
+                      <BookIcon        sx={{ color: '#0284c7', fontSize: 24 }} />,
+                    ];
+                    const seasonNote = item.appliesToSeason !== 'both'
+                      ? (item.appliesToSeason === 'summer' ? 'Mùa hè' : 'Mùa đông')
+                      : null;
+                    return (
+                      <Paper
+                        key={item._id}
+                        variant="outlined"
+                        sx={{ p: 2, borderRadius: 2, display: 'flex', alignItems: 'center', gap: 2, borderColor: 'grey.200' }}
+                      >
+                        <Box sx={{ width: 56, textAlign: 'center', flexShrink: 0 }}>
+                          <Typography variant="body2" sx={{ color: '#7c3aed', fontWeight: 700 }}>
+                            {item.startLabel}
+                          </Typography>
+                        </Box>
+                        <Divider orientation="vertical" flexItem />
+                        <Box sx={{ flex: 1 }}>
+                          <Typography variant="body2" fontWeight={700}>{item.content}</Typography>
+                          {seasonNote && (
+                            <Typography variant="caption" sx={{ color: item.appliesToSeason === 'summer' ? '#d97706' : '#2563eb' }}>
+                              {seasonNote}
+                            </Typography>
+                          )}
+                        </Box>
+                        {ICONS[idx % ICONS.length]}
+                      </Paper>
+                    );
+                  })}
+                </Stack>
+              )}
             </Box>
           )}
         </Box>
