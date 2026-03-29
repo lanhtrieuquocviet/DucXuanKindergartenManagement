@@ -92,13 +92,25 @@ exports.getMenus = async (req, res) => {
       filter = { status: { $in: ["approved", "active", "completed"] } };
     }
 
+    const page = Math.max(Number(req.query.page) || 1, 1);
+    const limit = Math.max(Number(req.query.limit) || 20, 1);
+
+    const total = await Menu.countDocuments(filter);
     const menus = await Menu.find(filter)
       .populate("createdBy", "fullName email")
-      .sort({ createdAt: -1 });
+      .sort({ createdAt: -1 })
+      .skip((page - 1) * limit)
+      .limit(limit);
 
     res.json({
       success: true,
       data: menus,
+      pagination: {
+        total,
+        page,
+        limit,
+        totalPages: Math.ceil(total / limit),
+      },
     });
   } catch (error) {
     console.error("getMenus error:", error);
@@ -142,6 +154,12 @@ exports.getMenuDetail = async (req, res) => {
     let totalFat = 0;
     let totalCarb = 0;
 
+    const validDays = dailyMenus.filter((day) => {
+      const hasFood = (day.lunchFoods && day.lunchFoods.length > 0) || (day.afternoonFoods && day.afternoonFoods.length > 0);
+      const hasNutrition = (day.totalCalories || 0) > 0 || (day.totalProtein || 0) > 0 || (day.totalFat || 0) > 0 || (day.totalCarb || 0) > 0;
+      return Boolean(day && (hasFood || hasNutrition));
+    });
+
     dailyMenus.forEach((day) => {
       result[day.weekType][day.dayOfWeek] = day;
 
@@ -150,6 +168,18 @@ exports.getMenuDetail = async (req, res) => {
       totalFat += day.totalFat || 0;
       totalCarb += day.totalCarb || 0;
     });
+
+    const dayCount = validDays.length || 1;
+    const avgCalories = Number((totalCalories / dayCount).toFixed(2));
+
+    const kcalFromProtein = totalProtein * 4;
+    const kcalFromFat = totalFat * 9;
+    const kcalFromCarb = totalCarb * 4;
+    const totalMacroKcal = kcalFromProtein + kcalFromFat + kcalFromCarb;
+
+    const proteinPercent = totalMacroKcal > 0 ? Number(((kcalFromProtein / totalMacroKcal) * 100).toFixed(2)) : 0;
+    const fatPercent = totalMacroKcal > 0 ? Number(((kcalFromFat / totalMacroKcal) * 100).toFixed(2)) : 0;
+    const carbPercent = totalMacroKcal > 0 ? Number(((kcalFromCarb / totalMacroKcal) * 100).toFixed(2)) : 0;
 
     res.json({
       success: true,
@@ -160,6 +190,10 @@ exports.getMenuDetail = async (req, res) => {
           protein: totalProtein,
           fat: totalFat,
           carb: totalCarb,
+          avgCalories,
+          proteinPercent,
+          fatPercent,
+          carbPercent,
         },
         weeks: result,
       },

@@ -4,6 +4,7 @@ import { useAuth } from '../../context/AuthContext';
 import RoleLayout from '../../layouts/RoleLayout';
 import ConfirmDialog from '../../components/ConfirmDialog';
 import { get, del, ENDPOINTS } from '../../service/api';
+import { SCHOOL_ADMIN_MENU_ITEMS, createSchoolAdminMenuSelect } from './schoolAdminMenuConfig';
 import 'quill/dist/quill.snow.css';
 
 import {
@@ -31,21 +32,6 @@ function DocumentDetail() {
   const { documentId } = useParams();
   const navigate = useNavigate();
   const { user, logout, isInitializing } = useAuth();
-
-  const menuItems = [
-    { key: 'overview', label: 'Tổng quan trường' },
-    { key: 'classes', label: 'Lớp học' },
-    { key: 'teachers', label: 'Giáo viên' },
-    { key: 'students', label: 'Học sinh & phụ huynh' },
-    { key: 'assets', label: 'Quản lý tài sản' },
-    { key: 'reports', label: 'Báo cáo của trường' },
-    { key: 'contacts', label: 'Liên hệ' },
-    { key: 'qa', label: 'Câu hỏi' },
-    { key: 'blogs', label: 'Quản lý blog' },
-    { key: 'documents', label: 'Quản lý tài liệu' },
-    { key: 'public-info', label: 'Thông tin công khai' },
-    { key: 'attendance', label: 'Quản lý điểm danh' },
-  ];
 
   const [document, setDocument] = useState(null);
   const [loading, setLoading] = useState(true);
@@ -95,40 +81,7 @@ function DocumentDetail() {
     navigate('/school-admin/documents');
   };
 
-  const handleMenuSelect = (key) => {
-    if (key === 'overview') {
-      navigate('/school-admin');
-      return;
-    }
-    if (key === 'classes') {
-      navigate('/school-admin/classes');
-      return;
-    }
-    if (key === 'contacts') {
-      navigate('/school-admin/contacts');
-      return;
-    }
-    if (key === 'qa') {
-      navigate('/school-admin/qa');
-      return;
-    }
-    if (key === 'blogs') {
-      navigate('/school-admin/blogs');
-      return;
-    }
-    if (key === 'attendance') {
-      navigate('/school-admin/attendance/overview');
-      return;
-    }
-    if (key === 'documents') {
-      navigate('/school-admin/documents');
-      return;
-    }
-    if (key === 'public-info') {
-      navigate('/school-admin/public-info');
-      return;
-    }
-  };
+  const handleMenuSelect = createSchoolAdminMenuSelect(navigate);
 
   const handleLogout = () => {
     logout();
@@ -160,7 +113,7 @@ function DocumentDetail() {
     return (
       <RoleLayout
         title="Chi tiết tài liệu"
-        menuItems={menuItems}
+        menuItems={SCHOOL_ADMIN_MENU_ITEMS}
         activeKey="documents"
         onMenuSelect={handleMenuSelect}
         onLogout={handleLogout}

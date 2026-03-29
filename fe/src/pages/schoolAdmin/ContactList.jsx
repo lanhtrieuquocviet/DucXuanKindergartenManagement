@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
+import { toast } from 'react-toastify';
 import { useAuth } from '../../context/AuthContext';
 import { useSchoolAdmin } from '../../context/SchoolAdminContext';
 import RoleLayout from '../../layouts/RoleLayout';
@@ -9,7 +10,6 @@ import {
   Paper,
   Typography,
   Button,
-  Alert,
   Stack,
   Chip,
   TextField,
@@ -18,14 +18,15 @@ import {
 import ReplyIcon from '@mui/icons-material/Reply';
 import SendIcon from '@mui/icons-material/Send';
 import DeleteOutlineIcon from '@mui/icons-material/DeleteOutline';
-import { get, ENDPOINTS } from '../../service/api';
+import EditIcon from '@mui/icons-material/Edit';
+import { SCHOOL_ADMIN_MENU_ITEMS, createSchoolAdminMenuSelect } from './schoolAdminMenuConfig';
 
 function ContactList() {
   const [data, setData] = useState(null);
   const [filter, setFilter] = useState(''); // '' | 'pending' | 'replied'
   const [replyingId, setReplyingId] = useState(null);
+  const [replyMode, setReplyMode] = useState('create'); // 'create' | 'edit'
   const [replyText, setReplyText] = useState('');
-  const [message, setMessage] = useState({ type: null, text: null });
   const [confirmClearId, setConfirmClearId] = useState(null);
   const navigate = useNavigate();
   const { user, logout, isInitializing } = useAuth();
@@ -57,39 +58,59 @@ function ContactList() {
         const params = filter ? { status: filter } : {};
         const response = await getContacts(params);
         setData(response);
-      } catch (_) {}
+      } catch (err) {
+        toast.error(err?.message || 'Không tải được danh sách liên hệ.');
+      }
     };
     fetchData();
   }, [navigate, user, isInitializing, filter]);
 
   const handleReply = (item) => {
     setReplyingId(item._id);
+    setReplyMode('create');
+    setReplyText(item.reply || '');
+  };
+
+  const handleEditReply = (item) => {
+    setReplyingId(item._id);
+    setReplyMode('edit');
     setReplyText(item.reply || '');
   };
 
   const handleCancelReply = () => {
     setReplyingId(null);
+    setReplyMode('create');
     setReplyText('');
-    setMessage({ type: null, text: null });
   };
 
   const handleSubmitReply = async () => {
     if (!replyText.trim()) {
-      setMessage({ type: 'error', text: 'Vui lòng nhập nội dung phản hồi.' });
+      toast.error('Vui lòng nhập nội dung phản hồi.');
       return;
     }
     try {
       setError(null);
-      setMessage({ type: null, text: null });
-      await replyContact(replyingId, replyText.trim());
-      setMessage({ type: 'success', text: 'Đã phản hồi thành công.' });
+      if (replyMode === 'edit') {
+        // Backend hiện không cho reply khi đã replied, nên cần clear rồi reply lại.
+        // replyContact sẽ tự gửi email phản hồi cho phụ huynh/khách.
+        await clearReplyContact(replyingId);
+        await replyContact(replyingId, replyText.trim());
+        toast.success('Đã cập nhật phản hồi và gửi lại email thành công.');
+      } else {
+        await replyContact(replyingId, replyText.trim());
+        toast.success('Đã phản hồi thành công.');
+      }
       const params = filter ? { status: filter } : {};
       const response = await getContacts(params);
       setData(response);
       setReplyingId(null);
+      setReplyMode('create');
       setReplyText('');
     } catch (err) {
-      setMessage({ type: 'error', text: err.message || 'Phản hồi thất bại.' });
+      toast.error(
+        err?.message ||
+          (replyMode === 'edit' ? 'Cập nhật phản hồi thất bại.' : 'Phản hồi thất bại.')
+      );
     }
   };
 
@@ -97,14 +118,13 @@ function ContactList() {
     try {
       setActioningId(contactId);
       setError(null);
-      setMessage({ type: null, text: null });
       await clearReplyContact(contactId);
-      setMessage({ type: 'success', text: 'Đã xóa phản hồi.' });
+      toast.success('Đã xóa phản hồi.');
       const params = filter ? { status: filter } : {};
       const response = await getContacts(params);
       setData(response);
     } catch (err) {
-      setMessage({ type: 'error', text: err.message || 'Xóa phản hồi thất bại.' });
+      toast.error(err.message || 'Xóa phản hồi thất bại.');
     } finally {
       setActioningId(null);
       setConfirmClearId(null);
@@ -115,104 +135,16 @@ function ContactList() {
     try {
       setActioningId(contactId);
       setError(null);
-      setMessage({ type: null, text: null });
       await resendReplyEmail(contactId);
-      setMessage({ type: 'success', text: 'Đã gửi lại email phản hồi.' });
+      toast.success('Đã gửi lại email phản hồi.');
     } catch (err) {
-      setMessage({ type: 'error', text: err.message || 'Gửi lại email thất bại.' });
+      toast.error(err.message || 'Gửi lại email thất bại.');
     } finally {
       setActioningId(null);
     }
   };
 
-  const menuItems = [
-    { key: 'overview', label: 'Tổng quan trường' },
-    {
-      key: 'academic-years',
-      label: 'Quản lý năm học',
-      children: [
-        { key: 'academic-year-setup', label: 'Thiết lập năm học' },
-        { key: 'academic-plan', label: 'Thiết lập kế hoạch' },
-        { key: 'academic-students', label: 'Danh sách lớp học' },
-        { key: 'academic-curriculum', label: 'Chương trình giáo dục' },
-        { key: 'academic-schedule', label: 'Thời gian biểu' },
-        { key: 'academic-report', label: 'Báo cáo & thống kê' },
-      ],
-    },
-    { key: 'classes', label: 'Lớp học' },
-    { key: 'teachers', label: 'Giáo viên' },
-    { key: 'students', label: 'Học sinh & phụ huynh' },
-    { key: 'assets', label: 'Quản lý tài sản' },
-    { key: 'reports', label: 'Báo cáo của trường' },
-    { key: 'contacts', label: 'Liên hệ' },
-    { key: 'qa', label: 'Câu hỏi' },
-    { key: 'blogs', label: 'Quản lý blog' },
-    { key: 'documents', label: 'Quản lý tài liệu' },
-    { key: 'public-info', label: 'Thông tin công khai' },
-    { key: 'attendance', label: 'Quản lý điểm danh' },
-  ];
-
-  const handleMenuSelect = async (key) => {
-    if (key === 'overview') {
-      navigate('/school-admin');
-      return;
-    }
-    if (key === 'academic-year-setup') {
-      navigate('/school-admin/academic-years');
-      return;
-    }
-    if (key === 'academic-curriculum') {
-      navigate('/school-admin/curriculum');
-      return;
-    }
-    if (key === 'academic-schedule') {
-      navigate('/school-admin/timetable');
-      return;
-    }
-    if (key === 'academic-report') {
-      try {
-        const resp = await get(ENDPOINTS.SCHOOL_ADMIN.ACADEMIC_YEARS.CURRENT);
-        const yearId = resp?.status === 'success' ? resp?.data?._id : null;
-        if (yearId) navigate(`/school-admin/academic-years/${yearId}/report`);
-        else navigate('/school-admin/academic-years');
-      } catch (_) {
-        navigate('/school-admin/academic-years');
-      }
-      return;
-    }
-    if (key === 'academic-students') {
-      navigate('/school-admin/class-list');
-      return;
-    }
-    if (key === 'academic-plan' || key === 'classes') {
-      navigate('/school-admin/classes');
-      return;
-    }
-    if (key === 'contacts') {
-      navigate('/school-admin/contacts');
-      return;
-    }
-    if (key === 'qa') {
-      navigate('/school-admin/qa');
-      return;
-    }
-    if (key === 'blogs') {
-      navigate('/school-admin/blogs');
-      return;
-    }
-    if (key === 'documents') {
-      navigate('/school-admin/documents');
-      return;
-    }
-    if (key === 'public-info') {
-      navigate('/school-admin/public-info');
-      return;
-    }
-    if (key === 'attendance') {
-      navigate('/school-admin/attendance/overview');
-      return;
-    }
-  };
+  const handleMenuSelect = createSchoolAdminMenuSelect(navigate);
 
   const userName = user?.fullName || user?.username || 'School Admin';
   const contacts = data?.data?.contacts || [];
@@ -222,7 +154,7 @@ function ContactList() {
     <RoleLayout
       title="Quản lý liên hệ"
       description="Xem và phản hồi các liên hệ từ phụ huynh/khách."
-      menuItems={menuItems}
+      menuItems={SCHOOL_ADMIN_MENU_ITEMS}
       activeKey="contacts"
       onLogout={() => {
         logout();
@@ -251,18 +183,6 @@ function ContactList() {
           Xem và phản hồi các liên hệ từ phụ huynh / khách.
         </Typography>
       </Paper>
-
-      {error && (
-        <Alert severity="error" sx={{ mb: 2 }}>
-          {error}
-        </Alert>
-      )}
-
-      {message.text && (
-        <Alert severity={message.type === 'success' ? 'success' : 'error'} sx={{ mb: 2 }}>
-          {message.text}
-        </Alert>
-      )}
 
       {/* Filter bar */}
       <Paper elevation={0} sx={{ mb: 3, p: 1.5, borderRadius: 2, border: '1px solid', borderColor: 'divider', display: 'inline-flex', gap: 1 }}>
@@ -387,6 +307,17 @@ function ContactList() {
                         <Stack direction="row" spacing={1} sx={{ mt: 1.5 }}>
                           <Button
                             size="small"
+                            variant="outlined"
+                            color="primary"
+                            startIcon={<EditIcon />}
+                            onClick={() => handleEditReply(item)}
+                            disabled={actioningId === item._id}
+                            sx={{ textTransform: 'none', borderRadius: 2 }}
+                          >
+                            Sửa phản hồi
+                          </Button>
+                          <Button
+                            size="small"
                             variant="contained"
                             color="primary"
                             startIcon={<SendIcon />}
@@ -436,7 +367,7 @@ function ContactList() {
                     sx={{ mt: 2, p: 2, bgcolor: 'grey.50', borderRadius: 2 }}
                   >
                     <Typography variant="body2" fontWeight={500} color="text.primary" sx={{ mb: 1 }}>
-                      Nội dung phản hồi
+                      {replyMode === 'edit' ? 'Chỉnh sửa phản hồi' : 'Nội dung phản hồi'}
                     </Typography>
                     <TextField
                       multiline
@@ -456,7 +387,7 @@ function ContactList() {
                         onClick={handleSubmitReply}
                         sx={{ textTransform: 'none', borderRadius: 2 }}
                       >
-                        Gửi phản hồi
+                        {replyMode === 'edit' ? 'Lưu & gửi lại email' : 'Gửi phản hồi'}
                       </Button>
                       <Button
                         variant="outlined"

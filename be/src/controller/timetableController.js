@@ -226,6 +226,37 @@ const upsert = async (req, res) => {
 };
 
 /**
+ * DELETE /api/school-admin/timetable/:id?yearId=xxx
+ * Xóa một hoạt động theo id.
+ */
+const remove = async (req, res) => {
+  try {
+    const { id } = req.params;
+    if (!id) {
+      return res.status(400).json({ status: 'error', message: 'Thiếu id hoạt động.' });
+    }
+
+    let academicYearId = req.query?.yearId || req.body?.academicYearId;
+    if (!academicYearId) academicYearId = await getAcademicYearIdFromQueryOrActive(req);
+
+    const filter = academicYearId ? { _id: id, academicYear: academicYearId } : { _id: id };
+    const deleted = await Timetable.findOneAndDelete(filter).lean();
+
+    if (!deleted) {
+      return res.status(404).json({ status: 'error', message: 'Không tìm thấy hoạt động để xóa.' });
+    }
+
+    return res.status(200).json({ status: 'success', message: 'Đã xóa hoạt động.' });
+  } catch (error) {
+    console.error('remove timetable activity error:', error);
+    return res.status(500).json({
+      status: 'error',
+      message: error.message || 'Lỗi khi xóa hoạt động',
+    });
+  }
+};
+
+/**
  * GET /api/timetable?yearId=xxx (public)
  * Trả về hoạt động theo năm học (không cần auth).
  */
@@ -260,5 +291,6 @@ const listPublic = async (req, res) => {
 module.exports = {
   listByYear,
   upsert,
+  remove,
   listPublic,
 };

@@ -3,11 +3,30 @@ const Classes = require('../models/Classes');
 const Student = require('../models/Student');
 
 /**
+ * Tự động kết thúc năm học đã quá hạn endDate.
+ * Quy ước: chỉ tự kết thúc khi đã qua ngày kết thúc (tức từ 00:00 ngày hôm sau).
+ */
+const autoFinishExpiredAcademicYears = async () => {
+  const startOfToday = new Date();
+  startOfToday.setHours(0, 0, 0, 0);
+
+  await AcademicYear.updateMany(
+    {
+      status: 'active',
+      endDate: { $lt: startOfToday },
+    },
+    { $set: { status: 'inactive' } },
+  );
+};
+
+/**
  * GET /api/school-admin/academic-years/current
  * Lấy năm học đang hoạt động (active) mới nhất
  */
 const getCurrentAcademicYear = async (req, res) => {
   try {
+    await autoFinishExpiredAcademicYears();
+
     const currentYear = await AcademicYear.findOne({ status: 'active' })
       .sort({ startDate: -1 })
       .lean();
@@ -31,6 +50,8 @@ const getCurrentAcademicYear = async (req, res) => {
  */
 const listAcademicYears = async (req, res) => {
   try {
+    await autoFinishExpiredAcademicYears();
+
     const years = await AcademicYear.find()
       .sort({ startDate: -1 })
       .lean();
@@ -244,6 +265,8 @@ const finishAcademicYear = async (req, res) => {
  */
 const getAcademicYearHistory = async (req, res) => {
   try {
+    await autoFinishExpiredAcademicYears();
+
     const { yearId } = req.query;
 
     const yearFilter = {
@@ -342,7 +365,11 @@ const getClassesByAcademicYear = async (req, res) => {
 
     const classes = await Classes.find({ academicYearId: yearId })
       .populate('gradeId', 'gradeName')
-      .populate('teacherIds', 'fullName')
+      .populate({
+        path: 'teacherIds',
+        select: 'userId',
+        populate: { path: 'userId', select: 'fullName' },
+      })
       .sort({ className: 1 })
       .lean();
 
@@ -359,14 +386,19 @@ const getClassesByAcademicYear = async (req, res) => {
     }
 
     const result = classes.map((cls) => {
-      const teacherNames = (cls.teacherIds || [])
-        .map((t) => (t && t.fullName ? `Cô ${t.fullName}` : ''))
-        .filter(Boolean);
+      const teachers = (cls.teacherIds || [])
+        .map((t) => ({
+          _id: t?._id || null,
+          fullName: t?.userId?.fullName || '',
+        }))
+        .filter((t) => t._id && t.fullName);
+      const teacherNames = teachers.map((t) => `Cô ${t.fullName}`);
       return {
         _id: cls._id,
         className: cls.className,
+        gradeId: cls.gradeId?._id || null,
         gradeName: cls.gradeId?.gradeName || '',
-        teacherIds: cls.teacherIds,
+        teacherIds: teachers,
         teacherNames: teacherNames.join(', ') || '-',
         studentCount: studentCounts[String(cls._id)] || 0,
       };

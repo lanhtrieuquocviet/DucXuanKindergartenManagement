@@ -5,6 +5,11 @@ import LeftNav from "./LeftNav";
 import RightNav from "./RightNav";
 
 const CLOSE_DELAY = 300; // 30 tích tắc
+const FALLBACK_BANNERS = [
+    "https://scontent.fhan18-1.fna.fbcdn.net/v/t39.30808-6/618702160_1461727552619714_6463649032824992629_n.jpg?_nc_cat=109&ccb=1-7&_nc_sid=7b2446&_nc_ohc=8UXWgBpzLxMQ7kNvwFsL2cd&_nc_oc=Adn2GokDE7vW5jDYFVhEl_A53mJ7nAlgyDGYyPr8OGuGVg9YN_oKx-ccfJ9rZUkXBgc&_nc_zt=23&_nc_ht=scontent.fhan18-1.fna&_nc_gid=WI4fgCQc9CPNue1S1l_lfQ&_nc_ss=8&oh=00_AfznI0DF0gohfCHL4Qg33uKR3Xx9Kty4YmKoH1Ktob_Qew&oe=69AEDF05",
+    "https://scontent.fhan18-1.fna.fbcdn.net/v/t39.30808-6/605784091_1450941177031685_6354221922736986229_n.jpg?_nc_cat=103&ccb=1-7&_nc_sid=7b2446&_nc_ohc=Qp6WlASTTo4Q7kNvwGzxwyj&_nc_oc=AdmOk6t9GPWsJ-T7vZbkB2-5s99RtYwZn1_2mSICMFA9y9uXx3xw8_LrVXyyw4hjJnc&_nc_zt=23&_nc_ht=scontent.fhan18-1.fna&_nc_gid=Y9vLx29hQie4KSWmrMHBoQ&_nc_ss=8&oh=00_AfxDbY9JZvb3B2QwMZYeqYpCO2V3r9gsbZbUjKKIgouhvQ&oe=69AEE281",
+    "https://scontent.fhan18-1.fna.fbcdn.net/v/t39.30808-6/499477487_1247164254076046_8931851791991323309_n.jpg?_nc_cat=106&ccb=1-7&_nc_sid=2a1932&_nc_ohc=6lJx5z9dK8YQ7kNvwGY3aZJ&_nc_oc=AdlHBCPQgn8gdJnHiZaW9oiNn8F9PHdjGKD_4P0dqaY0Fz2sLihiSN3d4RIlbOUEc2g&_nc_zt=23&_nc_ht=scontent.fhan18-1.fna&_nc_gid=qKaxPIWOGGOZBr5Ax9LlPA&_nc_ss=8&oh=00_AfxiCUy42tIEH9To5fdvdqqWM9u6KXVLalRAFbxNwkqFLQ&oe=69AEF39A",
+];
 
 function Header() {
     const timerRef = useRef(null);
@@ -43,6 +48,8 @@ function Header() {
     const [results, setResults] = useState([]);
     const [loading, setLoading] = useState(false);
     const [showResults, setShowResults] = useState(false);
+    const [banners, setBanners] = useState(FALLBACK_BANNERS);
+    const [currentBanner, setCurrentBanner] = useState(0);
     const searchTimerRef = useRef(null);
     const searchContainerRef = useRef(null);
     const navigate = useNavigate();
@@ -103,10 +110,38 @@ function Header() {
         loadCats();
     }, []);
 
+    useEffect(() => {
+        const loadBanners = async () => {
+            try {
+                const resp = await get(ENDPOINTS.BANNERS.HOMEPAGE, { includeAuth: false });
+                const list = resp?.data?.banners || [];
+                const urls = list.map((item) => item?.imageUrl).filter(Boolean);
+                setBanners(urls);
+            } catch {
+                setBanners(FALLBACK_BANNERS);
+            }
+        };
+        loadBanners();
+    }, []);
+
+    useEffect(() => {
+        if (banners.length <= 1) return undefined;
+        const id = setInterval(() => {
+            setCurrentBanner((prev) => (prev + 1) % banners.length);
+        }, 5000);
+        return () => clearInterval(id);
+    }, [banners.length]);
+
+    useEffect(() => {
+        if (currentBanner >= banners.length) {
+            setCurrentBanner(0);
+        }
+    }, [banners.length, currentBanner]);
+
     return (
         <header className="w-full bg-green-50">
             <div className="bg-gradient-to-r from-green-600 to-green-500">
-                <div className="max-w-7xl mx-auto px-4 sm:px-6 py-3 flex items-center justify-between gap-3">
+                <div className="max-w-7xl mx-auto px-4 sm:px-6 py-2.5 flex items-center justify-between gap-4">
                     {/* Mobile menu button */}
                     <button
                         type="button"
@@ -121,9 +156,25 @@ function Header() {
                         </svg>
                     </button>
 
-                    <nav className="hidden md:flex gap-2 text-sm font-semibold text-white">
+                    <div className="hidden xl:flex items-center gap-2 shrink-0 min-w-[215px]">
+                        <img
+                            src="https://i.pinimg.com/736x/be/c5/3c/bec53c7b30f46d9ad2cecdb48c5e1e1f.jpg"
+                            alt="Logo trường"
+                            className="w-11 h-11 rounded-full border-2 border-white object-cover shadow-sm"
+                        />
+                        <div className="leading-tight text-white">
+                            <div className="text-[9px] font-semibold uppercase tracking-wide whitespace-nowrap opacity-95">
+                                Ủy ban nhân dân phường Đức Xuân
+                            </div>
+                            <div className="text-[14px] font-extrabold uppercase whitespace-nowrap">
+                                Trường mầm non Đức Xuân
+                            </div>
+                        </div>
+                    </div>
 
-                        <a href="/" className="px-4 py-2 rounded-full hover:bg-white hover:text-green-600">
+                    <nav className="hidden md:flex items-center gap-1 text-[14px] font-semibold text-white flex-1 min-w-0">
+
+                        <a href="/" className="px-3 py-2 rounded-full hover:bg-white hover:text-green-600 whitespace-nowrap transition-colors">
                             Trang chủ
                         </a>
 
@@ -133,7 +184,7 @@ function Header() {
                             onMouseEnter={() => openMenu("public")}
                             onMouseLeave={closeMenu}
                         >
-                            <div className="px-4 py-2 rounded-full hover:bg-white hover:text-green-600 cursor-pointer">
+                            <div className="px-3 py-2 rounded-full hover:bg-white hover:text-green-600 cursor-pointer whitespace-nowrap transition-colors">
                                 Thông tin công khai
                             </div>
 
@@ -181,7 +232,7 @@ function Header() {
                             onMouseEnter={() => openMenu("intro")}
                             onMouseLeave={closeMenu}
                         >
-                            <div className="px-4 py-2 rounded-full hover:bg-white hover:text-green-600 cursor-pointer">
+                            <div className="px-3 py-2 rounded-full hover:bg-white hover:text-green-600 cursor-pointer whitespace-nowrap transition-colors">
                                 Giới thiệu
                             </div>
 
@@ -215,7 +266,7 @@ function Header() {
                             onMouseEnter={() => openMenu("news")}
                             onMouseLeave={closeMenu}
                         >
-                            <div className="px-4 py-2 rounded-full hover:bg-white hover:text-green-600 cursor-pointer">
+                            <div className="px-3 py-2 rounded-full hover:bg-white hover:text-green-600 cursor-pointer whitespace-nowrap transition-colors">
                                 Tin tức
                             </div>
 
@@ -245,7 +296,7 @@ function Header() {
                             onMouseEnter={() => openMenu("docs")}
                             onMouseLeave={closeMenu}
                         >
-                            <div className="px-4 py-2 rounded-full hover:bg-white hover:text-green-600 cursor-pointer">
+                            <div className="px-3 py-2 rounded-full hover:bg-white hover:text-green-600 cursor-pointer whitespace-nowrap transition-colors">
                                 Văn bản
                             </div>
 
@@ -263,7 +314,7 @@ function Header() {
                             onMouseEnter={() => openMenu("library")}
                             onMouseLeave={closeMenu}
                         >
-                            <div className="px-4 py-2 rounded-full hover:bg-white hover:text-green-600 cursor-pointer">
+                            <div className="px-3 py-2 rounded-full hover:bg-white hover:text-green-600 cursor-pointer whitespace-nowrap transition-colors">
                                 Thư viện
                             </div>
 
@@ -285,15 +336,15 @@ function Header() {
                             )}
                         </div>
 
-                        <a href="/contact" className="px-4 py-2 rounded-full hover:bg-white hover:text-green-600">Liên hệ</a>
-                        <a href="/qa" className="px-4 py-2 rounded-full hover:bg-white hover:text-green-600">Hỏi đáp</a>
+                        <a href="/contact" className="px-3 py-2 rounded-full hover:bg-white hover:text-green-600 whitespace-nowrap transition-colors">Liên hệ</a>
+                        <a href="/qa" className="px-3 py-2 rounded-full hover:bg-white hover:text-green-600 whitespace-nowrap transition-colors">Hỏi đáp</a>
                     </nav>
                     {/* ===== SEARCH + LOGIN ===== */}
                     <div className="flex items-center gap-2 sm:gap-3 flex-1 md:flex-none justify-end">
-                        <div className="relative flex-1 max-w-[520px] md:flex-none" ref={searchContainerRef}>
-                            <div className="flex items-center bg-white rounded-full px-2 py-2 text-sm shadow w-full">
+                        <div className="relative flex-1 max-w-[420px] md:flex-none" ref={searchContainerRef}>
+                            <div className="flex items-center bg-white rounded-full px-2 py-1.5 text-sm shadow w-full">
                                 <input
-                                    className="outline-none text-gray-700 w-full md:w-36 px-3"
+                                    className="outline-none text-gray-700 w-full md:w-32 px-3"
                                     placeholder="Tìm kiếm..."
                                     value={query}
                                     onChange={(e) => handleQueryChange(e.target.value)}
@@ -351,7 +402,7 @@ function Header() {
                             )}
                         </div>
                         <a href="/login">
-                            <button className="bg-orange-500 hover:bg-orange-600 text-white font-semibold px-4 sm:px-5 py-2 rounded-full transition whitespace-nowrap">
+                            <button className="bg-orange-500 hover:bg-orange-600 text-white font-semibold px-4 sm:px-5 py-2 rounded-full transition whitespace-nowrap shadow-sm">
                                 Đăng nhập
                             </button>
                         </a>
@@ -362,33 +413,31 @@ function Header() {
             </div>
 
             {/* ===== BANNER ===== */}
-            <div className="relative h-[180px] sm:h-[200px] md:h-[240px] m-3 sm:m-4 rounded-xl overflow-hidden">
-                <img
-                    src="https://demoda.vn/wp-content/uploads/2022/01/phong-nen-mam-non-vui-choi-sieu-dep.jpg"
-                    alt="Banner"
-                    className="w-full h-full object-cover object-[center_75%]"
-                />
-
-                <div className="absolute inset-0 flex items-center px-4 sm:px-6 md:px-8">
+            <div className="relative h-[220px] sm:h-[220px] md:h-[330px] m-3 sm:m-4 rounded-xl overflow-hidden">
+                {banners.length > 0 ? (
                     <img
-                        src="https://i.pinimg.com/736x/be/c5/3c/bec53c7b30f46d9ad2cecdb48c5e1e1f.jpg"
-                        alt="Logo"
-                        className="w-[64px] h-[64px] sm:w-[80px] sm:h-[80px] md:w-[90px] md:h-[90px] rounded-full mr-3 sm:mr-4 border-4 border-white shrink-0"
+                        src={banners[currentBanner]}
+                        alt="Banner"
+                        className="w-full h-full object-cover object-center"
                     />
-
-                    <div className="max-w-xl">
-                        <div className="text-red-600 font-bold mb-1 text-xs sm:text-sm md:text-base">
-                            ỦY BAN NHÂN DÂN PHƯỜNG ĐỨC XUÂN
-                        </div>
-                        <div className="text-blue-700 text-lg sm:text-2xl font-extrabold leading-snug">
-                            TRƯỜNG MẦM NON ĐỨC XUÂN
-                        </div>
-                        <p className="text-black text-sm sm:text-base">Điện thoại: 0869550151</p>
-                        <p className="text-black text-sm sm:text-base">
-                            Địa chỉ: Phường Đức Xuân, tỉnh Thái Nguyên
-                        </p>
+                ) : (
+                    <div className="w-full h-full flex items-center justify-center text-white/90 text-sm bg-green-700">
+                        Chưa có banner hiển thị
                     </div>
-                </div>
+                )}
+                {banners.length > 0 && (
+                    <div className="absolute left-1/2 -translate-x-1/2 bottom-2 flex gap-2">
+                        {banners.map((_, i) => (
+                            <button
+                                key={i}
+                                type="button"
+                                onClick={() => setCurrentBanner(i)}
+                                className={`w-2.5 h-2.5 rounded-full transition ${currentBanner === i ? "bg-green-600" : "bg-green-200"}`}
+                                aria-label={`Ảnh ${i + 1}`}
+                            />
+                        ))}
+                    </div>
+                )}
             </div>
 
             {/* ===== MOBILE MENU OVERLAY (Header + Left/Right nav) ===== */}

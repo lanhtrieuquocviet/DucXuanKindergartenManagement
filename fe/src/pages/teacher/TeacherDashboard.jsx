@@ -116,6 +116,7 @@ function TeacherDashboard() {
     fetchData();
   }, [navigate, user, getDashboard, isInitializing]);
 
+  const { isCommitteeMember } = useTeacher();
   const menuItems = useMemo(() => [
     { key: 'classes', label: 'Lớp phụ trách' },
     { key: 'students', label: 'Danh sách học sinh' },
@@ -123,12 +124,18 @@ function TeacherDashboard() {
     { key: 'pickup-approval', label: 'Đơn đưa đón' },
     { key: 'schedule', label: 'Lịch dạy & hoạt động' },
     { key: 'messages', label: 'Thông báo cho phụ huynh' },
-  ], []);
+    { key: 'purchase-request', label: 'Cơ sở vật chất' },
+    { key: 'class-assets', label: 'Tài sản lớp' },
+    ...(isCommitteeMember ? [{ key: 'asset-inspection', label: 'Kiểm kê tài sản' }] : []),
+  ], [isCommitteeMember]);
 
   const activeKey = useMemo(() => {
     const path = location.pathname || '';
     if (path.startsWith('/teacher/attendance')) return 'attendance';
     if (path.startsWith('/teacher/pickup-approval')) return 'pickup-approval';
+    if (path.startsWith('/teacher/purchase-request')) return 'purchase-request';
+    if (path.startsWith('/teacher/class-assets'))     return 'class-assets';
+    if (path.startsWith('/teacher/asset-inspection')) return 'asset-inspection';
     return 'classes';
   }, [location.pathname]);
 
@@ -137,7 +144,10 @@ function TeacherDashboard() {
   const handleMenuSelect = (key) => {
     if (key === 'classes') { navigate('/teacher'); return; }
     if (key === 'attendance') { navigate('/teacher/attendance'); return; }
-    if (key === 'pickup-approval') { navigate('/teacher/pickup-approval'); return; }
+    if (key === 'pickup-approval')  { navigate('/teacher/pickup-approval');   return; }
+    if (key === 'purchase-request') { navigate('/teacher/purchase-request');  return; }
+    if (key === 'class-assets')     { navigate('/teacher/class-assets');      return; }
+    if (key === 'asset-inspection') { navigate('/teacher/asset-inspection');  return; }
   };
 
   const initials = userName.split(' ').map((w) => w[0]).slice(-2).join('').toUpperCase();

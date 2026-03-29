@@ -17,9 +17,15 @@ import PickupRegistration from './pages/student/PickupRegistration';
 import TodayAttendance from './pages/student/TodayAttendance';
 import AttendanceReport from './pages/student/AttendanceReport';
 import SchoolAdminDashboard from './pages/schoolAdmin/SchoolAdminDashboard';
+import SchoolNurseDashboard from './pages/schoolNurse/SchoolNurseDashboard';
+import HealthCheckList from './pages/schoolNurse/HealthCheckList';
+import HealthCheckForm from './pages/schoolNurse/HealthCheckForm';
+import FollowUpManagement from './pages/schoolNurse/FollowUpManagement';
+import HealthReports from './pages/schoolNurse/HealthReports';
 import ClassList from './pages/schoolAdmin/ClassList';
 import StudentInClass from './pages/schoolAdmin/StudentInClass';
 import ManageStudents from './pages/schoolAdmin/ManageStudents';
+import ManageTeachers from './pages/schoolAdmin/ManageTeachers';
 import ContactList from './pages/schoolAdmin/ContactList';
 import QaList from './pages/schoolAdmin/QaList';
 import AttendanceOverview from './pages/schoolAdmin/AttendanceOverview';
@@ -37,6 +43,7 @@ import Profile from './pages/Profile';
 import { AuthProvider } from './context/AuthContext';
 import { SystemAdminProvider } from './context/SystemAdminContext';
 import { SchoolAdminProvider } from './context/SchoolAdminContext';
+import { SchoolNurseProvider } from './context/SchoolNurseContext';
 import { TeacherProvider } from './context/TeacherContext';
 import SimpleLayout from './layouts/SimpleLayout';
 import QnAPage from './pages/QuesAndAn/QnAPage';
@@ -69,7 +76,12 @@ import RelaxPage from './pages/Library/RelaxPage';
 import PublicInformationDetail from './pages/PublicInformation/PublicInformationDetail';
 import PublicInfoDetail from './pages/PublicInformation/PublicInfoDetail';
 import ManagePublicInfo from './pages/schoolAdmin/ManagePublicInfo';
+import ManageBanners from './pages/schoolAdmin/ManageBanners';
+import ManagePurchaseRequests from './pages/schoolAdmin/ManagePurchaseRequests';
 import PickupRequest from './pages/teacher/PickupRequest';
+import TeacherAssetInspection from './pages/teacher/TeacherAssetInspection';
+import TeacherPurchaseRequest from './pages/teacher/TeacherPurchaseRequest';
+import TeacherClassAssets from './pages/teacher/TeacherClassAssets';
 import KitchenLayout from './pages/kitchenStaff/KitchenLayout';
 import KitchenDashboard from './pages/kitchenStaff/KitchenDashboard';
 import MenuManagement from './pages/kitchenStaff/MenuManagement';
@@ -84,6 +96,7 @@ import MenuSchoolAdmin from './pages/schoolAdmin/MenuSchoolAdmin';
 import MenuDetailSchoolAdmin from './pages/schoolAdmin/MenuDetailSchoolAdmin';
 import MenuStudent from './pages/student/MenuStudent';
 import MenuDetailStudent from './pages/student/MenuDetailStudent';
+import MealPhotosStudent from './pages/student/MealPhotosStudent';
 import ManageAcademicYears from './pages/schoolAdmin/ManageAcademicYears';
 import AcademicYearDetail from './pages/schoolAdmin/AcademicYearDetail';
 import AcademicYearReport from './pages/schoolAdmin/AcademicYearReport';
@@ -92,6 +105,9 @@ import AcademicYearPlan from './pages/schoolAdmin/AcademicYearPlan';
 import CurriculumPage from './pages/schoolAdmin/CurriculumPage';
 import ClassListOverview from './pages/schoolAdmin/ClassListOverview';
 import TimetableActivitiesPage from './pages/schoolAdmin/TimetableActivitiesPage';
+import FaceAttendancePage from './pages/schoolAdmin/FaceAttendancePage';
+import ManageAssets from './pages/schoolAdmin/ManageAssets';
+import ManageAssetAllocation from './pages/schoolAdmin/ManageAssetAllocation';
 import ProtectedRoute from './components/ProtectedRoute';
 
 
@@ -286,6 +302,36 @@ function App() {
               </ProtectedRoute>
             }
           />
+          <Route
+            path="/teacher/asset-inspection"
+            element={
+              <ProtectedRoute>
+                <TeacherProvider>
+                  <TeacherAssetInspection />
+                </TeacherProvider>
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/teacher/purchase-request"
+            element={
+              <ProtectedRoute>
+                <TeacherProvider>
+                  <TeacherPurchaseRequest />
+                </TeacherProvider>
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/teacher/class-assets"
+            element={
+              <ProtectedRoute>
+                <TeacherProvider>
+                  <TeacherClassAssets />
+                </TeacherProvider>
+              </ProtectedRoute>
+            }
+          />
           {/* Kitchen Staff */}
           <Route
             path="/kitchen"
@@ -321,6 +367,7 @@ function App() {
           <Route path="/student/menus/:id" element={<ProtectedRoute><MenuDetailStudent /></ProtectedRoute>} />
           <Route path="/student/attendance/today" element={<ProtectedRoute><TodayAttendance /></ProtectedRoute>} />
           <Route path="/student/attendance/report" element={<ProtectedRoute><AttendanceReport /></ProtectedRoute>} />
+          <Route path="/student/meal-photos" element={<ProtectedRoute><MealPhotosStudent /></ProtectedRoute>} />
           <Route
             path="/school-admin"
             element={
@@ -368,6 +415,14 @@ function App() {
                 <SchoolAdminProvider>
                   <ManageStudents />
                 </SchoolAdminProvider>
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/school-admin/teachers"
+            element={
+              <ProtectedRoute>
+                <ManageTeachers />
               </ProtectedRoute>
             }
           />
@@ -542,6 +597,16 @@ function App() {
             }
           />
           <Route
+            path="/school-admin/banners"
+            element={
+              <ProtectedRoute>
+                <SchoolAdminProvider>
+                  <ManageBanners />
+                </SchoolAdminProvider>
+              </ProtectedRoute>
+            }
+          />
+          <Route
             path="/school-admin/curriculum"
             element={
               <ProtectedRoute>
@@ -592,6 +657,56 @@ function App() {
             }
           />
           <Route
+            path="/school-admin/academic-report"
+            element={
+              <ProtectedRoute>
+                <SchoolAdminProvider>
+                  <AcademicYearReport />
+                </SchoolAdminProvider>
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/school-admin/face-attendance"
+            element={
+              <ProtectedRoute>
+                <SchoolAdminProvider>
+                  <FaceAttendancePage />
+                </SchoolAdminProvider>
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/school-admin/assets"
+            element={
+              <ProtectedRoute>
+                <SchoolAdminProvider>
+                  <ManageAssets />
+                </SchoolAdminProvider>
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/school-admin/asset-allocation"
+            element={
+              <ProtectedRoute>
+                <SchoolAdminProvider>
+                  <ManageAssetAllocation />
+                </SchoolAdminProvider>
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/school-admin/purchase-requests"
+            element={
+              <ProtectedRoute>
+                <SchoolAdminProvider>
+                  <ManagePurchaseRequests />
+                </SchoolAdminProvider>
+              </ProtectedRoute>
+            }
+          />
+          <Route
             path="/school-admin/academic-plan"
             element={
               <ProtectedRoute>
@@ -602,6 +717,68 @@ function App() {
             }
           />
           <Route path="/profile" element={<ProtectedRoute><Profile /></ProtectedRoute>} />
+
+          {/* School Nurse Routes */}
+          <Route
+            path="/school-nurse"
+            element={
+              <ProtectedRoute>
+                <SchoolNurseProvider>
+                  <SchoolNurseDashboard />
+                </SchoolNurseProvider>
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/school-nurse/health-list"
+            element={
+              <ProtectedRoute>
+                <SchoolNurseProvider>
+                  <HealthCheckList />
+                </SchoolNurseProvider>
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/school-nurse/health-create"
+            element={
+              <ProtectedRoute>
+                <SchoolNurseProvider>
+                  <HealthCheckForm />
+                </SchoolNurseProvider>
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/school-nurse/health-create/:id"
+            element={
+              <ProtectedRoute>
+                <SchoolNurseProvider>
+                  <HealthCheckForm />
+                </SchoolNurseProvider>
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/school-nurse/follow-up"
+            element={
+              <ProtectedRoute>
+                <SchoolNurseProvider>
+                  <FollowUpManagement />
+                </SchoolNurseProvider>
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/school-nurse/health-reports"
+            element={
+              <ProtectedRoute>
+                <SchoolNurseProvider>
+                  <HealthReports />
+                </SchoolNurseProvider>
+              </ProtectedRoute>
+            }
+          />
 
           <Route
             path="/contact"

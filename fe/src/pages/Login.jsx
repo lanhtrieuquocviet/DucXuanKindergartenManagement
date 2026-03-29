@@ -58,6 +58,8 @@ function Login() {
         navigate("/teacher", { replace: true });
       } else if (roles.includes("KitchenStaff")) {// navigate kitchen staff
         navigate("/kitchen", { replace: true });
+      } else if (roles.includes("SchoolNurse")) {
+        navigate("/school-nurse", { replace: true });
       } else if (
         roles.includes("Parent") ||
         roles.includes("StudentParent") ||

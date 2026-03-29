@@ -4,6 +4,13 @@ const { authenticate, authorizeRoles, authorizePermissions } = require('../middl
 const contactController = require('../controller/contactController');
 const User = require('../models/User');
 const Role = require('../models/Role');
+const Teacher = require('../models/Teacher');
+const { listClassrooms, createClassroom, updateClassroom, deleteClassroom } = require('../controller/classroomController');
+const assetCtrl = require('../controller/assetInspectionController');
+const assetCrudCtrl = require('../controller/assetController');
+const purchaseCtrl = require('../controller/purchaseRequestController');
+const allocationCtrl  = require('../controller/assetAllocationController');
+const incidentCtrl    = require('../controller/assetIncidentController');
 const {
   getAttendanceOverview,
   getClassAttendanceDetail,
@@ -15,8 +22,11 @@ const blogCategoryController = require('../controller/blogCategoryController');
 const qaController = require('../controller/qaController');
 const documentController = require('../controller/documentController');
 const publicInfoController = require('../controller/publicInfoController');
+const bannerController = require('../controller/bannerController');
 const academicYearController = require('../controller/academicYearController');
+const AcademicYear = require('../models/AcademicYear');
 const curriculumController = require('../controller/curriculumController');
+const academicPlanController = require('../controller/academicPlanController');
 const timetableController = require('../controller/timetableController');
 
 const router = express.Router();
@@ -176,6 +186,15 @@ router.patch('/contacts/:id/clear-reply', authenticate, authorizeRoles('SchoolAd
  *         description: Gửi lại email thành công
  */
 router.post('/contacts/:id/resend-email', authenticate, authorizeRoles('SchoolAdmin'), contactController.resendReplyEmail);
+
+// ============================================
+// Homepage banners
+// ============================================
+router.get('/banners', authenticate, authorizeRoles('SchoolAdmin'), bannerController.getAdminHomepageBanners);
+router.post('/banners', authenticate, authorizeRoles('SchoolAdmin'), bannerController.createAdminHomepageBanner);
+router.put('/banners', authenticate, authorizeRoles('SchoolAdmin'), bannerController.updateAdminHomepageBanners);
+router.patch('/banners/:bannerId', authenticate, authorizeRoles('SchoolAdmin'), bannerController.updateAdminHomepageBannerById);
+router.delete('/banners/:bannerId', authenticate, authorizeRoles('SchoolAdmin'), bannerController.deleteAdminHomepageBannerById);
 
 // ============================================
 // Attendance
@@ -1002,6 +1021,14 @@ router.patch('/academic-years/:id/finish', authenticate, authorizeRoles('SchoolA
 router.get('/academic-years/:yearId/classes', authenticate, authorizeRoles('SchoolAdmin'), academicYearController.getClassesByAcademicYear);
 
 // ============================================
+// Academic Plan
+// ============================================
+router.get('/academic-plan/topics', authenticate, authorizeRoles('SchoolAdmin'), academicPlanController.listTopics);
+router.post('/academic-plan/topics', authenticate, authorizeRoles('SchoolAdmin'), academicPlanController.createTopic);
+router.patch('/academic-plan/topics/:id', authenticate, authorizeRoles('SchoolAdmin'), academicPlanController.updateTopic);
+router.delete('/academic-plan/topics/:id', authenticate, authorizeRoles('SchoolAdmin'), academicPlanController.deleteTopic);
+
+// ============================================
 // Curriculum
 // ============================================
 
@@ -1153,6 +1180,7 @@ router.delete('/curriculum/:id', authenticate, authorizeRoles('SchoolAdmin'), cu
  */
 router.get('/timetable', authenticate, authorizeRoles('SchoolAdmin'), timetableController.listByYear);
 router.put('/timetable', authenticate, authorizeRoles('SchoolAdmin'), timetableController.upsert);
+router.delete('/timetable/:id', authenticate, authorizeRoles('SchoolAdmin'), timetableController.remove);
 
 // ============================================
 // Teachers
@@ -1171,21 +1199,341 @@ router.put('/timetable', authenticate, authorizeRoles('SchoolAdmin'), timetableC
  *       200:
  *         description: Danh sách giáo viên đang active
  */
+// GET /school-admin/teachers/availability?className=...&excludeClassId=...
+// Trả về trạng thái từng giáo viên theo nghiệp vụ phân công lớp
+router.get('/teachers/availability', authenticate, authorizeRoles('SchoolAdmin'), async (req, res) => {
+  try {
+    const { className, excludeClassId } = req.query;
+    const Classes = require('../models/Classes');
+
+    // Lấy năm học hiện tại
+    const activeYear = await AcademicYear.findOne({ status: 'active' }).lean();
+
+    // Lấy tất cả Teacher active
+    const teacherDocs = await Teacher.find({ status: 'active' })
+      .populate('userId', 'fullName email status')
+      .lean();
+
+    const result = await Promise.all(
+      teacherDocs
+        .filter(t => t.userId && t.userId.status === 'active')
+        .map(async (t) => {
+          // Rule 2: đã phụ trách lớp khác trong năm này chưa?
+          let inCurrentYear = false;
+          if (activeYear) {
+            const q = { academicYearId: activeYear._id, teacherIds: t._id };
+            if (excludeClassId) q._id = { $ne: excludeClassId };
+            const existing = await Classes.findOne(q).select('className').lean();
+            if (existing) inCurrentYear = existing.className;
+          }
+
+          // Rule 3: đã dạy className này bao nhiêu năm?
+          let yearsInClass = 0;
+          if (className?.trim()) {
+            const q = { className: className.trim(), teacherIds: t._id };
+            if (excludeClassId) q._id = { $ne: excludeClassId };
+            yearsInClass = await Classes.countDocuments(q);
+          }
+
+          return {
+            _id: t._id,
+            fullName: t.userId.fullName,
+            email: t.userId.email,
+            degree: t.degree,
+            experienceYears: t.experienceYears,
+            inCurrentYear,   // false | tên lớp đang phụ trách
+            yearsInClass,    // 0 | 1 | 2
+            maxYearsReached: yearsInClass >= 2,
+          };
+        })
+    );
+
+    return res.status(200).json({ status: 'success', data: result });
+  } catch (error) {
+    console.error('teacherAvailability error:', error);
+    return res.status(500).json({ status: 'error', message: 'Lỗi khi kiểm tra giáo viên' });
+  }
+});
+
 router.get('/teachers', authenticate, authorizeRoles('SchoolAdmin'), async (req, res) => {
   try {
     const teacherRole = await Role.findOne({ roleName: 'Teacher' }).lean();
-    if (!teacherRole) {
-      return res.status(200).json({ status: 'success', data: [] });
+
+    // Đồng bộ: tạo Teacher record cho TẤT CẢ User có role Teacher (kể cả inactive)
+    if (teacherRole) {
+      const teacherUsers = await User.find({ roles: teacherRole._id }).lean();
+      for (const u of teacherUsers) {
+        const exists = await Teacher.findOne({ userId: u._id }).lean();
+        if (!exists) await Teacher.create({ userId: u._id, status: u.status === 'active' ? 'active' : 'inactive' });
+      }
     }
-    const teachers = await User.find({ roles: teacherRole._id, status: 'active' })
-      .select('fullName email phone avatar')
-      .sort({ fullName: 1 })
+
+    const teacherDocs = await Teacher.find()
+      .populate('userId', 'fullName email phone avatar status')
+      .sort({ createdAt: 1 })
       .lean();
+
+    const teachers = teacherDocs
+      .filter(t => t.userId)
+      .map(t => ({
+        _id: t._id,
+        fullName: t.userId.fullName,
+        email: t.userId.email,
+        phone: t.userId.phone,
+        avatar: t.userId.avatar,
+        status: t.userId.status,
+        degree: t.degree,
+        experienceYears: t.experienceYears,
+        hireDate: t.hireDate,
+      }));
+
     return res.status(200).json({ status: 'success', data: teachers });
   } catch (error) {
     console.error('listTeachers error:', error);
     return res.status(500).json({ status: 'error', message: 'Lỗi khi lấy danh sách giáo viên' });
   }
 });
+
+// POST /school-admin/teachers — tạo giáo viên mới (User + Teacher record)
+router.post('/teachers', authenticate, authorizeRoles('SchoolAdmin'), async (req, res) => {
+  try {
+    const { fullName, email, phone, password, degree, experienceYears, hireDate, avatar } = req.body;
+    if (!fullName?.trim()) return res.status(400).json({ status: 'error', message: 'Họ tên không được để trống' });
+    if (!email?.trim()) return res.status(400).json({ status: 'error', message: 'Email không được để trống' });
+    if (!password || password.length < 6) return res.status(400).json({ status: 'error', message: 'Mật khẩu tối thiểu 6 ký tự' });
+
+    const existingUser = await User.findOne({ email: email.trim().toLowerCase() }).lean();
+    if (existingUser) return res.status(400).json({ status: 'error', message: 'Email đã được sử dụng' });
+
+    const teacherRole = await Role.findOne({ roleName: 'Teacher' }).lean();
+    if (!teacherRole) return res.status(500).json({ status: 'error', message: 'Không tìm thấy role Teacher trong hệ thống' });
+
+    const bcrypt = require('bcryptjs');
+    const salt = await bcrypt.genSalt(10);
+    const passwordHash = await bcrypt.hash(password, salt);
+
+    const user = await User.create({
+      username: email.trim().toLowerCase().split('@')[0] + '_' + Date.now(),
+      passwordHash,
+      fullName: fullName.trim(),
+      email: email.trim().toLowerCase(),
+      phone: phone?.trim() || '',
+      avatar: avatar || '',
+      roles: [teacherRole._id],
+      status: 'active',
+    });
+
+    const teacher = await Teacher.create({
+      userId: user._id,
+      degree: degree?.trim() || '',
+      experienceYears: Number(experienceYears) || 0,
+      hireDate: hireDate || null,
+      status: 'active',
+    });
+
+    await teacher.populate('userId', 'fullName email phone avatar');
+    return res.status(201).json({
+      status: 'success',
+      message: 'Tạo giáo viên thành công',
+      data: {
+        _id: teacher._id,
+        fullName: teacher.userId.fullName,
+        email: teacher.userId.email,
+        phone: teacher.userId.phone,
+        avatar: teacher.userId.avatar,
+        degree: teacher.degree,
+        experienceYears: teacher.experienceYears,
+        hireDate: teacher.hireDate,
+      },
+    });
+  } catch (error) {
+    console.error('createTeacher error:', error);
+    return res.status(500).json({ status: 'error', message: 'Lỗi khi tạo giáo viên', error: error.message });
+  }
+});
+
+// PUT /school-admin/teachers/:id — cập nhật giáo viên
+router.put('/teachers/:id', authenticate, authorizeRoles('SchoolAdmin'), async (req, res) => {
+  try {
+    const teacher = await Teacher.findById(req.params.id).lean();
+    if (!teacher) return res.status(404).json({ status: 'error', message: 'Không tìm thấy giáo viên' });
+
+    const { fullName, email, phone, degree, experienceYears, hireDate, avatar, status } = req.body;
+
+    // Cập nhật User
+    const userUpdate = {};
+    if (fullName?.trim()) userUpdate.fullName = fullName.trim();
+    if (phone !== undefined) userUpdate.phone = phone?.trim() || '';
+    if (avatar !== undefined) userUpdate.avatar = avatar;
+    if (email?.trim()) {
+      const currentUser = await User.findById(teacher.userId).select('email').lean();
+      if (email.trim().toLowerCase() !== currentUser?.email) {
+        const dup = await User.findOne({ email: email.trim().toLowerCase(), _id: { $ne: teacher.userId } }).lean();
+        if (dup) return res.status(400).json({ status: 'error', message: 'Email đã được sử dụng' });
+        userUpdate.email = email.trim().toLowerCase();
+      }
+    }
+    if (status && ['active', 'inactive'].includes(status)) {
+      userUpdate.status = status;
+    }
+    if (Object.keys(userUpdate).length > 0) {
+      await User.findByIdAndUpdate(teacher.userId, userUpdate);
+    }
+
+    // Cập nhật Teacher
+    const teacherUpdate = {};
+    if (degree !== undefined) teacherUpdate.degree = degree?.trim() || '';
+    if (experienceYears !== undefined) teacherUpdate.experienceYears = Number(experienceYears) || 0;
+    if (hireDate !== undefined) teacherUpdate.hireDate = hireDate || null;
+    if (status && ['active', 'inactive'].includes(status)) teacherUpdate.status = status;
+    await Teacher.findByIdAndUpdate(teacher._id, teacherUpdate);
+
+    const updated = await Teacher.findById(teacher._id)
+      .populate('userId', 'fullName email phone avatar status')
+      .lean();
+
+    return res.status(200).json({
+      status: 'success',
+      message: 'Cập nhật giáo viên thành công',
+      data: {
+        _id: updated._id,
+        fullName: updated.userId.fullName,
+        email: updated.userId.email,
+        phone: updated.userId.phone,
+        avatar: updated.userId.avatar,
+        status: updated.userId.status,
+        degree: updated.degree,
+        experienceYears: updated.experienceYears,
+        hireDate: updated.hireDate,
+      },
+    });
+  } catch (error) {
+    console.error('updateTeacher error:', error);
+    return res.status(500).json({ status: 'error', message: 'Lỗi khi cập nhật giáo viên', error: error.message });
+  }
+});
+
+// DELETE /school-admin/teachers/:id — xóa giáo viên
+router.delete('/teachers/:id', authenticate, authorizeRoles('SchoolAdmin'), async (req, res) => {
+  try {
+    const teacher = await Teacher.findById(req.params.id).lean();
+    if (!teacher) return res.status(404).json({ status: 'error', message: 'Không tìm thấy giáo viên' });
+
+    const Classes = require('../models/Classes');
+    const inUse = await Classes.countDocuments({ teacherIds: teacher._id });
+    if (inUse > 0) return res.status(400).json({ status: 'error', message: `Không thể xóa: giáo viên đang phụ trách ${inUse} lớp học` });
+
+    await Teacher.findByIdAndDelete(teacher._id);
+    await User.findByIdAndUpdate(teacher.userId, { status: 'inactive' });
+
+    return res.status(200).json({ status: 'success', message: 'Đã xóa giáo viên' });
+  } catch (error) {
+    console.error('deleteTeacher error:', error);
+    return res.status(500).json({ status: 'error', message: 'Lỗi khi xóa giáo viên', error: error.message });
+  }
+});
+
+// Migration: tạo Teacher record cho User có role Teacher chưa có record
+router.post('/teachers/migrate', authenticate, authorizeRoles('SchoolAdmin'), async (req, res) => {
+  try {
+    const teacherRole = await Role.findOne({ roleName: 'Teacher' }).lean();
+    if (!teacherRole) return res.status(200).json({ status: 'success', message: 'Không tìm thấy role Teacher', created: 0 });
+
+    const users = await User.find({ roles: teacherRole._id }).select('_id').lean();
+    let created = 0;
+    for (const u of users) {
+      const result = await Teacher.findOneAndUpdate(
+        { userId: u._id },
+        { $setOnInsert: { userId: u._id, status: 'active' } },
+        { upsert: true, new: true, rawResult: true }
+      );
+      if (result.lastErrorObject?.upserted) created++;
+    }
+    return res.status(200).json({ status: 'success', message: `Đã tạo ${created} Teacher record mới`, created });
+  } catch (error) {
+    return res.status(500).json({ status: 'error', message: error.message });
+  }
+});
+
+// ============================================
+// Classrooms
+// ============================================
+router.get('/classrooms', authenticate, authorizeRoles('SchoolAdmin'), listClassrooms);
+router.post('/classrooms', authenticate, authorizeRoles('SchoolAdmin'), createClassroom);
+router.put('/classrooms/:id', authenticate, authorizeRoles('SchoolAdmin'), updateClassroom);
+router.delete('/classrooms/:id', authenticate, authorizeRoles('SchoolAdmin'), deleteClassroom);
+
+// ============================================
+// GET /school-admin/staff — danh sách user có role SchoolAdmin (để chọn thành viên ban kiểm kê)
+router.get('/staff', authenticate, authorizeRoles('SchoolAdmin'), async (req, res) => {
+  try {
+    const role = await Role.findOne({ roleName: 'SchoolAdmin' }).lean();
+    if (!role) return res.status(200).json({ status: 'success', data: [] });
+    const users = await User.find({ roles: role._id, status: 'active' })
+      .select('fullName email')
+      .sort({ fullName: 1 })
+      .lean();
+    return res.status(200).json({ status: 'success', data: users });
+  } catch (err) {
+    return res.status(500).json({ status: 'error', message: 'Lỗi khi lấy danh sách nhân viên' });
+  }
+});
+
+// Asset Inspection - Committees (Ban kiểm kê)
+// ============================================
+router.get('/asset-committees', authenticate, authorizeRoles('SchoolAdmin'), assetCtrl.listCommittees);
+router.post('/asset-committees', authenticate, authorizeRoles('SchoolAdmin'), assetCtrl.createCommittee);
+router.get('/asset-committees/:id', authenticate, authorizeRoles('SchoolAdmin'), assetCtrl.getCommittee);
+router.put('/asset-committees/:id', authenticate, authorizeRoles('SchoolAdmin'), assetCtrl.updateCommittee);
+router.delete('/asset-committees/:id', authenticate, authorizeRoles('SchoolAdmin'), assetCtrl.deleteCommittee);
+
+// ============================================
+// Asset Inspection - Minutes (Biên bản kiểm kê)
+// ============================================
+router.get('/asset-minutes', authenticate, authorizeRoles('SchoolAdmin'), assetCtrl.listMinutes);
+router.post('/asset-minutes', authenticate, authorizeRoles('SchoolAdmin'), assetCtrl.createMinutes);
+router.get('/asset-minutes/:id', authenticate, authorizeRoles('SchoolAdmin'), assetCtrl.getMinutes);
+router.put('/asset-minutes/:id', authenticate, authorizeRoles('SchoolAdmin'), assetCtrl.updateMinutes);
+router.delete('/asset-minutes/:id', authenticate, authorizeRoles('SchoolAdmin'), assetCtrl.deleteMinutes);
+router.patch('/asset-minutes/:id/approve', authenticate, authorizeRoles('SchoolAdmin'), assetCtrl.approveMinutes);
+router.patch('/asset-minutes/:id/reject', authenticate, authorizeRoles('SchoolAdmin'), assetCtrl.rejectMinutes);
+
+// ============================================
+// Assets CRUD (Danh sách tài sản)
+// ============================================
+router.get('/assets', authenticate, authorizeRoles('SchoolAdmin'), assetCrudCtrl.listAssets);
+router.post('/assets', authenticate, authorizeRoles('SchoolAdmin'), assetCrudCtrl.createAsset);
+router.post('/assets/bulk', authenticate, authorizeRoles('SchoolAdmin'), assetCrudCtrl.bulkCreateAssets);
+router.get('/assets/:id', authenticate, authorizeRoles('SchoolAdmin'), assetCrudCtrl.getAsset);
+router.put('/assets/:id', authenticate, authorizeRoles('SchoolAdmin'), assetCrudCtrl.updateAsset);
+router.delete('/assets/:id', authenticate, authorizeRoles('SchoolAdmin'), assetCrudCtrl.deleteAsset);
+
+// ============================================
+// Asset Allocations (Biên bản bàn giao tài sản)
+// ============================================
+const wordUpload = multer({ storage: multer.memoryStorage(), limits: { fileSize: 20 * 1024 * 1024 } });
+router.get('/asset-allocations', authenticate, authorizeRoles('SchoolAdmin'), allocationCtrl.listAllocations);
+router.post('/asset-allocations', authenticate, authorizeRoles('SchoolAdmin'), allocationCtrl.createAllocation);
+router.get('/asset-allocations/template', authenticate, authorizeRoles('SchoolAdmin'), allocationCtrl.generateExcelTemplate);
+router.post('/asset-allocations/parse-word', authenticate, authorizeRoles('SchoolAdmin'), wordUpload.single('file'), allocationCtrl.parseWordFile);
+router.post('/asset-allocations/parse-excel', authenticate, authorizeRoles('SchoolAdmin'), wordUpload.single('file'), allocationCtrl.parseExcelFile);
+router.get('/asset-allocations/classes', authenticate, authorizeRoles('SchoolAdmin'), allocationCtrl.listClasses);
+router.get('/asset-allocations/:id', authenticate, authorizeRoles('SchoolAdmin'), allocationCtrl.getAllocation);
+router.put('/asset-allocations/:id', authenticate, authorizeRoles('SchoolAdmin'), allocationCtrl.updateAllocation);
+router.delete('/asset-allocations/:id', authenticate, authorizeRoles('SchoolAdmin'), allocationCtrl.deleteAllocation);
+router.patch('/asset-allocations/:id/transfer', authenticate, authorizeRoles('SchoolAdmin'), allocationCtrl.transferAllocation);
+
+// ============================================
+// Purchase Requests (Yêu cầu mua sắm)
+// ============================================
+router.get('/purchase-requests', authenticate, authorizeRoles('SchoolAdmin'), purchaseCtrl.listAllRequests);
+router.patch('/purchase-requests/:id/approve', authenticate, authorizeRoles('SchoolAdmin'), purchaseCtrl.approveRequest);
+router.patch('/purchase-requests/:id/reject', authenticate, authorizeRoles('SchoolAdmin'), purchaseCtrl.rejectRequest);
+
+// ============================================
+// Asset Incidents (Báo cáo sự cố tài sản)
+// ============================================
+router.get('/asset-incidents',          authenticate, authorizeRoles('SchoolAdmin'), incidentCtrl.listAllIncidents);
+router.patch('/asset-incidents/:id',    authenticate, authorizeRoles('SchoolAdmin'), incidentCtrl.updateIncidentStatus);
 
 module.exports = router;

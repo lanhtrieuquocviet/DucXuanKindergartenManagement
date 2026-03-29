@@ -1,10 +1,12 @@
 import { useEffect, useMemo, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
+import { toast } from 'react-toastify';
 import { useAuth } from '../../context/AuthContext';
 import RoleLayout from '../../layouts/RoleLayout';
 import ConfirmDialog from '../../components/ConfirmDialog';
 import RichTextEditor from '../../components/RichTextEditor';
 import { get, post, put, del, postFormData, ENDPOINTS } from '../../service/api';
+import { SCHOOL_ADMIN_MENU_ITEMS, createSchoolAdminMenuSelect } from './schoolAdminMenuConfig';
 import {
   Box,
   Paper,
@@ -106,7 +108,7 @@ function PublicInfoFormModal({ open, onClose, initialData, onSubmit, loading }) 
         throw new Error(response.message || 'Upload thất bại');
       }
     } catch (err) {
-      alert(`Upload file thất bại:\n${err.message}`);
+      toast.error(`Upload file thất bại: ${err.message}`);
     } finally {
       setUploadingFile(false);
     }
@@ -247,20 +249,6 @@ function PublicInfoFormModal({ open, onClose, initialData, onSubmit, loading }) 
   );
 }
 
-const menuItems = [
-  { key: 'overview', label: 'Tổng quan trường' },
-  { key: 'classes', label: 'Lớp học' },
-  { key: 'teachers', label: 'Giáo viên' },
-  { key: 'students', label: 'Học sinh & phụ huynh' },
-  { key: 'assets', label: 'Quản lý tài sản' },
-  { key: 'reports', label: 'Báo cáo của trường' },
-  { key: 'contacts', label: 'Liên hệ' },
-  { key: 'qa', label: 'Câu hỏi' },
-  { key: 'blogs', label: 'Quản lý blog' },
-  { key: 'documents', label: 'Quản lý tài liệu' },
-  { key: 'public-info', label: 'Thông tin công khai' },
-  { key: 'attendance', label: 'Quản lý điểm danh' },
-];
 
 export default function ManagePublicInfo() {
   const navigate = useNavigate();
@@ -352,20 +340,7 @@ export default function ManagePublicInfo() {
     }
   };
 
-  const handleMenuSelect = (key) => {
-    const routes = {
-      overview: '/school-admin',
-      classes: '/school-admin/classes',
-      students: '/school-admin/students',
-      contacts: '/school-admin/contacts',
-      qa: '/school-admin/qa',
-      blogs: '/school-admin/blogs',
-      documents: '/school-admin/documents',
-      'public-info': '/school-admin/public-info',
-      attendance: '/school-admin/attendance/overview',
-    };
-    if (routes[key]) navigate(routes[key]);
-  };
+  const handleMenuSelect = createSchoolAdminMenuSelect(navigate);
 
   const userName = user?.fullName || user?.username || 'School Admin';
   const handleLogout = () => { logout(); navigate('/login', { replace: true }); };
@@ -381,7 +356,7 @@ export default function ManagePublicInfo() {
     <RoleLayout
       title="Thông tin công khai"
       description="Quản lý các thông tin công khai của trường."
-      menuItems={menuItems}
+      menuItems={SCHOOL_ADMIN_MENU_ITEMS}
       activeKey="public-info"
       onLogout={handleLogout}
       onViewProfile={() => navigate('/profile')}

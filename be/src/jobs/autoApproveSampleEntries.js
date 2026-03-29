@@ -23,7 +23,7 @@ function startAutoApproveSampleEntries() {
         },
         {
           $set: {
-            'sampleEntries.$[entry].status': 'khong_co_van_de',
+            'sampleEntries.$[entry].status': 'tu_dong_duyet',
           },
         },
         {

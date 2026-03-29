@@ -1,10 +1,12 @@
 import { useEffect, useMemo, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
+import { toast } from 'react-toastify';
 import { useAuth } from '../../context/AuthContext';
 import RoleLayout from '../../layouts/RoleLayout';
 import ConfirmDialog from '../../components/ConfirmDialog';
 import RichTextEditor from '../../components/RichTextEditor';
 import { get, post, put, del, postFormData, ENDPOINTS } from '../../service/api';
+import { SCHOOL_ADMIN_MENU_ITEMS, createSchoolAdminMenuSelect } from './schoolAdminMenuConfig';
 import {
   Box,
   Paper,
@@ -97,7 +99,7 @@ function DocumentFormModal({ open, onClose, initialData, onSubmit, loading }) {
         throw new Error(response.message || 'Upload thất bại');
       }
     } catch (err) {
-      alert(`Upload file thất bại:\n${err.message}`);
+      toast.error(`Upload file thất bại: ${err.message}`);
     } finally {
       setUploadingFile(false);
     }
@@ -384,63 +386,7 @@ export default function ManageDocuments() {
     await loadDocuments({ page: newPage });
   };
 
-  const menuItems = [
-    { key: 'overview', label: 'Tổng quan trường' },
-    {
-      key: 'academic-years',
-      label: 'Quản lý năm học',
-      children: [
-        { key: 'academic-year-setup', label: 'Thiết lập năm học' },
-        { key: 'academic-plan', label: 'Thiết lập kế hoạch' },
-        { key: 'academic-students', label: 'Danh sách lớp học' },
-        { key: 'academic-curriculum', label: 'Chương trình giáo dục' },
-        { key: 'academic-schedule', label: 'Thời gian biểu' },
-        { key: 'academic-report', label: 'Báo cáo & thống kê' },
-      ],
-    },
-    { key: 'classes', label: 'Lớp học' },
-    { key: 'teachers', label: 'Giáo viên' },
-    { key: 'students', label: 'Học sinh & phụ huynh' },
-    { key: 'assets', label: 'Quản lý tài sản' },
-    { key: 'reports', label: 'Báo cáo của trường' },
-    { key: 'contacts', label: 'Liên hệ' },
-    { key: 'qa', label: 'Câu hỏi' },
-    { key: 'blogs', label: 'Quản lý blog' },
-    { key: 'documents', label: 'Quản lý tài liệu' },
-    { key: 'public-info', label: 'Thông tin công khai' },
-    { key: 'attendance', label: 'Quản lý điểm danh' },
-  ];
-
-  const handleMenuSelect = async (key) => {
-    if (key === 'academic-report') {
-      try {
-        const resp = await get(ENDPOINTS.SCHOOL_ADMIN.ACADEMIC_YEARS.CURRENT);
-        const yearId = resp?.status === 'success' ? resp?.data?._id : null;
-        if (yearId) navigate(`/school-admin/academic-years/${yearId}/report`);
-        else navigate('/school-admin/academic-years');
-      } catch (_) {
-        navigate('/school-admin/academic-years');
-      }
-      return;
-    }
-
-    const routes = {
-      overview: '/school-admin',
-      'academic-year-setup': '/school-admin/academic-years',
-      'academic-curriculum': '/school-admin/curriculum',
-      'academic-students': '/school-admin/class-list',
-      'academic-schedule': '/school-admin/timetable',
-      'academic-plan': '/school-admin/academic-plan',
-      classes: '/school-admin/classes',
-      contacts: '/school-admin/contacts',
-      qa: '/school-admin/qa',
-      blogs: '/school-admin/blogs',
-      documents: '/school-admin/documents',
-      'public-info': '/school-admin/public-info',
-      attendance: '/school-admin/attendance/overview',
-    };
-    if (routes[key]) navigate(routes[key]);
-  };
+  const handleMenuSelect = createSchoolAdminMenuSelect(navigate);
 
   const userName = user?.fullName || user?.username || 'School Admin';
   const handleLogout = () => { logout(); navigate('/login', { replace: true }); };
@@ -457,7 +403,7 @@ export default function ManageDocuments() {
     <RoleLayout
       title="Quản lý tài liệu"
       description="Tạo, chỉnh sửa, xóa và quản lý tài liệu của trường."
-      menuItems={menuItems}
+      menuItems={SCHOOL_ADMIN_MENU_ITEMS}
       activeKey="documents"
       onLogout={handleLogout}
       onViewProfile={handleViewProfile}

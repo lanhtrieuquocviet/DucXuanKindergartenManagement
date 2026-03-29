@@ -18,19 +18,24 @@ const gradeRoutes = require('./src/routes/grade.routes');
 const studentRoutes = require('./src/routes/student.routes');
 const cloudinaryRoutes = require('./src/routes/cloudinary.routes');
 const contactRoutes = require('./src/routes/contact.routes');
+const bannerRoutes = require('./src/routes/banner.routes');
 const qaRoutes = require('./src/routes/qa.routes');
 const blogsRoutes = require('./src/routes/blogs.routes');
 const documentsRoutes = require('./src/routes/documents.routes');
 const otpRoutes = require('./src/routes/otp.routes');
 const pickupRoutes = require("./src/routes/pickup.routes");
 const foodRoutes = require("./src/routes/food.routes");
+const ingredientRoutes = require("./src/routes/ingredient.routes");
 const menuRoutes = require("./src/routes/menu.routes");
-
+const aiRoutes = require("./src/routes/ai.routes");
 
 const publicInfoRoutes = require('./src/routes/publicInfo.routes');
 const DailyMenu = require('./src/routes/dailyMenu.routes');
 const mealPhotoRoutes = require('./src/routes/mealPhoto.routes');
+const notificationRoutes = require('./src/routes/notification.routes');
 const reportRoutes = require('./src/routes/report.routes');
+const faceRoutes = require('./src/routes/face.routes');
+const healthRoutes = require('./src/routes/health.routes');
 const { startAutoApproveSampleEntries } = require('./src/jobs/autoApproveSampleEntries');
 
 // Import models để Mongoose đăng ký schema (tránh lỗi "Schema hasn't been registered for model 'Roles'")
@@ -49,7 +54,52 @@ require('./src/models/Document');
 require('./src/models/PublicInfo');
 require('./src/models/SystemLog');
 require('./src/models/CurriculumTopic');
+require('./src/models/AcademicPlanTopic');
 require('./src/models/Timetable');
+require('./src/models/Notification');
+require('./src/models/Classroom');
+require('./src/models/Teacher');
+require('./src/models/Ingredient');
+require('./src/models/HealthCheck');
+require('./src/models/HomepageBannerSetting');
+require('./src/models/InspectionCommittee');
+require('./src/models/InspectionMinutes');
+
+// Seed default roles on startup
+(async () => {
+  try {
+    const Role = require('./src/models/Role');
+    const defaultRoles = ['SystemAdmin', 'SchoolAdmin', 'Teacher', 'Parent', 'KitchenStaff'];
+    for (const roleName of defaultRoles) {
+      await Role.findOneAndUpdate(
+        { roleName },
+        { roleName },
+        { upsert: true, new: true }
+      );
+    }
+    console.log('✅ Default roles seeded');
+
+    // Đồng bộ Teacher records từ User có role Teacher
+    const User = require('./src/models/User');
+    const Teacher = require('./src/models/Teacher');
+    const teacherRole = await Role.findOne({ roleName: 'Teacher' }).lean();
+    if (teacherRole) {
+      const teacherUsers = await User.find({ roles: teacherRole._id }).lean();
+      let synced = 0;
+      for (const u of teacherUsers) {
+        const result = await Teacher.findOneAndUpdate(
+          { userId: u._id },
+          { $setOnInsert: { userId: u._id, status: 'active' } },
+          { upsert: true, new: true, rawResult: true }
+        );
+        if (result.lastErrorObject?.upserted) synced++;
+      }
+      if (synced > 0) console.log(`✅ Synced ${synced} Teacher record(s) from User accounts`);
+    }
+  } catch (err) {
+    console.error('Error seeding roles:', err);
+  }
+})();
 
 // ensure default blog categories exist
 (async () => {
@@ -243,6 +293,7 @@ app.use('/api/school-admin', schoolAdminRoutes);
 
 // Contact (public submit)
 app.use('/api/contact', contactRoutes);
+app.use('/api/banners', bannerRoutes);
 
 // Q&A (public)
 app.use('/api/qa', qaRoutes);
@@ -261,10 +312,20 @@ app.use("/api/pickup", pickupRoutes);
 
 //menus
 app.use("/api/foods", foodRoutes);
+app.use("/api/ingredients", ingredientRoutes);
 app.use("/api/menus", menuRoutes);
+app.use("/api/ai", aiRoutes);
 app.use("/api/daily-menus", DailyMenu);
 app.use('/api/meal-photos', mealPhotoRoutes);
+app.use('/api/notifications', notificationRoutes);
 app.use('/api/reports', reportRoutes);
+
+// Face attendance routes (nhận diện khuôn mặt)
+app.use('/api/face', faceRoutes);
+
+// Health check routes (SchoolNurse)
+app.use('/api/health', healthRoutes);
+
 // Public info (public - published only)
 app.use('/api/public-info', publicInfoRoutes);
 
@@ -289,18 +350,18 @@ app.use('/api/timetable', timetableRoutes);
  *               properties:
  *                 status:
  *                   type: string
-                   example: success
-                 message:
-                   type: string
-                   example: SEP490_G54 API is running
-                 timestamp:
-                   type: string
-                   format: date-time
-                 environment:
-                   type: string
-                 mongodb:
-                   type: string
-                   example: connected
+ *                   example: success
+ *                 message:
+ *                   type: string
+ *                   example: SEP490_G54 API is running
+ *                 timestamp:
+ *                   type: string
+ *                   format: date-time
+ *                 environment:
+ *                   type: string
+ *                 mongodb:
+ *                   type: string
+ *                   example: connected
  */
 app.get('/api/health', (req, res) => {
   const healthStatus = {

@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
+import { toast } from 'react-toastify';
 import { useAuth } from '../../context/AuthContext';
 import { useSchoolAdmin } from '../../context/SchoolAdminContext';
 import RoleLayout from '../../layouts/RoleLayout';
@@ -8,13 +9,16 @@ import {
   Paper,
   Typography,
   Button,
-  Alert,
   Stack,
   CircularProgress,
   TextField,
   Divider,
-  IconButton,
   Chip,
+  Dialog,
+  DialogTitle,
+  DialogContent,
+  DialogContentText,
+  DialogActions,
 } from '@mui/material';
 import {
   Delete as DeleteIcon,
@@ -23,15 +27,16 @@ import {
   Send as SendIcon,
   QuestionAnswer as QaIcon,
 } from '@mui/icons-material';
-import { get, ENDPOINTS } from '../../service/api';
+import { SCHOOL_ADMIN_MENU_ITEMS, createSchoolAdminMenuSelect } from './schoolAdminMenuConfig';
 
 function QaList() {
   const [questionsData, setQuestionsData] = useState(null);
-  const [message, setMessage] = useState({ type: null, text: null });
   const [answeringId, setAnsweringId] = useState(null);
   const [answerText, setAnswerText] = useState('');
   const [editingAnswer, setEditingAnswer] = useState(null);
   const [editingText, setEditingText] = useState('');
+  const [deleteTargetId, setDeleteTargetId] = useState(null);
+  const [deleting, setDeleting] = useState(false);
   const [page, setPage] = useState(1);
   const [pagination, setPagination] = useState(null);
   const navigate = useNavigate();
@@ -68,6 +73,10 @@ function QaList() {
 
   const refreshQa = async () => { await fetchQa(page || 1); };
 
+  useEffect(() => {
+    if (error) toast.error(error);
+  }, [error]);
+
   const handleEditQuestion = async (q) => {
     const newTitle = window.prompt('Sửa tiêu đề câu hỏi:', q.title);
     if (newTitle === null) return;
@@ -75,7 +84,6 @@ function QaList() {
     if (newContent === null) return;
     try {
       setError(null);
-      setMessage({ type: null, text: null });
       await updateQuestion(q._id, {
         title: newTitle,
         email: q.email || '',
@@ -85,45 +93,57 @@ function QaList() {
         category: q.category || '',
         content: newContent,
       });
-      setMessage({ type: 'success', text: 'Đã cập nhật câu hỏi.' });
+      toast.success('Đã cập nhật câu hỏi.');
       await refreshQa();
     } catch (err) {
-      setMessage({ type: 'error', text: err.message || 'Cập nhật câu hỏi thất bại.' });
+      toast.error(err.message || 'Cập nhật câu hỏi thất bại.');
     }
   };
 
-  const handleDeleteQuestion = async (id) => {
-    if (!window.confirm('Bạn có chắc muốn xóa câu hỏi này?')) return;
+  const handleDeleteRequest = (id) => {
+    if (!id) return;
+    setDeleteTargetId(id);
+  };
+
+  const handleCloseDeleteDialog = () => {
+    if (deleting) return;
+    setDeleteTargetId(null);
+  };
+
+  const handleConfirmDelete = async () => {
+    if (!deleteTargetId) return;
     try {
+      setDeleting(true);
       setError(null);
-      setMessage({ type: null, text: null });
-      await deleteQuestion(id);
-      setMessage({ type: 'success', text: 'Đã xóa câu hỏi.' });
+      await deleteQuestion(deleteTargetId);
+      toast.success('Đã xóa câu hỏi.');
+      setDeleteTargetId(null);
       await refreshQa();
     } catch (err) {
-      setMessage({ type: 'error', text: err.message || 'Xóa câu hỏi thất bại.' });
+      toast.error(err.message || 'Xóa câu hỏi thất bại.');
+    } finally {
+      setDeleting(false);
     }
   };
 
   const handleSubmitAnswer = async () => {
     if (!answerText.trim()) {
-      setMessage({ type: 'error', text: 'Vui lòng nhập nội dung trả lời.' });
+      toast.error('Vui lòng nhập nội dung trả lời.');
       return;
     }
     try {
       setError(null);
       await answerQuestion(answeringId, answerText.trim(), 'Ban giám hiệu');
-      setMessage({ type: 'success', text: 'Đã gửi trả lời cho câu hỏi.' });
+      toast.success('Đã gửi trả lời cho câu hỏi.');
       setAnsweringId(null);
       setAnswerText('');
       await refreshQa();
     } catch (err) {
-      setMessage({ type: 'error', text: err.message || 'Gửi trả lời thất bại.' });
+      toast.error(err.message || 'Gửi trả lời thất bại.');
     }
   };
 
   const handleStartEditAnswer = (questionId, answerIndex, currentContent) => {
-    setMessage({ type: null, text: null });
     setEditingAnswer({ questionId, answerIndex });
     setEditingText(currentContent || '');
   };
@@ -131,7 +151,7 @@ function QaList() {
   const handleUpdateAnswer = async () => {
     if (!editingAnswer) return;
     if (!editingText.trim()) {
-      setMessage({ type: 'error', text: 'Vui lòng nhập nội dung câu trả lời.' });
+      toast.error('Vui lòng nhập nội dung câu trả lời.');
       return;
     }
     try {
@@ -142,68 +162,16 @@ function QaList() {
         editingText.trim(),
         'Ban giám hiệu'
       );
-      setMessage({ type: 'success', text: 'Đã cập nhật câu trả lời.' });
+      toast.success('Đã cập nhật câu trả lời.');
       setEditingAnswer(null);
       setEditingText('');
       await refreshQa();
     } catch (err) {
-      setMessage({ type: 'error', text: err.message || 'Cập nhật câu trả lời thất bại.' });
+      toast.error(err.message || 'Cập nhật câu trả lời thất bại.');
     }
   };
 
-  const menuItems = [
-    { key: 'overview', label: 'Tổng quan trường' },
-    {
-      key: 'academic-years',
-      label: 'Quản lý năm học',
-      children: [
-        { key: 'academic-year-setup', label: 'Thiết lập năm học' },
-        { key: 'academic-plan', label: 'Thiết lập kế hoạch' },
-        { key: 'academic-students', label: 'Danh sách lớp học' },
-        { key: 'academic-curriculum', label: 'Chương trình giáo dục' },
-        { key: 'academic-schedule', label: 'Thời gian biểu' },
-        { key: 'academic-report', label: 'Báo cáo & thống kê' },
-      ],
-    },
-    { key: 'classes', label: 'Lớp học' },
-    { key: 'teachers', label: 'Giáo viên' },
-    { key: 'students', label: 'Học sinh & phụ huynh' },
-    { key: 'assets', label: 'Quản lý tài sản' },
-    { key: 'reports', label: 'Báo cáo của trường' },
-    { key: 'contacts', label: 'Liên hệ' },
-    { key: 'qa', label: 'Câu hỏi' },
-    { key: 'blogs', label: 'Quản lý blog' },
-    { key: 'documents', label: 'Quản lý tài liệu' },
-    { key: 'public-info', label: 'Thông tin công khai' },
-    { key: 'attendance', label: 'Quản lý điểm danh' },
-  ];
-
-  const handleMenuSelect = async (key) => {
-    if (key === 'overview') navigate('/school-admin');
-    else if (key === 'academic-year-setup') navigate('/school-admin/academic-years');
-    else if (key === 'academic-curriculum') navigate('/school-admin/curriculum');
-    else if (key === 'academic-schedule') navigate('/school-admin/timetable');
-    else if (key === 'academic-plan') navigate('/school-admin/academic-plan');
-    else if (key === 'academic-students') navigate('/school-admin/class-list');
-    else if (key === 'academic-report') {
-      try {
-        const resp = await get(ENDPOINTS.SCHOOL_ADMIN.ACADEMIC_YEARS.CURRENT);
-        const yearId = resp?.status === 'success' ? resp?.data?._id : null;
-        if (yearId) navigate(`/school-admin/academic-years/${yearId}/report`);
-        else navigate('/school-admin/academic-years');
-      } catch (_) {
-        navigate('/school-admin/academic-years');
-      }
-      return;
-    }
-    else if (key === 'classes') navigate('/school-admin/classes');
-    else if (key === 'contacts') navigate('/school-admin/contacts');
-    else if (key === 'qa') navigate('/school-admin/qa');
-    else if (key === 'blogs') navigate('/school-admin/blogs');
-    else if (key === 'documents') navigate('/school-admin/documents');
-    else if (key === 'public-info') navigate('/school-admin/public-info');
-    else if (key === 'attendance') navigate('/school-admin/attendance/overview');
-  };
+  const handleMenuSelect = createSchoolAdminMenuSelect(navigate);
 
   const userName = user?.fullName || user?.username || 'School Admin';
   const questions = questionsData?.data?.questions || [];
@@ -213,7 +181,7 @@ function QaList() {
     <RoleLayout
       title="Quản lý câu hỏi"
       description="Xem, xóa và trả lời câu hỏi từ mục Hỏi đáp."
-      menuItems={menuItems}
+      menuItems={SCHOOL_ADMIN_MENU_ITEMS}
       activeKey="qa"
       onLogout={() => { logout(); navigate('/login', { replace: true }); }}
       userName={userName}
@@ -236,13 +204,6 @@ function QaList() {
           </Box>
         </Stack>
       </Paper>
-
-      {error && <Alert severity="error" sx={{ mb: 2 }}>{error}</Alert>}
-      {message.text && (
-        <Alert severity={message.type === 'success' ? 'success' : 'error'} sx={{ mb: 2 }}>
-          {message.text}
-        </Alert>
-      )}
 
       <Paper elevation={1} sx={{ borderRadius: 2, overflow: 'hidden' }}>
         <Box sx={{ px: 3, py: 2, borderBottom: '1px solid', borderColor: 'divider' }}>
@@ -288,30 +249,12 @@ function QaList() {
                         <Stack spacing={1.5}>
                           {q.answers.map((a, idx) => (
                             <Box key={idx}>
-                              <Stack direction="row" alignItems="flex-start" justifyContent="space-between" gap={1}>
-                                <Typography variant="body2" color="text.primary" sx={{ flex: 1, whiteSpace: 'pre-wrap' }}>
-                                  <Box component="span" sx={{ fontWeight: 700, color: 'success.dark' }}>
-                                    {a.authorName || 'Trả lời'}:
-                                  </Box>{' '}
-                                  {a.content}
-                                </Typography>
-                                <Button
-                                  size="small"
-                                  startIcon={<EditIcon />}
-                                  onClick={() => handleStartEditAnswer(q._id, idx, a.content)}
-                                  sx={{
-                                    textTransform: 'none',
-                                    fontSize: 12,
-                                    flexShrink: 0,
-                                    borderRadius: 1,
-                                    color: 'primary.main',
-                                    bgcolor: 'rgba(99,102,241,0.07)',
-                                    '&:hover': { bgcolor: 'rgba(99,102,241,0.15)' },
-                                  }}
-                                >
-                                  Sửa
-                                </Button>
-                              </Stack>
+                              <Typography variant="body2" color="text.primary" sx={{ flex: 1, whiteSpace: 'pre-wrap' }}>
+                                <Box component="span" sx={{ fontWeight: 700, color: 'success.dark' }}>
+                                  {a.authorName || 'Trả lời'}:
+                                </Box>{' '}
+                                {a.content}
+                              </Typography>
 
                               {editingAnswer &&
                                 editingAnswer.questionId === q._id &&
@@ -363,7 +306,7 @@ function QaList() {
                       variant="contained"
                       color="error"
                       startIcon={<DeleteIcon />}
-                      onClick={() => handleDeleteQuestion(q._id)}
+                      onClick={() => handleDeleteRequest(q._id)}
                       sx={{ textTransform: 'none', borderRadius: 1.5, fontSize: 12 }}
                     >
                       Xóa
@@ -378,6 +321,23 @@ function QaList() {
                     >
                       Trả lời
                     </Button>
+                    {Array.isArray(q.answers) && q.answers.length > 0 && (
+                      <Button
+                        size="small"
+                        variant="outlined"
+                        startIcon={<EditIcon />}
+                        onClick={() =>
+                          handleStartEditAnswer(
+                            q._id,
+                            q.answers.length - 1,
+                            q.answers[q.answers.length - 1]?.content || ''
+                          )
+                        }
+                        sx={{ textTransform: 'none', borderRadius: 1.5, fontSize: 12 }}
+                      >
+                        Sửa
+                      </Button>
+                    )}
                   </Stack>
                 </Stack>
 
@@ -462,6 +422,28 @@ function QaList() {
           </Button>
         </Stack>
       )}
+
+      <Dialog open={Boolean(deleteTargetId)} onClose={handleCloseDeleteDialog} maxWidth="xs" fullWidth>
+        <DialogTitle>Xác nhận xóa</DialogTitle>
+        <DialogContent>
+          <DialogContentText>
+            Bạn có muốn xóa câu hỏi này không.
+          </DialogContentText>
+        </DialogContent>
+        <DialogActions sx={{ px: 3, pb: 2 }}>
+          <Button onClick={handleCloseDeleteDialog} disabled={deleting}>
+            Hủy
+          </Button>
+          <Button
+            variant="contained"
+            color="error"
+            onClick={handleConfirmDelete}
+            disabled={deleting}
+          >
+            {deleting ? 'Đang xóa...' : 'Xác nhận'}
+          </Button>
+        </DialogActions>
+      </Dialog>
     </RoleLayout>
   );
 }

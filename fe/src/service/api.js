@@ -219,6 +219,8 @@ export const ENDPOINTS = {
     DOCUMENT_DETAIL: (documentId) => `/school-admin/documents/${documentId}`,
     PUBLIC_INFOS: "/school-admin/public-info",
     PUBLIC_INFO_DETAIL: (id) => `/school-admin/public-info/${id}`,
+    BANNERS: '/school-admin/banners',
+    BANNER_DETAIL: (id) => `/school-admin/banners/${id}`,
     ACADEMIC_YEARS: {
       LIST: "/school-admin/academic-years",
       CURRENT: "/school-admin/academic-years/current",
@@ -226,6 +228,18 @@ export const ENDPOINTS = {
       FINISH: (id) => `/school-admin/academic-years/${id}/finish`,
       HISTORY: "/school-admin/academic-years/history",
       CLASSES: (yearId) => `/school-admin/academic-years/${yearId}/classes`,
+    },
+    ACADEMIC_PLAN: {
+      LIST_TOPICS: (yearId, gradeId) => {
+        const q = new URLSearchParams();
+        if (yearId) q.set('yearId', yearId);
+        if (gradeId) q.set('gradeId', gradeId);
+        const query = q.toString();
+        return query ? `/school-admin/academic-plan/topics?${query}` : '/school-admin/academic-plan/topics';
+      },
+      CREATE_TOPIC: '/school-admin/academic-plan/topics',
+      UPDATE_TOPIC: (id) => `/school-admin/academic-plan/topics/${id}`,
+      DELETE_TOPIC: (id) => `/school-admin/academic-plan/topics/${id}`,
     },
     CURRICULUM: {
       LIST: (yearId) => (yearId ? `/school-admin/curriculum?yearId=${yearId}` : "/school-admin/curriculum"),
@@ -236,17 +250,55 @@ export const ENDPOINTS = {
     TIMETABLE: {
       LIST: (yearId) => (yearId ? `/school-admin/timetable?yearId=${yearId}` : "/school-admin/timetable"),
       UPSERT: "/school-admin/timetable",
+      DELETE: (id, yearId) =>
+        yearId ? `/school-admin/timetable/${id}?yearId=${yearId}` : `/school-admin/timetable/${id}`,
     },
     TIMETABLE_ACTIVITIES: {
       LIST: (yearId) => (yearId ? `/school-admin/timetable/activities?yearId=${yearId}` : "/school-admin/timetable/activities"),
       CREATE: "/school-admin/timetable/activities",
       UPDATE: (id) => `/school-admin/timetable/activities/${id}`,
     },
+    STAFF: "/school-admin/staff",
     TEACHERS: "/school-admin/teachers",
+    TEACHER_AVAILABILITY: "/school-admin/teachers/availability",
+    TEACHER_UPDATE: (id) => `/school-admin/teachers/${id}`,
+    TEACHER_DELETE: (id) => `/school-admin/teachers/${id}`,
+    TEACHER_MIGRATE: "/school-admin/teachers/migrate",
+    CLASSROOMS: "/school-admin/classrooms",
+    CLASSROOM_UPDATE: (id) => `/school-admin/classrooms/${id}`,
+    CLASSROOM_DELETE: (id) => `/school-admin/classrooms/${id}`,
+    // Asset Inspection
+    ASSET_COMMITTEES: "/school-admin/asset-committees",
+    ASSET_COMMITTEE_DETAIL: (id) => `/school-admin/asset-committees/${id}`,
+    ASSET_MINUTES: "/school-admin/asset-minutes",
+    ASSET_MINUTES_DETAIL: (id) => `/school-admin/asset-minutes/${id}`,
+    ASSET_MINUTES_APPROVE: (id) => `/school-admin/asset-minutes/${id}/approve`,
+    ASSET_MINUTES_REJECT: (id) => `/school-admin/asset-minutes/${id}/reject`,
+    // Asset CRUD
+    ASSETS: "/school-admin/assets",
+    ASSETS_BULK: "/school-admin/assets/bulk",
+    // Asset Allocations (Biên bản bàn giao tài sản)
+    ASSET_ALLOCATIONS: "/school-admin/asset-allocations",
+    ASSET_ALLOCATIONS_CLASSES: "/school-admin/asset-allocations/classes",
+    ASSET_ALLOCATIONS_TEMPLATE: "/school-admin/asset-allocations/template",
+    ASSET_ALLOCATIONS_PARSE_WORD: "/school-admin/asset-allocations/parse-word",
+    ASSET_ALLOCATIONS_PARSE_EXCEL: "/school-admin/asset-allocations/parse-excel",
+    ASSET_ALLOCATION_DETAIL: (id) => `/school-admin/asset-allocations/${id}`,
+    ASSET_ALLOCATION_TRANSFER: (id) => `/school-admin/asset-allocations/${id}/transfer`,
+    PURCHASE_REQUESTS: "/school-admin/purchase-requests",
+    PURCHASE_REQUEST_APPROVE: (id) => `/school-admin/purchase-requests/${id}/approve`,
+    PURCHASE_REQUEST_REJECT: (id) => `/school-admin/purchase-requests/${id}/reject`,
+    // Asset incidents (admin view)
+    ASSET_INCIDENTS: "/school-admin/asset-incidents",
+    ASSET_INCIDENT_UPDATE: (id) => `/school-admin/asset-incidents/${id}`,
+    ASSET_DETAIL: (id) => `/school-admin/assets/${id}`,
   },
   // Contact (public)
   CONTACT: {
     SUBMIT: "/contact",
+  },
+  BANNERS: {
+    HOMEPAGE: '/banners/homepage',
   },
   // Q&A (public)
   QA: {
@@ -256,10 +308,22 @@ export const ENDPOINTS = {
   // Teacher
   TEACHER: {
     DASHBOARD: "/teacher/dashboard",
+    ASSET_COMMITTEES: "/teacher/asset-committees",
+    ASSET_COMMITTEE_IS_MEMBER: "/teacher/asset-committees/is-member",
+    ASSET_MINUTES: "/teacher/asset-minutes",
+    ASSET_MINUTES_DETAIL: (id) => `/teacher/asset-minutes/${id}`,
     ATTENDANCES: "/teacher/attendances",
     ATTENDANCE_BY_CLASS: (classId) => `/teacher/attendances/class/${classId}`,
     ATTENDANCE_BY_CLASS_DATE: (classId, date) =>
       `/teacher/attendances/class/${classId}/date/${date}`,
+    MY_CLASSES: "/teacher/my-classes",
+    PURCHASE_REQUESTS: "/teacher/purchase-requests",
+    PURCHASE_REQUEST_DETAIL: (id) => `/teacher/purchase-requests/${id}`,
+    // Asset allocation & incidents
+    MY_ASSET_ALLOCATION: "/teacher/asset-allocations",
+    ASSET_ALLOCATION_CONFIRM: (id) => `/teacher/asset-allocations/${id}/confirm`,
+    ASSET_INCIDENTS: "/teacher/asset-incidents",
+    ASSET_INCIDENT_DETAIL: (id) => `/teacher/asset-incidents/${id}`,
   },
   // Classes
   CLASSES: {
@@ -269,7 +333,9 @@ export const ENDPOINTS = {
     STUDENTS: (classId) => `/classes/${classId}/students`,
     CREATE: "/classes",
     UPDATE: (classId) => `/classes/${classId}`,
+    DELETE: (classId) => `/classes/${classId}`,
     ADD_STUDENTS: (classId) => `/classes/${classId}/students`,
+    REMOVE_STUDENT: (classId, studentId) => `/classes/${classId}/students/${studentId}`,
   },
   // Grades management (SchoolAdmin)
   GRADES: {
@@ -315,6 +381,7 @@ export const ENDPOINTS = {
     UPLOAD_BLOG_IMAGE: "/cloudinary/upload-blog-image",
     UPLOAD_BLOG_FILE: "/cloudinary/upload-blog-file",
     UPLOAD_KITCHEN_IMAGE: "/cloudinary/upload-kitchen-image",
+    UPLOAD_PURCHASE_IMAGE: "/cloudinary/upload-purchase-image",
   },
   // Meal Photos (Kitchen Staff)
   MEAL_PHOTOS: {
@@ -326,6 +393,13 @@ export const ENDPOINTS = {
     ATTENDANCE_SUMMARY: "/meal-photos/attendance-summary",
     REQUEST_EDIT: "/meal-photos/edit-request",
     APPROVE_EDIT_REQUEST: "/meal-photos/edit-request/approve",
+  },
+  // Notifications (Parent)
+  NOTIFICATIONS: {
+    LIST: '/notifications',
+    UNREAD_COUNT: '/notifications/unread-count',
+    MARK_READ: (id) => `/notifications/${id}/read`,
+    MARK_ALL_READ: '/notifications/read-all',
   },
   // OTP
   OTP: {

@@ -2,7 +2,9 @@ import { useEffect, useState, useMemo } from "react";
 import { toast } from "react-toastify";
 import {
   getFoods,
+  getIngredients,
   createFood,
+  createIngredient,
   updateFood,
   deleteFood,
 } from "../../service/menu.api";
@@ -36,12 +38,14 @@ import {
   Avatar,
   useTheme,
   useMediaQuery,
+  Autocomplete,
 } from "@mui/material";
 import {
   Add as AddIcon,
   Delete as DeleteIcon,
   Edit as EditIcon,
   Search as SearchIcon,
+  Visibility as ViewIcon,
   LocalFireDepartment as CalorieIcon,
   Egg as ProteinIcon,
   Opacity as FatIcon,
@@ -52,10 +56,11 @@ import {
 
 const emptyFood = {
   name: "",
-  calories: "",
-  protein: "",
-  fat: "",
-  carb: "",
+  calories: "0",
+  protein: "0",
+  fat: "0",
+  carb: "0",
+  ingredients: [],
 };
 
 const NUTRITION_CONFIG = [
@@ -128,7 +133,7 @@ function NutritionBar({ value, max, color }) {
   );
 }
 
-function FormField({ config, value, error, onChange }) {
+function FormField({ config, value, error, onChange, inputProps = {}, disabled = false }) {
   const isName = config.key === "name";
   return (
     <TextField
@@ -137,14 +142,16 @@ function FormField({ config, value, error, onChange }) {
       name={config.key}
       label={config.label}
       type={isName ? "text" : "number"}
-      inputProps={isName ? { maxLength: 20 } : { min: 0 }}
+      inputProps={{ ...(isName ? { maxLength: 20 } : { min: 0 }), ...inputProps }}
       value={value}
       onChange={onChange}
       error={Boolean(error)}
       helperText={error || " "}
+      disabled={disabled}
       InputProps={
         !isName
           ? {
+              readOnly: disabled,
               endAdornment: (
                 <InputAdornment position="end">
                   <Typography variant="caption" color="text.disabled">
@@ -159,7 +166,7 @@ function FormField({ config, value, error, onChange }) {
   );
 }
 
-function FoodCard({ food, maxValues, onEdit, onDelete }) {
+function FoodCard({ food, maxValues, onView, onEdit, onDelete }) {
   const nutrients = [
     { key: "calories", label: "Cal", unit: "kcal", color: "#f97316" },
     { key: "protein", label: "Pro", unit: "g", color: "#6366f1" },
@@ -175,6 +182,10 @@ function FoodCard({ food, maxValues, onEdit, onDelete }) {
             <Typography variant="body2" fontWeight={700}>{food.name}</Typography>
           </Stack>
           <Stack direction="row" spacing={0.5}>
+            <IconButton size="small" onClick={() => onView(food)}
+              sx={{ color: "#0ea5e9", bgcolor: alpha("#0ea5e9", 0.07), borderRadius: 1.5, "&:hover": { bgcolor: alpha("#0ea5e9", 0.14) } }}>
+              <ViewIcon sx={{ fontSize: 16 }} />
+            </IconButton>
             <IconButton size="small" onClick={() => onEdit(food)}
               sx={{ color: "#4f46e5", bgcolor: alpha("#4f46e5", 0.07), borderRadius: 1.5, "&:hover": { bgcolor: alpha("#4f46e5", 0.14) } }}>
               <EditIcon sx={{ fontSize: 16 }} />
@@ -206,17 +217,32 @@ function FoodManagement() {
   const [search, setSearch] = useState("");
 
   const [showModal, setShowModal] = useState(false);
+  const [detailFood, setDetailFood] = useState(null);
+  const [showDetailModal, setShowDetailModal] = useState(false);
+  const [availableIngredients, setAvailableIngredients] = useState([]);
   const [editingFood, setEditingFood] = useState(null);
   const [deleteTarget, setDeleteTarget] = useState(null);
   const [deleting, setDeleting] = useState(false);
   const [saving, setSaving] = useState(false);
 
   const [form, setForm] = useState(emptyFood);
+  const [newIngredient, setNewIngredient] = useState({ name: "", quantity: "", calories: "", protein: "", fat: "", carb: "" });
   const [errors, setErrors] = useState({});
 
   useEffect(() => {
     fetchFoods();
+    fetchIngredients();
   }, []);
+
+  const fetchIngredients = async () => {
+    try {
+      const res = await getIngredients();
+      setAvailableIngredients(res.data || []);
+    } catch (error) {
+      console.error('Lấy nguyên liệu thất bại', error);
+      toast.error('Không thể tải nguyên liệu sẵn có');
+    }
+  };
 
   const fetchFoods = async () => {
     try {
@@ -246,10 +272,8 @@ function FoodManagement() {
     [foods]
   );
 
-  const avgCalories =
-    foods.length > 0
-      ? Math.round(foods.reduce((s, f) => s + f.calories, 0) / foods.length)
-      : 0;
+  const totalCalories = foods.length > 0 ? foods.reduce((s, f) => s + (Number(f.calories) || 0), 0) : 0;
+  const avgCalories = foods.length > 0 ? Math.round(totalCalories / foods.length) : 0;
 
   const handleOpenCreate = () => {
     setEditingFood(null);
@@ -260,15 +284,147 @@ function FoodManagement() {
 
   const handleOpenEdit = (food) => {
     setEditingFood(food);
+    const ingredients = Array.isArray(food.ingredients) ? food.ingredients : [];
+    const nutrition = computeNutritionFromIngredients(ingredients);
     setForm({
       name: food.name || "",
-      calories: food.calories ?? "",
-      protein: food.protein ?? "",
-      fat: food.fat ?? "",
-      carb: food.carb ?? "",
+      calories: nutrition.calories,
+      protein: nutrition.protein,
+      fat: nutrition.fat,
+      carb: nutrition.carb,
+      ingredients,
     });
     setErrors({});
     setShowModal(true);
+  };
+
+  const handleOpenDetail = (food) => {
+    setDetailFood(food);
+    setShowDetailModal(true);
+  };
+
+  const handleCloseDetail = () => {
+    setDetailFood(null);
+    setShowDetailModal(false);
+  };
+
+  const addIngredientFromLibrary = (ingredient) => {
+    if (!ingredient) return;
+
+    setNewIngredient({
+      name: ingredient.name || '',
+      quantity: '100',
+      calories: String(ingredient.calories || 0),
+      protein: String(ingredient.protein || 0),
+      fat: String(ingredient.fat || 0),
+      carb: String(ingredient.carb || 0),
+    });
+  };
+
+  const handleNewIngredientChange = (field, value) => {
+    setNewIngredient((prev) => ({ ...prev, [field]: value }));
+  };
+
+  const handleAppendNewIngredient = async () => {
+    if (!newIngredient.name.trim()) return;
+
+    const normalizedName = newIngredient.name.trim();
+    const alreadyExists = form.ingredients.some((it) => it.name.toLowerCase() === normalizedName.toLowerCase());
+    if (alreadyExists) {
+      toast.error(`Nguyên liệu "${normalizedName}" đã có trong danh sách`);
+      return;
+    }
+
+    const updatedIngredients = [
+      ...form.ingredients,
+      {
+        name: normalizedName,
+        quantity: newIngredient.quantity.trim() || '100',
+        calories: newIngredient.calories.trim() || '0',
+        protein: newIngredient.protein.trim() || '0',
+        fat: newIngredient.fat.trim() || '0',
+        carb: newIngredient.carb.trim() || '0',
+      },
+    ];
+
+    setForm((prev) => ({
+      ...prev,
+      ingredients: updatedIngredients,
+      ...computeNutritionFromIngredients(updatedIngredients),
+    }));
+
+    setNewIngredient({ name: "", quantity: "", calories: "", protein: "", fat: "", carb: "" });
+
+    try {
+      await createIngredient({
+        name: normalizedName,
+        unit: '100g',
+        calories: Number(newIngredient.calories) || 0,
+        protein: Number(newIngredient.protein) || 0,
+        fat: Number(newIngredient.fat) || 0,
+        carb: Number(newIngredient.carb) || 0,
+      });
+      fetchIngredients();
+    } catch (err) {
+      if (err?.data?.message?.includes('đã tồn tại') || err?.message?.includes('duplicate')) {
+        // đã có thì bỏ qua
+      } else {
+        console.error('Tạo nguyên liệu DB lỗi:', err);
+        toast.error('Không thể lưu nguyên liệu vào database');
+      }
+    }
+  };
+
+  const computeNutritionFromIngredients = (ingredients) => {
+    const totals = ingredients.reduce(
+      (acc, item) => {
+        const c = Number(item.calories) || 0;
+        const p = Number(item.protein) || 0;
+        const f = Number(item.fat) || 0;
+        const cb = Number(item.carb) || 0;
+        return {
+          calories: acc.calories + c,
+          protein: acc.protein + p,
+          fat: acc.fat + f,
+          carb: acc.carb + cb,
+        };
+      },
+      { calories: 0, protein: 0, fat: 0, carb: 0 }
+    );
+    return {
+      calories: String(totals.calories),
+      protein: String(totals.protein),
+      fat: String(totals.fat),
+      carb: String(totals.carb),
+    };
+  };
+
+  const handleAddIngredient = () => {
+    handleAppendNewIngredient();
+  };
+
+  const handleRemoveIngredient = (index) => {
+    setForm((prev) => {
+      const updatedIngredients = prev.ingredients.filter((_, i) => i !== index);
+      return {
+        ...prev,
+        ingredients: updatedIngredients,
+        ...computeNutritionFromIngredients(updatedIngredients),
+      };
+    });
+  };
+
+  const handleIngredientChange = (index, field, value) => {
+    setForm((prev) => {
+      const updatedIngredients = prev.ingredients.map((item, i) =>
+        i === index ? { ...item, [field]: value } : item
+      );
+      return {
+        ...prev,
+        ingredients: updatedIngredients,
+        ...computeNutritionFromIngredients(updatedIngredients),
+      };
+    });
   };
 
   const validateField = (name, value) => {
@@ -279,8 +435,8 @@ function FoodManagement() {
     }
     if (["calories", "protein", "fat", "carb"].includes(name)) {
       if (value === "") error = "Không được để trống";
-      else if (!Number.isInteger(Number(value))) error = "Phải là số nguyên";
       else if (Number(value) < 0) error = "Phải là số không âm";
+      else if (Number.isNaN(Number(value))) error = "Phải là số hợp lệ";
     }
     setErrors((prev) => ({ ...prev, [name]: error }));
     return error === "";
@@ -324,6 +480,14 @@ function FoodManagement() {
         protein: Number(form.protein),
         fat: Number(form.fat),
         carb: Number(form.carb),
+        ingredients: (form.ingredients || []).map((item) => ({
+          name: item.name,
+          quantity: item.quantity,
+          calories: Number(item.calories) || 0,
+          protein: Number(item.protein) || 0,
+          fat: Number(item.fat) || 0,
+          carb: Number(item.carb) || 0,
+        })),
       };
       if (editingFood) {
         await updateFood(editingFood._id, data);
@@ -404,7 +568,7 @@ function FoodManagement() {
       {/* Stats */}
       <Box sx={{ display: "grid", gridTemplateColumns: { xs: "repeat(3, 1fr)", sm: "repeat(3, 1fr)" }, gap: { xs: 1.5, sm: 2 }, mb: 3 }}>
         <StatCard icon={<FoodIcon />} label="Tổng số món" value={foods.length} color="#4f46e5" />
-        <StatCard icon={<CalorieIcon />} label="Cal TB" value={`${avgCalories}`} color="#f97316" />
+        <StatCard icon={<CalorieIcon />} label="Tổng calories" value={`${totalCalories}`} color="#f97316" />
         <StatCard icon={<SearchIcon />} label="Kết quả" value={filtered.length} color="#22c55e" />
       </Box>
 
@@ -464,7 +628,7 @@ function FoodManagement() {
             ) : (
               <Stack spacing={1.5}>
                 {filtered.map((food) => (
-                  <FoodCard key={food._id} food={food} maxValues={maxValues} onEdit={handleOpenEdit} onDelete={setDeleteTarget} />
+                  <FoodCard key={food._id} food={food} maxValues={maxValues} onView={handleOpenDetail} onEdit={handleOpenEdit} onDelete={setDeleteTarget} />
                 ))}
               </Stack>
             )}
@@ -533,6 +697,12 @@ function FoodManagement() {
                         ))}
                         <TableCell align="center">
                           <Stack direction="row" spacing={0.5} justifyContent="center">
+                            <Tooltip title="Chi tiết" arrow>
+                              <IconButton size="small" onClick={() => handleOpenDetail(food)}
+                                sx={{ color: "#0ea5e9", bgcolor: alpha("#0ea5e9", 0.07), "&:hover": { bgcolor: alpha("#0ea5e9", 0.14) }, borderRadius: 1.5 }}>
+                                <ViewIcon sx={{ fontSize: 16 }} />
+                              </IconButton>
+                            </Tooltip>
                             <Tooltip title="Chỉnh sửa" arrow>
                               <IconButton size="small" onClick={() => handleOpenEdit(food)}
                                 sx={{ color: "#4f46e5", bgcolor: alpha("#4f46e5", 0.07), "&:hover": { bgcolor: alpha("#4f46e5", 0.14) }, borderRadius: 1.5 }}>
@@ -619,7 +789,7 @@ function FoodManagement() {
               color="text.disabled"
               sx={{ mt: -0.5, mb: 0.5, display: "block" }}
             >
-              Thông tin dinh dưỡng
+              Thông tin dinh dưỡng (tự cập nhật theo nguyên liệu, không thể nhập tay)
             </Typography>
             <Grid container spacing={1.5}>
               {NUTRITION_CONFIG.map((n) => (
@@ -629,10 +799,157 @@ function FoodManagement() {
                     value={form[n.key]}
                     error={errors[n.key]}
                     onChange={handleChange}
+                    disabled
                   />
                 </Grid>
               ))}
             </Grid>
+            <Box sx={{ mt: 2 }}>
+              <Typography sx={{ mb: 1, fontWeight: 700 }}>Chọn nguyên liệu có sẵn</Typography>
+              <Autocomplete
+                options={availableIngredients}
+                getOptionLabel={(option) => `${option.name} (${option.calories} kcal / ${option.unit || '100g'})`}
+                onChange={(_, value) => addIngredientFromLibrary(value)}
+                renderInput={(params) => (
+                  <TextField
+                    {...params}
+                    size="small"
+                    label="Chọn nguyên liệu phổ biến"
+                    placeholder="Chọn nguyên liệu phổ biến..."
+                    sx={{ mb: 1 }}
+                  />
+                )}
+              />
+
+              <Typography sx={{ mt: 1, fontWeight: 700 }}>Hoặc nhập thủ công</Typography>
+              <Grid container spacing={1} alignItems="center" sx={{ mt: 1, mb: 1 }}>
+                <Grid item xs={4}>
+                  <TextField
+                    fullWidth
+                    size="small"
+                    label="Tên nguyên liệu"
+                    value={newIngredient.name}
+                    onChange={(e) => handleNewIngredientChange('name', e.target.value)}
+                  />
+                </Grid>
+                <Grid item xs={2}>
+                  <TextField
+                    fullWidth
+                    size="small"
+                    label="Khối lượng"
+                    value={newIngredient.quantity}
+                    onChange={(e) => handleNewIngredientChange('quantity', e.target.value)}
+                    placeholder="g"
+                  />
+                </Grid>
+                <Grid item xs={1.5}>
+                  <TextField
+                    fullWidth
+                    size="small"
+                    label="Calories"
+                    type="number"
+                    value={newIngredient.calories}
+                    onChange={(e) => handleNewIngredientChange('calories', e.target.value)}
+                  />
+                </Grid>
+                <Grid item xs={1.5}>
+                  <TextField
+                    fullWidth
+                    size="small"
+                    label="Protein"
+                    type="number"
+                    value={newIngredient.protein}
+                    onChange={(e) => handleNewIngredientChange('protein', e.target.value)}
+                  />
+                </Grid>
+                <Grid item xs={1.5}>
+                  <TextField
+                    fullWidth
+                    size="small"
+                    label="Fat"
+                    type="number"
+                    value={newIngredient.fat}
+                    onChange={(e) => handleNewIngredientChange('fat', e.target.value)}
+                  />
+                </Grid>
+                <Grid item xs={1.5}>
+                  <TextField
+                    fullWidth
+                    size="small"
+                    label="Carb"
+                    type="number"
+                    value={newIngredient.carb}
+                    onChange={(e) => handleNewIngredientChange('carb', e.target.value)}
+                  />
+                </Grid>
+                <Grid item xs={1}>
+                  <Button
+                    variant="contained"
+                    size="small"
+                    onClick={handleAppendNewIngredient}
+                    sx={{ textTransform: 'none', px: 1 }}
+                  >
+                    Thêm Nguyên Liệu
+                  </Button>
+                </Grid>
+              </Grid>
+
+              <Typography sx={{ fontWeight: 700, mb: 1 }}>
+                Danh sách nguyên liệu ({form.ingredients?.length || 0})
+              </Typography>
+
+              <TableContainer sx={{ maxHeight: 220, border: '1px solid', borderColor: 'divider', borderRadius: 1 }}>
+                <Table size="small" stickyHeader>
+                  <TableHead>
+                    <TableRow>
+                      <TableCell sx={{ fontWeight: 700 }}>Nguyên liệu</TableCell>
+                      <TableCell align="center" sx={{ fontWeight: 700 }}>KL</TableCell>
+                      <TableCell align="center" sx={{ fontWeight: 700 }}>Cal</TableCell>
+                      <TableCell align="center" sx={{ fontWeight: 700 }}>P/F/C</TableCell>
+                      <TableCell align="center" sx={{ fontWeight: 700 }}>Xóa</TableCell>
+                    </TableRow>
+                  </TableHead>
+                  <TableBody>
+                    {(form.ingredients || []).map((item, idx) => (
+                      <TableRow key={idx}>
+                        <TableCell>{item.name}</TableCell>
+                        <TableCell align="center">{item.quantity || '-'}</TableCell>
+                        <TableCell align="center">{item.calories || 0}</TableCell>
+                        <TableCell align="center">{`${item.protein || 0}/${item.fat || 0}/${item.carb || 0}`}</TableCell>
+                        <TableCell align="center">
+                          <IconButton size="small" onClick={() => handleRemoveIngredient(idx)}>
+                            <DeleteIcon fontSize="small" />
+                          </IconButton>
+                        </TableCell>
+                      </TableRow>
+                    ))}
+                    {(form.ingredients || []).length === 0 && (
+                      <TableRow>
+                        <TableCell colSpan={5} align="center" sx={{ py: 2, color: 'text.secondary' }}>
+                          Chưa có nguyên liệu nào
+                        </TableCell>
+                      </TableRow>
+                    )}
+                  </TableBody>
+                </Table>
+              </TableContainer>
+
+              <Grid container spacing={1} sx={{ mt: 1 }}>
+                {NUTRITION_CONFIG.map((n) => {
+                  const value = Number(form[n.key]) || 0;
+                  return (
+                    <Grid item xs={3} key={n.key}>
+                      <Card elevation={0} sx={{ border: '1px solid', borderColor: 'divider', borderRadius: 2 }}>
+                        <CardContent sx={{ py: 1, px: 1.25, textAlign: 'center' }}>
+                          <Typography variant="caption" sx={{ color: n.color, fontWeight: 700 }}>{n.label}</Typography>
+                          <Typography variant="h6" sx={{ color: n.color, fontWeight: 800 }}>{n.key === 'calories' ? `${value}` : `${value}g`}</Typography>
+                        </CardContent>
+                      </Card>
+                    </Grid>
+                  );
+                })}
+              </Grid>
+            </Box>
           </Stack>
         </DialogContent>
 
@@ -668,6 +985,72 @@ function FoodManagement() {
           >
             {saving ? "Đang lưu..." : editingFood ? "Cập nhật" : "Thêm mới"}
           </Button>
+        </DialogActions>
+      </Dialog>
+
+      {/* Detail Dialog */}
+      <Dialog
+        open={showDetailModal}
+        onClose={handleCloseDetail}
+        maxWidth="sm"
+        fullWidth
+        PaperProps={{ sx: { borderRadius: 3, overflow: 'hidden' } }}
+      >
+        <DialogTitle sx={{ fontWeight: 800, fontSize: 18, display: 'flex', alignItems: 'center', gap: 1 }}>
+          <Avatar sx={{ width: 36, height: 36, bgcolor: 'primary.main' }}><FoodIcon sx={{ fontSize: 20 }} /></Avatar>
+          {detailFood ? `Chi tiết món ăn: ${detailFood.name}` : 'Chi tiết món ăn'}
+        </DialogTitle>
+        <DialogContent sx={{ pt: 1, pb: 2, px: 3 }}>
+          <Box sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr 1fr', sm: 'repeat(4, minmax(0, 1fr))' }, gap: 1, mb: 2 }}>
+            {NUTRITION_CONFIG.map((n) => (
+              <Card key={n.key} elevation={0} sx={{ border: '1px solid', borderColor: 'divider', borderRadius: 2, bgcolor: alpha(n.color, 0.06) }}>
+                <CardContent sx={{ p: 1.25, textAlign: 'center' }}>
+                  <Typography sx={{ fontSize: 13, fontWeight: 700, color: n.color }}>{n.label}</Typography>
+                  <Typography sx={{ fontSize: 18, fontWeight: 800 }}>{detailFood ? detailFood[n.key] : 0}</Typography>
+                  <Typography variant="caption" color="text.secondary">{n.unit}</Typography>
+                </CardContent>
+              </Card>
+            ))}
+          </Box>
+
+          <Typography sx={{ fontWeight: 700, mb: 1 }}>Nguyên liệu</Typography>
+          <TableContainer component={Box} sx={{ maxHeight: 260, border: '1px solid', borderColor: 'divider', borderRadius: 2 }}>
+            <Table stickyHeader size="small">
+              <TableHead>
+                <TableRow>
+                  <TableCell sx={{ fontWeight: 700, p: 1 }}>Nguyên liệu</TableCell>
+                  <TableCell align="center" sx={{ fontWeight: 700, p: 1 }}>Khối lượng</TableCell>
+                  <TableCell align="center" sx={{ fontWeight: 700, p: 1 }}>Calories</TableCell>
+                  <TableCell align="center" sx={{ fontWeight: 700, p: 1 }}>Protein</TableCell>
+                  <TableCell align="center" sx={{ fontWeight: 700, p: 1 }}>Fat</TableCell>
+                  <TableCell align="center" sx={{ fontWeight: 700, p: 1 }}>Carb</TableCell>
+                </TableRow>
+              </TableHead>
+              <TableBody>
+                {detailFood && detailFood.ingredients && detailFood.ingredients.length > 0 ? (
+                  detailFood.ingredients.map((item, idx) => (
+                    <TableRow key={idx} hover>
+                      <TableCell sx={{ p: 1 }}>{item.name}</TableCell>
+                      <TableCell align="center" sx={{ p: 1 }}>{item.quantity}</TableCell>
+                      <TableCell align="center" sx={{ p: 1 }}>{item.calories}</TableCell>
+                      <TableCell align="center" sx={{ p: 1 }}>{item.protein}</TableCell>
+                      <TableCell align="center" sx={{ p: 1 }}>{item.fat}</TableCell>
+                      <TableCell align="center" sx={{ p: 1 }}>{item.carb}</TableCell>
+                    </TableRow>
+                  ))
+                ) : detailFood ? (
+                  <TableRow>
+                    <TableCell colSpan={6} align="center" sx={{ p: 2, color: 'text.secondary' }}>
+                      Chưa có nguyên liệu chi tiết.
+                    </TableCell>
+                  </TableRow>
+                ) : null}
+              </TableBody>
+            </Table>
+          </TableContainer>
+        </DialogContent>
+        <DialogActions sx={{ px: 3, pb: 2 }}>
+          <Button onClick={handleCloseDetail} sx={{ textTransform: 'none', fontWeight: 700 }}>Đóng</Button>
         </DialogActions>
       </Dialog>
 

@@ -3,6 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import RoleLayout from '../../layouts/RoleLayout';
 import { useAuth } from '../../context/AuthContext';
 import { get, post, put, del, ENDPOINTS } from '../../service/api';
+import { SCHOOL_ADMIN_MENU_ITEMS, createSchoolAdminMenuSelect } from './schoolAdminMenuConfig';
 import {
   Box,
   Paper,
@@ -51,16 +52,140 @@ import {
 
 // ── colour palette per grade index ────────────────────────────────────────────
 const GRADE_COLORS = [
-  { bg: '#ede9fe', icon: '#7c3aed', border: '#c4b5fd' },
-  { bg: '#dbeafe', icon: '#2563eb', border: '#93c5fd' },
-  { bg: '#dcfce7', icon: '#16a34a', border: '#86efac' },
-  { bg: '#fef9c3', icon: '#ca8a04', border: '#fde047' },
-  { bg: '#fee2e2', icon: '#dc2626', border: '#fca5a5' },
-  { bg: '#e0f2fe', icon: '#0284c7', border: '#7dd3fc' },
+  { header: '#7c3aed', light: '#ede9fe' },
+  { header: '#2563eb', light: '#dbeafe' },
+  { header: '#f59e0b', light: '#fef9c3' },
+  { header: '#16a34a', light: '#dcfce7' },
+  { header: '#dc2626', light: '#fee2e2' },
+  { header: '#0284c7', light: '#e0f2fe' },
 ];
+
+// ── TeacherSelect phải đặt ngoài ClassList để tránh unmount khi re-render ──────
+function TeacherSelect({ availability, value, onChange, error, helperText, loading }) {
+  const all       = availability || [];
+  const available = all.filter(t => !t.inCurrentYear && !t.maxYearsReached && !value.includes(t._id));
+  const selected  = all.filter(t => value.includes(t._id));
+  const inYear    = all.filter(t => t.inCurrentYear  && !value.includes(t._id));
+  const maxYears  = all.filter(t => t.maxYearsReached && !t.inCurrentYear && !value.includes(t._id));
+
+  // Xây dựng danh sách children dạng phẳng (flat) để MUI Select xử lý đúng
+  const menuItems = [];
+
+  if (loading) {
+    menuItems.push(<MenuItem key="__loading" disabled><em>Đang tải...</em></MenuItem>);
+  } else if (all.length === 0) {
+    menuItems.push(<MenuItem key="__empty" disabled><em>Không có giáo viên nào</em></MenuItem>);
+  } else {
+    // Đang được chọn
+    selected.forEach(t => {
+      menuItems.push(
+        <MenuItem key={t._id} value={t._id}>
+          <Box sx={{ display: 'flex', alignItems: 'center', width: '100%', pointerEvents: 'none' }}>
+            <Checkbox checked size="small" onChange={() => {}} sx={{ p: 0.5 }} />
+            <Avatar sx={{ width: 26, height: 26, mx: 1, bgcolor: '#ede9fe', color: '#7c3aed', fontSize: '0.75rem', fontWeight: 700 }}>
+              {t.fullName?.charAt(0)}
+            </Avatar>
+            <ListItemText
+              primary={t.fullName}
+              secondary={`${t.email}${t.yearsInClass > 0 ? ` · ${t.yearsInClass}/2 năm dạy lớp này` : ''}`}
+            />
+          </Box>
+        </MenuItem>
+      );
+    });
+
+    // Divider "Có thể chọn"
+    if (selected.length > 0 && available.length > 0) {
+      menuItems.push(
+        <MenuItem key="__div_available" disabled sx={{ fontSize: '0.72rem', color: 'text.disabled', py: 0.3, minHeight: 'unset', opacity: 1 }}>
+          — Có thể chọn —
+        </MenuItem>
+      );
+    }
+
+    // Khả dụng
+    available.forEach(t => {
+      menuItems.push(
+        <MenuItem key={t._id} value={t._id}>
+          <Box sx={{ display: 'flex', alignItems: 'center', width: '100%', pointerEvents: 'none' }}>
+            <Checkbox checked={false} size="small" onChange={() => {}} sx={{ p: 0.5 }} />
+            <Avatar sx={{ width: 26, height: 26, mx: 1, bgcolor: '#ede9fe', color: '#7c3aed', fontSize: '0.75rem', fontWeight: 700 }}>
+              {t.fullName?.charAt(0)}
+            </Avatar>
+            <ListItemText
+              primary={t.fullName}
+              secondary={`${t.email}${t.yearsInClass > 0 ? ` · ${t.yearsInClass}/2 năm dạy lớp này` : ''}`}
+            />
+          </Box>
+        </MenuItem>
+      );
+    });
+
+    // Đã có lớp trong năm
+    if (inYear.length > 0) {
+      menuItems.push(
+        <MenuItem key="__div_inyear" disabled sx={{ fontSize: '0.72rem', color: 'text.disabled', py: 0.3, minHeight: 'unset', opacity: 1 }}>
+          — Đã phụ trách lớp khác năm nay —
+        </MenuItem>
+      );
+      inYear.forEach(t => {
+        menuItems.push(
+          <MenuItem key={t._id} value={t._id} disabled sx={{ opacity: 0.5 }}>
+            <Box sx={{ display: 'flex', alignItems: 'center', width: '100%' }}>
+              <Avatar sx={{ width: 26, height: 26, mx: 1, bgcolor: '#f3f4f6', color: '#9ca3af', fontSize: '0.75rem', fontWeight: 700 }}>
+                {t.fullName?.charAt(0)}
+              </Avatar>
+              <ListItemText primary={t.fullName} secondary={`Đang dạy lớp: ${t.inCurrentYear}`} />
+            </Box>
+          </MenuItem>
+        );
+      });
+    }
+
+    // Đã đủ 2 năm
+    if (maxYears.length > 0) {
+      menuItems.push(
+        <MenuItem key="__div_maxyears" disabled sx={{ fontSize: '0.72rem', color: 'text.disabled', py: 0.3, minHeight: 'unset', opacity: 1 }}>
+          — Đã dạy lớp này đủ 2 năm —
+        </MenuItem>
+      );
+      maxYears.forEach(t => {
+        menuItems.push(
+          <MenuItem key={t._id} value={t._id} disabled sx={{ opacity: 0.5 }}>
+            <Box sx={{ display: 'flex', alignItems: 'center', width: '100%' }}>
+              <Avatar sx={{ width: 26, height: 26, mx: 1, bgcolor: '#f3f4f6', color: '#9ca3af', fontSize: '0.75rem', fontWeight: 700 }}>
+                {t.fullName?.charAt(0)}
+              </Avatar>
+              <ListItemText primary={t.fullName} secondary="Đã phụ trách lớp này 2 năm (tối đa)" />
+            </Box>
+          </MenuItem>
+        );
+      });
+    }
+  }
+
+  return (
+    <FormControl fullWidth size="small" error={!!error} required>
+      <InputLabel>Giáo viên phụ trách (bắt buộc 2)</InputLabel>
+      <Select
+        multiple
+        label="Giáo viên phụ trách (bắt buộc 2)"
+        value={value}
+        onChange={(e) => { if (e.target.value.length <= 2) onChange(e.target.value); }}
+        input={<OutlinedInput label="Giáo viên phụ trách (bắt buộc 2)" />}
+        renderValue={(sel) => all.filter(t => sel.includes(t._id)).map(t => t.fullName).join(', ')}
+      >
+        {menuItems}
+      </Select>
+      {error && <Typography variant="caption" color="error" sx={{ mt: 0.5, ml: 1.75 }}>{error}</Typography>}
+      {helperText && <Typography variant="caption" color="text.secondary" sx={{ mt: 0.5, ml: 1.75 }}>{helperText}</Typography>}
+    </FormControl>
+  );
+}
 
 function ClassList() {
   const [classes, setClasses] = useState([]);
+  const [activeAcademicYear, setActiveAcademicYear] = useState(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
   const [searchTerm, setSearchTerm] = useState('');
@@ -68,8 +193,15 @@ function ClassList() {
   // Drill-down state: null = grade list, object = selected grade
   const [selectedGrade, setSelectedGrade] = useState(null);
 
-  // Teachers list (shared by create + edit dialog)
+  // Teachers & Rooms list (shared by create + edit dialog)
   const [teachers, setTeachers] = useState([]);
+  const [rooms, setRooms] = useState([]);
+
+  // Teacher availability (theo nghiệp vụ 3 rule)
+  const [createAvailability, setCreateAvailability] = useState([]);
+  const [createAvailLoading, setCreateAvailLoading] = useState(false);
+  const [editAvailability, setEditAvailability] = useState([]);
+  const [editAvailLoading, setEditAvailLoading] = useState(false);
 
   // Create class dialog state
   const [dialogOpen, setDialogOpen] = useState(false);
@@ -79,7 +211,7 @@ function ClassList() {
   const [noActiveYear, setNoActiveYear] = useState(false);
   const [currentAcademicYear, setCurrentAcademicYear] = useState(null);
   const [grades, setGrades] = useState([]);
-  const [form, setForm] = useState({ className: '', gradeId: '', maxStudents: '', teacherIds: [] });
+  const [form, setForm] = useState({ className: '', gradeId: '', maxStudents: '', teacherIds: [], roomId: '' });
   const [formErrors, setFormErrors] = useState({});
 
   // Edit class dialog state
@@ -87,22 +219,71 @@ function ClassList() {
   const [editDialogLoading, setEditDialogLoading] = useState(false);
   const [editFetchingData, setEditFetchingData] = useState(false);
   const [editDialogError, setEditDialogError] = useState(null);
-  const [editForm, setEditForm] = useState({ className: '', gradeId: '', maxStudents: '', teacherIds: [] });
+  const [editForm, setEditForm] = useState({ className: '', gradeId: '', maxStudents: '', teacherIds: [], roomId: '' });
   const [editFormErrors, setEditFormErrors] = useState({});
   const [editClassId, setEditClassId] = useState(null);
+
+  // Delete class state
+  const [classDeleteConfirm, setClassDeleteConfirm] = useState(null);
+  const [classDeleteLoading, setClassDeleteLoading] = useState(false);
 
   // Grade CRUD state
   const [gradeList, setGradeList] = useState([]);
   const [gradeLoading, setGradeLoading] = useState(false);
   const [gradeError, setGradeError] = useState(null);
+  const [gradeSearchTerm, setGradeSearchTerm] = useState('');
   const [gradeDialog, setGradeDialog] = useState({ open: false, mode: 'create', data: null });
-  const [gradeForm, setGradeForm] = useState({ gradeName: '', description: '' });
+  const [gradeForm, setGradeForm] = useState({ gradeName: '', description: '', maxClasses: 10, minAge: '', maxAge: '', ageRange: '' });
   const [gradeFormErrors, setGradeFormErrors] = useState({});
   const [gradeSubmitting, setGradeSubmitting] = useState(false);
   const [gradeDeleteConfirm, setGradeDeleteConfirm] = useState(null);
 
   const navigate = useNavigate();
   const { user, hasRole, logout, isInitializing } = useAuth();
+
+  // ── fetch teacher availability when className changes (create dialog) ────────
+  useEffect(() => {
+    if (!dialogOpen) return;
+    let cancelled = false;
+    const fetchAvail = async () => {
+      setCreateAvailLoading(true);
+      try {
+        const params = form.className.trim() ? `?className=${encodeURIComponent(form.className.trim())}` : '';
+        const res = await get(`${ENDPOINTS.SCHOOL_ADMIN.TEACHER_AVAILABILITY}${params}`);
+        if (!cancelled) setCreateAvailability(res.data || []);
+      } catch (_) {
+        if (!cancelled) setCreateAvailability([]);
+      } finally {
+        if (!cancelled) setCreateAvailLoading(false);
+      }
+    };
+    const timer = setTimeout(fetchAvail, 300);
+    return () => { cancelled = true; clearTimeout(timer); };
+  }, [form.className, dialogOpen]);
+
+  // ── fetch teacher availability when className changes (edit dialog) ───────────
+  useEffect(() => {
+    if (!editDialogOpen) return;
+    let cancelled = false;
+    const fetchAvail = async () => {
+      setEditAvailLoading(true);
+      try {
+        const cn = editForm.className.trim();
+        const params = new URLSearchParams();
+        if (cn) params.set('className', cn);
+        if (editClassId) params.set('excludeClassId', editClassId);
+        const qs = params.toString() ? `?${params.toString()}` : '';
+        const res = await get(`${ENDPOINTS.SCHOOL_ADMIN.TEACHER_AVAILABILITY}${qs}`);
+        if (!cancelled) setEditAvailability(res.data || []);
+      } catch (_) {
+        if (!cancelled) setEditAvailability([]);
+      } finally {
+        if (!cancelled) setEditAvailLoading(false);
+      }
+    };
+    const timer = setTimeout(fetchAvail, 300);
+    return () => { cancelled = true; clearTimeout(timer); };
+  }, [editForm.className, editDialogOpen, editClassId]);
 
   // ── auth guard ────────────────────────────────────────────────────────────────
   useEffect(() => {
@@ -120,6 +301,7 @@ function ClassList() {
       setError(null);
       const response = await get(ENDPOINTS.CLASSES.LIST);
       setClasses(response.data || []);
+      setActiveAcademicYear(response.academicYear || null);
     } catch (err) {
       setError(err.message || 'Lỗi khi tải danh sách lớp học');
     } finally {
@@ -143,7 +325,10 @@ function ClassList() {
   // ── grade CRUD ────────────────────────────────────────────────────────────────
   const openGradeDialog = (mode, data = null) => {
     setGradeFormErrors({});
-    setGradeForm(data ? { gradeName: data.gradeName, description: data.description || '' } : { gradeName: '', description: '' });
+    setGradeForm(data
+      ? { gradeName: data.gradeName, description: data.description || '', maxClasses: data.maxClasses ?? 10, minAge: data.minAge || '', maxAge: data.maxAge || '', ageRange: data.ageRange || '' }
+      : { gradeName: '', description: '', maxClasses: 10, minAge: '', maxAge: '', ageRange: '' }
+    );
     setGradeDialog({ open: true, mode, data });
   };
 
@@ -157,6 +342,15 @@ function ClassList() {
     if (gradeForm.description.trim().length > 50) {
       errs.description = 'Mô tả không được quá 50 ký tự';
     }
+    const mc = Number(gradeForm.maxClasses);
+    if (!Number.isInteger(mc) || mc < 1 || mc > 10) {
+      errs.maxClasses = 'Số lớp tối đa phải từ 1 đến 10';
+    }
+    const minA = gradeForm.minAge !== '' ? Number(gradeForm.minAge) : null;
+    const maxA = gradeForm.maxAge !== '' ? Number(gradeForm.maxAge) : null;
+    if (minA !== null && (isNaN(minA) || minA < 0)) errs.minAge = 'Độ tuổi không hợp lệ';
+    if (maxA !== null && (isNaN(maxA) || maxA < 0)) errs.maxAge = 'Độ tuổi không hợp lệ';
+    if (minA !== null && maxA !== null && minA >= maxA) errs.maxAge = 'Tuổi tối đa phải lớn hơn tuổi tối thiểu';
     setGradeFormErrors(errs);
     return Object.keys(errs).length === 0;
   };
@@ -206,23 +400,26 @@ function ClassList() {
   const openCreateDialog = async (presetGradeId = '') => {
     setDialogError(null);
     setNoActiveYear(false);
-    setForm({ className: '', gradeId: presetGradeId, maxStudents: '', teacherIds: [] });
+    setForm({ className: '', gradeId: presetGradeId, maxStudents: '', teacherIds: [], roomId: '' });
     setFormErrors({});
     setCurrentAcademicYear(null);
     setGrades([]);
     setDialogOpen(true);
     setFetchingDialogData(true);
     try {
-      const [yearRes, gradesRes, teachersRes] = await Promise.all([
+      const [yearRes, gradesRes, teachersRes, roomsRes] = await Promise.allSettled([
         get(ENDPOINTS.SCHOOL_ADMIN.ACADEMIC_YEARS.CURRENT),
         get(ENDPOINTS.CLASSES.GRADES),
         get(ENDPOINTS.SCHOOL_ADMIN.TEACHERS),
+        get(ENDPOINTS.SCHOOL_ADMIN.CLASSROOMS),
       ]);
-      const year = yearRes.data || null;
+      const year = yearRes.status === 'fulfilled' ? (yearRes.value?.data || null) : null;
       setCurrentAcademicYear(year);
-      setGrades(gradesRes.data || []);
-      setTeachers(teachersRes.data || []);
+      setGrades(gradesRes.status === 'fulfilled' ? (gradesRes.value?.data || []) : []);
+      setTeachers(teachersRes.status === 'fulfilled' ? (teachersRes.value?.data || []) : []);
+      setRooms(roomsRes.status === 'fulfilled' ? (roomsRes.value?.data || []) : []);
       if (!year) setNoActiveYear(true);
+      if (teachersRes.status === 'rejected') console.error('Lấy giáo viên thất bại:', teachersRes.reason);
     } catch (err) {
       setDialogError('Không thể tải dữ liệu. Vui lòng thử lại.');
     } finally {
@@ -243,7 +440,7 @@ function ClassList() {
       if (isNaN(val) || val < 0) errs.maxStudents = 'Sĩ số không hợp lệ';
       else if (val > 30) errs.maxStudents = 'Sĩ số tối đa không được vượt quá 30';
     }
-    if (form.teacherIds.length > 2) errs.teacherIds = 'Tối đa 2 giáo viên phụ trách';
+    if (form.teacherIds.length !== 2) errs.teacherIds = 'Bắt buộc chọn đúng 2 giáo viên phụ trách';
     setFormErrors(errs);
     return Object.keys(errs).length === 0;
   };
@@ -258,6 +455,7 @@ function ClassList() {
         gradeId: form.gradeId,
         maxStudents: form.maxStudents !== '' ? Number(form.maxStudents) : 0,
         teacherIds: form.teacherIds,
+        roomId: form.roomId || null,
       });
       setDialogOpen(false);
       fetchClasses();
@@ -284,16 +482,20 @@ function ClassList() {
       gradeId: cls.gradeId?._id || cls.gradeId || '',
       maxStudents: cls.maxStudents || '',
       teacherIds: (cls.teacherIds || []).map(t => t._id || t),
+      roomId: cls.roomId?._id || cls.roomId || '',
     });
     setEditDialogOpen(true);
     setEditFetchingData(true);
     try {
-      const [gradesRes, teachersRes] = await Promise.all([
+      const [gradesRes, teachersRes, roomsRes] = await Promise.allSettled([
         get(ENDPOINTS.CLASSES.GRADES),
         get(ENDPOINTS.SCHOOL_ADMIN.TEACHERS),
+        get(ENDPOINTS.SCHOOL_ADMIN.CLASSROOMS),
       ]);
-      setGrades(gradesRes.data || []);
-      setTeachers(teachersRes.data || []);
+      setGrades(gradesRes.status === 'fulfilled' ? (gradesRes.value?.data || []) : []);
+      setTeachers(teachersRes.status === 'fulfilled' ? (teachersRes.value?.data || []) : []);
+      setRooms(roomsRes.status === 'fulfilled' ? (roomsRes.value?.data || []) : []);
+      if (teachersRes.status === 'rejected') console.error('Lấy giáo viên thất bại:', teachersRes.reason);
     } catch (err) {
       setEditDialogError('Không thể tải dữ liệu. Vui lòng thử lại.');
     } finally {
@@ -314,7 +516,7 @@ function ClassList() {
       if (isNaN(val) || val < 0) errs.maxStudents = 'Sĩ số không hợp lệ';
       else if (val > 30) errs.maxStudents = 'Sĩ số tối đa không được vượt quá 30';
     }
-    if (editForm.teacherIds.length > 2) errs.teacherIds = 'Tối đa 2 giáo viên phụ trách';
+    if (editForm.teacherIds.length !== 2) errs.teacherIds = 'Bắt buộc chọn đúng 2 giáo viên phụ trách';
     setEditFormErrors(errs);
     return Object.keys(errs).length === 0;
   };
@@ -329,6 +531,7 @@ function ClassList() {
         gradeId: editForm.gradeId,
         maxStudents: editForm.maxStudents !== '' ? Number(editForm.maxStudents) : 0,
         teacherIds: editForm.teacherIds,
+        roomId: editForm.roomId || null,
       });
       setEditDialogOpen(false);
       fetchClasses();
@@ -339,85 +542,28 @@ function ClassList() {
     }
   };
 
+  // ── delete class ──────────────────────────────────────────────────────────────
+  const handleDeleteClass = async () => {
+    if (!classDeleteConfirm) return;
+    try {
+      setClassDeleteLoading(true);
+      await del(ENDPOINTS.CLASSES.DELETE(classDeleteConfirm._id));
+      setClassDeleteConfirm(null);
+      fetchClasses();
+    } catch (err) {
+      setError(err.data?.message || err.message || 'Lỗi khi xóa lớp học');
+      setClassDeleteConfirm(null);
+    } finally {
+      setClassDeleteLoading(false);
+    }
+  };
+
   // ── navigation ────────────────────────────────────────────────────────────────
   const handleLogout = () => { logout(); navigate('/login', { replace: true }); };
   const handleViewProfile = () => navigate('/profile');
   const handleViewStudents = (classId) => navigate(`/school-admin/classes/${classId}/students`);
 
-  const handleMenuSelect = async (key) => {
-    if (key === 'classes') {
-      return;
-    }
-    if (key === 'academic-report') {
-      try {
-        const resp = await get(ENDPOINTS.SCHOOL_ADMIN.ACADEMIC_YEARS.CURRENT);
-        const yearId = resp?.status === 'success' ? resp?.data?._id : null;
-        if (yearId) navigate(`/school-admin/academic-years/${yearId}/report`);
-        else navigate('/school-admin/academic-years');
-      } catch (_) {
-        navigate('/school-admin/academic-years');
-      }
-      return;
-    }
-    const routes = {
-      'academic-years': '/school-admin/academic-years',
-      'academic-year-setup': '/school-admin/academic-years',
-      'academic-curriculum': '/school-admin/curriculum',
-      'academic-schedule': '/school-admin/timetable',
-      'academic-plan': '/school-admin/classes',
-      'academic-students': '/school-admin/class-list',
-      menu: '/school-admin/menus',
-      students: '/school-admin/students',
-      contacts: '/school-admin/contacts',
-      overview: '/school-admin',
-      qa: '/school-admin/qa',
-      blogs: '/school-admin/blogs',
-      documents: '/school-admin/documents',
-      'public-info': '/school-admin/public-info',
-      attendance: '/school-admin/attendance/overview',
-    };
-    if (routes[key]) navigate(routes[key]);
-  };
-
-  const getMenuItems = () => {
-    if (hasRole('SystemAdmin')) {
-      return [
-        { key: 'overview', label: 'Tổng quan hệ thống' },
-        { key: 'schools', label: 'Quản lý trường' },
-        { key: 'accounts', label: 'Quản lý tài khoản' },
-        { key: 'classes', label: 'Lớp học (toàn hệ thống)' },
-        { key: 'roles', label: 'Phân quyền & vai trò' },
-        { key: 'reports', label: 'Báo cáo tổng hợp' },
-      ];
-    }
-    return [
-      { key: 'overview', label: 'Tổng quan trường' },
-      {
-        key: 'academic-years',
-        label: 'Quản lý năm học',
-        children: [
-          { key: 'academic-year-setup', label: 'Thiết lập năm học' },
-          { key: 'academic-plan', label: 'Thiết lập kế hoạch' },
-          { key: 'academic-students', label: 'Danh sách lớp học' },
-          { key: 'academic-curriculum', label: 'Chương trình giáo dục' },
-            { key: 'academic-schedule', label: 'Thời gian biểu' },
-          { key: 'academic-report', label: 'Báo cáo & thống kê' },
-        ],
-      },
-      { key: 'classes', label: 'Lớp học' },
-      { key: 'menu', label: 'Quản lý thực đơn' },
-      { key: 'teachers', label: 'Giáo viên' },
-      { key: 'students', label: 'Học sinh & phụ huynh' },
-      { key: 'assets', label: 'Quản lý tài sản' },
-      { key: 'reports', label: 'Báo cáo của trường' },
-      { key: 'contacts', label: 'Liên hệ' },
-      { key: 'qa', label: 'Câu hỏi' },
-      { key: 'blogs', label: 'Quản lý blog' },
-      { key: 'documents', label: 'Quản lý tài liệu' },
-      { key: 'public-info', label: 'Thông tin công khai' },
-      { key: 'attendance', label: 'Quản lý điểm danh' },
-    ];
-  };
+  const handleMenuSelect = createSchoolAdminMenuSelect(navigate);
 
   // ── computed ──────────────────────────────────────────────────────────────────
   const classesInSelectedGrade = useMemo(() => {
@@ -444,46 +590,20 @@ function ClassList() {
     return map;
   }, [classes]);
 
-  // ── teacher multi-select helper ───────────────────────────────────────────────
-  const TeacherSelect = ({ value, onChange, error, helperText }) => (
-    <FormControl fullWidth size="small" error={!!error}>
-      <InputLabel>Giáo viên phụ trách (tối đa 2)</InputLabel>
-      <Select
-        multiple
-        label="Giáo viên phụ trách (tối đa 2)"
-        value={value}
-        onChange={(e) => {
-          const val = e.target.value;
-          if (val.length <= 2) onChange(val);
-        }}
-        input={<OutlinedInput label="Giáo viên phụ trách (tối đa 2)" />}
-        renderValue={(selected) =>
-          teachers.filter(t => selected.includes(t._id)).map(t => t.fullName).join(', ')
-        }
-      >
-        {teachers.length === 0 ? (
-          <MenuItem disabled><em>Không có giáo viên nào</em></MenuItem>
-        ) : teachers.map((t) => (
-          <MenuItem key={t._id} value={t._id}>
-            <Checkbox checked={value.includes(t._id)} size="small" />
-            <Avatar sx={{ width: 26, height: 26, mr: 1, bgcolor: '#ede9fe', color: '#7c3aed', fontSize: '0.75rem', fontWeight: 700 }}>
-              {t.fullName?.charAt(0)}
-            </Avatar>
-            <ListItemText primary={t.fullName} secondary={t.email} />
-          </MenuItem>
-        ))}
-      </Select>
-      {error && <Typography variant="caption" color="error" sx={{ mt: 0.5, ml: 1.75 }}>{error}</Typography>}
-      {helperText && <Typography variant="caption" color="text.secondary" sx={{ mt: 0.5, ml: 1.75 }}>{helperText}</Typography>}
-    </FormControl>
-  );
+  // ── occupied teacher IDs (teachers already assigned to a class this year) ─────
+  const occupiedTeacherIds = useMemo(() => {
+    const ids = new Set();
+    classes.forEach(cls => (cls.teacherIds || []).forEach(t => ids.add(t._id || t)));
+    return ids;
+  }, [classes]);
+
 
   // ── render ────────────────────────────────────────────────────────────────────
   return (
     <RoleLayout
       title="Quản lý Lớp Học"
       description="Quản lý khối lớp và danh sách lớp học."
-      menuItems={getMenuItems()}
+      menuItems={SCHOOL_ADMIN_MENU_ITEMS}
       activeKey="classes"
       onLogout={handleLogout}
       onViewProfile={handleViewProfile}
@@ -496,9 +616,16 @@ function ClassList() {
       {/* ── Header gradient banner ──────────────────────────────────────────── */}
       <Paper
         elevation={0}
-        sx={{ mb: 3, p: 3, background: 'linear-gradient(135deg, #6366f1 0%, #4f46e5 100%)', borderRadius: 2 }}
+        sx={{ mb: 3, p: 3, background: 'linear-gradient(135deg, #6366f1 0%, #4f46e5 100%)', borderRadius: 2, position: 'relative' }}
       >
         <Stack direction="row" alignItems="center" justifyContent="space-between">
+          {activeAcademicYear && (
+            <Chip
+              label={`Năm học: ${activeAcademicYear.yearName}`}
+              size="small"
+              sx={{ position: 'absolute', top: 12, right: 16, bgcolor: 'rgba(255,255,255,0.18)', color: '#fff', fontWeight: 600, fontSize: '0.72rem', border: '1px solid rgba(255,255,255,0.3)' }}
+            />
+          )}
           <Stack direction="row" alignItems="center" spacing={1.5}>
             {selectedGrade && (
               <IconButton
@@ -542,15 +669,17 @@ function ClassList() {
       {/* GRADE LIST VIEW                                                        */}
       {/* ══════════════════════════════════════════════════════════════════════ */}
       {!selectedGrade && (
-        <Paper elevation={1} sx={{ borderRadius: 2, p: 3 }}>
-          <Stack direction="row" alignItems="center" justifyContent="space-between" mb={3}>
-            <Box>
-              <Typography variant="subtitle2" fontWeight={600}>Danh sách khối lớp</Typography>
-              <Typography variant="caption" color="text.secondary">
-                Chọn khối để xem danh sách lớp học
-              </Typography>
-            </Box>
-            <Stack direction="row" spacing={1}>
+        <Box>
+          {/* ── Toolbar ─────────────────────────────────────────────────── */}
+          <Stack direction={{ xs: 'column', sm: 'row' }} spacing={1.5} alignItems={{ sm: 'center' }} mb={2.5}>
+            <TextField
+              placeholder="Tìm theo tên khối, độ tuổi"
+              size="small"
+              value={gradeSearchTerm}
+              onChange={e => setGradeSearchTerm(e.target.value)}
+              sx={{ flex: 1, maxWidth: 320, bgcolor: '#fff', borderRadius: 1.5 }}
+            />
+            <Stack direction="row" spacing={1} ml="auto">
               <Button
                 variant="outlined"
                 color="inherit"
@@ -564,9 +693,9 @@ function ClassList() {
                 variant="contained"
                 startIcon={<AddIcon />}
                 onClick={() => openGradeDialog('create')}
-                sx={{ bgcolor: '#6366f1', '&:hover': { bgcolor: '#4f46e5' }, borderRadius: 1.5, textTransform: 'none', fontWeight: 600 }}
+                sx={{ bgcolor: '#16a34a', '&:hover': { bgcolor: '#15803d' }, borderRadius: 1.5, textTransform: 'none', fontWeight: 600 }}
               >
-                Thêm khối lớp
+                Thêm khối mới
               </Button>
             </Stack>
           </Stack>
@@ -587,121 +716,115 @@ function ClassList() {
                 startIcon={<AddIcon />}
                 onClick={() => openGradeDialog('create')}
                 size="small"
-                sx={{ bgcolor: '#6366f1', '&:hover': { bgcolor: '#4f46e5' }, mt: 1, textTransform: 'none' }}
+                sx={{ bgcolor: '#16a34a', '&:hover': { bgcolor: '#15803d' }, mt: 1, textTransform: 'none' }}
               >
                 Tạo khối lớp đầu tiên
               </Button>
             </Stack>
           ) : (
-            <Grid container spacing={2}>
-              {gradeList.map((g, idx) => {
-                const color = GRADE_COLORS[idx % GRADE_COLORS.length];
-                const classCount = classCountByGrade[String(g._id)] || 0;
-                return (
-                  <Grid item xs={12} sm={6} md={4} key={g._id}>
-                    <Paper
-                      variant="outlined"
-                      onClick={() => { setSelectedGrade(g); setSearchTerm(''); }}
-                      sx={{
-                        p: 2.5,
-                        borderRadius: 2.5,
-                        cursor: 'pointer',
-                        borderColor: color.border,
-                        bgcolor: '#fff',
-                        transition: 'all 0.18s ease',
-                        '&:hover': {
-                          boxShadow: `0 6px 20px ${color.icon}22`,
-                          transform: 'translateY(-3px)',
-                          borderColor: color.icon,
-                          bgcolor: color.bg + '33',
-                        },
-                        position: 'relative',
-                        overflow: 'hidden',
-                      }}
-                    >
-                      {/* top-right decorative circle */}
-                      <Box sx={{ position: 'absolute', top: -24, right: -24, width: 90, height: 90, borderRadius: '50%', bgcolor: color.bg, opacity: 0.55, pointerEvents: 'none' }} />
-
-                      <Stack direction="row" alignItems="flex-start" justifyContent="space-between">
-                        <Box
-                          sx={{
-                            width: 44, height: 44, borderRadius: 2,
-                            bgcolor: color.bg,
-                            border: `1.5px solid ${color.border}`,
-                            display: 'flex', alignItems: 'center', justifyContent: 'center', mb: 1.5,
-                          }}
-                        >
-                          <LayersIcon sx={{ color: color.icon, fontSize: 22 }} />
-                        </Box>
-                        {/* Edit / Delete */}
-                        <Stack direction="row" spacing={0.25} onClick={e => e.stopPropagation()}>
-                          <Tooltip title="Chỉnh sửa">
-                            <IconButton size="small" onClick={() => openGradeDialog('edit', g)}>
-                              <EditIcon fontSize="small" sx={{ color: color.icon }} />
-                            </IconButton>
-                          </Tooltip>
-                          <Tooltip title="Xóa">
-                            <IconButton size="small" onClick={() => setGradeDeleteConfirm(g)}>
-                              <DeleteIcon fontSize="small" color="error" />
-                            </IconButton>
-                          </Tooltip>
-                        </Stack>
-                      </Stack>
-
-                      <Typography
+            <Grid container spacing={2.5}>
+              {gradeList
+                .filter(g => {
+                  const term = gradeSearchTerm.toLowerCase();
+                  if (!term) return true;
+                  return (
+                    g.gradeName.toLowerCase().includes(term) ||
+                    (g.description || '').toLowerCase().includes(term) ||
+                    (g.ageRange || '').toLowerCase().includes(term)
+                  );
+                })
+                .map((g, idx) => {
+                  const color = GRADE_COLORS[idx % GRADE_COLORS.length];
+                  const classCount = classCountByGrade[String(g._id)] || 0;
+                  const ageLabel = g.ageRange || 'Chưa cập nhật';
+                  const teacherNames = (g.teacherNames || []).slice(0, 4);
+                  return (
+                    <Grid item xs={12} sm={6} md={4} key={g._id}>
+                      <Paper
+                        elevation={2}
                         sx={{
-                          fontSize: '1.35rem',
-                          fontWeight: 700,
-                          color: color.icon,
-                          letterSpacing: '-0.3px',
-                          lineHeight: 1.25,
-                          mb: 0.4,
-                          fontFamily: '"Inter", "Roboto", sans-serif',
+                          borderRadius: 2,
+                          overflow: 'hidden',
+                          transition: 'transform 0.18s, box-shadow 0.18s',
+                          '&:hover': { transform: 'translateY(-3px)', boxShadow: 6 },
                         }}
                       >
-                        Khối {g.gradeName}
-                      </Typography>
-                      {g.description ? (
-                        <Typography
-                          variant="body2"
-                          color="text.secondary"
-                          sx={{ display: 'block', mb: 1, lineHeight: 1.5, fontSize: '0.82rem' }}
-                        >
-                          {g.description}
-                        </Typography>
-                      ) : (
-                        <Box sx={{ mb: 1 }} />
-                      )}
-
-                      <Stack direction="row" alignItems="center" justifyContent="space-between" mt={0.5}>
-                        <Stack direction="row" alignItems="center" spacing={0.5}>
-                          <ClassIcon sx={{ fontSize: 14, color: color.icon, opacity: 0.7 }} />
-                          <Typography
-                            sx={{ fontSize: '0.8rem', fontWeight: 600, color: 'text.secondary' }}
-                          >
-                            {classCount} lớp học
-                          </Typography>
-                        </Stack>
-                        <Chip
-                          label="Xem lớp →"
-                          size="small"
+                        {/* Colored header */}
+                        <Box
                           sx={{
-                            bgcolor: color.bg,
-                            color: color.icon,
-                            fontWeight: 700,
-                            fontSize: '0.72rem',
-                            border: `1px solid ${color.border}`,
-                            letterSpacing: '0.2px',
+                            bgcolor: color.header,
+                            px: 2.5,
+                            py: 1.75,
+                            cursor: 'pointer',
                           }}
-                        />
-                      </Stack>
-                    </Paper>
-                  </Grid>
-                );
-              })}
+                          onClick={() => { setSelectedGrade(g); setSearchTerm(''); }}
+                        >
+                          <Typography variant="h6" fontWeight={700} color="#fff" noWrap>
+                            Khối {g.gradeName}
+                          </Typography>
+                        </Box>
+
+                        {/* Body */}
+                        <Box
+                          sx={{ px: 2.5, py: 2, bgcolor: '#fff', cursor: 'pointer' }}
+                          onClick={() => { setSelectedGrade(g); setSearchTerm(''); }}
+                        >
+                          <Stack spacing={0.75}>
+                            <Stack direction="row" spacing={0.5}>
+                              <Typography variant="body2" color="text.secondary" sx={{ minWidth: 90 }}>Độ tuổi:</Typography>
+                              <Typography variant="body2" fontWeight={600}>{ageLabel}</Typography>
+                            </Stack>
+                            <Stack direction="row" spacing={0.5}>
+                              <Typography variant="body2" color="text.secondary" sx={{ minWidth: 90 }}>Số lớp:</Typography>
+                              <Typography variant="body2" fontWeight={600}>{classCount}/{g.maxClasses ?? 10}</Typography>
+                            </Stack>
+                            <Stack direction="row" spacing={0.5}>
+                              <Typography variant="body2" color="text.secondary" sx={{ minWidth: 90 }}>Tổng số trẻ:</Typography>
+                              <Typography variant="body2" fontWeight={600}>{g.totalStudents ?? 0}</Typography>
+                            </Stack>
+                          </Stack>
+                        </Box>
+
+                        {/* Footer */}
+                        <Box sx={{ px: 2.5, py: 1.5, bgcolor: '#fff', borderTop: '1px solid', borderColor: 'divider' }}>
+                          <Stack direction="row" alignItems="center" justifyContent="space-between">
+                            <Button
+                              variant="outlined"
+                              size="small"
+                              onClick={() => { setSelectedGrade(g); setSearchTerm(''); }}
+                              sx={{ textTransform: 'none', fontWeight: 600, borderColor: '#2563eb', color: '#2563eb', '&:hover': { borderColor: '#1d4ed8', bgcolor: '#eff6ff' }, borderRadius: 1.5, fontSize: '0.8rem' }}
+                            >
+                              Quản lý lớp →
+                            </Button>
+                            <Stack direction="row" spacing={0.5} onClick={e => e.stopPropagation()}>
+                              <Tooltip title="Chỉnh sửa">
+                                <IconButton
+                                  size="small"
+                                  onClick={() => openGradeDialog('edit', g)}
+                                  sx={{ bgcolor: '#fef3c7', color: '#d97706', '&:hover': { bgcolor: '#fde68a' }, borderRadius: 1 }}
+                                >
+                                  <EditIcon fontSize="small" />
+                                </IconButton>
+                              </Tooltip>
+                              <Tooltip title="Xóa">
+                                <IconButton
+                                  size="small"
+                                  onClick={() => setGradeDeleteConfirm(g)}
+                                  sx={{ bgcolor: '#fee2e2', color: '#dc2626', '&:hover': { bgcolor: '#fecaca' }, borderRadius: 1 }}
+                                >
+                                  <DeleteIcon fontSize="small" />
+                                </IconButton>
+                              </Tooltip>
+                            </Stack>
+                          </Stack>
+                        </Box>
+                      </Paper>
+                    </Grid>
+                  );
+                })}
             </Grid>
           )}
-        </Paper>
+        </Box>
       )}
 
       {/* ══════════════════════════════════════════════════════════════════════ */}
@@ -726,7 +849,7 @@ function ClassList() {
                   <Typography variant="subtitle2" fontWeight={700}>
                     Khối {selectedGrade.gradeName}
                   </Typography>
-                  <Chip label={`${classesInSelectedGrade.length} lớp`} size="small" sx={{ fontWeight: 600, fontSize: '0.7rem' }} />
+                  <Chip label={`${classesInSelectedGrade.length}/${selectedGrade.maxClasses ?? 10} lớp`} size="small" sx={{ fontWeight: 600, fontSize: '0.7rem' }} />
                 </Stack>
                 {selectedGrade.description && (
                   <Typography variant="caption" color="text.secondary" sx={{ ml: 5 }}>
@@ -796,6 +919,7 @@ function ClassList() {
                       <TableCell sx={{ fontWeight: 700, py: 1.5 }}>Năm học</TableCell>
                       <TableCell align="center" sx={{ fontWeight: 700, py: 1.5 }}>Sĩ số tối đa</TableCell>
                       <TableCell sx={{ fontWeight: 700, py: 1.5 }}>Giáo viên</TableCell>
+                      <TableCell sx={{ fontWeight: 700, py: 1.5 }}>Phòng học</TableCell>
                       <TableCell align="center" sx={{ fontWeight: 700, py: 1.5 }}>Thao tác</TableCell>
                     </TableRow>
                   </TableHead>
@@ -817,9 +941,19 @@ function ClassList() {
                               {cls.teacherIds.map((t, i) => (
                                 <Stack key={t._id || i} direction="row" alignItems="center" spacing={0.5}>
                                   <PersonIcon sx={{ fontSize: 13, color: '#7c3aed' }} />
-                                  <Typography variant="caption" fontWeight={500}>{t.fullName || t}</Typography>
+                                  <Typography variant="caption" fontWeight={500}>{t.userId?.fullName || t.fullName || t}</Typography>
                                 </Stack>
                               ))}
+                            </Stack>
+                          ) : (
+                            <Typography variant="caption" color="text.disabled">Chưa có</Typography>
+                          )}
+                        </TableCell>
+                        <TableCell>
+                          {cls.roomId ? (
+                            <Stack spacing={0}>
+                              <Typography variant="caption" fontWeight={600}>{cls.roomId.roomName}</Typography>
+                              <Typography variant="caption" color="text.secondary">Tầng {cls.roomId.floor}</Typography>
                             </Stack>
                           ) : (
                             <Typography variant="caption" color="text.disabled">Chưa có</Typography>
@@ -844,6 +978,15 @@ function ClassList() {
                               sx={{ bgcolor: 'grey.100', color: 'text.secondary', boxShadow: 'none', '&:hover': { bgcolor: 'grey.200', boxShadow: 'none' }, borderRadius: 1.5, textTransform: 'none', fontSize: '0.75rem', fontWeight: 600, py: 0.5 }}
                             >
                               Sửa
+                            </Button>
+                            <Button
+                              size="small"
+                              variant="contained"
+                              startIcon={<DeleteIcon sx={{ fontSize: '0.875rem !important' }} />}
+                              onClick={() => setClassDeleteConfirm(cls)}
+                              sx={{ bgcolor: 'rgba(220,38,38,0.08)', color: '#dc2626', boxShadow: 'none', '&:hover': { bgcolor: 'rgba(220,38,38,0.18)', boxShadow: 'none' }, borderRadius: 1.5, textTransform: 'none', fontSize: '0.75rem', fontWeight: 600, py: 0.5 }}
+                            >
+                              Xóa
                             </Button>
                           </Stack>
                         </TableCell>
@@ -890,6 +1033,28 @@ function ClassList() {
               onChange={(e) => setGradeForm((f) => ({ ...f, description: e.target.value }))}
               error={!!gradeFormErrors.description}
               helperText={gradeFormErrors.description || `${gradeForm.description.length}/50 ký tự`}
+              inputProps={{ maxLength: 50 }}
+            />
+            <TextField
+              label="Số lớp tối đa"
+              required
+              fullWidth
+              size="small"
+              type="number"
+              value={gradeForm.maxClasses}
+              onChange={(e) => setGradeForm((f) => ({ ...f, maxClasses: e.target.value }))}
+              error={!!gradeFormErrors.maxClasses}
+              helperText={gradeFormErrors.maxClasses || 'Tối đa 10 lớp trong một khối'}
+              inputProps={{ min: 1, max: 10 }}
+            />
+            <TextField
+              label="Độ tuổi"
+              fullWidth
+              size="small"
+              value={gradeForm.ageRange}
+              onChange={(e) => setGradeForm((f) => ({ ...f, ageRange: e.target.value }))}
+              error={!!gradeFormErrors.ageRange}
+              helperText={gradeFormErrors.ageRange || 'Ví dụ: 18 – 36 tháng'}
               inputProps={{ maxLength: 50 }}
             />
           </Stack>
@@ -991,11 +1156,38 @@ function ClassList() {
                 helperText={formErrors.maxStudents || 'Tối đa 30 học sinh'}
               />
               <TeacherSelect
+                availability={createAvailability}
+                loading={createAvailLoading}
                 value={form.teacherIds}
                 onChange={(val) => setForm(f => ({ ...f, teacherIds: val }))}
                 error={formErrors.teacherIds}
-                helperText={`Đã chọn: ${form.teacherIds.length}/2 giáo viên`}
+                helperText={`Đã chọn: ${form.teacherIds.length}/2 giáo viên (bắt buộc chọn đủ 2)`}
               />
+              <FormControl fullWidth size="small">
+                <InputLabel>Phòng học</InputLabel>
+                <Select
+                  label="Phòng học"
+                  value={form.roomId}
+                  onChange={(e) => setForm(f => ({ ...f, roomId: e.target.value }))}
+                >
+                  <MenuItem value=""><em>Chưa chọn phòng</em></MenuItem>
+                  {rooms.map(r => {
+                    const occupied = r.occupiedByClass && r.occupiedByClass !== form.className;
+                    const unavailable = r.status !== 'available';
+                    const disabled = !!occupied || unavailable;
+                    const label = occupied
+                      ? ` (Đang dùng bởi lớp ${r.occupiedByClass})`
+                      : r.status === 'in_use' ? ' (Đang sử dụng)'
+                      : r.status === 'maintenance' ? ' (Bảo trì)'
+                      : '';
+                    return (
+                      <MenuItem key={r._id} value={r._id} disabled={disabled}>
+                        {r.roomName} — Tầng {r.floor}{label}
+                      </MenuItem>
+                    );
+                  })}
+                </Select>
+              </FormControl>
             </Stack>
           )}
         </DialogContent>
@@ -1060,11 +1252,38 @@ function ClassList() {
                 helperText={editFormErrors.maxStudents || 'Tối đa 30 học sinh'}
               />
               <TeacherSelect
+                availability={editAvailability}
+                loading={editAvailLoading}
                 value={editForm.teacherIds}
                 onChange={(val) => setEditForm(f => ({ ...f, teacherIds: val }))}
                 error={editFormErrors.teacherIds}
                 helperText={`Đã chọn: ${editForm.teacherIds.length}/2 giáo viên`}
               />
+              <FormControl fullWidth size="small">
+                <InputLabel>Phòng học</InputLabel>
+                <Select
+                  label="Phòng học"
+                  value={editForm.roomId}
+                  onChange={(e) => setEditForm(f => ({ ...f, roomId: e.target.value }))}
+                >
+                  <MenuItem value=""><em>Chưa chọn phòng</em></MenuItem>
+                  {rooms.map(r => {
+                    const occupied = r.occupiedByClass && r.occupiedByClass !== editForm.className;
+                    const unavailable = r.status !== 'available';
+                    const disabled = !!occupied || unavailable;
+                    const label = occupied
+                      ? ` (Đang dùng bởi lớp ${r.occupiedByClass})`
+                      : r.status === 'in_use' ? ' (Đang sử dụng)'
+                      : r.status === 'maintenance' ? ' (Bảo trì)'
+                      : '';
+                    return (
+                      <MenuItem key={r._id} value={r._id} disabled={disabled}>
+                        {r.roomName} — Tầng {r.floor}{label}
+                      </MenuItem>
+                    );
+                  })}
+                </Select>
+              </FormControl>
             </Stack>
           )}
         </DialogContent>
@@ -1077,6 +1296,20 @@ function ClassList() {
             sx={{ bgcolor: '#6366f1', '&:hover': { bgcolor: '#4f46e5' }, textTransform: 'none', fontWeight: 600 }}
           >
             {editDialogLoading ? <CircularProgress size={18} color="inherit" /> : 'Lưu thay đổi'}
+          </Button>
+        </DialogActions>
+      </Dialog>
+      {/* Delete Class Confirm Dialog */}
+      <Dialog open={!!classDeleteConfirm} onClose={() => setClassDeleteConfirm(null)} maxWidth="xs" fullWidth>
+        <DialogTitle sx={{ fontWeight: 700 }}>Xác nhận xóa lớp học</DialogTitle>
+        <DialogContent>
+          <Typography>Bạn chắc chắn muốn xóa lớp <strong>{classDeleteConfirm?.className}</strong>?</Typography>
+          <Typography variant="caption" color="text.secondary">Chỉ có thể xóa khi lớp không có học sinh nào.</Typography>
+        </DialogContent>
+        <DialogActions sx={{ px: 3, py: 2 }}>
+          <Button onClick={() => setClassDeleteConfirm(null)} color="inherit" disabled={classDeleteLoading}>Hủy</Button>
+          <Button variant="contained" color="error" onClick={handleDeleteClass} disabled={classDeleteLoading} sx={{ textTransform: 'none', fontWeight: 600 }}>
+            {classDeleteLoading ? <CircularProgress size={18} color="inherit" /> : 'Xóa'}
           </Button>
         </DialogActions>
       </Dialog>

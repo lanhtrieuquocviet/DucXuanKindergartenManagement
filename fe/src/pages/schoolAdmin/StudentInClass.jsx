@@ -2,7 +2,8 @@ import { useEffect, useState, useMemo } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import RoleLayout from '../../layouts/RoleLayout';
 import { useAuth } from '../../context/AuthContext';
-import { get, post, ENDPOINTS } from '../../service/api';
+import { get, post, del, ENDPOINTS } from '../../service/api';
+import { SCHOOL_ADMIN_MENU_ITEMS, createSchoolAdminMenuSelect } from './schoolAdminMenuConfig';
 
 import {
   Box,
@@ -30,7 +31,10 @@ import {
   ListItemAvatar,
   ListItemText,
   Badge,
+  Tooltip,
 } from '@mui/material';
+import DeleteOutlineIcon from '@mui/icons-material/DeleteOutline';
+import WarningAmberIcon from '@mui/icons-material/WarningAmber';
 import ArrowBackIcon from '@mui/icons-material/ArrowBack';
 import RefreshIcon from '@mui/icons-material/Refresh';
 import AddIcon from '@mui/icons-material/Add';
@@ -117,7 +121,7 @@ function StatCard({ icon, label, value, sub, color }) {
   );
 }
 
-function StudentCard({ student, attendanceStatus, onClick }) {
+function StudentCard({ student, attendanceStatus, onClick, onRemove }) {
   const att = attendanceColor(attendanceStatus);
   const age = calcAge(student.dateOfBirth);
 
@@ -131,9 +135,28 @@ function StudentCard({ student, attendanceStatus, onClick }) {
         cursor: 'pointer',
         borderColor: 'grey.200',
         transition: 'all 0.15s',
+        position: 'relative',
         '&:hover': { boxShadow: 3, borderColor: '#a78bfa', transform: 'translateY(-1px)' },
+        '&:hover .remove-btn': { opacity: 1 },
       }}
     >
+      <Tooltip title="Xóa khỏi lớp">
+        <IconButton
+          className="remove-btn"
+          size="small"
+          onClick={(e) => { e.stopPropagation(); onRemove(student); }}
+          sx={{
+            position: 'absolute', top: 6, right: 6,
+            opacity: 0, transition: 'opacity 0.15s',
+            color: 'error.main',
+            bgcolor: 'rgba(255,255,255,0.85)',
+            '&:hover': { bgcolor: '#fee2e2' },
+            p: 0.5,
+          }}
+        >
+          <DeleteOutlineIcon sx={{ fontSize: 16 }} />
+        </IconButton>
+      </Tooltip>
       <Stack direction="row" spacing={1.5} alignItems="flex-start">
         <Avatar
           sx={{
@@ -169,6 +192,16 @@ function StudentCard({ student, attendanceStatus, onClick }) {
               />
             )}
           </Stack>
+          {student.needsSpecialAttention && (
+            <Tooltip title={student.specialNote || 'Cần chú ý đặc biệt'} arrow>
+              <Chip
+                icon={<WarningAmberIcon sx={{ fontSize: '0.7rem !important' }} />}
+                label={student.specialNote ? 'Chú ý' : 'Cần chú ý'}
+                size="small"
+                sx={{ fontSize: '0.65rem', height: 20, mt: 0.5, bgcolor: '#fef3c7', color: '#92400e', fontWeight: 600, cursor: 'help' }}
+              />
+            </Tooltip>
+          )}
           {student.parentId?.phone && (
             <Typography variant="caption" color="text.secondary" sx={{ mt: 0.4, display: 'block' }}>
               PH: {student.parentId.phone}
@@ -190,11 +223,17 @@ function StudentInClass() {
   const [classDetail, setClassDetail] = useState(null);
   const [students, setStudents] = useState([]);
   const [attendanceMap, setAttendanceMap] = useState({});
+  const [timetable, setTimetable] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const [activeTab, setActiveTab] = useState(0);
   const [searchTerm, setSearchTerm] = useState('');
   const [selectedStudent, setSelectedStudent] = useState(null);
+
+  // Remove student from class
+  const [removeConfirm, setRemoveConfirm] = useState(null); // student object
+  const [removeLoading, setRemoveLoading] = useState(false);
+  const [removeError, setRemoveError] = useState(null);
 
   // Add students to class dialog
   const [addOpen, setAddOpen] = useState(false);
@@ -219,10 +258,11 @@ function StudentInClass() {
     setLoading(true);
     setError(null);
     try {
-      const [detailRes, studentsRes, attRes] = await Promise.allSettled([
+      const [detailRes, studentsRes, attRes, timetableRes] = await Promise.allSettled([
         get(ENDPOINTS.CLASSES.DETAIL(classId)),
         get(ENDPOINTS.CLASSES.STUDENTS(classId)),
         get(ENDPOINTS.SCHOOL_ADMIN.CLASS_ATTENDANCE_DETAIL(classId)),
+        get(ENDPOINTS.SCHOOL_ADMIN.TIMETABLE.LIST()),
       ]);
 
       if (detailRes.status === 'fulfilled') {
@@ -240,6 +280,9 @@ function StudentInClass() {
         const map = {};
         attStudents.forEach(s => { map[s._id] = s.attendance?.status || null; });
         setAttendanceMap(map);
+      }
+      if (timetableRes.status === 'fulfilled') {
+        setTimetable(timetableRes.value.data || []);
       }
     } catch (err) {
       setError(err.message || 'Lỗi khi tải dữ liệu');
@@ -280,6 +323,22 @@ function StudentInClass() {
     }
   };
 
+  const handleRemoveStudent = async () => {
+    if (!removeConfirm) return;
+    setRemoveLoading(true);
+    setRemoveError(null);
+    try {
+      await del(ENDPOINTS.CLASSES.REMOVE_STUDENT(classId, removeConfirm._id));
+      setRemoveConfirm(null);
+      if (selectedStudent?._id === removeConfirm._id) setSelectedStudent(null);
+      fetchAll();
+    } catch (err) {
+      setRemoveError(err.data?.message || err.message || 'Lỗi khi xóa học sinh khỏi lớp');
+    } finally {
+      setRemoveLoading(false);
+    }
+  };
+
   // Toggle a student in the add-dialog selection
   const toggleAddStudent = (id) => {
     setAddSelected(prev =>
@@ -314,35 +373,7 @@ function StudentInClass() {
   const handleViewProfile = () => navigate('/profile');
   const handleGoBack = () => navigate(hasRole('SystemAdmin') ? '/system-admin/classes' : '/school-admin/classes');
 
-  const getMenuItems = () => [
-    { key: 'overview', label: 'Tổng quan trường' },
-    { key: 'classes', label: 'Lớp học' },
-    { key: 'teachers', label: 'Giáo viên' },
-    { key: 'students', label: 'Học sinh & phụ huynh' },
-    { key: 'assets', label: 'Quản lý tài sản' },
-    { key: 'reports', label: 'Báo cáo của trường' },
-    { key: 'contacts', label: 'Liên hệ' },
-    { key: 'qa', label: 'Câu hỏi' },
-    { key: 'blogs', label: 'Quản lý blog' },
-    { key: 'documents', label: 'Quản lý tài liệu' },
-    { key: 'public-info', label: 'Thông tin công khai' },
-    { key: 'attendance', label: 'Quản lý điểm danh' },
-  ];
-
-  const handleMenuSelect = (key) => {
-    const routes = {
-      classes: '/school-admin/classes',
-      students: '/school-admin/students',
-      contacts: '/school-admin/contacts',
-      overview: '/school-admin',
-      qa: '/school-admin/qa',
-      blogs: '/school-admin/blogs',
-      documents: '/school-admin/documents',
-      'public-info': '/school-admin/public-info',
-      attendance: '/school-admin/attendance/overview',
-    };
-    if (routes[key]) navigate(routes[key]);
-  };
+  const handleMenuSelect = createSchoolAdminMenuSelect(navigate);
 
   // ── render ───────────────────────────────────────────────────────────────────
 
@@ -352,7 +383,7 @@ function StudentInClass() {
       <RoleLayout
         title="Chi tiết lớp học"
         description=""
-        menuItems={getMenuItems()}
+        menuItems={SCHOOL_ADMIN_MENU_ITEMS}
         activeKey="classes"
         onLogout={handleLogout}
         onViewProfile={handleViewProfile}
@@ -451,16 +482,19 @@ function StudentInClass() {
                 GIÁO VIÊN PHỤ TRÁCH
               </Typography>
               <Stack spacing={0.75} sx={{ mt: 0.75 }}>
-                {teachers.map((t, i) => (
-                  <Stack key={t._id || i} direction="row" alignItems="center" spacing={1} justifyContent={{ md: 'flex-end' }}>
-                    <Avatar sx={{ width: 28, height: 28, bgcolor: 'rgba(255,255,255,0.25)', color: '#fff', fontSize: '0.75rem', fontWeight: 700 }}>
-                      {t.fullName?.charAt(0)?.toUpperCase() || 'T'}
-                    </Avatar>
-                    <Typography variant="body2" sx={{ fontWeight: 600, color: '#fff' }}>
-                      {t.fullName}
-                    </Typography>
-                  </Stack>
-                ))}
+                {teachers.map((t, i) => {
+                  const name = t.userId?.fullName || t.fullName || '';
+                  return (
+                    <Stack key={t._id || i} direction="row" alignItems="center" spacing={1} justifyContent={{ md: 'flex-end' }}>
+                      <Avatar sx={{ width: 28, height: 28, bgcolor: 'rgba(255,255,255,0.25)', color: '#fff', fontSize: '0.75rem', fontWeight: 700 }}>
+                        {name.charAt(0)?.toUpperCase() || 'T'}
+                      </Avatar>
+                      <Typography variant="body2" sx={{ fontWeight: 600, color: '#fff' }}>
+                        {name}
+                      </Typography>
+                    </Stack>
+                  );
+                })}
               </Stack>
             </Box>
           )}
@@ -553,19 +587,23 @@ function StudentInClass() {
                     <Typography variant="body2" color="text.secondary">Chưa phân công giáo viên</Typography>
                   ) : (
                     <Stack spacing={1.5}>
-                      {teachers.map((t, i) => (
-                        <Stack key={t._id || i} direction="row" spacing={1.5} alignItems="center">
-                          <Avatar sx={{ width: 40, height: 40, bgcolor: '#ede9fe', color: '#7c3aed', fontWeight: 700 }}>
-                            {t.fullName?.charAt(0)?.toUpperCase() || 'T'}
-                          </Avatar>
-                          <Box>
-                            <Typography variant="body2" fontWeight={600}>{t.fullName}</Typography>
-                            {t.email && (
-                              <Typography variant="caption" color="text.secondary">{t.email}</Typography>
-                            )}
-                          </Box>
-                        </Stack>
-                      ))}
+                      {teachers.map((t, i) => {
+                        const name = t.userId?.fullName || t.fullName || '';
+                        const email = t.userId?.email || t.email || '';
+                        return (
+                          <Stack key={t._id || i} direction="row" spacing={1.5} alignItems="center">
+                            <Avatar sx={{ width: 40, height: 40, bgcolor: '#ede9fe', color: '#7c3aed', fontWeight: 700 }}>
+                              {name.charAt(0)?.toUpperCase() || 'T'}
+                            </Avatar>
+                            <Box>
+                              <Typography variant="body2" fontWeight={600}>{name}</Typography>
+                              {email && (
+                                <Typography variant="caption" color="text.secondary">{email}</Typography>
+                              )}
+                            </Box>
+                          </Stack>
+                        );
+                      })}
                     </Stack>
                   )}
                 </Paper>
@@ -578,44 +616,60 @@ function StudentInClass() {
                     <MeetingRoomIcon sx={{ color: '#2563eb' }} />
                     <Typography variant="subtitle2" fontWeight={700}>Phòng học & cơ sở vật chất</Typography>
                   </Stack>
-                  <Stack spacing={1.5}>
-                    {[
-                      { label: 'Phòng học', value: 'Phòng ' + (classDetail?.className || 'N/A') },
-                      { label: 'Diện tích', value: 'N/A' },
-                      { label: 'Sức chứa tối đa', value: maxStudents > 0 ? `${maxStudents} học sinh` : 'N/A' },
-                      { label: 'Tình trạng', value: 'Tốt' },
-                    ].map(({ label, value }) => (
-                      <Box key={label}>
-                        <Typography variant="caption" color="text.secondary" fontWeight={600}>{label}</Typography>
-                        <Typography variant="body2" fontWeight={500}>{value}</Typography>
-                      </Box>
-                    ))}
-                  </Stack>
+                  {classDetail?.roomId ? (
+                    <Stack spacing={1.5}>
+                      {[
+                        { label: 'Phòng học', value: classDetail.roomId.roomName },
+                        { label: 'Tầng', value: classDetail.roomId.floor ? `Tầng ${classDetail.roomId.floor}` : 'N/A' },
+                        { label: 'Sức chứa tối đa', value: classDetail.roomId.capacity > 0 ? `${classDetail.roomId.capacity} học sinh` : 'N/A' },
+                        {
+                          label: 'Tình trạng',
+                          value: classDetail.roomId.status === 'available' ? 'Tốt'
+                               : classDetail.roomId.status === 'in_use' ? 'Đang sử dụng'
+                               : classDetail.roomId.status === 'maintenance' ? 'Bảo trì'
+                               : 'N/A',
+                        },
+                      ].map(({ label, value }) => (
+                        <Box key={label}>
+                          <Typography variant="caption" color="text.secondary" fontWeight={600}>{label}</Typography>
+                          <Typography variant="body2" fontWeight={500}>{value}</Typography>
+                        </Box>
+                      ))}
+                    </Stack>
+                  ) : (
+                    <Typography variant="body2" color="text.secondary">Chưa phân phòng học</Typography>
+                  )}
                 </Paper>
               </Grid>
 
-              {/* Card: Thời khóa biểu mẫu */}
+              {/* Card: Thời khóa biểu */}
               <Grid item xs={12} md={4}>
                 <Paper variant="outlined" sx={{ p: 2.5, borderRadius: 2, height: '100%' }}>
                   <Stack direction="row" alignItems="center" spacing={1} sx={{ mb: 2 }}>
                     <ScheduleIcon sx={{ color: '#d97706' }} />
-                    <Typography variant="subtitle2" fontWeight={700}>Thời khóa biểu mẫu</Typography>
+                    <Typography variant="subtitle2" fontWeight={700}>Thời khóa biểu</Typography>
                   </Stack>
-                  <Stack spacing={1}>
-                    {[
-                      { time: '07:00 – 08:00', activity: 'Đón trẻ, điểm danh' },
-                      { time: '08:00 – 09:00', activity: 'Thể dục buổi sáng' },
-                      { time: '09:00 – 10:30', activity: 'Học tập, vui chơi' },
-                      { time: '10:30 – 11:00', activity: 'Ăn trưa' },
-                      { time: '11:00 – 14:00', activity: 'Ngủ trưa' },
-                      { time: '14:00 – 16:30', activity: 'Vui chơi, tan học' },
-                    ].map(({ time, activity }) => (
-                      <Stack key={time} direction="row" spacing={1.5} alignItems="center">
-                        <Typography variant="caption" sx={{ width: 100, color: '#7c3aed', fontWeight: 600, flexShrink: 0 }}>{time}</Typography>
-                        <Typography variant="body2" color="text.secondary">{activity}</Typography>
-                      </Stack>
-                    ))}
-                  </Stack>
+                  {timetable.length === 0 ? (
+                    <Typography variant="body2" color="text.secondary">Chưa có thời khóa biểu</Typography>
+                  ) : (
+                    <Stack spacing={1}>
+                      {timetable.map(item => (
+                        <Stack key={item._id} direction="row" spacing={1.5} alignItems="flex-start">
+                          <Typography variant="caption" sx={{ width: 95, color: '#7c3aed', fontWeight: 600, flexShrink: 0, pt: 0.2 }}>
+                            {item.startLabel} – {item.endLabel}
+                          </Typography>
+                          <Box flex={1}>
+                            <Typography variant="body2">{item.content}</Typography>
+                            {item.appliesToSeason !== 'both' && (
+                              <Typography variant="caption" sx={{ color: item.appliesToSeason === 'summer' ? '#d97706' : '#2563eb' }}>
+                                {item.appliesToSeason === 'summer' ? 'Mùa hè' : 'Mùa đông'}
+                              </Typography>
+                            )}
+                          </Box>
+                        </Stack>
+                      ))}
+                    </Stack>
+                  )}
                 </Paper>
               </Grid>
             </Grid>
@@ -675,6 +729,7 @@ function StudentInClass() {
                       student={student}
                       attendanceStatus={attendanceMap[student._id] || null}
                       onClick={setSelectedStudent}
+                      onRemove={setRemoveConfirm}
                     />
                   ))}
                 </Box>
@@ -843,15 +898,26 @@ function StudentInClass() {
 
                 <Divider />
 
-                {/* Sức khỏe */}
+                {/* Chú ý đặc biệt */}
                 <Box>
                   <Stack direction="row" spacing={1} alignItems="center" sx={{ mb: 1 }}>
-                    <FavoriteIcon sx={{ fontSize: 16, color: '#ef4444' }} />
+                    <WarningAmberIcon sx={{ fontSize: 16, color: '#f59e0b' }} />
                     <Typography variant="caption" fontWeight={700} color="text.secondary" sx={{ letterSpacing: 0.5 }}>
-                      SỨC KHỎE
+                      CHÚ Ý ĐẶC BIỆT
                     </Typography>
                   </Stack>
-                  <Typography variant="body2" color="text.secondary">Không có ghi chú đặc biệt</Typography>
+                  {selectedStudent.needsSpecialAttention ? (
+                    <Box sx={{ bgcolor: '#fffbeb', border: '1px solid #fde68a', borderRadius: 1.5, px: 1.5, py: 1 }}>
+                      <Stack direction="row" spacing={1} alignItems="flex-start">
+                        <WarningAmberIcon sx={{ fontSize: 16, color: '#d97706', mt: 0.2, flexShrink: 0 }} />
+                        <Typography variant="body2" color="#92400e" sx={{ whiteSpace: 'pre-wrap' }}>
+                          {selectedStudent.specialNote || 'Học sinh cần được chú ý đặc biệt'}
+                        </Typography>
+                      </Stack>
+                    </Box>
+                  ) : (
+                    <Typography variant="body2" color="text.secondary">Không có</Typography>
+                  )}
                 </Box>
               </Stack>
             </DialogContent>
@@ -914,14 +980,18 @@ function StudentInClass() {
             </Stack>
           ) : (() => {
             const currentClassStudentIds = new Set(students.map(s => String(s._id)));
-            const filtered = allStudents.filter(s =>
+            // Chỉ hiện học sinh chưa có lớp nào (classId null/undefined)
+            const available = allStudents.filter(s => !s.classId);
+            const filtered = available.filter(s =>
               s.fullName?.toLowerCase().includes(addSearch.toLowerCase())
             );
             if (filtered.length === 0) {
               return (
                 <Stack alignItems="center" py={5}>
                   <PeopleIcon sx={{ fontSize: 40, color: 'grey.300' }} />
-                  <Typography variant="body2" color="text.secondary" mt={1}>Không có học sinh nào</Typography>
+                  <Typography variant="body2" color="text.secondary" mt={1}>
+                    {addSearch ? 'Không tìm thấy học sinh' : 'Tất cả học sinh đã được xếp vào lớp'}
+                  </Typography>
                 </Stack>
               );
             }
@@ -929,8 +999,7 @@ function StudentInClass() {
               <List disablePadding>
                 {filtered.map((s, idx) => {
                   const inThisClass = currentClassStudentIds.has(String(s._id));
-                  const inOtherClass = !inThisClass && s.classId && String(s.classId) !== String(classId);
-                  const isDisabled = inThisClass || !!inOtherClass;
+                  const isDisabled = inThisClass;
                   const isSelected = addSelected.includes(s._id);
                   const age = calcAge(s.dateOfBirth);
 
@@ -965,7 +1034,7 @@ function StudentInClass() {
                       </ListItemAvatar>
                       <ListItemText
                         primary={
-                          <Stack direction="row" alignItems="center" spacing={0.75}>
+                          <Stack direction="row" alignItems="center" spacing={0.75} flexWrap="wrap">
                             <Typography variant="body2" fontWeight={600}>{s.fullName}</Typography>
                             {age !== null && (
                               <Chip label={`${age} tuổi`} size="small" sx={{ height: 18, fontSize: '0.62rem', bgcolor: 'grey.100', color: 'grey.600' }} />
@@ -973,12 +1042,15 @@ function StudentInClass() {
                             {inThisClass && (
                               <Chip label="Đã trong lớp" size="small" sx={{ height: 18, fontSize: '0.62rem', bgcolor: '#f0fdf4', color: '#15803d', fontWeight: 600 }} />
                             )}
-                            {inOtherClass && (
-                              <Chip
-                                label={`Lớp ${s.classId?.className || 'khác'}`}
-                                size="small"
-                                sx={{ height: 18, fontSize: '0.62rem', bgcolor: '#fef9c3', color: '#92400e', fontWeight: 600 }}
-                              />
+                            {s.needsSpecialAttention && (
+                              <Tooltip title={s.specialNote || 'Cần chú ý đặc biệt'} arrow>
+                                <Chip
+                                  icon={<WarningAmberIcon sx={{ fontSize: '0.65rem !important' }} />}
+                                  label="Chú ý"
+                                  size="small"
+                                  sx={{ height: 18, fontSize: '0.62rem', bgcolor: '#fef3c7', color: '#92400e', fontWeight: 600, cursor: 'help' }}
+                                />
+                              </Tooltip>
                             )}
                           </Stack>
                         }
@@ -1024,6 +1096,28 @@ function StudentInClass() {
           </Button>
         </DialogActions>
       </Dialog>
+      {/* ── Confirm remove student dialog ───────────────────────────────── */}
+      <Dialog open={!!removeConfirm} onClose={() => !removeLoading && setRemoveConfirm(null)} maxWidth="xs" fullWidth>
+        <DialogTitle sx={{ fontWeight: 700 }}>Xóa học sinh khỏi lớp</DialogTitle>
+        <DialogContent>
+          {removeError && <Alert severity="error" sx={{ mb: 1.5 }}>{removeError}</Alert>}
+          <Typography variant="body2">
+            Bạn có chắc muốn xóa <strong>{removeConfirm?.fullName}</strong> khỏi lớp này? Học sinh sẽ không còn thuộc lớp nào.
+          </Typography>
+        </DialogContent>
+        <DialogActions sx={{ px: 3, py: 2 }}>
+          <Button onClick={() => setRemoveConfirm(null)} color="inherit" disabled={removeLoading}>Hủy</Button>
+          <Button
+            variant="contained"
+            color="error"
+            onClick={handleRemoveStudent}
+            disabled={removeLoading}
+          >
+            {removeLoading ? <CircularProgress size={18} color="inherit" /> : 'Xóa khỏi lớp'}
+          </Button>
+        </DialogActions>
+      </Dialog>
+
     </RoleLayout>
   );
 }

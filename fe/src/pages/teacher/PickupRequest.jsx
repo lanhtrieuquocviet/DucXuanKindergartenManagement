@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useState } from "react";
 import { useLocation, useNavigate } from "react-router-dom";
 import { useAuth } from "../../context/AuthContext";
+import { useTeacher } from "../../context/TeacherContext";
 import RoleLayout from "../../layouts/RoleLayout";
 import { get, post, ENDPOINTS } from "../../service/api";
 import ConfirmDialog from "../../components/ConfirmDialog";
@@ -142,6 +143,7 @@ function PickupRequest() {
 
 
 
+  const { isCommitteeMember } = useTeacher();
   const menuItems = useMemo(() => [
     { key: "classes",         label: "Lớp phụ trách" },
     { key: "students",        label: "Danh sách học sinh" },
@@ -149,19 +151,28 @@ function PickupRequest() {
     { key: "pickup-approval", label: "Đơn đưa đón" },
     { key: "schedule",        label: "Lịch dạy & hoạt động" },
     { key: "messages",        label: "Thông báo cho phụ huynh" },
-  ], []);
+    { key: "purchase-request", label: "Cơ sở vật chất" },
+    { key: "class-assets",    label: "Tài sản lớp" },
+    ...(isCommitteeMember ? [{ key: "asset-inspection", label: "Kiểm kê tài sản" }] : []),
+  ], [isCommitteeMember]);
 
   const activeKey = useMemo(() => {
     const path = location.pathname || "";
-    if (path.startsWith("/teacher/attendance"))      return "attendance";
-    if (path.startsWith("/teacher/pickup-approval")) return "pickup-approval";
+    if (path.startsWith("/teacher/attendance"))       return "attendance";
+    if (path.startsWith("/teacher/pickup-approval"))  return "pickup-approval";
+    if (path.startsWith("/teacher/purchase-request")) return "purchase-request";
+    if (path.startsWith("/teacher/class-assets"))     return "class-assets";
+    if (path.startsWith("/teacher/asset-inspection")) return "asset-inspection";
     return "classes";
   }, [location.pathname]);
 
   const handleMenuSelect = (key) => {
-    if (key === "classes")         { navigate("/teacher");                  return; }
-    if (key === "attendance")      { navigate("/teacher/attendance");        return; }
-    if (key === "pickup-approval") { navigate("/teacher/pickup-approval");   return; }
+    if (key === "classes")          { navigate("/teacher");                   return; }
+    if (key === "attendance")       { navigate("/teacher/attendance");         return; }
+    if (key === "pickup-approval")  { navigate("/teacher/pickup-approval");    return; }
+    if (key === "purchase-request") { navigate("/teacher/purchase-request");   return; }
+    if (key === "class-assets")     { navigate("/teacher/class-assets");       return; }
+    if (key === "asset-inspection") { navigate("/teacher/asset-inspection");   return; }
   };
 
   useEffect(() => {
@@ -173,7 +184,10 @@ function PickupRequest() {
     // Kiểm tra giáo viên có được phân công lớp không
     get(ENDPOINTS.CLASSES.LIST).then((res) => {
       const all = res.data || [];
-      const mine = all.filter((c) => (c.teacherIds || []).some((t) => (t?._id || t) === user._id));
+      const mine = all.filter((c) => (c.teacherIds || []).some((t) => {
+        const uid = t?.userId?._id || t?.userId || t?._id || t;
+        return uid?.toString() === user._id?.toString();
+      }));
       setMyClasses(mine);
       if (mine.length > 0) fetchPickupRequests();
       else setLoading(false);

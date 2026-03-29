@@ -26,7 +26,7 @@ const sampleEntrySchema = new mongoose.Schema(
     images: [{ type: String, trim: true }],
     status: {
       type: String,
-      enum: ['cho_kiem_tra', 'khong_co_van_de', 'khong_dat'],
+      enum: ['cho_kiem_tra', 'khong_co_van_de', 'tu_dong_duyet', 'khong_dat'],
       default: 'cho_kiem_tra',
     },
     uploadedAt: { type: Date, default: Date.now },

@@ -31,6 +31,12 @@ import {
   Inventory as InventoryIcon,
   Assessment as AssessmentIcon,
   Dashboard as DashboardIcon,
+  CameraAlt as CameraAltIcon,
+  MenuBook as MenuBookIcon,
+  Restaurant as RestaurantIcon,
+  ShoppingCart as ShoppingCartIcon,
+  ContentPasteSearch as ContentPasteSearchIcon,
+  AccountTree as AccountTreeIcon,
 } from '@mui/icons-material';
 import { CurrencyIcon } from 'lucide-react';
 
@@ -44,7 +50,7 @@ const KEY_ICONS = {
   'academic-plan':       <SchoolIcon fontSize="small" />,
   'academic-students':   <PeopleIcon fontSize="small" />,
   'academic-curriculum':   <CurrencyIcon fontSize="small" />,
-  'academic-schedule':   <SchoolIcon fontSize="small" />,
+  'academic-schedule':   <CalendarIcon fontSize="small" />,
   'academic-report':    <BarChartIcon fontSize="small" />,
   classes:               <SchoolIcon fontSize="small" />,
   teachers:              <PersonIcon fontSize="small" />,
@@ -52,6 +58,7 @@ const KEY_ICONS = {
   assets:                <InventoryIcon fontSize="small" />,
   reports:               <AssessmentIcon fontSize="small" />,
   attendance:            <ChecklistIcon fontSize="small" />,
+  'face-attendance':     <CameraAltIcon fontSize="small" />,
   'pickup-approval':     <HomeIcon fontSize="small" />,
   schedule:              <CalendarIcon fontSize="small" />,
   messages:              <NotifIcon fontSize="small" />,
@@ -60,11 +67,19 @@ const KEY_ICONS = {
   blogs:                 <BlogIcon fontSize="small" />,
   documents:             <FolderIcon fontSize="small" />,
   'public-info':         <PublicIcon fontSize="small" />,
+  'banner-management':   <DashboardIcon fontSize="small" />,
   qa:                    <QaIcon fontSize="small" />,
+  menu:                  <MenuBookIcon fontSize="small" />,
+  'meal-management':     <RestaurantIcon fontSize="small" />,
   contacts:              <EmailIcon fontSize="small" />,
   permissions:           <ShieldIcon fontSize="small" />,
   roles:                 <RolesIcon fontSize="small" />,
   logs:                  <BarChartIcon fontSize="small" />,
+  'purchase-request':    <ShoppingCartIcon fontSize="small" />,
+  'purchase-requests':   <ShoppingCartIcon fontSize="small" />,
+  'asset-inspection':    <ContentPasteSearchIcon fontSize="small" />,
+  'class-assets':        <InventoryIcon fontSize="small" />,
+  'asset-allocation':    <AccountTreeIcon fontSize="small" />,
 };
 
 /* ── Sidebar content ── */

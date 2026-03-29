@@ -4,6 +4,8 @@ import RoleLayout from '../../layouts/RoleLayout';
 import { useAuth } from '../../context/AuthContext';
 import { useSchoolAdmin } from '../../context/SchoolAdminContext';
 import { postFormData, ENDPOINTS, get } from '../../service/api';
+import { SCHOOL_ADMIN_MENU_ITEMS, createSchoolAdminMenuSelect } from './schoolAdminMenuConfig';
+import FaceRegisterModal from '../../components/face/FaceRegisterModal';
 import {
   Box,
   Paper,
@@ -30,6 +32,9 @@ import {
   Chip,
   Divider,
   Avatar,
+  Switch,
+  FormControlLabel,
+  Tooltip,
 } from '@mui/material';
 import {
   Refresh as RefreshIcon,
@@ -80,8 +85,11 @@ function ManageStudents() {
   const [formEdit, setFormEdit] = useState({
     fullName: '', dateOfBirth: '', gender: 'male', classId: '', address: '', status: 'active',
     parentFullName: '', parentEmail: '', parentPhone: '',
+    needsSpecialAttention: false, specialNote: '',
   });
   const [formEditErrors, setFormEditErrors] = useState({});
+  const [editError, setEditError] = useState(null);
+  const [faceModal, setFaceModal] = useState({ open: false, student: null });
 
   const navigate = useNavigate();
   const { user, hasRole, logout, isInitializing } = useAuth();
@@ -137,60 +145,7 @@ function ManageStudents() {
   };
   const handleViewProfile = () => navigate('/profile');
 
-  const handleMenuSelect = async (key) => {
-    if (key === 'students') return;
-    if (key === 'overview') { navigate('/school-admin'); return; }
-    if (key === 'academic-years' || key === 'academic-year-setup') { navigate('/school-admin/academic-years'); return; }
-    if (key === 'academic-curriculum') { navigate('/school-admin/curriculum'); return; }
-    if (key === 'academic-schedule') { navigate('/school-admin/timetable'); return; }
-    if (key === 'academic-plan') { navigate('/school-admin/academic-plan'); return; }
-    if (key === 'academic-report') {
-      try {
-        const resp = await get(ENDPOINTS.SCHOOL_ADMIN.ACADEMIC_YEARS.CURRENT);
-        const yearId = resp?.status === 'success' ? resp?.data?._id : null;
-        if (yearId) navigate(`/school-admin/academic-years/${yearId}/report`);
-        else navigate('/school-admin/academic-years');
-      } catch (_) {
-        navigate('/school-admin/academic-years');
-      }
-      return;
-    }
-    if (key === 'academic-students') { navigate('/school-admin/class-list'); return; }
-    if (key === 'classes') { navigate('/school-admin/classes'); return; }
-    if (key === 'contacts') { navigate('/school-admin/contacts'); return; }
-    if (key === 'qa') { navigate('/school-admin/qa'); return; }
-    if (key === 'blogs') { navigate('/school-admin/blogs'); return; }
-    if (key === 'documents') { navigate('/school-admin/documents'); return; }
-    if (key === 'public-info') { navigate('/school-admin/public-info'); return; }
-    if (key === 'attendance') { navigate('/school-admin/attendance/overview'); return; }
-  };
-
-  const getMenuItems = () => [
-    { key: 'overview', label: 'Tổng quan trường' },
-    {
-      key: 'academic-years',
-      label: 'Quản lý năm học',
-      children: [
-        { key: 'academic-year-setup', label: 'Thiết lập năm học' },
-        { key: 'academic-plan', label: 'Thiết lập kế hoạch' },
-        { key: 'academic-students', label: 'Danh sách lớp học' },
-        { key: 'academic-curriculum', label: 'Chương trình giáo dục' },
-        { key: 'academic-schedule', label: 'Thời gian biểu' },
-        { key: 'academic-report', label: 'Báo cáo & thống kê' },
-      ],
-    },
-    { key: 'classes', label: 'Lớp học' },
-    { key: 'teachers', label: 'Giáo viên' },
-    { key: 'students', label: 'Học sinh & phụ huynh' },
-    { key: 'assets', label: 'Quản lý tài sản' },
-    { key: 'reports', label: 'Báo cáo của trường' },
-    { key: 'contacts', label: 'Liên hệ' },
-    { key: 'qa', label: 'Câu hỏi' },
-    { key: 'blogs', label: 'Quản lý blog' },
-    { key: 'documents', label: 'Quản lý tài liệu' },
-    { key: 'public-info', label: 'Thông tin công khai' },
-    { key: 'attendance', label: 'Quản lý điểm danh' },
-  ];
+  const handleMenuSelect = createSchoolAdminMenuSelect(navigate);
 
   const filteredStudents = students.filter((s) => {
     const matchSearch = !searchTerm || (s.fullName || '').toLowerCase().includes(searchTerm.toLowerCase())
@@ -267,8 +222,11 @@ function ManageStudents() {
       parentFullName: row.parentId?.fullName || '',
       parentEmail: row.parentId?.email || '',
       parentPhone: row.parentId?.phone || row.parentPhone || row.phone || '',
+      needsSpecialAttention: row.needsSpecialAttention || false,
+      specialNote: row.specialNote || '',
     });
     setFormEditErrors({});
+    setEditError(null);
     setOpenEdit(true);
   };
 
@@ -286,21 +244,27 @@ function ManageStudents() {
       return;
     }
     setFormEditErrors({});
+    setEditError(null);
     try {
-      await updateStudent(selectedStudent._id, {
+      const payload = {
         fullName: formEdit.fullName,
         dateOfBirth: formEdit.dateOfBirth,
         gender: formEdit.gender,
         address: formEdit.address,
         status: formEdit.status,
         parentFullName: formEdit.parentFullName,
-        parentEmail: formEdit.parentEmail,
         parentPhone: formEdit.parentPhone,
-      });
+        needsSpecialAttention: formEdit.needsSpecialAttention,
+        specialNote: formEdit.specialNote,
+      };
+      if (formEdit.parentEmail) payload.parentEmail = formEdit.parentEmail;
+      await updateStudent(selectedStudent._id, payload);
       setOpenEdit(false);
       setSelectedStudent(null);
       fetchData();
-    } catch (err) {}
+    } catch (err) {
+      setEditError(err?.message || 'Lỗi khi cập nhật học sinh');
+    }
   };
 
   const handleOpenDelete = (row) => {
@@ -338,7 +302,7 @@ function ManageStudents() {
     <RoleLayout
       title="Học sinh & phụ huynh"
       description="Quản lý danh sách học sinh và tài khoản phụ huynh. parentId của học sinh là _id tài khoản User phụ huynh."
-      menuItems={getMenuItems()}
+      menuItems={SCHOOL_ADMIN_MENU_ITEMS}
       activeKey="students"
       onLogout={handleLogout}
       onViewProfile={handleViewProfile}
@@ -414,6 +378,9 @@ function ManageStudents() {
                   {/* <TableCell><strong>Lớp</strong></TableCell> */}
                   <TableCell><strong>Phụ huynh</strong></TableCell>
                   <TableCell><strong>SĐT</strong></TableCell>
+                  <TableCell align="center"><strong>Cần chú ý</strong></TableCell>
+                  <TableCell><strong>Ghi chú đặc biệt</strong></TableCell>
+                  <TableCell align="center"><strong>Khuôn mặt</strong></TableCell>
                   <TableCell align="right"><strong>Thao tác</strong></TableCell>
                 </TableRow>
               </TableHead>
@@ -426,6 +393,26 @@ function ManageStudents() {
                     {/* <TableCell>{row.classId?.className || '—'}</TableCell> */}
                     <TableCell>{row.parentId?.fullName || '—'}</TableCell>
                     <TableCell>{row.phone || row.parentPhone || row.parentId?.phone || '—'}</TableCell>
+                    <TableCell align="center">
+                      {row.needsSpecialAttention
+                        ? <Chip label="Có" color="warning" size="small" />
+                        : <Chip label="Không" size="small" variant="outlined" />}
+                    </TableCell>
+                    <TableCell>
+                      {row.specialNote
+                        ? <Tooltip title={row.specialNote}><Typography variant="body2" noWrap sx={{ maxWidth: 160 }}>{row.specialNote}</Typography></Tooltip>
+                        : '—'}
+                    </TableCell>
+                    <TableCell align="center">
+                      <Chip
+                        label={row.hasFaceEmbedding ? '✓ Đã đăng ký' : 'Chưa đăng ký'}
+                        size="small"
+                        color={row.hasFaceEmbedding ? 'success' : 'default'}
+                        variant={row.hasFaceEmbedding ? 'filled' : 'outlined'}
+                        onClick={() => setFaceModal({ open: true, student: row })}
+                        sx={{ cursor: 'pointer' }}
+                      />
+                    </TableCell>
                     <TableCell align="right">
                       <Button size="small" startIcon={<VisibilityIcon />} onClick={() => handleOpenDetail(row)} sx={{ mr: 0.5 }}>
                         Xem
@@ -503,9 +490,10 @@ function ManageStudents() {
       </Dialog>
 
       {/* Modal Sửa */}
-      <Dialog open={openEdit} onClose={() => setOpenEdit(false)} maxWidth="sm" fullWidth>
+      <Dialog open={openEdit} onClose={() => { setOpenEdit(false); setEditError(null); }} maxWidth="sm" fullWidth>
         <DialogTitle>Cập nhật học sinh và phụ huynh</DialogTitle>
         <DialogContent dividers>
+          {editError && <Alert severity="error" sx={{ mb: 1.5 }} onClose={() => setEditError(null)}>{editError}</Alert>}
           <Stack spacing={1.5}>
             <TextField size="small" label="Họ tên học sinh" value={formEdit.fullName} onChange={(e) => setFormEdit((p) => ({ ...p, fullName: e.target.value }))} fullWidth required error={!!formEditErrors.fullName} helperText={formEditErrors.fullName} />
             <TextField size="small" type="date" label="Ngày sinh" InputLabelProps={{ shrink: true }} value={formEdit.dateOfBirth} onChange={(e) => setFormEdit((p) => ({ ...p, dateOfBirth: e.target.value }))} fullWidth required error={!!formEditErrors.dateOfBirth} helperText={formEditErrors.dateOfBirth} />
@@ -520,6 +508,27 @@ function ManageStudents() {
             <TextField size="small" label="Họ tên phụ huynh" value={formEdit.parentFullName} onChange={(e) => setFormEdit((p) => ({ ...p, parentFullName: e.target.value }))} fullWidth />
             <TextField size="small" type="email" label="Email phụ huynh" value={formEdit.parentEmail} onChange={(e) => setFormEdit((p) => ({ ...p, parentEmail: e.target.value }))} fullWidth error={!!formEditErrors.parentEmail} helperText={formEditErrors.parentEmail} />
             <TextField size="small" label="SĐT phụ huynh" value={formEdit.parentPhone} onChange={(e) => setFormEdit((p) => ({ ...p, parentPhone: e.target.value }))} fullWidth error={!!formEditErrors.parentPhone} helperText={formEditErrors.parentPhone} placeholder="10–11 chữ số" />
+            <Divider />
+            <FormControlLabel
+              control={
+                <Switch
+                  checked={formEdit.needsSpecialAttention}
+                  onChange={(e) => setFormEdit((p) => ({ ...p, needsSpecialAttention: e.target.checked }))}
+                  color="warning"
+                />
+              }
+              label="Cần chú ý đặc biệt"
+            />
+            <TextField
+              size="small"
+              label="Ghi chú đặc biệt"
+              value={formEdit.specialNote}
+              onChange={(e) => setFormEdit((p) => ({ ...p, specialNote: e.target.value }))}
+              fullWidth
+              multiline
+              rows={2}
+              placeholder="Dị ứng, bệnh nền, yêu cầu đặc biệt..."
+            />
           </Stack>
         </DialogContent>
         <DialogActions>
@@ -573,6 +582,18 @@ function ManageStudents() {
                   <Typography variant="body2" color="text.secondary" sx={{ minWidth: 110 }}>Địa chỉ:</Typography>
                   <Typography variant="body2">{detailStudent.address || '—'}</Typography>
                 </Stack>
+                <Stack direction="row" spacing={1} alignItems="center">
+                  <Typography variant="body2" color="text.secondary" sx={{ minWidth: 110 }}>Cần chú ý:</Typography>
+                  {detailStudent.needsSpecialAttention
+                    ? <Chip label="Có" color="warning" size="small" />
+                    : <Chip label="Không" size="small" variant="outlined" />}
+                </Stack>
+                {detailStudent.needsSpecialAttention && detailStudent.specialNote && (
+                  <Stack direction="row" spacing={1}>
+                    <Typography variant="body2" color="text.secondary" sx={{ minWidth: 110 }}>Ghi chú:</Typography>
+                    <Typography variant="body2" sx={{ whiteSpace: 'pre-wrap' }}>{detailStudent.specialNote}</Typography>
+                  </Stack>
+                )}
               </Stack>
 
               <Divider />
@@ -623,6 +644,16 @@ function ManageStudents() {
           </Button>
         </DialogActions>
       </Dialog>
+
+      <FaceRegisterModal
+        open={faceModal.open}
+        student={faceModal.student}
+        onClose={() => setFaceModal({ open: false, student: null })}
+        onSuccess={() => {
+          setFaceModal({ open: false, student: null });
+          fetchData();
+        }}
+      />
     </RoleLayout>
   );
 }
