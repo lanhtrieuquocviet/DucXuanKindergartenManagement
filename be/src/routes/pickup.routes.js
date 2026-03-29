@@ -25,29 +25,13 @@ router.get(
   getMyPickupRequests
 );
 
-/**
- * @openapi
- * /api/pickup/requests/student/{studentId}:
- *   get:
- *     summary: Giáo viên xem người đón đã được duyệt của học sinh
- *     tags:
- *       - Pickup
- *     security:
- *       - bearerAuth: []
- *     parameters:
- *       - in: path
- *         name: studentId
- *         required: true
- *         schema:
- *           type: string
- *         description: ID học sinh
- *     responses:
- *       200:
- *         description: Danh sách người đón đã duyệt
- *       403:
- *         description: Không có quyền Teacher
- */
-router.get("/requests/student/:studentId", authenticate, authorizeRoles("Teacher", "SchoolAdmin"), getApprovedPickupPersonsByStudent);
+// 3. Giáo viên xem danh sách chờ duyệt (của lớp mình phụ trách)
+router.get(
+  "/requests",
+  authenticate,
+  authorizeRoles("Teacher"), // Chỉ giáo viên
+  getPickupRequests
+);
 
 // 5. Giáo viên xem danh sách người đưa đón đã duyệt của một học sinh
 router.get(
