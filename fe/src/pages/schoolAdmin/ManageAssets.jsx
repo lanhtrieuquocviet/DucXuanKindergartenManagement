@@ -549,6 +549,8 @@ function MinutesTab() {
   const [deleteTarget, setDeleteTarget] = useState(null);
   const [deleting, setDeleting]         = useState(false);
   const [categoryDialog, setCategoryDialog] = useState(false);
+  const [rejectDialog, setRejectDialog] = useState(false);
+  const [rejectReason, setRejectReason] = useState('');
 
   const load = async () => {
     setLoading(true);
@@ -624,9 +626,12 @@ function MinutesTab() {
   const handleReject = async () => {
     setSaving(true);
     try {
-      await patch(ENDPOINTS.SCHOOL_ADMIN.ASSET_MINUTES_REJECT(editingMinutes._id), {});
+      await patch(ENDPOINTS.SCHOOL_ADMIN.ASSET_MINUTES_REJECT(editingMinutes._id), { rejectReason });
       toast.success('Đã từ chối biên bản.');
-      setOpenModal(false); load();
+      setRejectDialog(false);
+      setRejectReason('');
+      setOpenModal(false);
+      load();
     } catch (err) { toast.error(err?.message || 'Thất bại.'); }
     finally { setSaving(false); }
   };
@@ -739,6 +744,12 @@ function MinutesTab() {
         </DialogTitle>
 
         <DialogContent sx={{ pt: 1 }}>
+          {editingMinutes?.status === 'rejected' && editingMinutes?.rejectReason && (
+            <Paper variant="outlined" sx={{ p: 1.5, mb: 2, borderRadius: 2, bgcolor: '#fef2f2', borderColor: 'error.light' }}>
+              <Typography variant="body2" fontWeight={600} color="error.dark" mb={0.5}>Lý do từ chối:</Typography>
+              <Typography variant="body2" color="error.dark">{editingMinutes.rejectReason}</Typography>
+            </Paper>
+          )}
           {/* Phần thông tin — BGH chỉ xem */}
           <Paper variant="outlined" sx={{ p: { xs: 1.5, sm: 2 }, mb: 3, borderRadius: 2, bgcolor: '#f9fafb' }}>
             <Typography variant="body2" fontWeight={600} mb={1.5} color="text.secondary">Thông tin biên bản</Typography>
@@ -961,11 +972,41 @@ function MinutesTab() {
               <Button variant="contained" color="success" onClick={handleApprove} disabled={saving} sx={{ textTransform: 'none' }}>
                 {saving ? '...' : 'Duyệt'}
               </Button>
-              <Button variant="contained" color="error" onClick={handleReject} disabled={saving} sx={{ textTransform: 'none' }}>
-                {saving ? '...' : 'Từ chối'}
+              <Button variant="contained" color="error" onClick={() => { setRejectReason(''); setRejectDialog(true); }} disabled={saving} sx={{ textTransform: 'none' }}>
+                Từ chối
               </Button>
             </>
           )}
+        </DialogActions>
+      </Dialog>
+
+      {/* Reject Reason Dialog */}
+      <Dialog open={rejectDialog} onClose={() => setRejectDialog(false)} maxWidth="xs" fullWidth>
+        <DialogTitle>Lý do từ chối</DialogTitle>
+        <DialogContent sx={{ pt: 1 }}>
+          <TextField
+            autoFocus
+            fullWidth
+            multiline
+            rows={3}
+            size="small"
+            label="Lý do từ chối *"
+            placeholder="Nhập lý do từ chối biên bản này..."
+            value={rejectReason}
+            onChange={e => setRejectReason(e.target.value)}
+            sx={{ mt: 1 }}
+          />
+        </DialogContent>
+        <DialogActions sx={{ px: 2, pb: 2 }}>
+          <Button onClick={() => setRejectDialog(false)} disabled={saving}>Hủy</Button>
+          <Button
+            variant="contained"
+            color="error"
+            disabled={saving || !rejectReason.trim()}
+            onClick={handleReject}
+          >
+            {saving ? 'Đang xử lý...' : 'Xác nhận từ chối'}
+          </Button>
         </DialogActions>
       </Dialog>
 

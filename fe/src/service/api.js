@@ -280,7 +280,9 @@ export const ENDPOINTS = {
     // Asset Allocations (Biên bản bàn giao tài sản)
     ASSET_ALLOCATIONS: "/school-admin/asset-allocations",
     ASSET_ALLOCATIONS_CLASSES: "/school-admin/asset-allocations/classes",
+    ASSET_ALLOCATIONS_TEMPLATE: "/school-admin/asset-allocations/template",
     ASSET_ALLOCATIONS_PARSE_WORD: "/school-admin/asset-allocations/parse-word",
+    ASSET_ALLOCATIONS_PARSE_EXCEL: "/school-admin/asset-allocations/parse-excel",
     ASSET_ALLOCATION_DETAIL: (id) => `/school-admin/asset-allocations/${id}`,
     ASSET_ALLOCATION_TRANSFER: (id) => `/school-admin/asset-allocations/${id}/transfer`,
     PURCHASE_REQUESTS: "/school-admin/purchase-requests",
@@ -319,6 +321,7 @@ export const ENDPOINTS = {
     PURCHASE_REQUEST_DETAIL: (id) => `/teacher/purchase-requests/${id}`,
     // Asset allocation & incidents
     MY_ASSET_ALLOCATION: "/teacher/asset-allocations",
+    ASSET_ALLOCATION_CONFIRM: (id) => `/teacher/asset-allocations/${id}/confirm`,
     ASSET_INCIDENTS: "/teacher/asset-incidents",
     ASSET_INCIDENT_DETAIL: (id) => `/teacher/asset-incidents/${id}`,
   },

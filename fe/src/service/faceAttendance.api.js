@@ -71,3 +71,14 @@ export const matchPickupFace = (embedding, studentId) =>
  */
 export const matchPickupFaceForCheckout = (embedding, classId, date, checkoutImageUrl = '') =>
   post('/face/pickup/checkout', { embedding, classId, date, checkoutImageUrl });
+
+/**
+ * Quét khuôn mặt học sinh → tự động ghi điểm danh về
+ * Luồng mới: giáo viên đăng ký khuôn mặt học sinh, dùng cho cả check-in lẫn check-out
+ * @param {number[]} embedding
+ * @param {string} classId
+ * @param {string} [date]
+ * @param {string} [checkoutImageUrl]
+ */
+export const matchStudentFaceForCheckout = (embedding, classId, date, checkoutImageUrl = '') =>
+  post('/face/student/checkout', { embedding, classId, date, checkoutImageUrl });

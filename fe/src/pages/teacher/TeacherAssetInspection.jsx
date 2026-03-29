@@ -109,6 +109,7 @@ export default function TeacherAssetInspection() {
   const [loading, setLoading]         = useState(true);
   const [minutes, setMinutes]         = useState([]);
   const [committees, setCommittees]   = useState([]);
+  const [allocation, setAllocation]   = useState(null);
   const [openModal, setOpenModal]     = useState(false);
   const [editing, setEditing]         = useState(null);
   const [form, setForm]               = useState(emptyForm());
@@ -128,18 +129,38 @@ export default function TeacherAssetInspection() {
   const load = async () => {
     setLoading(true);
     try {
-      const [mRes, cRes] = await Promise.all([
+      const [mRes, cRes, aRes] = await Promise.all([
         get(ENDPOINTS.TEACHER.ASSET_MINUTES),
         get(ENDPOINTS.TEACHER.ASSET_COMMITTEES),
+        get(ENDPOINTS.TEACHER.MY_ASSET_ALLOCATION),
       ]);
       setMinutes(mRes?.data?.minutes || []);
       setCommittees(cRes?.data?.committees || []);
+      setAllocation(aRes?.data?.allocation || null);
     } catch (err) {
       toast.error(err?.message || 'Không tải được dữ liệu.');
     } finally { setLoading(false); }
   };
 
-  const handleOpenCreate = () => { setEditing(null); setForm(emptyForm()); setOpenModal(true); };
+  const handleOpenCreate = () => {
+    setEditing(null);
+    if (allocation) {
+      const allAssets = [
+        ...(allocation.assets || []),
+        ...(allocation.extraAssets || []),
+      ].map(({ category, assetCode, name, unit, quantity, targetUser, notes }) =>
+        ({ category: category || '', assetCode: assetCode || '', name, unit: unit || 'Cái', quantity: quantity ?? 0, targetUser: targetUser || '', notes: notes || '' })
+      );
+      setForm({
+        ...emptyForm(),
+        className: allocation.className || '',
+        assets: allAssets.length ? allAssets : [emptyAssetRow()],
+      });
+    } else {
+      setForm(emptyForm());
+    }
+    setOpenModal(true);
+  };
 
   const handleOpenEdit = m => {
     setEditing(m);
@@ -216,6 +237,7 @@ export default function TeacherAssetInspection() {
     { key: 'schedule',         label: 'Lịch dạy & hoạt động' },
     { key: 'messages',         label: 'Thông báo cho phụ huynh' },
     { key: 'purchase-request', label: 'Cơ sở vật chất' },
+    { key: 'class-assets',     label: 'Tài sản lớp' },
     ...(isCommitteeMember ? [{ key: 'asset-inspection', label: 'Kiểm kê tài sản' }] : []),
   ];
 
@@ -224,7 +246,10 @@ export default function TeacherAssetInspection() {
     if (key === 'students')         navigate('/teacher');
     if (key === 'attendance')       navigate('/teacher/attendance');
     if (key === 'pickup-approval')  navigate('/teacher/pickup-approval');
+    if (key === 'schedule')         navigate('/teacher/schedule');
+    if (key === 'messages')         navigate('/teacher/messages');
     if (key === 'purchase-request') navigate('/teacher/purchase-request');
+    if (key === 'class-assets')     navigate('/teacher/class-assets');
     if (key === 'asset-inspection') navigate('/teacher/asset-inspection');
   };
 
@@ -286,9 +311,6 @@ export default function TeacherAssetInspection() {
                       sx={{ textTransform: 'none', flex: 1 }}>
                       {canEdit ? 'Chỉnh sửa' : 'Xem'}
                     </Button>
-                    {canEdit && (
-                      <IconButton size="small" color="error" onClick={() => setDeleteTarget(m._id)}><DeleteIcon fontSize="small" /></IconButton>
-                    )}
                   </Stack>
                 </Paper>
               );
@@ -329,9 +351,6 @@ export default function TeacherAssetInspection() {
                             onClick={() => handleOpenEdit(m)} sx={{ textTransform: 'none' }}>
                             {canEdit ? 'Chỉnh sửa' : 'Xem'}
                           </Button>
-                          {canEdit && (
-                            <IconButton size="small" color="error" onClick={() => setDeleteTarget(m._id)}><DeleteIcon fontSize="small" /></IconButton>
-                          )}
                         </Stack>
                       </TableCell>
                     </TableRow>
@@ -361,7 +380,12 @@ export default function TeacherAssetInspection() {
           )}
           {editing?.status === 'rejected' && (
             <Paper variant="outlined" sx={{ p: 1.5, mb: 2, borderRadius: 2, bgcolor: '#fef2f2', borderColor: 'error.light' }}>
-              <Typography variant="body2" color="error.dark">Biên bản bị từ chối. Hãy chỉnh sửa và lưu lại để gửi lên duyệt lần nữa.</Typography>
+              <Typography variant="body2" color="error.dark" fontWeight={600} mb={editing?.rejectReason ? 0.5 : 0}>
+                Biên bản bị từ chối. Hãy chỉnh sửa và lưu lại để gửi lên duyệt lần nữa.
+              </Typography>
+              {editing?.rejectReason && (
+                <Typography variant="body2" color="error.dark">Lý do: {editing.rejectReason}</Typography>
+              )}
             </Paper>
           )}
 

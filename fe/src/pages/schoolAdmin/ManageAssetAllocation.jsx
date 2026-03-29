@@ -17,6 +17,7 @@ import {
   InputLabel,
   MenuItem,
   Paper,
+  Popover,
   Select,
   Stack,
   Tab,
@@ -39,6 +40,8 @@ import HistoryIcon from '@mui/icons-material/History';
 import VisibilityIcon from '@mui/icons-material/Visibility';
 import ArrowBackIcon from '@mui/icons-material/ArrowBack';
 import DragIndicatorIcon from '@mui/icons-material/DragIndicator';
+import InfoOutlinedIcon from '@mui/icons-material/InfoOutlined';
+import DownloadIcon from '@mui/icons-material/Download';
 import RoleLayout from '../../layouts/RoleLayout';
 import { useAuth } from '../../context/AuthContext';
 import { del, get, patch, post, postFormData, put, ENDPOINTS } from '../../service/api';
@@ -46,9 +49,10 @@ import { SCHOOL_ADMIN_MENU_ITEMS, createSchoolAdminMenuSelect } from './schoolAd
 
 // ─── Constants ────────────────────────────────────────────────────────────────
 const STATUS_INFO = {
-  active:      { label: 'Đang sử dụng',  color: 'success' },
-  transferred: { label: 'Đã chuyển lớp', color: 'warning' },
-  returned:    { label: 'Đã thu hồi',    color: 'default' },
+  pending_confirmation: { label: 'Chờ xác nhận',  color: 'warning' },
+  active:               { label: 'Đang sử dụng',  color: 'success' },
+  transferred:          { label: 'Đã chuyển lớp', color: 'info' },
+  returned:             { label: 'Đã thu hồi',    color: 'default' },
 };
 
 const TARGET_USER_OPTIONS = ['Trẻ', 'Giáo viên', 'Dùng chung'];
@@ -414,7 +418,8 @@ function AllocationDocument({ allocation, onClose }) {
 // ─── Main Page ────────────────────────────────────────────────────────────────
 export default function ManageAssetAllocation() {
   const navigate = useNavigate();
-  const { user } = useAuth();
+  const { user, logout } = useAuth();
+  const userName = user?.fullName || user?.username || 'School Admin';
 
   const [allocations, setAllocations]   = useState([]);
   const [classes, setClasses]           = useState([]);
@@ -442,8 +447,11 @@ export default function ManageAssetAllocation() {
 
   const [deleteTarget, setDeleteTarget]     = useState(null);
   const [deleteLoading, setDeleteLoading]   = useState(false);
+  const [infoAnchor, setInfoAnchor]         = useState(null); // { el, alloc }
+
   const [importing, setImporting]           = useState(false);
   const wordInputRef                        = useRef(null);
+  const excelInputRef                       = useRef(null);
 
   // ── Load data ──────────────────────────────────────────────────────────────
   const loadAllocations = async () => {
@@ -590,6 +598,27 @@ export default function ManageAssetAllocation() {
     }
   };
 
+  // ── Download Excel template (server-side, exceljs với styling đầy đủ) ────
+  const downloadTemplate = async () => {
+    try {
+      const { getToken } = await import('../../service/api');
+      const API_BASE = import.meta.env.VITE_API_BASE_URL || 'http://localhost:5000/api';
+      const res = await fetch(`${API_BASE}${ENDPOINTS.SCHOOL_ADMIN.ASSET_ALLOCATIONS_TEMPLATE}`, {
+        headers: { Authorization: `Bearer ${getToken()}` },
+      });
+      if (!res.ok) { toast.error('Không tải được mẫu.'); return; }
+      const blob = await res.blob();
+      const url  = URL.createObjectURL(blob);
+      const a    = document.createElement('a');
+      a.href     = url;
+      a.download = 'mau_tai_san_ban_giao.xlsx';
+      a.click();
+      URL.revokeObjectURL(url);
+    } catch {
+      toast.error('Lỗi tải mẫu Excel.');
+    }
+  };
+
   // ── Import Word ────────────────────────────────────────────────────────────
   const handleWordImport = async (e) => {
     const file = e.target.files?.[0];
@@ -606,31 +635,53 @@ export default function ManageAssetAllocation() {
     try {
       const formData = new FormData();
       formData.append('file', file);
-
       const res = await postFormData(ENDPOINTS.SCHOOL_ADMIN.ASSET_ALLOCATIONS_PARSE_WORD, formData);
-
-      const parsed      = res.data?.assets      || [];
-      const parsedExtra = res.data?.extraAssets || [];
-      if (!parsed.length && !parsedExtra.length) {
-        toast.warning('Không tìm thấy dữ liệu tài sản trong file.');
-        if (res.debug) console.warn('[Word Import Debug]', res.debug);
-        return;
-      }
-      setForm((prev) => ({
-        ...prev,
-        assets:      parsed.length      ? assetsToFlat(parsed) : prev.assets,
-        extraAssets: parsedExtra.length ? parsedExtra          : prev.extraAssets,
-      }));
-      const msg = [
-        parsed.length      ? `${parsed.length} thiết bị theo thông tư`      : '',
-        parsedExtra.length ? `${parsedExtra.length} thiết bị ngoài thông tư` : '',
-      ].filter(Boolean).join(', ');
-      toast.success(`Đã import: ${msg}.`);
+      applyImportResult(res);
     } catch (err) {
       toast.error('Lỗi đọc file Word: ' + (err.message || ''));
     } finally {
       setImporting(false);
     }
+  };
+
+  // ── Import Excel ───────────────────────────────────────────────────────────
+  const handleExcelImport = async (e) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    e.target.value = '';
+
+    setImporting(true);
+    try {
+      const formData = new FormData();
+      formData.append('file', file);
+      const res = await postFormData(ENDPOINTS.SCHOOL_ADMIN.ASSET_ALLOCATIONS_PARSE_EXCEL, formData);
+      applyImportResult(res);
+    } catch (err) {
+      toast.error('Lỗi đọc file Excel: ' + (err.message || ''));
+    } finally {
+      setImporting(false);
+    }
+  };
+
+  // ── Shared: apply parsed result to form ────────────────────────────────────
+  const applyImportResult = (res) => {
+    const parsed      = res.data?.assets      || [];
+    const parsedExtra = res.data?.extraAssets || [];
+    if (!parsed.length && !parsedExtra.length) {
+      toast.warning('Không tìm thấy dữ liệu tài sản trong file.');
+      if (res.debug) console.warn('[Import Debug]', res.debug);
+      return;
+    }
+    setForm((prev) => ({
+      ...prev,
+      assets:      parsed.length      ? assetsToFlat(parsed) : prev.assets,
+      extraAssets: parsedExtra.length ? parsedExtra          : prev.extraAssets,
+    }));
+    const msg = [
+      parsed.length      ? `${parsed.length} thiết bị theo thông tư`      : '',
+      parsedExtra.length ? `${parsedExtra.length} thiết bị ngoài thông tư` : '',
+    ].filter(Boolean).join(', ');
+    toast.success(`Đã import: ${msg}.`);
   };
 
   // ── Stable callbacks for AssetRowEditor (avoids memo-busting) ──────────────
@@ -659,9 +710,12 @@ export default function ManageAssetAllocation() {
   return (
     <RoleLayout
       menuItems={SCHOOL_ADMIN_MENU_ITEMS}
-      onMenuSelect={createSchoolAdminMenuSelect(navigate)}
       activeKey="asset-allocation"
-      userInfo={user}
+      onLogout={() => { logout(); navigate('/login', { replace: true }); }}
+      userName={userName}
+      userAvatar={user?.avatar}
+      onViewProfile={() => navigate('/profile')}
+      onMenuSelect={createSchoolAdminMenuSelect(navigate)}
     >
       <Box sx={{ p: { xs: 1, md: 3 } }}>
         {/* Title */}
@@ -678,6 +732,7 @@ export default function ManageAssetAllocation() {
             <InputLabel>Trạng thái</InputLabel>
             <Select value={filterStatus} label="Trạng thái" onChange={(e) => setFilterStatus(e.target.value)}>
               <MenuItem value="">Tất cả</MenuItem>
+              <MenuItem value="pending_confirmation">Chờ xác nhận</MenuItem>
               <MenuItem value="active">Đang sử dụng</MenuItem>
               <MenuItem value="transferred">Đã chuyển lớp</MenuItem>
               <MenuItem value="returned">Đã thu hồi</MenuItem>
@@ -725,6 +780,11 @@ export default function ManageAssetAllocation() {
                       </TableCell>
                       <TableCell>
                         <Stack direction="row" gap={0.5}>
+                          <Tooltip title="Thông tin tạo & xác nhận">
+                            <IconButton size="small" onClick={(e) => setInfoAnchor({ el: e.currentTarget, alloc })}>
+                              <InfoOutlinedIcon fontSize="small" />
+                            </IconButton>
+                          </Tooltip>
                           <Tooltip title="Xem biên bản">
                             <IconButton size="small" onClick={() => setViewTarget(alloc)}>
                               <VisibilityIcon fontSize="small" />
@@ -764,6 +824,47 @@ export default function ManageAssetAllocation() {
           </Paper>
         )}
       </Box>
+
+      {/* ── Info Popover ─────────────────────────────────────────────────────── */}
+      <Popover
+        open={Boolean(infoAnchor)}
+        anchorEl={infoAnchor?.el}
+        onClose={() => setInfoAnchor(null)}
+        anchorOrigin={{ vertical: 'bottom', horizontal: 'left' }}
+        transformOrigin={{ vertical: 'top', horizontal: 'left' }}
+        slotProps={{ paper: { sx: { p: 2, minWidth: 240 } } }}
+      >
+        {infoAnchor && (() => {
+          const a = infoAnchor.alloc;
+          return (
+            <Stack spacing={1.5}>
+              <Typography variant="subtitle2" fontWeight={700}>Thông tin biên bản</Typography>
+              <Box>
+                <Typography variant="caption" color="text.secondary">Người tạo</Typography>
+                <Typography variant="body2">{a.createdBy?.fullName || a.createdBy?.username || '—'}</Typography>
+              </Box>
+              <Box>
+                <Typography variant="caption" color="text.secondary">Ngày tạo</Typography>
+                <Typography variant="body2">{a.createdAt ? new Date(a.createdAt).toLocaleString('vi-VN') : '—'}</Typography>
+              </Box>
+              <Box>
+                <Typography variant="caption" color="text.secondary">Người xác nhận</Typography>
+                <Typography variant="body2">
+                  {a.confirmedBy?.fullName || a.confirmedBy?.username || <span style={{ color: '#ed6c02' }}>Chưa xác nhận</span>}
+                </Typography>
+              </Box>
+              <Box>
+                <Typography variant="caption" color="text.secondary">Ngày xác nhận bàn giao</Typography>
+                <Typography variant="body2">
+                  {a.confirmedAt
+                    ? new Date(a.confirmedAt).toLocaleString('vi-VN')
+                    : <span style={{ color: '#ed6c02' }}>Chưa xác nhận</span>}
+                </Typography>
+              </Box>
+            </Stack>
+          );
+        })()}
+      </Popover>
 
       {/* ── Create / Edit Form Dialog ───────────────────────────────────────── */}
       <Dialog open={formOpen} onClose={() => setFormOpen(false)} maxWidth="lg" fullWidth>
@@ -858,26 +959,46 @@ export default function ManageAssetAllocation() {
             <Divider />
 
             {/* Assets theo thông tư */}
-            <Stack direction="row" alignItems="center" justifyContent="space-between">
+            <Stack direction="row" alignItems="center" justifyContent="space-between" flexWrap="wrap" gap={1}>
               <Typography variant="subtitle2" fontWeight="bold">Danh sách tài sản bàn giao (theo thông tư)</Typography>
-              <Box>
-                <input
-                  ref={wordInputRef}
-                  type="file"
-                  accept=".doc,.docx"
-                  style={{ display: 'none' }}
-                  onChange={handleWordImport}
-                />
-                <Button
-                  size="small"
-                  variant="outlined"
-                  startIcon={importing ? <CircularProgress size={14} /> : <UploadFileIcon />}
-                  onClick={() => wordInputRef.current?.click()}
-                  disabled={importing}
-                >
-                  Import từ Word (.docx)
-                </Button>
-              </Box>
+              <Stack direction="row" gap={1} alignItems="center" flexWrap="wrap">
+                <Tooltip title="Tải file Excel mẫu đúng định dạng (2 sheet: Theo thông tư / Ngoài thông tư)">
+                  <Button
+                    size="small"
+                    variant="outlined"
+                    color="success"
+                    startIcon={<DownloadIcon />}
+                    onClick={downloadTemplate}
+                  >
+                    Tải mẫu Excel
+                  </Button>
+                </Tooltip>
+                <input ref={wordInputRef} type="file" accept=".doc,.docx" style={{ display: 'none' }} onChange={handleWordImport} />
+                <Tooltip title="Import từ file Word (.doc / .docx)">
+                  <Button
+                    size="small"
+                    variant="outlined"
+                    startIcon={importing ? <CircularProgress size={14} /> : <UploadFileIcon />}
+                    onClick={() => wordInputRef.current?.click()}
+                    disabled={importing}
+                  >
+                    Word
+                  </Button>
+                </Tooltip>
+                <input ref={excelInputRef} type="file" accept=".xlsx" style={{ display: 'none' }} onChange={handleExcelImport} />
+                <Tooltip title="Import từ file Excel (.xlsx) — dùng mẫu tải về">
+                  <Button
+                    size="small"
+                    variant="contained"
+                    color="primary"
+                    startIcon={importing ? <CircularProgress size={14} /> : <UploadFileIcon />}
+                    onClick={() => excelInputRef.current?.click()}
+                    disabled={importing}
+                  >
+                    {importing ? 'Đang đọc...' : 'Excel'}
+                  </Button>
+                </Tooltip>
+              </Stack>
             </Stack>
             <AssetRowEditor
               rows={form.assets}

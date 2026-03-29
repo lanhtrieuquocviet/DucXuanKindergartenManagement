@@ -1494,7 +1494,9 @@ router.delete('/assets/:id', authenticate, authorizeRoles('SchoolAdmin'), assetC
 const wordUpload = multer({ storage: multer.memoryStorage(), limits: { fileSize: 20 * 1024 * 1024 } });
 router.get('/asset-allocations', authenticate, authorizeRoles('SchoolAdmin'), allocationCtrl.listAllocations);
 router.post('/asset-allocations', authenticate, authorizeRoles('SchoolAdmin'), allocationCtrl.createAllocation);
+router.get('/asset-allocations/template', authenticate, authorizeRoles('SchoolAdmin'), allocationCtrl.generateExcelTemplate);
 router.post('/asset-allocations/parse-word', authenticate, authorizeRoles('SchoolAdmin'), wordUpload.single('file'), allocationCtrl.parseWordFile);
+router.post('/asset-allocations/parse-excel', authenticate, authorizeRoles('SchoolAdmin'), wordUpload.single('file'), allocationCtrl.parseExcelFile);
 router.get('/asset-allocations/classes', authenticate, authorizeRoles('SchoolAdmin'), allocationCtrl.listClasses);
 router.get('/asset-allocations/:id', authenticate, authorizeRoles('SchoolAdmin'), allocationCtrl.getAllocation);
 router.put('/asset-allocations/:id', authenticate, authorizeRoles('SchoolAdmin'), allocationCtrl.updateAllocation);

@@ -109,11 +109,12 @@ exports.getMinutes = async (req, res) => {
 
 exports.createMinutes = async (req, res) => {
   try {
-    const { scope, location, inspectionDate, inspectionTime, endTime, reason, inspectionMethod, committeeId, assets, conclusion } = req.body;
+    const { className, scope, location, inspectionDate, inspectionTime, endTime, reason, inspectionMethod, committeeId, assets, conclusion } = req.body;
     if (!inspectionDate) {
       return res.status(400).json({ status: 'error', message: 'Vui lòng chọn ngày kiểm kê.' });
     }
     const minutes = await InspectionMinutes.create({
+      className: className || '',
       scope: scope || '',
       location: location || 'Đức Xuân',
       inspectionDate,
@@ -136,13 +137,13 @@ exports.createMinutes = async (req, res) => {
 
 exports.updateMinutes = async (req, res) => {
   try {
-    const { scope, location, inspectionDate, inspectionTime, endTime, reason, inspectionMethod, committeeId, assets, conclusion } = req.body;
+    const { className, scope, location, inspectionDate, inspectionTime, endTime, reason, inspectionMethod, committeeId, assets, conclusion } = req.body;
     const minutes = await InspectionMinutes.findById(req.params.id);
     if (!minutes) return res.status(404).json({ status: 'error', message: 'Không tìm thấy biên bản.' });
     if (minutes.status === 'approved') {
       return res.status(400).json({ status: 'error', message: 'Không thể chỉnh sửa biên bản đã duyệt.' });
     }
-    Object.assign(minutes, { scope, location, inspectionDate, inspectionTime, endTime, reason, inspectionMethod, committeeId, assets, conclusion });
+    Object.assign(minutes, { className: className || '', scope, location, inspectionDate, inspectionTime, endTime, reason, inspectionMethod, committeeId, assets, conclusion });
     await minutes.save();
     await minutes.populate('createdBy', 'fullName username');
     return res.json({ status: 'success', data: { minutes } });
@@ -167,9 +168,10 @@ exports.approveMinutes = async (req, res) => {
 
 exports.rejectMinutes = async (req, res) => {
   try {
+    const { rejectReason } = req.body;
     const minutes = await InspectionMinutes.findByIdAndUpdate(
       req.params.id,
-      { status: 'rejected' },
+      { status: 'rejected', rejectReason: rejectReason || '' },
       { new: true }
     ).populate('createdBy', 'fullName username');
     if (!minutes) return res.status(404).json({ status: 'error', message: 'Không tìm thấy biên bản.' });

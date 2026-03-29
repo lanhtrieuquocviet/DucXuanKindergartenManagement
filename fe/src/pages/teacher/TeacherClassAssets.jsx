@@ -15,7 +15,16 @@ import ExpandLessIcon from '@mui/icons-material/ExpandLess';
 import RoleLayout from '../../layouts/RoleLayout';
 import { useAuth } from '../../context/AuthContext';
 import { useTeacher } from '../../context/TeacherContext';
+import CheckCircleIcon from '@mui/icons-material/CheckCircle';
 import { get, post, patch, postFormData, ENDPOINTS } from '../../service/api';
+
+// ── Allocation status labels ───────────────────────────────────────────────
+const ALLOCATION_STATUS = {
+  pending_confirmation: { label: 'Chờ xác nhận', color: 'warning' },
+  active:               { label: 'Đang sử dụng',  color: 'success' },
+  transferred:          { label: 'Đã chuyển',      color: 'default' },
+  returned:             { label: 'Đã thu hồi',     color: 'default' },
+};
 
 // ── Status labels ──────────────────────────────────────────────────────────
 const INCIDENT_STATUS = {
@@ -263,11 +272,13 @@ export default function TeacherClassAssets() {
   const { user, logout, isInitializing } = useAuth();
   const { isCommitteeMember } = useTeacher();
 
-  const [tab, setTab]             = useState(0);
-  const [loading, setLoading]     = useState(true);
-  const [allocation, setAlloc]    = useState(null);
-  const [incidents, setIncidents] = useState([]);
-  const [openForm, setOpenForm]   = useState(false);
+  const [tab, setTab]               = useState(0);
+  const [loading, setLoading]       = useState(true);
+  const [allocation, setAlloc]      = useState(null);
+  const [incidents, setIncidents]   = useState([]);
+  const [openForm, setOpenForm]     = useState(false);
+  const [confirmOpen, setConfirmOpen] = useState(false);
+  const [confirming, setConfirming]   = useState(false);
 
   const fetchData = async () => {
     setLoading(true);
@@ -290,6 +301,20 @@ export default function TeacherClassAssets() {
     if (!user) { navigate('/login', { replace: true }); return; }
     fetchData();
   }, [user, isInitializing, navigate]);
+
+  const handleConfirm = async () => {
+    setConfirming(true);
+    try {
+      await patch(ENDPOINTS.TEACHER.ASSET_ALLOCATION_CONFIRM(allocation._id), {});
+      toast.success('Xác nhận bàn giao thành công!');
+      setConfirmOpen(false);
+      fetchData();
+    } catch (err) {
+      toast.error(err.message || 'Xác nhận thất bại');
+    } finally {
+      setConfirming(false);
+    }
+  };
 
   const menuItems = [
     { key: 'classes',          label: 'Lớp phụ trách' },
@@ -385,14 +410,37 @@ export default function TeacherClassAssets() {
                           <Typography variant="caption" color="text.secondary">Trạng thái</Typography>
                           <Box>
                             <Chip
-                              label={allocation.status === 'active' ? 'Đang sử dụng' : allocation.status === 'transferred' ? 'Đã chuyển' : 'Đã thu hồi'}
+                              label={ALLOCATION_STATUS[allocation.status]?.label || allocation.status}
                               size="small"
-                              color={allocation.status === 'active' ? 'success' : 'default'}
+                              color={ALLOCATION_STATUS[allocation.status]?.color || 'default'}
                             />
                           </Box>
                         </Box>
                       </Stack>
                     </Paper>
+
+                    {allocation.status === 'pending_confirmation' && (
+                      <Paper variant="outlined" sx={{ p: 2, mb: 3, bgcolor: 'warning.50', borderColor: 'warning.main' }}>
+                        <Stack direction={{ xs: 'column', sm: 'row' }} alignItems={{ sm: 'center' }} justifyContent="space-between" spacing={2}>
+                          <Box>
+                            <Typography variant="body2" fontWeight={700} color="warning.dark">
+                              Biên bản bàn giao đang chờ xác nhận
+                            </Typography>
+                            <Typography variant="caption" color="text.secondary">
+                              Vui lòng kiểm tra danh sách tài sản bên dưới và xác nhận nhận bàn giao.
+                            </Typography>
+                          </Box>
+                          <Button
+                            variant="contained"
+                            color="success"
+                            startIcon={<CheckCircleIcon />}
+                            onClick={() => setConfirmOpen(true)}
+                          >
+                            Xác nhận nhận bàn giao
+                          </Button>
+                        </Stack>
+                      </Paper>
+                    )}
 
                     <AssetTable title="Tài sản theo Thông tư" assets={allocation.assets} />
                     <AssetTable title="Thiết bị khác ngoài Thông tư" assets={allocation.extraAssets} />
@@ -481,6 +529,27 @@ export default function TeacherClassAssets() {
           </>
         )}
       </Box>
+
+      {/* ── Confirm handover dialog ── */}
+      <Dialog open={confirmOpen} onClose={() => !confirming && setConfirmOpen(false)} maxWidth="xs" fullWidth>
+        <DialogTitle>Xác nhận nhận bàn giao tài sản</DialogTitle>
+        <DialogContent>
+          <Typography variant="body2">
+            Bạn xác nhận đã kiểm tra và nhận đầy đủ tài sản theo biên bản{' '}
+            <strong>{allocation?.documentCode}</strong> của lớp{' '}
+            <strong>{allocation?.className}</strong>?
+          </Typography>
+          <Typography variant="caption" color="text.secondary" sx={{ mt: 1, display: 'block' }}>
+            Sau khi xác nhận, trạng thái sẽ chuyển sang "Đang sử dụng".
+          </Typography>
+        </DialogContent>
+        <DialogActions sx={{ px: 2, pb: 2 }}>
+          <Button onClick={() => setConfirmOpen(false)} disabled={confirming}>Hủy</Button>
+          <Button variant="contained" color="success" onClick={handleConfirm} disabled={confirming} startIcon={<CheckCircleIcon />}>
+            {confirming ? 'Đang xác nhận...' : 'Xác nhận'}
+          </Button>
+        </DialogActions>
+      </Dialog>
 
       {/* ── Incident form dialog ── */}
       <IncidentFormDialog

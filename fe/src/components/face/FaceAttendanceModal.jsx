@@ -36,7 +36,7 @@ function cosineSimilarity(a, b) {
 const MATCH_THRESHOLD = 0.75; // Phải khớp với backend
 const COOLDOWN_MS = 3000;     // Chờ 3 giây sau mỗi lần nhận diện
 
-export default function FaceAttendanceModal({ open, onClose, classId, className }) {
+export default function FaceAttendanceModal({ open, onClose, classId, className, onCheckinSuccess }) {
   const { isOnline, pendingCount, isSyncing, saveOfflineRecord, syncNow } = useOfflineSync();
 
   // Trạng thái nhận diện
@@ -176,6 +176,7 @@ export default function FaceAttendanceModal({ open, onClose, classId, className 
             prev.includes(result.student._id) ? prev : [...prev, result.student._id]
           );
           toast.success(`Điểm danh: ${result.student.fullName}`);
+          onCheckinSuccess?.();
         } else if (result.status === 'already_checked_in') {
           toast.info(`${result.student?.fullName || 'Học sinh'} đã điểm danh rồi`);
         } else if (result.status === 'no_match') {

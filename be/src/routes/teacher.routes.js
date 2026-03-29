@@ -2,7 +2,8 @@ const express = require('express');
 const { authenticate, authorizeRoles } = require('../middleware/auth');
 const assetCtrl = require('../controller/assetInspectionController');
 const purchaseCtrl = require('../controller/purchaseRequestController');
-const incidentCtrl = require('../controller/assetIncidentController');
+const incidentCtrl    = require('../controller/assetIncidentController');
+const allocationCtrl  = require('../controller/assetAllocationController');
 const InspectionCommittee = require('../models/InspectionCommittee');
 const User = require('../models/User');
 
@@ -64,6 +65,7 @@ router.delete('/purchase-requests/:id', authenticate, authorizeRoles('Teacher'),
 
 // ── Asset Allocation (Tài sản lớp) ──
 router.get('/asset-allocations', authenticate, authorizeRoles('Teacher'), incidentCtrl.getMyAllocation);
+router.patch('/asset-allocations/:id/confirm', authenticate, authorizeRoles('Teacher'), allocationCtrl.confirmAllocation);
 
 // ── Asset Incidents (Báo cáo sự cố) ──
 router.get('/asset-incidents',     authenticate, authorizeRoles('Teacher'), incidentCtrl.listMyIncidents);

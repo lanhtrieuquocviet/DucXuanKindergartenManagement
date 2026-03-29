@@ -20,7 +20,7 @@ exports.getMyAllocation = async (req, res) => {
 
     const allocation = await AssetAllocation.findOne({
       classId: { $in: classIds },
-      status: 'active',
+      status: { $in: ['active', 'pending_confirmation'] },
     })
       .populate('classId', 'className')
       .lean();

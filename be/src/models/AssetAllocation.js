@@ -56,12 +56,16 @@ const assetAllocationSchema = new mongoose.Schema(
     // Danh sách thiết bị khác ngoài thông tư
     extraAssets: [allocationAssetSchema],
 
-    // Trạng thái: đang sử dụng / đã chuyển lớp / đã thu hồi
+    // Trạng thái: chờ xác nhận / đang sử dụng / đã chuyển lớp / đã thu hồi
     status: {
       type: String,
-      enum: ['active', 'transferred', 'returned'],
-      default: 'active',
+      enum: ['pending_confirmation', 'active', 'transferred', 'returned'],
+      default: 'pending_confirmation',
     },
+
+    // Thông tin xác nhận bàn giao từ giáo viên
+    confirmedAt: { type: Date, default: null },
+    confirmedBy: { type: mongoose.Schema.Types.ObjectId, ref: 'User', default: null },
 
     // Ghi chú chung
     notes: { type: String, trim: true, default: '' },
