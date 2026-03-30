@@ -21,7 +21,14 @@ export const SCHOOL_ADMIN_MENU_ITEMS = [
   { key: 'meal-management', label: 'Quản lý bữa ăn' },
   { key: 'teachers', label: 'Giáo viên' },
   { key: 'students', label: 'Học sinh & phụ huynh' },
-  { key: 'assets', label: 'Quản lý tài sản' },
+  {
+    key: 'assets',
+    label: 'Quản lý tài sản',
+    children: [
+      { key: 'asset-allocation', label: 'Phân bổ tài sản' },
+      { key: 'purchase-requests', label: 'Yêu cầu mua sắm' },
+    ],
+  },
   { key: 'reports', label: 'Báo cáo của trường' },
   { key: 'contacts', label: 'Liên hệ' },
   { key: 'qa', label: 'Câu hỏi' },
@@ -59,6 +66,8 @@ export const createSchoolAdminMenuSelect = (navigate) => (key) => {
     'public-info': '/school-admin/public-info',
     'banner-management': '/school-admin/banners',
     assets: '/school-admin/assets',
+    'asset-allocation': '/school-admin/asset-allocation',
+    'purchase-requests': '/school-admin/purchase-requests',
     attendance: '/school-admin/attendance/overview',
     'face-attendance': '/school-admin/face-attendance',
   };

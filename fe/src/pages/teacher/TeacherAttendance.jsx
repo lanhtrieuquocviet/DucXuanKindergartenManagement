@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, useState, Component } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState, Component } from 'react';
 import { useLocation, useNavigate, useParams } from 'react-router-dom';
 import { Snackbar, Alert, Box, Typography, Avatar, Paper, Button } from '@mui/material';
 import { EventBusy as EventBusyIcon } from '@mui/icons-material';
@@ -124,16 +124,11 @@ function TeacherAttendance() {
 
   // ── State: Toast thành công ──
   const [successToast, setSuccessToast] = useState({ visible: false, message: '' });
-  const [warningToast, setWarningToast] = useState({ visible: false, message: '' });
+  const [warningToast] = useState({ visible: false, message: '' });
 
   const showSuccessToast = (message) => {
     setSuccessToast({ visible: true, message });
     setTimeout(() => setSuccessToast({ visible: false, message: '' }), 3000);
-  };
-
-  const showWarningToast = (message) => {
-    setWarningToast({ visible: true, message });
-    setTimeout(() => setWarningToast({ visible: false, message: '' }), 3500);
   };
 
   // ── State: Firebase OTP ──
@@ -221,33 +216,34 @@ function TeacherAttendance() {
   };
 
   // Load attendance: ưu tiên server, fallback localStorage khi mất mạng
-  useEffect(() => {
+  const loadAttendance = useCallback(async () => {
     if (!classId) return;
-    const loadAttendance = async () => {
-      try {
-        const res = await get(
-          `${ENDPOINTS.STUDENTS.ATTENDANCE_LIST}?classId=${classId}&date=${selectedDate}`
-        );
-        const serverRecords = res.data || [];
-        const allLocal = readAttendanceStorage(classId);
-        const localByDate = allLocal?.[selectedDate] || {};
-        const merged = { ...localByDate };
-        serverRecords.forEach((rec) => {
-          const sid = rec.studentId?._id?.toString() || rec.studentId?.toString();
-          if (sid) merged[sid] = mapServerRecord(rec, localByDate[sid]);
-        });
-        allLocal[selectedDate] = merged;
-        writeAttendanceStorage(classId, allLocal);
-        setAttendanceByStudent(merged);
-      } catch {
-        // Mất mạng hoặc lỗi server → dùng localStorage
-        const all = readAttendanceStorage(classId);
-        setAttendanceByStudent(all?.[selectedDate] || {});
-      }
-    };
-    loadAttendance();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
+    try {
+      const res = await get(
+        `${ENDPOINTS.STUDENTS.ATTENDANCE_LIST}?classId=${classId}&date=${selectedDate}`
+      );
+      const serverRecords = res.data || [];
+      const allLocal = readAttendanceStorage(classId);
+      const localByDate = allLocal?.[selectedDate] || {};
+      const merged = { ...localByDate };
+      serverRecords.forEach((rec) => {
+        const sid = rec.studentId?._id?.toString() || rec.studentId?.toString();
+        if (sid) merged[sid] = mapServerRecord(rec, localByDate[sid]);
+      });
+      allLocal[selectedDate] = merged;
+      writeAttendanceStorage(classId, allLocal);
+      setAttendanceByStudent(merged);
+    } catch {
+      // Mất mạng hoặc lỗi server → dùng localStorage
+      const all = readAttendanceStorage(classId);
+      setAttendanceByStudent(all?.[selectedDate] || {});
+    }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [classId, selectedDate]);
+
+  useEffect(() => {
+    loadAttendance();
+  }, [loadAttendance]);
 
   // Khởi tạo bản ghi mặc định cho học sinh chưa có
   useEffect(() => {
@@ -304,6 +300,8 @@ function TeacherAttendance() {
       { key: 'pickup-approval', label: 'Đơn đưa đón' },
       { key: 'schedule', label: 'Lịch dạy & hoạt động' },
       { key: 'messages', label: 'Thông báo cho phụ huynh' },
+      { key: 'purchase-request', label: 'Cơ sở vật chất' },
+      { key: 'class-assets', label: 'Tài sản lớp' },
       ...(isCommitteeMember ? [{ key: 'asset-inspection', label: 'Kiểm kê tài sản' }] : []),
     ],
     [isCommitteeMember]
@@ -313,6 +311,9 @@ function TeacherAttendance() {
     const path = location.pathname || '';
     if (path.startsWith('/teacher/attendance')) return 'attendance';
     if (path.startsWith('/teacher/pickup-approval')) return 'pickup-approval';
+    if (path.startsWith('/teacher/purchase-request')) return 'purchase-request';
+    if (path.startsWith('/teacher/class-assets'))     return 'class-assets';
+    if (path.startsWith('/teacher/asset-inspection')) return 'asset-inspection';
     return 'classes';
   }, [location.pathname]);
 
@@ -322,6 +323,8 @@ function TeacherAttendance() {
     if (key === 'classes') { navigate('/teacher'); return; }
     if (key === 'attendance') { navigate('/teacher/attendance'); return; }
     if (key === 'pickup-approval')  { navigate('/teacher/pickup-approval');  return; }
+    if (key === 'purchase-request') { navigate('/teacher/purchase-request'); return; }
+    if (key === 'class-assets')     { navigate('/teacher/class-assets');     return; }
     if (key === 'asset-inspection') { navigate('/teacher/asset-inspection'); return; }
   };
 
@@ -834,10 +837,6 @@ function TeacherAttendance() {
           {/* Nút Điểm danh về */}
           <button
             onClick={() => {
-              if (new Date().getHours() < 17) {
-                showWarningToast('Chưa đến 17:00 — chưa được điểm danh về.');
-                return;
-              }
               setIsPickupFaceModalOpen(true);
             }}
             style={{
@@ -1048,7 +1047,11 @@ function TeacherAttendance() {
       <FaceModalErrorBoundary onClose={() => setIsFaceModalOpen(false)}>
         <FaceAttendanceModal
           open={isFaceModalOpen}
-          onClose={() => setIsFaceModalOpen(false)}
+          onClose={() => {
+            setIsFaceModalOpen(false);
+            loadAttendance();
+          }}
+          onCheckinSuccess={loadAttendance}
           classId={classId}
           className={selectedClassName}
         />

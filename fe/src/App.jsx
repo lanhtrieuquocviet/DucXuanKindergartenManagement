@@ -77,8 +77,11 @@ import PublicInformationDetail from './pages/PublicInformation/PublicInformation
 import PublicInfoDetail from './pages/PublicInformation/PublicInfoDetail';
 import ManagePublicInfo from './pages/schoolAdmin/ManagePublicInfo';
 import ManageBanners from './pages/schoolAdmin/ManageBanners';
+import ManagePurchaseRequests from './pages/schoolAdmin/ManagePurchaseRequests';
 import PickupRequest from './pages/teacher/PickupRequest';
 import TeacherAssetInspection from './pages/teacher/TeacherAssetInspection';
+import TeacherPurchaseRequest from './pages/teacher/TeacherPurchaseRequest';
+import TeacherClassAssets from './pages/teacher/TeacherClassAssets';
 import KitchenLayout from './pages/kitchenStaff/KitchenLayout';
 import KitchenDashboard from './pages/kitchenStaff/KitchenDashboard';
 import MenuManagement from './pages/kitchenStaff/MenuManagement';
@@ -104,6 +107,7 @@ import ClassListOverview from './pages/schoolAdmin/ClassListOverview';
 import TimetableActivitiesPage from './pages/schoolAdmin/TimetableActivitiesPage';
 import FaceAttendancePage from './pages/schoolAdmin/FaceAttendancePage';
 import ManageAssets from './pages/schoolAdmin/ManageAssets';
+import ManageAssetAllocation from './pages/schoolAdmin/ManageAssetAllocation';
 import ProtectedRoute from './components/ProtectedRoute';
 
 
@@ -304,6 +308,26 @@ function App() {
               <ProtectedRoute>
                 <TeacherProvider>
                   <TeacherAssetInspection />
+                </TeacherProvider>
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/teacher/purchase-request"
+            element={
+              <ProtectedRoute>
+                <TeacherProvider>
+                  <TeacherPurchaseRequest />
+                </TeacherProvider>
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/teacher/class-assets"
+            element={
+              <ProtectedRoute>
+                <TeacherProvider>
+                  <TeacherClassAssets />
                 </TeacherProvider>
               </ProtectedRoute>
             }
@@ -658,6 +682,26 @@ function App() {
               <ProtectedRoute>
                 <SchoolAdminProvider>
                   <ManageAssets />
+                </SchoolAdminProvider>
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/school-admin/asset-allocation"
+            element={
+              <ProtectedRoute>
+                <SchoolAdminProvider>
+                  <ManageAssetAllocation />
+                </SchoolAdminProvider>
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/school-admin/purchase-requests"
+            element={
+              <ProtectedRoute>
+                <SchoolAdminProvider>
+                  <ManagePurchaseRequests />
                 </SchoolAdminProvider>
               </ProtectedRoute>
             }
