@@ -276,6 +276,21 @@ export const ENDPOINTS = {
     ASSET_MINUTES_REJECT: (id) => `/school-admin/asset-minutes/${id}/reject`,
     // Asset CRUD
     ASSETS: "/school-admin/assets",
+    ASSETS_BULK: "/school-admin/assets/bulk",
+    // Asset Allocations (Biên bản bàn giao tài sản)
+    ASSET_ALLOCATIONS: "/school-admin/asset-allocations",
+    ASSET_ALLOCATIONS_CLASSES: "/school-admin/asset-allocations/classes",
+    ASSET_ALLOCATIONS_TEMPLATE: "/school-admin/asset-allocations/template",
+    ASSET_ALLOCATIONS_PARSE_WORD: "/school-admin/asset-allocations/parse-word",
+    ASSET_ALLOCATIONS_PARSE_EXCEL: "/school-admin/asset-allocations/parse-excel",
+    ASSET_ALLOCATION_DETAIL: (id) => `/school-admin/asset-allocations/${id}`,
+    ASSET_ALLOCATION_TRANSFER: (id) => `/school-admin/asset-allocations/${id}/transfer`,
+    PURCHASE_REQUESTS: "/school-admin/purchase-requests",
+    PURCHASE_REQUEST_APPROVE: (id) => `/school-admin/purchase-requests/${id}/approve`,
+    PURCHASE_REQUEST_REJECT: (id) => `/school-admin/purchase-requests/${id}/reject`,
+    // Asset incidents (admin view)
+    ASSET_INCIDENTS: "/school-admin/asset-incidents",
+    ASSET_INCIDENT_UPDATE: (id) => `/school-admin/asset-incidents/${id}`,
     ASSET_DETAIL: (id) => `/school-admin/assets/${id}`,
   },
   // Contact (public)
@@ -301,6 +316,14 @@ export const ENDPOINTS = {
     ATTENDANCE_BY_CLASS: (classId) => `/teacher/attendances/class/${classId}`,
     ATTENDANCE_BY_CLASS_DATE: (classId, date) =>
       `/teacher/attendances/class/${classId}/date/${date}`,
+    MY_CLASSES: "/teacher/my-classes",
+    PURCHASE_REQUESTS: "/teacher/purchase-requests",
+    PURCHASE_REQUEST_DETAIL: (id) => `/teacher/purchase-requests/${id}`,
+    // Asset allocation & incidents
+    MY_ASSET_ALLOCATION: "/teacher/asset-allocations",
+    ASSET_ALLOCATION_CONFIRM: (id) => `/teacher/asset-allocations/${id}/confirm`,
+    ASSET_INCIDENTS: "/teacher/asset-incidents",
+    ASSET_INCIDENT_DETAIL: (id) => `/teacher/asset-incidents/${id}`,
   },
   // Classes
   CLASSES: {
@@ -358,6 +381,7 @@ export const ENDPOINTS = {
     UPLOAD_BLOG_IMAGE: "/cloudinary/upload-blog-image",
     UPLOAD_BLOG_FILE: "/cloudinary/upload-blog-file",
     UPLOAD_KITCHEN_IMAGE: "/cloudinary/upload-kitchen-image",
+    UPLOAD_PURCHASE_IMAGE: "/cloudinary/upload-purchase-image",
   },
   // Meal Photos (Kitchen Staff)
   MEAL_PHOTOS: {

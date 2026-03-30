@@ -16,8 +16,9 @@ const assetRowSchema = new mongoose.Schema(
 const inspectionMinutesSchema = new mongoose.Schema(
   {
     minutesNumber: { type: String, trim: true },
+    className: { type: String, trim: true, default: '' }, // Tên lớp
     location: { type: String, trim: true, default: 'Đức Xuân' },
-    scope: { type: String, trim: true, default: '' },     // Lớp/Phạm vi
+    scope: { type: String, trim: true, default: '' },     // Phạm vi
     inspectionDate: { type: Date, required: true },
     inspectionTime: { type: String, trim: true, default: '' }, // Giờ bắt đầu (VD: "14h")
     endTime: { type: String, trim: true, default: '' },        // Giờ kết thúc
@@ -32,6 +33,7 @@ const inspectionMinutesSchema = new mongoose.Schema(
       enum: ['draft', 'pending', 'approved', 'rejected'],
       default: 'pending',
     },
+    rejectReason: { type: String, trim: true, default: '' }, // Lý do từ chối
   },
   {
     timestamps: true,

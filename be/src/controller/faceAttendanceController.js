@@ -526,13 +526,13 @@ const matchPickupFaceForCheckout = async (req, res) => {
 
     const now = new Date();
 
-    // Chỉ cho phép điểm danh về từ 17:00
-    if (now.getHours() < 17) {
-      return res.status(400).json({
-        status: 'too_early',
-        message: 'Chưa đến giờ điểm danh về. Điểm danh về chỉ được thực hiện từ 17:00.',
-      });
-    }
+    // TODO: bỏ giới hạn giờ để test, bật lại sau
+    // if (now.getHours() < 17) {
+    //   return res.status(400).json({
+    //     status: 'too_early',
+    //     message: 'Chưa đến giờ điểm danh về. Điểm danh về chỉ được thực hiện từ 17:00.',
+    //   });
+    // }
 
     const attendanceDate = date ? new Date(date) : new Date(now);
     attendanceDate.setHours(0, 0, 0, 0);
@@ -639,6 +639,117 @@ const matchPickupFaceForCheckout = async (req, res) => {
   }
 };
 
+/**
+ * Quét khuôn mặt học sinh → tự động ghi điểm danh về
+ * POST /api/face/student/checkout
+ * Body: { embedding, classId, date?, checkoutImageUrl? }
+ *
+ * Luồng:
+ *  1. Match embedding với học sinh trong lớp (dùng student.faceEmbedding)
+ *  2. Nếu match → tìm bản ghi điểm danh hôm nay
+ *  3. Nếu đã check-in → ghi checkout
+ */
+const matchStudentFaceForCheckout = async (req, res) => {
+  try {
+    const { embedding, classId, date, checkoutImageUrl = '' } = req.body;
+
+    if (!Array.isArray(embedding) || embedding.length !== 128) {
+      return res.status(400).json({ status: 'error', message: 'embedding phải là mảng 128 số float' });
+    }
+    if (!classId) {
+      return res.status(400).json({ status: 'error', message: 'Thiếu classId' });
+    }
+
+    const now = new Date();
+    const attendanceDate = date ? new Date(date) : new Date(now);
+    attendanceDate.setHours(0, 0, 0, 0);
+
+    // Lấy học sinh trong lớp có đăng ký khuôn mặt
+    const students = await Students.find({
+      classId,
+      status: 'active',
+      faceEmbedding: { $exists: true, $not: { $size: 0 } },
+    }).select('_id fullName avatar faceEmbedding classId');
+
+    if (students.length === 0) {
+      return res.status(200).json({
+        status: 'no_data',
+        message: 'Lớp này chưa có học sinh nào đăng ký khuôn mặt',
+        matched: false,
+      });
+    }
+
+    // So sánh embedding → tìm học sinh khớp nhất
+    let bestMatch = null;
+    let bestSimilarity = -1;
+
+    for (const student of students) {
+      const similarity = cosineSimilarity(embedding, student.faceEmbedding);
+      if (similarity > bestSimilarity) {
+        bestSimilarity = similarity;
+        bestMatch = student;
+      }
+    }
+
+    if (bestSimilarity < MATCH_THRESHOLD) {
+      return res.status(200).json({
+        status: 'no_match',
+        message: 'Không nhận diện được khuôn mặt học sinh',
+        matched: false,
+        bestSimilarity: bestSimilarity.toFixed(4),
+      });
+    }
+
+    // Kiểm tra học sinh đã check-in chưa
+    const existingAttendance = await Attendances.findOne({ studentId: bestMatch._id, date: attendanceDate });
+    if (!existingAttendance) {
+      return res.status(200).json({
+        status: 'not_checked_in',
+        message: `${bestMatch.fullName} chưa điểm danh đến hôm nay`,
+        matched: true,
+        student: { _id: bestMatch._id, fullName: bestMatch.fullName, avatar: bestMatch.avatar },
+      });
+    }
+
+    // Đã checkout rồi
+    if (existingAttendance.timeString?.checkOut) {
+      return res.status(200).json({
+        status: 'already_checked_out',
+        message: `${bestMatch.fullName} đã điểm danh về lúc ${existingAttendance.timeString.checkOut}`,
+        matched: true,
+        student: { _id: bestMatch._id, fullName: bestMatch.fullName, avatar: bestMatch.avatar },
+        attendance: existingAttendance,
+      });
+    }
+
+    // Ghi checkout
+    const checkOutTimeString = `${now.getHours().toString().padStart(2, '0')}:${now.getMinutes().toString().padStart(2, '0')}`;
+    const attendance = await Attendances.findOneAndUpdate(
+      { studentId: bestMatch._id, date: attendanceDate },
+      {
+        $set: {
+          'time.checkOut': now,
+          'timeString.checkOut': checkOutTimeString,
+          checkoutImageName: checkoutImageUrl,
+        },
+      },
+      { new: true }
+    );
+
+    return res.status(200).json({
+      status: 'success',
+      message: `Điểm danh về: ${bestMatch.fullName}`,
+      matched: true,
+      student: { _id: bestMatch._id, fullName: bestMatch.fullName, avatar: bestMatch.avatar },
+      similarity: bestSimilarity.toFixed(4),
+      attendance,
+    });
+  } catch (error) {
+    console.error('matchStudentFaceForCheckout error:', error);
+    return res.status(500).json({ status: 'error', message: 'Lỗi server', error: error.message });
+  }
+};
+
 module.exports = {
   registerFaceEmbedding,
   matchFaceEmbedding,
@@ -647,4 +758,5 @@ module.exports = {
   registerPickupFaceEmbedding,
   matchPickupFace,
   matchPickupFaceForCheckout,
+  matchStudentFaceForCheckout,
 };

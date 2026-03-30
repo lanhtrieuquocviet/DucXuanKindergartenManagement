@@ -56,10 +56,10 @@ import {
 
 const emptyFood = {
   name: "",
-  calories: "",
-  protein: "",
-  fat: "",
-  carb: "",
+  calories: "0",
+  protein: "0",
+  fat: "0",
+  carb: "0",
   ingredients: [],
 };
 
@@ -133,7 +133,7 @@ function NutritionBar({ value, max, color }) {
   );
 }
 
-function FormField({ config, value, error, onChange }) {
+function FormField({ config, value, error, onChange, inputProps = {}, disabled = false }) {
   const isName = config.key === "name";
   return (
     <TextField
@@ -142,14 +142,16 @@ function FormField({ config, value, error, onChange }) {
       name={config.key}
       label={config.label}
       type={isName ? "text" : "number"}
-      inputProps={isName ? { maxLength: 20 } : { min: 0 }}
+      inputProps={{ ...(isName ? { maxLength: 20 } : { min: 0 }), ...inputProps }}
       value={value}
       onChange={onChange}
       error={Boolean(error)}
       helperText={error || " "}
+      disabled={disabled}
       InputProps={
         !isName
           ? {
+              readOnly: disabled,
               endAdornment: (
                 <InputAdornment position="end">
                   <Typography variant="caption" color="text.disabled">
@@ -282,13 +284,15 @@ function FoodManagement() {
 
   const handleOpenEdit = (food) => {
     setEditingFood(food);
+    const ingredients = Array.isArray(food.ingredients) ? food.ingredients : [];
+    const nutrition = computeNutritionFromIngredients(ingredients);
     setForm({
       name: food.name || "",
-      calories: food.calories ?? "",
-      protein: food.protein ?? "",
-      fat: food.fat ?? "",
-      carb: food.carb ?? "",
-      ingredients: Array.isArray(food.ingredients) ? food.ingredients : [],
+      calories: nutrition.calories,
+      protein: nutrition.protein,
+      fat: nutrition.fat,
+      carb: nutrition.carb,
+      ingredients,
     });
     setErrors({});
     setShowModal(true);
@@ -785,7 +789,7 @@ function FoodManagement() {
               color="text.disabled"
               sx={{ mt: -0.5, mb: 0.5, display: "block" }}
             >
-              Thông tin dinh dưỡng
+              Thông tin dinh dưỡng (tự cập nhật theo nguyên liệu, không thể nhập tay)
             </Typography>
             <Grid container spacing={1.5}>
               {NUTRITION_CONFIG.map((n) => (
@@ -795,6 +799,7 @@ function FoodManagement() {
                     value={form[n.key]}
                     error={errors[n.key]}
                     onChange={handleChange}
+                    disabled
                   />
                 </Grid>
               ))}

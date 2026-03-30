@@ -34,6 +34,9 @@ import {
   CameraAlt as CameraAltIcon,
   MenuBook as MenuBookIcon,
   Restaurant as RestaurantIcon,
+  ShoppingCart as ShoppingCartIcon,
+  ContentPasteSearch as ContentPasteSearchIcon,
+  AccountTree as AccountTreeIcon,
 } from '@mui/icons-material';
 import { CurrencyIcon } from 'lucide-react';
 
@@ -72,6 +75,11 @@ const KEY_ICONS = {
   permissions:           <ShieldIcon fontSize="small" />,
   roles:                 <RolesIcon fontSize="small" />,
   logs:                  <BarChartIcon fontSize="small" />,
+  'purchase-request':    <ShoppingCartIcon fontSize="small" />,
+  'purchase-requests':   <ShoppingCartIcon fontSize="small" />,
+  'asset-inspection':    <ContentPasteSearchIcon fontSize="small" />,
+  'class-assets':        <InventoryIcon fontSize="small" />,
+  'asset-allocation':    <AccountTreeIcon fontSize="small" />,
 };
 
 /* ── Sidebar content ── */

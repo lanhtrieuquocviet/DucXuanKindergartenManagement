@@ -19,6 +19,7 @@ const {
   registerPickupFaceEmbedding,
   matchPickupFace,
   matchPickupFaceForCheckout,
+  matchStudentFaceForCheckout,
 } = require('../controller/faceAttendanceController');
 
 const router = express.Router();
@@ -194,5 +195,8 @@ router.post('/pickup/match', authenticate, matchPickupFace);
 
 // Quét mặt người đến đón → tự động ghi điểm danh về cho học sinh trong lớp
 router.post('/pickup/checkout', authenticate, authorizeRoles('Teacher', 'SchoolAdmin'), matchPickupFaceForCheckout);
+
+// Quét khuôn mặt học sinh → tự động ghi điểm danh về (luồng mới: giáo viên đăng ký mặt học sinh)
+router.post('/student/checkout', authenticate, authorizeRoles('Teacher', 'SchoolAdmin'), matchStudentFaceForCheckout);
 
 module.exports = router;

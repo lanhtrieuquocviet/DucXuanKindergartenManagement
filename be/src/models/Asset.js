@@ -6,8 +6,17 @@ const assetSchema = new mongoose.Schema(
     name:             { type: String, required: true, trim: true },
     category: {
       type: String,
-      enum: ['Phòng học', 'Bàn ghế', 'Thiết bị dạy học', 'Đồ dùng', 'Khác'],
-      default: 'Khác',
+      enum: [
+        'Phòng nuôi dưỡng, chăm sóc, giáo dục trẻ em',
+        'Số bàn, ghế ngồi',
+        'Khối phòng phục vụ học tập',
+        'Phòng tổ chức ăn, nghỉ',
+        'Công trình công cộng và khối phòng phục vụ khác',
+        'Khối phòng hành chính quản trị',
+        'Diện tích đất',
+        'Thiết bị dạy học và CNTT',
+      ],
+      default: 'Phòng nuôi dưỡng, chăm sóc, giáo dục trẻ em',
     },
     room:             { type: String, trim: true, default: '' },
     requiredQuantity: { type: Number, min: 0, default: 0 },   // Nhu cầu theo quy định
