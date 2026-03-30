@@ -1,5 +1,5 @@
 import { useEffect, useState, useMemo } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useSearchParams } from 'react-router-dom';
 import RoleLayout from '../../layouts/RoleLayout';
 import { useAuth } from '../../context/AuthContext';
 import { get, post, put, del, ENDPOINTS } from '../../service/api';
@@ -46,8 +46,10 @@ import {
   Delete as DeleteIcon,
   Layers as LayersIcon,
   Person as PersonIcon,
+  People as PeopleIcon,
   ArrowBack as ArrowBackIcon,
   ChevronRight as ChevronRightIcon,
+  Search as SearchIcon,
 } from '@mui/icons-material';
 
 // ── colour palette per grade index ────────────────────────────────────────────
@@ -193,6 +195,11 @@ function ClassList() {
   // Drill-down state: null = grade list, object = selected grade
   const [selectedGrade, setSelectedGrade] = useState(null);
 
+  // All students
+  const [allStudents, setAllStudents] = useState([]);
+  const [studentLoading, setStudentLoading] = useState(false);
+  const [studentSearch, setStudentSearch] = useState('');
+
   // Teachers & Rooms list (shared by create + edit dialog)
   const [teachers, setTeachers] = useState([]);
   const [rooms, setRooms] = useState([]);
@@ -239,6 +246,7 @@ function ClassList() {
   const [gradeDeleteConfirm, setGradeDeleteConfirm] = useState(null);
 
   const navigate = useNavigate();
+  const [searchParams] = useSearchParams();
   const { user, hasRole, logout, isInitializing } = useAuth();
 
   // ── fetch teacher availability when className changes (create dialog) ────────
@@ -292,7 +300,16 @@ function ClassList() {
     if (!hasRole('SchoolAdmin') && !hasRole('SystemAdmin')) { navigate('/', { replace: true }); return; }
     fetchClasses();
     fetchGradeList();
+    fetchAllStudents();
   }, [navigate, user, hasRole, isInitializing]);
+
+  // Tự động chọn khối khi có query param ?gradeId=
+  useEffect(() => {
+    const gradeId = searchParams.get('gradeId');
+    if (!gradeId || gradeList.length === 0) return;
+    const found = gradeList.find(g => g._id === gradeId);
+    if (found) { setSelectedGrade(found); setSearchTerm(''); }
+  }, [gradeList, searchParams]);
 
   // ── data fetching ─────────────────────────────────────────────────────────────
   const fetchClasses = async () => {
@@ -319,6 +336,18 @@ function ClassList() {
       setGradeError(err.message || 'Lỗi khi tải danh sách khối lớp');
     } finally {
       setGradeLoading(false);
+    }
+  };
+
+  const fetchAllStudents = async () => {
+    try {
+      setStudentLoading(true);
+      const res = await get(ENDPOINTS.STUDENTS.LIST);
+      setAllStudents(res.data || []);
+    } catch (_) {
+      setAllStudents([]);
+    } finally {
+      setStudentLoading(false);
     }
   };
 
@@ -824,6 +853,148 @@ function ClassList() {
                 })}
             </Grid>
           )}
+
+          {/* ── Student summary & list ────────────────────────────────────── */}
+          {(() => {
+            // Chỉ hiển thị học sinh thuộc các lớp của năm học hiện tại
+            const activeClassIds = new Set(classes.map(c => String(c._id)));
+            const currentYearStudents = allStudents.filter(s => {
+              const cId = String(s.classId?._id || s.classId || '');
+              return cId && activeClassIds.has(cId);
+            });
+
+            const total = currentYearStudents.length;
+            const inClass = currentYearStudents.filter(s => s.classId).length;
+            const noClass = total - inClass;
+            const male = currentYearStudents.filter(s => s.gender === 'male').length;
+            const female = currentYearStudents.filter(s => s.gender === 'female').length;
+            const filtered = currentYearStudents.filter(s => {
+              if (!studentSearch.trim()) return true;
+              const term = studentSearch.toLowerCase();
+              const className = (s.classId?.className || '').toLowerCase();
+              return (
+                (s.fullName || '').toLowerCase().includes(term) ||
+                className.includes(term)
+              );
+            });
+
+            return (
+              <Box mt={4}>
+                {/* Title */}
+                <Stack direction="row" alignItems="center" justifyContent="space-between" mb={2}>
+                  <Stack direction="row" alignItems="center" spacing={1}>
+                    <PeopleIcon sx={{ color: '#6366f1' }} />
+                    <Typography variant="subtitle1" fontWeight={700}>Tổng hợp học sinh</Typography>
+                  </Stack>
+                  <Button size="small" variant="outlined" startIcon={<RefreshIcon />}
+                    onClick={fetchAllStudents}
+                    sx={{ textTransform: 'none', borderRadius: 1.5, fontSize: '0.78rem' }}
+                  >Tải lại</Button>
+                </Stack>
+
+                {/* Stat cards */}
+                <Grid container spacing={2} mb={3}>
+                  {[
+                    { label: 'Tổng học sinh', value: total, color: '#6366f1', bg: '#ede9fe' },
+                    { label: 'Đã vào lớp', value: inClass, color: '#16a34a', bg: '#dcfce7' },
+                    { label: 'Chưa vào lớp', value: noClass, color: '#d97706', bg: '#fef9c3' },
+                    { label: 'Nam', value: male, color: '#2563eb', bg: '#dbeafe' },
+                    { label: 'Nữ', value: female, color: '#db2777', bg: '#fce7f3' },
+                  ].map(({ label, value, color, bg }) => (
+                    <Grid item xs={6} sm={4} md={2.4} key={label}>
+                      <Paper elevation={0} sx={{ p: 2, borderRadius: 2, bgcolor: bg, textAlign: 'center' }}>
+                        <Typography variant="h5" fontWeight={800} sx={{ color }}>{value}</Typography>
+                        <Typography variant="caption" color="text.secondary" fontWeight={500}>{label}</Typography>
+                      </Paper>
+                    </Grid>
+                  ))}
+                </Grid>
+
+                {/* Search */}
+                <TextField
+                  size="small"
+                  placeholder="Tìm theo tên học sinh, lớp..."
+                  value={studentSearch}
+                  onChange={e => setStudentSearch(e.target.value)}
+                  InputProps={{ startAdornment: <SearchIcon sx={{ mr: 1, color: 'text.disabled', fontSize: 18 }} /> }}
+                  sx={{ mb: 2, width: 300 }}
+                />
+
+                {/* Table */}
+                <Paper elevation={1} sx={{ borderRadius: 2, overflow: 'hidden' }}>
+                  {studentLoading ? (
+                    <Stack alignItems="center" py={5}>
+                      <CircularProgress size={28} sx={{ color: '#6366f1' }} />
+                    </Stack>
+                  ) : (
+                    <TableContainer>
+                      <Table size="small">
+                        <TableHead>
+                          <TableRow sx={{ bgcolor: '#f8fafc' }}>
+                            <TableCell sx={{ fontWeight: 700, width: 50 }}>STT</TableCell>
+                            <TableCell sx={{ fontWeight: 700 }}>Họ tên</TableCell>
+                            <TableCell sx={{ fontWeight: 700 }}>Ngày sinh</TableCell>
+                            <TableCell sx={{ fontWeight: 700 }}>Giới tính</TableCell>
+                            <TableCell sx={{ fontWeight: 700 }}>Lớp học</TableCell>
+                            <TableCell sx={{ fontWeight: 700 }}>Trạng thái</TableCell>
+                          </TableRow>
+                        </TableHead>
+                        <TableBody>
+                          {filtered.length === 0 ? (
+                            <TableRow>
+                              <TableCell colSpan={6} align="center" sx={{ py: 4, color: 'text.secondary' }}>
+                                {studentSearch ? 'Không tìm thấy học sinh nào' : 'Chưa có học sinh'}
+                              </TableCell>
+                            </TableRow>
+                          ) : (
+                            filtered.map((s, idx) => (
+                              <TableRow key={s._id} hover>
+                                <TableCell sx={{ color: 'text.secondary', fontSize: '0.8rem' }}>{idx + 1}</TableCell>
+                                <TableCell>
+                                  <Stack direction="row" alignItems="center" spacing={1}>
+                                    <Avatar src={s.avatar} sx={{ width: 28, height: 28, fontSize: '0.75rem', bgcolor: '#6366f1' }}>
+                                      {s.fullName?.charAt(0)}
+                                    </Avatar>
+                                    <Typography variant="body2" fontWeight={600}>{s.fullName}</Typography>
+                                  </Stack>
+                                </TableCell>
+                                <TableCell sx={{ fontSize: '0.82rem', color: 'text.secondary' }}>
+                                  {s.dateOfBirth ? new Date(s.dateOfBirth).toLocaleDateString('vi-VN') : '—'}
+                                </TableCell>
+                                <TableCell>
+                                  <Chip
+                                    label={s.gender === 'male' ? 'Nam' : s.gender === 'female' ? 'Nữ' : 'Khác'}
+                                    size="small"
+                                    sx={{
+                                      bgcolor: s.gender === 'male' ? '#dbeafe' : s.gender === 'female' ? '#fce7f3' : '#f3f4f6',
+                                      color: s.gender === 'male' ? '#2563eb' : s.gender === 'female' ? '#db2777' : '#6b7280',
+                                      fontWeight: 600, fontSize: '0.72rem',
+                                    }}
+                                  />
+                                </TableCell>
+                                <TableCell sx={{ fontSize: '0.82rem' }}>
+                                  {s.classId?.className
+                                    ? <Chip label={s.classId.className} size="small" sx={{ bgcolor: '#ede9fe', color: '#6366f1', fontWeight: 600, fontSize: '0.72rem' }} />
+                                    : <Typography variant="caption" color="text.disabled">Chưa vào lớp</Typography>
+                                  }
+                                </TableCell>
+                                <TableCell>
+                                  {s.classId
+                                    ? <Chip label="Đang học" size="small" sx={{ bgcolor: '#dcfce7', color: '#16a34a', fontWeight: 600, fontSize: '0.72rem' }} />
+                                    : <Chip label="Chưa vào lớp" size="small" sx={{ bgcolor: '#f3f4f6', color: '#6b7280', fontWeight: 600, fontSize: '0.72rem' }} />
+                                  }
+                                </TableCell>
+                              </TableRow>
+                            ))
+                          )}
+                        </TableBody>
+                      </Table>
+                    </TableContainer>
+                  )}
+                </Paper>
+              </Box>
+            );
+          })()}
         </Box>
       )}
 

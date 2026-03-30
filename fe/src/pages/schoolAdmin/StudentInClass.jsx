@@ -380,7 +380,11 @@ function StudentInClass() {
   // ── layout helpers ───────────────────────────────────────────────────────────
   const handleLogout = () => { logout(); navigate('/login', { replace: true }); };
   const handleViewProfile = () => navigate('/profile');
-  const handleGoBack = () => navigate(hasRole('SystemAdmin') ? '/system-admin/classes' : '/school-admin/classes');
+  const handleGoBack = () => {
+    const gradeId = classDetail?.gradeId?._id || classDetail?.gradeId;
+    const base = hasRole('SystemAdmin') ? '/system-admin/classes' : '/school-admin/classes';
+    navigate(gradeId ? `${base}?gradeId=${gradeId}` : base);
+  };
 
   const handleMenuSelect = createSchoolAdminMenuSelect(navigate);
 
