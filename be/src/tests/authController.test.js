@@ -13,7 +13,8 @@ jest.mock('../utils/systemLog', () => ({ createSystemLog: jest.fn().mockResolved
 jest.mock('../utils/tokenBlacklist', () => ({ addToBlacklist: jest.fn() }));
 
 const User = require('../models/User');
-const { login, resetPassword } = require('../controller/authController');
+const { login, resetPassword, verifyAccount, verifyOTP } = require('../controller/authController');
+const { sendOTPEmail } = require('../utils/email');
 
 const mockRes = () => { const r = {}; r.status = jest.fn().mockReturnValue(r); r.json = jest.fn().mockReturnValue(r); return r; };
 const mockReq = (body = {}) => ({ body, headers: {} });
@@ -185,6 +186,187 @@ describe('resetPassword', () => {
     User.findOne = jest.fn().mockRejectedValue(new Error('DB error'));
     const res = mockRes();
     await resetPassword(mockReq({ username: 'testuser', newPassword: 'NewPass1!' }), res);
+    expect(res.status).toHaveBeenCalledWith(500);
+  });
+});
+
+// ════════════════════════════════════════════════
+// verifyAccount (Gửi OTP qua email)
+// ════════════════════════════════════════════════
+describe('verifyAccount', () => {
+  beforeEach(() => jest.clearAllMocks());
+
+  const makeUserForOtp = (o = {}) => makeUser({
+    email: 'test@example.com',
+    otpCode: null,
+    otpExpiresAt: null,
+    otpVerified: false,
+    passwordResetAttempts: 0,
+    lastPasswordResetAt: null,
+    nextPasswordResetAllowedAt: null,
+    ...o,
+  });
+
+  test('UTC001 [N] Gửi OTP thành công → 200', async () => {
+    User.findOne = jest.fn().mockResolvedValue(makeUserForOtp());
+    sendOTPEmail.mockResolvedValue(undefined);
+    const res = mockRes();
+    await verifyAccount(mockReq({ username: 'testuser' }), res);
+    expect(res.status).toHaveBeenCalledWith(200);
+    expect(res.json).toHaveBeenCalledWith(expect.objectContaining({ status: 'success' }));
+  });
+
+  test('UTC002 [A] Thiếu username → 400', async () => {
+    const res = mockRes();
+    await verifyAccount(mockReq({}), res);
+    expect(res.status).toHaveBeenCalledWith(400);
+  });
+
+  test('UTC003 [A] Username không tồn tại → 404', async () => {
+    User.findOne = jest.fn().mockResolvedValue(null);
+    const res = mockRes();
+    await verifyAccount(mockReq({ username: 'nouser' }), res);
+    expect(res.status).toHaveBeenCalledWith(404);
+  });
+
+  test('UTC004 [A] Tài khoản bị khóa → 403', async () => {
+    User.findOne = jest.fn().mockResolvedValue(makeUserForOtp({ status: 'inactive' }));
+    const res = mockRes();
+    await verifyAccount(mockReq({ username: 'testuser' }), res);
+    expect(res.status).toHaveBeenCalledWith(403);
+  });
+
+  test('UTC005 [A] Tài khoản không có email → 400', async () => {
+    User.findOne = jest.fn().mockResolvedValue(makeUserForOtp({ email: null }));
+    const res = mockRes();
+    await verifyAccount(mockReq({ username: 'testuser' }), res);
+    expect(res.status).toHaveBeenCalledWith(400);
+    expect(res.json).toHaveBeenCalledWith(expect.objectContaining({ message: expect.stringContaining('email') }));
+  });
+
+  test('UTC006 [A] Bị rate limit (đang trong thời gian chờ) → 429', async () => {
+    const waitUntil = new Date(Date.now() + 30 * 60 * 1000); // chờ 30 phút
+    User.findOne = jest.fn().mockResolvedValue(makeUserForOtp({
+      passwordResetAttempts: 5,
+      nextPasswordResetAllowedAt: waitUntil,
+      lastPasswordResetAt: new Date(),
+    }));
+    const res = mockRes();
+    await verifyAccount(mockReq({ username: 'testuser' }), res);
+    expect(res.status).toHaveBeenCalledWith(429);
+  });
+
+  test('UTC007 [A] Gửi email thất bại → 500', async () => {
+    User.findOne = jest.fn().mockResolvedValue(makeUserForOtp());
+    sendOTPEmail.mockRejectedValue(new Error('Email error'));
+    const res = mockRes();
+    await verifyAccount(mockReq({ username: 'testuser' }), res);
+    expect(res.status).toHaveBeenCalledWith(500);
+  });
+
+  test('UTC008 [B] Response chứa maskedEmail → che bớt email', async () => {
+    User.findOne = jest.fn().mockResolvedValue(makeUserForOtp());
+    sendOTPEmail.mockResolvedValue(undefined);
+    const res = mockRes();
+    await verifyAccount(mockReq({ username: 'testuser' }), res);
+    expect(res.json).toHaveBeenCalledWith(
+      expect.objectContaining({ data: expect.objectContaining({ maskedEmail: expect.any(String) }) })
+    );
+  });
+
+  test('UTC009 [A] DB throw exception → 500', async () => {
+    User.findOne = jest.fn().mockRejectedValue(new Error('DB error'));
+    const res = mockRes();
+    await verifyAccount(mockReq({ username: 'testuser' }), res);
+    expect(res.status).toHaveBeenCalledWith(500);
+  });
+});
+
+// ════════════════════════════════════════════════
+// verifyOTP
+// ════════════════════════════════════════════════
+describe('verifyOTP', () => {
+  beforeEach(() => jest.clearAllMocks());
+
+  const validOtp = '123456';
+  const makeUserWithOtp = (o = {}) => makeUser({
+    otpCode: validOtp,
+    otpExpiresAt: new Date(Date.now() + 10 * 60 * 1000), // còn 10 phút
+    otpVerified: false,
+    ...o,
+  });
+
+  test('UTC001 [N] Xác minh OTP thành công → 200', async () => {
+    User.findOne = jest.fn().mockResolvedValue(makeUserWithOtp());
+    const res = mockRes();
+    await verifyOTP(mockReq({ username: 'testuser', otpCode: validOtp }), res);
+    expect(res.status).toHaveBeenCalledWith(200);
+    expect(res.json).toHaveBeenCalledWith(expect.objectContaining({ status: 'success' }));
+  });
+
+  test('UTC002 [A] Thiếu username → 400', async () => {
+    const res = mockRes();
+    await verifyOTP(mockReq({ otpCode: validOtp }), res);
+    expect(res.status).toHaveBeenCalledWith(400);
+  });
+
+  test('UTC003 [A] Thiếu otpCode → 400', async () => {
+    const res = mockRes();
+    await verifyOTP(mockReq({ username: 'testuser' }), res);
+    expect(res.status).toHaveBeenCalledWith(400);
+  });
+
+  test('UTC004 [A] Username không tồn tại → 404', async () => {
+    User.findOne = jest.fn().mockResolvedValue(null);
+    const res = mockRes();
+    await verifyOTP(mockReq({ username: 'nouser', otpCode: validOtp }), res);
+    expect(res.status).toHaveBeenCalledWith(404);
+  });
+
+  test('UTC005 [A] Tài khoản bị khóa → 403', async () => {
+    User.findOne = jest.fn().mockResolvedValue(makeUserWithOtp({ status: 'inactive' }));
+    const res = mockRes();
+    await verifyOTP(mockReq({ username: 'testuser', otpCode: validOtp }), res);
+    expect(res.status).toHaveBeenCalledWith(403);
+  });
+
+  test('UTC006 [A] Chưa có OTP (chưa gửi) → 400', async () => {
+    User.findOne = jest.fn().mockResolvedValue(makeUserWithOtp({ otpCode: null }));
+    const res = mockRes();
+    await verifyOTP(mockReq({ username: 'testuser', otpCode: validOtp }), res);
+    expect(res.status).toHaveBeenCalledWith(400);
+    expect(res.json).toHaveBeenCalledWith(expect.objectContaining({ message: expect.stringContaining('OTP') }));
+  });
+
+  test('UTC007 [A] OTP sai → 400', async () => {
+    User.findOne = jest.fn().mockResolvedValue(makeUserWithOtp());
+    const res = mockRes();
+    await verifyOTP(mockReq({ username: 'testuser', otpCode: '000000' }), res);
+    expect(res.status).toHaveBeenCalledWith(400);
+    expect(res.json).toHaveBeenCalledWith(expect.objectContaining({ message: expect.stringContaining('không chính xác') }));
+  });
+
+  test('UTC008 [A] OTP đã hết hạn → 400', async () => {
+    User.findOne = jest.fn().mockResolvedValue(
+      makeUserWithOtp({ otpExpiresAt: new Date(Date.now() - 1000) }) // hết hạn 1 giây trước
+    );
+    const res = mockRes();
+    await verifyOTP(mockReq({ username: 'testuser', otpCode: validOtp }), res);
+    expect(res.status).toHaveBeenCalledWith(400);
+    expect(res.json).toHaveBeenCalledWith(expect.objectContaining({ message: expect.stringContaining('hết hạn') }));
+  });
+
+  test('UTC009 [B] OTP có khoảng trắng đầu/cuối vẫn match → 200', async () => {
+    User.findOne = jest.fn().mockResolvedValue(makeUserWithOtp());
+    const res = mockRes();
+    await verifyOTP(mockReq({ username: 'testuser', otpCode: `  ${validOtp}  ` }), res);
+    expect(res.status).toHaveBeenCalledWith(200);
+  });
+
+  test('UTC010 [A] DB throw exception → 500', async () => {
+    User.findOne = jest.fn().mockRejectedValue(new Error('DB error'));
+    const res = mockRes();
+    await verifyOTP(mockReq({ username: 'testuser', otpCode: validOtp }), res);
     expect(res.status).toHaveBeenCalledWith(500);
   });
 });
