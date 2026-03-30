@@ -52,9 +52,24 @@ const getOrCreateSetting = async () => {
 const getAdminHomepageBanners = async (req, res) => {
   try {
     const setting = await getOrCreateSetting();
+    const sorted = [...(setting.banners || [])].sort((a, b) => (a.order || 0) - (b.order || 0));
+    const banners = sorted.map((b, i) => ({
+      _id: b._id,
+      imageUrl: b.imageUrl,
+      altText: b.altText,
+      isActive: b.isActive,
+      order: i + 1,
+    }));
+
+    const hasOrderDrift = sorted.some((b, i) => Number(b.order) !== i + 1);
+    if (hasOrderDrift) {
+      setting.banners = banners;
+      await setting.save();
+    }
+
     return res.status(200).json({
       status: 'success',
-      data: { banners: setting.banners || [] },
+      data: { banners },
     });
   } catch (err) {
     return res.status(500).json({
@@ -103,10 +118,23 @@ const createAdminHomepageBanner = async (req, res) => {
       });
     }
 
-    setting.banners.push(newBanner);
+    const maxPosition = setting.banners.length + 1;
+    const requestedPosition = Number(req.body?.order);
+    const insertPosition = Number.isFinite(requestedPosition)
+      ? Math.min(Math.max(Math.floor(requestedPosition), 1), maxPosition)
+      : maxPosition;
+
+    setting.banners.splice(insertPosition - 1, 0, newBanner);
+    setting.banners = setting.banners.map((b, i) => ({
+      _id: b._id,
+      imageUrl: b.imageUrl,
+      altText: b.altText,
+      isActive: b.isActive,
+      order: i + 1,
+    }));
     setting.updatedBy = req.user?.id || null;
     await setting.save();
-    const created = setting.banners[setting.banners.length - 1];
+    const created = setting.banners[insertPosition - 1];
 
     return res.status(201).json({
       status: 'success',
@@ -134,6 +162,7 @@ const updateAdminHomepageBannerById = async (req, res) => {
       });
     }
 
+    const currentIndex = setting.banners.findIndex((b) => String(b._id) === String(bannerId));
     const next = normalizeBanner(
       {
         imageUrl: req.body?.imageUrl ?? banner.imageUrl,
@@ -141,7 +170,7 @@ const updateAdminHomepageBannerById = async (req, res) => {
         isActive: typeof req.body?.isActive === 'boolean' ? req.body.isActive : banner.isActive,
         order: req.body?.order ?? banner.order,
       },
-      setting.banners.findIndex((b) => String(b._id) === String(bannerId))
+      currentIndex
     );
 
     if (!next.imageUrl) {
@@ -151,17 +180,53 @@ const updateAdminHomepageBannerById = async (req, res) => {
       });
     }
 
-    banner.imageUrl = next.imageUrl;
-    banner.altText = next.altText;
-    banner.isActive = next.isActive;
-    banner.order = next.order;
+    const normalizedList = [...(setting.banners || [])]
+      .sort((a, b) => (Number(a.order) || 0) - (Number(b.order) || 0))
+      .map((b, i) => ({
+        _id: b._id,
+        imageUrl: b.imageUrl,
+        altText: b.altText,
+        isActive: b.isActive,
+        order: i + 1,
+      }));
+
+    const orderedCurrentIndex = normalizedList.findIndex((b) => String(b._id) === String(bannerId));
+    const total = normalizedList.length;
+    const currentOrder = orderedCurrentIndex + 1;
+    const targetOrder = Math.min(Math.max(Math.floor(Number(next.order) || currentOrder), 1), total);
+
+    // Cập nhật nội dung banner đang sửa
+    normalizedList[orderedCurrentIndex] = {
+      ...normalizedList[orderedCurrentIndex],
+      imageUrl: next.imageUrl,
+      altText: next.altText,
+      isActive: next.isActive,
+    };
+
+    // Swap theo vị trí để đảm bảo target về current
+    if (targetOrder !== currentOrder) {
+      const targetIndex = targetOrder - 1;
+      const currentItem = normalizedList[orderedCurrentIndex];
+      const targetItem = normalizedList[targetIndex];
+      normalizedList[targetIndex] = currentItem;
+      normalizedList[orderedCurrentIndex] = targetItem;
+    }
+
+    setting.banners = normalizedList.map((b, i) => ({
+      _id: b._id,
+      imageUrl: b.imageUrl,
+      altText: b.altText,
+      isActive: b.isActive,
+      order: i + 1,
+    }));
     setting.updatedBy = req.user?.id || null;
     await setting.save();
 
+    const updatedBanner = setting.banners.id(bannerId);
     return res.status(200).json({
       status: 'success',
       message: 'Cập nhật banner thành công.',
-      data: { banner, banners: setting.banners || [] },
+      data: { banner: updatedBanner, banners: setting.banners || [] },
     });
   } catch (err) {
     return res.status(500).json({

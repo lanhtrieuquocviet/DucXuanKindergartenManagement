@@ -9,6 +9,7 @@ import {
   DialogActions,
   DialogContent,
   DialogTitle,
+  MenuItem,
   Paper,
   Stack,
   Switch,
@@ -115,6 +116,7 @@ export default function ManageBanners() {
       imageUrl,
       altText,
       isActive: creatingBanner.isActive !== false,
+      order: Number(creatingBanner.order) || banners.length + 1,
     })
       .then((resp) => {
         const list = resp?.data?.banners;
@@ -375,6 +377,9 @@ export default function ManageBanners() {
                 </Box>
 
                 <Stack spacing={1.2} sx={{ p: 2 }}>
+                  <Typography variant="caption" color="text.secondary" sx={{ fontWeight: 600 }}>
+                    Vị trí hiển thị: {item.order || index + 1}
+                  </Typography>
                   <Typography variant="body1" fontWeight={500}>
                     {item.altText || `Banner ${index + 1}`}
                   </Typography>
@@ -478,6 +483,23 @@ export default function ManageBanners() {
               value={creatingBanner.altText}
               onChange={(e) => setCreatingBanner((prev) => ({ ...prev, altText: e.target.value }))}
             />
+            <TextField
+              select
+              label="Vị trí hiển thị"
+              fullWidth
+              size="small"
+              value={creatingBanner.order}
+              onChange={(e) =>
+                setCreatingBanner((prev) => ({ ...prev, order: Number(e.target.value) }))
+              }
+              helperText="Chọn vị trí muốn chèn banner vào danh sách hiển thị."
+            >
+              {Array.from({ length: banners.length + 1 }, (_, i) => i + 1).map((pos) => (
+                <MenuItem key={pos} value={pos}>
+                  Vị trí {pos}
+                </MenuItem>
+              ))}
+            </TextField>
             <Stack direction="row" alignItems="center" spacing={1}>
               <Typography variant="body2">Hiển thị banner</Typography>
               <Switch
@@ -543,6 +565,23 @@ export default function ManageBanners() {
               value={editingBanner.altText}
               onChange={(e) => setEditingBanner((prev) => ({ ...prev, altText: e.target.value }))}
             />
+            <TextField
+              select
+              label="Vị trí hiển thị"
+              fullWidth
+              size="small"
+              value={editingBanner.order || 1}
+              onChange={(e) =>
+                setEditingBanner((prev) => ({ ...prev, order: Number(e.target.value) }))
+              }
+              helperText="Chọn vị trí muốn hiển thị banner."
+            >
+              {Array.from({ length: Math.max(banners.length, 1) }, (_, i) => i + 1).map((pos) => (
+                <MenuItem key={pos} value={pos}>
+                  Vị trí {pos}
+                </MenuItem>
+              ))}
+            </TextField>
             <Stack direction="row" alignItems="center" spacing={1}>
               <Typography variant="body2">Hiển thị banner</Typography>
               <Switch
