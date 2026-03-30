@@ -413,29 +413,48 @@ function Header() {
             </div>
 
             {/* ===== BANNER ===== */}
-            <div className="relative h-[220px] sm:h-[220px] md:h-[330px] m-3 sm:m-4 rounded-xl overflow-hidden">
+            <div className="relative h-[180px] sm:h-[200px] md:h-[260px] m-3 sm:m-4 rounded-xl overflow-hidden bg-gradient-to-r from-green-50 to-blue-50">
                 {banners.length > 0 ? (
-                    <img
-                        src={banners[currentBanner]}
-                        alt="Banner"
-                        className="w-full h-full object-cover object-center"
-                    />
+                    <>
+                        <img
+                            src={banners[currentBanner]}
+                            alt=""
+                            aria-hidden="true"
+                            className="absolute inset-0 w-full h-full object-cover object-center blur-sm scale-110 opacity-45"
+                        />
+                        <img
+                            src={banners[currentBanner]}
+                            alt="Banner"
+                            className="relative z-[1] w-full h-full object-cover object-center"
+                        />
+                        {banners.length > 1 && (
+                            <>
+                                <button
+                                    type="button"
+                                    aria-label="Banner trước"
+                                    onClick={() => setCurrentBanner((prev) => (prev - 1 + banners.length) % banners.length)}
+                                    className="absolute left-3 top-1/2 -translate-y-1/2 z-[2] w-9 h-9 rounded-full bg-black/30 hover:bg-black/45 text-white flex items-center justify-center transition"
+                                >
+                                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" className="w-4 h-4">
+                                        <path d="M15 18l-6-6 6-6" />
+                                    </svg>
+                                </button>
+                                <button
+                                    type="button"
+                                    aria-label="Banner tiếp theo"
+                                    onClick={() => setCurrentBanner((prev) => (prev + 1) % banners.length)}
+                                    className="absolute right-3 top-1/2 -translate-y-1/2 z-[2] w-9 h-9 rounded-full bg-black/30 hover:bg-black/45 text-white flex items-center justify-center transition"
+                                >
+                                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" className="w-4 h-4">
+                                        <path d="M9 6l6 6-6 6" />
+                                    </svg>
+                                </button>
+                            </>
+                        )}
+                    </>
                 ) : (
                     <div className="w-full h-full flex items-center justify-center text-white/90 text-sm bg-green-700">
                         Chưa có banner hiển thị
-                    </div>
-                )}
-                {banners.length > 0 && (
-                    <div className="absolute left-1/2 -translate-x-1/2 bottom-2 flex gap-2">
-                        {banners.map((_, i) => (
-                            <button
-                                key={i}
-                                type="button"
-                                onClick={() => setCurrentBanner(i)}
-                                className={`w-2.5 h-2.5 rounded-full transition ${currentBanner === i ? "bg-green-600" : "bg-green-200"}`}
-                                aria-label={`Ảnh ${i + 1}`}
-                            />
-                        ))}
                     </div>
                 )}
             </div>

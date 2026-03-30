@@ -199,7 +199,7 @@ function AttendanceOverview() {
       title="Điểm danh các lớp (Hôm nay)"
       description="Xem tổng quan điểm danh của tất cả các lớp trong trường."
       menuItems={SCHOOL_ADMIN_MENU_ITEMS}
-      activeKey="attendance"
+      activeKey="attendance-overview"
       onLogout={() => {
         logout();
         navigate('/login', { replace: true });

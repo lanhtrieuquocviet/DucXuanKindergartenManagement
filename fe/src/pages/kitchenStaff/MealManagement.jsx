@@ -1159,17 +1159,7 @@ function SampleEntryCard({ entry, onPreview, selectedDate, isToday, editRequest,
                 <Typography sx={{ fontSize: 10.5, color: '#d97706', fontWeight: 700 }}>Chờ duyệt</Typography>
               </Box>
             </Tooltip>
-          ) : (
-            <Tooltip title="Gửi yêu cầu chỉnh sửa lên ban giám hiệu" arrow>
-              <IconButton
-                size="small"
-                onClick={() => onRequestEdit('sample', entry.mealType)}
-                sx={{ p: 0.5, color: cfg.color, '&:hover': { bgcolor: alpha(cfg.color, 0.12) } }}
-              >
-                <SendIcon sx={{ fontSize: 15 }} />
-              </IconButton>
-            </Tooltip>
-          )
+          ) : null
         )}
       </Box>
 
