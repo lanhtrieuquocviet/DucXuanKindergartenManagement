@@ -235,6 +235,15 @@ function StudentInClass() {
   const [removeLoading, setRemoveLoading] = useState(false);
   const [removeError, setRemoveError] = useState(null);
 
+  // Nhật ký: trạng thái hoàn thành từng tiết
+  const [completedItems, setCompletedItems] = useState(new Set());
+  const toggleCompleted = (id) =>
+    setCompletedItems(prev => {
+      const next = new Set(prev);
+      next.has(id) ? next.delete(id) : next.add(id);
+      return next;
+    });
+
   // Add students to class dialog
   const [addOpen, setAddOpen] = useState(false);
   const [allStudents, setAllStudents] = useState([]);
@@ -759,11 +768,17 @@ function StudentInClass() {
                     const seasonNote = item.appliesToSeason !== 'both'
                       ? (item.appliesToSeason === 'summer' ? 'Mùa hè' : 'Mùa đông')
                       : null;
+                    const done = completedItems.has(item._id);
                     return (
                       <Paper
                         key={item._id}
                         variant="outlined"
-                        sx={{ p: 2, borderRadius: 2, display: 'flex', alignItems: 'center', gap: 2, borderColor: 'grey.200' }}
+                        sx={{
+                          p: 2, borderRadius: 2, display: 'flex', alignItems: 'center', gap: 2,
+                          borderColor: done ? '#16a34a' : 'grey.200',
+                          bgcolor: done ? '#f0fdf4' : '#fff',
+                          transition: 'all 0.2s',
+                        }}
                       >
                         <Box sx={{ width: 56, textAlign: 'center', flexShrink: 0 }}>
                           <Typography variant="body2" sx={{ color: '#7c3aed', fontWeight: 700 }}>
@@ -772,14 +787,27 @@ function StudentInClass() {
                         </Box>
                         <Divider orientation="vertical" flexItem />
                         <Box sx={{ flex: 1 }}>
-                          <Typography variant="body2" fontWeight={700}>{item.content}</Typography>
-                          {seasonNote && (
+                          <Typography variant="body2" fontWeight={700} sx={{ textDecoration: done ? 'line-through' : 'none', color: done ? 'text.secondary' : 'text.primary' }}>
+                            {item.content}
+                          </Typography>
+                          {seasonNote && !done && (
                             <Typography variant="caption" sx={{ color: item.appliesToSeason === 'summer' ? '#d97706' : '#2563eb' }}>
                               {seasonNote}
                             </Typography>
                           )}
+                          {done && (
+                            <Typography variant="caption" sx={{ color: '#16a34a', fontWeight: 600 }}>Đã hoạt động</Typography>
+                          )}
                         </Box>
-                        {ICONS[idx % ICONS.length]}
+                        <Tooltip title={done ? 'Bỏ đánh dấu' : 'Đánh dấu đã hoạt động'}>
+                          <Checkbox
+                            checked={done}
+                            onChange={() => toggleCompleted(item._id)}
+                            size="small"
+                            sx={{ color: 'grey.400', '&.Mui-checked': { color: '#16a34a' }, p: 0.5 }}
+                          />
+                        </Tooltip>
+                        {!done && ICONS[idx % ICONS.length]}
                       </Paper>
                     );
                   })}
