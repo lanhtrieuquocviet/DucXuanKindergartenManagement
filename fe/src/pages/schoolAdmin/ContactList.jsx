@@ -155,7 +155,7 @@ function ContactList() {
       title="Quản lý liên hệ"
       description="Xem và phản hồi các liên hệ từ phụ huynh/khách."
       menuItems={SCHOOL_ADMIN_MENU_ITEMS}
-      activeKey="contacts"
+      activeKey="contacts-list"
       onLogout={() => {
         logout();
         navigate('/login', { replace: true });

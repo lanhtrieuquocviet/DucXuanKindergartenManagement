@@ -357,7 +357,7 @@ export default function ManagePublicInfo() {
       title="Thông tin công khai"
       description="Quản lý các thông tin công khai của trường."
       menuItems={SCHOOL_ADMIN_MENU_ITEMS}
-      activeKey="public-info"
+      activeKey="public-info-list"
       onLogout={handleLogout}
       onViewProfile={() => navigate('/profile')}
       onMenuSelect={handleMenuSelect}

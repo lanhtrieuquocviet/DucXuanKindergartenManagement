@@ -1849,7 +1849,7 @@ export default function ManageAssets() {
       title="Quản lý Tài sản"
       description="Danh sách tài sản, ban kiểm kê và biên bản kiểm kê tài sản trường."
       menuItems={SCHOOL_ADMIN_MENU_ITEMS}
-      activeKey="assets"
+      activeKey="assets-list"
       onLogout={() => { logout(); navigate('/login', { replace: true }); }}
       userName={user?.fullName || user?.username || 'School Admin'}
       userAvatar={user?.avatar}

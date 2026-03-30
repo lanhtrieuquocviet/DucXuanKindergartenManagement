@@ -1,9 +1,11 @@
-import { useState } from 'react';
+import { useState, useRef, useEffect } from 'react';
 import {
   Box, Typography, List, ListItemButton,
   ListItemIcon, ListItemText, Chip, Tooltip,
 } from '@mui/material';
-import { Circle as DotIcon } from '@mui/icons-material';
+import { Circle as DotIcon, ExpandLess, ExpandMore } from '@mui/icons-material';
+
+let _savedScrollTop = 0;
 
 /**
  * Danh sách menu điều hướng trong sidebar.
@@ -22,10 +24,45 @@ export default function SidebarNavList({
   keyIcons = {},
   sectionLabel = 'Menu chính',
 }) {
-  const [openGroups, setOpenGroups] = useState({});
+  const getInitialOpenGroups = () => {
+    const init = {};
+    menuItems.forEach((item) => {
+      if (Array.isArray(item.children) && item.children.some((c) => c.key === activeKey)) {
+        init[item.key] = true;
+      }
+    });
+    return init;
+  };
+
+  const [openGroups, setOpenGroups] = useState(getInitialOpenGroups);
+  const scrollRef = useRef(null);
+
+  useEffect(() => {
+    setOpenGroups((prev) => {
+      const updated = { ...prev };
+      menuItems.forEach((item) => {
+        if (Array.isArray(item.children) && item.children.some((c) => c.key === activeKey)) {
+          updated[item.key] = true;
+        }
+      });
+      return updated;
+    });
+  }, [activeKey]);
+
+  useEffect(() => {
+    if (scrollRef.current) {
+      scrollRef.current.scrollTop = _savedScrollTop;
+    }
+    return () => {
+      if (scrollRef.current) {
+        _savedScrollTop = scrollRef.current.scrollTop;
+      }
+    };
+  }, []);
 
   return (
     <Box
+      ref={scrollRef}
       sx={{
         flex: 1, overflowY: 'auto', overflowX: 'hidden', pt: 0.75, pb: 1,
         '&::-webkit-scrollbar': { width: 4 },
@@ -50,7 +87,7 @@ export default function SidebarNavList({
             : false;
           const isActive = item.key === activeKey || isChildActive;
           const icon = item.icon || keyIcons[item.key] || <DotIcon fontSize="small" />;
-          const isGroupOpen = openGroups[item.key] ?? true;
+          const isGroupOpen = openGroups[item.key] ?? false;
 
           const parentButton = (
             <ListItemButton
@@ -58,8 +95,9 @@ export default function SidebarNavList({
               onClick={() => {
                 if (hasChildren) {
                   setOpenGroups((prev) => ({ ...prev, [item.key]: !isGroupOpen }));
+                } else {
+                  onMenuSelect(item.key);
                 }
-                onMenuSelect(item.key);
               }}
               sx={{
                 mb: 0.5, borderRadius: 2,
@@ -96,6 +134,9 @@ export default function SidebarNavList({
               )}
               {!collapsed && item.badge && (
                 <Chip label={item.badge} size="small" color={isActive ? 'primary' : 'default'} sx={{ height: 18, fontSize: 10 }} />
+              )}
+              {!collapsed && hasChildren && (
+                isGroupOpen ? <ExpandLess sx={{ fontSize: 16, ml: 0.5, color: 'text.disabled' }} /> : <ExpandMore sx={{ fontSize: 16, ml: 0.5, color: 'text.disabled' }} />
               )}
             </ListItemButton>
           );
