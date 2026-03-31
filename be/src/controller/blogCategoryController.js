@@ -15,13 +15,17 @@ const listBlogCategories = async (req, res) => {
 // POST /api/school-admin/blog-categories
 const createBlogCategory = async (req, res) => {
   try {
-    const { name, description } = req.body;
+    const { name, description, status } = req.body;
 
     if (!name || !name.trim()) {
       return res.status(400).json({ status: 'error', message: 'Tên danh mục không được để trống' });
     }
     if (name.trim().length > 100) {
       return res.status(400).json({ status: 'error', message: 'Tên danh mục tối đa 100 ký tự' });
+    }
+
+    if (status && !['active', 'inactive'].includes(status)) {
+      return res.status(400).json({ status: 'error', message: 'Trạng thái không hợp lệ' });
     }
 
     const existing = await BlogCategory.findOne({ name: name.trim() });
@@ -32,6 +36,7 @@ const createBlogCategory = async (req, res) => {
     const category = await BlogCategory.create({
       name: name.trim(),
       description: description ? description.trim() : '',
+      status: status || 'active',
     });
 
     return res.status(201).json({ status: 'success', data: category });
@@ -45,7 +50,11 @@ const createBlogCategory = async (req, res) => {
 const updateBlogCategory = async (req, res) => {
   try {
     const { id } = req.params;
-    const { name, description } = req.body;
+    const { name, description, status } = req.body;
+    if (status && !['active', 'inactive'].includes(status)) {
+      return res.status(400).json({ status: 'error', message: 'Trạng thái không hợp lệ' });
+    }
+
 
     if (!name || !name.trim()) {
       return res.status(400).json({ status: 'error', message: 'Tên danh mục không được để trống' });
@@ -66,6 +75,7 @@ const updateBlogCategory = async (req, res) => {
 
     category.name = name.trim();
     category.description = description ? description.trim() : category.description;
+    if (status) category.status = status;
     await category.save();
 
     return res.status(200).json({ status: 'success', data: category });

@@ -36,6 +36,7 @@ import ExportAttendanceReport from './pages/schoolAdmin/ExportAttendanceReport';
 import ManageBlogs from './pages/schoolAdmin/ManageBlogs';
 import ManageBlogCategories from './pages/schoolAdmin/ManageBlogCategories';
 import ManageDocuments from './pages/schoolAdmin/ManageDocuments';
+import ManageFiles from './pages/schoolAdmin/ManageFiles';
 import BlogDetail from './pages/schoolAdmin/BlogDetail';
 import DocumentDetail from './pages/schoolAdmin/DocumentDetail';
 import Contact from './pages/Contact';
@@ -544,6 +545,16 @@ function App() {
               <ProtectedRoute>
                 <SchoolAdminProvider>
                   <ManageDocuments />
+                </SchoolAdminProvider>
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/school-admin/files"
+            element={
+              <ProtectedRoute>
+                <SchoolAdminProvider>
+                  <ManageFiles />
                 </SchoolAdminProvider>
               </ProtectedRoute>
             }

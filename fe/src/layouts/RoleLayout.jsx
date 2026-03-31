@@ -63,6 +63,7 @@ export const KEY_ICONS = {
   'attendance-overview':  <BarChartIcon fontSize="small" />,
   blogs:                  <BlogIcon fontSize="small" />,
   documents:              <FolderIcon fontSize="small" />,
+  'files-management':     <FolderIcon fontSize="small" />,
   'public-info':          <PublicIcon fontSize="small" />,
   'banner-management':    <DashboardIcon fontSize="small" />,
   qa:                     <QaIcon fontSize="small" />,

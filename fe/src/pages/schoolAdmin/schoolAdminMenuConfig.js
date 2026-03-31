@@ -47,6 +47,7 @@ export const SCHOOL_ADMIN_MENU_ITEMS = [
       { key: 'blogs', label: 'Quản lý blog' },
       { key: 'banner-management', label: 'Quản lý banner' },
       { key: 'documents', label: 'Quản lý tài liệu' },
+      { key: 'files-management', label: 'Quản lý file' },
     ],
   },
   {
@@ -84,6 +85,7 @@ export const createSchoolAdminMenuSelect = (navigate) => (key) => {
     blogs: '/school-admin/blogs',
     'blogs-list': '/school-admin/blogs',
     documents: '/school-admin/documents',
+    'files-management': '/school-admin/files',
     'public-info': '/school-admin/public-info',
     'public-info-list': '/school-admin/public-info',
     'banner-management': '/school-admin/banners',
