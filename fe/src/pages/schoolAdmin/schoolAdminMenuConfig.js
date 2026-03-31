@@ -54,7 +54,7 @@ export const SCHOOL_ADMIN_MENU_ITEMS = [
     label: 'Quản lý điểm danh',
     children: [
       { key: 'attendance-overview', label: 'Điểm danh' },
-      { key: 'face-attendance', label: 'Đăng ký khuôn mặt' },
+      { key: 'face-attendance', label: 'Trạng thái khuôn mặt AI' },
     ],
   },
 ];

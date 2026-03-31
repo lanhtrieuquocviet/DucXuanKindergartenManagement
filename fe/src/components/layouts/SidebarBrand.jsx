@@ -1,4 +1,5 @@
 import { Box, Avatar, Typography } from '@mui/material';
+import ducxuanLogo from '../../assets/logo/ducxuan-logo.png';
 
 /**
  * Brand header ở đầu sidebar.
@@ -32,9 +33,7 @@ export default function SidebarBrand({
           <Box sx={{ position: 'absolute', right: 30, bottom: -25, width: 50, height: 50, borderRadius: '50%', bgcolor: 'rgba(255,255,255,0.05)' }} />
         </>
       )}
-      <Avatar sx={{ width: 36, height: 36, bgcolor: 'rgba(255,255,255,0.2)', fontSize: 19, position: 'relative', zIndex: 1, boxShadow: '0 2px 8px rgba(0,0,0,0.15)', flexShrink: 0 }}>
-        {emoji}
-      </Avatar>
+      <Avatar src={ducxuanLogo} sx={{ width: 36, height: 36, bgcolor: 'rgba(255,255,255,0.2)', position: 'relative', zIndex: 1, boxShadow: '0 2px 8px rgba(0,0,0,0.15)', flexShrink: 0 }} />
       {!collapsed && (
         <Box sx={{ position: 'relative', zIndex: 1, flex: 1, minWidth: 0 }}>
           <Typography variant="subtitle2" sx={{ color: 'white', fontWeight: 800, lineHeight: 1.2, letterSpacing: 0.3 }}>

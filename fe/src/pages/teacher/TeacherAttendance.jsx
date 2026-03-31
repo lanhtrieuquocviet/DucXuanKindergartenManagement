@@ -212,6 +212,8 @@ function TeacherAttendance() {
       receiverOtherImageName: serverRec.receiverOtherImageName || '',
       note: serverRec.note || '',
       absentReason: serverRec.absentReason || '',
+      checkedInByAI: serverRec.checkedInByAI || false,
+      checkedOutByAI: serverRec.checkedOutByAI || false,
     };
   };
 
@@ -431,6 +433,8 @@ function TeacherAttendance() {
         belongingsNote: rec.belongingsNote || '',
         note: rec.note || '',
         absentReason: rec.absentReason || '',
+        checkedInByAI: rec.checkedInByAI || false,
+        checkedOutByAI: rec.checkedOutByAI || false,
         checkoutImageName: rec.checkoutImageName || '',
         receiverType: rec.receiverType || '',
         receiverPickupPersonId: rec.receiverPickupPersonId || '',
@@ -1069,18 +1073,7 @@ function TeacherAttendance() {
         onClose={() => setIsPickupFaceModalOpen(false)}
         classId={classId}
         className={selectedClassName}
-        onCheckoutSuccess={() => {
-          if (classId && selectedDate) {
-            get(`${ENDPOINTS.STUDENTS.ATTENDANCE_LIST}?classId=${classId}&date=${selectedDate}`)
-              .then((res) => {
-                const records = res?.data || res || [];
-                const map = {};
-                records.forEach((r) => { map[r.studentId] = r; });
-                setAttendanceByStudent(map);
-              })
-              .catch(() => {});
-          }
-        }}
+        onCheckoutSuccess={loadAttendance}
       />
     </RoleLayout>
   );
