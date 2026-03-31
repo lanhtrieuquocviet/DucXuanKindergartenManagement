@@ -24,6 +24,7 @@ import {
   KeyboardArrowUp as ArrowUpIcon,
   Restaurant as MealIcon,
   People as PeopleIcon,
+  LocalOffer as IngredientIcon,
 } from '@mui/icons-material';
 
 import SidebarBrand from '../../components/layouts/SidebarBrand';
@@ -52,6 +53,12 @@ const KITCHEN_MENU = [
     key: 'foods',
     icon: <FoodIcon fontSize="small" />,
     path: '/kitchen/foods',
+  },
+  {
+    label: 'Quản lý nguyên liệu',
+    key: 'ingredients',
+    icon: <IngredientIcon fontSize="small" />,
+    path: '/kitchen/ingredients',
   },
   {
     label: 'Quản lý bữa ăn',

@@ -88,6 +88,7 @@ import MenuManagement from './pages/kitchenStaff/MenuManagement';
 import MenuDetail from './pages/kitchenStaff/MenuDetails';
 import CreateMenu from './components/CreateMenu';
 import FoodManagement from './pages/kitchenStaff/FoodManagemet';
+import IngredientManagement from './pages/kitchenStaff/IngredientManagement';
 import MealManagement from './pages/kitchenStaff/MealManagement';
 import MealHeadcount from './pages/kitchenStaff/MealHeadcount';
 import UploadSampleFood from './pages/kitchenStaff/UploadSampleFood';
@@ -346,6 +347,7 @@ function App() {
             <Route path="menus/:id" element={<MenuDetail />} />
             <Route path="menus/create" element={<CreateMenu />} />
             <Route path="foods" element={<FoodManagement />} />
+            <Route path="ingredients" element={<IngredientManagement />} />
             <Route path="meal-management" element={<MealManagement />} />
             <Route path="headcount" element={<MealHeadcount />} />
             <Route path="sample-food" element={<UploadSampleFood />} />
