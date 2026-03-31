@@ -314,10 +314,28 @@ export default function ManageBanners() {
       onViewProfile={() => navigate('/profile')}
       onMenuSelect={handleMenuSelect}
     >
+      <Paper
+        elevation={0}
+        sx={{
+          background: 'linear-gradient(135deg, #0ea5e9 0%, #0284c7 100%)',
+          borderRadius: 3,
+          px: 4,
+          py: 3,
+          mb: 2,
+        }}
+      >
+        <Typography variant="h5" fontWeight={700} color="white">
+          Quản lý banner
+        </Typography>
+        <Typography variant="body2" sx={{ color: 'rgba(255,255,255,0.9)', mt: 0.5 }}>
+          Thêm, cập nhật vị trí, ẩn/hiện và quản lý banner hiển thị ngoài trang chủ.
+        </Typography>
+      </Paper>
+
       <Paper elevation={0} sx={{ p: 3, borderRadius: 3, mb: 2, backgroundColor: '#f3f4f6' }}>
         <Stack direction="row" justifyContent="space-between" alignItems="center" mb={2.5} flexWrap="wrap" gap={1.5}>
           <Typography variant="h5" fontWeight={700}>
-            Quản lý Banner
+            Danh sách banner
           </Typography>
           <Stack direction="row" spacing={1}>
             <Button
