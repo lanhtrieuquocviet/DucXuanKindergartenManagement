@@ -418,7 +418,7 @@ export default function TeacherPurchaseRequest() {
               value={form.estimatedCost}
               onChange={e => setForm(f => ({ ...f, estimatedCost: e.target.value }))}
               slotProps={{
-                htmlInput: { min: 0, max: 999999999999 },
+                htmlInput: { min: 0, max: 9999999999 },
                 input: { endAdornment: <InputAdornment position="end">đ</InputAdornment> },
               }}
             />
