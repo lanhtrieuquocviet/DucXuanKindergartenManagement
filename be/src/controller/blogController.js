@@ -379,7 +379,11 @@ const getPublishedBlogById = async (req, res) => {
 const getBlogCategories = async (req, res) => {
   try {
     const BlogCategory = require('../models/BlogCategory');
-    const cats = await BlogCategory.find().sort({ name: 1 });
+    // Public side only shows active categories on homepage/menu.
+    // Keep backward compatibility for old records without status field.
+    const cats = await BlogCategory.find({
+      $or: [{ status: 'active' }, { status: { $exists: false } }],
+    }).sort({ name: 1 });
     return res.status(200).json({ status: 'success', data: cats });
   } catch (error) {
     console.error('getBlogCategories error:', error);
