@@ -28,6 +28,8 @@ import {
   ShoppingCart as ShoppingCartIcon,
   ContentPasteSearch as ContentPasteSearchIcon,
   AccountTree as AccountTreeIcon,
+  PhotoLibrary as PhotoLibraryIcon,
+  VideoLibrary as VideoLibraryIcon,
 } from '@mui/icons-material';
 import { CurrencyIcon } from 'lucide-react';
 
@@ -73,6 +75,9 @@ export const KEY_ICONS = {
   'contacts-list':        <EmailIcon fontSize="small" />,
   'assets-list':          <InventoryIcon fontSize="small" />,
   'public-info-list':     <PublicIcon fontSize="small" />,
+  library:                <PhotoLibraryIcon fontSize="small" />,
+  'image-library':        <PhotoLibraryIcon fontSize="small" />,
+  'video-library':        <VideoLibraryIcon fontSize="small" />,
   permissions:            <ShieldIcon fontSize="small" />,
   roles:                  <RolesIcon fontSize="small" />,
   logs:                   <BarChartIcon fontSize="small" />,

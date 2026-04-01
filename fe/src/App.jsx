@@ -37,6 +37,7 @@ import ManageBlogs from './pages/schoolAdmin/ManageBlogs';
 import ManageBlogCategories from './pages/schoolAdmin/ManageBlogCategories';
 import ManageDocuments from './pages/schoolAdmin/ManageDocuments';
 import ManageFiles from './pages/schoolAdmin/ManageFiles';
+import ManageImageLibrary from './pages/schoolAdmin/ManageImageLibrary';
 import BlogDetail from './pages/schoolAdmin/BlogDetail';
 import DocumentDetail from './pages/schoolAdmin/DocumentDetail';
 import Contact from './pages/Contact';
@@ -555,6 +556,16 @@ function App() {
               <ProtectedRoute>
                 <SchoolAdminProvider>
                   <ManageFiles />
+                </SchoolAdminProvider>
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/school-admin/image-library"
+            element={
+              <ProtectedRoute>
+                <SchoolAdminProvider>
+                  <ManageImageLibrary />
                 </SchoolAdminProvider>
               </ProtectedRoute>
             }

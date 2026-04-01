@@ -51,6 +51,14 @@ export const SCHOOL_ADMIN_MENU_ITEMS = [
     ],
   },
   {
+    key: 'library',
+    label: 'Quản lý thư viện',
+    children: [
+      { key: 'image-library', label: 'Quản lý ảnh' },
+      { key: 'video-library', label: 'Quản lý video-clip' },
+    ],
+  },
+  {
     key: 'attendance',
     label: 'Quản lý điểm danh',
     children: [
@@ -86,6 +94,7 @@ export const createSchoolAdminMenuSelect = (navigate) => (key) => {
     'blogs-list': '/school-admin/blogs',
     documents: '/school-admin/documents',
     'files-management': '/school-admin/files',
+    'image-library': '/school-admin/image-library',
     'public-info': '/school-admin/public-info',
     'public-info-list': '/school-admin/public-info',
     'banner-management': '/school-admin/banners',
