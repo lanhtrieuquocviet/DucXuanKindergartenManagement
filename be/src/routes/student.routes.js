@@ -7,6 +7,7 @@ const {
   getStudentDetail,
   updateStudent,
   deleteStudent,
+  checkUsernameAvailability,
 } = require('../controller/studentController');
 const {
   upsertAttendance,
@@ -75,6 +76,7 @@ const router = express.Router();
  *       403:
  *         description: Không có quyền SchoolAdmin
  */
+router.get('/check-username', authenticate, checkUsernameAvailability);
 router.get('/', authenticate, getStudents);
 router.post('/', authenticate, authorizeRoles('SchoolAdmin'), createStudent);
 

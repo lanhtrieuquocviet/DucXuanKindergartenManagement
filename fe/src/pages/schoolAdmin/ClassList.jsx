@@ -54,7 +54,7 @@ import {
 
 // ── colour palette per grade index ────────────────────────────────────────────
 const GRADE_COLORS = [
-  { header: '#7c3aed', light: '#ede9fe' },
+  { header: '#0891b2', light: '#cffafe' },
   { header: '#2563eb', light: '#dbeafe' },
   { header: '#f59e0b', light: '#fef9c3' },
   { header: '#16a34a', light: '#dcfce7' },
@@ -84,7 +84,7 @@ function TeacherSelect({ availability, value, onChange, error, helperText, loadi
         <MenuItem key={t._id} value={t._id}>
           <Box sx={{ display: 'flex', alignItems: 'center', width: '100%', pointerEvents: 'none' }}>
             <Checkbox checked size="small" onChange={() => {}} sx={{ p: 0.5 }} />
-            <Avatar sx={{ width: 26, height: 26, mx: 1, bgcolor: '#ede9fe', color: '#7c3aed', fontSize: '0.75rem', fontWeight: 700 }}>
+            <Avatar sx={{ width: 26, height: 26, mx: 1, bgcolor: '#dbeafe', color: '#2563eb', fontSize: '0.75rem', fontWeight: 700 }}>
               {t.fullName?.charAt(0)}
             </Avatar>
             <ListItemText
@@ -111,7 +111,7 @@ function TeacherSelect({ availability, value, onChange, error, helperText, loadi
         <MenuItem key={t._id} value={t._id}>
           <Box sx={{ display: 'flex', alignItems: 'center', width: '100%', pointerEvents: 'none' }}>
             <Checkbox checked={false} size="small" onChange={() => {}} sx={{ p: 0.5 }} />
-            <Avatar sx={{ width: 26, height: 26, mx: 1, bgcolor: '#ede9fe', color: '#7c3aed', fontSize: '0.75rem', fontWeight: 700 }}>
+            <Avatar sx={{ width: 26, height: 26, mx: 1, bgcolor: '#dbeafe', color: '#2563eb', fontSize: '0.75rem', fontWeight: 700 }}>
               {t.fullName?.charAt(0)}
             </Avatar>
             <ListItemText
@@ -645,7 +645,7 @@ function ClassList() {
       {/* ── Header gradient banner ──────────────────────────────────────────── */}
       <Paper
         elevation={0}
-        sx={{ mb: 3, p: 3, background: 'linear-gradient(135deg, #6366f1 0%, #4f46e5 100%)', borderRadius: 2, position: 'relative' }}
+        sx={{ mb: 3, p: 3, background: 'linear-gradient(135deg, #2563eb 0%, #1d4ed8 100%)', borderRadius: 2, position: 'relative' }}
       >
         <Stack direction="row" alignItems="center" justifyContent="space-between">
           {activeAcademicYear && (
@@ -733,7 +733,7 @@ function ClassList() {
 
           {gradeLoading || loading ? (
             <Stack alignItems="center" py={8}>
-              <CircularProgress size={32} sx={{ color: '#6366f1' }} />
+              <CircularProgress size={32} sx={{ color: '#2563eb' }} />
               <Typography variant="body2" color="text.secondary" mt={1.5}>Đang tải...</Typography>
             </Stack>
           ) : gradeList.length === 0 ? (
@@ -856,12 +856,11 @@ function ClassList() {
 
           {/* ── Student summary & list ────────────────────────────────────── */}
           {(() => {
-            // Chỉ hiển thị học sinh thuộc các lớp của năm học hiện tại
-            const activeClassIds = new Set(classes.map(c => String(c._id)));
-            const currentYearStudents = allStudents.filter(s => {
-              const cId = String(s.classId?._id || s.classId || '');
-              return cId && activeClassIds.has(cId);
-            });
+            // Chỉ hiển thị học sinh thuộc năm học hiện tại (theo trường academicYearId)
+            const activeYearId = String(activeAcademicYear?._id || '');
+            const currentYearStudents = activeYearId
+              ? allStudents.filter(s => String(s.academicYearId?._id || s.academicYearId || '') === activeYearId)
+              : [];
 
             const total = currentYearStudents.length;
             const inClass = currentYearStudents.filter(s => s.classId).length;
@@ -883,7 +882,7 @@ function ClassList() {
                 {/* Title */}
                 <Stack direction="row" alignItems="center" justifyContent="space-between" mb={2}>
                   <Stack direction="row" alignItems="center" spacing={1}>
-                    <PeopleIcon sx={{ color: '#6366f1' }} />
+                    <PeopleIcon sx={{ color: '#2563eb' }} />
                     <Typography variant="subtitle1" fontWeight={700}>Tổng hợp học sinh</Typography>
                   </Stack>
                   <Button size="small" variant="outlined" startIcon={<RefreshIcon />}
@@ -895,7 +894,7 @@ function ClassList() {
                 {/* Stat cards */}
                 <Grid container spacing={2} mb={3}>
                   {[
-                    { label: 'Tổng học sinh', value: total, color: '#6366f1', bg: '#ede9fe' },
+                    { label: 'Tổng học sinh', value: total, color: '#2563eb', bg: '#dbeafe' },
                     { label: 'Đã vào lớp', value: inClass, color: '#16a34a', bg: '#dcfce7' },
                     { label: 'Chưa vào lớp', value: noClass, color: '#d97706', bg: '#fef9c3' },
                     { label: 'Nam', value: male, color: '#2563eb', bg: '#dbeafe' },
@@ -924,7 +923,7 @@ function ClassList() {
                 <Paper elevation={1} sx={{ borderRadius: 2, overflow: 'hidden' }}>
                   {studentLoading ? (
                     <Stack alignItems="center" py={5}>
-                      <CircularProgress size={28} sx={{ color: '#6366f1' }} />
+                      <CircularProgress size={28} sx={{ color: '#2563eb' }} />
                     </Stack>
                   ) : (
                     <TableContainer>
@@ -936,6 +935,7 @@ function ClassList() {
                             <TableCell sx={{ fontWeight: 700 }}>Ngày sinh</TableCell>
                             <TableCell sx={{ fontWeight: 700 }}>Giới tính</TableCell>
                             <TableCell sx={{ fontWeight: 700 }}>Lớp học</TableCell>
+                            <TableCell sx={{ fontWeight: 700 }}>Năm học</TableCell>
                             <TableCell sx={{ fontWeight: 700 }}>Trạng thái</TableCell>
                           </TableRow>
                         </TableHead>
@@ -952,7 +952,7 @@ function ClassList() {
                                 <TableCell sx={{ color: 'text.secondary', fontSize: '0.8rem' }}>{idx + 1}</TableCell>
                                 <TableCell>
                                   <Stack direction="row" alignItems="center" spacing={1}>
-                                    <Avatar src={s.avatar} sx={{ width: 28, height: 28, fontSize: '0.75rem', bgcolor: '#6366f1' }}>
+                                    <Avatar src={s.avatar} sx={{ width: 28, height: 28, fontSize: '0.75rem', bgcolor: '#2563eb' }}>
                                       {s.fullName?.charAt(0)}
                                     </Avatar>
                                     <Typography variant="body2" fontWeight={600}>{s.fullName}</Typography>
@@ -974,8 +974,14 @@ function ClassList() {
                                 </TableCell>
                                 <TableCell sx={{ fontSize: '0.82rem' }}>
                                   {s.classId?.className
-                                    ? <Chip label={s.classId.className} size="small" sx={{ bgcolor: '#ede9fe', color: '#6366f1', fontWeight: 600, fontSize: '0.72rem' }} />
+                                    ? <Chip label={s.classId.className} size="small" sx={{ bgcolor: '#dbeafe', color: '#2563eb', fontWeight: 600, fontSize: '0.72rem' }} />
                                     : <Typography variant="caption" color="text.disabled">Chưa vào lớp</Typography>
+                                  }
+                                </TableCell>
+                                <TableCell sx={{ fontSize: '0.82rem' }}>
+                                  {s.academicYearId?.yearName
+                                    ? <Chip label={s.academicYearId.yearName} size="small" sx={{ bgcolor: '#e0f2fe', color: '#0284c7', fontWeight: 600, fontSize: '0.72rem' }} />
+                                    : <Typography variant="caption" color="text.disabled">—</Typography>
                                   }
                                 </TableCell>
                                 <TableCell>
@@ -1011,11 +1017,11 @@ function ClassList() {
                   <Box
                     sx={{
                       width: 32, height: 32, borderRadius: 1.5,
-                      bgcolor: GRADE_COLORS[gradeList.findIndex(g => g._id === selectedGrade._id) % GRADE_COLORS.length]?.bg || '#ede9fe',
+                      bgcolor: GRADE_COLORS[gradeList.findIndex(g => g._id === selectedGrade._id) % GRADE_COLORS.length]?.bg || '#dbeafe',
                       display: 'flex', alignItems: 'center', justifyContent: 'center',
                     }}
                   >
-                    <LayersIcon sx={{ fontSize: 18, color: GRADE_COLORS[gradeList.findIndex(g => g._id === selectedGrade._id) % GRADE_COLORS.length]?.icon || '#7c3aed' }} />
+                    <LayersIcon sx={{ fontSize: 18, color: GRADE_COLORS[gradeList.findIndex(g => g._id === selectedGrade._id) % GRADE_COLORS.length]?.icon || '#2563eb' }} />
                   </Box>
                   <Typography variant="subtitle2" fontWeight={700}>
                     Khối {selectedGrade.gradeName}
@@ -1049,7 +1055,7 @@ function ClassList() {
                   variant="contained"
                   startIcon={<AddIcon />}
                   onClick={() => openCreateDialog(selectedGrade._id)}
-                  sx={{ bgcolor: '#6366f1', '&:hover': { bgcolor: '#4f46e5' }, borderRadius: 1.5, textTransform: 'none', fontWeight: 600, whiteSpace: 'nowrap' }}
+                  sx={{ bgcolor: '#2563eb', '&:hover': { bgcolor: '#1d4ed8' }, borderRadius: 1.5, textTransform: 'none', fontWeight: 600, whiteSpace: 'nowrap' }}
                 >
                   Thêm lớp
                 </Button>
@@ -1060,7 +1066,7 @@ function ClassList() {
           <Box sx={{ p: 3 }}>
             {loading ? (
               <Stack alignItems="center" py={6}>
-                <CircularProgress size={32} sx={{ color: '#6366f1' }} />
+                <CircularProgress size={32} sx={{ color: '#2563eb' }} />
                 <Typography variant="body2" color="text.secondary" mt={1.5}>Đang tải...</Typography>
               </Stack>
             ) : filteredClassesInGrade.length === 0 ? (
@@ -1075,7 +1081,7 @@ function ClassList() {
                     startIcon={<AddIcon />}
                     size="small"
                     onClick={() => openCreateDialog(selectedGrade._id)}
-                    sx={{ bgcolor: '#6366f1', '&:hover': { bgcolor: '#4f46e5' }, mt: 1, textTransform: 'none' }}
+                    sx={{ bgcolor: '#2563eb', '&:hover': { bgcolor: '#1d4ed8' }, mt: 1, textTransform: 'none' }}
                   >
                     Tạo lớp đầu tiên
                   </Button>
@@ -1111,7 +1117,7 @@ function ClassList() {
                             <Stack spacing={0.25}>
                               {cls.teacherIds.map((t, i) => (
                                 <Stack key={t._id || i} direction="row" alignItems="center" spacing={0.5}>
-                                  <PersonIcon sx={{ fontSize: 13, color: '#7c3aed' }} />
+                                  <PersonIcon sx={{ fontSize: 13, color: '#2563eb' }} />
                                   <Typography variant="caption" fontWeight={500}>{t.userId?.fullName || t.fullName || t}</Typography>
                                 </Stack>
                               ))}
@@ -1137,7 +1143,7 @@ function ClassList() {
                               variant="contained"
                               startIcon={<VisibilityIcon sx={{ fontSize: '0.875rem !important' }} />}
                               onClick={() => handleViewStudents(cls._id)}
-                              sx={{ bgcolor: 'rgba(99,102,241,0.1)', color: '#6366f1', boxShadow: 'none', '&:hover': { bgcolor: 'rgba(99,102,241,0.2)', boxShadow: 'none' }, borderRadius: 1.5, textTransform: 'none', fontSize: '0.75rem', fontWeight: 600, py: 0.5 }}
+                              sx={{ bgcolor: 'rgba(37,99,235,0.1)', color: '#2563eb', boxShadow: 'none', '&:hover': { bgcolor: 'rgba(37,99,235,0.2)', boxShadow: 'none' }, borderRadius: 1.5, textTransform: 'none', fontSize: '0.75rem', fontWeight: 600, py: 0.5 }}
                             >
                               Xem chi tiết
                             </Button>
@@ -1236,7 +1242,7 @@ function ClassList() {
             variant="contained"
             onClick={handleGradeSubmit}
             disabled={gradeSubmitting}
-            sx={{ bgcolor: '#6366f1', '&:hover': { bgcolor: '#4f46e5' }, textTransform: 'none', fontWeight: 600 }}
+            sx={{ bgcolor: '#2563eb', '&:hover': { bgcolor: '#1d4ed8' }, textTransform: 'none', fontWeight: 600 }}
           >
             {gradeSubmitting ? <CircularProgress size={18} color="inherit" /> : (gradeDialog.mode === 'create' ? 'Tạo' : 'Lưu')}
           </Button>
@@ -1368,7 +1374,7 @@ function ClassList() {
             variant="contained"
             onClick={handleCreateClass}
             disabled={dialogLoading || fetchingDialogData || !currentAcademicYear}
-            sx={{ bgcolor: '#6366f1', '&:hover': { bgcolor: '#4f46e5' }, textTransform: 'none', fontWeight: 600 }}
+            sx={{ bgcolor: '#2563eb', '&:hover': { bgcolor: '#1d4ed8' }, textTransform: 'none', fontWeight: 600 }}
           >
             {dialogLoading ? <CircularProgress size={18} color="inherit" /> : 'Tạo lớp'}
           </Button>
@@ -1464,7 +1470,7 @@ function ClassList() {
             variant="contained"
             onClick={handleUpdateClass}
             disabled={editDialogLoading || editFetchingData}
-            sx={{ bgcolor: '#6366f1', '&:hover': { bgcolor: '#4f46e5' }, textTransform: 'none', fontWeight: 600 }}
+            sx={{ bgcolor: '#2563eb', '&:hover': { bgcolor: '#1d4ed8' }, textTransform: 'none', fontWeight: 600 }}
           >
             {editDialogLoading ? <CircularProgress size={18} color="inherit" /> : 'Lưu thay đổi'}
           </Button>

@@ -33,6 +33,11 @@ const studentSchema = new mongoose.Schema({
     type: mongoose.Schema.Types.ObjectId,
     ref: 'Classes'
   },
+  academicYearId: {
+    type: mongoose.Schema.Types.ObjectId,
+    ref: 'AcademicYears',
+    default: null,
+  },
   status: {
     type: String,
     enum: ['active', 'inactive'],

@@ -3,7 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import RoleLayout from '../../layouts/RoleLayout';
 import { useAuth } from '../../context/AuthContext';
 import { useSchoolAdmin } from '../../context/SchoolAdminContext';
-import { postFormData, ENDPOINTS, get } from '../../service/api';
+import { postFormData, ENDPOINTS, get, put } from '../../service/api';
 import { SCHOOL_ADMIN_MENU_ITEMS, createSchoolAdminMenuSelect } from './schoolAdminMenuConfig';
 import {
   Box,
@@ -64,6 +64,7 @@ function isValidEmail(value) {
 function ManageStudents() {
   const [students, setStudents] = useState([]);
   const [classes, setClasses] = useState([]);
+  const [activeAcademicYear, setActiveAcademicYear] = useState(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
   const [searchTerm, setSearchTerm] = useState('');
@@ -79,6 +80,8 @@ function ManageStudents() {
     student: { fullName: '', dateOfBirth: '', gender: 'male', address: '', avatar: '' },
   });
   const [formAddErrors, setFormAddErrors] = useState({});
+  const [addError, setAddError] = useState(null);
+  const [usernameChecking, setUsernameChecking] = useState(false);
   const [uploadingImage, setUploadingImage] = useState(false);
   const addImageInputRef = useRef(null);
   const [formEdit, setFormEdit] = useState({
@@ -88,6 +91,7 @@ function ManageStudents() {
   });
   const [formEditErrors, setFormEditErrors] = useState({});
   const [editError, setEditError] = useState(null);
+  const [deleteError, setDeleteError] = useState(null);
   const navigate = useNavigate();
   const { user, hasRole, logout, isInitializing } = useAuth();
   const {
@@ -117,12 +121,14 @@ function ManageStudents() {
     setLoading(true);
     setError(null);
     try {
-      const [studentsRes, classesRes] = await Promise.all([
+      const [studentsRes, classesRes, yearRes] = await Promise.all([
         getAllStudents(classFilter ? { classId: classFilter } : {}),
         getClasses(),
+        get(ENDPOINTS.SCHOOL_ADMIN.ACADEMIC_YEARS.CURRENT).catch(() => null),
       ]);
       setStudents(studentsRes?.data || []);
       setClasses(classesRes?.data || []);
+      if (yearRes?.status === 'success' && yearRes.data) setActiveAcademicYear(yearRes.data);
     } catch (err) {
       setError(err.message || 'Không tải được dữ liệu');
     } finally {
@@ -156,7 +162,30 @@ function ManageStudents() {
       student: { fullName: '', dateOfBirth: '', gender: 'male', address: '', avatar: '' },
     });
     setFormAddErrors({});
+    setAddError(null);
     setOpenAdd(true);
+  };
+
+  const handleUsernameBlur = async () => {
+    const username = (formAdd.parent.username || '').trim();
+    if (!username) return;
+    setUsernameChecking(true);
+    try {
+      const res = await get(`${ENDPOINTS.STUDENTS.CHECK_USERNAME}?username=${encodeURIComponent(username)}`);
+      if (!res.available) {
+        setFormAddErrors((prev) => ({ ...prev, parentUsername: 'Tài khoản đăng nhập đã tồn tại trong hệ thống' }));
+      } else {
+        setFormAddErrors((prev) => {
+          const next = { ...prev };
+          if (next.parentUsername === 'Tài khoản đăng nhập đã tồn tại trong hệ thống') delete next.parentUsername;
+          return next;
+        });
+      }
+    } catch (_) {
+      // Bỏ qua lỗi mạng, để server kiểm tra lúc submit
+    } finally {
+      setUsernameChecking(false);
+    }
   };
 
   const handleAddImageChange = async (e) => {
@@ -184,6 +213,7 @@ function ManageStudents() {
     setCtxError(null);
     const errs = {};
     if (!(formAdd.parent.username || '').trim()) errs.parentUsername = 'Vui lòng nhập tài khoản đăng nhập';
+    else if (formAddErrors.parentUsername === 'Tài khoản đăng nhập đã tồn tại trong hệ thống') errs.parentUsername = formAddErrors.parentUsername;
     if (!(formAdd.parent.password || '').trim()) errs.parentPassword = 'Vui lòng nhập mật khẩu';
     else if (formAdd.parent.password.trim().length < 6) errs.parentPassword = 'Mật khẩu tối thiểu 6 ký tự';
     if (!(formAdd.parent.fullName || '').trim()) errs.parentFullName = 'Vui lòng nhập họ tên phụ huynh';
@@ -197,12 +227,13 @@ function ManageStudents() {
       return;
     }
     setFormAddErrors({});
+    setAddError(null);
     try {
       await createStudentWithParent(formAdd);
       setOpenAdd(false);
       fetchData();
     } catch (err) {
-      // error set in context
+      setAddError(err?.message || 'Tạo học sinh thất bại');
     }
   };
 
@@ -266,18 +297,22 @@ function ManageStudents() {
 
   const handleOpenDelete = (row) => {
     setSelectedStudent(row);
+    setDeleteError(null);
     setOpenDelete(true);
   };
 
   const handleConfirmDelete = async () => {
     if (!selectedStudent?._id) return;
     setCtxError(null);
+    setDeleteError(null);
     try {
       await deleteStudent(selectedStudent._id);
       setOpenDelete(false);
       setSelectedStudent(null);
       fetchData();
-    } catch (err) {}
+    } catch (err) {
+      setDeleteError(err?.message || 'Xóa học sinh thất bại');
+    }
   };
 
   const handleViewStudentsInClass = (classId) => {
@@ -372,6 +407,7 @@ function ManageStudents() {
                   <TableCell><strong>Họ tên</strong></TableCell>
                   <TableCell><strong>Ngày sinh</strong></TableCell>
                   <TableCell><strong>Giới tính</strong></TableCell>
+                  <TableCell><strong>Năm học</strong></TableCell>
                   {/* <TableCell><strong>Lớp</strong></TableCell> */}
                   <TableCell><strong>Phụ huynh</strong></TableCell>
                   <TableCell><strong>SĐT</strong></TableCell>
@@ -386,6 +422,11 @@ function ManageStudents() {
                     <TableCell>{row.fullName || '—'}</TableCell>
                     <TableCell>{formatDate(row.dateOfBirth)}</TableCell>
                     <TableCell>{GENDER_OPTIONS.find((g) => g.value === row.gender)?.label || row.gender || '—'}</TableCell>
+                    <TableCell>
+                      {row.academicYearId?.yearName
+                        ? <Chip label={row.academicYearId.yearName} size="small" sx={{ bgcolor: '#e0f2fe', color: '#0284c7', fontWeight: 600, fontSize: '0.72rem' }} />
+                        : <Typography variant="caption" color="text.disabled">—</Typography>}
+                    </TableCell>
                     {/* <TableCell>{row.classId?.className || '—'}</TableCell> */}
                     <TableCell>{row.parentId?.fullName || '—'}</TableCell>
                     <TableCell>{row.phone || row.parentPhone || row.parentId?.phone || '—'}</TableCell>
@@ -425,16 +466,42 @@ function ManageStudents() {
       <Dialog open={openAdd} onClose={() => setOpenAdd(false)} maxWidth="sm" fullWidth>
         <DialogTitle>Thêm học sinh và tài khoản phụ huynh</DialogTitle>
         <DialogContent dividers>
+          {addError && (
+            <Alert severity="error" sx={{ mb: 2 }} onClose={() => setAddError(null)}>
+              {addError}
+            </Alert>
+          )}
           <Typography variant="subtitle2" color="primary" gutterBottom>Thông tin tài khoản phụ huynh</Typography>
           <Stack spacing={1.5} mb={2}>
-            <TextField size="small" label="Tài khoản đăng nhập" value={formAdd.parent.username} onChange={(e) => setFormAdd((prev) => ({ ...prev, parent: { ...prev.parent, username: e.target.value } }))} fullWidth required error={!!formAddErrors.parentUsername} helperText={formAddErrors.parentUsername} />
+            <TextField
+              size="small"
+              label="Tài khoản đăng nhập"
+              value={formAdd.parent.username}
+              onChange={(e) => {
+                setFormAdd((prev) => ({ ...prev, parent: { ...prev.parent, username: e.target.value } }));
+                if (formAddErrors.parentUsername) setFormAddErrors((prev) => { const n = { ...prev }; delete n.parentUsername; return n; });
+              }}
+              onBlur={handleUsernameBlur}
+              fullWidth
+              required
+              error={!!formAddErrors.parentUsername}
+              helperText={usernameChecking ? 'Đang kiểm tra...' : (formAddErrors.parentUsername || '')}
+            />
             <TextField size="small" type="password" label="Mật khẩu" value={formAdd.parent.password} onChange={(e) => setFormAdd((prev) => ({ ...prev, parent: { ...prev.parent, password: e.target.value } }))} fullWidth required error={!!formAddErrors.parentPassword} helperText={formAddErrors.parentPassword} />
             <TextField size="small" label="Họ tên phụ huynh" value={formAdd.parent.fullName} onChange={(e) => setFormAdd((prev) => ({ ...prev, parent: { ...prev.parent, fullName: e.target.value } }))} fullWidth required error={!!formAddErrors.parentFullName} helperText={formAddErrors.parentFullName} />
             <TextField size="small" type="email" label="Email" value={formAdd.parent.email} onChange={(e) => setFormAdd((prev) => ({ ...prev, parent: { ...prev.parent, email: e.target.value } }))} fullWidth required error={!!formAddErrors.parentEmail} helperText={formAddErrors.parentEmail} />
-            <TextField size="small" label="Số điện thoại" value={formAdd.parent.phone} onChange={(e) => setFormAdd((prev) => ({ ...prev, parent: { ...prev.parent, phone: e.target.value } }))} fullWidth error={!!formAddErrors.parentPhone} helperText={formAddErrors.parentPhone} placeholder="10–11 chữ số" />
+            <TextField size="small" label="Số điện thoại" value={formAdd.parent.phone} onChange={(e) => setFormAdd((prev) => ({ ...prev, parent: { ...prev.parent, phone: e.target.value.replace(/\D/g, '') } }))} fullWidth error={!!formAddErrors.parentPhone} helperText={formAddErrors.parentPhone} placeholder="10–11 chữ số" inputProps={{ inputMode: 'numeric', maxLength: 11 }} />
           </Stack>
           <Typography variant="subtitle2" color="primary" gutterBottom>Thông tin học sinh</Typography>
           <Stack spacing={1.5}>
+            <Box sx={{ p: 1.5, bgcolor: '#e0f2fe', borderRadius: 1.5, display: 'flex', alignItems: 'center', gap: 1 }}>
+              <Typography variant="caption" color="#0284c7" fontWeight={600}>Năm học sẽ được gán:</Typography>
+              <Chip
+                label={activeAcademicYear?.yearName || 'Chưa có năm học đang hoạt động'}
+                size="small"
+                sx={{ bgcolor: activeAcademicYear ? '#0284c7' : '#9e9e9e', color: '#fff', fontWeight: 700, fontSize: '0.75rem' }}
+              />
+            </Box>
             <TextField size="small" label="Họ tên học sinh" value={formAdd.student.fullName} onChange={(e) => setFormAdd((prev) => ({ ...prev, student: { ...prev.student, fullName: e.target.value } }))} fullWidth required error={!!formAddErrors.studentFullName} helperText={formAddErrors.studentFullName} />
             <TextField size="small" type="date" label="Ngày sinh" InputLabelProps={{ shrink: true }} value={formAdd.student.dateOfBirth} onChange={(e) => setFormAdd((prev) => ({ ...prev, student: { ...prev.student, dateOfBirth: e.target.value } }))} fullWidth required error={!!formAddErrors.studentDateOfBirth} helperText={formAddErrors.studentDateOfBirth} />
             <FormControl size="small" fullWidth>
@@ -493,7 +560,7 @@ function ManageStudents() {
             <Typography variant="subtitle2" color="text.secondary" sx={{ mt: 1 }}>Thông tin phụ huynh (tài khoản User)</Typography>
             <TextField size="small" label="Họ tên phụ huynh" value={formEdit.parentFullName} onChange={(e) => setFormEdit((p) => ({ ...p, parentFullName: e.target.value }))} fullWidth />
             <TextField size="small" type="email" label="Email phụ huynh" value={formEdit.parentEmail} onChange={(e) => setFormEdit((p) => ({ ...p, parentEmail: e.target.value }))} fullWidth error={!!formEditErrors.parentEmail} helperText={formEditErrors.parentEmail} />
-            <TextField size="small" label="SĐT phụ huynh" value={formEdit.parentPhone} onChange={(e) => setFormEdit((p) => ({ ...p, parentPhone: e.target.value }))} fullWidth error={!!formEditErrors.parentPhone} helperText={formEditErrors.parentPhone} placeholder="10–11 chữ số" />
+            <TextField size="small" label="SĐT phụ huynh" value={formEdit.parentPhone} onChange={(e) => setFormEdit((p) => ({ ...p, parentPhone: e.target.value.replace(/\D/g, '') }))} fullWidth error={!!formEditErrors.parentPhone} helperText={formEditErrors.parentPhone} placeholder="10–11 chữ số" inputProps={{ inputMode: 'numeric', maxLength: 11 }} />
             <Divider />
             <FormControlLabel
               control={
@@ -618,9 +685,10 @@ function ManageStudents() {
       </Dialog>
 
       {/* Xác nhận xóa */}
-      <Dialog open={openDelete} onClose={() => setOpenDelete(false)}>
+      <Dialog open={openDelete} onClose={() => { setOpenDelete(false); setDeleteError(null); }}>
         <DialogTitle>Xác nhận xóa</DialogTitle>
         <DialogContent>
+          {deleteError && <Alert severity="error" sx={{ mb: 1.5 }} onClose={() => setDeleteError(null)}>{deleteError}</Alert>}
           Bạn có chắc muốn xóa học sinh &quot;{selectedStudent?.fullName}&quot;? Tài khoản phụ huynh vẫn được giữ nguyên.
         </DialogContent>
         <DialogActions>
