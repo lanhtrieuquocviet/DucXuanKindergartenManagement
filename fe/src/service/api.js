@@ -217,6 +217,8 @@ export const ENDPOINTS = {
     BLOG_CATEGORY_DETAIL: (id) => `/school-admin/blog-categories/${id}`,
     DOCUMENTS: "/school-admin/documents",
     DOCUMENT_DETAIL: (documentId) => `/school-admin/documents/${documentId}`,
+    IMAGE_LIBRARY: "/school-admin/image-library",
+    IMAGE_LIBRARY_DETAIL: (id) => `/school-admin/image-library/${id}`,
     PUBLIC_INFOS: "/school-admin/public-info",
     PUBLIC_INFO_DETAIL: (id) => `/school-admin/public-info/${id}`,
     BANNERS: '/school-admin/banners',
@@ -359,6 +361,9 @@ export const ENDPOINTS = {
   PUBLIC_INFO: {
     LIST: "/public-info",
     DETAIL: (id) => `/public-info/${id}`,
+  },
+  IMAGE_LIBRARY: {
+    LIST: "/image-library",
   },
   // Thời khóa biểu công khai (không cần đăng nhập)
   TIMETABLE_PUBLIC: (yearId) => (yearId ? `/timetable?yearId=${yearId}` : "/timetable"),

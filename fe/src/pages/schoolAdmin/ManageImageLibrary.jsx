@@ -4,7 +4,7 @@ import { toast } from 'react-toastify';
 import { useAuth } from '../../context/AuthContext';
 import RoleLayout from '../../layouts/RoleLayout';
 import ConfirmDialog from '../../components/ConfirmDialog';
-import { postFormData, ENDPOINTS } from '../../service/api';
+import { get, post, del, postFormData, ENDPOINTS } from '../../service/api';
 import { SCHOOL_ADMIN_MENU_ITEMS, createSchoolAdminMenuSelect } from './schoolAdminMenuConfig';
 import {
   Box,
@@ -26,8 +26,6 @@ import {
 import AddPhotoAlternateIcon from '@mui/icons-material/AddPhotoAlternate';
 import DeleteIcon from '@mui/icons-material/Delete';
 import VisibilityIcon from '@mui/icons-material/Visibility';
-
-const STORAGE_KEY = 'school-admin-image-library';
 
 export default function ManageImageLibrary() {
   const navigate = useNavigate();
@@ -52,23 +50,26 @@ export default function ManageImageLibrary() {
     if (!roles.includes('SchoolAdmin')) navigate('/', { replace: true });
   }, [navigate, user, isInitializing]);
 
-  useEffect(() => {
+  const loadImages = async () => {
     try {
-      const raw = localStorage.getItem(STORAGE_KEY);
-      if (raw) {
-        setImages(JSON.parse(raw));
+      const resp = await get(ENDPOINTS.SCHOOL_ADMIN.IMAGE_LIBRARY);
+      if (resp.status === 'success') {
+        setImages(resp.data || []);
       }
-    } catch {
-      setImages([]);
+    } catch (err) {
+      setError(err.message || 'Lỗi tải danh sách ảnh');
     }
-  }, []);
-
-  const saveImages = (next) => {
-    setImages(next);
-    localStorage.setItem(STORAGE_KEY, JSON.stringify(next));
   };
 
+  useEffect(() => {
+    loadImages();
+  }, []);
+
   const handleAddImage = async () => {
+    if (!form.title.trim()) {
+      toast.error('Vui lòng nhập tiêu đề ảnh');
+      return;
+    }
     if (!form.file) {
       toast.error('Vui lòng chọn ảnh');
       return;
@@ -76,23 +77,20 @@ export default function ManageImageLibrary() {
     try {
       setUploading(true);
       const fd = new FormData();
-      fd.append('file', form.file);
+      fd.append('image', form.file);
       const resp = await postFormData(ENDPOINTS.CLOUDINARY.UPLOAD_BLOG_IMAGE, fd);
       if (resp.status !== 'success' || !resp.data?.url) {
         throw new Error(resp.message || 'Upload ảnh thất bại');
       }
 
-      const newImage = {
-        id: `${Date.now()}-${Math.random().toString(36).slice(2, 8)}`,
-        title: form.title.trim() || `Ảnh ${images.length + 1}`,
+      await post(ENDPOINTS.SCHOOL_ADMIN.IMAGE_LIBRARY, {
+        title: form.title.trim(),
         imageUrl: resp.data.url,
-        createdAt: new Date().toISOString(),
-      };
-      const next = [newImage, ...images];
-      saveImages(next);
+      });
       toast.success('Thêm ảnh thành công');
       setDialogOpen(false);
       setForm({ title: '', file: null });
+      await loadImages();
     } catch (err) {
       setError(err.message || 'Lỗi thêm ảnh');
     } finally {
@@ -100,12 +98,16 @@ export default function ManageImageLibrary() {
     }
   };
 
-  const handleDelete = () => {
+  const handleDelete = async () => {
     if (!confirmDelete) return;
-    const next = images.filter((item) => item.id !== confirmDelete.id);
-    saveImages(next);
-    setConfirmDelete(null);
-    toast.success('Đã xóa ảnh');
+    try {
+      await del(ENDPOINTS.SCHOOL_ADMIN.IMAGE_LIBRARY_DETAIL(confirmDelete._id));
+      toast.success('Đã xóa ảnh');
+      setConfirmDelete(null);
+      await loadImages();
+    } catch (err) {
+      setError(err.message || 'Lỗi xóa ảnh');
+    }
   };
 
   const handleMenuSelect = createSchoolAdminMenuSelect(navigate);
@@ -168,7 +170,7 @@ export default function ManageImageLibrary() {
           }}
         >
           {images.map((item) => (
-            <Card key={item.id} variant="outlined" sx={{ borderRadius: 2 }}>
+            <Card key={item._id} variant="outlined" sx={{ borderRadius: 2 }}>
               <CardMedia component="img" height="180" image={item.imageUrl} alt={item.title} sx={{ objectFit: 'cover' }} />
               <CardContent>
                 <Typography variant="subtitle2" fontWeight={600}>

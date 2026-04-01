@@ -23,6 +23,7 @@ const qaController = require('../controller/qaController');
 const documentController = require('../controller/documentController');
 const publicInfoController = require('../controller/publicInfoController');
 const bannerController = require('../controller/bannerController');
+const imageLibraryController = require('../controller/imageLibraryController');
 const academicYearController = require('../controller/academicYearController');
 const AcademicYear = require('../models/AcademicYear');
 const curriculumController = require('../controller/curriculumController');
@@ -696,6 +697,9 @@ router.patch('/qa/questions/:id/answers/:answerIndex', authenticate, authorizeRo
  */
 router.get('/documents', authenticate, authorizeRoles('SchoolAdmin'), documentController.listDocuments);
 router.post('/documents', authenticate, authorizeRoles('SchoolAdmin'), documentController.createDocument);
+router.get('/image-library', authenticate, authorizeRoles('SchoolAdmin'), imageLibraryController.listAdminImageLibrary);
+router.post('/image-library', authenticate, authorizeRoles('SchoolAdmin'), imageLibraryController.createImageLibraryItem);
+router.delete('/image-library/:id', authenticate, authorizeRoles('SchoolAdmin'), imageLibraryController.deleteImageLibraryItem);
 
 /**
  * @openapi
