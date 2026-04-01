@@ -37,8 +37,9 @@ export default function ManageImageLibrary() {
   const [dialogOpen, setDialogOpen] = useState(false);
   const [previewOpen, setPreviewOpen] = useState(false);
   const [previewImage, setPreviewImage] = useState(null);
+  const [previewIndex, setPreviewIndex] = useState(0);
   const [confirmDelete, setConfirmDelete] = useState(null);
-  const [form, setForm] = useState({ title: '', file: null });
+  const [form, setForm] = useState({ title: '', files: [] });
 
   useEffect(() => {
     if (isInitializing) return;
@@ -70,26 +71,31 @@ export default function ManageImageLibrary() {
       toast.error('Vui lòng nhập tiêu đề ảnh');
       return;
     }
-    if (!form.file) {
-      toast.error('Vui lòng chọn ảnh');
+    if (!form.files || form.files.length === 0) {
+      toast.error('Vui lòng chọn ít nhất 1 ảnh');
       return;
     }
     try {
       setUploading(true);
-      const fd = new FormData();
-      fd.append('image', form.file);
-      const resp = await postFormData(ENDPOINTS.CLOUDINARY.UPLOAD_BLOG_IMAGE, fd);
-      if (resp.status !== 'success' || !resp.data?.url) {
-        throw new Error(resp.message || 'Upload ảnh thất bại');
-      }
+      const uploadResults = await Promise.all(
+        form.files.map(async (file) => {
+          const fd = new FormData();
+          fd.append('image', file);
+          const resp = await postFormData(ENDPOINTS.CLOUDINARY.UPLOAD_BLOG_IMAGE, fd);
+          if (resp.status !== 'success' || !resp.data?.url) {
+            throw new Error(resp.message || `Upload ảnh "${file.name}" thất bại`);
+          }
+          return resp.data.url;
+        })
+      );
 
       await post(ENDPOINTS.SCHOOL_ADMIN.IMAGE_LIBRARY, {
         title: form.title.trim(),
-        imageUrl: resp.data.url,
+        imageUrls: uploadResults,
       });
       toast.success('Thêm ảnh thành công');
       setDialogOpen(false);
-      setForm({ title: '', file: null });
+      setForm({ title: '', files: [] });
       await loadImages();
     } catch (err) {
       setError(err.message || 'Lỗi thêm ảnh');
@@ -171,7 +177,13 @@ export default function ManageImageLibrary() {
         >
           {images.map((item) => (
             <Card key={item._id} variant="outlined" sx={{ borderRadius: 2 }}>
-              <CardMedia component="img" height="180" image={item.imageUrl} alt={item.title} sx={{ objectFit: 'cover' }} />
+              <CardMedia
+                component="img"
+                height="180"
+                image={item.imageUrls?.[0] || item.imageUrl}
+                alt={item.title}
+                sx={{ objectFit: 'cover' }}
+              />
               <CardContent>
                 <Typography variant="subtitle2" fontWeight={600}>
                   {item.title}
@@ -179,9 +191,20 @@ export default function ManageImageLibrary() {
                 <Typography variant="caption" color="text.secondary">
                   {new Date(item.createdAt).toLocaleDateString('vi-VN')}
                 </Typography>
+                <Typography variant="caption" color="text.secondary" display="block">
+                  {item.imageUrls?.length || 1} ảnh
+                </Typography>
               </CardContent>
               <CardActions sx={{ justifyContent: 'flex-end' }}>
-                <Button size="small" startIcon={<VisibilityIcon />} onClick={() => { setPreviewImage(item); setPreviewOpen(true); }}>
+                <Button
+                  size="small"
+                  startIcon={<VisibilityIcon />}
+                  onClick={() => {
+                    setPreviewImage(item);
+                    setPreviewIndex(0);
+                    setPreviewOpen(true);
+                  }}
+                >
                   Xem
                 </Button>
                 <Button size="small" color="error" startIcon={<DeleteIcon />} onClick={() => setConfirmDelete(item)}>
@@ -210,17 +233,53 @@ export default function ManageImageLibrary() {
               onChange={(e) => setForm((p) => ({ ...p, title: e.target.value }))}
             />
             <Button variant="outlined" component="label" startIcon={<AddPhotoAlternateIcon />} sx={{ alignSelf: 'flex-start' }}>
-              Chọn ảnh
+              Chọn ảnh (nhiều ảnh)
               <input
                 hidden
                 type="file"
                 accept="image/*"
-                onChange={(e) => setForm((p) => ({ ...p, file: e.target.files?.[0] || null }))}
+                multiple
+                onChange={(e) => setForm((p) => ({ ...p, files: Array.from(e.target.files || []) }))}
               />
             </Button>
             <Typography variant="body2" color="text.secondary">
-              {form.file ? `Đã chọn: ${form.file.name}` : 'Chưa chọn ảnh'}
+              {form.files?.length > 0
+                ? `Đã chọn ${form.files.length} ảnh`
+                : 'Chưa chọn ảnh'}
             </Typography>
+            {form.files?.length > 0 && (
+              <Box
+                sx={{
+                  display: 'grid',
+                  gridTemplateColumns: { xs: 'repeat(2, 1fr)', sm: 'repeat(3, 1fr)' },
+                  gap: 1,
+                }}
+              >
+                {form.files.map((file, idx) => (
+                  <Box key={`${file.name}-${idx}`} sx={{ border: '1px solid', borderColor: 'divider', borderRadius: 1, p: 0.5 }}>
+                    <Box
+                      component="img"
+                      src={URL.createObjectURL(file)}
+                      alt={file.name}
+                      sx={{ width: '100%', height: 90, objectFit: 'cover', borderRadius: 1 }}
+                    />
+                    <Typography
+                      variant="caption"
+                      color="text.secondary"
+                      sx={{
+                        mt: 0.5,
+                        display: '-webkit-box',
+                        WebkitLineClamp: 1,
+                        WebkitBoxOrient: 'vertical',
+                        overflow: 'hidden',
+                      }}
+                    >
+                      {file.name}
+                    </Typography>
+                  </Box>
+                ))}
+              </Box>
+            )}
           </Stack>
         </DialogContent>
         <DialogActions>
@@ -237,7 +296,33 @@ export default function ManageImageLibrary() {
         <DialogTitle>{previewImage?.title || 'Xem ảnh'}</DialogTitle>
         <DialogContent dividers>
           {previewImage && (
-            <Box component="img" src={previewImage.imageUrl} alt={previewImage.title} sx={{ width: '100%', borderRadius: 2 }} />
+            <>
+              <Box
+                component="img"
+                src={previewImage.imageUrls?.[previewIndex] || previewImage.imageUrl}
+                alt={previewImage.title}
+                sx={{ width: '100%', borderRadius: 2 }}
+              />
+              {(previewImage.imageUrls?.length || 0) > 1 && (
+                <Stack direction="row" justifyContent="space-between" sx={{ mt: 1 }}>
+                  <Button
+                    onClick={() =>
+                      setPreviewIndex((prev) => (prev - 1 + previewImage.imageUrls.length) % previewImage.imageUrls.length)
+                    }
+                  >
+                    {"<"}
+                  </Button>
+                  <Typography variant="body2" color="text.secondary" sx={{ alignSelf: 'center' }}>
+                    {previewIndex + 1}/{previewImage.imageUrls.length}
+                  </Typography>
+                  <Button
+                    onClick={() => setPreviewIndex((prev) => (prev + 1) % previewImage.imageUrls.length)}
+                  >
+                    {">"}
+                  </Button>
+                </Stack>
+              )}
+            </>
           )}
         </DialogContent>
         <DialogActions>
