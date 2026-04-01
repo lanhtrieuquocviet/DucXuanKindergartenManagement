@@ -1,5 +1,5 @@
 import { createContext, useContext, useState, useCallback, useRef, useEffect } from 'react';
-import { get, post, put, del as deleteRequest, ENDPOINTS } from '../service/api';
+import { get, post, put, del as deleteRequest, postFormData, ENDPOINTS } from '../service/api';
 
 const SystemAdminContext = createContext(null);
 
@@ -378,22 +378,86 @@ export const SystemAdminProvider = ({
   }, []);
 
   // Get system logs
-  const getSystemLogs = useCallback(async (params = {}) => {
+  // Get system logs for BPM
+  const getSystemLogs = useCallback(async () => {
     try {
       setLoading(true);
       setError(null);
-      const query = new URLSearchParams(params).toString();
-      const endpoint = query
-        ? `${ENDPOINTS.SYSTEM_ADMIN.SYSTEM_LOGS}?${query}`
-        : ENDPOINTS.SYSTEM_ADMIN.SYSTEM_LOGS;
-      const response = await get(endpoint);
-      return response;
+      const response = await get(ENDPOINTS.SYSTEM_ADMIN.BPM_LOGS);
+      // API BPM logs trả về mảng trực tiếp
+      return response.data || [];
     } catch (err) {
       const errorMessage = err.data?.message || err.message || 'Không lấy được nhật ký hệ thống';
       setError(errorMessage);
-      if (onErrorRef.current) {
-        onErrorRef.current(err);
-      }
+      throw new Error(errorMessage);
+    } finally {
+      setLoading(false);
+    }
+  }, []);
+
+  // Get BPM Workflows
+  const getBPMWorkflows = useCallback(async () => {
+    try {
+      setLoading(true);
+      setError(null);
+      const response = await get(ENDPOINTS.SYSTEM_ADMIN.BPM_WORKFLOWS);
+      return response.data || [];
+    } catch (err) {
+      const errorMessage = err.data?.message || err.message || 'Không lấy được danh sách quy trình BPM';
+      setError(errorMessage);
+      if (onErrorRef.current) onErrorRef.current(err);
+      throw new Error(errorMessage);
+    } finally {
+      setLoading(false);
+    }
+  }, []);
+
+  // Save BPM Workflow
+  const saveBPMWorkflow = useCallback(async (workflowData) => {
+    try {
+      setLoading(true);
+      setError(null);
+      const response = await post(ENDPOINTS.SYSTEM_ADMIN.SAVE_BPM_WORKFLOW, workflowData);
+      if (onSuccessRef.current) onSuccessRef.current({ workflow: response.data });
+      return response;
+    } catch (err) {
+      const errorMessage = err.data?.message || err.message || 'Không lưu được quy trình BPM';
+      setError(errorMessage);
+      if (onErrorRef.current) onErrorRef.current(err);
+      throw new Error(errorMessage);
+    } finally {
+      setLoading(false);
+    }
+  }, []);
+
+  // Get BPM Health
+  const getBPMHealth = useCallback(async () => {
+    try {
+      setLoading(true);
+      setError(null);
+      const response = await get(ENDPOINTS.SYSTEM_ADMIN.BPM_HEALTH);
+      return response.data;
+    } catch (err) {
+      const errorMessage = err.data?.message || err.message || 'Không lấy được trạng thái BPM';
+      setError(errorMessage);
+      if (onErrorRef.current) onErrorRef.current(err);
+      throw new Error(errorMessage);
+    } finally {
+      setLoading(false);
+    }
+  }, []);
+
+  const generateBPMFromDocx = useCallback(async (file) => {
+    try {
+      setLoading(true);
+      setError(null);
+      const formData = new FormData();
+      formData.append('file', file);
+      const response = await postFormData(ENDPOINTS.SYSTEM_ADMIN.GENERATE_BPM_FROM_DOCX, formData);
+      return response.data;
+    } catch (err) {
+      const errorMessage = err.data?.message || err.message || 'Lỗi khi phân tích file Word';
+      setError(errorMessage);
       throw new Error(errorMessage);
     } finally {
       setLoading(false);
@@ -419,6 +483,11 @@ export const SystemAdminProvider = ({
     deletePermission,
     updateRolePermissions,
     getSystemLogs,
+    getBPMWorkflows,
+    saveBPMWorkflow,
+    getBPMHealth,
+    generateBPMFromDocx,
+    postFormData,
     setError,
   };
 

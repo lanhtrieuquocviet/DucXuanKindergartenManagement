@@ -80,6 +80,7 @@ const KEY_ICONS = {
   'asset-inspection':    <ContentPasteSearchIcon fontSize="small" />,
   'class-assets':        <InventoryIcon fontSize="small" />,
   'asset-allocation':    <AccountTreeIcon fontSize="small" />,
+  bpm:                   <AccountTreeIcon fontSize="small" />,
 };
 
 /* ── Sidebar content ── */

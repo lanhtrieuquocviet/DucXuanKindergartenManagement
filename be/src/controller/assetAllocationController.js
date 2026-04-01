@@ -1,8 +1,8 @@
 const AssetAllocation = require('../models/AssetAllocation');
-const Classes         = require('../models/Classes');
-const mammoth         = require('mammoth');
-const WordExtractor   = require('word-extractor');
-const { JSDOM }       = require('jsdom');
+const Classes = require('../models/Classes');
+const mammoth = require('mammoth');
+const WordExtractor = require('word-extractor');
+const { JSDOM } = require('jsdom');
 
 // ─── List all allocations ──────────────────────────────────────────────────
 exports.listAllocations = async (req, res) => {
@@ -77,21 +77,21 @@ exports.createAllocation = async (req, res) => {
     }
 
     const allocation = new AssetAllocation({
-      classId:            classId || undefined,
-      className:          resolvedClassName,
-      teacherName:        teacherName || '',
-      teacherPosition:    teacherPosition || 'Giáo viên',
-      handoverByName:     handoverByName || '',
+      classId: classId || undefined,
+      className: resolvedClassName,
+      teacherName: teacherName || '',
+      teacherPosition: teacherPosition || 'Giáo viên',
+      handoverByName: handoverByName || '',
       handoverByPosition: handoverByPosition || 'Hiệu trưởng',
-      handoverDate:       handoverDate ? new Date(handoverDate) : new Date(),
-      academicYear:       academicYear || '',
+      handoverDate: handoverDate ? new Date(handoverDate) : new Date(),
+      academicYear: academicYear || '',
       assets,
-      extraAssets:        Array.isArray(extraAssets) ? extraAssets : [],
-      notes:              notes || '',
-      status:             'pending_confirmation',
-      confirmedAt:        null,
-      transferHistory:    [],
-      createdBy:          req.user._id,
+      extraAssets: Array.isArray(extraAssets) ? extraAssets : [],
+      notes: notes || '',
+      status: 'pending_confirmation',
+      confirmedAt: null,
+      transferHistory: [],
+      createdBy: req.user._id,
     });
 
     await allocation.save();
@@ -112,8 +112,8 @@ exports.updateAllocation = async (req, res) => {
       return res.status(400).json({ status: 'error', message: 'Không thể chỉnh sửa biên bản đã chuyển lớp.' });
 
     const fields = [
-      'classId','className','teacherName','teacherPosition',
-      'handoverByName','handoverByPosition','academicYear','assets','extraAssets','notes',
+      'classId', 'className', 'teacherName', 'teacherPosition',
+      'handoverByName', 'handoverByPosition', 'academicYear', 'assets', 'extraAssets', 'notes',
     ];
     for (const f of fields) {
       if (req.body[f] !== undefined) allocation[f] = req.body[f];
@@ -165,20 +165,20 @@ exports.transferAllocation = async (req, res) => {
 
     // Record transfer history
     allocation.transferHistory.push({
-      fromClassName:   allocation.className,
-      toClassName:     resolvedToClassName,
+      fromClassName: allocation.className,
+      toClassName: resolvedToClassName,
       fromTeacherName: allocation.teacherName,
-      toTeacherName:   toTeacherName || '',
-      transferDate:    transferDate ? new Date(transferDate) : new Date(),
-      note:            note || '',
-      transferredBy:   req.user._id,
+      toTeacherName: toTeacherName || '',
+      transferDate: transferDate ? new Date(transferDate) : new Date(),
+      note: note || '',
+      transferredBy: req.user._id,
     });
 
     // Update current holder
-    allocation.classId      = toClassId || allocation.classId;
-    allocation.className    = resolvedToClassName;
-    allocation.teacherName  = toTeacherName || '';
-    allocation.status       = 'transferred';
+    allocation.classId = toClassId || allocation.classId;
+    allocation.className = resolvedToClassName;
+    allocation.teacherName = toTeacherName || '';
+    allocation.status = 'transferred';
 
     await allocation.save();
     return res.json({ status: 'success', data: { allocation } });
@@ -197,7 +197,7 @@ exports.confirmAllocation = async (req, res) => {
     if (allocation.status !== 'pending_confirmation')
       return res.status(400).json({ status: 'error', message: 'Biên bản này không ở trạng thái chờ xác nhận.' });
 
-    allocation.status      = 'active';
+    allocation.status = 'active';
     allocation.confirmedAt = new Date();
     allocation.confirmedBy = req.user._id;
     await allocation.save();
@@ -256,14 +256,14 @@ exports.parseWordFile = async (req, res) => {
 // ─── Strategy 1: Parse từng dòng text trực tiếp (cho .doc) ────────────────
 // Trả về { assets, extraAssets } phân biệt theo section header trong text.
 function parseAssetsFromText(text) {
-  const assets      = [];
+  const assets = [];
   const extraAssets = [];
   const lines = text.split(/\r?\n/).map((l) => l.trim()).filter(Boolean);
 
   const EXTRA_MARKER = /ngoài thông tư|khác ngoài/i;
-  const ROMAN_RE     = /^(I{1,3}|IV|VI{0,3}|IX|X{1,3})$/i;
-  let isExtra          = false;
-  let currentCategory  = '';
+  const ROMAN_RE = /^(I{1,3}|IV|VI{0,3}|IX|X{1,3})$/i;
+  let isExtra = false;
+  let currentCategory = '';
 
   for (const line of lines) {
     if (EXTRA_MARKER.test(line)) { isExtra = true; currentCategory = ''; continue; }
@@ -284,12 +284,12 @@ function parseAssetsFromText(text) {
     if (parts.length < 3) continue;
     if (!/^\d{1,3}$/.test(parts[0])) continue;
 
-    let startIdx  = 1;
+    let startIdx = 1;
     let assetCode = '';
 
     if (/^[A-Z]{1,4}\d{4,}/.test(parts[1])) {
       assetCode = parts[1];
-      startIdx  = 2;
+      startIdx = 2;
     }
 
     const name = parts[startIdx] || '';
@@ -298,16 +298,16 @@ function parseAssetsFromText(text) {
     if (/^\d+$/.test(name)) continue;
 
     const rawUnit = parts[startIdx + 1] || '';
-    const unit    = rawUnit.length <= 8 ? rawUnit || 'Cái' : 'Cái';
-    const rawQty  = (parts[startIdx + 2] || '').replace(/[^0-9]/g, '');
+    const unit = rawUnit.length <= 8 ? rawUnit || 'Cái' : 'Cái';
+    const rawQty = (parts[startIdx + 2] || '').replace(/[^0-9]/g, '');
     const quantity = Math.max(1, parseInt(rawQty) || 1);
 
     let targetUser = 'Trẻ';
     for (let k = startIdx + 3; k < parts.length; k++) {
       const t = parts[k].toLowerCase();
-      if (/gi[áa]o vi[eê]n|gv/.test(t))  { targetUser = 'Giáo viên'; break; }
+      if (/gi[áa]o vi[eê]n|gv/.test(t)) { targetUser = 'Giáo viên'; break; }
       if (/d[uù]ng chung|chung/.test(t)) { targetUser = 'Dùng chung'; break; }
-      if (/^tr[eẻ]$/.test(t))             { targetUser = 'Trẻ'; break; }
+      if (/^tr[eẻ]$/.test(t)) { targetUser = 'Trẻ'; break; }
     }
 
     const notes = parts[startIdx + 4] || '';
@@ -321,7 +321,7 @@ function parseAssetsFromText(text) {
 // ─── Strategy 2: Chuyển text thô → HTML giả ───────────────────────────────
 function textToFakeHtml(text) {
   const lines = text.split(/\r?\n/).filter((l) => l.trim());
-  const rows  = lines
+  const rows = lines
     .filter((l) => l.includes('\t') || /\s{2,}/.test(l))
     .map((l) => {
       const cells = l.split(/\t|\s{2,}/).map((c) => c.trim()).filter(Boolean);
@@ -334,9 +334,9 @@ function textToFakeHtml(text) {
 // Trả về { assets, extraAssets } dựa vào tiêu đề bảng hoặc text trước bảng.
 function parseAssetsFromHtml(html) {
   const { window } = new JSDOM(html);
-  const doc         = window.document;
-  const tables      = Array.from(doc.querySelectorAll('table'));
-  const assets      = [];
+  const doc = window.document;
+  const tables = Array.from(doc.querySelectorAll('table'));
+  const assets = [];
   const extraAssets = [];
 
   // "thiết bị khác" bỏ vì dễ false-positive trong tên thiết bị
@@ -367,27 +367,27 @@ function parseAssetsFromHtml(html) {
     // ── Tìm header row ──────────────────────────────────────────────────
     // Header hợp lệ: phải có ≥3 ô RIÊNG BIỆT + có cả tên-kw VÀ đo-lường-kw
     let headerIdx = -1;
-    let colMap    = {};
-    let hasTT     = false;
+    let colMap = {};
+    let hasTT = false;
 
     for (let i = 0; i < Math.min(rows.length, 6); i++) {
       const cells = Array.from(rows[i].querySelectorAll('td, th'))
         .map((c) => c.textContent.trim().toLowerCase().replace(/\s+/g, ' '));
 
-      const hasNameKw  = cells.some(c => /(tên|thiết bị|dụng cụ|đồ chơi)/.test(c));
-      const hasMeasKw  = cells.some(c => /đvt|đơn vị|số lượng|\bsl\b|\bsố\b|mã/.test(c));
-      const isHeader   = hasNameKw && hasMeasKw && cells.length >= 3;
+      const hasNameKw = cells.some(c => /(tên|thiết bị|dụng cụ|đồ chơi)/.test(c));
+      const hasMeasKw = cells.some(c => /đvt|đơn vị|số lượng|\bsl\b|\bsố\b|mã/.test(c));
+      const isHeader = hasNameKw && hasMeasKw && cells.length >= 3;
 
       if (isHeader) {
         headerIdx = i;
         cells.forEach((text, idx) => {
-          if (/^(tt|stt)$/.test(text))                                                  { colMap.tt = idx; hasTT = true; }
-          else if (/mã/.test(text) && colMap.assetCode == null)                         colMap.assetCode  = idx;
-          else if (/(tên|thiết bị|dụng cụ|đồ chơi)/.test(text) && colMap.name == null) colMap.name       = idx;
-          else if (/đvt|đơn vị/.test(text))                                             colMap.unit       = idx;
-          else if (/(số lượng|^sl$|^số$)/.test(text) && colMap.quantity == null)        colMap.quantity   = idx;
-          else if (/đối tượng|mục đích/.test(text))                                     colMap.targetUser = idx;
-          else if (/ghi chú/.test(text))                                                colMap.notes      = idx;
+          if (/^(tt|stt)$/.test(text)) { colMap.tt = idx; hasTT = true; }
+          else if (/mã/.test(text) && colMap.assetCode == null) colMap.assetCode = idx;
+          else if (/(tên|thiết bị|dụng cụ|đồ chơi)/.test(text) && colMap.name == null) colMap.name = idx;
+          else if (/đvt|đơn vị/.test(text)) colMap.unit = idx;
+          else if (/(số lượng|^sl$|^số$)/.test(text) && colMap.quantity == null) colMap.quantity = idx;
+          else if (/đối tượng|mục đích/.test(text)) colMap.targetUser = idx;
+          else if (/ghi chú/.test(text)) colMap.notes = idx;
         });
         break;
       }
@@ -405,12 +405,12 @@ function parseAssetsFromHtml(html) {
 
       if (isSubHeader) {
         // Đếm số sub-column xuất hiện từ vị trí cột quantity trở đi
-        const qtyPos  = colMap.quantity ?? 4;
+        const qtyPos = colMap.quantity ?? 4;
         const subCount = subCells.slice(qtyPos).filter((t) => t.trim()).length;
-        const extra   = Math.max(0, subCount - 1); // số cột dư do split
+        const extra = Math.max(0, subCount - 1); // số cột dư do split
         if (extra > 0) {
           if (colMap.targetUser != null) colMap.targetUser += extra;
-          if (colMap.notes      != null) colMap.notes      += extra;
+          if (colMap.notes != null) colMap.notes += extra;
           // Giữ cột quantity đầu tiên, thêm quantity2 là cột cuối sub-group
           colMap.quantity2 = qtyPos + subCount - 1;
         }
@@ -465,26 +465,26 @@ function parseAssetsFromHtml(html) {
       // Đối tượng SD: thử từ colMap trước, nếu không khớp thì quét toàn hàng
       let targetUser = 'Trẻ';
       const rawTarget = getText(cells, colMap.targetUser).toLowerCase();
-      if      (/gi[áa]o vi[eê]n|gv/.test(rawTarget))      targetUser = 'Giáo viên';
-      else if (/d[uù]ng chung|chung/.test(rawTarget))      targetUser = 'Dùng chung';
-      else if (/tr[eẻ]/.test(rawTarget))                   targetUser = 'Trẻ';
+      if (/gi[áa]o vi[eê]n|gv/.test(rawTarget)) targetUser = 'Giáo viên';
+      else if (/d[uù]ng chung|chung/.test(rawTarget)) targetUser = 'Dùng chung';
+      else if (/tr[eẻ]/.test(rawTarget)) targetUser = 'Trẻ';
       else {
         // Quét tất cả cell trong hàng
         for (const cell of cells) {
           const t = cell.textContent.trim().toLowerCase();
-          if (/gi[áa]o vi[eê]n/.test(t))       { targetUser = 'Giáo viên'; break; }
-          if (/d[uù]ng chung/.test(t))          { targetUser = 'Dùng chung'; break; }
+          if (/gi[áa]o vi[eê]n/.test(t)) { targetUser = 'Giáo viên'; break; }
+          if (/d[uù]ng chung/.test(t)) { targetUser = 'Dùng chung'; break; }
         }
       }
 
       targetList.push({
-        category:   currentCategory,
-        assetCode:  getText(cells, colMap.assetCode),
+        category: currentCategory,
+        assetCode: getText(cells, colMap.assetCode),
         name,
-        unit:       getText(cells, colMap.unit) || 'Cái',
+        unit: getText(cells, colMap.unit) || 'Cái',
         quantity,
         targetUser,
-        notes:      getText(cells, colMap.notes),
+        notes: getText(cells, colMap.notes),
       });
     }
   }
@@ -525,13 +525,13 @@ exports.parseExcelFile = async (req, res) => {
             headerRowNum = rowNum;
             vals.forEach((text, idx) => {
               const t = text.toLowerCase().replace(/\s+/g, ' ');
-              if (/^(tt|stt)$/.test(t))                                     colMap.tt         = idx;
-              else if (/mã/.test(t) && colMap.assetCode == null)            colMap.assetCode  = idx;
-              else if (/(tên|thiết bị|dụng cụ)/.test(t) && colMap.name == null) colMap.name  = idx;
-              else if (/đvt|đơn vị/.test(t))                                colMap.unit       = idx;
-              else if (/(số lượng|^sl$)/.test(t) && colMap.quantity == null) colMap.quantity  = idx;
-              else if (/đối tượng|mục đích/.test(t))                        colMap.targetUser = idx;
-              else if (/ghi chú/.test(t))                                   colMap.notes      = idx;
+              if (/^(tt|stt)$/.test(t)) colMap.tt = idx;
+              else if (/mã/.test(t) && colMap.assetCode == null) colMap.assetCode = idx;
+              else if (/(tên|thiết bị|dụng cụ)/.test(t) && colMap.name == null) colMap.name = idx;
+              else if (/đvt|đơn vị/.test(t)) colMap.unit = idx;
+              else if (/(số lượng|^sl$)/.test(t) && colMap.quantity == null) colMap.quantity = idx;
+              else if (/đối tượng|mục đích/.test(t)) colMap.targetUser = idx;
+              else if (/ghi chú/.test(t)) colMap.notes = idx;
             });
           }
           return;
@@ -539,8 +539,8 @@ exports.parseExcelFile = async (req, res) => {
 
         if (colMap.name == null) return;
 
-        const ttVal  = vals[colMap.tt ?? 0] || '';
-        const name   = vals[colMap.name]    || '';
+        const ttVal = vals[colMap.tt ?? 0] || '';
+        const name = vals[colMap.name] || '';
         if (!name) return;
 
         // Hàng tiêu đề danh mục (cột TT là số La Mã)
@@ -553,27 +553,27 @@ exports.parseExcelFile = async (req, res) => {
         if (/^(tên|thiết bị|stt|tt)$/i.test(name)) return;
 
         const rawQty = (vals[colMap.quantity] || '').replace(/[^0-9]/g, '');
-        const qty    = Math.max(0, parseInt(rawQty) || 0);
+        const qty = Math.max(0, parseInt(rawQty) || 0);
         const rawTarget = (vals[colMap.targetUser] || '').toLowerCase();
         let targetUser = 'Trẻ';
-        if (/gi[áa]o vi[eê]n|gv/.test(rawTarget))     targetUser = 'Giáo viên';
+        if (/gi[áa]o vi[eê]n|gv/.test(rawTarget)) targetUser = 'Giáo viên';
         else if (/d[uù]ng chung|chung/.test(rawTarget)) targetUser = 'Dùng chung';
 
         rows.push({
-          category:   currentCategory,
-          assetCode:  vals[colMap.assetCode]  || '',
+          category: currentCategory,
+          assetCode: vals[colMap.assetCode] || '',
           name,
-          unit:       vals[colMap.unit]       || 'Cái',
-          quantity:   qty,
+          unit: vals[colMap.unit] || 'Cái',
+          quantity: qty,
           targetUser,
-          notes:      vals[colMap.notes]      || '',
+          notes: vals[colMap.notes] || '',
         });
       });
 
       return rows;
     };
 
-    const assets      = parseSheet(workbook.worksheets[0]);
+    const assets = parseSheet(workbook.worksheets[0]);
     const extraAssets = workbook.worksheets[1] ? parseSheet(workbook.worksheets[1]) : [];
 
     if (!assets.length && !extraAssets.length)
@@ -596,31 +596,31 @@ exports.parseExcelFile = async (req, res) => {
 exports.generateExcelTemplate = async (req, res) => {
   try {
     const ExcelJS = require('exceljs');
-    const wb      = new ExcelJS.Workbook();
-    wb.creator    = 'Trường Mầm non Đức Xuân';
+    const wb = new ExcelJS.Workbook();
+    wb.creator = 'Trường Mầm non Đức Xuân';
 
     const BLUE_HDR = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FF1565C0' } };
     const GREY_HDR = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFE8EAF6' } };
     const GREEN_CAT = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFE8F5E9' } };
-    const WHITE    = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFFFFFFF' } };
-    const BORDER   = {
+    const WHITE = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFFFFFFF' } };
+    const BORDER = {
       top: { style: 'thin' }, left: { style: 'thin' },
       bottom: { style: 'thin' }, right: { style: 'thin' },
     };
     const CENTER = { horizontal: 'center', vertical: 'middle', wrapText: true };
-    const LEFT   = { horizontal: 'left',   vertical: 'middle', wrapText: true };
+    const LEFT = { horizontal: 'left', vertical: 'middle', wrapText: true };
 
     const buildSheet = (sheetName, isExtra) => {
       const ws = wb.addWorksheet(sheetName, { pageSetup: { fitToPage: true, fitToWidth: 1 } });
 
       ws.columns = [
-        { key: 'tt',         width: 6  },
-        { key: 'assetCode',  width: 12 },
-        { key: 'name',       width: 36 },
-        { key: 'unit',       width: 9  },
-        { key: 'quantity',   width: 11 },
+        { key: 'tt', width: 6 },
+        { key: 'assetCode', width: 12 },
+        { key: 'name', width: 36 },
+        { key: 'unit', width: 9 },
+        { key: 'quantity', width: 11 },
         { key: 'targetUser', width: 15 },
-        { key: 'notes',      width: 24 },
+        { key: 'notes', width: 24 },
       ];
 
       // ── Row 1: school name ──────────────────────────────────────────────
@@ -629,7 +629,7 @@ exports.generateExcelTemplate = async (req, res) => {
       r1.height = 20;
       const c1 = r1.getCell(1);
       c1.value = 'UBND THÀNH PHỐ BẮC KẠN — TRƯỜNG MẦM NON ĐỨC XUÂN';
-      c1.font  = { bold: true, size: 11, color: { argb: 'FF1565C0' } };
+      c1.font = { bold: true, size: 11, color: { argb: 'FF1565C0' } };
       c1.alignment = CENTER;
       c1.fill = WHITE;
 
@@ -639,9 +639,9 @@ exports.generateExcelTemplate = async (req, res) => {
       c2.value = isExtra
         ? 'DANH SÁCH TÀI SẢN NGOÀI THÔNG TƯ — BIÊN BẢN BÀN GIAO'
         : 'DANH SÁCH TÀI SẢN THEO THÔNG TƯ — BIÊN BẢN BÀN GIAO';
-      c2.font      = { bold: true, size: 13, color: { argb: 'FFFFFFFF' } };
+      c2.font = { bold: true, size: 13, color: { argb: 'FFFFFFFF' } };
       c2.alignment = CENTER;
-      c2.fill      = BLUE_HDR;
+      c2.fill = BLUE_HDR;
       ws.getRow(2).height = 26;
 
       // ── Row 3: sub-title note ───────────────────────────────────────────
@@ -650,72 +650,72 @@ exports.generateExcelTemplate = async (req, res) => {
       c3.value = isExtra
         ? '(Sheet 2 — Điền các thiết bị tài sản NGOÀI danh mục thông tư. Không cần ghi nhóm.)'
         : '(Sheet 1 — Điền tên nhóm ở cột TT bằng số La Mã: I, II, III... Dữ liệu tài sản điền từ hàng tiếp theo.)';
-      c3.font      = { italic: true, size: 10, color: { argb: 'FF555555' } };
+      c3.font = { italic: true, size: 10, color: { argb: 'FF555555' } };
       c3.alignment = CENTER;
-      c3.fill      = WHITE;
+      c3.fill = WHITE;
       ws.getRow(3).height = 18;
 
       // ── Row 4: column headers ───────────────────────────────────────────
-      const hdrRow  = ws.getRow(4);
+      const hdrRow = ws.getRow(4);
       hdrRow.height = 30;
       const headers = ['TT', 'Mã số', 'Tên thiết bị / Tài sản', 'ĐVT', 'Số lượng', 'Đối tượng SD', 'Ghi chú'];
       headers.forEach((h, i) => {
-        const cell    = hdrRow.getCell(i + 1);
-        cell.value    = h;
-        cell.font     = { bold: true, size: 11, color: { argb: 'FFFFFFFF' } };
-        cell.fill     = BLUE_HDR;
-        cell.border   = BORDER;
+        const cell = hdrRow.getCell(i + 1);
+        cell.value = h;
+        cell.font = { bold: true, size: 11, color: { argb: 'FFFFFFFF' } };
+        cell.fill = BLUE_HDR;
+        cell.border = BORDER;
         cell.alignment = CENTER;
       });
 
       // ── Example data ────────────────────────────────────────────────────
       const examples = isExtra ? [
         // Không có nhóm
-        [1, '',      'Tivi Samsung 55"',    'Cái', 1, 'Dùng chung', ''],
-        [2, '',      'Máy tính bảng',       'Cái', 5, 'Trẻ',        ''],
-        [3, '',      'Loa bluetooth',       'Cái', 2, 'Giáo viên',  'Dùng chung'],
+        [1, '', 'Tivi Samsung 55"', 'Cái', 1, 'Dùng chung', ''],
+        [2, '', 'Máy tính bảng', 'Cái', 5, 'Trẻ', ''],
+        [3, '', 'Loa bluetooth', 'Cái', 2, 'Giáo viên', 'Dùng chung'],
       ] : [
         // Nhóm I
-        ['I', '', 'ĐỒ DÙNG - ĐỒ CHƠI',    '', '', '', ''],
-        [1, 'MA001', 'Bàn học sinh',        'Cái', 10, 'Trẻ',       ''],
-        [2, 'MA002', 'Ghế học sinh',        'Cái', 20, 'Trẻ',       ''],
-        [3, 'MA003', 'Tủ đựng đồ dùng',    'Cái',  2, 'Dùng chung',''],
+        ['I', '', 'ĐỒ DÙNG - ĐỒ CHƠI', '', '', '', ''],
+        [1, 'MA001', 'Bàn học sinh', 'Cái', 10, 'Trẻ', ''],
+        [2, 'MA002', 'Ghế học sinh', 'Cái', 20, 'Trẻ', ''],
+        [3, 'MA003', 'Tủ đựng đồ dùng', 'Cái', 2, 'Dùng chung', ''],
         // Nhóm II
-        ['II', '', 'THIẾT BỊ DẠY HỌC',     '', '', '', ''],
-        [4, 'MB001', 'Bảng từ trắng',       'Cái',  1, 'Giáo viên', ''],
-        [5, 'MB002', 'Máy chiếu',           'Bộ',   1, 'Giáo viên', ''],
+        ['II', '', 'THIẾT BỊ DẠY HỌC', '', '', '', ''],
+        [4, 'MB001', 'Bảng từ trắng', 'Cái', 1, 'Giáo viên', ''],
+        [5, 'MB002', 'Máy chiếu', 'Bộ', 1, 'Giáo viên', ''],
         // Nhóm III
         ['III', '', 'ĐỒ DÙNG VỆ SINH - Y TẾ', '', '', '', ''],
-        [6, 'MC001', 'Bộ đồ y tế',          'Bộ',   1, 'Dùng chung',''],
+        [6, 'MC001', 'Bộ đồ y tế', 'Bộ', 1, 'Dùng chung', ''],
       ];
 
       let dataRowNum = 5;
       examples.forEach((ex) => {
-        const row   = ws.getRow(dataRowNum++);
-        row.height  = 20;
+        const row = ws.getRow(dataRowNum++);
+        row.height = 20;
         const isCat = typeof ex[0] === 'string' && /^[IVXLC]+$/i.test(ex[0]) && !isExtra;
 
         if (isCat) {
           // Category header row (chỉ sheet 1)
           ws.mergeCells(`B${dataRowNum - 1}:G${dataRowNum - 1}`);
-          const cellTT   = row.getCell(1);
+          const cellTT = row.getCell(1);
           const cellName = row.getCell(2);
-          cellTT.value   = ex[0];
+          cellTT.value = ex[0];
           cellName.value = ex[2];
           [cellTT, cellName].forEach(c => {
-            c.font      = { bold: true, size: 11, color: { argb: 'FF1B5E20' } };
-            c.fill      = GREEN_CAT;
-            c.border    = BORDER;
+            c.font = { bold: true, size: 11, color: { argb: 'FF1B5E20' } };
+            c.fill = GREEN_CAT;
+            c.border = BORDER;
             c.alignment = i => i === 0 ? CENTER : LEFT;
           });
-          cellTT.alignment  = CENTER;
+          cellTT.alignment = CENTER;
           cellName.alignment = LEFT;
         } else {
           ex.forEach((val, i) => {
-            const cell    = row.getCell(i + 1);
-            cell.value    = val;
-            cell.fill     = i % 2 === 0 ? GREY_HDR : WHITE;
-            cell.border   = BORDER;
+            const cell = row.getCell(i + 1);
+            cell.value = val;
+            cell.fill = i % 2 === 0 ? GREY_HDR : WHITE;
+            cell.border = BORDER;
             cell.alignment = i <= 1 || i === 3 || i === 4 ? CENTER : LEFT;
             if (i === 4) cell.numFmt = '0';
           });
@@ -727,25 +727,25 @@ exports.generateExcelTemplate = async (req, res) => {
         const row = ws.getRow(dataRowNum++);
         row.height = 20;
         for (let c = 1; c <= 7; c++) {
-          const cell    = row.getCell(c);
-          cell.fill     = WHITE;
-          cell.border   = BORDER;
+          const cell = row.getCell(c);
+          cell.fill = WHITE;
+          cell.border = BORDER;
           cell.alignment = c <= 2 || c === 4 || c === 5 ? CENTER : LEFT;
         }
       }
 
       // ── Legend row ──────────────────────────────────────────────────────
       ws.mergeCells(`A${dataRowNum}:G${dataRowNum}`);
-      const legCell    = ws.getRow(dataRowNum).getCell(1);
-      legCell.value    = '* Đối tượng SD: "Trẻ" | "Giáo viên" | "Dùng chung"   |   Hàng nhóm (chỉ sheet 1): TT = I, II, III... và Tên nhóm ở cột Tên thiết bị';
-      legCell.font     = { italic: true, size: 9, color: { argb: 'FF795548' } };
+      const legCell = ws.getRow(dataRowNum).getCell(1);
+      legCell.value = '* Đối tượng SD: "Trẻ" | "Giáo viên" | "Dùng chung"   |   Hàng nhóm (chỉ sheet 1): TT = I, II, III... và Tên nhóm ở cột Tên thiết bị';
+      legCell.font = { italic: true, size: 9, color: { argb: 'FF795548' } };
       legCell.alignment = LEFT;
 
       return ws;
     };
 
-    buildSheet('Theo thông tư',    false);
-    buildSheet('Ngoài thông tư',   true);
+    buildSheet('Theo thông tư', false);
+    buildSheet('Ngoài thông tư', true);
 
     res.setHeader('Content-Type', 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');
     res.setHeader('Content-Disposition', 'attachment; filename="mau_tai_san_ban_giao.xlsx"');

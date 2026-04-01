@@ -28,6 +28,7 @@ const foodRoutes = require("./src/routes/food.routes");
 const ingredientRoutes = require("./src/routes/ingredient.routes");
 const menuRoutes = require("./src/routes/menu.routes");
 const aiRoutes = require("./src/routes/ai.routes");
+const bpmRoutes = require("./src/routes/bpm.routes");
 
 const publicInfoRoutes = require('./src/routes/publicInfo.routes');
 const DailyMenu = require('./src/routes/dailyMenu.routes');
@@ -64,6 +65,7 @@ require('./src/models/HealthCheck');
 require('./src/models/HomepageBannerSetting');
 require('./src/models/InspectionCommittee');
 require('./src/models/InspectionMinutes');
+require('./src/models/BPMWorkflow');
 
 // Seed default roles on startup
 (async () => {
@@ -274,6 +276,7 @@ app.use('/api/auth', authRoutes);
 
 // SystemAdmin routes
 app.use('/api/system-admin', systemAdminRoutes);
+app.use('/api/bpm', bpmRoutes);
 
 // Teacher routes
 app.use('/api/teacher', teacherRoutes);
@@ -332,6 +335,7 @@ app.use('/api/public-info', publicInfoRoutes);
 // Thời khóa biểu (public - không cần đăng nhập)
 const timetableRoutes = require('./src/routes/timetable.routes');
 app.use('/api/timetable', timetableRoutes);
+
 // Route kiểm tra sức khỏe hệ thống
 /**
  * @openapi

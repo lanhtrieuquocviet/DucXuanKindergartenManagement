@@ -3,10 +3,11 @@ const Student = require("../models/Student"); // Students
 const Classes = require("../models/Classes"); // Classes
 const Teacher = require("../models/Teacher"); // Teachers
 const mongoose = require("mongoose");
+const BPMEngine = require("../services/bpmEngine.service");
 // 1. Tạo đăng ký mới (phụ huynh)
 exports.createPickupRequest = async (req, res) => {
   try {
-  
+
     const { fullName, relation, phone, imageUrl, studentId } = req.body;
 
     if (!studentId) {
@@ -220,6 +221,25 @@ exports.updatePickupRequestStatus = async (req, res) => {
         success: false,
         message: "Không có quyền xử lý đăng ký này",
       });
+    }
+
+    // === BỘ MÁY SO KHỚP BPM (Matching Engine) ===
+    // Kiểm tra xem việc Phê duyệt này có đúng quy trình đã vẽ hay không
+    if (status === "approved") {
+      const bpmResult = await BPMEngine.validateTransition(
+        'attendance',
+        'Quy trình Đưa đón học sinh',
+        'Tiếp nhận hồ sơ',
+        'Giáo viên chủ nhiệm kiểm tra',
+        req.user
+      );
+
+      if (!bpmResult.isValid) {
+        return res.status(403).json({
+          success: false,
+          message: `Sai quy trình BPM: ${bpmResult.message}`
+        });
+      }
     }
 
     request.status = status;

@@ -3,7 +3,7 @@
  * Logic xử lý được thực hiện trong Context
  */
 
-const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || 'http://localhost:5000/api';
+export const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || 'http://localhost:5000/api';
 
 /**
  * Lấy token từ localStorage
@@ -190,7 +190,14 @@ export const ENDPOINTS = {
       `/system-admin/permissions/${permissionId}`,
     UPDATE_ROLE_PERMISSIONS: (roleId) =>
       `/system-admin/roles/${roleId}/permissions`,
-    SYSTEM_LOGS: "/system-admin/system-logs",
+    PERMISSION_DETAIL: (id) => `/system-admin/permissions/${id}`,
+    SYSTEM_LOGS: '/system-admin/system-logs',
+    BPM_WORKFLOWS: '/bpm/workflows',
+    SAVE_BPM_WORKFLOW: '/bpm/workflows',
+    BPM_HEALTH: '/bpm/health',
+    BPM_LOGS: '/bpm/logs',
+    GENERATE_BPM_FROM_DOCX: '/bpm/generate-from-docx',
+    DOWNLOAD_BPM_TEMPLATE: '/bpm/download-template',
   },
   // School Admin
   SCHOOL_ADMIN: {

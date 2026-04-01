@@ -38,6 +38,7 @@ export const SCHOOL_ADMIN_MENU_ITEMS = [
   { key: 'banner-management', label: 'Quản lý banner' },
   { key: 'attendance', label: 'Quản lý điểm danh' },
   { key: 'face-attendance', label: 'Đăng ký khuôn mặt' },
+  { key: 'bpm', label: 'Quản lý quy trình (BPM)' },
 ];
 
 /**
@@ -70,6 +71,7 @@ export const createSchoolAdminMenuSelect = (navigate) => (key) => {
     'purchase-requests': '/school-admin/purchase-requests',
     attendance: '/school-admin/attendance/overview',
     'face-attendance': '/school-admin/face-attendance',
+    bpm: '/system-admin/bpm',
   };
   if (routes[key]) navigate(routes[key]);
 };

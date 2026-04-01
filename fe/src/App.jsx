@@ -10,6 +10,7 @@ import ManageAccounts from './pages/systemAdmin/ManageAccounts';
 import ManageRoles from './pages/systemAdmin/ManageRoles';
 import ManagePermissions from './pages/systemAdmin/ManagePermissions';
 import SystemLogs from './pages/systemAdmin/SystemLogs';
+import BPMDashboard from './pages/systemAdmin/BPMDashboard';
 import TeacherDashboard from './pages/teacher/TeacherDashboard';
 import TeacherAttendance from './pages/teacher/TeacherAttendance';
 import StudentDashboard from './pages/student/StudentDashboard';
@@ -248,6 +249,16 @@ function App() {
               <ProtectedRoute>
                 <SystemAdminProvider>
                   <SystemLogs />
+                </SystemAdminProvider>
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/system-admin/bpm"
+            element={
+              <ProtectedRoute allowedRoles={['SystemAdmin', 'SchoolAdmin']}>
+                <SystemAdminProvider>
+                  <BPMDashboard />
                 </SystemAdminProvider>
               </ProtectedRoute>
             }
