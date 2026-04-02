@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { getMenus, approveMenu, rejectMenu } from "../../service/menu.api";
 import { toast } from "react-toastify";
 import { useNavigate } from "react-router-dom";
@@ -10,7 +10,8 @@ import { useSchoolAdminMenu } from './useSchoolAdminMenu';
 import {
   Box, Typography, Paper, Chip, Button, TextField, Dialog,
   DialogTitle, DialogContent, DialogActions, Skeleton, Tabs, Tab,
-  Avatar, Tooltip, Stack, Divider,
+  Avatar, Tooltip, Stack, Divider, Table, TableBody, TableCell,
+  TableContainer, TableHead, TableRow, IconButton
 } from "@mui/material";
 import {
   CheckCircle as CheckCircleIcon,
@@ -20,6 +21,7 @@ import {
   Person as PersonIcon,
   CalendarMonth as CalendarIcon,
   HourglassEmpty as PendingIcon,
+  Delete as DeleteIcon,
 } from "@mui/icons-material";
 
 const STATUS_CONFIG = {
@@ -92,6 +94,16 @@ function MenuSchoolAdmin() {
   const [confirmReject, setConfirmReject]   = useState(null);
   const [rejectReason, setRejectReason]     = useState("");
 
+  const [showNutritionPlan, setShowNutritionPlan] = useState(false);
+  const [nutritionPlan, setNutritionPlan] = useState([
+    { id: 1, name: "Calo trung bình/ngày", min: 615, max: 726, actual: 0 },
+    { id: 2, name: "Đạm (g)", min: 13, max: 20, actual: 0 },
+    { id: 3, name: "Béo (g)", min: 25, max: 35, actual: 0 },
+    { id: 4, name: "Tinh bột (g)", min: 52, max: 60, actual: 0 },
+  ]);
+  const [newPlanItem, setNewPlanItem] = useState({ name: "", min: "", max: "", actual: "" });
+  const nutritionSectionRef = useRef(null);
+
   const navigate       = useNavigate();
   const { user, logout } = useAuth();
   const menuItems = useSchoolAdminMenu();
@@ -137,6 +149,79 @@ function MenuSchoolAdmin() {
   const handleMenuSelect = createSchoolAdminMenuSelect(navigate);
   const userName = user?.fullName || user?.username || "School Admin";
 
+  const handleScrollToNutritionPlan = () => {
+    setShowNutritionPlan((prev) => {
+      const next = !prev;
+      if (!prev) {
+        setTimeout(() => {
+          nutritionSectionRef.current?.scrollIntoView({ behavior: "smooth", block: "start" });
+        }, 120);
+      }
+      return next;
+    });
+  };
+
+  const handleAddPlanItem = () => {
+    if (!newPlanItem.name.trim()) {
+      toast.error("Vui lòng nhập tên mục kế hoạch");
+      return;
+    }
+
+    const min = Number(newPlanItem.min);
+    const max = Number(newPlanItem.max);
+    if (Number.isNaN(min) || Number.isNaN(max) || min <= 0 || max <= 0) {
+      toast.error("Giá trị tối thiểu và tối đa phải là số dương");
+      return;
+    }
+    if (max <= min) {
+      toast.error("Giá trị tối đa phải lớn hơn giá trị tối thiểu");
+      return;
+    }
+
+    setNutritionPlan((prev) => [
+      ...prev,
+      {
+        id: Date.now(),
+        name: newPlanItem.name.trim(),
+        min,
+        max,
+        actual: Number(newPlanItem.actual) || 0,
+      },
+    ]);
+
+    setNewPlanItem({ name: "", min: "", max: "", actual: "" });
+  };
+
+  const handleUpdatePlanItem = (id, field, value) => {
+    setNutritionPlan((prev) => prev.map((item) => {
+      if (item.id !== id) return item;
+      if (field === "name") return { ...item, name: value };
+      if (field === "actual") return { ...item, actual: Number(value || 0) };
+      const parsed = Number(value);
+      if (Number.isNaN(parsed)) return item;
+      return { ...item, [field]: parsed };
+    }));
+  };
+
+  const handleDeletePlanItem = (id) => {
+    setNutritionPlan((prev) => prev.filter((item) => item.id !== id));
+  };
+
+  const handleUpdateNutritionPlan = () => {
+    for (const item of nutritionPlan) {
+      if (item.min == null || item.max == null) {
+        toast.error(`Mục ${item.name} cần nhập đầy đủ giá trị tối thiểu/tối đa`);
+        return;
+      }
+      if (item.max <= item.min) {
+        toast.error(`Mục ${item.name}: giá trị tối đa phải lớn hơn tối thiểu`);
+        return;
+      }
+    }
+
+    toast.success("Đã cập nhật kế hoạch dinh dưỡng theo sở");
+  };
+
   const filtered = tab === "all" ? menus : menus.filter((m) => m.status === tab);
 
   const pendingCount = menus.filter((m) => m.status === "pending").length;
@@ -172,6 +257,141 @@ function MenuSchoolAdmin() {
           />
         )}
       </Stack>
+
+      <Box mb={2}>
+        <Button
+          variant="contained"
+          color={showNutritionPlan ? "secondary" : "primary"}
+          onClick={handleScrollToNutritionPlan}
+          sx={{ textTransform: "none", fontWeight: 700 }}
+        >
+          {showNutritionPlan ? "Ẩn kế hoạch dinh dưỡng theo sở" : "Hiển thị kế hoạch dinh dưỡng theo sở"}
+        </Button>
+      </Box>
+
+      {showNutritionPlan && (
+        <Box ref={nutritionSectionRef} sx={{ p: 3, border: "1px solid #e5e7eb", borderRadius: 2, mb: 3, maxHeight: 360, overflowY: "auto", background: "#ffffff" }}>
+          <Typography variant="h6" fontWeight={700} mb={2}>
+            Kế hoạch dinh dưỡng theo sở
+          </Typography>
+
+          <TableContainer>
+            <Table size="small">
+              <TableHead>
+                <TableRow>
+                  <TableCell>Chỉ tiêu</TableCell>
+                  <TableCell>Mục tiêu Min</TableCell>
+                  <TableCell>Mục tiêu Max</TableCell>
+                  <TableCell>Giá trị thực tế</TableCell>
+                  <TableCell>Hành động</TableCell>
+                </TableRow>
+              </TableHead>
+              <TableBody>
+                {nutritionPlan.map((item) => (
+                  <TableRow key={item.id}>
+                    <TableCell>
+                      <TextField
+                        fullWidth
+                        size="small"
+                        value={item.name}
+                        onChange={(e) => handleUpdatePlanItem(item.id, "name", e.target.value)}
+                      />
+                    </TableCell>
+                    <TableCell>
+                      <TextField
+                        fullWidth
+                        size="small"
+                        type="number"
+                        value={item.min}
+                        onChange={(e) => handleUpdatePlanItem(item.id, "min", e.target.value)}
+                        inputProps={{ min: 0 }}
+                      />
+                    </TableCell>
+                    <TableCell>
+                      <TextField
+                        fullWidth
+                        size="small"
+                        type="number"
+                        value={item.max}
+                        onChange={(e) => handleUpdatePlanItem(item.id, "max", e.target.value)}
+                        inputProps={{ min: 0 }}
+                      />
+                    </TableCell>
+                    <TableCell>
+                      <TextField
+                        fullWidth
+                        size="small"
+                        type="number"
+                        value={item.actual}
+                        onChange={(e) => handleUpdatePlanItem(item.id, "actual", e.target.value)}
+                        inputProps={{ min: 0 }}
+                      />
+                    </TableCell>
+                    <TableCell>
+                      <IconButton color="error" size="small" onClick={() => handleDeletePlanItem(item.id)}>
+                        <DeleteIcon fontSize="small" />
+                      </IconButton>
+                    </TableCell>
+                  </TableRow>
+                ))}
+
+                <TableRow>
+                  <TableCell>
+                    <TextField
+                      fullWidth
+                      size="small"
+                      placeholder="Thêm mục mới"
+                      value={newPlanItem.name}
+                      onChange={(e) => setNewPlanItem((prev) => ({ ...prev, name: e.target.value }))}
+                    />
+                  </TableCell>
+                  <TableCell>
+                    <TextField
+                      fullWidth
+                      size="small"
+                      type="number"
+                      placeholder="Min"
+                      value={newPlanItem.min}
+                      onChange={(e) => setNewPlanItem((prev) => ({ ...prev, min: e.target.value }))}
+                    />
+                  </TableCell>
+                  <TableCell>
+                    <TextField
+                      fullWidth
+                      size="small"
+                      type="number"
+                      placeholder="Max"
+                      value={newPlanItem.max}
+                      onChange={(e) => setNewPlanItem((prev) => ({ ...prev, max: e.target.value }))}
+                    />
+                  </TableCell>
+                  <TableCell>
+                    <TextField
+                      fullWidth
+                      size="small"
+                      type="number"
+                      placeholder="Actual"
+                      value={newPlanItem.actual}
+                      onChange={(e) => setNewPlanItem((prev) => ({ ...prev, actual: e.target.value }))}
+                    />
+                  </TableCell>
+                  <TableCell>
+                    <Button variant="contained" size="small" onClick={handleAddPlanItem}>
+                      Thêm
+                    </Button>
+                  </TableCell>
+                </TableRow>
+              </TableBody>
+            </Table>
+          </TableContainer>
+
+          <Box mt={2} textAlign="right">
+            <Button variant="outlined" color="primary" onClick={handleUpdateNutritionPlan}>
+              Cập nhật
+            </Button>
+          </Box>
+        </Box>
+      )}
 
       {/* Tabs */}
       <Paper elevation={0} sx={{ borderRadius: 2, border: "1px solid #e5e7eb", mb: 3 }}>
