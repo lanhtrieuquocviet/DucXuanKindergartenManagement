@@ -3,7 +3,8 @@ import { useParams, useNavigate } from "react-router-dom";
 import { getMenuDetail, updateMenu } from "../../service/menu.api";
 import { toast } from "react-toastify";
 import RoleLayout from "../../layouts/RoleLayout";
-import { SCHOOL_ADMIN_MENU_ITEMS, createSchoolAdminMenuSelect } from './schoolAdminMenuConfig';
+import { createSchoolAdminMenuSelect } from './schoolAdminMenuConfig';
+import { useSchoolAdminMenu } from './useSchoolAdminMenu';
 import { useAuth } from "../../context/AuthContext";
 
 const days = ["mon", "tue", "wed", "thu", "fri"];
@@ -34,6 +35,7 @@ const MenuDetailSchoolAdmin = () => {
   const { id } = useParams();
   const navigate = useNavigate();
   const { user, logout } = useAuth();
+  const menuItems = useSchoolAdminMenu();
 
   const [menu, setMenu] = useState(null);
   const [loading, setLoading] = useState(false);
@@ -213,7 +215,7 @@ const MenuDetailSchoolAdmin = () => {
     <RoleLayout
       title="Chi tiết thực đơn"
       description="Xem chi tiết thực đơn của trường"
-      menuItems={SCHOOL_ADMIN_MENU_ITEMS}
+      menuItems={menuItems}
       activeKey="menu"
       userName={user?.fullName || user?.username}
       userAvatar={user?.avatar}

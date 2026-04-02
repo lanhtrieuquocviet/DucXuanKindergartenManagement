@@ -117,17 +117,29 @@ function TeacherDashboard() {
   }, [navigate, user, getDashboard, isInitializing]);
 
   const { isCommitteeMember } = useTeacher();
-  const menuItems = useMemo(() => [
-    { key: 'classes', label: 'Lớp phụ trách' },
-    { key: 'students', label: 'Danh sách học sinh' },
-    { key: 'attendance', label: 'Điểm danh' },
-    { key: 'pickup-approval', label: 'Đơn đưa đón' },
-    { key: 'schedule', label: 'Lịch dạy & hoạt động' },
-    { key: 'messages', label: 'Thông báo cho phụ huynh' },
-    { key: 'purchase-request', label: 'Cơ sở vật chất' },
-    { key: 'class-assets', label: 'Tài sản lớp' },
-    ...(isCommitteeMember ? [{ key: 'asset-inspection', label: 'Kiểm kê tài sản' }] : []),
-  ], [isCommitteeMember]);
+  const { hasPermission } = useAuth();
+
+  const ALL_TEACHER_MENU = [
+    { key: 'classes',          label: 'Lớp phụ trách' },
+    { key: 'students',         label: 'Danh sách học sinh' },
+    { key: 'attendance',       label: 'Điểm danh',              permission: 'MANAGE_ATTENDANCE' },
+    { key: 'pickup-approval',  label: 'Đơn đưa đón',            permission: 'MANAGE_PICKUP' },
+    { key: 'schedule',         label: 'Lịch dạy & hoạt động' },
+    { key: 'messages',         label: 'Thông báo cho phụ huynh' },
+    { key: 'purchase-request', label: 'Cơ sở vật chất',         permission: 'MANAGE_PURCHASE_REQUEST' },
+    { key: 'class-assets',     label: 'Tài sản lớp',            permission: 'MANAGE_ASSET' },
+  ];
+
+  const menuItems = useMemo(() => {
+    const items = ALL_TEACHER_MENU.filter(
+      (item) => !item.permission || hasPermission(item.permission)
+    );
+    if (isCommitteeMember && hasPermission('MANAGE_ASSET')) {
+      items.push({ key: 'asset-inspection', label: 'Kiểm kê tài sản' });
+    }
+    return items;
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [isCommitteeMember, hasPermission]);
 
   const activeKey = useMemo(() => {
     const path = location.pathname || '';

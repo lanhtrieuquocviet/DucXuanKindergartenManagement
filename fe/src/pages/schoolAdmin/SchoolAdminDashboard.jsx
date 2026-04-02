@@ -2,7 +2,7 @@ import { useEffect, useMemo, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../../context/AuthContext';
 import RoleLayout from '../../layouts/RoleLayout';
-import { SCHOOL_ADMIN_MENU_ITEMS, createSchoolAdminMenuSelect } from './schoolAdminMenuConfig';
+import { SCHOOL_ADMIN_MENU_ITEMS, createSchoolAdminMenuSelect, filterMenuByPermissions } from './schoolAdminMenuConfig';
 import { Box, Paper, Typography, Stack, Divider, LinearProgress } from '@mui/material';
 import {
   Groups as GroupsIcon,
@@ -14,7 +14,11 @@ import { get, ENDPOINTS } from '../../service/api';
 
 function SchoolAdminDashboard() {
   const navigate = useNavigate();
-  const { user, logout, isInitializing } = useAuth();
+  const { user, logout, isInitializing, hasPermission } = useAuth();
+  const menuItems = useMemo(
+    () => filterMenuByPermissions(SCHOOL_ADMIN_MENU_ITEMS, hasPermission),
+    [hasPermission]
+  );
   const [now, setNow] = useState(new Date());
   const [stats, setStats] = useState({
     studentTotal: 0,
@@ -178,7 +182,7 @@ function SchoolAdminDashboard() {
     <RoleLayout
       title="Bảng điều khiển của Ban giám hiệu"
       description="Quản lý trường, lớp học, giáo viên và phụ huynh trong phạm vi trường."
-      menuItems={SCHOOL_ADMIN_MENU_ITEMS}
+      menuItems={menuItems}
       activeKey="overview"
       onLogout={() => {
         logout();

@@ -5,7 +5,8 @@ import { useAuth } from '../../context/AuthContext';
 import RoleLayout from '../../layouts/RoleLayout';
 import ConfirmDialog from '../../components/ConfirmDialog';
 import { get, post, del, postFormData, ENDPOINTS } from '../../service/api';
-import { SCHOOL_ADMIN_MENU_ITEMS, createSchoolAdminMenuSelect } from './schoolAdminMenuConfig';
+import { createSchoolAdminMenuSelect } from './schoolAdminMenuConfig';
+import { useSchoolAdminMenu } from './useSchoolAdminMenu';
 import {
   Box,
   Paper,
@@ -55,6 +56,7 @@ const getFileIcon = (type) => {
 export default function ManageFiles() {
   const navigate = useNavigate();
   const { user, logout, isInitializing } = useAuth();
+  const menuItems = useSchoolAdminMenu();
 
   const [items, setItems] = useState([]);
   const [loading, setLoading] = useState(false);
@@ -201,7 +203,7 @@ export default function ManageFiles() {
     <RoleLayout
       title="Quản lý file"
       description="Quản lý các file đính kèm trong mục tài liệu."
-      menuItems={SCHOOL_ADMIN_MENU_ITEMS}
+      menuItems={menuItems}
       activeKey="files-management"
       onLogout={() => {
         logout();

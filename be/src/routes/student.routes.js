@@ -1,5 +1,5 @@
 const express = require('express');
-const { authenticate, authorizeRoles } = require('../middleware/auth');
+const { authenticate, authorizeRoles, authorizePermissions } = require('../middleware/auth');
 const {
   getStudents,
   createStudent,
@@ -78,7 +78,7 @@ const router = express.Router();
  */
 router.get('/check-username', authenticate, checkUsernameAvailability);
 router.get('/', authenticate, getStudents);
-router.post('/', authenticate, authorizeRoles('SchoolAdmin'), createStudent);
+router.post('/', authenticate, authorizePermissions('MANAGE_STUDENT'), createStudent);
 
 /**
  * @openapi
@@ -128,7 +128,7 @@ router.post('/', authenticate, authorizeRoles('SchoolAdmin'), createStudent);
  *       403:
  *         description: Không có quyền SchoolAdmin
  */
-router.post('/with-parent', authenticate, authorizeRoles('SchoolAdmin'), createStudentWithParent);
+router.post('/with-parent', authenticate, authorizePermissions('MANAGE_STUDENT'), createStudentWithParent);
 
 /**
  * @openapi
@@ -184,7 +184,7 @@ router.post('/with-parent', authenticate, authorizeRoles('SchoolAdmin'), createS
  *       200:
  *         description: Danh sách điểm danh
  */
-router.post('/attendance', authenticate, upsertAttendance);
+router.post('/attendance', authenticate, authorizePermissions('MANAGE_ATTENDANCE'), upsertAttendance);
 router.get('/attendance', authenticate, getAttendances);
 
 /**
@@ -218,7 +218,7 @@ router.get('/attendance', authenticate, getAttendances);
  *       200:
  *         description: Check-out thành công
  */
-router.post('/attendance/checkout', authenticate, checkoutAttendance);
+router.post('/attendance/checkout', authenticate, authorizePermissions('CHECKOUT_STUDENT'), checkoutAttendance);
 
 /**
  * @openapi
@@ -291,6 +291,6 @@ router.post('/attendance/checkout', authenticate, checkoutAttendance);
  */
 router.get('/:studentId', authenticate, getStudentDetail);
 router.put('/:studentId', authenticate, updateStudent);
-router.delete('/:studentId', authenticate, authorizeRoles('SchoolAdmin'), deleteStudent);
+router.delete('/:studentId', authenticate, authorizePermissions('MANAGE_STUDENT'), deleteStudent);
 
 module.exports = router;

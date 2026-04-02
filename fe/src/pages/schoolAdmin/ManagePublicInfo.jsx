@@ -6,7 +6,8 @@ import RoleLayout from '../../layouts/RoleLayout';
 import ConfirmDialog from '../../components/ConfirmDialog';
 import RichTextEditor from '../../components/RichTextEditor';
 import { get, post, put, del, postFormData, ENDPOINTS } from '../../service/api';
-import { SCHOOL_ADMIN_MENU_ITEMS, createSchoolAdminMenuSelect } from './schoolAdminMenuConfig';
+import { createSchoolAdminMenuSelect } from './schoolAdminMenuConfig';
+import { useSchoolAdminMenu } from './useSchoolAdminMenu';
 import {
   Box,
   Paper,
@@ -253,6 +254,7 @@ function PublicInfoFormModal({ open, onClose, initialData, onSubmit, loading }) 
 export default function ManagePublicInfo() {
   const navigate = useNavigate();
   const { user, logout, isInitializing } = useAuth();
+  const menuItems = useSchoolAdminMenu();
 
   const [items, setItems] = useState([]);
   const [loading, setLoading] = useState(false);
@@ -356,7 +358,7 @@ export default function ManagePublicInfo() {
     <RoleLayout
       title="Thông tin công khai"
       description="Quản lý các thông tin công khai của trường."
-      menuItems={SCHOOL_ADMIN_MENU_ITEMS}
+      menuItems={menuItems}
       activeKey="public-info-list"
       onLogout={handleLogout}
       onViewProfile={() => navigate('/profile')}

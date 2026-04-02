@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../../context/AuthContext';
 import { useSystemAdmin } from '../../context/SystemAdminContext';
@@ -17,17 +17,17 @@ import {
   TableRow,
   Alert,
   Dialog,
-  DialogTitle,
   DialogContent,
   DialogActions,
   TextField,
   IconButton,
   Checkbox,
-  FormControlLabel,
-  Divider,
   CircularProgress,
   Stack,
   Chip,
+  InputAdornment,
+  Tooltip,
+  Collapse,
 } from '@mui/material';
 import {
   Add as AddIcon,
@@ -35,24 +35,46 @@ import {
   Delete as DeleteIcon,
   Security as SecurityIcon,
   VpnKey as PermIcon,
+  Search as SearchIcon,
+  ExpandMore as ExpandMoreIcon,
+  ExpandLess as ExpandLessIcon,
 } from '@mui/icons-material';
+
+function getModule(code) {
+  const idx = code.indexOf('_');
+  if (idx === -1) return code;
+  return code.slice(idx + 1);
+}
+
+function groupPermissions(permissions) {
+  const groups = {};
+  permissions.forEach((perm) => {
+    const module = getModule(perm.code);
+    if (!groups[module]) groups[module] = [];
+    groups[module].push(perm);
+  });
+  return groups;
+}
 
 function ManageRoles() {
   const [roles, setRoles] = useState([]);
   const [success, setSuccess] = useState('');
   const [showRoleForm, setShowRoleForm] = useState(false);
-  const [editingRole, setEditingRole] = useState(null); // Role đang sửa
+  const [editingRole, setEditingRole] = useState(null);
   const [roleForm, setRoleForm] = useState({ roleName: '', description: '' });
   const [showPermissionModal, setShowPermissionModal] = useState(false);
   const [selectedRoleForPermissions, setSelectedRoleForPermissions] = useState(null);
   const [permissions, setPermissions] = useState([]);
   const [selectedPermissions, setSelectedPermissions] = useState(new Set());
+  const [permSearch, setPermSearch] = useState('');
+  const [collapsedGroups, setCollapsedGroups] = useState({});
   const [confirmState, setConfirmState] = useState({
     open: false,
     title: '',
     message: '',
     onConfirm: null,
   });
+
   const navigate = useNavigate();
   const { user, logout, isInitializing } = useAuth();
   const {
@@ -68,49 +90,30 @@ function ManageRoles() {
   } = useSystemAdmin();
 
   useEffect(() => {
-    // Chờ quá trình khởi tạo (verify token) hoàn thành
-    if (isInitializing) {
-      return;
-    }
-
-    if (!user) {
-      navigate('/login', { replace: true });
-      return;
-    }
-
+    if (isInitializing) return;
+    if (!user) { navigate('/login', { replace: true }); return; }
     const userRoles = user?.roles?.map((r) => r.roleName || r) || [];
-    if (!userRoles.includes('SystemAdmin')) {
-      navigate('/', { replace: true });
-      return;
-    }
+    if (!userRoles.includes('SystemAdmin')) { navigate('/', { replace: true }); return; }
 
     const fetchRoles = async () => {
       try {
         setError(null);
         const rolesData = await getRoles();
         setRoles(rolesData || []);
-      } catch (err) {
-        // Error được xử lý trong context
-      }
+      } catch (_) {}
     };
-
     fetchRoles();
   }, [navigate, user, getRoles, setError, isInitializing]);
 
   const handleMenuSelect = (key) => {
-    if (key === 'overview') {
-      navigate('/system-admin');
-    } else if (key === 'accounts') {
-      navigate('/system-admin/manage-accounts');
-    } else if (key === 'roles') {
-      navigate('/system-admin/manage-roles');
-    } else if (key === 'permissions') {
-      navigate('/system-admin/manage-permissions');
-    } else if (key === 'system-logs') {
-      navigate('/system-admin/system-logs');
-    } else {
-      navigate('/system-admin');
-    }
+    const routes = {
+      overview: '/system-admin',
+      accounts: '/system-admin/manage-accounts',
+      roles: '/system-admin/manage-roles',
+      permissions: '/system-admin/manage-permissions',
+      'system-logs': '/system-admin/system-logs',
+    };
+    navigate(routes[key] || '/system-admin');
   };
 
   const menuItems = [
@@ -123,17 +126,14 @@ function ManageRoles() {
     { key: 'reports', label: 'Báo cáo tổng hợp' },
   ];
 
+  // ── Role CRUD ─────────────────────────────────────────────────────────
+
   const handleOpenRoleForm = (role = null) => {
-    if (role) {
-      setEditingRole(role);
-      setRoleForm({
-        roleName: role.roleName || '',
-        description: role.description || '',
-      });
-    } else {
-      setEditingRole(null);
-      setRoleForm({ roleName: '', description: '' });
-    }
+    setEditingRole(role);
+    setRoleForm(role
+      ? { roleName: role.roleName || '', description: role.description || '' }
+      : { roleName: '', description: '' }
+    );
     setError(null);
     setShowRoleForm(true);
   };
@@ -150,152 +150,144 @@ function ManageRoles() {
     try {
       setError(null);
       setSuccess('');
-
       const roleName = roleForm.roleName.trim();
       const description = (roleForm.description || '').trim();
 
-      // Validate độ dài tên vai trò
       if (roleName.length < 3 || roleName.length > 32) {
         setError('Tên vai trò phải có từ 3 đến 32 ký tự');
         return;
       }
-
-      // Chỉ cho phép chữ cái và số, bắt đầu bằng chữ cái, không khoảng trắng/ký tự đặc biệt
-      const namePattern = /^[A-Za-z][A-Za-z0-9]*$/;
-      if (!namePattern.test(roleName)) {
-        setError(
-          'Tên vai trò chỉ được chứa chữ cái và số, bắt đầu bằng chữ cái, không có khoảng trắng hoặc ký tự đặc biệt. Ví dụ: Teacher, SchoolAdmin'
-        );
+      if (!/^[A-Za-z][A-Za-z0-9]*$/.test(roleName)) {
+        setError('Tên vai trò chỉ được chứa chữ cái và số, bắt đầu bằng chữ cái. VD: Teacher, SchoolAdmin');
         return;
       }
-
       if (description.length > 255) {
-        setError('Mô tả vai trò không được vượt quá 255 ký tự');
+        setError('Mô tả không được vượt quá 255 ký tự');
         return;
       }
 
       if (editingRole) {
-        // Cập nhật role
         await updateRole(editingRole.id || editingRole._id, roleName, description);
         setSuccess('Cập nhật vai trò thành công.');
       } else {
-        // Tạo role mới
         await createRole(roleName, description);
         setSuccess('Tạo vai trò thành công.');
       }
 
       setTimeout(() => setSuccess(''), 3000);
       handleCloseRoleForm();
-
-      // Refresh roles
       const rolesData = await getRoles();
       setRoles(rolesData || []);
-    } catch (err) {
-      // Error được xử lý trong context
-    }
-  };
-
-  const handleDeleteRoleConfirmed = async (roleId) => {
-    try {
-      setError(null);
-      setSuccess('');
-      await deleteRole(roleId);
-      setSuccess('Xóa vai trò thành công.');
-      setTimeout(() => setSuccess(''), 3000);
-
-      // Refresh roles
-      const rolesData = await getRoles();
-      setRoles(rolesData || []);
-    } catch (err) {
-      // Error được xử lý trong context
-    }
+    } catch (_) {}
   };
 
   const handleDeleteRole = (roleId) => {
     setConfirmState({
       open: true,
       title: 'Xóa vai trò',
-      message: 'Bạn có chắc chắn muốn xóa vai trò này? Vai trò sẽ không thể khôi phục.',
-      onConfirm: () => {
+      message: 'Bạn có chắc muốn xóa vai trò này? Hành động không thể hoàn tác.',
+      onConfirm: async () => {
         setConfirmState((prev) => ({ ...prev, open: false }));
-        handleDeleteRoleConfirmed(roleId);
+        try {
+          setError(null);
+          await deleteRole(roleId);
+          setSuccess('Xóa vai trò thành công.');
+          setTimeout(() => setSuccess(''), 3000);
+          const rolesData = await getRoles();
+          setRoles(rolesData || []);
+        } catch (_) {}
       },
     });
   };
 
-  const userName = user?.fullName || user?.username || 'System Admin';
-
-  const handleViewProfile = () => {
-    navigate('/profile');
-  };
+  // ── Permission modal ──────────────────────────────────────────────────
 
   const handleOpenPermissionModal = async (role) => {
     try {
       setError(null);
+      setPermSearch('');
+      setCollapsedGroups({});
       setSelectedRoleForPermissions(role);
-
-      // Lấy danh sách tất cả permissions
       const allPermissions = await getPermissions();
       setPermissions(allPermissions || []);
-
-      // Lấy permissions hiện tại của role
       const rolePerms = new Set();
-      (role.permissions || []).forEach((p) => {
-        if (p && p.code) {
-          rolePerms.add(typeof p === 'string' ? p : p.code);
-        }
-      });
+      (role.permissions || []).forEach((p) => { if (p?.code) rolePerms.add(p.code); });
       setSelectedPermissions(rolePerms);
-
       setShowPermissionModal(true);
-    } catch (err) {
-      // Error được xử lý trong context
-    }
+    } catch (_) {}
   };
 
   const handleClosePermissionModal = () => {
     setShowPermissionModal(false);
     setSelectedRoleForPermissions(null);
     setSelectedPermissions(new Set());
+    setPermSearch('');
   };
 
-  const togglePermission = (permCode) => {
+  const togglePermission = (code) => {
     setSelectedPermissions((prev) => {
       const next = new Set(prev);
-      if (next.has(permCode)) {
-        next.delete(permCode);
-      } else {
-        next.add(permCode);
-      }
+      next.has(code) ? next.delete(code) : next.add(code);
+      return next;
+    });
+  };
+
+  const toggleGroup = (groupPerms) => {
+    const groupCodes = groupPerms.map((p) => p.code);
+    const allChecked = groupCodes.every((c) => selectedPermissions.has(c));
+    setSelectedPermissions((prev) => {
+      const next = new Set(prev);
+      if (allChecked) { groupCodes.forEach((c) => next.delete(c)); }
+      else { groupCodes.forEach((c) => next.add(c)); }
+      return next;
+    });
+  };
+
+  const handleSelectAll = () => {
+    setSelectedPermissions(new Set(filteredPerms.map((p) => p.code)));
+  };
+
+  const handleDeselectAll = () => {
+    const filtered = new Set(filteredPerms.map((p) => p.code));
+    setSelectedPermissions((prev) => {
+      const next = new Set(prev);
+      filtered.forEach((c) => next.delete(c));
       return next;
     });
   };
 
   const handleSaveRolePermissions = async () => {
     if (!selectedRoleForPermissions) return;
-
     try {
       setError(null);
       setSuccess('');
-
-      const permissionCodes = Array.from(selectedPermissions);
       await updateRolePermissions(
         selectedRoleForPermissions.id || selectedRoleForPermissions._id,
-        permissionCodes
+        Array.from(selectedPermissions)
       );
-
-      setSuccess('Cập nhật phân quyền cho vai trò thành công.');
+      setSuccess(`Đã lưu phân quyền cho vai trò "${selectedRoleForPermissions.roleName}".`);
       setTimeout(() => setSuccess(''), 3000);
-
       handleClosePermissionModal();
-
-      // Refresh roles
       const rolesData = await getRoles();
       setRoles(rolesData || []);
-    } catch (err) {
-      // Error được xử lý trong context
-    }
+    } catch (_) {}
   };
+
+  const filteredPerms = useMemo(() => {
+    const q = permSearch.trim().toLowerCase();
+    if (!q) return permissions;
+    return permissions.filter(
+      (p) => p.code.toLowerCase().includes(q) || p.description?.toLowerCase().includes(q)
+    );
+  }, [permissions, permSearch]);
+
+  const permGroups = useMemo(() => groupPermissions(filteredPerms), [filteredPerms]);
+
+  const toggleGroupCollapse = (module) => {
+    setCollapsedGroups((prev) => ({ ...prev, [module]: !prev[module] }));
+  };
+
+  const userName = user?.fullName || user?.username || 'System Admin';
 
   return (
     <RoleLayout
@@ -303,46 +295,28 @@ function ManageRoles() {
       description="Thêm, sửa, xóa các vai trò trong hệ thống."
       menuItems={menuItems}
       activeKey="roles"
-      onLogout={() => {
-        logout();
-        navigate('/login', { replace: true });
-      }}
+      onLogout={() => { logout(); navigate('/login', { replace: true }); }}
       userName={userName}
       userAvatar={user?.avatar}
-      onViewProfile={handleViewProfile}
+      onViewProfile={() => navigate('/profile')}
       onMenuSelect={handleMenuSelect}
     >
-      {/* Error / Success alerts */}
-      {error && (
-        <Alert severity="error" sx={{ mb: 2 }}>
-          {error}
-        </Alert>
-      )}
-      {success && (
-        <Alert severity="success" sx={{ mb: 2 }}>
-          {success}
-        </Alert>
-      )}
+      {error && <Alert severity="error" sx={{ mb: 2 }}>{error}</Alert>}
+      {success && <Alert severity="success" sx={{ mb: 2 }}>{success}</Alert>}
 
       {/* Header banner */}
       <Paper
         elevation={3}
         sx={{
-          mb: 3,
-          p: 3,
+          mb: 3, p: 3,
           background: 'linear-gradient(135deg, #4f46e5 0%, #6366f1 100%)',
-          borderRadius: 2,
-          display: 'flex',
-          alignItems: 'center',
-          justifyContent: 'space-between',
+          borderRadius: 2, display: 'flex', alignItems: 'center', justifyContent: 'space-between',
         }}
       >
         <Box sx={{ display: 'flex', alignItems: 'center', gap: 2 }}>
           <SecurityIcon sx={{ color: 'white', fontSize: 36 }} />
           <Box>
-            <Typography variant="h5" fontWeight={700} color="white">
-              Quản lý vai trò
-            </Typography>
+            <Typography variant="h5" fontWeight={700} color="white">Quản lý vai trò</Typography>
             <Typography variant="body2" sx={{ color: 'rgba(255,255,255,0.8)', mt: 0.5 }}>
               Thêm, sửa, xóa các vai trò trong hệ thống
             </Typography>
@@ -350,81 +324,38 @@ function ManageRoles() {
         </Box>
         <Button
           variant="contained"
-          color="primary"
           startIcon={<AddIcon />}
           onClick={() => handleOpenRoleForm()}
           sx={{
-            bgcolor: 'white',
-            color: '#4f46e5',
-            fontWeight: 700,
-            '&:hover': { bgcolor: 'rgba(255,255,255,0.9)' },
-            boxShadow: 2,
+            bgcolor: 'white', color: '#4f46e5', fontWeight: 700,
+            '&:hover': { bgcolor: 'rgba(255,255,255,0.9)' }, boxShadow: 2,
           }}
         >
           Thêm vai trò
         </Button>
       </Paper>
 
-      {/* Main card with roles table */}
+      {/* Roles table */}
       <Paper elevation={2} sx={{ borderRadius: 2, overflow: 'hidden' }}>
         <Box sx={{ px: 3, py: 2, borderBottom: '1px solid', borderColor: 'divider' }}>
-          <Typography variant="subtitle1" fontWeight={700} color="text.primary">
-            Danh sách vai trò
-          </Typography>
+          <Typography variant="subtitle1" fontWeight={700}>Danh sách vai trò</Typography>
         </Box>
         <TableContainer>
           <Table>
             <TableHead>
               <TableRow>
-                <TableCell
-                  sx={{
-                    bgcolor: 'grey.50',
-                    fontWeight: 700,
-                    fontSize: 12,
-                    textTransform: 'uppercase',
-                    letterSpacing: 0.5,
-                    color: 'text.secondary',
-                  }}
-                >
-                  Tên vai trò
-                </TableCell>
-                <TableCell
-                  sx={{
-                    bgcolor: 'grey.50',
-                    fontWeight: 700,
-                    fontSize: 12,
-                    textTransform: 'uppercase',
-                    letterSpacing: 0.5,
-                    color: 'text.secondary',
-                  }}
-                >
-                  Mô tả
-                </TableCell>
-                <TableCell
-                  sx={{
-                    bgcolor: 'grey.50',
-                    fontWeight: 700,
-                    fontSize: 12,
-                    textTransform: 'uppercase',
-                    letterSpacing: 0.5,
-                    color: 'text.secondary',
-                  }}
-                >
-                  Số phân quyền
-                </TableCell>
-                <TableCell
-                  align="right"
-                  sx={{
-                    bgcolor: 'grey.50',
-                    fontWeight: 700,
-                    fontSize: 12,
-                    textTransform: 'uppercase',
-                    letterSpacing: 0.5,
-                    color: 'text.secondary',
-                  }}
-                >
-                  Thao tác
-                </TableCell>
+                {['Tên vai trò', 'Mô tả', 'Số quyền', 'Thao tác'].map((h, i) => (
+                  <TableCell
+                    key={h}
+                    align={i === 3 ? 'right' : 'left'}
+                    sx={{
+                      bgcolor: 'grey.50', fontWeight: 700, fontSize: 12,
+                      textTransform: 'uppercase', letterSpacing: 0.5, color: 'text.secondary',
+                    }}
+                  >
+                    {h}
+                  </TableCell>
+                ))}
               </TableRow>
             </TableHead>
             <TableBody>
@@ -438,32 +369,17 @@ function ManageRoles() {
               {roles.map((role) => {
                 const roleId = role.id || role._id;
                 return (
-                  <TableRow
-                    key={roleId}
-                    hover
-                    sx={{ '&:last-child td': { borderBottom: 0 } }}
-                  >
-                    <TableCell sx={{ fontWeight: 600, color: 'text.primary', maxWidth: 180 }}>
-                      <Typography
-                        variant="body2"
-                        fontWeight={600}
-                        noWrap
-                        title={role.roleName}
-                      >
+                  <TableRow key={roleId} hover sx={{ '&:last-child td': { borderBottom: 0 } }}>
+                    <TableCell sx={{ maxWidth: 180 }}>
+                      <Typography variant="body2" fontWeight={600} noWrap title={role.roleName}>
                         {role.roleName}
                       </Typography>
                     </TableCell>
                     <TableCell sx={{ maxWidth: 320 }}>
                       <Typography
-                        variant="body2"
-                        color="text.secondary"
+                        variant="body2" color="text.secondary"
                         title={role.description || 'Không có mô tả'}
-                        sx={{
-                          display: '-webkit-box',
-                          WebkitLineClamp: 2,
-                          WebkitBoxOrient: 'vertical',
-                          overflow: 'hidden',
-                        }}
+                        sx={{ display: '-webkit-box', WebkitLineClamp: 2, WebkitBoxOrient: 'vertical', overflow: 'hidden' }}
                       >
                         {role.description || (
                           <Box component="span" sx={{ color: 'text.disabled', fontStyle: 'italic' }}>
@@ -473,30 +389,18 @@ function ManageRoles() {
                       </Typography>
                     </TableCell>
                     <TableCell>
-                      <Box
-                        sx={{
-                          display: 'inline-flex',
-                          alignItems: 'center',
-                          gap: 0.5,
-                          cursor: 'pointer',
-                          color: 'text.secondary',
-                          '&:hover': { color: 'primary.main' },
-                          transition: 'color 0.2s',
-                        }}
-                        onClick={() => handleOpenPermissionModal(role)}
-                        title="Click để sửa phân quyền"
-                      >
-                        <Typography variant="body2" fontWeight={600}>
-                          {role.permissions?.length || 0}
-                        </Typography>
-                        <IconButton
+                      <Tooltip title="Nhấn để chỉnh sửa phân quyền">
+                        <Chip
+                          label={`${role.permissions?.length || 0} quyền`}
                           size="small"
-                          sx={{ p: 0.25, color: 'inherit' }}
-                          tabIndex={-1}
-                        >
-                          <EditIcon sx={{ fontSize: 16 }} />
-                        </IconButton>
-                      </Box>
+                          clickable
+                          onClick={() => handleOpenPermissionModal(role)}
+                          color={role.permissions?.length > 0 ? 'primary' : 'default'}
+                          variant="outlined"
+                          icon={<PermIcon sx={{ fontSize: '14px !important' }} />}
+                          sx={{ fontWeight: 600, cursor: 'pointer' }}
+                        />
+                      </Tooltip>
                     </TableCell>
                     <TableCell align="right">
                       <Stack direction="row" spacing={1} justifyContent="flex-end">
@@ -505,33 +409,17 @@ function ManageRoles() {
                           variant="outlined"
                           startIcon={<EditIcon />}
                           onClick={() => handleOpenRoleForm(role)}
-                          sx={{
-                            fontSize: 12,
-                            borderColor: 'primary.light',
-                            color: 'primary.main',
-                            '&:hover': { bgcolor: 'primary.50', borderColor: 'primary.main' },
-                          }}
+                          sx={{ fontSize: 12, borderColor: 'primary.light', color: 'primary.main', textTransform: 'none' }}
                         >
                           Sửa
                         </Button>
                         <Button
                           size="small"
                           variant="outlined"
-                          startIcon={
-                            loading ? (
-                              <CircularProgress size={12} color="error" />
-                            ) : (
-                              <DeleteIcon />
-                            )
-                          }
+                          startIcon={loading ? <CircularProgress size={12} color="error" /> : <DeleteIcon />}
                           onClick={() => handleDeleteRole(roleId)}
                           disabled={loading}
-                          sx={{
-                            fontSize: 12,
-                            borderColor: 'error.light',
-                            color: 'error.main',
-                            '&:hover': { bgcolor: 'error.50', borderColor: 'error.main' },
-                          }}
+                          sx={{ fontSize: 12, borderColor: 'error.light', color: 'error.main', textTransform: 'none' }}
                         >
                           Xóa
                         </Button>
@@ -545,23 +433,18 @@ function ManageRoles() {
         </TableContainer>
       </Paper>
 
-      {/* Dialog: Form thêm/sửa role */}
+      {/* Dialog: Thêm / Sửa role */}
       <Dialog
         open={showRoleForm}
         onClose={handleCloseRoleForm}
         maxWidth="sm"
         fullWidth
-        PaperProps={{ sx: { borderRadius: 2, overflow: 'hidden' } }}
+        slotProps={{ paper: { sx: { borderRadius: 2, overflow: 'hidden' } } }}
       >
-        {/* Gradient header replacing DialogTitle */}
         <Box
           sx={{
             background: 'linear-gradient(135deg, #4f46e5 0%, #6366f1 100%)',
-            px: 3,
-            py: 2.5,
-            display: 'flex',
-            alignItems: 'center',
-            gap: 1.5,
+            px: 3, py: 2.5, display: 'flex', alignItems: 'center', gap: 1.5,
           }}
         >
           <SecurityIcon sx={{ color: 'white', fontSize: 24 }} />
@@ -572,31 +455,18 @@ function ManageRoles() {
 
         <Box component="form" onSubmit={handleSaveRole}>
           <DialogContent sx={{ pt: 3, pb: 1 }}>
-            {error && (
-              <Alert severity="error" sx={{ mb: 2, fontSize: 13 }}>
-                {error}
-              </Alert>
-            )}
-
+            {error && <Alert severity="error" sx={{ mb: 2, fontSize: 13 }}>{error}</Alert>}
             <TextField
-              label={
-                <>
-                  Tên vai trò{' '}
-                  <Box component="span" sx={{ color: 'error.main' }}>
-                    *
-                  </Box>
-                </>
-              }
+              label={<>Tên vai trò <Box component="span" sx={{ color: 'error.main' }}>*</Box></>}
               value={roleForm.roleName}
               onChange={(e) => setRoleForm({ ...roleForm, roleName: e.target.value })}
               fullWidth
               required
-              inputProps={{ maxLength: 32 }}
+              slotProps={{ htmlInput: { maxLength: 32 } }}
               placeholder="VD: Teacher, SchoolAdmin"
               size="small"
               sx={{ mb: 2.5 }}
             />
-
             <TextField
               label="Mô tả"
               value={roleForm.description}
@@ -604,28 +474,21 @@ function ManageRoles() {
               fullWidth
               multiline
               rows={3}
-              inputProps={{ maxLength: 255 }}
+              slotProps={{ htmlInput: { maxLength: 255 } }}
               placeholder="Mô tả vai trò này (tối đa 255 ký tự)"
               size="small"
             />
           </DialogContent>
-
           <DialogActions sx={{ px: 3, py: 2, gap: 1 }}>
-            <Button
-              onClick={handleCloseRoleForm}
-              variant="outlined"
-              color="inherit"
-              sx={{ color: 'text.secondary', borderColor: 'divider' }}
-            >
+            <Button onClick={handleCloseRoleForm} variant="outlined" color="inherit" sx={{ color: 'text.secondary', borderColor: 'divider', textTransform: 'none' }}>
               Hủy
             </Button>
             <Button
               type="submit"
               variant="contained"
-              color="primary"
               disabled={loading}
               startIcon={loading ? <CircularProgress size={16} color="inherit" /> : null}
-              sx={{ bgcolor: '#4f46e5', '&:hover': { bgcolor: '#4338ca' }, fontWeight: 700 }}
+              sx={{ bgcolor: '#4f46e5', '&:hover': { bgcolor: '#4338ca' }, fontWeight: 700, textTransform: 'none' }}
             >
               {loading ? 'Đang lưu...' : editingRole ? 'Cập nhật' : 'Tạo mới'}
             </Button>
@@ -633,173 +496,205 @@ function ManageRoles() {
         </Box>
       </Dialog>
 
-      {/* Dialog: Quản lý phân quyền cho vai trò */}
+      {/* Dialog: Phân quyền cho vai trò */}
       <Dialog
         open={showPermissionModal && !!selectedRoleForPermissions}
         onClose={handleClosePermissionModal}
         maxWidth="md"
         fullWidth
-        PaperProps={{
-          sx: {
-            borderRadius: 2,
-            overflow: 'hidden',
-            maxHeight: '90vh',
-          },
-        }}
+        slotProps={{ paper: { sx: { borderRadius: 2, overflow: 'hidden', maxHeight: '90vh' } } }}
       >
-        {/* Gradient header */}
+        {/* Header */}
         <Box
           sx={{
             background: 'linear-gradient(135deg, #4f46e5 0%, #6366f1 100%)',
-            px: 3,
-            py: 2.5,
-            display: 'flex',
-            alignItems: 'center',
-            gap: 1.5,
+            px: 3, py: 2.5, display: 'flex', alignItems: 'center', gap: 1.5,
           }}
         >
           <PermIcon sx={{ color: 'white', fontSize: 24 }} />
           <Box sx={{ flex: 1, minWidth: 0 }}>
             <Typography variant="h6" fontWeight={700} color="white" noWrap>
-              Quản lý phân quyền
+              Phân quyền cho vai trò
             </Typography>
-            <Typography
-              variant="body2"
-              sx={{ color: 'rgba(255,255,255,0.85)', mt: 0.25 }}
-              noWrap
-              title={selectedRoleForPermissions?.roleName}
-            >
-              Vai trò: {selectedRoleForPermissions?.roleName}
+            <Typography variant="body2" sx={{ color: 'rgba(255,255,255,0.85)', mt: 0.25 }} noWrap>
+              {selectedRoleForPermissions?.roleName}
             </Typography>
           </Box>
           <Chip
             label={`${selectedPermissions.size} / ${permissions.length}`}
             size="small"
-            sx={{
-              bgcolor: 'rgba(255,255,255,0.2)',
-              color: 'white',
-              fontWeight: 700,
-              fontSize: 12,
-            }}
+            sx={{ bgcolor: 'rgba(255,255,255,0.2)', color: 'white', fontWeight: 700, fontSize: 12 }}
           />
         </Box>
 
-        <DialogContent
-          sx={{
-            p: 0,
-            display: 'flex',
-            flexDirection: 'column',
-            overflow: 'hidden',
-          }}
-        >
-          <Box sx={{ px: 3, py: 1.5, bgcolor: 'grey.50', borderBottom: '1px solid', borderColor: 'divider' }}>
-            <Typography variant="body2" color="text.secondary">
-              Đã chọn:{' '}
-              <Box component="span" fontWeight={700} color="primary.main">
-                {selectedPermissions.size}
-              </Box>
-              /{permissions.length} phân quyền
-            </Typography>
-          </Box>
+        {/* Toolbar: search + select all/none */}
+        <Box sx={{ px: 3, py: 1.5, borderBottom: '1px solid', borderColor: 'divider', bgcolor: 'grey.50' }}>
+          <Stack direction="row" spacing={1.5} alignItems="center">
+            <TextField
+              size="small"
+              placeholder="Tìm kiếm quyền..."
+              value={permSearch}
+              onChange={(e) => setPermSearch(e.target.value)}
+              sx={{ flex: 1, '& .MuiOutlinedInput-root': { borderRadius: 1.5 } }}
+              InputProps={{
+                startAdornment: (
+                  <InputAdornment position="start">
+                    <SearchIcon sx={{ fontSize: 18, color: 'text.disabled' }} />
+                  </InputAdornment>
+                ),
+              }}
+            />
+            <Button
+              size="small"
+              variant="outlined"
+              onClick={handleSelectAll}
+              sx={{ textTransform: 'none', fontSize: 12, borderRadius: 1.5, whiteSpace: 'nowrap' }}
+            >
+              Chọn tất cả
+            </Button>
+            <Button
+              size="small"
+              variant="outlined"
+              color="inherit"
+              onClick={handleDeselectAll}
+              sx={{ textTransform: 'none', fontSize: 12, borderRadius: 1.5, whiteSpace: 'nowrap', color: 'text.secondary' }}
+            >
+              Bỏ hết
+            </Button>
+          </Stack>
+        </Box>
 
-          <Box sx={{ flex: 1, overflowY: 'auto', p: 2 }}>
-            {permissions.length === 0 ? (
-              <Typography
-                variant="body2"
-                color="text.secondary"
-                align="center"
-                sx={{ py: 6 }}
-              >
-                Chưa có phân quyền nào trong hệ thống.
-              </Typography>
-            ) : (
-              <Stack spacing={1}>
-                {permissions.map((perm) => {
-                  const isChecked = selectedPermissions.has(perm.code);
-                  return (
-                    <Box
-                      key={perm._id || perm.id}
-                      onClick={() => togglePermission(perm.code)}
+        <DialogContent sx={{ p: 2, overflowY: 'auto' }}>
+          {filteredPerms.length === 0 ? (
+            <Typography variant="body2" color="text.secondary" align="center" sx={{ py: 6 }}>
+              {permSearch ? 'Không tìm thấy quyền phù hợp.' : 'Chưa có quyền nào trong hệ thống.'}
+            </Typography>
+          ) : (
+            <Stack spacing={1.5}>
+              {Object.entries(permGroups).map(([module, groupPerms]) => {
+                const groupCodes = groupPerms.map((p) => p.code);
+                const checkedCount = groupCodes.filter((c) => selectedPermissions.has(c)).length;
+                const allChecked = checkedCount === groupCodes.length;
+                const someChecked = checkedCount > 0 && !allChecked;
+                const isCollapsed = collapsedGroups[module];
+
+                return (
+                  <Box
+                    key={module}
+                    sx={{ border: '1px solid', borderColor: 'divider', borderRadius: 1.5, overflow: 'hidden' }}
+                  >
+                    {/* Group header */}
+                    <Stack
+                      direction="row"
+                      alignItems="center"
                       sx={{
-                        display: 'flex',
-                        alignItems: 'flex-start',
-                        p: 1.5,
-                        borderRadius: 1.5,
-                        border: '1px solid',
-                        borderColor: isChecked ? 'primary.main' : 'grey.200',
-                        bgcolor: isChecked ? 'rgba(99,102,241,0.08)' : 'grey.50',
-                        cursor: 'pointer',
-                        transition: 'all 0.15s ease',
-                        '&:hover': {
-                          bgcolor: isChecked ? 'rgba(99,102,241,0.12)' : 'grey.100',
-                        },
+                        px: 1.5, py: 1, bgcolor: 'grey.50',
+                        cursor: 'pointer', userSelect: 'none',
+                        '&:hover': { bgcolor: 'grey.100' },
                       }}
+                      onClick={() => toggleGroupCollapse(module)}
                     >
                       <Checkbox
-                        checked={isChecked}
-                        onChange={() => togglePermission(perm.code)}
-                        onClick={(e) => e.stopPropagation()}
                         size="small"
+                        checked={allChecked}
+                        indeterminate={someChecked}
+                        onChange={() => toggleGroup(groupPerms)}
+                        onClick={(e) => e.stopPropagation()}
                         sx={{
-                          p: 0,
-                          mr: 1.5,
-                          mt: 0.1,
-                          flexShrink: 0,
-                          color: isChecked ? 'primary.main' : 'grey.400',
-                          '&.Mui-checked': { color: '#4f46e5' },
+                          p: 0, mr: 1, flexShrink: 0,
+                          '&.Mui-checked, &.MuiCheckbox-indeterminate': { color: '#4f46e5' },
                         }}
                       />
-                      <Box sx={{ flex: 1, minWidth: 0 }}>
-                        <Typography
-                          variant="body2"
-                          fontWeight={600}
-                          color={isChecked ? '#3730a3' : 'text.primary'}
-                          noWrap
-                          title={perm.code}
-                        >
-                          {perm.code}
-                        </Typography>
-                        {perm.description && (
-                          <Typography
-                            variant="caption"
-                            color="text.secondary"
-                            sx={{
-                              display: '-webkit-box',
-                              WebkitLineClamp: 2,
-                              WebkitBoxOrient: 'vertical',
-                              overflow: 'hidden',
-                              mt: 0.25,
-                            }}
-                          >
-                            {perm.description}
-                          </Typography>
-                        )}
-                      </Box>
-                    </Box>
-                  );
-                })}
-              </Stack>
-            )}
-          </Box>
+                      <Typography
+                        variant="caption"
+                        fontWeight={700}
+                        color="text.secondary"
+                        sx={{ flex: 1, letterSpacing: 0.5, textTransform: 'uppercase', fontSize: 11 }}
+                      >
+                        {module}
+                      </Typography>
+                      <Chip
+                        label={`${checkedCount}/${groupCodes.length}`}
+                        size="small"
+                        sx={{
+                          fontSize: 10, height: 18, mr: 1,
+                          bgcolor: checkedCount > 0 ? 'rgba(99,102,241,0.1)' : 'grey.200',
+                          color: checkedCount > 0 ? '#4338ca' : 'text.secondary',
+                          fontWeight: 700,
+                        }}
+                      />
+                      {isCollapsed
+                        ? <ExpandMoreIcon sx={{ fontSize: 16, color: 'text.disabled' }} />
+                        : <ExpandLessIcon sx={{ fontSize: 16, color: 'text.disabled' }} />
+                      }
+                    </Stack>
+
+                    {/* Group items */}
+                    <Collapse in={!isCollapsed}>
+                      <Stack sx={{ p: 0.75 }}>
+                        {groupPerms.map((perm) => {
+                          const isChecked = selectedPermissions.has(perm.code);
+                          return (
+                            <Box
+                              key={perm._id || perm.id}
+                              onClick={() => togglePermission(perm.code)}
+                              sx={{
+                                display: 'flex', alignItems: 'flex-start', p: 1, borderRadius: 1.5,
+                                cursor: 'pointer',
+                                bgcolor: isChecked ? 'rgba(99,102,241,0.06)' : 'transparent',
+                                '&:hover': { bgcolor: isChecked ? 'rgba(99,102,241,0.1)' : 'action.hover' },
+                                transition: 'background 0.1s',
+                              }}
+                            >
+                              <Checkbox
+                                size="small"
+                                checked={isChecked}
+                                onChange={() => togglePermission(perm.code)}
+                                onClick={(e) => e.stopPropagation()}
+                                sx={{ p: 0, mr: 1.5, mt: 0.1, flexShrink: 0, '&.Mui-checked': { color: '#4f46e5' } }}
+                              />
+                              <Box sx={{ flex: 1, minWidth: 0 }}>
+                                <Typography
+                                  variant="body2"
+                                  fontWeight={600}
+                                  noWrap
+                                  sx={{ fontFamily: 'monospace', fontSize: 12, color: isChecked ? '#3730a3' : 'text.primary' }}
+                                >
+                                  {perm.code}
+                                </Typography>
+                                {perm.description && (
+                                  <Typography variant="caption" color="text.secondary">
+                                    {perm.description}
+                                  </Typography>
+                                )}
+                              </Box>
+                            </Box>
+                          );
+                        })}
+                      </Stack>
+                    </Collapse>
+                  </Box>
+                );
+              })}
+            </Stack>
+          )}
         </DialogContent>
 
-        <Divider />
-        <DialogActions sx={{ px: 3, py: 2, gap: 1 }}>
+        <DialogActions sx={{ px: 3, py: 2, gap: 1, borderTop: '1px solid', borderColor: 'divider' }}>
           <Button
             onClick={handleClosePermissionModal}
             variant="outlined"
             color="inherit"
-            sx={{ color: 'text.secondary', borderColor: 'divider' }}
+            sx={{ color: 'text.secondary', borderColor: 'divider', textTransform: 'none' }}
           >
             Hủy
           </Button>
           <Button
             onClick={handleSaveRolePermissions}
             variant="contained"
-            color="primary"
             disabled={loading}
             startIcon={loading ? <CircularProgress size={16} color="inherit" /> : <PermIcon />}
-            sx={{ bgcolor: '#4f46e5', '&:hover': { bgcolor: '#4338ca' }, fontWeight: 700 }}
+            sx={{ bgcolor: '#4f46e5', '&:hover': { bgcolor: '#4338ca' }, fontWeight: 700, textTransform: 'none' }}
           >
             {loading ? 'Đang lưu...' : 'Lưu phân quyền'}
           </Button>

@@ -1,5 +1,5 @@
 const express = require('express');
-const { authenticate, authorizeRoles } = require('../middleware/auth');
+const { authenticate, authorizeRoles, authorizePermissions } = require('../middleware/auth');
 const { listGrades, createGrade, updateGrade, deleteGrade } = require('../controller/gradeController');
 
 const router = express.Router();
@@ -43,8 +43,8 @@ const router = express.Router();
  *       201:
  *         description: Tạo khối lớp thành công
  */
-router.get('/', authenticate, authorizeRoles('SchoolAdmin'), listGrades);
-router.post('/', authenticate, authorizeRoles('SchoolAdmin'), createGrade);
+router.get('/', authenticate, authorizePermissions('MANAGE_GRADE'), listGrades);
+router.post('/', authenticate, authorizePermissions('MANAGE_GRADE'), createGrade);
 
 /**
  * @openapi
@@ -97,7 +97,7 @@ router.post('/', authenticate, authorizeRoles('SchoolAdmin'), createGrade);
  *       404:
  *         description: Không tìm thấy khối lớp
  */
-router.put('/:id', authenticate, authorizeRoles('SchoolAdmin'), updateGrade);
-router.delete('/:id', authenticate, authorizeRoles('SchoolAdmin'), deleteGrade);
+router.put('/:id', authenticate, authorizePermissions('MANAGE_GRADE'), updateGrade);
+router.delete('/:id', authenticate, authorizePermissions('MANAGE_GRADE'), deleteGrade);
 
 module.exports = router;

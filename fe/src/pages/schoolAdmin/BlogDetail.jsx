@@ -3,7 +3,8 @@ import { useNavigate, useParams } from 'react-router-dom';
 import { useAuth } from '../../context/AuthContext';
 import { useSchoolAdmin } from '../../context/SchoolAdminContext';
 import RoleLayout from '../../layouts/RoleLayout';
-import { SCHOOL_ADMIN_MENU_ITEMS, createSchoolAdminMenuSelect } from './schoolAdminMenuConfig';
+import { createSchoolAdminMenuSelect } from './schoolAdminMenuConfig';
+import { useSchoolAdminMenu } from './useSchoolAdminMenu';
 import ConfirmDialog from '../../components/ConfirmDialog';
 import 'quill/dist/quill.snow.css';
 import {
@@ -36,6 +37,7 @@ function BlogDetail() {
   const navigate = useNavigate();
   const { user, logout, isInitializing } = useAuth();
   const { getBlogs, deleteBlog, setError } = useSchoolAdmin();
+  const menuItems = useSchoolAdminMenu();
 
   const [blog, setBlog] = useState(null);
   const [loading, setLoading] = useState(true);
@@ -100,7 +102,7 @@ function BlogDetail() {
     return (
       <RoleLayout
         title="Chi tiết bài viết"
-        menuItems={SCHOOL_ADMIN_MENU_ITEMS}
+        menuItems={menuItems}
         activeKey="blogs"
         onLogout={() => { logout(); navigate('/login', { replace: true }); }}
         onViewProfile={() => navigate('/profile')}
@@ -120,7 +122,7 @@ function BlogDetail() {
     <RoleLayout
       title="Chi tiết bài viết"
       description={blog?.code || 'Xem thông tin chi tiết bài viết'}
-      menuItems={SCHOOL_ADMIN_MENU_ITEMS}
+      menuItems={menuItems}
       activeKey="blogs"
       onLogout={() => { logout(); navigate('/login', { replace: true }); }}
       onViewProfile={() => navigate('/profile')}

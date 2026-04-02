@@ -3,7 +3,8 @@ import { useNavigate, useSearchParams } from 'react-router-dom';
 import RoleLayout from '../../layouts/RoleLayout';
 import { useAuth } from '../../context/AuthContext';
 import { get, post, put, del, ENDPOINTS } from '../../service/api';
-import { SCHOOL_ADMIN_MENU_ITEMS, createSchoolAdminMenuSelect } from './schoolAdminMenuConfig';
+import { createSchoolAdminMenuSelect } from './schoolAdminMenuConfig';
+import { useSchoolAdminMenu } from './useSchoolAdminMenu';
 import {
   Box,
   Paper,
@@ -248,6 +249,7 @@ function ClassList() {
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
   const { user, hasRole, logout, isInitializing } = useAuth();
+  const menuItems = useSchoolAdminMenu();
 
   // ── fetch teacher availability when className changes (create dialog) ────────
   useEffect(() => {
@@ -632,7 +634,7 @@ function ClassList() {
     <RoleLayout
       title="Quản lý Lớp Học"
       description="Quản lý khối lớp và danh sách lớp học."
-      menuItems={SCHOOL_ADMIN_MENU_ITEMS}
+      menuItems={menuItems}
       activeKey="classes"
       onLogout={handleLogout}
       onViewProfile={handleViewProfile}

@@ -4,7 +4,8 @@ import RoleLayout from '../../layouts/RoleLayout';
 import { useAuth } from '../../context/AuthContext';
 import { toast } from 'react-toastify';
 import { get, post, patch, ENDPOINTS } from '../../service/api';
-import { SCHOOL_ADMIN_MENU_ITEMS, createSchoolAdminMenuSelect } from './schoolAdminMenuConfig';
+import { createSchoolAdminMenuSelect } from './schoolAdminMenuConfig';
+import { useSchoolAdminMenu } from './useSchoolAdminMenu';
 import {
   Box,
   Paper,
@@ -59,6 +60,7 @@ function ManageAcademicYears() {
 
   const navigate = useNavigate();
   const { user, logout } = useAuth();
+  const menuItems = useSchoolAdminMenu();
 
   const handleLogout = () => {
     logout();
@@ -247,7 +249,7 @@ function ManageAcademicYears() {
     <RoleLayout
       title="Thiết lập Năm học"
       description="Tổng quan năm học đang hoạt động, và tra cứu lịch sử các năm học trước."
-      menuItems={SCHOOL_ADMIN_MENU_ITEMS}
+      menuItems={menuItems}
       activeKey="academic-year-setup"
       onLogout={handleLogout}
       onViewProfile={handleViewProfile}

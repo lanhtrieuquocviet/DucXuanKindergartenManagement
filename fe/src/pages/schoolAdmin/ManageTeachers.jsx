@@ -3,7 +3,8 @@ import { useNavigate } from 'react-router-dom';
 import RoleLayout from '../../layouts/RoleLayout';
 import { useAuth } from '../../context/AuthContext';
 import { get, post, put, del, ENDPOINTS } from '../../service/api';
-import { SCHOOL_ADMIN_MENU_ITEMS, createSchoolAdminMenuSelect } from './schoolAdminMenuConfig';
+import { createSchoolAdminMenuSelect } from './schoolAdminMenuConfig';
+import { useSchoolAdminMenu } from './useSchoolAdminMenu';
 import {
   Box, Paper, Typography, Button, Stack, TextField, Avatar,
   Dialog, DialogTitle, DialogContent, DialogActions, Alert,
@@ -74,6 +75,7 @@ function ExperienceBadge({ hireDate }) {
 export default function ManageTeachers() {
   const navigate = useNavigate();
   const { user, hasRole, isInitializing } = useAuth();
+  const menuItems = useSchoolAdminMenu();
 
   const [teachers, setTeachers] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -262,7 +264,7 @@ export default function ManageTeachers() {
 
   return (
     <RoleLayout
-      menuItems={SCHOOL_ADMIN_MENU_ITEMS}
+      menuItems={menuItems}
       activeKey="teachers"
       onMenuSelect={handleMenuSelect}
       onLogout={() => {}}

@@ -30,6 +30,9 @@ import {
   AccountTree as AccountTreeIcon,
   PhotoLibrary as PhotoLibraryIcon,
   VideoLibrary as VideoLibraryIcon,
+  Grading as GradingIcon,
+  Group as GroupIcon,
+  Article as ArticleIcon,
 } from '@mui/icons-material';
 import { CurrencyIcon } from 'lucide-react';
 
@@ -86,6 +89,9 @@ export const KEY_ICONS = {
   'asset-inspection':     <ContentPasteSearchIcon fontSize="small" />,
   'class-assets':         <InventoryIcon fontSize="small" />,
   'asset-allocation':     <AccountTreeIcon fontSize="small" />,
+  kiemke:                 <GradingIcon fontSize="small" />,
+  committee:              <GroupIcon fontSize="small" />,
+  minutes:                <ArticleIcon fontSize="small" />,
 };
 
 /* ── Sidebar content (kết hợp các shared components) ── */

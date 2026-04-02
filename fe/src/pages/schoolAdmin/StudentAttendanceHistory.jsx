@@ -3,7 +3,8 @@ import { useNavigate, useParams, useSearchParams } from 'react-router-dom';
 import { useAuth } from '../../context/AuthContext';
 import { useSchoolAdmin } from '../../context/SchoolAdminContext';
 import RoleLayout from '../../layouts/RoleLayout';
-import { SCHOOL_ADMIN_MENU_ITEMS, createSchoolAdminMenuSelect } from './schoolAdminMenuConfig';
+import { createSchoolAdminMenuSelect } from './schoolAdminMenuConfig';
+import { useSchoolAdminMenu } from './useSchoolAdminMenu';
 import {
   Box,
   Paper,
@@ -92,6 +93,7 @@ function StudentAttendanceHistory() {
   const [searchParams] = useSearchParams();
   const { user, logout, isInitializing } = useAuth();
   const { getStudentAttendanceHistory, loading, error } = useSchoolAdmin();
+  const menuItems = useSchoolAdminMenu();
 
   const [studentInfo, setStudentInfo] = useState(null);
   const [attendances, setAttendances] = useState([]);
@@ -177,7 +179,7 @@ function StudentAttendanceHistory() {
     <RoleLayout
       title="Màn hình lịch sử thông tin điểm danh của học sinh"
       description="Từ màn hình chi tiết điểm danh của 1 học sinh, chọn Lịch sử điểm danh → Hiển thị màn hình Lịch sử điểm danh"
-      menuItems={SCHOOL_ADMIN_MENU_ITEMS}
+      menuItems={menuItems}
       activeKey="attendance"
       onLogout={() => {
         logout();

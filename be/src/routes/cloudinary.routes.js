@@ -1,7 +1,7 @@
 const express = require('express');
 const multer = require('multer');
 const { getMediaLibrarySignature, uploadAvatar, uploadBlogImage, uploadBlogFile, uploadKitchenImage, uploadAttendanceImage, uploadPurchaseImage } = require('../controller/cloudinaryController');
-const { authenticate, authorizeRoles } = require('../middleware/auth');
+const { authenticate, authorizeRoles, authorizePermissions } = require('../middleware/auth');
 
 const router = express.Router();
 
@@ -96,7 +96,7 @@ router.post('/upload-avatar', authenticate, uploadMiddleware.single('avatar'), u
  *       403:
  *         description: Không có quyền SchoolAdmin
  */
-router.post('/upload-blog-image', authenticate, authorizeRoles('SchoolAdmin'), uploadMiddleware.single('image'), uploadBlogImage, handleUploadError);
+router.post('/upload-blog-image', authenticate, authorizePermissions('MANAGE_BLOG'), uploadMiddleware.single('image'), uploadBlogImage, handleUploadError);
 
 /**
  * @openapi
@@ -126,7 +126,7 @@ router.post('/upload-blog-image', authenticate, authorizeRoles('SchoolAdmin'), u
  *       403:
  *         description: Không có quyền SchoolAdmin
  */
-router.post('/upload-blog-file', authenticate, authorizeRoles('SchoolAdmin'), blogFileUploadMiddleware.single('file'), uploadBlogFile, handleUploadError);
+router.post('/upload-blog-file', authenticate, authorizePermissions('MANAGE_BLOG'), blogFileUploadMiddleware.single('file'), uploadBlogFile, handleUploadError);
 
 /**
  * @openapi
@@ -154,13 +154,13 @@ router.post('/upload-blog-file', authenticate, authorizeRoles('SchoolAdmin'), bl
  *       403:
  *         description: Không có quyền KitchenStaff
  */
-router.post('/upload-kitchen-image', authenticate, authorizeRoles('KitchenStaff'), uploadMiddleware.single('image'), uploadKitchenImage, handleUploadError);
+router.post('/upload-kitchen-image', authenticate, authorizePermissions('MANAGE_MEAL_PHOTO'), uploadMiddleware.single('image'), uploadKitchenImage, handleUploadError);
 
 // Upload ảnh điểm danh AI (base64 JSON, không cần multer)
-router.post('/upload-attendance-image', authenticate, authorizeRoles('Teacher', 'SchoolAdmin'), uploadAttendanceImage);
+router.post('/upload-attendance-image', authenticate, authorizePermissions('MANAGE_ATTENDANCE'), uploadAttendanceImage);
 
 // Upload ảnh bằng chứng yêu cầu mua sắm (Teacher)
-router.post('/upload-purchase-image', authenticate, authorizeRoles('Teacher'), uploadMiddleware.single('image'), uploadPurchaseImage, handleUploadError);
+router.post('/upload-purchase-image', authenticate, authorizePermissions('MANAGE_PURCHASE_REQUEST'), uploadMiddleware.single('image'), uploadPurchaseImage, handleUploadError);
 
 function handleUploadError(err, req, res, next) {
   if (err instanceof multer.MulterError) {

@@ -40,7 +40,8 @@ import { toast } from 'react-toastify';
 import { useAuth } from '../../context/AuthContext';
 import RoleLayout from '../../layouts/RoleLayout';
 import { get, ENDPOINTS } from '../../service/api';
-import { SCHOOL_ADMIN_MENU_ITEMS, createSchoolAdminMenuSelect } from './schoolAdminMenuConfig';
+import { createSchoolAdminMenuSelect } from './schoolAdminMenuConfig';
+import { useSchoolAdminMenu } from './useSchoolAdminMenu';
 import {
   getMealPhoto,
   getAttendanceSummary,
@@ -874,6 +875,7 @@ function MealPhotosTab({ meals, onPreview, editRequests, onApproveEdit, onReject
 function MealManagementSchoolAdmin() {
   const navigate = useNavigate();
   const { user, logout } = useAuth();
+  const menuItems = useSchoolAdminMenu();
 
   const [selectedDate, setSelectedDate] = useState(getLocalToday());
   const [mealData, setMealData] = useState(null);
@@ -1022,7 +1024,7 @@ function MealManagementSchoolAdmin() {
     <RoleLayout
       title="Quản lý bữa ăn"
       description="Kiểm tra ảnh bữa ăn và duyệt mẫu thực phẩm hàng ngày"
-      menuItems={SCHOOL_ADMIN_MENU_ITEMS}
+      menuItems={menuItems}
       activeKey="meal-management"
       onLogout={() => { logout(); navigate('/login', { replace: true }); }}
       userName={userName}
