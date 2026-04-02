@@ -7,7 +7,8 @@ import RoleLayout from '../../layouts/RoleLayout';
 import ConfirmDialog from '../../components/ConfirmDialog';
 import RichTextEditor from '../../components/RichTextEditor';
 import { get, postFormData, ENDPOINTS } from '../../service/api';
-import { SCHOOL_ADMIN_MENU_ITEMS, createSchoolAdminMenuSelect } from './schoolAdminMenuConfig';
+import { createSchoolAdminMenuSelect } from './schoolAdminMenuConfig';
+import { useSchoolAdminMenu } from './useSchoolAdminMenu';
 
 import {
   Box,
@@ -379,6 +380,7 @@ function ManageBlogs() {
 
   const navigate = useNavigate();
   const { user, logout, isInitializing } = useAuth();
+  const menuItems = useSchoolAdminMenu();
 
   const [blogs, setBlogs] = useState([]);
   const [categories, setCategories] = useState([]);
@@ -552,7 +554,7 @@ function ManageBlogs() {
     <RoleLayout
       title="Quản lý bài viết (Blog)"
       description="Tạo, chỉnh sửa, xóa và quản lý các bài viết, tin tức của trường."
-      menuItems={SCHOOL_ADMIN_MENU_ITEMS}
+      menuItems={menuItems}
       activeKey="blogs"
       onLogout={handleLogout}
       onViewProfile={handleViewProfile}

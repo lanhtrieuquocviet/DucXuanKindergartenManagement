@@ -13,7 +13,8 @@ import {
 import { useAuth } from '../../context/AuthContext';
 import RoleLayout from '../../layouts/RoleLayout';
 import { get, ENDPOINTS } from '../../service/api';
-import { SCHOOL_ADMIN_MENU_ITEMS, createSchoolAdminMenuSelect } from './schoolAdminMenuConfig';
+import { createSchoolAdminMenuSelect } from './schoolAdminMenuConfig';
+import { useSchoolAdminMenu } from './useSchoolAdminMenu';
 
 function formatDate(dateString) {
   if (!dateString) return '';
@@ -26,6 +27,7 @@ export default function AcademicYearDetail() {
   const { yearId } = useParams();
   const navigate = useNavigate();
   const { user, logout } = useAuth();
+  const menuItems = useSchoolAdminMenu();
 
   const [summary, setSummary] = useState(null);
   const [loading, setLoading] = useState(false);
@@ -106,7 +108,7 @@ export default function AcademicYearDetail() {
     <RoleLayout
       title={summary?.yearName || 'Chi tiết Năm học'}
       description="Thông tin chi tiết năm học đã kết thúc."
-      menuItems={SCHOOL_ADMIN_MENU_ITEMS}
+      menuItems={menuItems}
       activeKey="academic-year-setup"
       onLogout={handleLogout}
       onViewProfile={() => navigate('/profile')}

@@ -20,7 +20,6 @@ import {
   Paper,
   Select,
   Stack,
-  Tab,
   Table,
   TableBody,
   TableCell,
@@ -28,7 +27,6 @@ import {
   TableHead,
   TablePagination,
   TableRow,
-  Tabs,
   TextField,
   Tooltip,
   Typography,
@@ -43,7 +41,8 @@ import UploadFileIcon from '@mui/icons-material/UploadFile';
 import RoleLayout from '../../layouts/RoleLayout';
 import { useAuth } from '../../context/AuthContext';
 import { del, get, patch, post, put, ENDPOINTS } from '../../service/api';
-import { SCHOOL_ADMIN_MENU_ITEMS, createSchoolAdminMenuSelect } from './schoolAdminMenuConfig';
+import { createSchoolAdminMenuSelect } from './schoolAdminMenuConfig';
+import { useSchoolAdminMenu } from './useSchoolAdminMenu';
 
 // ─── Constants ────────────────────────────────────────────────────────────────
 const STATUS_LABEL = {
@@ -126,7 +125,7 @@ function AddCategoryDialog({ open, onClose, onConfirm }) {
 }
 
 // ─── Committee Tab ────────────────────────────────────────────────────────────
-function CommitteeTab() {
+export function CommitteeTab() {
   const theme = useTheme();
   const isMobile = useMediaQuery(theme.breakpoints.down('sm'));
 
@@ -142,8 +141,6 @@ function CommitteeTab() {
   const [viewCommittee, setViewCommittee] = useState(null);
   const [deleteTarget, setDeleteTarget] = useState(null);
   const [deleting, setDeleting]         = useState(false);
-  const importRef = useRef();
-
   const load = async () => {
     setLoading(true);
     try {
@@ -227,35 +224,6 @@ function CommitteeTab() {
     finally { setDeleting(false); }
   };
 
-  const handleImport = e => {
-    const file = e.target.files?.[0];
-    if (!file) return;
-    import('xlsx').then(XLSX => {
-      const reader = new FileReader();
-      reader.onload = evt => {
-        const wb   = XLSX.read(evt.target.result, { type: 'array' });
-        const ws   = wb.Sheets[wb.SheetNames[0]];
-        const rows = XLSX.utils.sheet_to_json(ws, { header: 1 });
-        if (!rows?.length) { toast.error('File rỗng hoặc sai định dạng.'); return; }
-        const header       = rows[0] || [];
-        const name         = String(header[0] || '').trim();
-        const foundedDate  = header[1] ? new Date(header[1]).toISOString().slice(0, 10) : '';
-        const decisionNumber = String(header[2] || '').trim();
-        const members = rows.slice(1).filter(r => r[0]).map(r => ({
-          fullName: String(r[0] || '').trim(),
-          position: String(r[1] || '').trim(),
-          role:     String(r[2] || 'Thành viên').trim(),
-          notes:    String(r[3] || '').trim(),
-        }));
-        setForm({ name, foundedDate, decisionNumber, members: members.length ? members : [emptyMember()] });
-        setShowForm(true);
-        toast.success('Đọc file thành công. Kiểm tra lại trước khi lưu.');
-      };
-      reader.readAsArrayBuffer(file);
-    }).catch(() => toast.error('Không hỗ trợ import Excel.'));
-    e.target.value = '';
-  };
-
   const allPersons  = [
     ...teachers.map(t => ({ fullName: t.fullName, group: 'Giáo viên' })),
     ...staff.map(s => ({ fullName: s.fullName, group: 'Ban Giám Hiệu' })),
@@ -268,10 +236,6 @@ function CommitteeTab() {
       <Stack direction={{ xs: 'column', sm: 'row' }} justifyContent="space-between" alignItems={{ xs: 'stretch', sm: 'center' }} mb={2} gap={1}>
         <Typography variant="h6" fontWeight={700}>Quản lý Ban Kiểm Kê</Typography>
         <Stack direction="row" spacing={1} flexWrap="wrap" justifyContent={{ xs: 'flex-start', sm: 'flex-end' }}>
-          <Button variant="outlined" startIcon={<UploadFileIcon />} onClick={() => importRef.current?.click()} sx={{ textTransform: 'none' }}>
-            Import File
-          </Button>
-          <input ref={importRef} hidden type="file" accept=".xlsx,.xls,.csv" onChange={handleImport} />
           <Button
             variant="contained"
             startIcon={<AddIcon />}
@@ -537,7 +501,7 @@ function CommitteeTab() {
 }
 
 // ─── Minutes Tab ──────────────────────────────────────────────────────────────
-function MinutesTab() {
+export function MinutesTab() {
   const theme = useTheme();
   const isMobile = useMediaQuery(theme.breakpoints.down('sm'));
 
@@ -1833,8 +1797,7 @@ function AssetsTab() {
 export default function ManageAssets() {
   const navigate = useNavigate();
   const { user, logout, isInitializing } = useAuth();
-  const [tab, setTab] = useState(0);
-
+  const menuItems = useSchoolAdminMenu();
   useEffect(() => {
     if (isInitializing) return;
     if (!user) { navigate('/login', { replace: true }); return; }
@@ -1848,7 +1811,7 @@ export default function ManageAssets() {
     <RoleLayout
       title="Quản lý Tài sản"
       description="Danh sách tài sản, ban kiểm kê và biên bản kiểm kê tài sản trường."
-      menuItems={SCHOOL_ADMIN_MENU_ITEMS}
+      menuItems={menuItems}
       activeKey="assets-list"
       onLogout={() => { logout(); navigate('/login', { replace: true }); }}
       userName={user?.fullName || user?.username || 'School Admin'}
@@ -1858,15 +1821,7 @@ export default function ManageAssets() {
     >
       <Paper elevation={0} sx={{ p: { xs: 1.5, sm: 3 }, borderRadius: 3, backgroundColor: '#f9fafb' }}>
         <Typography variant="h5" fontWeight={700} mb={2}>Quản lý Tài sản</Typography>
-        <Tabs value={tab} onChange={(_, v) => setTab(v)} sx={{ borderBottom: 1, borderColor: 'divider', mb: 3 }}
-          variant="scrollable" scrollButtons="auto">
-          <Tab label="1. Danh sách tài sản" />
-          <Tab label="2. Ban Kiểm Kê" />
-          <Tab label="3. Biên bản kiểm kê" />
-        </Tabs>
-        {tab === 0 && <AssetsTab />}
-        {tab === 1 && <CommitteeTab />}
-        {tab === 2 && <MinutesTab />}
+        <AssetsTab />
       </Paper>
     </RoleLayout>
   );

@@ -1,6 +1,6 @@
 const express = require("express");
 const router = express.Router();
-const { authenticate, authorizeRoles } = require("../middleware/auth");
+const { authenticate, authorizeRoles, authorizePermissions } = require("../middleware/auth");
 const {
   createPickupRequest,
   getMyPickupRequests,
@@ -67,7 +67,7 @@ const {
  *         description: Không có quyền Teacher
  */
 router.post("/requests", authenticate, createPickupRequest);
-router.get("/requests", authenticate, authorizeRoles("Teacher"), getPickupRequests);
+router.get("/requests", authenticate, authorizePermissions("MANAGE_PICKUP"), getPickupRequests);
 
 /**
  * @openapi
@@ -106,7 +106,7 @@ router.get("/my-requests", authenticate, getMyPickupRequests);
  *       403:
  *         description: Không có quyền Teacher
  */
-router.get("/requests/student/:studentId", authenticate, authorizeRoles("Teacher", "SchoolAdmin"), getApprovedPickupPersonsByStudent);
+router.get("/requests/student/:studentId", authenticate, authorizePermissions("MANAGE_PICKUP"), getApprovedPickupPersonsByStudent);
 
 /**
  * @openapi
@@ -141,7 +141,7 @@ router.get("/requests/student/:studentId", authenticate, authorizeRoles("Teacher
  *       403:
  *         description: Không có quyền Teacher
  */
-router.post("/requests/status", authenticate, authorizeRoles("Teacher"), updatePickupRequestStatus);
+router.post("/requests/status", authenticate, authorizePermissions("MANAGE_PICKUP"), updatePickupRequestStatus);
 
 /**
  * @openapi

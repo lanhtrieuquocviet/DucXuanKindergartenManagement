@@ -5,7 +5,8 @@ import { useNavigate } from "react-router-dom";
 import RoleLayout from "../../layouts/RoleLayout";
 import { useAuth } from "../../context/AuthContext";
 import ConfirmDialog from "../../components/ConfirmDialog";
-import { SCHOOL_ADMIN_MENU_ITEMS, createSchoolAdminMenuSelect } from './schoolAdminMenuConfig';
+import { createSchoolAdminMenuSelect } from './schoolAdminMenuConfig';
+import { useSchoolAdminMenu } from './useSchoolAdminMenu';
 import {
   Box, Typography, Paper, Chip, Button, TextField, Dialog,
   DialogTitle, DialogContent, DialogActions, Skeleton, Tabs, Tab,
@@ -93,6 +94,7 @@ function MenuSchoolAdmin() {
 
   const navigate       = useNavigate();
   const { user, logout } = useAuth();
+  const menuItems = useSchoolAdminMenu();
 
   useEffect(() => { fetchMenus(); }, []);
 
@@ -143,7 +145,7 @@ function MenuSchoolAdmin() {
     <RoleLayout
       title="Quản lý Thực đơn"
       description="Danh sách thực đơn của trường"
-      menuItems={SCHOOL_ADMIN_MENU_ITEMS}
+      menuItems={menuItems}
       activeKey="menu"
       onLogout={() => { logout(); navigate("/login", { replace: true }); }}
       onViewProfile={() => navigate("/profile")}

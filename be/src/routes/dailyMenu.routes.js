@@ -1,6 +1,6 @@
 const express = require("express");
 const dailyMenuController = require("../controller/dailyMenu.controller");
-const { authenticate, authorizeRoles } = require("../middleware/auth");
+const { authenticate, authorizeRoles, authorizePermissions } = require("../middleware/auth");
 
 const router = express.Router();
 
@@ -73,6 +73,6 @@ const router = express.Router();
  *       404:
  *         description: Không tìm thấy thực đơn ngày
  */
-router.put("/:id", authenticate, authorizeRoles("KitchenStaff"), dailyMenuController.updateDailyMenu);
+router.put("/:id", authenticate, authorizePermissions("MANAGE_MENU"), dailyMenuController.updateDailyMenu);
 
 module.exports = router;

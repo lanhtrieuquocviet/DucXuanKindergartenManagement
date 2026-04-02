@@ -37,7 +37,8 @@ function cosineSimilarity(vecA, vecB) {
 
 // Ngưỡng nhận diện: similarity >= THRESHOLD thì coi là MATCH
 // face-api.js thường cho similarity 0.6–0.95 với cùng khuôn mặt
-const MATCH_THRESHOLD = 0.75;
+// Tăng lên 0.82 để giảm false positive (nhận nhầm người khác)
+const MATCH_THRESHOLD = 0.82;
 
 // ─── Controller functions ──────────────────────────────────────────────────────
 
