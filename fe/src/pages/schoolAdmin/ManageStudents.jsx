@@ -357,9 +357,6 @@ function ManageStudents() {
             <Typography variant="h6" fontWeight={700} color="white">
               Danh sách học sinh & phụ huynh
             </Typography>
-            <Typography variant="body2" color="rgba(255,255,255,0.8)" mt={0.25}>
-              Quản lý học sinh, tạo tài khoản phụ huynh và liên kết parentId = User._id.
-            </Typography>
           </Box>
         </Stack>
       </Paper>
