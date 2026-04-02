@@ -38,6 +38,7 @@ const reportRoutes = require('./src/routes/report.routes');
 const faceRoutes = require('./src/routes/face.routes');
 const healthRoutes = require('./src/routes/health.routes');
 const { startAutoApproveSampleEntries } = require('./src/jobs/autoApproveSampleEntries');
+const { startDailyTimetableSummary, startTimetableRealtime } = require('./src/jobs/timetableNotifier');
 
 // Import models để Mongoose đăng ký schema (tránh lỗi "Schema hasn't been registered for model 'Roles'")
 require('./src/models/Role');
@@ -419,6 +420,8 @@ app.listen(PORT, () => {
 
   // Khởi động cron jobs
   startAutoApproveSampleEntries();
+  startDailyTimetableSummary();
+  startTimetableRealtime();
 });
 
 // ============================================

@@ -1,15 +1,15 @@
 import { useState } from 'react';
 import {
   AppBar, Toolbar, Box, Typography, Avatar, IconButton,
-  Menu, MenuItem, Chip, Badge, Tooltip, Divider,
+  Menu, MenuItem, Chip, Tooltip, Divider,
 } from '@mui/material';
 import {
   Menu as MenuIcon,
-  Notifications as NotifIcon,
   KeyboardArrowDown as ArrowDownIcon,
   Person as PersonIcon,
   Logout as LogoutIcon,
 } from '@mui/icons-material';
+import NotificationBell from './NotificationBell';
 
 function getUserInitials(userName) {
   return userName
@@ -95,22 +95,7 @@ export default function DashboardAppBar({
         />
 
         {/* Notifications */}
-        <Tooltip title="Thông báo" arrow>
-          <IconButton
-            size="small"
-            sx={{
-              width: 36, height: 36,
-              border: '1px solid', borderColor: 'divider',
-              bgcolor: 'background.paper', color: 'text.secondary',
-              display: { xs: 'none', md: 'flex' },
-              '&:hover': { bgcolor: 'grey.50', color: 'text.primary' },
-            }}
-          >
-            <Badge badgeContent={0} color="error">
-              <NotifIcon sx={{ fontSize: 18 }} />
-            </Badge>
-          </IconButton>
-        </Tooltip>
+        <NotificationBell />
 
         {/* User profile chip + dropdown */}
         {userName && (

@@ -803,15 +803,7 @@ function StudentInClass() {
                             <Typography variant="caption" sx={{ color: '#16a34a', fontWeight: 600 }}>Đã hoạt động</Typography>
                           )}
                         </Box>
-                        <Tooltip title={done ? 'Bỏ đánh dấu' : 'Đánh dấu đã hoạt động'}>
-                          <Checkbox
-                            checked={done}
-                            onChange={() => toggleCompleted(item._id)}
-                            size="small"
-                            sx={{ color: 'grey.400', '&.Mui-checked': { color: '#16a34a' }, p: 0.5 }}
-                          />
-                        </Tooltip>
-                        {!done && ICONS[idx % ICONS.length]}
+                        {ICONS[idx % ICONS.length]}
                       </Paper>
                     );
                   })}

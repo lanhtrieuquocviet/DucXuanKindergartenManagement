@@ -97,3 +97,55 @@ exports.markAllAsRead = async (req, res) => {
     return res.status(500).json({ success: false, message: err.message });
   }
 };
+
+// ─── Admin endpoints (SchoolAdmin / SystemAdmin) ────────────────────────────
+
+exports.getNotificationsAdmin = async (req, res) => {
+  try {
+    const userId = req.user?._id;
+    const limit = parseInt(req.query.limit) || 20;
+    const page  = parseInt(req.query.page)  || 1;
+    const skip  = (page - 1) * limit;
+
+    const notifications = await Notification.find()
+      .sort({ createdAt: -1 })
+      .skip(skip)
+      .limit(limit)
+      .lean();
+
+    const result = notifications.map((n) => ({
+      ...n,
+      isReadByMe: n.readBy?.some((id) => id.toString() === userId?.toString()) ?? false,
+    }));
+
+    const total       = await Notification.countDocuments();
+    const unreadCount = await Notification.countDocuments({ readBy: { $nin: [userId] } });
+
+    return res.json({ success: true, data: result, total, unreadCount, page, limit });
+  } catch (err) {
+    return res.status(500).json({ success: false, message: err.message });
+  }
+};
+
+exports.getUnreadCountAdmin = async (req, res) => {
+  try {
+    const userId = req.user?._id;
+    const count = await Notification.countDocuments({ readBy: { $nin: [userId] } });
+    return res.json({ success: true, count });
+  } catch (err) {
+    return res.status(500).json({ success: false, message: err.message });
+  }
+};
+
+exports.markAllAsReadAdmin = async (req, res) => {
+  try {
+    const userId = req.user?._id;
+    await Notification.updateMany(
+      { readBy: { $nin: [userId] } },
+      { $addToSet: { readBy: userId } }
+    );
+    return res.json({ success: true });
+  } catch (err) {
+    return res.status(500).json({ success: false, message: err.message });
+  }
+};
