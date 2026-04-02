@@ -3,7 +3,6 @@ import { useParams, useNavigate } from "react-router-dom";
 import { getMenuDetail, submitMenu, updateDailyMenu, getFoods } from "../../service/menu.api";
 import { toast } from "react-toastify";
 import FoodSelectorModal from "../../components/FoodSelectorModal";
-import AIMenuWidget from "../../components/AIMenuWidget";
 import { downloadMenuTemplate, exportMenuToExcel } from "../../utils/excelMenuTemplate";
 import { parseMenuExcel, formatImportErrors } from "../../utils/excelMenuImporter";
 import {
@@ -240,7 +239,19 @@ function MenuDetail() {
   // LOGIC: Cho phép sửa nếu ở trạng thái Nháp hoặc Bị từ chối
   const isEditable = menu && (menu.status === "draft" || menu.status === "rejected");
 
-  const nutritionEvaluation = useMemo(() => evaluateNutrition(menu?.nutrition), [menu]);
+  const nutritionEvaluation = useMemo(() => {
+    const plan = menu?.nutritionPlan;
+    if (Array.isArray(plan) && plan.length > 0) {
+      const planNutrition = {
+        avgCalories: plan.find((row) => /năng lượng|calo/i.test(row.label))?.actual || menu?.nutrition?.avgCalories || 0,
+        protein: plan.find((row) => /protein/i.test(row.label))?.actual || menu?.nutrition?.protein || 0,
+        fat: plan.find((row) => /chất béo|fat/i.test(row.label))?.actual || menu?.nutrition?.fat || 0,
+        carb: plan.find((row) => /tinh bột|carb/i.test(row.label))?.actual || menu?.nutrition?.carb || 0,
+      };
+      return evaluateNutrition(planNutrition);
+    }
+    return evaluateNutrition(menu?.nutrition);
+  }, [menu]);
 
   useEffect(() => { 
     fetchMenuDetail();
@@ -494,10 +505,6 @@ function MenuDetail() {
         style={{ display: 'none' }} 
       />
 
-      <Box sx={{ display: 'grid', gridTemplateColumns: { xs: 'repeat(2, 1fr)', sm: 'repeat(4, 1fr)' }, gap: 2, mb: 4 }}>
-        {NUTRITION_INFO.map((item) => <NutritionCard key={item.key} item={item} value={menu.nutrition?.[item.key]} />)}
-      </Box>
-
       {menu?.nutrition && (
         <Card elevation={0} sx={{ border: '1px solid', borderColor: nutritionEvaluation.overallPass ? 'success.main' : 'warning.main', borderRadius: 3, mb: 4, p: 2, bgcolor: nutritionEvaluation.overallPass ? 'success.50' : 'warning.50' }}>
           <CardContent>
@@ -507,7 +514,7 @@ function MenuDetail() {
 
             <Stack direction={{ xs: 'column', sm: 'row' }} spacing={2} mb={1} alignItems="center">
               <Typography variant="body2" sx={{ fontWeight: 600 }}>
-                Calo trung bình/ngày: {menu.nutrition.avgCalories?.toFixed(1) || 0} kcal
+                Calo trung bình/ngày: {nutritionEvaluation.calories.value?.toFixed(1) || 0} kcal
               </Typography>
               <Chip label={nutritionEvaluation.calories.pass ? 'PASS' : 'CẦN CHỈNH'} color={nutritionEvaluation.calories.pass ? 'success' : 'warning'} size="small" />
               <Typography variant="caption" color="text.secondary">
@@ -542,7 +549,7 @@ function MenuDetail() {
                   <List dense>
                     {!nutritionEvaluation.calories.pass && (
                       <ListItem>
-                        <ListItemText primary={`Calo trung bình/ngày: ${menu.nutrition.avgCalories?.toFixed(1) || 0} kcal (mục tiêu ${nutritionEvaluation.calories.range} kcal)`} />
+                        <ListItemText primary={`Calo trung bình/ngày: ${nutritionEvaluation.calories.value?.toFixed(1) || 0} kcal (mục tiêu ${nutritionEvaluation.calories.range} kcal)`} />
                       </ListItem>
                     )}
                     {!nutritionEvaluation.protein.pass && (
@@ -667,8 +674,6 @@ function MenuDetail() {
         </DialogActions>
       </Dialog>
 
-      {/* AI Menu Widget (GPT-4 chat + gợi ý) */}
-      {menu && menu._id && <AIMenuWidget menu={menu} isEditable={isEditable} />}
     </Box>
   );
 }
