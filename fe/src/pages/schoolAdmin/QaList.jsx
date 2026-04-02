@@ -27,7 +27,8 @@ import {
   Send as SendIcon,
   QuestionAnswer as QaIcon,
 } from '@mui/icons-material';
-import { SCHOOL_ADMIN_MENU_ITEMS, createSchoolAdminMenuSelect } from './schoolAdminMenuConfig';
+import { createSchoolAdminMenuSelect } from './schoolAdminMenuConfig';
+import { useSchoolAdminMenu } from './useSchoolAdminMenu';
 
 function QaList() {
   const [questionsData, setQuestionsData] = useState(null);
@@ -41,6 +42,7 @@ function QaList() {
   const [pagination, setPagination] = useState(null);
   const navigate = useNavigate();
   const { user, logout, isInitializing } = useAuth();
+  const menuItems = useSchoolAdminMenu();
   const {
     getQaQuestions,
     updateQuestion,
@@ -181,7 +183,7 @@ function QaList() {
     <RoleLayout
       title="Quản lý câu hỏi"
       description="Xem, xóa và trả lời câu hỏi từ mục Hỏi đáp."
-      menuItems={SCHOOL_ADMIN_MENU_ITEMS}
+      menuItems={menuItems}
       activeKey="qa"
       onLogout={() => { logout(); navigate('/login', { replace: true }); }}
       userName={userName}

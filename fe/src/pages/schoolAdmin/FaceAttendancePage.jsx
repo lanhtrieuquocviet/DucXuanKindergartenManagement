@@ -9,7 +9,8 @@ import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../../context/AuthContext';
 import RoleLayout from '../../layouts/RoleLayout';
 import { get } from '../../service/api';
-import { SCHOOL_ADMIN_MENU_ITEMS, createSchoolAdminMenuSelect } from './schoolAdminMenuConfig';
+import { createSchoolAdminMenuSelect } from './schoolAdminMenuConfig';
+import { useSchoolAdminMenu } from './useSchoolAdminMenu';
 
 // ── Màu theo mức coverage ────────────────────────────────────────────────────
 function getCoverageStyle(pct) {
@@ -215,6 +216,7 @@ function SummaryCard({ label, value, sub, borderColor }) {
 export default function FaceAttendancePage() {
   const navigate = useNavigate();
   const { user, logout, hasRole, isInitializing } = useAuth();
+  const menuItems = useSchoolAdminMenu();
   const handleMenuSelect = createSchoolAdminMenuSelect(navigate);
 
   const [gradeGroups, setGradeGroups] = useState([]); // [{ gradeId, gradeName, ageRange, classes }]
@@ -309,7 +311,7 @@ export default function FaceAttendancePage() {
     <RoleLayout
       title="Trạng thái khuôn mặt AI"
       description="Theo dõi tỷ lệ đăng ký khuôn mặt để hệ thống điểm danh AI hoạt động hiệu quả."
-      menuItems={SCHOOL_ADMIN_MENU_ITEMS}
+      menuItems={menuItems}
       activeKey="face-attendance"
       onLogout={() => { logout(); navigate('/login'); }}
       onViewProfile={() => navigate('/profile')}

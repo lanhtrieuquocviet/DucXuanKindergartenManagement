@@ -24,7 +24,8 @@ import EditIcon from '@mui/icons-material/Edit';
 import RoleLayout from '../../layouts/RoleLayout';
 import { useAuth } from '../../context/AuthContext';
 import { del, get, post, patch, put, postFormData, ENDPOINTS } from '../../service/api';
-import { SCHOOL_ADMIN_MENU_ITEMS, createSchoolAdminMenuSelect } from './schoolAdminMenuConfig';
+import { createSchoolAdminMenuSelect } from './schoolAdminMenuConfig';
+import { useSchoolAdminMenu } from './useSchoolAdminMenu';
 
 const createBanner = (index = 0) => ({
   imageUrl: '',
@@ -36,6 +37,7 @@ const createBanner = (index = 0) => ({
 export default function ManageBanners() {
   const navigate = useNavigate();
   const { user, logout, isInitializing } = useAuth();
+  const menuItems = useSchoolAdminMenu();
   const [loading, setLoading] = useState(true);
   const [uploadingIndex, setUploadingIndex] = useState(-1);
   const [banners, setBanners] = useState([createBanner(0)]);
@@ -303,7 +305,7 @@ export default function ManageBanners() {
     <RoleLayout
       title="Quản lý banner"
       description="Kiểm soát banner hiển thị trên trang chủ."
-      menuItems={SCHOOL_ADMIN_MENU_ITEMS}
+      menuItems={menuItems}
       activeKey="banner-management"
       onLogout={() => {
         logout();

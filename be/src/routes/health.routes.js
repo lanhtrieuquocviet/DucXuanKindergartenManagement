@@ -1,7 +1,7 @@
 const express = require("express");
 const router = express.Router();
 const healthController = require("../controller/healthController");
-const { authenticate, authorizeRoles } = require("../middleware/auth");
+const { authenticate, authorizeRoles, authorizePermissions } = require("../middleware/auth");
 
 /**
  * Get all health check records
@@ -10,7 +10,7 @@ const { authenticate, authorizeRoles } = require("../middleware/auth");
 router.get(
   "/records",
   authenticate,
-  authorizeRoles("SchoolNurse", "SchoolAdmin"),
+  authorizePermissions("MANAGE_HEALTH"),
   healthController.getHealthCheckRecords
 );
 
@@ -20,7 +20,7 @@ router.get(
 router.get(
   "/statistics",
   authenticate,
-  authorizeRoles("SchoolNurse", "SchoolAdmin"),
+  authorizePermissions("MANAGE_HEALTH"),
   healthController.getHealthStatistics
 );
 
@@ -30,7 +30,7 @@ router.get(
 router.get(
   "/record/:id",
   authenticate,
-  authorizeRoles("SchoolNurse", "SchoolAdmin"),
+  authorizePermissions("MANAGE_HEALTH"),
   healthController.getHealthCheckById
 );
 
@@ -40,7 +40,7 @@ router.get(
 router.get(
   "/student/:studentId",
   authenticate,
-  authorizeRoles("SchoolNurse", "SchoolAdmin"),
+  authorizePermissions("MANAGE_HEALTH"),
   healthController.getStudentHealthHistory
 );
 
@@ -50,7 +50,7 @@ router.get(
 router.post(
   "/record",
   authenticate,
-  authorizeRoles("SchoolNurse", "SchoolAdmin"),
+  authorizePermissions("MANAGE_HEALTH"),
   healthController.createHealthCheck
 );
 
@@ -60,7 +60,7 @@ router.post(
 router.put(
   "/record/:id",
   authenticate,
-  authorizeRoles("SchoolNurse", "SchoolAdmin"),
+  authorizePermissions("MANAGE_HEALTH"),
   healthController.updateHealthCheck
 );
 
@@ -70,7 +70,7 @@ router.put(
 router.delete(
   "/record/:id",
   authenticate,
-  authorizeRoles("SchoolNurse", "SchoolAdmin"),
+  authorizePermissions("MANAGE_HEALTH"),
   healthController.deleteHealthCheck
 );
 
@@ -80,7 +80,7 @@ router.delete(
 router.get(
   "/export/records",
   authenticate,
-  authorizeRoles("SchoolNurse", "SchoolAdmin"),
+  authorizePermissions("MANAGE_HEALTH"),
   healthController.exportHealthRecords
 );
 

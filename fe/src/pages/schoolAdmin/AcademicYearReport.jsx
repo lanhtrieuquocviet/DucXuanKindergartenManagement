@@ -22,7 +22,8 @@ import { Download as DownloadIcon, Search as SearchIcon, PictureAsPdf as PdfIcon
 import { useAuth } from '../../context/AuthContext';
 import RoleLayout from '../../layouts/RoleLayout';
 import { get, ENDPOINTS } from '../../service/api';
-import { SCHOOL_ADMIN_MENU_ITEMS, createSchoolAdminMenuSelect } from './schoolAdminMenuConfig';
+import { createSchoolAdminMenuSelect } from './schoolAdminMenuConfig';
+import { useSchoolAdminMenu } from './useSchoolAdminMenu';
 
 const EVENTS_TEMPLATE = [
   { name: 'Lễ khai giảng năm học', time: '05/09/2025', classes: 'Toàn trường', status: 'Đã tổ chức', statusTone: 'done' },
@@ -62,6 +63,7 @@ export default function AcademicYearReport() {
   const { yearId } = useParams();
   const navigate = useNavigate();
   const { user, logout } = useAuth();
+  const menuItems = useSchoolAdminMenu();
 
   const [summary, setSummary] = useState(null);
   const [loading, setLoading] = useState(true);
@@ -155,7 +157,7 @@ export default function AcademicYearReport() {
     <RoleLayout
       title={`Báo cáo & Thống kê - Năm học ${yearName}`}
       description="Tổng hợp dữ liệu và báo cáo qua từng năm học."
-      menuItems={SCHOOL_ADMIN_MENU_ITEMS}
+      menuItems={menuItems}
       activeKey="academic-report"
       onLogout={handleLogout}
       onViewProfile={handleViewProfile}

@@ -165,6 +165,96 @@ require('./src/models/InspectionMinutes');
   }
 })();
 
+// Seed default permissions và gán cho từng role
+(async () => {
+  try {
+    const Role = require('./src/models/Role');
+    const Permission = require('./src/models/Permission');
+
+    // Toàn bộ permissions hệ thống
+    const allPermissions = [
+      // SchoolAdmin
+      { code: 'MANAGE_CONTACT',       description: 'Xem và phản hồi liên hệ phụ huynh' },
+      { code: 'MANAGE_BANNER',        description: 'Quản lý banner trang chủ' },
+      { code: 'VIEW_ATTENDANCE',      description: 'Xem báo cáo điểm danh' },
+      { code: 'MANAGE_BLOG',          description: 'Quản lý bài viết blog' },
+      { code: 'MANAGE_BLOG_CATEGORY', description: 'Quản lý danh mục blog' },
+      { code: 'MANAGE_QA',            description: 'Quản lý hỏi đáp' },
+      { code: 'MANAGE_DOCUMENT',      description: 'Quản lý tài liệu' },
+      { code: 'MANAGE_PUBLIC_INFO',   description: 'Quản lý thông tin công khai' },
+      { code: 'MANAGE_IMAGE_LIBRARY', description: 'Quản lý thư viện ảnh' },
+      { code: 'MANAGE_ACADEMIC_YEAR', description: 'Quản lý năm học' },
+      { code: 'MANAGE_CURRICULUM',    description: 'Quản lý chương trình học và thời khóa biểu' },
+      { code: 'MANAGE_STUDENT',       description: 'Thêm, sửa, xóa học sinh' },
+      { code: 'MANAGE_CLASS',         description: 'Quản lý lớp học' },
+      { code: 'MANAGE_GRADE',         description: 'Quản lý khối lớp' },
+      { code: 'MANAGE_TEACHER',       description: 'Quản lý giáo viên' },
+      { code: 'APPROVE_MENU',         description: 'Duyệt thực đơn và ảnh bữa ăn' },
+      { code: 'VIEW_REPORT',          description: 'Xem và xuất báo cáo' },
+      { code: 'MANAGE_HEALTH',        description: 'Quản lý hồ sơ y tế học sinh' },
+      // Chia sẻ SchoolAdmin + Teacher
+      { code: 'REGISTER_FACE',        description: 'Đăng ký khuôn mặt học sinh' },
+      { code: 'CHECKOUT_STUDENT',     description: 'Điểm danh về cho học sinh' },
+      { code: 'MANAGE_ATTENDANCE',    description: 'Điểm danh học sinh' },
+      // Teacher
+      { code: 'MANAGE_PURCHASE_REQUEST', description: 'Quản lý đề xuất mua sắm' },
+      { code: 'MANAGE_ASSET',         description: 'Quản lý tài sản (hội đồng, biên bản, cấp phát, sự cố)' },
+      { code: 'MANAGE_PICKUP',        description: 'Quản lý đón trả học sinh' },
+      // KitchenStaff
+      { code: 'MANAGE_FOOD',          description: 'Quản lý thực phẩm và món ăn' },
+      { code: 'MANAGE_MENU',          description: 'Tạo và chỉnh sửa thực đơn' },
+      { code: 'MANAGE_MEAL_PHOTO',    description: 'Quản lý ảnh bữa ăn và mẫu thực phẩm' },
+    ];
+
+    // Upsert tất cả permissions
+    const permMap = {};
+    for (const p of allPermissions) {
+      const doc = await Permission.findOneAndUpdate(
+        { code: p.code },
+        { code: p.code, description: p.description },
+        { upsert: true, new: true }
+      );
+      permMap[p.code] = doc._id;
+    }
+
+    // Permissions mặc định theo role
+    const roleDefaults = {
+      SchoolAdmin: [
+        'MANAGE_CONTACT', 'MANAGE_BANNER', 'VIEW_ATTENDANCE', 'MANAGE_BLOG',
+        'MANAGE_BLOG_CATEGORY', 'MANAGE_QA', 'MANAGE_DOCUMENT', 'MANAGE_PUBLIC_INFO',
+        'MANAGE_IMAGE_LIBRARY', 'MANAGE_ACADEMIC_YEAR', 'MANAGE_CURRICULUM',
+        'MANAGE_STUDENT', 'MANAGE_CLASS', 'MANAGE_GRADE', 'MANAGE_TEACHER',
+        'APPROVE_MENU', 'VIEW_REPORT', 'MANAGE_HEALTH',
+        'REGISTER_FACE', 'CHECKOUT_STUDENT', 'MANAGE_ATTENDANCE',
+        'MANAGE_PURCHASE_REQUEST', 'MANAGE_ASSET', 'MANAGE_PICKUP',
+      ],
+      Teacher: [
+        'MANAGE_ATTENDANCE', 'MANAGE_PURCHASE_REQUEST', 'MANAGE_ASSET',
+        'MANAGE_PICKUP', 'REGISTER_FACE', 'CHECKOUT_STUDENT',
+      ],
+      KitchenStaff: [
+        'MANAGE_FOOD', 'MANAGE_MENU', 'MANAGE_MEAL_PHOTO', 'VIEW_REPORT',
+      ],
+    };
+
+    for (const [roleName, codes] of Object.entries(roleDefaults)) {
+      const role = await Role.findOne({ roleName });
+      if (!role) continue;
+      const ids = codes.map(c => permMap[c]).filter(Boolean);
+      // Chỉ thêm permissions chưa có, không ghi đè cấu hình hiện tại
+      const existing = (role.permissions || []).map(id => id.toString());
+      const toAdd = ids.filter(id => !existing.includes(id.toString()));
+      if (toAdd.length > 0) {
+        await Role.updateOne({ _id: role._id }, { $addToSet: { permissions: { $each: toAdd } } });
+        console.log(`✅ Added ${toAdd.length} permission(s) to role ${roleName}`);
+      }
+    }
+    console.log('✅ Default permissions seeded and assigned to roles');
+  } catch (err) {
+    console.error('Error seeding permissions:', err);
+  }
+})();
+
 // Khởi tạo ứng dụng express
 const app = express();
 

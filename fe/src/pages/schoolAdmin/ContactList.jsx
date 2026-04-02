@@ -19,7 +19,8 @@ import ReplyIcon from '@mui/icons-material/Reply';
 import SendIcon from '@mui/icons-material/Send';
 import DeleteOutlineIcon from '@mui/icons-material/DeleteOutline';
 import EditIcon from '@mui/icons-material/Edit';
-import { SCHOOL_ADMIN_MENU_ITEMS, createSchoolAdminMenuSelect } from './schoolAdminMenuConfig';
+import { createSchoolAdminMenuSelect } from './schoolAdminMenuConfig';
+import { useSchoolAdminMenu } from './useSchoolAdminMenu';
 
 function ContactList() {
   const [data, setData] = useState(null);
@@ -30,6 +31,7 @@ function ContactList() {
   const [confirmClearId, setConfirmClearId] = useState(null);
   const navigate = useNavigate();
   const { user, logout, isInitializing } = useAuth();
+  const menuItems = useSchoolAdminMenu();
   const {
     getContacts,
     replyContact,
@@ -154,7 +156,7 @@ function ContactList() {
     <RoleLayout
       title="Quản lý liên hệ"
       description="Xem và phản hồi các liên hệ từ phụ huynh/khách."
-      menuItems={SCHOOL_ADMIN_MENU_ITEMS}
+      menuItems={menuItems}
       activeKey="contacts-list"
       onLogout={() => {
         logout();

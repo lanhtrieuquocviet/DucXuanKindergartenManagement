@@ -32,7 +32,8 @@ import {
 import { useAuth } from '../../context/AuthContext';
 import RoleLayout from '../../layouts/RoleLayout';
 import { get, put, del, ENDPOINTS } from '../../service/api';
-import { SCHOOL_ADMIN_MENU_ITEMS, createSchoolAdminMenuSelect } from './schoolAdminMenuConfig';
+import { createSchoolAdminMenuSelect } from './schoolAdminMenuConfig';
+import { useSchoolAdminMenu } from './useSchoolAdminMenu';
 
 const SEASON_OPTIONS = [
   { value: 'summer', label: 'Mùa Hè' },
@@ -126,6 +127,7 @@ function seasonContentLabel(appliesToSeason) {
 export default function TimetableActivitiesPage() {
   const navigate = useNavigate();
   const { user, logout } = useAuth();
+  const menuItems = useSchoolAdminMenu();
 
   const [academicYear, setAcademicYear] = useState(null);
   const [activities, setActivities] = useState([]);
@@ -327,7 +329,7 @@ export default function TimetableActivitiesPage() {
     <RoleLayout
       title={`Thời gian biểu cả trường -- ${yearName || '—'}`}
       description="Thiết lập thời gian biểu hoạt động hằng ngày theo mùa."
-      menuItems={SCHOOL_ADMIN_MENU_ITEMS}
+      menuItems={menuItems}
       activeKey="academic-schedule"
       onLogout={handleLogout}
       onViewProfile={() => navigate('/profile')}

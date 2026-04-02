@@ -4,7 +4,8 @@ import RoleLayout from '../../layouts/RoleLayout';
 import { useAuth } from '../../context/AuthContext';
 import { useSchoolAdmin } from '../../context/SchoolAdminContext';
 import { postFormData, ENDPOINTS, get, put } from '../../service/api';
-import { SCHOOL_ADMIN_MENU_ITEMS, createSchoolAdminMenuSelect } from './schoolAdminMenuConfig';
+import { createSchoolAdminMenuSelect } from './schoolAdminMenuConfig';
+import { useSchoolAdminMenu } from './useSchoolAdminMenu';
 import {
   Box,
   Paper,
@@ -94,6 +95,7 @@ function ManageStudents() {
   const [deleteError, setDeleteError] = useState(null);
   const navigate = useNavigate();
   const { user, hasRole, logout, isInitializing } = useAuth();
+  const menuItems = useSchoolAdminMenu();
   const {
     getAllStudents,
     getClasses,
@@ -334,7 +336,7 @@ function ManageStudents() {
     <RoleLayout
       title="Học sinh & phụ huynh"
       description="Quản lý danh sách học sinh và tài khoản phụ huynh. parentId của học sinh là _id tài khoản User phụ huynh."
-      menuItems={SCHOOL_ADMIN_MENU_ITEMS}
+      menuItems={menuItems}
       activeKey="students"
       onLogout={handleLogout}
       onViewProfile={handleViewProfile}

@@ -5,7 +5,8 @@ import { useAuth } from '../../context/AuthContext';
 import RoleLayout from '../../layouts/RoleLayout';
 import ConfirmDialog from '../../components/ConfirmDialog';
 import { get, post, del, postFormData, ENDPOINTS } from '../../service/api';
-import { SCHOOL_ADMIN_MENU_ITEMS, createSchoolAdminMenuSelect } from './schoolAdminMenuConfig';
+import { createSchoolAdminMenuSelect } from './schoolAdminMenuConfig';
+import { useSchoolAdminMenu } from './useSchoolAdminMenu';
 import {
   Box,
   Paper,
@@ -30,6 +31,7 @@ import VisibilityIcon from '@mui/icons-material/Visibility';
 export default function ManageImageLibrary() {
   const navigate = useNavigate();
   const { user, logout, isInitializing } = useAuth();
+  const menuItems = useSchoolAdminMenu();
 
   const [images, setImages] = useState([]);
   const [error, setError] = useState(null);
@@ -123,7 +125,7 @@ export default function ManageImageLibrary() {
     <RoleLayout
       title="Quản lý ảnh"
       description="Thêm, xem và xóa ảnh trong thư viện."
-      menuItems={SCHOOL_ADMIN_MENU_ITEMS}
+      menuItems={menuItems}
       activeKey="image-library"
       onLogout={() => {
         logout();

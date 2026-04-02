@@ -3,7 +3,8 @@ import { useNavigate, useParams } from 'react-router-dom';
 import RoleLayout from '../../layouts/RoleLayout';
 import { useAuth } from '../../context/AuthContext';
 import { get, post, del, ENDPOINTS } from '../../service/api';
-import { SCHOOL_ADMIN_MENU_ITEMS, createSchoolAdminMenuSelect } from './schoolAdminMenuConfig';
+import { createSchoolAdminMenuSelect } from './schoolAdminMenuConfig';
+import { useSchoolAdminMenu } from './useSchoolAdminMenu';
 
 import {
   Box,
@@ -219,6 +220,7 @@ function StudentInClass() {
   const { classId } = useParams();
   const navigate = useNavigate();
   const { user, hasRole, logout, isInitializing } = useAuth();
+  const menuItems = useSchoolAdminMenu();
 
   const [classDetail, setClassDetail] = useState(null);
   const [students, setStudents] = useState([]);
@@ -396,7 +398,7 @@ function StudentInClass() {
       <RoleLayout
         title="Chi tiết lớp học"
         description=""
-        menuItems={SCHOOL_ADMIN_MENU_ITEMS}
+        menuItems={menuItems}
         activeKey="classes"
         onLogout={handleLogout}
         onViewProfile={handleViewProfile}
@@ -424,7 +426,7 @@ function StudentInClass() {
     <RoleLayout
       title={`Chi tiết lớp ${className}`}
       description="Xem thông tin, học sinh và nhật ký của lớp học."
-      menuItems={SCHOOL_ADMIN_MENU_ITEMS}
+      menuItems={menuItems}
       activeKey="classes"
       onLogout={handleLogout}
       onViewProfile={handleViewProfile}

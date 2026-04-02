@@ -23,7 +23,8 @@ import { toast } from 'react-toastify';
 import { useAuth } from '../../context/AuthContext';
 import RoleLayout from '../../layouts/RoleLayout';
 import { get, put, ENDPOINTS } from '../../service/api';
-import { SCHOOL_ADMIN_MENU_ITEMS, createSchoolAdminMenuSelect } from './schoolAdminMenuConfig';
+import { createSchoolAdminMenuSelect } from './schoolAdminMenuConfig';
+import { useSchoolAdminMenu } from './useSchoolAdminMenu';
 
 const DAYS = ['Thứ Hai', 'Thứ Ba', 'Thứ Tư', 'Thứ Năm', 'Thứ Sáu', 'Thứ Bảy'];
 const ROWS = [
@@ -50,6 +51,7 @@ function getInitialTimetableForGrade(gradeName) {
 export default function TimetablePage() {
   const navigate = useNavigate();
   const { user, logout } = useAuth();
+  const menuItems = useSchoolAdminMenu();
   const [academicYear, setAcademicYear] = useState(null);
   const [grades, setGrades] = useState([]);
   const [selectedGradeId, setSelectedGradeId] = useState('');
@@ -196,7 +198,7 @@ export default function TimetablePage() {
     <RoleLayout
       title={`Thời khóa biểu các khối - ${yearName}`}
       description="Xem thời khóa biểu mẫu theo từng khối lớp. Chọn khối để xem chi tiết."
-      menuItems={SCHOOL_ADMIN_MENU_ITEMS}
+      menuItems={menuItems}
       activeKey="academic-schedule"
       onLogout={handleLogout}
       onViewProfile={() => navigate('/profile')}

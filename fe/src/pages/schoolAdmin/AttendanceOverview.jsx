@@ -28,7 +28,8 @@ import {
 import SearchIcon from '@mui/icons-material/Search';
 import AssessmentIcon from '@mui/icons-material/Assessment';
 import { get, ENDPOINTS } from '../../service/api';
-import { SCHOOL_ADMIN_MENU_ITEMS, createSchoolAdminMenuSelect } from './schoolAdminMenuConfig';
+import { createSchoolAdminMenuSelect } from './schoolAdminMenuConfig';
+import { useSchoolAdminMenu } from './useSchoolAdminMenu';
 
 const getLocalISODate = () => {
   const d = new Date();
@@ -49,6 +50,7 @@ function AttendanceOverview() {
   const navigate = useNavigate();
   const { user, logout, isInitializing } = useAuth();
   const { getAttendanceOverview, loading, error } = useSchoolAdmin();
+  const menuItems = useSchoolAdminMenu();
 
   const [selectedDate, setSelectedDate] = useState(getLocalISODate);
   const [selectedGrade, setSelectedGrade] = useState('all');
@@ -198,7 +200,7 @@ function AttendanceOverview() {
     <RoleLayout
       title="Điểm danh các lớp (Hôm nay)"
       description="Xem tổng quan điểm danh của tất cả các lớp trong trường."
-      menuItems={SCHOOL_ADMIN_MENU_ITEMS}
+      menuItems={menuItems}
       activeKey="attendance-overview"
       onLogout={() => {
         logout();

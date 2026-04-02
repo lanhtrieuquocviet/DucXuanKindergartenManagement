@@ -18,9 +18,9 @@ import ConfirmDialog from '../../components/ConfirmDialog';
 import { useAuth } from '../../context/AuthContext';
 import { get, patch, ENDPOINTS } from '../../service/api';
 import {
-  SCHOOL_ADMIN_MENU_ITEMS,
   createSchoolAdminMenuSelect,
 } from './schoolAdminMenuConfig';
+import { useSchoolAdminMenu } from './useSchoolAdminMenu';
 
 const STATUS_LABEL = {
   draft:    { label: 'Nháp',      color: 'default' },
@@ -166,6 +166,7 @@ function Row({ label, value, mono, bold }) {
 export default function ManagePurchaseRequests() {
   const navigate = useNavigate();
   const { user, logout } = useAuth();
+  const menuItems = useSchoolAdminMenu();
 
   const [loading, setLoading]         = useState(true);
   const [requests, setRequests]       = useState([]);
@@ -228,7 +229,7 @@ export default function ManagePurchaseRequests() {
     <RoleLayout
       title="Yêu cầu mua sắm"
       description="Xem và phê duyệt yêu cầu mua sắm đồ dùng từ giáo viên."
-      menuItems={SCHOOL_ADMIN_MENU_ITEMS}
+      menuItems={menuItems}
       activeKey="purchase-requests"
       onLogout={() => { logout(); navigate('/login', { replace: true }); }}
       userName={userName}

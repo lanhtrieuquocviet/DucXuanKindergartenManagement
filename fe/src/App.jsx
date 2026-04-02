@@ -111,6 +111,8 @@ import TimetableActivitiesPage from './pages/schoolAdmin/TimetableActivitiesPage
 import FaceAttendancePage from './pages/schoolAdmin/FaceAttendancePage';
 import ManageAssets from './pages/schoolAdmin/ManageAssets';
 import ManageAssetAllocation from './pages/schoolAdmin/ManageAssetAllocation';
+import ManageCommittee from './pages/schoolAdmin/ManageCommittee';
+import ManageMinutes from './pages/schoolAdmin/ManageMinutes';
 import ProtectedRoute from './components/ProtectedRoute';
 
 
@@ -726,6 +728,26 @@ function App() {
               <ProtectedRoute>
                 <SchoolAdminProvider>
                   <ManagePurchaseRequests />
+                </SchoolAdminProvider>
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/school-admin/committee"
+            element={
+              <ProtectedRoute>
+                <SchoolAdminProvider>
+                  <ManageCommittee />
+                </SchoolAdminProvider>
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/school-admin/minutes"
+            element={
+              <ProtectedRoute>
+                <SchoolAdminProvider>
+                  <ManageMinutes />
                 </SchoolAdminProvider>
               </ProtectedRoute>
             }

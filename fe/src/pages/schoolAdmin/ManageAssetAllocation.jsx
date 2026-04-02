@@ -45,7 +45,8 @@ import DownloadIcon from '@mui/icons-material/Download';
 import RoleLayout from '../../layouts/RoleLayout';
 import { useAuth } from '../../context/AuthContext';
 import { del, get, patch, post, postFormData, put, ENDPOINTS } from '../../service/api';
-import { SCHOOL_ADMIN_MENU_ITEMS, createSchoolAdminMenuSelect } from './schoolAdminMenuConfig';
+import { createSchoolAdminMenuSelect } from './schoolAdminMenuConfig';
+import { useSchoolAdminMenu } from './useSchoolAdminMenu';
 
 // ─── Constants ────────────────────────────────────────────────────────────────
 const STATUS_INFO = {
@@ -419,6 +420,7 @@ function AllocationDocument({ allocation, onClose }) {
 export default function ManageAssetAllocation() {
   const navigate = useNavigate();
   const { user, logout } = useAuth();
+  const menuItems = useSchoolAdminMenu();
   const userName = user?.fullName || user?.username || 'School Admin';
 
   const [allocations, setAllocations]   = useState([]);
@@ -709,7 +711,7 @@ export default function ManageAssetAllocation() {
   // ── Render ─────────────────────────────────────────────────────────────────
   return (
     <RoleLayout
-      menuItems={SCHOOL_ADMIN_MENU_ITEMS}
+      menuItems={menuItems}
       activeKey="asset-allocation"
       onLogout={() => { logout(); navigate('/login', { replace: true }); }}
       userName={userName}

@@ -273,6 +273,17 @@ export const AuthProvider = ({
     return hasIt;
   }, [getUserRoles]);
 
+  // Check if user has a specific permission code.
+  // Nếu user chưa có permission nào (DB chưa seed) → trả về true để không ẩn menu.
+  const hasPermission = useCallback((code) => {
+    if (!user || !user.roles) return false;
+    const allCodes = user.roles.flatMap((role) =>
+      Array.isArray(role.permissions) ? role.permissions : []
+    );
+    if (allCodes.length === 0) return true; // chưa seed → show all
+    return allCodes.includes(code);
+  }, [user]);
+
   const value = {
     user,
     token,
@@ -287,6 +298,7 @@ export const AuthProvider = ({
     isAuthenticated,
     getUserRoles,
     hasRole,
+    hasPermission,
     setError, // Allow components to clear error
   };
 

@@ -4,7 +4,8 @@ import { toast } from 'react-toastify';
 import { useAuth } from '../../context/AuthContext';
 import { useSchoolAdmin } from '../../context/SchoolAdminContext';
 import RoleLayout from '../../layouts/RoleLayout';
-import { SCHOOL_ADMIN_MENU_ITEMS, createSchoolAdminMenuSelect } from './schoolAdminMenuConfig';
+import { createSchoolAdminMenuSelect } from './schoolAdminMenuConfig';
+import { useSchoolAdminMenu } from './useSchoolAdminMenu';
 import ConfirmDialog from '../../components/ConfirmDialog';
 import {
   Box,
@@ -169,6 +170,7 @@ function CategoryFormModal({ open, onClose, initialData, onSubmit, loading }) {
 function ManageBlogCategories() {
   const navigate = useNavigate();
   const { user, logout, isInitializing } = useAuth();
+  const menuItems = useSchoolAdminMenu();
   const {
     loading,
     error,
@@ -262,7 +264,7 @@ function ManageBlogCategories() {
     <RoleLayout
       title="Quản lý danh mục"
       description="Tạo, chỉnh sửa và xóa các danh mục phân loại bài viết, file, tài liệu."
-      menuItems={SCHOOL_ADMIN_MENU_ITEMS}
+      menuItems={menuItems}
       activeKey="blogs"
       onLogout={handleLogout}
       onViewProfile={handleViewProfile}

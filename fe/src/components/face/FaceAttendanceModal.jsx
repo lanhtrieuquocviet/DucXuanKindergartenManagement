@@ -33,7 +33,7 @@ function cosineSimilarity(a, b) {
   return dot / (Math.sqrt(normA) * Math.sqrt(normB));
 }
 
-const MATCH_THRESHOLD = 0.75; // Phải khớp với backend
+const MATCH_THRESHOLD = 0.82; // Phải khớp với backend - tăng lên để giảm false positive
 const COOLDOWN_MS = 3000;     // Chờ 3 giây sau mỗi lần nhận diện
 
 export default function FaceAttendanceModal({ open, onClose, classId, className, onCheckinSuccess }) {
