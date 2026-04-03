@@ -407,9 +407,6 @@ export const ENDPOINTS = {
     UNREAD_COUNT: '/notifications/unread-count',
     MARK_READ: (id) => `/notifications/${id}/read`,
     MARK_ALL_READ: '/notifications/read-all',
-    ADMIN_LIST: '/notifications/admin',
-    ADMIN_UNREAD_COUNT: '/notifications/admin/unread-count',
-    ADMIN_MARK_ALL_READ: '/notifications/admin/read-all',
   },
   // OTP
   OTP: {
