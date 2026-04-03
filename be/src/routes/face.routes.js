@@ -20,6 +20,7 @@ const {
   matchPickupFace,
   matchPickupFaceForCheckout,
   matchStudentFaceForCheckout,
+  deleteFaceEmbedding,
 } = require('../controller/faceAttendanceController');
 
 const router = express.Router();
@@ -68,6 +69,14 @@ router.post(
   authenticate,
   authorizePermissions('REGISTER_FACE'),
   registerFaceEmbedding,
+);
+
+// Xóa toàn bộ khuôn mặt của học sinh
+router.delete(
+  '/register/:studentId',
+  authenticate,
+  authorizePermissions('REGISTER_FACE'),
+  deleteFaceEmbedding,
 );
 
 /**

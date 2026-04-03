@@ -24,7 +24,10 @@ const getStudents = async (req, res) => {
     const data = students.map((s) => {
       const obj = s.toObject();
       obj.hasFaceEmbedding = Array.isArray(obj.faceEmbedding) && obj.faceEmbedding.length > 0;
+      obj.faceImageUrls = Array.isArray(obj.faceImageUrls) ? obj.faceImageUrls.filter(Boolean) : [];
+      obj.angleCount = Array.isArray(obj.faceEmbeddings) ? obj.faceEmbeddings.length : (obj.hasFaceEmbedding ? 1 : 0);
       delete obj.faceEmbedding;
+      delete obj.faceEmbeddings;
       return obj;
     });
 
@@ -222,7 +225,10 @@ const getStudentDetail = async (req, res) => {
     // Không trả embedding (biometric) về client — chỉ trả flag + thời điểm đăng ký
     const obj = student.toObject();
     obj.hasFaceEmbedding = Array.isArray(obj.faceEmbedding) && obj.faceEmbedding.length > 0;
+    obj.faceImageUrls = Array.isArray(obj.faceImageUrls) ? obj.faceImageUrls.filter(Boolean) : [];
+    obj.angleCount = Array.isArray(obj.faceEmbeddings) ? obj.faceEmbeddings.length : (obj.hasFaceEmbedding ? 1 : 0);
     delete obj.faceEmbedding;
+    delete obj.faceEmbeddings;
 
     return res.status(200).json({
       status: 'success',

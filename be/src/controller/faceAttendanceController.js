@@ -10,6 +10,7 @@
 const Students = require('../models/Student');
 const Attendances = require('../models/Attendances');
 const PickupRequest = require('../models/PickupRequest');
+const { createNotification } = require('./notification.controller');
 
 // ─── Hàm toán học ─────────────────────────────────────────────────────────────
 
@@ -36,9 +37,39 @@ function cosineSimilarity(vecA, vecB) {
 }
 
 // Ngưỡng nhận diện: similarity >= THRESHOLD thì coi là MATCH
-// face-api.js thường cho similarity 0.6–0.95 với cùng khuôn mặt
-// Tăng lên 0.82 để giảm false positive (nhận nhầm người khác)
-const MATCH_THRESHOLD = 0.82;
+// Tăng lên 0.87 để giảm false positive (nhận nhầm người khác)
+const MATCH_THRESHOLD = 0.87;
+
+// Khoảng cách tối thiểu giữa kết quả tốt nhất và thứ 2
+// Nếu 2 khuôn mặt giống nhau (margin < MIN_MARGIN), từ chối để tránh nhầm
+const MIN_MARGIN = 0.04;
+
+/**
+ * Lấy tất cả embeddings của một học sinh (hỗ trợ nhiều góc mặt)
+ * Ưu tiên faceEmbeddings (mảng nhiều góc), fallback về faceEmbedding (góc duy nhất)
+ */
+function getStudentEmbeddings(student) {
+  if (Array.isArray(student.faceEmbeddings) && student.faceEmbeddings.length > 0) {
+    return student.faceEmbeddings.filter((e) => Array.isArray(e) && e.length === 128);
+  }
+  if (Array.isArray(student.faceEmbedding) && student.faceEmbedding.length === 128) {
+    return [student.faceEmbedding];
+  }
+  return [];
+}
+
+/**
+ * Similarity cao nhất giữa embedding đầu vào và tất cả góc mặt đã đăng ký của học sinh
+ */
+function maxSimilarityToStudent(inputEmb, student) {
+  const embeddings = getStudentEmbeddings(student);
+  let max = -1;
+  for (const emb of embeddings) {
+    const sim = cosineSimilarity(inputEmb, emb);
+    if (sim > max) max = sim;
+  }
+  return max;
+}
 
 // ─── Controller functions ──────────────────────────────────────────────────────
 
@@ -54,7 +85,7 @@ const MATCH_THRESHOLD = 0.82;
  */
 const registerFaceEmbedding = async (req, res) => {
   try {
-    const { studentId, embedding, faceImageUrl } = req.body;
+    const { studentId, embedding, faceImageUrl, append = false } = req.body;
 
     // Validate input
     if (!studentId) {
@@ -88,18 +119,69 @@ const registerFaceEmbedding = async (req, res) => {
       });
     }
 
-    // Lưu embedding vào DB
+    // Kiểm tra xung đột: khuôn mặt mới có quá giống học sinh khác trong lớp không?
+    // Phát hiện sớm tại đây để tránh data xấu vào DB gây lỗi "ambiguous" khi điểm danh
+    const CONFLICT_THRESHOLD = 0.82;
+    if (student.classId) {
+      const classmates = await Students.find({
+        classId: student.classId,
+        _id: { $ne: student._id },
+        status: 'active',
+        faceEmbedding: { $exists: true, $not: { $size: 0 } },
+      }).select('_id fullName faceEmbedding faceEmbeddings');
+
+      for (const classmate of classmates) {
+        const similarity = maxSimilarityToStudent(embedding, classmate);
+        if (similarity >= CONFLICT_THRESHOLD) {
+          return res.status(409).json({
+            status: 'conflict',
+            message: `Khuôn mặt này quá giống học sinh "${classmate.fullName}" (${(similarity * 100).toFixed(1)}%). Hãy chụp lại với ánh sáng tốt hơn hoặc góc mặt khác nhau.`,
+            conflictWith: classmate.fullName,
+            similarity: similarity.toFixed(4),
+          });
+        }
+      }
+    }
+
+    const MAX_EMBEDDINGS = 5;
+    const existingEmbeddings = Array.isArray(student.faceEmbeddings) ? student.faceEmbeddings : [];
+    const existingImageUrls = Array.isArray(student.faceImageUrls) ? student.faceImageUrls : [];
+
+    if (append && existingEmbeddings.length > 0) {
+      // Thêm góc mặt mới (tối đa MAX_EMBEDDINGS)
+      if (existingEmbeddings.length >= MAX_EMBEDDINGS) {
+        return res.status(400).json({
+          status: 'error',
+          message: `Đã đăng ký tối đa ${MAX_EMBEDDINGS} góc mặt. Vui lòng xóa và đăng ký lại.`,
+        });
+      }
+      student.faceEmbeddings = [...existingEmbeddings, embedding];
+      student.faceImageUrls = [...existingImageUrls, faceImageUrl || ''];
+    } else {
+      // Đăng ký mới (ghi đè tất cả góc cũ)
+      student.faceEmbeddings = [embedding];
+      student.faceImageUrls = [faceImageUrl || ''];
+    }
+
+    // Giữ faceEmbedding (góc mới nhất) để backward compat
     student.faceEmbedding = embedding;
+    // faceImageUrl = ảnh góc đầu tiên (để hiển thị ở những nơi chỉ dùng 1 ảnh)
+    student.faceImageUrl = student.faceImageUrls[0] || faceImageUrl || '';
     student.faceRegisteredAt = new Date();
-    if (faceImageUrl) student.faceImageUrl = faceImageUrl;
+    student.markModified('faceEmbeddings');
+    student.markModified('faceImageUrls');
     await student.save();
 
+    const angleCount = student.faceEmbeddings.length;
     return res.status(200).json({
       status: 'success',
-      message: `Đã đăng ký khuôn mặt cho ${student.fullName}`,
+      message: `Đã lưu góc mặt ${angleCount}/${MAX_EMBEDDINGS} cho ${student.fullName}`,
       data: {
         studentId: student._id,
         fullName: student.fullName,
+        angleCount,
+        maxAngles: MAX_EMBEDDINGS,
+        faceImageUrls: student.faceImageUrls,
         faceRegisteredAt: student.faceRegisteredAt,
       },
     });
@@ -146,12 +228,11 @@ const matchFaceEmbedding = async (req, res) => {
     }
 
     // Lấy tất cả học sinh trong lớp có đăng ký khuôn mặt
-    // Chỉ lấy học sinh active và có embedding
     const students = await Students.find({
       classId,
       status: 'active',
       faceEmbedding: { $exists: true, $not: { $size: 0 } },
-    }).select('_id fullName faceEmbedding classId avatar');
+    }).select('_id fullName faceEmbedding faceEmbeddings classId avatar');
 
     if (students.length === 0) {
       return res.status(200).json({
@@ -161,15 +242,19 @@ const matchFaceEmbedding = async (req, res) => {
       });
     }
 
-    // So sánh embedding với từng học sinh → tìm người có similarity cao nhất
+    // So sánh với từng học sinh (xét tất cả góc mặt đã đăng ký)
     let bestMatch = null;
     let bestSimilarity = -1;
+    let secondBestSimilarity = -1;
 
     for (const student of students) {
-      const similarity = cosineSimilarity(embedding, student.faceEmbedding);
+      const similarity = maxSimilarityToStudent(embedding, student);
       if (similarity > bestSimilarity) {
+        secondBestSimilarity = bestSimilarity;
         bestSimilarity = similarity;
         bestMatch = student;
+      } else if (similarity > secondBestSimilarity) {
+        secondBestSimilarity = similarity;
       }
     }
 
@@ -181,6 +266,19 @@ const matchFaceEmbedding = async (req, res) => {
         matched: false,
         bestSimilarity: bestSimilarity.toFixed(4),
         threshold: MATCH_THRESHOLD,
+      });
+    }
+
+    // Kiểm tra margin: kết quả tốt nhất phải rõ ràng hơn kết quả thứ 2
+    // Tránh nhầm khi 2 học sinh có khuôn mặt giống nhau
+    const margin = bestSimilarity - secondBestSimilarity;
+    if (secondBestSimilarity > 0.78 && margin < MIN_MARGIN) {
+      return res.status(200).json({
+        status: 'ambiguous',
+        message: 'Khuôn mặt quá giống nhau giữa các học sinh, không thể xác định chính xác',
+        matched: false,
+        bestSimilarity: bestSimilarity.toFixed(4),
+        margin: margin.toFixed(4),
       });
     }
 
@@ -227,6 +325,23 @@ const matchFaceEmbedding = async (req, res) => {
         checkinImageName: checkinImageUrl,
         checkedInByAI: true,
       });
+
+      // Gửi thông báo cho phụ huynh
+      const studentFull = await Students.findById(bestMatch._id)
+        .select('fullName parentId classId')
+        .populate('classId', 'className');
+      const parentId = studentFull?.parentId;
+      if (parentId) {
+        const className = studentFull?.classId?.className || '';
+        await createNotification({
+          title: 'Điểm danh đến trường',
+          body: `${studentFull.fullName} đã đến trường lúc ${checkInTimeString}${className ? ` - Lớp ${className}` : ''}.`,
+          type: 'attendance_checkin',
+          targetRole: 'Parent',
+          targetUserId: parentId,
+          extra: { studentId: bestMatch._id, attendanceId: attendance._id },
+        });
+      }
     }
 
     return res.status(200).json({
@@ -277,19 +392,25 @@ const getClassEmbeddings = async (req, res) => {
       classId,
       status: 'active',
       faceEmbedding: { $exists: true, $not: { $size: 0 } },
-    }).select('_id fullName avatar faceEmbedding faceRegisteredAt classId');
+    }).select('_id fullName avatar faceEmbedding faceEmbeddings faceRegisteredAt classId');
 
     return res.status(200).json({
       status: 'success',
       message: 'Lấy danh sách embeddings thành công',
-      data: students.map((s) => ({
-        studentId: s._id,
-        fullName: s.fullName,
-        avatar: s.avatar,
-        classId: s.classId,
-        embedding: s.faceEmbedding,
-        registeredAt: s.faceRegisteredAt,
-      })),
+      data: students.map((s) => {
+        const embeddings = Array.isArray(s.faceEmbeddings) && s.faceEmbeddings.length > 0
+          ? s.faceEmbeddings
+          : [s.faceEmbedding];
+        return {
+          studentId: s._id,
+          fullName: s.fullName,
+          avatar: s.avatar,
+          classId: s.classId,
+          embedding: s.faceEmbedding,   // backward compat
+          embeddings,                    // multi-angle
+          registeredAt: s.faceRegisteredAt,
+        };
+      }),
       total: students.length,
     });
   } catch (error) {
@@ -359,7 +480,7 @@ const syncOfflineAttendance = async (req, res) => {
         const now = new Date(checkInTime || date);
         const timeStr = checkInTimeString || `${now.getHours().toString().padStart(2, '0')}:${now.getMinutes().toString().padStart(2, '0')}`;
 
-        await Attendances.create({
+        const newAttendance = await Attendances.create({
           studentId,
           classId,
           date: attendanceDate,
@@ -367,6 +488,23 @@ const syncOfflineAttendance = async (req, res) => {
           time: { checkIn: now, checkOut: null },
           timeString: { checkIn: timeStr, checkOut: '' },
         });
+
+        // Gửi thông báo cho phụ huynh
+        const studentFull = await Students.findById(studentId)
+          .select('fullName parentId classId')
+          .populate('classId', 'className');
+        const parentId = studentFull?.parentId;
+        if (parentId) {
+          const className = studentFull?.classId?.className || '';
+          await createNotification({
+            title: 'Điểm danh đến trường',
+            body: `${studentFull.fullName} đã đến trường lúc ${timeStr}${className ? ` - Lớp ${className}` : ''}.`,
+            type: 'attendance_checkin',
+            targetRole: 'Parent',
+            targetUserId: parentId,
+            extra: { studentId, attendanceId: newAttendance._id },
+          });
+        }
 
         results.push({ studentId, date, action: 'created' });
       } catch (err) {
@@ -672,7 +810,7 @@ const matchStudentFaceForCheckout = async (req, res) => {
       classId,
       status: 'active',
       faceEmbedding: { $exists: true, $not: { $size: 0 } },
-    }).select('_id fullName avatar faceEmbedding classId');
+    }).select('_id fullName avatar faceEmbedding faceEmbeddings classId');
 
     if (students.length === 0) {
       return res.status(200).json({
@@ -682,15 +820,19 @@ const matchStudentFaceForCheckout = async (req, res) => {
       });
     }
 
-    // So sánh embedding → tìm học sinh khớp nhất
+    // So sánh embedding → tìm học sinh khớp nhất (xét tất cả góc mặt)
     let bestMatch = null;
     let bestSimilarity = -1;
+    let secondBestSimilarity = -1;
 
     for (const student of students) {
-      const similarity = cosineSimilarity(embedding, student.faceEmbedding);
+      const similarity = maxSimilarityToStudent(embedding, student);
       if (similarity > bestSimilarity) {
+        secondBestSimilarity = bestSimilarity;
         bestSimilarity = similarity;
         bestMatch = student;
+      } else if (similarity > secondBestSimilarity) {
+        secondBestSimilarity = similarity;
       }
     }
 
@@ -700,6 +842,17 @@ const matchStudentFaceForCheckout = async (req, res) => {
         message: 'Không nhận diện được khuôn mặt học sinh',
         matched: false,
         bestSimilarity: bestSimilarity.toFixed(4),
+      });
+    }
+
+    const margin = bestSimilarity - secondBestSimilarity;
+    if (secondBestSimilarity > 0.78 && margin < MIN_MARGIN) {
+      return res.status(200).json({
+        status: 'ambiguous',
+        message: 'Khuôn mặt quá giống nhau giữa các học sinh, không thể xác định chính xác',
+        matched: false,
+        bestSimilarity: bestSimilarity.toFixed(4),
+        margin: margin.toFixed(4),
       });
     }
 
@@ -754,6 +907,39 @@ const matchStudentFaceForCheckout = async (req, res) => {
   }
 };
 
+/**
+ * Xóa toàn bộ dữ liệu khuôn mặt của một học sinh
+ * DELETE /api/face/register/:studentId
+ */
+const deleteFaceEmbedding = async (req, res) => {
+  try {
+    const { studentId } = req.params;
+
+    const student = await Students.findById(studentId);
+    if (!student) {
+      return res.status(404).json({ status: 'error', message: 'Không tìm thấy học sinh' });
+    }
+
+    student.faceEmbedding = [];
+    student.faceEmbeddings = [];
+    student.faceImageUrls = [];
+    student.faceImageUrl = '';
+    student.faceRegisteredAt = null;
+    student.markModified('faceEmbeddings');
+    student.markModified('faceImageUrls');
+    await student.save();
+
+    return res.status(200).json({
+      status: 'success',
+      message: `Đã xóa khuôn mặt của ${student.fullName}`,
+      data: { studentId: student._id, fullName: student.fullName },
+    });
+  } catch (error) {
+    console.error('deleteFaceEmbedding error:', error);
+    return res.status(500).json({ status: 'error', message: 'Lỗi server khi xóa khuôn mặt', error: error.message });
+  }
+};
+
 module.exports = {
   registerFaceEmbedding,
   matchFaceEmbedding,
@@ -763,4 +949,5 @@ module.exports = {
   matchPickupFace,
   matchPickupFaceForCheckout,
   matchStudentFaceForCheckout,
+  deleteFaceEmbedding,
 };

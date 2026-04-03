@@ -68,6 +68,8 @@ export default function PickupFaceAttendanceModal({ open, onClose, classId, clas
           toast.warn(result.message);
         } else if (result.status === 'no_match') {
           toast.warn('Không nhận diện được khuôn mặt học sinh');
+        } else if (result.status === 'ambiguous') {
+          toast.warn('Khuôn mặt không rõ ràng — hãy đăng ký thêm góc mặt');
         } else if (result.status === 'no_data') {
           toast.info(result.message);
         }
@@ -163,6 +165,17 @@ export default function PickupFaceAttendanceModal({ open, onClose, classId, clas
                   <span className="text-3xl">❌</span>
                   <p className="text-sm text-red-600 font-medium mt-2">Không nhận diện được khuôn mặt</p>
                   <p className="text-xs text-gray-400 mt-1">Học sinh chưa đăng ký khuôn mặt hoặc ảnh không rõ</p>
+                </div>
+              )}
+
+              {matchResult?.status === 'ambiguous' && (
+                <div className="text-center py-4">
+                  <span className="text-3xl">⚠️</span>
+                  <p className="text-sm text-orange-600 font-medium mt-2">Khuôn mặt không rõ ràng</p>
+                  <p className="text-xs text-gray-400 mt-1">
+                    Khuôn mặt giống nhiều học sinh — không thể xác định chính xác.
+                    Hãy đăng ký thêm góc mặt khác nhau.
+                  </p>
                 </div>
               )}
 

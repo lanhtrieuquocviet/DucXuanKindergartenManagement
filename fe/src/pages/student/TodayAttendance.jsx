@@ -87,6 +87,8 @@ function TodayAttendance() {
     attendance?.receiverType || attendance?.receiverOtherInfo || "";
   const hasCheckout = Boolean(checkOutTime);
   const parentConfirmLabel = hasCheckout ? "Đã xác nhận" : "Chưa xác nhận";
+  const checkedInByAI = attendance?.checkedInByAI || false;
+  const checkedOutByAI = attendance?.checkedOutByAI || false;
 
   const hasCheckInData =
     attendance && (checkInTime || attendance?.status === "present");
@@ -186,20 +188,30 @@ function TodayAttendance() {
                   {/* Status pill */}
                   <div>
                     <p className="text-xs text-gray-500 mb-1">Trạng thái</p>
-                    <span
-                      className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full text-sm font-semibold ${
-                        statusCheckInLabel === "Có mặt"
-                          ? "bg-emerald-100 text-emerald-700"
-                          : "bg-gray-100 text-gray-500"
-                      }`}
-                    >
+                    <div className="flex items-center gap-2 flex-wrap">
                       <span
-                        className={`w-2 h-2 rounded-full ${
-                          statusCheckInLabel === "Có mặt" ? "bg-emerald-500" : "bg-gray-400"
+                        className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full text-sm font-semibold ${
+                          statusCheckInLabel === "Có mặt"
+                            ? "bg-emerald-100 text-emerald-700"
+                            : "bg-gray-100 text-gray-500"
                         }`}
-                      />
-                      {statusCheckInLabel}
-                    </span>
+                      >
+                        <span
+                          className={`w-2 h-2 rounded-full ${
+                            statusCheckInLabel === "Có mặt" ? "bg-emerald-500" : "bg-gray-400"
+                          }`}
+                        />
+                        {statusCheckInLabel}
+                      </span>
+                      {checkedInByAI && (
+                        <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-xs font-bold bg-violet-100 text-violet-700 border border-violet-200">
+                          <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                            <circle cx="12" cy="8" r="4"/><path d="M4 20c0-4 3.6-7 8-7s8 3 8 7"/><path d="M16 4l2 2 4-4" strokeWidth="2.5"/>
+                          </svg>
+                          Nhận diện AI
+                        </span>
+                      )}
+                    </div>
                   </div>
 
                   {/* Time row */}
@@ -282,20 +294,30 @@ function TodayAttendance() {
                   {/* Status pill */}
                   <div>
                     <p className="text-xs text-gray-500 mb-1">Trạng thái</p>
-                    <span
-                      className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full text-sm font-semibold ${
-                        statusCheckOutLabel === "Đã đón"
-                          ? "bg-blue-100 text-blue-700"
-                          : "bg-gray-100 text-gray-500"
-                      }`}
-                    >
+                    <div className="flex items-center gap-2 flex-wrap">
                       <span
-                        className={`w-2 h-2 rounded-full ${
-                          statusCheckOutLabel === "Đã đón" ? "bg-blue-500" : "bg-gray-400"
+                        className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full text-sm font-semibold ${
+                          statusCheckOutLabel === "Đã đón"
+                            ? "bg-blue-100 text-blue-700"
+                            : "bg-gray-100 text-gray-500"
                         }`}
-                      />
-                      {statusCheckOutLabel}
-                    </span>
+                      >
+                        <span
+                          className={`w-2 h-2 rounded-full ${
+                            statusCheckOutLabel === "Đã đón" ? "bg-blue-500" : "bg-gray-400"
+                          }`}
+                        />
+                        {statusCheckOutLabel}
+                      </span>
+                      {checkedOutByAI && (
+                        <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-xs font-bold bg-violet-100 text-violet-700 border border-violet-200">
+                          <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                            <circle cx="12" cy="8" r="4"/><path d="M4 20c0-4 3.6-7 8-7s8 3 8 7"/><path d="M16 4l2 2 4-4" strokeWidth="2.5"/>
+                          </svg>
+                          Nhận diện AI
+                        </span>
+                      )}
+                    </div>
                   </div>
 
                   {/* Time row */}

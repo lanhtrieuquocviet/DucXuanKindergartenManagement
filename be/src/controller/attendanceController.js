@@ -3,6 +3,7 @@ const Attendances = require('../models/Attendances');
 const Classes = require('../models/Classes');
 const Students = require('../models/Student');
 const { createSystemLog } = require('../utils/systemLog');
+const { createNotification } = require('./notification.controller');
 
 /**
  * Tạo / cập nhật điểm danh (check-in) cho 1 học sinh trong 1 ngày
@@ -69,7 +70,7 @@ const upsertAttendance = async (req, res) => {
         runValidators: true,
       },
     )
-      .populate('studentId', 'fullName classId')
+      .populate('studentId', 'fullName classId parentId')
       .populate('classId', 'className');
 
     const studentName = attendance?.studentId?.fullName || studentId;
@@ -80,6 +81,20 @@ const upsertAttendance = async (req, res) => {
       action: 'Điểm danh học sinh',
       detail: `Điểm danh ${studentName}${className ? ` (${className})` : ''} - ${statusLabel}`.trim(),
     });
+
+    // Gửi thông báo cho phụ huynh khi điểm danh đến
+    const parentId = attendance?.studentId?.parentId;
+    if (parentId && statusLabel !== 'absent') {
+      const checkInTime = attendance?.timeString?.checkIn || '';
+      await createNotification({
+        title: 'Điểm danh đến trường',
+        body: `${studentName} đã đến trường${checkInTime ? ` lúc ${checkInTime}` : ''}${className ? ` - Lớp ${className}` : ''}.`,
+        type: 'attendance_checkin',
+        targetRole: 'Parent',
+        targetUserId: parentId,
+        extra: { studentId, attendanceId: attendance._id },
+      });
+    }
 
     return res.status(200).json({
       status: 'success',
@@ -163,7 +178,7 @@ const checkoutAttendance = async (req, res) => {
         runValidators: true,
       },
     )
-      .populate('studentId', 'fullName classId')
+      .populate('studentId', 'fullName classId parentId')
       .populate('classId', 'className');
 
     const studentName = attendance?.studentId?.fullName || studentId;
@@ -173,6 +188,19 @@ const checkoutAttendance = async (req, res) => {
       action: 'Check-out học sinh',
       detail: `Check-out ${studentName}${className ? ` (${className})` : ''}`,
     });
+
+    // Gửi thông báo cho phụ huynh khi điểm danh về
+    const parentId = attendance?.studentId?.parentId;
+    if (parentId) {
+      await createNotification({
+        title: 'Điểm danh về nhà',
+        body: `${studentName} đã về nhà${checkOutTimeString ? ` lúc ${checkOutTimeString}` : ''}${className ? ` - Lớp ${className}` : ''}.`,
+        type: 'attendance_checkout',
+        targetRole: 'Parent',
+        targetUserId: parentId,
+        extra: { studentId, attendanceId: attendance._id },
+      });
+    }
 
     return res.status(200).json({
       status: 'success',

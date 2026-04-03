@@ -6,106 +6,168 @@
  */
 
 import { useState, useEffect } from 'react';
+import { toast } from 'react-toastify';
 import { get, ENDPOINTS } from '../../service/api';
+import { deleteFaceEmbedding } from '../../service/faceAttendance.api';
 import FaceRegisterModal from './FaceRegisterModal';
 
 // ── Mini detail dialog cho học sinh đã đăng ký ────────────────────────────────
-function FaceDetailDialog({ student, onClose, onUpdate }) {
+function FaceDetailDialog({ student, onClose, onUpdate, onDeleted }) {
+  const [previewImg, setPreviewImg] = useState(null);
+  const [confirmDelete, setConfirmDelete] = useState(false);
+  const [deleting, setDeleting] = useState(false);
   if (!student) return null;
+
+  const handleDelete = async () => {
+    setDeleting(true);
+    try {
+      await deleteFaceEmbedding(student._id);
+      toast.success(`Đã xóa khuôn mặt của ${student.fullName}`);
+      onDeleted?.();
+      onClose();
+    } catch (err) {
+      toast.error(err.message || 'Lỗi khi xóa khuôn mặt');
+    } finally {
+      setDeleting(false);
+      setConfirmDelete(false);
+    }
+  };
+
   const regDate = student.faceRegisteredAt
     ? new Date(student.faceRegisteredAt).toLocaleString('vi-VN')
     : 'Không rõ';
 
+  // Danh sách ảnh: ưu tiên faceImageUrls (nhiều góc), fallback về faceImageUrl (1 ảnh)
+  const imageUrls = Array.isArray(student.faceImageUrls) && student.faceImageUrls.some(Boolean)
+    ? student.faceImageUrls.filter(Boolean)
+    : student.faceImageUrl
+    ? [student.faceImageUrl]
+    : [];
+
+  const angleLabels = ['Góc 1', 'Góc 2', 'Góc 3', 'Góc 4', 'Góc 5'];
+
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50">
-      <div
-        className="bg-white rounded-2xl shadow-2xl flex flex-col"
-        style={{ width: '100%', maxWidth: 360, margin: '0 16px' }}
-      >
-        {/* Header */}
+    <>
+      {/* Lightbox xem ảnh to */}
+      {previewImg && (
         <div
-          className="flex items-center justify-between px-5 py-4 rounded-t-2xl"
-          style={{ background: 'linear-gradient(135deg, #059669 0%, #10b981 100%)' }}
+          className="fixed inset-0 z-[60] flex items-center justify-center bg-black/80"
+          onClick={() => setPreviewImg(null)}
         >
-          <div className="flex items-center gap-2">
-            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
-              <path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/><polyline points="22 4 12 14.01 9 11.01"/>
-            </svg>
-            <h2 className="text-sm font-bold text-white">Chi tiết đăng ký khuôn mặt</h2>
-          </div>
-          <button onClick={onClose} className="text-white text-xl font-bold hover:text-green-200 transition-colors">×</button>
+          <img src={previewImg} alt="preview" className="max-w-[90vw] max-h-[85vh] rounded-xl object-contain shadow-2xl" />
+          <button
+            onClick={() => setPreviewImg(null)}
+            className="absolute top-4 right-4 text-white text-3xl font-bold leading-none hover:text-gray-300"
+          >×</button>
         </div>
+      )}
 
-        {/* Body */}
-        <div className="px-5 py-5 flex flex-col items-center gap-4">
-          {/* Avatar */}
-          <div className="relative">
-            {student.avatar ? (
-              <img
-                src={student.avatar}
-                alt={student.fullName}
-                className="w-20 h-20 rounded-full object-cover border-4 border-green-200"
-              />
-            ) : (
-              <div
-                className="w-20 h-20 rounded-full border-4 border-green-200 flex items-center justify-center text-2xl font-bold text-white"
-                style={{ background: 'linear-gradient(135deg, #7c3aed, #6366f1)' }}
-              >
-                {student.fullName?.charAt(0)?.toUpperCase() || '?'}
-              </div>
-            )}
-            <div
-              className="absolute -bottom-1 -right-1 w-6 h-6 rounded-full flex items-center justify-center"
-              style={{ background: '#10b981', border: '2px solid white' }}
-            >
-              <svg width="10" height="10" viewBox="0 0 12 12" fill="none" stroke="white" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
-                <polyline points="2 6 5 9 10 3"/>
+      <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50">
+        <div
+          className="bg-white rounded-2xl shadow-2xl flex flex-col"
+          style={{ width: '100%', maxWidth: 400, margin: '0 16px', maxHeight: '90vh' }}
+        >
+          {/* Header */}
+          <div
+            className="flex items-center justify-between px-5 py-4 rounded-t-2xl flex-shrink-0"
+            style={{ background: 'linear-gradient(135deg, #059669 0%, #10b981 100%)' }}
+          >
+            <div className="flex items-center gap-2">
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                <path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/><polyline points="22 4 12 14.01 9 11.01"/>
               </svg>
+              <h2 className="text-sm font-bold text-white">Chi tiết đăng ký khuôn mặt</h2>
             </div>
+            <button onClick={onClose} className="text-white text-xl font-bold hover:text-green-200 transition-colors">×</button>
           </div>
 
-          {/* Ảnh khuôn mặt đã đăng ký */}
-          {student.faceImageUrl ? (
-            <div className="w-full">
-              <p className="text-xs text-gray-500 font-medium mb-1.5 text-center">Ảnh khuôn mặt đã đăng ký</p>
-              <div className="relative rounded-xl overflow-hidden border-2 border-green-200" style={{ aspectRatio: '4/3' }}>
-                <img
-                  src={student.faceImageUrl}
-                  alt="Khuôn mặt đã đăng ký"
-                  className="w-full h-full object-cover"
-                />
-                <div
-                  className="absolute top-2 right-2 flex items-center gap-1 px-2 py-1 rounded-full text-xs font-semibold text-white"
-                  style={{ background: 'rgba(16,185,129,0.85)' }}
-                >
-                  <svg width="10" height="10" viewBox="0 0 12 12" fill="none" stroke="white" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+          {/* Body */}
+          <div className="px-5 py-5 flex flex-col gap-4 overflow-y-auto">
+            {/* Avatar + tên */}
+            <div className="flex items-center gap-3">
+              <div className="relative flex-shrink-0">
+                {student.avatar ? (
+                  <img src={student.avatar} alt={student.fullName} className="w-14 h-14 rounded-full object-cover border-4 border-green-200" />
+                ) : (
+                  <div
+                    className="w-14 h-14 rounded-full border-4 border-green-200 flex items-center justify-center text-xl font-bold text-white"
+                    style={{ background: 'linear-gradient(135deg, #7c3aed, #6366f1)' }}
+                  >
+                    {student.fullName?.charAt(0)?.toUpperCase() || '?'}
+                  </div>
+                )}
+                <div className="absolute -bottom-1 -right-1 w-5 h-5 rounded-full flex items-center justify-center" style={{ background: '#10b981', border: '2px solid white' }}>
+                  <svg width="9" height="9" viewBox="0 0 12 12" fill="none" stroke="white" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
                     <polyline points="2 6 5 9 10 3"/>
                   </svg>
-                  Đã xác minh
                 </div>
               </div>
+              <div>
+                <p className="text-base font-bold text-gray-800">{student.fullName}</p>
+                <p className="text-xs text-green-600 font-medium">✓ Đã đăng ký khuôn mặt AI</p>
+                <p className="text-xs text-gray-400 mt-0.5">{regDate}</p>
+              </div>
             </div>
-          ) : (
-            <div className="w-full flex flex-col items-center gap-1.5 py-3 bg-gray-50 rounded-xl border border-dashed border-gray-200">
-              <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="#9ca3af" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
-                <rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="8.5" cy="8.5" r="1.5"/>
-                <polyline points="21 15 16 10 5 21"/>
-              </svg>
-              <p className="text-xs text-gray-400">Chưa có ảnh khuôn mặt</p>
-              <p className="text-xs text-gray-400">(Đăng ký lại để lưu ảnh)</p>
-            </div>
-          )}
 
-          {/* Info */}
-          <div className="w-full space-y-2">
-            <div className="text-center">
-              <p className="text-base font-bold text-gray-800">{student.fullName}</p>
-              <p className="text-xs text-green-600 font-medium mt-0.5">✓ Đã đăng ký khuôn mặt AI</p>
+            {/* Ảnh các góc mặt */}
+            <div>
+              <p className="text-xs font-semibold text-gray-600 mb-2">
+                Góc mặt đã đăng ký
+                <span className={`ml-1.5 text-xs px-1.5 py-0.5 rounded-full font-bold ${
+                  (student.angleCount || imageUrls.length) > 0
+                    ? 'bg-green-100 text-green-700'
+                    : 'bg-gray-100 text-gray-500'
+                }`}>
+                  {student.angleCount || imageUrls.length || 1} góc
+                </span>
+              </p>
+
+              {imageUrls.length > 0 ? (
+                <>
+                  <div className={`grid gap-2 ${imageUrls.length === 1 ? 'grid-cols-1' : 'grid-cols-3'}`}>
+                    {imageUrls.map((url, idx) => (
+                      <button
+                        key={idx}
+                        onClick={() => setPreviewImg(url)}
+                        className="relative rounded-xl overflow-hidden border-2 border-green-200 hover:border-green-400 transition-all group"
+                        style={{ aspectRatio: '3/4' }}
+                        title={`Nhấn để xem to — Góc ${idx + 1}`}
+                      >
+                        <img src={url} alt={`Góc ${idx + 1}`} className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-200" />
+                        <div className="absolute bottom-0 left-0 right-0 px-1.5 py-1 text-center" style={{ background: 'rgba(0,0,0,0.45)' }}>
+                          <span className="text-white text-[10px] font-semibold">{angleLabels[idx] || `Góc ${idx + 1}`}</span>
+                        </div>
+                        <div className="absolute top-1.5 right-1.5 opacity-0 group-hover:opacity-100 transition-opacity bg-black/50 rounded-full p-1">
+                          <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="2.5">
+                            <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/>
+                          </svg>
+                        </div>
+                      </button>
+                    ))}
+                  </div>
+                  <p className="text-[10px] text-gray-400 text-center mt-1.5">Nhấn vào ảnh để xem to</p>
+                </>
+              ) : (
+                <div className="flex flex-col items-center gap-1.5 py-3 bg-amber-50 rounded-xl border border-dashed border-amber-200">
+                  <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="#d97706" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
+                    <rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="8.5" cy="8.5" r="1.5"/>
+                    <polyline points="21 15 16 10 5 21"/>
+                  </svg>
+                  <p className="text-xs text-amber-700 font-medium">
+                    {(student.angleCount || 0) > 0
+                      ? `Đã lưu ${student.angleCount} góc nhưng ảnh chưa upload được`
+                      : 'Chưa có ảnh khuôn mặt'}
+                  </p>
+                  <p className="text-[10px] text-amber-600">Đăng ký lại để lưu ảnh</p>
+                </div>
+              )}
             </div>
+
+            {/* Số góc đăng ký */}
             <div className="bg-gray-50 rounded-xl px-4 py-3 space-y-1.5">
               <div className="flex justify-between text-xs">
-                <span className="text-gray-500">Ngày đăng ký</span>
-                <span className="text-gray-800 font-medium">{regDate}</span>
+                <span className="text-gray-500">Số góc mặt đã lưu</span>
+                <span className="text-gray-800 font-semibold">{student.angleCount || imageUrls.length || 1} / 5 góc</span>
               </div>
               <div className="flex justify-between text-xs">
                 <span className="text-gray-500">Trạng thái</span>
@@ -113,26 +175,65 @@ function FaceDetailDialog({ student, onClose, onUpdate }) {
               </div>
             </div>
           </div>
-        </div>
 
-        {/* Footer */}
-        <div className="px-5 pb-5 flex gap-2">
-          <button
-            onClick={onClose}
-            className="flex-1 py-2 rounded-lg border border-gray-200 text-gray-600 text-sm font-medium hover:bg-gray-50 transition-colors"
-          >
-            Đóng
-          </button>
-          <button
-            onClick={onUpdate}
-            className="flex-1 py-2 rounded-lg text-sm font-semibold text-white transition-all"
-            style={{ background: 'linear-gradient(135deg, #7c3aed, #6366f1)' }}
-          >
-            Cập nhật khuôn mặt
-          </button>
+          {/* Footer */}
+          <div className="px-5 pb-5 flex gap-2 flex-shrink-0">
+            <button onClick={onClose} className="py-2 px-3 rounded-lg border border-gray-200 text-gray-600 text-sm font-medium hover:bg-gray-50 transition-colors">
+              Đóng
+            </button>
+            <button
+              onClick={() => setConfirmDelete(true)}
+              className="py-2 px-3 rounded-lg text-sm font-semibold text-red-600 border border-red-200 bg-red-50 hover:bg-red-100 transition-colors"
+            >
+              Xóa khuôn mặt
+            </button>
+            <button
+              onClick={onUpdate}
+              className="flex-1 py-2 rounded-lg text-sm font-semibold text-white transition-all"
+              style={{ background: 'linear-gradient(135deg, #7c3aed, #6366f1)' }}
+            >
+              Cập nhật
+            </button>
+          </div>
         </div>
       </div>
-    </div>
+
+      {/* Confirm xóa */}
+      {confirmDelete && (
+        <div className="fixed inset-0 z-[70] flex items-center justify-center bg-black/60">
+          <div className="bg-white rounded-2xl shadow-2xl p-6 max-w-xs w-full mx-4">
+            <div className="flex flex-col items-center gap-3 text-center">
+              <div className="w-12 h-12 rounded-full bg-red-100 flex items-center justify-center">
+                <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#dc2626" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                  <polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"/>
+                  <path d="M10 11v6"/><path d="M14 11v6"/><path d="M9 6V4h6v2"/>
+                </svg>
+              </div>
+              <p className="font-bold text-gray-800">Xóa khuôn mặt?</p>
+              <p className="text-sm text-gray-500">
+                Toàn bộ dữ liệu khuôn mặt của <strong>{student.fullName}</strong> sẽ bị xóa. Cần đăng ký lại để dùng điểm danh AI.
+              </p>
+            </div>
+            <div className="flex gap-2 mt-5">
+              <button
+                onClick={() => setConfirmDelete(false)}
+                disabled={deleting}
+                className="flex-1 py-2 rounded-lg border border-gray-200 text-gray-600 text-sm font-medium hover:bg-gray-50 disabled:opacity-50"
+              >
+                Hủy
+              </button>
+              <button
+                onClick={handleDelete}
+                disabled={deleting}
+                className="flex-1 py-2 rounded-lg bg-red-600 hover:bg-red-700 text-white text-sm font-semibold disabled:opacity-50 transition-colors"
+              >
+                {deleting ? 'Đang xóa...' : 'Xác nhận xóa'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+    </>
   );
 }
 
@@ -149,7 +250,13 @@ export default function FaceRegisterClassModal({ open, onClose, classId, classNa
     setLoading(true);
     try {
       const res = await get(ENDPOINTS.CLASSES.STUDENTS(classId));
-      setStudents(res.data || []);
+      const newStudents = res.data || [];
+      setStudents(newStudents);
+      // Nếu đang mở detail dialog, cập nhật luôn student mới nhất
+      setDetailTarget((prev) => {
+        if (!prev) return null;
+        return newStudents.find((s) => s._id === prev._id) || prev;
+      });
     } catch {
       // ignore
     } finally {
@@ -334,7 +441,9 @@ export default function FaceRegisterClassModal({ open, onClose, classId, classNa
                       <div className="flex-1 min-w-0">
                         <p className="text-sm font-semibold text-gray-800 truncate">{student.fullName}</p>
                         <p className="text-xs" style={{ color: has ? '#059669' : '#9ca3af' }}>
-                          {has ? `Đã đăng ký${regDate ? ` · ${regDate}` : ''}` : 'Chưa đăng ký khuôn mặt'}
+                          {has
+                            ? `Đã đăng ký${student.angleCount > 1 ? ` · ${student.angleCount} góc` : ''}${regDate ? ` · ${regDate}` : ''}`
+                            : 'Chưa đăng ký khuôn mặt'}
                         </p>
                       </div>
 
@@ -412,6 +521,10 @@ export default function FaceRegisterClassModal({ open, onClose, classId, classNa
         onUpdate={() => {
           setRegisterTarget(detailTarget);
           setDetailTarget(null);
+        }}
+        onDeleted={() => {
+          setDetailTarget(null);
+          fetchStudents();
         }}
       />
 

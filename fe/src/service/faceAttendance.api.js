@@ -3,7 +3,7 @@
  * Các hàm gọi API cho hệ thống điểm danh nhận diện khuôn mặt
  */
 
-import { get, post } from './api';
+import { get, post, del } from './api';
 
 /**
  * Upload ảnh điểm danh (base64 từ camera) lên Cloudinary
@@ -20,8 +20,15 @@ export const uploadAttendanceImage = async (imageBase64) => {
  * @param {string} studentId
  * @param {number[]} embedding - mảng 128 số float từ face-api.js
  */
-export const registerFaceEmbedding = (studentId, embedding, faceImageUrl = '') =>
-  post('/face/register', { studentId, embedding, faceImageUrl });
+export const registerFaceEmbedding = (studentId, embedding, faceImageUrl = '', append = false) =>
+  post('/face/register', { studentId, embedding, faceImageUrl, append });
+
+/**
+ * Xóa toàn bộ dữ liệu khuôn mặt của học sinh
+ * @param {string} studentId
+ */
+export const deleteFaceEmbedding = (studentId) =>
+  del(`/face/register/${studentId}`);
 
 /**
  * Nhận diện khuôn mặt + tự động check-in (chế độ ONLINE)

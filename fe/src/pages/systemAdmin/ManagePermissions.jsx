@@ -36,7 +36,7 @@ import {
 } from '@mui/icons-material';
 
 // Permissions liên quan đến từng role (dùng để lọc panel gán quyền)
-// Role không có entry → hiện tất cả (SystemAdmin, SchoolNurse...)
+// Role không có entry → hiện tất cả (SystemAdmin...)
 const ROLE_PERMISSION_POOL = {
   SchoolAdmin: [
     'MANAGE_CONTACT', 'MANAGE_BANNER', 'VIEW_ATTENDANCE', 'MANAGE_BLOG',
@@ -54,7 +54,7 @@ const ROLE_PERMISSION_POOL = {
   KitchenStaff: [
     'MANAGE_FOOD', 'MANAGE_MENU', 'MANAGE_MEAL_PHOTO', 'VIEW_REPORT', 'APPROVE_MENU',
   ],
-  SchoolNurse: [
+  MedicalStaff: [
     'MANAGE_HEALTH', 'VIEW_REPORT',
   ],
   Parent: [],
@@ -457,7 +457,7 @@ function ManagePermissions() {
               </Typography>
               {/* Role chips */}
               <Stack direction="row" flexWrap="wrap" gap={1}>
-                {roles.map((role) => {
+                {roles.filter((r) => !['SystemAdmin', 'Parent', 'Student'].includes(r.roleName)).map((role) => {
                   const roleId = role.id || role._id;
                   const isSelected = selectedRole && (selectedRole.id || selectedRole._id) === roleId;
                   return (

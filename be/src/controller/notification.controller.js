@@ -3,9 +3,9 @@ const Notification = require('../models/Notification');
 /**
  * Internal: tạo notification mới (gọi từ controller khác)
  */
-exports.createNotification = async ({ title, body, type = 'general', extra = {} }) => {
+exports.createNotification = async ({ title, body, type = 'general', targetRole = 'all', targetUserId = null, extra = {} }) => {
   try {
-    const notif = await Notification.create({ title, body, type, targetRole: 'all', extra });
+    const notif = await Notification.create({ title, body, type, targetRole, targetUserId, extra });
     return notif;
   } catch (err) {
     console.error('createNotification error:', err.message);
@@ -23,9 +23,14 @@ exports.getNotifications = async (req, res) => {
     const page  = parseInt(req.query.page)  || 1;
     const skip  = (page - 1) * limit;
 
-    // Hiển thị: thông báo cho 'all' hoặc đúng role của user
+    // Hiển thị: thông báo cho user cụ thể, hoặc 'all' hoặc đúng role của user
     const userRoles = (req.user?.roles || []).map(r => r.roleName || r);
-    const filter = { targetRole: { $in: ['all', ...userRoles] } };
+    const filter = {
+      $or: [
+        { targetUserId: userId },
+        { targetUserId: null, targetRole: { $in: ['all', ...userRoles] } },
+      ],
+    };
 
     const notifications = await Notification.find(filter)
       .sort({ createdAt: -1 })
@@ -39,7 +44,9 @@ exports.getNotifications = async (req, res) => {
     }));
 
     const total       = await Notification.countDocuments(filter);
-    const unreadCount = await Notification.countDocuments({ ...filter, readBy: { $nin: [userId] } });
+    const unreadCount = await Notification.countDocuments({
+      $and: [filter, { readBy: { $nin: [userId] } }],
+    });
 
     return res.json({ success: true, data: result, total, unreadCount, page, limit });
   } catch (err) {
@@ -52,11 +59,18 @@ exports.getNotifications = async (req, res) => {
  */
 exports.getUnreadCount = async (req, res) => {
   try {
-    const userId   = req.user?._id;
+    const userId    = req.user?._id;
     const userRoles = (req.user?.roles || []).map(r => r.roleName || r);
     const count = await Notification.countDocuments({
-      targetRole: { $in: ['all', ...userRoles] },
-      readBy: { $nin: [userId] },
+      $and: [
+        {
+          $or: [
+            { targetUserId: userId },
+            { targetUserId: null, targetRole: { $in: ['all', ...userRoles] } },
+          ],
+        },
+        { readBy: { $nin: [userId] } },
+      ],
     });
     return res.json({ success: true, count });
   } catch (err) {
@@ -86,7 +100,17 @@ exports.markAllAsRead = async (req, res) => {
     const userId    = req.user?._id;
     const userRoles = (req.user?.roles || []).map(r => r.roleName || r);
     await Notification.updateMany(
-      { targetRole: { $in: ['all', ...userRoles] }, readBy: { $nin: [userId] } },
+      {
+        $and: [
+          {
+            $or: [
+              { targetUserId: userId },
+              { targetUserId: null, targetRole: { $in: ['all', ...userRoles] } },
+            ],
+          },
+          { readBy: { $nin: [userId] } },
+        ],
+      },
       { $addToSet: { readBy: userId } }
     );
     return res.json({ success: true });
