@@ -38,6 +38,7 @@ router.get('/dashboard', authenticate, authorizeRoles('Teacher'), (req, res) => 
 // ── Sổ liên lạc điện tử ──
 router.get('/contact-book', authenticate, authorizeRoles('Teacher'), contactBookCtrl.getMyClasses);
 router.get('/contact-book/:classId/students', authenticate, authorizeRoles('Teacher'), contactBookCtrl.getStudentsInClass);
+router.get('/contact-book/:classId/students/:studentId/attendance', authenticate, authorizeRoles('Teacher'), contactBookCtrl.getStudentAttendance);
 router.get('/contact-book/:classId/students/:studentId/health', authenticate, authorizeRoles('Teacher'), contactBookCtrl.getStudentHealth);
 
 // ── Asset Inspection (Teacher creates/edits own minutes) ──

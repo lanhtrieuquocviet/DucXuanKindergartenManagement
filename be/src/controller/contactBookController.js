@@ -2,6 +2,7 @@ const Teacher = require('../models/Teacher');
 const Classes = require('../models/Classes');
 const Student = require('../models/Student');
 const HealthCheck = require('../models/HealthCheck');
+const Attendance = require('../models/Attendances');
 
 /** GET /teacher/contact-book — danh sách lớp giáo viên phụ trách */
 exports.getMyClasses = async (req, res) => {
@@ -68,6 +69,54 @@ exports.getStudentsInClass = async (req, res) => {
           gradeName: cls.gradeId?.gradeName || '',
         },
         students,
+      },
+    });
+  } catch (err) {
+    return res.status(500).json({ status: 'error', message: err.message });
+  }
+};
+
+/**
+ * GET /teacher/contact-book/:classId/students/:studentId/attendance
+ * Lịch sử điểm danh của học sinh — lọc theo tháng (query: year, month)
+ */
+exports.getStudentAttendance = async (req, res) => {
+  try {
+    const { classId, studentId } = req.params;
+    const teacher = await Teacher.findOne({ userId: req.user._id }).lean();
+    if (!teacher) {
+      return res.status(403).json({ status: 'error', message: 'Không có hồ sơ giáo viên.' });
+    }
+    const cls = await Classes.findOne({ _id: classId, teacherIds: teacher._id }).lean();
+    if (!cls) {
+      return res.status(403).json({ status: 'error', message: 'Bạn không phụ trách lớp này.' });
+    }
+
+    const now = new Date();
+    const year  = parseInt(req.query.year)  || now.getFullYear();
+    const month = parseInt(req.query.month) || (now.getMonth() + 1); // 1–12
+
+    const from = new Date(year, month - 1, 1, 0, 0, 0);
+    const to   = new Date(year, month, 1, 0, 0, 0); // đầu tháng sau
+
+    const records = await Attendance.find({
+      studentId,
+      date: { $gte: from, $lt: to },
+    })
+      .sort({ date: -1 })
+      .lean();
+
+    const present = records.filter(r => r.status === 'present').length;
+    const absent  = records.filter(r => r.status === 'absent').length;
+    const leave   = records.filter(r => r.status === 'leave').length;
+    const total   = records.length;
+    const rate    = total > 0 ? Math.round((present / total) * 100) : null;
+
+    return res.json({
+      status: 'success',
+      data: {
+        year, month, total, present, absent, leave, rate,
+        records,
       },
     });
   } catch (err) {

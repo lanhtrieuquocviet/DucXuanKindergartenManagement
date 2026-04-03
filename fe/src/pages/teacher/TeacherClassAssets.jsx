@@ -344,7 +344,7 @@ export default function TeacherClassAssets() {
     { key: 'attendance',       label: 'Điểm danh' },
     { key: 'pickup-approval',  label: 'Đơn đưa đón' },
     { key: 'schedule',         label: 'Lịch dạy & hoạt động' },
-    { key: 'messages',         label: 'Thông báo cho phụ huynh' },
+    { key: 'contact-book',     label: 'Sổ liên lạc điện tử' },
     { key: 'purchase-request', label: 'Cơ sở vật chất' },
     { key: 'class-assets',     label: 'Tài sản lớp' },
     ...(isCommitteeMember ? [{ key: 'asset-inspection', label: 'Kiểm kê tài sản' }] : []),
@@ -352,6 +352,7 @@ export default function TeacherClassAssets() {
 
   const handleMenuSelect = (key) => {
     if (key === 'classes')          { navigate('/teacher'); return; }
+    if (key === 'contact-book')     { navigate('/teacher/contact-book'); return; }
     if (key === 'attendance')       { navigate('/teacher/attendance'); return; }
     if (key === 'pickup-approval')  { navigate('/teacher/pickup-approval'); return; }
     if (key === 'purchase-request') { navigate('/teacher/purchase-request'); return; }

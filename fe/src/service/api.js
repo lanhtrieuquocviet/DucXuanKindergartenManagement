@@ -330,6 +330,7 @@ export const ENDPOINTS = {
     // Sổ liên lạc
     CONTACT_BOOK_CLASSES: '/teacher/contact-book',
     CONTACT_BOOK_STUDENTS: (classId) => `/teacher/contact-book/${classId}/students`,
+    CONTACT_BOOK_ATTENDANCE: (classId, studentId) => `/teacher/contact-book/${classId}/students/${studentId}/attendance`,
     CONTACT_BOOK_HEALTH: (classId, studentId) => `/teacher/contact-book/${classId}/students/${studentId}/health`,
   },
   // Classes
