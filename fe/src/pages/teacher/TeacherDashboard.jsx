@@ -125,7 +125,7 @@ function TeacherDashboard() {
     { key: 'attendance',       label: 'Điểm danh',              permission: 'MANAGE_ATTENDANCE' },
     { key: 'pickup-approval',  label: 'Đơn đưa đón',            permission: 'MANAGE_PICKUP' },
     { key: 'schedule',         label: 'Lịch dạy & hoạt động' },
-    { key: 'messages',         label: 'Thông báo cho phụ huynh' },
+    { key: 'contact-book',     label: 'Sổ liên lạc điện tử' },
     { key: 'purchase-request', label: 'Cơ sở vật chất',         permission: 'MANAGE_PURCHASE_REQUEST' },
     { key: 'class-assets',     label: 'Tài sản lớp',            permission: 'MANAGE_ASSET' },
   ];
@@ -143,10 +143,11 @@ function TeacherDashboard() {
 
   const activeKey = useMemo(() => {
     const path = location.pathname || '';
-    if (path.startsWith('/teacher/attendance')) return 'attendance';
+    if (path.startsWith('/teacher/contact-book'))   return 'contact-book';
+    if (path.startsWith('/teacher/attendance'))     return 'attendance';
     if (path.startsWith('/teacher/pickup-approval')) return 'pickup-approval';
     if (path.startsWith('/teacher/purchase-request')) return 'purchase-request';
-    if (path.startsWith('/teacher/class-assets'))     return 'class-assets';
+    if (path.startsWith('/teacher/class-assets'))   return 'class-assets';
     if (path.startsWith('/teacher/asset-inspection')) return 'asset-inspection';
     return 'classes';
   }, [location.pathname]);
@@ -154,12 +155,13 @@ function TeacherDashboard() {
   const userName = user?.fullName || user?.username || 'Teacher';
 
   const handleMenuSelect = (key) => {
-    if (key === 'classes') { navigate('/teacher'); return; }
-    if (key === 'attendance') { navigate('/teacher/attendance'); return; }
-    if (key === 'pickup-approval')  { navigate('/teacher/pickup-approval');   return; }
-    if (key === 'purchase-request') { navigate('/teacher/purchase-request');  return; }
-    if (key === 'class-assets')     { navigate('/teacher/class-assets');      return; }
-    if (key === 'asset-inspection') { navigate('/teacher/asset-inspection');  return; }
+    if (key === 'classes')          { navigate('/teacher');                    return; }
+    if (key === 'contact-book')     { navigate('/teacher/contact-book');       return; }
+    if (key === 'attendance')       { navigate('/teacher/attendance');         return; }
+    if (key === 'pickup-approval')  { navigate('/teacher/pickup-approval');    return; }
+    if (key === 'purchase-request') { navigate('/teacher/purchase-request');   return; }
+    if (key === 'class-assets')     { navigate('/teacher/class-assets');       return; }
+    if (key === 'asset-inspection') { navigate('/teacher/asset-inspection');   return; }
   };
 
   const initials = userName.split(' ').map((w) => w[0]).slice(-2).join('').toUpperCase();

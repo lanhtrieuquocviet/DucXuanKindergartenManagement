@@ -4,6 +4,7 @@ const assetCtrl = require('../controller/assetInspectionController');
 const purchaseCtrl = require('../controller/purchaseRequestController');
 const incidentCtrl    = require('../controller/assetIncidentController');
 const allocationCtrl  = require('../controller/assetAllocationController');
+const contactBookCtrl = require('../controller/contactBookController');
 const InspectionCommittee = require('../models/InspectionCommittee');
 const User = require('../models/User');
 
@@ -33,6 +34,11 @@ router.get('/dashboard', authenticate, authorizeRoles('Teacher'), (req, res) => 
     },
   });
 });
+
+// ── Sổ liên lạc điện tử ──
+router.get('/contact-book', authenticate, authorizeRoles('Teacher'), contactBookCtrl.getMyClasses);
+router.get('/contact-book/:classId/students', authenticate, authorizeRoles('Teacher'), contactBookCtrl.getStudentsInClass);
+router.get('/contact-book/:classId/students/:studentId/health', authenticate, authorizeRoles('Teacher'), contactBookCtrl.getStudentHealth);
 
 // ── Asset Inspection (Teacher creates/edits own minutes) ──
 

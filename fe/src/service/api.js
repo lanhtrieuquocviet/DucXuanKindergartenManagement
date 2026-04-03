@@ -327,6 +327,10 @@ export const ENDPOINTS = {
     ASSET_ALLOCATION_CONFIRM: (id) => `/teacher/asset-allocations/${id}/confirm`,
     ASSET_INCIDENTS: "/teacher/asset-incidents",
     ASSET_INCIDENT_DETAIL: (id) => `/teacher/asset-incidents/${id}`,
+    // Sổ liên lạc
+    CONTACT_BOOK_CLASSES: '/teacher/contact-book',
+    CONTACT_BOOK_STUDENTS: (classId) => `/teacher/contact-book/${classId}/students`,
+    CONTACT_BOOK_HEALTH: (classId, studentId) => `/teacher/contact-book/${classId}/students/${studentId}/health`,
   },
   // Classes
   CLASSES: {
