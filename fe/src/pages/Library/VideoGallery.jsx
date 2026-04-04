@@ -49,25 +49,27 @@ export default function VideoGallery() {
               href={item.url}
               target="_blank"
               rel="noopener noreferrer"
-              className="group cursor-pointer"
+              className="group block cursor-pointer select-none caret-transparent outline-none focus-visible:ring-2 focus-visible:ring-green-600 focus-visible:ring-offset-2 rounded"
             >
-              <div className="relative overflow-hidden border">
+              <div className="relative overflow-hidden rounded-md shadow-sm ring-1 ring-gray-200">
                 <img
                   src={item.thumbnail}
-                  alt={item.title}
-                  className="w-full h-48 object-cover transition-transform duration-300 group-hover:scale-105"
+                  alt=""
+                  className="block w-full h-48 object-cover transition-transform duration-300 group-hover:scale-105"
                 />
 
-                <div className="absolute inset-0 flex items-center justify-center">
-                  <div className="w-14 h-14 bg-black/60 rounded-full flex items-center justify-center">
-                    <svg className="w-6 h-6 text-white ml-1" fill="currentColor" viewBox="0 0 24 24">
+                <div className="pointer-events-none absolute inset-0 flex items-center justify-center">
+                  <div className="flex h-14 w-14 items-center justify-center rounded-full bg-black/60">
+                    <svg className="h-6 w-6 text-white" fill="currentColor" viewBox="0 0 24 24" aria-hidden>
                       <path d="M8 5v14l11-7z" />
                     </svg>
                   </div>
                 </div>
               </div>
 
-              <p className="mt-3 text-sm leading-relaxed group-hover:text-green-600">{item.title}</p>
+              <p className="mt-3 text-center text-lg font-semibold leading-snug text-gray-800 group-hover:text-green-600 sm:text-xl">
+                {item.title}
+              </p>
             </a>
           ))}
         </div>
