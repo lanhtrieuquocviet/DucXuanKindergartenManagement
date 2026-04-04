@@ -137,6 +137,7 @@ export const createSchoolAdminMenuSelect = (navigate) => (key) => {
     documents: '/school-admin/documents',
     'files-management': '/school-admin/files',
     'image-library': '/school-admin/image-library',
+    'video-library': '/school-admin/video-library',
     'public-info': '/school-admin/public-info',
     'public-info-list': '/school-admin/public-info',
     'banner-management': '/school-admin/banners',

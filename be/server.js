@@ -31,6 +31,7 @@ const aiRoutes = require("./src/routes/ai.routes");
 
 const publicInfoRoutes = require('./src/routes/publicInfo.routes');
 const imageLibraryRoutes = require('./src/routes/imageLibrary.routes');
+const videoLibraryRoutes = require('./src/routes/videoLibrary.routes');
 const DailyMenu = require('./src/routes/dailyMenu.routes');
 const mealPhotoRoutes = require('./src/routes/mealPhoto.routes');
 const notificationRoutes = require('./src/routes/notification.routes');
@@ -65,6 +66,7 @@ require('./src/models/Ingredient');
 require('./src/models/HealthCheck');
 require('./src/models/HomepageBannerSetting');
 require('./src/models/ImageLibraryItem');
+require('./src/models/VideoClipItem');
 require('./src/models/InspectionCommittee');
 require('./src/models/InspectionMinutes');
 
@@ -421,6 +423,7 @@ app.use('/api/health', healthRoutes);
 // Public info (public - published only)
 app.use('/api/public-info', publicInfoRoutes);
 app.use('/api/image-library', imageLibraryRoutes);
+app.use('/api/video-library', videoLibraryRoutes);
 
 // Thời khóa biểu (public - không cần đăng nhập)
 const timetableRoutes = require('./src/routes/timetable.routes');

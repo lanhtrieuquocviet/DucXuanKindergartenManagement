@@ -24,6 +24,7 @@ const documentController = require('../controller/documentController');
 const publicInfoController = require('../controller/publicInfoController');
 const bannerController = require('../controller/bannerController');
 const imageLibraryController = require('../controller/imageLibraryController');
+const videoClipController = require('../controller/videoClipController');
 const academicYearController = require('../controller/academicYearController');
 const AcademicYear = require('../models/AcademicYear');
 const curriculumController = require('../controller/curriculumController');
@@ -700,6 +701,9 @@ router.post('/documents', authenticate, authorizePermissions('MANAGE_DOCUMENT'),
 router.get('/image-library', authenticate, authorizePermissions('MANAGE_IMAGE_LIBRARY'), imageLibraryController.listAdminImageLibrary);
 router.post('/image-library', authenticate, authorizePermissions('MANAGE_IMAGE_LIBRARY'), imageLibraryController.createImageLibraryItem);
 router.delete('/image-library/:id', authenticate, authorizePermissions('MANAGE_IMAGE_LIBRARY'), imageLibraryController.deleteImageLibraryItem);
+router.get('/video-library', authenticate, authorizePermissions('MANAGE_IMAGE_LIBRARY'), videoClipController.listAdminVideoClips);
+router.post('/video-library', authenticate, authorizePermissions('MANAGE_IMAGE_LIBRARY'), videoClipController.createVideoClipItem);
+router.delete('/video-library/:id', authenticate, authorizePermissions('MANAGE_IMAGE_LIBRARY'), videoClipController.deleteVideoClipItem);
 
 /**
  * @openapi

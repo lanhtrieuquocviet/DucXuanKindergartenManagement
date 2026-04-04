@@ -219,6 +219,8 @@ export const ENDPOINTS = {
     DOCUMENT_DETAIL: (documentId) => `/school-admin/documents/${documentId}`,
     IMAGE_LIBRARY: "/school-admin/image-library",
     IMAGE_LIBRARY_DETAIL: (id) => `/school-admin/image-library/${id}`,
+    VIDEO_LIBRARY: "/school-admin/video-library",
+    VIDEO_LIBRARY_DETAIL: (id) => `/school-admin/video-library/${id}`,
     PUBLIC_INFOS: "/school-admin/public-info",
     PUBLIC_INFO_DETAIL: (id) => `/school-admin/public-info/${id}`,
     BANNERS: '/school-admin/banners',
@@ -373,6 +375,9 @@ export const ENDPOINTS = {
   },
   IMAGE_LIBRARY: {
     LIST: "/image-library",
+  },
+  VIDEO_LIBRARY: {
+    LIST: "/video-library",
   },
   // Thời khóa biểu công khai (không cần đăng nhập)
   TIMETABLE_PUBLIC: (yearId) => (yearId ? `/timetable?yearId=${yearId}` : "/timetable"),
