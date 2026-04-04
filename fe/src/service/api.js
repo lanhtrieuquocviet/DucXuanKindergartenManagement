@@ -276,6 +276,7 @@ export const ENDPOINTS = {
     ASSET_COMMITTEE_DETAIL: (id) => `/school-admin/asset-committees/${id}`,
     ASSET_MINUTES: "/school-admin/asset-minutes",
     ASSET_MINUTES_DETAIL: (id) => `/school-admin/asset-minutes/${id}`,
+    ASSET_MINUTES_EXPORT_WORD: (id) => `/school-admin/asset-minutes/${id}/export-word`,
     ASSET_MINUTES_APPROVE: (id) => `/school-admin/asset-minutes/${id}/approve`,
     ASSET_MINUTES_REJECT: (id) => `/school-admin/asset-minutes/${id}/reject`,
     // Asset CRUD
@@ -288,6 +289,7 @@ export const ENDPOINTS = {
     ASSET_ALLOCATIONS_PARSE_WORD: "/school-admin/asset-allocations/parse-word",
     ASSET_ALLOCATIONS_PARSE_EXCEL: "/school-admin/asset-allocations/parse-excel",
     ASSET_ALLOCATION_DETAIL: (id) => `/school-admin/asset-allocations/${id}`,
+    ASSET_ALLOCATION_EXPORT_WORD: (id) => `/school-admin/asset-allocations/${id}/export-word`,
     ASSET_ALLOCATION_TRANSFER: (id) => `/school-admin/asset-allocations/${id}/transfer`,
     PURCHASE_REQUESTS: "/school-admin/purchase-requests",
     PURCHASE_REQUEST_APPROVE: (id) => `/school-admin/purchase-requests/${id}/approve`,

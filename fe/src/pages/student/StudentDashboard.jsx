@@ -3,13 +3,63 @@ import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../../context/AuthContext';
 import { get, put, ENDPOINTS } from '../../service/api';
 import { getNotifications, getUnreadCount, markAllAsRead, markAsRead } from '../../service/notification.api';
-import { Bell, User, LogOut, X, ChevronRight } from 'lucide-react';
+import {
+  Box, Paper, Typography, Avatar, Chip, IconButton, Badge, Button,
+  Grid, Stack, CircularProgress, Dialog, DialogTitle, DialogContent,
+  DialogActions, Divider, Skeleton, Slide, useMediaQuery,
+} from '@mui/material';
+import {
+  Notifications, Person, Logout, ChildCare, Assignment, BarChart,
+  DirectionsCar, Restaurant, PhotoLibrary, School, Close, DoneAll,
+  EditNote, SwapHoriz, CheckCircle, Home, CalendarMonth,
+} from '@mui/icons-material';
 
-function StudentDashboard() {
+const PRIMARY = '#059669';
+const PRIMARY_DARK = '#047857';
+const PRIMARY_LIGHT = '#d1fae5';
+const BG = '#f0fdf4';
+
+const NOTIF_CONFIG = {
+  attendance_checkin:  { icon: '🏫', bg: '#dbeafe', label: 'Đến trường' },
+  attendance_checkout: { icon: '🏠', bg: '#fce7f3', label: 'Về nhà' },
+  attendance_absent:   { icon: '❌', bg: '#fee2e2', label: 'Vắng mặt' },
+  timetable_realtime:  { icon: '⏰', bg: '#fef9c3', label: 'Lịch học' },
+  timetable_daily:     { icon: '📅', bg: '#dcfce7', label: 'Lịch ngày' },
+  meal_issue:          { icon: '🍽️', bg: '#fef3c7', label: 'Bữa ăn' },
+};
+
+function timeAgo(dateStr) {
+  if (!dateStr) return '';
+  const diff = Date.now() - new Date(dateStr).getTime();
+  const mins = Math.floor(diff / 60000);
+  const hours = Math.floor(diff / 3600000);
+  const days = Math.floor(diff / 86400000);
+  if (mins < 1) return 'Vừa xong';
+  if (mins < 60) return `${mins} phút trước`;
+  if (hours < 24) return `${hours} giờ trước`;
+  if (days < 7) return `${days} ngày trước`;
+  return new Date(dateStr).toLocaleDateString('vi-VN');
+}
+
+const ACTION_CARDS = [
+  { icon: <ChildCare />,    label: 'Thông tin trẻ',      color: '#059669', bg: '#ecfdf5', key: 'info' },
+  { icon: <CheckCircle />,  label: 'Điểm danh hôm nay',  color: '#2563eb', bg: '#eff6ff', key: 'today' },
+  { icon: <BarChart />,     label: 'Báo cáo điểm danh',  color: '#7c3aed', bg: '#f5f3ff', key: 'report' },
+  { icon: <DirectionsCar />,label: 'Người đón trẻ',       color: '#d97706', bg: '#fffbeb', key: 'pickup' },
+  { icon: <Restaurant />,   label: 'Thực đơn',            color: '#059669', bg: '#ecfdf5', key: 'menu' },
+  { icon: <PhotoLibrary />, label: 'Hình ảnh bữa ăn',    color: '#0891b2', bg: '#ecfeff', key: 'photos' },
+  { icon: <EditNote />,     label: 'Đơn xin nghỉ',       color: '#6b7280', bg: '#f9fafb', key: 'leave', disabled: true },
+  { icon: <SwapHoriz />,    label: 'Chuyển lớp',          color: '#6b7280', bg: '#f9fafb', key: 'transfer', disabled: true },
+];
+
+export default function StudentDashboard() {
   const navigate = useNavigate();
   const { user, logout, isInitializing } = useAuth();
+  const isMobile = useMediaQuery('(max-width:600px)');
+
   const [children, setChildren] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [attendanceToday, setAttendanceToday] = useState(null);
   const [showChildInfo, setShowChildInfo] = useState(false);
   const [isEditMode, setIsEditMode] = useState(false);
   const [editFormData, setEditFormData] = useState({});
@@ -19,81 +69,36 @@ function StudentDashboard() {
   const [otpTimeLeft, setOtpTimeLeft] = useState(0);
   const [showOtpModal, setShowOtpModal] = useState(false);
   const [otpTotalTime, setOtpTotalTime] = useState(60);
-  const [attendanceToday, setAttendanceToday] = useState(null);
-  const pollRef = useRef(null);
-  const lastOtpCodeRef = useRef(null);
-  const [notifModalOpen, setNotifModalOpen] = useState(false);
+  const [notifOpen, setNotifOpen] = useState(false);
   const [notifications, setNotifications] = useState([]);
   const [unreadCount, setUnreadCount] = useState(0);
   const [notifLoading, setNotifLoading] = useState(false);
 
+  const pollRef = useRef(null);
+  const lastOtpCodeRef = useRef(null);
+
   useEffect(() => {
     if (isInitializing) return;
     if (!user) { navigate('/login', { replace: true }); return; }
-    const userRoles = user?.roles?.map((r) => r.roleName || r) || [];
-    const isParent = userRoles.includes('Parent') || userRoles.includes('StudentParent') || userRoles.includes('Student');
-    if (!isParent) { navigate('/', { replace: true }); return; }
-    const fetchChildren = async () => {
-      try {
-        const response = await get(ENDPOINTS.AUTH.MY_CHILDREN);
-        setChildren(response.data || []);
-      } catch { setChildren([]); } finally { setLoading(false); }
-    };
-    fetchChildren();
-  }, [navigate, user, isInitializing]);
-
-  const handleEditClick = () => {
-    if (studentInfo) {
-      setEditFormData({
-        fullName: studentInfo.fullName || '',
-        dateOfBirth: studentInfo.dateOfBirth ? studentInfo.dateOfBirth.split('T')[0] : '',
-        address: studentInfo.address || '',
-        parentPhone: studentInfo.parentPhone || studentInfo.phone || '',
-      });
-      setIsEditMode(true);
-      setSaveMessage(null);
+    const roles = user?.roles?.map(r => r.roleName || r) || [];
+    if (!roles.includes('Parent') && !roles.includes('Student') && !roles.includes('StudentParent')) {
+      navigate('/', { replace: true }); return;
     }
-  };
-  const handleEditFormChange = (e) => {
-    const { name, value } = e.target;
-    setEditFormData((prev) => ({ ...prev, [name]: value }));
-  };
-  const handleSaveChanges = async () => {
-    if (!studentInfo?._id) return;
-    setIsSaving(true); setSaveMessage(null);
-    try {
-      const updateData = {
-        fullName: editFormData.fullName,
-        dateOfBirth: editFormData.dateOfBirth,
-        address: editFormData.address,
-        phone: editFormData.parentPhone,
-        parentPhone: editFormData.parentPhone,
-      };
-      const res = await put(ENDPOINTS.STUDENTS.UPDATE(studentInfo._id), updateData);
-      const updatedStudent = res.data || res;
-      setChildren((prev) => prev.map((child) => (child._id === (updatedStudent._id || updatedStudent.id) ? ({ ...child, ...updatedStudent }) : child)));
-      setSaveMessage({ type: 'success', text: 'Cập nhật thông tin thành công!' });
-      setIsEditMode(false);
-      setShowChildInfo(false);
-    } catch (error) {
-      setSaveMessage({ type: 'error', text: error.message || 'Cập nhật thất bại. Vui lòng thử lại.' });
-    } finally { setIsSaving(false); }
-  };
-  const handleCancelEdit = () => { setIsEditMode(false); setSaveMessage(null); };
+    get(ENDPOINTS.AUTH.MY_CHILDREN)
+      .then(res => setChildren(res.data || []))
+      .catch(() => setChildren([]))
+      .finally(() => setLoading(false));
+  }, [navigate, user, isInitializing]);
 
   const studentInfo = children[0] || null;
 
   useEffect(() => {
-    const fetchTodayAttendance = async () => {
-      if (!studentInfo?._id) { setAttendanceToday(null); return; }
-      const today = new Date();
-      const todayQuery = `${today.getFullYear()}-${(today.getMonth()+1).toString().padStart(2,'0')}-${today.getDate().toString().padStart(2,'0')}`;
-      try {
-        const res = await get(`${ENDPOINTS.STUDENTS.ATTENDANCE_LIST}?studentId=${studentInfo._id}&date=${todayQuery}`);
-        setAttendanceToday((res.data || [])[0] || null);
-      } catch { setAttendanceToday(null); }
-    };
-    fetchTodayAttendance();
+    if (!studentInfo?._id) return;
+    const today = new Date();
+    const q = `${today.getFullYear()}-${String(today.getMonth()+1).padStart(2,'0')}-${String(today.getDate()).padStart(2,'0')}`;
+    get(`${ENDPOINTS.STUDENTS.ATTENDANCE_LIST}?studentId=${studentInfo._id}&date=${q}`)
+      .then(res => setAttendanceToday((res.data || [])[0] || null))
+      .catch(() => setAttendanceToday(null));
   }, [studentInfo?._id]);
 
   useEffect(() => {
@@ -103,10 +108,16 @@ function StudentDashboard() {
         const res = await get(ENDPOINTS.OTP.PENDING(studentInfo._id));
         const data = res.data;
         if (data) {
-          if (data.code !== lastOtpCodeRef.current) { lastOtpCodeRef.current = data.code; setOtpTotalTime(data.timeLeft || 60); setShowOtpModal(true); }
+          if (data.code !== lastOtpCodeRef.current) {
+            lastOtpCodeRef.current = data.code;
+            setOtpTotalTime(data.timeLeft || 60);
+            setShowOtpModal(true);
+          }
           setPendingOtp(data); setOtpTimeLeft(data.timeLeft);
-        } else { lastOtpCodeRef.current = null; setPendingOtp(null); setOtpTimeLeft(0); setShowOtpModal(false); }
-      } catch { /* ignore */ }
+        } else {
+          lastOtpCodeRef.current = null; setPendingOtp(null); setOtpTimeLeft(0); setShowOtpModal(false);
+        }
+      } catch {}
     };
     fetchPending();
     pollRef.current = setInterval(fetchPending, 3000);
@@ -114,17 +125,9 @@ function StudentDashboard() {
   }, [studentInfo?._id]);
 
   useEffect(() => {
-    if (!user) return;
-    const fetchCount = async () => { try { const res = await getUnreadCount(); setUnreadCount(res.count || 0); } catch { /* ignore */ } };
-    fetchCount();
-    const interval = setInterval(fetchCount, 30000);
-    return () => clearInterval(interval);
-  }, [user]);
-
-  useEffect(() => {
     if (!pendingOtp || otpTimeLeft <= 0) return;
     const timer = setInterval(() => {
-      setOtpTimeLeft((prev) => {
+      setOtpTimeLeft(prev => {
         if (prev <= 1) { clearInterval(timer); setPendingOtp(null); setShowOtpModal(false); lastOtpCodeRef.current = null; return 0; }
         return prev - 1;
       });
@@ -132,304 +135,392 @@ function StudentDashboard() {
     return () => clearInterval(timer);
   }, [pendingOtp?.code]);
 
-  const studentName = studentInfo?.fullName || 'Học sinh';
-  const className = studentInfo?.classId?.className || 'Chưa xếp lớp';
-  const parentName = studentInfo?.parent?.name || '';
-  const parentPhone = studentInfo?.parentPhone || studentInfo?.phone || '';
-  const parentDisplayName = parentName || user?.fullName || user?.username || 'Phụ huynh';
+  useEffect(() => {
+    if (!user) return;
+    const fetch = async () => {
+      try { const res = await getUnreadCount(); setUnreadCount(res.count || 0); } catch {}
+    };
+    fetch();
+    const iv = setInterval(fetch, 30000);
+    return () => clearInterval(iv);
+  }, [user]);
 
-  const attendanceStatus = (() => {
-    if (!attendanceToday) return { label: 'Chưa điểm danh', color: '#9ca3af', bg: '#f3f4f6' };
-    if (attendanceToday.status === 'absent') return { label: 'Vắng mặt', color: '#ef4444', bg: '#fef2f2' };
-    if (attendanceToday.time?.checkOut) return { label: 'Đã về', color: '#3b82f6', bg: '#eff6ff' };
-    if (attendanceToday.time?.checkIn || attendanceToday.status === 'present') return { label: 'Đã đến trường', color: '#10b981', bg: '#ecfdf5' };
-    return { label: 'Chưa điểm danh', color: '#9ca3af', bg: '#f3f4f6' };
-  })();
-
-  const loadNotifications = async () => {
+  const handleOpenNotif = async () => {
+    setNotifOpen(true);
     setNotifLoading(true);
     try { const res = await getNotifications(1, 20); setNotifications(res.data || []); setUnreadCount(res.unreadCount || 0); }
-    catch { /* ignore */ } finally { setNotifLoading(false); }
+    catch {} finally { setNotifLoading(false); }
   };
-  const handleOpenNotifModal = async () => { setNotifModalOpen(true); await loadNotifications(); };
-  const handleMarkAllRead = async () => {
-    try { await markAllAsRead(); setNotifications((prev) => prev.map((n) => ({ ...n, isReadByMe: true }))); setUnreadCount(0); }
-    catch { /* ignore */ }
-  };
-  const handleMarkOneRead = async (id) => {
-    try { await markAsRead(id); setNotifications((prev) => prev.map((n) => (n._id === id ? { ...n, isReadByMe: true } : n))); setUnreadCount((c) => Math.max(0, c - 1)); }
-    catch { /* ignore */ }
-  };
-  const handleLogout = () => { logout(); navigate('/login', { replace: true }); };
 
-  const actionButtons = [
-    { icon: '👶', label: 'Thông tin của trẻ', onClick: () => { if (studentInfo) setShowChildInfo(true); }, color: '#ecfdf5', border: '#6ee7b7' },
-    { icon: '📋', label: 'Điểm danh hôm nay', onClick: () => navigate('/student/attendance/today'), color: '#eff6ff', border: '#93c5fd' },
-    { icon: '📈', label: 'Báo cáo điểm danh', onClick: () => navigate('/student/attendance/report'), color: '#f5f3ff', border: '#c4b5fd' },
-    { icon: '👤', label: 'Người đón trẻ', onClick: () => navigate('/student/pickup'), color: '#fff7ed', border: '#fed7aa' },
-    { icon: '🔔', label: 'Thông báo', onClick: handleOpenNotifModal, color: '#fefce8', border: '#fde047', badge: unreadCount },
-    { icon: '📝', label: 'Đơn xin nghỉ học', onClick: () => {}, color: '#f8fafc', border: '#cbd5e1' },
-    { icon: '📄', label: 'Chuyển lớp', onClick: () => {}, color: '#f8fafc', border: '#cbd5e1' },
-    { icon: '🍽️', label: 'Thực đơn', onClick: () => navigate('/student/menus'), color: '#ecfdf5', border: '#6ee7b7' },
-    { icon: '🍱', label: 'Hình ảnh bữa ăn', onClick: () => navigate('/student/meal-photos'), color: '#fff7ed', border: '#fed7aa' },
-  ];
+  const handleMarkAll = async () => {
+    try { await markAllAsRead(); setNotifications(p => p.map(n => ({...n, isReadByMe: true}))); setUnreadCount(0); } catch {}
+  };
+
+  const handleMarkOne = async (id) => {
+    try { await markAsRead(id); setNotifications(p => p.map(n => n._id === id ? {...n, isReadByMe: true} : n)); setUnreadCount(c => Math.max(0, c-1)); } catch {}
+  };
+
+  const handleEditClick = () => {
+    if (studentInfo) {
+      setEditFormData({
+        fullName: studentInfo.fullName || '',
+        dateOfBirth: studentInfo.dateOfBirth ? studentInfo.dateOfBirth.split('T')[0] : '',
+        address: studentInfo.address || '',
+        parentPhone: studentInfo.parentPhone || studentInfo.phone || '',
+      });
+      setIsEditMode(true); setSaveMessage(null);
+    }
+  };
+
+  const handleSave = async () => {
+    if (!studentInfo?._id) return;
+    setIsSaving(true); setSaveMessage(null);
+    try {
+      const res = await put(ENDPOINTS.STUDENTS.UPDATE(studentInfo._id), {
+        fullName: editFormData.fullName, dateOfBirth: editFormData.dateOfBirth,
+        address: editFormData.address, phone: editFormData.parentPhone, parentPhone: editFormData.parentPhone,
+      });
+      const updated = res.data || res;
+      setChildren(prev => prev.map(c => c._id === (updated._id || updated.id) ? {...c, ...updated} : c));
+      setSaveMessage({ type: 'success', text: 'Cập nhật thành công!' });
+      setIsEditMode(false);
+    } catch (e) {
+      setSaveMessage({ type: 'error', text: e.message || 'Cập nhật thất bại.' });
+    } finally { setIsSaving(false); }
+  };
+
+  const handleCardAction = (key) => {
+    const routes = {
+      info: () => setShowChildInfo(true),
+      today: () => navigate('/student/attendance/today'),
+      report: () => navigate('/student/attendance/report'),
+      pickup: () => navigate('/student/pickup'),
+      menu: () => navigate('/student/menus'),
+      photos: () => navigate('/student/meal-photos'),
+    };
+    routes[key]?.();
+  };
+
+  const studentName = studentInfo?.fullName || 'Học sinh';
+  const className = studentInfo?.classId?.className || 'Chưa xếp lớp';
+  const parentDisplayName = user?.fullName || user?.username || 'Phụ huynh';
+
+  const attendanceStatus = (() => {
+    if (!attendanceToday) return { label: 'Chưa điểm danh', color: 'default' };
+    if (attendanceToday.status === 'absent') return { label: 'Vắng mặt', color: 'error' };
+    if (attendanceToday.time?.checkOut) return { label: 'Đã về nhà', color: 'info' };
+    if (attendanceToday.time?.checkIn || attendanceToday.status === 'present') return { label: 'Đã đến trường', color: 'success' };
+    return { label: 'Chưa điểm danh', color: 'default' };
+  })();
 
   return (
-    <div className="min-h-screen bg-gray-50">
-      {/* ── Header ── */}
-      <div className="bg-emerald-600 text-white">
-        <div className="max-w-lg mx-auto px-4 pt-5 pb-6">
-          <div className="flex items-center justify-between mb-1">
-            <p className="text-emerald-200 text-xs font-medium">Trường mầm non Đức Xuân</p>
-            <div className="flex items-center gap-2">
-              <button onClick={() => navigate('/profile')} className="p-2 rounded-full bg-white/15 active:bg-white/25 transition">
-                <User size={17} />
-              </button>
-              <button onClick={handleLogout} className="p-2 rounded-full bg-white/15 active:bg-white/25 transition">
-                <LogOut size={17} />
-              </button>
-            </div>
-          </div>
-          <h1 className="text-xl font-bold">👋 Xin chào, {parentDisplayName}</h1>
-        </div>
-      </div>
+    <Box sx={{ minHeight: '100vh', bgcolor: BG }}>
+      {/* ── AppBar ── */}
+      <Box sx={{
+        background: `linear-gradient(135deg, ${PRIMARY} 0%, ${PRIMARY_DARK} 100%)`,
+        px: 2, pt: 2.5, pb: 3,
+        position: 'sticky', top: 0, zIndex: 100,
+        boxShadow: '0 2px 12px rgba(5,150,105,0.3)',
+      }}>
+        <Stack direction="row" alignItems="center" justifyContent="space-between">
+          <Stack direction="row" alignItems="center" spacing={1.5}>
+            <Avatar sx={{ bgcolor: 'rgba(255,255,255,0.2)', width: 36, height: 36 }}>
+              <School sx={{ fontSize: 20, color: 'white' }} />
+            </Avatar>
+            <Box>
+              <Typography sx={{ color: 'rgba(255,255,255,0.8)', fontSize: '0.7rem', fontWeight: 500 }}>
+                Trường mầm non Đức Xuân
+              </Typography>
+              <Typography sx={{ color: 'white', fontSize: '0.95rem', fontWeight: 700, lineHeight: 1.2 }}>
+                👋 Xin chào, {parentDisplayName}
+              </Typography>
+            </Box>
+          </Stack>
+          <Stack direction="row" spacing={0.5}>
+            <IconButton onClick={handleOpenNotif} size="small" sx={{ color: 'white' }}>
+              <Badge badgeContent={unreadCount > 9 ? '9+' : unreadCount} color="error"
+                sx={{ '& .MuiBadge-badge': { fontSize: 9, minWidth: 16, height: 16 } }}>
+                <Notifications />
+              </Badge>
+            </IconButton>
+            <IconButton onClick={() => logout() || navigate('/login', { replace: true })} size="small" sx={{ color: 'white' }}>
+              <Logout />
+            </IconButton>
+          </Stack>
+        </Stack>
+      </Box>
 
-      <div className="max-w-lg mx-auto px-4 -mt-3">
-        {/* ── Student card ── */}
-        <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-4 mb-5">
+      <Box sx={{ maxWidth: 600, mx: 'auto', px: 2, pb: 4 }}>
+        {/* ── Student Card ── */}
+        <Paper elevation={0} sx={{
+          mt: -1.5, mb: 2.5, p: 2.5, borderRadius: 4,
+          border: '1px solid', borderColor: '#bbf7d0',
+          background: 'white',
+        }}>
           {loading ? (
-            <div className="space-y-2.5 animate-pulse">
-              <div className="h-4 bg-gray-100 rounded w-3/4" />
-              <div className="h-4 bg-gray-100 rounded w-1/2" />
-              <div className="h-4 bg-gray-100 rounded w-2/3" />
-            </div>
+            <Stack spacing={1}>
+              <Skeleton variant="text" width="60%" height={28} />
+              <Skeleton variant="text" width="40%" height={20} />
+              <Skeleton variant="rounded" width={120} height={28} />
+            </Stack>
           ) : (
-            <div className="flex items-start gap-3">
-              <div className="w-12 h-12 rounded-2xl bg-emerald-100 flex items-center justify-center text-2xl flex-shrink-0">
-                👶
-              </div>
-              <div className="flex-1 min-w-0">
-                <p className="font-bold text-gray-900 text-base leading-tight">{studentName}</p>
-                <p className="text-gray-500 text-sm mt-0.5">🏫 {className}</p>
-                {parentPhone && <p className="text-gray-500 text-sm">📞 {parentPhone}</p>}
-                <div className="mt-2">
-                  <span className="inline-flex items-center gap-1.5 text-xs font-semibold px-2.5 py-1 rounded-full"
-                    style={{ background: attendanceStatus.bg, color: attendanceStatus.color }}>
-                    <span className="w-1.5 h-1.5 rounded-full" style={{ background: attendanceStatus.color }} />
-                    {attendanceStatus.label}
-                  </span>
-                </div>
-              </div>
-              {/* Notification bell */}
-              <button
-                onClick={handleOpenNotifModal}
-                className="relative p-2 rounded-xl flex-shrink-0"
-                style={{ background: unreadCount > 0 ? '#fefce8' : '#f8fafc', border: `1.5px solid ${unreadCount > 0 ? '#fde047' : '#e2e8f0'}` }}
-              >
-                <Bell size={20} className={unreadCount > 0 ? 'text-amber-500' : 'text-gray-400'} />
-                {unreadCount > 0 && (
-                  <span className="absolute -top-1.5 -right-1.5 bg-red-500 text-white text-[10px] font-bold rounded-full w-4.5 h-4.5 flex items-center justify-center leading-none px-1">
-                    {unreadCount > 9 ? '9+' : unreadCount}
-                  </span>
-                )}
-              </button>
-            </div>
+            <Stack direction="row" spacing={2} alignItems="flex-start">
+              <Avatar sx={{ bgcolor: PRIMARY_LIGHT, color: PRIMARY, width: 56, height: 56, fontSize: '1.4rem', fontWeight: 700, flexShrink: 0 }}>
+                {studentName.charAt(0)}
+              </Avatar>
+              <Box flex={1} minWidth={0}>
+                <Typography fontWeight={800} fontSize="1.05rem" color="#111827" noWrap>{studentName}</Typography>
+                <Stack direction="row" spacing={0.75} alignItems="center" mt={0.25} mb={1}>
+                  <School sx={{ fontSize: 14, color: '#6b7280' }} />
+                  <Typography fontSize="0.82rem" color="text.secondary">{className}</Typography>
+                </Stack>
+                <Chip
+                  label={attendanceStatus.label}
+                  color={attendanceStatus.color}
+                  size="small"
+                  sx={{ fontWeight: 700, fontSize: '0.72rem', height: 24 }}
+                />
+              </Box>
+            </Stack>
           )}
-        </div>
+        </Paper>
 
-        {/* ── Action grid ── */}
-        <div className="grid grid-cols-2 gap-3 pb-8">
-          {actionButtons.map((btn) => (
-            <button
-              key={btn.label}
-              type="button"
-              onClick={btn.onClick}
-              className="relative flex items-center gap-3 bg-white rounded-2xl shadow-sm p-4 text-left active:scale-95 transition-transform"
-              style={{ border: `1.5px solid ${btn.border}` }}
-            >
-              <span className="text-2xl flex-shrink-0">{btn.icon}</span>
-              <span className="text-sm font-semibold text-gray-800 leading-tight">{btn.label}</span>
-              {btn.badge > 0 && (
-                <span className="absolute top-2 right-2 bg-red-500 text-white text-[10px] font-bold rounded-full px-1.5 py-0.5 leading-none">
-                  {btn.badge > 9 ? '9+' : btn.badge}
-                </span>
-              )}
-            </button>
+        {/* ── Action Grid ── */}
+        <Grid container spacing={1.5}>
+          {ACTION_CARDS.map((card) => (
+            <Grid item xs={6} sm={4} key={card.key}>
+              <Paper
+                elevation={0}
+                onClick={() => !card.disabled && handleCardAction(card.key)}
+                sx={{
+                  p: 2, borderRadius: 3, cursor: card.disabled ? 'not-allowed' : 'pointer',
+                  border: '1.5px solid', borderColor: card.disabled ? '#e5e7eb' : `${card.color}30`,
+                  bgcolor: card.disabled ? '#f9fafb' : card.bg,
+                  opacity: card.disabled ? 0.5 : 1,
+                  transition: 'all 0.15s',
+                  '&:hover': !card.disabled ? { transform: 'translateY(-2px)', boxShadow: `0 4px 16px ${card.color}25` } : {},
+                  '&:active': !card.disabled ? { transform: 'scale(0.97)' } : {},
+                }}
+              >
+                <Box sx={{ color: card.color, mb: 1, '& svg': { fontSize: 28 } }}>
+                  {card.icon}
+                </Box>
+                <Typography fontSize="0.82rem" fontWeight={700} color={card.disabled ? '#9ca3af' : '#111827'} lineHeight={1.3}>
+                  {card.label}
+                </Typography>
+              </Paper>
+            </Grid>
           ))}
-        </div>
-      </div>
+        </Grid>
+      </Box>
 
-      {/* ── Notification modal (bottom sheet) ── */}
-      {notifModalOpen && (
-        <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center bg-black/40" onClick={() => setNotifModalOpen(false)}>
-          <div className="bg-white w-full sm:max-w-md rounded-t-2xl sm:rounded-2xl shadow-2xl flex flex-col overflow-hidden max-h-[85vh]" onClick={e => e.stopPropagation()}>
-            <div className="flex items-center justify-between px-5 pt-5 pb-3 border-b border-gray-100">
-              <div className="flex items-center gap-2">
-                <span className="text-xl">🔔</span>
-                <h2 className="text-base font-bold text-gray-800">Thông báo</h2>
-                {unreadCount > 0 && <span className="bg-red-500 text-white text-xs font-bold rounded-full px-2 py-0.5">{unreadCount}</span>}
-              </div>
-              <div className="flex items-center gap-2">
-                {unreadCount > 0 && (
-                  <button type="button" onClick={handleMarkAllRead} className="text-xs text-indigo-600 font-semibold hover:underline">Đọc tất cả</button>
-                )}
-                <button type="button" onClick={() => setNotifModalOpen(false)} className="p-1 text-gray-400 hover:text-gray-700">
-                  <X size={20} />
-                </button>
-              </div>
-            </div>
-            <div className="overflow-y-auto flex-1">
-              {notifLoading ? (
-                <div className="flex flex-col items-center justify-center py-16 text-gray-400">
-                  <div className="text-3xl mb-3 animate-pulse">⏳</div>
-                  <p className="text-sm">Đang tải thông báo...</p>
-                </div>
-              ) : notifications.length === 0 ? (
-                <div className="flex flex-col items-center justify-center py-16 text-gray-400">
-                  <div className="text-4xl mb-3">🔕</div>
-                  <p className="text-sm font-medium text-gray-500">Chưa có thông báo nào</p>
-                </div>
-              ) : (
-                <div className="divide-y divide-gray-50">
-                  {notifications.map((n) => (
-                    <div
-                      key={n._id}
-                      onClick={() => !n.isReadByMe && handleMarkOneRead(n._id)}
-                      className={`px-5 py-4 transition-colors ${n.isReadByMe ? 'bg-white' : 'bg-amber-50 cursor-pointer active:bg-amber-100'}`}
-                    >
-                      <div className="flex items-start gap-3">
-                        <div className={`flex-shrink-0 w-9 h-9 rounded-full flex items-center justify-center text-base ${n.isReadByMe ? 'bg-gray-100' : 'bg-amber-100'}`}>⚠️</div>
-                        <div className="flex-1 min-w-0">
-                          <p className={`text-sm leading-snug ${n.isReadByMe ? 'font-normal text-gray-700' : 'font-semibold text-gray-900'}`}>{n.title}</p>
-                          <p className="text-xs text-gray-500 mt-0.5 line-clamp-2">{n.body}</p>
-                          <p className="text-xs text-gray-400 mt-1">{new Date(n.createdAt).toLocaleString('vi-VN')}</p>
-                        </div>
-                        {!n.isReadByMe && <div className="flex-shrink-0 mt-1.5 w-2.5 h-2.5 rounded-full bg-amber-400" />}
-                      </div>
-                    </div>
-                  ))}
-                </div>
+      {/* ── Notification Dialog ── */}
+      <Dialog
+        open={notifOpen}
+        onClose={() => setNotifOpen(false)}
+        fullScreen={isMobile}
+        maxWidth="sm"
+        fullWidth
+        TransitionComponent={Slide}
+        TransitionProps={{ direction: 'up' }}
+        PaperProps={{ sx: { borderRadius: isMobile ? '20px 20px 0 0' : 3, mt: isMobile ? 'auto' : undefined, maxHeight: '85vh' } }}
+      >
+        <DialogTitle sx={{ pb: 1 }}>
+          <Stack direction="row" alignItems="center" justifyContent="space-between">
+            <Stack direction="row" alignItems="center" spacing={1}>
+              <Typography fontWeight={700} fontSize="1rem">Thông báo</Typography>
+              {unreadCount > 0 && <Chip label={unreadCount} color="error" size="small" sx={{ height: 20, fontSize: '0.7rem' }} />}
+            </Stack>
+            <Stack direction="row" spacing={0.5}>
+              {unreadCount > 0 && (
+                <Button size="small" startIcon={<DoneAll sx={{ fontSize: 14 }} />} onClick={handleMarkAll}
+                  sx={{ textTransform: 'none', fontSize: '0.75rem', color: PRIMARY }}>
+                  Đọc tất cả
+                </Button>
               )}
-            </div>
-            <div className="px-5 py-3 border-t border-gray-100 bg-gray-50">
-              <button type="button" onClick={() => setNotifModalOpen(false)} className="w-full py-3 rounded-xl bg-emerald-600 text-white text-sm font-semibold active:bg-emerald-700 transition">Đóng</button>
-            </div>
-          </div>
-        </div>
-      )}
+              <IconButton size="small" onClick={() => setNotifOpen(false)}><Close fontSize="small" /></IconButton>
+            </Stack>
+          </Stack>
+        </DialogTitle>
+        <Divider />
+        <DialogContent sx={{ p: 0, overflowY: 'auto' }}>
+          {notifLoading ? (
+            <Stack alignItems="center" py={6}><CircularProgress sx={{ color: PRIMARY }} /></Stack>
+          ) : notifications.length === 0 ? (
+            <Stack alignItems="center" py={6} spacing={1}>
+              <Typography fontSize="2.5rem">🔕</Typography>
+              <Typography color="text.secondary" fontSize="0.875rem">Chưa có thông báo nào</Typography>
+            </Stack>
+          ) : (
+            notifications.map((n, idx) => {
+              const cfg = NOTIF_CONFIG[n.type] || { icon: '🔔', bg: '#eff6ff' };
+              return (
+                <Box key={n._id}>
+                  <Box
+                    onClick={() => !n.isReadByMe && handleMarkOne(n._id)}
+                    sx={{
+                      px: 2.5, py: 1.75, display: 'flex', gap: 1.5, alignItems: 'flex-start',
+                      bgcolor: n.isReadByMe ? 'transparent' : `${cfg.bg}`,
+                      cursor: n.isReadByMe ? 'default' : 'pointer',
+                      '&:hover': { bgcolor: '#f9fafb' },
+                    }}
+                  >
+                    <Avatar sx={{ width: 36, height: 36, bgcolor: cfg.bg, fontSize: '1.1rem', flexShrink: 0 }}>
+                      {cfg.icon}
+                    </Avatar>
+                    <Box flex={1} minWidth={0}>
+                      <Typography variant="body2" fontWeight={n.isReadByMe ? 400 : 700} lineHeight={1.4}>
+                        {n.title}
+                      </Typography>
+                      {n.body && <Typography variant="caption" color="text.secondary" display="block" mt={0.25}>{n.body}</Typography>}
+                      <Typography variant="caption" color="text.disabled" display="block" mt={0.5}>{timeAgo(n.createdAt)}</Typography>
+                    </Box>
+                    {!n.isReadByMe && <Box sx={{ width: 8, height: 8, borderRadius: '50%', bgcolor: PRIMARY, mt: 0.75, flexShrink: 0 }} />}
+                  </Box>
+                  {idx < notifications.length - 1 && <Divider />}
+                </Box>
+              );
+            })
+          )}
+        </DialogContent>
+        <DialogActions sx={{ p: 2, borderTop: '1px solid', borderColor: 'divider' }}>
+          <Button fullWidth variant="contained" onClick={() => setNotifOpen(false)}
+            sx={{ borderRadius: 3, textTransform: 'none', fontWeight: 700, bgcolor: PRIMARY, '&:hover': { bgcolor: PRIMARY_DARK } }}>
+            Đóng
+          </Button>
+        </DialogActions>
+      </Dialog>
 
-      {/* ── OTP modal ── */}
-      {showOtpModal && pendingOtp && (() => {
-        const radius = 48;
-        const circumference = 2 * Math.PI * radius;
-        const progress = otpTotalTime > 0 ? otpTimeLeft / otpTotalTime : 0;
-        const strokeDashoffset = circumference * (1 - progress);
-        return (
-          <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 px-4">
-            <div className="bg-white rounded-2xl shadow-2xl w-full max-w-xs overflow-hidden">
-              <div className="flex items-center justify-between px-5 pt-5 pb-3">
-                <h2 className="text-base font-bold text-gray-800">🔑 Mã OTP của bạn</h2>
-                <button type="button" onClick={() => setShowOtpModal(false)} className="p-1 text-gray-400 hover:text-gray-700"><X size={20} /></button>
-              </div>
-              <div className="flex justify-center pb-2">
-                <span className="text-4xl font-bold tracking-[0.3em] text-gray-900">{pendingOtp.code}</span>
-              </div>
-              <div className="flex flex-col items-center py-4 gap-2">
-                <p className="text-xs text-gray-500 font-medium">Còn lại:</p>
-                <div className="relative w-28 h-28">
-                  <svg className="w-full h-full -rotate-90" viewBox="0 0 112 112">
-                    <circle cx="56" cy="56" r={radius} fill="none" stroke="#e5e7eb" strokeWidth="8" />
-                    <circle cx="56" cy="56" r={radius} fill="none" stroke="#10b981" strokeWidth="8" strokeLinecap="round" strokeDasharray={circumference} strokeDashoffset={strokeDashoffset} style={{ transition: 'stroke-dashoffset 1s linear' }} />
-                  </svg>
-                  <div className="absolute inset-0 flex items-center justify-center">
-                    <span className="text-2xl font-bold text-emerald-600">{otpTimeLeft}s</span>
-                  </div>
-                </div>
-              </div>
-              <div className="px-5 pb-5 text-center">
-                <p className="text-xs text-gray-500">Mã này dùng để giáo viên nhập xác nhận trong vòng <span className="font-semibold text-gray-700">{otpTotalTime} giây</span>.</p>
-              </div>
-            </div>
-          </div>
-        );
-      })()}
+      {/* ── Child Info Dialog ── */}
+      <Dialog open={showChildInfo} onClose={() => { setShowChildInfo(false); setIsEditMode(false); setSaveMessage(null); }}
+        maxWidth="sm" fullWidth PaperProps={{ sx: { borderRadius: 3, mx: 2 } }}>
+        <DialogTitle>
+          <Stack direction="row" alignItems="center" justifyContent="space-between">
+            <Typography fontWeight={700}>Thông tin của trẻ</Typography>
+            <IconButton size="small" onClick={() => { setShowChildInfo(false); setIsEditMode(false); setSaveMessage(null); }}>
+              <Close fontSize="small" />
+            </IconButton>
+          </Stack>
+        </DialogTitle>
+        <Divider />
+        <DialogContent>
+          {isEditMode ? (
+            <Stack spacing={2} mt={1}>
+              {saveMessage && (
+                <Paper sx={{ p: 1.5, bgcolor: saveMessage.type === 'success' ? '#ecfdf5' : '#fef2f2', borderRadius: 2 }}>
+                  <Typography fontSize="0.85rem" color={saveMessage.type === 'success' ? PRIMARY : '#dc2626'}>{saveMessage.text}</Typography>
+                </Paper>
+              )}
+              {[
+                { label: 'Họ và tên', name: 'fullName', type: 'text' },
+                { label: 'Ngày sinh', name: 'dateOfBirth', type: 'date' },
+                { label: 'Địa chỉ', name: 'address', type: 'text' },
+                { label: 'Số điện thoại', name: 'parentPhone', type: 'tel' },
+              ].map(field => (
+                <Box key={field.name}>
+                  <Typography fontSize="0.78rem" fontWeight={600} color="text.secondary" mb={0.5}>{field.label}</Typography>
+                  <Box
+                    component="input"
+                    type={field.type}
+                    value={editFormData[field.name] || ''}
+                    onChange={e => setEditFormData(p => ({ ...p, [field.name]: e.target.value }))}
+                    sx={{
+                      width: '100%', p: 1.25, borderRadius: 2, border: '1.5px solid #d1fae5',
+                      fontSize: '0.9rem', fontFamily: 'inherit', outline: 'none', boxSizing: 'border-box',
+                      '&:focus': { borderColor: PRIMARY },
+                    }}
+                  />
+                </Box>
+              ))}
+            </Stack>
+          ) : (
+            <Stack spacing={1.5} mt={1}>
+              {[
+                { label: 'Họ và tên', value: studentInfo?.fullName },
+                { label: 'Ngày sinh', value: studentInfo?.dateOfBirth ? new Date(studentInfo.dateOfBirth).toLocaleDateString('vi-VN') : '—' },
+                { label: 'Lớp', value: className },
+                { label: 'Địa chỉ', value: studentInfo?.address || '—' },
+                { label: 'Số điện thoại', value: studentInfo?.parentPhone || studentInfo?.phone || '—' },
+              ].map(item => (
+                <Stack key={item.label} direction="row" spacing={2}>
+                  <Typography fontSize="0.82rem" color="text.secondary" width={100} flexShrink={0}>{item.label}</Typography>
+                  <Typography fontSize="0.9rem" fontWeight={600} color="#111827">{item.value || '—'}</Typography>
+                </Stack>
+              ))}
+            </Stack>
+          )}
+        </DialogContent>
+        <DialogActions sx={{ px: 2.5, pb: 2.5, gap: 1 }}>
+          {isEditMode ? (
+            <>
+              <Button onClick={() => { setIsEditMode(false); setSaveMessage(null); }} variant="outlined"
+                sx={{ flex: 1, borderRadius: 2, textTransform: 'none', borderColor: '#d1d5db', color: '#6b7280' }}>
+                Hủy
+              </Button>
+              <Button onClick={handleSave} disabled={isSaving} variant="contained"
+                sx={{ flex: 1, borderRadius: 2, textTransform: 'none', bgcolor: PRIMARY, '&:hover': { bgcolor: PRIMARY_DARK } }}>
+                {isSaving ? <CircularProgress size={18} sx={{ color: 'white' }} /> : 'Lưu thay đổi'}
+              </Button>
+            </>
+          ) : (
+            <Button onClick={handleEditClick} variant="contained" fullWidth
+              sx={{ borderRadius: 2, textTransform: 'none', bgcolor: PRIMARY, '&:hover': { bgcolor: PRIMARY_DARK } }}>
+              Chỉnh sửa
+            </Button>
+          )}
+        </DialogActions>
+      </Dialog>
 
-      {/* ── OTP toast (when modal closed) ── */}
+      {/* ── OTP Dialog ── */}
+      <Dialog open={showOtpModal && !!pendingOtp} onClose={() => setShowOtpModal(false)}
+        maxWidth="xs" fullWidth PaperProps={{ sx: { borderRadius: 4, mx: 2 } }}>
+        <DialogTitle>
+          <Stack direction="row" alignItems="center" justifyContent="space-between">
+            <Typography fontWeight={700}>🔑 Mã OTP của bạn</Typography>
+            <IconButton size="small" onClick={() => setShowOtpModal(false)}><Close fontSize="small" /></IconButton>
+          </Stack>
+        </DialogTitle>
+        <DialogContent>
+          <Stack alignItems="center" spacing={3}>
+            <Typography fontSize="2.5rem" fontWeight={800} letterSpacing="0.3em" color="#111827">
+              {pendingOtp?.code}
+            </Typography>
+            <Box sx={{ position: 'relative', display: 'inline-flex' }}>
+              <CircularProgress
+                variant="determinate"
+                value={otpTotalTime > 0 ? (otpTimeLeft / otpTotalTime) * 100 : 0}
+                size={80} thickness={4}
+                sx={{ color: PRIMARY }}
+              />
+              <Box sx={{ position: 'absolute', inset: 0, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                <Typography fontWeight={800} fontSize="1.1rem" color={PRIMARY}>{otpTimeLeft}s</Typography>
+              </Box>
+            </Box>
+            <Typography fontSize="0.8rem" color="text.secondary" textAlign="center">
+              Mã này dùng để giáo viên xác nhận đón trẻ trong vòng <strong>{otpTotalTime} giây</strong>.
+            </Typography>
+          </Stack>
+        </DialogContent>
+      </Dialog>
+
+      {/* ── OTP Toast (khi đóng modal) ── */}
       {pendingOtp && !showOtpModal && (
-        <div className="fixed bottom-6 right-4 z-50 flex items-center gap-3 bg-emerald-600 text-white px-4 py-3 rounded-xl shadow-2xl text-sm font-semibold">
-          <span>🔑</span>
-          <span>OTP: <strong className="text-lg tracking-widest">{pendingOtp.code}</strong></span>
-          <span className="text-emerald-200">còn {otpTimeLeft}s</span>
-          <button type="button" onClick={() => setShowOtpModal(true)} className="ml-1 text-emerald-200 hover:text-white text-xs underline">Xem</button>
-        </div>
+        <Paper
+          onClick={() => setShowOtpModal(true)}
+          elevation={6}
+          sx={{
+            position: 'fixed', bottom: 24, right: 16, zIndex: 200,
+            px: 2.5, py: 1.5, borderRadius: 3, cursor: 'pointer',
+            bgcolor: PRIMARY, display: 'flex', alignItems: 'center', gap: 1.5,
+          }}
+        >
+          <Typography color="white" fontSize="0.85rem">🔑 OTP:</Typography>
+          <Typography color="white" fontWeight={800} fontSize="1.1rem" letterSpacing="0.2em">
+            {pendingOtp.code}
+          </Typography>
+          <Typography sx={{ color: 'rgba(255,255,255,0.7)', fontSize: '0.8rem' }}>còn {otpTimeLeft}s</Typography>
+        </Paper>
       )}
-
-      {/* ── Child info modal ── */}
-      {showChildInfo && studentInfo && (
-        <div className="fixed inset-0 z-40 flex items-end sm:items-center justify-center bg-black/30 px-0 sm:px-4" onClick={() => setShowChildInfo(false)}>
-          <div className="bg-white w-full sm:max-w-md rounded-t-2xl sm:rounded-2xl shadow-xl p-5" onClick={e => e.stopPropagation()}>
-            <div className="flex items-center justify-between mb-4">
-              <h2 className="text-base font-bold text-gray-800">Thông tin của trẻ</h2>
-              <button type="button" onClick={() => setShowChildInfo(false)} className="p-1 text-gray-400 hover:text-gray-700"><X size={20} /></button>
-            </div>
-
-            {isEditMode ? (
-              <div className="space-y-4">
-                {[
-                  { label: 'Họ và tên', name: 'fullName', type: 'text' },
-                  { label: 'Ngày sinh', name: 'dateOfBirth', type: 'date' },
-                  { label: 'Địa chỉ', name: 'address', type: 'text' },
-                ].map(f => (
-                  <div key={f.name}>
-                    <label className="block text-sm font-medium text-gray-700 mb-1">{f.label}</label>
-                    <input type={f.type} name={f.name} value={editFormData[f.name] || ''} onChange={handleEditFormChange}
-                      className="w-full px-3 py-2.5 border border-gray-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-emerald-500 text-sm" />
-                  </div>
-                ))}
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">Số điện thoại phụ huynh</label>
-                  <input type="tel" name="parentPhone" value={editFormData.parentPhone || ''} maxLength="10" placeholder="Nhập 10 số"
-                    onChange={(e) => { const v = e.target.value.replace(/\D/g,''); if(v.length<=10) handleEditFormChange({target:{name:'parentPhone',value:v}}); }}
-                    className="w-full px-3 py-2.5 border border-gray-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-emerald-500 text-sm" />
-                </div>
-                {saveMessage && (
-                  <div className={`p-3 rounded-xl text-sm font-medium ${saveMessage.type==='success' ? 'bg-green-50 text-green-800 border border-green-200' : 'bg-red-50 text-red-800 border border-red-200'}`}>
-                    {saveMessage.text}
-                  </div>
-                )}
-                <div className="flex gap-2 pt-2">
-                  <button type="button" onClick={handleCancelEdit} disabled={isSaving} className="flex-1 py-2.5 border border-gray-300 rounded-xl text-sm font-semibold text-gray-700 active:bg-gray-50 transition disabled:opacity-50">Hủy</button>
-                  <button type="button" onClick={handleSaveChanges} disabled={isSaving} className="flex-1 py-2.5 bg-emerald-600 text-white rounded-xl text-sm font-semibold active:bg-emerald-700 transition disabled:opacity-50">
-                    {isSaving ? 'Đang lưu...' : 'Lưu thay đổi'}
-                  </button>
-                </div>
-              </div>
-            ) : (
-              <>
-                <div className="space-y-3">
-                  {[
-                    { label: 'Họ và tên', value: studentInfo.fullName },
-                    { label: 'Ngày sinh', value: studentInfo.dateOfBirth ? new Date(studentInfo.dateOfBirth).toLocaleDateString('vi-VN') : '—' },
-                    { label: 'Địa chỉ', value: studentInfo.address || '—' },
-                    { label: 'SĐT phụ huynh', value: parentPhone || '—' },
-                  ].map(row => (
-                    <div key={row.label} className="flex items-start gap-2">
-                      <span className="text-gray-500 text-sm w-32 flex-shrink-0">{row.label}</span>
-                      <span className="text-gray-900 text-sm font-medium flex-1">{row.value}</span>
-                    </div>
-                  ))}
-                </div>
-                <div className="flex gap-2 mt-5">
-                  <button type="button" onClick={handleEditClick} className="flex-1 py-2.5 border border-gray-300 rounded-xl text-sm font-semibold text-gray-700 active:bg-gray-50 transition">Chỉnh sửa</button>
-                  <button type="button" onClick={() => setShowChildInfo(false)} className="flex-1 py-2.5 bg-emerald-600 text-white rounded-xl text-sm font-semibold active:bg-emerald-700 transition">Đóng</button>
-                </div>
-              </>
-            )}
-          </div>
-        </div>
-      )}
-    </div>
+    </Box>
   );
 }
-
-export default StudentDashboard;

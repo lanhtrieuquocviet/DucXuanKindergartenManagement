@@ -2,6 +2,11 @@ const AssetAllocation = require('../models/AssetAllocation');
 const Classes         = require('../models/Classes');
 const mammoth         = require('mammoth');
 const WordExtractor   = require('word-extractor');
+const {
+  Document, Packer, Paragraph, Table, TableRow, TableCell,
+  TextRun, AlignmentType, WidthType, BorderStyle,
+  VerticalAlign, HeadingLevel,
+} = require('docx');
 let JSDOM = null;
 try {
   ({ JSDOM } = require('jsdom'));
@@ -209,6 +214,248 @@ exports.confirmAllocation = async (req, res) => {
 
     return res.json({ status: 'success', data: { allocation } });
   } catch (err) {
+    return res.status(500).json({ status: 'error', message: err.message });
+  }
+};
+
+// ─── Export Word document for one allocation ──────────────────────────────
+exports.exportWord = async (req, res) => {
+  try {
+    const allocation = await AssetAllocation.findById(req.params.id)
+      .populate('classId', 'className');
+    if (!allocation)
+      return res.status(404).json({ status: 'error', message: 'Không tìm thấy biên bản.' });
+
+    const {
+      documentCode, className, teacherName, teacherPosition,
+      handoverByName, handoverByPosition, handoverDate, academicYear,
+      assets = [], extraAssets = [], notes,
+    } = allocation;
+
+    const dateStr = handoverDate
+      ? new Date(handoverDate).toLocaleDateString('vi-VN', { day: '2-digit', month: '2-digit', year: 'numeric' })
+      : '___/___/______';
+
+    // ── Helpers ────────────────────────────────────────────────────────────
+    const noBorder = {
+      top: { style: BorderStyle.NONE, size: 0 },
+      bottom: { style: BorderStyle.NONE, size: 0 },
+      left: { style: BorderStyle.NONE, size: 0 },
+      right: { style: BorderStyle.NONE, size: 0 },
+    };
+    const thinBorder = {
+      top:    { style: BorderStyle.SINGLE, size: 4 },
+      bottom: { style: BorderStyle.SINGLE, size: 4 },
+      left:   { style: BorderStyle.SINGLE, size: 4 },
+      right:  { style: BorderStyle.SINGLE, size: 4 },
+    };
+
+    const cell = (text, opts = {}) => new TableCell({
+      borders: opts.noBorder ? noBorder : thinBorder,
+      verticalAlign: VerticalAlign.CENTER,
+      shading: opts.shading ? { fill: opts.shading } : undefined,
+      columnSpan: opts.colSpan,
+      rowSpan: opts.rowSpan,
+      children: [new Paragraph({
+        alignment: opts.align || AlignmentType.LEFT,
+        children: [new TextRun({
+          text: String(text ?? ''),
+          bold: opts.bold,
+          size: opts.size || 22,
+          font: 'Times New Roman',
+        })],
+      })],
+    });
+
+    const para = (text, opts = {}) => new Paragraph({
+      alignment: opts.align,
+      spacing: { before: opts.spaceBefore || 80, after: opts.spaceAfter || 80 },
+      children: [new TextRun({
+        text: String(text ?? ''),
+        bold: opts.bold,
+        italics: opts.italic,
+        size: opts.size || 24,
+        font: 'Times New Roman',
+        underline: opts.underline ? {} : undefined,
+      })],
+    });
+
+    // ── Asset table rows ───────────────────────────────────────────────────
+    const headerRow = new TableRow({
+      tableHeader: true,
+      children: [
+        cell('TT',               { bold: true, align: AlignmentType.CENTER, shading: 'D9D9D9' }),
+        cell('Mã số',            { bold: true, align: AlignmentType.CENTER, shading: 'D9D9D9' }),
+        cell('Tên thiết bị',     { bold: true, align: AlignmentType.CENTER, shading: 'D9D9D9' }),
+        cell('ĐVT',              { bold: true, align: AlignmentType.CENTER, shading: 'D9D9D9' }),
+        cell('SL',               { bold: true, align: AlignmentType.CENTER, shading: 'D9D9D9' }),
+        cell('Đối tượng SD',     { bold: true, align: AlignmentType.CENTER, shading: 'D9D9D9' }),
+        cell('Ghi chú',          { bold: true, align: AlignmentType.CENTER, shading: 'D9D9D9' }),
+      ],
+    });
+
+    const assetRows = [];
+    let tt = 0;
+    let lastCat = null;
+    for (const a of assets) {
+      if (a.category && a.category !== lastCat) {
+        lastCat = a.category;
+        assetRows.push(new TableRow({
+          children: [new TableCell({
+            borders: thinBorder,
+            columnSpan: 7,
+            shading: { fill: 'F2F2F2' },
+            children: [new Paragraph({
+              children: [new TextRun({ text: a.category, bold: true, size: 22, font: 'Times New Roman' })],
+            })],
+          })],
+        }));
+      }
+      tt++;
+      assetRows.push(new TableRow({
+        children: [
+          cell(tt,              { align: AlignmentType.CENTER }),
+          cell(a.assetCode,    { align: AlignmentType.CENTER }),
+          cell(a.name),
+          cell(a.unit,         { align: AlignmentType.CENTER }),
+          cell(a.quantity,     { align: AlignmentType.CENTER }),
+          cell(a.targetUser,   { align: AlignmentType.CENTER }),
+          cell(a.notes),
+        ],
+      }));
+    }
+
+    const assetTable = new Table({
+      width: { size: 100, type: WidthType.PERCENTAGE },
+      rows: [headerRow, ...assetRows],
+      columnWidths: [600, 1200, 3000, 700, 700, 1200, 1400],
+    });
+
+    // ── Extra assets table ─────────────────────────────────────────────────
+    const extraSection = [];
+    if (extraAssets && extraAssets.length > 0) {
+      extraSection.push(
+        para('CÁC THIẾT BỊ TÀI SẢN KHÁC NGOÀI THÔNG TƯ', { bold: true, spaceBefore: 160 }),
+        new Table({
+          width: { size: 100, type: WidthType.PERCENTAGE },
+          rows: [
+            new TableRow({
+              tableHeader: true,
+              children: [
+                cell('TT',              { bold: true, align: AlignmentType.CENTER, shading: 'D9D9D9' }),
+                cell('Tên đồ dùng',     { bold: true, align: AlignmentType.CENTER, shading: 'D9D9D9' }),
+                cell('ĐV tính',         { bold: true, align: AlignmentType.CENTER, shading: 'D9D9D9' }),
+                cell('Số lượng',        { bold: true, align: AlignmentType.CENTER, shading: 'D9D9D9' }),
+                cell('Đối tượng SD',    { bold: true, align: AlignmentType.CENTER, shading: 'D9D9D9' }),
+                cell('Ghi chú',         { bold: true, align: AlignmentType.CENTER, shading: 'D9D9D9' }),
+              ],
+            }),
+            ...extraAssets.map((a, i) => new TableRow({
+              children: [
+                cell(i + 1,         { align: AlignmentType.CENTER }),
+                cell(a.name),
+                cell(a.unit,        { align: AlignmentType.CENTER }),
+                cell(a.quantity,    { align: AlignmentType.CENTER }),
+                cell(a.targetUser,  { align: AlignmentType.CENTER }),
+                cell(a.notes),
+              ],
+            })),
+          ],
+          columnWidths: [600, 3000, 900, 900, 1500, 1400],
+        }),
+      );
+    }
+
+    // ── Signature table ────────────────────────────────────────────────────
+    const signTable = new Table({
+      width: { size: 100, type: WidthType.PERCENTAGE },
+      rows: [
+        new TableRow({
+          children: [
+            new TableCell({
+              borders: noBorder,
+              children: [
+                new Paragraph({ alignment: AlignmentType.CENTER, children: [new TextRun({ text: 'XÁC NHẬN NHÀ TRƯỜNG', bold: true, size: 22, font: 'Times New Roman' })] }),
+                new Paragraph({ alignment: AlignmentType.CENTER, children: [new TextRun({ text: '(Hiệu trưởng)', italics: true, size: 20, font: 'Times New Roman' })] }),
+                new Paragraph({ alignment: AlignmentType.CENTER, spacing: { before: 800 }, children: [new TextRun({ text: handoverByName || '', size: 22, font: 'Times New Roman' })] }),
+              ],
+            }),
+            new TableCell({
+              borders: noBorder,
+              children: [
+                new Paragraph({ alignment: AlignmentType.CENTER, children: [new TextRun({ text: 'NGƯỜI BÀN GIAO', bold: true, size: 22, font: 'Times New Roman' })] }),
+                new Paragraph({ alignment: AlignmentType.CENTER, children: [new TextRun({ text: ' ', size: 20, font: 'Times New Roman' })] }),
+                new Paragraph({ alignment: AlignmentType.CENTER, spacing: { before: 800 }, children: [new TextRun({ text: '', size: 22, font: 'Times New Roman' })] }),
+              ],
+            }),
+            new TableCell({
+              borders: noBorder,
+              children: [
+                new Paragraph({ alignment: AlignmentType.CENTER, children: [new TextRun({ text: 'NGƯỜI NHẬN BÀN GIAO', bold: true, size: 22, font: 'Times New Roman' })] }),
+                new Paragraph({ alignment: AlignmentType.CENTER, children: [new TextRun({ text: '(Giáo viên)', italics: true, size: 20, font: 'Times New Roman' })] }),
+                new Paragraph({ alignment: AlignmentType.CENTER, spacing: { before: 800 }, children: [new TextRun({ text: teacherName || '', size: 22, font: 'Times New Roman' })] }),
+              ],
+            }),
+          ],
+        }),
+      ],
+      columnWidths: [2800, 2800, 2800],
+    });
+
+    // ── Build document ─────────────────────────────────────────────────────
+    const doc = new Document({
+      sections: [{
+        properties: {
+          page: {
+            margin: { top: 720, right: 720, bottom: 720, left: 1080 },
+          },
+        },
+        children: [
+          // Header
+          para('CỘNG HOÀ XÃ HỘI CHỦ NGHĨA VIỆT NAM', { bold: true, align: AlignmentType.CENTER, size: 26 }),
+          para('Độc lập - Tự do - Hạnh phúc', { bold: true, align: AlignmentType.CENTER, size: 24, underline: true }),
+
+          // Title
+          para('BIÊN BẢN BÀN GIAO TÀI SẢN LỚP MẪU GIÁO', { bold: true, align: AlignmentType.CENTER, size: 28, spaceBefore: 160 }),
+          ...(className ? [para(className.toUpperCase(), { bold: true, align: AlignmentType.CENTER, size: 26 })] : []),
+          para(`Đức Xuân, ngày ${dateStr}`, { italic: true, align: AlignmentType.CENTER }),
+
+          // Sections
+          para('I/ Thành phần:', { bold: true, spaceBefore: 120 }),
+          para(`1. ${handoverByName || '___________________________'} — Chức vụ: ${handoverByPosition || 'Hiệu trưởng'}`),
+          para(`2. ${teacherName   || '___________________________'} — Chức vụ: ${teacherPosition   || 'Giáo viên'}`),
+
+          para('II/ Lý do bàn giao:', { bold: true, spaceBefore: 80 }),
+          para(`Bàn giao tài sản có trong lớp học${academicYear ? ` năm học ${academicYear}` : ''}.`),
+
+          para('III/ Nội dung bàn giao:', { bold: true, spaceBefore: 80 }),
+          para('BÀN GIAO TÀI SẢN CÓ TRONG LỚP HỌC', { bold: true, align: AlignmentType.CENTER }),
+
+          assetTable,
+          ...extraSection,
+
+          ...(notes ? [para(`Ghi chú: ${notes}`, { italic: true, spaceBefore: 120 })] : []),
+
+          // Close paragraph
+          para(
+            `Biên bản kết thúc vào lúc _____ ngày ${dateStr}. Biên bản này được thành 2 bản, giao viên chủ nhiệm lớp giữ một bản và Ban CSVC nhà trường giữ một bản.`,
+            { spaceBefore: 160 }
+          ),
+
+          // Signatures
+          new Paragraph({ spacing: { before: 200 } }),
+          signTable,
+        ],
+      }],
+    });
+
+    const buffer = await Packer.toBuffer(doc);
+    const fileName = `bien_ban_ban_giao_${documentCode || allocation._id}.docx`;
+    res.setHeader('Content-Type', 'application/vnd.openxmlformats-officedocument.wordprocessingml.document');
+    res.setHeader('Content-Disposition', `attachment; filename*=UTF-8''${encodeURIComponent(fileName)}`);
+    return res.send(buffer);
+  } catch (err) {
+    console.error('[exportWord]', err);
     return res.status(500).json({ status: 'error', message: err.message });
   }
 };

@@ -1527,6 +1527,7 @@ router.delete('/asset-committees/:id', authenticate, authorizePermissions('MANAG
 // ============================================
 router.get('/asset-minutes', authenticate, authorizePermissions('MANAGE_ASSET'), assetCtrl.listMinutes);
 router.post('/asset-minutes', authenticate, authorizePermissions('MANAGE_ASSET'), assetCtrl.createMinutes);
+router.get('/asset-minutes/:id/export-word', authenticate, authorizePermissions('MANAGE_ASSET'), assetCtrl.exportMinutesWord);
 router.get('/asset-minutes/:id', authenticate, authorizePermissions('MANAGE_ASSET'), assetCtrl.getMinutes);
 router.put('/asset-minutes/:id', authenticate, authorizePermissions('MANAGE_ASSET'), assetCtrl.updateMinutes);
 router.delete('/asset-minutes/:id', authenticate, authorizePermissions('MANAGE_ASSET'), assetCtrl.deleteMinutes);
@@ -1553,6 +1554,7 @@ router.get('/asset-allocations/template', authenticate, authorizePermissions('MA
 router.post('/asset-allocations/parse-word', authenticate, authorizePermissions('MANAGE_ASSET'), wordUpload.single('file'), allocationCtrl.parseWordFile);
 router.post('/asset-allocations/parse-excel', authenticate, authorizePermissions('MANAGE_ASSET'), wordUpload.single('file'), allocationCtrl.parseExcelFile);
 router.get('/asset-allocations/classes', authenticate, authorizePermissions('MANAGE_ASSET'), allocationCtrl.listClasses);
+router.get('/asset-allocations/:id/export-word', authenticate, authorizePermissions('MANAGE_ASSET'), allocationCtrl.exportWord);
 router.get('/asset-allocations/:id', authenticate, authorizePermissions('MANAGE_ASSET'), allocationCtrl.getAllocation);
 router.put('/asset-allocations/:id', authenticate, authorizePermissions('MANAGE_ASSET'), allocationCtrl.updateAllocation);
 router.delete('/asset-allocations/:id', authenticate, authorizePermissions('MANAGE_ASSET'), allocationCtrl.deleteAllocation);

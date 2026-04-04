@@ -893,6 +893,23 @@ const matchStudentFaceForCheckout = async (req, res) => {
       { new: true }
     );
 
+    // Gửi thông báo cho phụ huynh khi điểm danh về (AI)
+    const studentFull = await Students.findById(bestMatch._id)
+      .select('fullName parentId classId')
+      .populate('classId', 'className');
+    const parentId = studentFull?.parentId;
+    if (parentId) {
+      const className = studentFull?.classId?.className || '';
+      await createNotification({
+        title: 'Điểm danh về nhà',
+        body: `${bestMatch.fullName} đã về nhà lúc ${checkOutTimeString}${className ? ` - Lớp ${className}` : ''}.`,
+        type: 'attendance_checkout',
+        targetRole: 'Parent',
+        targetUserId: parentId,
+        extra: { studentId: bestMatch._id, attendanceId: attendance._id },
+      });
+    }
+
     return res.status(200).json({
       status: 'success',
       message: `Điểm danh về: ${bestMatch.fullName}`,

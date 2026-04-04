@@ -287,8 +287,12 @@ export default function NotificationBell() {
                       sx={{
                         px: 2.5, py: 1.75,
                         bgcolor: n.isReadByMe ? 'transparent'
-                          : n.type === 'timetable_realtime' ? '#fefce8'
-                          : n.type === 'timetable_daily'    ? '#f0fdf4'
+                          : n.type === 'timetable_realtime'  ? '#fefce8'
+                          : n.type === 'timetable_daily'     ? '#f0fdf4'
+                          : n.type === 'attendance_checkin'  ? '#eff6ff'
+                          : n.type === 'attendance_checkout' ? '#fdf2f8'
+                          : n.type === 'attendance_absent'   ? '#fef2f2'
+                          : n.type === 'meal_issue'          ? '#fffbeb'
                           : '#eff6ff',
                         cursor: n.isReadByMe ? 'default' : 'pointer',
                         '&:hover': { bgcolor: 'grey.50' },
@@ -304,6 +308,22 @@ export default function NotificationBell() {
                         ) : n.type === 'timetable_daily' ? (
                           <Avatar sx={{ width: 32, height: 32, bgcolor: '#dcfce7' }}>
                             <span style={{ fontSize: 16 }}>📅</span>
+                          </Avatar>
+                        ) : n.type === 'attendance_checkin' ? (
+                          <Avatar sx={{ width: 32, height: 32, bgcolor: '#dbeafe' }}>
+                            <span style={{ fontSize: 16 }}>🏫</span>
+                          </Avatar>
+                        ) : n.type === 'attendance_checkout' ? (
+                          <Avatar sx={{ width: 32, height: 32, bgcolor: '#fce7f3' }}>
+                            <span style={{ fontSize: 16 }}>🏠</span>
+                          </Avatar>
+                        ) : n.type === 'attendance_absent' ? (
+                          <Avatar sx={{ width: 32, height: 32, bgcolor: '#fee2e2' }}>
+                            <span style={{ fontSize: 16 }}>❌</span>
+                          </Avatar>
+                        ) : n.type === 'meal_issue' ? (
+                          <Avatar sx={{ width: 32, height: 32, bgcolor: '#fef3c7' }}>
+                            <span style={{ fontSize: 16 }}>🍽️</span>
                           </Avatar>
                         ) : n.isReadByMe ? (
                           <Avatar sx={{ width: 32, height: 32, bgcolor: 'grey.100' }}>

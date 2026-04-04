@@ -34,6 +34,7 @@ import {
 import AddIcon from '@mui/icons-material/Add';
 import DeleteIcon from '@mui/icons-material/Delete';
 import EditIcon from '@mui/icons-material/Edit';
+import FileDownloadIcon from '@mui/icons-material/FileDownload';
 import UploadFileIcon from '@mui/icons-material/UploadFile';
 import SwapHorizIcon from '@mui/icons-material/SwapHoriz';
 import HistoryIcon from '@mui/icons-material/History';
@@ -686,6 +687,27 @@ export default function ManageAssetAllocation() {
     toast.success(`Đã import: ${msg}.`);
   };
 
+  // ── Export Word for one allocation ────────────────────────────────────────
+  const downloadWord = async (alloc) => {
+    try {
+      const { getToken } = await import('../../service/api');
+      const API_BASE = import.meta.env.VITE_API_BASE_URL || 'http://localhost:5000/api';
+      const res = await fetch(`${API_BASE}${ENDPOINTS.SCHOOL_ADMIN.ASSET_ALLOCATION_EXPORT_WORD(alloc._id)}`, {
+        headers: { Authorization: `Bearer ${getToken()}` },
+      });
+      if (!res.ok) { toast.error('Không xuất được file Word.'); return; }
+      const blob = await res.blob();
+      const url  = URL.createObjectURL(blob);
+      const a    = document.createElement('a');
+      a.href     = url;
+      a.download = `bien_ban_ban_giao_${alloc.documentCode || alloc._id}.docx`;
+      a.click();
+      URL.revokeObjectURL(url);
+    } catch {
+      toast.error('Lỗi xuất Word.');
+    }
+  };
+
   // ── Stable callbacks for AssetRowEditor (avoids memo-busting) ──────────────
   const onAssetsChange      = useCallback((assets)      => setForm((prev) => ({ ...prev, assets })),      []);
   const onExtraAssetsChange = useCallback((extraAssets) => setForm((prev) => ({ ...prev, extraAssets })), []);
@@ -790,6 +812,11 @@ export default function ManageAssetAllocation() {
                           <Tooltip title="Xem biên bản">
                             <IconButton size="small" onClick={() => setViewTarget(alloc)}>
                               <VisibilityIcon fontSize="small" />
+                            </IconButton>
+                          </Tooltip>
+                          <Tooltip title="Tải về Word (.docx)">
+                            <IconButton size="small" color="primary" onClick={() => downloadWord(alloc)}>
+                              <FileDownloadIcon fontSize="small" />
                             </IconButton>
                           </Tooltip>
                           <Tooltip title="Lịch sử chuyển giao">

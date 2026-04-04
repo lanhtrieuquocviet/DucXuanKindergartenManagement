@@ -94,6 +94,15 @@ const upsertAttendance = async (req, res) => {
         targetUserId: parentId,
         extra: { studentId, attendanceId: attendance._id },
       });
+    } else if (parentId && statusLabel === 'absent') {
+      await createNotification({
+        title: 'Thông báo vắng mặt',
+        body: `${studentName} được ghi nhận vắng mặt hôm nay${className ? ` - Lớp ${className}` : ''}.${attendance?.absentReason ? ` Lý do: ${attendance.absentReason}` : ''}`,
+        type: 'attendance_absent',
+        targetRole: 'Parent',
+        targetUserId: parentId,
+        extra: { studentId, attendanceId: attendance._id },
+      });
     }
 
     return res.status(200).json({
