@@ -1290,6 +1290,34 @@ router.get('/teachers', authenticate, authorizePermissions('MANAGE_TEACHER'), as
   }
 });
 
+// GET /school-admin/teachers/generate-username — sinh username tự động
+router.get('/teachers/generate-username', authenticate, authorizePermissions('MANAGE_TEACHER'), async (req, res) => {
+  try {
+    const VALID_PREFIXES = ['HE', 'SE'];
+    const prefix = req.query.prefix
+      ? req.query.prefix.toUpperCase()
+      : VALID_PREFIXES[Math.floor(Math.random() * VALID_PREFIXES.length)];
+    if (!VALID_PREFIXES.includes(prefix)) {
+      return res.status(400).json({ status: 'error', message: 'Prefix không hợp lệ. Chọn HE, SE hoặc HS' });
+    }
+    const yearSuffix = String(new Date().getFullYear()).slice(-2); // "26"
+    let username = null;
+    for (let attempt = 0; attempt < 20; attempt++) {
+      const rand = Math.floor(Math.random() * 1000) + 1; // 1–1000
+      const candidate = `${prefix}${yearSuffix}${String(rand).padStart(4, '0')}`;
+      const exists = await User.findOne({ username: candidate }).lean();
+      if (!exists) { username = candidate; break; }
+    }
+    if (!username) {
+      return res.status(409).json({ status: 'error', message: 'Không thể tạo username duy nhất, vui lòng thử lại' });
+    }
+    return res.json({ status: 'success', username });
+  } catch (error) {
+    console.error('generateUsername error:', error);
+    return res.status(500).json({ status: 'error', message: 'Lỗi khi sinh username', error: error.message });
+  }
+});
+
 // POST /school-admin/teachers — tạo giáo viên mới (User + Teacher record)
 router.post('/teachers', authenticate, authorizePermissions('MANAGE_TEACHER'), async (req, res) => {
   try {

@@ -19,6 +19,7 @@ import SearchIcon from '@mui/icons-material/Search';
 import PersonIcon from '@mui/icons-material/Person';
 import SyncIcon from '@mui/icons-material/Sync';
 import WarningAmberIcon from '@mui/icons-material/WarningAmber';
+import AutorenewIcon from '@mui/icons-material/Autorenew';
 
 const EMPLOYMENT_OPTIONS = [
   { value: 'contract', label: 'Giáo viên hợp đồng' },
@@ -90,7 +91,7 @@ export default function ManageTeachers() {
   const [createErrors, setCreateErrors] = useState({});
   const [createLoading, setCreateLoading] = useState(false);
   const [createError, setCreateError] = useState(null);
-  const [usernameChecking, setUsernameChecking] = useState(false);
+  const [usernameGenerating, setUsernameGenerating] = useState(false);
 
   // Edit dialog
   const [editOpen, setEditOpen] = useState(false);
@@ -146,34 +147,24 @@ export default function ManageTeachers() {
 
   const paginated = filtered.slice(page * PAGE_SIZE, page * PAGE_SIZE + PAGE_SIZE);
 
-  // ── Username realtime check ───────────────────────────────────────────────────
-  const handleUsernameBlur = async () => {
-    const username = (createForm.username || '').trim();
-    if (!username) return;
-    setUsernameChecking(true);
+  // ── Generate username ─────────────────────────────────────────────────────────
+  const handleGenerateUsername = async () => {
+    setUsernameGenerating(true);
+    setCreateErrors(prev => { const n = { ...prev }; delete n.username; return n; });
     try {
-      const res = await get(`${ENDPOINTS.SCHOOL_ADMIN.TEACHER_CHECK_USERNAME}?username=${encodeURIComponent(username)}`);
-      if (!res.available) {
-        setCreateErrors(prev => ({ ...prev, username: 'Tài khoản đăng nhập đã tồn tại trong hệ thống' }));
-      } else {
-        setCreateErrors(prev => {
-          const next = { ...prev };
-          if (next.username === 'Tài khoản đăng nhập đã tồn tại trong hệ thống') delete next.username;
-          return next;
-        });
-      }
-    } catch (_) {
-      // Bỏ qua lỗi mạng, server sẽ kiểm tra lúc submit
+      const res = await get(ENDPOINTS.SCHOOL_ADMIN.TEACHER_GENERATE_USERNAME);
+      setCreateForm(p => ({ ...p, username: res.username }));
+    } catch (err) {
+      setCreateErrors(prev => ({ ...prev, username: err.data?.message || 'Lỗi khi tạo username' }));
     } finally {
-      setUsernameChecking(false);
+      setUsernameGenerating(false);
     }
   };
 
   // ── Create ────────────────────────────────────────────────────────────────────
   const validateCreate = () => {
     const e = {};
-    if (!createForm.username.trim()) e.username = 'Vui lòng nhập tài khoản đăng nhập';
-    else if (createErrors.username === 'Tài khoản đăng nhập đã tồn tại trong hệ thống') e.username = createErrors.username;
+    if (!createForm.username.trim()) e.username = 'Vui lòng tạo tài khoản đăng nhập';
     if (!createForm.password || createForm.password.length < 6) e.password = 'Mật khẩu tối thiểu 6 ký tự';
     if (!createForm.fullName.trim()) e.fullName = 'Vui lòng nhập họ tên';
     if (!createForm.email.trim()) e.email = 'Vui lòng nhập email';
@@ -294,7 +285,7 @@ export default function ManageTeachers() {
             </Tooltip>
             <Button
               variant="contained" startIcon={<AddIcon />}
-              onClick={() => { setCreateForm(EMPTY_CREATE); setCreateErrors({}); setCreateError(null); setCreateOpen(true); }}
+              onClick={() => { setCreateForm(EMPTY_CREATE); setCreateErrors({}); setCreateError(null); setCreateOpen(true); handleGenerateUsername(); }}
               sx={{ bgcolor: '#2563eb', '&:hover': { bgcolor: '#1d4ed8' }, whiteSpace: 'nowrap' }}
             >
               Thêm giáo viên
@@ -433,17 +424,30 @@ export default function ManageTeachers() {
 
           <Typography variant="subtitle2" color="primary" gutterBottom>Thông tin tài khoản</Typography>
           <Stack spacing={1.5} mb={2}>
-            <TextField
-              size="small" label="Tài khoản đăng nhập" required fullWidth
-              value={createForm.username}
-              onChange={e => {
-                setCreateForm(p => ({ ...p, username: e.target.value }));
-                if (createErrors.username) setCreateErrors(p => { const n = { ...p }; delete n.username; return n; });
-              }}
-              onBlur={handleUsernameBlur}
-              error={!!createErrors.username}
-              helperText={usernameChecking ? 'Đang kiểm tra...' : (createErrors.username || '')}
-            />
+            <Stack direction="row" spacing={1} alignItems="flex-start">
+              <TextField
+                size="small" label="Tài khoản đăng nhập" required
+                sx={{ flex: 1 }}
+                value={createForm.username}
+                InputProps={{ readOnly: true }}
+                error={!!createErrors.username}
+                helperText={createErrors.username || 'Được tạo tự động'}
+              />
+              <Tooltip title="Tạo lại">
+                <span>
+                  <IconButton
+                    size="small"
+                    onClick={() => handleGenerateUsername()}
+                    disabled={usernameGenerating}
+                    sx={{ mt: 0.5, border: '1px solid', borderColor: 'divider', borderRadius: 1 }}
+                  >
+                    {usernameGenerating
+                      ? <CircularProgress size={18} />
+                      : <AutorenewIcon fontSize="small" />}
+                  </IconButton>
+                </span>
+              </Tooltip>
+            </Stack>
             <TextField
               size="small" label="Mật khẩu" type="password" required fullWidth
               value={createForm.password}

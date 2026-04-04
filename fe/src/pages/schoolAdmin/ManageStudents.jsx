@@ -35,6 +35,7 @@ import {
   Switch,
   FormControlLabel,
   Tooltip,
+  IconButton,
 } from '@mui/material';
 import {
   Refresh as RefreshIcon,
@@ -43,6 +44,7 @@ import {
   Delete as DeleteIcon,
   People as PeopleIcon,
   Visibility as VisibilityIcon,
+  Autorenew as AutorenewIcon,
 } from '@mui/icons-material';
 
 const GENDER_OPTIONS = [
@@ -82,7 +84,7 @@ function ManageStudents() {
   });
   const [formAddErrors, setFormAddErrors] = useState({});
   const [addError, setAddError] = useState(null);
-  const [usernameChecking, setUsernameChecking] = useState(false);
+  const [usernameGenerating, setUsernameGenerating] = useState(false);
   const [uploadingImage, setUploadingImage] = useState(false);
   const addImageInputRef = useRef(null);
   const [formEdit, setFormEdit] = useState({
@@ -158,6 +160,19 @@ function ManageStudents() {
     return matchSearch;
   });
 
+  const handleGenerateUsername = async () => {
+    setUsernameGenerating(true);
+    setFormAddErrors((prev) => { const n = { ...prev }; delete n.parentUsername; return n; });
+    try {
+      const res = await get(ENDPOINTS.STUDENTS.GENERATE_USERNAME);
+      setFormAdd((prev) => ({ ...prev, parent: { ...prev.parent, username: res.username } }));
+    } catch (err) {
+      setFormAddErrors((prev) => ({ ...prev, parentUsername: err.data?.message || 'Lỗi khi tạo username' }));
+    } finally {
+      setUsernameGenerating(false);
+    }
+  };
+
   const handleOpenAdd = () => {
     setFormAdd({
       parent: { username: '', password: '', fullName: '', email: '', phone: '' },
@@ -166,28 +181,7 @@ function ManageStudents() {
     setFormAddErrors({});
     setAddError(null);
     setOpenAdd(true);
-  };
-
-  const handleUsernameBlur = async () => {
-    const username = (formAdd.parent.username || '').trim();
-    if (!username) return;
-    setUsernameChecking(true);
-    try {
-      const res = await get(`${ENDPOINTS.STUDENTS.CHECK_USERNAME}?username=${encodeURIComponent(username)}`);
-      if (!res.available) {
-        setFormAddErrors((prev) => ({ ...prev, parentUsername: 'Tài khoản đăng nhập đã tồn tại trong hệ thống' }));
-      } else {
-        setFormAddErrors((prev) => {
-          const next = { ...prev };
-          if (next.parentUsername === 'Tài khoản đăng nhập đã tồn tại trong hệ thống') delete next.parentUsername;
-          return next;
-        });
-      }
-    } catch (_) {
-      // Bỏ qua lỗi mạng, để server kiểm tra lúc submit
-    } finally {
-      setUsernameChecking(false);
-    }
+    handleGenerateUsername();
   };
 
   const handleAddImageChange = async (e) => {
@@ -214,8 +208,7 @@ function ManageStudents() {
   const handleSubmitAdd = async () => {
     setCtxError(null);
     const errs = {};
-    if (!(formAdd.parent.username || '').trim()) errs.parentUsername = 'Vui lòng nhập tài khoản đăng nhập';
-    else if (formAddErrors.parentUsername === 'Tài khoản đăng nhập đã tồn tại trong hệ thống') errs.parentUsername = formAddErrors.parentUsername;
+    if (!(formAdd.parent.username || '').trim()) errs.parentUsername = 'Vui lòng tạo tài khoản đăng nhập';
     if (!(formAdd.parent.password || '').trim()) errs.parentPassword = 'Vui lòng nhập mật khẩu';
     else if (formAdd.parent.password.trim().length < 6) errs.parentPassword = 'Mật khẩu tối thiểu 6 ký tự';
     if (!(formAdd.parent.fullName || '').trim()) errs.parentFullName = 'Vui lòng nhập họ tên phụ huynh';
@@ -472,20 +465,30 @@ function ManageStudents() {
           )}
           <Typography variant="subtitle2" color="primary" gutterBottom>Thông tin tài khoản phụ huynh</Typography>
           <Stack spacing={1.5} mb={2}>
-            <TextField
-              size="small"
-              label="Tài khoản đăng nhập"
-              value={formAdd.parent.username}
-              onChange={(e) => {
-                setFormAdd((prev) => ({ ...prev, parent: { ...prev.parent, username: e.target.value } }));
-                if (formAddErrors.parentUsername) setFormAddErrors((prev) => { const n = { ...prev }; delete n.parentUsername; return n; });
-              }}
-              onBlur={handleUsernameBlur}
-              fullWidth
-              required
-              error={!!formAddErrors.parentUsername}
-              helperText={usernameChecking ? 'Đang kiểm tra...' : (formAddErrors.parentUsername || '')}
-            />
+            <Stack direction="row" spacing={1} alignItems="flex-start">
+              <TextField
+                size="small"
+                label="Tài khoản đăng nhập"
+                value={formAdd.parent.username}
+                InputProps={{ readOnly: true }}
+                sx={{ flex: 1 }}
+                required
+                error={!!formAddErrors.parentUsername}
+                helperText={formAddErrors.parentUsername || 'Được tạo tự động'}
+              />
+              <Tooltip title="Tạo lại">
+                <span>
+                  <IconButton
+                    size="small"
+                    onClick={handleGenerateUsername}
+                    disabled={usernameGenerating}
+                    sx={{ mt: 0.5, border: '1px solid', borderColor: 'divider', borderRadius: 1 }}
+                  >
+                    {usernameGenerating ? <CircularProgress size={18} /> : <AutorenewIcon fontSize="small" />}
+                  </IconButton>
+                </span>
+              </Tooltip>
+            </Stack>
             <TextField size="small" type="password" label="Mật khẩu" value={formAdd.parent.password} onChange={(e) => setFormAdd((prev) => ({ ...prev, parent: { ...prev.parent, password: e.target.value } }))} fullWidth required error={!!formAddErrors.parentPassword} helperText={formAddErrors.parentPassword} />
             <TextField size="small" label="Họ tên phụ huynh" value={formAdd.parent.fullName} onChange={(e) => setFormAdd((prev) => ({ ...prev, parent: { ...prev.parent, fullName: e.target.value } }))} fullWidth required error={!!formAddErrors.parentFullName} helperText={formAddErrors.parentFullName} />
             <TextField size="small" type="email" label="Email" value={formAdd.parent.email} onChange={(e) => setFormAdd((prev) => ({ ...prev, parent: { ...prev.parent, email: e.target.value } }))} fullWidth required error={!!formAddErrors.parentEmail} helperText={formAddErrors.parentEmail} />

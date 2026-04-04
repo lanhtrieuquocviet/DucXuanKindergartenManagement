@@ -77,6 +77,27 @@ const router = express.Router();
  *         description: Không có quyền SchoolAdmin
  */
 router.get('/check-username', authenticate, checkUsernameAvailability);
+
+router.get('/generate-username', authenticate, authorizePermissions('MANAGE_STUDENT'), async (req, res) => {
+  const User = require('../models/User');
+  try {
+    const prefix = 'HS';
+    const yearSuffix = String(new Date().getFullYear()).slice(-2);
+    let username = null;
+    for (let attempt = 0; attempt < 20; attempt++) {
+      const rand = Math.floor(Math.random() * 1000) + 1;
+      const candidate = `${prefix}${yearSuffix}${String(rand).padStart(4, '0')}`;
+      const exists = await User.findOne({ username: candidate }).lean();
+      if (!exists) { username = candidate; break; }
+    }
+    if (!username) {
+      return res.status(409).json({ status: 'error', message: 'Không thể tạo username duy nhất, vui lòng thử lại' });
+    }
+    return res.json({ status: 'success', username });
+  } catch (error) {
+    return res.status(500).json({ status: 'error', message: 'Lỗi khi sinh username', error: error.message });
+  }
+});
 router.get('/', authenticate, getStudents);
 router.post('/', authenticate, authorizePermissions('MANAGE_STUDENT'), createStudent);
 
