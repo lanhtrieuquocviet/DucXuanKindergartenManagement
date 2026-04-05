@@ -140,8 +140,8 @@ export function CommitteeTab() {
   const [saving, setSaving]             = useState(false);
   const [editId, setEditId]             = useState(null);
   const [viewCommittee, setViewCommittee] = useState(null);
-  const [deleteTarget, setDeleteTarget] = useState(null);
-  const [deleting, setDeleting]         = useState(false);
+  const [endTarget, setEndTarget]       = useState(null);
+  const [ending, setEnding]             = useState(false);
   const load = async () => {
     setLoading(true);
     try {
@@ -214,15 +214,15 @@ export function CommitteeTab() {
     setViewCommittee(null);
   };
 
-  const handleConfirmDelete = async () => {
-    setDeleting(true);
+  const handleConfirmEnd = async () => {
+    setEnding(true);
     try {
-      await del(ENDPOINTS.SCHOOL_ADMIN.ASSET_COMMITTEE_DETAIL(deleteTarget));
-      toast.success('Đã xóa ban kiểm kê.');
-      setDeleteTarget(null);
+      await patch(ENDPOINTS.SCHOOL_ADMIN.ASSET_COMMITTEE_END(endTarget));
+      toast.success('Đã kết thúc ban kiểm kê.');
+      setEndTarget(null);
       load();
-    } catch (err) { toast.error(err?.message || 'Xóa thất bại.'); }
-    finally { setDeleting(false); }
+    } catch (err) { toast.error(err?.message || 'Kết thúc thất bại.'); }
+    finally { setEnding(false); }
   };
 
   const allPersons  = [
@@ -400,10 +400,13 @@ export function CommitteeTab() {
               <Typography fontWeight={600}>{c.name}</Typography>
               <Typography variant="body2" color="text.secondary">{formatDate(c.foundedDate)} · {c.decisionNumber}</Typography>
               <Typography variant="body2">Trưởng ban: {getChairman(c)}</Typography>
-              <Stack direction="row" spacing={1} mt={1.5}>
+              <Stack direction="row" spacing={1} mt={1.5} alignItems="center">
                 <Button size="small" variant="contained" color="info" sx={{ textTransform: 'none', flex: 1 }} onClick={() => setViewCommittee(c)}>Xem</Button>
-                <IconButton size="small" onClick={() => handleEdit(c)}><EditIcon fontSize="small" /></IconButton>
-                <IconButton size="small" color="error" onClick={() => setDeleteTarget(c._id)}><DeleteIcon fontSize="small" /></IconButton>
+                <IconButton size="small" onClick={() => handleEdit(c)} disabled={c.status === 'ended'}><EditIcon fontSize="small" /></IconButton>
+                {c.status === 'ended'
+                  ? <Chip label="Đã kết thúc" size="small" color="default" />
+                  : <Button size="small" variant="outlined" color="warning" sx={{ textTransform: 'none' }} onClick={() => setEndTarget(c._id)}>Kết thúc</Button>
+                }
               </Stack>
             </Paper>
           ))}
@@ -428,10 +431,13 @@ export function CommitteeTab() {
                   <TableCell>{c.decisionNumber}</TableCell>
                   <TableCell>{getChairman(c)}</TableCell>
                   <TableCell align="center">
-                    <Stack direction="row" spacing={0.5} justifyContent="center">
+                    <Stack direction="row" spacing={0.5} justifyContent="center" alignItems="center">
                       <Button size="small" variant="contained" color="info" sx={{ textTransform: 'none' }} onClick={() => setViewCommittee(c)}>Xem</Button>
-                      <IconButton size="small" onClick={() => handleEdit(c)}><EditIcon fontSize="small" /></IconButton>
-                      <IconButton size="small" color="error" onClick={() => setDeleteTarget(c._id)}><DeleteIcon fontSize="small" /></IconButton>
+                      <IconButton size="small" onClick={() => handleEdit(c)} disabled={c.status === 'ended'}><EditIcon fontSize="small" /></IconButton>
+                      {c.status === 'ended'
+                        ? <Chip label="Đã kết thúc" size="small" color="default" />
+                        : <Button size="small" variant="outlined" color="warning" sx={{ textTransform: 'none' }} onClick={() => setEndTarget(c._id)}>Kết thúc</Button>
+                      }
                     </Stack>
                   </TableCell>
                 </TableRow>
@@ -488,14 +494,14 @@ export function CommitteeTab() {
         </DialogActions>
       </Dialog>
 
-      {/* Confirm Delete */}
+      {/* Confirm End */}
       <ConfirmDialog
-        open={!!deleteTarget}
-        title="Xóa ban kiểm kê"
-        message="Bạn có chắc chắn muốn xóa ban kiểm kê này?"
-        onConfirm={handleConfirmDelete}
-        onCancel={() => setDeleteTarget(null)}
-        loading={deleting}
+        open={!!endTarget}
+        title="Kết thúc ban kiểm kê"
+        message="Bạn có chắc chắn muốn kết thúc ban kiểm kê này? Ban sẽ không thể chỉnh sửa sau khi kết thúc."
+        onConfirm={handleConfirmEnd}
+        onCancel={() => setEndTarget(null)}
+        loading={ending}
       />
     </Box>
   );

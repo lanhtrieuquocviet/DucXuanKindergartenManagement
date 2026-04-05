@@ -1721,6 +1721,7 @@ router.post('/asset-committees', authenticate, authorizePermissions('MANAGE_ASSE
 router.get('/asset-committees/:id', authenticate, authorizePermissions('MANAGE_ASSET'), assetCtrl.getCommittee);
 router.put('/asset-committees/:id', authenticate, authorizePermissions('MANAGE_ASSET'), assetCtrl.updateCommittee);
 router.delete('/asset-committees/:id', authenticate, authorizePermissions('MANAGE_ASSET'), assetCtrl.deleteCommittee);
+router.patch('/asset-committees/:id/end', authenticate, authorizePermissions('MANAGE_ASSET'), assetCtrl.endCommittee);
 
 // ============================================
 // Asset Inspection - Minutes (Biên bản kiểm kê)

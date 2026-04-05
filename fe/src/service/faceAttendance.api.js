@@ -30,6 +30,9 @@ export const registerFaceEmbedding = (studentId, embedding, faceImageUrl = '', a
 export const deleteFaceEmbedding = (studentId) =>
   del(`/face/register/${studentId}`);
 
+export const deleteFaceAngle = (studentId, index) =>
+  del(`/face/register/${studentId}/angle/${index}`);
+
 /**
  * Nhận diện khuôn mặt + tự động check-in (chế độ ONLINE)
  * @param {number[]} embedding - mảng 128 số float từ camera realtime

@@ -72,6 +72,20 @@ exports.deleteCommittee = async (req, res) => {
   }
 };
 
+exports.endCommittee = async (req, res) => {
+  try {
+    const committee = await InspectionCommittee.findByIdAndUpdate(
+      req.params.id,
+      { status: 'ended' },
+      { new: true }
+    );
+    if (!committee) return res.status(404).json({ status: 'error', message: 'Không tìm thấy ban kiểm kê.' });
+    return res.json({ status: 'success', data: { committee } });
+  } catch (err) {
+    return res.status(500).json({ status: 'error', message: err.message });
+  }
+};
+
 // ===================== MINUTES =====================
 
 // Teacher: only their own minutes

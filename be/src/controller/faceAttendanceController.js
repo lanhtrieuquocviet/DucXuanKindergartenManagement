@@ -37,12 +37,12 @@ function cosineSimilarity(vecA, vecB) {
 }
 
 // Ngưỡng nhận diện: similarity >= THRESHOLD thì coi là MATCH
-// Tăng lên 0.87 để giảm false positive (nhận nhầm người khác)
-const MATCH_THRESHOLD = 0.87;
+// Tăng lên 0.92 vì model face-api hay nhầm người châu Á (false positive cao)
+const MATCH_THRESHOLD = 0.92;
 
 // Khoảng cách tối thiểu giữa kết quả tốt nhất và thứ 2
 // Nếu 2 khuôn mặt giống nhau (margin < MIN_MARGIN), từ chối để tránh nhầm
-const MIN_MARGIN = 0.04;
+const MIN_MARGIN = 0.02;
 
 /**
  * Lấy tất cả embeddings của một học sinh (hỗ trợ nhiều góc mặt)
@@ -85,7 +85,7 @@ function maxSimilarityToStudent(inputEmb, student) {
  */
 const registerFaceEmbedding = async (req, res) => {
   try {
-    const { studentId, embedding, faceImageUrl, append = false } = req.body;
+    const { studentId, embedding, faceImageUrl, append = false, force = false } = req.body;
 
     // Validate input
     if (!studentId) {
@@ -119,29 +119,8 @@ const registerFaceEmbedding = async (req, res) => {
       });
     }
 
-    // Kiểm tra xung đột: khuôn mặt mới có quá giống học sinh khác trong lớp không?
-    // Phát hiện sớm tại đây để tránh data xấu vào DB gây lỗi "ambiguous" khi điểm danh
-    const CONFLICT_THRESHOLD = 0.82;
-    if (student.classId) {
-      const classmates = await Students.find({
-        classId: student.classId,
-        _id: { $ne: student._id },
-        status: 'active',
-        faceEmbedding: { $exists: true, $not: { $size: 0 } },
-      }).select('_id fullName faceEmbedding faceEmbeddings');
-
-      for (const classmate of classmates) {
-        const similarity = maxSimilarityToStudent(embedding, classmate);
-        if (similarity >= CONFLICT_THRESHOLD) {
-          return res.status(409).json({
-            status: 'conflict',
-            message: `Khuôn mặt này quá giống học sinh "${classmate.fullName}" (${(similarity * 100).toFixed(1)}%). Hãy chụp lại với ánh sáng tốt hơn hoặc góc mặt khác nhau.`,
-            conflictWith: classmate.fullName,
-            similarity: similarity.toFixed(4),
-          });
-        }
-      }
-    }
+    // Conflict check đã tắt — model face-api.js không đủ chính xác để phân biệt
+    // khuôn mặt trẻ nhỏ châu Á, gây false positive cao. Bật lại khi nâng cấp model.
 
     const MAX_EMBEDDINGS = 5;
     const existingEmbeddings = Array.isArray(student.faceEmbeddings) ? student.faceEmbeddings : [];
@@ -957,6 +936,54 @@ const deleteFaceEmbedding = async (req, res) => {
   }
 };
 
+/**
+ * Xóa 1 góc mặt theo index
+ * DELETE /api/face/register/:studentId/angle/:index
+ */
+const deleteFaceAngle = async (req, res) => {
+  try {
+    const { studentId, index } = req.params;
+    const idx = parseInt(index, 10);
+
+    const student = await Students.findById(studentId);
+    if (!student) {
+      return res.status(404).json({ status: 'error', message: 'Không tìm thấy học sinh' });
+    }
+
+    const embeddings = Array.isArray(student.faceEmbeddings) ? [...student.faceEmbeddings] : [];
+    const imageUrls = Array.isArray(student.faceImageUrls) ? [...student.faceImageUrls] : [];
+
+    if (idx < 0 || idx >= embeddings.length) {
+      return res.status(400).json({ status: 'error', message: 'Index góc mặt không hợp lệ' });
+    }
+
+    embeddings.splice(idx, 1);
+    imageUrls.splice(idx, 1);
+
+    student.faceEmbeddings = embeddings;
+    student.faceImageUrls = imageUrls;
+    student.faceEmbedding = embeddings[0] || [];
+    student.faceImageUrl = imageUrls[0] || '';
+
+    if (embeddings.length === 0) {
+      student.faceRegisteredAt = null;
+    }
+
+    student.markModified('faceEmbeddings');
+    student.markModified('faceImageUrls');
+    await student.save();
+
+    return res.status(200).json({
+      status: 'success',
+      message: `Đã xóa góc ${idx + 1}`,
+      data: { studentId: student._id, angleCount: embeddings.length, faceImageUrls: imageUrls },
+    });
+  } catch (error) {
+    console.error('deleteFaceAngle error:', error);
+    return res.status(500).json({ status: 'error', message: 'Lỗi server khi xóa góc mặt' });
+  }
+};
+
 module.exports = {
   registerFaceEmbedding,
   matchFaceEmbedding,
@@ -967,4 +994,5 @@ module.exports = {
   matchPickupFaceForCheckout,
   matchStudentFaceForCheckout,
   deleteFaceEmbedding,
+  deleteFaceAngle,
 };

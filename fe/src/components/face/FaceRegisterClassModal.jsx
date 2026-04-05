@@ -8,14 +8,16 @@
 import { useState, useEffect } from 'react';
 import { toast } from 'react-toastify';
 import { get, ENDPOINTS } from '../../service/api';
-import { deleteFaceEmbedding } from '../../service/faceAttendance.api';
+import { deleteFaceEmbedding, deleteFaceAngle } from '../../service/faceAttendance.api';
 import FaceRegisterModal from './FaceRegisterModal';
 
 // ── Mini detail dialog cho học sinh đã đăng ký ────────────────────────────────
 function FaceDetailDialog({ student, onClose, onUpdate, onDeleted }) {
   const [previewImg, setPreviewImg] = useState(null);
   const [confirmDelete, setConfirmDelete] = useState(false);
+  const [confirmDeleteAngle, setConfirmDeleteAngle] = useState(null); // index góc cần xóa
   const [deleting, setDeleting] = useState(false);
+  const [localImageUrls, setLocalImageUrls] = useState(null); // null = dùng student.faceImageUrls
   if (!student) return null;
 
   const handleDelete = async () => {
@@ -37,12 +39,29 @@ function FaceDetailDialog({ student, onClose, onUpdate, onDeleted }) {
     ? new Date(student.faceRegisteredAt).toLocaleString('vi-VN')
     : 'Không rõ';
 
-  // Danh sách ảnh: ưu tiên faceImageUrls (nhiều góc), fallback về faceImageUrl (1 ảnh)
-  const imageUrls = Array.isArray(student.faceImageUrls) && student.faceImageUrls.some(Boolean)
-    ? student.faceImageUrls.filter(Boolean)
-    : student.faceImageUrl
-    ? [student.faceImageUrl]
-    : [];
+  const handleDeleteAngle = async (idx) => {
+    setDeleting(true);
+    try {
+      const res = await deleteFaceAngle(student._id, idx);
+      const newUrls = res.data?.faceImageUrls?.filter(Boolean) || [];
+      setLocalImageUrls(newUrls);
+      setConfirmDeleteAngle(null);
+      toast.success(`Đã xóa góc ${idx + 1}`);
+      if (newUrls.length === 0) onDeleted?.();
+    } catch (err) {
+      toast.error(err.message || 'Lỗi khi xóa góc mặt');
+    } finally {
+      setDeleting(false);
+    }
+  };
+
+  // Danh sách ảnh: ưu tiên localImageUrls (sau khi xóa góc), rồi student.faceImageUrls
+  const rawUrls = localImageUrls ?? (
+    Array.isArray(student.faceImageUrls) && student.faceImageUrls.some(Boolean)
+      ? student.faceImageUrls
+      : student.faceImageUrl ? [student.faceImageUrl] : []
+  );
+  const imageUrls = rawUrls.filter(Boolean);
 
   const angleLabels = ['Góc 1', 'Góc 2', 'Góc 3', 'Góc 4', 'Góc 5'];
 
@@ -126,26 +145,27 @@ function FaceDetailDialog({ student, onClose, onUpdate, onDeleted }) {
                 <>
                   <div className={`grid gap-2 ${imageUrls.length === 1 ? 'grid-cols-1' : 'grid-cols-3'}`}>
                     {imageUrls.map((url, idx) => (
-                      <button
-                        key={idx}
-                        onClick={() => setPreviewImg(url)}
-                        className="relative rounded-xl overflow-hidden border-2 border-green-200 hover:border-green-400 transition-all group"
-                        style={{ aspectRatio: '3/4' }}
-                        title={`Nhấn để xem to — Góc ${idx + 1}`}
-                      >
-                        <img src={url} alt={`Góc ${idx + 1}`} className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-200" />
+                      <div key={idx} className="relative rounded-xl overflow-hidden border-2 border-green-200 hover:border-green-400 transition-all group" style={{ aspectRatio: '3/4' }}>
+                        <button onClick={() => setPreviewImg(url)} className="w-full h-full">
+                          <img src={url} alt={`Góc ${idx + 1}`} className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-200" />
+                        </button>
                         <div className="absolute bottom-0 left-0 right-0 px-1.5 py-1 text-center" style={{ background: 'rgba(0,0,0,0.45)' }}>
                           <span className="text-white text-[10px] font-semibold">{angleLabels[idx] || `Góc ${idx + 1}`}</span>
                         </div>
-                        <div className="absolute top-1.5 right-1.5 opacity-0 group-hover:opacity-100 transition-opacity bg-black/50 rounded-full p-1">
-                          <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="2.5">
-                            <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/>
+                        {/* Nút xóa góc */}
+                        <button
+                          onClick={() => setConfirmDeleteAngle(idx)}
+                          className="absolute top-1.5 right-1.5 opacity-0 group-hover:opacity-100 transition-opacity bg-red-500 hover:bg-red-600 rounded-full p-1"
+                          title={`Xóa góc ${idx + 1}`}
+                        >
+                          <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="3" strokeLinecap="round">
+                            <line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/>
                           </svg>
-                        </div>
-                      </button>
+                        </button>
+                      </div>
                     ))}
                   </div>
-                  <p className="text-[10px] text-gray-400 text-center mt-1.5">Nhấn vào ảnh để xem to</p>
+                  <p className="text-[10px] text-gray-400 text-center mt-1.5">Nhấn vào ảnh để xem to · Hover để xóa góc</p>
                 </>
               ) : (
                 <div className="flex flex-col items-center gap-1.5 py-3 bg-amber-50 rounded-xl border border-dashed border-amber-200">
@@ -167,7 +187,7 @@ function FaceDetailDialog({ student, onClose, onUpdate, onDeleted }) {
             <div className="bg-gray-50 rounded-xl px-4 py-3 space-y-1.5">
               <div className="flex justify-between text-xs">
                 <span className="text-gray-500">Số góc mặt đã lưu</span>
-                <span className="text-gray-800 font-semibold">{student.angleCount || imageUrls.length || 1} / 5 góc</span>
+                <span className="text-gray-800 font-semibold">{imageUrls.length || student.angleCount || 1} / 5 góc</span>
               </div>
               <div className="flex justify-between text-xs">
                 <span className="text-gray-500">Trạng thái</span>
@@ -197,6 +217,40 @@ function FaceDetailDialog({ student, onClose, onUpdate, onDeleted }) {
           </div>
         </div>
       </div>
+
+      {/* Confirm xóa 1 góc */}
+      {confirmDeleteAngle !== null && (
+        <div className="fixed inset-0 z-[70] flex items-center justify-center bg-black/60">
+          <div className="bg-white rounded-2xl shadow-2xl p-6 max-w-xs w-full mx-4">
+            <div className="flex flex-col items-center gap-3 text-center">
+              <div className="w-12 h-12 rounded-full bg-red-100 flex items-center justify-center">
+                <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#dc2626" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                  <polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"/>
+                  <path d="M10 11v6"/><path d="M14 11v6"/>
+                </svg>
+              </div>
+              <p className="font-bold text-gray-800">Xóa góc {confirmDeleteAngle + 1}?</p>
+              <p className="text-sm text-gray-500">Chỉ xóa góc này, các góc còn lại vẫn giữ nguyên.</p>
+            </div>
+            <div className="flex gap-2 mt-5">
+              <button
+                onClick={() => setConfirmDeleteAngle(null)}
+                disabled={deleting}
+                className="flex-1 py-2 rounded-lg border border-gray-200 text-gray-600 text-sm font-medium hover:bg-gray-50 disabled:opacity-50"
+              >
+                Hủy
+              </button>
+              <button
+                onClick={() => handleDeleteAngle(confirmDeleteAngle)}
+                disabled={deleting}
+                className="flex-1 py-2 rounded-lg bg-red-600 hover:bg-red-700 text-white text-sm font-semibold disabled:opacity-50"
+              >
+                {deleting ? 'Đang xóa...' : 'Xóa góc này'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* Confirm xóa */}
       {confirmDelete && (

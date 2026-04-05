@@ -21,6 +21,7 @@ const {
   matchPickupFaceForCheckout,
   matchStudentFaceForCheckout,
   deleteFaceEmbedding,
+  deleteFaceAngle,
 } = require('../controller/faceAttendanceController');
 
 const router = express.Router();
@@ -77,6 +78,14 @@ router.delete(
   authenticate,
   authorizePermissions('REGISTER_FACE'),
   deleteFaceEmbedding,
+);
+
+// Xóa 1 góc mặt theo index
+router.delete(
+  '/register/:studentId/angle/:index',
+  authenticate,
+  authorizePermissions('REGISTER_FACE'),
+  deleteFaceAngle,
 );
 
 /**

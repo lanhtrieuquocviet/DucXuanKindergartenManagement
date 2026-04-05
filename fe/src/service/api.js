@@ -276,6 +276,7 @@ export const ENDPOINTS = {
     // Asset Inspection
     ASSET_COMMITTEES: "/school-admin/asset-committees",
     ASSET_COMMITTEE_DETAIL: (id) => `/school-admin/asset-committees/${id}`,
+    ASSET_COMMITTEE_END: (id) => `/school-admin/asset-committees/${id}/end`,
     ASSET_MINUTES: "/school-admin/asset-minutes",
     ASSET_MINUTES_DETAIL: (id) => `/school-admin/asset-minutes/${id}`,
     ASSET_MINUTES_EXPORT_WORD: (id) => `/school-admin/asset-minutes/${id}/export-word`,
