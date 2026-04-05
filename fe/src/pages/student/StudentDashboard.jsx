@@ -42,14 +42,15 @@ function timeAgo(dateStr) {
 }
 
 const ACTION_CARDS = [
-  { icon: <ChildCare />,    label: 'Thông tin trẻ',      color: '#059669', bg: '#ecfdf5', key: 'info' },
-  { icon: <CheckCircle />,  label: 'Điểm danh hôm nay',  color: '#2563eb', bg: '#eff6ff', key: 'today' },
-  { icon: <BarChart />,     label: 'Báo cáo điểm danh',  color: '#7c3aed', bg: '#f5f3ff', key: 'report' },
-  { icon: <DirectionsCar />,label: 'Người đón trẻ',       color: '#d97706', bg: '#fffbeb', key: 'pickup' },
-  { icon: <Restaurant />,   label: 'Thực đơn',            color: '#059669', bg: '#ecfdf5', key: 'menu' },
-  { icon: <PhotoLibrary />, label: 'Hình ảnh bữa ăn',    color: '#0891b2', bg: '#ecfeff', key: 'photos' },
-  { icon: <EditNote />,     label: 'Đơn xin nghỉ',       color: '#6b7280', bg: '#f9fafb', key: 'leave', disabled: true },
-  { icon: <SwapHoriz />,    label: 'Chuyển lớp',          color: '#6b7280', bg: '#f9fafb', key: 'transfer', disabled: true },
+  { icon: <ChildCare />,    label: 'Thông tin trẻ',         color: '#059669', bg: '#ecfdf5', key: 'info' },
+  { icon: <CheckCircle />,  label: 'Điểm danh hôm nay',     color: '#2563eb', bg: '#eff6ff', key: 'today' },
+  { icon: <BarChart />,     label: 'Báo cáo điểm danh',     color: '#7c3aed', bg: '#f5f3ff', key: 'report' },
+  { icon: <DirectionsCar />,label: 'Người đón trẻ',          color: '#d97706', bg: '#fffbeb', key: 'pickup' },
+  { icon: <Restaurant />,   label: 'Thực đơn',               color: '#059669', bg: '#ecfdf5', key: 'menu' },
+  { icon: <PhotoLibrary />, label: 'Hình ảnh bữa ăn',       color: '#0891b2', bg: '#ecfeff', key: 'photos' },
+  { icon: <School />,       label: 'Sổ liên lạc điện tử',   color: '#7c3aed', bg: '#f5f3ff', key: 'contact-book' },
+  { icon: <EditNote />,     label: 'Đơn xin nghỉ',          color: '#6b7280', bg: '#f9fafb', key: 'leave', disabled: true },
+  { icon: <SwapHoriz />,    label: 'Chuyển lớp',             color: '#6b7280', bg: '#f9fafb', key: 'transfer', disabled: true },
 ];
 
 export default function StudentDashboard() {
@@ -197,6 +198,7 @@ export default function StudentDashboard() {
       pickup: () => navigate('/student/pickup'),
       menu: () => navigate('/student/menus'),
       photos: () => navigate('/student/meal-photos'),
+      'contact-book': () => navigate('/student/contact-book'),
     };
     routes[key]?.();
   };

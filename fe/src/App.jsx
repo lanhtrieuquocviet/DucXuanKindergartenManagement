@@ -16,6 +16,7 @@ import ContactBook from './pages/teacher/ContactBook';
 import ContactBookDetail from './pages/teacher/ContactBookDetail';
 import TeacherStudents from './pages/teacher/TeacherStudents';
 import StudentDashboard from './pages/student/StudentDashboard';
+import StudentContactBook from './pages/student/StudentContactBook';
 import PickupRegistration from './pages/student/PickupRegistration';
 import TodayAttendance from './pages/student/TodayAttendance';
 import AttendanceReport from './pages/student/AttendanceReport';
@@ -409,6 +410,7 @@ function App() {
           <Route path="/student/attendance/today" element={<ProtectedRoute><TodayAttendance /></ProtectedRoute>} />
           <Route path="/student/attendance/report" element={<ProtectedRoute><AttendanceReport /></ProtectedRoute>} />
           <Route path="/student/meal-photos" element={<ProtectedRoute><MealPhotosStudent /></ProtectedRoute>} />
+          <Route path="/student/contact-book" element={<ProtectedRoute><StudentContactBook /></ProtectedRoute>} />
           <Route
             path="/school-admin"
             element={
