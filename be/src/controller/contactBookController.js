@@ -6,6 +6,7 @@ const Attendance = require('../models/Attendances');
 const Menu = require('../models/Menu');
 const DailyMenu = require('../models/DailyMenu');
 const TeacherNote = require('../models/TeacherNote');
+const StudentChangeRequest = require('../models/StudentChangeRequest');
 
 // Tính số tuần ISO (1-based) từ ngày, để xác định tuần lẻ/chẵn
 function getISOWeek(date) {
@@ -19,6 +20,41 @@ function getISOWeek(date) {
 function nowVN() {
   return new Date(new Date().toLocaleString('en-US', { timeZone: 'Asia/Ho_Chi_Minh' }));
 }
+
+/** GET /teacher/students — tất cả học sinh trong các lớp giáo viên phụ trách */
+exports.getMyStudents = async (req, res) => {
+  try {
+    const teacher = await Teacher.findOne({ userId: req.user._id }).lean();
+    if (!teacher) return res.json({ status: 'success', data: [], classes: [] });
+
+    const classes = await Classes.find({ teacherIds: teacher._id })
+      .populate('gradeId', 'gradeName')
+      .populate('academicYearId', 'yearName')
+      .sort({ className: 1 })
+      .lean();
+
+    const classIds = classes.map(c => c._id);
+    const filter = { classId: { $in: classIds }, status: 'active' };
+    if (req.query.classId) filter.classId = req.query.classId;
+
+    const students = await Student.find(filter)
+      .populate('parentId', 'fullName phone email')
+      .populate('classId', 'className')
+      .sort({ fullName: 1 })
+      .lean();
+
+    const classesData = classes.map(c => ({
+      _id: c._id,
+      className: c.className,
+      gradeName: c.gradeId?.gradeName || '',
+      yearName: c.academicYearId?.yearName || '',
+    }));
+
+    return res.json({ status: 'success', data: students, classes: classesData });
+  } catch (err) {
+    return res.status(500).json({ status: 'error', message: err.message });
+  }
+};
 
 /** GET /teacher/contact-book — danh sách lớp giáo viên phụ trách */
 exports.getMyClasses = async (req, res) => {
@@ -286,6 +322,58 @@ exports.deleteNote = async (req, res) => {
 
     await note.deleteOne();
     return res.json({ status: 'success', message: 'Đã xoá ghi chú.' });
+  } catch (err) {
+    return res.status(500).json({ status: 'error', message: err.message });
+  }
+};
+
+// ── Student Change Requests (Teacher) ────────────────────────
+
+/** GET /teacher/students/:studentId/change-requests */
+exports.getChangeRequests = async (req, res) => {
+  try {
+    const teacher = await Teacher.findOne({ userId: req.user._id }).lean();
+    if (!teacher) return res.status(403).json({ status: 'error', message: 'Không có hồ sơ giáo viên.' });
+
+    const requests = await StudentChangeRequest.find({
+      studentId: req.params.studentId,
+      teacherId: teacher._id,
+    }).sort({ createdAt: -1 }).lean();
+
+    return res.json({ status: 'success', data: requests });
+  } catch (err) {
+    return res.status(500).json({ status: 'error', message: err.message });
+  }
+};
+
+/** POST /teacher/students/:studentId/change-requests */
+exports.createChangeRequest = async (req, res) => {
+  try {
+    const teacher = await Teacher.findOne({ userId: req.user._id }).lean();
+    if (!teacher) return res.status(403).json({ status: 'error', message: 'Không có hồ sơ giáo viên.' });
+
+    const { title, content } = req.body;
+    if (!title?.trim() || !content?.trim()) {
+      return res.status(400).json({ status: 'error', message: 'Tiêu đề và nội dung không được để trống.' });
+    }
+
+    // Lấy classId từ học sinh
+    const student = await Student.findById(req.params.studentId).lean();
+    if (!student) return res.status(404).json({ status: 'error', message: 'Không tìm thấy học sinh.' });
+
+    // Giáo viên phải phụ trách lớp của học sinh đó
+    const cls = await Classes.findOne({ _id: student.classId, teacherIds: teacher._id }).lean();
+    if (!cls) return res.status(403).json({ status: 'error', message: 'Bạn không phụ trách lớp của học sinh này.' });
+
+    const request = await StudentChangeRequest.create({
+      studentId: student._id,
+      classId: cls._id,
+      teacherId: teacher._id,
+      title: title.trim(),
+      content: content.trim(),
+    });
+
+    return res.status(201).json({ status: 'success', data: request });
   } catch (err) {
     return res.status(500).json({ status: 'error', message: err.message });
   }

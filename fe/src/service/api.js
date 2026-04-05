@@ -332,6 +332,9 @@ export const ENDPOINTS = {
     ASSET_ALLOCATION_CONFIRM: (id) => `/teacher/asset-allocations/${id}/confirm`,
     ASSET_INCIDENTS: "/teacher/asset-incidents",
     ASSET_INCIDENT_DETAIL: (id) => `/teacher/asset-incidents/${id}`,
+    // Danh sách học sinh
+    MY_STUDENTS: '/teacher/students',
+    CHANGE_REQUESTS: (studentId) => `/teacher/students/${studentId}/change-requests`,
     // Sổ liên lạc
     CONTACT_BOOK_CLASSES: '/teacher/contact-book',
     CONTACT_BOOK_STUDENTS: (classId) => `/teacher/contact-book/${classId}/students`,
@@ -396,6 +399,14 @@ export const ENDPOINTS = {
     HEALTH_OVERVIEW: "/school-admin/students/health-overview",
     HEALTH_IMPORT: "/school-admin/students/health-import",
     HEALTH_CLASSES: "/school-admin/students/health-classes",
+    CHANGE_REQUESTS: "/school-admin/students/change-requests",
+    CHANGE_REQUESTS_PENDING_MAP: "/school-admin/students/change-requests/pending-map",
+    CHANGE_REQUEST_RESOLVE: (id) => `/school-admin/students/change-requests/${id}/resolve`,
+    // Sổ liên lạc phụ huynh/học sinh
+    CONTACT_BOOK_MY:         '/students/contact-book/my',
+    CONTACT_BOOK_HEALTH:     '/students/contact-book/health',
+    CONTACT_BOOK_ATTENDANCE: '/students/contact-book/attendance',
+    CONTACT_BOOK_NOTES:      '/students/contact-book/notes',
     UPDATE: (studentId) => `/students/${studentId}`,
     DELETE: (studentId) => `/students/${studentId}`,
     ATTENDANCE_CHECKIN: "/students/attendance",

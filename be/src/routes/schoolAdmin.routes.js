@@ -299,6 +299,61 @@ router.get('/students/:studentId/attendance', authenticate, authorizePermissions
  */
 router.get('/students/:studentId/attendance/history', authenticate, authorizePermissions('VIEW_ATTENDANCE'), getStudentAttendanceHistory);
 
+// ── Student Change Requests (School Admin) ────────────────────
+// GET /school-admin/students/change-requests — danh sách tất cả yêu cầu
+router.get('/students/change-requests', authenticate, authorizePermissions('MANAGE_STUDENT'), async (req, res) => {
+  try {
+    const StudentChangeRequest = require('../models/StudentChangeRequest');
+    const { status } = req.query; // 'pending' | 'resolved' | undefined (all)
+    const filter = {};
+    if (status) filter.status = status;
+
+    const requests = await StudentChangeRequest.find(filter)
+      .populate('studentId', 'fullName classId avatar')
+      .populate({ path: 'studentId', populate: { path: 'classId', select: 'className' } })
+      .populate('teacherId', 'userId')
+      .populate({ path: 'teacherId', populate: { path: 'userId', select: 'fullName' } })
+      .sort({ createdAt: -1 })
+      .lean();
+
+    return res.json({ status: 'success', data: requests });
+  } catch (err) {
+    return res.status(500).json({ status: 'error', message: err.message });
+  }
+});
+
+// GET /school-admin/students/change-requests/pending-map — map studentId -> pending count
+router.get('/students/change-requests/pending-map', authenticate, authorizePermissions('MANAGE_STUDENT'), async (req, res) => {
+  try {
+    const StudentChangeRequest = require('../models/StudentChangeRequest');
+    const counts = await StudentChangeRequest.aggregate([
+      { $match: { status: 'pending' } },
+      { $group: { _id: '$studentId', count: { $sum: 1 } } },
+    ]);
+    const map = {};
+    counts.forEach(c => { map[c._id.toString()] = c.count; });
+    return res.json({ status: 'success', data: map });
+  } catch (err) {
+    return res.status(500).json({ status: 'error', message: err.message });
+  }
+});
+
+// PATCH /school-admin/students/change-requests/:id/resolve — giải quyết yêu cầu
+router.patch('/students/change-requests/:id/resolve', authenticate, authorizePermissions('MANAGE_STUDENT'), async (req, res) => {
+  try {
+    const StudentChangeRequest = require('../models/StudentChangeRequest');
+    const req_ = await StudentChangeRequest.findById(req.params.id);
+    if (!req_) return res.status(404).json({ status: 'error', message: 'Không tìm thấy yêu cầu.' });
+    req_.status = 'resolved';
+    req_.resolvedAt = new Date();
+    req_.resolvedBy = req.user._id;
+    await req_.save();
+    return res.json({ status: 'success', data: req_ });
+  } catch (err) {
+    return res.status(500).json({ status: 'error', message: err.message });
+  }
+});
+
 // ── Health classes — lớp thuộc năm học hiện tại ──────────────
 // GET /school-admin/students/health-classes
 router.get('/students/health-classes', authenticate, authorizePermissions('MANAGE_STUDENT'), async (req, res) => {

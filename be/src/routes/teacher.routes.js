@@ -35,6 +35,11 @@ router.get('/dashboard', authenticate, authorizeRoles('Teacher'), (req, res) => 
   });
 });
 
+// ── Danh sách học sinh của giáo viên ──
+router.get('/students', authenticate, authorizeRoles('Teacher'), contactBookCtrl.getMyStudents);
+router.get('/students/:studentId/change-requests', authenticate, authorizeRoles('Teacher'), contactBookCtrl.getChangeRequests);
+router.post('/students/:studentId/change-requests', authenticate, authorizeRoles('Teacher'), contactBookCtrl.createChangeRequest);
+
 // ── Sổ liên lạc điện tử ──
 router.get('/contact-book', authenticate, authorizeRoles('Teacher'), contactBookCtrl.getMyClasses);
 router.get('/contact-book/today-menu', authenticate, authorizeRoles('Teacher'), contactBookCtrl.getTodayMenu);

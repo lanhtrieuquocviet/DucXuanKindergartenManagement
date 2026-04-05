@@ -241,14 +241,14 @@ export default function TeacherAssetInspection() {
     ...(isCommitteeMember ? [{ key: 'asset-inspection', label: 'Kiểm kê tài sản' }] : []),
   ];
 
-  const handleMenuSelect = key => {
-    if (key === 'classes')          navigate('/teacher');
-    if (key === 'contact-book')     navigate('/teacher/contact-book');
-    if (key === 'attendance')       navigate('/teacher/attendance');
-    if (key === 'pickup-approval')  navigate('/teacher/pickup-approval');
-    if (key === 'purchase-request') navigate('/teacher/purchase-request');
-    if (key === 'class-assets')     navigate('/teacher/class-assets');
-    if (key === 'asset-inspection') navigate('/teacher/asset-inspection');
+  const handleMenuSelect = (key) => {
+    const MAP = {
+      classes: '/teacher', students: '/teacher/students',
+      'contact-book': '/teacher/contact-book', attendance: '/teacher/attendance',
+      'pickup-approval': '/teacher/pickup-approval', 'purchase-request': '/teacher/purchase-request',
+      'class-assets': '/teacher/class-assets', 'asset-inspection': '/teacher/asset-inspection',
+    };
+    if (MAP[key]) navigate(MAP[key]);
   };
 
   return (

@@ -14,6 +14,7 @@ import TeacherDashboard from './pages/teacher/TeacherDashboard';
 import TeacherAttendance from './pages/teacher/TeacherAttendance';
 import ContactBook from './pages/teacher/ContactBook';
 import ContactBookDetail from './pages/teacher/ContactBookDetail';
+import TeacherStudents from './pages/teacher/TeacherStudents';
 import StudentDashboard from './pages/student/StudentDashboard';
 import PickupRegistration from './pages/student/PickupRegistration';
 import TodayAttendance from './pages/student/TodayAttendance';
@@ -287,6 +288,16 @@ function App() {
               <ProtectedRoute>
                 <TeacherProvider>
                   <TeacherDashboard />
+                </TeacherProvider>
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/teacher/students"
+            element={
+              <ProtectedRoute>
+                <TeacherProvider>
+                  <TeacherStudents />
                 </TeacherProvider>
               </ProtectedRoute>
             }

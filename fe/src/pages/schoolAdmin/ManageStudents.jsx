@@ -3,9 +3,10 @@ import { useNavigate } from 'react-router-dom';
 import RoleLayout from '../../layouts/RoleLayout';
 import { useAuth } from '../../context/AuthContext';
 import { useSchoolAdmin } from '../../context/SchoolAdminContext';
-import { postFormData, ENDPOINTS, get, put } from '../../service/api';
+import { postFormData, ENDPOINTS, get, put, patch } from '../../service/api';
 import { createSchoolAdminMenuSelect } from './schoolAdminMenuConfig';
 import { useSchoolAdminMenu } from './useSchoolAdminMenu';
+import { toast } from 'react-toastify';
 import {
   Box,
   Paper,
@@ -38,6 +39,10 @@ import {
   IconButton,
   Tabs,
   Tab,
+  Badge,
+  List,
+  ListItem,
+  ListItemText,
 } from '@mui/material';
 import {
   Refresh as RefreshIcon,
@@ -49,6 +54,8 @@ import {
   Visibility as VisibilityIcon,
   Autorenew as AutorenewIcon,
   HealthAndSafety as HealthIcon,
+  NotificationsActive as RequestAlertIcon,
+  CheckCircle as ResolveIcon,
 } from '@mui/icons-material';
 
 const GENDER_OPTIONS = [
@@ -76,6 +83,15 @@ function ManageStudents() {
   const [error, setError] = useState(null);
   const [searchTerm, setSearchTerm] = useState('');
   const [classFilter, setClassFilter] = useState('');
+
+  // Pending change requests: map studentId -> count
+  const [pendingMap, setPendingMap] = useState({});
+  // Dialog xem yêu cầu của 1 học sinh
+  const [reqViewStudent, setReqViewStudent] = useState(null);
+  const [reqViewData, setReqViewData]       = useState([]);
+  const [reqViewLoading, setReqViewLoading] = useState(false);
+  const [resolvingId, setResolvingId]       = useState(null);
+
   const [openAdd, setOpenAdd] = useState(false);
   const [openEdit, setOpenEdit] = useState(false);
   const [openDelete, setOpenDelete] = useState(false);
@@ -125,6 +141,13 @@ function ManageStudents() {
     fetchData();
   }, [navigate, user, hasRole, isInitializing]);
 
+  const fetchPendingMap = async () => {
+    try {
+      const res = await get(ENDPOINTS.STUDENTS.CHANGE_REQUESTS_PENDING_MAP);
+      setPendingMap(res.data || {});
+    } catch { /* silent */ }
+  };
+
   const fetchData = async () => {
     setLoading(true);
     setError(null);
@@ -141,6 +164,40 @@ function ManageStudents() {
       setError(err.message || 'Không tải được dữ liệu');
     } finally {
       setLoading(false);
+    }
+    fetchPendingMap();
+  };
+
+  const openReqView = async (student) => {
+    setReqViewStudent(student);
+    setReqViewData([]);
+    setReqViewLoading(true);
+    try {
+      const res = await get(`${ENDPOINTS.STUDENTS.CHANGE_REQUESTS}?status=pending`);
+      // Filter for this student
+      const filtered = (res.data || []).filter(r => String(r.studentId?._id || r.studentId) === String(student._id));
+      setReqViewData(filtered);
+    } catch { setReqViewData([]); }
+    finally { setReqViewLoading(false); }
+  };
+
+  const handleResolve = async (reqId) => {
+    setResolvingId(reqId);
+    try {
+      await patch(ENDPOINTS.STUDENTS.CHANGE_REQUEST_RESOLVE(reqId), {});
+      setReqViewData(prev => prev.filter(r => r._id !== reqId));
+      setPendingMap(prev => {
+        const sid = String(reqViewStudent._id);
+        const newCount = (prev[sid] || 1) - 1;
+        const next = { ...prev };
+        if (newCount <= 0) delete next[sid]; else next[sid] = newCount;
+        return next;
+      });
+      toast.success('Đã giải quyết yêu cầu');
+    } catch (err) {
+      toast.error(err.message || 'Thao tác thất bại');
+    } finally {
+      setResolvingId(null);
     }
   };
 
@@ -420,14 +477,26 @@ function ManageStudents() {
                   <TableCell><strong>Phụ huynh</strong></TableCell>
                   <TableCell><strong>SĐT</strong></TableCell>
                   <TableCell align="center"><strong>Cần chú ý</strong></TableCell>
+                  <TableCell align="center"><strong>Yêu cầu GV</strong></TableCell>
                   <TableCell><strong>Ghi chú đặc biệt</strong></TableCell>
                   <TableCell align="right"><strong>Thao tác</strong></TableCell>
                 </TableRow>
               </TableHead>
               <TableBody>
-                {filteredStudents.map((row) => (
-                  <TableRow key={row._id}>
-                    <TableCell>{row.fullName || '—'}</TableCell>
+                {filteredStudents.map((row) => {
+                  const pendingCount = pendingMap[String(row._id)] || 0;
+                  return (
+                  <TableRow key={row._id} sx={pendingCount > 0 ? { bgcolor: '#fffbeb' } : {}}>
+                    <TableCell>
+                      <Stack direction="row" alignItems="center" spacing={0.75}>
+                        {pendingCount > 0 && (
+                          <Tooltip title={`${pendingCount} yêu cầu chờ xử lý từ giáo viên`}>
+                            <RequestAlertIcon sx={{ fontSize: 16, color: '#d97706', flexShrink: 0 }} />
+                          </Tooltip>
+                        )}
+                        <span>{row.fullName || '—'}</span>
+                      </Stack>
+                    </TableCell>
                     <TableCell>{formatDate(row.dateOfBirth)}</TableCell>
                     <TableCell>{GENDER_OPTIONS.find((g) => g.value === row.gender)?.label || row.gender || '—'}</TableCell>
                     <TableCell>
@@ -442,6 +511,22 @@ function ManageStudents() {
                       {row.needsSpecialAttention
                         ? <Chip label="Có" color="warning" size="small" />
                         : <Chip label="Không" size="small" variant="outlined" />}
+                    </TableCell>
+                    <TableCell align="center">
+                      {pendingCount > 0 ? (
+                        <Tooltip title="Xem các yêu cầu từ giáo viên">
+                          <Chip
+                            label={`${pendingCount} chờ xử lý`}
+                            size="small"
+                            color="warning"
+                            icon={<RequestAlertIcon sx={{ fontSize: 13 }} />}
+                            onClick={() => openReqView(row)}
+                            sx={{ cursor: 'pointer', fontWeight: 700, fontSize: '0.7rem' }}
+                          />
+                        </Tooltip>
+                      ) : (
+                        <Typography variant="caption" color="text.disabled">—</Typography>
+                      )}
                     </TableCell>
                     <TableCell>
                       {row.specialNote
@@ -460,7 +545,7 @@ function ManageStudents() {
                       </Button>
                     </TableCell>
                   </TableRow>
-                ))}
+                );})}
               </TableBody>
             </Table>
           </TableContainer>
@@ -714,6 +799,67 @@ function ManageStudents() {
           <Button variant="contained" color="error" onClick={handleConfirmDelete} disabled={ctxLoading}>
             Xóa
           </Button>
+        </DialogActions>
+      </Dialog>
+
+      {/* Dialog xem & giải quyết yêu cầu từ giáo viên */}
+      <Dialog open={!!reqViewStudent} onClose={() => setReqViewStudent(null)} maxWidth="sm" fullWidth>
+        <DialogTitle sx={{ fontWeight: 700, pb: 1 }}>
+          Yêu cầu thay đổi thông tin từ giáo viên
+        </DialogTitle>
+        <DialogContent dividers sx={{ p: 0 }}>
+          {reqViewStudent && (
+            <Stack direction="row" alignItems="center" spacing={1.25} sx={{ px: 2.5, py: 1.5, bgcolor: '#fffbeb', borderBottom: '1px solid #fde68a' }}>
+              <RequestAlertIcon sx={{ color: '#d97706', fontSize: 18 }} />
+              <Typography variant="body2" fontWeight={700}>{reqViewStudent.fullName}</Typography>
+            </Stack>
+          )}
+          {reqViewLoading ? (
+            <Box sx={{ py: 5, textAlign: 'center' }}><CircularProgress size={28} /></Box>
+          ) : reqViewData.length === 0 ? (
+            <Box sx={{ py: 5, textAlign: 'center' }}>
+              <ResolveIcon sx={{ fontSize: 36, color: '#22c55e', mb: 1 }} />
+              <Typography variant="body2" color="text.secondary">Không còn yêu cầu nào đang chờ xử lý</Typography>
+            </Box>
+          ) : (
+            <List disablePadding>
+              {reqViewData.map((r, idx) => (
+                <Box key={r._id}>
+                  <ListItem alignItems="flex-start" sx={{ py: 1.5, px: 2.5 }}>
+                    <ListItemText
+                      primary={
+                        <Typography variant="body2" fontWeight={700} mb={0.5}>{r.title}</Typography>
+                      }
+                      secondary={
+                        <>
+                          <Typography variant="body2" color="text.secondary" sx={{ whiteSpace: 'pre-wrap', mb: 0.75 }}>{r.content}</Typography>
+                          <Stack direction="row" alignItems="center" justifyContent="space-between">
+                            <Typography variant="caption" color="text.disabled">
+                              {new Date(r.createdAt).toLocaleString('vi-VN')}
+                              {r.teacherId?.userId?.fullName ? ` · GV: ${r.teacherId.userId.fullName}` : ''}
+                            </Typography>
+                            <Button
+                              size="small" variant="contained"
+                              startIcon={<ResolveIcon sx={{ fontSize: 14 }} />}
+                              disabled={!!resolvingId}
+                              onClick={() => handleResolve(r._id)}
+                              sx={{ bgcolor: '#16a34a', '&:hover': { bgcolor: '#15803d' }, fontSize: '0.72rem', py: 0.4, px: 1.2, borderRadius: 1.5 }}
+                            >
+                              {resolvingId === r._id ? 'Đang xử lý...' : 'Giải quyết'}
+                            </Button>
+                          </Stack>
+                        </>
+                      }
+                    />
+                  </ListItem>
+                  {idx < reqViewData.length - 1 && <Divider />}
+                </Box>
+              ))}
+            </List>
+          )}
+        </DialogContent>
+        <DialogActions sx={{ px: 2, py: 1.5 }}>
+          <Button onClick={() => setReqViewStudent(null)} color="inherit">Đóng</Button>
         </DialogActions>
       </Dialog>
 

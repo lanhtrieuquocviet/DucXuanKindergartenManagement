@@ -808,6 +808,7 @@ export default function ContactBookDetail() {
   const handleMenuSelect = (key) => {
     const MAP = {
       classes: '/teacher',
+      students: '/teacher/students',
       'contact-book': '/teacher/contact-book',
       attendance: '/teacher/attendance',
       'pickup-approval': '/teacher/pickup-approval',

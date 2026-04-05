@@ -314,4 +314,79 @@ router.get('/:studentId', authenticate, getStudentDetail);
 router.put('/:studentId', authenticate, updateStudent);
 router.delete('/:studentId', authenticate, authorizePermissions('MANAGE_STUDENT'), deleteStudent);
 
+// ── Sổ liên lạc dành cho phụ huynh / học sinh ──────────────────
+// Helper: tìm student của user đang đăng nhập
+async function getMyStudent(userId) {
+  const Student = require('../models/Student');
+  return Student.findOne({
+    $or: [{ parentId: userId }, { userId }, { UserId: userId }],
+    status: 'active',
+  })
+    .populate('classId', 'className gradeId academicYearId')
+    .populate({ path: 'classId', populate: [{ path: 'gradeId', select: 'gradeName' }, { path: 'academicYearId', select: 'yearName' }] })
+    .populate('parentId', 'fullName phone email')
+    .lean();
+}
+
+// GET /students/contact-book/my — thông tin học sinh + lớp
+router.get('/contact-book/my', authenticate, async (req, res) => {
+  try {
+    const student = await getMyStudent(req.user.id);
+    if (!student) return res.status(404).json({ status: 'error', message: 'Không tìm thấy thông tin học sinh.' });
+    return res.json({ status: 'success', data: student });
+  } catch (err) {
+    return res.status(500).json({ status: 'error', message: err.message });
+  }
+});
+
+// GET /students/contact-book/health — hồ sơ sức khỏe mới nhất
+router.get('/contact-book/health', authenticate, async (req, res) => {
+  try {
+    const student = await getMyStudent(req.user.id);
+    if (!student) return res.status(404).json({ status: 'error', message: 'Không tìm thấy học sinh.' });
+    const HealthCheck = require('../models/HealthCheck');
+    const health = await HealthCheck.findOne({ studentId: student._id }).sort({ checkDate: -1 }).lean();
+    return res.json({ status: 'success', data: health || null });
+  } catch (err) {
+    return res.status(500).json({ status: 'error', message: err.message });
+  }
+});
+
+// GET /students/contact-book/attendance?year=&month= — lịch sử điểm danh
+router.get('/contact-book/attendance', authenticate, async (req, res) => {
+  try {
+    const student = await getMyStudent(req.user.id);
+    if (!student) return res.status(404).json({ status: 'error', message: 'Không tìm thấy học sinh.' });
+    const Attendance = require('../models/Attendances');
+    const now = new Date();
+    const year  = parseInt(req.query.year)  || now.getFullYear();
+    const month = parseInt(req.query.month) || (now.getMonth() + 1);
+    const from = new Date(year, month - 1, 1);
+    const to   = new Date(year, month, 1);
+    const records = await Attendance.find({ studentId: student._id, date: { $gte: from, $lt: to } })
+      .sort({ date: -1 }).lean();
+    const present = records.filter(r => r.status === 'present').length;
+    const absent  = records.filter(r => r.status === 'absent').length;
+    const leave   = records.filter(r => r.status === 'leave').length;
+    const total   = records.length;
+    const rate    = total > 0 ? Math.round((present / total) * 100) : null;
+    return res.json({ status: 'success', data: { year, month, total, present, absent, leave, rate, records } });
+  } catch (err) {
+    return res.status(500).json({ status: 'error', message: err.message });
+  }
+});
+
+// GET /students/contact-book/notes — ghi chú của giáo viên
+router.get('/contact-book/notes', authenticate, async (req, res) => {
+  try {
+    const student = await getMyStudent(req.user.id);
+    if (!student) return res.status(404).json({ status: 'error', message: 'Không tìm thấy học sinh.' });
+    const TeacherNote = require('../models/TeacherNote');
+    const notes = await TeacherNote.find({ studentId: student._id }).sort({ createdAt: -1 }).lean();
+    return res.json({ status: 'success', data: notes });
+  } catch (err) {
+    return res.status(500).json({ status: 'error', message: err.message });
+  }
+});
+
 module.exports = router;

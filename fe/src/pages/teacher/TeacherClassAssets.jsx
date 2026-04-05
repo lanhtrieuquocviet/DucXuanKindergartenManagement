@@ -351,13 +351,13 @@ export default function TeacherClassAssets() {
   ];
 
   const handleMenuSelect = (key) => {
-    if (key === 'classes')          { navigate('/teacher'); return; }
-    if (key === 'contact-book')     { navigate('/teacher/contact-book'); return; }
-    if (key === 'attendance')       { navigate('/teacher/attendance'); return; }
-    if (key === 'pickup-approval')  { navigate('/teacher/pickup-approval'); return; }
-    if (key === 'purchase-request') { navigate('/teacher/purchase-request'); return; }
-    if (key === 'class-assets')     { navigate('/teacher/class-assets'); return; }
-    if (key === 'asset-inspection') { navigate('/teacher/asset-inspection'); return; }
+    const MAP = {
+      classes: '/teacher', students: '/teacher/students',
+      'contact-book': '/teacher/contact-book', attendance: '/teacher/attendance',
+      'pickup-approval': '/teacher/pickup-approval', 'purchase-request': '/teacher/purchase-request',
+      'class-assets': '/teacher/class-assets', 'asset-inspection': '/teacher/asset-inspection',
+    };
+    if (MAP[key]) navigate(MAP[key]);
   };
 
   const totalAssets = (allocation?.assets?.length || 0) + (allocation?.extraAssets?.length || 0);
