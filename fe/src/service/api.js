@@ -337,6 +337,10 @@ export const ENDPOINTS = {
     CONTACT_BOOK_STUDENTS: (classId) => `/teacher/contact-book/${classId}/students`,
     CONTACT_BOOK_ATTENDANCE: (classId, studentId) => `/teacher/contact-book/${classId}/students/${studentId}/attendance`,
     CONTACT_BOOK_HEALTH: (classId, studentId) => `/teacher/contact-book/${classId}/students/${studentId}/health`,
+    CONTACT_BOOK_NOTES: (classId, studentId) => `/teacher/contact-book/${classId}/students/${studentId}/notes`,
+    CONTACT_BOOK_NOTE_DELETE: (classId, studentId, noteId) => `/teacher/contact-book/${classId}/students/${studentId}/notes/${noteId}`,
+    CONTACT_BOOK_TODAY_MENU: '/teacher/contact-book/today-menu',
+    UPLOAD_NOTE_IMAGE: '/cloudinary/upload-note-image',
   },
   // Classes
   CLASSES: {
@@ -389,6 +393,9 @@ export const ENDPOINTS = {
     CREATE_WITH_PARENT: "/students/with-parent",
     CHECK_USERNAME: "/students/check-username",
     GENERATE_USERNAME: "/students/generate-username",
+    HEALTH_OVERVIEW: "/school-admin/students/health-overview",
+    HEALTH_IMPORT: "/school-admin/students/health-import",
+    HEALTH_CLASSES: "/school-admin/students/health-classes",
     UPDATE: (studentId) => `/students/${studentId}`,
     DELETE: (studentId) => `/students/${studentId}`,
     ATTENDANCE_CHECKIN: "/students/attendance",

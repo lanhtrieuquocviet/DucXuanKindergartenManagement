@@ -1,7 +1,47 @@
-import { useState, useEffect } from "react";
+import { useEffect, useState } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import { get, ENDPOINTS } from "../../service/api";
-import 'quill/dist/quill.snow.css';
+
+// Render nội dung theo layout sections (layout1 hoặc layout2)
+function LayoutContent({ sections }) {
+  if (!sections || sections.length === 0) return null;
+  return (
+    <div className="space-y-8">
+      {sections.map((section, idx) => {
+        const hasImage = !!section.image;
+        const hasContent = !!(section.content || "").trim();
+        if (!hasImage && !hasContent) return null;
+        return (
+          <div key={idx} className="space-y-4">
+            {hasImage && (
+              <img
+                src={section.image}
+                alt={`Ảnh phần ${idx + 1}`}
+                className="w-full max-h-[380px] object-cover rounded-xl shadow-sm"
+              />
+            )}
+            {hasContent && (
+              <p className="text-gray-800 text-sm sm:text-base leading-relaxed whitespace-pre-line">
+                {section.content}
+              </p>
+            )}
+          </div>
+        );
+      })}
+    </div>
+  );
+}
+
+// Fallback: render description HTML (blog cũ không có sections)
+function LegacyContent({ description }) {
+  if (!description) return null;
+  return (
+    <div
+      className="prose max-w-none text-gray-800 text-sm sm:text-base leading-relaxed"
+      dangerouslySetInnerHTML={{ __html: description }}
+    />
+  );
+}
 
 function NewsDetail() {
   const { blogId } = useParams();
@@ -10,7 +50,6 @@ function NewsDetail() {
   const [blog, setBlog] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
-  const [selectedImageIdx, setSelectedImageIdx] = useState(0);
 
   useEffect(() => {
     const load = async () => {
@@ -45,37 +84,30 @@ function NewsDetail() {
         <div className="bg-red-50 border border-red-200 rounded p-4 text-red-700 mb-4 text-sm">
           {error || "Không tìm thấy bài viết"}
         </div>
-        <button
-          onClick={() => navigate(-1)}
-          className="text-sm text-green-700 hover:underline"
-        >
+        <button onClick={() => navigate(-1)} className="text-sm text-green-700 hover:underline">
           ← Quay lại
         </button>
       </div>
     );
   }
 
+  const hasLayout = (blog.layout === "layout1" || blog.layout === "layout2") &&
+    Array.isArray(blog.sections) && blog.sections.length > 0;
+
   return (
     <div className="max-w-4xl mx-auto px-4 sm:px-6 py-6 sm:py-8">
+
       {/* Breadcrumb */}
       <div className="text-xs sm:text-sm text-gray-500 mb-4 sm:mb-6 flex flex-wrap items-center gap-1">
-        <span
-          className="hover:text-green-600 cursor-pointer"
-          onClick={() => navigate("/")}
-        >
+        <span className="hover:text-green-600 cursor-pointer" onClick={() => navigate("/")}>
           Trang chủ
         </span>
         <span>›</span>
-        <span
-          className="hover:text-green-600 cursor-pointer"
-          onClick={() => navigate(-1)}
-        >
+        <span className="hover:text-green-600 cursor-pointer" onClick={() => navigate(-1)}>
           {blog.category?.name || "Tin tức"}
         </span>
         <span>›</span>
-        <span className="text-gray-800 font-medium line-clamp-1">
-          {blog.code}
-        </span>
+        <span className="text-gray-800 font-medium line-clamp-1">{blog.code}</span>
       </div>
 
       {/* Tiêu đề */}
@@ -94,41 +126,26 @@ function NewsDetail() {
         {blog.author?.fullName && <span>✍ {blog.author.fullName}</span>}
       </div>
 
-      {/* Ảnh chính (nếu có) */}
+      {/* Ảnh bìa */}
       {blog.images && blog.images.length > 0 && (
-        <div className="mb-5 sm:mb-6">
+        <div className="mb-6 sm:mb-8">
           <img
-            src={blog.images[selectedImageIdx]}
+            src={blog.images[0]}
             alt={blog.code}
-            className="w-full max-h-[260px] sm:max-h-[420px] object-cover rounded-lg shadow"
+            className="w-full max-h-[280px] sm:max-h-[420px] object-cover rounded-xl shadow"
           />
-          {blog.images.length > 1 && (
-            <div className="flex gap-2 mt-3 flex-wrap">
-              {blog.images.map((url, idx) => (
-                <img
-                  key={idx}
-                  src={url}
-                  alt={`${idx + 1}`}
-                  onClick={() => setSelectedImageIdx(idx)}
-                  className={`w-14 h-14 sm:w-20 sm:h-20 object-cover rounded cursor-pointer border-2 transition ${
-                    selectedImageIdx === idx
-                      ? "border-green-500 scale-105"
-                      : "border-transparent hover:border-gray-300"
-                  }`}
-                />
-              ))}
-            </div>
-          )}
         </div>
       )}
 
-      {/* Nội dung */}
-      <div
-        className="prose max-w-none text-gray-800 text-sm sm:text-base leading-relaxed mb-6 sm:mb-8 ql-editor"
-        dangerouslySetInnerHTML={{ __html: blog.description || '' }}
-      />
+      {/* Nội dung theo layout hoặc fallback */}
+      <div className="mb-8">
+        {hasLayout
+          ? <LayoutContent sections={blog.sections} />
+          : <LegacyContent description={blog.description} />
+        }
+      </div>
 
-      {/* Tệp đính kèm */}
+      {/* Tệp đính kèm (blog cũ) */}
       {blog.attachmentUrl && (
         <div className="mb-6 sm:mb-8">
           <h2 className="text-base sm:text-lg font-semibold text-gray-800 mb-3">
@@ -142,9 +159,7 @@ function NewsDetail() {
             />
           ) : (
             <iframe
-              src={`https://view.officeapps.live.com/op/embed.aspx?src=${encodeURIComponent(
-                blog.attachmentUrl
-              )}`}
+              src={`https://view.officeapps.live.com/op/embed.aspx?src=${encodeURIComponent(blog.attachmentUrl)}`}
               className="w-full border border-gray-200 rounded-lg h-[320px] sm:h-[480px] md:h-[600px]"
               title="Word Viewer"
             />
@@ -155,8 +170,7 @@ function NewsDetail() {
             rel="noopener noreferrer"
             className="inline-flex items-center gap-2 mt-3 text-sm font-medium text-blue-600 hover:text-blue-800"
           >
-            {blog.attachmentType === "pdf" ? "📄" : "📝"} Tải xuống tệp{" "}
-            {blog.attachmentType === "pdf" ? "PDF" : "Word"}
+            {blog.attachmentType === "pdf" ? "📄" : "📝"} Tải xuống tệp {blog.attachmentType === "pdf" ? "PDF" : "Word"}
           </a>
         </div>
       )}

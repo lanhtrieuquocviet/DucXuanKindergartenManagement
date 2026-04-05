@@ -3,6 +3,22 @@ const Classes = require('../models/Classes');
 const Student = require('../models/Student');
 const HealthCheck = require('../models/HealthCheck');
 const Attendance = require('../models/Attendances');
+const Menu = require('../models/Menu');
+const DailyMenu = require('../models/DailyMenu');
+const TeacherNote = require('../models/TeacherNote');
+
+// Tính số tuần ISO (1-based) từ ngày, để xác định tuần lẻ/chẵn
+function getISOWeek(date) {
+  const d = new Date(date);
+  d.setHours(0, 0, 0, 0);
+  d.setDate(d.getDate() + 3 - ((d.getDay() + 6) % 7));
+  const week1 = new Date(d.getFullYear(), 0, 4);
+  return 1 + Math.round(((d - week1) / 86400000 - 3 + ((week1.getDay() + 6) % 7)) / 7);
+}
+
+function nowVN() {
+  return new Date(new Date().toLocaleString('en-US', { timeZone: 'Asia/Ho_Chi_Minh' }));
+}
 
 /** GET /teacher/contact-book — danh sách lớp giáo viên phụ trách */
 exports.getMyClasses = async (req, res) => {
@@ -124,6 +140,64 @@ exports.getStudentAttendance = async (req, res) => {
   }
 };
 
+/** GET /teacher/contact-book/today-menu — thực đơn hôm nay */
+exports.getTodayMenu = async (req, res) => {
+  try {
+    const today = nowVN();
+    const jsDay = today.getDay(); // 0=CN, 1=T2...6=T7
+
+    // Thứ 7 và Chủ nhật không có thực đơn
+    const DAY_MAP = { 1: 'mon', 2: 'tue', 3: 'wed', 4: 'thu', 5: 'fri' };
+    if (!DAY_MAP[jsDay]) {
+      return res.json({ status: 'success', data: null, message: 'Cuối tuần không có thực đơn' });
+    }
+
+    const dayOfWeek = DAY_MAP[jsDay];
+    const month = today.getMonth() + 1;
+    const year = today.getFullYear();
+    const weekNum = getISOWeek(today);
+    const weekType = weekNum % 2 === 1 ? 'odd' : 'even';
+
+    // Tìm menu tháng này đã được duyệt/đang áp dụng
+    const menu = await Menu.findOne({
+      month, year,
+      status: { $in: ['approved', 'active', 'completed'] },
+    }).lean();
+
+    if (!menu) {
+      return res.json({ status: 'success', data: null, message: `Chưa có thực đơn tháng ${month}/${year} được duyệt` });
+    }
+
+    const daily = await DailyMenu.findOne({ menuId: menu._id, weekType, dayOfWeek })
+      .populate('lunchFoods', 'name calories protein fat carb')
+      .populate('afternoonFoods', 'name calories protein fat carb')
+      .lean();
+
+    if (!daily) {
+      return res.json({ status: 'success', data: null, message: 'Không có thực đơn cho ngày hôm nay' });
+    }
+
+    const DAY_LABEL = { mon: 'Thứ Hai', tue: 'Thứ Ba', wed: 'Thứ Tư', thu: 'Thứ Năm', fri: 'Thứ Sáu' };
+    return res.json({
+      status: 'success',
+      data: {
+        date: today.toISOString().slice(0, 10),
+        dayLabel: DAY_LABEL[dayOfWeek],
+        weekType,
+        weekNum,
+        lunchFoods: daily.lunchFoods || [],
+        afternoonFoods: daily.afternoonFoods || [],
+        totalCalories: daily.totalCalories,
+        totalProtein: daily.totalProtein,
+        totalFat: daily.totalFat,
+        totalCarb: daily.totalCarb,
+      },
+    });
+  } catch (err) {
+    return res.status(500).json({ status: 'error', message: err.message });
+  }
+};
+
 /** GET /teacher/contact-book/:classId/students/:studentId/health — hồ sơ sức khỏe mới nhất */
 exports.getStudentHealth = async (req, res) => {
   try {
@@ -142,6 +216,76 @@ exports.getStudentHealth = async (req, res) => {
       .lean();
 
     return res.json({ status: 'success', data: health || null });
+  } catch (err) {
+    return res.status(500).json({ status: 'error', message: err.message });
+  }
+};
+
+// ── Teacher Notes ─────────────────────────────────────────────
+
+async function verifyTeacherClass(userId, classId) {
+  const teacher = await Teacher.findOne({ userId }).lean();
+  if (!teacher) return null;
+  const cls = await Classes.findOne({ _id: classId, teacherIds: teacher._id }).lean();
+  if (!cls) return null;
+  return teacher;
+}
+
+/** GET /teacher/contact-book/:classId/students/:studentId/notes */
+exports.getNotes = async (req, res) => {
+  try {
+    const { classId, studentId } = req.params;
+    const teacher = await verifyTeacherClass(req.user._id, classId);
+    if (!teacher) return res.status(403).json({ status: 'error', message: 'Không có quyền truy cập.' });
+
+    const notes = await TeacherNote.find({ studentId, classId })
+      .sort({ createdAt: -1 })
+      .lean();
+
+    return res.json({ status: 'success', data: notes });
+  } catch (err) {
+    return res.status(500).json({ status: 'error', message: err.message });
+  }
+};
+
+/** POST /teacher/contact-book/:classId/students/:studentId/notes */
+exports.createNote = async (req, res) => {
+  try {
+    const { classId, studentId } = req.params;
+    const teacher = await verifyTeacherClass(req.user._id, classId);
+    if (!teacher) return res.status(403).json({ status: 'error', message: 'Không có quyền truy cập.' });
+
+    const { content, images } = req.body;
+    if (!content?.trim()) {
+      return res.status(400).json({ status: 'error', message: 'Nội dung ghi chú không được để trống.' });
+    }
+
+    const note = await TeacherNote.create({
+      studentId,
+      classId,
+      teacherId: teacher._id,
+      content: content.trim(),
+      images: Array.isArray(images) ? images : [],
+    });
+
+    return res.status(201).json({ status: 'success', data: note });
+  } catch (err) {
+    return res.status(500).json({ status: 'error', message: err.message });
+  }
+};
+
+/** DELETE /teacher/contact-book/:classId/students/:studentId/notes/:noteId */
+exports.deleteNote = async (req, res) => {
+  try {
+    const { classId, noteId } = req.params;
+    const teacher = await verifyTeacherClass(req.user._id, classId);
+    if (!teacher) return res.status(403).json({ status: 'error', message: 'Không có quyền truy cập.' });
+
+    const note = await TeacherNote.findOne({ _id: noteId, teacherId: teacher._id });
+    if (!note) return res.status(404).json({ status: 'error', message: 'Không tìm thấy ghi chú.' });
+
+    await note.deleteOne();
+    return res.json({ status: 'success', message: 'Đã xoá ghi chú.' });
   } catch (err) {
     return res.status(500).json({ status: 'error', message: err.message });
   }

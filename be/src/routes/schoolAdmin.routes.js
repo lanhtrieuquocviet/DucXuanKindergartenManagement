@@ -299,6 +299,147 @@ router.get('/students/:studentId/attendance', authenticate, authorizePermissions
  */
 router.get('/students/:studentId/attendance/history', authenticate, authorizePermissions('VIEW_ATTENDANCE'), getStudentAttendanceHistory);
 
+// ── Health classes — lớp thuộc năm học hiện tại ──────────────
+// GET /school-admin/students/health-classes
+router.get('/students/health-classes', authenticate, authorizePermissions('MANAGE_STUDENT'), async (req, res) => {
+  try {
+    const AcademicYear = require('../models/AcademicYear');
+    const Classes      = require('../models/Classes');
+
+    const activeYear = await AcademicYear.findOne({ status: 'active' }).sort({ startDate: -1 }).lean();
+    if (!activeYear) return res.json({ status: 'success', data: [] });
+
+    const classes = await Classes.find({ academicYearId: activeYear._id })
+      .select('className capacity')
+      .sort({ className: 1 })
+      .lean();
+
+    return res.json({ status: 'success', data: classes, academicYear: activeYear.yearName });
+  } catch (err) {
+    return res.status(500).json({ status: 'error', message: err.message });
+  }
+});
+
+// ── Health overview (báo cáo sức khỏe tổng quan) ──────────────
+// GET /school-admin/students/health-overview
+router.get('/students/health-overview', authenticate, authorizePermissions('MANAGE_STUDENT'), async (req, res) => {
+  try {
+    const Student      = require('../models/Student');
+    const HealthCheck  = require('../models/HealthCheck');
+    const AcademicYear = require('../models/AcademicYear');
+
+    // Lấy năm học hiện tại
+    const activeYear = await AcademicYear.findOne({ status: 'active' }).sort({ startDate: -1 }).lean();
+    if (!activeYear) return res.json({ status: 'success', data: [] });
+
+    const { classId } = req.query;
+    const studentFilter = { status: 'active', academicYearId: activeYear._id };
+    if (classId) studentFilter.classId = classId;
+
+    const students = await Student.find(studentFilter)
+      .populate('classId', 'className')
+      .sort({ fullName: 1 })
+      .lean();
+
+    const studentIds = students.map(s => s._id);
+
+    // Lấy bản ghi sức khỏe mới nhất của mỗi học sinh
+    const healthRecords = await HealthCheck.aggregate([
+      { $match: { studentId: { $in: studentIds } } },
+      { $sort: { studentId: 1, checkDate: -1 } },
+      { $group: { _id: '$studentId', doc: { $first: '$$ROOT' } } },
+    ]);
+    const healthMap = {};
+    healthRecords.forEach(r => { healthMap[r._id.toString()] = r.doc; });
+
+    const data = students.map(s => {
+      const h = healthMap[s._id.toString()] || null;
+      return {
+        _id: s._id,
+        fullName: s.fullName,
+        dateOfBirth: s.dateOfBirth,
+        gender: s.gender,
+        className: s.classId?.className || '—',
+        classId: s.classId?._id || null,
+        height: h?.height || null,
+        weight: h?.weight || null,
+        bmi: (h?.height && h?.weight) ? +(h.weight / ((h.height / 100) ** 2)).toFixed(1) : null,
+        chronicDiseases: h?.chronicDiseases || [],
+        allergies: (h?.allergies || []).map(a => a.allergen || a).filter(Boolean),
+        generalStatus: h?.generalStatus || null,
+        checkDate: h?.checkDate || null,
+        healthId: h?._id || null,
+      };
+    });
+
+    return res.json({ status: 'success', data });
+  } catch (err) {
+    console.error('health-overview error:', err);
+    return res.status(500).json({ status: 'error', message: err.message });
+  }
+});
+
+// POST /school-admin/students/health-import — import từ Excel (nhận mảng rows đã parse)
+router.post('/students/health-import', authenticate, authorizePermissions('MANAGE_STUDENT'), async (req, res) => {
+  try {
+    const Student     = require('../models/Student');
+    const HealthCheck = require('../models/HealthCheck');
+    const { rows } = req.body; // [{ fullName, className, height, weight, chronicDiseases, allergies, notes }]
+    if (!Array.isArray(rows) || rows.length === 0) {
+      return res.status(400).json({ status: 'error', message: 'Không có dữ liệu để import' });
+    }
+
+    let created = 0, updated = 0, skipped = 0;
+    const errors = [];
+
+    for (let i = 0; i < rows.length; i++) {
+      const row = rows[i];
+      const rowNum = i + 2; // Excel row number (header = 1)
+      const name = (row.fullName || '').trim();
+      if (!name) { skipped++; continue; }
+
+      // Tìm học sinh theo tên (có thể lọc thêm theo className)
+      const query = { fullName: name, status: 'active' };
+      let student;
+      if (row.className) {
+        const Classes = require('../models/Classes');
+        const cls = await Classes.findOne({ className: row.className.trim() }).lean();
+        if (cls) query.classId = cls._id;
+      }
+      const matches = await Student.find(query).lean();
+      if (matches.length === 0) { errors.push(`Hàng ${rowNum}: Không tìm thấy học sinh "${name}"`); skipped++; continue; }
+      if (matches.length > 1)   { errors.push(`Hàng ${rowNum}: Có nhiều học sinh tên "${name}", cần chỉ định lớp`); skipped++; continue; }
+      student = matches[0];
+
+      // Parse allergies: "Tôm, Sữa" → [{allergen:'Tôm'}, {allergen:'Sữa'}]
+      const allergies = (row.allergies || '').split(',').map(a => a.trim()).filter(Boolean).map(a => ({ allergen: a }));
+      // Parse chronicDiseases: "hen suyễn, tiểu đường"
+      const chronicDiseases = (row.chronicDiseases || '').split(',').map(d => d.trim()).filter(Boolean);
+
+      const payload = {
+        studentId: student._id,
+        height: row.height ? Number(row.height) : undefined,
+        weight: row.weight ? Number(row.weight) : undefined,
+        allergies,
+        chronicDiseases,
+        notes: row.notes || '',
+        generalStatus: 'healthy',
+        recordedBy: req.user._id,
+        checkDate: new Date(),
+      };
+
+      // Upsert: tạo record mới (giữ lịch sử)
+      await HealthCheck.create(payload);
+      created++;
+    }
+
+    return res.json({ status: 'success', message: `Import xong: ${created} tạo mới, ${skipped} bỏ qua`, created, skipped, errors });
+  } catch (err) {
+    console.error('health-import error:', err);
+    return res.status(500).json({ status: 'error', message: err.message });
+  }
+});
+
 // ============================================
 // Blogs
 // ============================================

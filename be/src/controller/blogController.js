@@ -1,49 +1,37 @@
 const Blog = require('../models/Blog');
 // Blog categories are now stored in their own collection (BlogCategory)
 
+function sectionsToDescription(sections) {
+  if (!Array.isArray(sections)) return '';
+  return sections.map(s => (s.content || '').trim()).filter(Boolean).join('\n');
+}
+
 const validateBlogPayload = (body, isCreate = true) => {
   const errors = [];
 
-  // code required only on creation, on update we allow omitting it
-  if (isCreate && !body.code) errors.push('Code không được để trống');
+  if (isCreate && !body.code) errors.push('Tiêu đề không được để trống');
   if (body.code && typeof body.code !== 'string') errors.push('Code không hợp lệ');
   if (body.code && body.code.length > 100) errors.push('Tiêu đề quá dài (tối đa 100 ký tự)');
 
-  if (isCreate && !body.description) errors.push('Mô tả không được để trống');
-  if (body.description && typeof body.description !== 'string') {
-    errors.push('Mô tả không hợp lệ');
-  }
-
-  if (body.description && body.description.length > 500000) {
-    errors.push('Nội dung quá dài');
-  }
-
   if (isCreate && !body.category) errors.push('Danh mục không được để trống');
-  // category should be a non-empty string representing ObjectId
-  if (body.category && typeof body.category !== 'string') {
-    errors.push('Danh mục không hợp lệ');
+  if (body.category && typeof body.category !== 'string') errors.push('Danh mục không hợp lệ');
+
+  if (body.layout && !['layout1', 'layout2'].includes(body.layout)) errors.push('Layout không hợp lệ');
+
+  if (isCreate) {
+    const hasSectionContent = Array.isArray(body.sections) && body.sections.some(s => s.content?.trim());
+    if (!hasSectionContent) errors.push('Vui lòng nhập ít nhất một nội dung');
   }
 
   if (body.images && Array.isArray(body.images)) {
-    if (body.images.length > 1) {
-      errors.push('Tối đa 1 ảnh bìa cho mỗi bài viết');
-    }
+    if (body.images.length > 1) errors.push('Tối đa 1 ảnh bìa cho mỗi bài viết');
     body.images.forEach((img, idx) => {
-      if (!img || typeof img !== 'string') {
-        errors.push(`Ảnh ${idx + 1} không hợp lệ`);
-      }
+      if (!img || typeof img !== 'string') errors.push(`Ảnh ${idx + 1} không hợp lệ`);
     });
   }
 
   if (body.status && !['draft', 'published', 'inactive'].includes(body.status)) {
     errors.push('Trạng thái không hợp lệ (draft | published | inactive)');
-  }
-
-  if (body.attachmentUrl && typeof body.attachmentUrl !== 'string') {
-    errors.push('URL tệp đính kèm không hợp lệ');
-  }
-  if (body.attachmentType && !['pdf', 'word'].includes(body.attachmentType)) {
-    errors.push('Loại tệp đính kèm không hợp lệ');
   }
 
   return errors;
@@ -133,45 +121,41 @@ const getBlog = async (req, res) => {
 // POST /api/school-admin/blogs
 const createBlog = async (req, res) => {
   try {
-    const { code, description, category, images, status, attachmentUrl, attachmentType } = req.body;
+    const { code, category, images, layout, sections, status } = req.body;
 
     const errors = validateBlogPayload(req.body, true);
     if (errors.length > 0) {
-      return res.status(400).json({
-        status: 'error',
-        message: errors.join(', '),
-      });
+      return res.status(400).json({ status: 'error', message: errors.join(', ') });
     }
 
     const existing = await Blog.findOne({ code });
     if (existing) {
-      return res.status(400).json({
-        status: 'error',
-        message: 'Code đã tồn tại, vui lòng chọn code khác',
-      });
+      return res.status(400).json({ status: 'error', message: 'Tiêu đề đã tồn tại, vui lòng chọn tiêu đề khác' });
     }
 
-    // verify category id
     const BlogCategory = require('../models/BlogCategory');
     const cat = await BlogCategory.findById(category);
     if (!cat) {
       return res.status(400).json({ status: 'error', message: 'Danh mục không hợp lệ' });
     }
 
-    // Filter images - tối đa 3
-    const validImages = Array.isArray(images) 
+    const validImages = Array.isArray(images)
       ? images.filter(img => img && typeof img === 'string').slice(0, 1)
+      : [];
+
+    const cleanSections = Array.isArray(sections)
+      ? sections.map(s => ({ image: s.image || '', content: s.content || '' }))
       : [];
 
     const blog = await Blog.create({
       code: code.trim(),
-      description: description.trim(),
+      description: sectionsToDescription(cleanSections),
+      layout: layout || 'layout1',
+      sections: cleanSections,
       category: cat._id,
       images: validImages,
-      status: status || 'draft',
+      status: 'draft',
       author: req.user.id,
-      attachmentUrl: attachmentUrl || null,
-      attachmentType: attachmentType || null,
     });
 
     const populated = await Blog.findById(blog._id)
@@ -196,37 +180,31 @@ const createBlog = async (req, res) => {
 const updateBlog = async (req, res) => {
   try {
     const { id } = req.params;
-    console.log('updateBlog endpoint hit, body:', req.body);
-    const { code, description, category, images, status, attachmentUrl, attachmentType } = req.body;
+    const { code, category, images, layout, sections, status } = req.body;
 
     const errors = validateBlogPayload(req.body, false);
     if (errors.length > 0) {
-      return res.status(400).json({
-        status: 'error',
-        message: errors.join(', '),
-      });
+      return res.status(400).json({ status: 'error', message: errors.join(', ') });
     }
 
     const blog = await Blog.findById(id);
     if (!blog) {
-      return res.status(404).json({
-        status: 'error',
-        message: 'Không tìm thấy blog',
-      });
+      return res.status(404).json({ status: 'error', message: 'Không tìm thấy blog' });
     }
 
-    // allow updating code similar to description: just trim and assign
-    if (code !== undefined) {
-      blog.code = String(code).trim();
-    }
+    if (code !== undefined) blog.code = String(code).trim();
 
-    /* ===== UPDATE OTHER FIELDS ===== */
-    if (typeof description === 'string') {
-      blog.description = description.trim();
+    if (layout !== undefined) blog.layout = layout;
+
+    if (sections !== undefined) {
+      const cleanSections = Array.isArray(sections)
+        ? sections.map(s => ({ image: s.image || '', content: s.content || '' }))
+        : [];
+      blog.sections = cleanSections;
+      blog.description = sectionsToDescription(cleanSections);
     }
 
     if (category !== undefined) {
-      // category is expected to be an ObjectId
       const BlogCategory = require('../models/BlogCategory');
       const cat = await BlogCategory.findById(category);
       if (!cat) {
@@ -241,16 +219,7 @@ const updateBlog = async (req, res) => {
         : [];
     }
 
-    if (status !== undefined) {
-      blog.status = status;
-    }
-
-    if (attachmentUrl !== undefined) {
-      blog.attachmentUrl = attachmentUrl || null;
-    }
-    if (attachmentType !== undefined) {
-      blog.attachmentType = attachmentType || null;
-    }
+    if (status !== undefined) blog.status = status;
 
     await blog.save();
 

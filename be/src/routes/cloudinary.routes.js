@@ -1,6 +1,6 @@
 const express = require('express');
 const multer = require('multer');
-const { getMediaLibrarySignature, uploadAvatar, uploadBlogImage, uploadBlogFile, uploadKitchenImage, uploadAttendanceImage, uploadPurchaseImage } = require('../controller/cloudinaryController');
+const { getMediaLibrarySignature, uploadAvatar, uploadBlogImage, uploadBlogFile, uploadKitchenImage, uploadAttendanceImage, uploadPurchaseImage, uploadNoteImage } = require('../controller/cloudinaryController');
 const { authenticate, authorizeRoles, authorizePermissions } = require('../middleware/auth');
 
 const router = express.Router();
@@ -161,6 +161,9 @@ router.post('/upload-attendance-image', authenticate, authorizePermissions('MANA
 
 // Upload ảnh bằng chứng yêu cầu mua sắm (Teacher)
 router.post('/upload-purchase-image', authenticate, authorizePermissions('MANAGE_PURCHASE_REQUEST'), uploadMiddleware.single('image'), uploadPurchaseImage, handleUploadError);
+
+// Upload ảnh ghi chú giáo viên
+router.post('/upload-note-image', authenticate, authorizeRoles('Teacher'), uploadMiddleware.single('image'), uploadNoteImage, handleUploadError);
 
 function handleUploadError(err, req, res, next) {
   if (err instanceof multer.MulterError) {

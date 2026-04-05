@@ -27,6 +27,7 @@ import HealthReports from './pages/schoolNurse/HealthReports';
 import ClassList from './pages/schoolAdmin/ClassList';
 import StudentInClass from './pages/schoolAdmin/StudentInClass';
 import ManageStudents from './pages/schoolAdmin/ManageStudents';
+import StudentHealthReport from './pages/schoolAdmin/StudentHealthReport';
 import ManageTeachers from './pages/schoolAdmin/ManageTeachers';
 import ContactList from './pages/schoolAdmin/ContactList';
 import QaList from './pages/schoolAdmin/QaList';
@@ -444,6 +445,14 @@ function App() {
                 <SchoolAdminProvider>
                   <ManageStudents />
                 </SchoolAdminProvider>
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/school-admin/students/health-report"
+            element={
+              <ProtectedRoute>
+                <StudentHealthReport />
               </ProtectedRoute>
             }
           />

@@ -36,6 +36,8 @@ import {
   FormControlLabel,
   Tooltip,
   IconButton,
+  Tabs,
+  Tab,
 } from '@mui/material';
 import {
   Refresh as RefreshIcon,
@@ -43,8 +45,10 @@ import {
   Edit as EditIcon,
   Delete as DeleteIcon,
   People as PeopleIcon,
+  PeopleAlt as PeopleAltIcon,
   Visibility as VisibilityIcon,
   Autorenew as AutorenewIcon,
+  HealthAndSafety as HealthIcon,
 } from '@mui/icons-material';
 
 const GENDER_OPTIONS = [
@@ -352,6 +356,18 @@ function ManageStudents() {
             </Typography>
           </Box>
         </Stack>
+      </Paper>
+
+      {/* Tab navigation */}
+      <Paper elevation={0} sx={{ mb: 2, borderRadius: 2, border: '1px solid', borderColor: 'divider' }}>
+        <Tabs
+          value={0}
+          onChange={(_, v) => { if (v === 1) navigate('/school-admin/students/health-report'); }}
+          sx={{ px: 1, '& .MuiTab-root': { textTransform: 'none', fontWeight: 600, fontSize: 13 }, '& .Mui-selected': { color: '#6366f1' }, '& .MuiTabs-indicator': { bgcolor: '#6366f1' } }}
+        >
+          <Tab icon={<PeopleAltIcon fontSize="small" />} iconPosition="start" label="Danh sách học sinh" />
+          <Tab icon={<HealthIcon fontSize="small" />} iconPosition="start" label="Báo cáo sức khỏe" />
+        </Tabs>
       </Paper>
 
       <Paper elevation={1} sx={{ borderRadius: 2, p: 3 }}>

@@ -1,14 +1,15 @@
-import { useEffect, useMemo, useState, useCallback } from 'react';
+import { useEffect, useMemo, useState, useCallback, useRef } from 'react';
 import { useLocation, useNavigate, useParams } from 'react-router-dom';
 import { useAuth } from '../../context/AuthContext';
 import { useTeacher } from '../../context/TeacherContext';
 import RoleLayout from '../../layouts/RoleLayout';
-import { get, ENDPOINTS } from '../../service/api';
+import { get, post, del, postFormData, ENDPOINTS } from '../../service/api';
+import { toast } from 'react-toastify';
 import {
   Box, Paper, Typography, Avatar, Chip, Skeleton, Alert, Stack,
   List, ListItemButton, ListItemAvatar, ListItemText, Divider,
   Tabs, Tab, Grid, InputAdornment, TextField, CircularProgress,
-  MenuItem, Select, LinearProgress,
+  MenuItem, Select, LinearProgress, IconButton, Button, Tooltip,
 } from '@mui/material';
 import {
   ArrowBack as BackIcon,
@@ -21,11 +22,16 @@ import {
   MenuBook as ContactIcon,
   MonitorHeart as HealthIcon,
   StickyNote2 as NoteIcon,
-  Forum as ForumIcon,
   CalendarMonth as CalendarIcon,
   CheckCircle as PresentIcon,
   Cancel as AbsentIcon,
   EventBusy as LeaveIcon,
+  Restaurant as MenuIcon,
+  EditNote as NoteTabIcon,
+  Delete as DeleteIcon,
+  AddPhotoAlternate as AddPhotoIcon,
+  Close as CloseIcon,
+  Send as SendIcon,
 } from '@mui/icons-material';
 
 // ── helpers ──────────────────────────────────────────────────
@@ -137,6 +143,25 @@ function TabHoSo({ student, health, healthLoading }) {
   );
 }
 
+const STATUS_HEALTH = {
+  healthy:    { label: 'Bình thường',   color: 'success' },
+  monitor:    { label: 'Cần theo dõi',  color: 'warning' },
+  concerning: { label: 'Đáng lo ngại',  color: 'error'   },
+};
+
+function calcBMI(height, weight) {
+  if (!height || !weight) return null;
+  return +(weight / ((height / 100) ** 2)).toFixed(1);
+}
+
+function bmiLabel(bmi) {
+  if (!bmi) return null;
+  if (bmi < 14.5) return { label: 'Thiếu cân',  color: 'info'    };
+  if (bmi < 18)   return { label: 'Bình thường', color: 'success' };
+  if (bmi < 25)   return { label: 'Thừa cân',    color: 'warning' };
+  return           { label: 'Béo phì',    color: 'error'   };
+}
+
 function TabSucKhoe({ health, healthLoading }) {
   if (healthLoading) {
     return <Skeleton variant="rounded" height={180} sx={{ borderRadius: 3 }} />;
@@ -149,58 +174,68 @@ function TabSucKhoe({ health, healthLoading }) {
       </Paper>
     );
   }
+
+  const bmi    = calcBMI(health.height, health.weight);
+  const bmiCfg = bmiLabel(bmi);
+  const statusCfg = STATUS_HEALTH[health.generalStatus];
+
   return (
     <Paper elevation={0} sx={{ borderRadius: 3, border: '1px solid', borderColor: 'divider', p: 3 }}>
       <Stack direction="row" alignItems="center" spacing={1} mb={2.5}>
         <HealthIcon sx={{ fontSize: 18, color: '#0891b2' }} />
         <Typography variant="subtitle2" fontWeight={700}>Hồ sơ sức khỏe</Typography>
         <Chip label={fmtDate(health.checkDate)} size="small" sx={{ height: 20, fontSize: '0.7rem' }} />
+        {statusCfg && (
+          <Chip label={statusCfg.label} size="small" color={statusCfg.color} sx={{ height: 20, fontSize: '0.7rem', fontWeight: 700 }} />
+        )}
       </Stack>
-      <Grid container spacing={2}>
+
+      {/* Chỉ số thể chất */}
+      <Stack direction="row" spacing={1.5} flexWrap="wrap" mb={2}>
         {health.height && (
-          <Grid size={{ xs: 6, sm: 4 }}>
-            <InfoRow label="Chiều cao" value={`${health.height} cm`} />
-          </Grid>
+          <Box sx={{ bgcolor: '#f0f9ff', border: '1px solid #bae6fd', borderRadius: 2, px: 2, py: 1, textAlign: 'center', minWidth: 80 }}>
+            <Typography variant="caption" color="text.secondary" sx={{ display: 'block', fontSize: '0.68rem' }}>Chiều cao</Typography>
+            <Typography variant="body1" fontWeight={800} color="#0891b2">{health.height}</Typography>
+            <Typography variant="caption" color="text.secondary" sx={{ fontSize: '0.68rem' }}>cm</Typography>
+          </Box>
         )}
         {health.weight && (
-          <Grid size={{ xs: 6, sm: 4 }}>
-            <InfoRow label="Cân nặng" value={`${health.weight} kg`} />
-          </Grid>
+          <Box sx={{ bgcolor: '#f0fdf4', border: '1px solid #bbf7d0', borderRadius: 2, px: 2, py: 1, textAlign: 'center', minWidth: 80 }}>
+            <Typography variant="caption" color="text.secondary" sx={{ display: 'block', fontSize: '0.68rem' }}>Cân nặng</Typography>
+            <Typography variant="body1" fontWeight={800} color="#16a34a">{health.weight}</Typography>
+            <Typography variant="caption" color="text.secondary" sx={{ fontSize: '0.68rem' }}>kg</Typography>
+          </Box>
+        )}
+        {bmi && (
+          <Box sx={{ bgcolor: '#fefce8', border: '1px solid #fde68a', borderRadius: 2, px: 2, py: 1, textAlign: 'center', minWidth: 80 }}>
+            <Typography variant="caption" color="text.secondary" sx={{ display: 'block', fontSize: '0.68rem' }}>BMI</Typography>
+            <Typography variant="body1" fontWeight={800} color="#d97706">{bmi}</Typography>
+            {bmiCfg && (
+              <Chip label={bmiCfg.label} size="small" color={bmiCfg.color} variant="outlined"
+                sx={{ height: 16, fontSize: '0.62rem', mt: 0.25, '& .MuiChip-label': { px: 0.75 } }} />
+            )}
+          </Box>
         )}
         {health.temperature && (
-          <Grid size={{ xs: 6, sm: 4 }}>
-            <InfoRow label="Thân nhiệt" value={`${health.temperature}°C`} />
-          </Grid>
+          <Box sx={{ bgcolor: '#fff1f2', border: '1px solid #fecdd3', borderRadius: 2, px: 2, py: 1, textAlign: 'center', minWidth: 80 }}>
+            <Typography variant="caption" color="text.secondary" sx={{ display: 'block', fontSize: '0.68rem' }}>Thân nhiệt</Typography>
+            <Typography variant="body1" fontWeight={800} color="#e11d48">{health.temperature}</Typography>
+            <Typography variant="caption" color="text.secondary" sx={{ fontSize: '0.68rem' }}>°C</Typography>
+          </Box>
         )}
         {health.heartRate && (
-          <Grid size={{ xs: 6, sm: 4 }}>
-            <InfoRow label="Nhịp tim" value={`${health.heartRate} bpm`} />
-          </Grid>
+          <Box sx={{ bgcolor: '#fdf4ff', border: '1px solid #e9d5ff', borderRadius: 2, px: 2, py: 1, textAlign: 'center', minWidth: 80 }}>
+            <Typography variant="caption" color="text.secondary" sx={{ display: 'block', fontSize: '0.68rem' }}>Nhịp tim</Typography>
+            <Typography variant="body1" fontWeight={800} color="#9333ea">{health.heartRate}</Typography>
+            <Typography variant="caption" color="text.secondary" sx={{ fontSize: '0.68rem' }}>bpm</Typography>
+          </Box>
         )}
-        {health.generalStatus && (
-          <Grid size={{ xs: 6, sm: 4 }}>
-            <InfoRow
-              label="Tình trạng chung"
-              value={
-                health.generalStatus === 'healthy' ? 'Bình thường' :
-                health.generalStatus === 'monitor' ? 'Cần theo dõi' : 'Đáng lo ngại'
-              }
-            />
-          </Grid>
-        )}
-        {health.allergies?.length > 0 && (
-          <Grid size={{ xs: 12 }}>
-            <Typography variant="caption" color="text.secondary" sx={{ display: 'block', mb: 0.5 }}>Dị ứng</Typography>
-            <Stack direction="row" flexWrap="wrap" gap={0.75}>
-              {health.allergies.map((a, i) => (
-                <Chip key={i} label={a.allergen} size="small" color="warning" variant="outlined" />
-              ))}
-            </Stack>
-          </Grid>
-        )}
+      </Stack>
+
+      <Grid container spacing={2}>
         {health.chronicDiseases?.length > 0 && (
           <Grid size={{ xs: 12 }}>
-            <Typography variant="caption" color="text.secondary" sx={{ display: 'block', mb: 0.5 }}>Bệnh mãn tính</Typography>
+            <Typography variant="caption" color="text.secondary" sx={{ display: 'block', mb: 0.5 }}>Tiền sử bệnh</Typography>
             <Stack direction="row" flexWrap="wrap" gap={0.75}>
               {health.chronicDiseases.map((d, i) => (
                 <Chip key={i} label={d} size="small" color="error" variant="outlined" />
@@ -208,9 +243,19 @@ function TabSucKhoe({ health, healthLoading }) {
             </Stack>
           </Grid>
         )}
+        {health.allergies?.length > 0 && (
+          <Grid size={{ xs: 12 }}>
+            <Typography variant="caption" color="text.secondary" sx={{ display: 'block', mb: 0.5 }}>Dị ứng</Typography>
+            <Stack direction="row" flexWrap="wrap" gap={0.75}>
+              {health.allergies.map((a, i) => (
+                <Chip key={i} label={a.allergen || a} size="small" color="warning" variant="outlined" />
+              ))}
+            </Stack>
+          </Grid>
+        )}
         {health.notes && (
           <Grid size={{ xs: 12 }}>
-            <InfoRow label="Ghi chú bác sĩ" value={health.notes} icon={<NoteIcon sx={{ fontSize: 14 }} />} />
+            <InfoRow label="Ghi chú" value={health.notes} icon={<NoteIcon sx={{ fontSize: 14 }} />} />
           </Grid>
         )}
       </Grid>
@@ -218,12 +263,119 @@ function TabSucKhoe({ health, healthLoading }) {
   );
 }
 
-function TabPlaceholder({ icon, label }) {
+// ── TabThucDon ────────────────────────────────────────────────
+function TabThucDon() {
+  const [data, setData]       = useState(null);
+  const [loading, setLoading] = useState(true);
+  const [message, setMessage] = useState('');
+
+  useEffect(() => {
+    setLoading(true);
+    get(ENDPOINTS.TEACHER.CONTACT_BOOK_TODAY_MENU)
+      .then(res => {
+        setData(res.data || null);
+        setMessage(res.message || '');
+      })
+      .catch(() => setData(null))
+      .finally(() => setLoading(false));
+  }, []);
+
+  const today = new Date(new Date().toLocaleString('en-US', { timeZone: 'Asia/Ho_Chi_Minh' }));
+  const dateStr = today.toLocaleDateString('vi-VN', { weekday: 'long', day: '2-digit', month: '2-digit', year: 'numeric' });
+
+  if (loading) {
+    return <Box><Skeleton variant="rounded" height={160} sx={{ borderRadius: 3 }} /></Box>;
+  }
+
+  if (!data) {
+    return (
+      <Paper elevation={0} sx={{ borderRadius: 3, border: '1px solid', borderColor: 'divider', p: 5, textAlign: 'center' }}>
+        <MenuIcon sx={{ fontSize: 44, color: 'grey.300', mb: 1 }} />
+        <Typography color="text.secondary" variant="body2">
+          {message || 'Không có thực đơn cho hôm nay'}
+        </Typography>
+      </Paper>
+    );
+  }
+
+  const hasMeals = data.lunchFoods?.length > 0 || data.afternoonFoods?.length > 0;
+
   return (
-    <Paper elevation={0} sx={{ borderRadius: 3, border: '1px solid', borderColor: 'divider', p: 6, textAlign: 'center' }}>
-      <Box sx={{ fontSize: 44, color: 'grey.300', mb: 1 }}>{icon}</Box>
-      <Typography color="text.secondary">{label}</Typography>
-    </Paper>
+    <Box>
+      {/* Header */}
+      <Stack direction="row" alignItems="center" spacing={1} mb={2}>
+        <MenuIcon sx={{ fontSize: 18, color: '#16a34a' }} />
+        <Typography variant="subtitle2" fontWeight={700}>Thực đơn & Dinh dưỡng</Typography>
+      </Stack>
+
+      {/* Date */}
+      <Typography variant="body2" fontWeight={700} color="text.primary" mb={1.5}
+        sx={{ textTransform: 'capitalize' }}>
+        {dateStr}
+      </Typography>
+
+      {!hasMeals ? (
+        <Paper elevation={0} sx={{ borderRadius: 2, border: '1px solid', borderColor: 'divider', p: 3, textAlign: 'center' }}>
+          <Typography variant="body2" color="text.secondary">Chưa có món ăn trong thực đơn hôm nay</Typography>
+        </Paper>
+      ) : (
+        <Paper elevation={0} sx={{ borderRadius: 2, bgcolor: '#fefce8', border: '1px solid #fde68a', p: 2.5 }}>
+          <Stack spacing={1.5}>
+            {data.lunchFoods?.length > 0 && (
+              <Box>
+                <Typography variant="caption" fontWeight={700} color="#92400e" sx={{ display: 'block', mb: 0.5 }}>
+                  🍱 Bữa trưa
+                </Typography>
+                <Typography variant="body2" color="text.primary" sx={{ lineHeight: 1.7 }}>
+                  {data.lunchFoods.map(f => f.name).join(', ')}
+                </Typography>
+              </Box>
+            )}
+            {data.lunchFoods?.length > 0 && data.afternoonFoods?.length > 0 && (
+              <Divider sx={{ borderStyle: 'dashed' }} />
+            )}
+            {data.afternoonFoods?.length > 0 && (
+              <Box>
+                <Typography variant="caption" fontWeight={700} color="#92400e" sx={{ display: 'block', mb: 0.5 }}>
+                  🍎 Bữa chiều
+                </Typography>
+                <Typography variant="body2" color="text.primary" sx={{ lineHeight: 1.7 }}>
+                  {data.afternoonFoods.map(f => f.name).join(', ')}
+                </Typography>
+              </Box>
+            )}
+          </Stack>
+        </Paper>
+      )}
+
+      {/* Dinh dưỡng */}
+      {(data.totalCalories > 0 || data.totalProtein > 0) && (
+        <Box mt={2}>
+          <Typography variant="caption" color="text.secondary" fontWeight={600} sx={{ display: 'block', mb: 1 }}>
+            Chỉ số dinh dưỡng
+          </Typography>
+          <Stack direction="row" spacing={1} flexWrap="wrap">
+            {[
+              { label: 'Calories', val: data.totalCalories, unit: 'kcal', color: '#f97316' },
+              { label: 'Protein',  val: data.totalProtein,  unit: 'g',    color: '#6366f1' },
+              { label: 'Chất béo', val: data.totalFat,      unit: 'g',    color: '#eab308' },
+              { label: 'Tinh bột', val: data.totalCarb,     unit: 'g',    color: '#22c55e' },
+            ].filter(n => n.val > 0).map(n => (
+              <Box key={n.label} sx={{ bgcolor: '#f8fafc', border: '1px solid #e2e8f0', borderRadius: 1.5, px: 1.5, py: 0.75, textAlign: 'center' }}>
+                <Typography variant="caption" color="text.secondary" sx={{ display: 'block', fontSize: '0.68rem' }}>{n.label}</Typography>
+                <Typography variant="body2" fontWeight={700} color={n.color}>
+                  {Math.round(n.val)}{n.unit}
+                </Typography>
+              </Box>
+            ))}
+          </Stack>
+        </Box>
+      )}
+
+      <Typography variant="caption" color="text.disabled" sx={{ display: 'block', mt: 2, textAlign: 'center' }}>
+        Tuần {data.weekType === 'odd' ? 'lẻ' : 'chẵn'} · Tuần {data.weekNum} của năm
+      </Typography>
+    </Box>
   );
 }
 
@@ -358,6 +510,229 @@ function TabDiemDanh({ classId, studentId }) {
   );
 }
 
+// ── TabGhiChu ─────────────────────────────────────────────────
+function TabGhiChu({ classId, studentId }) {
+  const [notes, setNotes]       = useState([]);
+  const [loading, setLoading]   = useState(true);
+  const [content, setContent]   = useState('');
+  const [images, setImages]     = useState([]); // [{url, uploading}]
+  const [submitting, setSubmitting] = useState(false);
+  const [lightbox, setLightbox] = useState(null); // url for preview
+  const fileRef = useRef(null);
+
+  const fetchNotes = useCallback(async () => {
+    if (!studentId) return;
+    setLoading(true);
+    try {
+      const res = await get(ENDPOINTS.TEACHER.CONTACT_BOOK_NOTES(classId, studentId));
+      setNotes(res.data || []);
+    } catch {
+      setNotes([]);
+    } finally {
+      setLoading(false);
+    }
+  }, [classId, studentId]);
+
+  useEffect(() => { fetchNotes(); }, [fetchNotes]);
+
+  const handleAddImage = async (e) => {
+    const files = Array.from(e.target.files || []);
+    e.target.value = '';
+    if (!files.length) return;
+    const newSlots = files.map(() => ({ url: null, uploading: true }));
+    setImages(prev => [...prev, ...newSlots]);
+    const baseIdx = images.length;
+    await Promise.all(files.map(async (file, i) => {
+      try {
+        const fd = new FormData();
+        fd.append('image', file);
+        const res = await postFormData(ENDPOINTS.TEACHER.UPLOAD_NOTE_IMAGE, fd);
+        setImages(prev => {
+          const next = [...prev];
+          next[baseIdx + i] = { url: res.data.url, uploading: false };
+          return next;
+        });
+      } catch {
+        toast.error(`Không upload được ảnh ${file.name}`);
+        setImages(prev => {
+          const next = [...prev];
+          next[baseIdx + i] = null;
+          return next.filter(Boolean);
+        });
+      }
+    }));
+  };
+
+  const handleRemoveImage = (idx) => {
+    setImages(prev => prev.filter((_, i) => i !== idx));
+  };
+
+  const handleSubmit = async () => {
+    if (!content.trim()) return;
+    const uploading = images.some(img => img.uploading);
+    if (uploading) { toast.warning('Đang tải ảnh lên, vui lòng chờ'); return; }
+    setSubmitting(true);
+    try {
+      await post(ENDPOINTS.TEACHER.CONTACT_BOOK_NOTES(classId, studentId), {
+        content: content.trim(),
+        images: images.map(img => img.url).filter(Boolean),
+      });
+      setContent('');
+      setImages([]);
+      await fetchNotes();
+      toast.success('Đã lưu ghi chú');
+    } catch (err) {
+      toast.error(err.message || 'Lưu thất bại');
+    } finally {
+      setSubmitting(false);
+    }
+  };
+
+  const handleDelete = async (noteId) => {
+    try {
+      await del(ENDPOINTS.TEACHER.CONTACT_BOOK_NOTE_DELETE(classId, studentId, noteId));
+      setNotes(prev => prev.filter(n => n._id !== noteId));
+      toast.success('Đã xoá ghi chú');
+    } catch (err) {
+      toast.error(err.message || 'Xoá thất bại');
+    }
+  };
+
+  return (
+    <Box>
+      {/* Form tạo ghi chú mới */}
+      <Paper elevation={0} sx={{ borderRadius: 3, border: '1px solid', borderColor: 'divider', p: 2.5, mb: 2.5 }}>
+        <Stack direction="row" alignItems="center" spacing={1} mb={1.5}>
+          <NoteTabIcon sx={{ fontSize: 18, color: '#7c3aed' }} />
+          <Typography variant="subtitle2" fontWeight={700}>Thêm ghi chú mới</Typography>
+        </Stack>
+
+        <TextField
+          multiline minRows={3} maxRows={8} fullWidth
+          placeholder="Nhập nội dung ghi chú về học sinh..."
+          value={content}
+          onChange={e => setContent(e.target.value)}
+          sx={{ mb: 1.5, '& .MuiOutlinedInput-root': { borderRadius: 2 } }}
+        />
+
+        {/* Ảnh đã chọn */}
+        {images.length > 0 && (
+          <Stack direction="row" flexWrap="wrap" gap={1} mb={1.5}>
+            {images.map((img, idx) => (
+              <Box key={idx} sx={{ position: 'relative', width: 72, height: 72 }}>
+                {img.uploading ? (
+                  <Box sx={{ width: 72, height: 72, borderRadius: 2, bgcolor: '#f1f5f9', display: 'flex', alignItems: 'center', justifyContent: 'center', border: '1px dashed #cbd5e1' }}>
+                    <CircularProgress size={20} />
+                  </Box>
+                ) : (
+                  <Box
+                    component="img" src={img.url} alt=""
+                    sx={{ width: 72, height: 72, objectFit: 'cover', borderRadius: 2, border: '1px solid #e2e8f0', cursor: 'pointer' }}
+                    onClick={() => setLightbox(img.url)}
+                  />
+                )}
+                <IconButton
+                  size="small"
+                  onClick={() => handleRemoveImage(idx)}
+                  sx={{ position: 'absolute', top: -6, right: -6, bgcolor: 'white', border: '1px solid #e2e8f0', p: 0.25, '&:hover': { bgcolor: '#fee2e2' } }}
+                >
+                  <CloseIcon sx={{ fontSize: 12 }} />
+                </IconButton>
+              </Box>
+            ))}
+          </Stack>
+        )}
+
+        <Stack direction="row" alignItems="center" spacing={1}>
+          <input ref={fileRef} type="file" accept="image/*" multiple style={{ display: 'none' }} onChange={handleAddImage} />
+          <Tooltip title="Thêm ảnh (không bắt buộc)">
+            <IconButton onClick={() => fileRef.current?.click()} size="small"
+              sx={{ color: '#64748b', border: '1px solid #e2e8f0', borderRadius: 1.5, '&:hover': { bgcolor: '#f1f5f9' } }}>
+              <AddPhotoIcon fontSize="small" />
+            </IconButton>
+          </Tooltip>
+          <Box sx={{ flex: 1 }} />
+          <Button
+            variant="contained" size="small" endIcon={<SendIcon />}
+            onClick={handleSubmit}
+            disabled={submitting || !content.trim()}
+            sx={{ bgcolor: '#7c3aed', '&:hover': { bgcolor: '#6d28d9' }, borderRadius: 2, textTransform: 'none' }}
+          >
+            {submitting ? 'Đang lưu...' : 'Lưu ghi chú'}
+          </Button>
+        </Stack>
+      </Paper>
+
+      {/* Danh sách ghi chú */}
+      {loading ? (
+        <Stack spacing={1.5}>
+          {[1, 2].map(i => <Skeleton key={i} variant="rounded" height={100} sx={{ borderRadius: 3 }} />)}
+        </Stack>
+      ) : notes.length === 0 ? (
+        <Paper elevation={0} sx={{ borderRadius: 3, border: '1px solid', borderColor: 'divider', p: 5, textAlign: 'center' }}>
+          <NoteTabIcon sx={{ fontSize: 44, color: 'grey.300', mb: 1 }} />
+          <Typography color="text.secondary" variant="body2">Chưa có ghi chú nào.</Typography>
+        </Paper>
+      ) : (
+        <Stack spacing={1.5}>
+          {notes.map(note => (
+            <Paper key={note._id} elevation={0}
+              sx={{ borderRadius: 3, border: '1px solid', borderColor: 'divider', p: 2.5, position: 'relative' }}>
+              {/* Header: ngày + xoá */}
+              <Stack direction="row" alignItems="center" mb={1}>
+                <Chip
+                  label={new Date(note.createdAt).toLocaleString('vi-VN', { day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit' })}
+                  size="small"
+                  sx={{ height: 20, fontSize: '0.68rem', bgcolor: '#f3f4f6', color: 'text.secondary', fontWeight: 600 }}
+                />
+                <Box sx={{ flex: 1 }} />
+                <Tooltip title="Xoá ghi chú">
+                  <IconButton size="small" onClick={() => handleDelete(note._id)}
+                    sx={{ color: '#ef4444', '&:hover': { bgcolor: '#fee2e2' }, p: 0.5, borderRadius: 1 }}>
+                    <DeleteIcon sx={{ fontSize: 16 }} />
+                  </IconButton>
+                </Tooltip>
+              </Stack>
+
+              {/* Nội dung */}
+              <Typography variant="body2" sx={{ lineHeight: 1.7, whiteSpace: 'pre-wrap', color: 'text.primary' }}>
+                {note.content}
+              </Typography>
+
+              {/* Ảnh đính kèm */}
+              {note.images?.length > 0 && (
+                <Stack direction="row" flexWrap="wrap" gap={1} mt={1.5}>
+                  {note.images.map((url, i) => (
+                    <Box
+                      key={i} component="img" src={url} alt=""
+                      sx={{ width: 80, height: 80, objectFit: 'cover', borderRadius: 2, border: '1px solid #e2e8f0', cursor: 'pointer', '&:hover': { opacity: 0.85 } }}
+                      onClick={() => setLightbox(url)}
+                    />
+                  ))}
+                </Stack>
+              )}
+            </Paper>
+          ))}
+        </Stack>
+      )}
+
+      {/* Lightbox preview */}
+      {lightbox && (
+        <Box
+          onClick={() => setLightbox(null)}
+          sx={{
+            position: 'fixed', inset: 0, bgcolor: 'rgba(0,0,0,0.75)', zIndex: 9999,
+            display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'zoom-out',
+          }}
+        >
+          <Box component="img" src={lightbox} alt=""
+            sx={{ maxWidth: '90vw', maxHeight: '90vh', borderRadius: 2, boxShadow: 8 }} />
+        </Box>
+      )}
+    </Box>
+  );
+}
+
 // ── Main component ────────────────────────────────────────────
 export default function ContactBookDetail() {
   const { classId } = useParams();
@@ -456,7 +831,8 @@ export default function ContactBookDetail() {
     { label: 'Điểm danh', icon: <CalendarIcon fontSize="small" /> },
     { label: 'Hồ sơ',     icon: <PersonIcon fontSize="small" /> },
     { label: 'Sức khỏe',  icon: <HealthIcon fontSize="small" /> },
-    { label: 'Trao đổi',  icon: <ForumIcon fontSize="small" /> },
+    { label: 'Thực đơn',  icon: <MenuIcon fontSize="small" /> },
+    { label: 'Ghi chú',   icon: <NoteTabIcon fontSize="small" /> },
   ];
 
   return (
@@ -659,10 +1035,10 @@ export default function ContactBookDetail() {
                     <TabSucKhoe health={health} healthLoading={healthLoading} />
                   )}
                   {tab === 3 && (
-                    <TabPlaceholder
-                      icon={<ForumIcon sx={{ fontSize: 44, color: 'grey.300' }} />}
-                      label="Tính năng đang phát triển — trao đổi với phụ huynh"
-                    />
+                    <TabThucDon />
+                  )}
+                  {tab === 4 && (
+                    <TabGhiChu classId={classId} studentId={selected._id} />
                   )}
                 </Box>
               </Paper>
