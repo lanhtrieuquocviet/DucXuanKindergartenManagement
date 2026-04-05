@@ -3,7 +3,8 @@ import { useNavigate, useParams, useSearchParams } from 'react-router-dom';
 import { useAuth } from '../../context/AuthContext';
 import { useSchoolAdmin } from '../../context/SchoolAdminContext';
 import RoleLayout from '../../layouts/RoleLayout';
-import { SCHOOL_ADMIN_MENU_ITEMS, createSchoolAdminMenuSelect } from './schoolAdminMenuConfig';
+import { createSchoolAdminMenuSelect } from './schoolAdminMenuConfig';
+import { useSchoolAdminMenu } from './useSchoolAdminMenu';
 import {
   Box,
   Paper,
@@ -52,6 +53,7 @@ function StudentAttendanceDetail() {
   const [searchParams] = useSearchParams();
   const { user, logout, isInitializing } = useAuth();
   const { getStudentAttendanceDetail, loading, error } = useSchoolAdmin();
+  const menuItems = useSchoolAdminMenu();
 
   const [studentInfo, setStudentInfo] = useState(null);
   const [attendance, setAttendance] = useState(null);
@@ -174,7 +176,7 @@ function StudentAttendanceDetail() {
     <RoleLayout
       title="Chi tiết điểm danh"
       description="Xem chi tiết điểm danh của học sinh."
-      menuItems={SCHOOL_ADMIN_MENU_ITEMS}
+      menuItems={menuItems}
       activeKey="attendance"
       onLogout={() => {
         logout();

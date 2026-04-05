@@ -1,7 +1,34 @@
 /* Layout admin chung cho các role: sidebar trái + nội dung phải */
 import {
-  AccountTree as AccountTreeIcon, Assessment as AssessmentIcon, BarChart as BarChartIcon,
-  Article as BlogIcon, CalendarMonth as CalendarIcon, CameraAlt as CameraAltIcon, ChecklistRtl as ChecklistIcon, Close as CloseIcon, ContentPasteSearch as ContentPasteSearchIcon, Dashboard as DashboardIcon, Email as EmailIcon, Folder as FolderIcon, Home as HomeIcon, Inventory as InventoryIcon, MenuBook as MenuBookIcon, Notifications as NotifIcon, People as PeopleIcon, Person as PersonIcon, Public as PublicIcon, QuestionAnswer as QaIcon, Restaurant as RestaurantIcon, ManageAccounts as RolesIcon, School as SchoolIcon, Shield as ShieldIcon, ShoppingCart as ShoppingCartIcon
+  AccountTree as AccountTreeIcon,
+  Article as ArticleIcon,
+  Assessment as AssessmentIcon,
+  BarChart as BarChartIcon,
+  Article as BlogIcon,
+  CalendarMonth as CalendarIcon,
+  CameraAlt as CameraAltIcon,
+  ChecklistRtl as ChecklistIcon,
+  ContentPasteSearch as ContentPasteSearchIcon,
+  Dashboard as DashboardIcon,
+  Email as EmailIcon,
+  Folder as FolderIcon,
+  Grading as GradingIcon,
+  Group as GroupIcon,
+  Home as HomeIcon,
+  Inventory as InventoryIcon,
+  MenuBook as MenuBookIcon,
+  Notifications as NotifIcon,
+  People as PeopleIcon,
+  Person as PersonIcon,
+  PhotoLibrary as PhotoLibraryIcon,
+  Public as PublicIcon,
+  QuestionAnswer as QaIcon,
+  Restaurant as RestaurantIcon,
+  ManageAccounts as RolesIcon,
+  School as SchoolIcon,
+  Shield as ShieldIcon,
+  ShoppingCart as ShoppingCartIcon,
+  VideoLibrary as VideoLibraryIcon
 } from '@mui/icons-material';
 import { Box, Drawer, IconButton, useMediaQuery, useTheme } from '@mui/material';
 import { CurrencyIcon } from 'lucide-react';
@@ -49,6 +76,9 @@ export const KEY_ICONS = {
   'contacts-list': <EmailIcon fontSize="small" />,
   'assets-list': <InventoryIcon fontSize="small" />,
   'public-info-list': <PublicIcon fontSize="small" />,
+  library: <PhotoLibraryIcon fontSize="small" />,
+  'image-library': <PhotoLibraryIcon fontSize="small" />,
+  'video-library': <VideoLibraryIcon fontSize="small" />,
   permissions: <ShieldIcon fontSize="small" />,
   roles: <RolesIcon fontSize="small" />,
   logs: <BarChartIcon fontSize="small" />,
@@ -57,6 +87,9 @@ export const KEY_ICONS = {
   'asset-inspection': <ContentPasteSearchIcon fontSize="small" />,
   'class-assets': <InventoryIcon fontSize="small" />,
   'asset-allocation': <AccountTreeIcon fontSize="small" />,
+  kiemke: <GradingIcon fontSize="small" />,
+  committee: <GroupIcon fontSize="small" />,
+  minutes: <ArticleIcon fontSize="small" />,
 };
 
 /* ── Sidebar content (kết hợp các shared components) ── */

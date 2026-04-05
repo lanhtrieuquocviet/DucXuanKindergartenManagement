@@ -4,7 +4,8 @@ import { useAuth } from '../../context/AuthContext';
 import RoleLayout from '../../layouts/RoleLayout';
 import ConfirmDialog from '../../components/ConfirmDialog';
 import { get, del, ENDPOINTS } from '../../service/api';
-import { SCHOOL_ADMIN_MENU_ITEMS, createSchoolAdminMenuSelect } from './schoolAdminMenuConfig';
+import { createSchoolAdminMenuSelect } from './schoolAdminMenuConfig';
+import { useSchoolAdminMenu } from './useSchoolAdminMenu';
 import 'quill/dist/quill.snow.css';
 
 import {
@@ -32,6 +33,7 @@ function DocumentDetail() {
   const { documentId } = useParams();
   const navigate = useNavigate();
   const { user, logout, isInitializing } = useAuth();
+  const menuItems = useSchoolAdminMenu();
 
   const [document, setDocument] = useState(null);
   const [loading, setLoading] = useState(true);
@@ -113,7 +115,7 @@ function DocumentDetail() {
     return (
       <RoleLayout
         title="Chi tiết tài liệu"
-        menuItems={SCHOOL_ADMIN_MENU_ITEMS}
+        menuItems={menuItems}
         activeKey="documents"
         onMenuSelect={handleMenuSelect}
         onLogout={handleLogout}

@@ -1,9 +1,7 @@
 const express = require('express');
 const router = express.Router();
-const { authenticate, authorizeRoles } = require('../middleware/auth');
+const { authenticate, authorizeRoles, authorizePermissions } = require('../middleware/auth');
 const reportController = require('../controller/reportController');
-
-const allowedRoles = ['KitchenStaff', 'SchoolAdmin'];
 
 /**
  * @openapi
@@ -34,7 +32,7 @@ const allowedRoles = ['KitchenStaff', 'SchoolAdmin'];
  *       403:
  *         description: Không có quyền
  */
-router.get('/weekly', authenticate, authorizeRoles(...allowedRoles), reportController.exportWeeklyReport);
+router.get('/weekly', authenticate, authorizePermissions('VIEW_REPORT'), reportController.exportWeeklyReport);
 
 /**
  * @openapi
@@ -62,7 +60,7 @@ router.get('/weekly', authenticate, authorizeRoles(...allowedRoles), reportContr
  *               type: string
  *               format: binary
  */
-router.get('/monthly', authenticate, authorizeRoles(...allowedRoles), reportController.exportMonthlyReport);
+router.get('/monthly', authenticate, authorizePermissions('VIEW_REPORT'), reportController.exportMonthlyReport);
 
 /**
  * @openapi
@@ -89,7 +87,7 @@ router.get('/monthly', authenticate, authorizeRoles(...allowedRoles), reportCont
  *               type: string
  *               format: binary
  */
-router.get('/food-sample', authenticate, authorizeRoles(...allowedRoles), reportController.exportFoodSampleReport);
+router.get('/food-sample', authenticate, authorizePermissions('VIEW_REPORT'), reportController.exportFoodSampleReport);
 
 /**
  * @openapi
@@ -116,6 +114,6 @@ router.get('/food-sample', authenticate, authorizeRoles(...allowedRoles), report
  *               type: string
  *               format: binary
  */
-router.get('/meal-portion', authenticate, authorizeRoles(...allowedRoles), reportController.exportMealPortionReport);
+router.get('/meal-portion', authenticate, authorizePermissions('VIEW_REPORT'), reportController.exportMealPortionReport);
 
 module.exports = router;

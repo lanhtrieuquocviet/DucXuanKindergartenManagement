@@ -9,56 +9,106 @@ export const SCHOOL_ADMIN_MENU_ITEMS = [
   {
     key: 'academic-years',
     label: 'Quản lý năm học',
+    permission: 'MANAGE_ACADEMIC_YEAR',
     children: [
-      { key: 'academic-year-setup', label: 'Thiết lập năm học' },
-      { key: 'academic-plan', label: 'Thiết lập kế hoạch' },
-      { key: 'academic-schedule', label: 'Thời gian biểu' },
-      { key: 'academic-report', label: 'Báo cáo & thống kê' },
+      { key: 'academic-year-setup', label: 'Thiết lập năm học', permission: 'MANAGE_ACADEMIC_YEAR' },
+      { key: 'academic-plan', label: 'Thiết lập kế hoạch', permission: 'MANAGE_CURRICULUM' },
+      { key: 'academic-schedule', label: 'Thời gian biểu', permission: 'MANAGE_CURRICULUM' },
+      { key: 'academic-report', label: 'Báo cáo & thống kê', permission: 'VIEW_REPORT' },
     ],
   },
-  { key: 'classes', label: 'Lớp học' },
-  { key: 'menu', label: 'Quản lý thực đơn' },
-  { key: 'meal-management', label: 'Quản lý bữa ăn' },
-  { key: 'teachers', label: 'Giáo viên' },
-  { key: 'students', label: 'Học sinh & phụ huynh' },
+  { key: 'classes', label: 'Lớp học', permission: 'MANAGE_CLASS' },
+  { key: 'menu', label: 'Quản lý thực đơn', permission: 'APPROVE_MENU' },
+  { key: 'meal-management', label: 'Quản lý bữa ăn', permission: 'APPROVE_MENU' },
+  { key: 'teachers', label: 'Giáo viên', permission: 'MANAGE_TEACHER' },
+  { key: 'students', label: 'Học sinh & phụ huynh', permission: 'MANAGE_STUDENT' },
   {
     key: 'assets',
     label: 'Quản lý tài sản',
+    permission: 'MANAGE_ASSET',
     children: [
-      { key: 'assets-list', label: 'Danh sách tài sản' },
-      { key: 'asset-allocation', label: 'Phân bổ tài sản' },
-      { key: 'purchase-requests', label: 'Yêu cầu mua sắm' },
+      { key: 'assets-list', label: 'Danh sách tài sản', permission: 'MANAGE_ASSET' },
+      { key: 'asset-allocation', label: 'Phân bổ tài sản', permission: 'MANAGE_ASSET' },
+      { key: 'purchase-requests', label: 'Yêu cầu mua sắm', permission: 'MANAGE_PURCHASE_REQUEST' },
     ],
   },
-  { key: 'reports', label: 'Báo cáo của trường' },
+  {
+    key: 'kiemke',
+    label: 'Kiểm kê tài sản',
+    permission: 'MANAGE_ASSET',
+    children: [
+      { key: 'committee', label: 'Ban kiểm kê', permission: 'MANAGE_ASSET' },
+      { key: 'minutes', label: 'Biên bản kiểm kê', permission: 'MANAGE_ASSET' },
+    ],
+  },
+  { key: 'reports', label: 'Báo cáo của trường', permission: 'VIEW_REPORT' },
   {
     key: 'contacts',
     label: 'Liên hệ',
+    permission: 'MANAGE_CONTACT',
     children: [
-      { key: 'contacts-list', label: 'Danh sách liên hệ' },
-      { key: 'qa', label: 'Câu hỏi' },
+      { key: 'contacts-list', label: 'Danh sách liên hệ', permission: 'MANAGE_CONTACT' },
+      { key: 'qa', label: 'Câu hỏi', permission: 'MANAGE_QA' },
     ],
   },
   {
     key: 'public-info',
     label: 'Thông tin công khai',
     children: [
-      { key: 'public-info-list', label: 'Danh sách thông tin' },
-      { key: 'blogs', label: 'Quản lý blog' },
-      { key: 'banner-management', label: 'Quản lý banner' },
-      { key: 'documents', label: 'Quản lý tài liệu' },
-      { key: 'files-management', label: 'Quản lý file' },
+      { key: 'public-info-list', label: 'Danh sách thông tin', permission: 'MANAGE_PUBLIC_INFO' },
+      { key: 'blogs', label: 'Quản lý blog', permission: 'MANAGE_BLOG' },
+      { key: 'banner-management', label: 'Quản lý banner', permission: 'MANAGE_BANNER' },
+      { key: 'documents', label: 'Quản lý tài liệu', permission: 'MANAGE_DOCUMENT' },
+      { key: 'files-management', label: 'Quản lý file', permission: 'MANAGE_DOCUMENT' },
+    ],
+  },
+  {
+    key: 'library',
+    label: 'Quản lý thư viện',
+    permission: 'MANAGE_IMAGE_LIBRARY',
+    children: [
+      { key: 'image-library', label: 'Quản lý ảnh', permission: 'MANAGE_IMAGE_LIBRARY' },
+      { key: 'video-library', label: 'Quản lý video-clip', permission: 'MANAGE_IMAGE_LIBRARY' },
     ],
   },
   {
     key: 'attendance',
     label: 'Quản lý điểm danh',
+    permission: 'VIEW_ATTENDANCE',
     children: [
-      { key: 'attendance-overview', label: 'Điểm danh' },
-      { key: 'face-attendance', label: 'Trạng thái khuôn mặt AI' },
+      { key: 'attendance-overview', label: 'Điểm danh', permission: 'VIEW_ATTENDANCE' },
+      { key: 'face-attendance', label: 'Trạng thái khuôn mặt AI', permission: 'REGISTER_FACE' },
     ],
   },
 ];
+
+/**
+ * Lọc menu items dựa trên danh sách permissions của user.
+ * - Item không có `permission` field → luôn hiển thị (ví dụ: Tổng quan)
+ * - Item có `permission` → chỉ hiển thị nếu user có permission đó
+ * - Group item (có children) → chỉ hiển thị nếu ít nhất 1 child được hiển thị
+ * @param {Array} items - SCHOOL_ADMIN_MENU_ITEMS
+ * @param {Function} hasPermission - (code: string) => boolean, từ useAuth()
+ * @returns {Array} filtered items
+ */
+export function filterMenuByPermissions(items, hasPermission) {
+  return items.reduce((acc, item) => {
+    if (item.children) {
+      const visibleChildren = item.children.filter(
+        (child) => !child.permission || hasPermission(child.permission)
+      );
+      // Ẩn group nếu không có child nào hiển thị
+      if (visibleChildren.length === 0) return acc;
+      // Nếu group có permission riêng, user phải có ít nhất permission đó
+      if (item.permission && !hasPermission(item.permission)) return acc;
+      return [...acc, { ...item, children: visibleChildren }];
+    }
+    if (!item.permission || hasPermission(item.permission)) {
+      return [...acc, item];
+    }
+    return acc;
+  }, []);
+}
 
 /**
  * Returns a handleMenuSelect function for school admin navigation.
@@ -86,6 +136,8 @@ export const createSchoolAdminMenuSelect = (navigate) => (key) => {
     'blogs-list': '/school-admin/blogs',
     documents: '/school-admin/documents',
     'files-management': '/school-admin/files',
+    'image-library': '/school-admin/image-library',
+    'video-library': '/school-admin/video-library',
     'public-info': '/school-admin/public-info',
     'public-info-list': '/school-admin/public-info',
     'banner-management': '/school-admin/banners',
@@ -93,6 +145,9 @@ export const createSchoolAdminMenuSelect = (navigate) => (key) => {
     'assets-list': '/school-admin/assets',
     'asset-allocation': '/school-admin/asset-allocation',
     'purchase-requests': '/school-admin/purchase-requests',
+    kiemke: '/school-admin/committee',
+    committee: '/school-admin/committee',
+    minutes: '/school-admin/minutes',
     attendance: '/school-admin/attendance/overview',
     'attendance-overview': '/school-admin/attendance/overview',
     'face-attendance': '/school-admin/face-attendance',

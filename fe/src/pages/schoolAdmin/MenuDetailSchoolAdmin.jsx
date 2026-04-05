@@ -1,9 +1,10 @@
-import { useEffect, useState } from "react";
+import { useEffect, useState, useRef } from "react";
 import { useParams, useNavigate } from "react-router-dom";
-import { getMenuDetail } from "../../service/menu.api";
+import { getMenuDetail, updateMenu } from "../../service/menu.api";
 import { toast } from "react-toastify";
 import RoleLayout from "../../layouts/RoleLayout";
-import { SCHOOL_ADMIN_MENU_ITEMS, createSchoolAdminMenuSelect } from './schoolAdminMenuConfig';
+import { createSchoolAdminMenuSelect } from './schoolAdminMenuConfig';
+import { useSchoolAdminMenu } from './useSchoolAdminMenu';
 import { useAuth } from "../../context/AuthContext";
 
 const days = ["mon", "tue", "wed", "thu", "fri"];
@@ -34,13 +35,95 @@ const MenuDetailSchoolAdmin = () => {
   const { id } = useParams();
   const navigate = useNavigate();
   const { user, logout } = useAuth();
+  const menuItems = useSchoolAdminMenu();
 
   const [menu, setMenu] = useState(null);
   const [loading, setLoading] = useState(false);
+  const [showNutritionPlan, setShowNutritionPlan] = useState(false);
+  const nutritionSectionRef = useRef(null);
+  const [nutritionPlan, setNutritionPlan] = useState([]);
+  const [newNutritionPlan, setNewNutritionPlan] = useState({ label: "", target: "", actual: "" });
 
   useEffect(() => {
     fetchMenuDetail();
   }, []);
+
+  useEffect(() => {
+    if (!menu) return;
+
+    if (Array.isArray(menu.nutritionPlan) && menu.nutritionPlan.length > 0) {
+      setNutritionPlan(menu.nutritionPlan.map((item, idx) => ({ id: idx + 1, ...item })));
+      return;
+    }
+
+    setNutritionPlan([
+      { id: 1, label: "Nhu cầu năng lượng (kcal)", target: 1300, actual: menu.nutrition?.calories || 0 },
+      { id: 2, label: "Protein (g)", target: 50, actual: menu.nutrition?.protein || 0 },
+      { id: 3, label: "Chất béo (g)", target: 30, actual: menu.nutrition?.fat || 0 },
+      { id: 4, label: "Tinh bột (g)", target: 150, actual: menu.nutrition?.carb || 0 },
+    ]);
+  }, [menu]);
+
+  const handleNutritionPlanChange = (id, field, value) => {
+    setNutritionPlan((prev) =>
+      prev.map((row) =>
+        row.id === id ? { ...row, [field]: field === "label" ? value : Number(value) || 0 } : row
+      )
+    );
+  };
+
+  const handleAddNutritionPlan = () => {
+    if (!newNutritionPlan.label.trim()) {
+      toast.error("Tên mục dinh dưỡng không được để trống");
+      return;
+    }
+
+    const nextId = nutritionPlan.length ? Math.max(...nutritionPlan.map((row) => row.id)) + 1 : 1;
+    setNutritionPlan((prev) => [
+      ...prev,
+      {
+        id: nextId,
+        label: newNutritionPlan.label.trim(),
+        target: Number(newNutritionPlan.target) || 0,
+        actual: Number(newNutritionPlan.actual) || 0,
+      },
+    ]);
+    setNewNutritionPlan({ label: "", target: "", actual: "" });
+    toast.success("Đã thêm mục dinh dưỡng");
+  };
+
+  const handleDeleteNutritionPlan = (id) => {
+    setNutritionPlan((prev) => prev.filter((row) => row.id !== id));
+  };
+
+  const handleUpdateNutritionPlan = async () => {
+    for (const item of nutritionPlan) {
+      if (!item.label || item.target == null || item.actual == null) {
+        toast.error("Vui lòng điền đầy đủ thông tin cho tất cả các chỉ tiêu");
+        return;
+      }
+      if (item.target <= 0 || item.actual < 0) {
+        toast.error("Mục tiêu phải > 0 và thực tế >= 0");
+        return;
+      }
+    }
+
+    const nutrition = {
+      calories: nutritionPlan.find((x) => /năng lượng|calo/i.test(x.label))?.actual || 0,
+      protein: nutritionPlan.find((x) => /protein/i.test(x.label))?.actual || 0,
+      fat: nutritionPlan.find((x) => /chất béo|fat/i.test(x.label))?.actual || 0,
+      carb: nutritionPlan.find((x) => /tinh bột|carb/i.test(x.label))?.actual || 0,
+    };
+
+    try {
+      const res = await updateMenu(id, { nutritionPlan, nutrition });
+      setMenu(res.data.data || { ...menu, nutritionPlan, nutrition });
+      setNutritionPlan((prev) => prev.map((item) => ({ ...item })));
+      toast.success("Cập nhật kế hoạch dinh dưỡng theo sở thành công");
+    } catch (error) {
+      toast.error(error.response?.data?.message || "Cập nhật kế hoạch thất bại");
+    }
+  };
 
   const fetchMenuDetail = async () => {
     try {
@@ -132,7 +215,7 @@ const MenuDetailSchoolAdmin = () => {
     <RoleLayout
       title="Chi tiết thực đơn"
       description="Xem chi tiết thực đơn của trường"
-      menuItems={SCHOOL_ADMIN_MENU_ITEMS}
+      menuItems={menuItems}
       activeKey="menu"
       userName={user?.fullName || user?.username}
       userAvatar={user?.avatar}
@@ -168,7 +251,108 @@ const MenuDetailSchoolAdmin = () => {
           <p className="text-sm text-gray-500 mt-1">
             Tạo bởi: {menu.createdBy?.fullName}
           </p>
+
+          <button
+            onClick={() => {
+              setShowNutritionPlan((prev) => !prev);
+              if (!showNutritionPlan) {
+                setTimeout(() => {
+                  nutritionSectionRef.current?.scrollIntoView({ behavior: "smooth", block: "start" });
+                }, 100);
+              }
+            }}
+            className="mt-3 px-4 py-2 text-sm font-medium text-white bg-indigo-600 rounded hover:bg-indigo-700"
+          >
+            Quản lý thực đơn
+          </button>
         </div>
+
+        {showNutritionPlan && (
+          <div
+            ref={nutritionSectionRef}
+            className="mb-8 border border-gray-300 rounded-lg p-4 bg-white shadow-sm max-h-[360px] overflow-y-auto"
+          >
+            <div className="flex items-center justify-between mb-3">
+              <h2 className="text-lg font-semibold">Kế hoạch dinh dưỡng theo sở</h2>
+              <button
+                onClick={handleUpdateNutritionPlan}
+                className="px-4 py-2 text-sm font-medium text-white bg-blue-600 rounded hover:bg-blue-700"
+              >
+                Cập nhật
+              </button>
+            </div>
+
+          <div className="overflow-x-auto">
+            <table className="w-full text-sm border-collapse">
+              <thead className="bg-gray-100 text-gray-700">
+                <tr>
+                  <th className="border border-gray-300 p-2 text-left">Tiêu chí</th>
+                  <th className="border border-gray-300 p-2 text-center">Mục tiêu</th>
+                  <th className="border border-gray-300 p-2 text-center">Thực tế</th>
+                  <th className="border border-gray-300 p-2 text-center">Hành động</th>
+                </tr>
+              </thead>
+
+              <tbody>
+                {nutritionPlan.map((row) => (
+                  <tr key={row.id} className="even:bg-gray-50">
+                    <td className="border border-gray-300 p-2">{row.label}</td>
+                    <td className="border border-gray-300 p-2 text-center">
+                      <input
+                        value={row.target}
+                        onChange={(e) => handleNutritionPlanChange(row.id, "target", e.target.value)}
+                        className="w-24 p-1 text-right border rounded outline-none focus:ring-2 focus:ring-blue-200"
+                      />
+                    </td>
+                    <td className="border border-gray-300 p-2 text-center">
+                      <input
+                        value={row.actual}
+                        onChange={(e) => handleNutritionPlanChange(row.id, "actual", e.target.value)}
+                        className="w-24 p-1 text-right border rounded outline-none focus:ring-2 focus:ring-blue-200"
+                      />
+                    </td>
+                    <td className="border border-gray-300 p-2 text-center">
+                      <button
+                        onClick={() => handleDeleteNutritionPlan(row.id)}
+                        className="px-2 py-1 text-xs text-white bg-red-500 rounded hover:bg-red-600"
+                      >
+                        Xóa
+                      </button>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+
+          <div className="mt-3 flex items-center gap-2">
+            <input
+              placeholder="Tiêu chí mới"
+              value={newNutritionPlan.label}
+              onChange={(e) => setNewNutritionPlan((prev) => ({ ...prev, label: e.target.value }))}
+              className="w-80 p-2 border rounded focus:ring-2 focus:ring-blue-200"
+            />
+            <input
+              placeholder="Mục tiêu"
+              value={newNutritionPlan.target}
+              onChange={(e) => setNewNutritionPlan((prev) => ({ ...prev, target: e.target.value }))}
+              className="w-24 p-2 border rounded text-right focus:ring-2 focus:ring-blue-200"
+            />
+            <input
+              placeholder="Thực tế"
+              value={newNutritionPlan.actual}
+              onChange={(e) => setNewNutritionPlan((prev) => ({ ...prev, actual: e.target.value }))}
+              className="w-24 p-2 border rounded text-right focus:ring-2 focus:ring-blue-200"
+            />
+            <button
+              onClick={handleAddNutritionPlan}
+              className="px-4 py-2 text-sm font-medium text-white bg-green-600 rounded hover:bg-green-700"
+            >
+              Thêm
+            </button>
+          </div>
+        </div>
+      )}
 
         {renderWeek("Tuần lẻ", menu.weeks?.odd)}
         {renderWeek("Tuần chẵn", menu.weeks?.even)}

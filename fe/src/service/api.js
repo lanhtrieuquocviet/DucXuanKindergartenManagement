@@ -224,6 +224,10 @@ export const ENDPOINTS = {
     BLOG_CATEGORY_DETAIL: (id) => `/school-admin/blog-categories/${id}`,
     DOCUMENTS: "/school-admin/documents",
     DOCUMENT_DETAIL: (documentId) => `/school-admin/documents/${documentId}`,
+    IMAGE_LIBRARY: "/school-admin/image-library",
+    IMAGE_LIBRARY_DETAIL: (id) => `/school-admin/image-library/${id}`,
+    VIDEO_LIBRARY: "/school-admin/video-library",
+    VIDEO_LIBRARY_DETAIL: (id) => `/school-admin/video-library/${id}`,
     PUBLIC_INFOS: "/school-admin/public-info",
     PUBLIC_INFO_DETAIL: (id) => `/school-admin/public-info/${id}`,
     BANNERS: '/school-admin/banners',
@@ -268,6 +272,8 @@ export const ENDPOINTS = {
     STAFF: "/school-admin/staff",
     TEACHERS: "/school-admin/teachers",
     TEACHER_AVAILABILITY: "/school-admin/teachers/availability",
+    TEACHER_CHECK_USERNAME: "/school-admin/teachers/check-username",
+    TEACHER_GENERATE_USERNAME: "/school-admin/teachers/generate-username",
     TEACHER_UPDATE: (id) => `/school-admin/teachers/${id}`,
     TEACHER_DELETE: (id) => `/school-admin/teachers/${id}`,
     TEACHER_MIGRATE: "/school-admin/teachers/migrate",
@@ -279,6 +285,7 @@ export const ENDPOINTS = {
     ASSET_COMMITTEE_DETAIL: (id) => `/school-admin/asset-committees/${id}`,
     ASSET_MINUTES: "/school-admin/asset-minutes",
     ASSET_MINUTES_DETAIL: (id) => `/school-admin/asset-minutes/${id}`,
+    ASSET_MINUTES_EXPORT_WORD: (id) => `/school-admin/asset-minutes/${id}/export-word`,
     ASSET_MINUTES_APPROVE: (id) => `/school-admin/asset-minutes/${id}/approve`,
     ASSET_MINUTES_REJECT: (id) => `/school-admin/asset-minutes/${id}/reject`,
     // Asset CRUD
@@ -291,6 +298,7 @@ export const ENDPOINTS = {
     ASSET_ALLOCATIONS_PARSE_WORD: "/school-admin/asset-allocations/parse-word",
     ASSET_ALLOCATIONS_PARSE_EXCEL: "/school-admin/asset-allocations/parse-excel",
     ASSET_ALLOCATION_DETAIL: (id) => `/school-admin/asset-allocations/${id}`,
+    ASSET_ALLOCATION_EXPORT_WORD: (id) => `/school-admin/asset-allocations/${id}/export-word`,
     ASSET_ALLOCATION_TRANSFER: (id) => `/school-admin/asset-allocations/${id}/transfer`,
     PURCHASE_REQUESTS: "/school-admin/purchase-requests",
     PURCHASE_REQUEST_APPROVE: (id) => `/school-admin/purchase-requests/${id}/approve`,
@@ -331,6 +339,18 @@ export const ENDPOINTS = {
     ASSET_ALLOCATION_CONFIRM: (id) => `/teacher/asset-allocations/${id}/confirm`,
     ASSET_INCIDENTS: "/teacher/asset-incidents",
     ASSET_INCIDENT_DETAIL: (id) => `/teacher/asset-incidents/${id}`,
+    // Danh sách học sinh
+    MY_STUDENTS: '/teacher/students',
+    CHANGE_REQUESTS: (studentId) => `/teacher/students/${studentId}/change-requests`,
+    // Sổ liên lạc
+    CONTACT_BOOK_CLASSES: '/teacher/contact-book',
+    CONTACT_BOOK_STUDENTS: (classId) => `/teacher/contact-book/${classId}/students`,
+    CONTACT_BOOK_ATTENDANCE: (classId, studentId) => `/teacher/contact-book/${classId}/students/${studentId}/attendance`,
+    CONTACT_BOOK_HEALTH: (classId, studentId) => `/teacher/contact-book/${classId}/students/${studentId}/health`,
+    CONTACT_BOOK_NOTES: (classId, studentId) => `/teacher/contact-book/${classId}/students/${studentId}/notes`,
+    CONTACT_BOOK_NOTE_DELETE: (classId, studentId, noteId) => `/teacher/contact-book/${classId}/students/${studentId}/notes/${noteId}`,
+    CONTACT_BOOK_TODAY_MENU: '/teacher/contact-book/today-menu',
+    UPLOAD_NOTE_IMAGE: '/cloudinary/upload-note-image',
   },
   // Classes
   CLASSES: {
@@ -367,6 +387,12 @@ export const ENDPOINTS = {
     LIST: "/public-info",
     DETAIL: (id) => `/public-info/${id}`,
   },
+  IMAGE_LIBRARY: {
+    LIST: "/image-library",
+  },
+  VIDEO_LIBRARY: {
+    LIST: "/video-library",
+  },
   // Thời khóa biểu công khai (không cần đăng nhập)
   TIMETABLE_PUBLIC: (yearId) => (yearId ? `/timetable?yearId=${yearId}` : "/timetable"),
   // Students
@@ -375,6 +401,19 @@ export const ENDPOINTS = {
     DETAIL: (studentId) => `/students/${studentId}`,
     CREATE: "/students",
     CREATE_WITH_PARENT: "/students/with-parent",
+    CHECK_USERNAME: "/students/check-username",
+    GENERATE_USERNAME: "/students/generate-username",
+    HEALTH_OVERVIEW: "/school-admin/students/health-overview",
+    HEALTH_IMPORT: "/school-admin/students/health-import",
+    HEALTH_CLASSES: "/school-admin/students/health-classes",
+    CHANGE_REQUESTS: "/school-admin/students/change-requests",
+    CHANGE_REQUESTS_PENDING_MAP: "/school-admin/students/change-requests/pending-map",
+    CHANGE_REQUEST_RESOLVE: (id) => `/school-admin/students/change-requests/${id}/resolve`,
+    // Sổ liên lạc phụ huynh/học sinh
+    CONTACT_BOOK_MY:         '/students/contact-book/my',
+    CONTACT_BOOK_HEALTH:     '/students/contact-book/health',
+    CONTACT_BOOK_ATTENDANCE: '/students/contact-book/attendance',
+    CONTACT_BOOK_NOTES:      '/students/contact-book/notes',
     UPDATE: (studentId) => `/students/${studentId}`,
     DELETE: (studentId) => `/students/${studentId}`,
     ATTENDANCE_CHECKIN: "/students/attendance",

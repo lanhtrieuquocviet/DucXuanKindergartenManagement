@@ -1,5 +1,5 @@
 const express = require('express');
-const { authenticate, authorizeRoles } = require('../middleware/auth');
+const { authenticate, authorizeRoles, authorizePermissions } = require('../middleware/auth');
 const {
   getClassList,
   getStudentInClass,
@@ -63,7 +63,7 @@ router.get('/debug/raw', authenticate, async (req, res) => {
  *       403:
  *         description: Không có quyền SchoolAdmin
  */
-router.get('/grades', authenticate, authorizeRoles('SchoolAdmin'), getGradeList);
+router.get('/grades', authenticate, authorizePermissions('MANAGE_CLASS'), getGradeList);
 
 /**
  * @openapi
@@ -111,7 +111,7 @@ router.get('/grades', authenticate, authorizeRoles('SchoolAdmin'), getGradeList)
  *         description: Không có quyền SchoolAdmin
  */
 router.get('/', authenticate, getClassList);
-router.post('/', authenticate, authorizeRoles('SchoolAdmin'), createClass);
+router.post('/', authenticate, authorizePermissions('MANAGE_CLASS'), createClass);
 
 /**
  * @openapi
@@ -161,20 +161,20 @@ router.post('/', authenticate, authorizeRoles('SchoolAdmin'), createClass);
  *         description: Cập nhật thành công
  */
 router.get('/:classId', authenticate, getClassDetail);
-router.put('/:classId', authenticate, authorizeRoles('SchoolAdmin'), updateClass);
+router.put('/:classId', authenticate, authorizePermissions('MANAGE_CLASS'), updateClass);
 
 /**
  * Xóa lớp học (chỉ SchoolAdmin)
  * DELETE /api/classes/:classId
  */
-router.delete('/:classId', authenticate, authorizeRoles('SchoolAdmin'), deleteClass);
+router.delete('/:classId', authenticate, authorizePermissions('MANAGE_CLASS'), deleteClass);
 
 /**
  * Lấy danh sách / thêm học sinh trong lớp
  * GET|POST /api/classes/:classId/students
  */
 router.get('/:classId/students', authenticate, getStudentInClass);
-router.post('/:classId/students', authenticate, authorizeRoles('SchoolAdmin'), addStudentsToClass);
-router.delete('/:classId/students/:studentId', authenticate, authorizeRoles('SchoolAdmin'), removeStudentFromClass);
+router.post('/:classId/students', authenticate, authorizePermissions('MANAGE_CLASS'), addStudentsToClass);
+router.delete('/:classId/students/:studentId', authenticate, authorizePermissions('MANAGE_CLASS'), removeStudentFromClass);
 
 module.exports = router;

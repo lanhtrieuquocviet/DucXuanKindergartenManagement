@@ -23,7 +23,8 @@ import {
 import { useAuth } from '../../context/AuthContext';
 import RoleLayout from '../../layouts/RoleLayout';
 import { get, ENDPOINTS } from '../../service/api';
-import { SCHOOL_ADMIN_MENU_ITEMS, createSchoolAdminMenuSelect } from './schoolAdminMenuConfig';
+import { createSchoolAdminMenuSelect } from './schoolAdminMenuConfig';
+import { useSchoolAdminMenu } from './useSchoolAdminMenu';
 
 
 /** Tách giáo viên chủ nhiệm (đầu tiên) và giáo viên phụ (còn lại) từ chuỗi "Cô A, Cô B" */
@@ -38,6 +39,7 @@ function parseTeachers(teacherNames) {
 function ClassListOverview() {
   const navigate = useNavigate();
   const { user, logout } = useAuth();
+  const menuItems = useSchoolAdminMenu();
   const [academicYear, setAcademicYear] = useState(null);
   const [classes, setClasses] = useState([]);
   const [grades, setGrades] = useState([]);
@@ -137,7 +139,7 @@ function ClassListOverview() {
     <RoleLayout
       title={`Danh sách lớp học - ${yearName}`}
       description="Xem thông tin tổng quan các lớp học đang hoạt động trong năm học hiện tại."
-      menuItems={SCHOOL_ADMIN_MENU_ITEMS}
+      menuItems={menuItems}
       activeKey="academic-students"
       onLogout={handleLogout}
       onViewProfile={() => navigate('/profile')}

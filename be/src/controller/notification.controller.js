@@ -3,9 +3,9 @@ const Notification = require('../models/Notification');
 /**
  * Internal: tạo notification mới (gọi từ controller khác)
  */
-exports.createNotification = async ({ title, body, type = 'meal_issue', extra = {} }) => {
+exports.createNotification = async ({ title, body, type = 'general', targetRole = 'all', targetUserId = null, extra = {} }) => {
   try {
-    const notif = await Notification.create({ title, body, type, extra });
+    const notif = await Notification.create({ title, body, type, targetRole, targetUserId, extra });
     return notif;
   } catch (err) {
     console.error('createNotification error:', err.message);
@@ -14,31 +14,38 @@ exports.createNotification = async ({ title, body, type = 'meal_issue', extra = 
 
 /**
  * GET /api/notifications
- * Lấy danh sách thông báo cho phụ huynh (mới nhất trước)
+ * Lấy danh sách thông báo (mới nhất trước) — mọi tài khoản đã đăng nhập
  */
 exports.getNotifications = async (req, res) => {
   try {
     const userId = req.user?._id;
     const limit = parseInt(req.query.limit) || 20;
-    const page = parseInt(req.query.page) || 1;
-    const skip = (page - 1) * limit;
+    const page  = parseInt(req.query.page)  || 1;
+    const skip  = (page - 1) * limit;
 
-    const notifications = await Notification.find({ targetRole: 'Parent' })
+    // Hiển thị: thông báo cho user cụ thể, hoặc 'all' hoặc đúng role của user
+    const userRoles = (req.user?.roles || []).map(r => r.roleName || r);
+    const filter = {
+      $or: [
+        { targetUserId: userId },
+        { targetUserId: null, targetRole: { $in: ['all', ...userRoles] } },
+      ],
+    };
+
+    const notifications = await Notification.find(filter)
       .sort({ createdAt: -1 })
       .skip(skip)
       .limit(limit)
       .lean();
 
-    // Thêm trường isReadByMe cho từng thông báo
     const result = notifications.map((n) => ({
       ...n,
       isReadByMe: n.readBy?.some((id) => id.toString() === userId?.toString()) ?? false,
     }));
 
-    const total = await Notification.countDocuments({ targetRole: 'Parent' });
+    const total       = await Notification.countDocuments(filter);
     const unreadCount = await Notification.countDocuments({
-      targetRole: 'Parent',
-      readBy: { $nin: [userId] },
+      $and: [filter, { readBy: { $nin: [userId] } }],
     });
 
     return res.json({ success: true, data: result, total, unreadCount, page, limit });
@@ -49,14 +56,21 @@ exports.getNotifications = async (req, res) => {
 
 /**
  * GET /api/notifications/unread-count
- * Chỉ trả về số thông báo chưa đọc (để badge chuông)
  */
 exports.getUnreadCount = async (req, res) => {
   try {
-    const userId = req.user?._id;
+    const userId    = req.user?._id;
+    const userRoles = (req.user?.roles || []).map(r => r.roleName || r);
     const count = await Notification.countDocuments({
-      targetRole: 'Parent',
-      readBy: { $nin: [userId] },
+      $and: [
+        {
+          $or: [
+            { targetUserId: userId },
+            { targetUserId: null, targetRole: { $in: ['all', ...userRoles] } },
+          ],
+        },
+        { readBy: { $nin: [userId] } },
+      ],
     });
     return res.json({ success: true, count });
   } catch (err) {
@@ -66,15 +80,12 @@ exports.getUnreadCount = async (req, res) => {
 
 /**
  * PUT /api/notifications/:id/read
- * Đánh dấu một thông báo đã đọc
  */
 exports.markAsRead = async (req, res) => {
   try {
     const userId = req.user?._id;
     const { id } = req.params;
-    await Notification.findByIdAndUpdate(id, {
-      $addToSet: { readBy: userId },
-    });
+    await Notification.findByIdAndUpdate(id, { $addToSet: { readBy: userId } });
     return res.json({ success: true });
   } catch (err) {
     return res.status(500).json({ success: false, message: err.message });
@@ -83,13 +94,23 @@ exports.markAsRead = async (req, res) => {
 
 /**
  * PUT /api/notifications/read-all
- * Đánh dấu tất cả đã đọc
  */
 exports.markAllAsRead = async (req, res) => {
   try {
-    const userId = req.user?._id;
+    const userId    = req.user?._id;
+    const userRoles = (req.user?.roles || []).map(r => r.roleName || r);
     await Notification.updateMany(
-      { targetRole: 'Parent', readBy: { $nin: [userId] } },
+      {
+        $and: [
+          {
+            $or: [
+              { targetUserId: userId },
+              { targetUserId: null, targetRole: { $in: ['all', ...userRoles] } },
+            ],
+          },
+          { readBy: { $nin: [userId] } },
+        ],
+      },
       { $addToSet: { readBy: userId } }
     );
     return res.json({ success: true });

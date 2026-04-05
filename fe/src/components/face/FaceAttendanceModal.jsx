@@ -33,7 +33,8 @@ function cosineSimilarity(a, b) {
   return dot / (Math.sqrt(normA) * Math.sqrt(normB));
 }
 
-const MATCH_THRESHOLD = 0.75; // Phải khớp với backend
+const MATCH_THRESHOLD = 0.87; // Phải khớp với backend - tăng lên để giảm false positive
+const MIN_MARGIN = 0.04;      // Margin tối thiểu giữa kết quả 1 và 2 để tránh nhầm
 const COOLDOWN_MS = 3000;     // Chờ 3 giây sau mỗi lần nhận diện
 
 export default function FaceAttendanceModal({ open, onClose, classId, className, onCheckinSuccess }) {
@@ -88,16 +89,25 @@ export default function FaceAttendanceModal({ open, onClose, classId, className,
 
       let bestMatch = null;
       let bestSim = -1;
+      let secondBestSim = -1;
 
       for (const student of localEmbeddings) {
-        const sim = cosineSimilarity(embedding, student.embedding);
+        // Xét tất cả góc mặt (multi-angle), lấy similarity cao nhất
+        const embs = Array.isArray(student.embeddings) && student.embeddings.length > 0
+          ? student.embeddings
+          : [student.embedding];
+        const sim = Math.max(...embs.map((e) => cosineSimilarity(embedding, e)));
         if (sim > bestSim) {
+          secondBestSim = bestSim;
           bestSim = sim;
           bestMatch = student;
+        } else if (sim > secondBestSim) {
+          secondBestSim = sim;
         }
       }
 
       if (bestSim < MATCH_THRESHOLD) return null;
+      if (secondBestSim > 0.78 && (bestSim - secondBestSim) < MIN_MARGIN) return null;
 
       const today = new Date().toISOString().split('T')[0];
       const now = new Date();
@@ -181,6 +191,8 @@ export default function FaceAttendanceModal({ open, onClose, classId, className,
           toast.info(`${result.student?.fullName || 'Học sinh'} đã điểm danh rồi`);
         } else if (result.status === 'no_match') {
           toast.warn('Không nhận diện được khuôn mặt');
+        } else if (result.status === 'ambiguous') {
+          toast.warn('Khuôn mặt không rõ ràng — hãy đăng ký thêm góc mặt để tăng độ chính xác');
         }
       } catch (err) {
         console.error('Match error:', err);
@@ -314,6 +326,17 @@ export default function FaceAttendanceModal({ open, onClose, classId, className,
                   <p className="text-red-600 font-medium">Không nhận diện được</p>
                   <p className="text-xs text-red-400 mt-1">
                     Hãy chắc chắn khuôn mặt đã đăng ký
+                  </p>
+                </div>
+              )}
+
+              {matchResult?.status === 'ambiguous' && (
+                <div className="p-3 bg-orange-50 rounded-lg border border-orange-200 text-center">
+                  <p className="text-2xl mb-1">⚠️</p>
+                  <p className="text-orange-700 font-medium text-sm">Khuôn mặt không rõ ràng</p>
+                  <p className="text-xs text-orange-500 mt-1">
+                    Giống nhiều học sinh, không thể xác định chính xác.
+                    Hãy đăng ký thêm góc mặt.
                   </p>
                 </div>
               )}

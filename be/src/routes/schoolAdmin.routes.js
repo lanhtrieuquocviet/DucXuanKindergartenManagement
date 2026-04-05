@@ -9,8 +9,8 @@ const { listClassrooms, createClassroom, updateClassroom, deleteClassroom } = re
 const assetCtrl = require('../controller/assetInspectionController');
 const assetCrudCtrl = require('../controller/assetController');
 const purchaseCtrl = require('../controller/purchaseRequestController');
-const allocationCtrl  = require('../controller/assetAllocationController');
-const incidentCtrl    = require('../controller/assetIncidentController');
+const allocationCtrl = require('../controller/assetAllocationController');
+const incidentCtrl = require('../controller/assetIncidentController');
 const {
   getAttendanceOverview,
   getClassAttendanceDetail,
@@ -23,6 +23,8 @@ const qaController = require('../controller/qaController');
 const documentController = require('../controller/documentController');
 const publicInfoController = require('../controller/publicInfoController');
 const bannerController = require('../controller/bannerController');
+const imageLibraryController = require('../controller/imageLibraryController');
+const videoClipController = require('../controller/videoClipController');
 const academicYearController = require('../controller/academicYearController');
 const AcademicYear = require('../models/AcademicYear');
 const curriculumController = require('../controller/curriculumController');
@@ -105,7 +107,7 @@ router.get('/dashboard', authenticate, authorizeRoles('SchoolAdmin'), (req, res)
  *       200:
  *         description: Danh sách liên hệ
  */
-router.get('/contacts', authenticate, authorizeRoles('SchoolAdmin'), contactController.listContacts);
+router.get('/contacts', authenticate, authorizePermissions('MANAGE_CONTACT'), contactController.listContacts);
 
 /**
  * @openapi
@@ -141,7 +143,7 @@ router.get('/contacts', authenticate, authorizeRoles('SchoolAdmin'), contactCont
  *       404:
  *         description: Không tìm thấy liên hệ
  */
-router.patch('/contacts/:id/reply', authenticate, authorizeRoles('SchoolAdmin'), contactController.validateReplyContact, contactController.replyContact);
+router.patch('/contacts/:id/reply', authenticate, authorizePermissions('MANAGE_CONTACT'), contactController.validateReplyContact, contactController.replyContact);
 
 /**
  * @openapi
@@ -163,7 +165,7 @@ router.patch('/contacts/:id/reply', authenticate, authorizeRoles('SchoolAdmin'),
  *       200:
  *         description: Xóa phản hồi thành công
  */
-router.patch('/contacts/:id/clear-reply', authenticate, authorizeRoles('SchoolAdmin'), contactController.clearReplyContact);
+router.patch('/contacts/:id/clear-reply', authenticate, authorizePermissions('MANAGE_CONTACT'), contactController.clearReplyContact);
 
 /**
  * @openapi
@@ -185,16 +187,16 @@ router.patch('/contacts/:id/clear-reply', authenticate, authorizeRoles('SchoolAd
  *       200:
  *         description: Gửi lại email thành công
  */
-router.post('/contacts/:id/resend-email', authenticate, authorizeRoles('SchoolAdmin'), contactController.resendReplyEmail);
+router.post('/contacts/:id/resend-email', authenticate, authorizePermissions('MANAGE_CONTACT'), contactController.resendReplyEmail);
 
 // ============================================
 // Homepage banners
 // ============================================
-router.get('/banners', authenticate, authorizeRoles('SchoolAdmin'), bannerController.getAdminHomepageBanners);
-router.post('/banners', authenticate, authorizeRoles('SchoolAdmin'), bannerController.createAdminHomepageBanner);
-router.put('/banners', authenticate, authorizeRoles('SchoolAdmin'), bannerController.updateAdminHomepageBanners);
-router.patch('/banners/:bannerId', authenticate, authorizeRoles('SchoolAdmin'), bannerController.updateAdminHomepageBannerById);
-router.delete('/banners/:bannerId', authenticate, authorizeRoles('SchoolAdmin'), bannerController.deleteAdminHomepageBannerById);
+router.get('/banners', authenticate, authorizePermissions('MANAGE_BANNER'), bannerController.getAdminHomepageBanners);
+router.post('/banners', authenticate, authorizePermissions('MANAGE_BANNER'), bannerController.createAdminHomepageBanner);
+router.put('/banners', authenticate, authorizePermissions('MANAGE_BANNER'), bannerController.updateAdminHomepageBanners);
+router.patch('/banners/:bannerId', authenticate, authorizePermissions('MANAGE_BANNER'), bannerController.updateAdminHomepageBannerById);
+router.delete('/banners/:bannerId', authenticate, authorizePermissions('MANAGE_BANNER'), bannerController.deleteAdminHomepageBannerById);
 
 // ============================================
 // Attendance
@@ -220,7 +222,7 @@ router.delete('/banners/:bannerId', authenticate, authorizeRoles('SchoolAdmin'),
  *       200:
  *         description: Tổng quan điểm danh
  */
-router.get('/attendance/overview', authenticate, authorizeRoles('SchoolAdmin'), getAttendanceOverview);
+router.get('/attendance/overview', authenticate, authorizePermissions('VIEW_ATTENDANCE'), getAttendanceOverview);
 
 /**
  * @openapi
@@ -247,7 +249,7 @@ router.get('/attendance/overview', authenticate, authorizeRoles('SchoolAdmin'), 
  *       200:
  *         description: Chi tiết điểm danh lớp
  */
-router.get('/classes/:classId/attendance', authenticate, authorizeRoles('SchoolAdmin'), getClassAttendanceDetail);
+router.get('/classes/:classId/attendance', authenticate, authorizePermissions('VIEW_ATTENDANCE'), getClassAttendanceDetail);
 
 /**
  * @openapi
@@ -268,7 +270,7 @@ router.get('/classes/:classId/attendance', authenticate, authorizeRoles('SchoolA
  *       200:
  *         description: Chi tiết điểm danh học sinh
  */
-router.get('/students/:studentId/attendance', authenticate, authorizeRoles('SchoolAdmin'), getStudentAttendanceDetail);
+router.get('/students/:studentId/attendance', authenticate, authorizePermissions('VIEW_ATTENDANCE'), getStudentAttendanceDetail);
 
 /**
  * @openapi
@@ -295,7 +297,203 @@ router.get('/students/:studentId/attendance', authenticate, authorizeRoles('Scho
  *       200:
  *         description: Lịch sử điểm danh
  */
-router.get('/students/:studentId/attendance/history', authenticate, authorizeRoles('SchoolAdmin'), getStudentAttendanceHistory);
+router.get('/students/:studentId/attendance/history', authenticate, authorizePermissions('VIEW_ATTENDANCE'), getStudentAttendanceHistory);
+
+// ── Student Change Requests (School Admin) ────────────────────
+// GET /school-admin/students/change-requests — danh sách tất cả yêu cầu
+router.get('/students/change-requests', authenticate, authorizePermissions('MANAGE_STUDENT'), async (req, res) => {
+  try {
+    const StudentChangeRequest = require('../models/StudentChangeRequest');
+    const { status } = req.query; // 'pending' | 'resolved' | undefined (all)
+    const filter = {};
+    if (status) filter.status = status;
+
+    const requests = await StudentChangeRequest.find(filter)
+      .populate('studentId', 'fullName classId avatar')
+      .populate({ path: 'studentId', populate: { path: 'classId', select: 'className' } })
+      .populate('teacherId', 'userId')
+      .populate({ path: 'teacherId', populate: { path: 'userId', select: 'fullName' } })
+      .sort({ createdAt: -1 })
+      .lean();
+
+    return res.json({ status: 'success', data: requests });
+  } catch (err) {
+    return res.status(500).json({ status: 'error', message: err.message });
+  }
+});
+
+// GET /school-admin/students/change-requests/pending-map — map studentId -> pending count
+router.get('/students/change-requests/pending-map', authenticate, authorizePermissions('MANAGE_STUDENT'), async (req, res) => {
+  try {
+    const StudentChangeRequest = require('../models/StudentChangeRequest');
+    const counts = await StudentChangeRequest.aggregate([
+      { $match: { status: 'pending' } },
+      { $group: { _id: '$studentId', count: { $sum: 1 } } },
+    ]);
+    const map = {};
+    counts.forEach(c => { map[c._id.toString()] = c.count; });
+    return res.json({ status: 'success', data: map });
+  } catch (err) {
+    return res.status(500).json({ status: 'error', message: err.message });
+  }
+});
+
+// PATCH /school-admin/students/change-requests/:id/resolve — giải quyết yêu cầu
+router.patch('/students/change-requests/:id/resolve', authenticate, authorizePermissions('MANAGE_STUDENT'), async (req, res) => {
+  try {
+    const StudentChangeRequest = require('../models/StudentChangeRequest');
+    const req_ = await StudentChangeRequest.findById(req.params.id);
+    if (!req_) return res.status(404).json({ status: 'error', message: 'Không tìm thấy yêu cầu.' });
+    req_.status = 'resolved';
+    req_.resolvedAt = new Date();
+    req_.resolvedBy = req.user._id;
+    await req_.save();
+    return res.json({ status: 'success', data: req_ });
+  } catch (err) {
+    return res.status(500).json({ status: 'error', message: err.message });
+  }
+});
+
+// ── Health classes — lớp thuộc năm học hiện tại ──────────────
+// GET /school-admin/students/health-classes
+router.get('/students/health-classes', authenticate, authorizePermissions('MANAGE_STUDENT'), async (req, res) => {
+  try {
+    const AcademicYear = require('../models/AcademicYear');
+    const Classes = require('../models/Classes');
+
+    const activeYear = await AcademicYear.findOne({ status: 'active' }).sort({ startDate: -1 }).lean();
+    if (!activeYear) return res.json({ status: 'success', data: [] });
+
+    const classes = await Classes.find({ academicYearId: activeYear._id })
+      .select('className capacity')
+      .sort({ className: 1 })
+      .lean();
+
+    return res.json({ status: 'success', data: classes, academicYear: activeYear.yearName });
+  } catch (err) {
+    return res.status(500).json({ status: 'error', message: err.message });
+  }
+});
+
+// ── Health overview (báo cáo sức khỏe tổng quan) ──────────────
+// GET /school-admin/students/health-overview
+router.get('/students/health-overview', authenticate, authorizePermissions('MANAGE_STUDENT'), async (req, res) => {
+  try {
+    const Student = require('../models/Student');
+    const HealthCheck = require('../models/HealthCheck');
+    const AcademicYear = require('../models/AcademicYear');
+
+    // Lấy năm học hiện tại
+    const activeYear = await AcademicYear.findOne({ status: 'active' }).sort({ startDate: -1 }).lean();
+    if (!activeYear) return res.json({ status: 'success', data: [] });
+
+    const { classId } = req.query;
+    const studentFilter = { status: 'active', academicYearId: activeYear._id };
+    if (classId) studentFilter.classId = classId;
+
+    const students = await Student.find(studentFilter)
+      .populate('classId', 'className')
+      .sort({ fullName: 1 })
+      .lean();
+
+    const studentIds = students.map(s => s._id);
+
+    // Lấy bản ghi sức khỏe mới nhất của mỗi học sinh
+    const healthRecords = await HealthCheck.aggregate([
+      { $match: { studentId: { $in: studentIds } } },
+      { $sort: { studentId: 1, checkDate: -1 } },
+      { $group: { _id: '$studentId', doc: { $first: '$$ROOT' } } },
+    ]);
+    const healthMap = {};
+    healthRecords.forEach(r => { healthMap[r._id.toString()] = r.doc; });
+
+    const data = students.map(s => {
+      const h = healthMap[s._id.toString()] || null;
+      return {
+        _id: s._id,
+        fullName: s.fullName,
+        dateOfBirth: s.dateOfBirth,
+        gender: s.gender,
+        className: s.classId?.className || '—',
+        classId: s.classId?._id || null,
+        height: h?.height || null,
+        weight: h?.weight || null,
+        bmi: (h?.height && h?.weight) ? +(h.weight / ((h.height / 100) ** 2)).toFixed(1) : null,
+        chronicDiseases: h?.chronicDiseases || [],
+        allergies: (h?.allergies || []).map(a => a.allergen || a).filter(Boolean),
+        generalStatus: h?.generalStatus || null,
+        checkDate: h?.checkDate || null,
+        healthId: h?._id || null,
+      };
+    });
+
+    return res.json({ status: 'success', data });
+  } catch (err) {
+    console.error('health-overview error:', err);
+    return res.status(500).json({ status: 'error', message: err.message });
+  }
+});
+
+// POST /school-admin/students/health-import — import từ Excel (nhận mảng rows đã parse)
+router.post('/students/health-import', authenticate, authorizePermissions('MANAGE_STUDENT'), async (req, res) => {
+  try {
+    const Student = require('../models/Student');
+    const HealthCheck = require('../models/HealthCheck');
+    const { rows } = req.body; // [{ fullName, className, height, weight, chronicDiseases, allergies, notes }]
+    if (!Array.isArray(rows) || rows.length === 0) {
+      return res.status(400).json({ status: 'error', message: 'Không có dữ liệu để import' });
+    }
+
+    let created = 0, updated = 0, skipped = 0;
+    const errors = [];
+
+    for (let i = 0; i < rows.length; i++) {
+      const row = rows[i];
+      const rowNum = i + 2; // Excel row number (header = 1)
+      const name = (row.fullName || '').trim();
+      if (!name) { skipped++; continue; }
+
+      // Tìm học sinh theo tên (có thể lọc thêm theo className)
+      const query = { fullName: name, status: 'active' };
+      let student;
+      if (row.className) {
+        const Classes = require('../models/Classes');
+        const cls = await Classes.findOne({ className: row.className.trim() }).lean();
+        if (cls) query.classId = cls._id;
+      }
+      const matches = await Student.find(query).lean();
+      if (matches.length === 0) { errors.push(`Hàng ${rowNum}: Không tìm thấy học sinh "${name}"`); skipped++; continue; }
+      if (matches.length > 1) { errors.push(`Hàng ${rowNum}: Có nhiều học sinh tên "${name}", cần chỉ định lớp`); skipped++; continue; }
+      student = matches[0];
+
+      // Parse allergies: "Tôm, Sữa" → [{allergen:'Tôm'}, {allergen:'Sữa'}]
+      const allergies = (row.allergies || '').split(',').map(a => a.trim()).filter(Boolean).map(a => ({ allergen: a }));
+      // Parse chronicDiseases: "hen suyễn, tiểu đường"
+      const chronicDiseases = (row.chronicDiseases || '').split(',').map(d => d.trim()).filter(Boolean);
+
+      const payload = {
+        studentId: student._id,
+        height: row.height ? Number(row.height) : undefined,
+        weight: row.weight ? Number(row.weight) : undefined,
+        allergies,
+        chronicDiseases,
+        notes: row.notes || '',
+        generalStatus: 'healthy',
+        recordedBy: req.user._id,
+        checkDate: new Date(),
+      };
+
+      // Upsert: tạo record mới (giữ lịch sử)
+      await HealthCheck.create(payload);
+      created++;
+    }
+
+    return res.json({ status: 'success', message: `Import xong: ${created} tạo mới, ${skipped} bỏ qua`, created, skipped, errors });
+  } catch (err) {
+    console.error('health-import error:', err);
+    return res.status(500).json({ status: 'error', message: err.message });
+  }
+});
 
 // ============================================
 // Blogs
@@ -349,8 +547,8 @@ router.get('/students/:studentId/attendance/history', authenticate, authorizeRol
  *       201:
  *         description: Tạo bài viết thành công
  */
-router.get('/blogs', authenticate, authorizeRoles('SchoolAdmin'), blogController.listBlogs);
-router.post('/blogs', authenticate, authorizeRoles('SchoolAdmin'), blogController.createBlog);
+router.get('/blogs', authenticate, authorizePermissions('MANAGE_BLOG'), blogController.listBlogs);
+router.post('/blogs', authenticate, authorizePermissions('MANAGE_BLOG'), blogController.createBlog);
 
 /**
  * @openapi
@@ -417,9 +615,9 @@ router.post('/blogs', authenticate, authorizeRoles('SchoolAdmin'), blogControlle
  *       200:
  *         description: Xóa thành công
  */
-router.get('/blogs/:id', authenticate, authorizeRoles('SchoolAdmin'), blogController.getBlog);
-router.put('/blogs/:id', authenticate, authorizeRoles('SchoolAdmin'), blogController.updateBlog);
-router.delete('/blogs/:id', authenticate, authorizeRoles('SchoolAdmin'), blogController.deleteBlog);
+router.get('/blogs/:id', authenticate, authorizePermissions('MANAGE_BLOG'), blogController.getBlog);
+router.put('/blogs/:id', authenticate, authorizePermissions('MANAGE_BLOG'), blogController.updateBlog);
+router.delete('/blogs/:id', authenticate, authorizePermissions('MANAGE_BLOG'), blogController.deleteBlog);
 
 // ============================================
 // Blog Categories
@@ -461,8 +659,8 @@ router.delete('/blogs/:id', authenticate, authorizeRoles('SchoolAdmin'), blogCon
  *       201:
  *         description: Tạo thành công
  */
-router.get('/blog-categories', authenticate, authorizeRoles('SchoolAdmin'), authorizePermissions('MANAGE_BLOG_CATEGORY'), blogCategoryController.listBlogCategories);
-router.post('/blog-categories', authenticate, authorizeRoles('SchoolAdmin'), authorizePermissions('MANAGE_BLOG_CATEGORY'), blogCategoryController.createBlogCategory);
+router.get('/blog-categories', authenticate, authorizePermissions('MANAGE_BLOG_CATEGORY'), blogCategoryController.listBlogCategories);
+router.post('/blog-categories', authenticate, authorizePermissions('MANAGE_BLOG_CATEGORY'), blogCategoryController.createBlogCategory);
 
 /**
  * @openapi
@@ -507,8 +705,8 @@ router.post('/blog-categories', authenticate, authorizeRoles('SchoolAdmin'), aut
  *       200:
  *         description: Xóa thành công
  */
-router.put('/blog-categories/:id', authenticate, authorizeRoles('SchoolAdmin'), authorizePermissions('MANAGE_BLOG_CATEGORY'), blogCategoryController.updateBlogCategory);
-router.delete('/blog-categories/:id', authenticate, authorizeRoles('SchoolAdmin'), authorizePermissions('MANAGE_BLOG_CATEGORY'), blogCategoryController.deleteBlogCategory);
+router.put('/blog-categories/:id', authenticate, authorizePermissions('MANAGE_BLOG_CATEGORY'), blogCategoryController.updateBlogCategory);
+router.delete('/blog-categories/:id', authenticate, authorizePermissions('MANAGE_BLOG_CATEGORY'), blogCategoryController.deleteBlogCategory);
 
 // ============================================
 // Q&A
@@ -527,7 +725,7 @@ router.delete('/blog-categories/:id', authenticate, authorizeRoles('SchoolAdmin'
  *       200:
  *         description: Danh sách câu hỏi
  */
-router.get('/qa/questions', authenticate, authorizeRoles('SchoolAdmin'), qaController.getQuestions);
+router.get('/qa/questions', authenticate, authorizePermissions('MANAGE_QA'), qaController.getQuestions);
 
 /**
  * @openapi
@@ -575,8 +773,8 @@ router.get('/qa/questions', authenticate, authorizeRoles('SchoolAdmin'), qaContr
  *       200:
  *         description: Xóa thành công
  */
-router.patch('/qa/questions/:id', authenticate, authorizeRoles('SchoolAdmin'), qaController.validateQuestionId, qaController.validateCreateQuestion, qaController.updateQuestion);
-router.delete('/qa/questions/:id', authenticate, authorizeRoles('SchoolAdmin'), qaController.validateQuestionId, qaController.deleteQuestion);
+router.patch('/qa/questions/:id', authenticate, authorizePermissions('MANAGE_QA'), qaController.validateQuestionId, qaController.validateCreateQuestion, qaController.updateQuestion);
+router.delete('/qa/questions/:id', authenticate, authorizePermissions('MANAGE_QA'), qaController.validateQuestionId, qaController.deleteQuestion);
 
 /**
  * @openapi
@@ -609,7 +807,7 @@ router.delete('/qa/questions/:id', authenticate, authorizeRoles('SchoolAdmin'), 
  *       201:
  *         description: Thêm câu trả lời thành công
  */
-router.post('/qa/questions/:id/answers', authenticate, authorizeRoles('SchoolAdmin'), qaController.validateCreateAnswer, qaController.createAnswer);
+router.post('/qa/questions/:id/answers', authenticate, authorizePermissions('MANAGE_QA'), qaController.validateCreateAnswer, qaController.createAnswer);
 
 /**
  * @openapi
@@ -645,7 +843,7 @@ router.post('/qa/questions/:id/answers', authenticate, authorizeRoles('SchoolAdm
  *       200:
  *         description: Cập nhật thành công
  */
-router.patch('/qa/questions/:id/answers/:answerIndex', authenticate, authorizeRoles('SchoolAdmin'), qaController.validateUpdateAnswer, qaController.updateAnswer);
+router.patch('/qa/questions/:id/answers/:answerIndex', authenticate, authorizePermissions('MANAGE_QA'), qaController.validateUpdateAnswer, qaController.updateAnswer);
 
 // ============================================
 // Documents
@@ -694,8 +892,14 @@ router.patch('/qa/questions/:id/answers/:answerIndex', authenticate, authorizeRo
  *       201:
  *         description: Tạo tài liệu thành công
  */
-router.get('/documents', authenticate, authorizeRoles('SchoolAdmin'), documentController.listDocuments);
-router.post('/documents', authenticate, authorizeRoles('SchoolAdmin'), documentController.createDocument);
+router.get('/documents', authenticate, authorizePermissions('MANAGE_DOCUMENT'), documentController.listDocuments);
+router.post('/documents', authenticate, authorizePermissions('MANAGE_DOCUMENT'), documentController.createDocument);
+router.get('/image-library', authenticate, authorizePermissions('MANAGE_IMAGE_LIBRARY'), imageLibraryController.listAdminImageLibrary);
+router.post('/image-library', authenticate, authorizePermissions('MANAGE_IMAGE_LIBRARY'), imageLibraryController.createImageLibraryItem);
+router.delete('/image-library/:id', authenticate, authorizePermissions('MANAGE_IMAGE_LIBRARY'), imageLibraryController.deleteImageLibraryItem);
+router.get('/video-library', authenticate, authorizePermissions('MANAGE_IMAGE_LIBRARY'), videoClipController.listAdminVideoClips);
+router.post('/video-library', authenticate, authorizePermissions('MANAGE_IMAGE_LIBRARY'), videoClipController.createVideoClipItem);
+router.delete('/video-library/:id', authenticate, authorizePermissions('MANAGE_IMAGE_LIBRARY'), videoClipController.deleteVideoClipItem);
 
 /**
  * @openapi
@@ -758,9 +962,9 @@ router.post('/documents', authenticate, authorizeRoles('SchoolAdmin'), documentC
  *       200:
  *         description: Xóa thành công
  */
-router.get('/documents/:id', authenticate, authorizeRoles('SchoolAdmin'), documentController.getDocument);
-router.put('/documents/:id', authenticate, authorizeRoles('SchoolAdmin'), documentController.updateDocument);
-router.delete('/documents/:id', authenticate, authorizeRoles('SchoolAdmin'), documentController.deleteDocument);
+router.get('/documents/:id', authenticate, authorizePermissions('MANAGE_DOCUMENT'), documentController.getDocument);
+router.put('/documents/:id', authenticate, authorizePermissions('MANAGE_DOCUMENT'), documentController.updateDocument);
+router.delete('/documents/:id', authenticate, authorizePermissions('MANAGE_DOCUMENT'), documentController.deleteDocument);
 
 // ============================================
 // Public Info
@@ -805,8 +1009,8 @@ router.delete('/documents/:id', authenticate, authorizeRoles('SchoolAdmin'), doc
  *       201:
  *         description: Tạo thành công
  */
-router.get('/public-info', authenticate, authorizeRoles('SchoolAdmin'), publicInfoController.listPublicInfos);
-router.post('/public-info', authenticate, authorizeRoles('SchoolAdmin'), publicInfoController.createPublicInfo);
+router.get('/public-info', authenticate, authorizePermissions('MANAGE_PUBLIC_INFO'), publicInfoController.listPublicInfos);
+router.post('/public-info', authenticate, authorizePermissions('MANAGE_PUBLIC_INFO'), publicInfoController.createPublicInfo);
 
 /**
  * @openapi
@@ -871,29 +1075,9 @@ router.post('/public-info', authenticate, authorizeRoles('SchoolAdmin'), publicI
  *       200:
  *         description: Xóa thành công
  */
-router.get('/public-info/:id', authenticate, authorizeRoles('SchoolAdmin'), publicInfoController.getPublicInfo);
-router.put('/public-info/:id', authenticate, authorizeRoles('SchoolAdmin'), publicInfoController.updatePublicInfo);
-
-/**
- * @openapi
- * /api/school-admin/public-info/{id}:
- *   delete:
- *     summary: Xóa thông tin công khai (Chỉ SchoolAdmin)
- *     tags:
- *       - SchoolAdmin
- *     security:
- *       - bearerAuth: []
- *     parameters:
- *       - in: path
- *         name: id
- *         required: true
- *         schema:
- *           type: string
- *     responses:
- *       200:
- *         description: Xóa thành công
- */
-router.delete('/public-info/:id', authenticate, authorizeRoles('SchoolAdmin'), publicInfoController.deletePublicInfo);
+router.get('/public-info/:id', authenticate, authorizePermissions('MANAGE_PUBLIC_INFO'), publicInfoController.getPublicInfo);
+router.put('/public-info/:id', authenticate, authorizePermissions('MANAGE_PUBLIC_INFO'), publicInfoController.updatePublicInfo);
+router.delete('/public-info/:id', authenticate, authorizePermissions('MANAGE_PUBLIC_INFO'), publicInfoController.deletePublicInfo);
 
 // ============================================
 // Academic Years
@@ -912,7 +1096,7 @@ router.delete('/public-info/:id', authenticate, authorizeRoles('SchoolAdmin'), p
  *       200:
  *         description: Năm học hiện tại
  */
-router.get('/academic-years/current', authenticate, authorizeRoles('SchoolAdmin'), academicYearController.getCurrentAcademicYear);
+router.get('/academic-years/current', authenticate, authorizePermissions('MANAGE_ACADEMIC_YEAR'), academicYearController.getCurrentAcademicYear);
 
 /**
  * @openapi
@@ -927,7 +1111,7 @@ router.get('/academic-years/current', authenticate, authorizeRoles('SchoolAdmin'
  *       200:
  *         description: Danh sách năm học đã kết thúc
  */
-router.get('/academic-years/history', authenticate, authorizeRoles('SchoolAdmin'), academicYearController.getAcademicYearHistory);
+router.get('/academic-years/history', authenticate, authorizePermissions('MANAGE_ACADEMIC_YEAR'), academicYearController.getAcademicYearHistory);
 
 /**
  * @openapi
@@ -973,8 +1157,8 @@ router.get('/academic-years/history', authenticate, authorizeRoles('SchoolAdmin'
  *       201:
  *         description: Tạo năm học thành công
  */
-router.get('/academic-years', authenticate, authorizeRoles('SchoolAdmin'), academicYearController.listAcademicYears);
-router.post('/academic-years', authenticate, authorizeRoles('SchoolAdmin'), academicYearController.createAcademicYear);
+router.get('/academic-years', authenticate, authorizePermissions('MANAGE_ACADEMIC_YEAR'), academicYearController.listAcademicYears);
+router.post('/academic-years', authenticate, authorizePermissions('MANAGE_ACADEMIC_YEAR'), academicYearController.createAcademicYear);
 
 /**
  * @openapi
@@ -996,7 +1180,7 @@ router.post('/academic-years', authenticate, authorizeRoles('SchoolAdmin'), acad
  *       200:
  *         description: Kết thúc năm học thành công
  */
-router.patch('/academic-years/:id/finish', authenticate, authorizeRoles('SchoolAdmin'), academicYearController.finishAcademicYear);
+router.patch('/academic-years/:id/finish', authenticate, authorizePermissions('MANAGE_ACADEMIC_YEAR'), academicYearController.finishAcademicYear);
 
 /**
  * @openapi
@@ -1018,15 +1202,15 @@ router.patch('/academic-years/:id/finish', authenticate, authorizeRoles('SchoolA
  *       200:
  *         description: Danh sách lớp của năm học
  */
-router.get('/academic-years/:yearId/classes', authenticate, authorizeRoles('SchoolAdmin'), academicYearController.getClassesByAcademicYear);
+router.get('/academic-years/:yearId/classes', authenticate, authorizePermissions('MANAGE_ACADEMIC_YEAR'), academicYearController.getClassesByAcademicYear);
 
 // ============================================
 // Academic Plan
 // ============================================
-router.get('/academic-plan/topics', authenticate, authorizeRoles('SchoolAdmin'), academicPlanController.listTopics);
-router.post('/academic-plan/topics', authenticate, authorizeRoles('SchoolAdmin'), academicPlanController.createTopic);
-router.patch('/academic-plan/topics/:id', authenticate, authorizeRoles('SchoolAdmin'), academicPlanController.updateTopic);
-router.delete('/academic-plan/topics/:id', authenticate, authorizeRoles('SchoolAdmin'), academicPlanController.deleteTopic);
+router.get('/academic-plan/topics', authenticate, authorizePermissions('MANAGE_CURRICULUM'), academicPlanController.listTopics);
+router.post('/academic-plan/topics', authenticate, authorizePermissions('MANAGE_CURRICULUM'), academicPlanController.createTopic);
+router.patch('/academic-plan/topics/:id', authenticate, authorizePermissions('MANAGE_CURRICULUM'), academicPlanController.updateTopic);
+router.delete('/academic-plan/topics/:id', authenticate, authorizePermissions('MANAGE_CURRICULUM'), academicPlanController.deleteTopic);
 
 // ============================================
 // Curriculum
@@ -1077,8 +1261,8 @@ router.delete('/academic-plan/topics/:id', authenticate, authorizeRoles('SchoolA
  *       201:
  *         description: Tạo thành công
  */
-router.get('/curriculum', authenticate, authorizeRoles('SchoolAdmin'), curriculumController.listCurriculumTopics);
-router.post('/curriculum', authenticate, authorizeRoles('SchoolAdmin'), curriculumController.createCurriculumTopic);
+router.get('/curriculum', authenticate, authorizePermissions('MANAGE_CURRICULUM'), curriculumController.listCurriculumTopics);
+router.post('/curriculum', authenticate, authorizePermissions('MANAGE_CURRICULUM'), curriculumController.createCurriculumTopic);
 
 /**
  * @openapi
@@ -1125,8 +1309,8 @@ router.post('/curriculum', authenticate, authorizeRoles('SchoolAdmin'), curricul
  *       200:
  *         description: Xóa thành công
  */
-router.patch('/curriculum/:id', authenticate, authorizeRoles('SchoolAdmin'), curriculumController.updateCurriculumTopic);
-router.delete('/curriculum/:id', authenticate, authorizeRoles('SchoolAdmin'), curriculumController.deleteCurriculumTopic);
+router.patch('/curriculum/:id', authenticate, authorizePermissions('MANAGE_CURRICULUM'), curriculumController.updateCurriculumTopic);
+router.delete('/curriculum/:id', authenticate, authorizePermissions('MANAGE_CURRICULUM'), curriculumController.deleteCurriculumTopic);
 
 // ============================================
 // Timetable
@@ -1178,9 +1362,9 @@ router.delete('/curriculum/:id', authenticate, authorizeRoles('SchoolAdmin'), cu
  *       200:
  *         description: Lưu thời khóa biểu thành công
  */
-router.get('/timetable', authenticate, authorizeRoles('SchoolAdmin'), timetableController.listByYear);
-router.put('/timetable', authenticate, authorizeRoles('SchoolAdmin'), timetableController.upsert);
-router.delete('/timetable/:id', authenticate, authorizeRoles('SchoolAdmin'), timetableController.remove);
+router.get('/timetable', authenticate, authorizePermissions('MANAGE_CURRICULUM'), timetableController.listByYear);
+router.put('/timetable', authenticate, authorizePermissions('MANAGE_CURRICULUM'), timetableController.upsert);
+router.delete('/timetable/:id', authenticate, authorizePermissions('MANAGE_CURRICULUM'), timetableController.remove);
 
 // ============================================
 // Teachers
@@ -1199,9 +1383,21 @@ router.delete('/timetable/:id', authenticate, authorizeRoles('SchoolAdmin'), tim
  *       200:
  *         description: Danh sách giáo viên đang active
  */
+// GET /school-admin/teachers/check-username?username=...
+router.get('/teachers/check-username', authenticate, authorizePermissions('MANAGE_TEACHER'), async (req, res) => {
+  try {
+    const { username } = req.query;
+    if (!username?.trim()) return res.status(400).json({ status: 'error', message: 'Thiếu tham số username' });
+    const existing = await User.findOne({ username: username.trim() }).lean();
+    return res.status(200).json({ status: 'success', available: !existing });
+  } catch (error) {
+    return res.status(500).json({ status: 'error', message: error.message });
+  }
+});
+
 // GET /school-admin/teachers/availability?className=...&excludeClassId=...
 // Trả về trạng thái từng giáo viên theo nghiệp vụ phân công lớp
-router.get('/teachers/availability', authenticate, authorizeRoles('SchoolAdmin'), async (req, res) => {
+router.get('/teachers/availability', authenticate, authorizePermissions('MANAGE_TEACHER'), async (req, res) => {
   try {
     const { className, excludeClassId } = req.query;
     const Classes = require('../models/Classes');
@@ -1255,7 +1451,7 @@ router.get('/teachers/availability', authenticate, authorizeRoles('SchoolAdmin')
   }
 });
 
-router.get('/teachers', authenticate, authorizeRoles('SchoolAdmin'), async (req, res) => {
+router.get('/teachers', authenticate, authorizePermissions('MANAGE_TEACHER'), async (req, res) => {
   try {
     const teacherRole = await Role.findOne({ roleName: 'Teacher' }).lean();
 
@@ -1294,16 +1490,51 @@ router.get('/teachers', authenticate, authorizeRoles('SchoolAdmin'), async (req,
   }
 });
 
-// POST /school-admin/teachers — tạo giáo viên mới (User + Teacher record)
-router.post('/teachers', authenticate, authorizeRoles('SchoolAdmin'), async (req, res) => {
+// GET /school-admin/teachers/generate-username — sinh username tự động
+router.get('/teachers/generate-username', authenticate, authorizePermissions('MANAGE_TEACHER'), async (req, res) => {
   try {
-    const { fullName, email, phone, password, degree, experienceYears, hireDate, avatar } = req.body;
+    const VALID_PREFIXES = ['HE', 'SE'];
+    const prefix = req.query.prefix
+      ? req.query.prefix.toUpperCase()
+      : VALID_PREFIXES[Math.floor(Math.random() * VALID_PREFIXES.length)];
+    if (!VALID_PREFIXES.includes(prefix)) {
+      return res.status(400).json({ status: 'error', message: 'Prefix không hợp lệ. Chọn HE, SE hoặc HS' });
+    }
+    const yearSuffix = String(new Date().getFullYear()).slice(-2); // "26"
+    let username = null;
+    for (let attempt = 0; attempt < 20; attempt++) {
+      const rand = Math.floor(Math.random() * 1000) + 1; // 1–1000
+      const candidate = `${prefix}${yearSuffix}${String(rand).padStart(4, '0')}`;
+      const exists = await User.findOne({ username: candidate }).lean();
+      if (!exists) { username = candidate; break; }
+    }
+    if (!username) {
+      return res.status(409).json({ status: 'error', message: 'Không thể tạo username duy nhất, vui lòng thử lại' });
+    }
+    return res.json({ status: 'success', username });
+  } catch (error) {
+    console.error('generateUsername error:', error);
+    return res.status(500).json({ status: 'error', message: 'Lỗi khi sinh username', error: error.message });
+  }
+});
+
+// POST /school-admin/teachers — tạo giáo viên mới (User + Teacher record)
+router.post('/teachers', authenticate, authorizePermissions('MANAGE_TEACHER'), async (req, res) => {
+  try {
+    const { username, fullName, email, phone, password, degree, experienceYears, hireDate, avatar, employmentType } = req.body;
+    if (!username?.trim()) return res.status(400).json({ status: 'error', message: 'Tài khoản đăng nhập không được để trống' });
     if (!fullName?.trim()) return res.status(400).json({ status: 'error', message: 'Họ tên không được để trống' });
     if (!email?.trim()) return res.status(400).json({ status: 'error', message: 'Email không được để trống' });
     if (!password || password.length < 6) return res.status(400).json({ status: 'error', message: 'Mật khẩu tối thiểu 6 ký tự' });
 
-    const existingUser = await User.findOne({ email: email.trim().toLowerCase() }).lean();
-    if (existingUser) return res.status(400).json({ status: 'error', message: 'Email đã được sử dụng' });
+    const existingUser = await User.findOne({
+      $or: [{ username: username.trim() }, { email: email.trim().toLowerCase() }],
+    }).lean();
+    if (existingUser) {
+      if (existingUser.username === username.trim())
+        return res.status(400).json({ status: 'error', message: 'Tài khoản đăng nhập đã tồn tại trong hệ thống' });
+      return res.status(400).json({ status: 'error', message: 'Email đã được sử dụng' });
+    }
 
     const teacherRole = await Role.findOne({ roleName: 'Teacher' }).lean();
     if (!teacherRole) return res.status(500).json({ status: 'error', message: 'Không tìm thấy role Teacher trong hệ thống' });
@@ -1313,7 +1544,7 @@ router.post('/teachers', authenticate, authorizeRoles('SchoolAdmin'), async (req
     const passwordHash = await bcrypt.hash(password, salt);
 
     const user = await User.create({
-      username: email.trim().toLowerCase().split('@')[0] + '_' + Date.now(),
+      username: username.trim(),
       passwordHash,
       fullName: fullName.trim(),
       email: email.trim().toLowerCase(),
@@ -1328,6 +1559,7 @@ router.post('/teachers', authenticate, authorizeRoles('SchoolAdmin'), async (req
       degree: degree?.trim() || '',
       experienceYears: Number(experienceYears) || 0,
       hireDate: hireDate || null,
+      employmentType: ['contract', 'permanent'].includes(employmentType) ? employmentType : 'contract',
       status: 'active',
     });
 
@@ -1344,6 +1576,7 @@ router.post('/teachers', authenticate, authorizeRoles('SchoolAdmin'), async (req
         degree: teacher.degree,
         experienceYears: teacher.experienceYears,
         hireDate: teacher.hireDate,
+        employmentType: teacher.employmentType,
       },
     });
   } catch (error) {
@@ -1353,12 +1586,12 @@ router.post('/teachers', authenticate, authorizeRoles('SchoolAdmin'), async (req
 });
 
 // PUT /school-admin/teachers/:id — cập nhật giáo viên
-router.put('/teachers/:id', authenticate, authorizeRoles('SchoolAdmin'), async (req, res) => {
+router.put('/teachers/:id', authenticate, authorizePermissions('MANAGE_TEACHER'), async (req, res) => {
   try {
     const teacher = await Teacher.findById(req.params.id).lean();
     if (!teacher) return res.status(404).json({ status: 'error', message: 'Không tìm thấy giáo viên' });
 
-    const { fullName, email, phone, degree, experienceYears, hireDate, avatar, status } = req.body;
+    const { fullName, email, phone, degree, experienceYears, hireDate, avatar, status, employmentType } = req.body;
 
     // Cập nhật User
     const userUpdate = {};
@@ -1386,6 +1619,7 @@ router.put('/teachers/:id', authenticate, authorizeRoles('SchoolAdmin'), async (
     if (experienceYears !== undefined) teacherUpdate.experienceYears = Number(experienceYears) || 0;
     if (hireDate !== undefined) teacherUpdate.hireDate = hireDate || null;
     if (status && ['active', 'inactive'].includes(status)) teacherUpdate.status = status;
+    if (employmentType && ['contract', 'permanent'].includes(employmentType)) teacherUpdate.employmentType = employmentType;
     await Teacher.findByIdAndUpdate(teacher._id, teacherUpdate);
 
     const updated = await Teacher.findById(teacher._id)
@@ -1405,6 +1639,7 @@ router.put('/teachers/:id', authenticate, authorizeRoles('SchoolAdmin'), async (
         degree: updated.degree,
         experienceYears: updated.experienceYears,
         hireDate: updated.hireDate,
+        employmentType: updated.employmentType,
       },
     });
   } catch (error) {
@@ -1414,7 +1649,7 @@ router.put('/teachers/:id', authenticate, authorizeRoles('SchoolAdmin'), async (
 });
 
 // DELETE /school-admin/teachers/:id — xóa giáo viên
-router.delete('/teachers/:id', authenticate, authorizeRoles('SchoolAdmin'), async (req, res) => {
+router.delete('/teachers/:id', authenticate, authorizePermissions('MANAGE_TEACHER'), async (req, res) => {
   try {
     const teacher = await Teacher.findById(req.params.id).lean();
     if (!teacher) return res.status(404).json({ status: 'error', message: 'Không tìm thấy giáo viên' });
@@ -1434,7 +1669,7 @@ router.delete('/teachers/:id', authenticate, authorizeRoles('SchoolAdmin'), asyn
 });
 
 // Migration: tạo Teacher record cho User có role Teacher chưa có record
-router.post('/teachers/migrate', authenticate, authorizeRoles('SchoolAdmin'), async (req, res) => {
+router.post('/teachers/migrate', authenticate, authorizePermissions('MANAGE_TEACHER'), async (req, res) => {
   try {
     const teacherRole = await Role.findOne({ roleName: 'Teacher' }).lean();
     if (!teacherRole) return res.status(200).json({ status: 'success', message: 'Không tìm thấy role Teacher', created: 0 });
@@ -1458,14 +1693,14 @@ router.post('/teachers/migrate', authenticate, authorizeRoles('SchoolAdmin'), as
 // ============================================
 // Classrooms
 // ============================================
-router.get('/classrooms', authenticate, authorizeRoles('SchoolAdmin'), listClassrooms);
-router.post('/classrooms', authenticate, authorizeRoles('SchoolAdmin'), createClassroom);
-router.put('/classrooms/:id', authenticate, authorizeRoles('SchoolAdmin'), updateClassroom);
-router.delete('/classrooms/:id', authenticate, authorizeRoles('SchoolAdmin'), deleteClassroom);
+router.get('/classrooms', authenticate, authorizePermissions('MANAGE_CLASS'), listClassrooms);
+router.post('/classrooms', authenticate, authorizePermissions('MANAGE_CLASS'), createClassroom);
+router.put('/classrooms/:id', authenticate, authorizePermissions('MANAGE_CLASS'), updateClassroom);
+router.delete('/classrooms/:id', authenticate, authorizePermissions('MANAGE_CLASS'), deleteClassroom);
 
 // ============================================
 // GET /school-admin/staff — danh sách user có role SchoolAdmin (để chọn thành viên ban kiểm kê)
-router.get('/staff', authenticate, authorizeRoles('SchoolAdmin'), async (req, res) => {
+router.get('/staff', authenticate, authorizePermissions('MANAGE_ASSET'), async (req, res) => {
   try {
     const role = await Role.findOne({ roleName: 'SchoolAdmin' }).lean();
     if (!role) return res.status(200).json({ status: 'success', data: [] });
@@ -1481,59 +1716,61 @@ router.get('/staff', authenticate, authorizeRoles('SchoolAdmin'), async (req, re
 
 // Asset Inspection - Committees (Ban kiểm kê)
 // ============================================
-router.get('/asset-committees', authenticate, authorizeRoles('SchoolAdmin'), assetCtrl.listCommittees);
-router.post('/asset-committees', authenticate, authorizeRoles('SchoolAdmin'), assetCtrl.createCommittee);
-router.get('/asset-committees/:id', authenticate, authorizeRoles('SchoolAdmin'), assetCtrl.getCommittee);
-router.put('/asset-committees/:id', authenticate, authorizeRoles('SchoolAdmin'), assetCtrl.updateCommittee);
-router.delete('/asset-committees/:id', authenticate, authorizeRoles('SchoolAdmin'), assetCtrl.deleteCommittee);
+router.get('/asset-committees', authenticate, authorizePermissions('MANAGE_ASSET'), assetCtrl.listCommittees);
+router.post('/asset-committees', authenticate, authorizePermissions('MANAGE_ASSET'), assetCtrl.createCommittee);
+router.get('/asset-committees/:id', authenticate, authorizePermissions('MANAGE_ASSET'), assetCtrl.getCommittee);
+router.put('/asset-committees/:id', authenticate, authorizePermissions('MANAGE_ASSET'), assetCtrl.updateCommittee);
+router.delete('/asset-committees/:id', authenticate, authorizePermissions('MANAGE_ASSET'), assetCtrl.deleteCommittee);
 
 // ============================================
 // Asset Inspection - Minutes (Biên bản kiểm kê)
 // ============================================
-router.get('/asset-minutes', authenticate, authorizeRoles('SchoolAdmin'), assetCtrl.listMinutes);
-router.post('/asset-minutes', authenticate, authorizeRoles('SchoolAdmin'), assetCtrl.createMinutes);
-router.get('/asset-minutes/:id', authenticate, authorizeRoles('SchoolAdmin'), assetCtrl.getMinutes);
-router.put('/asset-minutes/:id', authenticate, authorizeRoles('SchoolAdmin'), assetCtrl.updateMinutes);
-router.delete('/asset-minutes/:id', authenticate, authorizeRoles('SchoolAdmin'), assetCtrl.deleteMinutes);
-router.patch('/asset-minutes/:id/approve', authenticate, authorizeRoles('SchoolAdmin'), assetCtrl.approveMinutes);
-router.patch('/asset-minutes/:id/reject', authenticate, authorizeRoles('SchoolAdmin'), assetCtrl.rejectMinutes);
+router.get('/asset-minutes', authenticate, authorizePermissions('MANAGE_ASSET'), assetCtrl.listMinutes);
+router.post('/asset-minutes', authenticate, authorizePermissions('MANAGE_ASSET'), assetCtrl.createMinutes);
+router.get('/asset-minutes/:id/export-word', authenticate, authorizePermissions('MANAGE_ASSET'), assetCtrl.exportMinutesWord);
+router.get('/asset-minutes/:id', authenticate, authorizePermissions('MANAGE_ASSET'), assetCtrl.getMinutes);
+router.put('/asset-minutes/:id', authenticate, authorizePermissions('MANAGE_ASSET'), assetCtrl.updateMinutes);
+router.delete('/asset-minutes/:id', authenticate, authorizePermissions('MANAGE_ASSET'), assetCtrl.deleteMinutes);
+router.patch('/asset-minutes/:id/approve', authenticate, authorizePermissions('MANAGE_ASSET'), assetCtrl.approveMinutes);
+router.patch('/asset-minutes/:id/reject', authenticate, authorizePermissions('MANAGE_ASSET'), assetCtrl.rejectMinutes);
 
 // ============================================
 // Assets CRUD (Danh sách tài sản)
 // ============================================
-router.get('/assets', authenticate, authorizeRoles('SchoolAdmin'), assetCrudCtrl.listAssets);
-router.post('/assets', authenticate, authorizeRoles('SchoolAdmin'), assetCrudCtrl.createAsset);
-router.post('/assets/bulk', authenticate, authorizeRoles('SchoolAdmin'), assetCrudCtrl.bulkCreateAssets);
-router.get('/assets/:id', authenticate, authorizeRoles('SchoolAdmin'), assetCrudCtrl.getAsset);
-router.put('/assets/:id', authenticate, authorizeRoles('SchoolAdmin'), assetCrudCtrl.updateAsset);
-router.delete('/assets/:id', authenticate, authorizeRoles('SchoolAdmin'), assetCrudCtrl.deleteAsset);
+router.get('/assets', authenticate, authorizePermissions('MANAGE_ASSET'), assetCrudCtrl.listAssets);
+router.post('/assets', authenticate, authorizePermissions('MANAGE_ASSET'), assetCrudCtrl.createAsset);
+router.post('/assets/bulk', authenticate, authorizePermissions('MANAGE_ASSET'), assetCrudCtrl.bulkCreateAssets);
+router.get('/assets/:id', authenticate, authorizePermissions('MANAGE_ASSET'), assetCrudCtrl.getAsset);
+router.put('/assets/:id', authenticate, authorizePermissions('MANAGE_ASSET'), assetCrudCtrl.updateAsset);
+router.delete('/assets/:id', authenticate, authorizePermissions('MANAGE_ASSET'), assetCrudCtrl.deleteAsset);
 
 // ============================================
 // Asset Allocations (Biên bản bàn giao tài sản)
 // ============================================
 const wordUpload = multer({ storage: multer.memoryStorage(), limits: { fileSize: 20 * 1024 * 1024 } });
-router.get('/asset-allocations', authenticate, authorizeRoles('SchoolAdmin'), allocationCtrl.listAllocations);
-router.post('/asset-allocations', authenticate, authorizeRoles('SchoolAdmin'), allocationCtrl.createAllocation);
-router.get('/asset-allocations/template', authenticate, authorizeRoles('SchoolAdmin'), allocationCtrl.generateExcelTemplate);
-router.post('/asset-allocations/parse-word', authenticate, authorizeRoles('SchoolAdmin'), wordUpload.single('file'), allocationCtrl.parseWordFile);
-router.post('/asset-allocations/parse-excel', authenticate, authorizeRoles('SchoolAdmin'), wordUpload.single('file'), allocationCtrl.parseExcelFile);
-router.get('/asset-allocations/classes', authenticate, authorizeRoles('SchoolAdmin'), allocationCtrl.listClasses);
-router.get('/asset-allocations/:id', authenticate, authorizeRoles('SchoolAdmin'), allocationCtrl.getAllocation);
-router.put('/asset-allocations/:id', authenticate, authorizeRoles('SchoolAdmin'), allocationCtrl.updateAllocation);
-router.delete('/asset-allocations/:id', authenticate, authorizeRoles('SchoolAdmin'), allocationCtrl.deleteAllocation);
-router.patch('/asset-allocations/:id/transfer', authenticate, authorizeRoles('SchoolAdmin'), allocationCtrl.transferAllocation);
+router.get('/asset-allocations', authenticate, authorizePermissions('MANAGE_ASSET'), allocationCtrl.listAllocations);
+router.post('/asset-allocations', authenticate, authorizePermissions('MANAGE_ASSET'), allocationCtrl.createAllocation);
+router.get('/asset-allocations/template', authenticate, authorizePermissions('MANAGE_ASSET'), allocationCtrl.generateExcelTemplate);
+router.post('/asset-allocations/parse-word', authenticate, authorizePermissions('MANAGE_ASSET'), wordUpload.single('file'), allocationCtrl.parseWordFile);
+router.post('/asset-allocations/parse-excel', authenticate, authorizePermissions('MANAGE_ASSET'), wordUpload.single('file'), allocationCtrl.parseExcelFile);
+router.get('/asset-allocations/classes', authenticate, authorizePermissions('MANAGE_ASSET'), allocationCtrl.listClasses);
+router.get('/asset-allocations/:id/export-word', authenticate, authorizePermissions('MANAGE_ASSET'), allocationCtrl.exportWord);
+router.get('/asset-allocations/:id', authenticate, authorizePermissions('MANAGE_ASSET'), allocationCtrl.getAllocation);
+router.put('/asset-allocations/:id', authenticate, authorizePermissions('MANAGE_ASSET'), allocationCtrl.updateAllocation);
+router.delete('/asset-allocations/:id', authenticate, authorizePermissions('MANAGE_ASSET'), allocationCtrl.deleteAllocation);
+router.patch('/asset-allocations/:id/transfer', authenticate, authorizePermissions('MANAGE_ASSET'), allocationCtrl.transferAllocation);
 
 // ============================================
 // Purchase Requests (Yêu cầu mua sắm)
 // ============================================
-router.get('/purchase-requests', authenticate, authorizeRoles('SchoolAdmin'), purchaseCtrl.listAllRequests);
-router.patch('/purchase-requests/:id/approve', authenticate, authorizeRoles('SchoolAdmin'), purchaseCtrl.approveRequest);
-router.patch('/purchase-requests/:id/reject', authenticate, authorizeRoles('SchoolAdmin'), purchaseCtrl.rejectRequest);
+router.get('/purchase-requests', authenticate, authorizePermissions('MANAGE_PURCHASE_REQUEST'), purchaseCtrl.listAllRequests);
+router.patch('/purchase-requests/:id/approve', authenticate, authorizePermissions('MANAGE_PURCHASE_REQUEST'), purchaseCtrl.approveRequest);
+router.patch('/purchase-requests/:id/reject', authenticate, authorizePermissions('MANAGE_PURCHASE_REQUEST'), purchaseCtrl.rejectRequest);
 
 // ============================================
 // Asset Incidents (Báo cáo sự cố tài sản)
 // ============================================
-router.get('/asset-incidents',          authenticate, authorizeRoles('SchoolAdmin'), incidentCtrl.listAllIncidents);
-router.patch('/asset-incidents/:id',    authenticate, authorizeRoles('SchoolAdmin'), incidentCtrl.updateIncidentStatus);
+router.get('/asset-incidents', authenticate, authorizePermissions('MANAGE_ASSET'), incidentCtrl.listAllIncidents);
+router.patch('/asset-incidents/:id', authenticate, authorizePermissions('MANAGE_ASSET'), incidentCtrl.updateIncidentStatus);
 
 module.exports = router;

@@ -20,7 +20,6 @@ import {
   Paper,
   Select,
   Stack,
-  Tab,
   Table,
   TableBody,
   TableCell,
@@ -28,7 +27,6 @@ import {
   TableHead,
   TablePagination,
   TableRow,
-  Tabs,
   TextField,
   Tooltip,
   Typography,
@@ -39,11 +37,13 @@ import AddIcon from '@mui/icons-material/Add';
 import DeleteIcon from '@mui/icons-material/Delete';
 import DownloadIcon from '@mui/icons-material/Download';
 import EditIcon from '@mui/icons-material/Edit';
+import FileDownloadIcon from '@mui/icons-material/FileDownload';
 import UploadFileIcon from '@mui/icons-material/UploadFile';
 import RoleLayout from '../../layouts/RoleLayout';
 import { useAuth } from '../../context/AuthContext';
 import { del, get, patch, post, put, ENDPOINTS } from '../../service/api';
-import { SCHOOL_ADMIN_MENU_ITEMS, createSchoolAdminMenuSelect } from './schoolAdminMenuConfig';
+import { createSchoolAdminMenuSelect } from './schoolAdminMenuConfig';
+import { useSchoolAdminMenu } from './useSchoolAdminMenu';
 
 // ─── Constants ────────────────────────────────────────────────────────────────
 const STATUS_LABEL = {
@@ -126,7 +126,7 @@ function AddCategoryDialog({ open, onClose, onConfirm }) {
 }
 
 // ─── Committee Tab ────────────────────────────────────────────────────────────
-function CommitteeTab() {
+export function CommitteeTab() {
   const theme = useTheme();
   const isMobile = useMediaQuery(theme.breakpoints.down('sm'));
 
@@ -142,8 +142,6 @@ function CommitteeTab() {
   const [viewCommittee, setViewCommittee] = useState(null);
   const [deleteTarget, setDeleteTarget] = useState(null);
   const [deleting, setDeleting]         = useState(false);
-  const importRef = useRef();
-
   const load = async () => {
     setLoading(true);
     try {
@@ -227,35 +225,6 @@ function CommitteeTab() {
     finally { setDeleting(false); }
   };
 
-  const handleImport = e => {
-    const file = e.target.files?.[0];
-    if (!file) return;
-    import('xlsx').then(XLSX => {
-      const reader = new FileReader();
-      reader.onload = evt => {
-        const wb   = XLSX.read(evt.target.result, { type: 'array' });
-        const ws   = wb.Sheets[wb.SheetNames[0]];
-        const rows = XLSX.utils.sheet_to_json(ws, { header: 1 });
-        if (!rows?.length) { toast.error('File rỗng hoặc sai định dạng.'); return; }
-        const header       = rows[0] || [];
-        const name         = String(header[0] || '').trim();
-        const foundedDate  = header[1] ? new Date(header[1]).toISOString().slice(0, 10) : '';
-        const decisionNumber = String(header[2] || '').trim();
-        const members = rows.slice(1).filter(r => r[0]).map(r => ({
-          fullName: String(r[0] || '').trim(),
-          position: String(r[1] || '').trim(),
-          role:     String(r[2] || 'Thành viên').trim(),
-          notes:    String(r[3] || '').trim(),
-        }));
-        setForm({ name, foundedDate, decisionNumber, members: members.length ? members : [emptyMember()] });
-        setShowForm(true);
-        toast.success('Đọc file thành công. Kiểm tra lại trước khi lưu.');
-      };
-      reader.readAsArrayBuffer(file);
-    }).catch(() => toast.error('Không hỗ trợ import Excel.'));
-    e.target.value = '';
-  };
-
   const allPersons  = [
     ...teachers.map(t => ({ fullName: t.fullName, group: 'Giáo viên' })),
     ...staff.map(s => ({ fullName: s.fullName, group: 'Ban Giám Hiệu' })),
@@ -268,10 +237,6 @@ function CommitteeTab() {
       <Stack direction={{ xs: 'column', sm: 'row' }} justifyContent="space-between" alignItems={{ xs: 'stretch', sm: 'center' }} mb={2} gap={1}>
         <Typography variant="h6" fontWeight={700}>Quản lý Ban Kiểm Kê</Typography>
         <Stack direction="row" spacing={1} flexWrap="wrap" justifyContent={{ xs: 'flex-start', sm: 'flex-end' }}>
-          <Button variant="outlined" startIcon={<UploadFileIcon />} onClick={() => importRef.current?.click()} sx={{ textTransform: 'none' }}>
-            Import File
-          </Button>
-          <input ref={importRef} hidden type="file" accept=".xlsx,.xls,.csv" onChange={handleImport} />
           <Button
             variant="contained"
             startIcon={<AddIcon />}
@@ -537,7 +502,7 @@ function CommitteeTab() {
 }
 
 // ─── Minutes Tab ──────────────────────────────────────────────────────────────
-function MinutesTab() {
+export function MinutesTab() {
   const theme = useTheme();
   const isMobile = useMediaQuery(theme.breakpoints.down('sm'));
 
@@ -648,6 +613,26 @@ function MinutesTab() {
     finally { setDeleting(false); }
   };
 
+  const downloadWord = async (m) => {
+    try {
+      const { getToken } = await import('../../service/api');
+      const API_BASE = import.meta.env.VITE_API_BASE_URL || 'http://localhost:5000/api';
+      const res = await fetch(`${API_BASE}${ENDPOINTS.SCHOOL_ADMIN.ASSET_MINUTES_EXPORT_WORD(m._id)}`, {
+        headers: { Authorization: `Bearer ${getToken()}` },
+      });
+      if (!res.ok) { toast.error('Không xuất được file Word.'); return; }
+      const blob = await res.blob();
+      const url  = URL.createObjectURL(blob);
+      const a    = document.createElement('a');
+      a.href     = url;
+      a.download = `bien_ban_kiem_ke_${m.minutesNumber || m._id}.docx`;
+      a.click();
+      URL.revokeObjectURL(url);
+    } catch {
+      toast.error('Lỗi xuất Word.');
+    }
+  };
+
   const isApproved         = editingMinutes?.status === 'approved';
   const isReadOnly         = true; // BGH chỉ xem, không chỉnh sửa
   const parsedDate         = form.inspectionDate ? new Date(form.inspectionDate) : null;
@@ -690,6 +675,11 @@ function MinutesTab() {
                 </Stack>
                 <Stack direction="row" spacing={1} mt={1.5}>
                   <Button size="small" variant="contained" color="info" sx={{ textTransform: 'none', flex: 1 }} onClick={() => handleOpenView(m)}>Xem</Button>
+                  <Tooltip title="Tải về Word (.docx)">
+                    <IconButton size="small" color="primary" onClick={() => downloadWord(m)}>
+                      <FileDownloadIcon fontSize="small" />
+                    </IconButton>
+                  </Tooltip>
                   <IconButton size="small" color="error" onClick={() => setDeleteTarget(m._id)}><DeleteIcon fontSize="small" /></IconButton>
                 </Stack>
               </Paper>
@@ -722,6 +712,11 @@ function MinutesTab() {
                     <TableCell align="center">
                       <Stack direction="row" spacing={0.5} justifyContent="center">
                         <Button size="small" variant="contained" color="info" sx={{ textTransform: 'none' }} onClick={() => handleOpenView(m)}>Xem</Button>
+                        <Tooltip title="Tải về Word (.docx)">
+                          <IconButton size="small" color="primary" onClick={() => downloadWord(m)}>
+                            <FileDownloadIcon fontSize="small" />
+                          </IconButton>
+                        </Tooltip>
                         <IconButton size="small" color="error" onClick={() => setDeleteTarget(m._id)}><DeleteIcon fontSize="small" /></IconButton>
                       </Stack>
                     </TableCell>
@@ -969,6 +964,11 @@ function MinutesTab() {
 
         <DialogActions sx={{ px: { xs: 1.5, sm: 3 }, pb: 2, gap: 1, flexWrap: 'wrap' }}>
           <Button onClick={() => setOpenModal(false)} disabled={saving}>Đóng</Button>
+          {editingMinutes && (
+            <Button variant="outlined" color="primary" startIcon={<FileDownloadIcon />} onClick={() => downloadWord(editingMinutes)} sx={{ textTransform: 'none' }}>
+              Tải về Word
+            </Button>
+          )}
           {editingMinutes?.status === 'pending' && (
             <>
               <Button variant="contained" color="success" onClick={handleApprove} disabled={saving} sx={{ textTransform: 'none' }}>
@@ -1331,88 +1331,642 @@ function AssetsTab() {
     e.target.value = '';
   };
 
-  const handleDownloadTemplate = () => {
-    import('xlsx').then(XLSX => {
-      const aoa = [
-        // Tiêu đề chính
-        ['I. CƠ SỞ VẬT CHẤT', 'Tổng nhu cầu theo QĐ', 'Tổng số', 'Diện tích (m²)', 'Kiên cố - Số', 'Kiên cố - DT', 'Bán kiên cố - Số', 'Bán kiên cố - DT', 'Tạm - Số', 'Tạm - DT'],
-        // Section 1
-        ['1. Phòng nuôi dưỡng, chăm sóc, giáo dục trẻ em'],
-        ['- Tổng số phòng học',             17, 17, 695, 17, 695, '', '', '', ''],
-        ['+ Khu sinh hoạt chung',           17, 17, 695, 17, 695, '', '', '', ''],
-        ['+ Khu ngủ',                       17, 10, 472.2, 10, 472.2, '', '', '', ''],
-        ['+ Khu vệ sinh',                   17, 17, 223.81, 17, 223.81, '', '', '', ''],
-        ['+ Hiên chơi, đón trẻ',            17, 17, 560.75, 17, 560.75, '', '', '', ''],
-        ['+ Kho nhóm, lớp',                 17, '', '', '', '', '', '', '', ''],
-        ['+ Phòng giáo viên',                2, '', '', '', '', '', '',  '', ''],
-        // Section 2
-        ['2. Số bàn, ghế ngồi', 'Tổng nhu cầu theo QĐ', 'Tổng số', '', '', '', '', '', '', ''],
-        ['- Tổng số bàn',   300, 277, '', '', '', '', '', '', ''],
-        ['+ Bàn giáo viên',  38,  17, '', '', '', '', '', '', ''],
-        ['+ Bàn học sinh',  260, 260, '', '', '', '', '', '', ''],
-        ['- Tổng số ghế',   558, 558, '', '', '', '', '', '', ''],
-        ['+ Ghế giáo viên',  38,  17, '', '', '', '', '', '', ''],
-        ['+ Ghế học sinh',  520, 520, '', '', '', '', '', '', ''],
-        // Section 3
-        ['3. Khối phòng phục vụ học tập'],
-        ['- Phòng thư viện',      1, 1,  40, 1,  40, '', '', '', ''],
-        ['- Phòng Giáo dục thể chất', 1, '', '', '', '', '', '', '', ''],
-        ['- Phòng Giáo dục nghệ thuật', 1, 1, 73, 1, 73, '', '', '', ''],
-        ['- Phòng Y tế học đường', 1, 1, 12, 1, 12, '', '', '', ''],
-        ['- Nhà tập đa năng',     1, '', '', '', '', '', '', '', ''],
-        ['- Phòng làm quen với máy tính', 1, 1, 16, 1, 16, '', '', '', ''],
-        ['- Sân chơi riêng',      2, 1, 540, 1, 540, '', '', '', ''],
-        // Section 4
-        ['4. Phòng tổ chức ăn, nghỉ'],
-        ['- Nhà bếp',   2, 2,  75, 1, 45, 1, 30, '', ''],
-        ['- Phòng ăn',  1, 1,   9, '', '', '', '', 1, 9],
-        ['- Kho bếp',   2, 2,  12, 1,  6, 1,  6, '', ''],
-        // Section 5
-        ['5. Công trình công cộng và khối phòng phục vụ khác'],
-        ['- Nhà để xe GV',        1, 1, 108, '', '', '', '', 1, 108],
-        ['- Nhà để xe HS',        0, '', '', '', '', '', '', '', ''],
-        ['- Nhà vệ sinh dành cho GV', 3, 2, 12, 2, 12, '', '', '', ''],
-        // Section 6
-        ['6. Khối phòng hành chính quản trị'],
-        ['- Phòng Hiệu trưởng',     1, 1, 18, 1, 18, '', '', '', ''],
-        ['- Phòng phó Hiệu trưởng', 2, 2, 36, 2, 36, '', '', '', ''],
-        ['- Phòng họp Hội đồng',    1, '', '', '', '', '', '', '', ''],
-        ['- Phòng họp (Tổ chuyên môn)', 1, 1, 18, 1, 18, '', '', '', ''],
-        ['- Văn phòng nhà trường',  1, 1, 40, 1, 40, '', '', '', ''],
-        ['- Phòng thường trực (Bảo vệ)', 2, 1, 6.2, '', '', '', '', 1, 6.2],
-        ['- Nhà công vụ giáo viên', 0, '', '', '', '', '', '', '', ''],
-        ['- Phòng kho lưu trữ tài liệu', 1, 1, 18, 1, 18, '', '', '', ''],
-        // Section 7.1
-        ['7.1. Diện tích đất (Tính đến thời điểm hiện tại)', 'ĐVT', 'Số lượng'],
-        ['- Tổng diện tích khuôn viên đất', 'm²', 3943.3],
-        ['- Diện tích sân chơi',             'm²',  540],
-        ['- Diện tích sân vườn',             'm²',  250],
-        // Section 7.2
-        ['7.2. Thiết bị dạy học và thiết bị CNTT', 'ĐVT', 'Số lượng'],
-        ['- Thiết bị dạy học tối thiểu',                  'Bộ',   17],
-        ['- Thiết bị đồ chơi ngoài trời',                 'Loại', 10],
-        ['- Tổng số máy tính đang được sử dụng',           'Bộ',   28],
-        ['- Tổng số đường truyền Internet',                'Bộ',    2],
-        ['- Số máy tính được kết nối Internet',            'Bộ',   28],
-        ['- Số máy tính phục vụ công tác Quản lý',         'Bộ',    8],
-        ['- Số máy tính phục vụ công tác Giảng dạy, Học tập', 'Bộ', 20],
-        ['- Máy chiếu',    'Chiếc',  2],
-        ['- Máy Photocopy', 'Chiếc', 1],
-        ['- Máy in',        'Chiếc', 6],
-        ['- Máy Scaner',    'Chiếc', 2],
-        ['- Máy ép Plastic','Chiếc', 0],
-        ['- Tivi dùng cho công tác quản lý',  'Chiếc',  4],
-        ['- Tivi dùng tại các phòng học',     'Chiếc', 17],
-        ['- Đàn phím điện tử',                'Chiếc',  2],
-        ['- Tủ đựng đồ',                      'Chiếc', 51],
+  const handleDownloadTemplate = async () => {
+    try {
+      const ExcelJS = (await import('exceljs')).default;
+      const wb = new ExcelJS.Workbook();
+      wb.creator = 'Trường MN Đức Xuân';
+      wb.created = new Date();
+
+      const ws = wb.addWorksheet('Cơ sở vật chất', {
+        pageSetup: { paperSize: 9, orientation: 'landscape', fitToPage: true, fitToWidth: 1 },
+        views: [{ state: 'frozen', xSplit: 0, ySplit: 7 }],
+      });
+
+      // ── Column widths ──────────────────────────────────────────────────────
+      ws.columns = [
+        { key: 'A', width: 50 },
+        { key: 'B', width: 15 },
+        { key: 'C', width: 12 },
+        { key: 'D', width: 14 },
+        { key: 'E', width: 11 },
+        { key: 'F', width: 13 },
+        { key: 'G', width: 13 },
+        { key: 'H', width: 13 },
+        { key: 'I', width: 11 },
+        { key: 'J', width: 13 },
       ];
 
-      const ws = XLSX.utils.aoa_to_sheet(aoa);
-      ws['!cols'] = [{ wch: 48 }, { wch: 16 }, { wch: 12 }, { wch: 14 }, { wch: 12 }, { wch: 14 }, { wch: 14 }, { wch: 14 }, { wch: 10 }, { wch: 12 }];
-      const wb = XLSX.utils.book_new();
-      XLSX.utils.book_append_sheet(wb, ws, 'CoSoVatChat');
-      XLSX.writeFile(wb, 'mau_co_so_vat_chat.xlsx');
-    });
+      // ── Helpers ────────────────────────────────────────────────────────────
+      const fill  = (argb) => ({ type: 'pattern', pattern: 'solid', fgColor: { argb } });
+      const bdr   = (style = 'thin', color = 'B0BEC5') => ({ style, color: { argb: color } });
+      const allBorders = (style = 'thin', color = 'B0BEC5') => ({
+        top: bdr(style, color), bottom: bdr(style, color),
+        left: bdr(style, color), right: bdr(style, color),
+      });
+      const font  = (size, bold, color = '212121', italic = false) =>
+        ({ name: 'Times New Roman', size, bold, italic, color: { argb: color } });
+      const align = (h, v = 'middle', wrap = true) => ({ horizontal: h, vertical: v, wrapText: wrap });
+
+      const styleCell = (cell, { f, fi, al, bd } = {}) => {
+        if (f)  cell.fill      = f;
+        if (fi) cell.font      = fi;
+        if (al) cell.alignment = al;
+        if (bd) cell.border    = bd;
+      };
+
+      const mergeStyle = (addr, opts) => styleCell(ws.getCell(addr), opts);
+
+      // ── Row 1: School name ─────────────────────────────────────────────────
+      ws.addRow([]);
+      ws.mergeCells('A1:J1');
+      mergeStyle('A1', {
+        f:  fill('1565C0'),
+        fi: font(14, true, 'FFFFFF'),
+        al: align('center'),
+      });
+      ws.getCell('A1').value = 'TRƯỜNG MẦM NON ĐỨC XUÂN';
+      ws.getRow(1).height = 26;
+
+      // ── Row 2: Report title ────────────────────────────────────────────────
+      ws.addRow([]);
+      ws.mergeCells('A2:J2');
+      mergeStyle('A2', {
+        f:  fill('1976D2'),
+        fi: font(13, true, 'FFFFFF'),
+        al: align('center'),
+      });
+      ws.getCell('A2').value = 'BÁO CÁO CƠ SỞ VẬT CHẤT – MẪU NHẬP DỮ LIỆU';
+      ws.getRow(2).height = 24;
+
+      // ── Row 3: Instruction ─────────────────────────────────────────────────
+      ws.addRow([]);
+      ws.mergeCells('A3:J3');
+      mergeStyle('A3', {
+        f:  fill('E3F2FD'),
+        fi: font(9, false, '1565C0', true),
+        al: align('left'),
+      });
+      ws.getCell('A3').value =
+        '  Hướng dẫn: Điền số liệu thực tế vào các ô màu trắng. Các ô màu xanh/cam là tiêu đề, không chỉnh sửa. ' +
+        'File này dùng để Import vào hệ thống quản lý tài sản.';
+      ws.getRow(3).height = 18;
+
+      // ── Row 4: Blank ───────────────────────────────────────────────────────
+      ws.addRow([]);
+      ws.getRow(4).height = 6;
+
+      // ── Rows 5-6: Double-row column header ────────────────────────────────
+      // Row 5: group headers
+      ws.addRow([]);
+      ws.getRow(5).height = 22;
+      const h5 = ws.getRow(5);
+
+      const setH = (addr, value, bgColor = '1565C0', fgColor = 'FFFFFF') => {
+        ws.getCell(addr).value = value;
+        mergeStyle(addr, {
+          f:  fill(bgColor),
+          fi: font(10, true, fgColor),
+          al: align('center'),
+          bd: allBorders('medium', '90CAF9'),
+        });
+      };
+
+      ws.mergeCells('A5:A6');
+      setH('A5', 'Tên phòng / Tài sản');
+      ws.mergeCells('B5:B6');
+      setH('B5', 'Nhu cầu\ntheo QĐ');
+      ws.mergeCells('C5:C6');
+      setH('C5', 'Tổng số');
+      ws.mergeCells('D5:D6');
+      setH('D5', 'Diện tích\n(m²)');
+      ws.mergeCells('E5:F5');
+      setH('E5', 'Kiên cố', '1976D2');
+      ws.mergeCells('G5:H5');
+      setH('G5', 'Bán kiên cố', '388E3C', 'FFFFFF');
+      ws.mergeCells('I5:J5');
+      setH('I5', 'Tạm', 'F57C00', 'FFFFFF');
+
+      // Row 6: sub-headers for construction groups
+      ws.addRow([]);
+      ws.getRow(6).height = 18;
+      const subCols = [
+        ['E6', 'Số phòng', '1976D2'],
+        ['F6', 'Diện tích', '1976D2'],
+        ['G6', 'Số phòng', '388E3C'],
+        ['H6', 'Diện tích', '388E3C'],
+        ['I6', 'Số phòng', 'F57C00'],
+        ['J6', 'Diện tích', 'F57C00'],
+      ];
+      subCols.forEach(([addr, val, bg]) => setH(addr, val, bg));
+
+      // ── Row 7: Unit row ────────────────────────────────────────────────────
+      ws.addRow([]);
+      ws.getRow(7).height = 16;
+      const units = ['', 'Phòng', 'Phòng', 'm²', 'Phòng', 'm²', 'Phòng', 'm²', 'Phòng', 'm²'];
+      units.forEach((u, i) => {
+        const cell = ws.getRow(7).getCell(i + 1);
+        cell.value     = u;
+        cell.font      = font(9, false, '546E7A', true);
+        cell.fill      = fill('E3F2FD');
+        cell.alignment = align('center');
+        cell.border    = allBorders('thin', 'B0BEC5');
+      });
+
+      // ── Section builder helpers ────────────────────────────────────────────
+      const SECTION_COLORS = [
+        '1565C0', // 1
+        '6A1B9A', // 2
+        '00695C', // 3
+        'B71C1C', // 4
+        '37474F', // 5
+        'E65100', // 6
+        '004D40', // 7
+      ];
+
+      const addSectionHeader = (title, colorIdx) => {
+        const color = SECTION_COLORS[colorIdx] || '1565C0';
+        const row = ws.addRow([title]);
+        ws.mergeCells(`A${row.number}:J${row.number}`);
+        mergeStyle(`A${row.number}`, {
+          f:  fill(color),
+          fi: font(10, true, 'FFFFFF'),
+          al: align('left'),
+          bd: { top: bdr('medium', color), bottom: bdr('medium', color), left: bdr('thin'), right: bdr('thin') },
+        });
+        row.height = 20;
+      };
+
+      const addDataRow = (label, vals, isSubItem = false) => {
+        const rowData = [label, ...vals];
+        const row = ws.addRow(rowData);
+        row.height = 18;
+        row.eachCell({ includeEmpty: true }, (cell, colNum) => {
+          if (colNum === 1) {
+            cell.font      = font(10, !isSubItem, isSubItem ? '424242' : '212121');
+            cell.alignment = align('left');
+            cell.fill      = fill(isSubItem ? 'FAFAFA' : 'F5F5F5');
+          } else {
+            cell.font      = font(10, false, '1565C0');
+            cell.alignment = align('center');
+            cell.fill      = fill('FFFFFF');
+            cell.numFmt    = '#,##0.##';
+          }
+          cell.border = allBorders('thin', 'CFD8DC');
+        });
+      };
+
+      // Equipment section (7.x): 3 columns only
+      const addEquipSectionHeader = (title, colorIdx) => {
+        const color = SECTION_COLORS[colorIdx] || '004D40';
+        const row = ws.addRow([title, 'ĐVT', 'Số lượng']);
+        ws.mergeCells(`C${row.number}:J${row.number}`);
+        [1, 2, 3].forEach(ci => {
+          const cell = row.getCell(ci);
+          cell.fill      = fill(ci === 1 ? color : color + 'CC');
+          cell.font      = font(10, true, 'FFFFFF');
+          cell.alignment = align(ci === 1 ? 'left' : 'center');
+          cell.border    = allBorders('medium', '80CBC4');
+        });
+        row.height = 20;
+      };
+
+      const addEquipRow = (label, dvt, qty) => {
+        const row = ws.addRow([label, dvt, qty]);
+        ws.mergeCells(`C${row.number}:J${row.number}`);
+        row.height = 18;
+        row.getCell(1).font      = font(10, false, '212121');
+        row.getCell(1).alignment = align('left');
+        row.getCell(1).fill      = fill('FAFAFA');
+        row.getCell(1).border    = allBorders('thin', 'CFD8DC');
+        row.getCell(2).font      = font(10, false, '5D4037');
+        row.getCell(2).alignment = align('center');
+        row.getCell(2).fill      = fill('FFF8E1');
+        row.getCell(2).border    = allBorders('thin', 'CFD8DC');
+        row.getCell(3).font      = font(10, true, '1565C0');
+        row.getCell(3).alignment = align('center');
+        row.getCell(3).fill      = fill('FFFFFF');
+        row.getCell(3).numFmt    = '#,##0.##';
+        row.getCell(3).border    = allBorders('thin', 'CFD8DC');
+      };
+
+      // ── Section 1 ──────────────────────────────────────────────────────────
+      addSectionHeader('1. Phòng nuôi dưỡng, chăm sóc, giáo dục trẻ em', 0);
+      addDataRow('- Tổng số phòng học',   [17, 17, 695, 17, 695, '', '', '', '']);
+      addDataRow('+ Khu sinh hoạt chung', [17, 17, 695, 17, 695, '', '', '', ''], true);
+      addDataRow('+ Khu ngủ',             [17, 10, 472.2, 10, 472.2, '', '', '', ''], true);
+      addDataRow('+ Khu vệ sinh',         [17, 17, 223.81, 17, 223.81, '', '', '', ''], true);
+      addDataRow('+ Hiên chơi, đón trẻ',  [17, 17, 560.75, 17, 560.75, '', '', '', ''], true);
+      addDataRow('+ Kho nhóm, lớp',       [17, '', '', '', '', '', '', '', ''], true);
+      addDataRow('+ Phòng giáo viên',      [2,  '', '', '', '', '', '', '', ''], true);
+
+      // ── Section 2 ──────────────────────────────────────────────────────────
+      addSectionHeader('2. Số bàn, ghế ngồi', 1);
+      addDataRow('- Tổng số bàn',   [300, 277, '', '', '', '', '', '', '']);
+      addDataRow('+ Bàn giáo viên', [ 38,  17, '', '', '', '', '', '', ''], true);
+      addDataRow('+ Bàn học sinh',  [260, 260, '', '', '', '', '', '', ''], true);
+      addDataRow('- Tổng số ghế',   [558, 558, '', '', '', '', '', '', '']);
+      addDataRow('+ Ghế giáo viên', [ 38,  17, '', '', '', '', '', '', ''], true);
+      addDataRow('+ Ghế học sinh',  [520, 520, '', '', '', '', '', '', ''], true);
+
+      // ── Section 3 ──────────────────────────────────────────────────────────
+      addSectionHeader('3. Khối phòng phục vụ học tập', 2);
+      addDataRow('- Phòng thư viện',               [1, 1,  40, 1,  40, '', '', '', '']);
+      addDataRow('- Phòng Giáo dục thể chất',      [1, '', '', '', '', '', '', '', '']);
+      addDataRow('- Phòng Giáo dục nghệ thuật',    [1, 1, 73, 1, 73, '', '', '', '']);
+      addDataRow('- Phòng Y tế học đường',          [1, 1, 12, 1, 12, '', '', '', '']);
+      addDataRow('- Nhà tập đa năng',              [1, '', '', '', '', '', '', '', '']);
+      addDataRow('- Phòng làm quen với máy tính',  [1, 1, 16, 1, 16, '', '', '', '']);
+      addDataRow('- Sân chơi riêng',               [2, 1, 540, 1, 540, '', '', '', '']);
+
+      // ── Section 4 ──────────────────────────────────────────────────────────
+      addSectionHeader('4. Phòng tổ chức ăn, nghỉ', 3);
+      addDataRow('- Nhà bếp',  [2, 2,  75, 1, 45, 1, 30, '', '']);
+      addDataRow('- Phòng ăn', [1, 1,   9, '', '', '', '', 1, 9]);
+      addDataRow('- Kho bếp',  [2, 2,  12, 1,  6, 1,  6, '', '']);
+
+      // ── Section 5 ──────────────────────────────────────────────────────────
+      addSectionHeader('5. Công trình công cộng và khối phòng phục vụ khác', 4);
+      addDataRow('- Nhà để xe GV',             [1, 1, 108, '', '', '', '', 1, 108]);
+      addDataRow('- Nhà để xe HS',             [0, '', '', '', '', '', '', '', '']);
+      addDataRow('- Nhà vệ sinh dành cho GV',  [3, 2, 12, 2, 12, '', '', '', '']);
+
+      // ── Section 6 ──────────────────────────────────────────────────────────
+      addSectionHeader('6. Khối phòng hành chính quản trị', 5);
+      addDataRow('- Phòng Hiệu trưởng',            [1, 1, 18, 1, 18, '', '', '', '']);
+      addDataRow('- Phòng phó Hiệu trưởng',        [2, 2, 36, 2, 36, '', '', '', '']);
+      addDataRow('- Phòng họp Hội đồng',           [1, '', '', '', '', '', '', '', '']);
+      addDataRow('- Phòng họp (Tổ chuyên môn)',    [1, 1, 18, 1, 18, '', '', '', '']);
+      addDataRow('- Văn phòng nhà trường',         [1, 1, 40, 1, 40, '', '', '', '']);
+      addDataRow('- Phòng thường trực (Bảo vệ)',   [2, 1, 6.2, '', '', '', '', 1, 6.2]);
+      addDataRow('- Nhà công vụ giáo viên',        [0, '', '', '', '', '', '', '', '']);
+      addDataRow('- Phòng kho lưu trữ tài liệu',  [1, 1, 18, 1, 18, '', '', '', '']);
+
+      // ── Blank separator ────────────────────────────────────────────────────
+      const sepRow = ws.addRow([]);
+      ws.mergeCells(`A${sepRow.number}:J${sepRow.number}`);
+      ws.getCell(`A${sepRow.number}`).fill = fill('E8F5E9');
+      sepRow.height = 8;
+
+      // ── Section 7.1 ────────────────────────────────────────────────────────
+      addEquipSectionHeader('7.1. Diện tích đất (Tính đến thời điểm hiện tại)', 6);
+      addEquipRow('- Tổng diện tích khuôn viên đất', 'm²', 3943.3);
+      addEquipRow('- Diện tích sân chơi',             'm²',  540);
+      addEquipRow('- Diện tích sân vườn',             'm²',  250);
+
+      // ── Section 7.2 ────────────────────────────────────────────────────────
+      addEquipSectionHeader('7.2. Thiết bị dạy học và thiết bị CNTT', 6);
+      addEquipRow('- Thiết bị dạy học tối thiểu',                   'Bộ',    17);
+      addEquipRow('- Thiết bị đồ chơi ngoài trời',                  'Loại',  10);
+      addEquipRow('- Tổng số máy tính đang được sử dụng',            'Bộ',    28);
+      addEquipRow('- Tổng số đường truyền Internet',                 'Bộ',     2);
+      addEquipRow('- Số máy tính được kết nối Internet',             'Bộ',    28);
+      addEquipRow('- Số máy tính phục vụ công tác Quản lý',          'Bộ',     8);
+      addEquipRow('- Số máy tính phục vụ công tác Giảng dạy, Học tập','Bộ',  20);
+      addEquipRow('- Máy chiếu',      'Chiếc',  2);
+      addEquipRow('- Máy Photocopy',  'Chiếc',  1);
+      addEquipRow('- Máy in',         'Chiếc',  6);
+      addEquipRow('- Máy Scaner',     'Chiếc',  2);
+      addEquipRow('- Máy ép Plastic', 'Chiếc',  0);
+      addEquipRow('- Tivi dùng cho công tác quản lý', 'Chiếc',  4);
+      addEquipRow('- Tivi dùng tại các phòng học',    'Chiếc', 17);
+      addEquipRow('- Đàn phím điện tử',               'Chiếc',  2);
+      addEquipRow('- Tủ đựng đồ',                     'Chiếc', 51);
+
+      // ── Footer ─────────────────────────────────────────────────────────────
+      const lastR = ws.addRow([]);
+      ws.mergeCells(`A${lastR.number}:J${lastR.number}`);
+      ws.getCell(`A${lastR.number}`).value =
+        `Mẫu tải về từ hệ thống Quản lý Tài sản – Trường MN Đức Xuân  |  ${new Date().toLocaleDateString('vi-VN')}`;
+      ws.getCell(`A${lastR.number}`).font      = font(9, false, '90A4AE', true);
+      ws.getCell(`A${lastR.number}`).alignment = align('right');
+      ws.getCell(`A${lastR.number}`).fill      = fill('ECEFF1');
+      lastR.height = 14;
+
+      // ── Write & download ───────────────────────────────────────────────────
+      const buffer = await wb.xlsx.writeBuffer();
+      const blob   = new Blob([buffer], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' });
+      const url    = URL.createObjectURL(blob);
+      const a      = document.createElement('a');
+      a.href     = url;
+      a.download = 'mau_co_so_vat_chat.xlsx';
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      URL.revokeObjectURL(url);
+      toast.success('Tải file mẫu thành công!');
+    } catch (err) {
+      console.error(err);
+      toast.error('Không tải được file mẫu: ' + (err?.message || ''));
+    }
+  };
+
+  const handleExportExcel = async () => {
+    try {
+      const ExcelJS = (await import('exceljs')).default;
+      const wb = new ExcelJS.Workbook();
+      wb.creator = 'Quản lý Tài sản - Trường MN Đức Xuân';
+      wb.created = new Date();
+
+      const ws = wb.addWorksheet('Danh sách tài sản', {
+        pageSetup: { paperSize: 9, orientation: 'landscape', fitToPage: true, fitToWidth: 1, fitToHeight: 0 },
+        views: [{ state: 'frozen', xSplit: 0, ySplit: 6 }],
+      });
+
+      const COLS = [
+        { header: 'STT',           key: 'stt',              width: 6  },
+        { header: 'Mã tài sản',    key: 'assetCode',        width: 13 },
+        { header: 'Tên tài sản',   key: 'name',             width: 38 },
+        { header: 'Loại tài sản',  key: 'category',         width: 32 },
+        { header: 'Phòng/Địa điểm', key: 'room',            width: 20 },
+        { header: 'Nhu cầu QĐ',   key: 'requiredQuantity', width: 13 },
+        { header: 'Thực tế',       key: 'quantity',         width: 11 },
+        { header: 'Diện tích (m²)', key: 'area',            width: 14 },
+        { header: 'Loại CT',       key: 'constructionType', width: 14 },
+        { header: 'Tình trạng',    key: 'condition',        width: 13 },
+        { header: 'Ghi chú',       key: 'notes',            width: 22 },
+      ];
+      const NCOLS = COLS.length;
+      ws.columns = COLS;
+
+      // ── Palette ──────────────────────────────────────────────────────────────
+      const CLR = {
+        headerBg:   '1A56DB', headerFg: 'FFFFFF',
+        catBg:      'E8F0FE', catFg:    '1A56DB',
+        subtotalBg: 'EFF6FF', subtotalFg:'1E40AF',
+        totalBg:    'DBEAFE', totalFg:  '1E3A8A',
+        rowEven:    'F8FAFF',
+        rowOdd:     'FFFFFF',
+        condGood:   'D1FAE5', condBad:  'FEF3C7', condBroken: 'FEE2E2',
+        border:     'CBD5E1',
+        titleBg:    '1E40AF', titleFg:  'FFFFFF',
+        subtitleBg: 'DBEAFE', subtitleFg:'1E3A8A',
+      };
+
+      const border = (color = CLR.border) => ({
+        top:    { style: 'thin', color: { argb: color } },
+        left:   { style: 'thin', color: { argb: color } },
+        bottom: { style: 'thin', color: { argb: color } },
+        right:  { style: 'thin', color: { argb: color } },
+      });
+
+      const fill = (argb) => ({ type: 'pattern', pattern: 'solid', fgColor: { argb } });
+
+      const fontBold = (size = 10, color = '000000') => ({ name: 'Times New Roman', size, bold: true, color: { argb: color } });
+      const fontNormal = (size = 10) => ({ name: 'Times New Roman', size });
+
+      const center = { horizontal: 'center', vertical: 'middle', wrapText: true };
+      const left   = { horizontal: 'left',   vertical: 'middle', wrapText: true };
+      const right  = { horizontal: 'right',  vertical: 'middle', wrapText: true };
+
+      const lastCol = String.fromCharCode(64 + NCOLS); // 'K'
+
+      // ── Row 1: Logo / School name ─────────────────────────────────────────
+      ws.addRow([]);
+      const r1 = ws.getRow(1);
+      r1.height = 22;
+      ws.mergeCells(`A1:${lastCol}1`);
+      const c1 = ws.getCell('A1');
+      c1.value = 'TRƯỜNG MẦM NON ĐỨC XUÂN';
+      c1.font  = { name: 'Times New Roman', size: 13, bold: true, color: { argb: CLR.titleFg } };
+      c1.fill  = fill(CLR.titleBg);
+      c1.alignment = center;
+
+      // ── Row 2: Report title ───────────────────────────────────────────────
+      ws.addRow([]);
+      const r2 = ws.getRow(2);
+      r2.height = 22;
+      ws.mergeCells(`A2:${lastCol}2`);
+      const c2 = ws.getCell('A2');
+      c2.value = 'BÁO CÁO DANH SÁCH TÀI SẢN';
+      c2.font  = { name: 'Times New Roman', size: 13, bold: true, color: { argb: CLR.subtitleFg } };
+      c2.fill  = fill(CLR.subtitleBg);
+      c2.alignment = center;
+
+      // ── Row 3: Meta info ──────────────────────────────────────────────────
+      ws.addRow([]);
+      const r3 = ws.getRow(3);
+      r3.height = 18;
+      ws.mergeCells(`A3:E3`);
+      const c3a = ws.getCell('A3');
+      const now = new Date();
+      c3a.value = `Ngày xuất: ${now.toLocaleDateString('vi-VN', { day: '2-digit', month: '2-digit', year: 'numeric' })}   Giờ: ${now.toLocaleTimeString('vi-VN', { hour: '2-digit', minute: '2-digit' })}`;
+      c3a.font  = fontNormal(10);
+      c3a.alignment = left;
+      ws.mergeCells(`F3:${lastCol}3`);
+      const c3b = ws.getCell('F3');
+      const filterDesc = [
+        `Tổng: ${filtered.length} tài sản`,
+        filterCategory ? `Loại: ${filterCategory}` : '',
+        search ? `Tìm kiếm: "${search}"` : '',
+      ].filter(Boolean).join('   |   ');
+      c3b.value = filterDesc;
+      c3b.font  = fontNormal(10);
+      c3b.alignment = right;
+
+      // ── Row 4: Blank spacer ───────────────────────────────────────────────
+      ws.addRow([]);
+      ws.getRow(4).height = 6;
+
+      // ── Row 5: Column headers ─────────────────────────────────────────────
+      ws.addRow([]);
+      const r5 = ws.getRow(5);
+      r5.height = 30;
+      COLS.forEach((col, i) => {
+        const cell = r5.getCell(i + 1);
+        cell.value     = col.header;
+        cell.font      = fontBold(10, CLR.headerFg);
+        cell.fill      = fill(CLR.headerBg);
+        cell.alignment = center;
+        cell.border    = border('90A8C3');
+      });
+
+      // ── Row 6: Unit row ───────────────────────────────────────────────────
+      ws.addRow([]);
+      const r6 = ws.getRow(6);
+      r6.height = 18;
+      const UNITS = ['', '', '', '', '', 'Cái/Phòng', 'Cái/Phòng', 'm²', '', '', ''];
+      UNITS.forEach((u, i) => {
+        const cell = r6.getCell(i + 1);
+        cell.value     = u;
+        cell.font      = { name: 'Times New Roman', size: 9, italic: true, color: { argb: '64748B' } };
+        cell.fill      = fill('EFF6FF');
+        cell.alignment = center;
+        cell.border    = border('CBD5E1');
+      });
+
+      // ── Data rows, grouped by category ────────────────────────────────────
+      const COND_COLOR = {
+        'Tốt':        'D1FAE5',
+        'Khá':        'D1FAE5',
+        'Trung bình': 'FEF3C7',
+        'Hỏng':       'FEE2E2',
+        'Cần sửa':    'FEF3C7',
+      };
+
+      const catList = CATEGORY_OPTIONS.map(cat => ({
+        cat,
+        rows: filtered.filter(a => a.category === cat),
+      })).filter(g => g.rows.length > 0);
+      const uncatRows = filtered.filter(a => !CATEGORY_OPTIONS.includes(a.category));
+      if (uncatRows.length) catList.push({ cat: 'Khác', rows: uncatRows });
+
+      let rowIdx = 7;
+      let grandReq = 0, grandAct = 0, grandCount = 0;
+
+      catList.forEach(({ cat, rows }, gi) => {
+        // Category header row
+        const catRow = ws.getRow(rowIdx++);
+        catRow.height = 20;
+        ws.mergeCells(`A${rowIdx - 1}:${lastCol}${rowIdx - 1}`);
+        const catCell = ws.getCell(`A${rowIdx - 1}`);
+        catCell.value = `${gi + 1}.  ${cat}  (${rows.length} mục)`;
+        catCell.font  = fontBold(10, CLR.catFg);
+        catCell.fill  = fill(CLR.catBg);
+        catCell.alignment = left;
+        catCell.border = {
+          top:    { style: 'medium', color: { argb: '93B4F0' } },
+          bottom: { style: 'medium', color: { argb: '93B4F0' } },
+          left:   { style: 'thin',   color: { argb: CLR.border } },
+          right:  { style: 'thin',   color: { argb: CLR.border } },
+        };
+
+        let catReq = 0, catAct = 0;
+
+        rows.forEach((a, i) => {
+          const isEven = i % 2 === 0;
+          const dr = ws.getRow(rowIdx++);
+          dr.height = 18;
+          const vals = [
+            i + 1,
+            a.assetCode,
+            a.name,
+            a.category,
+            a.room || '',
+            a.requiredQuantity || 0,
+            a.quantity || 0,
+            a.area != null ? a.area : '',
+            a.constructionType !== 'Không áp dụng' ? a.constructionType : '',
+            a.condition,
+            a.notes || '',
+          ];
+          vals.forEach((v, ci) => {
+            const cell = dr.getCell(ci + 1);
+            cell.value     = v;
+            cell.font      = fontNormal(10);
+            cell.fill      = fill(isEven ? CLR.rowEven : CLR.rowOdd);
+            cell.border    = border(CLR.border);
+            cell.alignment = ci === 0 ? center : ci >= 5 && ci <= 7 ? { ...center } : left;
+          });
+
+          // Condition color highlight
+          const condColor = COND_COLOR[a.condition];
+          if (condColor) {
+            ws.getCell(`J${rowIdx - 1}`).fill = fill(condColor);
+          }
+
+          // Quantity vs required: highlight cell
+          const qty = a.quantity || 0;
+          const req = a.requiredQuantity || 0;
+          if (req > 0) {
+            ws.getCell(`G${rowIdx - 1}`).font = {
+              name: 'Times New Roman', size: 10,
+              bold: true,
+              color: { argb: qty >= req ? '059669' : 'D97706' },
+            };
+          }
+
+          catReq += req;
+          catAct += qty;
+        });
+
+        // Category subtotal row
+        const subRow = ws.getRow(rowIdx++);
+        subRow.height = 18;
+        ws.mergeCells(`A${rowIdx - 1}:E${rowIdx - 1}`);
+        ws.getCell(`A${rowIdx - 1}`).value = `Cộng: ${rows.length} mục`;
+        ws.getCell(`A${rowIdx - 1}`).font  = fontBold(10, CLR.subtotalFg);
+        ws.getCell(`A${rowIdx - 1}`).fill  = fill(CLR.subtotalBg);
+        ws.getCell(`A${rowIdx - 1}`).alignment = right;
+        ws.getCell(`A${rowIdx - 1}`).border = border('93B4F0');
+
+        ws.getCell(`F${rowIdx - 1}`).value = catReq;
+        ws.getCell(`F${rowIdx - 1}`).font  = fontBold(10, CLR.subtotalFg);
+        ws.getCell(`F${rowIdx - 1}`).fill  = fill(CLR.subtotalBg);
+        ws.getCell(`F${rowIdx - 1}`).alignment = center;
+        ws.getCell(`F${rowIdx - 1}`).border = border('93B4F0');
+
+        ws.getCell(`G${rowIdx - 1}`).value = catAct;
+        ws.getCell(`G${rowIdx - 1}`).font  = fontBold(10, CLR.subtotalFg);
+        ws.getCell(`G${rowIdx - 1}`).fill  = fill(CLR.subtotalBg);
+        ws.getCell(`G${rowIdx - 1}`).alignment = center;
+        ws.getCell(`G${rowIdx - 1}`).border = border('93B4F0');
+
+        ['H','I','J','K'].forEach(col => {
+          ws.getCell(`${col}${rowIdx - 1}`).fill   = fill(CLR.subtotalBg);
+          ws.getCell(`${col}${rowIdx - 1}`).border = border('93B4F0');
+        });
+
+        grandReq   += catReq;
+        grandAct   += catAct;
+        grandCount += rows.length;
+      });
+
+      // ── Grand total row ───────────────────────────────────────────────────
+      const totalRow = ws.getRow(rowIdx++);
+      totalRow.height = 22;
+      ws.mergeCells(`A${rowIdx - 1}:E${rowIdx - 1}`);
+      ws.getCell(`A${rowIdx - 1}`).value = `TỔNG CỘNG: ${grandCount} tài sản`;
+      ws.getCell(`A${rowIdx - 1}`).font  = fontBold(11, CLR.totalFg);
+      ws.getCell(`A${rowIdx - 1}`).fill  = fill(CLR.totalBg);
+      ws.getCell(`A${rowIdx - 1}`).alignment = center;
+      ws.getCell(`A${rowIdx - 1}`).border = { top: { style: 'medium', color: { argb: '3B82F6' } }, bottom: { style: 'medium', color: { argb: '3B82F6' } }, left: border().left, right: border().right };
+
+      ws.getCell(`F${rowIdx - 1}`).value = grandReq;
+      ws.getCell(`F${rowIdx - 1}`).font  = fontBold(11, CLR.totalFg);
+      ws.getCell(`F${rowIdx - 1}`).fill  = fill(CLR.totalBg);
+      ws.getCell(`F${rowIdx - 1}`).alignment = center;
+      ws.getCell(`F${rowIdx - 1}`).border = ws.getCell(`A${rowIdx - 1}`).border;
+
+      ws.getCell(`G${rowIdx - 1}`).value = grandAct;
+      ws.getCell(`G${rowIdx - 1}`).font  = fontBold(11, CLR.totalFg);
+      ws.getCell(`G${rowIdx - 1}`).fill  = fill(CLR.totalBg);
+      ws.getCell(`G${rowIdx - 1}`).alignment = center;
+      ws.getCell(`G${rowIdx - 1}`).border = ws.getCell(`A${rowIdx - 1}`).border;
+
+      ['H','I','J','K'].forEach(col => {
+        ws.getCell(`${col}${rowIdx - 1}`).fill   = fill(CLR.totalBg);
+        ws.getCell(`${col}${rowIdx - 1}`).border = ws.getCell(`A${rowIdx - 1}`).border;
+      });
+
+      // ── Footer row ────────────────────────────────────────────────────────
+      const footerRow = ws.getRow(rowIdx);
+      footerRow.height = 14;
+      ws.mergeCells(`A${rowIdx}:${lastCol}${rowIdx}`);
+      ws.getCell(`A${rowIdx}`).value = `Xuất bởi hệ thống Quản lý Tài sản – Trường MN Đức Xuân  |  ${now.toLocaleString('vi-VN')}`;
+      ws.getCell(`A${rowIdx}`).font  = { name: 'Times New Roman', size: 9, italic: true, color: { argb: '94A3B8' } };
+      ws.getCell(`A${rowIdx}`).alignment = right;
+
+      // ── Auto-filter on header row ─────────────────────────────────────────
+      ws.autoFilter = { from: { row: 5, column: 1 }, to: { row: 5, column: NCOLS } };
+
+      // ── Generate & download ───────────────────────────────────────────────
+      const buffer = await wb.xlsx.writeBuffer();
+      const blob   = new Blob([buffer], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' });
+      const url    = URL.createObjectURL(blob);
+      const a      = document.createElement('a');
+      const dateStr = now.toISOString().slice(0, 10);
+      a.href     = url;
+      a.download = `tai-san-${dateStr}.xlsx`;
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      URL.revokeObjectURL(url);
+      toast.success('Xuất Excel thành công!');
+    } catch (err) {
+      console.error(err);
+      toast.error('Xuất Excel thất bại: ' + (err?.message || 'Lỗi không xác định'));
+    }
   };
 
   const handleBulkImport = async () => {
@@ -1495,6 +2049,14 @@ function AssetsTab() {
         <input ref={importRef} hidden type="file" accept=".xlsx,.xls" onChange={handleImportFile} />
         <Button variant="outlined" startIcon={<DownloadIcon />} onClick={handleDownloadTemplate} sx={{ whiteSpace: 'nowrap', textTransform: 'none' }}>
           Tải mẫu
+        </Button>
+        <Button
+          variant="outlined"
+          startIcon={<FileDownloadIcon />}
+          onClick={handleExportExcel}
+          sx={{ whiteSpace: 'nowrap', textTransform: 'none', borderColor: '#059669', color: '#059669', '&:hover': { borderColor: '#047857', backgroundColor: '#F0FDF4' } }}
+        >
+          Xuất Excel
         </Button>
         <Button variant="contained" startIcon={<AddIcon />} onClick={() => handleOpen()} sx={{ whiteSpace: 'nowrap' }}>
           Thêm tài sản
@@ -1833,8 +2395,7 @@ function AssetsTab() {
 export default function ManageAssets() {
   const navigate = useNavigate();
   const { user, logout, isInitializing } = useAuth();
-  const [tab, setTab] = useState(0);
-
+  const menuItems = useSchoolAdminMenu();
   useEffect(() => {
     if (isInitializing) return;
     if (!user) { navigate('/login', { replace: true }); return; }
@@ -1848,7 +2409,7 @@ export default function ManageAssets() {
     <RoleLayout
       title="Quản lý Tài sản"
       description="Danh sách tài sản, ban kiểm kê và biên bản kiểm kê tài sản trường."
-      menuItems={SCHOOL_ADMIN_MENU_ITEMS}
+      menuItems={menuItems}
       activeKey="assets-list"
       onLogout={() => { logout(); navigate('/login', { replace: true }); }}
       userName={user?.fullName || user?.username || 'School Admin'}
@@ -1858,15 +2419,7 @@ export default function ManageAssets() {
     >
       <Paper elevation={0} sx={{ p: { xs: 1.5, sm: 3 }, borderRadius: 3, backgroundColor: '#f9fafb' }}>
         <Typography variant="h5" fontWeight={700} mb={2}>Quản lý Tài sản</Typography>
-        <Tabs value={tab} onChange={(_, v) => setTab(v)} sx={{ borderBottom: 1, borderColor: 'divider', mb: 3 }}
-          variant="scrollable" scrollButtons="auto">
-          <Tab label="1. Danh sách tài sản" />
-          <Tab label="2. Ban Kiểm Kê" />
-          <Tab label="3. Biên bản kiểm kê" />
-        </Tabs>
-        {tab === 0 && <AssetsTab />}
-        {tab === 1 && <CommitteeTab />}
-        {tab === 2 && <MinutesTab />}
+        <AssetsTab />
       </Paper>
     </RoleLayout>
   );

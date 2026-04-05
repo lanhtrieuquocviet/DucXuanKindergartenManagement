@@ -7,7 +7,8 @@ import * as XLSX from 'xlsx';
 import jsPDF from 'jspdf';
 import autoTable from 'jspdf-autotable';
 import { get, ENDPOINTS } from '../../service/api';
-import { SCHOOL_ADMIN_MENU_ITEMS, createSchoolAdminMenuSelect } from './schoolAdminMenuConfig';
+import { createSchoolAdminMenuSelect } from './schoolAdminMenuConfig';
+import { useSchoolAdminMenu } from './useSchoolAdminMenu';
 
 import {
   Box,
@@ -79,6 +80,7 @@ function ExportAttendanceReport() {
   const navigate = useNavigate();
   const { user, logout, isInitializing } = useAuth();
   const { getClasses, getStudents, loading, error } = useSchoolAdmin();
+  const menuItems = useSchoolAdminMenu();
 
   const [reportType, setReportType] = useState('whole-school'); // whole-school, by-class, by-student
   const [selectedClass, setSelectedClass] = useState('');
@@ -584,7 +586,7 @@ function ExportAttendanceReport() {
     <RoleLayout
       title="Xuất báo cáo điểm danh"
       description="Từ màn hình Overview, chọn Xuất báo cáo điểm danh → Hiển thị màn hình Xuất báo cáo điểm danh"
-      menuItems={SCHOOL_ADMIN_MENU_ITEMS}
+      menuItems={menuItems}
       activeKey="attendance"
       onLogout={() => {
         logout();

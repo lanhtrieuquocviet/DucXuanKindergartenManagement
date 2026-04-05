@@ -28,7 +28,8 @@ import { toast } from 'react-toastify';
 import { useAuth } from '../../context/AuthContext';
 import RoleLayout from '../../layouts/RoleLayout';
 import { get, post, patch, del, ENDPOINTS } from '../../service/api';
-import { SCHOOL_ADMIN_MENU_ITEMS, createSchoolAdminMenuSelect } from './schoolAdminMenuConfig';
+import { createSchoolAdminMenuSelect } from './schoolAdminMenuConfig';
+import { useSchoolAdminMenu } from './useSchoolAdminMenu';
 
 function formatDateInput(dateString) {
   if (!dateString) return '';
@@ -79,6 +80,7 @@ function buildWeeks(count, currentWeeks = []) {
 export default function AcademicYearPlan() {
   const navigate = useNavigate();
   const { user, logout } = useAuth();
+  const menuItems = useSchoolAdminMenu();
 
   const [currentYear, setCurrentYear] = useState(null);
   const [loadingYear, setLoadingYear] = useState(false);
@@ -458,7 +460,7 @@ export default function AcademicYearPlan() {
           : 'Kế hoạch chủ đề năm học'
       }
       description="Quản lý danh sách chủ đề theo từng khối lớp và chi tiết hoạt động theo tuần."
-      menuItems={SCHOOL_ADMIN_MENU_ITEMS}
+      menuItems={menuItems}
       activeKey="academic-plan"
       onLogout={handleLogout}
       onViewProfile={() => navigate('/profile')}

@@ -6,7 +6,8 @@ import RoleLayout from '../../layouts/RoleLayout';
 import ConfirmDialog from '../../components/ConfirmDialog';
 import RichTextEditor from '../../components/RichTextEditor';
 import { get, post, put, del, postFormData, ENDPOINTS } from '../../service/api';
-import { SCHOOL_ADMIN_MENU_ITEMS, createSchoolAdminMenuSelect } from './schoolAdminMenuConfig';
+import { createSchoolAdminMenuSelect } from './schoolAdminMenuConfig';
+import { useSchoolAdminMenu } from './useSchoolAdminMenu';
 import {
   Box,
   Paper,
@@ -253,6 +254,7 @@ function DocumentFormModal({ open, onClose, initialData, onSubmit, loading }) {
 export default function ManageDocuments() {
   const navigate = useNavigate();
   const { user, logout, isInitializing } = useAuth();
+  const menuItems = useSchoolAdminMenu();
 
   const [documents, setDocuments] = useState([]);
   const [loading, setLoading] = useState(false);
@@ -403,7 +405,7 @@ export default function ManageDocuments() {
     <RoleLayout
       title="Quản lý tài liệu"
       description="Tạo, chỉnh sửa, xóa và quản lý tài liệu của trường."
-      menuItems={SCHOOL_ADMIN_MENU_ITEMS}
+      menuItems={menuItems}
       activeKey="documents"
       onLogout={handleLogout}
       onViewProfile={handleViewProfile}

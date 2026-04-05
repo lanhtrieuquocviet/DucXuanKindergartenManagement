@@ -20,6 +20,11 @@ const teacherSchema = new mongoose.Schema({
   hireDate: {
     type: Date,
   },
+  employmentType: {
+    type: String,
+    enum: ['contract', 'permanent'],
+    default: 'contract',
+  },
   status: {
     type: String,
     enum: ['active', 'inactive'],

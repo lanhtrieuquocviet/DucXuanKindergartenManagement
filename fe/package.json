@@ -16,7 +16,7 @@
     "@mui/material": "^7.3.8",
     "@tailwindcss/vite": "^4.1.18",
     "@vladmandic/face-api": "^1.7.15",
-    "@xyflow/react": "^12.10.2",
+    "exceljs": "^4.4.0",
     "firebase": "^12.9.0",
     "jspdf": "^4.2.0",
     "jspdf-autotable": "^5.0.7",

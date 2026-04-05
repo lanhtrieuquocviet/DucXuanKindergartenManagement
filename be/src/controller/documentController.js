@@ -25,9 +25,12 @@ const validateDocumentPayload = (body, isCreate = true) => {
     errors.push('Loại tệp đính kèm không hợp lệ');
   }
 
-  if (body.category !== undefined && body.category !== '' && body.category !== null &&
-      !['văn bản pháp quy', 'văn bản từ phòng'].includes(body.category)) {
-    errors.push('Danh mục không hợp lệ');
+  if (body.category !== undefined && body.category !== null) {
+    if (typeof body.category !== 'string') {
+      errors.push('Danh mục không hợp lệ');
+    } else if (body.category.trim().length === 0) {
+      errors.push('Danh mục không hợp lệ');
+    }
   }
 
   return errors;

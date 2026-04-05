@@ -13,7 +13,11 @@ import SystemLogs from './pages/systemAdmin/SystemLogs';
 import BPMDashboard from './pages/systemAdmin/BPMDashboard';
 import TeacherDashboard from './pages/teacher/TeacherDashboard';
 import TeacherAttendance from './pages/teacher/TeacherAttendance';
+import ContactBook from './pages/teacher/ContactBook';
+import ContactBookDetail from './pages/teacher/ContactBookDetail';
+import TeacherStudents from './pages/teacher/TeacherStudents';
 import StudentDashboard from './pages/student/StudentDashboard';
+import StudentContactBook from './pages/student/StudentContactBook';
 import PickupRegistration from './pages/student/PickupRegistration';
 import TodayAttendance from './pages/student/TodayAttendance';
 import AttendanceReport from './pages/student/AttendanceReport';
@@ -26,6 +30,7 @@ import HealthReports from './pages/schoolNurse/HealthReports';
 import ClassList from './pages/schoolAdmin/ClassList';
 import StudentInClass from './pages/schoolAdmin/StudentInClass';
 import ManageStudents from './pages/schoolAdmin/ManageStudents';
+import StudentHealthReport from './pages/schoolAdmin/StudentHealthReport';
 import ManageTeachers from './pages/schoolAdmin/ManageTeachers';
 import ContactList from './pages/schoolAdmin/ContactList';
 import QaList from './pages/schoolAdmin/QaList';
@@ -38,6 +43,8 @@ import ManageBlogs from './pages/schoolAdmin/ManageBlogs';
 import ManageBlogCategories from './pages/schoolAdmin/ManageBlogCategories';
 import ManageDocuments from './pages/schoolAdmin/ManageDocuments';
 import ManageFiles from './pages/schoolAdmin/ManageFiles';
+import ManageImageLibrary from './pages/schoolAdmin/ManageImageLibrary';
+import ManageVideoLibrary from './pages/schoolAdmin/ManageVideoLibrary';
 import BlogDetail from './pages/schoolAdmin/BlogDetail';
 import DocumentDetail from './pages/schoolAdmin/DocumentDetail';
 import Contact from './pages/Contact';
@@ -111,6 +118,8 @@ import TimetableActivitiesPage from './pages/schoolAdmin/TimetableActivitiesPage
 import FaceAttendancePage from './pages/schoolAdmin/FaceAttendancePage';
 import ManageAssets from './pages/schoolAdmin/ManageAssets';
 import ManageAssetAllocation from './pages/schoolAdmin/ManageAssetAllocation';
+import ManageCommittee from './pages/schoolAdmin/ManageCommittee';
+import ManageMinutes from './pages/schoolAdmin/ManageMinutes';
 import ProtectedRoute from './components/ProtectedRoute';
 
 
@@ -296,6 +305,36 @@ function App() {
             }
           />
           <Route
+            path="/teacher/students"
+            element={
+              <ProtectedRoute>
+                <TeacherProvider>
+                  <TeacherStudents />
+                </TeacherProvider>
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/teacher/contact-book"
+            element={
+              <ProtectedRoute>
+                <TeacherProvider>
+                  <ContactBook />
+                </TeacherProvider>
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/teacher/contact-book/:classId"
+            element={
+              <ProtectedRoute>
+                <TeacherProvider>
+                  <ContactBookDetail />
+                </TeacherProvider>
+              </ProtectedRoute>
+            }
+          />
+          <Route
             path="/teacher/attendance"
             element={
               <ProtectedRoute>
@@ -382,6 +421,7 @@ function App() {
           <Route path="/student/attendance/today" element={<ProtectedRoute><TodayAttendance /></ProtectedRoute>} />
           <Route path="/student/attendance/report" element={<ProtectedRoute><AttendanceReport /></ProtectedRoute>} />
           <Route path="/student/meal-photos" element={<ProtectedRoute><MealPhotosStudent /></ProtectedRoute>} />
+          <Route path="/student/contact-book" element={<ProtectedRoute><StudentContactBook /></ProtectedRoute>} />
           <Route
             path="/school-admin"
             element={
@@ -429,6 +469,14 @@ function App() {
                 <SchoolAdminProvider>
                   <ManageStudents />
                 </SchoolAdminProvider>
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/school-admin/students/health-report"
+            element={
+              <ProtectedRoute>
+                <StudentHealthReport />
               </ProtectedRoute>
             }
           />
@@ -566,6 +614,26 @@ function App() {
               <ProtectedRoute>
                 <SchoolAdminProvider>
                   <ManageFiles />
+                </SchoolAdminProvider>
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/school-admin/image-library"
+            element={
+              <ProtectedRoute>
+                <SchoolAdminProvider>
+                  <ManageImageLibrary />
+                </SchoolAdminProvider>
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/school-admin/video-library"
+            element={
+              <ProtectedRoute>
+                <SchoolAdminProvider>
+                  <ManageVideoLibrary />
                 </SchoolAdminProvider>
               </ProtectedRoute>
             }
@@ -726,6 +794,26 @@ function App() {
               <ProtectedRoute>
                 <SchoolAdminProvider>
                   <ManagePurchaseRequests />
+                </SchoolAdminProvider>
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/school-admin/committee"
+            element={
+              <ProtectedRoute>
+                <SchoolAdminProvider>
+                  <ManageCommittee />
+                </SchoolAdminProvider>
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/school-admin/minutes"
+            element={
+              <ProtectedRoute>
+                <SchoolAdminProvider>
+                  <ManageMinutes />
                 </SchoolAdminProvider>
               </ProtectedRoute>
             }

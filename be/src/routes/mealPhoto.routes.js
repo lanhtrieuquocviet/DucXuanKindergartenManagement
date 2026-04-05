@@ -1,7 +1,7 @@
 const express = require('express');
 const router = express.Router();
 const mealPhotoController = require('../controller/mealPhoto.controller');
-const { authenticate, authorizeRoles } = require('../middleware/auth');
+const { authenticate, authorizeRoles, authorizePermissions } = require('../middleware/auth');
 
 /**
  * @openapi
@@ -47,8 +47,8 @@ const { authenticate, authorizeRoles } = require('../middleware/auth');
  *       200:
  *         description: Tạo / cập nhật thành công
  */
-router.get('/', authenticate, authorizeRoles('KitchenStaff', 'SchoolAdmin', 'Student', 'Parent', 'StudentParent'), mealPhotoController.getMealPhoto);
-router.post('/', authenticate, authorizeRoles('KitchenStaff'), mealPhotoController.upsertMealPhoto);
+router.get('/', authenticate, mealPhotoController.getMealPhoto);
+router.post('/', authenticate, authorizePermissions('MANAGE_MEAL_PHOTO'), mealPhotoController.upsertMealPhoto);
 
 /**
  * @openapi
@@ -108,8 +108,8 @@ router.post('/', authenticate, authorizeRoles('KitchenStaff'), mealPhotoControll
  *       200:
  *         description: Xóa thành công
  */
-router.post('/meal-entry', authenticate, authorizeRoles('KitchenStaff'), mealPhotoController.upsertMealEntry);
-router.delete('/meal-entry', authenticate, authorizeRoles('KitchenStaff'), mealPhotoController.deleteMealEntry);
+router.post('/meal-entry', authenticate, authorizePermissions('MANAGE_MEAL_PHOTO'), mealPhotoController.upsertMealEntry);
+router.delete('/meal-entry', authenticate, authorizePermissions('MANAGE_MEAL_PHOTO'), mealPhotoController.deleteMealEntry);
 
 /**
  * @openapi
@@ -167,8 +167,8 @@ router.delete('/meal-entry', authenticate, authorizeRoles('KitchenStaff'), mealP
  *       200:
  *         description: Xóa thành công
  */
-router.post('/sample-entry', authenticate, authorizeRoles('KitchenStaff'), mealPhotoController.upsertSampleEntry);
-router.delete('/sample-entry', authenticate, authorizeRoles('KitchenStaff'), mealPhotoController.deleteSampleEntry);
+router.post('/sample-entry', authenticate, authorizePermissions('MANAGE_MEAL_PHOTO'), mealPhotoController.upsertSampleEntry);
+router.delete('/sample-entry', authenticate, authorizePermissions('MANAGE_MEAL_PHOTO'), mealPhotoController.deleteSampleEntry);
 
 /**
  * @openapi
@@ -206,7 +206,7 @@ router.delete('/sample-entry', authenticate, authorizeRoles('KitchenStaff'), mea
  *       403:
  *         description: Không có quyền SchoolAdmin
  */
-router.put('/sample-entry/review', authenticate, authorizeRoles('SchoolAdmin'), mealPhotoController.reviewSampleEntry);
+router.put('/sample-entry/review', authenticate, authorizePermissions('APPROVE_MENU'), mealPhotoController.reviewSampleEntry);
 
 /**
  * @openapi
@@ -228,7 +228,7 @@ router.put('/sample-entry/review', authenticate, authorizeRoles('SchoolAdmin'), 
  *       200:
  *         description: Tổng hợp sĩ số
  */
-router.get('/attendance-summary', authenticate, authorizeRoles('KitchenStaff', 'SchoolAdmin'), mealPhotoController.getAttendanceSummary);
+router.get('/attendance-summary', authenticate, authorizePermissions('VIEW_REPORT'), mealPhotoController.getAttendanceSummary);
 
 /**
  * @openapi
@@ -259,7 +259,7 @@ router.get('/attendance-summary', authenticate, authorizeRoles('KitchenStaff', '
  *       200:
  *         description: Gửi yêu cầu thành công
  */
-router.post('/edit-request', authenticate, authorizeRoles('KitchenStaff'), mealPhotoController.requestEdit);
+router.post('/edit-request', authenticate, authorizePermissions('MANAGE_MEAL_PHOTO'), mealPhotoController.requestEdit);
 
 /**
  * @openapi
@@ -289,6 +289,6 @@ router.post('/edit-request', authenticate, authorizeRoles('KitchenStaff'), mealP
  *       200:
  *         description: Xử lý yêu cầu chỉnh sửa thành công
  */
-router.put('/edit-request/approve', authenticate, authorizeRoles('SchoolAdmin'), mealPhotoController.approveEditRequest);
+router.put('/edit-request/approve', authenticate, authorizePermissions('APPROVE_MENU'), mealPhotoController.approveEditRequest);
 
 module.exports = router;

@@ -181,10 +181,13 @@ exports.getMenuDetail = async (req, res) => {
     const fatPercent = totalMacroKcal > 0 ? Number(((kcalFromFat / totalMacroKcal) * 100).toFixed(2)) : 0;
     const carbPercent = totalMacroKcal > 0 ? Number(((kcalFromCarb / totalMacroKcal) * 100).toFixed(2)) : 0;
 
+    const menuData = menu.toObject();
+
     res.json({
       success: true,
       data: {
-        ...menu.toObject(),
+        ...menuData,
+        nutritionPlan: Array.isArray(menuData.nutritionPlan) ? menuData.nutritionPlan : [],
         nutrition: {
           calories: totalCalories,
           protein: totalProtein,

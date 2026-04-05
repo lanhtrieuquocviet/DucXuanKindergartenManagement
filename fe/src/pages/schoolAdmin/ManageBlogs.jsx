@@ -5,9 +5,9 @@ import { useSchoolAdmin } from '../../context/SchoolAdminContext';
 import { useAuth } from '../../context/AuthContext';
 import RoleLayout from '../../layouts/RoleLayout';
 import ConfirmDialog from '../../components/ConfirmDialog';
-import RichTextEditor from '../../components/RichTextEditor';
 import { get, postFormData, ENDPOINTS } from '../../service/api';
-import { SCHOOL_ADMIN_MENU_ITEMS, createSchoolAdminMenuSelect } from './schoolAdminMenuConfig';
+import { createSchoolAdminMenuSelect } from './schoolAdminMenuConfig';
+import { useSchoolAdminMenu } from './useSchoolAdminMenu';
 
 import {
   Box,
@@ -23,7 +23,6 @@ import {
   TableBody,
   TableRow,
   TableCell,
-  CircularProgress,
   IconButton,
   Dialog,
   DialogTitle,
@@ -44,12 +43,8 @@ import CategoryIcon from '@mui/icons-material/Category';
 import NavigateBeforeIcon from '@mui/icons-material/NavigateBefore';
 import NavigateNextIcon from '@mui/icons-material/NavigateNext';
 import SearchIcon from '@mui/icons-material/Search';
-import AttachFileIcon from '@mui/icons-material/AttachFile';
 import PictureAsPdfIcon from '@mui/icons-material/PictureAsPdf';
 import DescriptionIcon from '@mui/icons-material/Description';
-
-// categories will be fetched from backend; each item has {_id, name}
-// we convert to {value,label} when rendering the form
 
 const STATUS_OPTIONS = [
   { value: '', label: 'Tất cả trạng thái' },
@@ -58,33 +53,56 @@ const STATUS_OPTIONS = [
   { value: 'inactive', label: 'Ngưng hiển thị' },
 ];
 
+const LAYOUTS = [
+  {
+    id: 'layout1',
+    label: 'Layout 1',
+    sectionCount: 3,
+    preview: ['Tiêu đề', 'Ảnh', 'Nội dung 1', 'Ảnh', 'Nội dung 2', 'Ảnh', 'Nội dung 3'],
+  },
+  {
+    id: 'layout2',
+    label: 'Layout 2',
+    sectionCount: 5,
+    preview: ['Tiêu đề', 'Ảnh', 'Nội dung 1', 'Ảnh', 'Nội dung 2', 'Ảnh', 'Nội dung 3', 'Ảnh', 'Nội dung 4', 'Ảnh', 'Nội dung 5'],
+  },
+];
+
+function makeEmptySections(count) {
+  return Array.from({ length: count }, () => ({ image: '', content: '' }));
+}
+
 function BlogFormModal({ open, onClose, initialData, categories, onSubmit, loading }) {
   const [form, setForm] = useState({
     code: '',
-    description: '',
     category: '',
     images: [],
+    layout: 'layout1',
+    sections: makeEmptySections(3),
     status: 'draft',
-    attachmentUrl: null,
-    attachmentType: null,
   });
-  const [uploading, setUploading] = useState(false);
-  const [uploadingFile, setUploadingFile] = useState(false);
+  const [uploadingCover, setUploadingCover] = useState(false);
+  const [uploadingSection, setUploadingSection] = useState([false, false, false, false, false]);
   const [formErrors, setFormErrors] = useState({});
 
   useEffect(() => {
     if (open) {
       setForm({
         code: initialData?.code || '',
-        description: initialData?.description || '',
         category:
-          (initialData?.category &&
-            (initialData.category._id || initialData.category)) ||
+          (initialData?.category && (initialData.category._id || initialData.category)) ||
           (categories[0]?._id || ''),
         images: initialData?.images || [],
+        layout: initialData?.layout || 'layout1',
+        sections: (() => {
+          const layoutId = initialData?.layout || 'layout1';
+          const count = LAYOUTS.find(l => l.id === layoutId)?.sectionCount || 3;
+          const saved = initialData?.sections || [];
+          return saved.length === count
+            ? saved.map(s => ({ image: s.image || '', content: s.content || '' }))
+            : makeEmptySections(count);
+        })(),
         status: initialData?.status || 'draft',
-        attachmentUrl: initialData?.attachmentUrl || null,
-        attachmentType: initialData?.attachmentType || null,
       });
       setFormErrors({});
     }
@@ -94,55 +112,69 @@ function BlogFormModal({ open, onClose, initialData, categories, onSubmit, loadi
 
   const handleChange = (e) => {
     const { name, value } = e.target;
-    setForm((prev) => ({ ...prev, [name]: value }));
-    if (formErrors[name]) setFormErrors((prev) => ({ ...prev, [name]: null }));
+    setForm(prev => ({ ...prev, [name]: value }));
+    if (formErrors[name]) setFormErrors(prev => ({ ...prev, [name]: null }));
+  };
+
+  const handleLayoutChange = (layoutId) => {
+    const count = LAYOUTS.find(l => l.id === layoutId)?.sectionCount || 3;
+    setForm(prev => ({ ...prev, layout: layoutId, sections: makeEmptySections(count) }));
   };
 
   const handleUploadCoverImage = async (e) => {
     const file = e.target.files[0];
     if (!file) return;
-    setUploading(true);
+    setUploadingCover(true);
     try {
-      const formData = new FormData();
-      formData.append('image', file);
-      const response = await postFormData(ENDPOINTS.CLOUDINARY.UPLOAD_BLOG_IMAGE, formData);
-      if (response.status === 'success' && response.data?.url) {
-        setForm(prev => ({ ...prev, images: [response.data.url] }));
-      } else {
-        throw new Error(response.message || 'Upload thất bại');
-      }
+      const fd = new FormData();
+      fd.append('image', file);
+      const res = await postFormData(ENDPOINTS.CLOUDINARY.UPLOAD_BLOG_IMAGE, fd);
+      if (res.status === 'success' && res.data?.url) {
+        setForm(prev => ({ ...prev, images: [res.data.url] }));
+      } else throw new Error(res.message || 'Upload thất bại');
     } catch (err) {
-      toast.error(`Upload ảnh thất bại: ${err.message}`);
+      toast.error(`Upload ảnh bìa thất bại: ${err.message}`);
     } finally {
-      setUploading(false);
+      setUploadingCover(false);
       e.target.value = '';
     }
   };
 
-  const handleRemoveCoverImage = () => {
-    setForm(prev => ({ ...prev, images: [] }));
+  const handleUploadSectionImage = async (e, idx) => {
+    const file = e.target.files[0];
+    if (!file) return;
+    setUploadingSection(prev => { const n = [...prev]; n[idx] = true; return n; });
+    try {
+      const fd = new FormData();
+      fd.append('image', file);
+      const res = await postFormData(ENDPOINTS.CLOUDINARY.UPLOAD_BLOG_IMAGE, fd);
+      if (res.status === 'success' && res.data?.url) {
+        setForm(prev => {
+          const sections = prev.sections.map((s, i) => i === idx ? { ...s, image: res.data.url } : s);
+          return { ...prev, sections };
+        });
+      } else throw new Error(res.message || 'Upload thất bại');
+    } catch (err) {
+      toast.error(`Upload ảnh thất bại: ${err.message}`);
+    } finally {
+      setUploadingSection(prev => { const n = [...prev]; n[idx] = false; return n; });
+      e.target.value = '';
+    }
   };
 
-  const handleAttachFile = async (file) => {
-    setUploadingFile(true);
-    try {
-      const formData = new FormData();
-      formData.append('file', file);
-      const response = await postFormData(ENDPOINTS.CLOUDINARY.UPLOAD_BLOG_FILE, formData);
-      if (response.status === 'success' && response.data?.url) {
-        setForm(prev => ({
-          ...prev,
-          attachmentUrl: response.data.url,
-          attachmentType: response.data.type,
-        }));
-      } else {
-        throw new Error(response.message || 'Upload thất bại');
-      }
-    } catch (err) {
-      toast.error(`Upload file thất bại: ${err.message}`);
-    } finally {
-      setUploadingFile(false);
-    }
+  const handleSectionContent = (idx, value) => {
+    setForm(prev => {
+      const sections = prev.sections.map((s, i) => i === idx ? { ...s, content: value } : s);
+      return { ...prev, sections };
+    });
+    if (formErrors.sections) setFormErrors(prev => ({ ...prev, sections: null }));
+  };
+
+  const handleRemoveSectionImage = (idx) => {
+    setForm(prev => {
+      const sections = prev.sections.map((s, i) => i === idx ? { ...s, image: '' } : s);
+      return { ...prev, sections };
+    });
   };
 
   const handleSubmit = (e) => {
@@ -151,62 +183,37 @@ function BlogFormModal({ open, onClose, initialData, categories, onSubmit, loadi
     if (!form.code.trim()) errs.code = 'Tiêu đề không được để trống';
     else if (form.code.length > 100) errs.code = 'Tiêu đề quá dài (tối đa 100 ký tự)';
     if (!form.category) errs.category = 'Vui lòng chọn danh mục';
-    if (!form.description.trim()) errs.description = 'Nội dung không được để trống';
-    if (Object.keys(errs).length > 0) {
-      setFormErrors(errs);
-      return;
-    }
+    const hasContent = form.sections.some(s => s.content.trim());
+    if (!hasContent) errs.sections = 'Vui lòng nhập ít nhất một nội dung';
+    if (Object.keys(errs).length) { setFormErrors(errs); return; }
     setFormErrors({});
     onSubmit(form);
   };
 
+  const anyUploading = uploadingCover || uploadingSection.some(Boolean);
+
   return (
-    <Dialog open={open} onClose={onClose} maxWidth="md" fullWidth PaperProps={{ sx: { maxHeight: '90vh' } }}>
-      <DialogTitle
-        sx={{
-          display: 'flex',
-          alignItems: 'center',
-          justifyContent: 'space-between',
-          borderBottom: '1px solid',
-          borderColor: 'divider',
-          py: 1.5,
-          px: 2,
-        }}
-      >
+    <Dialog open={open} onClose={onClose} maxWidth="md" fullWidth PaperProps={{ sx: { maxHeight: '92vh' } }}>
+      <DialogTitle sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', borderBottom: '1px solid', borderColor: 'divider', py: 1.5, px: 2 }}>
         <Typography variant="subtitle1" fontWeight={600}>
           {initialData ? 'Chỉnh sửa bài viết' : 'Tạo bài viết mới'}
         </Typography>
-        <IconButton size="small" onClick={onClose}>
-          <CloseIcon fontSize="small" />
-        </IconButton>
+        <IconButton size="small" onClick={onClose}><CloseIcon fontSize="small" /></IconButton>
       </DialogTitle>
 
       <DialogContent sx={{ px: 2, py: 2 }}>
         <Box component="form" id="blog-form" onSubmit={handleSubmit}>
-          <Stack spacing={2}>
+          <Stack spacing={2.5}>
+
             {/* Tiêu đề */}
             <Box>
               <TextField
-                fullWidth
-                size="small"
-                label="Tiêu đề *"
-                name="code"
-                value={form.code}
-                onChange={handleChange}
+                fullWidth size="small" label="Tiêu đề *" name="code"
+                value={form.code} onChange={handleChange}
                 inputProps={{ maxLength: 100 }}
-                placeholder="vd: BLOG_001"
-                error={!!formErrors.code}
-                helperText={formErrors.code}
+                error={!!formErrors.code} helperText={formErrors.code}
               />
-              <Typography
-                variant="caption"
-                sx={{
-                  display: 'block',
-                  textAlign: 'right',
-                  color: form.code.length > 100 ? 'error.main' : 'text.secondary',
-                  mt: 0.5,
-                }}
-              >
+              <Typography variant="caption" sx={{ display: 'block', textAlign: 'right', color: form.code.length > 100 ? 'error.main' : 'text.secondary', mt: 0.5 }}>
                 {form.code.length}/100
               </Typography>
             </Box>
@@ -214,151 +221,136 @@ function BlogFormModal({ open, onClose, initialData, categories, onSubmit, loadi
             {/* Danh mục */}
             <FormControl fullWidth size="small" error={!!formErrors.category} disabled={categories.length === 0}>
               <InputLabel>Danh mục *</InputLabel>
-              <Select
-                name="category"
-                value={form.category}
-                onChange={handleChange}
-                label="Danh mục *"
-              >
-                {categories.length === 0 ? (
-                  <MenuItem value="">Đang tải danh mục...</MenuItem>
-                ) : (
-                  [
-                    <MenuItem key="" value="">-- Chọn danh mục --</MenuItem>,
-                    ...categories.map((c) => (
-                      <MenuItem key={c._id} value={c._id}>
-                        {c.name}
-                      </MenuItem>
-                    )),
-                  ]
-                )}
+              <Select name="category" value={form.category} onChange={handleChange} label="Danh mục *">
+                {categories.length === 0
+                  ? <MenuItem value="">Đang tải danh mục...</MenuItem>
+                  : [
+                      <MenuItem key="" value="">-- Chọn danh mục --</MenuItem>,
+                      ...categories.map(c => <MenuItem key={c._id} value={c._id}>{c.name}</MenuItem>),
+                    ]}
               </Select>
               {formErrors.category && <FormHelperText>{formErrors.category}</FormHelperText>}
             </FormControl>
 
-            {/* Nội dung (Rich Text) */}
-            <Box>
-              <Typography variant="caption" fontWeight={500} color="text.secondary" sx={{ mb: 0.5, display: 'block' }}>
-                Nội dung *
-              </Typography>
-              <Box
-                sx={
-                  formErrors.description
-                    ? { border: '1px solid', borderColor: 'error.main', borderRadius: 1 }
-                    : {}
-                }
-              >
-                <RichTextEditor
-                  initialValue={form.description}
-                  onChange={(html) => {
-                    setForm((prev) => ({ ...prev, description: html }));
-                    if (formErrors.description) setFormErrors((prev) => ({ ...prev, description: null }));
-                  }}
-                  disabled={uploading || uploadingFile}
-                  attachmentUrl={form.attachmentUrl}
-                  attachmentType={form.attachmentType}
-                  onAttachFile={handleAttachFile}
-                  onRemoveFile={() => setForm(prev => ({ ...prev, attachmentUrl: null, attachmentType: null }))}
-                />
-              </Box>
-              {formErrors.description && (
-                <Typography variant="caption" color="error" sx={{ mt: 0.5, display: 'block' }}>
-                  {formErrors.description}
-                </Typography>
-              )}
-            </Box>
-
             {/* Ảnh bìa */}
             <Box>
-              <Typography variant="caption" fontWeight={500} color="text.secondary" sx={{ mb: 0.5, display: 'block' }}>
-                Ảnh bìa
-              </Typography>
+              <Typography variant="caption" fontWeight={500} color="text.secondary" sx={{ mb: 0.5, display: 'block' }}>Ảnh bìa</Typography>
               {form.images[0] ? (
                 <Box sx={{ position: 'relative', display: 'inline-block' }}>
-                  <Box
-                    component="img"
-                    src={form.images[0]}
-                    alt="Ảnh bìa"
-                    sx={{ height: 128, borderRadius: 1, objectFit: 'cover', display: 'block' }}
-                  />
-                  <IconButton
-                    size="small"
-                    onClick={handleRemoveCoverImage}
-                    sx={{
-                      position: 'absolute',
-                      top: 4,
-                      right: 4,
-                      bgcolor: 'error.main',
-                      color: 'white',
-                      width: 20,
-                      height: 20,
-                      '&:hover': { bgcolor: 'error.dark' },
-                    }}
-                  >
+                  <Box component="img" src={form.images[0]} alt="Ảnh bìa" sx={{ height: 112, borderRadius: 1, objectFit: 'cover', display: 'block' }} />
+                  <IconButton size="small" onClick={() => setForm(p => ({ ...p, images: [] }))} sx={{ position: 'absolute', top: 4, right: 4, bgcolor: 'error.main', color: 'white', width: 20, height: 20, '&:hover': { bgcolor: 'error.dark' } }}>
                     <CloseIcon sx={{ fontSize: 12 }} />
                   </IconButton>
                 </Box>
               ) : (
-                <Box>
-                  <Button
-                    component="label"
-                    variant="outlined"
-                    size="small"
-                    disabled={uploading}
-                    sx={{ fontSize: '0.75rem' }}
-                  >
-                    Chọn ảnh bìa
-                    <input
-                      type="file"
-                      accept="image/*"
-                      hidden
-                      onChange={handleUploadCoverImage}
-                    />
-                  </Button>
-                </Box>
-              )}
-              {uploading && (
-                <Typography variant="caption" color="primary" sx={{ mt: 0.5, display: 'block' }}>
-                  Đang tải ảnh lên...
-                </Typography>
+                <Button component="label" variant="outlined" size="small" disabled={uploadingCover} sx={{ fontSize: '0.75rem' }}>
+                  {uploadingCover ? 'Đang tải...' : 'Chọn ảnh bìa'}
+                  <input type="file" accept="image/*" hidden onChange={handleUploadCoverImage} />
+                </Button>
               )}
             </Box>
 
-            {/* Trạng thái */}
-            <FormControl fullWidth size="small">
-              <InputLabel>Trạng thái</InputLabel>
-              <Select
-                name="status"
-                value={form.status}
-                onChange={handleChange}
-                label="Trạng thái"
-              >
-                <MenuItem value="draft">Nháp</MenuItem>
-                <MenuItem value="published">Đã xuất bản</MenuItem>
-                <MenuItem value="inactive">Ngưng hiển thị</MenuItem>
-              </Select>
-            </FormControl>
+            {/* Chọn layout */}
+            <Box>
+              <Typography variant="caption" fontWeight={500} color="text.secondary" sx={{ mb: 1, display: 'block' }}>Chọn layout nội dung *</Typography>
+              <Stack direction="row" spacing={1.5}>
+                {LAYOUTS.map(l => (
+                  <Box
+                    key={l.id}
+                    onClick={() => handleLayoutChange(l.id)}
+                    sx={{
+                      border: '2px solid',
+                      borderColor: form.layout === l.id ? 'primary.main' : 'divider',
+                      borderRadius: 2,
+                      p: 1.5,
+                      cursor: 'pointer',
+                      minWidth: 130,
+                      bgcolor: form.layout === l.id ? 'rgba(37,99,235,0.06)' : 'background.paper',
+                      transition: 'all 0.15s',
+                    }}
+                  >
+                    <Typography variant="caption" fontWeight={700} color={form.layout === l.id ? 'primary.main' : 'text.secondary'}>{l.label}</Typography>
+                    <Stack spacing={0.4} mt={0.8}>
+                      {l.preview.map((item, i) => (
+                        <Box key={i} sx={{
+                          height: item === 'Ảnh' ? 10 : 5,
+                          bgcolor: item === 'Ảnh' ? '#93c5fd' : (item === 'Tiêu đề' ? '#6366f1' : '#e5e7eb'),
+                          borderRadius: 0.5,
+                          opacity: 0.85,
+                        }} />
+                      ))}
+                    </Stack>
+                  </Box>
+                ))}
+              </Stack>
+            </Box>
+
+            {/* Nội dung theo layout */}
+            {(form.layout === 'layout1' || form.layout === 'layout2') && (
+              <Box>
+                <Typography variant="caption" fontWeight={500} color="text.secondary" sx={{ mb: 0.5, display: 'block' }}>
+                  Nội dung *
+                </Typography>
+                {formErrors.sections && (
+                  <Typography variant="caption" color="error" sx={{ mb: 1, display: 'block' }}>{formErrors.sections}</Typography>
+                )}
+                <Stack spacing={2}>
+                  {form.sections.map((section, idx) => (
+                    <Paper key={idx} variant="outlined" sx={{ p: 2, borderRadius: 1.5, borderColor: 'divider' }}>
+                      <Typography variant="caption" fontWeight={700} color="primary.main" sx={{ mb: 1.5, display: 'block' }}>
+                        Phần {idx + 1}
+                      </Typography>
+
+                      {/* Section image */}
+                      <Box mb={1.5}>
+                        <Typography variant="caption" color="text.secondary" sx={{ mb: 0.5, display: 'block' }}>Ảnh</Typography>
+                        {section.image ? (
+                          <Box sx={{ position: 'relative', display: 'inline-block' }}>
+                            <Box component="img" src={section.image} alt={`section-${idx}`} sx={{ height: 90, borderRadius: 1, objectFit: 'cover', display: 'block' }} />
+                            <IconButton size="small" onClick={() => handleRemoveSectionImage(idx)} sx={{ position: 'absolute', top: 3, right: 3, bgcolor: 'error.main', color: 'white', width: 18, height: 18, '&:hover': { bgcolor: 'error.dark' } }}>
+                              <CloseIcon sx={{ fontSize: 11 }} />
+                            </IconButton>
+                          </Box>
+                        ) : (
+                          <Button component="label" variant="outlined" size="small" disabled={uploadingSection[idx]} sx={{ fontSize: '0.72rem' }}>
+                            {uploadingSection[idx] ? 'Đang tải...' : 'Chọn ảnh'}
+                            <input type="file" accept="image/*" hidden onChange={e => handleUploadSectionImage(e, idx)} />
+                          </Button>
+                        )}
+                      </Box>
+
+                      {/* Section content */}
+                      <TextField
+                        size="small" fullWidth multiline minRows={3}
+                        label={`Nội dung ${idx + 1}`}
+                        value={section.content}
+                        onChange={e => handleSectionContent(idx, e.target.value)}
+                      />
+                    </Paper>
+                  ))}
+                </Stack>
+              </Box>
+            )}
+
+            {/* Trạng thái — chỉ hiện khi chỉnh sửa */}
+            {initialData && (
+              <FormControl fullWidth size="small">
+                <InputLabel>Trạng thái</InputLabel>
+                <Select name="status" value={form.status} onChange={handleChange} label="Trạng thái">
+                  <MenuItem value="draft">Nháp</MenuItem>
+                  <MenuItem value="published">Đã xuất bản</MenuItem>
+                  <MenuItem value="inactive">Ngưng hiển thị</MenuItem>
+                </Select>
+              </FormControl>
+            )}
+
           </Stack>
         </Box>
       </DialogContent>
 
       <DialogActions sx={{ px: 2, py: 1.5, gap: 1 }}>
-        <Button
-          onClick={onClose}
-          variant="outlined"
-          color="inherit"
-          sx={{ flex: 1 }}
-        >
-          Hủy
-        </Button>
-        <Button
-          type="submit"
-          form="blog-form"
-          variant="contained"
-          color="success"
-          disabled={loading || uploading || uploadingFile}
-          sx={{ flex: 1, fontWeight: 600 }}
-        >
+        <Button onClick={onClose} variant="outlined" color="inherit" sx={{ flex: 1 }} disabled={loading}>Hủy</Button>
+        <Button type="submit" form="blog-form" variant="contained" color="success" disabled={loading || anyUploading} sx={{ flex: 1, fontWeight: 600 }}>
           {loading ? 'Đang lưu...' : 'Lưu'}
         </Button>
       </DialogActions>
@@ -379,6 +371,7 @@ function ManageBlogs() {
 
   const navigate = useNavigate();
   const { user, logout, isInitializing } = useAuth();
+  const menuItems = useSchoolAdminMenu();
 
   const [blogs, setBlogs] = useState([]);
   const [categories, setCategories] = useState([]);
@@ -552,7 +545,7 @@ function ManageBlogs() {
     <RoleLayout
       title="Quản lý bài viết (Blog)"
       description="Tạo, chỉnh sửa, xóa và quản lý các bài viết, tin tức của trường."
-      menuItems={SCHOOL_ADMIN_MENU_ITEMS}
+      menuItems={menuItems}
       activeKey="blogs"
       onLogout={handleLogout}
       onViewProfile={handleViewProfile}

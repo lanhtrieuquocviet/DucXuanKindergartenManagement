@@ -24,7 +24,8 @@ import {
 import { useAuth } from '../../context/AuthContext';
 import RoleLayout from '../../layouts/RoleLayout';
 import { get, post, patch, del, ENDPOINTS } from '../../service/api';
-import { SCHOOL_ADMIN_MENU_ITEMS, createSchoolAdminMenuSelect } from './schoolAdminMenuConfig';
+import { createSchoolAdminMenuSelect } from './schoolAdminMenuConfig';
+import { useSchoolAdminMenu } from './useSchoolAdminMenu';
 import { toast } from 'react-toastify';
 
 
@@ -181,6 +182,7 @@ function CurriculumTopicCard({ topic, onEdit, onDelete }) {
 export default function CurriculumPage() {
   const navigate = useNavigate();
   const { user, logout } = useAuth();
+  const menuItems = useSchoolAdminMenu();
 
   const [academicYear, setAcademicYear] = useState(null);
   const [loadingYear, setLoadingYear] = useState(true);
@@ -354,7 +356,7 @@ export default function CurriculumPage() {
     <RoleLayout
       title={`Chương trình giáo dục - ${yearName}`}
       description="Quản lý các chủ đề và mục tiêu giáo dục theo tháng. Bạn có thể thêm, sửa, xóa tự do."
-      menuItems={SCHOOL_ADMIN_MENU_ITEMS}
+      menuItems={menuItems}
       activeKey="academic-curriculum"
       onLogout={handleLogout}
       onViewProfile={() => navigate('/profile')}

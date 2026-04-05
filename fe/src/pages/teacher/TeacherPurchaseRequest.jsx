@@ -161,8 +161,8 @@ export default function TeacherPurchaseRequest() {
     if (!form.classId)          { toast.error('Vui lòng chọn lớp.'); return; }
     const qty = Number(form.quantity);
     if (!qty || qty < 1 || !Number.isInteger(qty)) { toast.error('Số lượng phải là số nguyên lớn hơn 0.'); return; }
-    if (qty > 9999) { toast.error('Số lượng tối đa 9.999.'); return; }
-    if (form.estimatedCost && Number(form.estimatedCost) > 999_999_999_999) { toast.error('Ước tính chi phí quá lớn.'); return; }
+    if (qty > 1000) { toast.error('Số lượng tối đa 1.000.'); return; }
+    if (form.estimatedCost && Number(form.estimatedCost) > 10_000_000) { toast.error('Ước tính chi phí không được vượt quá 10.000.000 đ.'); return; }
     if (submitStatus === 'pending' && !form.reason.trim()) { toast.error('Vui lòng nhập lý do mua sắm trước khi gửi duyệt.'); return; }
     if (form.reason.length > 500) { toast.error('Lý do mua sắm tối đa 500 ký tự.'); return; }
     if (form.notes.length > 200) { toast.error('Ghi chú thêm tối đa 200 ký tự.'); return; }
@@ -203,24 +203,25 @@ export default function TeacherPurchaseRequest() {
   const userName = user?.fullName || user?.username || 'Teacher';
 
   const menuItems = useMemo(() => [
-    { key: 'classes', label: 'Lớp phụ trách' },
-    { key: 'students', label: 'Danh sách học sinh' },
-    { key: 'attendance', label: 'Điểm danh' },
-    { key: 'pickup-approval', label: 'Đơn đưa đón' },
-    { key: 'schedule', label: 'Lịch dạy & hoạt động' },
-    { key: 'messages', label: 'Thông báo cho phụ huynh' },
+    { key: 'classes',          label: 'Lớp phụ trách' },
+    { key: 'students',         label: 'Danh sách học sinh' },
+    { key: 'attendance',       label: 'Điểm danh' },
+    { key: 'pickup-approval',  label: 'Đơn đưa đón' },
+    { key: 'schedule',         label: 'Lịch dạy & hoạt động' },
+    { key: 'contact-book',     label: 'Sổ liên lạc điện tử' },
     { key: 'purchase-request', label: 'Cơ sở vật chất' },
     { key: 'class-assets',     label: 'Tài sản lớp' },
     ...(isCommitteeMember ? [{ key: 'asset-inspection', label: 'Kiểm kê tài sản' }] : []),
   ], [isCommitteeMember]);
 
   const handleMenuSelect = (key) => {
-    if (key === 'classes')          { navigate('/teacher'); return; }
-    if (key === 'attendance')       { navigate('/teacher/attendance'); return; }
-    if (key === 'pickup-approval')  { navigate('/teacher/pickup-approval'); return; }
-    if (key === 'asset-inspection') { navigate('/teacher/asset-inspection'); return; }
-    if (key === 'purchase-request') { navigate('/teacher/purchase-request'); return; }
-    if (key === 'class-assets')     { navigate('/teacher/class-assets'); return; }
+    const MAP = {
+      classes: '/teacher', students: '/teacher/students',
+      'contact-book': '/teacher/contact-book', attendance: '/teacher/attendance',
+      'pickup-approval': '/teacher/pickup-approval', 'purchase-request': '/teacher/purchase-request',
+      'class-assets': '/teacher/class-assets', 'asset-inspection': '/teacher/asset-inspection',
+    };
+    if (MAP[key]) navigate(MAP[key]);
   };
 
   return (
@@ -391,7 +392,7 @@ export default function TeacherPurchaseRequest() {
             <Box sx={{ display: 'flex', gap: 2 }}>
               <TextField
                 label="Số lượng *" type="number" size="small"
-                slotProps={{ htmlInput: { min: 1, max: 9999, step: 1 } }}
+                slotProps={{ htmlInput: { min: 1, max: 1000, step: 1 } }}
                 value={form.quantity}
                 onChange={e => setForm(f => ({ ...f, quantity: e.target.value }))}
                 sx={{ flex: 1 }}
@@ -418,7 +419,7 @@ export default function TeacherPurchaseRequest() {
               value={form.estimatedCost}
               onChange={e => setForm(f => ({ ...f, estimatedCost: e.target.value }))}
               slotProps={{
-                htmlInput: { min: 0, max: 999999999999 },
+                htmlInput: { min: 0, max: 10000000 },
                 input: { endAdornment: <InputAdornment position="end">đ</InputAdornment> },
               }}
             />

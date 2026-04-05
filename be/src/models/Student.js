@@ -33,6 +33,11 @@ const studentSchema = new mongoose.Schema({
     type: mongoose.Schema.Types.ObjectId,
     ref: 'Classes'
   },
+  academicYearId: {
+    type: mongoose.Schema.Types.ObjectId,
+    ref: 'AcademicYears',
+    default: null,
+  },
   status: {
     type: String,
     enum: ['active', 'inactive'],
@@ -57,9 +62,19 @@ const studentSchema = new mongoose.Schema({
     trim: true,
     default: ''
   },
-  // Embedding khuôn mặt (128 chiều từ face-api.js)
+  // Embedding khuôn mặt (128 chiều từ face-api.js) - giữ lại để backward compat
   faceEmbedding: {
     type: [Number],
+    default: []
+  },
+  // Nhiều góc mặt (tối đa 5 embedding, mỗi cái là mảng 128 số)
+  faceEmbeddings: {
+    type: mongoose.Schema.Types.Mixed,
+    default: []
+  },
+  // Ảnh preview cho từng góc (tương ứng theo index với faceEmbeddings)
+  faceImageUrls: {
+    type: [String],
     default: []
   },
   faceRegisteredAt: {

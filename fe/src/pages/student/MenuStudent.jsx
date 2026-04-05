@@ -1,189 +1,132 @@
-import { useEffect, useState } from "react";
-import { getMenus } from "../../service/menu.api";
-import { toast } from "react-toastify";
-import { useNavigate } from "react-router-dom";
-import { ArrowLeft, ChefHat, Calendar, CheckCircle, Clock, XCircle, PlayCircle, StopCircle, AlertCircle, ChevronRight } from "lucide-react";
+import { useEffect, useState } from 'react';
+import { useNavigate } from 'react-router-dom';
+import { getMenus } from '../../service/menu.api';
+import { toast } from 'react-toastify';
+import {
+  Box, Paper, Typography, Stack, Avatar, Chip, IconButton, CircularProgress, Divider,
+} from '@mui/material';
+import {
+  ArrowBack, CalendarMonth, CheckCircle, AccessTime, Cancel,
+  PlayCircle, StopCircle, Help, ChevronRight, RestaurantMenu,
+} from '@mui/icons-material';
 
-function MenuStudent() {
+const PRIMARY = '#059669';
+const PRIMARY_DARK = '#047857';
+const BG = '#f0fdf4';
+
+const STATUS_CONFIG = {
+  approved:  { label: 'Đã duyệt',       color: 'success', Icon: CheckCircle },
+  pending:   { label: 'Chờ duyệt',       color: 'warning', Icon: AccessTime   },
+  rejected:  { label: 'Bị từ chối',      color: 'error',   Icon: Cancel       },
+  active:    { label: 'Đang áp dụng',    color: 'info',    Icon: PlayCircle   },
+  completed: { label: 'Đã kết thúc',     color: 'default', Icon: StopCircle   },
+};
+
+export default function MenuStudent() {
+  const navigate = useNavigate();
   const [menus, setMenus] = useState([]);
   const [loading, setLoading] = useState(false);
 
-  const navigate = useNavigate();
-
   useEffect(() => {
-    fetchMenus();
+    (async () => {
+      try {
+        setLoading(true);
+        const res = await getMenus();
+        setMenus(res.data || []);
+      } catch { toast.error('Không thể tải danh sách thực đơn'); }
+      finally { setLoading(false); }
+    })();
   }, []);
 
-  const fetchMenus = async () => {
-    try {
-      setLoading(true);
-      const res = await getMenus();
-      console.log("API:", res);
-      setMenus(res.data || []);
-    } catch (error) {
-      toast.error("Không thể tải danh sách thực đơn");
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  const statusConfig = {
-    approved: {
-      label: "Đã duyệt",
-      color: "bg-green-100 text-green-700 border-green-200",
-      icon: CheckCircle,
-      iconColor: "text-green-600",
-    },
-    pending: {
-      label: "Chờ duyệt",
-      color: "bg-amber-100 text-amber-700 border-amber-200",
-      icon: Clock,
-      iconColor: "text-amber-600",
-    },
-    rejected: {
-      label: "Bị từ chối",
-      color: "bg-red-100 text-red-700 border-red-200",
-      icon: XCircle,
-      iconColor: "text-red-600",
-    },
-    active: {
-      label: "Đang áp dụng",
-      color: "bg-blue-100 text-blue-700 border-blue-200",
-      icon: PlayCircle,
-      iconColor: "text-blue-600",
-    },
-    completed: {
-      label: "Đã kết thúc",
-      color: "bg-purple-100 text-purple-700 border-purple-200",
-      icon: StopCircle,
-      iconColor: "text-purple-600",
-    },
-  };
-
-  const getStatusConfig = (status) => {
-    return (
-      statusConfig[status] || {
-        label: status,
-        color: "bg-gray-100 text-gray-700 border-gray-200",
-        icon: AlertCircle,
-        iconColor: "text-gray-600",
-      }
-    );
-  };
-
   return (
-    <div className="min-h-screen bg-gray-50">
-      {/* Sticky Header */}
-      <div className="sticky top-0 z-10 bg-emerald-600 px-4 pt-4 pb-5 shadow-md">
-        <div className="max-w-lg mx-auto">
-          <div className="flex items-center gap-3">
-            <button
-              onClick={() => navigate(-1)}
-              className="flex items-center justify-center w-8 h-8 rounded-full bg-white/20 hover:bg-white/30 active:bg-white/40 transition-colors duration-200 text-white flex-shrink-0"
-            >
-              <ArrowLeft size={18} />
-            </button>
-            <div>
-              <h1 className="text-lg font-bold text-white leading-tight">
-                Thực đơn dinh dưỡng
-              </h1>
-              <p className="text-emerald-100 text-xs mt-0.5">
-                Danh sách thực đơn hàng tháng
-              </p>
-            </div>
-          </div>
-        </div>
-      </div>
+    <Box sx={{ minHeight: '100vh', bgcolor: BG }}>
+      {/* AppBar */}
+      <Box sx={{
+        background: `linear-gradient(135deg, ${PRIMARY} 0%, ${PRIMARY_DARK} 100%)`,
+        px: 2, py: 2, position: 'sticky', top: 0, zIndex: 100,
+        boxShadow: '0 2px 12px rgba(5,150,105,0.3)',
+      }}>
+        <Stack direction="row" alignItems="center" spacing={1.5}>
+          <IconButton onClick={() => navigate(-1)} size="small"
+            sx={{ color: 'white', bgcolor: 'rgba(255,255,255,0.15)', '&:hover': { bgcolor: 'rgba(255,255,255,0.25)' } }}>
+            <ArrowBack fontSize="small" />
+          </IconButton>
+          <Box>
+            <Typography color="white" fontWeight={700} fontSize="1rem">Thực đơn dinh dưỡng</Typography>
+            <Typography sx={{ color: 'rgba(255,255,255,0.75)', fontSize: '0.72rem' }}>Danh sách thực đơn hàng tháng</Typography>
+          </Box>
+        </Stack>
+      </Box>
 
-      {/* Content */}
-      <div className="max-w-lg mx-auto px-4 py-4">
-        {/* Loading State */}
-        {loading && (
-          <div className="space-y-3">
-            {[1, 2, 3].map((i) => (
-              <div
-                key={i}
-                className="bg-white rounded-2xl border border-gray-100 p-4 animate-pulse"
-              >
-                <div className="flex items-center gap-3">
-                  <div className="w-12 h-12 bg-gray-200 rounded-xl flex-shrink-0" />
-                  <div className="flex-1 space-y-2">
-                    <div className="h-4 bg-gray-200 rounded-full w-2/3" />
-                    <div className="h-3 bg-gray-200 rounded-full w-1/3" />
-                  </div>
-                  <div className="w-5 h-5 bg-gray-200 rounded flex-shrink-0" />
-                </div>
-              </div>
+      <Box sx={{ maxWidth: 600, mx: 'auto', px: 2, py: 2.5, pb: 4 }}>
+        {loading ? (
+          <Stack spacing={1.5}>
+            {[1,2,3].map(i => (
+              <Paper key={i} elevation={0} sx={{ p: 2, borderRadius: 3, border: '1px solid #e5e7eb' }}>
+                <Stack direction="row" spacing={1.5} alignItems="center">
+                  <Box sx={{ width: 48, height: 48, borderRadius: 2.5, bgcolor: '#e5e7eb' }} />
+                  <Stack spacing={0.75} flex={1}>
+                    <Box sx={{ width: '60%', height: 14, bgcolor: '#e5e7eb', borderRadius: 1 }} />
+                    <Box sx={{ width: '35%', height: 10, bgcolor: '#f3f4f6', borderRadius: 1 }} />
+                  </Stack>
+                </Stack>
+              </Paper>
             ))}
-          </div>
-        )}
-
-        {/* Empty State */}
-        {!loading && menus.length === 0 && (
-          <div className="flex flex-col items-center justify-center py-20 text-center">
-            <div className="w-16 h-16 rounded-full bg-gray-100 flex items-center justify-center mb-4">
-              <ChefHat size={32} className="text-gray-400" />
-            </div>
-            <h3 className="text-base font-semibold text-gray-700 mb-1">
-              Chưa có thực đơn
-            </h3>
-            <p className="text-sm text-gray-400">
-              Hệ thống chưa có thực đơn dinh dưỡng nào được tạo.
-            </p>
-          </div>
-        )}
-
-        {/* Menu List */}
-        {!loading && menus.length > 0 && (
-          <div className="space-y-3">
-            {menus.map((menu) => {
-              const status = getStatusConfig(menu.status);
-              const StatusIcon = status.icon;
-              const isActive = menu.status === "active";
-
+          </Stack>
+        ) : menus.length === 0 ? (
+          <Stack alignItems="center" justifyContent="center" py={12} spacing={2}>
+            <Avatar sx={{ bgcolor: '#f3f4f6', width: 64, height: 64 }}>
+              <RestaurantMenu sx={{ fontSize: 32, color: '#9ca3af' }} />
+            </Avatar>
+            <Box textAlign="center">
+              <Typography fontWeight={600} color="text.secondary">Chưa có thực đơn</Typography>
+              <Typography fontSize="0.85rem" color="text.disabled" mt={0.5}>Hệ thống chưa có thực đơn nào được tạo.</Typography>
+            </Box>
+          </Stack>
+        ) : (
+          <Stack spacing={0} sx={{ borderRadius: 3, overflow: 'hidden', border: '1px solid #e5e7eb' }}>
+            {menus.map((menu, idx) => {
+              const cfg = STATUS_CONFIG[menu.status] || { label: menu.status, color: 'default', Icon: Help };
+              const { Icon } = cfg;
+              const isActive = menu.status === 'active';
               return (
-                <div
-                  key={menu._id}
-                  onClick={() => navigate(`/student/menus/${menu._id}`)}
-                  className={`rounded-2xl p-4 flex items-center gap-3 cursor-pointer active:scale-[0.98] transition-transform duration-150
-                    ${
-                      isActive
-                        ? "bg-green-50 border border-green-100 border-l-4 border-l-emerald-500"
-                        : "bg-white border border-gray-100"
-                    }`}
-                >
-                  {/* Left: Calendar icon in colored rounded square */}
-                  <div className="flex-shrink-0 w-12 h-12 rounded-xl bg-gradient-to-br from-teal-400 to-emerald-500 flex items-center justify-center shadow-sm">
-                    <Calendar size={22} className="text-white" />
-                  </div>
-
-                  {/* Center: Title + status badge */}
-                  <div className="flex-1 min-w-0">
-                    <p className="text-sm font-bold text-gray-800 truncate">
-                      Thực đơn Tháng {menu.month}/{menu.year}
-                    </p>
-                    <div className="flex items-center gap-1 mt-1.5">
-                      <StatusIcon size={12} className={status.iconColor} />
-                      <span
-                        className={`text-xs font-medium px-2 py-0.5 rounded-full border ${status.color}`}
-                      >
-                        {status.label}
-                      </span>
-                    </div>
-                  </div>
-
-                  {/* Right: Chevron arrow */}
-                  <div className="flex-shrink-0 text-gray-300">
-                    <ChevronRight size={18} />
-                  </div>
-                </div>
+                <Box key={menu._id}>
+                  <Box
+                    onClick={() => navigate(`/student/menus/${menu._id}`)}
+                    sx={{
+                      px: 2, py: 2, display: 'flex', alignItems: 'center', gap: 1.5,
+                      cursor: 'pointer', bgcolor: isActive ? '#f0fdf4' : 'white',
+                      borderLeft: isActive ? `4px solid ${PRIMARY}` : '4px solid transparent',
+                      transition: 'all 0.15s',
+                      '&:hover': { bgcolor: isActive ? '#ecfdf5' : '#f9fafb' },
+                      '&:active': { transform: 'scale(0.99)' },
+                    }}
+                  >
+                    <Avatar sx={{
+                      width: 48, height: 48, borderRadius: 2.5, flexShrink: 0,
+                      background: 'linear-gradient(135deg, #34d399 0%, #059669 100%)',
+                    }}>
+                      <CalendarMonth sx={{ color: 'white' }} />
+                    </Avatar>
+                    <Box flex={1} minWidth={0}>
+                      <Typography fontWeight={700} fontSize="0.9rem" noWrap>
+                        Thực đơn Tháng {menu.month}/{menu.year}
+                      </Typography>
+                      <Stack direction="row" spacing={0.75} alignItems="center" mt={0.5}>
+                        <Icon sx={{ fontSize: 13, color: isActive ? PRIMARY : '#9ca3af' }} />
+                        <Chip label={cfg.label} color={cfg.color} size="small"
+                          sx={{ height: 20, fontSize: '0.68rem', fontWeight: 700 }} />
+                      </Stack>
+                    </Box>
+                    <ChevronRight sx={{ color: '#d1d5db', flexShrink: 0 }} />
+                  </Box>
+                  {idx < menus.length - 1 && <Divider />}
+                </Box>
               );
             })}
-          </div>
+          </Stack>
         )}
-      </div>
-    </div>
+      </Box>
+    </Box>
   );
 }
-
-export default MenuStudent;
