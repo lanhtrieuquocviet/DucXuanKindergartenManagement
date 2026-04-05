@@ -1,27 +1,27 @@
-import { useEffect, useMemo, useRef, useState } from 'react';
-import { useNavigate } from 'react-router-dom';
-import { toast } from 'react-toastify';
+import AddIcon from '@mui/icons-material/Add';
+import AddPhotoAlternateIcon from '@mui/icons-material/AddPhotoAlternate';
+import CloseIcon from '@mui/icons-material/Close';
+import DeleteIcon from '@mui/icons-material/Delete';
+import EditIcon from '@mui/icons-material/Edit';
 import {
   Box, Button, Chip, CircularProgress, Dialog, DialogActions,
   DialogContent, DialogTitle, FormControl, IconButton, InputAdornment,
   InputLabel, MenuItem, Paper, Select, Stack, Table, TableBody,
   TableCell, TableHead, TableRow, TextField, Typography,
 } from '@mui/material';
-import AddIcon from '@mui/icons-material/Add';
-import DeleteIcon from '@mui/icons-material/Delete';
-import EditIcon from '@mui/icons-material/Edit';
-import AddPhotoAlternateIcon from '@mui/icons-material/AddPhotoAlternate';
-import CloseIcon from '@mui/icons-material/Close';
-import RoleLayout from '../../layouts/RoleLayout';
+import { useEffect, useMemo, useRef, useState } from 'react';
+import { useNavigate } from 'react-router-dom';
+import { toast } from 'react-toastify';
 import { useAuth } from '../../context/AuthContext';
 import { useTeacher } from '../../context/TeacherContext';
-import { get, post, put, del, postFormData, ENDPOINTS } from '../../service/api';
+import RoleLayout from '../../layouts/RoleLayout';
+import { del, ENDPOINTS, get, post, postFormData, put } from '../../service/api';
 
 const STATUS_LABEL = {
-  draft:    { label: 'Nháp',      color: 'default' },
-  pending:  { label: 'Chờ duyệt', color: 'warning' },
-  approved: { label: 'Đã duyệt',  color: 'success' },
-  rejected: { label: 'Từ chối',   color: 'error' },
+  draft: { label: 'Nháp', color: 'default' },
+  pending: { label: 'Chờ duyệt', color: 'warning' },
+  approved: { label: 'Đã duyệt', color: 'success' },
+  rejected: { label: 'Từ chối', color: 'error' },
 };
 
 const UNIT_OPTIONS = ['Cái', 'Bộ', 'Chiếc', 'Hộp', 'Gói', 'Cuộn', 'Quyển', 'Tờ', 'Kg', 'Lít'];
@@ -64,22 +64,22 @@ function ConfirmDialog({ open, title, message, onConfirm, onCancel, loading }) {
 }
 
 export default function TeacherPurchaseRequest() {
-  const navigate  = useNavigate();
+  const navigate = useNavigate();
   const { user, logout, isInitializing } = useAuth();
   const { isCommitteeMember } = useTeacher();
   const fileInputRef = useRef(null);
 
-  const [loading, setLoading]           = useState(true);
-  const [requests, setRequests]         = useState([]);
-  const [myClasses, setMyClasses]       = useState([]);
-  const [openModal, setOpenModal]       = useState(false);
-  const [editing, setEditing]           = useState(null);
-  const [form, setForm]                 = useState(emptyForm());
-  const [saving, setSaving]             = useState(false);
-  const [uploading, setUploading]       = useState(false);
+  const [loading, setLoading] = useState(true);
+  const [requests, setRequests] = useState([]);
+  const [myClasses, setMyClasses] = useState([]);
+  const [openModal, setOpenModal] = useState(false);
+  const [editing, setEditing] = useState(null);
+  const [form, setForm] = useState(emptyForm());
+  const [saving, setSaving] = useState(false);
+  const [uploading, setUploading] = useState(false);
   const [deleteTarget, setDeleteTarget] = useState(null);
-  const [deleting, setDeleting]         = useState(false);
-  const [previewImg, setPreviewImg]     = useState(null);
+  const [deleting, setDeleting] = useState(false);
+  const [previewImg, setPreviewImg] = useState(null);
 
   useEffect(() => {
     if (isInitializing) return;
@@ -112,14 +112,14 @@ export default function TeacherPurchaseRequest() {
   const handleOpenEdit = (r) => {
     setEditing(r);
     setForm({
-      assetName:     r.assetName || '',
-      quantity:      r.quantity || 1,
-      unit:          r.unit || 'Cái',
-      classId:       r.classId?._id || r.classId || '',
+      assetName: r.assetName || '',
+      quantity: r.quantity || 1,
+      unit: r.unit || 'Cái',
+      classId: r.classId?._id || r.classId || '',
       estimatedCost: r.estimatedCost || '',
-      reason:        r.reason || '',
-      notes:         r.notes || '',
-      images:        r.images || [],
+      reason: r.reason || '',
+      notes: r.notes || '',
+      images: r.images || [],
     });
     setOpenModal(true);
   };
@@ -158,7 +158,7 @@ export default function TeacherPurchaseRequest() {
   const handleSave = async (submitStatus) => {
     if (!form.assetName.trim()) { toast.error('Vui lòng nhập tên đồ dùng/tài sản.'); return; }
     if (form.assetName.trim().length > 200) { toast.error('Tên đồ dùng/tài sản tối đa 200 ký tự.'); return; }
-    if (!form.classId)          { toast.error('Vui lòng chọn lớp.'); return; }
+    if (!form.classId) { toast.error('Vui lòng chọn lớp.'); return; }
     const qty = Number(form.quantity);
     if (!qty || qty < 1 || !Number.isInteger(qty)) { toast.error('Số lượng phải là số nguyên lớn hơn 0.'); return; }
     if (qty > 1000) { toast.error('Số lượng tối đa 1.000.'); return; }
@@ -203,14 +203,14 @@ export default function TeacherPurchaseRequest() {
   const userName = user?.fullName || user?.username || 'Teacher';
 
   const menuItems = useMemo(() => [
-    { key: 'classes',          label: 'Lớp phụ trách' },
-    { key: 'students',         label: 'Danh sách học sinh' },
-    { key: 'attendance',       label: 'Điểm danh' },
-    { key: 'pickup-approval',  label: 'Đơn đưa đón' },
-    { key: 'schedule',         label: 'Lịch dạy & hoạt động' },
-    { key: 'contact-book',     label: 'Sổ liên lạc điện tử' },
+    { key: 'classes', label: 'Lớp phụ trách' },
+    { key: 'students', label: 'Danh sách học sinh' },
+    { key: 'attendance', label: 'Điểm danh' },
+    { key: 'pickup-approval', label: 'Đơn đưa đón' },
+    { key: 'schedule', label: 'Lịch dạy & hoạt động' },
+    { key: 'contact-book', label: 'Sổ liên lạc điện tử' },
     { key: 'purchase-request', label: 'Cơ sở vật chất' },
-    { key: 'class-assets',     label: 'Tài sản lớp' },
+    { key: 'class-assets', label: 'Tài sản lớp' },
     ...(isCommitteeMember ? [{ key: 'asset-inspection', label: 'Kiểm kê tài sản' }] : []),
   ], [isCommitteeMember]);
 
@@ -286,7 +286,7 @@ export default function TeacherPurchaseRequest() {
               </TableHead>
               <TableBody>
                 {requests.map((r) => {
-                  const canEdit   = ['draft', 'rejected'].includes(r.status);
+                  const canEdit = ['draft', 'rejected'].includes(r.status);
                   const canDelete = r.status === 'draft';
                   return (
                     <TableRow key={r._id} hover>
@@ -419,7 +419,7 @@ export default function TeacherPurchaseRequest() {
               value={form.estimatedCost}
               onChange={e => setForm(f => ({ ...f, estimatedCost: e.target.value }))}
               slotProps={{
-                htmlInput: { min: 0, max: 10000000 },
+                htmlInput: { min: 0, max: 9999999999 },
                 input: { endAdornment: <InputAdornment position="end">đ</InputAdornment> },
               }}
             />
@@ -499,9 +499,9 @@ export default function TeacherPurchaseRequest() {
                     {uploading
                       ? <CircularProgress size={20} />
                       : <>
-                          <AddPhotoAlternateIcon sx={{ fontSize: 22 }} />
-                          <Typography variant="caption" sx={{ fontSize: 10, mt: 0.25 }}>Thêm ảnh</Typography>
-                        </>
+                        <AddPhotoAlternateIcon sx={{ fontSize: 22 }} />
+                        <Typography variant="caption" sx={{ fontSize: 10, mt: 0.25 }}>Thêm ảnh</Typography>
+                      </>
                     }
                   </Box>
                 )}
