@@ -40,8 +40,56 @@ const ingredientController = require('../controller/ingredientController');
  *     responses:
  *       201:
  *         description: Tạo nguyên liệu thành công
+ * /api/ingredients/{id}:
+ *   put:
+ *     summary: Cập nhật nguyên liệu
+ *     tags:
+ *       - Ingredients
+ *     parameters:
+ *       - in: path
+ *         name: id
+ *         required: true
+ *         schema:
+ *           type: string
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             properties:
+ *               name:
+ *                 type: string
+ *               unit:
+ *                 type: string
+ *               calories:
+ *                 type: number
+ *               protein:
+ *                 type: number
+ *               fat:
+ *                 type: number
+ *               carb:
+ *                 type: number
+ *     responses:
+ *       200:
+ *         description: Cập nhật nguyên liệu thành công
+ *   delete:
+ *     summary: Xóa nguyên liệu
+ *     tags:
+ *       - Ingredients
+ *     parameters:
+ *       - in: path
+ *         name: id
+ *         required: true
+ *         schema:
+ *           type: string
+ *     responses:
+ *       200:
+ *         description: Xóa nguyên liệu thành công
  */
 router.get('/', ingredientController.getIngredients);
 router.post('/', ingredientController.createIngredient);
+router.put('/:id', ingredientController.updateIngredient);
+router.delete('/:id', ingredientController.deleteIngredient);
 
 module.exports = router;

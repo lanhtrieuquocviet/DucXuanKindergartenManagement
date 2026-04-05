@@ -155,7 +155,7 @@ function ContactList() {
       title="Quản lý liên hệ"
       description="Xem và phản hồi các liên hệ từ phụ huynh/khách."
       menuItems={SCHOOL_ADMIN_MENU_ITEMS}
-      activeKey="contacts"
+      activeKey="contacts-list"
       onLogout={() => {
         logout();
         navigate('/login', { replace: true });
@@ -169,7 +169,7 @@ function ContactList() {
       <Paper
         elevation={0}
         sx={{
-          background: 'linear-gradient(135deg, #6366f1 0%, #4f46e5 100%)',
+          background: 'linear-gradient(135deg, #0ea5e9 0%, #0284c7 100%)',
           borderRadius: 3,
           px: 4,
           py: 3,

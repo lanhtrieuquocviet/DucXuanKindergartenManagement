@@ -38,3 +38,60 @@ exports.createIngredient = async (req, res) => {
     res.status(500).json({ success: false, message: error.message });
   }
 };
+
+exports.updateIngredient = async (req, res) => {
+  try {
+    const { id } = req.params;
+    const { name, unit, calories, protein, fat, carb } = req.body;
+
+    if (!name) {
+      return res.status(400).json({ success: false, message: 'Tên nguyên liệu là bắt buộc' });
+    }
+
+    // Check if name is duplicate (excluding current ingredient)
+    const existed = await Ingredient.findOne({
+      name: name.trim(),
+      _id: { $ne: id }
+    });
+    if (existed) {
+      return res.status(400).json({ success: false, message: 'Nguyên liệu đã tồn tại' });
+    }
+
+    const ingredient = await Ingredient.findByIdAndUpdate(
+      id,
+      {
+        name: name.trim(),
+        unit: unit || '100g',
+        calories: Number(calories) || 0,
+        protein: Number(protein) || 0,
+        fat: Number(fat) || 0,
+        carb: Number(carb) || 0,
+      },
+      { new: true }
+    );
+
+    if (!ingredient) {
+      return res.status(404).json({ success: false, message: 'Nguyên liệu không tồn tại' });
+    }
+
+    res.json({ success: true, message: 'Cập nhật nguyên liệu thành công', data: ingredient });
+  } catch (error) {
+    res.status(500).json({ success: false, message: error.message });
+  }
+};
+
+exports.deleteIngredient = async (req, res) => {
+  try {
+    const { id } = req.params;
+
+    const ingredient = await Ingredient.findByIdAndDelete(id);
+
+    if (!ingredient) {
+      return res.status(404).json({ success: false, message: 'Nguyên liệu không tồn tại' });
+    }
+
+    res.json({ success: true, message: 'Xóa nguyên liệu thành công', data: ingredient });
+  } catch (error) {
+    res.status(500).json({ success: false, message: error.message });
+  }
+};

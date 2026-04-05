@@ -192,7 +192,7 @@ function QaList() {
       {/* Header gradient */}
       <Paper
         elevation={0}
-        sx={{ mb: 3, p: 3, background: 'linear-gradient(135deg, #6366f1 0%, #4f46e5 100%)', borderRadius: 2 }}
+        sx={{ mb: 3, p: 3, background: 'linear-gradient(135deg, #0ea5e9 0%, #0284c7 100%)', borderRadius: 2 }}
       >
         <Stack direction="row" alignItems="center" spacing={1.5}>
           <QaIcon sx={{ color: 'white', fontSize: 28 }} />

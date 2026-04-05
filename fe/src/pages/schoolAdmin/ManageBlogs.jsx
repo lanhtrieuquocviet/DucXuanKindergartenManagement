@@ -564,7 +564,7 @@ function ManageBlogs() {
       <Paper
         elevation={0}
         sx={{
-          background: 'linear-gradient(135deg, #6366f1 0%, #4f46e5 100%)',
+          background: 'linear-gradient(135deg, #0ea5e9 0%, #0284c7 100%)',
           borderRadius: 3,
           px: 4,
           py: 3,

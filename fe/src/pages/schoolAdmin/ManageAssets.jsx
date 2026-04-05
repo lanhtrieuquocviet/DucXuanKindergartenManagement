@@ -24,7 +24,9 @@ import {
   Table,
   TableBody,
   TableCell,
+  TableContainer,
   TableHead,
+  TablePagination,
   TableRow,
   Tabs,
   TextField,
@@ -1073,6 +1075,10 @@ function AssetsTab() {
   const [bulkDeleteOpen, setBulkDeleteOpen]   = useState(false);
   const [bulkDeleting, setBulkDeleting]       = useState(false);
 
+  // Pagination
+  const [page, setPage]               = useState(0);
+  const [rowsPerPage, setRowsPerPage] = useState(25);
+
   const load = async () => {
     setLoading(true);
     try {
@@ -1087,7 +1093,7 @@ function AssetsTab() {
 
   useEffect(() => { load(); }, []);
 
-  useEffect(() => { setSelected(new Set()); }, [search, filterCategory]);
+  useEffect(() => { setSelected(new Set()); setPage(0); }, [search, filterCategory]);
 
   const handleOpen = (asset = null) => {
     if (asset) {
@@ -1436,12 +1442,15 @@ function AssetsTab() {
     return matchSearch && matchCategory;
   });
 
+  // Phân trang trên danh sách đã lọc
+  const pagedRows = filtered.slice(page * rowsPerPage, page * rowsPerPage + rowsPerPage);
+
   // Nhóm theo category theo thứ tự CATEGORY_OPTIONS, phần không khớp vào cuối
   const grouped = CATEGORY_OPTIONS.map(cat => ({
     cat,
-    rows: filtered.filter(a => a.category === cat),
+    rows: pagedRows.filter(a => a.category === cat),
   })).filter(g => g.rows.length > 0);
-  const uncategorized = filtered.filter(a => !CATEGORY_OPTIONS.includes(a.category));
+  const uncategorized = pagedRows.filter(a => !CATEGORY_OPTIONS.includes(a.category));
   if (uncategorized.length) grouped.push({ cat: 'Khác', rows: uncategorized });
 
   // Tổng hợp nhanh
@@ -1504,7 +1513,7 @@ function AssetsTab() {
       {loading ? (
         <Box display="flex" justifyContent="center" py={4}><CircularProgress /></Box>
       ) : (
-        <Box sx={{ overflowX: 'auto' }}>
+        <TableContainer>
           <Table size="small">
             <TableHead>
               <TableRow sx={{ backgroundColor: '#f0f4f8' }}>
@@ -1602,7 +1611,18 @@ function AssetsTab() {
               ])}
             </TableBody>
           </Table>
-        </Box>
+          <TablePagination
+            component="div"
+            count={filtered.length}
+            page={page}
+            onPageChange={(_, newPage) => setPage(newPage)}
+            rowsPerPage={rowsPerPage}
+            onRowsPerPageChange={e => { setRowsPerPage(parseInt(e.target.value, 10)); setPage(0); }}
+            rowsPerPageOptions={[10, 25, 50, 100]}
+            labelRowsPerPage="Số hàng:"
+            labelDisplayedRows={({ from, to, count }) => `${from}–${to} / ${count}`}
+          />
+        </TableContainer>
       )}
 
       {/* Create/Edit Modal */}
@@ -1829,7 +1849,7 @@ export default function ManageAssets() {
       title="Quản lý Tài sản"
       description="Danh sách tài sản, ban kiểm kê và biên bản kiểm kê tài sản trường."
       menuItems={SCHOOL_ADMIN_MENU_ITEMS}
-      activeKey="assets"
+      activeKey="assets-list"
       onLogout={() => { logout(); navigate('/login', { replace: true }); }}
       userName={user?.fullName || user?.username || 'School Admin'}
       userAvatar={user?.avatar}

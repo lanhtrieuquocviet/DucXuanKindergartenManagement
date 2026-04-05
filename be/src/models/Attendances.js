@@ -84,6 +84,15 @@ const attendanceSchema = new mongoose.Schema(
       trim: true,
       default: '',
     },
+    // Điểm danh bằng AI (nhận diện khuôn mặt)
+    checkedInByAI: {
+      type: Boolean,
+      default: false,
+    },
+    checkedOutByAI: {
+      type: Boolean,
+      default: false,
+    },
     // Lý do vắng mặt (nếu status = 'absent')
     absentReason: {
       type: String,

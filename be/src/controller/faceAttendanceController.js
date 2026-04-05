@@ -224,6 +224,7 @@ const matchFaceEmbedding = async (req, res) => {
         time: { checkIn: checkInTime, checkOut: null },
         timeString: { checkIn: checkInTimeString, checkOut: '' },
         checkinImageName: checkinImageUrl,
+        checkedInByAI: true,
       });
     }
 
@@ -613,6 +614,7 @@ const matchPickupFaceForCheckout = async (req, res) => {
           receiverType: 'other',
           receiverOtherInfo: `${bestMatch.fullName} (${bestMatch.relation})`,
           receiverOtherImageName: bestMatch.imageUrl || '',
+          checkedOutByAI: true,
         },
       },
       { new: true }
@@ -731,6 +733,7 @@ const matchStudentFaceForCheckout = async (req, res) => {
           'time.checkOut': now,
           'timeString.checkOut': checkOutTimeString,
           checkoutImageName: checkoutImageUrl,
+          checkedOutByAI: true,
         },
       },
       { new: true }

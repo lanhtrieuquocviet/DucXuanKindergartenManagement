@@ -2,7 +2,12 @@ const AssetAllocation = require('../models/AssetAllocation');
 const Classes = require('../models/Classes');
 const mammoth = require('mammoth');
 const WordExtractor = require('word-extractor');
-const { JSDOM } = require('jsdom');
+let JSDOM = null;
+try {
+  ({ JSDOM } = require('jsdom'));
+} catch (_) {
+  JSDOM = null;
+}
 
 // ─── List all allocations ──────────────────────────────────────────────────
 exports.listAllocations = async (req, res) => {
@@ -333,6 +338,18 @@ function textToFakeHtml(text) {
 // ─── Strategy 3: Parse HTML tables (cho .docx và fallback .doc) ───────────
 // Trả về { assets, extraAssets } dựa vào tiêu đề bảng hoặc text trước bảng.
 function parseAssetsFromHtml(html) {
+  if (!JSDOM) {
+    const plainText = String(html || '')
+      .replace(/<\/(p|div|tr|li|h[1-6])>/gi, '\n')
+      .replace(/<br\s*\/?>/gi, '\n')
+      .replace(/<[^>]*>/g, ' ')
+      .replace(/&nbsp;/gi, ' ')
+      .replace(/\s+\n/g, '\n')
+      .replace(/\n\s+/g, '\n')
+      .trim();
+    return parseAssetsFromText(plainText);
+  }
+
   const { window } = new JSDOM(html);
   const doc = window.document;
   const tables = Array.from(doc.querySelectorAll('table'));

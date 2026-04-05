@@ -463,6 +463,13 @@ function AttendanceDetailModal({
                     <CheckInIcon sx={{ fontSize: 14, color: 'white' }} />
                   </Avatar>
                   <Typography variant="body2" fontWeight={700} color="#15803d">Thông tin Điểm danh</Typography>
+                  {detailForm.checkedInByAI && (
+                    <Chip
+                      label="🤖 AI"
+                      size="small"
+                      sx={{ height: 20, fontSize: 10, fontWeight: 700, bgcolor: '#7c3aed', color: 'white', px: 0.5 }}
+                    />
+                  )}
                   {detailForm.timeIn ? (
                     <Chip
                       label={detailForm.timeIn}
@@ -577,6 +584,13 @@ function AttendanceDetailModal({
                     <CheckOutIcon sx={{ fontSize: 14, color: 'white' }} />
                   </Avatar>
                   <Typography variant="body2" fontWeight={700} color="#1d4ed8">Thông tin Điểm danh về</Typography>
+                  {detailForm.checkedOutByAI && (
+                    <Chip
+                      label="🤖 AI"
+                      size="small"
+                      sx={{ height: 20, fontSize: 10, fontWeight: 700, bgcolor: '#7c3aed', color: 'white', px: 0.5 }}
+                    />
+                  )}
                   {detailForm.timeOut ? (
                     <Chip
                       label={detailForm.timeOut}

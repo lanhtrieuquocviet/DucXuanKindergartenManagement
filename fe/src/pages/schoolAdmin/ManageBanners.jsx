@@ -9,6 +9,7 @@ import {
   DialogActions,
   DialogContent,
   DialogTitle,
+  MenuItem,
   Paper,
   Stack,
   Switch,
@@ -115,6 +116,7 @@ export default function ManageBanners() {
       imageUrl,
       altText,
       isActive: creatingBanner.isActive !== false,
+      order: Number(creatingBanner.order) || banners.length + 1,
     })
       .then((resp) => {
         const list = resp?.data?.banners;
@@ -312,10 +314,28 @@ export default function ManageBanners() {
       onViewProfile={() => navigate('/profile')}
       onMenuSelect={handleMenuSelect}
     >
+      <Paper
+        elevation={0}
+        sx={{
+          background: 'linear-gradient(135deg, #0ea5e9 0%, #0284c7 100%)',
+          borderRadius: 3,
+          px: 4,
+          py: 3,
+          mb: 2,
+        }}
+      >
+        <Typography variant="h5" fontWeight={700} color="white">
+          Quản lý banner
+        </Typography>
+        <Typography variant="body2" sx={{ color: 'rgba(255,255,255,0.9)', mt: 0.5 }}>
+          Thêm, cập nhật vị trí, ẩn/hiện và quản lý banner hiển thị ngoài trang chủ.
+        </Typography>
+      </Paper>
+
       <Paper elevation={0} sx={{ p: 3, borderRadius: 3, mb: 2, backgroundColor: '#f3f4f6' }}>
         <Stack direction="row" justifyContent="space-between" alignItems="center" mb={2.5} flexWrap="wrap" gap={1.5}>
           <Typography variant="h5" fontWeight={700}>
-            Quản lý Banner
+            Danh sách banner
           </Typography>
           <Stack direction="row" spacing={1}>
             <Button
@@ -375,6 +395,9 @@ export default function ManageBanners() {
                 </Box>
 
                 <Stack spacing={1.2} sx={{ p: 2 }}>
+                  <Typography variant="caption" color="text.secondary" sx={{ fontWeight: 600 }}>
+                    Vị trí hiển thị: {item.order || index + 1}
+                  </Typography>
                   <Typography variant="body1" fontWeight={500}>
                     {item.altText || `Banner ${index + 1}`}
                   </Typography>
@@ -478,6 +501,23 @@ export default function ManageBanners() {
               value={creatingBanner.altText}
               onChange={(e) => setCreatingBanner((prev) => ({ ...prev, altText: e.target.value }))}
             />
+            <TextField
+              select
+              label="Vị trí hiển thị"
+              fullWidth
+              size="small"
+              value={creatingBanner.order}
+              onChange={(e) =>
+                setCreatingBanner((prev) => ({ ...prev, order: Number(e.target.value) }))
+              }
+              helperText="Chọn vị trí muốn chèn banner vào danh sách hiển thị."
+            >
+              {Array.from({ length: banners.length + 1 }, (_, i) => i + 1).map((pos) => (
+                <MenuItem key={pos} value={pos}>
+                  Vị trí {pos}
+                </MenuItem>
+              ))}
+            </TextField>
             <Stack direction="row" alignItems="center" spacing={1}>
               <Typography variant="body2">Hiển thị banner</Typography>
               <Switch
@@ -543,6 +583,23 @@ export default function ManageBanners() {
               value={editingBanner.altText}
               onChange={(e) => setEditingBanner((prev) => ({ ...prev, altText: e.target.value }))}
             />
+            <TextField
+              select
+              label="Vị trí hiển thị"
+              fullWidth
+              size="small"
+              value={editingBanner.order || 1}
+              onChange={(e) =>
+                setEditingBanner((prev) => ({ ...prev, order: Number(e.target.value) }))
+              }
+              helperText="Chọn vị trí muốn hiển thị banner."
+            >
+              {Array.from({ length: Math.max(banners.length, 1) }, (_, i) => i + 1).map((pos) => (
+                <MenuItem key={pos} value={pos}>
+                  Vị trí {pos}
+                </MenuItem>
+              ))}
+            </TextField>
             <Stack direction="row" alignItems="center" spacing={1}>
               <Typography variant="body2">Hiển thị banner</Typography>
               <Switch

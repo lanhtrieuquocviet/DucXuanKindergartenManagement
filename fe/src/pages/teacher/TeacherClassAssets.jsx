@@ -5,7 +5,7 @@ import {
   Box, Button, Chip, CircularProgress, Dialog, DialogActions,
   DialogContent, DialogTitle, FormControl, IconButton, InputLabel,
   MenuItem, Paper, Select, Stack, Tab, Table, TableBody, TableCell,
-  TableHead, TableRow, Tabs, TextField, Typography, Collapse,
+  TableContainer, TableHead, TablePagination, TableRow, Tabs, TextField, Typography, Collapse,
 } from '@mui/material';
 import AddIcon from '@mui/icons-material/Add';
 import AddPhotoAlternateIcon from '@mui/icons-material/AddPhotoAlternate';
@@ -47,10 +47,15 @@ function formatDate(d) {
 
 // ── Asset list grouped by category ────────────────────────────────────────
 function AssetTable({ title, assets }) {
-  const [open, setOpen] = useState(true);
+  const [open, setOpen]               = useState(true);
+  const [page, setPage]               = useState(0);
+  const [rowsPerPage, setRowsPerPage] = useState(25);
+
   if (!assets || assets.length === 0) return null;
 
-  const grouped = assets.reduce((acc, a) => {
+  const pagedAssets = assets.slice(page * rowsPerPage, page * rowsPerPage + rowsPerPage);
+
+  const grouped = pagedAssets.reduce((acc, a) => {
     const cat = a.category || 'Khác';
     if (!acc[cat]) acc[cat] = [];
     acc[cat].push(a);
@@ -67,49 +72,62 @@ function AssetTable({ title, assets }) {
       </Stack>
       <Collapse in={open}>
         <Paper variant="outlined" sx={{ overflow: 'hidden' }}>
-          <Table size="small">
-            <TableHead>
-              <TableRow sx={{ bgcolor: 'grey.100' }}>
-                <TableCell width={36} align="center">STT</TableCell>
-                <TableCell>Tên tài sản</TableCell>
-                <TableCell width={80} align="center">Đơn vị</TableCell>
-                <TableCell width={80} align="center">SL</TableCell>
-                <TableCell width={110} align="center">Đối tượng</TableCell>
-                <TableCell>Ghi chú</TableCell>
-              </TableRow>
-            </TableHead>
-            <TableBody>
-              {Object.entries(grouped).map(([cat, rows]) => (
-                <>
-                  {cat !== 'Khác' && (
-                    <TableRow key={`cat-${cat}`}>
-                      <TableCell colSpan={6} sx={{ bgcolor: 'primary.50', fontWeight: 700, py: 0.5, fontSize: 12, color: 'primary.main' }}>
-                        {cat}
-                      </TableCell>
-                    </TableRow>
-                  )}
-                  {rows.map((a, i) => (
-                    <TableRow key={i} hover>
-                      <TableCell align="center" sx={{ color: 'text.secondary' }}>{i + 1}</TableCell>
-                      <TableCell>{a.name}</TableCell>
-                      <TableCell align="center">{a.unit}</TableCell>
-                      <TableCell align="center">{a.quantity}</TableCell>
-                      <TableCell align="center">
-                        <Chip
-                          label={a.targetUser}
-                          size="small"
-                          variant="outlined"
-                          color={a.targetUser === 'Giáo viên' ? 'secondary' : a.targetUser === 'Dùng chung' ? 'info' : 'default'}
-                          sx={{ fontSize: 11 }}
-                        />
-                      </TableCell>
-                      <TableCell sx={{ color: 'text.secondary', fontSize: 12 }}>{a.notes}</TableCell>
-                    </TableRow>
-                  ))}
-                </>
-              ))}
-            </TableBody>
-          </Table>
+          <TableContainer>
+            <Table size="small">
+              <TableHead>
+                <TableRow sx={{ bgcolor: 'grey.100' }}>
+                  <TableCell width={36} align="center">STT</TableCell>
+                  <TableCell>Tên tài sản</TableCell>
+                  <TableCell width={80} align="center">Đơn vị</TableCell>
+                  <TableCell width={80} align="center">SL</TableCell>
+                  <TableCell width={110} align="center">Đối tượng</TableCell>
+                  <TableCell>Ghi chú</TableCell>
+                </TableRow>
+              </TableHead>
+              <TableBody>
+                {Object.entries(grouped).map(([cat, rows]) => (
+                  <>
+                    {cat !== 'Khác' && (
+                      <TableRow key={`cat-${cat}`}>
+                        <TableCell colSpan={6} sx={{ bgcolor: 'primary.50', fontWeight: 700, py: 0.5, fontSize: 12, color: 'primary.main' }}>
+                          {cat}
+                        </TableCell>
+                      </TableRow>
+                    )}
+                    {rows.map((a, i) => (
+                      <TableRow key={i} hover>
+                        <TableCell align="center" sx={{ color: 'text.secondary' }}>{page * rowsPerPage + i + 1}</TableCell>
+                        <TableCell>{a.name}</TableCell>
+                        <TableCell align="center">{a.unit}</TableCell>
+                        <TableCell align="center">{a.quantity}</TableCell>
+                        <TableCell align="center">
+                          <Chip
+                            label={a.targetUser}
+                            size="small"
+                            variant="outlined"
+                            color={a.targetUser === 'Giáo viên' ? 'secondary' : a.targetUser === 'Dùng chung' ? 'info' : 'default'}
+                            sx={{ fontSize: 11 }}
+                          />
+                        </TableCell>
+                        <TableCell sx={{ color: 'text.secondary', fontSize: 12 }}>{a.notes}</TableCell>
+                      </TableRow>
+                    ))}
+                  </>
+                ))}
+              </TableBody>
+            </Table>
+            <TablePagination
+              component="div"
+              count={assets.length}
+              page={page}
+              onPageChange={(_, newPage) => setPage(newPage)}
+              rowsPerPage={rowsPerPage}
+              onRowsPerPageChange={e => { setRowsPerPage(parseInt(e.target.value, 10)); setPage(0); }}
+              rowsPerPageOptions={[10, 25, 50]}
+              labelRowsPerPage="Số hàng:"
+              labelDisplayedRows={({ from, to, count }) => `${from}–${to} / ${count}`}
+            />
+          </TableContainer>
         </Paper>
       </Collapse>
     </Box>
@@ -279,6 +297,10 @@ export default function TeacherClassAssets() {
   const [openForm, setOpenForm]     = useState(false);
   const [confirmOpen, setConfirmOpen] = useState(false);
   const [confirming, setConfirming]   = useState(false);
+
+  // Incidents pagination
+  const [incPage, setIncPage]               = useState(0);
+  const [incRowsPerPage, setIncRowsPerPage] = useState(10);
 
   const fetchData = async () => {
     setLoading(true);
@@ -465,63 +487,76 @@ export default function TeacherClassAssets() {
                   </Paper>
                 ) : (
                   <Paper variant="outlined" sx={{ overflow: 'hidden' }}>
-                    <Table size="small">
-                      <TableHead>
-                        <TableRow sx={{ bgcolor: 'grey.100' }}>
-                          <TableCell>Tài sản</TableCell>
-                          <TableCell width={90}>Loại</TableCell>
-                          <TableCell>Mô tả</TableCell>
-                          <TableCell width={90}>Ảnh</TableCell>
-                          <TableCell width={110}>Trạng thái</TableCell>
-                          <TableCell width={110}>Ngày gửi</TableCell>
-                          <TableCell>Ghi chú BGH</TableCell>
-                        </TableRow>
-                      </TableHead>
-                      <TableBody>
-                        {incidents.map((inc) => {
-                          const st = INCIDENT_STATUS[inc.status] || { label: inc.status, color: 'default' };
-                          return (
-                            <TableRow key={inc._id} hover>
-                              <TableCell>
-                                <Typography variant="body2" fontWeight={600}>{inc.assetName}</Typography>
-                                {inc.assetCode && <Typography variant="caption" color="text.secondary">{inc.assetCode}</Typography>}
-                              </TableCell>
-                              <TableCell>
-                                <Chip label={TYPE_LABEL[inc.type] || inc.type} size="small" color={inc.type === 'broken' ? 'warning' : 'error'} variant="outlined" />
-                              </TableCell>
-                              <TableCell sx={{ maxWidth: 200, fontSize: 12 }}>{inc.description || '—'}</TableCell>
-                              <TableCell>
-                                {inc.images?.length > 0 ? (
-                                  <Stack direction="row" spacing={0.5}>
-                                    {inc.images.slice(0, 3).map((url, i) => (
-                                      <Box
-                                        key={i}
-                                        component="a"
-                                        href={url}
-                                        target="_blank"
-                                        rel="noopener noreferrer"
-                                      >
-                                        <img src={url} alt="" style={{ width: 36, height: 36, objectFit: 'cover', borderRadius: 4 }} />
-                                      </Box>
-                                    ))}
-                                    {inc.images.length > 3 && (
-                                      <Box sx={{ width: 36, height: 36, bgcolor: 'grey.200', borderRadius: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 11 }}>
-                                        +{inc.images.length - 3}
-                                      </Box>
-                                    )}
-                                  </Stack>
-                                ) : '—'}
-                              </TableCell>
-                              <TableCell>
-                                <Chip label={st.label} size="small" color={st.color} />
-                              </TableCell>
-                              <TableCell sx={{ fontSize: 12, color: 'text.secondary' }}>{formatDate(inc.createdAt)}</TableCell>
-                              <TableCell sx={{ fontSize: 12, color: 'text.secondary' }}>{inc.adminNotes || '—'}</TableCell>
-                            </TableRow>
-                          );
-                        })}
-                      </TableBody>
-                    </Table>
+                    <TableContainer>
+                      <Table size="small">
+                        <TableHead>
+                          <TableRow sx={{ bgcolor: 'grey.100' }}>
+                            <TableCell>Tài sản</TableCell>
+                            <TableCell width={90}>Loại</TableCell>
+                            <TableCell>Mô tả</TableCell>
+                            <TableCell width={90}>Ảnh</TableCell>
+                            <TableCell width={110}>Trạng thái</TableCell>
+                            <TableCell width={110}>Ngày gửi</TableCell>
+                            <TableCell>Ghi chú BGH</TableCell>
+                          </TableRow>
+                        </TableHead>
+                        <TableBody>
+                          {incidents.slice(incPage * incRowsPerPage, incPage * incRowsPerPage + incRowsPerPage).map((inc) => {
+                            const st = INCIDENT_STATUS[inc.status] || { label: inc.status, color: 'default' };
+                            return (
+                              <TableRow key={inc._id} hover>
+                                <TableCell>
+                                  <Typography variant="body2" fontWeight={600}>{inc.assetName}</Typography>
+                                  {inc.assetCode && <Typography variant="caption" color="text.secondary">{inc.assetCode}</Typography>}
+                                </TableCell>
+                                <TableCell>
+                                  <Chip label={TYPE_LABEL[inc.type] || inc.type} size="small" color={inc.type === 'broken' ? 'warning' : 'error'} variant="outlined" />
+                                </TableCell>
+                                <TableCell sx={{ maxWidth: 200, fontSize: 12 }}>{inc.description || '—'}</TableCell>
+                                <TableCell>
+                                  {inc.images?.length > 0 ? (
+                                    <Stack direction="row" spacing={0.5}>
+                                      {inc.images.slice(0, 3).map((url, i) => (
+                                        <Box
+                                          key={i}
+                                          component="a"
+                                          href={url}
+                                          target="_blank"
+                                          rel="noopener noreferrer"
+                                        >
+                                          <img src={url} alt="" style={{ width: 36, height: 36, objectFit: 'cover', borderRadius: 4 }} />
+                                        </Box>
+                                      ))}
+                                      {inc.images.length > 3 && (
+                                        <Box sx={{ width: 36, height: 36, bgcolor: 'grey.200', borderRadius: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 11 }}>
+                                          +{inc.images.length - 3}
+                                        </Box>
+                                      )}
+                                    </Stack>
+                                  ) : '—'}
+                                </TableCell>
+                                <TableCell>
+                                  <Chip label={st.label} size="small" color={st.color} />
+                                </TableCell>
+                                <TableCell sx={{ fontSize: 12, color: 'text.secondary' }}>{formatDate(inc.createdAt)}</TableCell>
+                                <TableCell sx={{ fontSize: 12, color: 'text.secondary' }}>{inc.adminNotes || '—'}</TableCell>
+                              </TableRow>
+                            );
+                          })}
+                        </TableBody>
+                      </Table>
+                      <TablePagination
+                        component="div"
+                        count={incidents.length}
+                        page={incPage}
+                        onPageChange={(_, newPage) => setIncPage(newPage)}
+                        rowsPerPage={incRowsPerPage}
+                        onRowsPerPageChange={e => { setIncRowsPerPage(parseInt(e.target.value, 10)); setIncPage(0); }}
+                        rowsPerPageOptions={[5, 10, 25]}
+                        labelRowsPerPage="Số hàng:"
+                        labelDisplayedRows={({ from, to, count }) => `${from}–${to} / ${count}`}
+                      />
+                    </TableContainer>
                   </Paper>
                 )}
               </Box>

@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
+import { toast } from 'react-toastify';
 import { useAuth } from '../../context/AuthContext';
 import { useSchoolAdmin } from '../../context/SchoolAdminContext';
 import RoleLayout from '../../layouts/RoleLayout';
@@ -25,6 +26,11 @@ import {
   DialogActions,
   IconButton,
   CircularProgress,
+  Chip,
+  FormControl,
+  InputLabel,
+  Select,
+  MenuItem,
 } from '@mui/material';
 import AddIcon from '@mui/icons-material/Add';
 import EditIcon from '@mui/icons-material/Edit';
@@ -33,7 +39,7 @@ import CloseIcon from '@mui/icons-material/Close';
 
 // ─── Form Modal ───────────────────────────────────────────────────────────────
 function CategoryFormModal({ open, onClose, initialData, onSubmit, loading }) {
-  const [form, setForm] = useState({ name: '', description: '' });
+  const [form, setForm] = useState({ name: '', description: '', status: 'active' });
   const [formErrors, setFormErrors] = useState({});
 
   useEffect(() => {
@@ -41,6 +47,7 @@ function CategoryFormModal({ open, onClose, initialData, onSubmit, loading }) {
       setForm({
         name: initialData?.name || '',
         description: initialData?.description || '',
+        status: initialData?.status || 'active',
       });
       setFormErrors({});
     }
@@ -117,6 +124,19 @@ function CategoryFormModal({ open, onClose, initialData, onSubmit, loading }) {
               size="small"
               placeholder="Mô tả ngắn về danh mục (tuỳ chọn)"
             />
+
+            <FormControl fullWidth size="small">
+              <InputLabel>Trạng thái</InputLabel>
+              <Select
+                name="status"
+                value={form.status}
+                label="Trạng thái"
+                onChange={handleChange}
+              >
+                <MenuItem value="active">Hoạt động</MenuItem>
+                <MenuItem value="inactive">Không hoạt động</MenuItem>
+              </Select>
+            </FormControl>
           </Stack>
         </DialogContent>
 
@@ -196,8 +216,10 @@ function ManageBlogCategories() {
       setSubmitting(true);
       if (selected) {
         await updateBlogCategory(selected._id, form);
+        toast.success('Cập nhật danh mục thành công');
       } else {
         await createBlogCategory(form);
+        toast.success('Tạo danh mục mới thành công');
       }
       await loadCategories();
       setModalOpen(false);
@@ -213,6 +235,7 @@ function ManageBlogCategories() {
     try {
       setSubmitting(true);
       await deleteBlogCategory(confirmDelete._id);
+      toast.success('Xóa danh mục thành công');
       await loadCategories();
       setConfirmDelete(null);
     } catch {
@@ -228,12 +251,17 @@ function ManageBlogCategories() {
   const handleLogout = () => { logout(); navigate('/login', { replace: true }); };
   const handleViewProfile = () => navigate('/profile');
 
-  const formatDate = (d) => (d ? new Date(d).toLocaleDateString('vi-VN') : '-');
+  const getStatusChip = (status) => {
+    if (status === 'inactive') {
+      return <Chip size="small" color="error" variant="outlined" label="Không hoạt động" />;
+    }
+    return <Chip size="small" color="success" variant="outlined" label="Hoạt động" />;
+  };
 
   return (
     <RoleLayout
-      title="Quản lý danh mục blog"
-      description="Tạo, chỉnh sửa và xóa các danh mục phân loại bài viết."
+      title="Quản lý danh mục"
+      description="Tạo, chỉnh sửa và xóa các danh mục phân loại bài viết, file, tài liệu."
       menuItems={SCHOOL_ADMIN_MENU_ITEMS}
       activeKey="blogs"
       onLogout={handleLogout}
@@ -246,7 +274,7 @@ function ManageBlogCategories() {
       <Paper
         elevation={0}
         sx={{
-          background: 'linear-gradient(135deg, #6366f1 0%, #4f46e5 100%)',
+          background: 'linear-gradient(135deg, #0ea5e9 0%, #0284c7 100%)',
           borderRadius: 3,
           px: 4,
           py: 3,
@@ -254,10 +282,10 @@ function ManageBlogCategories() {
         }}
       >
         <Typography variant="h5" fontWeight={700} color="white">
-          Quản lý danh mục blog
+          Quản lý danh mục
         </Typography>
         <Typography variant="body2" sx={{ color: 'rgba(255,255,255,0.8)', mt: 0.5 }}>
-          Tạo, chỉnh sửa và xóa các danh mục phân loại bài viết.
+          Tạo, chỉnh sửa và xóa các danh mục phân loại bài viết, file, tài liệu.
         </Typography>
       </Paper>
 
@@ -326,7 +354,7 @@ function ManageBlogCategories() {
                     Mô tả
                   </TableCell>
                   <TableCell sx={{ fontWeight: 600, fontSize: '0.75rem', textTransform: 'uppercase', color: 'text.secondary' }}>
-                    Ngày tạo
+                    Trạng thái
                   </TableCell>
                   <TableCell
                     align="right"
@@ -385,9 +413,7 @@ function ManageBlogCategories() {
                       </Typography>
                     </TableCell>
                     <TableCell>
-                      <Typography variant="body2" color="text.secondary">
-                        {formatDate(cat.createdAt)}
-                      </Typography>
+                      {getStatusChip(cat.status)}
                     </TableCell>
                     <TableCell align="right">
                       <Stack direction="row" justifyContent="flex-end" spacing={0.5}>

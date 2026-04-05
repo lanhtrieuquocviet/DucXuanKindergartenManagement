@@ -360,6 +360,18 @@ const updateProfile = async (req, res) => {
   } catch (error) {
     // eslint-disable-next-line no-console
     console.error('Update profile error:', error);
+
+    // Xử lý lỗi duplicate key (MongoDB E11000)
+    if (error.code === 11000) {
+      const field = Object.keys(error.keyPattern || {})[0];
+      const fieldNames = { email: 'Email', phone: 'Số điện thoại' };
+      const fieldLabel = fieldNames[field] || field || 'Thông tin';
+      return res.status(400).json({
+        status: 'error',
+        message: `${fieldLabel} này đã được sử dụng bởi tài khoản khác. Vui lòng nhập thông tin khác.`,
+      });
+    }
+
     return res.status(500).json({
       status: 'error',
       message: error.message || 'Không cập nhật được hồ sơ',

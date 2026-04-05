@@ -88,7 +88,7 @@ function SchoolAdminDashboard() {
         );
         const attendanceMarked = attendancePresent + attendanceAbsent;
         const attendanceRate =
-          attendanceMarked > 0 ? Math.round((attendancePresent / attendanceMarked) * 100) : 0;
+          studentTotal > 0 ? Math.min(100, Math.round((attendanceMarked / studentTotal) * 100)) : 0;
 
         const attendanceRows = checkedRows.map((c) => {
           const totalStudents = Number(c?.totalStudents || 0);
@@ -157,7 +157,7 @@ function SchoolAdminDashboard() {
     {
       label: 'Tỷ lệ có mặt hôm nay',
       value: `${stats.attendanceRate}%`,
-      note: `${stats.attendancePresent}/${stats.attendanceMarked} em đã điểm danh | ${stats.attendanceAbsent} em vắng`,
+      note: `${stats.attendanceMarked}/${stats.studentTotal} em đã được điểm danh`,
       icon: <CheckCircleIcon sx={{ fontSize: 34, color: '#059669' }} />,
     },
     {
