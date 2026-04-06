@@ -13,6 +13,7 @@ export const SCHOOL_ADMIN_MENU_ITEMS = [
     children: [
       { key: 'academic-year-setup', label: 'Thiết lập năm học', permission: 'MANAGE_ACADEMIC_YEAR' },
       { key: 'academic-plan', label: 'Thiết lập kế hoạch', permission: 'MANAGE_CURRICULUM' },
+      { key: 'academic-events', label: 'Thiết lập sự kiện', permission: 'MANAGE_CURRICULUM' },
       { key: 'academic-schedule', label: 'Thời gian biểu', permission: 'MANAGE_CURRICULUM' },
       { key: 'academic-report', label: 'Báo cáo & thống kê', permission: 'VIEW_REPORT' },
     ],
@@ -123,6 +124,7 @@ export const createSchoolAdminMenuSelect = (navigate) => (key) => {
     'academic-curriculum': '/school-admin/curriculum',
     'academic-schedule': '/school-admin/timetable',
     'academic-plan': '/school-admin/academic-plan',
+    'academic-events': '/school-admin/academic-events',
     'academic-students': '/school-admin/class-list',
     'academic-report': '/school-admin/academic-report',
     classes: '/school-admin/classes',

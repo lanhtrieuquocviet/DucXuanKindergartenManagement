@@ -29,6 +29,7 @@ const academicYearController = require('../controller/academicYearController');
 const AcademicYear = require('../models/AcademicYear');
 const curriculumController = require('../controller/curriculumController');
 const academicPlanController = require('../controller/academicPlanController');
+const academicEventController = require('../controller/academicEventController');
 const timetableController = require('../controller/timetableController');
 
 const router = express.Router();
@@ -1211,6 +1212,8 @@ router.get('/academic-plan/topics', authenticate, authorizePermissions('MANAGE_C
 router.post('/academic-plan/topics', authenticate, authorizePermissions('MANAGE_CURRICULUM'), academicPlanController.createTopic);
 router.patch('/academic-plan/topics/:id', authenticate, authorizePermissions('MANAGE_CURRICULUM'), academicPlanController.updateTopic);
 router.delete('/academic-plan/topics/:id', authenticate, authorizePermissions('MANAGE_CURRICULUM'), academicPlanController.deleteTopic);
+router.get('/academic-events', authenticate, authorizePermissions('MANAGE_CURRICULUM'), academicEventController.getEventPlan);
+router.put('/academic-events', authenticate, authorizePermissions('MANAGE_CURRICULUM'), academicEventController.upsertEventPlan);
 
 // ============================================
 // Curriculum

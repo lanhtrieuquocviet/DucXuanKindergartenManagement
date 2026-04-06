@@ -58,6 +58,7 @@ require('./src/models/PublicInfo');
 require('./src/models/SystemLog');
 require('./src/models/CurriculumTopic');
 require('./src/models/AcademicPlanTopic');
+require('./src/models/AcademicEventPlan');
 require('./src/models/Timetable');
 require('./src/models/Notification');
 require('./src/models/Classroom');

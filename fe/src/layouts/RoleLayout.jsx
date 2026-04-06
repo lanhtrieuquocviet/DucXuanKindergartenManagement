@@ -50,6 +50,7 @@ export const KEY_ICONS = {
   'academic-years':       <CalendarIcon fontSize="small" />,
   'academic-year-setup':  <CalendarIcon fontSize="small" />,
   'academic-plan':        <SchoolIcon fontSize="small" />,
+  'academic-events':      <NotifIcon fontSize="small" />,
   'academic-students':    <PeopleIcon fontSize="small" />,
   'academic-curriculum':  <CurrencyIcon fontSize="small" />,
   'academic-schedule':    <CalendarIcon fontSize="small" />,

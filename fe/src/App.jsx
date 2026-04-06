@@ -112,6 +112,7 @@ import AcademicYearDetail from './pages/schoolAdmin/AcademicYearDetail';
 import AcademicYearReport from './pages/schoolAdmin/AcademicYearReport';
 import MealManagementSchoolAdmin from './pages/schoolAdmin/MealManagementSchoolAdmin';
 import AcademicYearPlan from './pages/schoolAdmin/AcademicYearPlan';
+import AcademicEventSetup from './pages/schoolAdmin/AcademicEventSetup';
 import CurriculumPage from './pages/schoolAdmin/CurriculumPage';
 import ClassListOverview from './pages/schoolAdmin/ClassListOverview';
 import TimetableActivitiesPage from './pages/schoolAdmin/TimetableActivitiesPage';
@@ -824,6 +825,16 @@ function App() {
               <ProtectedRoute>
                 <SchoolAdminProvider>
                   <AcademicYearPlan />
+                </SchoolAdminProvider>
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/school-admin/academic-events"
+            element={
+              <ProtectedRoute>
+                <SchoolAdminProvider>
+                  <AcademicEventSetup />
                 </SchoolAdminProvider>
               </ProtectedRoute>
             }
