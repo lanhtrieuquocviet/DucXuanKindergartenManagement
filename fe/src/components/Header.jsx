@@ -105,8 +105,9 @@ function Header() {
 
     return (
         <header className="w-full bg-green-50">
-            <div className="bg-gradient-to-r from-green-600 to-green-500">
-                <div className="max-w-7xl mx-auto px-4 sm:px-6 py-2.5 flex items-center justify-between gap-4">
+            <div className="bg-gradient-to-r from-green-700 to-green-500">
+                {/* ===== HÀNG TRÊN: Logo + Search + Login ===== */}
+                <div className="max-w-7xl mx-auto px-4 sm:px-6 py-2.5 flex items-center justify-between gap-3">
                     {/* Mobile menu button */}
                     <button
                         type="button"
@@ -121,195 +122,29 @@ function Header() {
                         </svg>
                     </button>
 
-                    <div className="hidden xl:flex items-center gap-2 shrink-0 min-w-[215px];">
+                    {/* Logo */}
+                    <div className="flex items-center gap-2.5 shrink-0">
                         <img
                             src="https://i.pinimg.com/736x/be/c5/3c/bec53c7b30f46d9ad2cecdb48c5e1e1f.jpg"
                             alt="Logo trường"
-                            className="w-11 h-11 rounded-full border-2 border-white object-cover shadow-sm"
+                            className="w-12 h-12 rounded-full border-2 border-white object-cover shadow"
                         />
-                        <div className="leading-tight text-white">
-                            <div className="text-[9px] font-semibold uppercase tracking-wide whitespace-nowrap opacity-95">
+                        <div className="leading-tight text-white hidden sm:block">
+                            <div className="text-[9px] font-semibold uppercase tracking-wide whitespace-nowrap opacity-90">
                                 Ủy ban nhân dân phường Đức Xuân
                             </div>
-                            <div className="text-[14px] font-extrabold uppercase whitespace-nowrap">
+                            <div className="text-[15px] font-extrabold uppercase whitespace-nowrap tracking-wide">
                                 Trường mầm non Đức Xuân
                             </div>
                         </div>
                     </div>
 
-                    <nav className="hidden md:flex items-center gap-0.5 text-[13px] lg:text-[14px] font-semibold text-white flex-1 min-w-0">
-
-                        <a href="/" className="px-2 lg:px-2.5 py-2 rounded-full hover:bg-white hover:text-green-600 whitespace-nowrap transition-colors">
-                            Trang chủ
-                        </a>
-
-                        {/* ===== THÔNG TIN CÔNG KHAI ===== */}
-                        <div
-                            className="relative"
-                            onMouseEnter={() => openMenu("public")}
-                            onMouseLeave={closeMenu}
-                        >
-                            <div className="px-2 lg:px-2.5 py-2 rounded-full hover:bg-white hover:text-green-600 cursor-pointer whitespace-nowrap transition-colors">
-                                Thông tin công khai
-                            </div>
-
-                            {activeMenu === "public" && (
-                                <div className="absolute top-full left-0 mt-2 bg-white text-gray-800 rounded-xl shadow-xl min-w-[260px] z-50">
-                                    <a href="/public-information">
-                                        <div className="px-4 py-3 hover:bg-green-100 font-medium">
-                                            Thông tin chung về cơ sở giáo dục
-                                        </div>
-                                    </a>
-
-                                    {[
-                                        { label: "Công khai thu chi tài chính", slug: "financial-disclosure" },
-                                        { label: "Điều kiện đảm bảo chất lượng hoạt động giáo dục", slug: "education-quality" },
-                                        { label: "Kế hoạch và kết quả hoạt động giáo dục", slug: "education-plan-result" },
-                                        { label: "Báo cáo thường niên", slug: "annual-report" },
-                                    ].map((item) => (
-                                        <div key={item.slug} className="relative group">
-                                            <div className="px-4 py-3 hover:bg-green-100 flex justify-between cursor-pointer">
-                                                {item.label}
-                                                <span>▶</span>
-                                            </div>
-
-                                            <div className="absolute top-0 left-full ml-1 hidden group-hover:block bg-white rounded-xl shadow-xl min-w-[140px]">
-                                                {years.map((y) => (
-                                                    <a
-                                                        key={y}
-                                                        href={`/public-information/${item.slug}/${y}`}
-                                                    >
-                                                        <div className="px-4 py-3 hover:bg-green-100">
-                                                            Năm {y}
-                                                        </div>
-                                                    </a>
-                                                ))}
-                                            </div>
-                                        </div>
-                                    ))}
-                                </div>
-                            )}
-                        </div>
-
-                        {/* ===== GIỚI THIỆU ===== */}
-                        <div
-                            className="relative"
-                            onMouseEnter={() => openMenu("intro")}
-                            onMouseLeave={closeMenu}
-                        >
-                            <div className="px-2 lg:px-2.5 py-2 rounded-full hover:bg-white hover:text-green-600 cursor-pointer whitespace-nowrap transition-colors">
-                                Giới thiệu
-                            </div>
-
-                            {activeMenu === "intro" && (
-                                <div className="absolute top-full left-0 mt-2 bg-white rounded-xl shadow-lg min-w-[260px] z-50 text-gray-800">
-                                    <a href="/introduce-school"><div className="px-4 py-3 hover:bg-green-100">Giới thiệu trường</div></a>
-                                    <a href="/teacher-team"><div className="px-4 py-3 hover:bg-green-100">Đội ngũ giáo viên</div></a>
-                                    <a href="/facilities"><div className="px-4 py-3 hover:bg-green-100">Cơ sở vật chất</div></a>
-                                    <a href="/study-schedule"><div className="px-4 py-3 hover:bg-green-100">Lịch học tập</div></a>
-
-                                    <div className="relative group">
-                                        <div className="px-4 py-3 hover:bg-green-50 flex justify-between cursor-pointer">
-                                            Cơ cấu tổ chức
-                                            <span>▶</span>
-                                        </div>
-
-                                        <div className="absolute top-0 left-full ml-1 hidden group-hover:block bg-white rounded-xl shadow-lg min-w-[260px]">
-                                            <a href="/board-of-directors"><div className="px-4 py-3 hover:bg-green-100">Ban giám hiệu</div></a>
-                                            <a href="/professional-group"><div className="px-4 py-3 hover:bg-green-100">Tổ Chuyên môn</div></a>
-                                            <a href="/administrative-staff"><div className="px-4 py-3 hover:bg-green-100">Tổ Hành chính - Văn phòng</div></a>
-                                            <a href="/parent-council"><div className="px-4 py-3 hover:bg-green-100">Hội Thường trực PHHS</div></a>
-                                        </div>
-                                    </div>
-                                </div>
-                            )}
-                        </div>
-
-                        {/* ===== TIN TỨC ===== */}
-                        <div
-                            className="relative"
-                            onMouseEnter={() => openMenu("news")}
-                            onMouseLeave={closeMenu}
-                        >
-                            <div className="px-2 lg:px-2.5 py-2 rounded-full hover:bg-white hover:text-green-600 cursor-pointer whitespace-nowrap transition-colors">
-                                Tin tức
-                            </div>
-
-                            {activeMenu === "news" && (
-                                <div className="absolute top-full left-0 mt-2 bg-white rounded-xl shadow-xl min-w-[220px] z-50 text-gray-800">
-                                    {newsCategories.length === 0 ? (
-                                        <div className="px-4 py-3 text-sm text-gray-500">Đang tải...</div>
-                                    ) : (
-                                        newsCategories.map((c) => {
-                                            const route = NEWS_ROUTE_MAP[c.name] || "/";
-                                            return (
-                                                <a key={c._id} href={route}>
-                                                    <div className="px-4 py-3 hover:bg-green-100">
-                                                        {c.name}
-                                                    </div>
-                                                </a>
-                                            );
-                                        })
-                                    )}
-                                </div>
-                            )}
-                        </div>
-
-                        {/* ===== VĂN BẢN ===== */}
-                        <div
-                            className="relative"
-                            onMouseEnter={() => openMenu("docs")}
-                            onMouseLeave={closeMenu}
-                        >
-                            <div className="px-2 lg:px-2.5 py-2 rounded-full hover:bg-white hover:text-green-600 cursor-pointer whitespace-nowrap transition-colors">
-                                Văn bản
-                            </div>
-
-                            {activeMenu === "docs" && (
-                                <div className="absolute top-full left-0 mt-2 bg-white rounded-xl shadow-xl min-w-[220px] z-50 text-gray-800">
-                                    <a href="/legal-documents"><div className="px-4 py-3 hover:bg-green-100">Văn bản pháp quy</div></a>
-                                    <a href="/department-documents"><div className="px-4 py-3 hover:bg-green-100">Văn bản từ Phòng</div></a>
-                                </div>
-                            )}
-                        </div>
-
-                        {/* ===== THƯ VIỆN ===== */}
-                        <div
-                            className="relative"
-                            onMouseEnter={() => openMenu("library")}
-                            onMouseLeave={closeMenu}
-                        >
-                            <div className="px-2 lg:px-2.5 py-2 rounded-full hover:bg-white hover:text-green-600 cursor-pointer whitespace-nowrap transition-colors">
-                                Thư viện
-                            </div>
-
-                            {activeMenu === "library" && (
-                                <div className="absolute top-full left-0 mt-2 bg-white rounded-xl shadow-xl min-w-[220px] z-50 text-gray-800">
-                                    <a href="https://k12online.vn/" target="_blank" rel="noreferrer"><div className="px-4 py-3 hover:bg-green-100">Học trực tuyến</div></a>
-                                    <a href="/weekly-program"><div className="px-4 py-3 hover:bg-green-100">Chương trình tuần</div></a>
-                                    <a href="/weekly-menu"><div className="px-4 py-3 hover:bg-green-100">Thực đơn tuần</div></a>
-                                    <a href="/photo-gallery"><div className="px-4 py-3 hover:bg-green-100">Thư viện ảnh</div></a>
-                                    <a href="/video-gallery"><div className="px-4 py-3 hover:bg-green-100">Video clip</div></a>
-                                    <a href="/document-library"><div className="px-4 py-3 hover:bg-green-100">Tài liệu</div></a>
-                                    <a href="/schedule"><div className="px-4 py-3 hover:bg-green-100">Thời khóa biểu</div></a>
-                                    <a href="/lesson-plan"><div className="px-4 py-3 hover:bg-green-100">Giáo án điện tử</div></a>
-                                    <a href="/experience-sharing"><div className="px-4 py-3 hover:bg-green-100">Chia sẻ kinh nghiệm</div></a>
-                                    <a href="/things-to-know"><div className="px-4 py-3 hover:bg-green-100">Điều cần biết</div></a>
-                                    <a href="/poetry-music"><div className="px-4 py-3 hover:bg-green-100">Thơ văn - nhạc</div></a>
-                                    <a href="/relax-page"><div className="px-4 py-3 hover:bg-green-100">Thư giãn</div></a>
-                                </div>
-                            )}
-                        </div>
-
-                        <a href="/contact" className="px-2 lg:px-2.5 py-2 rounded-full hover:bg-white hover:text-green-600 whitespace-nowrap transition-colors">Liên hệ</a>
-                        <a href="/qa" className="px-2 lg:px-2.5 py-2 rounded-full hover:bg-white hover:text-green-600 whitespace-nowrap transition-colors">Hỏi đáp</a>
-                    </nav>
-                    {/* ===== SEARCH + LOGIN ===== */}
-                    <div className="flex items-center gap-2 sm:gap-3 flex-1 md:flex-none md:shrink-0 justify-end">
-                        <div className="relative flex-1 max-w-[420px] md:w-[180px] lg:w-[200px] md:flex-none" ref={searchContainerRef}>
-                            <div className="flex items-center bg-white rounded-full px-2 py-1.5 text-sm shadow w-full">
+                    {/* Search + Login */}
+                    <div className="flex items-center gap-2 sm:gap-3">
+                        <div className="relative" ref={searchContainerRef}>
+                            <div className="flex items-center bg-white rounded-full px-3 py-1.5 text-sm shadow w-[160px] sm:w-[200px] lg:w-[240px]">
                                 <input
-                                    className="outline-none text-gray-700 w-full md:w-20 lg:w-24 px-3"
+                                    className="outline-none text-gray-700 w-full bg-transparent"
                                     placeholder="Tìm kiếm..."
                                     value={query}
                                     onChange={(e) => handleQueryChange(e.target.value)}
@@ -324,7 +159,6 @@ function Header() {
                                         }
                                     }}
                                 />
-
                                 <button
                                     type="button"
                                     aria-label="Tìm"
@@ -335,7 +169,7 @@ function Header() {
                                             setShowResults(false);
                                         }
                                     }}
-                                    className="ml-2 mr-2 p-2 rounded-full hover:bg-gray-100 text-gray-600"
+                                    className="ml-1 p-1 rounded-full hover:bg-gray-100 text-gray-500 shrink-0"
                                 >
                                     <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" className="w-4 h-4">
                                         <circle cx="11" cy="11" r="7" />
@@ -345,7 +179,7 @@ function Header() {
                             </div>
 
                             {showResults && (
-                                <div className="absolute right-0 mt-2 w-full md:w-[320px] bg-white rounded-xl shadow-xl z-50 text-gray-800">
+                                <div className="absolute right-0 mt-2 w-[320px] bg-white rounded-xl shadow-xl z-50 text-gray-800">
                                     {loading ? (
                                         <div className="px-4 py-3 text-sm text-gray-500">Đang tìm...</div>
                                     ) : results.length === 0 ? (
@@ -366,15 +200,154 @@ function Header() {
                                 </div>
                             )}
                         </div>
+
                         <a href="/login">
-                            <button className="bg-orange-500 hover:bg-orange-600 text-white font-semibold px-4 sm:px-5 py-2 rounded-full transition whitespace-nowrap shadow-sm">
+                            <button className="bg-orange-500 hover:bg-orange-600 text-white font-semibold px-4 sm:px-5 py-2 rounded-full transition whitespace-nowrap shadow-sm text-sm">
                                 Đăng nhập
                             </button>
                         </a>
                     </div>
-
                 </div>
 
+                {/* ===== HÀNG DƯỚI: Navigation ===== */}
+                <div className="hidden md:block border-t border-white/20">
+                    <nav className="max-w-7xl mx-auto px-4 sm:px-6 flex items-center justify-evenly text-[13px] font-semibold text-white">
+
+                        <a href="/" className="px-3 py-2.5 hover:bg-white/15 whitespace-nowrap transition-colors rounded">
+                            Trang chủ
+                        </a>
+
+                        {/* ===== THÔNG TIN CÔNG KHAI ===== */}
+                        <div className="relative" onMouseEnter={() => openMenu("public")} onMouseLeave={closeMenu}>
+                            <div className="px-3 py-2.5 hover:bg-white/15 cursor-pointer whitespace-nowrap transition-colors rounded flex items-center gap-1">
+                                Thông tin công khai
+                                <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" className={`w-3 h-3 transition-transform duration-200 ${activeMenu === "public" ? "rotate-180" : ""}`}><polyline points="6 9 12 15 18 9"/></svg>
+                            </div>
+                            {activeMenu === "public" && (
+                                <div className="absolute top-full left-0 mt-1 bg-white text-gray-800 rounded-xl shadow-xl min-w-[260px] z-50">
+                                    <a href="/public-information"><div className="px-4 py-3 hover:bg-green-100 font-medium rounded-t-xl">Thông tin chung về cơ sở giáo dục</div></a>
+                                    {[
+                                        { label: "Công khai thu chi tài chính", slug: "financial-disclosure" },
+                                        { label: "Điều kiện đảm bảo chất lượng hoạt động giáo dục", slug: "education-quality" },
+                                        { label: "Kế hoạch và kết quả hoạt động giáo dục", slug: "education-plan-result" },
+                                        { label: "Báo cáo thường niên", slug: "annual-report" },
+                                    ].map((item) => (
+                                        <div key={item.slug} className="relative group">
+                                            <div className="px-4 py-3 hover:bg-green-100 flex justify-between cursor-pointer">
+                                                {item.label}
+                                                <span className="text-gray-400 ml-2">▶</span>
+                                            </div>
+                                            <div className="absolute top-0 left-full ml-1 hidden group-hover:block bg-white rounded-xl shadow-xl min-w-[140px] z-50">
+                                                {years.map((y) => (
+                                                    <a key={y} href={`/public-information/${item.slug}/${y}`}>
+                                                        <div className="px-4 py-3 hover:bg-green-100">Năm {y}</div>
+                                                    </a>
+                                                ))}
+                                            </div>
+                                        </div>
+                                    ))}
+                                </div>
+                            )}
+                        </div>
+
+                        {/* ===== GIỚI THIỆU ===== */}
+                        <div className="relative" onMouseEnter={() => openMenu("intro")} onMouseLeave={closeMenu}>
+                            <div className="px-3 py-2.5 hover:bg-white/15 cursor-pointer whitespace-nowrap transition-colors rounded flex items-center gap-1">
+                                Giới thiệu
+                                <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" className={`w-3 h-3 transition-transform duration-200 ${activeMenu === "intro" ? "rotate-180" : ""}`}><polyline points="6 9 12 15 18 9"/></svg>
+                            </div>
+                            {activeMenu === "intro" && (
+                                <div className="absolute top-full left-0 mt-1 bg-white rounded-xl shadow-xl min-w-[240px] z-50 text-gray-800">
+                                    <a href="/introduce-school"><div className="px-4 py-3 hover:bg-green-100 rounded-t-xl">Giới thiệu trường</div></a>
+                                    <a href="/teacher-team"><div className="px-4 py-3 hover:bg-green-100">Đội ngũ giáo viên</div></a>
+                                    <a href="/facilities"><div className="px-4 py-3 hover:bg-green-100">Cơ sở vật chất</div></a>
+                                    <a href="/study-schedule"><div className="px-4 py-3 hover:bg-green-100">Lịch học tập</div></a>
+                                    <div className="relative group">
+                                        <div className="px-4 py-3 hover:bg-green-50 flex justify-between cursor-pointer">
+                                            Cơ cấu tổ chức
+                                            <span className="text-gray-400">▶</span>
+                                        </div>
+                                        <div className="absolute top-0 left-full ml-1 hidden group-hover:block bg-white rounded-xl shadow-xl min-w-[260px] z-50">
+                                            <a href="/board-of-directors"><div className="px-4 py-3 hover:bg-green-100 rounded-t-xl">Ban giám hiệu</div></a>
+                                            <a href="/professional-group"><div className="px-4 py-3 hover:bg-green-100">Tổ Chuyên môn</div></a>
+                                            <a href="/administrative-staff"><div className="px-4 py-3 hover:bg-green-100">Tổ Hành chính - Văn phòng</div></a>
+                                            <a href="/parent-council"><div className="px-4 py-3 hover:bg-green-100 rounded-b-xl">Hội Thường trực PHHS</div></a>
+                                        </div>
+                                    </div>
+                                </div>
+                            )}
+                        </div>
+
+                        {/* ===== TIN TỨC ===== */}
+                        <div className="relative" onMouseEnter={() => openMenu("news")} onMouseLeave={closeMenu}>
+                            <div className="px-3 py-2.5 hover:bg-white/15 cursor-pointer whitespace-nowrap transition-colors rounded flex items-center gap-1">
+                                Tin tức
+                                <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" className={`w-3 h-3 transition-transform duration-200 ${activeMenu === "news" ? "rotate-180" : ""}`}><polyline points="6 9 12 15 18 9"/></svg>
+                            </div>
+                            {activeMenu === "news" && (
+                                <div className="absolute top-full left-0 mt-1 bg-white rounded-xl shadow-xl min-w-[220px] z-50 text-gray-800">
+                                    {newsCategories.length === 0 ? (
+                                        <div className="px-4 py-3 text-sm text-gray-500">Đang tải...</div>
+                                    ) : (
+                                        newsCategories.map((c, idx) => {
+                                            const route = NEWS_ROUTE_MAP[c.name] || "/";
+                                            return (
+                                                <a key={c._id} href={route}>
+                                                    <div className={`px-4 py-3 hover:bg-green-100 ${idx === 0 ? "rounded-t-xl" : ""} ${idx === newsCategories.length - 1 ? "rounded-b-xl" : ""}`}>{c.name}</div>
+                                                </a>
+                                            );
+                                        })
+                                    )}
+                                </div>
+                            )}
+                        </div>
+
+                        {/* ===== VĂN BẢN ===== */}
+                        <div className="relative" onMouseEnter={() => openMenu("docs")} onMouseLeave={closeMenu}>
+                            <div className="px-3 py-2.5 hover:bg-white/15 cursor-pointer whitespace-nowrap transition-colors rounded flex items-center gap-1">
+                                Văn bản
+                                <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" className={`w-3 h-3 transition-transform duration-200 ${activeMenu === "docs" ? "rotate-180" : ""}`}><polyline points="6 9 12 15 18 9"/></svg>
+                            </div>
+                            {activeMenu === "docs" && (
+                                <div className="absolute top-full left-0 mt-1 bg-white rounded-xl shadow-xl min-w-[220px] z-50 text-gray-800">
+                                    <a href="/legal-documents"><div className="px-4 py-3 hover:bg-green-100 rounded-t-xl">Văn bản pháp quy</div></a>
+                                    <a href="/department-documents"><div className="px-4 py-3 hover:bg-green-100 rounded-b-xl">Văn bản từ Phòng</div></a>
+                                </div>
+                            )}
+                        </div>
+
+                        {/* ===== THƯ VIỆN ===== */}
+                        <div className="relative" onMouseEnter={() => openMenu("library")} onMouseLeave={closeMenu}>
+                            <div className="px-3 py-2.5 hover:bg-white/15 cursor-pointer whitespace-nowrap transition-colors rounded flex items-center gap-1">
+                                Thư viện
+                                <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" className={`w-3 h-3 transition-transform duration-200 ${activeMenu === "library" ? "rotate-180" : ""}`}><polyline points="6 9 12 15 18 9"/></svg>
+                            </div>
+                            {activeMenu === "library" && (
+                                <div className="absolute top-full left-0 mt-1 bg-white rounded-xl shadow-xl min-w-[220px] z-50 text-gray-800">
+                                    <a href="https://k12online.vn/" target="_blank" rel="noreferrer"><div className="px-4 py-3 hover:bg-green-100 rounded-t-xl">Học trực tuyến</div></a>
+                                    <a href="/weekly-program"><div className="px-4 py-3 hover:bg-green-100">Chương trình tuần</div></a>
+                                    <a href="/weekly-menu"><div className="px-4 py-3 hover:bg-green-100">Thực đơn tuần</div></a>
+                                    <a href="/photo-gallery"><div className="px-4 py-3 hover:bg-green-100">Thư viện ảnh</div></a>
+                                    <a href="/video-gallery"><div className="px-4 py-3 hover:bg-green-100">Video clip</div></a>
+                                    <a href="/document-library"><div className="px-4 py-3 hover:bg-green-100">Tài liệu</div></a>
+                                    <a href="/schedule"><div className="px-4 py-3 hover:bg-green-100">Thời khóa biểu</div></a>
+                                    <a href="/lesson-plan"><div className="px-4 py-3 hover:bg-green-100">Giáo án điện tử</div></a>
+                                    <a href="/experience-sharing"><div className="px-4 py-3 hover:bg-green-100">Chia sẻ kinh nghiệm</div></a>
+                                    <a href="/things-to-know"><div className="px-4 py-3 hover:bg-green-100">Điều cần biết</div></a>
+                                    <a href="/poetry-music"><div className="px-4 py-3 hover:bg-green-100">Thơ văn - nhạc</div></a>
+                                    <a href="/relax-page"><div className="px-4 py-3 hover:bg-green-100 rounded-b-xl">Thư giãn</div></a>
+                                </div>
+                            )}
+                        </div>
+
+                        <a href="/contact" className="px-3 py-2.5 hover:bg-white/15 whitespace-nowrap transition-colors rounded">
+                            Liên hệ
+                        </a>
+                        <a href="/qa" className="px-3 py-2.5 hover:bg-white/15 whitespace-nowrap transition-colors rounded">
+                            Hỏi đáp
+                        </a>
+                    </nav>
+                </div>
             </div>
             {/* ===== MOBILE MENU OVERLAY (Header + Left/Right nav) ===== */}
             {mobileOpen && (
