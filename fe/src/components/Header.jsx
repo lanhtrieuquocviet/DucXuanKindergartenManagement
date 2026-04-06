@@ -38,6 +38,7 @@ function Header() {
     };
 
     const [newsCategories, setNewsCategories] = useState([]);
+    const [organizationGroups, setOrganizationGroups] = useState([]);
     // search state
     const [query, setQuery] = useState("");
     const [results, setResults] = useState([]);
@@ -101,6 +102,31 @@ function Header() {
             }
         };
         loadCats();
+    }, []);
+
+    useEffect(() => {
+        const loadOrganization = async () => {
+            try {
+                const resp = await get(ENDPOINTS.PUBLIC_INFO.ORGANIZATION_STRUCTURE, { includeAuth: false });
+                const data = resp?.data || {};
+                const groups = [
+                    { key: 'boardOfDirectors', label: 'Ban giám hiệu', route: '/board-of-directors' },
+                    { key: 'professionalGroup', label: 'Tổ Chuyên môn', route: '/professional-group' },
+                    { key: 'administrativeGroup', label: 'Tổ Hành chính - Văn phòng', route: '/administrative-staff' },
+                    { key: 'parentCouncil', label: 'Hội Thường trực PHHS', route: '/parent-council' },
+                ].map((item) => ({
+                    ...item,
+                    members: Array.isArray(data?.[item.key]?.members)
+                        ? data[item.key].members.map((m) => (typeof m === 'string' ? { fullName: m } : m))
+                        : [],
+                }));
+                setOrganizationGroups(groups);
+            } catch (err) {
+                console.error('Failed to load organization structure', err);
+                setOrganizationGroups([]);
+            }
+        };
+        loadOrganization();
     }, []);
 
     return (
@@ -267,11 +293,38 @@ function Header() {
                                             Cơ cấu tổ chức
                                             <span className="text-gray-400">▶</span>
                                         </div>
-                                        <div className="absolute top-0 left-full ml-1 hidden group-hover:block bg-white rounded-xl shadow-xl min-w-[260px] z-50">
-                                            <a href="/board-of-directors"><div className="px-4 py-3 hover:bg-green-100 rounded-t-xl">Ban giám hiệu</div></a>
-                                            <a href="/professional-group"><div className="px-4 py-3 hover:bg-green-100">Tổ Chuyên môn</div></a>
-                                            <a href="/administrative-staff"><div className="px-4 py-3 hover:bg-green-100">Tổ Hành chính - Văn phòng</div></a>
-                                            <a href="/parent-council"><div className="px-4 py-3 hover:bg-green-100 rounded-b-xl">Hội Thường trực PHHS</div></a>
+                                        <div className="absolute top-0 left-full ml-1 hidden group-hover:block bg-white rounded-xl shadow-xl min-w-[300px] z-50">
+                                            {(organizationGroups.length > 0 ? organizationGroups : [
+                                                { key: 'boardOfDirectors', label: 'Ban giám hiệu', route: '/board-of-directors', members: [] },
+                                                { key: 'professionalGroup', label: 'Tổ Chuyên môn', route: '/professional-group', members: [] },
+                                                { key: 'administrativeGroup', label: 'Tổ Hành chính - Văn phòng', route: '/administrative-staff', members: [] },
+                                                { key: 'parentCouncil', label: 'Hội Thường trực PHHS', route: '/parent-council', members: [] },
+                                            ]).map((group, idx, arr) => (
+                                                <div key={group.key} className={`relative group/item ${idx === 0 ? 'rounded-t-xl' : ''} ${idx === arr.length - 1 ? 'rounded-b-xl' : ''}`}>
+                                                    <a href={group.route}>
+                                                        <div className={`px-4 py-3 hover:bg-green-100 flex justify-between cursor-pointer ${idx === 0 ? 'rounded-t-xl' : ''} ${idx === arr.length - 1 ? 'rounded-b-xl' : ''}`}>
+                                                            <span>{group.label}</span>
+                                                            <span className="text-gray-400">▶</span>
+                                                        </div>
+                                                    </a>
+                                                    <div className="absolute top-0 left-full ml-1 hidden group-hover/item:block bg-white rounded-xl shadow-xl min-w-[260px] z-50">
+                                                        {group.members.length > 0 ? (
+                                                            group.members.map((member, memberIdx) => (
+                                                                <div
+                                                                    key={`${group.key}-${member}-${memberIdx}`}
+                                                                    className={`px-4 py-2.5 hover:bg-green-100 text-sm ${memberIdx === 0 ? 'rounded-t-xl' : ''} ${memberIdx === group.members.length - 1 ? 'rounded-b-xl' : ''}`}
+                                                                >
+                                                                    {member.fullName || '—'}
+                                                                </div>
+                                                            ))
+                                                        ) : (
+                                                            <div className="px-4 py-2.5 text-sm text-gray-500 rounded-xl">
+                                                                Chưa cập nhật nhân sự
+                                                            </div>
+                                                        )}
+                                                    </div>
+                                                </div>
+                                            ))}
                                         </div>
                                     </div>
                                 </div>

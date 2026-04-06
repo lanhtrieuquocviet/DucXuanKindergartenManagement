@@ -412,6 +412,7 @@ export const ENDPOINTS = {
   PUBLIC_INFO: {
     LIST: "/public-info",
     DETAIL: (id) => `/public-info/${id}`,
+    ORGANIZATION_STRUCTURE: "/public-info/organization-structure",
   },
   IMAGE_LIBRARY: {
     LIST: "/image-library",

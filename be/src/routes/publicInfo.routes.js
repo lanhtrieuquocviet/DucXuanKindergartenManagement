@@ -1,5 +1,9 @@
 const express = require('express');
-const { getPublishedPublicInfos, getPublishedPublicInfoById } = require('../controller/publicInfoController');
+const {
+  getPublishedPublicInfos,
+  getPublishedPublicInfoById,
+  getOrganizationStructure,
+} = require('../controller/publicInfoController');
 
 const router = express.Router();
 
@@ -15,6 +19,7 @@ const router = express.Router();
  *         description: Danh sách thông tin công khai
  */
 router.get('/', getPublishedPublicInfos);
+router.get('/organization-structure', getOrganizationStructure);
 
 /**
  * @openapi
