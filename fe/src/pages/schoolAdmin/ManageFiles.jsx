@@ -36,6 +36,7 @@ import {
 import SearchIcon from '@mui/icons-material/Search';
 import DeleteIcon from '@mui/icons-material/Delete';
 import VisibilityIcon from '@mui/icons-material/Visibility';
+import DownloadIcon from '@mui/icons-material/Download';
 import PictureAsPdfIcon from '@mui/icons-material/PictureAsPdf';
 import DescriptionIcon from '@mui/icons-material/Description';
 import UploadFileIcon from '@mui/icons-material/UploadFile';
@@ -60,9 +61,11 @@ export default function ManageFiles() {
 
   const [items, setItems] = useState([]);
   const [loading, setLoading] = useState(false);
+  const [loadingYear, setLoadingYear] = useState(false);
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState(null);
   const [confirmDelete, setConfirmDelete] = useState(null);
+  const [currentYear, setCurrentYear] = useState(null);
   const [filters, setFilters] = useState({ search: '', status: '' });
   const [importOpen, setImportOpen] = useState(false);
   const [importCategory, setImportCategory] = useState('');
@@ -80,11 +83,16 @@ export default function ManageFiles() {
   }, [navigate, user, isInitializing]);
 
   const loadFiles = async () => {
+    if (!currentYear?._id) {
+      setItems([]);
+      return;
+    }
     setLoading(true);
     try {
       const params = new URLSearchParams();
       params.append('page', 1);
       params.append('limit', 100);
+      params.append('yearId', currentYear._id);
       if (filters.search) params.append('search', filters.search);
       if (filters.status) params.append('status', filters.status);
 
@@ -101,8 +109,29 @@ export default function ManageFiles() {
   };
 
   useEffect(() => {
+    const loadCurrentYear = async () => {
+      try {
+        setLoadingYear(true);
+        const resp = await get(ENDPOINTS.SCHOOL_ADMIN.ACADEMIC_YEARS.CURRENT);
+        if (resp?.status === 'success' && resp?.data?._id) {
+          setCurrentYear(resp.data);
+        } else {
+          setCurrentYear(null);
+        }
+      } catch (err) {
+        setCurrentYear(null);
+        setError(err.message || 'Lỗi tải năm học hiện tại');
+      } finally {
+        setLoadingYear(false);
+      }
+    };
+    loadCurrentYear();
+  }, []);
+
+  useEffect(() => {
+    if (loadingYear) return;
     loadFiles();
-  }, [filters.status]); // eslint-disable-line
+  }, [filters.status, currentYear?._id, loadingYear]); // eslint-disable-line
 
   useEffect(() => {
     const loadCategoryOptions = async () => {
@@ -154,6 +183,10 @@ export default function ManageFiles() {
   }, {});
 
   const handleImport = async () => {
+    if (!currentYear?._id) {
+      toast.error('Chưa có năm học đang hoạt động để lưu file');
+      return;
+    }
     if (!importCategory) {
       toast.error('Vui lòng chọn loại danh mục');
       return;
@@ -179,6 +212,7 @@ export default function ManageFiles() {
         description: `Import từ Quản lý file (${importCategory})`,
         category: importCategory,
         status: 'published',
+        academicYearId: currentYear?._id,
         attachmentUrl: uploadResp.data.url,
         attachmentType: uploadResp.data.type || null,
       });
@@ -220,6 +254,20 @@ export default function ManageFiles() {
         </Alert>
       )}
 
+      {!loadingYear && !currentYear && (
+        <Alert
+          severity="warning"
+          sx={{ mb: 2 }}
+          action={
+            <Button color="inherit" size="small" onClick={() => navigate('/school-admin/academic-years')}>
+              Tạo năm học
+            </Button>
+          }
+        >
+          Chưa có năm học đang hoạt động. Vui lòng tạo mới năm học để lưu trữ file theo từng năm học.
+        </Alert>
+      )}
+
       <Paper
         elevation={0}
         sx={{
@@ -234,7 +282,12 @@ export default function ManageFiles() {
           Quản lý file
         </Typography>
         <Typography variant="body2" sx={{ color: 'rgba(255,255,255,0.9)', mt: 0.5 }}>
-          Theo dõi, tìm kiếm và xóa các file đính kèm trong hệ thống tài liệu.
+          Theo dõi, tìm kiếm và xóa các file đính kèm theo từng năm học.
+        </Typography>
+        <Typography variant="caption" sx={{ color: 'rgba(255,255,255,0.95)', mt: 0.75, display: 'block' }}>
+          {loadingYear
+            ? 'Đang tải năm học...'
+            : (currentYear?.yearName ? `Năm học hiện tại: ${currentYear.yearName}` : 'Chưa có năm học đang hoạt động')}
         </Typography>
       </Paper>
 
@@ -262,6 +315,7 @@ export default function ManageFiles() {
             variant="outlined"
             startIcon={<UploadFileIcon />}
             onClick={() => setImportOpen(true)}
+            disabled={!currentYear}
             sx={{ whiteSpace: 'nowrap' }}
           >
             Import file
@@ -295,6 +349,10 @@ export default function ManageFiles() {
           <Box sx={{ py: 6, textAlign: 'center' }}>
             <CircularProgress size={24} />
           </Box>
+        ) : !currentYear ? (
+          <Typography variant="body2" color="text.secondary" sx={{ py: 4, textAlign: 'center' }}>
+            Chưa có năm học để lưu trữ file.
+          </Typography>
         ) : (
           <Stack spacing={2}>
             {Object.entries(groupedItems).map(([categoryName, files]) => (
@@ -342,6 +400,17 @@ export default function ManageFiles() {
                                 sx={{ color: '#0284c7' }}
                               >
                                 <VisibilityIcon fontSize="small" />
+                              </IconButton>
+                              <IconButton
+                                size="small"
+                                component={Link}
+                                href={item.attachmentUrl}
+                                target="_blank"
+                                rel="noopener noreferrer"
+                                download
+                                sx={{ color: '#2563eb' }}
+                              >
+                                <DownloadIcon fontSize="small" />
                               </IconButton>
                               <IconButton size="small" color="error" onClick={() => setConfirmDelete(item)}>
                                 <DeleteIcon fontSize="small" />

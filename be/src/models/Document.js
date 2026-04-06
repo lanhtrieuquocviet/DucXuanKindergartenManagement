@@ -17,6 +17,12 @@ const documentSchema = new mongoose.Schema(
       ref: 'User',
       required: true,
     },
+    academicYear: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: 'AcademicYears',
+      default: null,
+      index: true,
+    },
     // Array of image URLs from Cloudinary (converted from PDF pages)
     images: [{
       type: String,
