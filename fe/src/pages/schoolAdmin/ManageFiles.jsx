@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useLocation, useNavigate } from 'react-router-dom';
 import { toast } from 'react-toastify';
 import { useAuth } from '../../context/AuthContext';
 import RoleLayout from '../../layouts/RoleLayout';
@@ -55,6 +55,7 @@ const getFileIcon = (type) => {
 };
 
 export default function ManageFiles() {
+  const location = useLocation();
   const navigate = useNavigate();
   const { user, logout, isInitializing } = useAuth();
   const menuItems = useSchoolAdminMenu();
@@ -71,6 +72,7 @@ export default function ManageFiles() {
   const [importCategory, setImportCategory] = useState('');
   const [importFile, setImportFile] = useState(null);
   const [categoryOptions, setCategoryOptions] = useState([]);
+  const requestedYearId = new URLSearchParams(location.search).get('yearId');
 
   useEffect(() => {
     if (isInitializing) return;
@@ -112,11 +114,24 @@ export default function ManageFiles() {
     const loadCurrentYear = async () => {
       try {
         setLoadingYear(true);
-        const resp = await get(ENDPOINTS.SCHOOL_ADMIN.ACADEMIC_YEARS.CURRENT);
-        if (resp?.status === 'success' && resp?.data?._id) {
-          setCurrentYear(resp.data);
+        if (requestedYearId) {
+          const params = new URLSearchParams();
+          params.set('yearId', requestedYearId);
+          const resp = await get(`${ENDPOINTS.SCHOOL_ADMIN.ACADEMIC_YEARS.HISTORY}?${params.toString()}`);
+          const row = Array.isArray(resp?.data) ? resp.data[0] : null;
+          if (row?._id) {
+            setCurrentYear(row);
+          } else {
+            setCurrentYear(null);
+            setError('Không tìm thấy năm học được yêu cầu');
+          }
         } else {
-          setCurrentYear(null);
+          const resp = await get(ENDPOINTS.SCHOOL_ADMIN.ACADEMIC_YEARS.CURRENT);
+          if (resp?.status === 'success' && resp?.data?._id) {
+            setCurrentYear(resp.data);
+          } else {
+            setCurrentYear(null);
+          }
         }
       } catch (err) {
         setCurrentYear(null);
@@ -126,7 +141,7 @@ export default function ManageFiles() {
       }
     };
     loadCurrentYear();
-  }, []);
+  }, [requestedYearId]);
 
   useEffect(() => {
     if (loadingYear) return;

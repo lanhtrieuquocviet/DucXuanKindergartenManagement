@@ -452,16 +452,16 @@ export default function AcademicYearDetail() {
                 </Typography>
                 <Stack spacing={1.5}>
                   <Typography variant="body1" color="text.primary">
-                    Tài liệu lưu trữ: Hồ sơ lớp, ảnh hoạt động, video sự kiện, biên bản họp phụ huynh...
-                  </Typography>
-                  <Typography variant="body1" color="text.primary">
-                    Dung lượng lưu trữ: 4.2 GB
+                    Tài liệu lưu trữ: Tài liệu hồ sơ, tài liệu biên bản họp...
                   </Typography>
                 </Stack>
 
                 <Box sx={{ mt: 3 }}>
                   <Button
                     variant="contained"
+                    onClick={() => {
+                      if (yearId) navigate(`/school-admin/files?yearId=${yearId}`);
+                    }}
                     sx={{
                       borderRadius: 2,
                       textTransform: 'none',
