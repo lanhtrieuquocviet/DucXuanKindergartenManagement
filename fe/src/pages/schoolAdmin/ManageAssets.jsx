@@ -76,7 +76,7 @@ function formatDate(d) {
 }
 
 // ─── Shared: Confirm Delete Dialog ───────────────────────────────────────────
-function ConfirmDialog({ open, title, message, onConfirm, onCancel, loading }) {
+function ConfirmDialog({ open, title, message, onConfirm, onCancel, loading, confirmText = 'Xóa', loadingText = 'Đang xóa...' }) {
   return (
     <Dialog open={open} onClose={onCancel} maxWidth="xs" fullWidth>
       <DialogTitle>{title || 'Xác nhận'}</DialogTitle>
@@ -86,7 +86,7 @@ function ConfirmDialog({ open, title, message, onConfirm, onCancel, loading }) {
       <DialogActions sx={{ px: 2, pb: 2 }}>
         <Button onClick={onCancel} disabled={loading}>Hủy</Button>
         <Button variant="contained" color="error" onClick={onConfirm} disabled={loading}>
-          {loading ? 'Đang xóa...' : 'Xóa'}
+          {loading ? loadingText : confirmText}
         </Button>
       </DialogActions>
     </Dialog>
@@ -420,6 +420,7 @@ export function CommitteeTab() {
                 <TableCell>Ngày thành lập</TableCell>
                 <TableCell>Số quyết định</TableCell>
                 <TableCell>Trưởng ban</TableCell>
+                <TableCell>Ngày kết thúc</TableCell>
                 <TableCell align="center">Hành động</TableCell>
               </TableRow>
             </TableHead>
@@ -430,6 +431,7 @@ export function CommitteeTab() {
                   <TableCell>{formatDate(c.foundedDate)}</TableCell>
                   <TableCell>{c.decisionNumber}</TableCell>
                   <TableCell>{getChairman(c)}</TableCell>
+                  <TableCell>{c.endedAt ? formatDate(c.endedAt) : '—'}</TableCell>
                   <TableCell align="center">
                     <Stack direction="row" spacing={0.5} justifyContent="center" alignItems="center">
                       <Button size="small" variant="contained" color="info" sx={{ textTransform: 'none' }} onClick={() => setViewCommittee(c)}>Xem</Button>
@@ -502,6 +504,8 @@ export function CommitteeTab() {
         onConfirm={handleConfirmEnd}
         onCancel={() => setEndTarget(null)}
         loading={ending}
+        confirmText="Kết thúc"
+        loadingText="Đang kết thúc..."
       />
     </Box>
   );
@@ -686,7 +690,6 @@ export function MinutesTab() {
                       <FileDownloadIcon fontSize="small" />
                     </IconButton>
                   </Tooltip>
-                  <IconButton size="small" color="error" onClick={() => setDeleteTarget(m._id)}><DeleteIcon fontSize="small" /></IconButton>
                 </Stack>
               </Paper>
             );
@@ -723,7 +726,6 @@ export function MinutesTab() {
                             <FileDownloadIcon fontSize="small" />
                           </IconButton>
                         </Tooltip>
-                        <IconButton size="small" color="error" onClick={() => setDeleteTarget(m._id)}><DeleteIcon fontSize="small" /></IconButton>
                       </Stack>
                     </TableCell>
                   </TableRow>

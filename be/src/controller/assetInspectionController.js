@@ -76,7 +76,7 @@ exports.endCommittee = async (req, res) => {
   try {
     const committee = await InspectionCommittee.findByIdAndUpdate(
       req.params.id,
-      { status: 'ended' },
+      { status: 'ended', endedAt: new Date() },
       { new: true }
     );
     if (!committee) return res.status(404).json({ status: 'error', message: 'Không tìm thấy ban kiểm kê.' });

@@ -22,6 +22,7 @@ const {
   matchStudentFaceForCheckout,
   deleteFaceEmbedding,
   deleteFaceAngle,
+  updateAttendanceDeliverer,
 } = require('../controller/faceAttendanceController');
 
 const router = express.Router();
@@ -216,5 +217,8 @@ router.post('/pickup/checkout', authenticate, authorizePermissions('CHECKOUT_STU
 
 // Quét khuôn mặt học sinh → tự động ghi điểm danh về (luồng mới: giáo viên đăng ký mặt học sinh)
 router.post('/student/checkout', authenticate, authorizePermissions('CHECKOUT_STUDENT'), matchStudentFaceForCheckout);
+
+// Cập nhật thông tin người đưa/đón sau khi điểm danh AI
+router.patch('/attendance/:id/deliverer', authenticate, updateAttendanceDeliverer);
 
 module.exports = router;

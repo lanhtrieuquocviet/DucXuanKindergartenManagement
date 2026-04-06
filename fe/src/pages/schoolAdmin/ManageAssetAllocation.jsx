@@ -838,11 +838,6 @@ export default function ManageAssetAllocation() {
                               </Tooltip>
                             </>
                           )}
-                          <Tooltip title="Xóa">
-                            <IconButton size="small" color="error" onClick={() => setDeleteTarget(alloc)}>
-                              <DeleteIcon fontSize="small" />
-                            </IconButton>
-                          </Tooltip>
                         </Stack>
                       </TableCell>
                     </TableRow>

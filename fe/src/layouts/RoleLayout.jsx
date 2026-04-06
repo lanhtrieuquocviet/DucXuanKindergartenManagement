@@ -33,6 +33,7 @@ import {
   Grading as GradingIcon,
   Group as GroupIcon,
   Article as ArticleIcon,
+  ReportProblem as ReportProblemIcon,
 } from '@mui/icons-material';
 import { CurrencyIcon } from 'lucide-react';
 
@@ -87,6 +88,7 @@ export const KEY_ICONS = {
   logs:                   <BarChartIcon fontSize="small" />,
   'purchase-request':     <ShoppingCartIcon fontSize="small" />,
   'purchase-requests':    <ShoppingCartIcon fontSize="small" />,
+  'asset-incidents':      <ReportProblemIcon fontSize="small" />,
   'asset-inspection':     <ContentPasteSearchIcon fontSize="small" />,
   'class-assets':         <InventoryIcon fontSize="small" />,
   'asset-allocation':     <AccountTreeIcon fontSize="small" />,

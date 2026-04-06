@@ -984,6 +984,27 @@ const deleteFaceAngle = async (req, res) => {
   }
 };
 
+/**
+ * Cập nhật thông tin người đưa/đón cho bản ghi điểm danh
+ * PATCH /api/face/attendance/:id/deliverer
+ * Body: { delivererType, delivererOtherInfo }
+ */
+const updateAttendanceDeliverer = async (req, res) => {
+  try {
+    const { delivererType = '', delivererOtherInfo = '' } = req.body;
+    const attendance = await Attendances.findById(req.params.id);
+    if (!attendance) {
+      return res.status(404).json({ status: 'error', message: 'Không tìm thấy bản ghi điểm danh.' });
+    }
+    attendance.delivererType = delivererType;
+    attendance.delivererOtherInfo = delivererOtherInfo;
+    await attendance.save();
+    return res.json({ status: 'success', data: { attendance } });
+  } catch (error) {
+    return res.status(500).json({ status: 'error', message: 'Lỗi server', error: error.message });
+  }
+};
+
 module.exports = {
   registerFaceEmbedding,
   matchFaceEmbedding,
@@ -995,4 +1016,5 @@ module.exports = {
   matchStudentFaceForCheckout,
   deleteFaceEmbedding,
   deleteFaceAngle,
+  updateAttendanceDeliverer,
 };

@@ -87,6 +87,7 @@ import PublicInfoDetail from './pages/PublicInformation/PublicInfoDetail';
 import ManagePublicInfo from './pages/schoolAdmin/ManagePublicInfo';
 import ManageBanners from './pages/schoolAdmin/ManageBanners';
 import ManagePurchaseRequests from './pages/schoolAdmin/ManagePurchaseRequests';
+import ManageAssetIncidents from './pages/schoolAdmin/ManageAssetIncidents';
 import PickupRequest from './pages/teacher/PickupRequest';
 import TeacherAssetInspection from './pages/teacher/TeacherAssetInspection';
 import TeacherPurchaseRequest from './pages/teacher/TeacherPurchaseRequest';
@@ -795,6 +796,16 @@ function App() {
               <ProtectedRoute>
                 <SchoolAdminProvider>
                   <ManagePurchaseRequests />
+                </SchoolAdminProvider>
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/school-admin/asset-incidents"
+            element={
+              <ProtectedRoute>
+                <SchoolAdminProvider>
+                  <ManageAssetIncidents />
                 </SchoolAdminProvider>
               </ProtectedRoute>
             }

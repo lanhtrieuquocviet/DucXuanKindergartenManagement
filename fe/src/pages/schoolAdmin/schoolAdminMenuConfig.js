@@ -32,6 +32,7 @@ export const SCHOOL_ADMIN_MENU_ITEMS = [
       { key: 'assets-list', label: 'Danh sách tài sản', permission: 'MANAGE_ASSET' },
       { key: 'asset-allocation', label: 'Phân bổ tài sản', permission: 'MANAGE_ASSET' },
       { key: 'purchase-requests', label: 'Yêu cầu mua sắm', permission: 'MANAGE_PURCHASE_REQUEST' },
+      { key: 'asset-incidents',   label: 'Sự cố tài sản',   permission: 'MANAGE_ASSET' },
     ],
   },
   {
@@ -149,6 +150,7 @@ export const createSchoolAdminMenuSelect = (navigate) => (key) => {
     'assets-list': '/school-admin/assets',
     'asset-allocation': '/school-admin/asset-allocation',
     'purchase-requests': '/school-admin/purchase-requests',
+    'asset-incidents': '/school-admin/asset-incidents',
     kiemke: '/school-admin/committee',
     committee: '/school-admin/committee',
     minutes: '/school-admin/minutes',

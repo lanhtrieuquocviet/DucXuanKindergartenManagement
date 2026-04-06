@@ -18,7 +18,7 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { toast } from 'react-toastify';
 import FaceCamera from './FaceCamera';
-import { matchFaceEmbedding, getClassEmbeddings, uploadAttendanceImage } from '../../service/faceAttendance.api';
+import { matchFaceEmbedding, getClassEmbeddings, uploadAttendanceImage, updateAttendanceDeliverer, getApprovedPickupPersons } from '../../service/faceAttendance.api';
 import { useOfflineSync } from '../../hooks/useOfflineSync';
 
 // Cosine similarity (dùng khi offline - giống backend)
@@ -55,6 +55,10 @@ export default function FaceAttendanceModal({ open, onClose, classId, className,
   // Ref tới FaceCamera để gọi captureFrame()
   const cameraRef = useRef(null);
 
+  // Người đưa
+  const [pickupPersons, setPickupPersons] = useState([]); // ds người đón đã duyệt
+  const [delivererSaved, setDelivererSaved] = useState(false); // đã lưu người đưa chưa
+
   // ── Tải embeddings về local khi modal mở ─────────────────────────────────
   useEffect(() => {
     if (!open || !classId) return;
@@ -78,6 +82,8 @@ export default function FaceAttendanceModal({ open, onClose, classId, className,
     if (!open) {
       setMatchResult(null);
       setCheckedInToday([]);
+      setPickupPersons([]);
+      setDelivererSaved(false);
       cooldownRef.current = false;
     }
   }, [open]);
@@ -185,6 +191,11 @@ export default function FaceAttendanceModal({ open, onClose, classId, className,
           setCheckedInToday((prev) =>
             prev.includes(result.student._id) ? prev : [...prev, result.student._id]
           );
+          setDelivererSaved(false);
+          // Tải danh sách người đón đã duyệt cho học sinh này
+          getApprovedPickupPersons(result.student._id)
+            .then((res) => setPickupPersons(res?.data || []))
+            .catch(() => setPickupPersons([]));
           toast.success(`Điểm danh: ${result.student.fullName}`);
           onCheckinSuccess?.();
         } else if (result.status === 'already_checked_in') {
@@ -277,38 +288,90 @@ export default function FaceAttendanceModal({ open, onClose, classId, className,
               )}
 
               {matchResult?.status === 'success' && (
-                <div className="flex items-center gap-3 p-3 bg-green-50 rounded-lg border border-green-200">
-                  <div className="w-16 h-16 rounded-lg overflow-hidden bg-gray-200 flex-shrink-0 border-2 border-green-300">
-                    {matchResult.capturedFrame ? (
-                      <img
-                        src={matchResult.capturedFrame}
-                        alt="Ảnh điểm danh"
-                        className="w-full h-full object-cover"
-                      />
-                    ) : matchResult.student?.avatar ? (
-                      <img
-                        src={matchResult.student.avatar}
-                        alt={matchResult.student.fullName}
-                        className="w-full h-full object-cover"
-                      />
-                    ) : (
-                      <div className="w-full h-full flex items-center justify-center text-xl">
-                        👦
-                      </div>
-                    )}
+                <div className="flex flex-col gap-2">
+                  <div className="flex items-center gap-3 p-3 bg-green-50 rounded-lg border border-green-200">
+                    <div className="w-16 h-16 rounded-lg overflow-hidden bg-gray-200 flex-shrink-0 border-2 border-green-300">
+                      {matchResult.capturedFrame ? (
+                        <img
+                          src={matchResult.capturedFrame}
+                          alt="Ảnh điểm danh"
+                          className="w-full h-full object-cover"
+                        />
+                      ) : matchResult.student?.avatar ? (
+                        <img
+                          src={matchResult.student.avatar}
+                          alt={matchResult.student.fullName}
+                          className="w-full h-full object-cover"
+                        />
+                      ) : (
+                        <div className="w-full h-full flex items-center justify-center text-xl">
+                          👦
+                        </div>
+                      )}
+                    </div>
+                    <div>
+                      <p className="font-bold text-green-700">
+                        {matchResult.student?.fullName}
+                      </p>
+                      <p className="text-xs text-green-600">
+                        ✓ Điểm danh thành công{' '}
+                        {!matchResult.isOnline && '(offline)'}
+                      </p>
+                      <p className="text-xs text-gray-400">
+                        {matchResult.timestamp?.toLocaleTimeString('vi-VN')}
+                      </p>
+                    </div>
                   </div>
-                  <div>
-                    <p className="font-bold text-green-700">
-                      {matchResult.student?.fullName}
-                    </p>
-                    <p className="text-xs text-green-600">
-                      ✓ Điểm danh thành công{' '}
-                      {!matchResult.isOnline && '(offline)'}
-                    </p>
-                    <p className="text-xs text-gray-400">
-                      {matchResult.timestamp?.toLocaleTimeString('vi-VN')}
-                    </p>
-                  </div>
+
+                  {/* Chọn người đưa */}
+                  {matchResult.attendance?._id && (
+                    <div className="border border-blue-100 rounded-lg p-2.5 bg-blue-50">
+                      <p className="text-xs font-semibold text-blue-700 mb-1.5">👤 Người đưa hôm nay</p>
+                      {delivererSaved ? (
+                        <p className="text-xs text-green-600 font-medium">✓ Đã lưu</p>
+                      ) : pickupPersons.length > 0 ? (
+                        <div className="flex flex-wrap gap-1.5">
+                          {pickupPersons.map((p) => (
+                            <button
+                              key={p._id}
+                              onClick={async () => {
+                                try {
+                                  await updateAttendanceDeliverer(
+                                    matchResult.attendance._id,
+                                    `${p.fullName} (${p.relation})`,
+                                    p.phone
+                                  );
+                                  setDelivererSaved(true);
+                                  toast.success(`Đã ghi nhận: ${p.fullName}`);
+                                } catch {
+                                  toast.error('Không lưu được người đưa.');
+                                }
+                              }}
+                              className="px-2 py-1 bg-white border border-blue-200 rounded-full text-xs text-blue-700 hover:bg-blue-100 transition-colors"
+                            >
+                              {p.fullName} · {p.relation}
+                            </button>
+                          ))}
+                          <button
+                            onClick={async () => {
+                              try {
+                                await updateAttendanceDeliverer(matchResult.attendance._id, 'Khác', '');
+                                setDelivererSaved(true);
+                                toast.success('Đã ghi nhận người đưa khác.');
+                              } catch {
+                                toast.error('Không lưu được.');
+                              }
+                            }}
+                            className="px-2 py-1 bg-white border border-gray-200 rounded-full text-xs text-gray-500 hover:bg-gray-100 transition-colors"
+                          >
+                            Khác
+                          </button>
+                        </div>
+                      ) : (
+                        <p className="text-xs text-gray-400">Chưa có người đón đã duyệt</p>
+                      )}
+                    </div>
+                  )}
                 </div>
               )}
 
