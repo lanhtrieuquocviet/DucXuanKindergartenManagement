@@ -66,28 +66,28 @@ const emptyFood = {
 const NUTRITION_CONFIG = [
   {
     key: "calories",
-    label: "Calories",
+    label: "Kcal",
     unit: "kcal",
     color: "#f97316",
     icon: <CalorieIcon sx={{ fontSize: 16 }} />,
   },
   {
     key: "protein",
-    label: "Protein",
+    label: "Chất đạm",
     unit: "g",
     color: "#6366f1",
     icon: <ProteinIcon sx={{ fontSize: 16 }} />,
   },
   {
     key: "fat",
-    label: "Fat",
+    label: "Chất béo",
     unit: "g",
     color: "#eab308",
     icon: <FatIcon sx={{ fontSize: 16 }} />,
   },
   {
     key: "carb",
-    label: "Carb",
+    label: "Tinh bột",
     unit: "g",
     color: "#22c55e",
     icon: <CarbIcon sx={{ fontSize: 16 }} />,
@@ -168,10 +168,10 @@ function FormField({ config, value, error, onChange, inputProps = {}, disabled =
 
 function FoodCard({ food, maxValues, onView, onEdit, onDelete }) {
   const nutrients = [
-    { key: "calories", label: "Cal", unit: "kcal", color: "#f97316" },
-    { key: "protein", label: "Pro", unit: "g", color: "#6366f1" },
-    { key: "fat", label: "Fat", unit: "g", color: "#eab308" },
-    { key: "carb", label: "Carb", unit: "g", color: "#22c55e" },
+    { key: "calories", label: "Kcal", unit: "kcal", color: "#f97316" },
+    { key: "protein", label: "Chất đạm", unit: "g", color: "#6366f1" },
+    { key: "fat", label: "Chất béo", unit: "g", color: "#eab308" },
+    { key: "carb", label: "Tinh bột", unit: "g", color: "#22c55e" },
   ];
   return (
     <Card elevation={0} sx={{ border: "1px solid", borderColor: "divider", borderRadius: 2.5 }}>
@@ -960,11 +960,11 @@ function FoodManagement() {
                     <TableRow sx={{ bgcolor: 'grey.50' }}>
                       <TableCell sx={{ fontWeight: 700, flex: 1.2 }}>Nguyên liệu</TableCell>
                       <TableCell align="center" sx={{ fontWeight: 700, flex: 1 }}>Số lượng</TableCell>
-                      <TableCell align="center" sx={{ fontWeight: 700, flex: 1 }}>Calories</TableCell>
-                      <TableCell align="center" sx={{ fontWeight: 700, flex: 1, display: { xs: 'none', sm: 'table-cell' } }}>Protein(g)</TableCell>
-                      <TableCell align="center" sx={{ fontWeight: 700, flex: 1, display: { xs: 'none', md: 'table-cell' } }}>Fat(g)</TableCell>
-                      <TableCell align="center" sx={{ fontWeight: 700, flex: 1, display: { xs: 'none', md: 'table-cell' } }}>Carb(g)</TableCell>
-                      <TableCell align="center" sx={{ fontWeight: 700, flex: 0.8 }}>Xóa</TableCell>
+                      <TableCell align="center" sx={{ fontWeight: 700, flex: 1 }}>Kcal</TableCell>
+                      <TableCell align="center" sx={{ fontWeight: 700, flex: 1, display: { xs: 'none', sm: 'table-cell' } }}>Chất đạm (g)</TableCell>
+                      <TableCell align="center" sx={{ fontWeight: 700, flex: 1, display: { xs: 'none', md: 'table-cell' } }}>Chất béo (g)</TableCell>
+                      <TableCell align="center" sx={{ fontWeight: 700, flex: 1, display: { xs: 'none', md: 'table-cell' } }}>Tinh bột (g)</TableCell>
+                      <TableCell align="center" sx={{ fontWeight: 700, flex: 0.8 }}>Hành động</TableCell>
                     </TableRow>
                   </TableHead>
                   <TableBody>
@@ -1055,7 +1055,7 @@ function FoodManagement() {
                             size="small"
                             value={customIngredient.calories}
                             onChange={(e) => setCustomIngredient((prev) => ({ ...prev, calories: e.target.value }))}
-                            placeholder="Calories"
+                            placeholder="Kcal"
                             type="number"
                             inputProps={{ style: { textAlign: 'center', fontSize: '0.875rem' } }}
                             sx={{ width: '100%' }}
@@ -1066,7 +1066,7 @@ function FoodManagement() {
                             size="small"
                             value={customIngredient.protein}
                             onChange={(e) => setCustomIngredient((prev) => ({ ...prev, protein: e.target.value }))}
-                            placeholder="Protein"
+                            placeholder="Chất đạm"
                             type="number"
                             inputProps={{ style: { textAlign: 'center', fontSize: '0.875rem' } }}
                             sx={{ width: '100%' }}
@@ -1077,7 +1077,7 @@ function FoodManagement() {
                             size="small"
                             value={customIngredient.fat}
                             onChange={(e) => setCustomIngredient((prev) => ({ ...prev, fat: e.target.value }))}
-                            placeholder="Fat"
+                            placeholder="Chất béo"
                             type="number"
                             inputProps={{ style: { textAlign: 'center', fontSize: '0.875rem' } }}
                             sx={{ width: '100%' }}
@@ -1088,7 +1088,7 @@ function FoodManagement() {
                             size="small"
                             value={customIngredient.carb}
                             onChange={(e) => setCustomIngredient((prev) => ({ ...prev, carb: e.target.value }))}
-                            placeholder="Carb"
+                            placeholder="Tinh bột"
                             type="number"
                             inputProps={{ style: { textAlign: 'center', fontSize: '0.875rem' } }}
                             sx={{ width: '100%' }}
@@ -1161,7 +1161,7 @@ function FoodManagement() {
               "&.Mui-disabled": { opacity: 0.5 },
             }}
           >
-            {saving ? "Đang lưu..." : editingFood ? "Cập nhật" : "Thêm mới"}
+            {saving ? "Đang lưu..." : editingFood ? "Chỉnh sửa" : "Thêm món ăn"}
           </Button>
         </DialogActions>
       </Dialog>

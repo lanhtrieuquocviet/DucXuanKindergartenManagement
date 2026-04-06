@@ -73,8 +73,8 @@ const STATUS_CONFIG = {
 };
 
 const NUTRITION_INFO = [
-  { key: "calories", label: "Calories", unit: "kcal", color: "#f97316", icon: <CalorieIcon sx={{ fontSize: 20 }} /> },
-  { key: "protein", label: "Protein", unit: "g", color: "#6366f1", icon: <ProteinIcon sx={{ fontSize: 20 }} /> },
+  { key: "calories", label: "Kcal", unit: "kcal", color: "#f97316", icon: <CalorieIcon sx={{ fontSize: 20 }} /> },
+  { key: "protein", label: "Chất đạm", unit: "g", color: "#6366f1", icon: <ProteinIcon sx={{ fontSize: 20 }} /> },
   { key: "fat", label: "Chất béo", unit: "g", color: "#eab308", icon: <FatIcon sx={{ fontSize: 20 }} /> },
   { key: "carb", label: "Tinh bột", unit: "g", color: "#22c55e", icon: <CarbIcon sx={{ fontSize: 20 }} /> },
 ];
@@ -516,32 +516,31 @@ function MenuDetail() {
               <Typography variant="body2" sx={{ fontWeight: 600 }}>
                 Calo trung bình/ngày: {nutritionEvaluation.calories.value?.toFixed(1) || 0} kcal
               </Typography>
-              <Chip label={nutritionEvaluation.calories.pass ? 'PASS' : 'CẦN CHỈNH'} color={nutritionEvaluation.calories.pass ? 'success' : 'warning'} size="small" />
-              <Typography variant="caption" color="text.secondary">
-                (Tiêu chuẩn {nutritionEvaluation.calories.range} kcal)
-              </Typography>
-            </Stack>
-
-            <Stack direction={{ xs: 'column', sm: 'row' }} spacing={2} alignItems="stretch">
-              {['protein', 'fat', 'carb'].map((key) => (
-                <Box key={key} sx={{ flex: 1, p: 1, borderRadius: 2, border: '1px solid', borderColor: nutritionEvaluation[key].pass ? 'success.main' : 'warning.main' }}>
-                  <Typography variant="body2" sx={{ fontWeight: 700, color: nutritionEvaluation[key].pass ? 'success.main' : 'warning.main' }}>
-                    {key === 'carb' ? 'Gluxit (Carb)' : key === 'fat' ? 'Lipit (Fat)' : 'Protit (Protein)'}
-                  </Typography>
-                  <Typography variant="caption" sx={{ display: 'block', mt: 0.5 }}>
-                    {nutritionEvaluation[key].value.toFixed(1)}% / {nutritionEvaluation[key].range}
-                  </Typography>
-                  <Chip label={nutritionEvaluation[key].pass ? 'PASS' : 'CẦN CHỈNH'} color={nutritionEvaluation[key].pass ? 'success' : 'warning'} size="small" sx={{ mt: 0.75 }} />
-                </Box>
-              ))}
-            </Stack>
-
-            <Box mt={2}>
-              {nutritionEvaluation.overallPass ? (
-                <Typography variant="body2" color="success.main" sx={{ fontWeight: 700 }}>
-                  Kết luận: Thực đơn đạt chuẩn dinh dưỡng.
+                <Chip label={nutritionEvaluation.calories.pass ? 'ĐẠT' : 'CẦN CHỈNH'} color={nutritionEvaluation.calories.pass ? 'success' : 'warning'} size="small" />
+                <Typography variant="caption" color="text.secondary">
+                  (Tiêu chuẩn {nutritionEvaluation.calories.range} kcal)
                 </Typography>
-              ) : (
+              </Stack>
+
+              <Stack direction={{ xs: 'column', sm: 'row' }} spacing={2} alignItems="stretch">
+                {['protein', 'fat', 'carb'].map((key) => (
+                  <Box key={key} sx={{ flex: 1, p: 1, borderRadius: 2, border: '1px solid', borderColor: nutritionEvaluation[key].pass ? 'success.main' : 'warning.main' }}>
+                    <Typography variant="body2" sx={{ fontWeight: 700, color: nutritionEvaluation[key].pass ? 'success.main' : 'warning.main' }}>
+                      {key === 'carb' ? 'Tinh bột' : key === 'fat' ? 'Chất béo' : 'Chất đạm'}
+                    </Typography>
+                    <Typography variant="caption" sx={{ display: 'block', mt: 0.5 }}>
+                      {nutritionEvaluation[key].value.toFixed(1)}% / {nutritionEvaluation[key].range}
+                    </Typography>
+                    <Chip label={nutritionEvaluation[key].pass ? 'ĐẠT' : 'CẦN CHỈNH'} color={nutritionEvaluation[key].pass ? 'success' : 'warning'} size="small" sx={{ mt: 0.75 }} />
+                  </Box>
+                ))}
+              </Stack>
+              <Box mt={2}>
+                {nutritionEvaluation.overallPass ? (
+                  <Typography variant="body2" color="success.main" sx={{ fontWeight: 700 }}>
+                    Kết luận: Thực đơn đạt chuẩn dinh dưỡng.
+                  </Typography>
+                ) : (
                 <Box>
                   <Typography variant="body2" color="warning.main" sx={{ fontWeight: 700, mb: 1 }}>
                     Kết luận: Thực đơn chưa đạt chuẩn
@@ -554,17 +553,17 @@ function MenuDetail() {
                     )}
                     {!nutritionEvaluation.protein.pass && (
                       <ListItem>
-                        <ListItemText primary={`Protit: ${nutritionEvaluation.protein.value.toFixed(1)}% (mục tiêu ${nutritionEvaluation.protein.range})`} />
+                        <ListItemText primary={`Chất đạm: ${nutritionEvaluation.protein.value.toFixed(1)}% (mục tiêu ${nutritionEvaluation.protein.range})`} />
                       </ListItem>
                     )}
                     {!nutritionEvaluation.fat.pass && (
                       <ListItem>
-                        <ListItemText primary={`Lipit: ${nutritionEvaluation.fat.value.toFixed(1)}% (mục tiêu ${nutritionEvaluation.fat.range})`} />
+                        <ListItemText primary={`Chất béo: ${nutritionEvaluation.fat.value.toFixed(1)}% (mục tiêu ${nutritionEvaluation.fat.range})`} />
                       </ListItem>
                     )}
                     {!nutritionEvaluation.carb.pass && (
                       <ListItem>
-                        <ListItemText primary={`Gluxit: ${nutritionEvaluation.carb.value.toFixed(1)}% (mục tiêu ${nutritionEvaluation.carb.range})`} />
+                        <ListItemText primary={`Tinh bột: ${nutritionEvaluation.carb.value.toFixed(1)}% (mục tiêu ${nutritionEvaluation.carb.range})`} />
                       </ListItem>
                     )}
                   </List>
