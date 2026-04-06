@@ -5,14 +5,15 @@ const Role = require('../models/Role');
 const AcademicYear = require('../models/AcademicYear');
 
 /**
- * Lấy danh sách tất cả học sinh (có thể lọc theo classId)
- * GET /api/students?classId=...
+ * Lấy danh sách tất cả học sinh (lọc theo classId, academicYearId)
+ * GET /api/students?classId=...&academicYearId=...
  */
 const getStudents = async (req, res) => {
   try {
-    const { classId } = req.query;
+    const { classId, academicYearId } = req.query;
     const filter = {};
     if (classId) filter.classId = classId;
+    if (academicYearId) filter.academicYearId = academicYearId;
 
     const students = await Student.find(filter)
       .populate('classId', 'className gradeId')

@@ -363,17 +363,14 @@ export default function AcademicYearDetail() {
                   <Typography variant="body1" color="text.primary">
                     Tổng số: {totalStudents} trẻ
                   </Typography>
-                  <Typography variant="body1" color="text.primary">
-                    Đạt chuẩn phát triển: {fixedDevelopedStudents} trẻ ({developedRate}%)
-                  </Typography>
-                  <Typography variant="body1" color="text.primary">
-                    Cần hỗ trợ đặc biệt: {fixedNeedSupportStudents} trẻ
-                  </Typography>
                 </Stack>
 
                 <Box sx={{ mt: 3 }}>
                   <Button
                     variant="contained"
+                    onClick={() => {
+                      if (yearId) navigate(`/school-admin/students?yearId=${yearId}`);
+                    }}
                     sx={{
                       borderRadius: 2,
                       textTransform: 'none',
@@ -381,7 +378,6 @@ export default function AcademicYearDetail() {
                       bgcolor: '#6366f1',
                       '&:hover': { bgcolor: '#4f46e5' },
                     }}
-                    onClick={() => navigate('/school-admin/students')}
                   >
                     Xem danh sách đầy đủ &amp; hồ sơ cá nhân
                   </Button>
