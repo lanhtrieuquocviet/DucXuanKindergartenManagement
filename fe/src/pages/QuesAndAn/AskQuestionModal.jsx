@@ -7,7 +7,6 @@ const initialForm = {
   email: "",
   phone: "",
   address: "",
-  idNumber: "",
   category: "",
   content: "",
 };
@@ -17,7 +16,6 @@ const initialErrors = {
   email: "",
   phone: "",
   address: "",
-  idNumber: "",
   category: "",
   content: "",
 };
@@ -43,19 +41,13 @@ function validate(values, agreed) {
   if (!values.phone.trim()) {
     errors.phone = "Số điện thoại không được để trống";
   } else if (!/^[0-9+\-\s()]{6,20}$/.test(values.phone.trim())) {
-    errors.phone = "Số điện thoại không hợp lệ";
+    errors.phone = "Số điện thoại không hợp lệ (10 ký tự số).";
   }
 
   if (!values.address.trim()) {
     errors.address = "Địa chỉ không được để trống";
   } else if (values.address.length > 200) {
     errors.address = "Địa chỉ tối đa 200 ký tự";
-  }
-
-  if (!values.idNumber.trim()) {
-    errors.idNumber = "Số CMND/Hộ chiếu không được để trống";
-  } else if (values.idNumber.length > 50) {
-    errors.idNumber = "Số CMND/Hộ chiếu tối đa 50 ký tự";
   }
 
   if (!values.category.trim()) {
@@ -80,6 +72,7 @@ export default function AskQuestionModal({ open, onClose, onSubmitted }) {
   const [errors, setErrors] = useState(initialErrors);
   const [captchaValid, setCaptchaValid] = useState(false);
   const [captchaError, setCaptchaError] = useState(false);
+  const [captchaKey, setCaptchaKey] = useState(0);
   const [submitting, setSubmitting] = useState(false);
   const [message, setMessage] = useState(null);
   const [agreed, setAgreed] = useState(false);
@@ -90,6 +83,7 @@ export default function AskQuestionModal({ open, onClose, onSubmitted }) {
       setErrors(initialErrors);
       setCaptchaValid(false);
       setCaptchaError(false);
+      setCaptchaKey((prev) => prev + 1);
       setMessage(null);
       setAgreed(false);
     }
@@ -117,6 +111,8 @@ export default function AskQuestionModal({ open, onClose, onSubmitted }) {
     if (hasError) return;
     if (!captchaValid) {
       setCaptchaError(true);
+      // Sai captcha thì tự đổi mã mới ngay.
+      setCaptchaKey((prev) => prev + 1);
       setMessage("Vui lòng nhập đúng mã bảo mật để gửi câu hỏi.");
       return;
     }
@@ -129,7 +125,6 @@ export default function AskQuestionModal({ open, onClose, onSubmitted }) {
         email: form.email.trim() || undefined,
         phone: form.phone.trim() || undefined,
         address: form.address.trim() || undefined,
-        idNumber: form.idNumber.trim() || undefined,
         category: form.category.trim() || undefined,
         content: form.content.trim(),
       };
@@ -139,6 +134,7 @@ export default function AskQuestionModal({ open, onClose, onSubmitted }) {
       }
       setForm(initialForm);
       setCaptchaValid(false);
+      setCaptchaKey((prev) => prev + 1);
       setMessage("Gửi câu hỏi thành công.");
       onClose();
     } catch (err) {
@@ -220,16 +216,6 @@ export default function AskQuestionModal({ open, onClose, onSubmitted }) {
           </div>
 
           <div>
-            <input
-              className={`w-full border rounded px-3 py-2 ${errors.idNumber ? "border-red-500" : ""}`}
-              placeholder="Số CMND (Hộ chiếu)"
-              value={form.idNumber}
-              onChange={(e) => setField("idNumber", e.target.value)}
-            />
-            {errors.idNumber && <p className="text-red-600 text-xs mt-1">{errors.idNumber}</p>}
-          </div>
-
-          <div>
             <select
               className={`w-full border rounded px-3 py-2 bg-white ${errors.category ? "border-red-500" : ""}`}
               value={form.category}
@@ -255,7 +241,7 @@ export default function AskQuestionModal({ open, onClose, onSubmitted }) {
           {/* Captcha giống trang Contact */}
           <div>
             <label className="text-xs font-medium block mb-1">Mã bảo mật *</label>
-            <Captcha onValidate={handleCaptchaValidate} />
+            <Captcha key={captchaKey} onValidate={handleCaptchaValidate} />
             {captchaError && (
               <p className="text-red-600 text-xs mt-1">
                 Vui lòng nhập đúng mã bảo mật.

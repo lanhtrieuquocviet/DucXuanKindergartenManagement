@@ -5,11 +5,6 @@ import LeftNav from "./LeftNav";
 import RightNav from "./RightNav";
 
 const CLOSE_DELAY = 300; // 30 tích tắc
-const FALLBACK_BANNERS = [
-    "https://scontent.fhan18-1.fna.fbcdn.net/v/t39.30808-6/618702160_1461727552619714_6463649032824992629_n.jpg?_nc_cat=109&ccb=1-7&_nc_sid=7b2446&_nc_ohc=8UXWgBpzLxMQ7kNvwFsL2cd&_nc_oc=Adn2GokDE7vW5jDYFVhEl_A53mJ7nAlgyDGYyPr8OGuGVg9YN_oKx-ccfJ9rZUkXBgc&_nc_zt=23&_nc_ht=scontent.fhan18-1.fna&_nc_gid=WI4fgCQc9CPNue1S1l_lfQ&_nc_ss=8&oh=00_AfznI0DF0gohfCHL4Qg33uKR3Xx9Kty4YmKoH1Ktob_Qew&oe=69AEDF05",
-    "https://scontent.fhan18-1.fna.fbcdn.net/v/t39.30808-6/605784091_1450941177031685_6354221922736986229_n.jpg?_nc_cat=103&ccb=1-7&_nc_sid=7b2446&_nc_ohc=Qp6WlASTTo4Q7kNvwGzxwyj&_nc_oc=AdmOk6t9GPWsJ-T7vZbkB2-5s99RtYwZn1_2mSICMFA9y9uXx3xw8_LrVXyyw4hjJnc&_nc_zt=23&_nc_ht=scontent.fhan18-1.fna&_nc_gid=Y9vLx29hQie4KSWmrMHBoQ&_nc_ss=8&oh=00_AfxDbY9JZvb3B2QwMZYeqYpCO2V3r9gsbZbUjKKIgouhvQ&oe=69AEE281",
-    "https://scontent.fhan18-1.fna.fbcdn.net/v/t39.30808-6/499477487_1247164254076046_8931851791991323309_n.jpg?_nc_cat=106&ccb=1-7&_nc_sid=2a1932&_nc_ohc=6lJx5z9dK8YQ7kNvwGY3aZJ&_nc_oc=AdlHBCPQgn8gdJnHiZaW9oiNn8F9PHdjGKD_4P0dqaY0Fz2sLihiSN3d4RIlbOUEc2g&_nc_zt=23&_nc_ht=scontent.fhan18-1.fna&_nc_gid=qKaxPIWOGGOZBr5Ax9LlPA&_nc_ss=8&oh=00_AfxiCUy42tIEH9To5fdvdqqWM9u6KXVLalRAFbxNwkqFLQ&oe=69AEF39A",
-];
 
 function Header() {
     const timerRef = useRef(null);
@@ -48,8 +43,6 @@ function Header() {
     const [results, setResults] = useState([]);
     const [loading, setLoading] = useState(false);
     const [showResults, setShowResults] = useState(false);
-    const [banners, setBanners] = useState(FALLBACK_BANNERS);
-    const [currentBanner, setCurrentBanner] = useState(0);
     const searchTimerRef = useRef(null);
     const searchContainerRef = useRef(null);
     const navigate = useNavigate();
@@ -110,34 +103,6 @@ function Header() {
         loadCats();
     }, []);
 
-    useEffect(() => {
-        const loadBanners = async () => {
-            try {
-                const resp = await get(ENDPOINTS.BANNERS.HOMEPAGE, { includeAuth: false });
-                const list = resp?.data?.banners || [];
-                const urls = list.map((item) => item?.imageUrl).filter(Boolean);
-                setBanners(urls);
-            } catch {
-                setBanners(FALLBACK_BANNERS);
-            }
-        };
-        loadBanners();
-    }, []);
-
-    useEffect(() => {
-        if (banners.length <= 1) return undefined;
-        const id = setInterval(() => {
-            setCurrentBanner((prev) => (prev + 1) % banners.length);
-        }, 5000);
-        return () => clearInterval(id);
-    }, [banners.length]);
-
-    useEffect(() => {
-        if (currentBanner >= banners.length) {
-            setCurrentBanner(0);
-        }
-    }, [banners.length, currentBanner]);
-
     return (
         <header className="w-full bg-green-50">
             <div className="bg-gradient-to-r from-green-600 to-green-500">
@@ -156,7 +121,7 @@ function Header() {
                         </svg>
                     </button>
 
-                    <div className="hidden xl:flex items-center gap-2 shrink-0 min-w-[215px]">
+                    <div className="hidden xl:flex items-center gap-2 shrink-0 min-w-[215px];">
                         <img
                             src="https://i.pinimg.com/736x/be/c5/3c/bec53c7b30f46d9ad2cecdb48c5e1e1f.jpg"
                             alt="Logo trường"
@@ -172,9 +137,9 @@ function Header() {
                         </div>
                     </div>
 
-                    <nav className="hidden md:flex items-center gap-1 text-[14px] font-semibold text-white flex-1 min-w-0">
+                    <nav className="hidden md:flex items-center gap-0.5 text-[13px] lg:text-[14px] font-semibold text-white flex-1 min-w-0">
 
-                        <a href="/" className="px-3 py-2 rounded-full hover:bg-white hover:text-green-600 whitespace-nowrap transition-colors">
+                        <a href="/" className="px-2 lg:px-2.5 py-2 rounded-full hover:bg-white hover:text-green-600 whitespace-nowrap transition-colors">
                             Trang chủ
                         </a>
 
@@ -184,7 +149,7 @@ function Header() {
                             onMouseEnter={() => openMenu("public")}
                             onMouseLeave={closeMenu}
                         >
-                            <div className="px-3 py-2 rounded-full hover:bg-white hover:text-green-600 cursor-pointer whitespace-nowrap transition-colors">
+                            <div className="px-2 lg:px-2.5 py-2 rounded-full hover:bg-white hover:text-green-600 cursor-pointer whitespace-nowrap transition-colors">
                                 Thông tin công khai
                             </div>
 
@@ -232,7 +197,7 @@ function Header() {
                             onMouseEnter={() => openMenu("intro")}
                             onMouseLeave={closeMenu}
                         >
-                            <div className="px-3 py-2 rounded-full hover:bg-white hover:text-green-600 cursor-pointer whitespace-nowrap transition-colors">
+                            <div className="px-2 lg:px-2.5 py-2 rounded-full hover:bg-white hover:text-green-600 cursor-pointer whitespace-nowrap transition-colors">
                                 Giới thiệu
                             </div>
 
@@ -266,7 +231,7 @@ function Header() {
                             onMouseEnter={() => openMenu("news")}
                             onMouseLeave={closeMenu}
                         >
-                            <div className="px-3 py-2 rounded-full hover:bg-white hover:text-green-600 cursor-pointer whitespace-nowrap transition-colors">
+                            <div className="px-2 lg:px-2.5 py-2 rounded-full hover:bg-white hover:text-green-600 cursor-pointer whitespace-nowrap transition-colors">
                                 Tin tức
                             </div>
 
@@ -296,7 +261,7 @@ function Header() {
                             onMouseEnter={() => openMenu("docs")}
                             onMouseLeave={closeMenu}
                         >
-                            <div className="px-3 py-2 rounded-full hover:bg-white hover:text-green-600 cursor-pointer whitespace-nowrap transition-colors">
+                            <div className="px-2 lg:px-2.5 py-2 rounded-full hover:bg-white hover:text-green-600 cursor-pointer whitespace-nowrap transition-colors">
                                 Văn bản
                             </div>
 
@@ -314,7 +279,7 @@ function Header() {
                             onMouseEnter={() => openMenu("library")}
                             onMouseLeave={closeMenu}
                         >
-                            <div className="px-3 py-2 rounded-full hover:bg-white hover:text-green-600 cursor-pointer whitespace-nowrap transition-colors">
+                            <div className="px-2 lg:px-2.5 py-2 rounded-full hover:bg-white hover:text-green-600 cursor-pointer whitespace-nowrap transition-colors">
                                 Thư viện
                             </div>
 
@@ -336,15 +301,15 @@ function Header() {
                             )}
                         </div>
 
-                        <a href="/contact" className="px-3 py-2 rounded-full hover:bg-white hover:text-green-600 whitespace-nowrap transition-colors">Liên hệ</a>
-                        <a href="/qa" className="px-3 py-2 rounded-full hover:bg-white hover:text-green-600 whitespace-nowrap transition-colors">Hỏi đáp</a>
+                        <a href="/contact" className="px-2 lg:px-2.5 py-2 rounded-full hover:bg-white hover:text-green-600 whitespace-nowrap transition-colors">Liên hệ</a>
+                        <a href="/qa" className="px-2 lg:px-2.5 py-2 rounded-full hover:bg-white hover:text-green-600 whitespace-nowrap transition-colors">Hỏi đáp</a>
                     </nav>
                     {/* ===== SEARCH + LOGIN ===== */}
-                    <div className="flex items-center gap-2 sm:gap-3 flex-1 md:flex-none justify-end">
-                        <div className="relative flex-1 max-w-[420px] md:flex-none" ref={searchContainerRef}>
+                    <div className="flex items-center gap-2 sm:gap-3 flex-1 md:flex-none md:shrink-0 justify-end">
+                        <div className="relative flex-1 max-w-[420px] md:w-[180px] lg:w-[200px] md:flex-none" ref={searchContainerRef}>
                             <div className="flex items-center bg-white rounded-full px-2 py-1.5 text-sm shadow w-full">
                                 <input
-                                    className="outline-none text-gray-700 w-full md:w-32 px-3"
+                                    className="outline-none text-gray-700 w-full md:w-20 lg:w-24 px-3"
                                     placeholder="Tìm kiếm..."
                                     value={query}
                                     onChange={(e) => handleQueryChange(e.target.value)}
@@ -411,54 +376,6 @@ function Header() {
                 </div>
 
             </div>
-
-            {/* ===== BANNER ===== */}
-            <div className="relative h-[180px] sm:h-[200px] md:h-[260px] m-3 sm:m-4 rounded-xl overflow-hidden bg-gradient-to-r from-green-50 to-blue-50">
-                {banners.length > 0 ? (
-                    <>
-                        <img
-                            src={banners[currentBanner]}
-                            alt=""
-                            aria-hidden="true"
-                            className="absolute inset-0 w-full h-full object-cover object-center blur-sm scale-110 opacity-45"
-                        />
-                        <img
-                            src={banners[currentBanner]}
-                            alt="Banner"
-                            className="relative z-[1] w-full h-full object-cover object-center"
-                        />
-                        {banners.length > 1 && (
-                            <>
-                                <button
-                                    type="button"
-                                    aria-label="Banner trước"
-                                    onClick={() => setCurrentBanner((prev) => (prev - 1 + banners.length) % banners.length)}
-                                    className="absolute left-3 top-1/2 -translate-y-1/2 z-[2] w-9 h-9 rounded-full bg-black/30 hover:bg-black/45 text-white flex items-center justify-center transition"
-                                >
-                                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" className="w-4 h-4">
-                                        <path d="M15 18l-6-6 6-6" />
-                                    </svg>
-                                </button>
-                                <button
-                                    type="button"
-                                    aria-label="Banner tiếp theo"
-                                    onClick={() => setCurrentBanner((prev) => (prev + 1) % banners.length)}
-                                    className="absolute right-3 top-1/2 -translate-y-1/2 z-[2] w-9 h-9 rounded-full bg-black/30 hover:bg-black/45 text-white flex items-center justify-center transition"
-                                >
-                                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" className="w-4 h-4">
-                                        <path d="M9 6l6 6-6 6" />
-                                    </svg>
-                                </button>
-                            </>
-                        )}
-                    </>
-                ) : (
-                    <div className="w-full h-full flex items-center justify-center text-white/90 text-sm bg-green-700">
-                        Chưa có banner hiển thị
-                    </div>
-                )}
-            </div>
-
             {/* ===== MOBILE MENU OVERLAY (Header + Left/Right nav) ===== */}
             {mobileOpen && (
                 <div className="fixed inset-0 z-[9999] md:hidden">
