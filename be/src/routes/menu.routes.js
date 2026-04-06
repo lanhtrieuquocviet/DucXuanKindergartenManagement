@@ -56,6 +56,13 @@ const { authenticate, authorizeRoles, authorizePermissions } = require("../middl
  */
 router.get("/", authenticate, menuController.getMenus);
 router.post("/", authenticate, authorizePermissions("MANAGE_MENU"), menuController.createMenu);
+router.get("/nutrition-plan", authenticate, menuController.getNutritionPlanSetting);
+router.put(
+  "/nutrition-plan",
+  authenticate,
+  authorizePermissions("APPROVE_MENU"),
+  menuController.updateNutritionPlanSetting
+);
 
 /**
  * @openapi

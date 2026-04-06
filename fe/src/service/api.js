@@ -492,6 +492,7 @@ export const ENDPOINTS = {
   // Kitchen
   KITCHEN: {
     MENUS: "/menus",
+    NUTRITION_PLAN: "/menus/nutrition-plan",
     CREATE_MENU: "/menus",
     MENU_DETAIL: (id) => `/menus/${id}`,
     UPDATE_MENU: (id) => `/menus/${id}`,
