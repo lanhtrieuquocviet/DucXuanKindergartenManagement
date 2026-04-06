@@ -1,4 +1,5 @@
 const Document = require('../models/Document');
+const AcademicYear = require('../models/AcademicYear');
 
 const validateDocumentPayload = (body, isCreate = true) => {
   const errors = [];
@@ -42,9 +43,15 @@ const validateDocumentPayload = (body, isCreate = true) => {
  */
 const listDocuments = async (req, res) => {
   try {
-    const { status, search, page = 1, limit = 10 } = req.query;
+    const { status, search, page = 1, limit = 10, yearId } = req.query;
 
     const filter = {};
+    if (yearId) {
+      if (!/^[0-9a-fA-F]{24}$/.test(String(yearId))) {
+        return res.status(400).json({ status: 'error', message: 'yearId không hợp lệ' });
+      }
+      filter.academicYear = yearId;
+    }
     if (status) filter.status = status;
     if (search) {
       filter.$or = [
@@ -59,6 +66,7 @@ const listDocuments = async (req, res) => {
 
     const [items, total] = await Promise.all([
       Document.find(filter)
+        .populate('academicYear', 'yearName startDate endDate status')
         .populate('author', 'username fullName email')
         .sort({ createdAt: -1 })
         .skip(skip)
@@ -122,7 +130,15 @@ const getDocument = async (req, res) => {
  */
 const createDocument = async (req, res) => {
   try {
-    const { title, description = '', status = 'draft', attachmentUrl, attachmentType, category } = req.body;
+    const {
+      title,
+      description = '',
+      status = 'draft',
+      attachmentUrl,
+      attachmentType,
+      category,
+      academicYearId,
+    } = req.body;
     const user = req.user;
 
     if (!user || (!user._id && !user.id)) {
@@ -133,6 +149,17 @@ const createDocument = async (req, res) => {
     }
 
     const userId = user._id || user.id;
+    let academicYearRef = null;
+    if (academicYearId !== undefined && academicYearId !== null && String(academicYearId).trim() !== '') {
+      if (!/^[0-9a-fA-F]{24}$/.test(String(academicYearId))) {
+        return res.status(400).json({ status: 'error', message: 'academicYearId không hợp lệ' });
+      }
+      const exists = await AcademicYear.findById(academicYearId).select('_id').lean();
+      if (!exists) {
+        return res.status(400).json({ status: 'error', message: 'Không tìm thấy năm học' });
+      }
+      academicYearRef = exists._id;
+    }
 
     const errors = validateDocumentPayload(req.body, true);
     if (errors.length > 0) {
@@ -150,8 +177,10 @@ const createDocument = async (req, res) => {
       attachmentUrl: attachmentUrl || null,
       attachmentType: attachmentType || null,
       category: category || null,
+      academicYear: academicYearRef,
     });
 
+    await newDocument.populate('academicYear', 'yearName startDate endDate status');
     await newDocument.populate('author', 'username fullName email');
 
     return res.status(201).json({

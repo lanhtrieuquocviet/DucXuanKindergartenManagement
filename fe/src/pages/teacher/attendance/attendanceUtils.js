@@ -39,7 +39,7 @@ export const writeAttendanceStorage = (classId, allDatesObject) => {
 };
 
 export const defaultRecord = () => ({
-  status: 'empty', // empty | checked_in | waiting_parent | parent_confirmed | checked_out | absent
+  status: 'empty', // empty | checked_in | checked_out | absent
   timeIn: '',
   timeOut: '',
   checkinImageName: '',
@@ -105,10 +105,6 @@ export const getStatusBadge = (status) => {
   switch (status) {
     case 'checked_in':
       return { text: 'Có mặt (đã checkin)', cls: 'bg-green-50 text-green-700' };
-    case 'waiting_parent':
-      return { text: 'Chờ PH xác nhận', cls: 'bg-amber-50 text-amber-700' };
-    case 'parent_confirmed':
-      return { text: 'PH đã xác nhận', cls: 'bg-blue-50 text-blue-700' };
     case 'checked_out':
       return { text: 'Đã về', cls: 'bg-purple-50 text-purple-700' };
     case 'absent':

@@ -270,6 +270,10 @@ export const ENDPOINTS = {
       UPDATE_TOPIC: (id) => `/school-admin/academic-plan/topics/${id}`,
       DELETE_TOPIC: (id) => `/school-admin/academic-plan/topics/${id}`,
     },
+    ACADEMIC_EVENTS: {
+      GET: (yearId) => (yearId ? `/school-admin/academic-events?yearId=${yearId}` : '/school-admin/academic-events'),
+      UPSERT: '/school-admin/academic-events',
+    },
     CURRICULUM: {
       LIST: (yearId) => (yearId ? `/school-admin/curriculum?yearId=${yearId}` : "/school-admin/curriculum"),
       CREATE: "/school-admin/curriculum",

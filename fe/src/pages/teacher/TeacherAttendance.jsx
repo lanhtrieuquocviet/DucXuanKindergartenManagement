@@ -662,35 +662,6 @@ function TeacherAttendance() {
     }
   };
 
-  const handleSendToParent = () => {
-    if (!detailStudentId) { setSubmitError('Không xác định học sinh.'); return; }
-    if (!detailForm.receiverType) { setSubmitError('Vui lòng chọn người đón.'); return; }
-    if (detailForm.receiverType === 'Khác') {
-      if (!detailForm.receiverName?.trim()) { setSubmitError('Vui lòng nhập tên người đón.'); return; }
-      if (!detailForm.receiverPhone?.trim() || !PHONE_REGEX.test(detailForm.receiverPhone.trim())) {
-        setSubmitError('Vui lòng nhập số điện thoại người đón hợp lệ.'); return;
-      }
-      if (!detailForm.receiverOtherImageName) { setSubmitError('Vui lòng chọn ảnh người đón.'); return; }
-    }
-    setSubmitError(null);
-
-    const receiverOtherInfoForParent = detailForm.receiverType === 'Khác'
-      ? buildPersonOtherInfo(detailForm.receiverName, detailForm.receiverPhone)
-      : detailForm.receiverOtherInfo || '';
-
-    updateRecord(detailStudentId, {
-      ...(attendanceByStudent?.[detailStudentId] || defaultRecord()),
-      status: 'waiting_parent',
-      timeIn: detailForm.timeIn || '',
-      timeOut: detailForm.timeOut || '',
-      note: detailForm.note?.trim() || '',
-      checkoutImageName: detailForm.checkoutImageName,
-      receiverType: detailForm.receiverType,
-      receiverOtherInfo: receiverOtherInfoForParent,
-      receiverOtherImageName: detailForm.receiverOtherImageName,
-    });
-    closeDetailAndClearDraft();
-  };
 
   // ── Absent modal ──
   const saveAbsentRecord = async () => {
@@ -1013,8 +984,7 @@ function TeacherAttendance() {
         attendanceByStudent={attendanceByStudent}
         onClose={closeDetail}
         onSave={handleSaveDetail}
-        onSendToParent={handleSendToParent}
-        onResetOtp={resetOtpState}
+onResetOtp={resetOtpState}
       />
 
       <AbsentModal

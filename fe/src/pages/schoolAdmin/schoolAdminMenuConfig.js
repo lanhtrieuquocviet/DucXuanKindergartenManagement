@@ -13,6 +13,7 @@ export const SCHOOL_ADMIN_MENU_ITEMS = [
     children: [
       { key: 'academic-year-setup', label: 'Thiết lập năm học', permission: 'MANAGE_ACADEMIC_YEAR' },
       { key: 'academic-plan', label: 'Thiết lập kế hoạch', permission: 'MANAGE_CURRICULUM' },
+      { key: 'academic-events', label: 'Thiết lập sự kiện', permission: 'MANAGE_CURRICULUM' },
       { key: 'academic-schedule', label: 'Thời gian biểu', permission: 'MANAGE_CURRICULUM' },
       { key: 'academic-report', label: 'Báo cáo & thống kê', permission: 'VIEW_REPORT' },
     ],
@@ -31,6 +32,7 @@ export const SCHOOL_ADMIN_MENU_ITEMS = [
       { key: 'assets-list', label: 'Danh sách tài sản', permission: 'MANAGE_ASSET' },
       { key: 'asset-allocation', label: 'Phân bổ tài sản', permission: 'MANAGE_ASSET' },
       { key: 'purchase-requests', label: 'Yêu cầu mua sắm', permission: 'MANAGE_PURCHASE_REQUEST' },
+      { key: 'asset-incidents',   label: 'Sự cố tài sản',   permission: 'MANAGE_ASSET' },
     ],
   },
   {
@@ -123,6 +125,7 @@ export const createSchoolAdminMenuSelect = (navigate) => (key) => {
     'academic-curriculum': '/school-admin/curriculum',
     'academic-schedule': '/school-admin/timetable',
     'academic-plan': '/school-admin/academic-plan',
+    'academic-events': '/school-admin/academic-events',
     'academic-students': '/school-admin/class-list',
     'academic-report': '/school-admin/academic-report',
     classes: '/school-admin/classes',
@@ -147,6 +150,7 @@ export const createSchoolAdminMenuSelect = (navigate) => (key) => {
     'assets-list': '/school-admin/assets',
     'asset-allocation': '/school-admin/asset-allocation',
     'purchase-requests': '/school-admin/purchase-requests',
+    'asset-incidents': '/school-admin/asset-incidents',
     kiemke: '/school-admin/committee',
     committee: '/school-admin/committee',
     minutes: '/school-admin/minutes',

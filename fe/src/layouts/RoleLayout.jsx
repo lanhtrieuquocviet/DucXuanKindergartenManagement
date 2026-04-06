@@ -33,6 +33,7 @@ import {
   Grading as GradingIcon,
   Group as GroupIcon,
   Article as ArticleIcon,
+  ReportProblem as ReportProblemIcon,
 } from '@mui/icons-material';
 import { CurrencyIcon } from 'lucide-react';
 
@@ -50,6 +51,7 @@ export const KEY_ICONS = {
   'academic-years':       <CalendarIcon fontSize="small" />,
   'academic-year-setup':  <CalendarIcon fontSize="small" />,
   'academic-plan':        <SchoolIcon fontSize="small" />,
+  'academic-events':      <NotifIcon fontSize="small" />,
   'academic-students':    <PeopleIcon fontSize="small" />,
   'academic-curriculum':  <CurrencyIcon fontSize="small" />,
   'academic-schedule':    <CalendarIcon fontSize="small" />,
@@ -86,6 +88,7 @@ export const KEY_ICONS = {
   logs:                   <BarChartIcon fontSize="small" />,
   'purchase-request':     <ShoppingCartIcon fontSize="small" />,
   'purchase-requests':    <ShoppingCartIcon fontSize="small" />,
+  'asset-incidents':      <ReportProblemIcon fontSize="small" />,
   'asset-inspection':     <ContentPasteSearchIcon fontSize="small" />,
   'class-assets':         <InventoryIcon fontSize="small" />,
   'asset-allocation':     <AccountTreeIcon fontSize="small" />,

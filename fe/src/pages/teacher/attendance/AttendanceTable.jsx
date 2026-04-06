@@ -27,8 +27,6 @@ const STATUS_CHIP = {
   checked_in:       { label: 'Đã đến',          color: 'success',  dotColor: '#10b981' },
   checked_out:      { label: 'Đã về',            color: 'info',     dotColor: '#0ea5e9' },
   absent:           { label: 'Vắng mặt',         color: 'error',    dotColor: '#ef4444' },
-  waiting_parent:   { label: 'Chờ PH xác nhận',  color: 'warning',  dotColor: '#f59e0b' },
-  parent_confirmed: { label: 'PH đã xác nhận',   color: 'success',  dotColor: '#10b981' },
 };
 
 function getChipProps(status) {
@@ -39,7 +37,7 @@ function SummaryBar({ students, attendanceByStudent }) {
   const counts = { present: 0, out: 0, absent: 0, empty: 0 };
   (students || []).forEach((s) => {
     const st = attendanceByStudent?.[s._id]?.status || 'empty';
-    if (st === 'checked_in' || st === 'waiting_parent' || st === 'parent_confirmed') counts.present++;
+    if (st === 'checked_in') counts.present++;
     else if (st === 'checked_out') counts.out++;
     else if (st === 'absent') counts.absent++;
     else counts.empty++;
@@ -309,7 +307,7 @@ function StudentAvatar({ student, chipProps, size = 48, onLightbox }) {
 // ── Mobile card cho từng học sinh ──
 function StudentCard({ s, idx, rec, chipProps, isPastDate, onCheckin, onCheckout, onViewDetail, onAbsent, onLightbox }) {
   const canCheckIn  = rec.status === 'empty' || rec.status === 'absent';
-  const canCheckOut = rec.status === 'checked_in' || rec.status === 'waiting_parent' || rec.status === 'parent_confirmed';
+  const canCheckOut = rec.status === 'checked_in';
   const canAbsent   = rec.status === 'empty' || rec.status === 'absent';
   const isAbsent    = rec.status === 'absent';
   const isDone      = rec.status === 'checked_out';
@@ -427,18 +425,26 @@ function AttendanceTable({
   const isMobile = useMediaQuery(theme.breakpoints.down('sm'));
   const isPastDate = selectedDate < todayISO;
 
-  const filteredStudents = (students || []).filter((s) => {
-    const matchName = s.fullName?.toLowerCase().includes(searchText.toLowerCase().trim());
-    if (!matchName) return false;
-    if (filterStatus === 'all') return true;
-    const st = attendanceByStudent?.[s._id]?.status || 'empty';
-    if (filterStatus === 'empty')      return st === 'empty';
-    if (filterStatus === 'checked_in') return st === 'checked_in';
-    if (filterStatus === 'not_left')   return st === 'checked_in' || st === 'waiting_parent' || st === 'parent_confirmed';
-    if (filterStatus === 'present')    return st === 'checked_in' || st === 'waiting_parent' || st === 'parent_confirmed' || st === 'checked_out';
-    if (filterStatus === 'absent')     return st === 'absent';
-    return true;
-  });
+  const STATUS_SORT_ORDER = { empty: 0, checked_in: 1, absent: 2, checked_out: 3 };
+
+  const filteredStudents = (students || [])
+    .filter((s) => {
+      const matchName = s.fullName?.toLowerCase().includes(searchText.toLowerCase().trim());
+      if (!matchName) return false;
+      if (filterStatus === 'all') return true;
+      const st = attendanceByStudent?.[s._id]?.status || 'empty';
+      if (filterStatus === 'empty')      return st === 'empty';
+      if (filterStatus === 'checked_in') return st === 'checked_in';
+      if (filterStatus === 'not_left')   return st === 'checked_in';
+      if (filterStatus === 'present')    return st === 'checked_in' || st === 'checked_out';
+      if (filterStatus === 'absent')     return st === 'absent';
+      return true;
+    })
+    .sort((a, b) => {
+      const stA = attendanceByStudent?.[a._id]?.status || 'empty';
+      const stB = attendanceByStudent?.[b._id]?.status || 'empty';
+      return (STATUS_SORT_ORDER[stA] ?? 99) - (STATUS_SORT_ORDER[stB] ?? 99);
+    });
 
   return (
     <>
@@ -608,7 +614,7 @@ function AttendanceTable({
                 const rec = attendanceByStudent?.[s._id] || defaultRecord();
                 const chipProps = getChipProps(rec.status);
                 const canCheckIn  = rec.status === 'empty' || rec.status === 'absent';
-                const canCheckOut = rec.status === 'checked_in' || rec.status === 'waiting_parent' || rec.status === 'parent_confirmed';
+                const canCheckOut = rec.status === 'checked_in';
                 const canAbsent   = rec.status === 'empty' || rec.status === 'absent';
                 const isAbsent    = rec.status === 'absent';
                 const isDone      = rec.status === 'checked_out';

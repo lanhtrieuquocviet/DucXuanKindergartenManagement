@@ -4,28 +4,28 @@ import { get, ENDPOINTS } from "../service/api";
 
 const PAGE_SIZE = 4;
 
-const VALUE_CARDS = [
-  {
-    title: "Chăm sóc và phát triển",
-    text: "Chăm sóc và giúp trẻ phát triển khỏe mạnh là một trong những mục tiêu lớn được đưa lên hàng đầu, nhà trường luôn quan tâm đến chế độ dinh dưỡng và phòng chống dịch bệnh cho trẻ theo các độ tuổi, đảm bảo an toàn cho trẻ khi ở trường.",
-  },
-  {
-    title: "Chương trình giáo dục",
-    text: "Thực hiện theo Chương trình Giáo dục mầm non do Bộ GD&ĐT ban hành. Giáo viên linh hoạt trong việc ứng dụng các phương pháp dạy học tiên tiến, phù hợp với chương trình GDMN và định hướng phát triển theo khả năng của từng cá nhân trẻ.",
-  },
-  {
-    title: "Môi trường lấy trẻ làm trung tâm",
-    text: "Xây dựng môi trường giáo dục lấy trẻ làm trung tâm, đảm bảo môi trường sạch sẽ, an toàn và thân thiện. Tạo nhiều góc mở, sử dụng tối đa sản phẩm của trẻ trong việc trang trí môi trường lớp học.",
-  },
-  {
-    title: "Phối hợp nhà trường – phụ huynh",
-    text: "Phối hợp giữa nhà trường và Ban đại diện cha mẹ học sinh nhằm tạo sự thống nhất trong việc chăm sóc, nuôi dưỡng, giáo dục trẻ; tư vấn, chia sẻ, hỗ trợ cha mẹ học sinh khi cần.",
-  },
-  {
-    title: "Hành trang vào đời",
-    text: "Cây xanh bắt đầu sự sống bằng mầm non, trẻ bắt đầu hành trang vào đời bằng những kỹ năng được học từ những năm đầu tiên. Chuẩn bị tốt hành trang cho trẻ, giúp trẻ phát triển toàn diện là trách nhiệm của gia đình, nhà trường và xã hội.",
-  },
-];
+// const VALUE_CARDS = [
+//   {
+//     title: "Chăm sóc và phát triển",
+//     text: "Chăm sóc và giúp trẻ phát triển khỏe mạnh là một trong những mục tiêu lớn được đưa lên hàng đầu, nhà trường luôn quan tâm đến chế độ dinh dưỡng và phòng chống dịch bệnh cho trẻ theo các độ tuổi, đảm bảo an toàn cho trẻ khi ở trường.",
+//   },
+//   {
+//     title: "Chương trình giáo dục",
+//     text: "Thực hiện theo Chương trình Giáo dục mầm non do Bộ GD&ĐT ban hành. Giáo viên linh hoạt trong việc ứng dụng các phương pháp dạy học tiên tiến, phù hợp với chương trình GDMN và định hướng phát triển theo khả năng của từng cá nhân trẻ.",
+//   },
+//   {
+//     title: "Môi trường lấy trẻ làm trung tâm",
+//     text: "Xây dựng môi trường giáo dục lấy trẻ làm trung tâm, đảm bảo môi trường sạch sẽ, an toàn và thân thiện. Tạo nhiều góc mở, sử dụng tối đa sản phẩm của trẻ trong việc trang trí môi trường lớp học.",
+//   },
+//   {
+//     title: "Phối hợp nhà trường – phụ huynh",
+//     text: "Phối hợp giữa nhà trường và Ban đại diện cha mẹ học sinh nhằm tạo sự thống nhất trong việc chăm sóc, nuôi dưỡng, giáo dục trẻ; tư vấn, chia sẻ, hỗ trợ cha mẹ học sinh khi cần.",
+//   },
+//   {
+//     title: "Hành trang vào đời",
+//     text: "Cây xanh bắt đầu sự sống bằng mầm non, trẻ bắt đầu hành trang vào đời bằng những kỹ năng được học từ những năm đầu tiên. Chuẩn bị tốt hành trang cho trẻ, giúp trẻ phát triển toàn diện là trách nhiệm của gia đình, nhà trường và xã hội.",
+//   },
+// ];
 
 const BENEFIT_CARDS = [
   { title: "Dinh dưỡng cân đối", text: "Chế độ dinh dưỡng quyết định sự phát triển thể lực, trí tuệ, tầm vóc và khả năng học tập của trẻ. Thực đơn tuần được xây dựng cân đối, đảm bảo nhu cầu dinh dưỡng hàng ngày." },
@@ -35,17 +35,17 @@ const BENEFIT_CARDS = [
   { title: "Kỹ năng sống", text: "Gieo hành vi, gặt thói quen. Trẻ có cơ hội trải nghiệm, thích nghi và tự thể hiện mình, tạo lập những hành vi tích cực, chủ động, hòa đồng." },
 ];
 
-const PROGRAM_ITEMS = [
-  "Toán học",
-  "Tạo hình nghệ thuật",
-  "Làm quen chữ viết",
-  "Ngôn ngữ & giao tiếp",
-  "Khám phá thế giới",
-  "Âm nhạc vận động",
-  "Mỹ thuật thị giác",
-  "Sức khỏe thể chất",
-  "Kỹ năng sống",
-];
+// const PROGRAM_ITEMS = [
+//   "Toán học",
+//   "Tạo hình nghệ thuật",
+//   "Làm quen chữ viết",
+//   "Ngôn ngữ & giao tiếp",
+//   "Khám phá thế giới",
+//   "Âm nhạc vận động",
+//   "Mỹ thuật thị giác",
+//   "Sức khỏe thể chất",
+//   "Kỹ năng sống",
+// ];
 
 const FALLBACK_BANNERS = [
   "https://scontent.fhan18-1.fna.fbcdn.net/v/t39.30808-6/618702160_1461727552619714_6463649032824992629_n.jpg?_nc_cat=109&ccb=1-7&_nc_sid=7b2446&_nc_ohc=8UXWgBpzLxMQ7kNvwFsL2cd&_nc_oc=Adn2GokDE7vW5jDYFVhEl_A53mJ7nAlgyDGYyPr8OGuGVg9YN_oKx-ccfJ9rZUkXBgc&_nc_zt=23&_nc_ht=scontent.fhan18-1.fna&_nc_gid=WI4fgCQc9CPNue1S1l_lfQ&_nc_ss=8&oh=00_AfznI0DF0gohfCHL4Qg33uKR3Xx9Kty4YmKoH1Ktob_Qew&oe=69AEDF05",
@@ -79,6 +79,7 @@ function Homepage() {
   const [error, setError] = useState(null);
   const [banners, setBanners] = useState(FALLBACK_BANNERS);
   const [currentBanner, setCurrentBanner] = useState(0);
+  const [galleryPhotos, setGalleryPhotos] = useState([]);
 
   useEffect(() => {
     const loadFeatured = async () => {
@@ -116,6 +117,26 @@ function Homepage() {
       }
     };
     loadFeatured();
+  }, []);
+
+  useEffect(() => {
+    const loadGallery = async () => {
+      try {
+        const resp = await get(ENDPOINTS.IMAGE_LIBRARY.LIST, { includeAuth: false });
+        const list = resp?.data || [];
+        const normalized = list
+          .filter((item) => (item?.imageUrls?.length || 0) > 0 || item?.imageUrl)
+          .map((item) => ({
+            title: item.title || 'Ảnh thư viện',
+            img: item.imageUrls?.[0] || item.imageUrl,
+            id: item._id || item.imageUrl,
+          }));
+        setGalleryPhotos(normalized.slice(0, 4));
+      } catch {
+        setGalleryPhotos([]);
+      }
+    };
+    loadGallery();
   }, []);
 
   useEffect(() => {
@@ -204,7 +225,7 @@ function Homepage() {
 
       <div className="max-w-7xl mx-auto px-3 sm:px-4 lg:px-6 space-y-14 pb-14 pt-2">
       {/* ===== THẺ GIÁ TRỊ / SỨ MỆNH (như mnhoamai) ===== */}
-      <section>
+      {/* <section>
         <SectionHeading title="Giá trị cốt lõi" />
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
         {VALUE_CARDS.map((card, i) => (
@@ -217,7 +238,7 @@ function Homepage() {
           </div>
         ))}
         </div>
-      </section>
+      </section> */}
 
       {/* ===== GIỚI THIỆU TRƯỜNG (block lớn như mnhoamai) ===== */}
       <section className="bg-white rounded-3xl p-6 md:p-10 shadow-sm border border-green-100">
@@ -254,7 +275,7 @@ function Homepage() {
       </section>
 
       {/* ===== TỔNG QUAN CHƯƠNG TRÌNH ===== */}
-      <section>
+      {/* <section>
         <SectionHeading title="Tổng quan chương trình" />
         <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-5 gap-3">
           {PROGRAM_ITEMS.map((item, i) => (
@@ -266,23 +287,37 @@ function Homepage() {
             </div>
           ))}
         </div>
-      </section>
+      </section> */}
 
       {/* ===== GALLERY (placeholder + Xem thêm) ===== */}
       <section>
         <SectionHeading title="Thư viện ảnh" linkTo="/photo-gallery" />
         <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
-          {[1, 2, 3, 4].map((i) => (
-            <Link
-              key={i}
-              to="/photo-gallery"
-              className="aspect-[4/3] rounded-2xl overflow-hidden bg-green-100 border border-green-100 hover:opacity-90 transition"
-            >
-              <div className="w-full h-full flex items-center justify-center text-green-600 text-sm">
-                Ảnh hoạt động
-              </div>
-            </Link>
-          ))}
+          {galleryPhotos.length > 0
+            ? galleryPhotos.map((photo) => (
+                <Link
+                  key={photo.id}
+                  to="/photo-gallery"
+                  className="aspect-[4/3] rounded-2xl overflow-hidden bg-green-100 border border-green-100 hover:opacity-90 transition"
+                >
+                  <img
+                    src={photo.img}
+                    alt={photo.title}
+                    className="w-full h-full object-cover"
+                  />
+                </Link>
+              ))
+            : [1, 2, 3, 4].map((i) => (
+                <Link
+                  key={i}
+                  to="/photo-gallery"
+                  className="aspect-[4/3] rounded-2xl overflow-hidden bg-green-100 border border-green-100 hover:opacity-90 transition"
+                >
+                  <div className="w-full h-full flex items-center justify-center text-green-600 text-sm">
+                    Ảnh hoạt động
+                  </div>
+                </Link>
+              ))}
         </div>
       </section>
 

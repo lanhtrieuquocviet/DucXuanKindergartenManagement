@@ -87,6 +87,7 @@ import PublicInfoDetail from './pages/PublicInformation/PublicInfoDetail';
 import ManagePublicInfo from './pages/schoolAdmin/ManagePublicInfo';
 import ManageBanners from './pages/schoolAdmin/ManageBanners';
 import ManagePurchaseRequests from './pages/schoolAdmin/ManagePurchaseRequests';
+import ManageAssetIncidents from './pages/schoolAdmin/ManageAssetIncidents';
 import PickupRequest from './pages/teacher/PickupRequest';
 import TeacherAssetInspection from './pages/teacher/TeacherAssetInspection';
 import TeacherPurchaseRequest from './pages/teacher/TeacherPurchaseRequest';
@@ -112,6 +113,7 @@ import AcademicYearDetail from './pages/schoolAdmin/AcademicYearDetail';
 import AcademicYearReport from './pages/schoolAdmin/AcademicYearReport';
 import MealManagementSchoolAdmin from './pages/schoolAdmin/MealManagementSchoolAdmin';
 import AcademicYearPlan from './pages/schoolAdmin/AcademicYearPlan';
+import AcademicEventSetup from './pages/schoolAdmin/AcademicEventSetup';
 import CurriculumPage from './pages/schoolAdmin/CurriculumPage';
 import ClassListOverview from './pages/schoolAdmin/ClassListOverview';
 import TimetableActivitiesPage from './pages/schoolAdmin/TimetableActivitiesPage';
@@ -799,6 +801,16 @@ function App() {
             }
           />
           <Route
+            path="/school-admin/asset-incidents"
+            element={
+              <ProtectedRoute>
+                <SchoolAdminProvider>
+                  <ManageAssetIncidents />
+                </SchoolAdminProvider>
+              </ProtectedRoute>
+            }
+          />
+          <Route
             path="/school-admin/committee"
             element={
               <ProtectedRoute>
@@ -824,6 +836,16 @@ function App() {
               <ProtectedRoute>
                 <SchoolAdminProvider>
                   <AcademicYearPlan />
+                </SchoolAdminProvider>
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/school-admin/academic-events"
+            element={
+              <ProtectedRoute>
+                <SchoolAdminProvider>
+                  <AcademicEventSetup />
                 </SchoolAdminProvider>
               </ProtectedRoute>
             }

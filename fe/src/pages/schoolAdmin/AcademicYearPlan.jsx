@@ -456,8 +456,8 @@ export default function AcademicYearPlan() {
     <RoleLayout
       title={
         currentYear
-          ? `Kế hoạch chủ đề năm học ${currentYear.yearName}`
-          : 'Kế hoạch chủ đề năm học'
+          ? `Danh sách chủ đề theo khối năm học ${currentYear.yearName}`
+          : 'Danh sách chủ đề theo khối năm học'
       }
       description="Quản lý danh sách chủ đề theo từng khối lớp và chi tiết hoạt động theo tuần."
       menuItems={menuItems}
@@ -470,7 +470,7 @@ export default function AcademicYearPlan() {
     >
       <Stack spacing={3}>
         <Typography variant="overline" color="text.secondary">
-          MamNon DX &gt; Ban Giám Hiệu &gt; Quản lý Năm học &gt; Thiết lập kế hoạch năm học
+          MamNon DX &gt; Ban Giám Hiệu &gt; Quản lý Năm học &gt; Danh sách chủ đề theo khối năm học
         </Typography>
 
         <Paper
@@ -551,7 +551,7 @@ export default function AcademicYearPlan() {
             color="#1f3b5b"
             sx={{ mb: 2.5 }}
           >
-            KẾ HOẠCH CHỦ ĐỀ NĂM HỌC {currentYear?.yearName || '2025-2026'}
+            DANH SÁCH CHỦ ĐỀ THEO KHỐI NĂM HỌC {currentYear?.yearName || '2025-2026'}
           </Typography>
 
           <Tabs
