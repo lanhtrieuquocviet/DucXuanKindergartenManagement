@@ -5,6 +5,7 @@ const contactController = require('../controller/contactController');
 const User = require('../models/User');
 const Role = require('../models/Role');
 const Teacher = require('../models/Teacher');
+const Staff = require('../models/Staff');
 const { listClassrooms, createClassroom, updateClassroom, deleteClassroom } = require('../controller/classroomController');
 const assetCtrl = require('../controller/assetInspectionController');
 const assetCrudCtrl = require('../controller/assetController');
@@ -1687,6 +1688,181 @@ router.post('/teachers/migrate', authenticate, authorizePermissions('MANAGE_TEAC
     return res.status(200).json({ status: 'success', message: `Đã tạo ${created} Teacher record mới`, created });
   } catch (error) {
     return res.status(500).json({ status: 'error', message: error.message });
+  }
+});
+
+// ============================================
+// School Staff management
+// ============================================
+// Helper function to generate employee ID
+const generateEmployeeId = async (position) => {
+  const positionCodes = {
+    'BGH': 'BGH',
+    'Giáo viên': 'GV',
+    'Nhân viên văn phòng': 'VP',
+    'nhân viên y tế': 'YT',
+    'nhân viên bếp': 'BP'
+  };
+
+  const code = positionCodes[position] || 'KH';
+  const count = await Staff.countDocuments(
+    code === 'KH'
+      ? { position: { $nin: Object.keys(positionCodes) } }
+      : { position }
+  );
+  const nextNumber = count + 1;
+  return `${code}${nextNumber.toString().padStart(3, '0')}`;
+};
+
+router.get('/staff-users', authenticate, authorizeRoles('SchoolAdmin'), async (req, res) => {
+  try {
+    const users = await User.find({ status: 'active' })
+      .populate('roles', 'roleName')
+      .select('fullName phone username email roles')
+      .sort({ fullName: 1 })
+      .lean();
+
+    const filteredUsers = users.filter((user) => {
+      const roleNames = (user.roles || []).map((role) => role.roleName || '').filter(Boolean);
+      return roleNames.length > 0 && !roleNames.includes('Student');
+    });
+
+    const data = filteredUsers.map((user) => ({
+      ...user,
+      roleNames: (user.roles || []).map((role) => role.roleName || '').filter(Boolean).join(', '),
+    }));
+
+    return res.status(200).json({ status: 'success', data });
+  } catch (error) {
+    console.error('staffUsers error:', error);
+    return res.status(500).json({ status: 'error', message: 'Lỗi khi lấy danh sách người dùng' });
+  }
+});
+
+router.get('/staff-members', authenticate, authorizeRoles('SchoolAdmin'), async (req, res) => {
+  try {
+    const staffDocs = await Staff.find()
+      .populate('userId', 'fullName phone status')
+      .sort({ employeeId: 1 })
+      .lean();
+
+    const data = staffDocs.map((item) => ({
+      _id: item._id,
+      employeeId: item.employeeId,
+      position: item.position,
+      status: item.status,
+      notes: item.notes,
+      user: item.userId ? {
+        _id: item.userId._id,
+        fullName: item.userId.fullName,
+        phone: item.userId.phone,
+        status: item.userId.status,
+      } : null,
+    }));
+
+    return res.status(200).json({ status: 'success', data });
+  } catch (error) {
+    console.error('staffMembers error:', error);
+    return res.status(500).json({ status: 'error', message: 'Lỗi khi lấy danh sách nhân sự' });
+  }
+});
+
+router.post('/staff-members', authenticate, authorizeRoles('SchoolAdmin'), async (req, res) => {
+  try {
+    const { position, status, userId, notes } = req.body;
+    if (!position?.trim()) return res.status(400).json({ status: 'error', message: 'Chức vụ không được để trống' });
+    if (!userId) return res.status(400).json({ status: 'error', message: 'Người dùng phải được chọn' });
+
+    const user = await User.findById(userId).lean();
+    if (!user) return res.status(404).json({ status: 'error', message: 'Người dùng không tồn tại' });
+
+    const existingUserStaff = await Staff.findOne({ userId }).lean();
+    if (existingUserStaff) {
+      return res.status(400).json({ status: 'error', message: 'Người dùng này đã có nhân sự' });
+    }
+
+    const employeeId = await generateEmployeeId(position.trim());
+
+    const newStaff = await Staff.create({
+      userId,
+      employeeId,
+      position: position.trim(),
+      status: ['active', 'inactive'].includes(status) ? status : 'active',
+      notes: notes?.trim() || '',
+    });
+
+    await newStaff.populate('userId', 'fullName phone status');
+
+    return res.status(201).json({
+      status: 'success',
+      message: 'Tạo nhân sự thành công',
+      data: {
+        _id: newStaff._id,
+        employeeId: newStaff.employeeId,
+        position: newStaff.position,
+        status: newStaff.status,
+        notes: newStaff.notes,
+        user: newStaff.userId ? {
+          _id: newStaff.userId._id,
+          fullName: newStaff.userId.fullName,
+          phone: newStaff.userId.phone,
+          status: newStaff.userId.status,
+        } : null,
+      },
+    });
+  } catch (error) {
+    console.error('createStaffMember error:', error);
+    return res.status(500).json({ status: 'error', message: 'Lỗi khi tạo nhân sự' });
+  }
+});
+
+router.put('/staff-members/:id', authenticate, authorizeRoles('SchoolAdmin'), async (req, res) => {
+  try {
+    const { position, status, notes } = req.body;
+    const staff = await Staff.findById(req.params.id);
+    if (!staff) return res.status(404).json({ status: 'error', message: 'Không tìm thấy nhân sự' });
+
+    // Note: employeeId is auto-generated and cannot be changed
+    if (position !== undefined) staff.position = position?.trim() || staff.position;
+    if (status && ['active', 'inactive'].includes(status)) staff.status = status;
+    if (notes !== undefined) staff.notes = notes?.trim() || '';
+
+    await staff.save();
+    await staff.populate('userId', 'fullName phone status');
+
+    return res.status(200).json({
+      status: 'success',
+      message: 'Cập nhật nhân sự thành công',
+      data: {
+        _id: staff._id,
+        employeeId: staff.employeeId,
+        position: staff.position,
+        status: staff.status,
+        notes: staff.notes,
+        user: staff.userId ? {
+          _id: staff.userId._id,
+          fullName: staff.userId.fullName,
+          phone: staff.userId.phone,
+          status: staff.userId.status,
+        } : null,
+      },
+    });
+  } catch (error) {
+    console.error('updateStaffMember error:', error);
+    return res.status(500).json({ status: 'error', message: 'Lỗi khi cập nhật nhân sự' });
+  }
+});
+
+router.delete('/staff-members/:id', authenticate, authorizeRoles('SchoolAdmin'), async (req, res) => {
+  try {
+    const staff = await Staff.findById(req.params.id).lean();
+    if (!staff) return res.status(404).json({ status: 'error', message: 'Không tìm thấy nhân sự' });
+
+    await Staff.findByIdAndDelete(staff._id);
+    return res.status(200).json({ status: 'success', message: 'Đã xóa nhân sự' });
+  } catch (error) {
+    console.error('deleteStaffMember error:', error);
+    return res.status(500).json({ status: 'error', message: 'Lỗi khi xóa nhân sự' });
   }
 });
 

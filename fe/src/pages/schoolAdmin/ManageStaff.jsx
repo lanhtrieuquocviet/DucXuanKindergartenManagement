@@ -35,8 +35,11 @@ import { get, post, put, del, ENDPOINTS } from '../../service/api';
 import { createSchoolAdminMenuSelect } from './schoolAdminMenuConfig';
 import { useSchoolAdminMenu } from './useSchoolAdminMenu';
 
+const POSITION_OPTIONS = ['BGH', 'Giáo viên', 'Nhân viên văn phòng', 'nhân viên y tế', 'nhân viên bếp'];
+
 const EMPTY_FORM = {
   position: '',
+  customPosition: '',
   status: 'active',
   userId: null,
 };
@@ -51,6 +54,8 @@ export default function ManageStaff() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
   const [refreshing, setRefreshing] = useState(false);
+  const [searchName, setSearchName] = useState('');
+  const [filterPosition, setFilterPosition] = useState('');
 
   const [dialogOpen, setDialogOpen] = useState(false);
   const [dialogMode, setDialogMode] = useState('create');
@@ -110,8 +115,11 @@ export default function ManageStaff() {
 
     if (mode === 'edit' && staffItem) {
       setSelectedStaffId(staffItem._id);
+      const existingPosition = staffItem.position || '';
+      const isKnownPosition = POSITION_OPTIONS.includes(existingPosition);
       setForm({
-        position: staffItem.position || '',
+        position: isKnownPosition ? existingPosition : 'other',
+        customPosition: isKnownPosition ? '' : existingPosition,
         status: staffItem.status || 'active',
         userId: staffItem.user?._id || null,
       });
@@ -126,6 +134,9 @@ export default function ManageStaff() {
   const validateForm = () => {
     const errors = {};
     if (!form.position.trim()) errors.position = 'Chức vụ bắt buộc';
+    if (form.position === 'other' && !form.customPosition.trim()) {
+      errors.customPosition = 'Vui lòng nhập chức vụ khác';
+    }
     if (!form.userId) errors.userId = 'Vui lòng chọn người dùng';
     return errors;
   };
@@ -141,7 +152,7 @@ export default function ManageStaff() {
     setSaveError('');
     try {
       const payload = {
-        position: form.position.trim(),
+        position: form.position === 'other' ? form.customPosition.trim() : form.position.trim(),
         status: form.status,
         userId: form.userId,
       };
@@ -183,6 +194,21 @@ export default function ManageStaff() {
     });
   }, [users, staff, dialogMode, form.userId]);
 
+  const filteredStaff = useMemo(() => {
+    const searchTerm = searchName.trim().toLowerCase();
+    return staff.filter((item) => {
+      const fullName = String(item.user?.fullName || '').toLowerCase();
+      const position = String(item.position || '');
+      const matchesName = !searchTerm || fullName.includes(searchTerm);
+      const matchesPosition =
+        !filterPosition ||
+        (filterPosition === 'Khác'
+          ? !POSITION_OPTIONS.includes(position)
+          : position === filterPosition);
+      return matchesName && matchesPosition;
+    });
+  }, [staff, searchName, filterPosition]);
+
   const handleMenuSelect = createSchoolAdminMenuSelect(navigate);
   const userName = user?.fullName || user?.username || 'School Admin';
 
@@ -217,7 +243,6 @@ export default function ManageStaff() {
               Quản lý nhân sự
             </Typography>
             <Typography variant="body2" sx={{ color: 'rgba(255,255,255,0.85)', mt: 0.5 }}>
-              Dữ liệu nhân sự trường được liên kết với tài khoản User.
             </Typography>
           </Box>
           <Stack direction="row" spacing={1} alignItems="center" sx={{ mt: { xs: 2, sm: 0 } }}>
@@ -256,43 +281,81 @@ export default function ManageStaff() {
             </Typography>
           </Box>
         ) : (
-          <TableContainer>
-            <Table>
-              <TableHead>
-                <TableRow>
-                  <TableCell>Mã NV</TableCell>
-                  <TableCell>Họ và tên</TableCell>
-                  <TableCell>Chức vụ</TableCell>
-                  <TableCell>Số điện thoại</TableCell>
-                  <TableCell>Trạng thái</TableCell>
-                  <TableCell align="right">Hành động</TableCell>
-                </TableRow>
-              </TableHead>
-              <TableBody>
-                {staff.map((item) => (
-                  <TableRow key={item._id} hover>
-                    <TableCell>{item.employeeId || '—'}</TableCell>
-                    <TableCell>{item.user?.fullName || '—'}</TableCell>
-                    <TableCell>{item.position || '—'}</TableCell>
-                    <TableCell>{item.user?.phone || '—'}</TableCell>
-                    <TableCell>{item.status === 'active' ? 'Hoạt động' : 'Không hoạt động'}</TableCell>
-                    <TableCell align="right">
-                      <Tooltip title="Chỉnh sửa">
-                        <IconButton size="small" onClick={() => handleOpenDialog('edit', item)}>
-                          <EditIcon fontSize="small" />
-                        </IconButton>
-                      </Tooltip>
-                      <Tooltip title="Xóa nhân sự">
-                        <IconButton size="small" color="error" onClick={() => handleDelete(item)}>
-                          <DeleteIcon fontSize="small" />
-                        </IconButton>
-                      </Tooltip>
-                    </TableCell>
-                  </TableRow>
-                ))}
-              </TableBody>
-            </Table>
-          </TableContainer>
+          <Box sx={{ p: 3 }}>
+            <Stack direction={{ xs: 'column', sm: 'row' }} spacing={2} alignItems="center" sx={{ mb: 2 }}>
+              <TextField
+                size="small"
+                label="Tìm theo tên"
+                value={searchName}
+                onChange={(e) => setSearchName(e.target.value)}
+                sx={{ minWidth: 240 }}
+              />
+
+              <FormControl size="small" sx={{ minWidth: 220 }}>
+                <InputLabel id="staff-filter-position-label">Chức vụ</InputLabel>
+                <Select
+                  labelId="staff-filter-position-label"
+                  label="Chức vụ"
+                  value={filterPosition}
+                  onChange={(e) => setFilterPosition(e.target.value)}
+                >
+                  <MenuItem value="">Tất cả</MenuItem>
+                  <MenuItem value="BGH">BGH</MenuItem>
+                  <MenuItem value="Giáo viên">Giáo viên</MenuItem>
+                  <MenuItem value="Nhân viên văn phòng">Nhân viên văn phòng</MenuItem>
+                  <MenuItem value="Nhân viên y tế">Nhân viên y tế</MenuItem>
+                  <MenuItem value="Nhân viên bếp">Nhân viên bếp</MenuItem>
+                  <MenuItem value="Khác">Khác</MenuItem>
+                </Select>
+              </FormControl>
+            </Stack>
+
+            {filteredStaff.length === 0 ? (
+              <Box sx={{ p: 4 }}>
+                <Typography variant="body1" color="text.secondary">
+                  Không có nhân sự phù hợp với điều kiện tìm kiếm.
+                </Typography>
+              </Box>
+            ) : (
+              <TableContainer>
+                <Table>
+                  <TableHead>
+                    <TableRow>
+                      <TableCell>Mã NV</TableCell>
+                      <TableCell>Họ và tên</TableCell>
+                      <TableCell>Chức vụ</TableCell>
+                      <TableCell>Số điện thoại</TableCell>
+                      <TableCell>Trạng thái</TableCell>
+                      <TableCell align="right">Hành động</TableCell>
+                    </TableRow>
+                  </TableHead>
+                  <TableBody>
+                    {filteredStaff.map((item) => (
+                      <TableRow key={item._id} hover>
+                        <TableCell>{item.employeeId || '—'}</TableCell>
+                        <TableCell>{item.user?.fullName || '—'}</TableCell>
+                        <TableCell>{item.position || '—'}</TableCell>
+                        <TableCell>{item.user?.phone || '—'}</TableCell>
+                        <TableCell>{item.status === 'active' ? 'Hoạt động' : 'Không hoạt động'}</TableCell>
+                        <TableCell align="right">
+                          <Tooltip title="Chỉnh sửa">
+                            <IconButton size="small" onClick={() => handleOpenDialog('edit', item)}>
+                              <EditIcon fontSize="small" />
+                            </IconButton>
+                          </Tooltip>
+                          <Tooltip title="Xóa nhân sự">
+                            <IconButton size="small" color="error" onClick={() => handleDelete(item)}>
+                              <DeleteIcon fontSize="small" />
+                            </IconButton>
+                          </Tooltip>
+                        </TableCell>
+                      </TableRow>
+                    ))}
+                  </TableBody>
+                </Table>
+              </TableContainer>
+            )}
+          </Box>
         )}
       </Paper>
 
@@ -302,7 +365,11 @@ export default function ManageStaff() {
           <Stack spacing={2} sx={{ mt: 1 }}>
             <Autocomplete
               options={availableUsers}
-              getOptionLabel={(option) => `${option.fullName} • ${option.phone || option.email || option.username}`}
+              getOptionLabel={(option) => {
+                const title = option.fullName || option.username || 'Người dùng';
+                const meta = option.roleNames || option.phone || option.email || option.username;
+                return `${title} • ${meta}`;
+              }}
               value={availableUsers.find((u) => u._id === form.userId) || null}
               onChange={(_, value) => setForm((prev) => ({ ...prev, userId: value ? value._id : null }))}
               renderInput={(params) => (
@@ -329,11 +396,23 @@ export default function ManageStaff() {
                 <MenuItem value="BGH">BGH</MenuItem>
                 <MenuItem value="Giáo viên">Giáo viên</MenuItem>
                 <MenuItem value="Nhân viên văn phòng">Nhân viên văn phòng</MenuItem>
-                <MenuItem value="nhân viên y tế">nhân viên y tế</MenuItem>
-                <MenuItem value="nhân viên bếp">nhân viên bếp</MenuItem>
+                <MenuItem value="Nhân viên y tế">Nhân viên y tế</MenuItem>
+                <MenuItem value="Nhân viên bếp">Nhân viên bếp</MenuItem>
+                <MenuItem value="other">Khác</MenuItem>
               </Select>
               {formErrors.position && <Typography variant="caption" color="error">{formErrors.position}</Typography>}
             </FormControl>
+            {form.position === 'other' && (
+              <TextField
+                label="Chức vụ khác"
+                size="small"
+                value={form.customPosition}
+                onChange={(e) => setForm((prev) => ({ ...prev, customPosition: e.target.value }))}
+                error={!!formErrors.customPosition}
+                helperText={formErrors.customPosition}
+                fullWidth
+              />
+            )}
 
             <FormControl fullWidth size="small">
               <InputLabel id="staff-status-label">Trạng thái</InputLabel>
