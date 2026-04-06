@@ -1745,7 +1745,7 @@ router.get('/staff-users', authenticate, authorizeRoles('SchoolAdmin'), async (r
 router.get('/staff-members', authenticate, authorizeRoles('SchoolAdmin'), async (req, res) => {
   try {
     const staffDocs = await Staff.find()
-      .populate('userId', 'fullName phone status')
+      .populate('userId', 'fullName email phone avatar status')
       .sort({ employeeId: 1 })
       .lean();
 
@@ -1758,7 +1758,9 @@ router.get('/staff-members', authenticate, authorizeRoles('SchoolAdmin'), async 
       user: item.userId ? {
         _id: item.userId._id,
         fullName: item.userId.fullName,
+        email: item.userId.email,
         phone: item.userId.phone,
+        avatar: item.userId.avatar || '',
         status: item.userId.status,
       } : null,
     }));

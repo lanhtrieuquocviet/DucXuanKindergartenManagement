@@ -2,6 +2,7 @@ import { useEffect, useMemo, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import {
   Autocomplete,
+  Avatar,
   Box,
   Paper,
   Typography,
@@ -14,11 +15,11 @@ import {
   TableContainer,
   TableHead,
   TableRow,
-  Alert,
   Dialog,
   DialogTitle,
   DialogContent,
   DialogActions,
+  DialogContentText,
   TextField,
   Select,
   MenuItem,
@@ -29,6 +30,7 @@ import {
 } from '@mui/material';
 import EditIcon from '@mui/icons-material/Edit';
 import DeleteIcon from '@mui/icons-material/Delete';
+import { toast } from 'react-toastify';
 import RoleLayout from '../../layouts/RoleLayout';
 import { useAuth } from '../../context/AuthContext';
 import { get, post, put, del, ENDPOINTS } from '../../service/api';
@@ -43,6 +45,21 @@ const EMPTY_FORM = {
   status: 'active',
   userId: null,
 };
+
+const DEFAULT_STAFF_AVATAR_3X4 = `data:image/svg+xml;charset=UTF-8,${encodeURIComponent(
+  `<svg xmlns="http://www.w3.org/2000/svg" width="120" height="160" viewBox="0 0 120 160">
+    <defs>
+      <linearGradient id="g" x1="0" y1="0" x2="1" y2="1">
+        <stop offset="0%" stop-color="#e2e8f0"/>
+        <stop offset="100%" stop-color="#cbd5e1"/>
+      </linearGradient>
+    </defs>
+    <rect width="120" height="160" fill="url(#g)"/>
+    <circle cx="60" cy="58" r="24" fill="#94a3b8"/>
+    <rect x="28" y="90" width="64" height="44" rx="22" fill="#94a3b8"/>
+    <text x="60" y="151" text-anchor="middle" font-size="14" font-family="Arial, sans-serif" fill="#475569">3x4</text>
+  </svg>`
+)}`;
 
 export default function ManageStaff() {
   const navigate = useNavigate();
@@ -62,8 +79,8 @@ export default function ManageStaff() {
   const [form, setForm] = useState(EMPTY_FORM);
   const [formErrors, setFormErrors] = useState({});
   const [saveLoading, setSaveLoading] = useState(false);
-  const [saveError, setSaveError] = useState('');
   const [selectedStaffId, setSelectedStaffId] = useState(null);
+  const [deleteDialog, setDeleteDialog] = useState({ open: false, item: null });
 
   useEffect(() => {
     if (isInitializing) return;
@@ -87,7 +104,9 @@ export default function ManageStaff() {
       const response = await get(ENDPOINTS.SCHOOL_ADMIN.STAFF_MEMBERS);
       setStaff(response.data || []);
     } catch (err) {
-      setError(err?.data?.message || err?.message || 'Lỗi khi tải danh sách nhân sự');
+      const msg = err?.data?.message || err?.message || 'Lỗi khi tải danh sách nhân sự';
+      setError(msg);
+      toast.error(msg);
     } finally {
       setLoading(false);
     }
@@ -110,7 +129,6 @@ export default function ManageStaff() {
 
   const handleOpenDialog = (mode = 'create', staffItem = null) => {
     setDialogMode(mode);
-    setSaveError('');
     setFormErrors({});
 
     if (mode === 'edit' && staffItem) {
@@ -149,7 +167,6 @@ export default function ManageStaff() {
     }
 
     setSaveLoading(true);
-    setSaveError('');
     try {
       const payload = {
         position: form.position === 'other' ? form.customPosition.trim() : form.position.trim(),
@@ -159,28 +176,36 @@ export default function ManageStaff() {
 
       if (dialogMode === 'create') {
         await post(ENDPOINTS.SCHOOL_ADMIN.STAFF_MEMBERS, payload);
+        toast.success('Thêm nhân sự thành công');
       } else {
         await put(ENDPOINTS.SCHOOL_ADMIN.STAFF_MEMBER(selectedStaffId), payload);
+        toast.success('Cập nhật nhân sự thành công');
       }
 
       await handleRefresh();
       setDialogOpen(false);
     } catch (err) {
-      setSaveError(err?.data?.message || err?.message || 'Lỗi khi lưu nhân sự');
+      toast.error(err?.data?.message || err?.message || 'Lỗi khi lưu nhân sự');
     } finally {
       setSaveLoading(false);
     }
   };
 
-  const handleDelete = async (item) => {
-    if (!window.confirm(`Xóa nhân sự ${item.user?.fullName || item.employeeId}?`)) return;
+  const handleRequestDelete = (item) => {
+    setDeleteDialog({ open: true, item });
+  };
+
+  const handleDelete = async () => {
+    const item = deleteDialog.item;
+    if (!item?._id) return;
     try {
       setSaveLoading(true);
-      setSaveError('');
       await del(ENDPOINTS.SCHOOL_ADMIN.STAFF_MEMBER(item._id));
       await loadStaff();
+      toast.success('Xóa nhân sự thành công');
+      setDeleteDialog({ open: false, item: null });
     } catch (err) {
-      setSaveError(err?.data?.message || err?.message || 'Lỗi khi xóa nhân sự');
+      toast.error(err?.data?.message || err?.message || 'Lỗi khi xóa nhân sự');
     } finally {
       setSaveLoading(false);
     }
@@ -193,6 +218,21 @@ export default function ManageStaff() {
       return !assignedUserIds.has(u._id);
     });
   }, [users, staff, dialogMode, form.userId]);
+
+  const userById = useMemo(() => {
+    const map = new Map();
+    users.forEach((u) => {
+      if (u?._id) map.set(u._id, u);
+    });
+    return map;
+  }, [users]);
+
+  const getStaffEmail = (item) => {
+    const fromStaffApi = item?.user?.email;
+    if (fromStaffApi) return fromStaffApi;
+    const fromUsersApi = userById.get(item?.user?._id)?.email;
+    return fromUsersApi || '—';
+  };
 
   const filteredStaff = useMemo(() => {
     const searchTerm = searchName.trim().toLowerCase();
@@ -256,12 +296,6 @@ export default function ManageStaff() {
         </Stack>
       </Paper>
 
-      {saveError && (
-        <Box sx={{ mb: 2 }}>
-          <Alert severity="error">{saveError}</Alert>
-        </Box>
-      )}
-
       <Paper elevation={2} sx={{ borderRadius: 3, overflow: 'hidden' }}>
         {loading ? (
           <Box sx={{ p: 6, display: 'flex', justifyContent: 'center', alignItems: 'center', gap: 2 }}>
@@ -317,15 +351,17 @@ export default function ManageStaff() {
                 </Typography>
               </Box>
             ) : (
-              <TableContainer>
-                <Table>
+              <TableContainer sx={{ overflowX: 'auto' }}>
+                <Table size="small" sx={{ minWidth: 920 }}>
                   <TableHead>
                     <TableRow>
                       <TableCell>Mã NV</TableCell>
+                      <TableCell>Hình ảnh</TableCell>
                       <TableCell>Họ và tên</TableCell>
+                      <TableCell sx={{ minWidth: 220 }}>Email</TableCell>
                       <TableCell>Chức vụ</TableCell>
-                      <TableCell>Số điện thoại</TableCell>
-                      <TableCell>Trạng thái</TableCell>
+                      <TableCell sx={{ display: { xs: 'none', md: 'table-cell' } }}>Số điện thoại</TableCell>
+                      <TableCell sx={{ display: { xs: 'none', sm: 'table-cell' } }}>Trạng thái</TableCell>
                       <TableCell align="right">Hành động</TableCell>
                     </TableRow>
                   </TableHead>
@@ -333,10 +369,29 @@ export default function ManageStaff() {
                     {filteredStaff.map((item) => (
                       <TableRow key={item._id} hover>
                         <TableCell>{item.employeeId || '—'}</TableCell>
-                        <TableCell>{item.user?.fullName || '—'}</TableCell>
+                        <TableCell>
+                          <Avatar
+                            variant="rounded"
+                            src={item.user?.avatar || DEFAULT_STAFF_AVATAR_3X4}
+                            alt={item.user?.fullName || 'Ảnh nhân sự'}
+                            sx={{
+                              width: 48,
+                              height: 64,
+                              borderRadius: 1.5,
+                              border: '1px solid',
+                              borderColor: 'divider',
+                              bgcolor: '#e2e8f0',
+                              '& .MuiAvatar-img': { objectFit: 'cover' },
+                            }}
+                          />
+                        </TableCell>
+                        <TableCell sx={{ whiteSpace: 'nowrap' }}>{item.user?.fullName || '—'}</TableCell>
+                        <TableCell sx={{ whiteSpace: 'nowrap' }}>{getStaffEmail(item)}</TableCell>
                         <TableCell>{item.position || '—'}</TableCell>
-                        <TableCell>{item.user?.phone || '—'}</TableCell>
-                        <TableCell>{item.status === 'active' ? 'Hoạt động' : 'Không hoạt động'}</TableCell>
+                        <TableCell sx={{ display: { xs: 'none', md: 'table-cell' } }}>{item.user?.phone || '—'}</TableCell>
+                        <TableCell sx={{ display: { xs: 'none', sm: 'table-cell' } }}>
+                          {item.status === 'active' ? 'Hoạt động' : 'Không hoạt động'}
+                        </TableCell>
                         <TableCell align="right">
                           <Tooltip title="Chỉnh sửa">
                             <IconButton size="small" onClick={() => handleOpenDialog('edit', item)}>
@@ -344,7 +399,7 @@ export default function ManageStaff() {
                             </IconButton>
                           </Tooltip>
                           <Tooltip title="Xóa nhân sự">
-                            <IconButton size="small" color="error" onClick={() => handleDelete(item)}>
+                            <IconButton size="small" color="error" onClick={() => handleRequestDelete(item)}>
                               <DeleteIcon fontSize="small" />
                             </IconButton>
                           </Tooltip>
@@ -434,6 +489,29 @@ export default function ManageStaff() {
           </Button>
           <Button variant="contained" onClick={handleSave} disabled={saveLoading}>
             {saveLoading ? 'Đang lưu...' : dialogMode === 'create' ? 'Lưu' : 'Cập nhật'}
+          </Button>
+        </DialogActions>
+      </Dialog>
+
+      <Dialog
+        open={deleteDialog.open}
+        onClose={() => setDeleteDialog({ open: false, item: null })}
+        maxWidth="xs"
+        fullWidth
+      >
+        <DialogTitle>Xác nhận xóa nhân sự</DialogTitle>
+        <DialogContent>
+          <DialogContentText>
+            Bạn có chắc chắn muốn xóa nhân sự{' '}
+            <strong>{deleteDialog.item?.user?.fullName || deleteDialog.item?.employeeId || 'này'}</strong>?
+          </DialogContentText>
+        </DialogContent>
+        <DialogActions sx={{ px: 3, pb: 2 }}>
+          <Button onClick={() => setDeleteDialog({ open: false, item: null })} disabled={saveLoading}>
+            Hủy
+          </Button>
+          <Button variant="contained" color="error" onClick={handleDelete} disabled={saveLoading}>
+            {saveLoading ? 'Đang xóa...' : 'Xóa'}
           </Button>
         </DialogActions>
       </Dialog>
