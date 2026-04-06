@@ -12,6 +12,23 @@ export const getToken = () => {
   return localStorage.getItem('token');
 };
 
+let authFailureHandler = null;
+
+export const setAuthFailureHandler = (handler) => {
+  authFailureHandler = handler;
+};
+
+const triggerAuthFailureHandler = (payload) => {
+  if (typeof authFailureHandler === 'function') {
+    try {
+      authFailureHandler(payload);
+    } catch (handlerError) {
+      // eslint-disable-next-line no-console
+      console.error('Auth failure handler error:', handlerError);
+    }
+  }
+};
+
 /**
  * Xử lý response từ API
  */
@@ -22,6 +39,14 @@ const handleResponse = async (response) => {
     const error = new Error(data.message || `HTTP error! status: ${response.status}`);
     error.status = response.status;
     error.data = data;
+
+    if (
+      response.status === 401 ||
+      (response.status === 403 && /khóa/i.test(data.message || ''))
+    ) {
+      triggerAuthFailureHandler({ status: response.status, message: data.message });
+    }
+
     throw error;
   }
 

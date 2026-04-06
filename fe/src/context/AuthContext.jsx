@@ -1,5 +1,5 @@
 import { createContext, useContext, useState, useEffect, useRef, useCallback } from 'react';
-import { get, post, put, getToken, ENDPOINTS } from '../service/api';
+import { get, post, put, getToken, ENDPOINTS, setAuthFailureHandler } from '../service/api';
 
 const AuthContext = createContext(null);
 
@@ -86,11 +86,7 @@ export const AuthProvider = ({
       } catch (err) {
         // Token không hợp lệ hoặc đã hết hạn
         if (err.status === 401 || err.status === 403) {
-          // Xóa token và user không hợp lệ
-          localStorage.removeItem('token');
-          localStorage.removeItem('user');
-          setToken(null);
-          setUser(null);
+          clearAuth(err.message || 'Phiên đăng nhập không hợp lệ.');
         } else {
           // Lỗi khác, giữ lại user từ localStorage nếu có
           const errorMessage = err.message || 'Không thể xác thực người dùng';
@@ -146,7 +142,19 @@ export const AuthProvider = ({
     }
   }, []);
 
-  // Logout
+  const clearAuth = useCallback((message) => {
+    setToken(null);
+    setUser(null);
+    localStorage.removeItem('token');
+    localStorage.removeItem('user');
+    if (message) {
+      setError(message);
+    }
+    if (onLogoutRef.current) {
+      onLogoutRef.current();
+    }
+  }, []);
+
   const logout = useCallback(async () => {
     // Gọi API logout để blacklist token phía server
     try {
@@ -158,17 +166,13 @@ export const AuthProvider = ({
       // Bỏ qua lỗi API - vẫn tiếp tục xóa local state
     }
 
-    setToken(null);
-    setUser(null);
-    localStorage.removeItem('token');
-    localStorage.removeItem('user');
+    clearAuth();
+  }, [clearAuth]);
 
-    // Callback khi logout
-    if (onLogoutRef.current) {
-      onLogoutRef.current();
-    }
-    // Component sẽ tự xử lý navigation
-  }, []);
+  const forceLogout = useCallback((payload) => {
+    const message = payload?.message || 'Phiên đăng nhập đã kết thúc. Vui lòng đăng nhập lại.';
+    clearAuth(message);
+  }, [clearAuth]);
 
   // Get profile
   const getProfile = useCallback(async () => {
@@ -185,8 +189,8 @@ export const AuthProvider = ({
 
       return userData;
     } catch (err) {
-      if (err.status === 401) {
-        logout();
+      if (err.status === 401 || err.status === 403) {
+        clearAuth(err.message || 'Phiên đăng nhập không hợp lệ.');
         return null;
       }
       const errorMessage = err.message || 'Không lấy được hồ sơ người dùng';
@@ -198,7 +202,7 @@ export const AuthProvider = ({
     } finally {
       setLoading(false);
     }
-  }, [logout]);
+  }, [clearAuth]);
 
   // Update profile
   const updateProfile = useCallback(async (profileData) => {
@@ -244,6 +248,13 @@ export const AuthProvider = ({
       setLoading(false);
     }
   }, []);
+
+  useEffect(() => {
+    setAuthFailureHandler(forceLogout);
+    return () => {
+      setAuthFailureHandler(null);
+    };
+  }, [forceLogout]);
 
   // Check if user is authenticated
   const isAuthenticated = useCallback(() => {
