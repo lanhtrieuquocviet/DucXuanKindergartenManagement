@@ -1,0 +1,363 @@
+import { useEffect, useMemo, useState } from 'react';
+import { useNavigate } from 'react-router-dom';
+import {
+  Autocomplete,
+  Box,
+  Paper,
+  Typography,
+  Button,
+  Stack,
+  CircularProgress,
+  Table,
+  TableBody,
+  TableCell,
+  TableContainer,
+  TableHead,
+  TableRow,
+  Alert,
+  Dialog,
+  DialogTitle,
+  DialogContent,
+  DialogActions,
+  TextField,
+  Select,
+  MenuItem,
+  FormControl,
+  InputLabel,
+  IconButton,
+  Tooltip,
+} from '@mui/material';
+import EditIcon from '@mui/icons-material/Edit';
+import DeleteIcon from '@mui/icons-material/Delete';
+import RoleLayout from '../../layouts/RoleLayout';
+import { useAuth } from '../../context/AuthContext';
+import { get, post, put, del, ENDPOINTS } from '../../service/api';
+import { createSchoolAdminMenuSelect } from './schoolAdminMenuConfig';
+import { useSchoolAdminMenu } from './useSchoolAdminMenu';
+
+const EMPTY_FORM = {
+  position: '',
+  status: 'active',
+  userId: null,
+};
+
+export default function ManageStaff() {
+  const navigate = useNavigate();
+  const { user, logout, isInitializing, hasRole } = useAuth();
+  const menuItems = useSchoolAdminMenu();
+
+  const [staff, setStaff] = useState([]);
+  const [users, setUsers] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState('');
+  const [refreshing, setRefreshing] = useState(false);
+
+  const [dialogOpen, setDialogOpen] = useState(false);
+  const [dialogMode, setDialogMode] = useState('create');
+  const [form, setForm] = useState(EMPTY_FORM);
+  const [formErrors, setFormErrors] = useState({});
+  const [saveLoading, setSaveLoading] = useState(false);
+  const [saveError, setSaveError] = useState('');
+  const [selectedStaffId, setSelectedStaffId] = useState(null);
+
+  useEffect(() => {
+    if (isInitializing) return;
+    if (!user) {
+      navigate('/login', { replace: true });
+      return;
+    }
+    if (!hasRole('SchoolAdmin')) {
+      navigate('/', { replace: true });
+      return;
+    }
+
+    loadStaff();
+    loadUsers();
+  }, [isInitializing, navigate, user, hasRole]);
+
+  const loadStaff = async () => {
+    setLoading(true);
+    setError('');
+    try {
+      const response = await get(ENDPOINTS.SCHOOL_ADMIN.STAFF_MEMBERS);
+      setStaff(response.data || []);
+    } catch (err) {
+      setError(err?.data?.message || err?.message || 'Lỗi khi tải danh sách nhân sự');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const loadUsers = async () => {
+    try {
+      const response = await get(ENDPOINTS.SCHOOL_ADMIN.STAFF_USERS);
+      setUsers(response.data || []);
+    } catch (err) {
+      console.error('loadUsers error', err);
+    }
+  };
+
+  const handleRefresh = async () => {
+    setRefreshing(true);
+    await Promise.all([loadStaff(), loadUsers()]);
+    setRefreshing(false);
+  };
+
+  const handleOpenDialog = (mode = 'create', staffItem = null) => {
+    setDialogMode(mode);
+    setSaveError('');
+    setFormErrors({});
+
+    if (mode === 'edit' && staffItem) {
+      setSelectedStaffId(staffItem._id);
+      setForm({
+        position: staffItem.position || '',
+        status: staffItem.status || 'active',
+        userId: staffItem.user?._id || null,
+      });
+    } else {
+      setSelectedStaffId(null);
+      setForm(EMPTY_FORM);
+    }
+
+    setDialogOpen(true);
+  };
+
+  const validateForm = () => {
+    const errors = {};
+    if (!form.position.trim()) errors.position = 'Chức vụ bắt buộc';
+    if (!form.userId) errors.userId = 'Vui lòng chọn người dùng';
+    return errors;
+  };
+
+  const handleSave = async () => {
+    const errors = validateForm();
+    if (Object.keys(errors).length > 0) {
+      setFormErrors(errors);
+      return;
+    }
+
+    setSaveLoading(true);
+    setSaveError('');
+    try {
+      const payload = {
+        position: form.position.trim(),
+        status: form.status,
+        userId: form.userId,
+      };
+
+      if (dialogMode === 'create') {
+        await post(ENDPOINTS.SCHOOL_ADMIN.STAFF_MEMBERS, payload);
+      } else {
+        await put(ENDPOINTS.SCHOOL_ADMIN.STAFF_MEMBER(selectedStaffId), payload);
+      }
+
+      await handleRefresh();
+      setDialogOpen(false);
+    } catch (err) {
+      setSaveError(err?.data?.message || err?.message || 'Lỗi khi lưu nhân sự');
+    } finally {
+      setSaveLoading(false);
+    }
+  };
+
+  const handleDelete = async (item) => {
+    if (!window.confirm(`Xóa nhân sự ${item.user?.fullName || item.employeeId}?`)) return;
+    try {
+      setSaveLoading(true);
+      setSaveError('');
+      await del(ENDPOINTS.SCHOOL_ADMIN.STAFF_MEMBER(item._id));
+      await loadStaff();
+    } catch (err) {
+      setSaveError(err?.data?.message || err?.message || 'Lỗi khi xóa nhân sự');
+    } finally {
+      setSaveLoading(false);
+    }
+  };
+
+  const availableUsers = useMemo(() => {
+    const assignedUserIds = new Set(staff.map((item) => item.user?._id));
+    return users.filter((u) => {
+      if (dialogMode === 'edit' && form.userId === u._id) return true;
+      return !assignedUserIds.has(u._id);
+    });
+  }, [users, staff, dialogMode, form.userId]);
+
+  const handleMenuSelect = createSchoolAdminMenuSelect(navigate);
+  const userName = user?.fullName || user?.username || 'School Admin';
+
+  return (
+    <RoleLayout
+      title="Quản lý nhân sự"
+      description="Quản lý mã nhân viên, chức vụ và trạng thái nhân sự trường."
+      menuItems={menuItems}
+      activeKey="staff"
+      onLogout={() => {
+        logout();
+        navigate('/login', { replace: true });
+      }}
+      userName={userName}
+      userAvatar={user?.avatar}
+      onViewProfile={() => navigate('/profile')}
+      onMenuSelect={handleMenuSelect}
+    >
+      <Paper
+        elevation={0}
+        sx={{
+          background: 'linear-gradient(135deg, #0ea5e9 0%, #0284c7 100%)',
+          borderRadius: 3,
+          px: 4,
+          py: 3,
+          mb: 3,
+        }}
+      >
+        <Stack direction={{ xs: 'column', sm: 'row' }} justifyContent="space-between" alignItems={{ xs: 'stretch', sm: 'center' }}>
+          <Box>
+            <Typography variant="h5" fontWeight={700} color="white">
+              Quản lý nhân sự
+            </Typography>
+            <Typography variant="body2" sx={{ color: 'rgba(255,255,255,0.85)', mt: 0.5 }}>
+              Dữ liệu nhân sự trường được liên kết với tài khoản User.
+            </Typography>
+          </Box>
+          <Stack direction="row" spacing={1} alignItems="center" sx={{ mt: { xs: 2, sm: 0 } }}>
+            <Button variant="contained" color="secondary" onClick={() => handleOpenDialog('create')} sx={{ textTransform: 'none' }}>
+              Thêm nhân sự
+            </Button>
+            <Button variant="outlined" color="inherit" onClick={handleRefresh} disabled={refreshing} sx={{ textTransform: 'none' }}>
+              {refreshing ? 'Làm mới...' : 'Làm mới'}
+            </Button>
+          </Stack>
+        </Stack>
+      </Paper>
+
+      {saveError && (
+        <Box sx={{ mb: 2 }}>
+          <Alert severity="error">{saveError}</Alert>
+        </Box>
+      )}
+
+      <Paper elevation={2} sx={{ borderRadius: 3, overflow: 'hidden' }}>
+        {loading ? (
+          <Box sx={{ p: 6, display: 'flex', justifyContent: 'center', alignItems: 'center', gap: 2 }}>
+            <CircularProgress size={24} />
+            <Typography variant="body2" color="text.secondary">
+              Đang tải...
+            </Typography>
+          </Box>
+        ) : error ? (
+          <Box sx={{ p: 4 }}>
+            <Alert severity="error">{error}</Alert>
+          </Box>
+        ) : staff.length === 0 ? (
+          <Box sx={{ p: 4 }}>
+            <Typography variant="body1" color="text.secondary">
+              Không có nhân sự để hiển thị.
+            </Typography>
+          </Box>
+        ) : (
+          <TableContainer>
+            <Table>
+              <TableHead>
+                <TableRow>
+                  <TableCell>Mã NV</TableCell>
+                  <TableCell>Họ và tên</TableCell>
+                  <TableCell>Chức vụ</TableCell>
+                  <TableCell>Số điện thoại</TableCell>
+                  <TableCell>Trạng thái</TableCell>
+                  <TableCell align="right">Hành động</TableCell>
+                </TableRow>
+              </TableHead>
+              <TableBody>
+                {staff.map((item) => (
+                  <TableRow key={item._id} hover>
+                    <TableCell>{item.employeeId || '—'}</TableCell>
+                    <TableCell>{item.user?.fullName || '—'}</TableCell>
+                    <TableCell>{item.position || '—'}</TableCell>
+                    <TableCell>{item.user?.phone || '—'}</TableCell>
+                    <TableCell>{item.status === 'active' ? 'Hoạt động' : 'Không hoạt động'}</TableCell>
+                    <TableCell align="right">
+                      <Tooltip title="Chỉnh sửa">
+                        <IconButton size="small" onClick={() => handleOpenDialog('edit', item)}>
+                          <EditIcon fontSize="small" />
+                        </IconButton>
+                      </Tooltip>
+                      <Tooltip title="Xóa nhân sự">
+                        <IconButton size="small" color="error" onClick={() => handleDelete(item)}>
+                          <DeleteIcon fontSize="small" />
+                        </IconButton>
+                      </Tooltip>
+                    </TableCell>
+                  </TableRow>
+                ))}
+              </TableBody>
+            </Table>
+          </TableContainer>
+        )}
+      </Paper>
+
+      <Dialog open={dialogOpen} onClose={() => setDialogOpen(false)} maxWidth="sm" fullWidth>
+        <DialogTitle>{dialogMode === 'create' ? 'Thêm nhân sự mới' : 'Chỉnh sửa nhân sự'}</DialogTitle>
+        <DialogContent dividers>
+          <Stack spacing={2} sx={{ mt: 1 }}>
+            <Autocomplete
+              options={availableUsers}
+              getOptionLabel={(option) => `${option.fullName} • ${option.phone || option.email || option.username}`}
+              value={availableUsers.find((u) => u._id === form.userId) || null}
+              onChange={(_, value) => setForm((prev) => ({ ...prev, userId: value ? value._id : null }))}
+              renderInput={(params) => (
+                <TextField
+                  {...params}
+                  label="Chọn người dùng"
+                  error={!!formErrors.userId}
+                  helperText={formErrors.userId}
+                  size="small"
+                />
+              )}
+              disabled={dialogMode === 'edit'}
+              fullWidth
+            />
+
+            <FormControl fullWidth size="small" error={!!formErrors.position}>
+              <InputLabel id="staff-position-label">Chức vụ</InputLabel>
+              <Select
+                labelId="staff-position-label"
+                label="Chức vụ"
+                value={form.position}
+                onChange={(e) => setForm((prev) => ({ ...prev, position: e.target.value }))}
+              >
+                <MenuItem value="BGH">BGH</MenuItem>
+                <MenuItem value="Giáo viên">Giáo viên</MenuItem>
+                <MenuItem value="Nhân viên văn phòng">Nhân viên văn phòng</MenuItem>
+                <MenuItem value="nhân viên y tế">nhân viên y tế</MenuItem>
+                <MenuItem value="nhân viên bếp">nhân viên bếp</MenuItem>
+              </Select>
+              {formErrors.position && <Typography variant="caption" color="error">{formErrors.position}</Typography>}
+            </FormControl>
+
+            <FormControl fullWidth size="small">
+              <InputLabel id="staff-status-label">Trạng thái</InputLabel>
+              <Select
+                labelId="staff-status-label"
+                label="Trạng thái"
+                value={form.status}
+                onChange={(e) => setForm((prev) => ({ ...prev, status: e.target.value }))}
+              >
+                <MenuItem value="active">Hoạt động</MenuItem>
+                <MenuItem value="inactive">Không hoạt động</MenuItem>
+              </Select>
+            </FormControl>
+          </Stack>
+        </DialogContent>
+        <DialogActions sx={{ px: 3, py: 2 }}>
+          <Button onClick={() => setDialogOpen(false)} disabled={saveLoading}>
+            Hủy
+          </Button>
+          <Button variant="contained" onClick={handleSave} disabled={saveLoading}>
+            {saveLoading ? 'Đang lưu...' : dialogMode === 'create' ? 'Lưu' : 'Cập nhật'}
+          </Button>
+        </DialogActions>
+      </Dialog>
+    </RoleLayout>
+  );
+}

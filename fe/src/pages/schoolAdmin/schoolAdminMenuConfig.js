@@ -21,6 +21,7 @@ export const SCHOOL_ADMIN_MENU_ITEMS = [
   { key: 'menu', label: 'Quản lý thực đơn', permission: 'APPROVE_MENU' },
   { key: 'meal-management', label: 'Quản lý bữa ăn', permission: 'APPROVE_MENU' },
   { key: 'teachers', label: 'Giáo viên', permission: 'MANAGE_TEACHER' },
+  { key: 'staff', label: 'Quản lý nhân sự', permission: 'MANAGE_ASSET' },
   { key: 'students', label: 'Học sinh & phụ huynh', permission: 'MANAGE_STUDENT' },
   {
     key: 'assets',
@@ -128,6 +129,7 @@ export const createSchoolAdminMenuSelect = (navigate) => (key) => {
     menu: '/school-admin/menus',
     'meal-management': '/school-admin/meal-management',
     teachers: '/school-admin/teachers',
+    staff: '/school-admin/staff',
     students: '/school-admin/students',
     contacts: '/school-admin/contacts',
     'contacts-list': '/school-admin/contacts',

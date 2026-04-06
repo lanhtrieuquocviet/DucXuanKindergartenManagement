@@ -31,6 +31,7 @@ import StudentInClass from './pages/schoolAdmin/StudentInClass';
 import ManageStudents from './pages/schoolAdmin/ManageStudents';
 import StudentHealthReport from './pages/schoolAdmin/StudentHealthReport';
 import ManageTeachers from './pages/schoolAdmin/ManageTeachers';
+import ManageStaff from './pages/schoolAdmin/ManageStaff';
 import ContactList from './pages/schoolAdmin/ContactList';
 import QaList from './pages/schoolAdmin/QaList';
 import AttendanceOverview from './pages/schoolAdmin/AttendanceOverview';
@@ -474,6 +475,16 @@ function App() {
             element={
               <ProtectedRoute>
                 <ManageTeachers />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/school-admin/staff"
+            element={
+              <ProtectedRoute>
+                <SchoolAdminProvider>
+                  <ManageStaff />
+                </SchoolAdminProvider>
               </ProtectedRoute>
             }
           />

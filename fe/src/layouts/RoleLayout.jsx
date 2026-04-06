@@ -89,6 +89,7 @@ export const KEY_ICONS = {
   'asset-inspection':     <ContentPasteSearchIcon fontSize="small" />,
   'class-assets':         <InventoryIcon fontSize="small" />,
   'asset-allocation':     <AccountTreeIcon fontSize="small" />,
+  staff:                  <GroupIcon fontSize="small" />,
   kiemke:                 <GradingIcon fontSize="small" />,
   committee:              <GroupIcon fontSize="small" />,
   minutes:                <ArticleIcon fontSize="small" />,
