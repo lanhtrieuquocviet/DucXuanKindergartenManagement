@@ -37,6 +37,7 @@ function Contact() {
   const [errors, setErrors] = useState(initialErrors);
   const [captchaValid, setCaptchaValid] = useState(false);
   const [captchaError, setCaptchaError] = useState(false);
+  const [captchaKey, setCaptchaKey] = useState(0);
   const [loading, setLoading] = useState(false);
   const [message, setMessage] = useState({ type: null, text: null });
 
@@ -59,6 +60,8 @@ function Contact() {
     if (hasError) return;
     if (!captchaValid) {
       setCaptchaError(true);
+      // Sai mã bảo mật: tạo mã mới ngay và xóa input captcha.
+      setCaptchaKey((prev) => prev + 1);
       setMessage({ type: "error", text: "Vui lòng nhập đúng mã bảo mật để gửi liên hệ." });
       return;
     }
@@ -76,6 +79,7 @@ function Contact() {
       setMessage({ type: "success", text: "Gửi liên hệ thành công. Chúng tôi sẽ phản hồi trong thời gian sớm nhất!" });
       setForm(initialForm);
       setCaptchaValid(false);
+      setCaptchaKey((prev) => prev + 1);
     } catch (err) {
       const msg = err?.data?.message || err?.message || "Gửi liên hệ thất bại. Vui lòng thử lại.";
       const backendErrors = err?.data?.errors;
@@ -178,7 +182,7 @@ function Contact() {
 
           <div>
             <label className="text-sm font-medium block mb-1">Mã bảo mật *</label>
-            <Captcha onValidate={handleCaptchaValidate} />
+            <Captcha key={captchaKey} onValidate={handleCaptchaValidate} />
             {captchaError && (
               <p className="text-red-600 text-xs mt-1">Vui lòng nhập đúng mã bảo mật.</p>
             )}
