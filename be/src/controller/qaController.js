@@ -25,8 +25,8 @@ const validateCreateQuestion = [
     .isLength({ max: 200 }).withMessage('Địa chỉ tối đa 200 ký tự'),
 
   body('idNumber')
+    .optional({ checkFalsy: true })
     .trim()
-    .notEmpty().withMessage('Số CMND/Hộ chiếu không được để trống')
     .isLength({ max: 50 }).withMessage('Số CMND/Hộ chiếu tối đa 50 ký tự'),
 
   body('category')

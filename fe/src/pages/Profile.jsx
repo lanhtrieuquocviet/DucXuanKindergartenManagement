@@ -15,6 +15,9 @@ import CheckCircleIcon from '@mui/icons-material/CheckCircle';
 import EditOutlinedIcon from '@mui/icons-material/EditOutlined';
 
 const DEFAULT_AVATAR = 'https://via.placeholder.com/300x400.png?text=Avatar+3x4';
+const MAX_AVATAR_SIZE_BYTES = 5 * 1024 * 1024;
+const EMAIL_REGEX = /^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/;
+const PHONE_REGEX = /^(0|\+84)(\d){9,10}$/;
 
 /* ── Small reusable card ── */
 function SectionCard({ icon, title, accentGradient, children }) {
@@ -123,6 +126,7 @@ function AvatarUpload({ currentAvatar, uploadingAvatar, fileInputRef, onSelectFi
 function ProfileForm({
   color = 'primary',
   profileForm,
+  profileErrors,
   onProfileChange,
   onSubmit,
   savingProfile,
@@ -133,22 +137,45 @@ function ProfileForm({
 }) {
   return (
     <Stack component="form" onSubmit={onSubmit} spacing={2.5}>
-      <TextField label="Họ và tên" name="fullName" value={profileForm.fullName ?? ''} onChange={onProfileChange} size="small" fullWidth color={color} />
-      <TextField label="Email" name="email" type="email" value={profileForm.email ?? ''} onChange={onProfileChange} size="small" fullWidth color={color} />
+      <TextField
+        label="Họ và tên"
+        name="fullName"
+        value={profileForm.fullName ?? ''}
+        onChange={onProfileChange}
+        error={Boolean(profileErrors.fullName)}
+        helperText={profileErrors.fullName || ' '}
+        size="small"
+        fullWidth
+        color={color}
+      />
+      <TextField
+        label="Email"
+        name="email"
+        type="email"
+        value={profileForm.email ?? ''}
+        onChange={onProfileChange}
+        error={Boolean(profileErrors.email)}
+        helperText={profileErrors.email || ' '}
+        size="small"
+        fullWidth
+        color={color}
+      />
       <TextField
         label="Số điện thoại" name="phone" type="tel"
         value={profileForm.phone ?? ''}
-        onChange={(e) => { if (e.target.value.length <= 50) onProfileChange(e); }}
-        inputProps={{ maxLength: 50 }}
-        helperText={`${profileForm.phone?.length || 0}/50 ký tự`}
+        onChange={(e) => { if (e.target.value.length <= 15) onProfileChange(e); }}
+        inputProps={{ maxLength: 15 }}
+        error={Boolean(profileErrors.phone)}
+        helperText={profileErrors.phone || `${profileForm.phone?.length || 0}/15 ký tự`}
         size="small" fullWidth color={color}
       />
       <TextField
         label="Địa chỉ" name="address"
         value={profileForm.address ?? ''}
-        onChange={(e) => { if (e.target.value.length <= 50) onProfileChange(e); }}
-        inputProps={{ maxLength: 50 }}
-        helperText={`${profileForm.address?.length || 0}/50 ký tự`}
+        onChange={(e) => { if (e.target.value.length <= 255) onProfileChange(e); }}
+        inputProps={{ maxLength: 255 }}
+        error={Boolean(profileErrors.address)}
+        helperText={profileErrors.address || `${profileForm.address?.length || 0}/255 ký tự`}
         size="small" fullWidth color={color}
       />
 
@@ -192,24 +219,29 @@ function ProfileForm({
   );
 }
 
-function PasswordForm({ passwordForm, passwordHint, onPasswordChange, onSubmit, changingPassword }) {
+function PasswordForm({ passwordForm, passwordHint, passwordErrors, onPasswordChange, onSubmit, changingPassword }) {
   return (
     <Stack component="form" onSubmit={onSubmit} spacing={2.5}>
       <TextField
         label="Mật khẩu hiện tại" name="currentPassword" type="password"
         value={passwordForm.currentPassword} onChange={onPasswordChange}
+        error={Boolean(passwordErrors.currentPassword)}
+        helperText={passwordErrors.currentPassword || ' '}
         size="small" fullWidth
       />
       <TextField
         label="Mật khẩu mới" name="newPassword" type="password"
         value={passwordForm.newPassword} onChange={onPasswordChange}
+        error={Boolean(passwordErrors.newPassword)}
         size="small" fullWidth
-        helperText={passwordHint || ' '}
-        FormHelperTextProps={{ sx: { color: passwordHint ? 'warning.main' : 'transparent', mt: 0.25 } }}
+        helperText={passwordErrors.newPassword || passwordHint || ' '}
+        FormHelperTextProps={{ sx: { color: passwordErrors.newPassword ? 'error.main' : (passwordHint ? 'warning.main' : 'transparent'), mt: 0.25 } }}
       />
       <TextField
         label="Xác nhận mật khẩu mới" name="confirmPassword" type="password"
         value={passwordForm.confirmPassword} onChange={onPasswordChange}
+        error={Boolean(passwordErrors.confirmPassword)}
+        helperText={passwordErrors.confirmPassword || ' '}
         size="small" fullWidth
       />
       <Box>
@@ -346,6 +378,8 @@ function Profile() {
     currentPassword: '', newPassword: '', confirmPassword: '',
   });
   const [passwordHint, setPasswordHint] = useState('');
+  const [profileErrors, setProfileErrors] = useState({});
+  const [passwordErrors, setPasswordErrors] = useState({});
   const [children, setChildren] = useState([]);
   const [savingProfile, setSavingProfile] = useState(false);
   const [changingPassword, setChangingPassword] = useState(false);
@@ -433,7 +467,34 @@ function Profile() {
   const handleProfileChange = (e) => {
     hasUserEditedRef.current = true;
     const { name, value } = e.target;
+    setProfileErrors((prev) => ({ ...prev, [name]: '' }));
     setProfileForm((prev) => ({ ...prev, [name]: value }));
+  };
+
+  const validateProfileForm = () => {
+    const errors = {};
+    const fullName = String(profileForm.fullName || '').trim();
+    const email = String(profileForm.email || '').trim();
+    const phone = String(profileForm.phone || '').trim();
+    const address = String(profileForm.address || '').trim();
+
+    if (!fullName) errors.fullName = 'Vui lòng nhập họ và tên.';
+    else if (fullName.length < 2 || fullName.length > 100) errors.fullName = 'Họ và tên từ 2 đến 100 ký tự.';
+
+    if (!email) errors.email = 'Vui lòng nhập email.';
+    else if (!EMAIL_REGEX.test(email)) errors.email = 'Email không đúng định dạng.';
+
+    if (phone) {
+      if (!PHONE_REGEX.test(phone)) {
+        errors.phone = 'Số điện thoại không đúng định dạng Việt Nam (0xxxxxxxxx hoặc +84xxxxxxxxx).';
+      }
+    }
+
+    if (address && address.length > 255) {
+      errors.address = 'Địa chỉ không vượt quá 255 ký tự.';
+    }
+
+    return errors;
   };
 
   const handleSelectAvatarFile = async (e) => {
@@ -441,6 +502,10 @@ function Profile() {
     if (!file) return;
     if (!/^image\/(jpeg|jpg|png|gif|webp)$/i.test(file.type)) {
       setError('Chỉ chấp nhận file ảnh (JPEG, PNG, GIF, WebP).');
+      return;
+    }
+    if (file.size > MAX_AVATAR_SIZE_BYTES) {
+      setError('Kích thước ảnh tối đa 5MB.');
       return;
     }
     if (avatarPreview) URL.revokeObjectURL(avatarPreview);
@@ -469,6 +534,7 @@ function Profile() {
 
   const handlePasswordChange = (e) => {
     const { name, value } = e.target;
+    setPasswordErrors((prev) => ({ ...prev, [name]: '' }));
     setPasswordForm((prev) => ({ ...prev, [name]: value }));
     if (name === 'newPassword') {
       const ok = /[A-Z]/.test(value) && /\d/.test(value) && /[^A-Za-z0-9]/.test(value);
@@ -481,16 +547,23 @@ function Profile() {
   const handleSubmitProfile = async (e) => {
     e.preventDefault();
     if (!user) { navigate('/login', { replace: true }); return; }
+    const errors = validateProfileForm();
+    if (Object.keys(errors).length > 0) {
+      setProfileErrors(errors);
+      setError('Vui lòng kiểm tra lại thông tin hồ sơ.');
+      return;
+    }
     try {
       setSavingProfile(true);
       setMessage('');
       setError(null);
+      setProfileErrors({});
       await updateProfile({
-        fullName: profileForm.fullName,
-        email: profileForm.email,
+        fullName: String(profileForm.fullName || '').trim(),
+        email: String(profileForm.email || '').trim(),
         avatar: profileForm.avatar || undefined,
-        address: profileForm.address || '',
-        phone: profileForm.phone || '',
+        address: String(profileForm.address || '').trim(),
+        phone: String(profileForm.phone || '').trim(),
       });
       if (children.length > 0) {
         const updates = await Promise.all(
@@ -516,12 +589,24 @@ function Profile() {
 
   const handleSubmitPassword = async (e) => {
     e.preventDefault();
-    if (passwordForm.newPassword !== passwordForm.confirmPassword) {
-      setError('Mật khẩu mới và xác nhận mật khẩu không khớp.');
-      return;
+    const errors = {};
+    if (!passwordForm.currentPassword) errors.currentPassword = 'Vui lòng nhập mật khẩu hiện tại.';
+    if (!passwordForm.newPassword) errors.newPassword = 'Vui lòng nhập mật khẩu mới.';
+    if (!passwordForm.confirmPassword) errors.confirmPassword = 'Vui lòng xác nhận mật khẩu mới.';
+
+    if (passwordForm.newPassword && !/^(?=.*[A-Z])(?=.*\d)(?=.*[^A-Za-z0-9]).{6,}$/.test(passwordForm.newPassword || '')) {
+      errors.newPassword = 'Mật khẩu mới phải có ít nhất 1 chữ hoa, 1 số, 1 ký tự đặc biệt và từ 6 ký tự.';
     }
-    if (!/^(?=.*[A-Z])(?=.*\d)(?=.*[^A-Za-z0-9]).{6,}$/.test(passwordForm.newPassword || '')) {
-      setError('Mật khẩu mới phải có ít nhất 1 chữ cái viết hoa, 1 số và 1 ký tự đặc biệt, tối thiểu 6 ký tự.');
+    if (passwordForm.currentPassword && passwordForm.newPassword && passwordForm.currentPassword === passwordForm.newPassword) {
+      errors.newPassword = 'Mật khẩu mới không được trùng mật khẩu hiện tại.';
+    }
+    if (passwordForm.newPassword !== passwordForm.confirmPassword) {
+      errors.confirmPassword = 'Mật khẩu xác nhận không khớp.';
+    }
+
+    if (Object.keys(errors).length > 0) {
+      setPasswordErrors(errors);
+      setError('Vui lòng kiểm tra lại thông tin mật khẩu.');
       return;
     }
     if (!user) { navigate('/login', { replace: true }); return; }
@@ -529,6 +614,7 @@ function Profile() {
       setChangingPassword(true);
       setMessage('');
       setError(null);
+      setPasswordErrors({});
       await changePassword(passwordForm.currentPassword, passwordForm.newPassword);
       setMessage('Đổi mật khẩu thành công.');
       setPasswordForm({ currentPassword: '', newPassword: '', confirmPassword: '' });
@@ -564,6 +650,7 @@ function Profile() {
 
   const sharedProfileFormProps = {
     profileForm,
+    profileErrors,
     onProfileChange: handleProfileChange,
     onSubmit: handleSubmitProfile,
     savingProfile,
@@ -576,6 +663,7 @@ function Profile() {
   const sharedPasswordFormProps = {
     passwordForm,
     passwordHint,
+    passwordErrors,
     onPasswordChange: handlePasswordChange,
     onSubmit: handleSubmitPassword,
     changingPassword,

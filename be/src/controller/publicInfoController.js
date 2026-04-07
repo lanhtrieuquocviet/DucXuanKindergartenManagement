@@ -1,5 +1,6 @@
 const PublicInfo = require('../models/PublicInfo');
 const { PUBLIC_INFO_CATEGORIES } = require('../models/PublicInfo');
+const Staff = require('../models/Staff');
 
 const validatePayload = (body, isCreate = true) => {
   const errors = [];
@@ -201,6 +202,77 @@ const getPublishedPublicInfoById = async (req, res) => {
   }
 };
 
+/** GET /api/public-info/organization-structure (public) */
+const getOrganizationStructure = async (req, res) => {
+  try {
+    const staffs = await Staff.find({ status: 'active' })
+      .populate('userId', 'fullName email phone avatar status')
+      .sort({ employeeId: 1 })
+      .lean();
+
+    const groups = {
+      boardOfDirectors: { label: 'Ban giám hiệu', members: [] },
+      professionalGroup: { label: 'Tổ Chuyên môn', members: [] },
+      administrativeGroup: { label: 'Tổ Hành chính - Văn phòng', members: [] },
+      parentCouncil: { label: 'Hội Thường trực PHHS', members: [] },
+    };
+
+    const normalize = (value = '') =>
+      String(value)
+        .normalize('NFD')
+        .replace(/[\u0300-\u036f]/g, '')
+        .toLowerCase()
+        .trim();
+
+    staffs.forEach((item) => {
+      const fullName = item?.userId?.fullName;
+      const userStatus = item?.userId?.status;
+      if (!fullName || userStatus !== 'active') return;
+      const member = {
+        id: item._id?.toString?.() || '',
+        fullName,
+        position: item.position || '',
+        phone: item?.userId?.phone || '',
+        email: item?.userId?.email || '',
+        avatar: item?.userId?.avatar || '',
+        employeeId: item?.employeeId || '',
+      };
+
+      const position = normalize(item.position);
+      if (position === 'bgh' || position.includes('ban giam hieu')) {
+        groups.boardOfDirectors.members.push(member);
+        return;
+      }
+      if (position === 'giao vien' || position.includes('chuyen mon')) {
+        groups.professionalGroup.members.push(member);
+        return;
+      }
+      if (position.includes('phhs') || position.includes('phu huynh')) {
+        groups.parentCouncil.members.push(member);
+        return;
+      }
+      groups.administrativeGroup.members.push(member);
+    });
+
+    Object.values(groups).forEach((g) => {
+      const seen = new Set();
+      g.members = g.members.filter((m) => {
+        const key = `${m.fullName}-${m.phone}-${m.email}-${m.employeeId}`;
+        if (seen.has(key)) return false;
+        seen.add(key);
+        return true;
+      });
+    });
+
+    return res.status(200).json({
+      status: 'success',
+      data: groups,
+    });
+  } catch (err) {
+    return res.status(500).json({ status: 'error', message: err.message });
+  }
+};
+
 module.exports = {
   listPublicInfos,
   getPublicInfo,
@@ -209,4 +281,5 @@ module.exports = {
   deletePublicInfo,
   getPublishedPublicInfos,
   getPublishedPublicInfoById,
+  getOrganizationStructure,
 };

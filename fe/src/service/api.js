@@ -6,14 +6,38 @@
 export const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || 'http://localhost:5000/api';
 
 /**
- * Lấy token từ localStorage
+ * Lấy access token từ localStorage
  */
 export const getToken = () => {
   return localStorage.getItem('token');
 };
 
 /**
- * Xử lý response từ API
+ * Lấy refresh token từ localStorage
+ */
+export const getRefreshToken = () => {
+  return localStorage.getItem('refreshToken');
+};
+
+let authFailureHandler = null;
+
+export const setAuthFailureHandler = (handler) => {
+  authFailureHandler = handler;
+};
+
+const triggerAuthFailureHandler = (payload) => {
+  if (typeof authFailureHandler === 'function') {
+    try {
+      authFailureHandler(payload);
+    } catch (handlerError) {
+      // eslint-disable-next-line no-console
+      console.error('Auth failure handler error:', handlerError);
+    }
+  }
+};
+
+/**
+ * Xử lý response từ API (không retry)
  */
 const handleResponse = async (response) => {
   const data = await response.json();
@@ -22,10 +46,89 @@ const handleResponse = async (response) => {
     const error = new Error(data.message || `HTTP error! status: ${response.status}`);
     error.status = response.status;
     error.data = data;
+
+    if (
+      response.status === 401 ||
+      (response.status === 403 && /khóa/i.test(data.message || ''))
+    ) {
+      triggerAuthFailureHandler({ status: response.status, message: data.message });
+    }
+
     throw error;
   }
 
   return data;
+};
+
+/**
+ * Singleton promise để tránh gọi refresh nhiều lần đồng thời
+ */
+let refreshPromise = null;
+
+/**
+ * Gọi API refresh token, cập nhật localStorage, trả về access token mới
+ * Nếu thất bại → trigger force logout
+ */
+const doRefreshToken = async () => {
+  const storedRefreshToken = getRefreshToken();
+  if (!storedRefreshToken) {
+    triggerAuthFailureHandler({ status: 401, message: 'Phiên đăng nhập đã hết hạn' });
+    throw new Error('Không có refresh token');
+  }
+
+  const response = await fetch(`${API_BASE_URL}/auth/refresh`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ refreshToken: storedRefreshToken }),
+  });
+
+  if (!response.ok) {
+    triggerAuthFailureHandler({ status: 401, message: 'Phiên đăng nhập đã hết hạn. Vui lòng đăng nhập lại.' });
+    throw new Error('Refresh token thất bại');
+  }
+
+  const data = await response.json();
+  const { token: newAccessToken, refreshToken: newRefreshToken } = data.data;
+  localStorage.setItem('token', newAccessToken);
+  localStorage.setItem('refreshToken', newRefreshToken);
+  return newAccessToken;
+};
+
+/**
+ * Wrapper fetch có tự động refresh khi gặp 401
+ * @param {string} url
+ * @param {RequestInit} fetchOptions
+ * @param {boolean} skipRefresh - true khi đây là request đã được retry, tránh vòng lặp
+ */
+const fetchWithRefresh = async (url, fetchOptions, skipRefresh = false) => {
+  let response = await fetch(url, fetchOptions);
+
+  // Nếu 401 và được phép retry → thử refresh token
+  if (response.status === 401 && !skipRefresh && fetchOptions.headers?.Authorization) {
+    try {
+      if (!refreshPromise) {
+        refreshPromise = doRefreshToken().finally(() => { refreshPromise = null; });
+      }
+      const newToken = await refreshPromise;
+
+      // Retry request gốc với token mới
+      const retryOptions = {
+        ...fetchOptions,
+        headers: {
+          ...fetchOptions.headers,
+          Authorization: `Bearer ${newToken}`,
+        },
+      };
+      response = await fetch(url, retryOptions);
+    } catch {
+      // doRefreshToken đã trigger authFailureHandler, ném lỗi để dừng
+      const error = new Error('Phiên đăng nhập đã hết hạn. Vui lòng đăng nhập lại.');
+      error.status = 401;
+      throw error;
+    }
+  }
+
+  return handleResponse(response);
 };
 
 /**
@@ -52,12 +155,10 @@ const getHeaders = (includeAuth = true, customHeaders = {}) => {
  */
 export const get = async (endpoint, options = {}) => {
   const { includeAuth = true, headers: customHeaders = {} } = options;
-  const response = await fetch(`${API_BASE_URL}${endpoint}`, {
+  return fetchWithRefresh(`${API_BASE_URL}${endpoint}`, {
     method: 'GET',
     headers: getHeaders(includeAuth, customHeaders),
   });
-
-  return handleResponse(response);
 };
 
 /**
@@ -65,13 +166,11 @@ export const get = async (endpoint, options = {}) => {
  */
 export const post = async (endpoint, body, options = {}) => {
   const { includeAuth = true, headers: customHeaders = {} } = options;
-  const response = await fetch(`${API_BASE_URL}${endpoint}`, {
+  return fetchWithRefresh(`${API_BASE_URL}${endpoint}`, {
     method: 'POST',
     headers: getHeaders(includeAuth, customHeaders),
     body: JSON.stringify(body),
   });
-
-  return handleResponse(response);
 };
 
 /**
@@ -84,13 +183,11 @@ export const postFormData = async (endpoint, formData, options = {}) => {
     const token = getToken();
     if (token) headers.Authorization = `Bearer ${token}`;
   }
-  const response = await fetch(`${API_BASE_URL}${endpoint}`, {
+  return fetchWithRefresh(`${API_BASE_URL}${endpoint}`, {
     method: 'POST',
     headers,
     body: formData,
   });
-
-  return handleResponse(response);
 };
 
 /**
@@ -103,13 +200,11 @@ export const putFormData = async (endpoint, formData, options = {}) => {
     const token = getToken();
     if (token) headers.Authorization = `Bearer ${token}`;
   }
-  const response = await fetch(`${API_BASE_URL}${endpoint}`, {
+  return fetchWithRefresh(`${API_BASE_URL}${endpoint}`, {
     method: 'PUT',
     headers,
     body: formData,
   });
-
-  return handleResponse(response);
 };
 
 /**
@@ -117,13 +212,11 @@ export const putFormData = async (endpoint, formData, options = {}) => {
  */
 export const put = async (endpoint, body, options = {}) => {
   const { includeAuth = true, headers: customHeaders = {} } = options;
-  const response = await fetch(`${API_BASE_URL}${endpoint}`, {
+  return fetchWithRefresh(`${API_BASE_URL}${endpoint}`, {
     method: 'PUT',
     headers: getHeaders(includeAuth, customHeaders),
     body: JSON.stringify(body),
   });
-
-  return handleResponse(response);
 };
 
 /**
@@ -131,13 +224,11 @@ export const put = async (endpoint, body, options = {}) => {
  */
 export const patch = async (endpoint, body, options = {}) => {
   const { includeAuth = true, headers: customHeaders = {} } = options;
-  const response = await fetch(`${API_BASE_URL}${endpoint}`, {
+  return fetchWithRefresh(`${API_BASE_URL}${endpoint}`, {
     method: 'PATCH',
     headers: getHeaders(includeAuth, customHeaders),
     body: JSON.stringify(body),
   });
-
-  return handleResponse(response);
 };
 
 /**
@@ -145,12 +236,10 @@ export const patch = async (endpoint, body, options = {}) => {
  */
 export const del = async (endpoint, options = {}) => {
   const { includeAuth = true, headers: customHeaders = {} } = options;
-  const response = await fetch(`${API_BASE_URL}${endpoint}`, {
+  return fetchWithRefresh(`${API_BASE_URL}${endpoint}`, {
     method: 'DELETE',
     headers: getHeaders(includeAuth, customHeaders),
   });
-
-  return handleResponse(response);
 };
 
 // ============================================
@@ -162,6 +251,7 @@ export const ENDPOINTS = {
   AUTH: {
     LOGIN: "/auth/login",
     LOGOUT: "/auth/logout",
+    REFRESH: "/auth/refresh",
     ME: "/auth/me",
     ME_STUDENT: "/auth/me/student",
     MY_CHILDREN: "/auth/me/children",
@@ -218,6 +308,7 @@ export const ENDPOINTS = {
       `/school-admin/students/${studentId}/attendance`,
     STUDENT_ATTENDANCE_HISTORY: (studentId) =>
       `/school-admin/students/${studentId}/attendance/history`,
+    ATTENDANCE_EXPORT_DATA: "/school-admin/attendance/export-data",
     BLOGS: "/school-admin/blogs",
     BLOG_DETAIL: (blogId) => `/school-admin/blogs/${blogId}`,
     BLOG_CATEGORIES: "/school-admin/blog-categories",
@@ -235,6 +326,7 @@ export const ENDPOINTS = {
     ACADEMIC_YEARS: {
       LIST: "/school-admin/academic-years",
       CURRENT: "/school-admin/academic-years/current",
+      PATCH_CURRENT_TIMETABLE_SEASON: "/school-admin/academic-years/current/timetable-season",
       CREATE: "/school-admin/academic-years",
       FINISH: (id) => `/school-admin/academic-years/${id}/finish`,
       HISTORY: "/school-admin/academic-years/history",
@@ -251,6 +343,10 @@ export const ENDPOINTS = {
       CREATE_TOPIC: '/school-admin/academic-plan/topics',
       UPDATE_TOPIC: (id) => `/school-admin/academic-plan/topics/${id}`,
       DELETE_TOPIC: (id) => `/school-admin/academic-plan/topics/${id}`,
+    },
+    ACADEMIC_EVENTS: {
+      GET: (yearId) => (yearId ? `/school-admin/academic-events?yearId=${yearId}` : '/school-admin/academic-events'),
+      UPSERT: '/school-admin/academic-events',
     },
     CURRICULUM: {
       LIST: (yearId) => (yearId ? `/school-admin/curriculum?yearId=${yearId}` : "/school-admin/curriculum"),
@@ -270,6 +366,9 @@ export const ENDPOINTS = {
       UPDATE: (id) => `/school-admin/timetable/activities/${id}`,
     },
     STAFF: "/school-admin/staff",
+    STAFF_USERS: "/school-admin/staff-users",
+    STAFF_MEMBERS: "/school-admin/staff-members",
+    STAFF_MEMBER: (id) => `/school-admin/staff-members/${id}`,
     TEACHERS: "/school-admin/teachers",
     TEACHER_AVAILABILITY: "/school-admin/teachers/availability",
     TEACHER_CHECK_USERNAME: "/school-admin/teachers/check-username",
@@ -283,6 +382,7 @@ export const ENDPOINTS = {
     // Asset Inspection
     ASSET_COMMITTEES: "/school-admin/asset-committees",
     ASSET_COMMITTEE_DETAIL: (id) => `/school-admin/asset-committees/${id}`,
+    ASSET_COMMITTEE_END: (id) => `/school-admin/asset-committees/${id}/end`,
     ASSET_MINUTES: "/school-admin/asset-minutes",
     ASSET_MINUTES_DETAIL: (id) => `/school-admin/asset-minutes/${id}`,
     ASSET_MINUTES_EXPORT_WORD: (id) => `/school-admin/asset-minutes/${id}/export-word`,
@@ -386,6 +486,7 @@ export const ENDPOINTS = {
   PUBLIC_INFO: {
     LIST: "/public-info",
     DETAIL: (id) => `/public-info/${id}`,
+    ORGANIZATION_STRUCTURE: "/public-info/organization-structure",
   },
   IMAGE_LIBRARY: {
     LIST: "/image-library",
@@ -466,6 +567,7 @@ export const ENDPOINTS = {
   // Kitchen
   KITCHEN: {
     MENUS: "/menus",
+    NUTRITION_PLAN: "/menus/nutrition-plan",
     CREATE_MENU: "/menus",
     MENU_DETAIL: (id) => `/menus/${id}`,
     UPDATE_MENU: (id) => `/menus/${id}`,

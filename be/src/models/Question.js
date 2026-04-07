@@ -42,7 +42,7 @@ const questionSchema = new mongoose.Schema({
   idNumber: {
     type: String,
     trim: true,
-    required: true,
+    required: false,
   },
   category: {
     type: String,

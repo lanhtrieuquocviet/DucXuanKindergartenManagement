@@ -1,30 +1,24 @@
+import { useEffect, useState } from "react";
+import { ENDPOINTS, get } from "../../service/api";
+
+const DEFAULT_AVATAR = "https://via.placeholder.com/300x400.png?text=Avatar+3x4";
+
 function ParentsCouncil() {
-  const council = [
-    {
-      id: 1,
-      name: "Nguyễn Văn Hùng",
-      position: "Trưởng ban",
-      phone: "0987123456",
-      email: "hungphhs@gmail.com",
-      avatar: "https://i.pravatar.cc/150?img=12",
-    },
-    {
-      id: 2,
-      name: "Trần Thị Hoa",
-      position: "Phó Trưởng ban",
-      phone: "0978456123",
-      email: "hoaphhs@gmail.com",
-      avatar: "https://i.pravatar.cc/150?img=25",
-    },
-    {
-      id: 3,
-      name: "Lê Văn Minh",
-      position: "Ủy viên",
-      phone: "0963344556",
-      email: "minhphhs@gmail.com",
-      avatar: "https://i.pravatar.cc/150?img=33",
-    },
-  ];
+  const [council, setCouncil] = useState([]);
+
+  useEffect(() => {
+    const loadData = async () => {
+      try {
+        const resp = await get(ENDPOINTS.PUBLIC_INFO.ORGANIZATION_STRUCTURE, { includeAuth: false });
+        const members = resp?.data?.parentCouncil?.members || [];
+        setCouncil(Array.isArray(members) ? members : []);
+      } catch (error) {
+        console.error("Failed to load parent council", error);
+        setCouncil([]);
+      }
+    };
+    loadData();
+  }, []);
 
   return (
     <div className="max-w-7xl mx-auto px-4 sm:px-6 py-6 sm:py-8">
@@ -50,16 +44,18 @@ function ParentsCouncil() {
 
       {/* List */}
       <div className="space-y-6">
-        {council.map((item) => (
+        {council.length === 0 ? (
+          <div className="border rounded bg-white p-6 text-gray-500">Chưa có dữ liệu Hội PHHS.</div>
+        ) : council.map((item, idx) => (
           <div
-            key={item.id}
+            key={item.id || `${item.fullName}-${idx}`}
             className="border rounded bg-white flex flex-col sm:flex-row p-4 sm:p-6 gap-4 sm:gap-6"
           >
             {/* Avatar */}
             <div className="w-full sm:w-[150px] h-[200px] sm:h-[180px] border bg-gray-100 sm:flex-shrink-0 mx-auto sm:mx-0 max-w-[200px] sm:max-w-none">
               <img
-                src={item.avatar}
-                alt={item.name}
+                src={item.avatar || DEFAULT_AVATAR}
+                alt={item.fullName}
                 className="w-full h-full object-cover"
               />
             </div>
@@ -68,7 +64,7 @@ function ParentsCouncil() {
             <div className="flex-1 space-y-3 text-sm">
               <div className="flex border-b pb-2">
                 <div className="w-32 font-semibold">Họ và tên:</div>
-                <div className="font-bold text-base">{item.name}</div>
+                <div className="font-bold text-base">{item.fullName || "—"}</div>
               </div>
 
               <div className="flex border-b pb-2">
@@ -78,12 +74,12 @@ function ParentsCouncil() {
 
               <div className="flex border-b pb-2">
                 <div className="w-32 font-semibold">Điện thoại:</div>
-                <div>{item.phone}</div>
+                <div>{item.phone || "—"}</div>
               </div>
 
               <div className="flex">
                 <div className="w-32 font-semibold">Email:</div>
-                <div className="text-blue-600">{item.email}</div>
+                <div className="text-blue-600">{item.email || "—"}</div>
               </div>
             </div>
           </div>

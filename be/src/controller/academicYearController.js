@@ -1,6 +1,13 @@
 const AcademicYear = require('../models/AcademicYear');
 const Classes = require('../models/Classes');
 const Student = require('../models/Student');
+const { createNotification } = require('./notification.controller');
+
+function timetableSeasonLabel(season) {
+  if (season === 'summer') return 'Mùa Hè';
+  if (season === 'winter') return 'Mùa Đông';
+  return 'Tự động theo tháng';
+}
 
 /**
  * Tự động kết thúc năm học đã quá hạn endDate.
@@ -40,6 +47,65 @@ const getCurrentAcademicYear = async (req, res) => {
     return res.status(500).json({
       status: 'error',
       message: 'Lỗi khi lấy năm học hiện tại',
+    });
+  }
+};
+
+/**
+ * PATCH /api/school-admin/academic-years/current/timetable-season
+ * Body: { activeTimetableSeason: 'summer' | 'winter' | 'auto' }
+ */
+const patchCurrentTimetableSeason = async (req, res) => {
+  try {
+    const { activeTimetableSeason } = req.body || {};
+    const allowed = ['summer', 'winter', 'auto'];
+    if (!allowed.includes(activeTimetableSeason)) {
+      return res.status(400).json({
+        status: 'error',
+        message: 'Giá trị activeTimetableSeason phải là summer, winter hoặc auto.',
+      });
+    }
+
+    await autoFinishExpiredAcademicYears();
+
+    const year = await AcademicYear.findOne({ status: 'active' }).sort({ startDate: -1 });
+    if (!year) {
+      return res.status(404).json({
+        status: 'error',
+        message: 'Chưa có năm học đang hoạt động.',
+      });
+    }
+
+    const previousSeason = year.activeTimetableSeason || 'auto';
+    year.activeTimetableSeason = activeTimetableSeason;
+    await year.save();
+
+    if (previousSeason !== activeTimetableSeason) {
+      await createNotification({
+        title: 'Thời gian biểu có thay đổi',
+        body: `Đã đổi mùa thời gian biểu đang áp dụng năm học ${year.yearName}: ${timetableSeasonLabel(previousSeason)} → ${timetableSeasonLabel(activeTimetableSeason)}.`,
+        type: 'timetable_update',
+        targetRole: 'all',
+        extra: {
+          action: 'switch_active_season',
+          yearId: String(year._id),
+          yearName: year.yearName,
+          previousSeason,
+          activeTimetableSeason,
+        },
+      });
+    }
+
+    return res.status(200).json({
+      status: 'success',
+      message: 'Đã cập nhật mùa áp dụng thời gian biểu.',
+      data: year.toObject(),
+    });
+  } catch (error) {
+    console.error('patchCurrentTimetableSeason error:', error);
+    return res.status(500).json({
+      status: 'error',
+      message: 'Lỗi khi cập nhật thời gian biểu theo mùa',
     });
   }
 };
@@ -420,6 +486,7 @@ const getClassesByAcademicYear = async (req, res) => {
 
 module.exports = {
   getCurrentAcademicYear,
+  patchCurrentTimetableSeason,
   listAcademicYears,
   createAcademicYear,
   finishAcademicYear,

@@ -21,6 +21,8 @@ import {
   TableHead,
   TableRow,
   TextField,
+  ToggleButton,
+  ToggleButtonGroup,
 } from '@mui/material';
 import { toast } from 'react-toastify';
 import {
@@ -31,7 +33,7 @@ import {
 } from '@mui/icons-material';
 import { useAuth } from '../../context/AuthContext';
 import RoleLayout from '../../layouts/RoleLayout';
-import { get, put, del, ENDPOINTS } from '../../service/api';
+import { get, put, patch, del, ENDPOINTS } from '../../service/api';
 import { createSchoolAdminMenuSelect } from './schoolAdminMenuConfig';
 import { useSchoolAdminMenu } from './useSchoolAdminMenu';
 
@@ -139,6 +141,7 @@ export default function TimetableActivitiesPage() {
   const [saving, setSaving] = useState(false);
   const [deleteTargetId, setDeleteTargetId] = useState(null);
   const [deleting, setDeleting] = useState(false);
+  const [savingSeason, setSavingSeason] = useState(false);
 
   const [form, setForm] = useState({
     appliesToSeason: '',
@@ -158,7 +161,39 @@ export default function TimetableActivitiesPage() {
 
   const loadActivities = async (yearId) => {
     const res = await get(ENDPOINTS.SCHOOL_ADMIN.TIMETABLE.LIST(yearId));
-    if (res?.status === 'success') setActivities(Array.isArray(res.data) ? res.data : []);
+    if (res?.status === 'success') {
+      setActivities(Array.isArray(res.data) ? res.data : []);
+      if (typeof res.activeTimetableSeason === 'string' && yearId) {
+        setAcademicYear((prev) =>
+          prev && String(prev._id) === String(yearId)
+            ? { ...prev, activeTimetableSeason: res.activeTimetableSeason }
+            : prev
+        );
+      }
+    }
+  };
+
+  const timetableSeasonValue =
+    academicYear?.activeTimetableSeason === 'summer' || academicYear?.activeTimetableSeason === 'winter'
+      ? academicYear.activeTimetableSeason
+      : 'auto';
+
+  const handleTimetableSeasonChange = async (_event, next) => {
+    if (next == null || !academicYear?._id) return;
+    try {
+      setSavingSeason(true);
+      const res = await patch(ENDPOINTS.SCHOOL_ADMIN.ACADEMIC_YEARS.PATCH_CURRENT_TIMETABLE_SEASON, {
+        activeTimetableSeason: next,
+      });
+      if (res?.status === 'success' && res.data) {
+        setAcademicYear((prev) => ({ ...prev, ...res.data }));
+        toast.success('Đã cập nhật mùa đang áp dụng.');
+      }
+    } catch (err) {
+      toast.error(err?.message || 'Không lưu được.');
+    } finally {
+      setSavingSeason(false);
+    }
   };
 
   useEffect(() => {
@@ -327,7 +362,7 @@ export default function TimetableActivitiesPage() {
 
   return (
     <RoleLayout
-      title={`Thời gian biểu cả trường -- ${yearName || '—'}`}
+      title={`Thời gian biểu cả trường ${yearName || '—'}`}
       description="Thiết lập thời gian biểu hoạt động hằng ngày theo mùa."
       menuItems={menuItems}
       activeKey="academic-schedule"
@@ -351,7 +386,7 @@ export default function TimetableActivitiesPage() {
           >
             <Box>
               <Typography variant="h5" fontWeight={900} sx={{ color: '#1e40af' }}>
-                Thời gian biểu cả trường -- {yearName || '—'}
+                Thời gian biểu cả trường {yearName || '—'}
               </Typography>
               <Typography variant="body2" color="text.secondary" mt={0.5}>
                 THỜI GIAN BIỂU HOẠT ĐỘNG HẰNG NGÀY
@@ -359,6 +394,33 @@ export default function TimetableActivitiesPage() {
               <Typography variant="body2" color="text.secondary" mt={0.5}>
                 Năm học: <strong>{yearName || '—'}</strong>
               </Typography>
+              <Box sx={{ mt: 2 }} className="no-print">
+                <Typography variant="caption" color="text.secondary" fontWeight={700} display="block" sx={{ mb: 0.75 }}>
+                  Đang áp dụng lịch cho toàn trường
+                </Typography>
+                <Typography variant="caption" color="text.secondary" display="block" sx={{ mb: 1, maxWidth: 520 }}>
+                  Chế độ tự động theo tháng: tháng 4–9 dùng lịch mùa hè, các tháng còn lại dùng lịch mùa đông.
+                </Typography>
+                <ToggleButtonGroup
+                  exclusive
+                  value={timetableSeasonValue}
+                  onChange={handleTimetableSeasonChange}
+                  disabled={!academicYear?._id || savingSeason || loading}
+                  size="small"
+                  aria-label="Mùa áp dụng thời gian biểu"
+                  sx={{ flexWrap: 'wrap' }}
+                >
+                  <ToggleButton value="auto" sx={{ textTransform: 'none', fontWeight: 700 }}>
+                    Tự động theo tháng
+                  </ToggleButton>
+                  <ToggleButton value="summer" sx={{ textTransform: 'none', fontWeight: 700 }}>
+                    Mùa Hè
+                  </ToggleButton>
+                  <ToggleButton value="winter" sx={{ textTransform: 'none', fontWeight: 700 }}>
+                    Mùa Đông
+                  </ToggleButton>
+                </ToggleButtonGroup>
+              </Box>
             </Box>
 
             <Stack direction="row" spacing={1} className="no-print" sx={{ flexWrap: 'wrap' }}>
@@ -388,7 +450,7 @@ export default function TimetableActivitiesPage() {
               >
                 In thời gian biểu
               </Button>
-              <Button
+              {/* <Button
                 variant="outlined"
                 sx={{
                   textTransform: 'none',
@@ -399,7 +461,7 @@ export default function TimetableActivitiesPage() {
                 onClick={() => toast.info('Import file đang được phát triển')}
               >
                 Import file
-              </Button>
+              </Button> */}
             </Stack>
           </Stack>
         </Box>

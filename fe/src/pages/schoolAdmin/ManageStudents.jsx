@@ -1,5 +1,5 @@
 import { useEffect, useState, useRef } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useLocation, useNavigate } from 'react-router-dom';
 import RoleLayout from '../../layouts/RoleLayout';
 import { useAuth } from '../../context/AuthContext';
 import { useSchoolAdmin } from '../../context/SchoolAdminContext';
@@ -61,7 +61,6 @@ import {
 const GENDER_OPTIONS = [
   { value: 'male', label: 'Nam' },
   { value: 'female', label: 'Nữ' },
-  { value: 'other', label: 'Khác' },
 ];
 
 const PHONE_REGEX = /^[0-9]{10,11}$/;
@@ -76,9 +75,11 @@ function isValidEmail(value) {
 }
 
 function ManageStudents() {
+  const location = useLocation();
   const [students, setStudents] = useState([]);
   const [classes, setClasses] = useState([]);
   const [activeAcademicYear, setActiveAcademicYear] = useState(null);
+  const [viewAcademicYear, setViewAcademicYear] = useState(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
   const [searchTerm, setSearchTerm] = useState('');
@@ -116,6 +117,7 @@ function ManageStudents() {
   const [editError, setEditError] = useState(null);
   const [deleteError, setDeleteError] = useState(null);
   const navigate = useNavigate();
+  const requestedYearId = new URLSearchParams(location.search).get('yearId') || '';
   const { user, hasRole, logout, isInitializing } = useAuth();
   const menuItems = useSchoolAdminMenu();
   const {
@@ -139,7 +141,7 @@ function ManageStudents() {
       return;
     }
     fetchData();
-  }, [navigate, user, hasRole, isInitializing]);
+  }, [navigate, user, hasRole, isInitializing, requestedYearId]);
 
   const fetchPendingMap = async () => {
     try {
@@ -152,14 +154,31 @@ function ManageStudents() {
     setLoading(true);
     setError(null);
     try {
+      const studentParams = {
+        ...(classFilter ? { classId: classFilter } : {}),
+        ...(requestedYearId ? { academicYearId: requestedYearId } : {}),
+      };
+      const yearPromise = requestedYearId
+        ? get(`${ENDPOINTS.SCHOOL_ADMIN.ACADEMIC_YEARS.HISTORY}?yearId=${requestedYearId}`).catch(() => null)
+        : get(ENDPOINTS.SCHOOL_ADMIN.ACADEMIC_YEARS.CURRENT).catch(() => null);
       const [studentsRes, classesRes, yearRes] = await Promise.all([
-        getAllStudents(classFilter ? { classId: classFilter } : {}),
+        getAllStudents(studentParams),
         getClasses(),
-        get(ENDPOINTS.SCHOOL_ADMIN.ACADEMIC_YEARS.CURRENT).catch(() => null),
+        yearPromise,
       ]);
       setStudents(studentsRes?.data || []);
       setClasses(classesRes?.data || []);
-      if (yearRes?.status === 'success' && yearRes.data) setActiveAcademicYear(yearRes.data);
+      if (yearRes?.status === 'success') {
+        if (requestedYearId) {
+          const yearRow = Array.isArray(yearRes.data) ? yearRes.data[0] : null;
+          setViewAcademicYear(yearRow || null);
+        } else {
+          setViewAcademicYear(yearRes.data || null);
+          setActiveAcademicYear(yearRes.data || null);
+        }
+      } else {
+        setViewAcademicYear(null);
+      }
     } catch (err) {
       setError(err.message || 'Không tải được dữ liệu');
     } finally {
@@ -203,9 +222,13 @@ function ManageStudents() {
 
   useEffect(() => {
     if (user && !isInitializing && (hasRole('SchoolAdmin') || hasRole('SystemAdmin'))) {
-      getAllStudents(classFilter ? { classId: classFilter } : {}).then((res) => setStudents(res?.data || [])).catch(() => {});
+      const studentParams = {
+        ...(classFilter ? { classId: classFilter } : {}),
+        ...(requestedYearId ? { academicYearId: requestedYearId } : {}),
+      };
+      getAllStudents(studentParams).then((res) => setStudents(res?.data || [])).catch(() => {});
     }
-  }, [classFilter]);
+  }, [classFilter, requestedYearId, user, isInitializing, hasRole, getAllStudents]);
 
   const handleLogout = () => {
     logout();
@@ -214,6 +237,7 @@ function ManageStudents() {
   const handleViewProfile = () => navigate('/profile');
 
   const handleMenuSelect = createSchoolAdminMenuSelect(navigate);
+  const yearName = viewAcademicYear?.yearName || activeAcademicYear?.yearName || '';
 
   const filteredStudents = students.filter((s) => {
     const matchSearch = !searchTerm || (s.fullName || '').toLowerCase().includes(searchTerm.toLowerCase())
@@ -388,8 +412,8 @@ function ManageStudents() {
 
   return (
     <RoleLayout
-      title="Học sinh & phụ huynh"
-      description="Quản lý danh sách học sinh và tài khoản phụ huynh. parentId của học sinh là _id tài khoản User phụ huynh."
+      title={yearName ? `Học sinh & phụ huynh - ${yearName}` : 'Học sinh & phụ huynh'}
+      description="Quản lý danh sách học sinh và tài khoản phụ huynh."
       menuItems={menuItems}
       activeKey="students"
       onLogout={handleLogout}
@@ -409,7 +433,10 @@ function ManageStudents() {
           <PeopleIcon sx={{ color: 'white', fontSize: 28 }} />
           <Box>
             <Typography variant="h6" fontWeight={700} color="white">
-              Danh sách học sinh & phụ huynh
+              {yearName ? `Danh sách học sinh & phụ huynh - ${yearName}` : 'Danh sách học sinh & phụ huynh'}
+            </Typography>
+            <Typography variant="body2" sx={{ color: 'rgba(255,255,255,0.9)' }}>
+              {yearName ? `Năm học: ${yearName}` : 'Năm học: Chưa xác định'}
             </Typography>
           </Box>
         </Stack>

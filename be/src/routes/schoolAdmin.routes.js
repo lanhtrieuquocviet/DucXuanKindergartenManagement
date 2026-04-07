@@ -5,6 +5,7 @@ const contactController = require('../controller/contactController');
 const User = require('../models/User');
 const Role = require('../models/Role');
 const Teacher = require('../models/Teacher');
+const Staff = require('../models/Staff');
 const { listClassrooms, createClassroom, updateClassroom, deleteClassroom } = require('../controller/classroomController');
 const assetCtrl = require('../controller/assetInspectionController');
 const assetCrudCtrl = require('../controller/assetController');
@@ -16,6 +17,7 @@ const {
   getClassAttendanceDetail,
   getStudentAttendanceDetail,
   getStudentAttendanceHistory,
+  getAttendanceExportData,
 } = require('../controller/attendanceController');
 const blogController = require('../controller/blogController');
 const blogCategoryController = require('../controller/blogCategoryController');
@@ -29,6 +31,7 @@ const academicYearController = require('../controller/academicYearController');
 const AcademicYear = require('../models/AcademicYear');
 const curriculumController = require('../controller/curriculumController');
 const academicPlanController = require('../controller/academicPlanController');
+const academicEventController = require('../controller/academicEventController');
 const timetableController = require('../controller/timetableController');
 
 const router = express.Router();
@@ -223,6 +226,7 @@ router.delete('/banners/:bannerId', authenticate, authorizePermissions('MANAGE_B
  *         description: Tổng quan điểm danh
  */
 router.get('/attendance/overview', authenticate, authorizePermissions('VIEW_ATTENDANCE'), getAttendanceOverview);
+router.get('/attendance/export-data', authenticate, authorizePermissions('VIEW_ATTENDANCE'), getAttendanceExportData);
 
 /**
  * @openapi
@@ -1098,6 +1102,13 @@ router.delete('/public-info/:id', authenticate, authorizePermissions('MANAGE_PUB
  */
 router.get('/academic-years/current', authenticate, authorizePermissions('MANAGE_ACADEMIC_YEAR'), academicYearController.getCurrentAcademicYear);
 
+router.patch(
+  '/academic-years/current/timetable-season',
+  authenticate,
+  authorizePermissions('MANAGE_CURRICULUM'),
+  academicYearController.patchCurrentTimetableSeason,
+);
+
 /**
  * @openapi
  * /api/school-admin/academic-years/history:
@@ -1211,6 +1222,8 @@ router.get('/academic-plan/topics', authenticate, authorizePermissions('MANAGE_C
 router.post('/academic-plan/topics', authenticate, authorizePermissions('MANAGE_CURRICULUM'), academicPlanController.createTopic);
 router.patch('/academic-plan/topics/:id', authenticate, authorizePermissions('MANAGE_CURRICULUM'), academicPlanController.updateTopic);
 router.delete('/academic-plan/topics/:id', authenticate, authorizePermissions('MANAGE_CURRICULUM'), academicPlanController.deleteTopic);
+router.get('/academic-events', authenticate, authorizePermissions('MANAGE_CURRICULUM'), academicEventController.getEventPlan);
+router.put('/academic-events', authenticate, authorizePermissions('MANAGE_CURRICULUM'), academicEventController.upsertEventPlan);
 
 // ============================================
 // Curriculum
@@ -1481,6 +1494,8 @@ router.get('/teachers', authenticate, authorizePermissions('MANAGE_TEACHER'), as
         degree: t.degree,
         experienceYears: t.experienceYears,
         hireDate: t.hireDate,
+        employmentType: t.employmentType,
+        gender: t.gender,
       }));
 
     return res.status(200).json({ status: 'success', data: teachers });
@@ -1521,7 +1536,7 @@ router.get('/teachers/generate-username', authenticate, authorizePermissions('MA
 // POST /school-admin/teachers — tạo giáo viên mới (User + Teacher record)
 router.post('/teachers', authenticate, authorizePermissions('MANAGE_TEACHER'), async (req, res) => {
   try {
-    const { username, fullName, email, phone, password, degree, experienceYears, hireDate, avatar, employmentType } = req.body;
+    const { username, fullName, email, phone, password, degree, experienceYears, hireDate, avatar, employmentType, gender } = req.body;
     if (!username?.trim()) return res.status(400).json({ status: 'error', message: 'Tài khoản đăng nhập không được để trống' });
     if (!fullName?.trim()) return res.status(400).json({ status: 'error', message: 'Họ tên không được để trống' });
     if (!email?.trim()) return res.status(400).json({ status: 'error', message: 'Email không được để trống' });
@@ -1560,6 +1575,7 @@ router.post('/teachers', authenticate, authorizePermissions('MANAGE_TEACHER'), a
       experienceYears: Number(experienceYears) || 0,
       hireDate: hireDate || null,
       employmentType: ['contract', 'permanent'].includes(employmentType) ? employmentType : 'contract',
+      gender: ['male', 'female'].includes(gender) ? gender : 'male',
       status: 'active',
     });
 
@@ -1577,6 +1593,7 @@ router.post('/teachers', authenticate, authorizePermissions('MANAGE_TEACHER'), a
         experienceYears: teacher.experienceYears,
         hireDate: teacher.hireDate,
         employmentType: teacher.employmentType,
+        gender: teacher.gender,
       },
     });
   } catch (error) {
@@ -1591,7 +1608,7 @@ router.put('/teachers/:id', authenticate, authorizePermissions('MANAGE_TEACHER')
     const teacher = await Teacher.findById(req.params.id).lean();
     if (!teacher) return res.status(404).json({ status: 'error', message: 'Không tìm thấy giáo viên' });
 
-    const { fullName, email, phone, degree, experienceYears, hireDate, avatar, status, employmentType } = req.body;
+    const { fullName, email, phone, degree, experienceYears, hireDate, avatar, status, employmentType, gender } = req.body;
 
     // Cập nhật User
     const userUpdate = {};
@@ -1620,6 +1637,7 @@ router.put('/teachers/:id', authenticate, authorizePermissions('MANAGE_TEACHER')
     if (hireDate !== undefined) teacherUpdate.hireDate = hireDate || null;
     if (status && ['active', 'inactive'].includes(status)) teacherUpdate.status = status;
     if (employmentType && ['contract', 'permanent'].includes(employmentType)) teacherUpdate.employmentType = employmentType;
+    if (gender && ['male', 'female'].includes(gender)) teacherUpdate.gender = gender;
     await Teacher.findByIdAndUpdate(teacher._id, teacherUpdate);
 
     const updated = await Teacher.findById(teacher._id)
@@ -1640,6 +1658,7 @@ router.put('/teachers/:id', authenticate, authorizePermissions('MANAGE_TEACHER')
         experienceYears: updated.experienceYears,
         hireDate: updated.hireDate,
         employmentType: updated.employmentType,
+        gender: updated.gender,
       },
     });
   } catch (error) {
@@ -1691,6 +1710,183 @@ router.post('/teachers/migrate', authenticate, authorizePermissions('MANAGE_TEAC
 });
 
 // ============================================
+// School Staff management
+// ============================================
+// Helper function to generate employee ID
+const generateEmployeeId = async (position) => {
+  const positionCodes = {
+    'BGH': 'BGH',
+    'Giáo viên': 'GV',
+    'Nhân viên văn phòng': 'VP',
+    'nhân viên y tế': 'YT',
+    'nhân viên bếp': 'BP'
+  };
+
+  const code = positionCodes[position] || 'KH';
+  const count = await Staff.countDocuments(
+    code === 'KH'
+      ? { position: { $nin: Object.keys(positionCodes) } }
+      : { position }
+  );
+  const nextNumber = count + 1;
+  return `${code}${nextNumber.toString().padStart(3, '0')}`;
+};
+
+router.get('/staff-users', authenticate, authorizeRoles('SchoolAdmin'), async (req, res) => {
+  try {
+    const users = await User.find({ status: 'active' })
+      .populate('roles', 'roleName')
+      .select('fullName phone username email roles')
+      .sort({ fullName: 1 })
+      .lean();
+
+    const filteredUsers = users.filter((user) => {
+      const roleNames = (user.roles || []).map((role) => role.roleName || '').filter(Boolean);
+      return roleNames.length > 0 && !roleNames.includes('Student');
+    });
+
+    const data = filteredUsers.map((user) => ({
+      ...user,
+      roleNames: (user.roles || []).map((role) => role.roleName || '').filter(Boolean).join(', '),
+    }));
+
+    return res.status(200).json({ status: 'success', data });
+  } catch (error) {
+    console.error('staffUsers error:', error);
+    return res.status(500).json({ status: 'error', message: 'Lỗi khi lấy danh sách người dùng' });
+  }
+});
+
+router.get('/staff-members', authenticate, authorizeRoles('SchoolAdmin'), async (req, res) => {
+  try {
+    const staffDocs = await Staff.find()
+      .populate('userId', 'fullName email phone avatar status')
+      .sort({ employeeId: 1 })
+      .lean();
+
+    const data = staffDocs.map((item) => ({
+      _id: item._id,
+      employeeId: item.employeeId,
+      position: item.position,
+      status: item.status,
+      notes: item.notes,
+      user: item.userId ? {
+        _id: item.userId._id,
+        fullName: item.userId.fullName,
+        email: item.userId.email,
+        phone: item.userId.phone,
+        avatar: item.userId.avatar || '',
+        status: item.userId.status,
+      } : null,
+    }));
+
+    return res.status(200).json({ status: 'success', data });
+  } catch (error) {
+    console.error('staffMembers error:', error);
+    return res.status(500).json({ status: 'error', message: 'Lỗi khi lấy danh sách nhân sự' });
+  }
+});
+
+router.post('/staff-members', authenticate, authorizeRoles('SchoolAdmin'), async (req, res) => {
+  try {
+    const { position, status, userId, notes } = req.body;
+    if (!position?.trim()) return res.status(400).json({ status: 'error', message: 'Chức vụ không được để trống' });
+    if (!userId) return res.status(400).json({ status: 'error', message: 'Người dùng phải được chọn' });
+
+    const user = await User.findById(userId).lean();
+    if (!user) return res.status(404).json({ status: 'error', message: 'Người dùng không tồn tại' });
+
+    const existingUserStaff = await Staff.findOne({ userId }).lean();
+    if (existingUserStaff) {
+      return res.status(400).json({ status: 'error', message: 'Người dùng này đã có nhân sự' });
+    }
+
+    const employeeId = await generateEmployeeId(position.trim());
+
+    const newStaff = await Staff.create({
+      userId,
+      employeeId,
+      position: position.trim(),
+      status: ['active', 'inactive'].includes(status) ? status : 'active',
+      notes: notes?.trim() || '',
+    });
+
+    await newStaff.populate('userId', 'fullName phone status');
+
+    return res.status(201).json({
+      status: 'success',
+      message: 'Tạo nhân sự thành công',
+      data: {
+        _id: newStaff._id,
+        employeeId: newStaff.employeeId,
+        position: newStaff.position,
+        status: newStaff.status,
+        notes: newStaff.notes,
+        user: newStaff.userId ? {
+          _id: newStaff.userId._id,
+          fullName: newStaff.userId.fullName,
+          phone: newStaff.userId.phone,
+          status: newStaff.userId.status,
+        } : null,
+      },
+    });
+  } catch (error) {
+    console.error('createStaffMember error:', error);
+    return res.status(500).json({ status: 'error', message: 'Lỗi khi tạo nhân sự' });
+  }
+});
+
+router.put('/staff-members/:id', authenticate, authorizeRoles('SchoolAdmin'), async (req, res) => {
+  try {
+    const { position, status, notes } = req.body;
+    const staff = await Staff.findById(req.params.id);
+    if (!staff) return res.status(404).json({ status: 'error', message: 'Không tìm thấy nhân sự' });
+
+    // Note: employeeId is auto-generated and cannot be changed
+    if (position !== undefined) staff.position = position?.trim() || staff.position;
+    if (status && ['active', 'inactive'].includes(status)) staff.status = status;
+    if (notes !== undefined) staff.notes = notes?.trim() || '';
+
+    await staff.save();
+    await staff.populate('userId', 'fullName phone status');
+
+    return res.status(200).json({
+      status: 'success',
+      message: 'Cập nhật nhân sự thành công',
+      data: {
+        _id: staff._id,
+        employeeId: staff.employeeId,
+        position: staff.position,
+        status: staff.status,
+        notes: staff.notes,
+        user: staff.userId ? {
+          _id: staff.userId._id,
+          fullName: staff.userId.fullName,
+          phone: staff.userId.phone,
+          status: staff.userId.status,
+        } : null,
+      },
+    });
+  } catch (error) {
+    console.error('updateStaffMember error:', error);
+    return res.status(500).json({ status: 'error', message: 'Lỗi khi cập nhật nhân sự' });
+  }
+});
+
+router.delete('/staff-members/:id', authenticate, authorizeRoles('SchoolAdmin'), async (req, res) => {
+  try {
+    const staff = await Staff.findById(req.params.id).lean();
+    if (!staff) return res.status(404).json({ status: 'error', message: 'Không tìm thấy nhân sự' });
+
+    await Staff.findByIdAndDelete(staff._id);
+    return res.status(200).json({ status: 'success', message: 'Đã xóa nhân sự' });
+  } catch (error) {
+    console.error('deleteStaffMember error:', error);
+    return res.status(500).json({ status: 'error', message: 'Lỗi khi xóa nhân sự' });
+  }
+});
+
+// ============================================
 // Classrooms
 // ============================================
 router.get('/classrooms', authenticate, authorizePermissions('MANAGE_CLASS'), listClassrooms);
@@ -1721,6 +1917,7 @@ router.post('/asset-committees', authenticate, authorizePermissions('MANAGE_ASSE
 router.get('/asset-committees/:id', authenticate, authorizePermissions('MANAGE_ASSET'), assetCtrl.getCommittee);
 router.put('/asset-committees/:id', authenticate, authorizePermissions('MANAGE_ASSET'), assetCtrl.updateCommittee);
 router.delete('/asset-committees/:id', authenticate, authorizePermissions('MANAGE_ASSET'), assetCtrl.deleteCommittee);
+router.patch('/asset-committees/:id/end', authenticate, authorizePermissions('MANAGE_ASSET'), assetCtrl.endCommittee);
 
 // ============================================
 // Asset Inspection - Minutes (Biên bản kiểm kê)

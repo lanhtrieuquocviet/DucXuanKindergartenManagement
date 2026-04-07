@@ -1,7 +1,32 @@
 const Menu = require("../models/Menu");
+const NutritionPlanSetting = require("../models/NutritionPlanSetting");
 
 const mongoose = require("mongoose");
 const DailyMenu = require("../models/DailyMenu");
+
+const DEFAULT_NUTRITION_PLAN = [
+  { name: "Calo trung bình/ngày", min: 615, max: 726, actual: 0 },
+  { name: "Đạm (g)", min: 13, max: 20, actual: 0 },
+  { name: "Béo (g)", min: 25, max: 35, actual: 0 },
+  { name: "Tinh bột (g)", min: 52, max: 60, actual: 0 },
+];
+
+const normalizeNutritionPlan = (items) => {
+  if (!Array.isArray(items) || items.length === 0) {
+    return DEFAULT_NUTRITION_PLAN;
+  }
+
+  return items
+    .map((item) => {
+      const name = String(item?.name || "").trim();
+      const min = Number(item?.min);
+      const max = Number(item?.max);
+      const actual = Number(item?.actual || 0);
+      if (!name || Number.isNaN(min) || Number.isNaN(max)) return null;
+      return { name, min, max, actual: Number.isNaN(actual) ? 0 : actual };
+    })
+    .filter(Boolean);
+};
 
 // Tạo thực đơn
 
@@ -303,5 +328,58 @@ exports.rejectMenu = async (req, res) => {
     });
   } catch (error) {
     res.status(500).json({ message: error.message });
+  }
+};
+
+exports.getNutritionPlanSetting = async (req, res) => {
+  try {
+    let setting = await NutritionPlanSetting.findOne({});
+    if (!setting) {
+      setting = await NutritionPlanSetting.create({
+        items: DEFAULT_NUTRITION_PLAN,
+      });
+    }
+
+    return res.json({
+      success: true,
+      data: setting.items,
+    });
+  } catch (error) {
+    return res.status(500).json({ message: error.message });
+  }
+};
+
+exports.updateNutritionPlanSetting = async (req, res) => {
+  try {
+    const items = normalizeNutritionPlan(req.body?.items);
+    if (!items.length) {
+      return res.status(400).json({
+        success: false,
+        message: "Kế hoạch dinh dưỡng không hợp lệ",
+      });
+    }
+
+    for (const item of items) {
+      if (item.min < 0 || item.max < 0 || item.max <= item.min) {
+        return res.status(400).json({
+          success: false,
+          message: `Chỉ tiêu "${item.name}" có min/max không hợp lệ`,
+        });
+      }
+    }
+
+    const setting = await NutritionPlanSetting.findOneAndUpdate(
+      {},
+      { items },
+      { new: true, upsert: true, setDefaultsOnInsert: true }
+    );
+
+    return res.json({
+      success: true,
+      message: "Cập nhật kế hoạch dinh dưỡng thành công",
+      data: setting.items,
+    });
+  } catch (error) {
+    return res.status(500).json({ message: error.message });
   }
 };

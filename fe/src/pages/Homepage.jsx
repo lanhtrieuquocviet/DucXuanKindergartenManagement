@@ -1,31 +1,31 @@
 import { useState, useEffect } from "react";
 import { useNavigate, Link } from "react-router-dom";
-import { get } from "../service/api";
+import { get, ENDPOINTS } from "../service/api";
 
 const PAGE_SIZE = 4;
 
-const VALUE_CARDS = [
-  {
-    title: "Chăm sóc và phát triển",
-    text: "Chăm sóc và giúp trẻ phát triển khỏe mạnh là một trong những mục tiêu lớn được đưa lên hàng đầu, nhà trường luôn quan tâm đến chế độ dinh dưỡng và phòng chống dịch bệnh cho trẻ theo các độ tuổi, đảm bảo an toàn cho trẻ khi ở trường.",
-  },
-  {
-    title: "Chương trình giáo dục",
-    text: "Thực hiện theo Chương trình Giáo dục mầm non do Bộ GD&ĐT ban hành. Giáo viên linh hoạt trong việc ứng dụng các phương pháp dạy học tiên tiến, phù hợp với chương trình GDMN và định hướng phát triển theo khả năng của từng cá nhân trẻ.",
-  },
-  {
-    title: "Môi trường lấy trẻ làm trung tâm",
-    text: "Xây dựng môi trường giáo dục lấy trẻ làm trung tâm, đảm bảo môi trường sạch sẽ, an toàn và thân thiện. Tạo nhiều góc mở, sử dụng tối đa sản phẩm của trẻ trong việc trang trí môi trường lớp học.",
-  },
-  {
-    title: "Phối hợp nhà trường – phụ huynh",
-    text: "Phối hợp giữa nhà trường và Ban đại diện cha mẹ học sinh nhằm tạo sự thống nhất trong việc chăm sóc, nuôi dưỡng, giáo dục trẻ; tư vấn, chia sẻ, hỗ trợ cha mẹ học sinh khi cần.",
-  },
-  {
-    title: "Hành trang vào đời",
-    text: "Cây xanh bắt đầu sự sống bằng mầm non, trẻ bắt đầu hành trang vào đời bằng những kỹ năng được học từ những năm đầu tiên. Chuẩn bị tốt hành trang cho trẻ, giúp trẻ phát triển toàn diện là trách nhiệm của gia đình, nhà trường và xã hội.",
-  },
-];
+// const VALUE_CARDS = [
+//   {
+//     title: "Chăm sóc và phát triển",
+//     text: "Chăm sóc và giúp trẻ phát triển khỏe mạnh là một trong những mục tiêu lớn được đưa lên hàng đầu, nhà trường luôn quan tâm đến chế độ dinh dưỡng và phòng chống dịch bệnh cho trẻ theo các độ tuổi, đảm bảo an toàn cho trẻ khi ở trường.",
+//   },
+//   {
+//     title: "Chương trình giáo dục",
+//     text: "Thực hiện theo Chương trình Giáo dục mầm non do Bộ GD&ĐT ban hành. Giáo viên linh hoạt trong việc ứng dụng các phương pháp dạy học tiên tiến, phù hợp với chương trình GDMN và định hướng phát triển theo khả năng của từng cá nhân trẻ.",
+//   },
+//   {
+//     title: "Môi trường lấy trẻ làm trung tâm",
+//     text: "Xây dựng môi trường giáo dục lấy trẻ làm trung tâm, đảm bảo môi trường sạch sẽ, an toàn và thân thiện. Tạo nhiều góc mở, sử dụng tối đa sản phẩm của trẻ trong việc trang trí môi trường lớp học.",
+//   },
+//   {
+//     title: "Phối hợp nhà trường – phụ huynh",
+//     text: "Phối hợp giữa nhà trường và Ban đại diện cha mẹ học sinh nhằm tạo sự thống nhất trong việc chăm sóc, nuôi dưỡng, giáo dục trẻ; tư vấn, chia sẻ, hỗ trợ cha mẹ học sinh khi cần.",
+//   },
+//   {
+//     title: "Hành trang vào đời",
+//     text: "Cây xanh bắt đầu sự sống bằng mầm non, trẻ bắt đầu hành trang vào đời bằng những kỹ năng được học từ những năm đầu tiên. Chuẩn bị tốt hành trang cho trẻ, giúp trẻ phát triển toàn diện là trách nhiệm của gia đình, nhà trường và xã hội.",
+//   },
+// ];
 
 const BENEFIT_CARDS = [
   { title: "Dinh dưỡng cân đối", text: "Chế độ dinh dưỡng quyết định sự phát triển thể lực, trí tuệ, tầm vóc và khả năng học tập của trẻ. Thực đơn tuần được xây dựng cân đối, đảm bảo nhu cầu dinh dưỡng hàng ngày." },
@@ -35,16 +35,22 @@ const BENEFIT_CARDS = [
   { title: "Kỹ năng sống", text: "Gieo hành vi, gặt thói quen. Trẻ có cơ hội trải nghiệm, thích nghi và tự thể hiện mình, tạo lập những hành vi tích cực, chủ động, hòa đồng." },
 ];
 
-const PROGRAM_ITEMS = [
-  "Toán học",
-  "Tạo hình nghệ thuật",
-  "Làm quen chữ viết",
-  "Ngôn ngữ & giao tiếp",
-  "Khám phá thế giới",
-  "Âm nhạc vận động",
-  "Mỹ thuật thị giác",
-  "Sức khỏe thể chất",
-  "Kỹ năng sống",
+// const PROGRAM_ITEMS = [
+//   "Toán học",
+//   "Tạo hình nghệ thuật",
+//   "Làm quen chữ viết",
+//   "Ngôn ngữ & giao tiếp",
+//   "Khám phá thế giới",
+//   "Âm nhạc vận động",
+//   "Mỹ thuật thị giác",
+//   "Sức khỏe thể chất",
+//   "Kỹ năng sống",
+// ];
+
+const FALLBACK_BANNERS = [
+  "https://scontent.fhan18-1.fna.fbcdn.net/v/t39.30808-6/618702160_1461727552619714_6463649032824992629_n.jpg?_nc_cat=109&ccb=1-7&_nc_sid=7b2446&_nc_ohc=8UXWgBpzLxMQ7kNvwFsL2cd&_nc_oc=Adn2GokDE7vW5jDYFVhEl_A53mJ7nAlgyDGYyPr8OGuGVg9YN_oKx-ccfJ9rZUkXBgc&_nc_zt=23&_nc_ht=scontent.fhan18-1.fna&_nc_gid=WI4fgCQc9CPNue1S1l_lfQ&_nc_ss=8&oh=00_AfznI0DF0gohfCHL4Qg33uKR3Xx9Kty4YmKoH1Ktob_Qew&oe=69AEDF05",
+  "https://scontent.fhan18-1.fna.fbcdn.net/v/t39.30808-6/605784091_1450941177031685_6354221922736986229_n.jpg?_nc_cat=103&ccb=1-7&_nc_sid=7b2446&_nc_ohc=Qp6WlASTTo4Q7kNvwGzxwyj&_nc_oc=AdmOk6t9GPWsJ-T7vZbkB2-5s99RtYwZn1_2mSICMFA9y9uXx3xw8_LrVXyyw4hjJnc&_nc_zt=23&_nc_ht=scontent.fhan18-1.fna&_nc_gid=Y9vLx29hQie4KSWmrMHBoQ&_nc_ss=8&oh=00_AfxDbY9JZvb3B2QwMZYeqYpCO2V3r9gsbZbUjKKIgouhvQ&oe=69AEE281",
+  "https://scontent.fhan18-1.fna.fbcdn.net/v/t39.30808-6/499477487_1247164254076046_8931851791991323309_n.jpg?_nc_cat=106&ccb=1-7&_nc_sid=2a1932&_nc_ohc=6lJx5z9dK8YQ7kNvwGY3aZJ&_nc_oc=AdlHBCPQgn8gdJnHiZaW9oiNn8F9PHdjGKD_4P0dqaY0Fz2sLihiSN3d4RIlbOUEc2g&_nc_zt=23&_nc_ht=scontent.fhan18-1.fna&_nc_gid=qKaxPIWOGGOZBr5Ax9LlPA&_nc_ss=8&oh=00_AfxiCUy42tIEH9To5fdvdqqWM9u6KXVLalRAFbxNwkqFLQ&oe=69AEF39A",
 ];
 
 const stripHtml = (html) => (html || "").replace(/<[^>]*>/g, "").trim();
@@ -71,6 +77,9 @@ function Homepage() {
   const [featured, setFeatured] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
+  const [banners, setBanners] = useState(FALLBACK_BANNERS);
+  const [currentBanner, setCurrentBanner] = useState(0);
+  const [galleryPhotos, setGalleryPhotos] = useState([]);
 
   useEffect(() => {
     const loadFeatured = async () => {
@@ -110,6 +119,54 @@ function Homepage() {
     loadFeatured();
   }, []);
 
+  useEffect(() => {
+    const loadGallery = async () => {
+      try {
+        const resp = await get(ENDPOINTS.IMAGE_LIBRARY.LIST, { includeAuth: false });
+        const list = resp?.data || [];
+        const normalized = list
+          .filter((item) => (item?.imageUrls?.length || 0) > 0 || item?.imageUrl)
+          .map((item) => ({
+            title: item.title || 'Ảnh thư viện',
+            img: item.imageUrls?.[0] || item.imageUrl,
+            id: item._id || item.imageUrl,
+          }));
+        setGalleryPhotos(normalized.slice(0, 4));
+      } catch {
+        setGalleryPhotos([]);
+      }
+    };
+    loadGallery();
+  }, []);
+
+  useEffect(() => {
+    const loadBanners = async () => {
+      try {
+        const resp = await get(ENDPOINTS.BANNERS.HOMEPAGE, { includeAuth: false });
+        const list = resp?.data?.banners || [];
+        const urls = list.map((item) => item?.imageUrl).filter(Boolean);
+        setBanners(urls.length > 0 ? urls : FALLBACK_BANNERS);
+      } catch {
+        setBanners(FALLBACK_BANNERS);
+      }
+    };
+    loadBanners();
+  }, []);
+
+  useEffect(() => {
+    if (banners.length <= 1) return undefined;
+    const id = setInterval(() => {
+      setCurrentBanner((prev) => (prev + 1) % banners.length);
+    }, 5000);
+    return () => clearInterval(id);
+  }, [banners.length]);
+
+  useEffect(() => {
+    if (currentBanner >= banners.length) {
+      setCurrentBanner(0);
+    }
+  }, [banners.length, currentBanner]);
+
 
   const totalPage = Math.ceil(featured.length / PAGE_SIZE);
   const startIndex = (page - 1) * PAGE_SIZE;
@@ -119,9 +176,56 @@ function Homepage() {
   const newsList = featured.slice(0, 5);
 
   return (
-    <div className="max-w-7xl mx-auto px-3 sm:px-4 lg:px-6 space-y-14 pb-14 pt-2">
+    <>
+      <div className="relative h-[180px] sm:h-[200px] md:h-[260px] m-3 sm:m-4 rounded-xl overflow-hidden bg-gradient-to-r from-green-50 to-blue-50">
+        {banners.length > 0 ? (
+          <>
+            <img
+              src={banners[currentBanner]}
+              alt=""
+              aria-hidden="true"
+              className="absolute inset-0 w-full h-full object-cover object-center blur-sm scale-110 opacity-45"
+            />
+            <img
+              src={banners[currentBanner]}
+              alt="Banner"
+              className="relative z-[1] w-full h-full object-cover object-center"
+            />
+            {banners.length > 1 && (
+              <>
+                <button
+                  type="button"
+                  aria-label="Banner trước"
+                  onClick={() => setCurrentBanner((prev) => (prev - 1 + banners.length) % banners.length)}
+                  className="absolute left-3 top-1/2 -translate-y-1/2 z-[2] w-9 h-9 rounded-full bg-black/30 hover:bg-black/45 text-white flex items-center justify-center transition"
+                >
+                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" className="w-4 h-4">
+                    <path d="M15 18l-6-6 6-6" />
+                  </svg>
+                </button>
+                <button
+                  type="button"
+                  aria-label="Banner tiếp theo"
+                  onClick={() => setCurrentBanner((prev) => (prev + 1) % banners.length)}
+                  className="absolute right-3 top-1/2 -translate-y-1/2 z-[2] w-9 h-9 rounded-full bg-black/30 hover:bg-black/45 text-white flex items-center justify-center transition"
+                >
+                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" className="w-4 h-4">
+                    <path d="M9 6l6 6-6 6" />
+                  </svg>
+                </button>
+              </>
+            )}
+          </>
+        ) : (
+          <div className="w-full h-full flex items-center justify-center text-white/90 text-sm bg-green-700">
+            Chưa có banner hiển thị
+          </div>
+        )}
+      </div>
+
+      <div className="max-w-7xl mx-auto px-3 sm:px-4 lg:px-6 space-y-14 pb-14 pt-2">
       {/* ===== THẺ GIÁ TRỊ / SỨ MỆNH (như mnhoamai) ===== */}
-      <section>
+      {/* <section>
         <SectionHeading title="Giá trị cốt lõi" />
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
         {VALUE_CARDS.map((card, i) => (
@@ -134,7 +238,7 @@ function Homepage() {
           </div>
         ))}
         </div>
-      </section>
+      </section> */}
 
       {/* ===== GIỚI THIỆU TRƯỜNG (block lớn như mnhoamai) ===== */}
       <section className="bg-white rounded-3xl p-6 md:p-10 shadow-sm border border-green-100">
@@ -171,7 +275,7 @@ function Homepage() {
       </section>
 
       {/* ===== TỔNG QUAN CHƯƠNG TRÌNH ===== */}
-      <section>
+      {/* <section>
         <SectionHeading title="Tổng quan chương trình" />
         <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-5 gap-3">
           {PROGRAM_ITEMS.map((item, i) => (
@@ -183,23 +287,37 @@ function Homepage() {
             </div>
           ))}
         </div>
-      </section>
+      </section> */}
 
       {/* ===== GALLERY (placeholder + Xem thêm) ===== */}
       <section>
         <SectionHeading title="Thư viện ảnh" linkTo="/photo-gallery" />
         <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
-          {[1, 2, 3, 4].map((i) => (
-            <Link
-              key={i}
-              to="/photo-gallery"
-              className="aspect-[4/3] rounded-2xl overflow-hidden bg-green-100 border border-green-100 hover:opacity-90 transition"
-            >
-              <div className="w-full h-full flex items-center justify-center text-green-600 text-sm">
-                Ảnh hoạt động
-              </div>
-            </Link>
-          ))}
+          {galleryPhotos.length > 0
+            ? galleryPhotos.map((photo) => (
+                <Link
+                  key={photo.id}
+                  to="/photo-gallery"
+                  className="aspect-[4/3] rounded-2xl overflow-hidden bg-green-100 border border-green-100 hover:opacity-90 transition"
+                >
+                  <img
+                    src={photo.img}
+                    alt={photo.title}
+                    className="w-full h-full object-cover"
+                  />
+                </Link>
+              ))
+            : [1, 2, 3, 4].map((i) => (
+                <Link
+                  key={i}
+                  to="/photo-gallery"
+                  className="aspect-[4/3] rounded-2xl overflow-hidden bg-green-100 border border-green-100 hover:opacity-90 transition"
+                >
+                  <div className="w-full h-full flex items-center justify-center text-green-600 text-sm">
+                    Ảnh hoạt động
+                  </div>
+                </Link>
+              ))}
         </div>
       </section>
 
@@ -322,7 +440,8 @@ function Homepage() {
           </div>
         )}
       </section>
-    </div>
+      </div>
+    </>
   );
 }
 

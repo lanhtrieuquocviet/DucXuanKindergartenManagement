@@ -3,7 +3,7 @@
  * Các hàm gọi API cho hệ thống điểm danh nhận diện khuôn mặt
  */
 
-import { get, post, del } from './api';
+import { get, post, patch, del } from './api';
 
 /**
  * Upload ảnh điểm danh (base64 từ camera) lên Cloudinary
@@ -29,6 +29,9 @@ export const registerFaceEmbedding = (studentId, embedding, faceImageUrl = '', a
  */
 export const deleteFaceEmbedding = (studentId) =>
   del(`/face/register/${studentId}`);
+
+export const deleteFaceAngle = (studentId, index) =>
+  del(`/face/register/${studentId}/angle/${index}`);
 
 /**
  * Nhận diện khuôn mặt + tự động check-in (chế độ ONLINE)
@@ -89,3 +92,19 @@ export const matchPickupFaceForCheckout = (embedding, classId, date, checkoutIma
  */
 export const matchStudentFaceForCheckout = (embedding, classId, date, checkoutImageUrl = '') =>
   post('/face/student/checkout', { embedding, classId, date, checkoutImageUrl });
+
+/**
+ * Cập nhật thông tin người đưa/đón cho bản ghi điểm danh
+ * @param {string} attendanceId
+ * @param {string} delivererType - tên / quan hệ người đưa
+ * @param {string} delivererOtherInfo - thông tin thêm
+ */
+export const updateAttendanceDeliverer = (attendanceId, delivererType, delivererOtherInfo = '') =>
+  patch(`/face/attendance/${attendanceId}/deliverer`, { delivererType, delivererOtherInfo });
+
+/**
+ * Lấy danh sách người đón đã được duyệt của học sinh
+ * @param {string} studentId
+ */
+export const getApprovedPickupPersons = (studentId) =>
+  get(`/pickup/requests/student/${studentId}`);

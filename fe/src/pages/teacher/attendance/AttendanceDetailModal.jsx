@@ -271,7 +271,6 @@ function AttendanceDetailModal({
   attendanceByStudent,
   onClose,
   onSave,
-  onSendToParent,
   onResetOtp,
 }) {
   const isMobileScreen = useMediaQuery('(max-width:599px)');

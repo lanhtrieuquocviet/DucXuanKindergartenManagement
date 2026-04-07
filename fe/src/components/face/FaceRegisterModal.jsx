@@ -23,7 +23,7 @@ export default function FaceRegisterModal({ open, onClose, student, onSuccess })
   const [detectionResult, setDetectionResult] = useState(null); // null | 'ok' | 'no_face' | 'multi'
   const [pendingEmbedding, setPendingEmbedding] = useState(null);
   const [savedAngles, setSavedAngles] = useState(0); // số góc đã lưu trong phiên này
-  const [conflictInfo, setConflictInfo] = useState(null); // { conflictWith, similarity } nếu bị trùng mặt
+  const [conflictInfo, setConflictInfo] = useState(null);
   const MAX_ANGLES = 3; // đề nghị tối đa 3 góc
 
   const imgRef = useRef(null);
@@ -135,8 +135,9 @@ export default function FaceRegisterModal({ open, onClose, student, onSuccess })
           toast.warn('Lỗi upload ảnh — embedding vẫn được lưu bình thường.');
         }
       }
-      // Lần đầu: ghi đè (append=false), lần sau: thêm góc mới (append=true)
-      await registerFaceEmbedding(student._id, pendingEmbedding, faceImageUrl, savedAngles > 0);
+      // Nếu học sinh đã có dữ liệu khuôn mặt từ trước, luôn dùng append=true để không mất góc cũ
+      const hasExistingData = student?.hasFaceEmbedding || (student?.angleCount || 0) > 0;
+      await registerFaceEmbedding(student._id, pendingEmbedding, faceImageUrl, savedAngles > 0 || hasExistingData);
       const newCount = savedAngles + 1;
       setSavedAngles(newCount);
 
@@ -152,12 +153,7 @@ export default function FaceRegisterModal({ open, onClose, student, onSuccess })
         handleClose();
       }
     } catch (err) {
-      if (err.data?.status === 'conflict') {
-        setConflictInfo({ conflictWith: err.data.conflictWith, similarity: err.data.similarity });
-        toast.warn(`Khuôn mặt trùng với "${err.data.conflictWith}" — hãy chụp lại góc khác`);
-      } else {
-        toast.error(err.message || 'Lỗi khi lưu khuôn mặt');
-      }
+      toast.error(err.message || 'Lỗi khi lưu khuôn mặt');
     } finally {
       setSaving(false);
     }
@@ -276,24 +272,6 @@ export default function FaceRegisterModal({ open, onClose, student, onSuccess })
             </div>
           )}
 
-          {/* Cảnh báo trùng khuôn mặt với học sinh khác */}
-          {conflictInfo && (
-            <div className="mt-3 p-3 rounded-lg text-sm bg-red-50 border border-red-300 text-red-700">
-              <p className="font-semibold">Khuôn mặt bị trùng</p>
-              <p className="mt-1">
-                Khuôn mặt này quá giống học sinh <strong>{conflictInfo.conflictWith}</strong> ({(parseFloat(conflictInfo.similarity) * 100).toFixed(1)}% tương đồng).
-              </p>
-              <p className="mt-1 text-xs text-red-600">
-                Hãy chụp lại với: ánh sáng khác, góc mặt khác (nghiêng trái/phải), hoặc đảm bảo chỉ có mặt học sinh trong khung hình.
-              </p>
-              <button
-                onClick={retakePhoto}
-                className="mt-2 px-3 py-1 bg-red-100 hover:bg-red-200 text-red-700 rounded text-xs font-medium"
-              >
-                Chụp lại
-              </button>
-            </div>
-          )}
         </div>
 
         {/* Footer actions */}
@@ -314,7 +292,7 @@ export default function FaceRegisterModal({ open, onClose, student, onSuccess })
                 {detecting ? 'Đang phân tích...' : '🔍 Phân tích khuôn mặt'}
               </button>
             )}
-            {detectionResult === 'ok' && !conflictInfo && (
+            {detectionResult === 'ok' && (
               <>
                 {savedAngles < MAX_ANGLES - 1 && (
                   <button

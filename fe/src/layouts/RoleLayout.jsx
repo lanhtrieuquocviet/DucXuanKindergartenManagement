@@ -14,21 +14,7 @@ import {
   Folder as FolderIcon,
   Grading as GradingIcon,
   Group as GroupIcon,
-  Home as HomeIcon,
-  Inventory as InventoryIcon,
-  MenuBook as MenuBookIcon,
-  Notifications as NotifIcon,
-  People as PeopleIcon,
-  Person as PersonIcon,
-  PhotoLibrary as PhotoLibraryIcon,
-  Public as PublicIcon,
-  QuestionAnswer as QaIcon,
-  Restaurant as RestaurantIcon,
-  ManageAccounts as RolesIcon,
-  School as SchoolIcon,
-  Shield as ShieldIcon,
-  ShoppingCart as ShoppingCartIcon,
-  VideoLibrary as VideoLibraryIcon
+  ReportProblem as ReportProblemIcon
 } from '@mui/icons-material';
 import { Box, Drawer, IconButton, useMediaQuery, useTheme } from '@mui/material';
 import { CurrencyIcon } from 'lucide-react';
@@ -48,6 +34,7 @@ export const KEY_ICONS = {
   'academic-years': <CalendarIcon fontSize="small" />,
   'academic-year-setup': <CalendarIcon fontSize="small" />,
   'academic-plan': <SchoolIcon fontSize="small" />,
+  'academic-events': <NotifIcon fontSize="small" />,
   'academic-students': <PeopleIcon fontSize="small" />,
   'academic-curriculum': <CurrencyIcon fontSize="small" />,
   'academic-schedule': <CalendarIcon fontSize="small" />,
@@ -84,9 +71,11 @@ export const KEY_ICONS = {
   logs: <BarChartIcon fontSize="small" />,
   'purchase-request': <ShoppingCartIcon fontSize="small" />,
   'purchase-requests': <ShoppingCartIcon fontSize="small" />,
+  'asset-incidents': <ReportProblemIcon fontSize="small" />,
   'asset-inspection': <ContentPasteSearchIcon fontSize="small" />,
   'class-assets': <InventoryIcon fontSize="small" />,
   'asset-allocation': <AccountTreeIcon fontSize="small" />,
+  staff: <GroupIcon fontSize="small" />,
   kiemke: <GradingIcon fontSize="small" />,
   committee: <GroupIcon fontSize="small" />,
   minutes: <ArticleIcon fontSize="small" />,

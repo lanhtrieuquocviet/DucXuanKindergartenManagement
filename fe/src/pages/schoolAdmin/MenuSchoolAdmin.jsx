@@ -1,5 +1,11 @@
 import { useState, useEffect, useRef } from "react";
-import { getMenus, approveMenu, rejectMenu } from "../../service/menu.api";
+import {
+  getMenus,
+  approveMenu,
+  rejectMenu,
+  getNutritionPlanSetting,
+  updateNutritionPlanSetting,
+} from "../../service/menu.api";
 import { toast } from "react-toastify";
 import { useNavigate } from "react-router-dom";
 import RoleLayout from "../../layouts/RoleLayout";
@@ -95,6 +101,7 @@ function MenuSchoolAdmin() {
   const [rejectReason, setRejectReason]     = useState("");
 
   const [showNutritionPlan, setShowNutritionPlan] = useState(false);
+  const [nutritionSaving, setNutritionSaving] = useState(false);
   const [nutritionPlan, setNutritionPlan] = useState([
     { id: 1, name: "Calo trung bình/ngày", min: 615, max: 726, actual: 0 },
     { id: 2, name: "Đạm (g)", min: 13, max: 20, actual: 0 },
@@ -108,7 +115,10 @@ function MenuSchoolAdmin() {
   const { user, logout } = useAuth();
   const menuItems = useSchoolAdminMenu();
 
-  useEffect(() => { fetchMenus(); }, []);
+  useEffect(() => {
+    fetchMenus();
+    fetchNutritionPlan();
+  }, []);
 
   const fetchMenus = async () => {
     try {
@@ -119,6 +129,26 @@ function MenuSchoolAdmin() {
       toast.error("Không thể tải danh sách thực đơn");
     } finally {
       setLoading(false);
+    }
+  };
+
+  const fetchNutritionPlan = async () => {
+    try {
+      const res = await getNutritionPlanSetting();
+      const rows = Array.isArray(res?.data?.data) ? res.data.data : [];
+      if (rows.length > 0) {
+        setNutritionPlan(
+          rows.map((item, idx) => ({
+            id: idx + 1,
+            name: item.name,
+            min: Number(item.min) || 0,
+            max: Number(item.max) || 0,
+            actual: Number(item.actual) || 0,
+          }))
+        );
+      }
+    } catch {
+      // Keep fallback values if config API fails.
     }
   };
 
@@ -207,7 +237,7 @@ function MenuSchoolAdmin() {
     setNutritionPlan((prev) => prev.filter((item) => item.id !== id));
   };
 
-  const handleUpdateNutritionPlan = () => {
+  const handleUpdateNutritionPlan = async () => {
     for (const item of nutritionPlan) {
       if (item.min == null || item.max == null) {
         toast.error(`Mục ${item.name} cần nhập đầy đủ giá trị tối thiểu/tối đa`);
@@ -219,7 +249,23 @@ function MenuSchoolAdmin() {
       }
     }
 
-    toast.success("Đã cập nhật kế hoạch dinh dưỡng theo sở");
+    try {
+      setNutritionSaving(true);
+      const payload = nutritionPlan.map(({ name, min, max, actual }) => ({
+        name: String(name || "").trim(),
+        min: Number(min),
+        max: Number(max),
+        actual: Number(actual || 0),
+      }));
+      await updateNutritionPlanSetting(payload);
+      // Notify other tabs/pages (e.g. Kitchen Staff) to refresh ranges immediately.
+      localStorage.setItem("nutrition_plan_updated_at", String(Date.now()));
+      toast.success("Đã cập nhật kế hoạch dinh dưỡng theo sở");
+    } catch (error) {
+      toast.error(error?.response?.data?.message || "Cập nhật kế hoạch thất bại");
+    } finally {
+      setNutritionSaving(false);
+    }
   };
 
   const filtered = tab === "all" ? menus : menus.filter((m) => m.status === tab);
@@ -386,8 +432,13 @@ function MenuSchoolAdmin() {
           </TableContainer>
 
           <Box mt={2} textAlign="right">
-            <Button variant="outlined" color="primary" onClick={handleUpdateNutritionPlan}>
-              Cập nhật
+            <Button
+              variant="outlined"
+              color="primary"
+              onClick={handleUpdateNutritionPlan}
+              disabled={nutritionSaving}
+            >
+              {nutritionSaving ? "Đang cập nhật..." : "Cập nhật"}
             </Button>
           </Box>
         </Box>

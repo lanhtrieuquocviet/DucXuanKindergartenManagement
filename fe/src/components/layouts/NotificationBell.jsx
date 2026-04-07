@@ -28,11 +28,6 @@ function timeAgo(dateStr) {
   return new Date(dateStr).toLocaleDateString('vi-VN');
 }
 
-function getCurrentSeason() {
-  const month = new Date().getMonth() + 1;
-  return month >= 4 && month <= 9 ? 'summer' : 'winter';
-}
-
 function getCurrentMinutes() {
   const now = new Date();
   return now.getHours() * 60 + now.getMinutes();
@@ -96,12 +91,7 @@ export default function NotificationBell() {
       }
 
       if (timetableRes?.status === 'fulfilled' && timetableRes.value) {
-        const season = getCurrentSeason();
-        setTimetable(
-          (timetableRes.value.data || []).filter(
-            i => i.appliesToSeason === season || i.appliesToSeason === 'both'
-          )
-        );
+        setTimetable(timetableRes.value.data || []);
       }
     } finally {
       setLoading(false);

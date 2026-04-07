@@ -3,6 +3,7 @@ const { authenticate, authorizeRoles } = require('../middleware/auth');
 const {
   login,
   logout,
+  refreshToken,
   getProfile,
   updateProfile,
   changePassword,
@@ -55,6 +56,32 @@ const router = express.Router();
  *         description: Sai tài khoản hoặc mật khẩu
  */
 router.post('/login', login);
+
+/**
+ * @openapi
+ * /api/auth/refresh:
+ *   post:
+ *     summary: Làm mới access token bằng refresh token
+ *     tags:
+ *       - Auth
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             required:
+ *               - refreshToken
+ *             properties:
+ *               refreshToken:
+ *                 type: string
+ *     responses:
+ *       200:
+ *         description: Trả về access token và refresh token mới
+ *       401:
+ *         description: Refresh token không hợp lệ hoặc đã bị thu hồi
+ */
+router.post('/refresh', refreshToken);
 
 /**
  * @openapi

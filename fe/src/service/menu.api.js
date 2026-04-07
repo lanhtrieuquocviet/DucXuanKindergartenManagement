@@ -21,6 +21,14 @@ export const updateMenu = (id, data) => {
   return api.put(ENDPOINTS.KITCHEN.UPDATE_MENU(id), data);
 };
 
+export const getNutritionPlanSetting = () => {
+  return api.get(ENDPOINTS.KITCHEN.NUTRITION_PLAN);
+};
+
+export const updateNutritionPlanSetting = (items) => {
+  return api.put(ENDPOINTS.KITCHEN.NUTRITION_PLAN, { items });
+};
+
 // Submit menu
 export const submitMenu = (id) => {
   return api.put(ENDPOINTS.KITCHEN.SUBMIT_MENU(id));
