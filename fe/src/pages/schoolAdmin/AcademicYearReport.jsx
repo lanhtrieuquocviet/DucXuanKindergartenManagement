@@ -25,17 +25,22 @@ import { get, ENDPOINTS } from '../../service/api';
 import { createSchoolAdminMenuSelect } from './schoolAdminMenuConfig';
 import { useSchoolAdminMenu } from './useSchoolAdminMenu';
 
-const EVENTS_TEMPLATE = [
-  { name: 'Lễ khai giảng năm học', time: '05/09/2025', classes: 'Toàn trường', status: 'Đã tổ chức', statusTone: 'done' },
-  { name: 'Ngày hội phụ huynh đầu năm', time: '10/09/2025', classes: 'Toàn trường', status: 'Đã tổ chức', statusTone: 'done' },
-  { name: 'Kiểm tra sức khỏe định kỳ', time: '15/09/2025', classes: 'Toàn trường', status: 'Đã tổ chức', statusTone: 'done' },
-  { name: 'Tết Trung thu', time: '15/10/2025', classes: 'Toàn trường', status: 'Đã tổ chức', statusTone: 'done' },
-  { name: 'Ngày Phụ nữ Việt Nam 20/10', time: '20/10/2025', classes: 'Toàn trường', status: 'Đã tổ chức', statusTone: 'done' },
-  { name: 'Ngày Nhà giáo Việt Nam 20/11', time: '20/11/2025', classes: 'Toàn trường', status: 'Sắp diễn ra', statusTone: 'upcoming' },
-  { name: 'Tết Nguyên đán', time: 'Tháng 1/2026', classes: 'Toàn trường', status: 'Sắp diễn ra', statusTone: 'upcoming' },
-  { name: 'Ngày hội thể thao học đường', time: '15/03/2026', classes: 'Toàn trường', status: 'Sắp diễn ra', statusTone: 'upcoming' },
-  { name: 'Lễ tổng kết năm học', time: '25/05/2026', classes: 'Toàn trường', status: 'Sắp diễn ra', statusTone: 'upcoming' },
-];
+function formatVnDate(dateStr) {
+  if (!dateStr) return '';
+  const d = new Date(dateStr);
+  if (Number.isNaN(d.getTime())) return '';
+  const dd = String(d.getDate()).padStart(2, '0');
+  const mm = String(d.getMonth() + 1).padStart(2, '0');
+  const yyyy = d.getFullYear();
+  return `${dd}/${mm}/${yyyy}`;
+}
+
+function normalizeDateOnly(value) {
+  if (!value) return null;
+  const d = new Date(value);
+  if (Number.isNaN(d.getTime())) return null;
+  return new Date(d.getFullYear(), d.getMonth(), d.getDate());
+}
 
 function getChipStyles(tone) {
   if (tone === 'done') {
@@ -44,6 +49,15 @@ function getChipStyles(tone) {
       color: '#16a34a',
       border: '1px solid',
       borderColor: '#86efac',
+      fontWeight: 700,
+    };
+  }
+  if (tone === 'ongoing') {
+    return {
+      bgcolor: '#dbeafe',
+      color: '#1d4ed8',
+      border: '1px solid',
+      borderColor: '#93c5fd',
       fontWeight: 700,
     };
   }
@@ -59,6 +73,15 @@ function getChipStyles(tone) {
   return {};
 }
 
+function isSameCalendarDay(a, b) {
+  if (!a || !b) return false;
+  return (
+    a.getFullYear() === b.getFullYear() &&
+    a.getMonth() === b.getMonth() &&
+    a.getDate() === b.getDate()
+  );
+}
+
 export default function AcademicYearReport() {
   const { yearId } = useParams();
   const navigate = useNavigate();
@@ -66,6 +89,12 @@ export default function AcademicYearReport() {
   const menuItems = useSchoolAdminMenu();
 
   const [summary, setSummary] = useState(null);
+  const [stats, setStats] = useState({
+    totalStudents: 0,
+    totalClasses: 0,
+    totalStaff: 0,
+  });
+  const [events, setEvents] = useState([]);
   const [loading, setLoading] = useState(true);
   const [searchQuery, setSearchQuery] = useState('');
 
@@ -89,6 +118,7 @@ export default function AcademicYearReport() {
         setSummary(null);
 
         // Ưu tiên lấy tóm tắt qua endpoint "history" (dùng được cho cả năm kết thúc/tra cứu).
+        let resolvedYearId = yearId || '';
         if (yearId) {
           const params = new URLSearchParams();
           params.set('yearId', yearId);
@@ -102,20 +132,82 @@ export default function AcademicYearReport() {
             historyResp.data[0]
           ) {
             if (!cancelled) setSummary(historyResp.data[0]);
-            return;
+            resolvedYearId = historyResp.data[0]?._id || yearId;
+          } else {
+            resolvedYearId = yearId;
           }
         }
 
         // Nếu không tìm thấy trong history, thử lấy năm học hiện tại.
-        const currentResp = await get(ENDPOINTS.SCHOOL_ADMIN.ACADEMIC_YEARS.CURRENT);
-        if (
-          !cancelled &&
-          currentResp?.status === 'success' &&
-          currentResp.data &&
-          (!yearId || String(currentResp.data._id) === String(yearId))
-        ) {
-          setSummary(currentResp.data);
+        if (!resolvedYearId) {
+          const currentResp = await get(ENDPOINTS.SCHOOL_ADMIN.ACADEMIC_YEARS.CURRENT);
+          if (
+            !cancelled &&
+            currentResp?.status === 'success' &&
+            currentResp.data &&
+            (!yearId || String(currentResp.data._id) === String(yearId))
+          ) {
+            setSummary(currentResp.data);
+            resolvedYearId = currentResp.data._id;
+          }
         }
+
+        const [studentsRes, classesRes, staffRes, eventsRes] = await Promise.all([
+          get(ENDPOINTS.STUDENTS.LIST),
+          get(ENDPOINTS.CLASSES.LIST),
+          get(ENDPOINTS.SCHOOL_ADMIN.STAFF_MEMBERS),
+          get(ENDPOINTS.SCHOOL_ADMIN.ACADEMIC_EVENTS.GET(resolvedYearId)),
+        ]);
+
+        const totalStudents = Number(studentsRes?.total ?? studentsRes?.data?.length ?? 0);
+        const totalClasses = Number(classesRes?.total ?? classesRes?.data?.length ?? 0);
+        const totalStaff = Number(staffRes?.total ?? staffRes?.data?.length ?? 0);
+
+        const months = Array.isArray(eventsRes?.data?.months) ? eventsRes.data.months : [];
+        const flattenedEvents = months
+          .flatMap((m) =>
+            (m?.items || []).map((it) => ({
+              name: it?.name || '',
+              time: formatVnDate(it?.date),
+              classes: it?.gradeName || 'Khối lớp',
+              dateObj: normalizeDateOnly(it?.date),
+            })),
+          )
+          .filter((e) => e.name && e.time)
+          .sort((a, b) => {
+            if (!a.dateObj && !b.dateObj) return 0;
+            if (!a.dateObj) return 1;
+            if (!b.dateObj) return -1;
+            return a.dateObj - b.dateObj;
+          })
+          .map((e) => {
+            const today = new Date();
+            const todayOnly = new Date(today.getFullYear(), today.getMonth(), today.getDate());
+            let status = 'Sắp diễn ra';
+            let statusTone = 'upcoming';
+            if (e.dateObj) {
+              if (isSameCalendarDay(e.dateObj, todayOnly)) {
+                status = 'Đang diễn ra';
+                statusTone = 'ongoing';
+              } else if (e.dateObj < todayOnly) {
+                status = 'Đã tổ chức';
+                statusTone = 'done';
+              }
+            }
+            return {
+              name: e.name,
+              time: e.time,
+              classes: e.classes,
+              status,
+              statusTone,
+            };
+          });
+
+        if (!cancelled) {
+          setStats({ totalStudents, totalClasses, totalStaff });
+          setEvents(flattenedEvents);
+        }
+
       } catch (e) {
         // eslint-disable-next-line no-console
         console.error('Error loading academic year report:', e);
@@ -128,28 +220,26 @@ export default function AcademicYearReport() {
     return () => {
       cancelled = true;
     };
-  }, [get, yearId]);
+  }, [yearId]);
 
   const yearName = summary?.yearName || '2025-2026';
 
-  // KPI theo mẫu ảnh (có thể thay bằng dữ liệu thật từ API sau).
   const kpis = [
-    { value: 285, label: 'Tổng số trẻ', accent: '#4f46e5' },
-    { value: '92.4%', label: 'Tỷ lệ đạt chuẩn phát triển', accent: '#6366f1' },
-    { value: '4.1%', label: 'Tỷ lệ vắng học trung bình', accent: '#7c3aed' },
-    { value: '98.7%', label: 'Tỷ lệ tiêm chủng đầy đủ', accent: '#4f46e5' },
+    { value: stats.totalStudents, label: 'Tổng số trẻ', accent: '#4f46e5' },
+    { value: stats.totalClasses, label: 'Tổng số lớp học', accent: '#6366f1' },
+    { value: stats.totalStaff, label: 'Tổng số nhân sự', accent: '#6366f1' },
   ];
 
   const filteredEvents = useMemo(() => {
     const q = searchQuery.trim().toLowerCase();
-    if (!q) return EVENTS_TEMPLATE;
+    if (!q) return events;
 
-    return EVENTS_TEMPLATE.filter((ev) => {
+    return events.filter((ev) => {
       return [ev.name, ev.time, ev.classes, ev.status].some((v) =>
         String(v).toLowerCase().includes(q),
       );
     });
-  }, [searchQuery]);
+  }, [events, searchQuery]);
 
   const userName = user?.fullName || user?.username || 'School Admin';
 
@@ -195,7 +285,7 @@ export default function AcademicYearReport() {
           <Stack spacing={2}>
             <Stack direction={{ xs: 'column', sm: 'row' }} spacing={2} alignItems={{ sm: 'center' }}>
               <TextField
-                placeholder="Tìm trong báo cáo hoặc sự kiện (ví dụ: tỷ lệ đạt chuẩn, sức khỏe, lễ khai giảng...)"
+                placeholder="Tìm trong sự kiện (ví dụ: tên sự kiện, thời gian...)"
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
                 fullWidth
