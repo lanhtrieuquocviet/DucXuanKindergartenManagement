@@ -14,7 +14,8 @@ import {
   Folder as FolderIcon,
   Grading as GradingIcon,
   Group as GroupIcon,
-  ReportProblem as ReportProblemIcon
+  ReportProblem as ReportProblemIcon,
+  School as SchoolIcon,
 } from '@mui/icons-material';
 import { Box, Drawer, IconButton, useMediaQuery, useTheme } from '@mui/material';
 import { CurrencyIcon } from 'lucide-react';
