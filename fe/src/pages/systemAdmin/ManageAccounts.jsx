@@ -40,7 +40,9 @@ import {
   Edit as EditIcon,
   Delete as DeleteIcon,
   ManageAccounts as ManageAccountsIcon,
+  Search as SearchIcon,
 } from '@mui/icons-material';
+import InputAdornment from '@mui/material/InputAdornment';
 
 function ManageAccounts() {
   const theme = useTheme();
@@ -73,6 +75,7 @@ function ManageAccounts() {
   });
   const [page, setPage] = useState(0);
   const [rowsPerPage, setRowsPerPage] = useState(10);
+  const [accountSearch, setAccountSearch] = useState('');
 
   const navigate = useNavigate();
   const { user, logout, isInitializing } = useAuth();
@@ -304,7 +307,18 @@ function ManageAccounts() {
     });
   };
 
-  const paginatedUsers = users.slice(
+  const filteredUsers = accountSearch.trim()
+    ? users.filter((u) => {
+        const q = accountSearch.trim().toLowerCase();
+        return (
+          (u.username || '').toLowerCase().includes(q) ||
+          (u.fullName || '').toLowerCase().includes(q) ||
+          (u.email || '').toLowerCase().includes(q)
+        );
+      })
+    : users;
+
+  const paginatedUsers = filteredUsers.slice(
     page * rowsPerPage,
     page * rowsPerPage + rowsPerPage
   );
@@ -379,26 +393,42 @@ function ManageAccounts() {
               Danh sách tài khoản
             </Typography>
             <Chip
-              label={`${users.length} tài khoản`}
+              label={`${filteredUsers.length} tài khoản`}
               size="small"
               color="primary"
               variant="outlined"
             />
           </Stack>
-          <Button
-            variant="contained"
-            size="small"
-            startIcon={<AddIcon />}
-            onClick={() => handleOpenUserForm()}
-            sx={{
-              borderRadius: 1.5,
-              textTransform: 'none',
-              fontWeight: 600,
-              width: { xs: '100%', sm: 'auto' },
-            }}
-          >
-            Thêm tài khoản
-          </Button>
+          <Stack direction={{ xs: 'column', sm: 'row' }} spacing={1} alignItems={{ xs: 'stretch', sm: 'center' }}>
+            <TextField
+              size="small"
+              placeholder="Tìm kiếm tài khoản..."
+              value={accountSearch}
+              onChange={(e) => { setAccountSearch(e.target.value); setPage(0); }}
+              InputProps={{
+                startAdornment: (
+                  <InputAdornment position="start">
+                    <SearchIcon fontSize="small" />
+                  </InputAdornment>
+                ),
+              }}
+              sx={{ minWidth: 220 }}
+            />
+            <Button
+              variant="contained"
+              size="small"
+              startIcon={<AddIcon />}
+              onClick={() => handleOpenUserForm()}
+              sx={{
+                borderRadius: 1.5,
+                textTransform: 'none',
+                fontWeight: 600,
+                width: { xs: '100%', sm: 'auto' },
+              }}
+            >
+              Thêm tài khoản
+            </Button>
+          </Stack>
         </Stack>
 
         <TableContainer sx={{ overflowX: 'auto', maxWidth: '100%' }}>
@@ -488,7 +518,7 @@ function ManageAccounts() {
         {users.length > 0 && (
           <TablePagination
             component="div"
-            count={users.length}
+            count={filteredUsers.length}
             page={page}
             onPageChange={handleChangePage}
             rowsPerPage={rowsPerPage}
@@ -553,6 +583,7 @@ function ManageAccounts() {
                 helperText={usernameHint || undefined}
                 FormHelperTextProps={{ sx: { color: 'warning.main' } }}
                 inputProps={{ autoComplete: 'off' }}
+                disabled={!!editingUser}
               />
 
               <TextField

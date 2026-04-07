@@ -744,6 +744,84 @@ const getStudentAttendanceHistory = async (req, res) => {
   }
 };
 
+/**
+ * Lấy toàn bộ dữ liệu điểm danh để xuất báo cáo (1 query duy nhất)
+ * GET /api/school-admin/attendance/export-data
+ * query: from (YYYY-MM-DD), to (YYYY-MM-DD), classId?, studentId?
+ */
+const getAttendanceExportData = async (req, res) => {
+  try {
+    const { from, to, classId, studentId } = req.query;
+
+    if (!from || !to) {
+      return res.status(400).json({
+        status: 'error',
+        message: 'Vui lòng cung cấp from và to (YYYY-MM-DD)',
+      });
+    }
+
+    const fromDate = new Date(from);
+    fromDate.setHours(0, 0, 0, 0);
+    const toDate = new Date(to);
+    toDate.setHours(23, 59, 59, 999);
+
+    const filter = { date: { $gte: fromDate, $lte: toDate } };
+    if (classId) filter.classId = classId;
+    if (studentId) filter.studentId = studentId;
+
+    const attendances = await Attendances.find(filter)
+      .populate('studentId', 'fullName classId')
+      .populate('classId', 'className')
+      .sort({ date: 1, 'classId.className': 1 })
+      .lean();
+
+    const data = attendances.map((att) => {
+      const fmtTime = (ts, t) => {
+        if (ts && /^\d{2}:\d{2}$/.test(ts)) return ts;
+        if (t) {
+          try {
+            const d = new Date(t);
+            if (!isNaN(d.getTime())) {
+              const hh = String(d.getHours()).padStart(2, '0');
+              const mm = String(d.getMinutes()).padStart(2, '0');
+              return `${hh}:${mm}`;
+            }
+          } catch {}
+        }
+        return '—';
+      };
+
+      const dateObj = new Date(att.date);
+      const dateStr = `${String(dateObj.getDate()).padStart(2, '0')}/${String(dateObj.getMonth() + 1).padStart(2, '0')}/${dateObj.getFullYear()}`;
+
+      return {
+        className: att.classId?.className || '',
+        studentName: att.studentId?.fullName || '',
+        date: dateStr,
+        checkIn: fmtTime(att.timeString?.checkIn, att.time?.checkIn),
+        checkOut: fmtTime(att.timeString?.checkOut, att.time?.checkOut),
+        deliverer: att.delivererType || '—',
+        receiver: att.receiverType || '—',
+        status: att.status === 'present' ? 'Có mặt' : 'Nghỉ học',
+      };
+    });
+
+    return res.status(200).json({
+      status: 'success',
+      message: 'Lấy dữ liệu xuất báo cáo thành công',
+      data,
+      total: data.length,
+    });
+  } catch (error) {
+    console.error('Error in getAttendanceExportData:', error);
+    return res.status(500).json({
+      status: 'error',
+      message: 'Lỗi khi lấy dữ liệu xuất báo cáo',
+      error: error.message,
+    });
+  }
+};
+
 module.exports = {
   upsertAttendance,
   checkoutAttendance,
@@ -752,5 +830,6 @@ module.exports = {
   getClassAttendanceDetail,
   getStudentAttendanceDetail,
   getStudentAttendanceHistory,
+  getAttendanceExportData,
 };
 

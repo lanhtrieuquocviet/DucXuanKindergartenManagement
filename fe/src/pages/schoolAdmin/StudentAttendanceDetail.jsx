@@ -194,6 +194,17 @@ function StudentAttendanceDetail() {
       )}
 
       <Box sx={{ maxWidth: 896, mx: 'auto' }}>
+        {/* Nút quay lại */}
+        <Button
+          startIcon={<ArrowBackIcon />}
+          onClick={() => navigate(-1)}
+          variant="outlined"
+          size="small"
+          sx={{ mb: 2, textTransform: 'none' }}
+        >
+          Quay lại
+        </Button>
+
         {/* Thông tin học sinh */}
         <Paper
           elevation={0}

@@ -52,6 +52,10 @@ export default function FaceAttendanceModal({ open, onClose, classId, className,
   // Cooldown: ngừng detect tạm thời sau khi nhận diện
   const cooldownRef = useRef(false);
 
+  // Tạm dừng detect khi đang chờ người dùng chọn người đưa
+  const waitingForDelivererRef = useRef(false);
+  const delivererTimeoutRef = useRef(null);
+
   // Ref tới FaceCamera để gọi captureFrame()
   const cameraRef = useRef(null);
 
@@ -85,6 +89,8 @@ export default function FaceAttendanceModal({ open, onClose, classId, className,
       setPickupPersons([]);
       setDelivererSaved(false);
       cooldownRef.current = false;
+      waitingForDelivererRef.current = false;
+      if (delivererTimeoutRef.current) clearTimeout(delivererTimeoutRef.current);
     }
   }, [open]);
 
@@ -152,8 +158,8 @@ export default function FaceAttendanceModal({ open, onClose, classId, className,
   // ── Callback nhận embedding từ FaceCamera ─────────────────────────────────
   const handleDetected = useCallback(
     async (embedding) => {
-      // Bỏ qua nếu đang trong cooldown, đang xử lý, hoặc thiếu classId
-      if (cooldownRef.current || isProcessing || !classId) return;
+      // Bỏ qua nếu đang trong cooldown, chờ chọn người đưa, đang xử lý, hoặc thiếu classId
+      if (waitingForDelivererRef.current || cooldownRef.current || isProcessing || !classId) return;
 
       cooldownRef.current = true;
       setIsProcessing(true);
@@ -193,9 +199,29 @@ export default function FaceAttendanceModal({ open, onClose, classId, className,
           );
           setDelivererSaved(false);
           // Tải danh sách người đón đã duyệt cho học sinh này
+          if (result.attendance?._id) {
+            // Tạm dừng camera cho đến khi chọn xong người đưa (tối đa 30s)
+            waitingForDelivererRef.current = true;
+            if (delivererTimeoutRef.current) clearTimeout(delivererTimeoutRef.current);
+            delivererTimeoutRef.current = setTimeout(() => {
+              waitingForDelivererRef.current = false;
+            }, 30000);
+          }
           getApprovedPickupPersons(result.student._id)
-            .then((res) => setPickupPersons(res?.data || []))
-            .catch(() => setPickupPersons([]));
+            .then((res) => {
+              const persons = res?.data || [];
+              setPickupPersons(persons);
+              // Nếu không có người đón nào được duyệt thì không cần chờ
+              if (persons.length === 0) {
+                waitingForDelivererRef.current = false;
+                if (delivererTimeoutRef.current) clearTimeout(delivererTimeoutRef.current);
+              }
+            })
+            .catch(() => {
+              setPickupPersons([]);
+              waitingForDelivererRef.current = false;
+              if (delivererTimeoutRef.current) clearTimeout(delivererTimeoutRef.current);
+            });
           toast.success(`Điểm danh: ${result.student.fullName}`);
           onCheckinSuccess?.();
         } else if (result.status === 'already_checked_in') {
@@ -289,26 +315,41 @@ export default function FaceAttendanceModal({ open, onClose, classId, className,
 
               {matchResult?.status === 'success' && (
                 <div className="flex flex-col gap-2">
-                  <div className="flex items-center gap-3 p-3 bg-green-50 rounded-lg border border-green-200">
-                    <div className="w-16 h-16 rounded-lg overflow-hidden bg-gray-200 flex-shrink-0 border-2 border-green-300">
-                      {matchResult.capturedFrame ? (
-                        <img
-                          src={matchResult.capturedFrame}
-                          alt="Ảnh điểm danh"
-                          className="w-full h-full object-cover"
-                        />
-                      ) : matchResult.student?.avatar ? (
-                        <img
-                          src={matchResult.student.avatar}
-                          alt={matchResult.student.fullName}
-                          className="w-full h-full object-cover"
-                        />
-                      ) : (
-                        <div className="w-full h-full flex items-center justify-center text-xl">
-                          👦
+                  <div className="flex flex-col gap-2 p-3 bg-green-50 rounded-lg border border-green-200">
+                    {/* Hai ảnh đối chiếu */}
+                    <div className="flex gap-3">
+                      {/* Ảnh hồ sơ / đại diện */}
+                      <div className="flex flex-col items-center gap-1 flex-1">
+                        <div className="w-full h-24 rounded-lg overflow-hidden bg-gray-200 border-2 border-green-300">
+                          {matchResult.student?.avatar ? (
+                            <img
+                              src={matchResult.student.avatar}
+                              alt="Ảnh hồ sơ"
+                              className="w-full h-full object-cover"
+                            />
+                          ) : (
+                            <div className="w-full h-full flex items-center justify-center text-3xl">👦</div>
+                          )}
                         </div>
-                      )}
+                        <p className="text-xs text-gray-500">Hồ sơ</p>
+                      </div>
+                      {/* Ảnh vừa chụp */}
+                      <div className="flex flex-col items-center gap-1 flex-1">
+                        <div className="w-full h-24 rounded-lg overflow-hidden bg-gray-200 border-2 border-blue-300">
+                          {matchResult.capturedFrame ? (
+                            <img
+                              src={matchResult.capturedFrame}
+                              alt="Ảnh vừa chụp"
+                              className="w-full h-full object-cover"
+                            />
+                          ) : (
+                            <div className="w-full h-full flex items-center justify-center text-3xl">📷</div>
+                          )}
+                        </div>
+                        <p className="text-xs text-gray-500">Vừa chụp</p>
+                      </div>
                     </div>
+                    {/* Tên + trạng thái */}
                     <div>
                       <p className="font-bold text-green-700">
                         {matchResult.student?.fullName}
@@ -342,6 +383,8 @@ export default function FaceAttendanceModal({ open, onClose, classId, className,
                                     p.phone
                                   );
                                   setDelivererSaved(true);
+                                  waitingForDelivererRef.current = false;
+                                  if (delivererTimeoutRef.current) clearTimeout(delivererTimeoutRef.current);
                                   toast.success(`Đã ghi nhận: ${p.fullName}`);
                                 } catch {
                                   toast.error('Không lưu được người đưa.');
@@ -352,20 +395,6 @@ export default function FaceAttendanceModal({ open, onClose, classId, className,
                               {p.fullName} · {p.relation}
                             </button>
                           ))}
-                          <button
-                            onClick={async () => {
-                              try {
-                                await updateAttendanceDeliverer(matchResult.attendance._id, 'Khác', '');
-                                setDelivererSaved(true);
-                                toast.success('Đã ghi nhận người đưa khác.');
-                              } catch {
-                                toast.error('Không lưu được.');
-                              }
-                            }}
-                            className="px-2 py-1 bg-white border border-gray-200 rounded-full text-xs text-gray-500 hover:bg-gray-100 transition-colors"
-                          >
-                            Khác
-                          </button>
                         </div>
                       ) : (
                         <p className="text-xs text-gray-400">Chưa có người đón đã duyệt</p>

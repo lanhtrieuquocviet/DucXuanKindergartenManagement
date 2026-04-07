@@ -3,18 +3,23 @@
  *
  * Modal điểm danh về bằng nhận diện khuôn mặt học sinh.
  *
- * Luồng mới (giáo viên đăng ký khuôn mặt học sinh):
+ * Luồng:
  *  1. Camera phát hiện khuôn mặt học sinh liên tục
  *  2. Khi detect được → chụp frame → upload ảnh → gửi embedding + classId lên server
- *  3. Server match với danh sách khuôn mặt học sinh đã đăng ký trong lớp
- *  4. Nếu khớp → server tự động ghi checkout cho học sinh đó
- *  5. Hiển thị: tên học sinh + thời gian điểm danh về
+ *  3. Server match → tự động ghi checkout cho học sinh đó
+ *  4. Hiển thị ảnh hồ sơ + ảnh vừa chụp để đối chiếu
+ *  5. Chờ chọn người đón (từ danh sách đã duyệt) trước khi quét tiếp
  */
 
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { toast } from 'react-toastify';
 import FaceCamera from './FaceCamera';
-import { matchStudentFaceForCheckout, uploadAttendanceImage } from '../../service/faceAttendance.api';
+import {
+  matchStudentFaceForCheckout,
+  uploadAttendanceImage,
+  updateAttendanceDeliverer,
+  getApprovedPickupPersons,
+} from '../../service/faceAttendance.api';
 
 const COOLDOWN_MS = 4000;
 
@@ -23,20 +28,29 @@ export default function PickupFaceAttendanceModal({ open, onClose, classId, clas
   const [isProcessing, setIsProcessing] = useState(false);
   const [checkedOutToday, setCheckedOutToday] = useState([]);
 
+  const [pickupPersons, setPickupPersons] = useState([]);
+  const [delivererSaved, setDelivererSaved] = useState(false);
+
   const cooldownRef = useRef(false);
+  const waitingForDelivererRef = useRef(false);
+  const delivererTimeoutRef = useRef(null);
   const cameraRef = useRef(null);
 
   useEffect(() => {
     if (!open) {
       setMatchResult(null);
       setCheckedOutToday([]);
+      setPickupPersons([]);
+      setDelivererSaved(false);
       cooldownRef.current = false;
+      waitingForDelivererRef.current = false;
+      if (delivererTimeoutRef.current) clearTimeout(delivererTimeoutRef.current);
     }
   }, [open]);
 
   const handleDetected = useCallback(
     async (embedding) => {
-      if (cooldownRef.current || isProcessing || !classId) return;
+      if (waitingForDelivererRef.current || cooldownRef.current || isProcessing || !classId) return;
 
       cooldownRef.current = true;
       setIsProcessing(true);
@@ -59,6 +73,32 @@ export default function PickupFaceAttendanceModal({ open, onClose, classId, clas
           const studentId = result.student?._id;
           if (studentId && !checkedOutToday.includes(studentId)) {
             setCheckedOutToday((prev) => [...prev, studentId]);
+            setDelivererSaved(false);
+
+            // Tạm dừng camera chờ chọn người đón
+            if (result.attendance?._id) {
+              waitingForDelivererRef.current = true;
+              if (delivererTimeoutRef.current) clearTimeout(delivererTimeoutRef.current);
+              delivererTimeoutRef.current = setTimeout(() => {
+                waitingForDelivererRef.current = false;
+              }, 30000);
+            }
+
+            getApprovedPickupPersons(studentId)
+              .then((res) => {
+                const persons = res?.data || [];
+                setPickupPersons(persons);
+                if (persons.length === 0) {
+                  waitingForDelivererRef.current = false;
+                  if (delivererTimeoutRef.current) clearTimeout(delivererTimeoutRef.current);
+                }
+              })
+              .catch(() => {
+                setPickupPersons([]);
+                waitingForDelivererRef.current = false;
+                if (delivererTimeoutRef.current) clearTimeout(delivererTimeoutRef.current);
+              });
+
             toast.success(`Điểm danh về: ${result.student.fullName}`);
             onCheckoutSuccess?.();
           }
@@ -128,21 +168,76 @@ export default function PickupFaceAttendanceModal({ open, onClose, classId, clas
               )}
 
               {matchResult?.status === 'success' && (
-                <div className="flex items-center gap-3 p-3 bg-emerald-50 rounded-lg border border-emerald-200">
-                  <div className="w-16 h-16 rounded-lg overflow-hidden bg-gray-200 flex-shrink-0 border-2 border-emerald-300">
-                    {matchResult.capturedFrame ? (
-                      <img src={matchResult.capturedFrame} alt="Ảnh điểm danh" className="w-full h-full object-cover" />
-                    ) : matchResult.student?.avatar ? (
-                      <img src={matchResult.student.avatar} alt="" className="w-full h-full object-cover" />
-                    ) : (
-                      <div className="w-full h-full flex items-center justify-center text-2xl">🧒</div>
-                    )}
+                <div className="flex flex-col gap-2">
+                  <div className="flex flex-col gap-2 p-3 bg-emerald-50 rounded-lg border border-emerald-200">
+                    {/* Hai ảnh đối chiếu */}
+                    <div className="flex gap-3">
+                      <div className="flex flex-col items-center gap-1 flex-1">
+                        <div className="w-full h-24 rounded-lg overflow-hidden bg-gray-200 border-2 border-emerald-300">
+                          {matchResult.student?.avatar ? (
+                            <img src={matchResult.student.avatar} alt="Ảnh hồ sơ" className="w-full h-full object-cover" />
+                          ) : (
+                            <div className="w-full h-full flex items-center justify-center text-3xl">🧒</div>
+                          )}
+                        </div>
+                        <p className="text-xs text-gray-500">Hồ sơ</p>
+                      </div>
+                      <div className="flex flex-col items-center gap-1 flex-1">
+                        <div className="w-full h-24 rounded-lg overflow-hidden bg-gray-200 border-2 border-blue-300">
+                          {matchResult.capturedFrame ? (
+                            <img src={matchResult.capturedFrame} alt="Ảnh vừa chụp" className="w-full h-full object-cover" />
+                          ) : (
+                            <div className="w-full h-full flex items-center justify-center text-3xl">📷</div>
+                          )}
+                        </div>
+                        <p className="text-xs text-gray-500">Vừa chụp</p>
+                      </div>
+                    </div>
+                    {/* Tên + trạng thái */}
+                    <div>
+                      <p className="font-bold text-emerald-700">{matchResult.student?.fullName}</p>
+                      <p className="text-xs text-emerald-600">✓ Đã ghi điểm danh về</p>
+                      <p className="text-xs text-gray-400">{matchResult.attendance?.timeString?.checkOut}</p>
+                    </div>
                   </div>
-                  <div>
-                    <p className="font-bold text-emerald-700">{matchResult.student?.fullName}</p>
-                    <p className="text-xs text-emerald-600">✓ Đã ghi điểm danh về</p>
-                    <p className="text-xs text-gray-400">{matchResult.attendance?.timeString?.checkOut}</p>
-                  </div>
+
+                  {/* Chọn người đón */}
+                  {matchResult.attendance?._id && (
+                    <div className="border border-emerald-100 rounded-lg p-2.5 bg-emerald-50">
+                      <p className="text-xs font-semibold text-emerald-700 mb-1.5">👤 Người đón hôm nay</p>
+                      {delivererSaved ? (
+                        <p className="text-xs text-green-600 font-medium">✓ Đã lưu</p>
+                      ) : pickupPersons.length > 0 ? (
+                        <div className="flex flex-wrap gap-1.5">
+                          {pickupPersons.map((p) => (
+                            <button
+                              key={p._id}
+                              onClick={async () => {
+                                try {
+                                  await updateAttendanceDeliverer(
+                                    matchResult.attendance._id,
+                                    `${p.fullName} (${p.relation})`,
+                                    p.phone
+                                  );
+                                  setDelivererSaved(true);
+                                  waitingForDelivererRef.current = false;
+                                  if (delivererTimeoutRef.current) clearTimeout(delivererTimeoutRef.current);
+                                  toast.success(`Đã ghi nhận: ${p.fullName}`);
+                                } catch {
+                                  toast.error('Không lưu được người đón.');
+                                }
+                              }}
+                              className="px-2 py-1 bg-white border border-emerald-200 rounded-full text-xs text-emerald-700 hover:bg-emerald-100 transition-colors"
+                            >
+                              {p.fullName} · {p.relation}
+                            </button>
+                          ))}
+                        </div>
+                      ) : (
+                        <p className="text-xs text-gray-400">Chưa có người đón đã duyệt</p>
+                      )}
+                    </div>
+                  )}
                 </div>
               )}
 

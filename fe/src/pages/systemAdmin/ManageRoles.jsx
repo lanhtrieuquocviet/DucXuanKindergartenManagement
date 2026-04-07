@@ -28,6 +28,7 @@ import {
   InputAdornment,
   Tooltip,
   Collapse,
+  TablePagination,
 } from '@mui/material';
 import {
   Add as AddIcon,
@@ -67,6 +68,9 @@ function ManageRoles() {
   const [permissions, setPermissions] = useState([]);
   const [selectedPermissions, setSelectedPermissions] = useState(new Set());
   const [permSearch, setPermSearch] = useState('');
+  const [roleSearch, setRoleSearch] = useState('');
+  const [rolePage, setRolePage] = useState(0);
+  const [roleRowsPerPage, setRoleRowsPerPage] = useState(10);
   const [collapsedGroups, setCollapsedGroups] = useState({});
   const [confirmState, setConfirmState] = useState({
     open: false,
@@ -273,6 +277,19 @@ function ManageRoles() {
     } catch (_) {}
   };
 
+  const filteredRoles = useMemo(() => {
+    const q = roleSearch.trim().toLowerCase();
+    if (!q) return roles;
+    return roles.filter(
+      (r) => (r.roleName || '').toLowerCase().includes(q) || (r.description || '').toLowerCase().includes(q)
+    );
+  }, [roles, roleSearch]);
+
+  const paginatedRoles = filteredRoles.slice(
+    rolePage * roleRowsPerPage,
+    rolePage * roleRowsPerPage + roleRowsPerPage
+  );
+
   const filteredPerms = useMemo(() => {
     const q = permSearch.trim().toLowerCase();
     if (!q) return permissions;
@@ -337,8 +354,22 @@ function ManageRoles() {
 
       {/* Roles table */}
       <Paper elevation={2} sx={{ borderRadius: 2, overflow: 'hidden' }}>
-        <Box sx={{ px: 3, py: 2, borderBottom: '1px solid', borderColor: 'divider' }}>
+        <Box sx={{ px: 3, py: 2, borderBottom: '1px solid', borderColor: 'divider', display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: 1 }}>
           <Typography variant="subtitle1" fontWeight={700}>Danh sách vai trò</Typography>
+          <TextField
+            size="small"
+            placeholder="Tìm kiếm vai trò..."
+            value={roleSearch}
+            onChange={(e) => { setRoleSearch(e.target.value); setRolePage(0); }}
+            InputProps={{
+              startAdornment: (
+                <InputAdornment position="start">
+                  <SearchIcon fontSize="small" />
+                </InputAdornment>
+              ),
+            }}
+            sx={{ minWidth: 220 }}
+          />
         </Box>
         <TableContainer>
           <Table>
@@ -359,14 +390,14 @@ function ManageRoles() {
               </TableRow>
             </TableHead>
             <TableBody>
-              {roles.length === 0 && (
+              {filteredRoles.length === 0 && (
                 <TableRow>
                   <TableCell colSpan={4} align="center" sx={{ py: 6, color: 'text.secondary' }}>
-                    Chưa có vai trò nào. Hãy thêm vai trò mới.
+                    {roleSearch.trim() ? 'Không tìm thấy vai trò phù hợp.' : 'Chưa có vai trò nào. Hãy thêm vai trò mới.'}
                   </TableCell>
                 </TableRow>
               )}
-              {roles.map((role) => {
+              {paginatedRoles.map((role) => {
                 const roleId = role.id || role._id;
                 return (
                   <TableRow key={roleId} hover sx={{ '&:last-child td': { borderBottom: 0 } }}>
@@ -431,6 +462,20 @@ function ManageRoles() {
             </TableBody>
           </Table>
         </TableContainer>
+        {roles.length > 0 && (
+          <TablePagination
+            component="div"
+            count={filteredRoles.length}
+            page={rolePage}
+            onPageChange={(_, newPage) => setRolePage(newPage)}
+            rowsPerPage={roleRowsPerPage}
+            onRowsPerPageChange={(e) => { setRoleRowsPerPage(parseInt(e.target.value, 10)); setRolePage(0); }}
+            rowsPerPageOptions={[5, 10, 25, 50]}
+            labelRowsPerPage="Số dòng/trang:"
+            labelDisplayedRows={({ from, to, count }) => `${from}–${to} / ${count}`}
+            sx={{ borderTop: '1px solid', borderColor: 'divider' }}
+          />
+        )}
       </Paper>
 
       {/* Dialog: Thêm / Sửa role */}
@@ -457,7 +502,7 @@ function ManageRoles() {
           <DialogContent sx={{ pt: 3, pb: 1 }}>
             {error && <Alert severity="error" sx={{ mb: 2, fontSize: 13 }}>{error}</Alert>}
             <TextField
-              label={<>Tên vai trò <Box component="span" sx={{ color: 'error.main' }}>*</Box></>}
+              label="Tên vai trò"
               value={roleForm.roleName}
               onChange={(e) => setRoleForm({ ...roleForm, roleName: e.target.value })}
               fullWidth

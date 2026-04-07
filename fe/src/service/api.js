@@ -6,10 +6,17 @@
 const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || 'http://localhost:5000/api';
 
 /**
- * Lấy token từ localStorage
+ * Lấy access token từ localStorage
  */
 export const getToken = () => {
   return localStorage.getItem('token');
+};
+
+/**
+ * Lấy refresh token từ localStorage
+ */
+export const getRefreshToken = () => {
+  return localStorage.getItem('refreshToken');
 };
 
 let authFailureHandler = null;
@@ -30,7 +37,7 @@ const triggerAuthFailureHandler = (payload) => {
 };
 
 /**
- * Xử lý response từ API
+ * Xử lý response từ API (không retry)
  */
 const handleResponse = async (response) => {
   const data = await response.json();
@@ -51,6 +58,77 @@ const handleResponse = async (response) => {
   }
 
   return data;
+};
+
+/**
+ * Singleton promise để tránh gọi refresh nhiều lần đồng thời
+ */
+let refreshPromise = null;
+
+/**
+ * Gọi API refresh token, cập nhật localStorage, trả về access token mới
+ * Nếu thất bại → trigger force logout
+ */
+const doRefreshToken = async () => {
+  const storedRefreshToken = getRefreshToken();
+  if (!storedRefreshToken) {
+    triggerAuthFailureHandler({ status: 401, message: 'Phiên đăng nhập đã hết hạn' });
+    throw new Error('Không có refresh token');
+  }
+
+  const response = await fetch(`${API_BASE_URL}/auth/refresh`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ refreshToken: storedRefreshToken }),
+  });
+
+  if (!response.ok) {
+    triggerAuthFailureHandler({ status: 401, message: 'Phiên đăng nhập đã hết hạn. Vui lòng đăng nhập lại.' });
+    throw new Error('Refresh token thất bại');
+  }
+
+  const data = await response.json();
+  const { token: newAccessToken, refreshToken: newRefreshToken } = data.data;
+  localStorage.setItem('token', newAccessToken);
+  localStorage.setItem('refreshToken', newRefreshToken);
+  return newAccessToken;
+};
+
+/**
+ * Wrapper fetch có tự động refresh khi gặp 401
+ * @param {string} url
+ * @param {RequestInit} fetchOptions
+ * @param {boolean} skipRefresh - true khi đây là request đã được retry, tránh vòng lặp
+ */
+const fetchWithRefresh = async (url, fetchOptions, skipRefresh = false) => {
+  let response = await fetch(url, fetchOptions);
+
+  // Nếu 401 và được phép retry → thử refresh token
+  if (response.status === 401 && !skipRefresh && fetchOptions.headers?.Authorization) {
+    try {
+      if (!refreshPromise) {
+        refreshPromise = doRefreshToken().finally(() => { refreshPromise = null; });
+      }
+      const newToken = await refreshPromise;
+
+      // Retry request gốc với token mới
+      const retryOptions = {
+        ...fetchOptions,
+        headers: {
+          ...fetchOptions.headers,
+          Authorization: `Bearer ${newToken}`,
+        },
+      };
+      response = await fetch(url, retryOptions);
+    } catch {
+      // doRefreshToken đã trigger authFailureHandler, ném lỗi để dừng
+      const error = new Error('Phiên đăng nhập đã hết hạn. Vui lòng đăng nhập lại.');
+      error.status = 401;
+      throw error;
+    }
+  }
+
+  return handleResponse(response);
 };
 
 /**
@@ -77,12 +155,10 @@ const getHeaders = (includeAuth = true, customHeaders = {}) => {
  */
 export const get = async (endpoint, options = {}) => {
   const { includeAuth = true, headers: customHeaders = {} } = options;
-  const response = await fetch(`${API_BASE_URL}${endpoint}`, {
+  return fetchWithRefresh(`${API_BASE_URL}${endpoint}`, {
     method: 'GET',
     headers: getHeaders(includeAuth, customHeaders),
   });
-
-  return handleResponse(response);
 };
 
 /**
@@ -90,13 +166,11 @@ export const get = async (endpoint, options = {}) => {
  */
 export const post = async (endpoint, body, options = {}) => {
   const { includeAuth = true, headers: customHeaders = {} } = options;
-  const response = await fetch(`${API_BASE_URL}${endpoint}`, {
+  return fetchWithRefresh(`${API_BASE_URL}${endpoint}`, {
     method: 'POST',
     headers: getHeaders(includeAuth, customHeaders),
     body: JSON.stringify(body),
   });
-
-  return handleResponse(response);
 };
 
 /**
@@ -109,13 +183,11 @@ export const postFormData = async (endpoint, formData, options = {}) => {
     const token = getToken();
     if (token) headers.Authorization = `Bearer ${token}`;
   }
-  const response = await fetch(`${API_BASE_URL}${endpoint}`, {
+  return fetchWithRefresh(`${API_BASE_URL}${endpoint}`, {
     method: 'POST',
     headers,
     body: formData,
   });
-
-  return handleResponse(response);
 };
 
 /**
@@ -128,13 +200,11 @@ export const putFormData = async (endpoint, formData, options = {}) => {
     const token = getToken();
     if (token) headers.Authorization = `Bearer ${token}`;
   }
-  const response = await fetch(`${API_BASE_URL}${endpoint}`, {
+  return fetchWithRefresh(`${API_BASE_URL}${endpoint}`, {
     method: 'PUT',
     headers,
     body: formData,
   });
-
-  return handleResponse(response);
 };
 
 /**
@@ -142,13 +212,11 @@ export const putFormData = async (endpoint, formData, options = {}) => {
  */
 export const put = async (endpoint, body, options = {}) => {
   const { includeAuth = true, headers: customHeaders = {} } = options;
-  const response = await fetch(`${API_BASE_URL}${endpoint}`, {
+  return fetchWithRefresh(`${API_BASE_URL}${endpoint}`, {
     method: 'PUT',
     headers: getHeaders(includeAuth, customHeaders),
     body: JSON.stringify(body),
   });
-
-  return handleResponse(response);
 };
 
 /**
@@ -156,13 +224,11 @@ export const put = async (endpoint, body, options = {}) => {
  */
 export const patch = async (endpoint, body, options = {}) => {
   const { includeAuth = true, headers: customHeaders = {} } = options;
-  const response = await fetch(`${API_BASE_URL}${endpoint}`, {
+  return fetchWithRefresh(`${API_BASE_URL}${endpoint}`, {
     method: 'PATCH',
     headers: getHeaders(includeAuth, customHeaders),
     body: JSON.stringify(body),
   });
-
-  return handleResponse(response);
 };
 
 /**
@@ -170,12 +236,10 @@ export const patch = async (endpoint, body, options = {}) => {
  */
 export const del = async (endpoint, options = {}) => {
   const { includeAuth = true, headers: customHeaders = {} } = options;
-  const response = await fetch(`${API_BASE_URL}${endpoint}`, {
+  return fetchWithRefresh(`${API_BASE_URL}${endpoint}`, {
     method: 'DELETE',
     headers: getHeaders(includeAuth, customHeaders),
   });
-
-  return handleResponse(response);
 };
 
 // ============================================
@@ -187,6 +251,7 @@ export const ENDPOINTS = {
   AUTH: {
     LOGIN: "/auth/login",
     LOGOUT: "/auth/logout",
+    REFRESH: "/auth/refresh",
     ME: "/auth/me",
     ME_STUDENT: "/auth/me/student",
     MY_CHILDREN: "/auth/me/children",
@@ -236,6 +301,7 @@ export const ENDPOINTS = {
       `/school-admin/students/${studentId}/attendance`,
     STUDENT_ATTENDANCE_HISTORY: (studentId) =>
       `/school-admin/students/${studentId}/attendance/history`,
+    ATTENDANCE_EXPORT_DATA: "/school-admin/attendance/export-data",
     BLOGS: "/school-admin/blogs",
     BLOG_DETAIL: (blogId) => `/school-admin/blogs/${blogId}`,
     BLOG_CATEGORIES: "/school-admin/blog-categories",

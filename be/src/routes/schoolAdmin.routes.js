@@ -17,6 +17,7 @@ const {
   getClassAttendanceDetail,
   getStudentAttendanceDetail,
   getStudentAttendanceHistory,
+  getAttendanceExportData,
 } = require('../controller/attendanceController');
 const blogController = require('../controller/blogController');
 const blogCategoryController = require('../controller/blogCategoryController');
@@ -225,6 +226,7 @@ router.delete('/banners/:bannerId', authenticate, authorizePermissions('MANAGE_B
  *         description: Tổng quan điểm danh
  */
 router.get('/attendance/overview', authenticate, authorizePermissions('VIEW_ATTENDANCE'), getAttendanceOverview);
+router.get('/attendance/export-data', authenticate, authorizePermissions('VIEW_ATTENDANCE'), getAttendanceExportData);
 
 /**
  * @openapi

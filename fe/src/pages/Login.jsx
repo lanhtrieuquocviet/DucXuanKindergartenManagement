@@ -6,7 +6,9 @@ import { useAuth } from '../context/AuthContext';
 
 function Login() {
   const [form, setForm] = useState({ username: '', password: '' });
+  const [usernameError, setUsernameError] = useState('');
   const [usernameWarning, setUsernameWarning] = useState('');
+  const [passwordError, setPasswordError] = useState('');
   const [passwordWarning, setPasswordWarning] = useState('');
   const [showPassword, setShowPassword] = useState(false);
   const navigate = useNavigate();
@@ -16,6 +18,7 @@ function Login() {
     const { name, value } = e.target;
     setForm((prev) => ({ ...prev, [name]: value }));
     if (name === 'username') {
+      if (value) setUsernameError('');
       if (value && (/[\s]/.test(value) || /[^A-Za-z0-9]/.test(value))) {
         setUsernameWarning('Tài khoản không được chứa khoảng trắng và ký tự đặc biệt.');
       } else {
@@ -23,6 +26,7 @@ function Login() {
       }
     }
     if (name === 'password') {
+      if (value) setPasswordError('');
       const hasUpper = /[A-Z]/.test(value);
       const hasNumber = /\d/.test(value);
       const hasSpecial = /[^A-Za-z0-9]/.test(value);
@@ -39,10 +43,20 @@ function Login() {
   const handleSubmit = async (e) => {
     e.preventDefault();
     const usernameTrimmed = (form.username || '').trim().toLowerCase();
-    if (/[\s]/.test(usernameTrimmed) || /[^A-Za-z0-9]/.test(usernameTrimmed)) {
+
+    let hasError = false;
+    if (!usernameTrimmed) {
+      setUsernameError('Vui lòng nhập tài khoản.');
+      hasError = true;
+    } else if (/[\s]/.test(usernameTrimmed) || /[^A-Za-z0-9]/.test(usernameTrimmed)) {
       setUsernameWarning('Tài khoản không được chứa khoảng trắng và ký tự đặc biệt.');
-      return;
+      hasError = true;
     }
+    if (!form.password) {
+      setPasswordError('Vui lòng nhập mật khẩu.');
+      hasError = true;
+    }
+    if (hasError) return;
     try {
       const { user: newUser } = await login(usernameTrimmed, form.password);
       // eslint-disable-next-line no-console
@@ -122,16 +136,20 @@ function Login() {
                   id="username"
                   name="username"
                   type="text"
-                  required
                   value={form.username}
                   onChange={handleChange}
-                  className="block w-full rounded-xl border border-sky-100 bg-sky-50/60 px-3 py-2.5 text-sm text-sky-900 placeholder-sky-400 shadow-sm focus:border-sky-400 focus:bg-white focus:outline-none focus:ring-2 focus:ring-sky-200 transition"
+                  className={`block w-full rounded-xl border px-3 py-2.5 text-sm text-sky-900 placeholder-sky-400 shadow-sm focus:bg-white focus:outline-none focus:ring-2 transition ${
+                    usernameError
+                      ? 'border-red-400 bg-red-50/40 focus:border-red-400 focus:ring-red-200'
+                      : 'border-sky-100 bg-sky-50/60 focus:border-sky-400 focus:ring-sky-200'
+                  }`}
                   placeholder="vd: admin"
                 />
-                {usernameWarning && (
-                  <p className="mt-1 text-xs text-amber-600">
-                    {usernameWarning}
-                  </p>
+                {usernameError && (
+                  <p className="mt-1 text-xs text-red-600">{usernameError}</p>
+                )}
+                {!usernameError && usernameWarning && (
+                  <p className="mt-1 text-xs text-amber-600">{usernameWarning}</p>
                 )}
               </div>
 
@@ -147,10 +165,13 @@ function Login() {
                     id="password"
                     name="password"
                     type={showPassword ? 'text' : 'password'}
-                    required
                     value={form.password}
                     onChange={handleChange}
-                    className="block w-full rounded-xl border border-sky-100 bg-sky-50/60 px-3 py-2.5 pr-10 text-sm text-sky-900 placeholder-sky-400 shadow-sm focus:border-sky-400 focus:bg-white focus:outline-none focus:ring-2 focus:ring-sky-200 transition"
+                    className={`block w-full rounded-xl border px-3 py-2.5 pr-10 text-sm text-sky-900 placeholder-sky-400 shadow-sm focus:bg-white focus:outline-none focus:ring-2 transition ${
+                      passwordError
+                        ? 'border-red-400 bg-red-50/40 focus:border-red-400 focus:ring-red-200'
+                        : 'border-sky-100 bg-sky-50/60 focus:border-sky-400 focus:ring-sky-200'
+                    }`}
                     placeholder="Nhập mật khẩu"
                   />
                   <button
@@ -172,10 +193,11 @@ function Login() {
                     )}
                   </button>
                 </div>
-                {passwordWarning && (
-                  <p className="mt-1 text-xs text-amber-600">
-                    {passwordWarning}
-                  </p>
+                {passwordError && (
+                  <p className="mt-1 text-xs text-red-600">{passwordError}</p>
+                )}
+                {!passwordError && passwordWarning && (
+                  <p className="mt-1 text-xs text-amber-600">{passwordWarning}</p>
                 )}
                 <div className="flex justify-end">
                   <Link

@@ -12,6 +12,10 @@ function generateCaptcha(length = 5) {
   return result;
 }
 
+function generateRotations(length = 5) {
+  return Array.from({ length }, () => (Math.random() - 0.5) * 20);
+}
+
 function ForgotPassword() {
   const [step, setStep] = useState(1); // 1: Nhập tài khoản, 2: Nhập OTP, 3: Nhập mật khẩu mới
   const [account, setAccount] = useState('');
@@ -23,43 +27,46 @@ function ForgotPassword() {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
   const [captchaCode, setCaptchaCode] = useState(() => generateCaptcha());
+  const [captchaRotations, setCaptchaRotations] = useState(() => generateRotations());
   const [captchaInput, setCaptchaInput] = useState('');
   const [captchaError, setCaptchaError] = useState('');
 
   const refreshCaptcha = () => {
     setCaptchaCode(generateCaptcha());
+    setCaptchaRotations(generateRotations());
     setCaptchaInput('');
     setCaptchaError('');
+  };
+
+  const validateCaptcha = () => {
+    if (!captchaInput.trim()) {
+      setCaptchaError('Vui lòng nhập mã bảo mật');
+      return false;
+    }
+    if (captchaInput.trim().toUpperCase() !== captchaCode.toUpperCase()) {
+      refreshCaptcha();
+      setCaptchaError('Mã bảo mật không chính xác');
+      return false;
+    }
+    setCaptchaError('');
+    return true;
   };
 
   const handleStep1Submit = async (e) => {
     e.preventDefault();
     setError('');
+    if (!validateCaptcha()) return;
 
-    if (!captchaInput.trim()) {
-      setCaptchaError('Vui lòng nhập mã bảo mật');
-      return;
-    }
-
-    if (captchaInput.trim().toUpperCase() !== captchaCode.toUpperCase()) {
-      refreshCaptcha();
-      setCaptchaError('Mã bảo mật không chính xác');
-      return;
-    }
-
-    setCaptchaError('');
     setLoading(true);
-
     try {
       const response = await post(
         ENDPOINTS.AUTH.FORGOT_PASSWORD_VERIFY_ACCOUNT,
         { username: account },
         { includeAuth: false }
       );
-
       if (response.status === 'success') {
         setMaskedEmail(response.data.maskedEmail);
-        setStep(2); // Chuyển sang bước nhập OTP
+        setStep(2);
         refreshCaptcha();
       }
     } catch (err) {
@@ -73,35 +80,22 @@ function ForgotPassword() {
   const handleStep2Submit = async (e) => {
     e.preventDefault();
     setError('');
-
-    if (!captchaInput.trim()) {
-      setCaptchaError('Vui lòng nhập mã bảo mật');
-      return;
-    }
-
-    if (captchaInput.trim().toUpperCase() !== captchaCode.toUpperCase()) {
-      refreshCaptcha();
-      setCaptchaError('Mã bảo mật không chính xác');
-      return;
-    }
+    if (!validateCaptcha()) return;
 
     if (!otpCode.trim()) {
       setError('Vui lòng nhập mã OTP');
       return;
     }
 
-    setCaptchaError('');
     setLoading(true);
-
     try {
       const response = await post(
         ENDPOINTS.AUTH.FORGOT_PASSWORD_VERIFY_OTP,
         { username: account, otpCode: otpCode.trim() },
         { includeAuth: false }
       );
-
       if (response.status === 'success') {
-        setStep(3); // Chuyển sang bước nhập mật khẩu mới
+        setStep(3);
         refreshCaptcha();
       }
     } catch (err) {
@@ -112,40 +106,26 @@ function ForgotPassword() {
     }
   };
 
-  // Hàm validation mật khẩu
   const validatePassword = (password) => {
     const errors = [];
-
-    // Độ dài 8-32 ký tự
     if (password.length < 8 || password.length > 32) {
       errors.push('Mật khẩu phải có từ 8 đến 32 ký tự');
     }
-
-    // Không chứa khoảng trắng
     if (/\s/.test(password)) {
       errors.push('Mật khẩu không được chứa khoảng trắng');
     }
-
-    // Ít nhất 1 chữ hoa
     if (!/[A-Z]/.test(password)) {
       errors.push('Mật khẩu phải chứa ít nhất 1 chữ hoa');
     }
-
-    // Ít nhất 1 chữ thường
     if (!/[a-z]/.test(password)) {
       errors.push('Mật khẩu phải chứa ít nhất 1 chữ thường');
     }
-
-    // Ít nhất 1 số
     if (!/[0-9]/.test(password)) {
       errors.push('Mật khẩu phải chứa ít nhất 1 chữ số');
     }
-
-    // Ít nhất 1 ký tự đặc biệt
     if (!/[^A-Za-z0-9]/.test(password)) {
       errors.push('Mật khẩu phải chứa ít nhất 1 ký tự đặc biệt');
     }
-
     return errors;
   };
 
@@ -158,7 +138,6 @@ function ForgotPassword() {
       return;
     }
 
-    // Validate mật khẩu mới
     const passwordErrors = validatePassword(newPassword);
     if (passwordErrors.length > 0) {
       setError(passwordErrors.join('. '));
@@ -171,16 +150,14 @@ function ForgotPassword() {
     }
 
     setLoading(true);
-
     try {
       const response = await post(
         ENDPOINTS.AUTH.FORGOT_PASSWORD_RESET,
         { username: account, newPassword },
         { includeAuth: false }
       );
-
       if (response.status === 'success') {
-    setSent(true);
+        setSent(true);
       }
     } catch (err) {
       setError(err.message || 'Không thể đặt lại mật khẩu');
@@ -207,6 +184,54 @@ function ForgotPassword() {
     refreshCaptcha();
   };
 
+  const renderCaptcha = () => (
+    <div className="space-y-2">
+      <label className="block text-sm font-medium text-sky-900">
+        Mã bảo mật <span className="text-red-500">*</span>
+      </label>
+      <div className="flex flex-col gap-2">
+        <div className="flex items-center gap-2">
+          <div className="flex items-center justify-center rounded-md bg-slate-900 text-white px-4 py-3 font-mono text-lg tracking-widest select-none shadow-inner">
+            {captchaCode.split('').map((ch, idx) => (
+              <span
+                key={idx}
+                className="mx-0.5"
+                style={{ transform: `rotate(${captchaRotations[idx]}deg)` }}
+              >
+                {ch}
+              </span>
+            ))}
+          </div>
+          <button
+            type="button"
+            onClick={refreshCaptcha}
+            disabled={loading}
+            className="inline-flex h-9 w-9 shrink-0 items-center justify-center rounded-full border border-sky-200 text-sky-600 hover:bg-sky-50 hover:text-sky-800 text-sm disabled:opacity-50 disabled:cursor-not-allowed"
+          >
+            ↻
+          </button>
+        </div>
+        <input
+          type="text"
+          value={captchaInput}
+          onChange={(e) => setCaptchaInput(e.target.value)}
+          disabled={loading}
+          className={`w-full rounded-xl border px-3 py-2.5 text-sm shadow-sm focus:outline-none focus:ring-2 disabled:opacity-50 disabled:cursor-not-allowed ${
+            captchaError
+              ? 'border-red-400 focus:border-red-400 focus:ring-red-200'
+              : 'border-sky-100 bg-sky-50/60 text-sky-900 placeholder-sky-400 focus:border-sky-400 focus:bg-white focus:ring-sky-200'
+          }`}
+          placeholder="Nhập mã bảo mật"
+        />
+      </div>
+      {captchaError ? (
+        <p className="text-xs text-red-600 mt-1">{captchaError}</p>
+      ) : (
+        <p className="text-xs text-sky-400 mt-1">Không phân biệt chữ hoa/thường</p>
+      )}
+    </div>
+  );
+
   return (
     <div className="min-h-screen w-full bg-gradient-to-br from-sky-50 via-emerald-50 to-amber-50 flex items-center justify-center px-4">
       <div className="w-full max-w-lg bg-white/95 backdrop-blur shadow-2xl rounded-3xl border border-sky-100 p-5 sm:p-8 md:p-10">
@@ -220,9 +245,9 @@ function ForgotPassword() {
             </p>
           )}
           {step === 2 && (
-          <p className="mt-2 text-xs md:text-sm text-sky-600">
+            <p className="mt-2 text-xs md:text-sm text-sky-600">
               Nhập mã OTP đã được gửi đến email <strong>{maskedEmail}</strong>
-          </p>
+            </p>
           )}
           {step === 3 && (
             <p className="mt-2 text-xs md:text-sm text-sky-600">
@@ -237,76 +262,26 @@ function ForgotPassword() {
           </div>
         )}
 
-        {step === 1 ? (
+        {step === 1 && (
           <form onSubmit={handleStep1Submit} className="space-y-5">
-          <div className="space-y-2">
-            <label
-              htmlFor="account"
-              className="block text-sm font-medium text-sky-900"
-            >
-              Tài khoản
-            </label>
-            <input
-              id="account"
-              name="account"
-              type="text"
-              required
-              value={account}
-              onChange={(e) => setAccount(e.target.value)}
+            <div className="space-y-2">
+              <label htmlFor="account" className="block text-sm font-medium text-sky-900">
+                Tài khoản
+              </label>
+              <input
+                id="account"
+                name="account"
+                type="text"
+                required
+                value={account}
+                onChange={(e) => setAccount(e.target.value)}
                 disabled={loading}
                 className="block w-full rounded-xl border border-sky-100 bg-sky-50/60 px-3 py-2.5 text-sm text-sky-900 placeholder-sky-400 shadow-sm focus:border-sky-400 focus:bg-white focus:outline-none focus:ring-2 focus:ring-sky-200 transition disabled:opacity-50 disabled:cursor-not-allowed"
-              placeholder="vd: phuhuynh01"
-            />
-          </div>
-
-          {/* Mã bảo mật */}
-          <div className="space-y-2">
-            <label className="block text-sm font-medium text-sky-900">
-              Mã bảo mật <span className="text-red-500">*</span>
-            </label>
-            <div className="flex flex-col gap-2">
-              <div className="flex items-center gap-2">
-                <div className="flex items-center justify-center rounded-md bg-slate-900 text-white px-4 py-3 font-mono text-lg tracking-widest select-none shadow-inner">
-                  {captchaCode.split('').map((ch) => (
-                    <span
-                      key={ch + Math.random()}
-                      className="mx-0.5"
-                      style={{
-                        transform: `rotate(${(Math.random() - 0.5) * 20}deg)`,
-                      }}
-                    >
-                      {ch}
-                    </span>
-                  ))}
-                </div>
-                <button
-                  type="button"
-                  onClick={refreshCaptcha}
-                  disabled={loading}
-                  className="inline-flex h-9 w-9 shrink-0 items-center justify-center rounded-full border border-sky-200 text-sky-600 hover:bg-sky-50 hover:text-sky-800 text-sm disabled:opacity-50 disabled:cursor-not-allowed"
-                >
-                  ↻
-                </button>
-              </div>
-              <input
-                type="text"
-                value={captchaInput}
-                onChange={(e) => setCaptchaInput(e.target.value)}
-                disabled={loading}
-                className={`w-full rounded-xl border px-3 py-2.5 text-sm shadow-sm focus:outline-none focus:ring-2 disabled:opacity-50 disabled:cursor-not-allowed ${
-                  captchaError
-                    ? 'border-red-400 focus:border-red-400 focus:ring-red-200'
-                    : 'border-sky-100 bg-sky-50/60 text-sky-900 placeholder-sky-400 focus:border-sky-400 focus:bg-white focus:ring-sky-200'
-                }`}
-                placeholder="Nhập mã bảo mật"
+                placeholder="vd: phuhuynh01"
               />
             </div>
-            {captchaError ? (
-              <p className="text-xs text-red-600 mt-1">{captchaError}</p>
-            ) : (
-              <p className="text-xs text-sky-400 mt-1">Không phân biệt chữ hoa/thường</p>
-            )}
-          </div>
+
+            {renderCaptcha()}
 
             <button
               type="submit"
@@ -316,13 +291,12 @@ function ForgotPassword() {
               {loading ? 'Đang xử lý...' : 'Tiếp theo'}
             </button>
           </form>
-        ) : step === 2 ? (
+        )}
+
+        {step === 2 && (
           <form onSubmit={handleStep2Submit} className="space-y-5">
             <div className="space-y-2">
-              <label
-                htmlFor="otp"
-                className="block text-sm font-medium text-sky-900"
-              >
+              <label htmlFor="otp" className="block text-sm font-medium text-sky-900">
                 Mã OTP <span className="text-red-500">*</span>
               </label>
               <div className="mb-2 text-xs text-sky-600">
@@ -345,54 +319,7 @@ function ForgotPassword() {
               </p>
             </div>
 
-            {/* Mã bảo mật */}
-            <div className="space-y-2">
-              <label className="block text-sm font-medium text-sky-900">
-                Mã bảo mật <span className="text-red-500">*</span>
-              </label>
-              <div className="flex flex-col gap-2">
-                <div className="flex items-center gap-2">
-                  <div className="flex items-center justify-center rounded-md bg-slate-900 text-white px-4 py-3 font-mono text-lg tracking-widest select-none shadow-inner">
-                    {captchaCode.split('').map((ch) => (
-                      <span
-                        key={ch + Math.random()}
-                        className="mx-0.5"
-                        style={{
-                          transform: `rotate(${(Math.random() - 0.5) * 20}deg)`,
-                        }}
-                      >
-                        {ch}
-                      </span>
-                    ))}
-                  </div>
-                  <button
-                    type="button"
-                    onClick={refreshCaptcha}
-                    disabled={loading || sent}
-                    className="inline-flex h-9 w-9 shrink-0 items-center justify-center rounded-full border border-sky-200 text-sky-600 hover:bg-sky-50 hover:text-sky-800 text-sm disabled:opacity-50 disabled:cursor-not-allowed"
-                  >
-                    ↻
-                  </button>
-                </div>
-                <input
-                  type="text"
-                  value={captchaInput}
-                  onChange={(e) => setCaptchaInput(e.target.value)}
-                  disabled={loading || sent}
-                  className={`w-full rounded-xl border px-3 py-2.5 text-sm shadow-sm focus:outline-none focus:ring-2 disabled:opacity-50 disabled:cursor-not-allowed ${
-                    captchaError
-                      ? 'border-red-400 focus:border-red-400 focus:ring-red-200'
-                      : 'border-sky-100 bg-sky-50/60 text-sky-900 placeholder-sky-400 focus:border-sky-400 focus:bg-white focus:ring-sky-200'
-                  }`}
-                  placeholder="Nhập mã bảo mật"
-                />
-              </div>
-              {captchaError ? (
-                <p className="text-xs text-red-600 mt-1">{captchaError}</p>
-              ) : (
-                <p className="text-xs text-sky-400 mt-1">Không phân biệt chữ hoa/thường</p>
-              )}
-            </div>
+            {renderCaptcha()}
 
             <div className="flex gap-3">
               <button
@@ -403,16 +330,18 @@ function ForgotPassword() {
               >
                 Quay lại
               </button>
-          <button
-            type="submit"
+              <button
+                type="submit"
                 disabled={loading}
                 className="flex-1 inline-flex items-center justify-center rounded-xl bg-gradient-to-r from-sky-500 to-emerald-400 px-4 py-2.5 text-sm font-semibold text-white shadow-md hover:from-sky-600 hover:to-emerald-500 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-sky-300 transition disabled:opacity-50 disabled:cursor-not-allowed"
-          >
+              >
                 {loading ? 'Đang xác minh...' : 'Xác minh OTP'}
-          </button>
+              </button>
             </div>
-        </form>
-        ) : (
+          </form>
+        )}
+
+        {step === 3 && (
           <form onSubmit={handleStep3Submit} className="space-y-5">
             {sent ? (
               <div className="text-center space-y-4">
@@ -429,10 +358,7 @@ function ForgotPassword() {
             ) : (
               <>
                 <div className="space-y-2">
-                  <label
-                    htmlFor="newPassword"
-                    className="block text-sm font-medium text-sky-900"
-                  >
+                  <label htmlFor="newPassword" className="block text-sm font-medium text-sky-900">
                     Mật khẩu mới <span className="text-red-500">*</span>
                   </label>
                   <input
@@ -442,9 +368,9 @@ function ForgotPassword() {
                     required
                     value={newPassword}
                     onChange={(e) => setNewPassword(e.target.value)}
-                    disabled={loading || sent}
+                    disabled={loading}
                     className="block w-full rounded-xl border border-sky-100 bg-sky-50/60 px-3 py-2.5 text-sm text-sky-900 placeholder-sky-400 shadow-sm focus:border-sky-400 focus:bg-white focus:outline-none focus:ring-2 focus:ring-sky-200 transition disabled:opacity-50 disabled:cursor-not-allowed"
-                    placeholder="Nhập mật khẩu mới (8-32 ký tự, có HOA, thường, số, ký tự đặc biệt, không khoảng trắng)"
+                    placeholder="Nhập mật khẩu mới"
                   />
                   <p className="text-xs text-sky-500 mt-1">
                     Yêu cầu: 8-32 ký tự, chứa ít nhất 1 chữ hoa, 1 chữ thường, 1 số, 1 ký tự đặc biệt và không chứa khoảng trắng
@@ -452,10 +378,7 @@ function ForgotPassword() {
                 </div>
 
                 <div className="space-y-2">
-                  <label
-                    htmlFor="confirmPassword"
-                    className="block text-sm font-medium text-sky-900"
-                  >
+                  <label htmlFor="confirmPassword" className="block text-sm font-medium text-sky-900">
                     Xác nhận mật khẩu <span className="text-red-500">*</span>
                   </label>
                   <input
@@ -465,7 +388,7 @@ function ForgotPassword() {
                     required
                     value={confirmPassword}
                     onChange={(e) => setConfirmPassword(e.target.value)}
-                    disabled={loading || sent}
+                    disabled={loading}
                     className="block w-full rounded-xl border border-sky-100 bg-sky-50/60 px-3 py-2.5 text-sm text-sky-900 placeholder-sky-400 shadow-sm focus:border-sky-400 focus:bg-white focus:outline-none focus:ring-2 focus:ring-sky-200 transition disabled:opacity-50 disabled:cursor-not-allowed"
                     placeholder="Nhập lại mật khẩu mới"
                   />
@@ -475,14 +398,14 @@ function ForgotPassword() {
                   <button
                     type="button"
                     onClick={handleBackToStep2}
-                    disabled={loading || sent}
+                    disabled={loading}
                     className="flex-1 inline-flex items-center justify-center rounded-xl border border-sky-300 bg-white px-4 py-2.5 text-sm font-semibold text-sky-700 shadow-sm hover:bg-sky-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-sky-300 transition disabled:opacity-50 disabled:cursor-not-allowed"
                   >
                     Quay lại
                   </button>
                   <button
                     type="submit"
-                    disabled={loading || sent}
+                    disabled={loading}
                     className="flex-1 inline-flex items-center justify-center rounded-xl bg-gradient-to-r from-sky-500 to-emerald-400 px-4 py-2.5 text-sm font-semibold text-white shadow-md hover:from-sky-600 hover:to-emerald-500 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-sky-300 transition disabled:opacity-50 disabled:cursor-not-allowed"
                   >
                     {loading ? 'Đang xử lý...' : 'Đặt lại mật khẩu'}
@@ -507,4 +430,3 @@ function ForgotPassword() {
 }
 
 export default ForgotPassword;
-

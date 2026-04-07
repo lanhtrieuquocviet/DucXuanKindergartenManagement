@@ -1,5 +1,5 @@
 import { createContext, useContext, useState, useEffect, useRef, useCallback } from 'react';
-import { get, post, put, getToken, ENDPOINTS, setAuthFailureHandler } from '../service/api';
+import { get, post, put, getToken, getRefreshToken, ENDPOINTS, setAuthFailureHandler } from '../service/api';
 
 const AuthContext = createContext(null);
 
@@ -118,10 +118,14 @@ export const AuthProvider = ({
       }
 
       // Lưu vào state và localStorage
+      const { refreshToken: newRefreshToken } = response.data || {};
       setToken(newToken);
       setUser(newUser);
       localStorage.setItem('token', newToken);
       localStorage.setItem('user', JSON.stringify(newUser));
+      if (newRefreshToken) {
+        localStorage.setItem('refreshToken', newRefreshToken);
+      }
 
       // Callback khi login thành công
       if (onLoginSuccessRef.current) {
@@ -147,6 +151,7 @@ export const AuthProvider = ({
     setUser(null);
     localStorage.removeItem('token');
     localStorage.removeItem('user');
+    localStorage.removeItem('refreshToken');
     if (message) {
       setError(message);
     }
@@ -156,11 +161,12 @@ export const AuthProvider = ({
   }, []);
 
   const logout = useCallback(async () => {
-    // Gọi API logout để blacklist token phía server
+    // Gọi API logout để blacklist access token + thu hồi refresh token phía server
     try {
       const currentToken = getToken();
       if (currentToken) {
-        await post(ENDPOINTS.AUTH.LOGOUT, {});
+        const currentRefreshToken = getRefreshToken();
+        await post(ENDPOINTS.AUTH.LOGOUT, { refreshToken: currentRefreshToken });
       }
     } catch {
       // Bỏ qua lỗi API - vẫn tiếp tục xóa local state
@@ -255,6 +261,18 @@ export const AuthProvider = ({
       setAuthFailureHandler(null);
     };
   }, [forceLogout]);
+
+  // Lắng nghe khi tab khác logout (xóa token khỏi localStorage)
+  // Browser tự fire 'storage' event sang các tab khác khi localStorage thay đổi
+  useEffect(() => {
+    const handleStorageChange = (event) => {
+      if (event.key === 'token' && event.newValue === null) {
+        clearAuth('Phiên đăng nhập đã kết thúc. Vui lòng đăng nhập lại.');
+      }
+    };
+    window.addEventListener('storage', handleStorageChange);
+    return () => window.removeEventListener('storage', handleStorageChange);
+  }, [clearAuth]);
 
   // Check if user is authenticated
   const isAuthenticated = useCallback(() => {
