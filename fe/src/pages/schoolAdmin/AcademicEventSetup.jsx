@@ -1,5 +1,7 @@
 import { useEffect, useMemo, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
+
+const ALL_BLOCKS_KEY = '__all__';
 import {
   Box,
   Paper,
@@ -205,40 +207,49 @@ export default function AcademicEventSetup() {
 
   const addEvent = async () => {
     const value = dialog.value.trim();
-    if (!value) {
-      toast.error('Vui lòng nhập tên sự kiện');
-      return;
-    }
-    if (!dialog.date) {
-      toast.error('Vui lòng chọn ngày sự kiện');
-      return;
-    }
-    if (!dialog.blockKey) {
-      toast.error('Vui lòng chọn khối lớp');
-      return;
-    }
+    if (!value) { toast.error('Vui lòng nhập tên sự kiện'); return; }
+    if (!dialog.date) { toast.error('Vui lòng chọn ngày sự kiện'); return; }
+    if (!dialog.blockKey) { toast.error('Vui lòng chọn khối lớp'); return; }
     const selectedMonthKey = String(dialog.date).slice(0, 7);
     if (selectedMonthKey !== dialog.monthKey) {
       toast.error('Ngày sự kiện phải thuộc đúng tháng bạn đang thêm');
       return;
     }
-    const blockLabel = blocks.find((b) => b.key === dialog.blockKey)?.label || 'Khối lớp';
-    const event = {
-      id: dialog.mode === 'edit' ? dialog.eventId : Date.now().toString(),
-      name: value,
-      date: dialog.date,
-      blockKey: dialog.blockKey,
-      blockLabel,
-    };
-    const nextEvents = {
-      ...eventsByMonth,
-      [dialog.monthKey]:
-        dialog.mode === 'edit'
-          ? (eventsByMonth[dialog.monthKey] || []).map((e) => (e.id === dialog.eventId ? event : e))
-          : [...(eventsByMonth[dialog.monthKey] || []), event],
-    };
+
+    const existing = eventsByMonth[dialog.monthKey] || [];
+
+    let newItems;
+    if (dialog.blockKey === ALL_BLOCKS_KEY) {
+      // Tạo một sự kiện cho từng khối lớp
+      const ts = Date.now();
+      newItems = blocks.map((b, i) => ({
+        id: `${ts}-${i}`,
+        name: value,
+        date: dialog.date,
+        blockKey: b.key,
+        blockLabel: b.label,
+      }));
+    } else {
+      const blockLabel = blocks.find((b) => b.key === dialog.blockKey)?.label || 'Khối lớp';
+      const event = {
+        id: dialog.mode === 'edit' ? dialog.eventId : Date.now().toString(),
+        name: value,
+        date: dialog.date,
+        blockKey: dialog.blockKey,
+        blockLabel,
+      };
+      newItems = [event];
+    }
+
+    const nextMonthItems =
+      dialog.mode === 'edit'
+        ? existing.map((e) => (e.id === dialog.eventId ? newItems[0] : e))
+        : [...existing, ...newItems];
+
+    const nextEvents = { ...eventsByMonth, [dialog.monthKey]: nextMonthItems };
+
     try {
-      await persistEvents(nextEvents, dialog.mode === 'edit' ? 'Đã sửa và lưu sự kiện' : 'Đã thêm và lưu sự kiện');
+      await persistEvents(nextEvents, dialog.mode === 'edit' ? 'Đã sửa và lưu sự kiện' : `Đã thêm và lưu ${newItems.length > 1 ? `${newItems.length} sự kiện` : 'sự kiện'}`);
       setEventsByMonth(nextEvents);
       setDialog({ open: false, mode: 'add', monthKey: '', eventId: '', value: '', date: '', blockKey: '' });
     } catch (err) {
@@ -436,6 +447,11 @@ export default function AcademicEventSetup() {
             value={dialog.blockKey}
             onChange={(e) => setDialog((prev) => ({ ...prev, blockKey: e.target.value }))}
           >
+            {dialog.mode === 'add' && (
+              <MenuItem value={ALL_BLOCKS_KEY} sx={{ fontWeight: 700, color: '#4f46e5' }}>
+                🏫 Tất cả khối lớp ({blocks.length} khối)
+              </MenuItem>
+            )}
             {blocks.map((b) => (
               <MenuItem key={b.key} value={b.key}>
                 {b.label}
