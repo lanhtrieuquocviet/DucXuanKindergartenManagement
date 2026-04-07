@@ -1,5 +1,6 @@
 const Timetable = require('../models/Timetable');
 const AcademicYear = require('../models/AcademicYear');
+const { resolveEffectiveTimetableSeason } = require('../utils/timetableSeason');
 const { createNotification } = require('./notification.controller');
 
 function parseTimeToMinutes(value) {
@@ -79,7 +80,9 @@ const listByYear = async (req, res) => {
       return res.status(200).json({ status: 'success', data: [], yearName: '' });
     }
 
-    const year = await AcademicYear.findById(academicYearId).select('yearName').lean();
+    const year = await AcademicYear.findById(academicYearId)
+      .select('yearName activeTimetableSeason')
+      .lean();
     const list = await Timetable.find({ academicYear: academicYearId })
       .sort({ startMinutes: 1 })
       .lean();
@@ -100,6 +103,7 @@ const listByYear = async (req, res) => {
       status: 'success',
       data,
       yearName: year?.yearName || '',
+      activeTimetableSeason: year?.activeTimetableSeason || 'auto',
     });
   } catch (error) {
     console.error('listByYear timetable activities error:', error);
@@ -320,10 +324,18 @@ const listPublic = async (req, res) => {
   try {
     const academicYearId = await getAcademicYearIdFromQueryOrActive(req);
     if (!academicYearId) {
-      return res.status(200).json({ status: 'success', data: [] });
+      return res.status(200).json({ status: 'success', data: [], effectiveSeason: null });
     }
 
-    const list = await Timetable.find({ academicYear: academicYearId })
+    const year = await AcademicYear.findById(academicYearId)
+      .select('activeTimetableSeason')
+      .lean();
+    const effectiveSeason = resolveEffectiveTimetableSeason(year);
+
+    const list = await Timetable.find({
+      academicYear: academicYearId,
+      appliesToSeason: { $in: [effectiveSeason, 'both'] },
+    })
       .sort({ startMinutes: 1 })
       .lean();
 
@@ -337,7 +349,12 @@ const listPublic = async (req, res) => {
       content: a.content || '',
     }));
 
-    return res.status(200).json({ status: 'success', data });
+    return res.status(200).json({
+      status: 'success',
+      data,
+      effectiveSeason,
+      activeTimetableSeason: year?.activeTimetableSeason || 'auto',
+    });
   } catch (error) {
     console.error('listPublic timetable activities error:', error);
     return res.status(500).json({ status: 'error', message: 'Lỗi khi lấy thời gian biểu' });

@@ -1,8 +1,9 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useState } from 'react';
 import { get, ENDPOINTS } from '../../service/api';
 
 export default function Schedule() {
   const [activities, setActivities] = useState([]);
+  const [effectiveSeason, setEffectiveSeason] = useState(null);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
@@ -11,10 +12,14 @@ export default function Schedule() {
       try {
         const res = await get(ENDPOINTS.TIMETABLE_PUBLIC(), { includeAuth: false });
         if (cancelled) return;
-        if (res?.status === 'success') setActivities(Array.isArray(res.data) ? res.data : []);
+        if (res?.status === 'success') {
+          setActivities(Array.isArray(res.data) ? res.data : []);
+          setEffectiveSeason(res.effectiveSeason ?? null);
+        }
       } catch (_) {
         if (!cancelled) {
           setActivities([]);
+          setEffectiveSeason(null);
         }
       } finally {
         if (!cancelled) setLoading(false);
@@ -24,11 +29,8 @@ export default function Schedule() {
     return () => { cancelled = true; };
   }, []);
 
-  const grouped = useMemo(() => {
-    const summer = activities.filter((a) => a.appliesToSeason === 'summer' || a.appliesToSeason === 'both');
-    const winter = activities.filter((a) => a.appliesToSeason === 'winter' || a.appliesToSeason === 'both');
-    return { summer, winter };
-  }, [activities]);
+  const seasonHeading =
+    effectiveSeason === 'winter' ? 'MÙA ĐÔNG' : effectiveSeason === 'summer' ? 'MÙA HÈ' : 'THỜI GIAN BIỂU';
 
   const renderSeasonTable = (title, list) => {
     return (
@@ -81,7 +83,12 @@ export default function Schedule() {
 
       {/* Title */}
       <h1 className="text-2xl font-semibold mb-2">Thời gian biểu hoạt động hằng ngày</h1>
-      <p className="text-gray-600 text-sm mb-6">Thời gian biểu theo mùa do nhà trường thiết lập.</p>
+      <p className="text-gray-600 text-sm mb-6">
+        Lịch đang áp dụng theo thiết lập của nhà trường
+        {effectiveSeason === 'summer' && ' (mùa hè)'}
+        {effectiveSeason === 'winter' && ' (mùa đông)'}
+        .
+      </p>
 
       {loading ? (
         <div className="rounded-lg border border-gray-200 bg-gray-50 px-4 py-8 text-center text-gray-500">
@@ -92,10 +99,7 @@ export default function Schedule() {
           Chưa có thời khóa biểu nào. Nhà trường sẽ cập nhật tại mục Quản lý năm học → Thời khóa biểu.
         </div>
       ) : (
-        <div className="space-y-8">
-          {renderSeasonTable('Mùa Hè', grouped.summer)}
-          {renderSeasonTable('Mùa Đông', grouped.winter)}
-        </div>
+        <div>{renderSeasonTable(seasonHeading, activities)}</div>
       )}
     </div>
   );

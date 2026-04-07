@@ -2,13 +2,7 @@ const cron = require('node-cron');
 const Timetable = require('../models/Timetable');
 const AcademicYear = require('../models/AcademicYear');
 const Notification = require('../models/Notification');
-
-const TZ = 'Asia/Ho_Chi_Minh';
-
-/** Lấy đối tượng Date đã quy đổi sang giờ Việt Nam */
-function nowVN() {
-  return new Date(new Date().toLocaleString('en-US', { timeZone: TZ }));
-}
+const { resolveEffectiveTimetableSeason, nowVN } = require('../utils/timetableSeason');
 
 /** Chuyển số phút → "H:mm" */
 function minutesToLabel(m) {
@@ -17,16 +11,9 @@ function minutesToLabel(m) {
   return `${h}:${min.toString().padStart(2, '0')}`;
 }
 
-/** Xác định mùa hiện tại dựa theo tháng (giờ VN) */
-function getCurrentSeason() {
-  const month = nowVN().getMonth() + 1; // 1–12
-  // Hè: tháng 4–9 | Đông: tháng 10–3
-  return month >= 4 && month <= 9 ? 'summer' : 'winter';
-}
-
 /** Lấy năm học đang hoạt động */
 async function getActiveYear() {
-  return AcademicYear.findOne({ status: 'active' }).lean();
+  return AcademicYear.findOne({ status: 'active' }).sort({ startDate: -1 }).lean();
 }
 
 /** Logic tổng hợp lịch ngày (dùng chung cho cron + startup) */
@@ -51,7 +38,7 @@ async function runDailySummary() {
     return;
   }
 
-  const season = getCurrentSeason();
+  const season = resolveEffectiveTimetableSeason(activeYear);
   const items = await Timetable.find({
     academicYear: activeYear._id,
     appliesToSeason: { $in: [season, 'both'] },
@@ -119,7 +106,7 @@ function startTimetableRealtime() {
       const activeYear = await getActiveYear();
       if (!activeYear) return;
 
-      const season = getCurrentSeason();
+      const season = resolveEffectiveTimetableSeason(activeYear);
 
       const items = await Timetable.find({
         academicYear: activeYear._id,

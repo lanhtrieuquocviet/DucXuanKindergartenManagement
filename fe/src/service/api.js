@@ -253,6 +253,7 @@ export const ENDPOINTS = {
     ACADEMIC_YEARS: {
       LIST: "/school-admin/academic-years",
       CURRENT: "/school-admin/academic-years/current",
+      PATCH_CURRENT_TIMETABLE_SEASON: "/school-admin/academic-years/current/timetable-season",
       CREATE: "/school-admin/academic-years",
       FINISH: (id) => `/school-admin/academic-years/${id}/finish`,
       HISTORY: "/school-admin/academic-years/history",

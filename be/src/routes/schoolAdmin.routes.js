@@ -1100,6 +1100,13 @@ router.delete('/public-info/:id', authenticate, authorizePermissions('MANAGE_PUB
  */
 router.get('/academic-years/current', authenticate, authorizePermissions('MANAGE_ACADEMIC_YEAR'), academicYearController.getCurrentAcademicYear);
 
+router.patch(
+  '/academic-years/current/timetable-season',
+  authenticate,
+  authorizePermissions('MANAGE_CURRICULUM'),
+  academicYearController.patchCurrentTimetableSeason,
+);
+
 /**
  * @openapi
  * /api/school-admin/academic-years/history:
