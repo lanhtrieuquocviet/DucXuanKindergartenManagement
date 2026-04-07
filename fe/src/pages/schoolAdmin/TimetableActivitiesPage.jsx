@@ -388,7 +388,7 @@ export default function TimetableActivitiesPage() {
               >
                 In thời gian biểu
               </Button>
-              <Button
+              {/* <Button
                 variant="outlined"
                 sx={{
                   textTransform: 'none',
@@ -399,7 +399,7 @@ export default function TimetableActivitiesPage() {
                 onClick={() => toast.info('Import file đang được phát triển')}
               >
                 Import file
-              </Button>
+              </Button> */}
             </Stack>
           </Stack>
         </Box>

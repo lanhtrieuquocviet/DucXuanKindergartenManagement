@@ -1,5 +1,6 @@
 const Timetable = require('../models/Timetable');
 const AcademicYear = require('../models/AcademicYear');
+const { createNotification } = require('./notification.controller');
 
 function parseTimeToMinutes(value) {
   if (value === null || value === undefined) return null;
@@ -188,7 +189,9 @@ const upsert = async (req, res) => {
     };
 
     let doc;
+    let previousDoc = null;
     if (id) {
+      previousDoc = await Timetable.findOne({ _id: id, academicYear: yearId }).lean();
       doc = await Timetable.findOneAndUpdate(
         { _id: id, academicYear: yearId },
         payload,
@@ -201,6 +204,38 @@ const upsert = async (req, res) => {
     if (!doc) {
       return res.status(404).json({ status: 'error', message: 'Không tìm thấy hoạt động.' });
     }
+
+    const year = await AcademicYear.findById(yearId).select('yearName').lean();
+    const yearName = year?.yearName || '';
+    const actionText = id ? 'cập nhật' : 'thêm mới';
+    const detailText = `${minutesToLabel(doc.startMinutes)} - ${minutesToLabel(doc.endMinutes)} · ${doc.content || 'Không có nội dung'}`;
+
+    await createNotification({
+      title: 'Thời gian biểu có thay đổi',
+      body: id
+        ? `Đã ${actionText} hoạt động (${seasonLabel(doc.appliesToSeason)}) năm học ${yearName}: ${detailText}`
+        : `Đã ${actionText} hoạt động (${seasonLabel(doc.appliesToSeason)}) năm học ${yearName}: ${detailText}`,
+      type: 'timetable_update',
+      targetRole: 'all',
+      extra: {
+        action: id ? 'update' : 'create',
+        timetableId: String(doc._id),
+        yearId: String(yearId),
+        yearName,
+        season: doc.appliesToSeason,
+        startMinutes: doc.startMinutes,
+        endMinutes: doc.endMinutes,
+        content: doc.content || '',
+        previous: previousDoc
+          ? {
+              startMinutes: previousDoc.startMinutes,
+              endMinutes: previousDoc.endMinutes,
+              content: previousDoc.content || '',
+              season: previousDoc.appliesToSeason,
+            }
+          : null,
+      },
+    });
 
     return res.status(200).json({
       status: 'success',
@@ -245,6 +280,27 @@ const remove = async (req, res) => {
     if (!deleted) {
       return res.status(404).json({ status: 'error', message: 'Không tìm thấy hoạt động để xóa.' });
     }
+
+    const year = academicYearId
+      ? await AcademicYear.findById(academicYearId).select('yearName').lean()
+      : null;
+    const yearName = year?.yearName || '';
+    await createNotification({
+      title: 'Thời gian biểu có thay đổi',
+      body: `Đã xóa hoạt động (${seasonLabel(deleted.appliesToSeason)}) năm học ${yearName}: ${minutesToLabel(deleted.startMinutes)} - ${minutesToLabel(deleted.endMinutes)} · ${deleted.content || 'Không có nội dung'}`,
+      type: 'timetable_update',
+      targetRole: 'all',
+      extra: {
+        action: 'delete',
+        timetableId: String(deleted._id),
+        yearId: academicYearId ? String(academicYearId) : '',
+        yearName,
+        season: deleted.appliesToSeason,
+        startMinutes: deleted.startMinutes,
+        endMinutes: deleted.endMinutes,
+        content: deleted.content || '',
+      },
+    });
 
     return res.status(200).json({ status: 'success', message: 'Đã xóa hoạt động.' });
   } catch (error) {
