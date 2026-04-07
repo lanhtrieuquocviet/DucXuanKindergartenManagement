@@ -69,7 +69,7 @@ function Login() {
         navigate('/system-admin', { replace: true });
       } else if (roles.includes('SchoolAdmin')) {
         navigate('/school-admin', { replace: true });
-      } else if (roles.includes("Teacher")) {
+      } else if (roles.includes("HeadTeacher") || roles.includes("Teacher")) {
         navigate("/teacher", { replace: true });
       } else if (roles.includes("KitchenStaff")) {// navigate kitchen staff
         navigate("/kitchen", { replace: true });

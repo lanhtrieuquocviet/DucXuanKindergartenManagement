@@ -76,7 +76,7 @@ require('./src/models/InspectionMinutes');
 (async () => {
   try {
     const Role = require('./src/models/Role');
-    const defaultRoles = ['SystemAdmin', 'SchoolAdmin', 'Teacher', 'Parent', 'KitchenStaff'];
+    const defaultRoles = ['SystemAdmin', 'SchoolAdmin', 'HeadTeacher', 'Teacher', 'Parent', 'KitchenStaff'];
     for (const roleName of defaultRoles) {
       await Role.findOneAndUpdate(
         { roleName },
@@ -208,6 +208,9 @@ require('./src/models/InspectionMinutes');
       { code: 'MANAGE_FOOD',          description: 'Quản lý thực phẩm và món ăn' },
       { code: 'MANAGE_MENU',          description: 'Tạo và chỉnh sửa thực đơn' },
       { code: 'MANAGE_MEAL_PHOTO',    description: 'Quản lý ảnh bữa ăn và mẫu thực phẩm' },
+      // HeadTeacher / Tổ trưởng
+      { code: 'SUBMIT_REPORT',          description: 'Gửi báo cáo lên tổ trưởng' },
+      { code: 'MANAGE_TEACHER_REPORT',  description: 'Xem, duyệt và chuyển báo cáo giáo viên lên ban giám hiệu' },
     ];
 
     // Upsert tất cả permissions
@@ -232,9 +235,18 @@ require('./src/models/InspectionMinutes');
         'REGISTER_FACE', 'CHECKOUT_STUDENT', 'MANAGE_ATTENDANCE',
         'MANAGE_PURCHASE_REQUEST', 'MANAGE_ASSET', 'MANAGE_PICKUP',
       ],
+      HeadTeacher: [
+        // Tất cả quyền của giáo viên
+        'MANAGE_ATTENDANCE', 'MANAGE_PURCHASE_REQUEST', 'MANAGE_ASSET',
+        'MANAGE_PICKUP', 'REGISTER_FACE', 'CHECKOUT_STUDENT',
+        'SUBMIT_REPORT',
+        // Quyền riêng của tổ trưởng: xem, duyệt và chuyển báo cáo lên ban giám hiệu
+        'MANAGE_TEACHER_REPORT',
+      ],
       Teacher: [
         'MANAGE_ATTENDANCE', 'MANAGE_PURCHASE_REQUEST', 'MANAGE_ASSET',
         'MANAGE_PICKUP', 'REGISTER_FACE', 'CHECKOUT_STUDENT',
+        'SUBMIT_REPORT',
       ],
       KitchenStaff: [
         'MANAGE_FOOD', 'MANAGE_MENU', 'MANAGE_MEAL_PHOTO', 'VIEW_REPORT',

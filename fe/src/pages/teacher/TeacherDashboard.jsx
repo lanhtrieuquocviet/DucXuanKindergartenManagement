@@ -109,7 +109,7 @@ function TeacherDashboard() {
     if (isInitializing) return;
     if (!user) { navigate('/login', { replace: true }); return; }
     const userRoles = user?.roles?.map((r) => r.roleName || r) || [];
-    if (!userRoles.includes('Teacher')) { navigate('/', { replace: true }); return; }
+    if (!userRoles.includes('Teacher') && !userRoles.includes('HeadTeacher')) { navigate('/', { replace: true }); return; }
     const fetchData = async () => {
       try { setData(await getDashboard()); } catch (_) {}
     };
@@ -137,6 +137,9 @@ function TeacherDashboard() {
     if (isCommitteeMember && hasPermission('MANAGE_ASSET')) {
       items.push({ key: 'asset-inspection', label: 'Kiểm kê tài sản' });
     }
+    if (hasPermission('MANAGE_TEACHER_REPORT')) {
+      items.push({ key: 'manage-purchase-requests', label: 'Duyệt báo cáo giáo viên' });
+    }
     return items;
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [isCommitteeMember, hasPermission]);
@@ -149,6 +152,7 @@ function TeacherDashboard() {
     if (path.startsWith('/teacher/purchase-request')) return 'purchase-request';
     if (path.startsWith('/teacher/class-assets'))   return 'class-assets';
     if (path.startsWith('/teacher/asset-inspection')) return 'asset-inspection';
+    if (path.startsWith('/teacher/manage-purchase-requests')) return 'manage-purchase-requests';
     return 'classes';
   }, [location.pathname]);
 

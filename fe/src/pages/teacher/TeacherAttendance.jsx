@@ -147,7 +147,7 @@ function TeacherAttendance() {
       return;
     }
     const userRoles = user?.roles?.map((r) => r.roleName || r) || [];
-    if (!userRoles.includes('Teacher')) {
+    if (!userRoles.includes('Teacher') && !userRoles.includes('HeadTeacher')) {
       navigate('/', { replace: true });
     }
   }, [navigate, user, isInitializing]);

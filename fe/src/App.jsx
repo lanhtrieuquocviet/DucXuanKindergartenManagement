@@ -92,6 +92,7 @@ import PickupRequest from './pages/teacher/PickupRequest';
 import TeacherAssetInspection from './pages/teacher/TeacherAssetInspection';
 import TeacherPurchaseRequest from './pages/teacher/TeacherPurchaseRequest';
 import TeacherClassAssets from './pages/teacher/TeacherClassAssets';
+import HeadTeacherPurchaseRequests from './pages/teacher/HeadTeacherPurchaseRequests';
 import KitchenLayout from './pages/kitchenStaff/KitchenLayout';
 import KitchenDashboard from './pages/kitchenStaff/KitchenDashboard';
 import MenuManagement from './pages/kitchenStaff/MenuManagement';
@@ -372,6 +373,16 @@ function App() {
               <ProtectedRoute>
                 <TeacherProvider>
                   <TeacherClassAssets />
+                </TeacherProvider>
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/teacher/manage-purchase-requests"
+            element={
+              <ProtectedRoute>
+                <TeacherProvider>
+                  <HeadTeacherPurchaseRequests />
                 </TeacherProvider>
               </ProtectedRoute>
             }

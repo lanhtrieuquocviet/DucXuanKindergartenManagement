@@ -85,7 +85,7 @@ export default function TeacherPurchaseRequest() {
     if (isInitializing) return;
     if (!user) { navigate('/login', { replace: true }); return; }
     const roles = user?.roles?.map(r => r.roleName || r) || [];
-    if (!roles.includes('Teacher')) { navigate('/', { replace: true }); return; }
+    if (!roles.includes('Teacher') && !roles.includes('HeadTeacher')) { navigate('/', { replace: true }); return; }
     load();
   }, [isInitializing, user, navigate]);
 
