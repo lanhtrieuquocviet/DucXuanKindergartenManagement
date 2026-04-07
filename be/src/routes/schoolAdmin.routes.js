@@ -1494,6 +1494,8 @@ router.get('/teachers', authenticate, authorizePermissions('MANAGE_TEACHER'), as
         degree: t.degree,
         experienceYears: t.experienceYears,
         hireDate: t.hireDate,
+        employmentType: t.employmentType,
+        gender: t.gender,
       }));
 
     return res.status(200).json({ status: 'success', data: teachers });
@@ -1534,7 +1536,7 @@ router.get('/teachers/generate-username', authenticate, authorizePermissions('MA
 // POST /school-admin/teachers — tạo giáo viên mới (User + Teacher record)
 router.post('/teachers', authenticate, authorizePermissions('MANAGE_TEACHER'), async (req, res) => {
   try {
-    const { username, fullName, email, phone, password, degree, experienceYears, hireDate, avatar, employmentType } = req.body;
+    const { username, fullName, email, phone, password, degree, experienceYears, hireDate, avatar, employmentType, gender } = req.body;
     if (!username?.trim()) return res.status(400).json({ status: 'error', message: 'Tài khoản đăng nhập không được để trống' });
     if (!fullName?.trim()) return res.status(400).json({ status: 'error', message: 'Họ tên không được để trống' });
     if (!email?.trim()) return res.status(400).json({ status: 'error', message: 'Email không được để trống' });
@@ -1573,6 +1575,7 @@ router.post('/teachers', authenticate, authorizePermissions('MANAGE_TEACHER'), a
       experienceYears: Number(experienceYears) || 0,
       hireDate: hireDate || null,
       employmentType: ['contract', 'permanent'].includes(employmentType) ? employmentType : 'contract',
+      gender: ['male', 'female'].includes(gender) ? gender : 'male',
       status: 'active',
     });
 
@@ -1590,6 +1593,7 @@ router.post('/teachers', authenticate, authorizePermissions('MANAGE_TEACHER'), a
         experienceYears: teacher.experienceYears,
         hireDate: teacher.hireDate,
         employmentType: teacher.employmentType,
+        gender: teacher.gender,
       },
     });
   } catch (error) {
@@ -1604,7 +1608,7 @@ router.put('/teachers/:id', authenticate, authorizePermissions('MANAGE_TEACHER')
     const teacher = await Teacher.findById(req.params.id).lean();
     if (!teacher) return res.status(404).json({ status: 'error', message: 'Không tìm thấy giáo viên' });
 
-    const { fullName, email, phone, degree, experienceYears, hireDate, avatar, status, employmentType } = req.body;
+    const { fullName, email, phone, degree, experienceYears, hireDate, avatar, status, employmentType, gender } = req.body;
 
     // Cập nhật User
     const userUpdate = {};
@@ -1633,6 +1637,7 @@ router.put('/teachers/:id', authenticate, authorizePermissions('MANAGE_TEACHER')
     if (hireDate !== undefined) teacherUpdate.hireDate = hireDate || null;
     if (status && ['active', 'inactive'].includes(status)) teacherUpdate.status = status;
     if (employmentType && ['contract', 'permanent'].includes(employmentType)) teacherUpdate.employmentType = employmentType;
+    if (gender && ['male', 'female'].includes(gender)) teacherUpdate.gender = gender;
     await Teacher.findByIdAndUpdate(teacher._id, teacherUpdate);
 
     const updated = await Teacher.findById(teacher._id)
@@ -1653,6 +1658,7 @@ router.put('/teachers/:id', authenticate, authorizePermissions('MANAGE_TEACHER')
         experienceYears: updated.experienceYears,
         hireDate: updated.hireDate,
         employmentType: updated.employmentType,
+        gender: updated.gender,
       },
     });
   } catch (error) {

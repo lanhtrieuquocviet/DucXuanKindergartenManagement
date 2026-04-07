@@ -26,14 +26,19 @@ const EMPLOYMENT_OPTIONS = [
   { value: 'permanent', label: 'Giáo viên biên chế' },
 ];
 
+const GENDER_OPTIONS = [
+  { value: 'male', label: 'Nam' },
+  { value: 'female', label: 'Nữ' },
+];
+
 const EMPTY_CREATE = {
   username: '', password: '', fullName: '', email: '', phone: '',
-  degree: '', hireDate: '', employmentType: 'contract',
+  degree: '', hireDate: '', employmentType: 'contract', gender: 'male',
 };
 
 const EMPTY_EDIT = {
   fullName: '', email: '', phone: '',
-  degree: '', hireDate: '', employmentType: 'contract', status: 'active',
+  degree: '', hireDate: '', employmentType: 'contract', status: 'active', gender: 'male',
 };
 
 const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
@@ -204,6 +209,7 @@ export default function ManageTeachers() {
       hireDate: t.hireDate ? t.hireDate.split('T')[0] : '',
       employmentType: t.employmentType || 'contract',
       status: t.status || 'active',
+      gender: t.gender || 'male',
     });
     setEditErrors({});
     setEditError(null);
@@ -473,12 +479,26 @@ export default function ManageTeachers() {
           <Divider sx={{ my: 1.5 }} />
           <Typography variant="subtitle2" color="primary" gutterBottom>Thông tin giáo viên</Typography>
           <Stack spacing={1.5}>
-            <TextField
-              size="small" label="Họ tên" required fullWidth
-              value={createForm.fullName}
-              onChange={e => setCreateForm(p => ({ ...p, fullName: e.target.value }))}
-              error={!!createErrors.fullName} helperText={createErrors.fullName}
-            />
+            <Stack direction={{ xs: 'column', sm: 'row' }} spacing={1.5}>
+              <TextField
+                size="small" label="Họ tên" required fullWidth
+                value={createForm.fullName}
+                onChange={e => setCreateForm(p => ({ ...p, fullName: e.target.value }))}
+                error={!!createErrors.fullName} helperText={createErrors.fullName}
+              />
+              <FormControl size="small" sx={{ minWidth: 120 }}>
+                <InputLabel>Giới tính</InputLabel>
+                <Select
+                  label="Giới tính"
+                  value={createForm.gender}
+                  onChange={e => setCreateForm(p => ({ ...p, gender: e.target.value }))}
+                >
+                  {GENDER_OPTIONS.map(o => (
+                    <MenuItem key={o.value} value={o.value}>{o.label}</MenuItem>
+                  ))}
+                </Select>
+              </FormControl>
+            </Stack>
             <Stack direction={{ xs: 'column', sm: 'row' }} spacing={1.5}>
               <TextField
                 size="small" label="Bằng cấp" fullWidth
@@ -528,12 +548,26 @@ export default function ManageTeachers() {
 
           <Typography variant="subtitle2" color="primary" gutterBottom>Thông tin tài khoản</Typography>
           <Stack spacing={1.5} mb={2}>
-            <TextField
-              size="small" label="Họ tên" required fullWidth
-              value={editForm.fullName}
-              onChange={e => setEditForm(p => ({ ...p, fullName: e.target.value }))}
-              error={!!editErrors.fullName} helperText={editErrors.fullName}
-            />
+            <Stack direction={{ xs: 'column', sm: 'row' }} spacing={1.5}>
+              <TextField
+                size="small" label="Họ tên" required fullWidth
+                value={editForm.fullName}
+                onChange={e => setEditForm(p => ({ ...p, fullName: e.target.value }))}
+                error={!!editErrors.fullName} helperText={editErrors.fullName}
+              />
+              <FormControl size="small" sx={{ minWidth: 120 }}>
+                <InputLabel>Giới tính</InputLabel>
+                <Select
+                  label="Giới tính"
+                  value={editForm.gender}
+                  onChange={e => setEditForm(p => ({ ...p, gender: e.target.value }))}
+                >
+                  {GENDER_OPTIONS.map(o => (
+                    <MenuItem key={o.value} value={o.value}>{o.label}</MenuItem>
+                  ))}
+                </Select>
+              </FormControl>
+            </Stack>
             <TextField
               size="small" label="Email" required fullWidth
               value={editForm.email}
