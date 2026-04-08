@@ -1,6 +1,6 @@
 const express = require('express');
 const multer = require('multer');
-const { authenticate, authorizeRoles, authorizePermissions } = require('../middleware/auth');
+const { authenticate, authorizeRoles, authorizePermissions, authorizeAnyPermission } = require('../middleware/auth');
 const contactController = require('../controller/contactController');
 const User = require('../models/User');
 const Role = require('../models/Role');
@@ -360,7 +360,7 @@ router.patch('/students/change-requests/:id/resolve', authenticate, authorizePer
 
 // ── Health classes — lớp thuộc năm học hiện tại ──────────────
 // GET /school-admin/students/health-classes
-router.get('/students/health-classes', authenticate, authorizePermissions('MANAGE_STUDENT'), async (req, res) => {
+router.get('/students/health-classes', authenticate, authorizeAnyPermission('MANAGE_STUDENT', 'MANAGE_HEALTH'), async (req, res) => {
   try {
     const AcademicYear = require('../models/AcademicYear');
     const Classes      = require('../models/Classes');
@@ -381,7 +381,7 @@ router.get('/students/health-classes', authenticate, authorizePermissions('MANAG
 
 // ── Health overview (báo cáo sức khỏe tổng quan) ──────────────
 // GET /school-admin/students/health-overview
-router.get('/students/health-overview', authenticate, authorizePermissions('MANAGE_STUDENT'), async (req, res) => {
+router.get('/students/health-overview', authenticate, authorizeAnyPermission('MANAGE_STUDENT', 'MANAGE_HEALTH'), async (req, res) => {
   try {
     const Student      = require('../models/Student');
     const HealthCheck  = require('../models/HealthCheck');
@@ -438,8 +438,98 @@ router.get('/students/health-overview', authenticate, authorizePermissions('MANA
   }
 });
 
+// POST /school-admin/students/health-record — tạo/cập nhật hồ sơ sức khỏe cho 1 học sinh
+router.post('/students/health-record', authenticate, authorizeAnyPermission('MANAGE_STUDENT', 'MANAGE_HEALTH'), async (req, res) => {
+  try {
+    const HealthCheck = require('../models/HealthCheck');
+    const Student     = require('../models/Student');
+    const { studentId, height, weight, temperature, heartRate, chronicDiseases, allergies, notes, generalStatus, checkDate, followUpDate, recommendations } = req.body;
+
+    if (!studentId) return res.status(400).json({ status: 'error', message: 'Thiếu studentId' });
+    const student = await Student.findById(studentId).lean();
+    if (!student) return res.status(404).json({ status: 'error', message: 'Không tìm thấy học sinh' });
+
+    const allergiesArr = Array.isArray(allergies)
+      ? allergies
+      : (allergies || '').split(',').map(a => a.trim()).filter(Boolean).map(a => ({ allergen: a }));
+    const chronicArr = Array.isArray(chronicDiseases)
+      ? chronicDiseases
+      : (chronicDiseases || '').split(',').map(d => d.trim()).filter(Boolean);
+
+    const record = await HealthCheck.create({
+      studentId,
+      height:          height ? Number(height) : undefined,
+      weight:          weight ? Number(weight) : undefined,
+      temperature:     temperature ? Number(temperature) : undefined,
+      heartRate:       heartRate ? Number(heartRate) : undefined,
+      chronicDiseases: chronicArr,
+      allergies:       allergiesArr,
+      notes:           notes || '',
+      generalStatus:   generalStatus || 'healthy',
+      checkDate:       checkDate ? new Date(checkDate) : new Date(),
+      followUpDate:    followUpDate ? new Date(followUpDate) : undefined,
+      recommendations: recommendations || '',
+      recordedBy:      req.user._id,
+    });
+
+    return res.status(201).json({ status: 'success', message: 'Tạo hồ sơ sức khỏe thành công', data: record });
+  } catch (err) {
+    console.error('health-record create error:', err);
+    return res.status(500).json({ status: 'error', message: err.message });
+  }
+});
+
+// PUT /school-admin/students/health-record/:id — cập nhật hồ sơ sức khỏe
+router.put('/students/health-record/:id', authenticate, authorizeAnyPermission('MANAGE_STUDENT', 'MANAGE_HEALTH'), async (req, res) => {
+  try {
+    const HealthCheck = require('../models/HealthCheck');
+    const record = await HealthCheck.findById(req.params.id);
+    if (!record) return res.status(404).json({ status: 'error', message: 'Không tìm thấy hồ sơ sức khỏe' });
+
+    const { height, weight, temperature, heartRate, chronicDiseases, allergies, notes, generalStatus, checkDate, followUpDate, recommendations } = req.body;
+
+    const allergiesArr = Array.isArray(allergies)
+      ? allergies
+      : (allergies || '').split(',').map(a => a.trim()).filter(Boolean).map(a => ({ allergen: a }));
+    const chronicArr = Array.isArray(chronicDiseases)
+      ? chronicDiseases
+      : (chronicDiseases || '').split(',').map(d => d.trim()).filter(Boolean);
+
+    if (height !== undefined)      record.height          = height ? Number(height) : undefined;
+    if (weight !== undefined)      record.weight          = weight ? Number(weight) : undefined;
+    if (temperature !== undefined) record.temperature     = temperature ? Number(temperature) : undefined;
+    if (heartRate !== undefined)   record.heartRate       = heartRate ? Number(heartRate) : undefined;
+    record.chronicDiseases = chronicArr;
+    record.allergies       = allergiesArr;
+    if (notes !== undefined)           record.notes           = notes;
+    if (generalStatus !== undefined)   record.generalStatus   = generalStatus;
+    if (checkDate !== undefined)       record.checkDate       = checkDate ? new Date(checkDate) : record.checkDate;
+    if (followUpDate !== undefined)    record.followUpDate    = followUpDate ? new Date(followUpDate) : undefined;
+    if (recommendations !== undefined) record.recommendations = recommendations;
+
+    await record.save();
+    return res.json({ status: 'success', message: 'Cập nhật hồ sơ thành công', data: record });
+  } catch (err) {
+    console.error('health-record update error:', err);
+    return res.status(500).json({ status: 'error', message: err.message });
+  }
+});
+
+// DELETE /school-admin/students/health-record/:id — xóa hồ sơ sức khỏe
+router.delete('/students/health-record/:id', authenticate, authorizeAnyPermission('MANAGE_STUDENT', 'MANAGE_HEALTH'), async (req, res) => {
+  try {
+    const HealthCheck = require('../models/HealthCheck');
+    const record = await HealthCheck.findByIdAndDelete(req.params.id);
+    if (!record) return res.status(404).json({ status: 'error', message: 'Không tìm thấy hồ sơ sức khỏe' });
+    return res.json({ status: 'success', message: 'Đã xóa hồ sơ sức khỏe' });
+  } catch (err) {
+    console.error('health-record delete error:', err);
+    return res.status(500).json({ status: 'error', message: err.message });
+  }
+});
+
 // POST /school-admin/students/health-import — import từ Excel (nhận mảng rows đã parse)
-router.post('/students/health-import', authenticate, authorizePermissions('MANAGE_STUDENT'), async (req, res) => {
+router.post('/students/health-import', authenticate, authorizeAnyPermission('MANAGE_STUDENT', 'MANAGE_HEALTH'), async (req, res) => {
   try {
     const Student     = require('../models/Student');
     const HealthCheck = require('../models/HealthCheck');
