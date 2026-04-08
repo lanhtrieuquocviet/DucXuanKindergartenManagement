@@ -30,6 +30,10 @@ const teacherSchema = new mongoose.Schema({
     enum: ['male', 'female'],
     default: 'male',
   },
+  isLeader: {
+    type: Boolean,
+    default: false,
+  },
   status: {
     type: String,
     enum: ['active', 'inactive'],
