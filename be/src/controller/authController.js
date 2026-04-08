@@ -23,7 +23,8 @@ const PASSWORD_COMPLEXITY_REGEX = /^(?=.*[A-Z])(?=.*\d)(?=.*[^A-Za-z0-9]).{6,}$/
 /**
  * Validate mật khẩu theo các quy tắc:
  * - Độ dài tối thiểu: 8 ký tự
- * - Độ dài tối đa: 64 ký tự
+ * - Độ dài tối đa: 32 ký tự
+ * - Chứa ít nhất 1 chữ hoa, 1 chữ thường, 1 số, 1 ký tự đặc biệt
  * - Không chứa khoảng trắng
  * @param {string} password - Mật khẩu cần validate
  * @returns {string[]} - Mảng các lỗi (rỗng nếu hợp lệ)
@@ -31,24 +32,32 @@ const PASSWORD_COMPLEXITY_REGEX = /^(?=.*[A-Z])(?=.*\d)(?=.*[^A-Za-z0-9]).{6,}$/
 const validatePassword = (password) => {
   const errors = [];
 
-  // Kiểm tra độ dài tối thiểu
   if (password.length < 8) {
     errors.push('Mật khẩu phải có ít nhất 8 ký tự');
   }
 
-  // Kiểm tra độ dài tối đa
-  if (password.length > 64) {
-    errors.push('Mật khẩu không được vượt quá 64 ký tự');
+  if (password.length > 32) {
+    errors.push('Mật khẩu không được vượt quá 32 ký tự');
   }
 
-  // Kiểm tra khoảng trắng
-  if (password.includes(' ')) {
+  if (/\s/.test(password)) {
     errors.push('Mật khẩu không được chứa khoảng trắng');
   }
 
-  // Kiểm tra khoảng trắng đầu/cuối
-  if (password !== password.trim()) {
-    errors.push('Mật khẩu không được có khoảng trắng ở đầu hoặc cuối');
+  if (!/[A-Z]/.test(password)) {
+    errors.push('Mật khẩu phải chứa ít nhất 1 chữ hoa');
+  }
+
+  if (!/[a-z]/.test(password)) {
+    errors.push('Mật khẩu phải chứa ít nhất 1 chữ thường');
+  }
+
+  if (!/\d/.test(password)) {
+    errors.push('Mật khẩu phải chứa ít nhất 1 chữ số');
+  }
+
+  if (!/[^A-Za-z0-9]/.test(password)) {
+    errors.push('Mật khẩu phải chứa ít nhất 1 ký tự đặc biệt');
   }
 
   return errors;
@@ -370,11 +379,26 @@ const updateProfile = async (req, res) => {
     // Tín tiên phone, nếu không có thì dùng parentPhone
     const phoneValue = phone !== undefined ? phone : parentPhone;
     if (typeof phoneValue === 'string') {
-      user.phone = phoneValue.trim();
+      const normalizedPhone = phoneValue.trim();
+      if (normalizedPhone && normalizedPhone !== user.phone) {
+        const duplicateUser = await User.findOne({ phone: normalizedPhone, _id: { $ne: user._id } });
+        if (duplicateUser) {
+          return res.status(400).json({
+            status: 'error',
+            message: 'Số điện thoại này đã được sử dụng bởi tài khoản khác. Vui lòng nhập số điện thoại khác.',
+          });
+        }
+      }
+      user.phone = normalizedPhone;
     }
 
-    if (typeof address === 'string') {
-      user.address = address.trim();
+    if (address !== undefined) {
+      if (address === null) {
+        user.address = null;
+      } else if (typeof address === 'string') {
+        const trimmedAddress = address.trim();
+        user.address = trimmedAddress === '' ? null : trimmedAddress;
+      }
     }
 
     await user.save();
@@ -445,6 +469,13 @@ const changePassword = async (req, res) => {
       return res.status(400).json({
         status: 'error',
         message: 'Mật khẩu hiện tại không đúng',
+      });
+    }
+
+    if (currentPassword === newPassword) {
+      return res.status(400).json({
+        status: 'error',
+        message: 'Mật khẩu mới không được trùng mật khẩu hiện tại',
       });
     }
 

@@ -1736,7 +1736,7 @@ router.get('/staff-users', authenticate, authorizeRoles('SchoolAdmin'), async (r
   try {
     const users = await User.find({ status: 'active' })
       .populate('roles', 'roleName')
-      .select('fullName phone username email roles')
+      .select('fullName phone username email roles avatar status')
       .sort({ fullName: 1 })
       .lean();
 
@@ -1777,6 +1777,7 @@ router.get('/staff-members', authenticate, authorizeRoles('SchoolAdmin'), async 
         phone: item.userId.phone,
         avatar: item.userId.avatar || '',
         status: item.userId.status,
+        roleNames: (item.userId.roles || []).map((role) => role.roleName || '').filter(Boolean).join(', '),
       } : null,
     }));
 
@@ -1838,7 +1839,7 @@ router.post('/staff-members', authenticate, authorizeRoles('SchoolAdmin'), async
 
 router.put('/staff-members/:id', authenticate, authorizeRoles('SchoolAdmin'), async (req, res) => {
   try {
-    const { position, status, notes } = req.body;
+    const { position, status, notes, avatar } = req.body;
     const staff = await Staff.findById(req.params.id);
     if (!staff) return res.status(404).json({ status: 'error', message: 'Không tìm thấy nhân sự' });
 
@@ -1848,7 +1849,12 @@ router.put('/staff-members/:id', authenticate, authorizeRoles('SchoolAdmin'), as
     if (notes !== undefined) staff.notes = notes?.trim() || '';
 
     await staff.save();
-    await staff.populate('userId', 'fullName phone status');
+
+    if (avatar !== undefined && staff.userId) {
+      await User.findByIdAndUpdate(staff.userId, { avatar });
+    }
+
+    await staff.populate('userId', 'fullName phone avatar status');
 
     return res.status(200).json({
       status: 'success',
@@ -1863,6 +1869,7 @@ router.put('/staff-members/:id', authenticate, authorizeRoles('SchoolAdmin'), as
           _id: staff.userId._id,
           fullName: staff.userId.fullName,
           phone: staff.userId.phone,
+          avatar: staff.userId.avatar,
           status: staff.userId.status,
         } : null,
       },
@@ -1870,6 +1877,35 @@ router.put('/staff-members/:id', authenticate, authorizeRoles('SchoolAdmin'), as
   } catch (error) {
     console.error('updateStaffMember error:', error);
     return res.status(500).json({ status: 'error', message: 'Lỗi khi cập nhật nhân sự' });
+  }
+});
+
+router.put('/users/:id', authenticate, authorizeRoles('SchoolAdmin'), async (req, res) => {
+  try {
+    const { avatar, status } = req.body;
+    const user = await User.findById(req.params.id);
+    if (!user) return res.status(404).json({ status: 'error', message: 'Không tìm thấy người dùng' });
+
+    if (avatar !== undefined) user.avatar = avatar;
+    if (status && ['active', 'inactive'].includes(status)) user.status = status;
+
+    await user.save();
+
+    return res.status(200).json({
+      status: 'success',
+      message: 'Cập nhật người dùng thành công',
+      data: {
+        _id: user._id,
+        fullName: user.fullName,
+        email: user.email,
+        phone: user.phone,
+        avatar: user.avatar,
+        status: user.status,
+      },
+    });
+  } catch (error) {
+    console.error('updateUser error:', error);
+    return res.status(500).json({ status: 'error', message: 'Lỗi khi cập nhật người dùng' });
   }
 });
 
