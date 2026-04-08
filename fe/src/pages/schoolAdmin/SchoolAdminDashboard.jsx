@@ -2,6 +2,7 @@ import { useEffect, useMemo, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../../context/AuthContext';
 import RoleLayout from '../../layouts/RoleLayout';
+import { SCHOOL_ADMIN_MENU_ITEMS, createSchoolAdminMenuSelect, filterMenuByPermissions } from './schoolAdminMenuConfig';
 import { Box, Paper, Typography, Stack, Divider, LinearProgress } from '@mui/material';
 import {
   Groups as GroupsIcon,
@@ -13,7 +14,11 @@ import { get, ENDPOINTS } from '../../service/api';
 
 function SchoolAdminDashboard() {
   const navigate = useNavigate();
-  const { user, logout, isInitializing } = useAuth();
+  const { user, logout, isInitializing, hasPermission } = useAuth();
+  const menuItems = useMemo(
+    () => filterMenuByPermissions(SCHOOL_ADMIN_MENU_ITEMS, hasPermission),
+    [hasPermission]
+  );
   const [now, setNow] = useState(new Date());
   const [stats, setStats] = useState({
     studentTotal: 0,
@@ -87,7 +92,7 @@ function SchoolAdminDashboard() {
         );
         const attendanceMarked = attendancePresent + attendanceAbsent;
         const attendanceRate =
-          attendanceMarked > 0 ? Math.round((attendancePresent / attendanceMarked) * 100) : 0;
+          studentTotal > 0 ? Math.min(100, Math.round((attendanceMarked / studentTotal) * 100)) : 0;
 
         const attendanceRows = checkedRows.map((c) => {
           const totalStudents = Number(c?.totalStudents || 0);
@@ -131,67 +136,9 @@ function SchoolAdminDashboard() {
     fetchDashboardStats();
   }, [isInitializing, user]);
 
-  const menuItems = [
-    { key: 'overview', label: 'Tổng quan trường' },
-    {
-      key: 'academic-years',
-      label: 'Quản lý năm học',
-      children: [
-        { key: 'academic-year-setup', label: 'Thiết lập năm học' },
-        { key: 'academic-plan', label: 'Thiết lập kế hoạch' },
-        { key: 'academic-schedule', label: 'Thời gian biểu' },
-        { key: 'academic-report', label: 'Báo cáo & thống kê' },
-      ],
-    },
-    { key: 'classes', label: 'Lớp học' },
-    { key: 'menu', label: 'Quản lý thực đơn' },
-    { key: 'meal-management', label: 'Quản lý bữa ăn' },
-    { key: 'teachers', label: 'Giáo viên' },
-    { key: 'students', label: 'Học sinh & phụ huynh' },
-    { key: 'assets', label: 'Quản lý tài sản' },
-    { key: 'reports', label: 'Báo cáo của trường' },
-    { key: 'contacts', label: 'Liên hệ' },
-    { key: 'qa', label: 'Câu hỏi' },
-    { key: 'blogs', label: 'Quản lý blog' },
-    { key: 'documents', label: 'Quản lý tài liệu' },
-    { key: 'public-info', label: 'Thông tin công khai' },
-    { key: 'attendance', label: 'Quản lý điểm danh' },
-    { key: 'face-attendance', label: 'Đăng ký khuôn mặt' },
-  ];
-
   const userName = user?.fullName || user?.username || 'School Admin';
 
-  const handleMenuSelect = async (key) => {
-    if (key === 'overview') return;
-    if (key === 'academic-years' || key === 'academic-year-setup') return navigate('/school-admin/academic-years');
-    if (key === 'academic-curriculum') return navigate('/school-admin/curriculum');
-    if (key === 'academic-schedule') return navigate('/school-admin/timetable');
-    if (key === 'academic-plan') return navigate('/school-admin/academic-plan');
-    if (key === 'academic-report') {
-      try {
-        const resp = await get(ENDPOINTS.SCHOOL_ADMIN.ACADEMIC_YEARS.CURRENT);
-        const yearId = resp?.status === 'success' ? resp?.data?._id : null;
-        if (yearId) navigate(`/school-admin/academic-years/${yearId}/report`);
-        else navigate('/school-admin/academic-years');
-      } catch (_) {
-        navigate('/school-admin/academic-years');
-      }
-      return;
-    }
-    if (key === 'academic-students') return navigate('/school-admin/class-list');
-    if (key === 'classes') return navigate('/school-admin/classes');
-    if (key === 'menu') return navigate('/school-admin/menus');
-    if (key === 'meal-management') return navigate('/school-admin/meal-management');
-    if (key === 'teachers') return navigate('/school-admin/teachers');
-    if (key === 'students') return navigate('/school-admin/students');
-    if (key === 'contacts') return navigate('/school-admin/contacts');
-    if (key === 'qa') return navigate('/school-admin/qa');
-    if (key === 'blogs') return navigate('/school-admin/blogs');
-    if (key === 'documents') return navigate('/school-admin/documents');
-    if (key === 'public-info') return navigate('/school-admin/public-info');
-    if (key === 'attendance') return navigate('/school-admin/attendance/overview');
-    if (key === 'face-attendance') return navigate('/school-admin/face-attendance');
-  };
+  const handleMenuSelect = createSchoolAdminMenuSelect(navigate);
 
   const dateTimeText = useMemo(() => {
     return new Intl.DateTimeFormat('vi-VN', {
@@ -214,7 +161,7 @@ function SchoolAdminDashboard() {
     {
       label: 'Tỷ lệ có mặt hôm nay',
       value: `${stats.attendanceRate}%`,
-      note: `${stats.attendancePresent}/${stats.attendanceMarked} em đã điểm danh | ${stats.attendanceAbsent} em vắng`,
+      note: `${stats.attendanceMarked}/${stats.studentTotal} em đã được điểm danh`,
       icon: <CheckCircleIcon sx={{ fontSize: 34, color: '#059669' }} />,
     },
     {

@@ -3,6 +3,8 @@ import { useNavigate, useParams, useSearchParams } from 'react-router-dom';
 import { useAuth } from '../../context/AuthContext';
 import { useSchoolAdmin } from '../../context/SchoolAdminContext';
 import RoleLayout from '../../layouts/RoleLayout';
+import { createSchoolAdminMenuSelect } from './schoolAdminMenuConfig';
+import { useSchoolAdminMenu } from './useSchoolAdminMenu';
 import {
   Box,
   Paper,
@@ -51,7 +53,10 @@ const formatTime = (timeStr) => {
 };
 
 const getStatusInfo = (attendance) => {
-  if (!attendance || attendance.status === 'absent') {
+  if (!attendance) {
+    return { text: 'Chưa điểm danh', color: 'default' };
+  }
+  if (attendance.status === 'absent') {
     return { text: 'Nghỉ học', color: 'error' };
   }
   if (attendance.status === 'present') {
@@ -72,6 +77,7 @@ function ClassAttendanceDetail() {
   const [searchParams] = useSearchParams();
   const { user, logout, isInitializing } = useAuth();
   const { getClassAttendanceDetail, loading, error } = useSchoolAdmin();
+  const menuItems = useSchoolAdminMenu();
 
   const [selectedDate, setSelectedDate] = useState(
     searchParams.get('date') || getLocalISODate()
@@ -119,56 +125,7 @@ function ClassAttendanceDetail() {
     }
   };
 
-  const menuItems = [
-    { key: 'overview', label: 'Tổng quan trường' },
-    { key: 'classes', label: 'Lớp học' },
-    { key: 'teachers', label: 'Giáo viên' },
-    { key: 'students', label: 'Học sinh & phụ huynh' },
-    { key: 'assets', label: 'Quản lý tài sản' },
-    { key: 'reports', label: 'Báo cáo của trường' },
-    { key: 'contacts', label: 'Liên hệ' },
-    { key: 'qa', label: 'Câu hỏi' },
-    { key: 'blogs', label: 'Quản lý blog' },
-    { key: 'documents', label: 'Quản lý tài liệu' },
-    { key: 'public-info', label: 'Thông tin công khai' },
-    { key: 'attendance', label: 'Quản lý điểm danh' },
-  ];
-
-  const handleMenuSelect = (key) => {
-    if (key === 'overview') {
-      navigate('/school-admin');
-      return;
-    }
-    if (key === 'classes') {
-      navigate('/school-admin/classes');
-      return;
-    }
-    if (key === 'teachers') { navigate('/school-admin/teachers'); return; }
-    if (key === 'contacts') {
-      navigate('/school-admin/contacts');
-      return;
-    }
-    if (key === 'qa') {
-      navigate('/school-admin/qa');
-      return;
-    }
-    if (key === 'blogs') {
-      navigate('/school-admin/blogs');
-      return;
-    }
-    if (key === 'documents') {
-      navigate('/school-admin/documents');
-      return;
-    }
-    if (key === 'public-info') {
-      navigate('/school-admin/public-info');
-      return;
-    }
-    if (key === 'attendance') {
-      navigate('/school-admin/attendance/overview');
-      return;
-    }
-  };
+  const handleMenuSelect = createSchoolAdminMenuSelect(navigate);
 
   const userName = user?.fullName || user?.username || 'School Admin';
 
@@ -178,10 +135,10 @@ function ClassAttendanceDetail() {
     const present = students.filter(
       (s) => s.attendance && s.attendance.status === 'present'
     ).length;
-    // Nghỉ học bao gồm: có status = 'absent' HOẶC không có attendance record
     const absent = students.filter(
-      (s) => !s.attendance || s.attendance.status === 'absent'
+      (s) => s.attendance && s.attendance.status === 'absent'
     ).length;
+    const noRecord = students.filter((s) => !s.attendance).length;
     const notCheckedOut = students.filter(
       (s) =>
         s.attendance &&
@@ -194,6 +151,7 @@ function ClassAttendanceDetail() {
       totalStudents,
       present,
       absent,
+      noRecord,
       notCheckedOut,
     };
   }, [students]);
@@ -210,6 +168,9 @@ function ClassAttendanceDetail() {
         }
         if (selectedStatus === 'absent') {
           return s.attendance && s.attendance.status === 'absent';
+        }
+        if (selectedStatus === 'noRecord') {
+          return !s.attendance;
         }
         if (selectedStatus === 'notCheckedOut') {
           return (
@@ -303,6 +264,7 @@ function ClassAttendanceDetail() {
                 <MenuItem value="all">Tất cả trạng thái</MenuItem>
                 <MenuItem value="present">Có mặt</MenuItem>
                 <MenuItem value="absent">Nghỉ học</MenuItem>
+                <MenuItem value="noRecord">Chưa điểm danh</MenuItem>
                 <MenuItem value="notCheckedOut">Chưa check-out</MenuItem>
               </Select>
             </FormControl>
@@ -333,6 +295,7 @@ function ClassAttendanceDetail() {
           { label: 'Sĩ số', value: stats.totalStudents },
           { label: 'Có mặt', value: stats.present },
           { label: 'Nghỉ học', value: stats.absent },
+          { label: 'Chưa điểm danh', value: stats.noRecord },
           { label: 'Chưa check-out', value: stats.notCheckedOut },
         ].map((item) => (
           <Grid item xs={12} sm={6} md={3} key={item.label}>

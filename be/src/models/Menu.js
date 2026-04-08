@@ -34,6 +34,23 @@ const menuSchema = new mongoose.Schema(
       type: String,
       default: "",
     },
+    nutrition: {
+      calories: { type: Number, default: 0 },
+      protein: { type: Number, default: 0 },
+      fat: { type: Number, default: 0 },
+      carb: { type: Number, default: 0 },
+      avgCalories: { type: Number, default: 0 },
+      proteinPercent: { type: Number, default: 0 },
+      fatPercent: { type: Number, default: 0 },
+      carbPercent: { type: Number, default: 0 },
+    },
+    nutritionPlan: [
+      {
+        label: { type: String, required: true },
+        target: { type: Number, required: true, default: 0 },
+        actual: { type: Number, required: true, default: 0 },
+      }
+    ],
   },
   {
     timestamps: true,

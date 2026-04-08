@@ -3,6 +3,8 @@ import { useNavigate, useParams } from 'react-router-dom';
 import { useAuth } from '../../context/AuthContext';
 import { useSchoolAdmin } from '../../context/SchoolAdminContext';
 import RoleLayout from '../../layouts/RoleLayout';
+import { createSchoolAdminMenuSelect } from './schoolAdminMenuConfig';
+import { useSchoolAdminMenu } from './useSchoolAdminMenu';
 import ConfirmDialog from '../../components/ConfirmDialog';
 import 'quill/dist/quill.snow.css';
 import {
@@ -35,6 +37,7 @@ function BlogDetail() {
   const navigate = useNavigate();
   const { user, logout, isInitializing } = useAuth();
   const { getBlogs, deleteBlog, setError } = useSchoolAdmin();
+  const menuItems = useSchoolAdminMenu();
 
   const [blog, setBlog] = useState(null);
   const [loading, setLoading] = useState(true);
@@ -87,32 +90,7 @@ function BlogDetail() {
   const handleEdit = () => navigate(`/school-admin/blogs/${blogId}/edit`);
   const handleBack = () => navigate('/school-admin/blogs', { replace: true });
 
-  const menuItems = [
-    { key: 'overview', label: 'Tổng quan trường' },
-    { key: 'classes', label: 'Lớp học' },
-    { key: 'teachers', label: 'Giáo viên' },
-    { key: 'students', label: 'Học sinh & phụ huynh' },
-    { key: 'assets', label: 'Quản lý tài sản' },
-    { key: 'reports', label: 'Báo cáo của trường' },
-    { key: 'contacts', label: 'Liên hệ' },
-    { key: 'qa', label: 'Câu hỏi' },
-    { key: 'blogs', label: 'Quản lý blog' },
-    { key: 'documents', label: 'Quản lý tài liệu' },
-    { key: 'public-info', label: 'Thông tin công khai' },
-    { key: 'attendance', label: 'Quản lý điểm danh' },
-  ];
-
-  const handleMenuSelect = (key) => {
-    if (key === 'overview') navigate('/school-admin');
-    else if (key === 'classes') navigate('/school-admin/classes');
-    if (key === 'teachers') { navigate('/school-admin/teachers'); return; }
-    else if (key === 'contacts') navigate('/school-admin/contacts');
-    else if (key === 'qa') navigate('/school-admin/qa');
-    else if (key === 'blogs') navigate('/school-admin/blogs');
-    else if (key === 'documents') navigate('/school-admin/documents');
-    else if (key === 'public-info') navigate('/school-admin/public-info');
-    else if (key === 'attendance') navigate('/school-admin/attendance/overview');
-  };
+  const handleMenuSelect = createSchoolAdminMenuSelect(navigate);
 
   const userName = user?.fullName || user?.username || 'School Admin';
   const formatDate = (dateString) => {

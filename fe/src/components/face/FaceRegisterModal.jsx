@@ -12,7 +12,7 @@ import { useRef, useState, useEffect } from 'react';
 import { toast } from 'react-toastify';
 import * as faceapi from '@vladmandic/face-api';
 import { useFaceApi } from '../../hooks/useFaceApi';
-import { registerFaceEmbedding } from '../../service/faceAttendance.api';
+import { registerFaceEmbedding, uploadAttendanceImage } from '../../service/faceAttendance.api';
 
 export default function FaceRegisterModal({ open, onClose, student, onSuccess }) {
   const { isReady, loadingProgress } = useFaceApi();
@@ -22,6 +22,9 @@ export default function FaceRegisterModal({ open, onClose, student, onSuccess })
   const [saving, setSaving] = useState(false);
   const [detectionResult, setDetectionResult] = useState(null); // null | 'ok' | 'no_face' | 'multi'
   const [pendingEmbedding, setPendingEmbedding] = useState(null);
+  const [savedAngles, setSavedAngles] = useState(0); // số góc đã lưu trong phiên này
+  const [conflictInfo, setConflictInfo] = useState(null);
+  const MAX_ANGLES = 3; // đề nghị tối đa 3 góc
 
   const imgRef = useRef(null);
   const canvasRef = useRef(null);
@@ -66,6 +69,7 @@ export default function FaceRegisterModal({ open, onClose, student, onSuccess })
     setPreviewSrc(null);
     setDetectionResult(null);
     setPendingEmbedding(null);
+    setConflictInfo(null);
     startCamera();
   };
 
@@ -117,14 +121,37 @@ export default function FaceRegisterModal({ open, onClose, student, onSuccess })
   };
 
   // ── Lưu embedding lên server ───────────────────────────────────────────────
-  const handleSave = async () => {
+  const handleSave = async (addMore = false) => {
     if (!pendingEmbedding || !student?._id) return;
     setSaving(true);
     try {
-      await registerFaceEmbedding(student._id, pendingEmbedding);
-      toast.success(`Đã đăng ký khuôn mặt cho ${student.fullName}`);
-      onSuccess?.();
-      handleClose();
+      // Upload ảnh cho TẤT CẢ các góc (không chỉ góc đầu)
+      let faceImageUrl = '';
+      if (previewSrc) {
+        try {
+          faceImageUrl = await uploadAttendanceImage(previewSrc);
+          if (!faceImageUrl) toast.warn('Không lưu được ảnh nhưng embedding vẫn được lưu.');
+        } catch {
+          toast.warn('Lỗi upload ảnh — embedding vẫn được lưu bình thường.');
+        }
+      }
+      // Nếu học sinh đã có dữ liệu khuôn mặt từ trước, luôn dùng append=true để không mất góc cũ
+      const hasExistingData = student?.hasFaceEmbedding || (student?.angleCount || 0) > 0;
+      await registerFaceEmbedding(student._id, pendingEmbedding, faceImageUrl, savedAngles > 0 || hasExistingData);
+      const newCount = savedAngles + 1;
+      setSavedAngles(newCount);
+
+      if (addMore && newCount < MAX_ANGLES) {
+        toast.success(`Đã lưu góc ${newCount}/${MAX_ANGLES}. Tiếp tục chụp góc tiếp theo.`);
+        setPreviewSrc(null);
+        setDetectionResult(null);
+        setPendingEmbedding(null);
+        startCamera();
+      } else {
+        toast.success(`Đã đăng ký ${newCount} góc mặt cho ${student.fullName}`);
+        onSuccess?.();
+        handleClose();
+      }
     } catch (err) {
       toast.error(err.message || 'Lỗi khi lưu khuôn mặt');
     } finally {
@@ -137,6 +164,8 @@ export default function FaceRegisterModal({ open, onClose, student, onSuccess })
     setPreviewSrc(null);
     setDetectionResult(null);
     setPendingEmbedding(null);
+    setConflictInfo(null);
+    setSavedAngles(0);
     onClose();
   };
 
@@ -158,12 +187,31 @@ export default function FaceRegisterModal({ open, onClose, student, onSuccess })
         <div className="flex items-center justify-between px-6 py-4 border-b bg-indigo-600 rounded-t-2xl">
           <div>
             <h2 className="text-lg font-bold text-white">Đăng ký khuôn mặt</h2>
-            <p className="text-indigo-200 text-sm">{student?.fullName}</p>
+            <p className="text-indigo-200 text-sm">
+              {student?.fullName}
+              {savedAngles > 0 && (
+                <span className="ml-2 bg-indigo-400 text-white text-xs px-2 py-0.5 rounded-full">
+                  Góc {savedAngles}/{MAX_ANGLES}
+                </span>
+              )}
+            </p>
           </div>
           <button onClick={handleClose} className="text-white text-2xl font-bold leading-none hover:text-indigo-200">×</button>
         </div>
 
         <div className="p-6">
+          {/* Hướng dẫn góc mặt */}
+          {savedAngles === 0 && (
+            <div className="mb-3 p-3 bg-blue-50 border border-blue-200 rounded-lg text-xs text-blue-700">
+              Để tăng độ chính xác, hãy chụp <strong>2–3 góc mặt</strong>: nhìn thẳng, hơi nghiêng trái, hơi nghiêng phải.
+            </div>
+          )}
+          {savedAngles > 0 && savedAngles < MAX_ANGLES && (
+            <div className="mb-3 p-3 bg-green-50 border border-green-200 rounded-lg text-xs text-green-700">
+              Đã lưu {savedAngles} góc. Hãy xoay mặt nhẹ sang {savedAngles === 1 ? 'bên trái hoặc phải' : 'hướng khác'} rồi chụp tiếp.
+            </div>
+          )}
+
           {/* Models chưa sẵn sàng */}
           {!isReady && (
             <div className="flex items-center gap-2 mb-4 p-3 bg-yellow-50 border border-yellow-200 rounded-lg text-sm text-yellow-700">
@@ -212,7 +260,7 @@ export default function FaceRegisterModal({ open, onClose, student, onSuccess })
           )}
 
           {/* Kết quả detection */}
-          {detectionResult && (
+          {detectionResult && !conflictInfo && (
             <div className={`mt-3 p-3 rounded-lg text-sm ${
               detectionResult === 'ok' ? 'bg-green-50 text-green-700 border border-green-200' :
               detectionResult === 'no_face' ? 'bg-red-50 text-red-700 border border-red-200' :
@@ -223,6 +271,7 @@ export default function FaceRegisterModal({ open, onClose, student, onSuccess })
               {detectionResult === 'multi' && '⚠ Phát hiện nhiều khuôn mặt — thử chụp lại'}
             </div>
           )}
+
         </div>
 
         {/* Footer actions */}
@@ -244,13 +293,24 @@ export default function FaceRegisterModal({ open, onClose, student, onSuccess })
               </button>
             )}
             {detectionResult === 'ok' && (
-              <button
-                onClick={handleSave}
-                disabled={saving}
-                className="px-4 py-2 bg-indigo-600 text-white rounded-lg text-sm font-medium hover:bg-indigo-700 disabled:opacity-50"
-              >
-                {saving ? 'Đang lưu...' : '💾 Lưu khuôn mặt'}
-              </button>
+              <>
+                {savedAngles < MAX_ANGLES - 1 && (
+                  <button
+                    onClick={() => handleSave(true)}
+                    disabled={saving}
+                    className="px-4 py-2 bg-indigo-100 text-indigo-700 rounded-lg text-sm font-medium hover:bg-indigo-200 disabled:opacity-50"
+                  >
+                    {saving ? 'Đang lưu...' : `➕ Thêm góc (${savedAngles + 1}/${MAX_ANGLES})`}
+                  </button>
+                )}
+                <button
+                  onClick={() => handleSave(false)}
+                  disabled={saving}
+                  className="px-4 py-2 bg-indigo-600 text-white rounded-lg text-sm font-medium hover:bg-indigo-700 disabled:opacity-50"
+                >
+                  {saving ? 'Đang lưu...' : savedAngles === 0 ? '💾 Lưu khuôn mặt' : '✅ Hoàn tất'}
+                </button>
+              </>
             )}
           </div>
         </div>

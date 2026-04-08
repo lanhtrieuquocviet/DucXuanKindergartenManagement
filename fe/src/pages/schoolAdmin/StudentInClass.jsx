@@ -3,6 +3,8 @@ import { useNavigate, useParams } from 'react-router-dom';
 import RoleLayout from '../../layouts/RoleLayout';
 import { useAuth } from '../../context/AuthContext';
 import { get, post, del, ENDPOINTS } from '../../service/api';
+import { createSchoolAdminMenuSelect } from './schoolAdminMenuConfig';
+import { useSchoolAdminMenu } from './useSchoolAdminMenu';
 
 import {
   Box,
@@ -218,6 +220,7 @@ function StudentInClass() {
   const { classId } = useParams();
   const navigate = useNavigate();
   const { user, hasRole, logout, isInitializing } = useAuth();
+  const menuItems = useSchoolAdminMenu();
 
   const [classDetail, setClassDetail] = useState(null);
   const [students, setStudents] = useState([]);
@@ -233,6 +236,15 @@ function StudentInClass() {
   const [removeConfirm, setRemoveConfirm] = useState(null); // student object
   const [removeLoading, setRemoveLoading] = useState(false);
   const [removeError, setRemoveError] = useState(null);
+
+  // Nhật ký: trạng thái hoàn thành từng tiết
+  const [completedItems, setCompletedItems] = useState(new Set());
+  const toggleCompleted = (id) =>
+    setCompletedItems(prev => {
+      const next = new Set(prev);
+      next.has(id) ? next.delete(id) : next.add(id);
+      return next;
+    });
 
   // Add students to class dialog
   const [addOpen, setAddOpen] = useState(false);
@@ -370,38 +382,13 @@ function StudentInClass() {
   // ── layout helpers ───────────────────────────────────────────────────────────
   const handleLogout = () => { logout(); navigate('/login', { replace: true }); };
   const handleViewProfile = () => navigate('/profile');
-  const handleGoBack = () => navigate(hasRole('SystemAdmin') ? '/system-admin/classes' : '/school-admin/classes');
-
-  const getMenuItems = () => [
-    { key: 'overview', label: 'Tổng quan trường' },
-    { key: 'classes', label: 'Lớp học' },
-    { key: 'teachers', label: 'Giáo viên' },
-    { key: 'students', label: 'Học sinh & phụ huynh' },
-    { key: 'assets', label: 'Quản lý tài sản' },
-    { key: 'reports', label: 'Báo cáo của trường' },
-    { key: 'contacts', label: 'Liên hệ' },
-    { key: 'qa', label: 'Câu hỏi' },
-    { key: 'blogs', label: 'Quản lý blog' },
-    { key: 'documents', label: 'Quản lý tài liệu' },
-    { key: 'public-info', label: 'Thông tin công khai' },
-    { key: 'attendance', label: 'Quản lý điểm danh' },
-  ];
-
-  const handleMenuSelect = (key) => {
-    const routes = {
-      classes: '/school-admin/classes',
-      teachers: '/school-admin/teachers',
-      students: '/school-admin/students',
-      contacts: '/school-admin/contacts',
-      overview: '/school-admin',
-      qa: '/school-admin/qa',
-      blogs: '/school-admin/blogs',
-      documents: '/school-admin/documents',
-      'public-info': '/school-admin/public-info',
-      attendance: '/school-admin/attendance/overview',
-    };
-    if (routes[key]) navigate(routes[key]);
+  const handleGoBack = () => {
+    const gradeId = classDetail?.gradeId?._id || classDetail?.gradeId;
+    const base = hasRole('SystemAdmin') ? '/system-admin/classes' : '/school-admin/classes';
+    navigate(gradeId ? `${base}?gradeId=${gradeId}` : base);
   };
+
+  const handleMenuSelect = createSchoolAdminMenuSelect(navigate);
 
   // ── render ───────────────────────────────────────────────────────────────────
 
@@ -411,7 +398,7 @@ function StudentInClass() {
       <RoleLayout
         title="Chi tiết lớp học"
         description=""
-        menuItems={getMenuItems()}
+        menuItems={menuItems}
         activeKey="classes"
         onLogout={handleLogout}
         onViewProfile={handleViewProfile}
@@ -439,7 +426,7 @@ function StudentInClass() {
     <RoleLayout
       title={`Chi tiết lớp ${className}`}
       description="Xem thông tin, học sinh và nhật ký của lớp học."
-      menuItems={getMenuItems()}
+      menuItems={menuItems}
       activeKey="classes"
       onLogout={handleLogout}
       onViewProfile={handleViewProfile}
@@ -605,7 +592,7 @@ function StudentInClass() {
           {activeTab === 0 && (
             <Grid container spacing={2}>
               {/* Card: Giáo viên */}
-              <Grid item xs={12} md={4}>
+              <Grid item xs={12} md={6}>
                 <Paper variant="outlined" sx={{ p: 2.5, borderRadius: 2, height: '100%' }}>
                   <Stack direction="row" alignItems="center" spacing={1} sx={{ mb: 2 }}>
                     <PersonIcon sx={{ color: '#7c3aed' }} />
@@ -638,7 +625,7 @@ function StudentInClass() {
               </Grid>
 
               {/* Card: Phòng học */}
-              <Grid item xs={12} md={4}>
+              <Grid item xs={12} md={6}>
                 <Paper variant="outlined" sx={{ p: 2.5, borderRadius: 2, height: '100%' }}>
                   <Stack direction="row" alignItems="center" spacing={1} sx={{ mb: 2 }}>
                     <MeetingRoomIcon sx={{ color: '#2563eb' }} />
@@ -670,9 +657,9 @@ function StudentInClass() {
                 </Paper>
               </Grid>
 
-              {/* Card: Thời khóa biểu */}
-              <Grid item xs={12} md={4}>
-                <Paper variant="outlined" sx={{ p: 2.5, borderRadius: 2, height: '100%' }}>
+              {/* Card: Thời khóa biểu — full width */}
+              <Grid item xs={12}>
+                <Paper variant="outlined" sx={{ p: 2.5, borderRadius: 2 }}>
                   <Stack direction="row" alignItems="center" spacing={1} sx={{ mb: 2 }}>
                     <ScheduleIcon sx={{ color: '#d97706' }} />
                     <Typography variant="subtitle2" fontWeight={700}>Thời khóa biểu</Typography>
@@ -680,13 +667,13 @@ function StudentInClass() {
                   {timetable.length === 0 ? (
                     <Typography variant="body2" color="text.secondary">Chưa có thời khóa biểu</Typography>
                   ) : (
-                    <Stack spacing={1}>
+                    <Stack divider={<Divider />}>
                       {timetable.map(item => (
-                        <Stack key={item._id} direction="row" spacing={1.5} alignItems="flex-start">
-                          <Typography variant="caption" sx={{ width: 95, color: '#7c3aed', fontWeight: 600, flexShrink: 0, pt: 0.2 }}>
+                        <Stack key={item._id} direction="row" spacing={2} alignItems="flex-start" sx={{ py: 1.25 }}>
+                          <Typography variant="body2" sx={{ minWidth: 110, color: '#7c3aed', fontWeight: 600, flexShrink: 0 }}>
                             {item.startLabel} – {item.endLabel}
                           </Typography>
-                          <Box flex={1}>
+                          <Box>
                             <Typography variant="body2">{item.content}</Typography>
                             {item.appliesToSeason !== 'both' && (
                               <Typography variant="caption" sx={{ color: item.appliesToSeason === 'summer' ? '#d97706' : '#2563eb' }}>
@@ -768,37 +755,62 @@ function StudentInClass() {
           {/* ── Tab 2: Nhật ký lớp ──────────────────────────────────────── */}
           {activeTab === 2 && (
             <Box>
-              <Stack direction="row" justifyContent="space-between" alignItems="center" sx={{ mb: 2 }}>
-                <Typography variant="subtitle2" fontWeight={700}>
-                  Nhật ký ngày {new Date().toLocaleDateString('vi-VN')}
-                </Typography>
-              </Stack>
+              <Typography variant="subtitle2" fontWeight={700} sx={{ mb: 2 }}>
+                Nhật ký ngày {new Date().toLocaleDateString('vi-VN')}
+              </Typography>
 
-              <Stack spacing={1.5}>
-                {[
-                  { time: '07:00', title: 'Đón trẻ', note: `Đã đón ${presentCount}/${students.length} trẻ`, icon: <CheckCircleIcon sx={{ color: '#16a34a', fontSize: 20 }} /> },
-                  { time: '08:00', title: 'Thể dục buổi sáng', note: 'Hoạt động thể chất ngoài sân', icon: <FavoriteIcon sx={{ color: '#d97706', fontSize: 20 }} /> },
-                  { time: '09:00', title: 'Học tập & vui chơi', note: 'Bài học theo chủ đề tuần', icon: <SchoolIcon sx={{ color: '#2563eb', fontSize: 20 }} /> },
-                  { time: '10:30', title: 'Ăn trưa', note: 'Theo thực đơn dinh dưỡng', icon: <ScheduleIcon sx={{ color: '#7c3aed', fontSize: 20 }} /> },
-                  { time: '11:00', title: 'Ngủ trưa', note: 'Nghỉ ngơi theo lịch', icon: <ScheduleIcon sx={{ color: '#9ca3af', fontSize: 20 }} /> },
-                ].map(({ time, title, note, icon }) => (
-                  <Paper
-                    key={time}
-                    variant="outlined"
-                    sx={{ p: 2, borderRadius: 2, display: 'flex', alignItems: 'center', gap: 2, borderColor: 'grey.200' }}
-                  >
-                    <Box sx={{ width: 52, textAlign: 'center', flexShrink: 0 }}>
-                      <Typography variant="caption" sx={{ color: '#7c3aed', fontWeight: 700 }}>{time}</Typography>
-                    </Box>
-                    <Divider orientation="vertical" flexItem />
-                    <Box sx={{ mr: 'auto' }}>
-                      <Typography variant="body2" fontWeight={700}>{title}</Typography>
-                      <Typography variant="caption" color="text.secondary">{note}</Typography>
-                    </Box>
-                    {icon}
-                  </Paper>
-                ))}
-              </Stack>
+              {timetable.length === 0 ? (
+                <Typography variant="body2" color="text.secondary">Chưa có thời khóa biểu</Typography>
+              ) : (
+                <Stack spacing={1.5}>
+                  {timetable.map((item, idx) => {
+                    const ICONS = [
+                      <CheckCircleIcon sx={{ color: '#16a34a', fontSize: 24 }} />,
+                      <FavoriteIcon    sx={{ color: '#d97706', fontSize: 24 }} />,
+                      <SchoolIcon      sx={{ color: '#2563eb', fontSize: 24 }} />,
+                      <ScheduleIcon    sx={{ color: '#7c3aed', fontSize: 24 }} />,
+                      <BookIcon        sx={{ color: '#0284c7', fontSize: 24 }} />,
+                    ];
+                    const seasonNote = item.appliesToSeason !== 'both'
+                      ? (item.appliesToSeason === 'summer' ? 'Mùa hè' : 'Mùa đông')
+                      : null;
+                    const done = completedItems.has(item._id);
+                    return (
+                      <Paper
+                        key={item._id}
+                        variant="outlined"
+                        sx={{
+                          p: 2, borderRadius: 2, display: 'flex', alignItems: 'center', gap: 2,
+                          borderColor: done ? '#16a34a' : 'grey.200',
+                          bgcolor: done ? '#f0fdf4' : '#fff',
+                          transition: 'all 0.2s',
+                        }}
+                      >
+                        <Box sx={{ width: 56, textAlign: 'center', flexShrink: 0 }}>
+                          <Typography variant="body2" sx={{ color: '#7c3aed', fontWeight: 700 }}>
+                            {item.startLabel}
+                          </Typography>
+                        </Box>
+                        <Divider orientation="vertical" flexItem />
+                        <Box sx={{ flex: 1 }}>
+                          <Typography variant="body2" fontWeight={700} sx={{ textDecoration: done ? 'line-through' : 'none', color: done ? 'text.secondary' : 'text.primary' }}>
+                            {item.content}
+                          </Typography>
+                          {seasonNote && !done && (
+                            <Typography variant="caption" sx={{ color: item.appliesToSeason === 'summer' ? '#d97706' : '#2563eb' }}>
+                              {seasonNote}
+                            </Typography>
+                          )}
+                          {done && (
+                            <Typography variant="caption" sx={{ color: '#16a34a', fontWeight: 600 }}>Đã hoạt động</Typography>
+                          )}
+                        </Box>
+                        {ICONS[idx % ICONS.length]}
+                      </Paper>
+                    );
+                  })}
+                </Stack>
+              )}
             </Box>
           )}
         </Box>

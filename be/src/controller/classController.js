@@ -4,6 +4,7 @@ const Grade = require('../models/Grade');
 const AcademicYear = require('../models/AcademicYear');
 const User = require('../models/User');
 const Teacher = require('../models/Teacher');
+const Classroom = require('../models/Classroom');
 
 /**
  * Validate teacher assignment rules:
@@ -42,6 +43,32 @@ async function validateTeacherAssignment(teacherIds, academicYearId, className, 
       const t = await Teacher.findById(tid).populate('userId', 'fullName').lean();
       const name = t?.userId?.fullName || tid;
       return `Giáo viên "${name}" đã phụ trách lớp "${className}" trong 2 năm, không thể phân công thêm`;
+    }
+  }
+
+  // Rule 4: Giáo viên không được phụ trách cùng tên lớp trong 2 năm liên tiếp nhau
+  // Hai năm liền kề khi startYear(B) - startYear(A) === 1 (vd: 2024-2025 và 2025-2026)
+  const currentYear = await AcademicYear.findById(academicYearId).lean();
+  if (currentYear) {
+    const currentStartYear = new Date(currentYear.startDate).getFullYear();
+    // Tìm năm học có startYear = currentStartYear - 1 (đúng 1 năm liền kề trước)
+    const prevYear = await AcademicYear.findOne({
+      _id: { $ne: academicYearId },
+      $expr: { $eq: [{ $year: '$startDate' }, currentStartYear - 1] },
+    }).lean();
+
+    if (prevYear) {
+      const prevClass = await Classes.findOne({ className, academicYearId: prevYear._id }).lean();
+      if (prevClass) {
+        const prevTeacherIds = prevClass.teacherIds.map(String);
+        for (const tid of teacherIds) {
+          if (prevTeacherIds.includes(String(tid))) {
+            const t = await Teacher.findById(tid).populate('userId', 'fullName').lean();
+            const name = t?.userId?.fullName || tid;
+            return `Giáo viên "${name}" đã phụ trách lớp "${className}" trong năm học ${prevYear.yearName}, không thể phân công lại ở năm học liền kề`;
+          }
+        }
+      }
     }
   }
 
@@ -130,12 +157,23 @@ const getStudentInClass = async (req, res) => {
       });
     }
 
+    const data = students.map((s) => {
+      const obj = { ...s };
+      obj.hasFaceEmbedding = Array.isArray(obj.faceEmbedding) && obj.faceEmbedding.length > 0;
+      obj.faceImageUrl = obj.faceImageUrl || '';
+      obj.faceImageUrls = Array.isArray(obj.faceImageUrls) ? obj.faceImageUrls.filter(Boolean) : [];
+      obj.angleCount = Array.isArray(obj.faceEmbeddings) ? obj.faceEmbeddings.length : (obj.hasFaceEmbedding ? 1 : 0);
+      delete obj.faceEmbedding;
+      delete obj.faceEmbeddings;
+      return obj;
+    });
+
     return res.status(200).json({
       status: 'success',
       message: 'Lấy danh sách học sinh thành công',
-      data: students,
+      data,
       classInfo: classInfo,
-      total: students.length
+      total: data.length
     });
   } catch (error) {
     console.error('Error in getStudentInClass:', error);
@@ -264,6 +302,24 @@ const createClass = async (req, res) => {
       return res.status(400).json({ status: 'error', message: teacherError });
     }
 
+    // Validate phòng học — chỉ phòng available, mỗi phòng chỉ dùng cho 1 lớp trong năm học
+    if (roomId) {
+      const room = await Classroom.findById(roomId).lean();
+      if (!room) {
+        return res.status(400).json({ status: 'error', message: 'Không tìm thấy phòng học' });
+      }
+      if (room.status !== 'available') {
+        return res.status(400).json({ status: 'error', message: `Phòng "${room.roomName}" không khả dụng (trạng thái: ${room.status === 'in_use' ? 'đang sử dụng' : 'bảo trì'})` });
+      }
+      const roomOccupied = await Classes.findOne({ roomId, academicYearId: activeYear._id }).lean();
+      if (roomOccupied) {
+        return res.status(400).json({
+          status: 'error',
+          message: `Phòng học này đang được sử dụng bởi lớp "${roomOccupied.className}"`,
+        });
+      }
+    }
+
     const newClass = new Classes({
       className,
       capacity: capacity || 0,
@@ -324,6 +380,28 @@ const updateClass = async (req, res) => {
     const teacherError = await validateTeacherAssignment(tIds, cls.academicYearId, newClassName, classId);
     if (teacherError) {
       return res.status(400).json({ status: 'error', message: teacherError });
+    }
+
+    // Validate phòng học — chỉ phòng available, mỗi phòng chỉ dùng cho 1 lớp trong năm học
+    if (roomId) {
+      const room = await Classroom.findById(roomId).lean();
+      if (!room) {
+        return res.status(400).json({ status: 'error', message: 'Không tìm thấy phòng học' });
+      }
+      if (room.status !== 'available') {
+        return res.status(400).json({ status: 'error', message: `Phòng "${room.roomName}" không khả dụng (trạng thái: ${room.status === 'in_use' ? 'đang sử dụng' : 'bảo trì'})` });
+      }
+      const roomOccupied = await Classes.findOne({
+        roomId,
+        academicYearId: cls.academicYearId,
+        _id: { $ne: classId },
+      }).lean();
+      if (roomOccupied) {
+        return res.status(400).json({
+          status: 'error',
+          message: `Phòng học này đang được sử dụng bởi lớp "${roomOccupied.className}"`,
+        });
+      }
     }
 
     cls.className = newClassName;

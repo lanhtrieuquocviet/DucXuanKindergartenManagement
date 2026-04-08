@@ -6,6 +6,8 @@ import RoleLayout from '../../layouts/RoleLayout';
 import ConfirmDialog from '../../components/ConfirmDialog';
 import RichTextEditor from '../../components/RichTextEditor';
 import { get, post, put, del, postFormData, ENDPOINTS } from '../../service/api';
+import { createSchoolAdminMenuSelect } from './schoolAdminMenuConfig';
+import { useSchoolAdminMenu } from './useSchoolAdminMenu';
 import {
   Box,
   Paper,
@@ -252,6 +254,7 @@ function DocumentFormModal({ open, onClose, initialData, onSubmit, loading }) {
 export default function ManageDocuments() {
   const navigate = useNavigate();
   const { user, logout, isInitializing } = useAuth();
+  const menuItems = useSchoolAdminMenu();
 
   const [documents, setDocuments] = useState([]);
   const [loading, setLoading] = useState(false);
@@ -385,62 +388,7 @@ export default function ManageDocuments() {
     await loadDocuments({ page: newPage });
   };
 
-  const menuItems = [
-    { key: 'overview', label: 'Tổng quan trường' },
-    {
-      key: 'academic-years',
-      label: 'Quản lý năm học',
-      children: [
-        { key: 'academic-year-setup', label: 'Thiết lập năm học' },
-        { key: 'academic-plan', label: 'Thiết lập kế hoạch' },
-        { key: 'academic-schedule', label: 'Thời gian biểu' },
-        { key: 'academic-report', label: 'Báo cáo & thống kê' },
-      ],
-    },
-    { key: 'classes', label: 'Lớp học' },
-    { key: 'teachers', label: 'Giáo viên' },
-    { key: 'students', label: 'Học sinh & phụ huynh' },
-    { key: 'assets', label: 'Quản lý tài sản' },
-    { key: 'reports', label: 'Báo cáo của trường' },
-    { key: 'contacts', label: 'Liên hệ' },
-    { key: 'qa', label: 'Câu hỏi' },
-    { key: 'blogs', label: 'Quản lý blog' },
-    { key: 'documents', label: 'Quản lý tài liệu' },
-    { key: 'public-info', label: 'Thông tin công khai' },
-    { key: 'attendance', label: 'Quản lý điểm danh' },
-  ];
-
-  const handleMenuSelect = async (key) => {
-    if (key === 'academic-report') {
-      try {
-        const resp = await get(ENDPOINTS.SCHOOL_ADMIN.ACADEMIC_YEARS.CURRENT);
-        const yearId = resp?.status === 'success' ? resp?.data?._id : null;
-        if (yearId) navigate(`/school-admin/academic-years/${yearId}/report`);
-        else navigate('/school-admin/academic-years');
-      } catch (_) {
-        navigate('/school-admin/academic-years');
-      }
-      return;
-    }
-
-    const routes = {
-      overview: '/school-admin',
-      'academic-year-setup': '/school-admin/academic-years',
-      'academic-curriculum': '/school-admin/curriculum',
-      'academic-students': '/school-admin/class-list',
-      'academic-schedule': '/school-admin/timetable',
-      'academic-plan': '/school-admin/academic-plan',
-      classes: '/school-admin/classes',
-      teachers: '/school-admin/teachers',
-      contacts: '/school-admin/contacts',
-      qa: '/school-admin/qa',
-      blogs: '/school-admin/blogs',
-      documents: '/school-admin/documents',
-      'public-info': '/school-admin/public-info',
-      attendance: '/school-admin/attendance/overview',
-    };
-    if (routes[key]) navigate(routes[key]);
-  };
+  const handleMenuSelect = createSchoolAdminMenuSelect(navigate);
 
   const userName = user?.fullName || user?.username || 'School Admin';
   const handleLogout = () => { logout(); navigate('/login', { replace: true }); };

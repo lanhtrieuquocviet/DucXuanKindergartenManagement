@@ -1,5 +1,5 @@
 const express = require('express');
-const { authenticate, authorizeRoles } = require('../middleware/auth');
+const { authenticate, authorizeRoles, authorizePermissions } = require('../middleware/auth');
 const {
   getStudents,
   createStudent,
@@ -7,6 +7,7 @@ const {
   getStudentDetail,
   updateStudent,
   deleteStudent,
+  checkUsernameAvailability,
 } = require('../controller/studentController');
 const {
   upsertAttendance,
@@ -75,8 +76,30 @@ const router = express.Router();
  *       403:
  *         description: Không có quyền SchoolAdmin
  */
+router.get('/check-username', authenticate, checkUsernameAvailability);
+
+router.get('/generate-username', authenticate, authorizePermissions('MANAGE_STUDENT'), async (req, res) => {
+  const User = require('../models/User');
+  try {
+    const prefix = 'HS';
+    const yearSuffix = String(new Date().getFullYear()).slice(-2);
+    let username = null;
+    for (let attempt = 0; attempt < 20; attempt++) {
+      const rand = Math.floor(Math.random() * 1000) + 1;
+      const candidate = `${prefix}${yearSuffix}${String(rand).padStart(4, '0')}`;
+      const exists = await User.findOne({ username: candidate }).lean();
+      if (!exists) { username = candidate; break; }
+    }
+    if (!username) {
+      return res.status(409).json({ status: 'error', message: 'Không thể tạo username duy nhất, vui lòng thử lại' });
+    }
+    return res.json({ status: 'success', username });
+  } catch (error) {
+    return res.status(500).json({ status: 'error', message: 'Lỗi khi sinh username', error: error.message });
+  }
+});
 router.get('/', authenticate, getStudents);
-router.post('/', authenticate, authorizeRoles('SchoolAdmin'), createStudent);
+router.post('/', authenticate, authorizePermissions('MANAGE_STUDENT'), createStudent);
 
 /**
  * @openapi
@@ -126,7 +149,7 @@ router.post('/', authenticate, authorizeRoles('SchoolAdmin'), createStudent);
  *       403:
  *         description: Không có quyền SchoolAdmin
  */
-router.post('/with-parent', authenticate, authorizeRoles('SchoolAdmin'), createStudentWithParent);
+router.post('/with-parent', authenticate, authorizePermissions('MANAGE_STUDENT'), createStudentWithParent);
 
 /**
  * @openapi
@@ -182,7 +205,7 @@ router.post('/with-parent', authenticate, authorizeRoles('SchoolAdmin'), createS
  *       200:
  *         description: Danh sách điểm danh
  */
-router.post('/attendance', authenticate, upsertAttendance);
+router.post('/attendance', authenticate, authorizePermissions('MANAGE_ATTENDANCE'), upsertAttendance);
 router.get('/attendance', authenticate, getAttendances);
 
 /**
@@ -216,7 +239,7 @@ router.get('/attendance', authenticate, getAttendances);
  *       200:
  *         description: Check-out thành công
  */
-router.post('/attendance/checkout', authenticate, checkoutAttendance);
+router.post('/attendance/checkout', authenticate, authorizePermissions('CHECKOUT_STUDENT'), checkoutAttendance);
 
 /**
  * @openapi
@@ -289,6 +312,81 @@ router.post('/attendance/checkout', authenticate, checkoutAttendance);
  */
 router.get('/:studentId', authenticate, getStudentDetail);
 router.put('/:studentId', authenticate, updateStudent);
-router.delete('/:studentId', authenticate, authorizeRoles('SchoolAdmin'), deleteStudent);
+router.delete('/:studentId', authenticate, authorizePermissions('MANAGE_STUDENT'), deleteStudent);
+
+// ── Sổ liên lạc dành cho phụ huynh / học sinh ──────────────────
+// Helper: tìm student của user đang đăng nhập
+async function getMyStudent(userId) {
+  const Student = require('../models/Student');
+  return Student.findOne({
+    $or: [{ parentId: userId }, { userId }, { UserId: userId }],
+    status: 'active',
+  })
+    .populate('classId', 'className gradeId academicYearId')
+    .populate({ path: 'classId', populate: [{ path: 'gradeId', select: 'gradeName' }, { path: 'academicYearId', select: 'yearName' }] })
+    .populate('parentId', 'fullName phone email')
+    .lean();
+}
+
+// GET /students/contact-book/my — thông tin học sinh + lớp
+router.get('/contact-book/my', authenticate, async (req, res) => {
+  try {
+    const student = await getMyStudent(req.user.id);
+    if (!student) return res.status(404).json({ status: 'error', message: 'Không tìm thấy thông tin học sinh.' });
+    return res.json({ status: 'success', data: student });
+  } catch (err) {
+    return res.status(500).json({ status: 'error', message: err.message });
+  }
+});
+
+// GET /students/contact-book/health — hồ sơ sức khỏe mới nhất
+router.get('/contact-book/health', authenticate, async (req, res) => {
+  try {
+    const student = await getMyStudent(req.user.id);
+    if (!student) return res.status(404).json({ status: 'error', message: 'Không tìm thấy học sinh.' });
+    const HealthCheck = require('../models/HealthCheck');
+    const health = await HealthCheck.findOne({ studentId: student._id }).sort({ checkDate: -1 }).lean();
+    return res.json({ status: 'success', data: health || null });
+  } catch (err) {
+    return res.status(500).json({ status: 'error', message: err.message });
+  }
+});
+
+// GET /students/contact-book/attendance?year=&month= — lịch sử điểm danh
+router.get('/contact-book/attendance', authenticate, async (req, res) => {
+  try {
+    const student = await getMyStudent(req.user.id);
+    if (!student) return res.status(404).json({ status: 'error', message: 'Không tìm thấy học sinh.' });
+    const Attendance = require('../models/Attendances');
+    const now = new Date();
+    const year  = parseInt(req.query.year)  || now.getFullYear();
+    const month = parseInt(req.query.month) || (now.getMonth() + 1);
+    const from = new Date(year, month - 1, 1);
+    const to   = new Date(year, month, 1);
+    const records = await Attendance.find({ studentId: student._id, date: { $gte: from, $lt: to } })
+      .sort({ date: -1 }).lean();
+    const present = records.filter(r => r.status === 'present').length;
+    const absent  = records.filter(r => r.status === 'absent').length;
+    const leave   = records.filter(r => r.status === 'leave').length;
+    const total   = records.length;
+    const rate    = total > 0 ? Math.round((present / total) * 100) : null;
+    return res.json({ status: 'success', data: { year, month, total, present, absent, leave, rate, records } });
+  } catch (err) {
+    return res.status(500).json({ status: 'error', message: err.message });
+  }
+});
+
+// GET /students/contact-book/notes — ghi chú của giáo viên
+router.get('/contact-book/notes', authenticate, async (req, res) => {
+  try {
+    const student = await getMyStudent(req.user.id);
+    if (!student) return res.status(404).json({ status: 'error', message: 'Không tìm thấy học sinh.' });
+    const TeacherNote = require('../models/TeacherNote');
+    const notes = await TeacherNote.find({ studentId: student._id }).sort({ createdAt: -1 }).lean();
+    return res.json({ status: 'success', data: notes });
+  } catch (err) {
+    return res.status(500).json({ status: 'error', message: err.message });
+  }
+});
 
 module.exports = router;

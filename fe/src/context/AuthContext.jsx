@@ -1,5 +1,5 @@
 import { createContext, useContext, useState, useEffect, useRef, useCallback } from 'react';
-import { get, post, put, getToken, ENDPOINTS } from '../service/api';
+import { get, post, put, getToken, getRefreshToken, ENDPOINTS, setAuthFailureHandler } from '../service/api';
 
 const AuthContext = createContext(null);
 
@@ -86,11 +86,7 @@ export const AuthProvider = ({
       } catch (err) {
         // Token không hợp lệ hoặc đã hết hạn
         if (err.status === 401 || err.status === 403) {
-          // Xóa token và user không hợp lệ
-          localStorage.removeItem('token');
-          localStorage.removeItem('user');
-          setToken(null);
-          setUser(null);
+          clearAuth(err.message || 'Phiên đăng nhập không hợp lệ.');
         } else {
           // Lỗi khác, giữ lại user từ localStorage nếu có
           const errorMessage = err.message || 'Không thể xác thực người dùng';
@@ -122,10 +118,14 @@ export const AuthProvider = ({
       }
 
       // Lưu vào state và localStorage
+      const { refreshToken: newRefreshToken } = response.data || {};
       setToken(newToken);
       setUser(newUser);
       localStorage.setItem('token', newToken);
       localStorage.setItem('user', JSON.stringify(newUser));
+      if (newRefreshToken) {
+        localStorage.setItem('refreshToken', newRefreshToken);
+      }
 
       // Callback khi login thành công
       if (onLoginSuccessRef.current) {
@@ -146,29 +146,39 @@ export const AuthProvider = ({
     }
   }, []);
 
-  // Logout
+  const clearAuth = useCallback((message) => {
+    setToken(null);
+    setUser(null);
+    localStorage.removeItem('token');
+    localStorage.removeItem('user');
+    localStorage.removeItem('refreshToken');
+    if (message) {
+      setError(message);
+    }
+    if (onLogoutRef.current) {
+      onLogoutRef.current();
+    }
+  }, []);
+
   const logout = useCallback(async () => {
-    // Gọi API logout để blacklist token phía server
+    // Gọi API logout để blacklist access token + thu hồi refresh token phía server
     try {
       const currentToken = getToken();
       if (currentToken) {
-        await post(ENDPOINTS.AUTH.LOGOUT, {});
+        const currentRefreshToken = getRefreshToken();
+        await post(ENDPOINTS.AUTH.LOGOUT, { refreshToken: currentRefreshToken });
       }
     } catch {
       // Bỏ qua lỗi API - vẫn tiếp tục xóa local state
     }
 
-    setToken(null);
-    setUser(null);
-    localStorage.removeItem('token');
-    localStorage.removeItem('user');
+    clearAuth();
+  }, [clearAuth]);
 
-    // Callback khi logout
-    if (onLogoutRef.current) {
-      onLogoutRef.current();
-    }
-    // Component sẽ tự xử lý navigation
-  }, []);
+  const forceLogout = useCallback((payload) => {
+    const message = payload?.message || 'Phiên đăng nhập đã kết thúc. Vui lòng đăng nhập lại.';
+    clearAuth(message);
+  }, [clearAuth]);
 
   // Get profile
   const getProfile = useCallback(async () => {
@@ -185,8 +195,8 @@ export const AuthProvider = ({
 
       return userData;
     } catch (err) {
-      if (err.status === 401) {
-        logout();
+      if (err.status === 401 || err.status === 403) {
+        clearAuth(err.message || 'Phiên đăng nhập không hợp lệ.');
         return null;
       }
       const errorMessage = err.message || 'Không lấy được hồ sơ người dùng';
@@ -198,7 +208,7 @@ export const AuthProvider = ({
     } finally {
       setLoading(false);
     }
-  }, [logout]);
+  }, [clearAuth]);
 
   // Update profile
   const updateProfile = useCallback(async (profileData) => {
@@ -245,6 +255,25 @@ export const AuthProvider = ({
     }
   }, []);
 
+  useEffect(() => {
+    setAuthFailureHandler(forceLogout);
+    return () => {
+      setAuthFailureHandler(null);
+    };
+  }, [forceLogout]);
+
+  // Lắng nghe khi tab khác logout (xóa token khỏi localStorage)
+  // Browser tự fire 'storage' event sang các tab khác khi localStorage thay đổi
+  useEffect(() => {
+    const handleStorageChange = (event) => {
+      if (event.key === 'token' && event.newValue === null) {
+        clearAuth('Phiên đăng nhập đã kết thúc. Vui lòng đăng nhập lại.');
+      }
+    };
+    window.addEventListener('storage', handleStorageChange);
+    return () => window.removeEventListener('storage', handleStorageChange);
+  }, [clearAuth]);
+
   // Check if user is authenticated
   const isAuthenticated = useCallback(() => {
     return !!token && !!user;
@@ -273,6 +302,17 @@ export const AuthProvider = ({
     return hasIt;
   }, [getUserRoles]);
 
+  // Check if user has a specific permission code.
+  // Nếu user chưa có permission nào (DB chưa seed) → trả về true để không ẩn menu.
+  const hasPermission = useCallback((code) => {
+    if (!user || !user.roles) return false;
+    const allCodes = user.roles.flatMap((role) =>
+      Array.isArray(role.permissions) ? role.permissions : []
+    );
+    if (allCodes.length === 0) return true; // chưa seed → show all
+    return allCodes.includes(code);
+  }, [user]);
+
   const value = {
     user,
     token,
@@ -287,6 +327,7 @@ export const AuthProvider = ({
     isAuthenticated,
     getUserRoles,
     hasRole,
+    hasPermission,
     setError, // Allow components to clear error
   };
 

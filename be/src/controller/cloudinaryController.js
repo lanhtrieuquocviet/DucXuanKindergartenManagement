@@ -7,6 +7,8 @@ const MEDIA_FOLDER = process.env.CLOUDINARY_MEDIA_FOLDER || 'avatars';
 const BLOG_FOLDER = process.env.CLOUDINARY_BLOG_FOLDER || 'blogs';
 const KITCHEN_FOLDER = process.env.CLOUDINARY_KITCHEN_FOLDER || 'kitchen';
 const ATTENDANCE_FOLDER = process.env.CLOUDINARY_ATTENDANCE_FOLDER || 'attendance';
+const PURCHASE_FOLDER = process.env.CLOUDINARY_PURCHASE_FOLDER || 'purchase-requests';
+const TEACHER_NOTE_FOLDER = process.env.CLOUDINARY_TEACHER_NOTE_FOLDER || 'teacher-notes';
 
 /**
  * POST /api/cloudinary/upload-avatar
@@ -250,6 +252,59 @@ const uploadAttendanceImage = async (req, res) => {
   }
 };
 
+/**
+ * POST /api/cloudinary/upload-purchase-image
+ * Upload ảnh bằng chứng yêu cầu mua sắm - Teacher
+ */
+const uploadPurchaseImage = async (req, res) => {
+  try {
+    if (!req.file || !req.file.buffer) {
+      return res.status(400).json({ status: 'error', message: 'Vui lòng chọn một file ảnh.' });
+    }
+
+    const config = cloudinary.config();
+    if (!config.api_key || !config.api_secret || !config.cloud_name) {
+      return res.status(500).json({ status: 'error', message: 'Cloudinary chưa được cấu hình.' });
+    }
+
+    const dataUri = `data:${req.file.mimetype || 'image/jpeg'};base64,${req.file.buffer.toString('base64')}`;
+    const result = await cloudinary.uploader.upload(dataUri, {
+      folder: PURCHASE_FOLDER,
+      resource_type: 'image',
+      quality: 'auto',
+      fetch_format: 'auto',
+    });
+
+    return res.status(200).json({ status: 'success', data: { url: result.secure_url } });
+  } catch (error) {
+    console.error('Upload purchase image error:', error);
+    return res.status(500).json({ status: 'error', message: error.message || 'Không tải lên được ảnh' });
+  }
+};
+
+const uploadNoteImage = async (req, res) => {
+  try {
+    if (!req.file || !req.file.buffer) {
+      return res.status(400).json({ status: 'error', message: 'Vui lòng chọn một file ảnh.' });
+    }
+    const config = cloudinary.config();
+    if (!config.api_key || !config.api_secret || !config.cloud_name) {
+      return res.status(500).json({ status: 'error', message: 'Cloudinary chưa được cấu hình.' });
+    }
+    const dataUri = `data:${req.file.mimetype || 'image/jpeg'};base64,${req.file.buffer.toString('base64')}`;
+    const result = await cloudinary.uploader.upload(dataUri, {
+      folder: TEACHER_NOTE_FOLDER,
+      resource_type: 'image',
+      quality: 'auto',
+      fetch_format: 'auto',
+    });
+    return res.status(200).json({ status: 'success', data: { url: result.secure_url } });
+  } catch (error) {
+    console.error('Upload note image error:', error);
+    return res.status(500).json({ status: 'error', message: error.message || 'Không tải lên được ảnh' });
+  }
+};
+
 module.exports = {
   getMediaLibrarySignature,
   uploadAvatar,
@@ -257,5 +312,7 @@ module.exports = {
   uploadBlogFile,
   uploadKitchenImage,
   uploadAttendanceImage,
+  uploadPurchaseImage,
+  uploadNoteImage,
 };
 

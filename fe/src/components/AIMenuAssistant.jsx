@@ -37,19 +37,20 @@ import {
   aiChatAboutMenu,
   aiCreateDishFromSuggestion,
   aiHealthCheck,
+  aiBalanceMenu,
 } from "../../service/menu.api";
 import { useSnackbar } from "notistack";
 
-const AIMenuAssistant = ({ dailyMenuId, currentMenu, onDishCreated }) => {
+const AIMenuAssistant = ({ dailyMenuId, onDishCreated }) => {
   const [messages, setMessages] = useState([]);
   const [inputValue, setInputValue] = useState("");
   const [loading, setLoading] = useState(false);
   const [aiEnabled, setAiEnabled] = useState(false);
   const [activeTab, setActiveTab] = useState("chat"); // chat, analyze, suggest, improve
   const [analysis, setAnalysis] = useState(null);
+  const [balanceAnalysis, setBalanceAnalysis] = useState(null);
   const [suggestions, setSuggestions] = useState(null);
   const [improvements, setImprovements] = useState(null);
-  const [selectedDishForImprovement, setSelectedDishForImprovement] = useState(null);
   const [openCreateDialog, setOpenCreateDialog] = useState(false);
   const [selectedSuggestion, setSelectedSuggestion] = useState(null);
   const messagesEndRef = useRef(null);
@@ -62,6 +63,7 @@ const AIMenuAssistant = ({ dailyMenuId, currentMenu, onDishCreated }) => {
         const res = await aiHealthCheck();
         setAiEnabled(res.data?.aiEnabled);
       } catch (error) {
+        console.error("AI health check error:", error);
         setAiEnabled(false);
       }
     };
@@ -89,6 +91,7 @@ const AIMenuAssistant = ({ dailyMenuId, currentMenu, onDishCreated }) => {
       };
       setMessages((prev) => [...prev, assistantMessage]);
     } catch (error) {
+      console.error("AI chat error:", error);
       const errorMsg = {
         role: "assistant",
         content: `❌ Lỗi: ${error.response?.data?.message || error.message}`,
@@ -108,7 +111,23 @@ const AIMenuAssistant = ({ dailyMenuId, currentMenu, onDishCreated }) => {
       setActiveTab("analyze");
       enqueueSnackbar("✅ Phân tích thực đơn thành công", { variant: "success" });
     } catch (error) {
+      console.error("Analyze menu error:", error);
       enqueueSnackbar("❌ Lỗi phân tích thực đơn", { variant: "error" });
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleBalanceMenu = async () => {
+    setLoading(true);
+    try {
+      const res = await aiBalanceMenu(dailyMenuId);
+      setBalanceAnalysis(res.data?.data);
+      setActiveTab("balance");
+      enqueueSnackbar("✅ Cân bằng thực đơn thành công", { variant: "success" });
+    } catch (error) {
+      console.error("Balance menu error:", error);
+      enqueueSnackbar("❌ Lỗi cân bằng thực đơn", { variant: "error" });
     } finally {
       setLoading(false);
     }
@@ -118,17 +137,18 @@ const AIMenuAssistant = ({ dailyMenuId, currentMenu, onDishCreated }) => {
     setLoading(true);
     try {
       const res = await aiSuggestNewDishes();
-      setSuggestions(res.data?.data?.newDishes);
+      setSuggestions(res.data?.data);
       setActiveTab("suggest");
       enqueueSnackbar("✅ Đề xuất món ăn thành công", { variant: "success" });
     } catch (error) {
+      console.error("Suggest new dishes error:", error);
       enqueueSnackbar("❌ Lỗi đề xuất món ăn", { variant: "error" });
     } finally {
       setLoading(false);
     }
   };
 
-  const handleImproveDish = async (foodId) => {
+  const _handleImproveDish = async (foodId) => {
     if (!foodId) {
       enqueueSnackbar("Vui lòng chọn một món ăn để cải thiện", { variant: "warning" });
       return;
@@ -143,6 +163,7 @@ const AIMenuAssistant = ({ dailyMenuId, currentMenu, onDishCreated }) => {
       setActiveTab("improve");
       enqueueSnackbar("✅ Đề xuất cải thiện thành công", { variant: "success" });
     } catch (error) {
+      console.error("Improve dish error:", error);
       enqueueSnackbar("❌ Lỗi đề xuất cải thiện", { variant: "error" });
     } finally {
       setLoading(false);
@@ -167,6 +188,7 @@ const AIMenuAssistant = ({ dailyMenuId, currentMenu, onDishCreated }) => {
       setSelectedSuggestion(null);
       onDishCreated?.();
     } catch (error) {
+      console.error("Create dish error:", error);
       enqueueSnackbar("❌ Lỗi tạo món ăn", { variant: "error" });
     } finally {
       setLoading(false);
@@ -176,7 +198,7 @@ const AIMenuAssistant = ({ dailyMenuId, currentMenu, onDishCreated }) => {
   if (!aiEnabled) {
     return (
       <Alert severity="warning">
-        ⚠️ AI Menu Assistant chưa được cấu hình. Vui lòng kiểm tra GEMINI_API_KEY.
+        ⚠️ AI Menu Assistant chưa được cấu hình. Vui lòng kiểm tra OPENAI_API_KEY.
       </Alert>
     );
   }
@@ -199,6 +221,14 @@ const AIMenuAssistant = ({ dailyMenuId, currentMenu, onDishCreated }) => {
           disabled={loading}
         >
           📊 Phân Tích
+        </Button>
+        <Button
+          variant={activeTab === "balance" ? "contained" : "outlined"}
+          onClick={handleBalanceMenu}
+          size="small"
+          disabled={loading}
+        >
+          🧮 Cân Bằng Thực Đơn
         </Button>
         <Button
           variant={activeTab === "suggest" ? "contained" : "outlined"}
@@ -287,18 +317,26 @@ const AIMenuAssistant = ({ dailyMenuId, currentMenu, onDishCreated }) => {
               📊 Phân Tích Thực Đơn
             </Typography>
             <Divider sx={{ my: 2 }} />
-            <Typography variant="body2" gutterBottom>
-              <strong>Nhận xét:</strong> {analysis.analysis}
-            </Typography>
-            <Chip
-              icon={analysis.isBalanced ? <CheckIcon /> : <AutoFixIcon />}
-              label={analysis.isBalanced ? "Cân bằng dinh dưỡng ✅" : "Cần cải thiện 🔧"}
-              color={analysis.isBalanced ? "success" : "warning"}
-              sx={{ mb: 2 }}
-            />
-            <Typography variant="body2" gutterBottom>
-              <strong>Lời khuyên:</strong> {analysis.overallRecommendation}
-            </Typography>
+            {typeof analysis === "string" ? (
+              <Typography variant="body2" sx={{ whiteSpace: "pre-wrap" }}>
+                {analysis}
+              </Typography>
+            ) : (
+              <>
+                <Typography variant="body2" gutterBottom>
+                  <strong>Nhận xét:</strong> {analysis.analysis}
+                </Typography>
+                <Chip
+                  icon={analysis.isBalanced ? <CheckIcon /> : <AutoFixIcon />}
+                  label={analysis.isBalanced ? "Cân bằng dinh dưỡng ✅" : "Cần cải thiện 🔧"}
+                  color={analysis.isBalanced ? "success" : "warning"}
+                  sx={{ mb: 2 }}
+                />
+                <Typography variant="body2" gutterBottom>
+                  <strong>Lời khuyên:</strong> {analysis.overallRecommendation}
+                </Typography>
+              </>
+            )}
 
             {analysis.suggestions && analysis.suggestions.length > 0 && (
               <>
@@ -335,6 +373,21 @@ const AIMenuAssistant = ({ dailyMenuId, currentMenu, onDishCreated }) => {
         </Card>
       )}
 
+      {/* Balance Menu Tab */}
+      {activeTab === "balance" && balanceAnalysis && (
+        <Card>
+          <CardContent>
+            <Typography variant="h6" gutterBottom>
+              🧮 Cân Bằng Thực Đơn
+            </Typography>
+            <Divider sx={{ my: 2 }} />
+            <Typography variant="body2" sx={{ whiteSpace: "pre-wrap" }}>
+              {balanceAnalysis}
+            </Typography>
+          </CardContent>
+        </Card>
+      )}
+
       {/* Suggest New Dishes Tab */}
       {activeTab === "suggest" && suggestions && (
         <Card>
@@ -343,42 +396,48 @@ const AIMenuAssistant = ({ dailyMenuId, currentMenu, onDishCreated }) => {
               ✨ Gợi Ý Món Ăn Mới
             </Typography>
             <Divider sx={{ my: 2 }} />
-            <Grid container spacing={2}>
-              {suggestions.map((dish, idx) => (
-                <Grid item xs={12} sm={6} key={idx}>
-                  <Paper sx={{ p: 2 }}>
-                    <Typography variant="subtitle2" gutterBottom>
-                      {dish.name}
-                    </Typography>
-                    <Typography variant="body2" color="textSecondary" gutterBottom>
-                      {dish.description}
-                    </Typography>
-                    <Typography variant="caption" display="block" sx={{ mt: 1 }}>
-                      <strong>Dinh dưỡng:</strong> {dish.nutrition.calories} kcal
-                    </Typography>
-                    <Typography variant="caption" display="block">
-                      Protein: {dish.nutrition.protein}g | Fat: {dish.nutrition.fat}g | Carb:{" "}
-                      {dish.nutrition.carb}g
-                    </Typography>
-                    <Typography variant="caption" display="block" sx={{ mt: 1 }}>
-                      💡 {dish.cookingTip}
-                    </Typography>
-                    <Button
-                      variant="outlined"
-                      size="small"
-                      startIcon={<AddIcon />}
-                      sx={{ mt: 1 }}
-                      onClick={() => {
-                        setSelectedSuggestion(dish);
-                        setOpenCreateDialog(true);
-                      }}
-                    >
-                      Tạo Món
-                    </Button>
-                  </Paper>
-                </Grid>
-              ))}
-            </Grid>
+            {Array.isArray(suggestions.newDishes) && suggestions.newDishes.length > 0 ? (
+              <Grid container spacing={2}>
+                {suggestions.newDishes.map((dish, idx) => (
+                  <Grid item xs={12} sm={6} key={idx}>
+                    <Paper sx={{ p: 2 }}>
+                      <Typography variant="subtitle2" gutterBottom>
+                        {dish.name}
+                      </Typography>
+                      <Typography variant="body2" color="textSecondary" gutterBottom>
+                        {dish.description}
+                      </Typography>
+                      <Typography variant="caption" display="block" sx={{ mt: 1 }}>
+                        <strong>Dinh dưỡng:</strong> {dish.nutrition?.calories || "-"} kcal
+                      </Typography>
+                      <Typography variant="caption" display="block">
+                        Protein: {dish.nutrition?.protein || "-"}g | Fat: {dish.nutrition?.fat || "-"}g | Carb:{" "}
+                        {dish.nutrition?.carb || "-"}g
+                      </Typography>
+                      <Typography variant="caption" display="block" sx={{ mt: 1 }}>
+                        💡 {dish.cookingTip}
+                      </Typography>
+                      <Button
+                        variant="outlined"
+                        size="small"
+                        startIcon={<AddIcon />}
+                        sx={{ mt: 1 }}
+                        onClick={() => {
+                          setSelectedSuggestion(dish);
+                          setOpenCreateDialog(true);
+                        }}
+                      >
+                        Tạo Món
+                      </Button>
+                    </Paper>
+                  </Grid>
+                ))}
+              </Grid>
+            ) : (
+              <Typography variant="body2" sx={{ whiteSpace: "pre-wrap" }}>
+                {suggestions.rawText || suggestions}
+              </Typography>
+            )}
           </CardContent>
         </Card>
       )}

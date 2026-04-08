@@ -10,7 +10,7 @@
  */
 
 const express = require('express');
-const { authenticate, authorizeRoles } = require('../middleware/auth');
+const { authenticate, authorizeRoles, authorizePermissions } = require('../middleware/auth');
 const {
   registerFaceEmbedding,
   matchFaceEmbedding,
@@ -19,6 +19,10 @@ const {
   registerPickupFaceEmbedding,
   matchPickupFace,
   matchPickupFaceForCheckout,
+  matchStudentFaceForCheckout,
+  deleteFaceEmbedding,
+  deleteFaceAngle,
+  updateAttendanceDeliverer,
 } = require('../controller/faceAttendanceController');
 
 const router = express.Router();
@@ -65,8 +69,24 @@ const router = express.Router();
 router.post(
   '/register',
   authenticate,
-  authorizeRoles('SchoolAdmin', 'Teacher'),
+  authorizePermissions('REGISTER_FACE'),
   registerFaceEmbedding,
+);
+
+// Xóa toàn bộ khuôn mặt của học sinh
+router.delete(
+  '/register/:studentId',
+  authenticate,
+  authorizePermissions('REGISTER_FACE'),
+  deleteFaceEmbedding,
+);
+
+// Xóa 1 góc mặt theo index
+router.delete(
+  '/register/:studentId/angle/:index',
+  authenticate,
+  authorizePermissions('REGISTER_FACE'),
+  deleteFaceAngle,
 );
 
 /**
@@ -187,12 +207,18 @@ router.post('/sync', authenticate, syncOfflineAttendance);
 
 // ── Người đưa/đón ─────────────────────────────────────────────────────────────
 // Đăng ký embedding khuôn mặt cho người đưa/đón đã duyệt
-router.post('/pickup/register', authenticate, authorizeRoles('SchoolAdmin', 'Teacher'), registerPickupFaceEmbedding);
+router.post('/pickup/register', authenticate, authorizePermissions('REGISTER_FACE'), registerPickupFaceEmbedding);
 
 // So sánh khuôn mặt với danh sách người đưa/đón của học sinh
 router.post('/pickup/match', authenticate, matchPickupFace);
 
 // Quét mặt người đến đón → tự động ghi điểm danh về cho học sinh trong lớp
-router.post('/pickup/checkout', authenticate, authorizeRoles('Teacher', 'SchoolAdmin'), matchPickupFaceForCheckout);
+router.post('/pickup/checkout', authenticate, authorizePermissions('CHECKOUT_STUDENT'), matchPickupFaceForCheckout);
+
+// Quét khuôn mặt học sinh → tự động ghi điểm danh về (luồng mới: giáo viên đăng ký mặt học sinh)
+router.post('/student/checkout', authenticate, authorizePermissions('CHECKOUT_STUDENT'), matchStudentFaceForCheckout);
+
+// Cập nhật thông tin người đưa/đón sau khi điểm danh AI
+router.patch('/attendance/:id/deliverer', authenticate, updateAttendanceDeliverer);
 
 module.exports = router;

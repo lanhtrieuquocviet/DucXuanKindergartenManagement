@@ -55,6 +55,13 @@ const authenticate = async (req, res, next) => {
       });
     }
 
+    if (user.status === 'inactive') {
+      return res.status(403).json({
+        status: 'error',
+        message: 'Tài khoản đã bị khóa. Vui lòng liên hệ nhà trường.',
+      });
+    }
+
     const roles = (user.roles || []).map((role) => ({
       id: role._id,
       roleName: role.roleName,

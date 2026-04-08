@@ -40,6 +40,8 @@ import { toast } from 'react-toastify';
 import { useAuth } from '../../context/AuthContext';
 import RoleLayout from '../../layouts/RoleLayout';
 import { get, ENDPOINTS } from '../../service/api';
+import { createSchoolAdminMenuSelect } from './schoolAdminMenuConfig';
+import { useSchoolAdminMenu } from './useSchoolAdminMenu';
 import {
   getMealPhoto,
   getAttendanceSummary,
@@ -873,6 +875,7 @@ function MealPhotosTab({ meals, onPreview, editRequests, onApproveEdit, onReject
 function MealManagementSchoolAdmin() {
   const navigate = useNavigate();
   const { user, logout } = useAuth();
+  const menuItems = useSchoolAdminMenu();
 
   const [selectedDate, setSelectedDate] = useState(getLocalToday());
   const [mealData, setMealData] = useState(null);
@@ -979,63 +982,7 @@ function MealManagementSchoolAdmin() {
   };
 
   // ── Menu ──
-  const menuItems = [
-    { key: 'overview', label: 'Tổng quan trường' },
-    {
-      key: 'academic-years',
-      label: 'Quản lý năm học',
-      children: [
-        { key: 'academic-year-setup', label: 'Thiết lập năm học' },
-        { key: 'academic-plan', label: 'Thiết lập kế hoạch' },
-        { key: 'academic-schedule', label: 'Thời gian biểu' },
-        { key: 'academic-report', label: 'Báo cáo & thống kê' },
-      ],
-    },
-    { key: 'classes', label: 'Lớp học' },
-    { key: 'menu', label: 'Quản lý thực đơn' },
-    { key: 'meal-management', label: 'Quản lý bữa ăn', icon: <SampleIcon fontSize="small" /> },
-    { key: 'teachers', label: 'Giáo viên' },
-    { key: 'students', label: 'Học sinh & phụ huynh' },
-    { key: 'assets', label: 'Quản lý tài sản' },
-    { key: 'reports', label: 'Báo cáo của trường' },
-    { key: 'contacts', label: 'Liên hệ' },
-    { key: 'qa', label: 'Câu hỏi' },
-    { key: 'blogs', label: 'Quản lý blog' },
-    { key: 'documents', label: 'Quản lý tài liệu' },
-    { key: 'public-info', label: 'Thông tin công khai' },
-    { key: 'attendance', label: 'Quản lý điểm danh' },
-  ];
-
-  const handleMenuSelect = async (key) => {
-    if (key === 'meal-management') return;
-    if (key === 'overview') { navigate('/school-admin'); return; }
-    if (key === 'academic-years' || key === 'academic-year-setup') { navigate('/school-admin/academic-years'); return; }
-    if (key === 'academic-curriculum') { navigate('/school-admin/curriculum'); return; }
-    if (key === 'academic-schedule') { navigate('/school-admin/timetable'); return; }
-    if (key === 'academic-plan') { navigate('/school-admin/academic-plan'); return; }
-    if (key === 'academic-report') {
-      try {
-        const resp = await get(ENDPOINTS.SCHOOL_ADMIN.ACADEMIC_YEARS.CURRENT);
-        const yearId = resp?.status === 'success' ? resp?.data?._id : null;
-        if (yearId) navigate(`/school-admin/academic-years/${yearId}/report`);
-        else navigate('/school-admin/academic-years');
-      } catch (_) {
-        navigate('/school-admin/academic-years');
-      }
-      return;
-    }
-    if (key === 'classes') { navigate('/school-admin/classes'); return; }
-    if (key === 'academic-students') { navigate('/school-admin/class-list'); return; }
-    if (key === 'teachers') { navigate('/school-admin/teachers'); return; }
-    if (key === 'students') { navigate('/school-admin/students'); return; }
-    if (key === 'menu') { navigate('/school-admin/menus'); return; }
-    if (key === 'contacts') { navigate('/school-admin/contacts'); return; }
-    if (key === 'qa') { navigate('/school-admin/qa'); return; }
-    if (key === 'blogs') { navigate('/school-admin/blogs'); return; }
-    if (key === 'documents') { navigate('/school-admin/documents'); return; }
-    if (key === 'public-info') { navigate('/school-admin/public-info'); return; }
-    if (key === 'attendance') { navigate('/school-admin/attendance/overview'); return; }
-  };
+  const handleMenuSelect = createSchoolAdminMenuSelect(navigate);
 
   const userName = user?.fullName || user?.username || 'School Admin';
 

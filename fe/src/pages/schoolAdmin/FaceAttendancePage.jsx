@@ -1,451 +1,214 @@
 /**
  * FaceAttendancePage.jsx
  *
- * Trang quản lý đăng ký khuôn mặt:
- *  Tab 1 — Học sinh: chọn lớp → danh sách học sinh → đăng ký
- *  Tab 2 — Người đưa/đón: chọn lớp → chọn học sinh → danh sách người đón đã duyệt → đăng ký
+ * Dashboard trạng thái đăng ký khuôn mặt AI — nhóm theo Khối → Lớp.
  */
 
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../../context/AuthContext';
 import RoleLayout from '../../layouts/RoleLayout';
 import { get } from '../../service/api';
-import FaceRegisterModal from '../../components/face/FaceRegisterModal';
-import PickupFaceRegisterModal from '../../components/face/PickupFaceRegisterModal';
+import { createSchoolAdminMenuSelect } from './schoolAdminMenuConfig';
+import { useSchoolAdminMenu } from './useSchoolAdminMenu';
 
-function getMenuItems() {
-  return [
-    { key: 'dashboard', label: 'Dashboard', path: '/school-admin' },
-    { key: 'students', label: 'Học sinh', path: '/school-admin/students' },
-    { key: 'face', label: 'Đăng ký khuôn mặt', path: '/school-admin/face-attendance' },
-    { key: 'attendance', label: 'Điểm danh', path: '/school-admin/attendance/overview' },
-  ];
+// ── Màu theo mức coverage ────────────────────────────────────────────────────
+function getCoverageStyle(pct) {
+  if (pct === 100) return { bar: 'bg-green-500',  badge: 'bg-green-100 text-green-700',   border: 'border-green-200' };
+  if (pct >= 70)   return { bar: 'bg-yellow-400', badge: 'bg-yellow-100 text-yellow-700', border: 'border-yellow-200' };
+  if (pct >= 30)   return { bar: 'bg-orange-400', badge: 'bg-orange-100 text-orange-700', border: 'border-orange-200' };
+  return            { bar: 'bg-red-500',    badge: 'bg-red-100 text-red-700',     border: 'border-red-300' };
 }
 
-const CLASS_COLORS = [
-  { bg: 'from-indigo-500 to-purple-600', light: 'bg-indigo-50', border: 'border-indigo-200', text: 'text-indigo-700' },
-  { bg: 'from-emerald-500 to-teal-600', light: 'bg-emerald-50', border: 'border-emerald-200', text: 'text-emerald-700' },
-  { bg: 'from-orange-500 to-red-500', light: 'bg-orange-50', border: 'border-orange-200', text: 'text-orange-700' },
-  { bg: 'from-sky-500 to-blue-600', light: 'bg-sky-50', border: 'border-sky-200', text: 'text-sky-700' },
-  { bg: 'from-pink-500 to-rose-600', light: 'bg-pink-50', border: 'border-pink-200', text: 'text-pink-700' },
-  { bg: 'from-violet-500 to-indigo-600', light: 'bg-violet-50', border: 'border-violet-200', text: 'text-violet-700' },
-];
+function pctLabel(pct) {
+  if (pct === 100) return 'Đầy đủ';
+  if (pct >= 70)   return 'Tốt';
+  if (pct >= 30)   return 'Thiếu';
+  return 'Rất thấp';
+}
 
-// ── Shared: Grid chọn lớp ─────────────────────────────────────────────────────
-function ClassGrid({ classes, loadingClasses, onSelect }) {
-  if (loadingClasses) {
-    return (
-      <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-4">
-        {[...Array(6)].map((_, i) => (
-          <div key={i} className="h-32 bg-gray-100 rounded-2xl animate-pulse" />
-        ))}
-      </div>
-    );
-  }
-  if (classes.length === 0) {
-    return (
-      <div className="text-center py-20 text-gray-400">
-        <span className="text-5xl block mb-3">🏫</span>
-        <p className="font-medium">Chưa có lớp nào</p>
-      </div>
-    );
-  }
+function calcPct(registered, total) {
+  return total === 0 ? 0 : Math.round((registered / total) * 100);
+}
+
+// ── Progress bar ─────────────────────────────────────────────────────────────
+function ProgressBar({ pct, barClass }) {
   return (
-    <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-4">
-      {classes.map((cls, idx) => {
-        const color = CLASS_COLORS[idx % CLASS_COLORS.length];
-        return (
-          <button
-            key={cls._id}
-            onClick={() => onSelect(cls)}
-            className={`group relative overflow-hidden rounded-2xl border-2 ${color.border} ${color.light} p-5 text-left transition-all hover:shadow-lg hover:-translate-y-0.5 active:scale-95`}
-          >
-            <div className={`absolute -top-4 -right-4 w-20 h-20 rounded-full bg-gradient-to-br ${color.bg} opacity-10 group-hover:opacity-20 transition-opacity`} />
-            <div className="relative">
-              <div className={`text-3xl font-black ${color.text} mb-1`}>{cls.className || cls._id}</div>
-              <div className="text-xs text-gray-500 font-medium flex items-center gap-1 mt-2">
-                <span>📷</span><span>Nhấn để chọn</span>
-              </div>
-            </div>
-          </button>
-        );
-      })}
+    <div className="w-full bg-gray-100 rounded-full h-1.5">
+      <div
+        className={`h-1.5 rounded-full transition-all duration-500 ${barClass}`}
+        style={{ width: `${pct}%` }}
+      />
     </div>
   );
 }
 
-// ── Tab 1: Học sinh ────────────────────────────────────────────────────────────
-function StudentTab({ classes, loadingClasses }) {
-  const [selectedClass, setSelectedClass] = useState(null);
-  const [students, setStudents] = useState([]);
-  const [loadingStudents, setLoadingStudents] = useState(false);
-  const [searchTerm, setSearchTerm] = useState('');
-  const [registerModal, setRegisterModal] = useState({ open: false, student: null });
-
-  const handleSelectClass = (cls) => {
-    setSelectedClass(cls);
-    setSearchTerm('');
-    setStudents([]);
-    setLoadingStudents(true);
-    get(`/students?classId=${cls._id}`)
-      .then((res) => setStudents(res.data || []))
-      .catch(() => setStudents([]))
-      .finally(() => setLoadingStudents(false));
-  };
-
-  const reloadStudents = () => {
-    if (!selectedClass) return;
-    get(`/students?classId=${selectedClass._id}`)
-      .then((res) => setStudents(res.data || []))
-      .catch(() => {});
-  };
-
-  const filteredStudents = students.filter((s) =>
-    s.fullName?.toLowerCase().includes(searchTerm.toLowerCase())
-  );
-  const registeredCount = students.filter((s) => s.hasFaceEmbedding).length;
-
-  if (!selectedClass) {
-    return <ClassGrid classes={classes} loadingClasses={loadingClasses} onSelect={handleSelectClass} />;
+// ── Danh sách học sinh chưa đăng ký trong 1 lớp ──────────────────────────────
+function UnregisteredList({ students }) {
+  const list = students.filter((s) => !s.hasFaceEmbedding);
+  if (list.length === 0) {
+    return (
+      <div className="text-center py-5 text-green-600 text-sm font-medium">
+        ✓ Tất cả học sinh đã đăng ký khuôn mặt
+      </div>
+    );
   }
-
   return (
-    <>
-      {/* Header lớp */}
-      <div className="bg-gradient-to-r from-indigo-600 to-purple-600 rounded-2xl p-5 mb-5 text-white">
-        <button
-          onClick={() => { setSelectedClass(null); setStudents([]); setSearchTerm(''); }}
-          className="flex items-center gap-1.5 bg-white/20 hover:bg-white/30 text-white text-sm font-medium px-3 py-1.5 rounded-lg transition-colors mb-3"
-        >
-          ← Chọn lớp khác
-        </button>
-        <div className="flex items-center gap-3">
-          <span className="text-3xl">🧠</span>
-          <div>
-            <h2 className="text-lg font-bold">Lớp {selectedClass.className} — Học sinh</h2>
-            <p className="text-indigo-200 text-sm">Đăng ký khuôn mặt từng học sinh</p>
+    <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 pt-1">
+      {list.map((s) => (
+        <div key={s._id} className="flex items-center gap-2.5 bg-white rounded-lg border border-gray-200 px-3 py-2">
+          <div className="w-7 h-7 rounded-full bg-red-100 flex items-center justify-center text-red-500 font-bold text-xs flex-shrink-0 overflow-hidden">
+            {s.avatar
+              ? <img src={s.avatar} alt="" className="w-full h-full object-cover rounded-full" />
+              : (s.fullName?.[0] || '?')}
+          </div>
+          <div className="flex-1 min-w-0">
+            <div className="text-sm font-medium text-gray-800 truncate">{s.fullName}</div>
+            <div className="text-xs text-red-400">Chưa đăng ký</div>
           </div>
         </div>
-        {!loadingStudents && (
-          <div className="mt-3 flex gap-5 text-sm">
-            <div><div className="text-indigo-200 text-xs">Đã đăng ký</div><div className="text-xl font-bold">{registeredCount}</div></div>
-            <div><div className="text-indigo-200 text-xs">Chưa đăng ký</div><div className="text-xl font-bold text-yellow-300">{students.length - registeredCount}</div></div>
-            <div><div className="text-indigo-200 text-xs">Tổng</div><div className="text-xl font-bold">{students.length}</div></div>
-          </div>
-        )}
-      </div>
-
-      {/* Tìm kiếm */}
-      <div className="bg-white rounded-xl border p-4 mb-4">
-        <input
-          type="text"
-          placeholder="Tìm học sinh..."
-          value={searchTerm}
-          onChange={(e) => setSearchTerm(e.target.value)}
-          className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-400"
-        />
-      </div>
-
-      {/* Bảng */}
-      <div className="bg-white rounded-xl border overflow-hidden">
-        {loadingStudents ? (
-          <div className="flex items-center justify-center py-14">
-            <div className="animate-spin h-7 w-7 border-b-2 border-indigo-600 rounded-full mr-3" />
-            <span className="text-gray-500">Đang tải...</span>
-          </div>
-        ) : filteredStudents.length === 0 ? (
-          <div className="text-center py-14 text-gray-400">
-            <span className="text-4xl block mb-2">👥</span>
-            <p>{searchTerm ? 'Không tìm thấy học sinh' : 'Lớp này chưa có học sinh'}</p>
-          </div>
-        ) : (
-          <table className="w-full text-sm">
-            <thead className="bg-gray-50 border-b">
-              <tr>
-                <th className="text-left px-4 py-3 font-semibold text-gray-600">Học sinh</th>
-                <th className="text-left px-4 py-3 font-semibold text-gray-600">Ngày sinh</th>
-                <th className="text-center px-4 py-3 font-semibold text-gray-600">Trạng thái khuôn mặt</th>
-                <th className="text-center px-4 py-3 font-semibold text-gray-600">Đăng ký lúc</th>
-                <th className="text-right px-4 py-3 font-semibold text-gray-600">Thao tác</th>
-              </tr>
-            </thead>
-            <tbody>
-              {filteredStudents.map((student) => {
-                const has = student.hasFaceEmbedding;
-                return (
-                  <tr key={student._id} className="border-b hover:bg-gray-50">
-                    <td className="px-4 py-3">
-                      <div className="flex items-center gap-3">
-                        <div className="w-9 h-9 rounded-full bg-indigo-100 overflow-hidden flex-shrink-0">
-                          {student.avatar
-                            ? <img src={student.avatar} alt="" className="w-full h-full object-cover" />
-                            : <div className="w-full h-full flex items-center justify-center text-indigo-600 font-bold text-sm">{student.fullName?.[0] || '?'}</div>
-                          }
-                        </div>
-                        <span className="font-medium text-gray-800">{student.fullName}</span>
-                      </div>
-                    </td>
-                    <td className="px-4 py-3 text-gray-500">
-                      {student.dateOfBirth ? new Date(student.dateOfBirth).toLocaleDateString('vi-VN') : '—'}
-                    </td>
-                    <td className="px-4 py-3 text-center">
-                      <span className={`inline-flex items-center gap-1 px-2 py-1 rounded-full text-xs font-medium ${has ? 'bg-green-100 text-green-700' : 'bg-gray-100 text-gray-500'}`}>
-                        {has ? '✓ Đã đăng ký' : '○ Chưa đăng ký'}
-                      </span>
-                    </td>
-                    <td className="px-4 py-3 text-center text-gray-400 text-xs">
-                      {student.faceRegisteredAt ? new Date(student.faceRegisteredAt).toLocaleDateString('vi-VN') : '—'}
-                    </td>
-                    <td className="px-4 py-3 text-right">
-                      <button
-                        onClick={() => setRegisterModal({ open: true, student })}
-                        className={`px-3 py-1.5 text-xs font-medium rounded-lg ${has ? 'bg-gray-100 text-gray-600 hover:bg-gray-200' : 'bg-indigo-600 text-white hover:bg-indigo-700'}`}
-                      >
-                        {has ? '🔄 Cập nhật' : '📷 Đăng ký'}
-                      </button>
-                    </td>
-                  </tr>
-                );
-              })}
-            </tbody>
-          </table>
-        )}
-      </div>
-
-      <FaceRegisterModal
-        open={registerModal.open}
-        student={registerModal.student}
-        onClose={() => setRegisterModal({ open: false, student: null })}
-        onSuccess={reloadStudents}
-      />
-    </>
+      ))}
+    </div>
   );
 }
 
-// ── Tab 2: Người đưa/đón ──────────────────────────────────────────────────────
-function PickupTab({ classes, loadingClasses }) {
-  const [selectedClass, setSelectedClass] = useState(null);
-  const [students, setStudents] = useState([]);
-  const [loadingStudents, setLoadingStudents] = useState(false);
-
-  const [selectedStudent, setSelectedStudent] = useState(null);
-  const [pickupPersons, setPickupPersons] = useState([]);
-  const [loadingPickup, setLoadingPickup] = useState(false);
-
-  const [registerModal, setRegisterModal] = useState({ open: false, person: null });
-  const [searchTerm, setSearchTerm] = useState('');
-
-  const handleSelectClass = (cls) => {
-    setSelectedClass(cls);
-    setSelectedStudent(null);
-    setPickupPersons([]);
-    setSearchTerm('');
-    setLoadingStudents(true);
-    get(`/students?classId=${cls._id}`)
-      .then((res) => setStudents(res.data || []))
-      .catch(() => setStudents([]))
-      .finally(() => setLoadingStudents(false));
-  };
-
-  const handleSelectStudent = (student) => {
-    setSelectedStudent(student);
-    setPickupPersons([]);
-    setLoadingPickup(true);
-    get(`/pickup/requests/student/${student._id}`)
-      .then((res) => setPickupPersons(res.data || []))
-      .catch(() => setPickupPersons([]))
-      .finally(() => setLoadingPickup(false));
-  };
-
-  const reloadPickup = () => {
-    if (!selectedStudent) return;
-    get(`/pickup/requests/student/${selectedStudent._id}`)
-      .then((res) => setPickupPersons(res.data || []))
-      .catch(() => {});
-  };
-
-  const filteredStudents = students.filter((s) =>
-    s.fullName?.toLowerCase().includes(searchTerm.toLowerCase())
-  );
-
-  // Step 1: Chọn lớp
-  if (!selectedClass) {
-    return <ClassGrid classes={classes} loadingClasses={loadingClasses} onSelect={handleSelectClass} />;
-  }
-
-  // Step 2: Chọn học sinh
-  if (!selectedStudent) {
-    return (
-      <>
-        <div className="bg-gradient-to-r from-emerald-600 to-teal-600 rounded-2xl p-5 mb-5 text-white">
-          <button
-            onClick={() => { setSelectedClass(null); setStudents([]); }}
-            className="flex items-center gap-1.5 bg-white/20 hover:bg-white/30 text-white text-sm font-medium px-3 py-1.5 rounded-lg transition-colors mb-3"
-          >
-            ← Chọn lớp khác
-          </button>
-          <div className="flex items-center gap-3">
-            <span className="text-3xl">👨‍👩‍👧</span>
-            <div>
-              <h2 className="text-lg font-bold">Lớp {selectedClass.className} — Người đưa/đón</h2>
-              <p className="text-emerald-100 text-sm">Chọn học sinh để xem danh sách người đưa/đón</p>
-            </div>
-          </div>
-        </div>
-
-        {/* Tìm kiếm */}
-        <div className="bg-white rounded-xl border p-4 mb-4">
-          <input
-            type="text"
-            placeholder="Tìm học sinh..."
-            value={searchTerm}
-            onChange={(e) => setSearchTerm(e.target.value)}
-            className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-emerald-400"
-          />
-        </div>
-
-        {loadingStudents ? (
-          <div className="flex items-center justify-center py-14">
-            <div className="animate-spin h-7 w-7 border-b-2 border-emerald-600 rounded-full mr-3" />
-            <span className="text-gray-500">Đang tải...</span>
-          </div>
-        ) : (
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
-            {filteredStudents.map((student) => (
-              <button
-                key={student._id}
-                onClick={() => handleSelectStudent(student)}
-                className="flex items-center gap-3 bg-white border border-gray-200 rounded-xl p-3.5 text-left hover:border-emerald-400 hover:shadow-md transition-all group"
-              >
-                <div className="w-10 h-10 rounded-full bg-emerald-100 overflow-hidden flex-shrink-0">
-                  {student.avatar
-                    ? <img src={student.avatar} alt="" className="w-full h-full object-cover" />
-                    : <div className="w-full h-full flex items-center justify-center text-emerald-600 font-bold">{student.fullName?.[0] || '?'}</div>
-                  }
-                </div>
-                <div className="flex-1 min-w-0">
-                  <div className="font-semibold text-gray-800 text-sm truncate">{student.fullName}</div>
-                  <div className="text-xs text-gray-400">Nhấn để xem người đưa/đón</div>
-                </div>
-                <span className="text-gray-300 group-hover:text-emerald-500 text-lg">›</span>
-              </button>
-            ))}
-            {filteredStudents.length === 0 && (
-              <div className="col-span-full text-center py-12 text-gray-400">
-                <span className="text-4xl block mb-2">👥</span>
-                <p>{searchTerm ? 'Không tìm thấy học sinh' : 'Lớp này chưa có học sinh'}</p>
-              </div>
-            )}
-          </div>
-        )}
-      </>
-    );
-  }
-
-  // Step 3: Danh sách người đón đã duyệt
-  const faceRegisteredCount = pickupPersons.filter((p) => p.faceEmbedding?.length > 0).length;
+// ── Card 1 lớp ───────────────────────────────────────────────────────────────
+function ClassCard({ cls }) {
+  const [expanded, setExpanded] = useState(false);
+  const pct = calcPct(cls.registered, cls.total);
+  const style = getCoverageStyle(pct);
 
   return (
-    <>
-      <div className="bg-gradient-to-r from-emerald-600 to-teal-600 rounded-2xl p-5 mb-5 text-white">
-        <button
-          onClick={() => { setSelectedStudent(null); setPickupPersons([]); }}
-          className="flex items-center gap-1.5 bg-white/20 hover:bg-white/30 text-white text-sm font-medium px-3 py-1.5 rounded-lg transition-colors mb-3"
-        >
-          ← Chọn học sinh khác
-        </button>
+    <div className={`rounded-xl border-2 ${style.border} bg-white overflow-hidden`}>
+      <div className="p-4">
+        {/* Tên lớp + badge */}
+        <div className="flex items-center justify-between gap-2 mb-2">
+          <span className="font-bold text-gray-800">{cls.className}</span>
+          <span className={`text-xs font-semibold px-2 py-0.5 rounded-full ${style.badge}`}>
+            {pctLabel(pct)} {pct}%
+          </span>
+        </div>
+
+        {/* Số liệu */}
+        <div className="flex items-center gap-3 text-xs text-gray-500 mb-2">
+          <span>Tổng <strong className="text-gray-700">{cls.total}</strong></span>
+          <span className="text-green-600">Đăng ký <strong>{cls.registered}</strong></span>
+          {cls.total - cls.registered > 0 && (
+            <span className="text-red-500">Thiếu <strong>{cls.total - cls.registered}</strong></span>
+          )}
+        </div>
+
+        <ProgressBar pct={pct} barClass={style.bar} />
+
+        {/* Nút mở rộng */}
+        {cls.total > 0 && (
+          <button
+            onClick={() => setExpanded((v) => !v)}
+            className="mt-2.5 w-full text-xs text-gray-400 hover:text-indigo-600 transition-colors py-0.5"
+          >
+            {expanded ? '▲ Thu gọn' : '▼ Xem học sinh chưa đăng ký'}
+          </button>
+        )}
+      </div>
+
+      {expanded && (
+        <div className="border-t border-gray-100 bg-gray-50 px-4 pb-4 pt-3">
+          <UnregisteredList students={cls.students} />
+        </div>
+      )}
+    </div>
+  );
+}
+
+// ── Block 1 khối (collapsible) ────────────────────────────────────────────────
+const GRADE_COLORS = [
+  { bg: 'from-indigo-500 to-violet-600',  light: 'bg-indigo-50',  ring: 'ring-indigo-200' },
+  { bg: 'from-emerald-500 to-teal-600',   light: 'bg-emerald-50', ring: 'ring-emerald-200' },
+  { bg: 'from-orange-500 to-red-500',     light: 'bg-orange-50',  ring: 'ring-orange-200' },
+  { bg: 'from-sky-500 to-blue-600',       light: 'bg-sky-50',     ring: 'ring-sky-200' },
+  { bg: 'from-pink-500 to-rose-600',      light: 'bg-pink-50',    ring: 'ring-pink-200' },
+  { bg: 'from-amber-500 to-yellow-500',   light: 'bg-amber-50',   ring: 'ring-amber-200' },
+];
+
+function GradeBlock({ grade, colorIdx }) {
+  const [collapsed, setCollapsed] = useState(false);
+  const color = GRADE_COLORS[colorIdx % GRADE_COLORS.length];
+
+  const totalStudents  = grade.classes.reduce((s, c) => s + c.total, 0);
+  const totalReg       = grade.classes.reduce((s, c) => s + c.registered, 0);
+  const pct            = calcPct(totalReg, totalStudents);
+  const style          = getCoverageStyle(pct);
+  const classesOk      = grade.classes.filter((c) => c.total > 0 && c.registered === c.total).length;
+
+  return (
+    <div className={`rounded-2xl ring-2 ${color.ring} overflow-hidden`}>
+      {/* Header khối */}
+      <button
+        onClick={() => setCollapsed((v) => !v)}
+        className={`w-full text-left bg-gradient-to-r ${color.bg} px-5 py-4 flex items-center justify-between gap-3`}
+      >
         <div className="flex items-center gap-3">
-          <div className="w-10 h-10 rounded-full bg-white/20 overflow-hidden flex-shrink-0 flex items-center justify-center font-bold text-lg">
-            {selectedStudent.avatar
-              ? <img src={selectedStudent.avatar} alt="" className="w-full h-full object-cover" />
-              : selectedStudent.fullName?.[0]
-            }
-          </div>
-          <div>
-            <h2 className="text-lg font-bold">{selectedStudent.fullName}</h2>
-            <p className="text-emerald-100 text-sm">Người đưa/đón đã được duyệt</p>
+          <div className="text-white">
+            <div className="text-lg font-black">Khối {grade.gradeName}</div>
+            {grade.ageRange && (
+              <div className="text-white/70 text-xs mt-0.5">{grade.ageRange}</div>
+            )}
           </div>
         </div>
-        {!loadingPickup && (
-          <div className="mt-3 flex gap-5 text-sm">
-            <div><div className="text-emerald-100 text-xs">Đã đăng ký khuôn mặt</div><div className="text-xl font-bold">{faceRegisteredCount}</div></div>
-            <div><div className="text-emerald-100 text-xs">Chưa đăng ký</div><div className="text-xl font-bold text-yellow-300">{pickupPersons.length - faceRegisteredCount}</div></div>
-            <div><div className="text-emerald-100 text-xs">Tổng người đón</div><div className="text-xl font-bold">{pickupPersons.length}</div></div>
-          </div>
-        )}
-      </div>
 
-      <div className="bg-white rounded-xl border overflow-hidden">
-        {loadingPickup ? (
-          <div className="flex items-center justify-center py-14">
-            <div className="animate-spin h-7 w-7 border-b-2 border-emerald-600 rounded-full mr-3" />
-            <span className="text-gray-500">Đang tải...</span>
+        <div className="flex items-center gap-4 text-white text-right">
+          <div className="hidden sm:block text-xs text-white/80 space-y-0.5">
+            <div>{grade.classes.length} lớp · {totalStudents} học sinh</div>
+            <div>{classesOk}/{grade.classes.length} lớp đầy đủ</div>
           </div>
-        ) : pickupPersons.length === 0 ? (
-          <div className="text-center py-14 text-gray-400">
-            <span className="text-4xl block mb-2">🚶</span>
-            <p className="font-medium">Chưa có người đưa/đón nào được duyệt</p>
-            <p className="text-xs mt-1">Phụ huynh cần đăng ký và giáo viên duyệt trước</p>
+          <div className="text-center">
+            <div className="text-2xl font-black">{pct}%</div>
+            <div className={`text-xs px-2 py-0.5 rounded-full font-semibold ${style.badge}`}>
+              {pctLabel(pct)}
+            </div>
           </div>
-        ) : (
-          <table className="w-full text-sm">
-            <thead className="bg-gray-50 border-b">
-              <tr>
-                <th className="text-left px-4 py-3 font-semibold text-gray-600">Họ tên</th>
-                <th className="text-left px-4 py-3 font-semibold text-gray-600">Quan hệ</th>
-                <th className="text-left px-4 py-3 font-semibold text-gray-600">Số điện thoại</th>
-                <th className="text-center px-4 py-3 font-semibold text-gray-600">Khuôn mặt</th>
-                <th className="text-right px-4 py-3 font-semibold text-gray-600">Thao tác</th>
-              </tr>
-            </thead>
-            <tbody>
-              {pickupPersons.map((person) => {
-                const hasFace = person.faceEmbedding?.length > 0;
-                return (
-                  <tr key={person._id} className="border-b hover:bg-gray-50">
-                    <td className="px-4 py-3">
-                      <div className="flex items-center gap-3">
-                        {person.imageUrl ? (
-                          <img src={person.imageUrl} alt="" className="w-9 h-9 rounded-full object-cover flex-shrink-0" />
-                        ) : (
-                          <div className="w-9 h-9 rounded-full bg-emerald-100 flex items-center justify-center text-emerald-600 font-bold text-sm flex-shrink-0">
-                            {person.fullName?.[0] || '?'}
-                          </div>
-                        )}
-                        <span className="font-medium text-gray-800">{person.fullName}</span>
-                      </div>
-                    </td>
-                    <td className="px-4 py-3 text-gray-600">{person.relation || '—'}</td>
-                    <td className="px-4 py-3 text-gray-500">{person.phone || '—'}</td>
-                    <td className="px-4 py-3 text-center">
-                      <span className={`inline-flex items-center gap-1 px-2 py-1 rounded-full text-xs font-medium ${hasFace ? 'bg-green-100 text-green-700' : 'bg-gray-100 text-gray-500'}`}>
-                        {hasFace ? '✓ Đã đăng ký' : '○ Chưa đăng ký'}
-                      </span>
-                    </td>
-                    <td className="px-4 py-3 text-right">
-                      <button
-                        onClick={() => setRegisterModal({ open: true, person })}
-                        className={`px-3 py-1.5 text-xs font-medium rounded-lg ${hasFace ? 'bg-gray-100 text-gray-600 hover:bg-gray-200' : 'bg-emerald-600 text-white hover:bg-emerald-700'}`}
-                      >
-                        {hasFace ? '🔄 Cập nhật' : '📷 Đăng ký'}
-                      </button>
-                    </td>
-                  </tr>
-                );
-              })}
-            </tbody>
-          </table>
-        )}
-      </div>
+          <span className="text-white/70 text-lg">{collapsed ? '▶' : '▼'}</span>
+        </div>
+      </button>
 
-      <PickupFaceRegisterModal
-        open={registerModal.open}
-        pickupPerson={registerModal.person}
-        onClose={() => setRegisterModal({ open: false, person: null })}
-        onSuccess={reloadPickup}
-      />
-    </>
+      {/* Body */}
+      {!collapsed && (
+        <div className={`${color.light} p-4`}>
+          {/* Progress tổng khối */}
+          <div className="mb-4">
+            <div className="flex justify-between text-xs text-gray-500 mb-1">
+              <span>Tỷ lệ đăng ký toàn khối</span>
+              <span>{totalReg}/{totalStudents}</span>
+            </div>
+            <ProgressBar pct={pct} barClass={style.bar} />
+          </div>
+
+          {/* Grid các lớp */}
+          <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-3">
+            {grade.classes.map((cls) => (
+              <ClassCard key={cls._id} cls={cls} />
+            ))}
+          </div>
+
+          {grade.classes.length === 0 && (
+            <div className="text-center py-8 text-gray-400 text-sm">
+              Khối này chưa có lớp nào
+            </div>
+          )}
+        </div>
+      )}
+    </div>
+  );
+}
+
+// ── Summary card ─────────────────────────────────────────────────────────────
+function SummaryCard({ label, value, sub, borderColor }) {
+  return (
+    <div className={`bg-white rounded-2xl border-2 ${borderColor} p-4`}>
+      <div className="text-2xl font-black text-gray-800">{value}</div>
+      <div className="text-sm font-semibold text-gray-600 mt-0.5">{label}</div>
+      {sub && <div className="text-xs text-gray-400 mt-1">{sub}</div>}
+    </div>
   );
 }
 
@@ -453,6 +216,12 @@ function PickupTab({ classes, loadingClasses }) {
 export default function FaceAttendancePage() {
   const navigate = useNavigate();
   const { user, logout, hasRole, isInitializing } = useAuth();
+  const menuItems = useSchoolAdminMenu();
+  const handleMenuSelect = createSchoolAdminMenuSelect(navigate);
+
+  const [gradeGroups, setGradeGroups] = useState([]); // [{ gradeId, gradeName, ageRange, classes }]
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(null);
 
   useEffect(() => {
     if (isInitializing) return;
@@ -460,83 +229,171 @@ export default function FaceAttendancePage() {
     if (!hasRole('SchoolAdmin') && !hasRole('SystemAdmin')) navigate('/', { replace: true });
   }, [navigate, user, hasRole, isInitializing]);
 
-  const [classes, setClasses] = useState([]);
-  const [loadingClasses, setLoadingClasses] = useState(true);
-  const [activeTab, setActiveTab] = useState('student');
+  const loadData = useCallback(async () => {
+    setLoading(true);
+    setError(null);
+    try {
+      // 1. Lấy tất cả lớp (đã populate gradeId)
+      const classRes = await get('/classes');
+      const classes = classRes.data || classRes.classes || [];
+
+      // 2. Tải học sinh song song
+      const studentResults = await Promise.all(
+        classes.map((cls) =>
+          get(`/students?classId=${cls._id}`)
+            .then((res) => ({ classId: cls._id, students: res.data || [] }))
+            .catch(() => ({ classId: cls._id, students: [] }))
+        )
+      );
+      const studentMap = {};
+      studentResults.forEach(({ classId, students }) => {
+        studentMap[classId] = students;
+      });
+
+      // 3. Nhóm theo khối
+      const gradeMap = {}; // gradeId → { gradeName, ageRange, classes[] }
+
+      classes.forEach((cls) => {
+        const gradeId   = cls.gradeId?._id || 'unknown';
+        const gradeName = cls.gradeId?.gradeName || 'Chưa phân khối';
+        const ageRange  = cls.gradeId?.ageRange  || '';
+
+        if (!gradeMap[gradeId]) {
+          gradeMap[gradeId] = { gradeId, gradeName, ageRange, classes: [] };
+        }
+
+        const students   = studentMap[cls._id] || [];
+        const registered = students.filter((s) => s.hasFaceEmbedding).length;
+
+        gradeMap[gradeId].classes.push({
+          _id:        cls._id,
+          className:  cls.className,
+          total:      students.length,
+          registered,
+          students,
+        });
+      });
+
+      // 4. Sắp xếp lớp trong mỗi khối theo tên
+      const groups = Object.values(gradeMap).map((g) => ({
+        ...g,
+        classes: g.classes.sort((a, b) => a.className.localeCompare(b.className, 'vi')),
+      }));
+
+      // Sắp xếp khối: Chưa phân khối xuống cuối, còn lại theo tên
+      groups.sort((a, b) => {
+        if (a.gradeId === 'unknown') return 1;
+        if (b.gradeId === 'unknown') return -1;
+        return a.gradeName.localeCompare(b.gradeName, 'vi');
+      });
+
+      setGradeGroups(groups);
+    } catch {
+      setError('Không tải được dữ liệu. Vui lòng thử lại.');
+    } finally {
+      setLoading(false);
+    }
+  }, []);
 
   useEffect(() => {
-    get('/classes')
-      .then((res) => setClasses(res.data || res.classes || []))
-      .catch(() => {})
-      .finally(() => setLoadingClasses(false));
-  }, []);
+    if (user && !isInitializing) loadData();
+  }, [user, isInitializing, loadData]);
+
+  // Tổng hợp
+  const allClasses     = gradeGroups.flatMap((g) => g.classes);
+  const totalStudents  = allClasses.reduce((s, c) => s + c.total, 0);
+  const totalReg       = allClasses.reduce((s, c) => s + c.registered, 0);
+  const totalUnreg     = totalStudents - totalReg;
+  const overallPct     = calcPct(totalReg, totalStudents);
+  const classesUnready = allClasses.filter((c) => c.registered < c.total).length;
 
   return (
     <RoleLayout
-      title="Đăng ký khuôn mặt"
-      description="Đăng ký và quản lý khuôn mặt cho hệ thống điểm danh AI."
-      menuItems={getMenuItems()}
-      activeKey="face"
+      title="Trạng thái khuôn mặt AI"
+      description="Theo dõi tỷ lệ đăng ký khuôn mặt để hệ thống điểm danh AI hoạt động hiệu quả."
+      menuItems={menuItems}
+      activeKey="face-attendance"
       onLogout={() => { logout(); navigate('/login'); }}
       onViewProfile={() => navigate('/profile')}
-      onMenuSelect={(item) => navigate(item.path)}
+      onMenuSelect={handleMenuSelect}
       userName={user?.fullName || user?.username || 'Admin'}
       userAvatar={user?.avatar}
     >
-      {/* Header tổng */}
-      {activeTab === 'student' && (
-        <div className="bg-gradient-to-r from-indigo-600 to-purple-600 rounded-2xl p-6 mb-6 text-white">
+      {/* ── Header ── */}
+      <div className="bg-gradient-to-r from-violet-600 to-indigo-600 rounded-2xl p-6 mb-6 text-white">
+        <div className="flex items-center justify-between flex-wrap gap-3">
           <div className="flex items-center gap-3">
             <span className="text-4xl">🧠</span>
             <div>
-              <h1 className="text-xl font-bold">Đăng ký khuôn mặt học sinh</h1>
-              <p className="text-indigo-200 text-sm mt-0.5">Chọn lớp để xem và đăng ký khuôn mặt cho từng học sinh</p>
+              <h1 className="text-xl font-bold">Trạng thái đăng ký khuôn mặt AI</h1>
+              <p className="text-violet-200 text-sm mt-0.5">
+                Học sinh chưa có khuôn mặt sẽ không được AI điểm danh tự động
+              </p>
             </div>
           </div>
+          <button
+            onClick={loadData}
+            disabled={loading}
+            className="flex items-center gap-2 bg-white/20 hover:bg-white/30 text-white text-sm font-medium px-4 py-2 rounded-lg transition-colors disabled:opacity-50"
+          >
+            {loading
+              ? <span className="w-4 h-4 border-2 border-white/50 border-t-white rounded-full animate-spin inline-block" />
+              : '↻'}
+            Làm mới
+          </button>
         </div>
-      )}
-      {activeTab === 'pickup' && (
-        <div className="bg-gradient-to-r from-emerald-600 to-teal-600 rounded-2xl p-6 mb-6 text-white">
-          <div className="flex items-center gap-3">
-            <span className="text-4xl">👨‍👩‍👧</span>
-            <div>
-              <h1 className="text-xl font-bold">Đăng ký khuôn mặt người đưa/đón</h1>
-              <p className="text-emerald-100 text-sm mt-0.5">Đăng ký để xác minh nhanh khi đến đón trẻ</p>
-            </div>
-          </div>
-        </div>
-      )}
-
-      {/* Tabs */}
-      <div className="flex gap-1 bg-gray-100 p-1 rounded-xl mb-5 w-fit">
-        <button
-          onClick={() => setActiveTab('student')}
-          className={`px-5 py-2 rounded-lg text-sm font-semibold transition-all ${
-            activeTab === 'student'
-              ? 'bg-white text-indigo-700 shadow-sm'
-              : 'text-gray-500 hover:text-gray-700'
-          }`}
-        >
-          🧒 Học sinh
-        </button>
-        <button
-          onClick={() => setActiveTab('pickup')}
-          className={`px-5 py-2 rounded-lg text-sm font-semibold transition-all ${
-            activeTab === 'pickup'
-              ? 'bg-white text-emerald-700 shadow-sm'
-              : 'text-gray-500 hover:text-gray-700'
-          }`}
-        >
-          👨‍👩‍👧 Người đưa/đón
-        </button>
       </div>
 
-      {/* Nội dung tab */}
-      {activeTab === 'student' && (
-        <StudentTab classes={classes} loadingClasses={loadingClasses} />
+      {/* ── Lỗi ── */}
+      {error && (
+        <div className="bg-red-50 border border-red-200 text-red-700 rounded-xl px-4 py-3 mb-5 text-sm flex items-center gap-2">
+          ⚠ {error}
+          <button onClick={loadData} className="ml-auto underline text-xs">Thử lại</button>
+        </div>
       )}
-      {activeTab === 'pickup' && (
-        <PickupTab classes={classes} loadingClasses={loadingClasses} />
+
+      {/* ── Summary ── */}
+      {!loading && (
+        <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 mb-6">
+          <SummaryCard label="Tổng học sinh"    value={totalStudents}                borderColor="border-gray-200" />
+          <SummaryCard label="Đã đăng ký"       value={`${totalReg} (${overallPct}%)`} borderColor="border-green-200"  sub="có face embedding" />
+          <SummaryCard label="Chưa đăng ký"     value={totalUnreg}                   borderColor={totalUnreg > 0 ? 'border-red-200' : 'border-gray-200'} sub="AI không nhận diện được" />
+          <SummaryCard label="Lớp chưa đầy đủ" value={classesUnready}               borderColor={classesUnready > 0 ? 'border-orange-200' : 'border-gray-200'} sub={`/ ${allClasses.length} lớp`} />
+        </div>
+      )}
+
+      {/* ── Loading skeleton ── */}
+      {loading && (
+        <div className="space-y-4">
+          {[...Array(3)].map((_, i) => (
+            <div key={i} className="h-32 bg-gray-100 rounded-2xl animate-pulse" />
+          ))}
+        </div>
+      )}
+
+      {/* ── Danh sách khối ── */}
+      {!loading && gradeGroups.length === 0 && !error && (
+        <div className="text-center py-20 text-gray-400">
+          <span className="text-5xl block mb-3">🏫</span>
+          <p className="font-medium">Chưa có lớp nào trong năm học hiện tại</p>
+        </div>
+      )}
+
+      {!loading && (
+        <div className="space-y-5">
+          {gradeGroups.map((grade, idx) => (
+            <GradeBlock key={grade.gradeId} grade={grade} colorIdx={idx} />
+          ))}
+        </div>
+      )}
+
+      {/* ── Chú thích ── */}
+      {!loading && gradeGroups.length > 0 && (
+        <div className="mt-6 bg-blue-50 border border-blue-100 rounded-xl px-4 py-3 text-xs text-blue-600">
+          <strong>Lưu ý:</strong> Học sinh chưa đăng ký khuôn mặt vẫn điểm danh được thủ công.
+          Giáo viên đăng ký khuôn mặt tại màn hình điểm danh để AI nhận diện tự động.
+          Nhấn vào tiêu đề khối để thu gọn/mở rộng.
+        </div>
       )}
     </RoleLayout>
   );

@@ -56,38 +56,38 @@ import {
 
 const emptyFood = {
   name: "",
-  calories: "",
-  protein: "",
-  fat: "",
-  carb: "",
+  calories: "0",
+  protein: "0",
+  fat: "0",
+  carb: "0",
   ingredients: [],
 };
 
 const NUTRITION_CONFIG = [
   {
     key: "calories",
-    label: "Calories",
+    label: "Kcal",
     unit: "kcal",
     color: "#f97316",
     icon: <CalorieIcon sx={{ fontSize: 16 }} />,
   },
   {
     key: "protein",
-    label: "Protein",
+    label: "Chất đạm",
     unit: "g",
     color: "#6366f1",
     icon: <ProteinIcon sx={{ fontSize: 16 }} />,
   },
   {
     key: "fat",
-    label: "Fat",
+    label: "Chất béo",
     unit: "g",
     color: "#eab308",
     icon: <FatIcon sx={{ fontSize: 16 }} />,
   },
   {
     key: "carb",
-    label: "Carb",
+    label: "Tinh bột",
     unit: "g",
     color: "#22c55e",
     icon: <CarbIcon sx={{ fontSize: 16 }} />,
@@ -133,7 +133,7 @@ function NutritionBar({ value, max, color }) {
   );
 }
 
-function FormField({ config, value, error, onChange }) {
+function FormField({ config, value, error, onChange, inputProps = {}, disabled = false }) {
   const isName = config.key === "name";
   return (
     <TextField
@@ -142,14 +142,16 @@ function FormField({ config, value, error, onChange }) {
       name={config.key}
       label={config.label}
       type={isName ? "text" : "number"}
-      inputProps={isName ? { maxLength: 20 } : { min: 0 }}
+      inputProps={{ ...(isName ? { maxLength: 20 } : { min: 0 }), ...inputProps }}
       value={value}
       onChange={onChange}
       error={Boolean(error)}
       helperText={error || " "}
+      disabled={disabled}
       InputProps={
         !isName
           ? {
+              readOnly: disabled,
               endAdornment: (
                 <InputAdornment position="end">
                   <Typography variant="caption" color="text.disabled">
@@ -166,10 +168,10 @@ function FormField({ config, value, error, onChange }) {
 
 function FoodCard({ food, maxValues, onView, onEdit, onDelete }) {
   const nutrients = [
-    { key: "calories", label: "Cal", unit: "kcal", color: "#f97316" },
-    { key: "protein", label: "Pro", unit: "g", color: "#6366f1" },
-    { key: "fat", label: "Fat", unit: "g", color: "#eab308" },
-    { key: "carb", label: "Carb", unit: "g", color: "#22c55e" },
+    { key: "calories", label: "Kcal", unit: "kcal", color: "#f97316" },
+    { key: "protein", label: "Chất đạm", unit: "g", color: "#6366f1" },
+    { key: "fat", label: "Chất béo", unit: "g", color: "#eab308" },
+    { key: "carb", label: "Tinh bột", unit: "g", color: "#22c55e" },
   ];
   return (
     <Card elevation={0} sx={{ border: "1px solid", borderColor: "divider", borderRadius: 2.5 }}>
@@ -224,7 +226,10 @@ function FoodManagement() {
   const [saving, setSaving] = useState(false);
 
   const [form, setForm] = useState(emptyFood);
-  const [newIngredient, setNewIngredient] = useState({ name: "", quantity: "", calories: "", protein: "", fat: "", carb: "" });
+  const [newIngredient, setNewIngredient] = useState({ name: "", quantity: "", unit: "g", calories: "", protein: "", fat: "", carb: "" });
+  const [selectedIngredient, setSelectedIngredient] = useState(null);
+  const [showCustomRow, setShowCustomRow] = useState(false);
+  const [customIngredient, setCustomIngredient] = useState({ name: "", quantity: 100, unit: "g", calories: "", protein: "", fat: "", carb: "" });
   const [errors, setErrors] = useState({});
 
   useEffect(() => {
@@ -282,13 +287,15 @@ function FoodManagement() {
 
   const handleOpenEdit = (food) => {
     setEditingFood(food);
+    const ingredients = Array.isArray(food.ingredients) ? food.ingredients : [];
+    const nutrition = computeNutritionFromIngredients(ingredients);
     setForm({
       name: food.name || "",
-      calories: food.calories ?? "",
-      protein: food.protein ?? "",
-      fat: food.fat ?? "",
-      carb: food.carb ?? "",
-      ingredients: Array.isArray(food.ingredients) ? food.ingredients : [],
+      calories: nutrition.calories,
+      protein: nutrition.protein,
+      fat: nutrition.fat,
+      carb: nutrition.carb,
+      ingredients,
     });
     setErrors({});
     setShowModal(true);
@@ -304,42 +311,65 @@ function FoodManagement() {
     setShowDetailModal(false);
   };
 
+  // Helper: Extract only the unit part (letters) from a string like "100g" or "g"
+  const extractUnitOnly = (unitStr) => {
+    if (!unitStr || unitStr === 'undefined') return 'g';
+    const str = String(unitStr).trim();
+    const match = str.match(/[a-zA-Z]+/);
+    return (match && match[0]) || 'g';
+  };
+
+  // Helper: Parse combined quantity format (e.g., "100g" -> {quantity: 100, unit: "g"})
+  const parseQuantityFormat = (combined) => {
+    if (!combined) return { quantity: 100, unit: "g" };
+    
+    const combined_str = String(combined).trim();
+    const match = combined_str.match(/^([\d.]+)\s*([a-zA-Z]*)$/);
+    
+    if (match) {
+      return {
+        quantity: Number(match[1]) || 100,
+        unit: match[2] || "g"
+      };
+    }
+    return { quantity: 100, unit: "g" };
+  };
+
+  // Helper: Format quantity + unit together (e.g., {quantity: 100, unit: "g"} -> "100g")
+  const formatQuantityDisplay = (quantity, unit) => {
+    const q = quantity !== undefined && quantity !== null && quantity !== '' ? quantity : 100;
+    const u = unit && unit !== 'undefined' ? unit : 'g';
+    return `${q}${u}`;
+  };
+
   const addIngredientFromLibrary = (ingredient) => {
     if (!ingredient) return;
 
-    setNewIngredient({
-      name: ingredient.name || '',
-      quantity: '100',
-      calories: String(ingredient.calories || 0),
-      protein: String(ingredient.protein || 0),
-      fat: String(ingredient.fat || 0),
-      carb: String(ingredient.carb || 0),
-    });
-  };
-
-  const handleNewIngredientChange = (field, value) => {
-    setNewIngredient((prev) => ({ ...prev, [field]: value }));
-  };
-
-  const handleAppendNewIngredient = async () => {
-    if (!newIngredient.name.trim()) return;
-
-    const normalizedName = newIngredient.name.trim();
-    const alreadyExists = form.ingredients.some((it) => it.name.toLowerCase() === normalizedName.toLowerCase());
+    // Kiểm tra nguyên liệu đã có trong danh sách chưa
+    const alreadyExists = form.ingredients.some((it) => it.name.toLowerCase() === ingredient.name.toLowerCase());
     if (alreadyExists) {
-      toast.error(`Nguyên liệu "${normalizedName}" đã có trong danh sách`);
+      toast.error(`Nguyên liệu "${ingredient.name}" đã có trong danh sách`);
       return;
     }
 
+    // Tính Calories từ P/F/C (Protein*4 + Fat*9 + Carb*4)
+    const p = Number(ingredient.protein) || 0;
+    const f = Number(ingredient.fat) || 0;
+    const c = Number(ingredient.carb) || 0;
+    const calculatedCalories = Math.round((p * 4 + f * 9 + c * 4) * 10) / 10;
+
+    // Thêm trực tiếp vào form.ingredients với mặc định 100g
+    const finalUnit = extractUnitOnly(ingredient.unit) || 'g';
     const updatedIngredients = [
       ...form.ingredients,
       {
-        name: normalizedName,
-        quantity: newIngredient.quantity.trim() || '100',
-        calories: newIngredient.calories.trim() || '0',
-        protein: newIngredient.protein.trim() || '0',
-        fat: newIngredient.fat.trim() || '0',
-        carb: newIngredient.carb.trim() || '0',
+        name: ingredient.name || '',
+        quantity: 100,
+        unit: finalUnit,
+        calories: calculatedCalories,
+        protein: p,
+        fat: f,
+        carb: c,
       },
     ];
 
@@ -349,35 +379,84 @@ function FoodManagement() {
       ...computeNutritionFromIngredients(updatedIngredients),
     }));
 
-    setNewIngredient({ name: "", quantity: "", calories: "", protein: "", fat: "", carb: "" });
+    // Reset selectedIngredient
+    setSelectedIngredient(null);
+  };
+
+
+
+
+  const addCustomIngredient = async () => {
+    const name = String(customIngredient.name || "").trim();
+    if (!name) {
+      toast.error("Vui lòng nhập tên nguyên liệu");
+      return;
+    }
+
+    const alreadyExists = form.ingredients.some((it) => it.name.trim().toLowerCase() === name.toLowerCase());
+    if (alreadyExists) {
+      toast.error(`Nguyên liệu "${name}" đã có trong danh sách`);
+      return;
+    }
+
+    const quantity = Number(customIngredient.quantity) || 100;
+    const protein = Number(customIngredient.protein) || 0;
+    const fat = Number(customIngredient.fat) || 0;
+    const carb = Number(customIngredient.carb) || 0;
+    const caloriesFromMacros = Math.round((protein * 4 + fat * 9 + carb * 4) * 10) / 10;
+    const calories = customIngredient.calories !== "" && customIngredient.calories !== null
+      ? Number(customIngredient.calories)
+      : caloriesFromMacros;
+
+    const newItem = {
+      name,
+      quantity,
+      unit: String(customIngredient.unit || "g").trim() || "g",
+      calories,
+      protein,
+      fat,
+      carb,
+    };
+
+    const updatedIngredients = [...form.ingredients, newItem];
+    setForm((prev) => ({ ...prev, ingredients: updatedIngredients, ...computeNutritionFromIngredients(updatedIngredients) }));
+
+    setAvailableIngredients((prev) => {
+      if (prev.some((it) => it.name.trim().toLowerCase() === name.toLowerCase())) return prev;
+      return [...prev, { name, calories, protein, fat, carb, unit: newItem.unit }];
+    });
 
     try {
-      await createIngredient({
-        name: normalizedName,
-        unit: '100g',
-        calories: Number(newIngredient.calories) || 0,
-        protein: Number(newIngredient.protein) || 0,
-        fat: Number(newIngredient.fat) || 0,
-        carb: Number(newIngredient.carb) || 0,
-      });
-      fetchIngredients();
-    } catch (err) {
-      if (err?.data?.message?.includes('đã tồn tại') || err?.message?.includes('duplicate')) {
-        // đã có thì bỏ qua
-      } else {
-        console.error('Tạo nguyên liệu DB lỗi:', err);
-        toast.error('Không thể lưu nguyên liệu vào database');
-      }
+      await createIngredient({ name, calories, protein, fat, carb, unit: newItem.unit });
+      toast.success("Thêm nguyên liệu mới thành công và lưu vào danh sách chung");
+    } catch (error) {
+      toast.error("Không thể lưu nguyên liệu mới vào server, vẫn thêm vào món ăn tạm thời");
+      console.error("createIngredient error", error);
     }
+
+    setCustomIngredient({ name: "", quantity: 100, unit: "g", calories: "", protein: "", fat: "", carb: "" });
   };
 
   const computeNutritionFromIngredients = (ingredients) => {
     const totals = ingredients.reduce(
       (acc, item) => {
-        const c = Number(item.calories) || 0;
-        const p = Number(item.protein) || 0;
-        const f = Number(item.fat) || 0;
-        const cb = Number(item.carb) || 0;
+        // Lấy giá trị dinh dưỡng gốc
+        let c = Number(item.calories) || 0;
+        let p = Number(item.protein) || 0;
+        let f = Number(item.fat) || 0;
+        let cb = Number(item.carb) || 0;
+
+        // Nếu có số lượng, tính toán lại dựa trên tỷ lệ
+        if (item.quantity) {
+          const quantity = Number(item.quantity);
+          // Giả sử unit mặc định là 100g, nên tính toán dựa trên tỷ lệ
+          const ratio = quantity / 100;
+          c = c * ratio;
+          p = p * ratio;
+          f = f * ratio;
+          cb = cb * ratio;
+        }
+
         return {
           calories: acc.calories + c,
           protein: acc.protein + p,
@@ -388,16 +467,13 @@ function FoodManagement() {
       { calories: 0, protein: 0, fat: 0, carb: 0 }
     );
     return {
-      calories: String(totals.calories),
-      protein: String(totals.protein),
-      fat: String(totals.fat),
-      carb: String(totals.carb),
+      calories: String(Math.round(totals.calories)),
+      protein: String(Math.round(totals.protein * 10) / 10),
+      fat: String(Math.round(totals.fat * 10) / 10),
+      carb: String(Math.round(totals.carb * 10) / 10),
     };
   };
 
-  const handleAddIngredient = () => {
-    handleAppendNewIngredient();
-  };
 
   const handleRemoveIngredient = (index) => {
     setForm((prev) => {
@@ -412,9 +488,42 @@ function FoodManagement() {
 
   const handleIngredientChange = (index, field, value) => {
     setForm((prev) => {
-      const updatedIngredients = prev.ingredients.map((item, i) =>
-        i === index ? { ...item, [field]: value } : item
-      );
+      // Handle combined quantity+unit field
+      if (field === 'quantityWithUnit') {
+        const { quantity, unit } = parseQuantityFormat(value);
+        const updatedIngredients = prev.ingredients.map((item, i) => {
+          if (i !== index) return item;
+          return { ...item, quantity, unit };
+        });
+        return {
+          ...prev,
+          ingredients: updatedIngredients,
+          ...computeNutritionFromIngredients(updatedIngredients),
+        };
+      }
+
+      // Convert numeric fields to number
+      let finalValue = value;
+      if (['calories', 'protein', 'fat', 'carb'].includes(field)) {
+        finalValue = value === '' ? 0 : Number(value);
+      }
+
+      const updatedIngredients = prev.ingredients.map((item, i) => {
+        if (i !== index) return item;
+        
+        const updated = { ...item, [field]: finalValue };
+        
+        // Auto-calculate calories from P/F/C if editing those fields
+        if (['protein', 'fat', 'carb'].includes(field)) {
+          const p = Number(updated.protein) || 0;
+          const f = Number(updated.fat) || 0;
+          const c = Number(updated.carb) || 0;
+          updated.calories = Math.round((p * 4 + f * 9 + c * 4) * 10) / 10;
+        }
+        
+        return updated;
+      });
+
       return {
         ...prev,
         ingredients: updatedIngredients,
@@ -738,7 +847,7 @@ function FoodManagement() {
       <Dialog
         open={showModal}
         onClose={() => !saving && setShowModal(false)}
-        maxWidth="xs"
+        maxWidth="lg"
         fullWidth
         PaperProps={{
           sx: {
@@ -785,7 +894,7 @@ function FoodManagement() {
               color="text.disabled"
               sx={{ mt: -0.5, mb: 0.5, display: "block" }}
             >
-              Thông tin dinh dưỡng
+              Thông tin dinh dưỡng (tự cập nhật theo nguyên liệu, không thể nhập tay)
             </Typography>
             <Grid container spacing={1.5}>
               {NUTRITION_CONFIG.map((n) => (
@@ -795,132 +904,206 @@ function FoodManagement() {
                     value={form[n.key]}
                     error={errors[n.key]}
                     onChange={handleChange}
+                    disabled
                   />
                 </Grid>
               ))}
             </Grid>
             <Box sx={{ mt: 2 }}>
               <Typography sx={{ mb: 1, fontWeight: 700 }}>Chọn nguyên liệu có sẵn</Typography>
-              <Autocomplete
-                options={availableIngredients}
-                getOptionLabel={(option) => `${option.name} (${option.calories} kcal / ${option.unit || '100g'})`}
-                onChange={(_, value) => addIngredientFromLibrary(value)}
-                renderInput={(params) => (
-                  <TextField
-                    {...params}
-                    size="small"
-                    label="Chọn nguyên liệu phổ biến"
-                    placeholder="Chọn nguyên liệu phổ biến..."
-                    sx={{ mb: 1 }}
-                  />
-                )}
-              />
+              <Box sx={{ display: 'flex', gap: 1, alignItems: 'flex-start' }}>
+                <Autocomplete
+                  options={availableIngredients}
+                  value={selectedIngredient}
+                  getOptionLabel={(option) => `${option.name}`}
+                  onChange={(_, value) => setSelectedIngredient(value)}
+                  renderInput={(params) => (
+                    <TextField
+                      {...params}
+                      size="small"
+                      label="Chọn nguyên liệu phổ biến"
+                      placeholder="Chọn nguyên liệu phổ biến..."
+                      sx={{ mb: 1 }}
+                    />
+                  )}
+                  sx={{ flex: 1 }}
+                />
+                <Button
+                  variant="contained"
+                  onClick={() => {
+                    if (selectedIngredient) {
+                      addIngredientFromLibrary(selectedIngredient);
+                      setSelectedIngredient(null);
+                    }
+                  }}
+                  disabled={!selectedIngredient}
+                  sx={{ mt: 0.5 }}
+                >
+                  Thêm
+                </Button>
+                <Button
+                  variant={showCustomRow ? 'contained' : 'outlined'}
+                  onClick={() => setShowCustomRow((prev) => !prev)}
+                  sx={{ mt: 0.5 }}
+                >
+                  Khác
+                </Button>
+              </Box>
 
-              <Typography sx={{ mt: 1, fontWeight: 700 }}>Hoặc nhập thủ công</Typography>
-              <Grid container spacing={1} alignItems="center" sx={{ mt: 1, mb: 1 }}>
-                <Grid item xs={4}>
-                  <TextField
-                    fullWidth
-                    size="small"
-                    label="Tên nguyên liệu"
-                    value={newIngredient.name}
-                    onChange={(e) => handleNewIngredientChange('name', e.target.value)}
-                  />
-                </Grid>
-                <Grid item xs={2}>
-                  <TextField
-                    fullWidth
-                    size="small"
-                    label="Khối lượng"
-                    value={newIngredient.quantity}
-                    onChange={(e) => handleNewIngredientChange('quantity', e.target.value)}
-                    placeholder="g"
-                  />
-                </Grid>
-                <Grid item xs={1.5}>
-                  <TextField
-                    fullWidth
-                    size="small"
-                    label="Calories"
-                    type="number"
-                    value={newIngredient.calories}
-                    onChange={(e) => handleNewIngredientChange('calories', e.target.value)}
-                  />
-                </Grid>
-                <Grid item xs={1.5}>
-                  <TextField
-                    fullWidth
-                    size="small"
-                    label="Protein"
-                    type="number"
-                    value={newIngredient.protein}
-                    onChange={(e) => handleNewIngredientChange('protein', e.target.value)}
-                  />
-                </Grid>
-                <Grid item xs={1.5}>
-                  <TextField
-                    fullWidth
-                    size="small"
-                    label="Fat"
-                    type="number"
-                    value={newIngredient.fat}
-                    onChange={(e) => handleNewIngredientChange('fat', e.target.value)}
-                  />
-                </Grid>
-                <Grid item xs={1.5}>
-                  <TextField
-                    fullWidth
-                    size="small"
-                    label="Carb"
-                    type="number"
-                    value={newIngredient.carb}
-                    onChange={(e) => handleNewIngredientChange('carb', e.target.value)}
-                  />
-                </Grid>
-                <Grid item xs={1}>
-                  <Button
-                    variant="contained"
-                    size="small"
-                    onClick={handleAppendNewIngredient}
-                    sx={{ textTransform: 'none', px: 1 }}
-                  >
-                    Thêm Nguyên Liệu
-                  </Button>
-                </Grid>
-              </Grid>
-
-              <Typography sx={{ fontWeight: 700, mb: 1 }}>
+              <Typography sx={{ fontWeight: 700, mb: 1, mt: 2 }}>
                 Danh sách nguyên liệu ({form.ingredients?.length || 0})
               </Typography>
 
-              <TableContainer sx={{ maxHeight: 220, border: '1px solid', borderColor: 'divider', borderRadius: 1 }}>
-                <Table size="small" stickyHeader>
+              <TableContainer sx={{ border: '1px solid', borderColor: 'divider', borderRadius: 1, overflowX: { xs: 'auto', sm: 'auto' } }}>
+                <Table size="small" sx={{ width: '100%', tableLayout: 'fixed' }}>
                   <TableHead>
-                    <TableRow>
-                      <TableCell sx={{ fontWeight: 700 }}>Nguyên liệu</TableCell>
-                      <TableCell align="center" sx={{ fontWeight: 700 }}>KL</TableCell>
-                      <TableCell align="center" sx={{ fontWeight: 700 }}>Cal</TableCell>
-                      <TableCell align="center" sx={{ fontWeight: 700 }}>P/F/C</TableCell>
-                      <TableCell align="center" sx={{ fontWeight: 700 }}>Xóa</TableCell>
+                    <TableRow sx={{ bgcolor: 'grey.50' }}>
+                      <TableCell sx={{ fontWeight: 700, flex: 1.2 }}>Nguyên liệu</TableCell>
+                      <TableCell align="center" sx={{ fontWeight: 700, flex: 1 }}>Số lượng</TableCell>
+                      <TableCell align="center" sx={{ fontWeight: 700, flex: 1 }}>Kcal</TableCell>
+                      <TableCell align="center" sx={{ fontWeight: 700, flex: 1, display: { xs: 'none', sm: 'table-cell' } }}>Chất đạm (g)</TableCell>
+                      <TableCell align="center" sx={{ fontWeight: 700, flex: 1, display: { xs: 'none', md: 'table-cell' } }}>Chất béo (g)</TableCell>
+                      <TableCell align="center" sx={{ fontWeight: 700, flex: 1, display: { xs: 'none', md: 'table-cell' } }}>Tinh bột (g)</TableCell>
+                      <TableCell align="center" sx={{ fontWeight: 700, flex: 0.8 }}>Hành động</TableCell>
                     </TableRow>
                   </TableHead>
                   <TableBody>
                     {(form.ingredients || []).map((item, idx) => (
-                      <TableRow key={idx}>
-                        <TableCell>{item.name}</TableCell>
-                        <TableCell align="center">{item.quantity || '-'}</TableCell>
-                        <TableCell align="center">{item.calories || 0}</TableCell>
-                        <TableCell align="center">{`${item.protein || 0}/${item.fat || 0}/${item.carb || 0}`}</TableCell>
-                        <TableCell align="center">
-                          <IconButton size="small" onClick={() => handleRemoveIngredient(idx)}>
+                      <TableRow key={idx} hover>
+                        <TableCell sx={{ fontWeight: 600, flex: 1.2, wordBreak: 'break-word' }}>{item.name}</TableCell>
+                        <TableCell align="center" sx={{ flex: 1 }}>
+                          <TextField
+                            size="small"
+                            defaultValue={formatQuantityDisplay(item.quantity || 100, item.unit || 'g')}
+                            onChange={(e) => handleIngredientChange(idx, 'quantityWithUnit', e.target.value)}
+                            placeholder="100g"
+                            inputProps={{ style: { textAlign: 'center', fontSize: '0.875rem' } }}
+                            sx={{ width: '100%' }}
+                          />
+                        </TableCell>
+                        <TableCell align="center" sx={{ flex: 1 }}>
+                          <TextField
+                            size="small"
+                            type="number"
+                            value={item.calories ?? 0}
+                            disabled={true}
+                            inputProps={{ style: { textAlign: 'center', fontSize: '0.875rem' } }}
+                            sx={{ width: '100%' }}
+                          />
+                        </TableCell>
+                        <TableCell align="center" sx={{ flex: 1, display: { xs: 'none', sm: 'table-cell' } }}>
+                          <TextField
+                            size="small"
+                            type="number"
+                            value={item.protein ?? 0}
+                            onChange={(e) => handleIngredientChange(idx, 'protein', e.target.value)}
+                            inputProps={{ style: { textAlign: 'center', fontSize: '0.875rem' } }}
+                            sx={{ width: '100%' }}
+                          />
+                        </TableCell>
+                        <TableCell align="center" sx={{ flex: 1, display: { xs: 'none', md: 'table-cell' } }}>
+                          <TextField
+                            size="small"
+                            type="number"
+                            value={item.fat ?? 0}
+                            onChange={(e) => handleIngredientChange(idx, 'fat', e.target.value)}
+                            inputProps={{ style: { textAlign: 'center', fontSize: '0.875rem' } }}
+                            sx={{ width: '100%' }}
+                          />
+                        </TableCell>
+                        <TableCell align="center" sx={{ flex: 1, display: { xs: 'none', md: 'table-cell' } }}>
+                          <TextField
+                            size="small"
+                            type="number"
+                            value={item.carb ?? 0}
+                            onChange={(e) => handleIngredientChange(idx, 'carb', e.target.value)}
+                            inputProps={{ style: { textAlign: 'center', fontSize: '0.875rem' } }}
+                            sx={{ width: '100%' }}
+                          />
+                        </TableCell>
+                        <TableCell align="center" sx={{ flex: 0.8 }}>
+                          <IconButton size="small" onClick={() => handleRemoveIngredient(idx)}
+                            sx={{ color: 'error.main' }}>
                             <DeleteIcon fontSize="small" />
                           </IconButton>
                         </TableCell>
                       </TableRow>
                     ))}
+                    {showCustomRow && (
+                      <TableRow>
+                        <TableCell sx={{ fontWeight: 600, flex: 1.2, wordBreak: 'break-word' }}>
+                          <TextField
+                            size="small"
+                            value={customIngredient.name}
+                            onChange={(e) => setCustomIngredient((prev) => ({ ...prev, name: e.target.value }))}
+                            placeholder="Tên nguyên liệu"
+                            fullWidth
+                          />
+                        </TableCell>
+                        <TableCell align="center" sx={{ flex: 1 }}>
+                          <TextField
+                            size="small"
+                            value={customIngredient.quantity}
+                            onChange={(e) => setCustomIngredient((prev) => ({ ...prev, quantity: e.target.value }))}
+                            placeholder="100"
+                            inputProps={{ style: { textAlign: 'center', fontSize: '0.875rem' } }}
+                            sx={{ width: '100%' }}
+                          />
+                        </TableCell>
+                        <TableCell align="center" sx={{ flex: 1 }}>
+                          <TextField
+                            size="small"
+                            value={customIngredient.calories}
+                            onChange={(e) => setCustomIngredient((prev) => ({ ...prev, calories: e.target.value }))}
+                            placeholder="Kcal"
+                            type="number"
+                            inputProps={{ style: { textAlign: 'center', fontSize: '0.875rem' } }}
+                            sx={{ width: '100%' }}
+                          />
+                        </TableCell>
+                        <TableCell align="center" sx={{ flex: 1, display: { xs: 'none', sm: 'table-cell' } }}>
+                          <TextField
+                            size="small"
+                            value={customIngredient.protein}
+                            onChange={(e) => setCustomIngredient((prev) => ({ ...prev, protein: e.target.value }))}
+                            placeholder="Chất đạm"
+                            type="number"
+                            inputProps={{ style: { textAlign: 'center', fontSize: '0.875rem' } }}
+                            sx={{ width: '100%' }}
+                          />
+                        </TableCell>
+                        <TableCell align="center" sx={{ flex: 1, display: { xs: 'none', md: 'table-cell' } }}>
+                          <TextField
+                            size="small"
+                            value={customIngredient.fat}
+                            onChange={(e) => setCustomIngredient((prev) => ({ ...prev, fat: e.target.value }))}
+                            placeholder="Chất béo"
+                            type="number"
+                            inputProps={{ style: { textAlign: 'center', fontSize: '0.875rem' } }}
+                            sx={{ width: '100%' }}
+                          />
+                        </TableCell>
+                        <TableCell align="center" sx={{ flex: 1, display: { xs: 'none', md: 'table-cell' } }}>
+                          <TextField
+                            size="small"
+                            value={customIngredient.carb}
+                            onChange={(e) => setCustomIngredient((prev) => ({ ...prev, carb: e.target.value }))}
+                            placeholder="Tinh bột"
+                            type="number"
+                            inputProps={{ style: { textAlign: 'center', fontSize: '0.875rem' } }}
+                            sx={{ width: '100%' }}
+                          />
+                        </TableCell>
+                        <TableCell align="center" sx={{ flex: 0.8 }}>
+                          <Button size="small" variant="contained" onClick={addCustomIngredient}>
+                            Thêm mới
+                          </Button>
+                        </TableCell>
+                      </TableRow>
+                    )}
                     {(form.ingredients || []).length === 0 && (
                       <TableRow>
-                        <TableCell colSpan={5} align="center" sx={{ py: 2, color: 'text.secondary' }}>
+                        <TableCell colSpan={7} align="center" sx={{ py: 3, color: 'text.secondary' }}>
                           Chưa có nguyên liệu nào
                         </TableCell>
                       </TableRow>
@@ -978,7 +1161,7 @@ function FoodManagement() {
               "&.Mui-disabled": { opacity: 0.5 },
             }}
           >
-            {saving ? "Đang lưu..." : editingFood ? "Cập nhật" : "Thêm mới"}
+            {saving ? "Đang lưu..." : editingFood ? "Chỉnh sửa" : "Thêm món ăn"}
           </Button>
         </DialogActions>
       </Dialog>

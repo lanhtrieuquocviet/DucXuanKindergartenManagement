@@ -24,6 +24,8 @@ import {
 import { useAuth } from '../../context/AuthContext';
 import RoleLayout from '../../layouts/RoleLayout';
 import { get, post, patch, del, ENDPOINTS } from '../../service/api';
+import { createSchoolAdminMenuSelect } from './schoolAdminMenuConfig';
+import { useSchoolAdminMenu } from './useSchoolAdminMenu';
 import { toast } from 'react-toastify';
 
 
@@ -35,31 +37,6 @@ function formatMonthQuarter(value) {
   return `Tháng ${v}`;
 }
 
-const menuItems = [
-  { key: 'overview', label: 'Tổng quan trường' },
-  {
-    key: 'academic-years',
-    label: 'Quản lý năm học',
-    children: [
-      { key: 'academic-year-setup', label: 'Thiết lập năm học' },
-      { key: 'academic-plan', label: 'Thiết lập kế hoạch' },
-      { key: 'academic-schedule', label: 'Thời gian biểu' },
-      { key: 'academic-report', label: 'Báo cáo & thống kê' },
-    ],
-  },
-  { key: 'classes', label: 'Lớp học' },
-  { key: 'menu', label: 'Quản lý thực đơn' },
-  { key: 'teachers', label: 'Giáo viên' },
-  { key: 'students', label: 'Học sinh & phụ huynh' },
-  { key: 'assets', label: 'Quản lý tài sản' },
-  { key: 'reports', label: 'Báo cáo của trường' },
-  { key: 'contacts', label: 'Liên hệ' },
-  { key: 'qa', label: 'Câu hỏi' },
-  { key: 'blogs', label: 'Quản lý blog' },
-  { key: 'documents', label: 'Quản lý tài liệu' },
-  { key: 'public-info', label: 'Thông tin công khai' },
-  { key: 'attendance', label: 'Quản lý điểm danh' },
-];
 
 function CurriculumTopicCard({ topic, onEdit, onDelete }) {
   return (
@@ -205,6 +182,7 @@ function CurriculumTopicCard({ topic, onEdit, onDelete }) {
 export default function CurriculumPage() {
   const navigate = useNavigate();
   const { user, logout } = useAuth();
+  const menuItems = useSchoolAdminMenu();
 
   const [academicYear, setAcademicYear] = useState(null);
   const [loadingYear, setLoadingYear] = useState(true);
@@ -248,35 +226,7 @@ export default function CurriculumPage() {
     navigate('/login', { replace: true });
   };
 
-  const handleMenuSelect = (key) => {
-    if (key === 'overview') {
-      navigate('/school-admin');
-      return;
-    }
-    if (key === 'academic-years' || key === 'academic-year-setup') {
-      navigate('/school-admin/academic-years');
-      return;
-    }
-    if (key === 'academic-plan') navigate('/school-admin/academic-plan');
-    else if (key === 'academic-report') {
-      const yearId = academicYear?._id;
-      if (yearId) navigate(`/school-admin/academic-years/${yearId}/report`);
-      else navigate('/school-admin/academic-years');
-      return;
-    }
-    else if (key === 'academic-schedule') navigate('/school-admin/timetable');
-    else if (key === 'academic-students') navigate('/school-admin/class-list');
-    else if (key === 'classes') navigate('/school-admin/classes');
-    else if (key === 'menu') navigate('/school-admin/menus');
-    if (key === 'teachers') { navigate('/school-admin/teachers'); return; }
-    else if (key === 'students') navigate('/school-admin/students');
-    else if (key === 'contacts') navigate('/school-admin/contacts');
-    else if (key === 'qa') navigate('/school-admin/qa');
-    else if (key === 'blogs') navigate('/school-admin/blogs');
-    else if (key === 'documents') navigate('/school-admin/documents');
-    else if (key === 'public-info') navigate('/school-admin/public-info');
-    else if (key === 'attendance') navigate('/school-admin/attendance/overview');
-  };
+  const handleMenuSelect = createSchoolAdminMenuSelect(navigate);
 
   useEffect(() => {
     const fetchCurrentYear = async () => {

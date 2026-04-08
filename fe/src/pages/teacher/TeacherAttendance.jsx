@@ -1,12 +1,14 @@
-import { useEffect, useMemo, useRef, useState, Component } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState, Component } from 'react';
 import { useLocation, useNavigate, useParams } from 'react-router-dom';
 import { Snackbar, Alert, Box, Typography, Avatar, Paper, Button } from '@mui/material';
 import { EventBusy as EventBusyIcon } from '@mui/icons-material';
 import { useAuth } from '../../context/AuthContext';
+import { useTeacher } from '../../context/TeacherContext';
 import RoleLayout from '../../layouts/RoleLayout';
 import { get, post, ENDPOINTS } from '../../service/api';
 import FaceAttendanceModal from '../../components/face/FaceAttendanceModal';
 import PickupFaceAttendanceModal from '../../components/face/PickupFaceAttendanceModal';
+import FaceRegisterClassModal from '../../components/face/FaceRegisterClassModal';
 
 class FaceModalErrorBoundary extends Component {
   constructor(props) {
@@ -118,9 +120,11 @@ function TeacherAttendance() {
   // ── State: modal điểm danh khuôn mặt ──
   const [isFaceModalOpen, setIsFaceModalOpen] = useState(false);
   const [isPickupFaceModalOpen, setIsPickupFaceModalOpen] = useState(false);
+  const [isFaceRegisterClassOpen, setIsFaceRegisterClassOpen] = useState(false);
 
   // ── State: Toast thành công ──
   const [successToast, setSuccessToast] = useState({ visible: false, message: '' });
+  const [warningToast] = useState({ visible: false, message: '' });
 
   const showSuccessToast = (message) => {
     setSuccessToast({ visible: true, message });
@@ -143,7 +147,7 @@ function TeacherAttendance() {
       return;
     }
     const userRoles = user?.roles?.map((r) => r.roleName || r) || [];
-    if (!userRoles.includes('Teacher')) {
+    if (!userRoles.includes('Teacher') && !userRoles.includes('HeadTeacher')) {
       navigate('/', { replace: true });
     }
   }, [navigate, user, isInitializing]);
@@ -208,37 +212,40 @@ function TeacherAttendance() {
       receiverOtherImageName: serverRec.receiverOtherImageName || '',
       note: serverRec.note || '',
       absentReason: serverRec.absentReason || '',
+      checkedInByAI: serverRec.checkedInByAI || false,
+      checkedOutByAI: serverRec.checkedOutByAI || false,
     };
   };
 
   // Load attendance: ưu tiên server, fallback localStorage khi mất mạng
-  useEffect(() => {
+  const loadAttendance = useCallback(async () => {
     if (!classId) return;
-    const loadAttendance = async () => {
-      try {
-        const res = await get(
-          `${ENDPOINTS.STUDENTS.ATTENDANCE_LIST}?classId=${classId}&date=${selectedDate}`
-        );
-        const serverRecords = res.data || [];
-        const allLocal = readAttendanceStorage(classId);
-        const localByDate = allLocal?.[selectedDate] || {};
-        const merged = { ...localByDate };
-        serverRecords.forEach((rec) => {
-          const sid = rec.studentId?._id?.toString() || rec.studentId?.toString();
-          if (sid) merged[sid] = mapServerRecord(rec, localByDate[sid]);
-        });
-        allLocal[selectedDate] = merged;
-        writeAttendanceStorage(classId, allLocal);
-        setAttendanceByStudent(merged);
-      } catch {
-        // Mất mạng hoặc lỗi server → dùng localStorage
-        const all = readAttendanceStorage(classId);
-        setAttendanceByStudent(all?.[selectedDate] || {});
-      }
-    };
-    loadAttendance();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
+    try {
+      const res = await get(
+        `${ENDPOINTS.STUDENTS.ATTENDANCE_LIST}?classId=${classId}&date=${selectedDate}`
+      );
+      const serverRecords = res.data || [];
+      const allLocal = readAttendanceStorage(classId);
+      const localByDate = allLocal?.[selectedDate] || {};
+      const merged = { ...localByDate };
+      serverRecords.forEach((rec) => {
+        const sid = rec.studentId?._id?.toString() || rec.studentId?.toString();
+        if (sid) merged[sid] = mapServerRecord(rec, localByDate[sid]);
+      });
+      allLocal[selectedDate] = merged;
+      writeAttendanceStorage(classId, allLocal);
+      setAttendanceByStudent(merged);
+    } catch {
+      // Mất mạng hoặc lỗi server → dùng localStorage
+      const all = readAttendanceStorage(classId);
+      setAttendanceByStudent(all?.[selectedDate] || {});
+    }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [classId, selectedDate]);
+
+  useEffect(() => {
+    loadAttendance();
+  }, [loadAttendance]);
 
   // Khởi tạo bản ghi mặc định cho học sinh chưa có
   useEffect(() => {
@@ -286,6 +293,7 @@ function TeacherAttendance() {
   }, [detailForm.otpSent]);
 
   // ── Menu layout ──
+  const { isCommitteeMember } = useTeacher();
   const menuItems = useMemo(
     () => [
       { key: 'classes', label: 'Lớp phụ trách' },
@@ -293,24 +301,39 @@ function TeacherAttendance() {
       { key: 'attendance', label: 'Điểm danh' },
       { key: 'pickup-approval', label: 'Đơn đưa đón' },
       { key: 'schedule', label: 'Lịch dạy & hoạt động' },
-      { key: 'messages', label: 'Thông báo cho phụ huynh' },
+      { key: 'contact-book', label: 'Sổ liên lạc điện tử' },
+      { key: 'purchase-request', label: 'Cơ sở vật chất' },
+      { key: 'class-assets', label: 'Tài sản lớp' },
+      ...(isCommitteeMember ? [{ key: 'asset-inspection', label: 'Kiểm kê tài sản' }] : []),
     ],
-    []
+    [isCommitteeMember]
   );
 
   const activeKey = useMemo(() => {
     const path = location.pathname || '';
-    if (path.startsWith('/teacher/attendance')) return 'attendance';
+    if (path.startsWith('/teacher/contact-book'))    return 'contact-book';
+    if (path.startsWith('/teacher/attendance'))      return 'attendance';
     if (path.startsWith('/teacher/pickup-approval')) return 'pickup-approval';
+    if (path.startsWith('/teacher/purchase-request')) return 'purchase-request';
+    if (path.startsWith('/teacher/class-assets'))    return 'class-assets';
+    if (path.startsWith('/teacher/asset-inspection')) return 'asset-inspection';
     return 'classes';
   }, [location.pathname]);
 
   const userName = user?.fullName || user?.username || 'Teacher';
 
   const handleMenuSelect = (key) => {
-    if (key === 'classes') { navigate('/teacher'); return; }
-    if (key === 'attendance') { navigate('/teacher/attendance'); return; }
-    if (key === 'pickup-approval') { navigate('/teacher/pickup-approval'); return; }
+    const MAP = {
+      classes: '/teacher',
+      students: '/teacher/students',
+      'contact-book': '/teacher/contact-book',
+      attendance: '/teacher/attendance',
+      'pickup-approval': '/teacher/pickup-approval',
+      'purchase-request': '/teacher/purchase-request',
+      'class-assets': '/teacher/class-assets',
+      'asset-inspection': '/teacher/asset-inspection',
+    };
+    if (MAP[key]) navigate(MAP[key]);
   };
 
   // ── API calls ──
@@ -416,6 +439,8 @@ function TeacherAttendance() {
         belongingsNote: rec.belongingsNote || '',
         note: rec.note || '',
         absentReason: rec.absentReason || '',
+        checkedInByAI: rec.checkedInByAI || false,
+        checkedOutByAI: rec.checkedOutByAI || false,
         checkoutImageName: rec.checkoutImageName || '',
         receiverType: rec.receiverType || '',
         receiverPickupPersonId: rec.receiverPickupPersonId || '',
@@ -637,35 +662,6 @@ function TeacherAttendance() {
     }
   };
 
-  const handleSendToParent = () => {
-    if (!detailStudentId) { setSubmitError('Không xác định học sinh.'); return; }
-    if (!detailForm.receiverType) { setSubmitError('Vui lòng chọn người đón.'); return; }
-    if (detailForm.receiverType === 'Khác') {
-      if (!detailForm.receiverName?.trim()) { setSubmitError('Vui lòng nhập tên người đón.'); return; }
-      if (!detailForm.receiverPhone?.trim() || !PHONE_REGEX.test(detailForm.receiverPhone.trim())) {
-        setSubmitError('Vui lòng nhập số điện thoại người đón hợp lệ.'); return;
-      }
-      if (!detailForm.receiverOtherImageName) { setSubmitError('Vui lòng chọn ảnh người đón.'); return; }
-    }
-    setSubmitError(null);
-
-    const receiverOtherInfoForParent = detailForm.receiverType === 'Khác'
-      ? buildPersonOtherInfo(detailForm.receiverName, detailForm.receiverPhone)
-      : detailForm.receiverOtherInfo || '';
-
-    updateRecord(detailStudentId, {
-      ...(attendanceByStudent?.[detailStudentId] || defaultRecord()),
-      status: 'waiting_parent',
-      timeIn: detailForm.timeIn || '',
-      timeOut: detailForm.timeOut || '',
-      note: detailForm.note?.trim() || '',
-      checkoutImageName: detailForm.checkoutImageName,
-      receiverType: detailForm.receiverType,
-      receiverOtherInfo: receiverOtherInfoForParent,
-      receiverOtherImageName: detailForm.receiverOtherImageName,
-    });
-    closeDetailAndClearDraft();
-  };
 
   // ── Absent modal ──
   const saveAbsentRecord = async () => {
@@ -772,25 +768,173 @@ function TeacherAttendance() {
       )}
 
       {classId && (
-        <div className="mb-3 flex justify-end">
+        <div className="mb-4 flex flex-wrap justify-end gap-2">
+          {/* Nút Điểm danh đến */}
           <button
             onClick={() => setIsFaceModalOpen(true)}
-            className="flex items-center gap-2 px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white text-sm font-medium rounded-lg shadow"
+            style={{
+              background: 'linear-gradient(135deg, #3b82f6 0%, #6366f1 100%)',
+              boxShadow: '0 4px 15px rgba(99, 102, 241, 0.4)',
+              transition: 'all 0.25s ease',
+              border: 'none',
+              cursor: 'pointer',
+            }}
+            onMouseEnter={e => {
+              e.currentTarget.style.transform = 'translateY(-2px)';
+              e.currentTarget.style.boxShadow = '0 8px 25px rgba(99, 102, 241, 0.55)';
+            }}
+            onMouseLeave={e => {
+              e.currentTarget.style.transform = 'translateY(0)';
+              e.currentTarget.style.boxShadow = '0 4px 15px rgba(99, 102, 241, 0.4)';
+            }}
+            className="relative flex items-center gap-2 px-4 py-2 sm:px-5 sm:py-2.5 text-white text-xs sm:text-sm font-semibold rounded-xl overflow-hidden"
           >
-            <span>📷</span> Điểm danh đến
+            {/* Hiệu ứng shimmer */}
+            <span
+              style={{
+                position: 'absolute', inset: 0,
+                background: 'linear-gradient(105deg, transparent 40%, rgba(255,255,255,0.18) 50%, transparent 60%)',
+                backgroundSize: '200% 100%',
+                animation: 'shimmer 2.5s infinite',
+              }}
+            />
+            {/* Icon camera AI */}
+            <span style={{ position: 'relative', display: 'flex', alignItems: 'center', gap: 5 }}>
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                <path d="M23 7l-7 5 7 5V7z"/><rect x="1" y="5" width="15" height="14" rx="2" ry="2"/>
+              </svg>
+              <span
+                style={{
+                  fontSize: 8, fontWeight: 700, letterSpacing: '0.05em',
+                  background: 'rgba(255,255,255,0.25)', borderRadius: 4,
+                  padding: '1px 4px', lineHeight: '13px',
+                }}
+              >AI</span>
+            </span>
+            <span style={{ position: 'relative' }} className="hidden sm:inline">Điểm danh đến</span>
+            <span style={{ position: 'relative' }} className="sm:hidden">Đến</span>
           </button>
+
+          {/* Nút Điểm danh về */}
           <button
             onClick={() => {
-              if (new Date().getHours() < 17) {
-                alert('Chưa đến 17:00 — chưa được điểm danh về.');
-                return;
-              }
               setIsPickupFaceModalOpen(true);
             }}
-            className="flex items-center gap-2 px-4 py-2 bg-emerald-600 hover:bg-emerald-700 text-white text-sm font-medium rounded-lg shadow"
+            style={{
+              background: 'linear-gradient(135deg, #10b981 0%, #059669 100%)',
+              boxShadow: '0 4px 15px rgba(16, 185, 129, 0.4)',
+              transition: 'all 0.25s ease',
+              border: 'none',
+              cursor: 'pointer',
+            }}
+            onMouseEnter={e => {
+              e.currentTarget.style.transform = 'translateY(-2px)';
+              e.currentTarget.style.boxShadow = '0 8px 25px rgba(16, 185, 129, 0.55)';
+            }}
+            onMouseLeave={e => {
+              e.currentTarget.style.transform = 'translateY(0)';
+              e.currentTarget.style.boxShadow = '0 4px 15px rgba(16, 185, 129, 0.4)';
+            }}
+            className="relative flex items-center gap-2 px-4 py-2 sm:px-5 sm:py-2.5 text-white text-xs sm:text-sm font-semibold rounded-xl overflow-hidden"
           >
-            <span>🚶</span> Điểm danh về
+            {/* Hiệu ứng shimmer */}
+            <span
+              style={{
+                position: 'absolute', inset: 0,
+                background: 'linear-gradient(105deg, transparent 40%, rgba(255,255,255,0.18) 50%, transparent 60%)',
+                backgroundSize: '200% 100%',
+                animation: 'shimmer 2.5s infinite 0.5s',
+              }}
+            />
+            {/* Icon checkout AI */}
+            <span style={{ position: 'relative', display: 'flex', alignItems: 'center', gap: 5 }}>
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                <circle cx="12" cy="8" r="4"/><path d="M4 20c0-4 3.6-7 8-7s8 3 8 7"/>
+                <path d="M18 14l2 2 4-4" strokeWidth="2.5"/>
+              </svg>
+              <span
+                style={{
+                  fontSize: 8, fontWeight: 700, letterSpacing: '0.05em',
+                  background: 'rgba(255,255,255,0.25)', borderRadius: 4,
+                  padding: '1px 4px', lineHeight: '13px',
+                }}
+              >AI</span>
+            </span>
+            <span style={{ position: 'relative' }} className="hidden sm:inline">Điểm danh về</span>
+            <span style={{ position: 'relative' }} className="sm:hidden">Về</span>
           </button>
+
+          {/* Nút Đăng ký khuôn mặt AI */}
+          <button
+            onClick={() => setIsFaceRegisterClassOpen(true)}
+            style={{
+              background: 'linear-gradient(135deg, #7c3aed 0%, #a855f7 100%)',
+              boxShadow: '0 4px 15px rgba(124, 58, 237, 0.4)',
+              transition: 'all 0.25s ease',
+              border: 'none',
+              cursor: 'pointer',
+            }}
+            onMouseEnter={e => {
+              e.currentTarget.style.transform = 'translateY(-2px)';
+              e.currentTarget.style.boxShadow = '0 8px 25px rgba(124, 58, 237, 0.55)';
+            }}
+            onMouseLeave={e => {
+              e.currentTarget.style.transform = 'translateY(0)';
+              e.currentTarget.style.boxShadow = '0 4px 15px rgba(124, 58, 237, 0.4)';
+            }}
+            className="relative flex items-center gap-2 px-4 py-2 sm:px-5 sm:py-2.5 text-white text-xs sm:text-sm font-semibold rounded-xl overflow-hidden"
+          >
+            <span
+              style={{
+                position: 'absolute', inset: 0,
+                background: 'linear-gradient(105deg, transparent 40%, rgba(255,255,255,0.18) 50%, transparent 60%)',
+                backgroundSize: '200% 100%',
+                animation: 'shimmer 2.5s infinite 1s',
+              }}
+            />
+            <span style={{ position: 'relative', display: 'flex', alignItems: 'center', gap: 5 }}>
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                <circle cx="9" cy="7" r="4"/><path d="M3 21v-2a4 4 0 0 1 4-4h4a4 4 0 0 1 4 4v2"/>
+                <path d="M16 3.13a4 4 0 0 1 0 7.75"/><path d="M21 21v-2a4 4 0 0 0-3-3.87"/>
+              </svg>
+              <span
+                style={{
+                  fontSize: 8, fontWeight: 700, letterSpacing: '0.05em',
+                  background: 'rgba(255,255,255,0.25)', borderRadius: 4,
+                  padding: '1px 4px', lineHeight: '13px',
+                }}
+              >AI</span>
+            </span>
+            <span style={{ position: 'relative' }} className="hidden sm:inline">Đăng ký khuôn mặt</span>
+            <span style={{ position: 'relative' }} className="sm:hidden">Đăng ký</span>
+            {/* Badge số học sinh đã đăng ký */}
+            {students.length > 0 && (
+              <span
+                style={{
+                  position: 'relative',
+                  background: students.filter(s => s.hasFaceEmbedding).length === students.length
+                    ? 'rgba(16,185,129,0.9)'
+                    : 'rgba(255,255,255,0.25)',
+                  borderRadius: 99,
+                  padding: '1px 7px',
+                  fontSize: 10,
+                  fontWeight: 700,
+                  lineHeight: '16px',
+                  letterSpacing: '0.02em',
+                }}
+                className="hidden sm:inline"
+              >
+                {students.filter(s => s.hasFaceEmbedding).length}/{students.length}
+              </span>
+            )}
+          </button>
+
+          <style>{`
+            @keyframes shimmer {
+              0% { background-position: -200% 0; }
+              100% { background-position: 200% 0; }
+            }
+          `}</style>
         </div>
       )}
 
@@ -840,8 +984,7 @@ function TeacherAttendance() {
         attendanceByStudent={attendanceByStudent}
         onClose={closeDetail}
         onSave={handleSaveDetail}
-        onSendToParent={handleSendToParent}
-        onResetOtp={resetOtpState}
+onResetOtp={resetOtpState}
       />
 
       <AbsentModal
@@ -870,32 +1013,43 @@ function TeacherAttendance() {
         </Alert>
       </Snackbar>
 
+      {/* Toast thông báo cảnh báo */}
+      <Snackbar
+        open={warningToast.visible}
+        anchorOrigin={{ vertical: 'top', horizontal: 'center' }}
+        sx={{ zIndex: 1500 }}
+      >
+        <Alert severity="warning" variant="filled" sx={{ fontWeight: 600, boxShadow: 8 }}>
+          {warningToast.message}
+        </Alert>
+      </Snackbar>
+
       <FaceModalErrorBoundary onClose={() => setIsFaceModalOpen(false)}>
         <FaceAttendanceModal
           open={isFaceModalOpen}
-          onClose={() => setIsFaceModalOpen(false)}
+          onClose={() => {
+            setIsFaceModalOpen(false);
+            loadAttendance();
+          }}
+          onCheckinSuccess={loadAttendance}
           classId={classId}
           className={selectedClassName}
         />
       </FaceModalErrorBoundary>
+
+      <FaceRegisterClassModal
+        open={isFaceRegisterClassOpen}
+        onClose={() => setIsFaceRegisterClassOpen(false)}
+        classId={classId}
+        className={selectedClassName}
+      />
 
       <PickupFaceAttendanceModal
         open={isPickupFaceModalOpen}
         onClose={() => setIsPickupFaceModalOpen(false)}
         classId={classId}
         className={selectedClassName}
-        onCheckoutSuccess={() => {
-          if (classId && selectedDate) {
-            get(`${ENDPOINTS.STUDENTS.ATTENDANCE_LIST}?classId=${classId}&date=${selectedDate}`)
-              .then((res) => {
-                const records = res?.data || res || [];
-                const map = {};
-                records.forEach((r) => { map[r.studentId] = r; });
-                setAttendanceByStudent(map);
-              })
-              .catch(() => {});
-          }
-        }}
+        onCheckoutSuccess={loadAttendance}
       />
     </RoleLayout>
   );

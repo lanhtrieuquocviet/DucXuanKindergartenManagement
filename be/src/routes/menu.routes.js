@@ -1,7 +1,7 @@
 const express = require("express");
 const router = express.Router();
 const menuController = require("../controller/menuController");
-const { authenticate, authorizeRoles } = require("../middleware/auth");
+const { authenticate, authorizeRoles, authorizePermissions } = require("../middleware/auth");
 
 /**
  * @openapi
@@ -55,7 +55,14 @@ const { authenticate, authorizeRoles } = require("../middleware/auth");
  *         description: Không có quyền KitchenStaff
  */
 router.get("/", authenticate, menuController.getMenus);
-router.post("/", authenticate, authorizeRoles("KitchenStaff"), menuController.createMenu);
+router.post("/", authenticate, authorizePermissions("MANAGE_MENU"), menuController.createMenu);
+router.get("/nutrition-plan", authenticate, menuController.getNutritionPlanSetting);
+router.put(
+  "/nutrition-plan",
+  authenticate,
+  authorizePermissions("APPROVE_MENU"),
+  menuController.updateNutritionPlanSetting
+);
 
 /**
  * @openapi
@@ -106,7 +113,7 @@ router.post("/", authenticate, authorizeRoles("KitchenStaff"), menuController.cr
  *         description: Cập nhật thành công
  */
 router.get("/:id", authenticate, menuController.getMenuDetail);
-router.put("/:id", authenticate, authorizeRoles("KitchenStaff"), menuController.updateMenu);
+router.put("/:id", authenticate, authorizePermissions("MANAGE_MENU"), menuController.updateMenu);
 
 /**
  * @openapi
@@ -129,7 +136,7 @@ router.put("/:id", authenticate, authorizeRoles("KitchenStaff"), menuController.
  *       400:
  *         description: Thực đơn không ở trạng thái draft
  */
-router.put("/:id/submit", authenticate, authorizeRoles("KitchenStaff"), menuController.submitMenu);
+router.put("/:id/submit", authenticate, authorizePermissions("MANAGE_MENU"), menuController.submitMenu);
 
 /**
  * @openapi
@@ -152,7 +159,7 @@ router.put("/:id/submit", authenticate, authorizeRoles("KitchenStaff"), menuCont
  *       403:
  *         description: Không có quyền SchoolAdmin
  */
-router.put("/:id/approve", authenticate, authorizeRoles("SchoolAdmin"), menuController.approveMenu);
+router.put("/:id/approve", authenticate, authorizePermissions("APPROVE_MENU"), menuController.approveMenu);
 
 /**
  * @openapi
@@ -185,6 +192,6 @@ router.put("/:id/approve", authenticate, authorizeRoles("SchoolAdmin"), menuCont
  *       403:
  *         description: Không có quyền SchoolAdmin
  */
-router.put("/:id/reject", authenticate, authorizeRoles("SchoolAdmin"), menuController.rejectMenu);
+router.put("/:id/reject", authenticate, authorizePermissions("APPROVE_MENU"), menuController.rejectMenu);
 
 module.exports = router;

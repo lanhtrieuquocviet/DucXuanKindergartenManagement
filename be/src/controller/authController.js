@@ -1,17 +1,17 @@
 const bcrypt = require('bcryptjs');
-const jwt = require('jsonwebtoken');
 const User = require('../models/User');
 const Student = require('../models/Student');
+const RefreshToken = require('../models/RefreshToken');
 const { sendPasswordResetEmail, sendOTPEmail, generateRandomPassword } = require('../utils/email');
 const { createSystemLog } = require('../utils/systemLog');
 const { addToBlacklist } = require('../utils/tokenBlacklist');
+const { signToken, signRefreshToken, verifyRefreshToken } = require('../utils/jwt');
 
 // ============================================
 // Hằng số
 // ============================================
 
-const JWT_SECRET = process.env.JWT_SECRET || 'dev_jwt_secret_change_me';
-const JWT_EXPIRES_IN = process.env.JWT_EXPIRES_IN || '1d';
+const JWT_REFRESH_EXPIRES_IN = process.env.JWT_REFRESH_EXPIRES_IN || '7d';
 
 // Ít nhất 1 chữ hoa, 1 số, 1 ký tự đặc biệt, tối thiểu 6 ký tự
 const PASSWORD_COMPLEXITY_REGEX = /^(?=.*[A-Z])(?=.*\d)(?=.*[^A-Za-z0-9]).{6,}$/;
@@ -160,6 +160,18 @@ const checkPasswordResetRateLimit = (user) => {
 const isStrongPassword = (password) =>
   PASSWORD_COMPLEXITY_REGEX.test(password || '');
 
+/**
+ * Tính thời gian hết hạn của refresh token dựa vào JWT_REFRESH_EXPIRES_IN
+ * Hỗ trợ định dạng: '7d', '30d', '24h', '60m'
+ */
+const calcRefreshTokenExpiry = () => {
+  const str = JWT_REFRESH_EXPIRES_IN;
+  const unit = str.slice(-1);
+  const value = parseInt(str.slice(0, -1), 10);
+  const ms = { d: 864e5, h: 36e5, m: 6e4 }[unit] || 864e5;
+  return new Date(Date.now() + value * ms);
+};
+
 // ============================================
 // Các hàm controller
 // ============================================
@@ -224,6 +236,13 @@ const login = async (req, res) => {
       permissions: (role.permissions || []).map((p) => (p.code ? p.code : p)),
     }));
 
+    if (roles.length === 0) {
+      return res.status(403).json({
+        status: 'error',
+        message: 'Tài khoản chưa được gán Role. Vui lòng liên hệ quản trị viên.',
+      });
+    }
+
     const payload = {
       sub: user._id.toString(),
       username: user.username,
@@ -237,8 +256,15 @@ const login = async (req, res) => {
       ),
     };
 
-    const token = jwt.sign(payload, JWT_SECRET, {
-      expiresIn: JWT_EXPIRES_IN,
+    const accessToken = signToken(payload);
+
+    // Tạo refresh token và lưu vào DB
+    const refreshPayload = { sub: user._id.toString() };
+    const refreshTokenStr = signRefreshToken(refreshPayload);
+    await RefreshToken.create({
+      token: refreshTokenStr,
+      userId: user._id,
+      expiresAt: calcRefreshTokenExpiry(),
     });
 
     await createSystemLog({
@@ -252,7 +278,8 @@ const login = async (req, res) => {
       status: 'success',
       message: 'Đăng nhập thành công',
       data: {
-        token,
+        token: accessToken,
+        refreshToken: refreshTokenStr,
         user: buildUserResponse(user),
       },
     });
@@ -360,6 +387,18 @@ const updateProfile = async (req, res) => {
   } catch (error) {
     // eslint-disable-next-line no-console
     console.error('Update profile error:', error);
+
+    // Xử lý lỗi duplicate key (MongoDB E11000)
+    if (error.code === 11000) {
+      const field = Object.keys(error.keyPattern || {})[0];
+      const fieldNames = { email: 'Email', phone: 'Số điện thoại' };
+      const fieldLabel = fieldNames[field] || field || 'Thông tin';
+      return res.status(400).json({
+        status: 'error',
+        message: `${fieldLabel} này đã được sử dụng bởi tài khoản khác. Vui lòng nhập thông tin khác.`,
+      });
+    }
+
     return res.status(500).json({
       status: 'error',
       message: error.message || 'Không cập nhật được hồ sơ',
@@ -905,16 +944,121 @@ const deleteMyChild = async (req, res) => {
 };
 
 /**
+ * POST /api/auth/refresh
+ * Dùng refreshToken để lấy accessToken mới
+ * Áp dụng refresh token rotation: revoke token cũ, cấp token mới
+ */
+const refreshToken = async (req, res) => {
+  try {
+    const { refreshToken: tokenStr } = req.body;
+
+    if (!tokenStr) {
+      return res.status(400).json({
+        status: 'error',
+        message: 'Thiếu refresh token',
+      });
+    }
+
+    // 1. Verify chữ ký và hạn của refresh token
+    let decoded;
+    try {
+      decoded = verifyRefreshToken(tokenStr);
+    } catch {
+      return res.status(401).json({
+        status: 'error',
+        message: 'Refresh token không hợp lệ hoặc đã hết hạn',
+      });
+    }
+
+    // 2. Kiểm tra token có trong DB và chưa bị thu hồi
+    const storedToken = await RefreshToken.findOne({ token: tokenStr });
+    if (!storedToken || storedToken.isRevoked) {
+      return res.status(401).json({
+        status: 'error',
+        message: 'Refresh token đã bị thu hồi. Vui lòng đăng nhập lại',
+      });
+    }
+
+    // 3. Lấy thông tin user
+    const user = await User.findById(decoded.sub).populate({
+      path: 'roles',
+      model: 'Roles',
+      populate: { path: 'permissions', model: 'Permission' },
+    });
+
+    if (!user) {
+      return res.status(401).json({ status: 'error', message: 'Người dùng không tồn tại' });
+    }
+
+    if (user.status === 'inactive') {
+      return res.status(403).json({
+        status: 'error',
+        message: 'Tài khoản đã bị khóa. Vui lòng liên hệ nhà trường.',
+      });
+    }
+
+    // 4. Cấp access token mới
+    const payload = {
+      sub: user._id.toString(),
+      username: user.username,
+      roles: (user.roles || []).map((r) => r.roleName),
+      permissions: Array.from(
+        new Set(
+          (user.roles || []).flatMap((role) =>
+            (role.permissions || []).map((p) => (p.code ? p.code : p)),
+          ),
+        ),
+      ),
+    };
+    const newAccessToken = signToken(payload);
+
+    // 5. Refresh token rotation: thu hồi token cũ, cấp token mới
+    storedToken.isRevoked = true;
+    await storedToken.save();
+
+    const newRefreshTokenStr = signRefreshToken({ sub: user._id.toString() });
+    await RefreshToken.create({
+      token: newRefreshTokenStr,
+      userId: user._id,
+      expiresAt: calcRefreshTokenExpiry(),
+    });
+
+    return res.status(200).json({
+      status: 'success',
+      message: 'Làm mới token thành công',
+      data: {
+        token: newAccessToken,
+        refreshToken: newRefreshTokenStr,
+      },
+    });
+  } catch (error) {
+    // eslint-disable-next-line no-console
+    console.error('Refresh token error:', error);
+    return res.status(500).json({ status: 'error', message: 'Lỗi làm mới token' });
+  }
+};
+
+/**
  * POST /api/auth/logout
  * Đăng xuất - thêm token hiện tại vào blacklist
  */
 const logout = async (req, res) => {
   try {
     const authHeader = req.headers.authorization || '';
-    const token = authHeader.startsWith('Bearer ') ? authHeader.slice(7) : null;
+    const accessTokenStr = authHeader.startsWith('Bearer ') ? authHeader.slice(7) : null;
 
-    if (token) {
-      addToBlacklist(token);
+    // Blacklist access token
+    if (accessTokenStr) {
+      addToBlacklist(accessTokenStr);
+    }
+
+    // Thu hồi refresh token nếu client gửi lên
+    const { refreshToken: refreshTokenStr } = req.body || {};
+    if (refreshTokenStr) {
+      await RefreshToken.findOneAndUpdate(
+        { token: refreshTokenStr },
+        { isRevoked: true },
+      );
     }
 
     return res.status(200).json({
@@ -932,6 +1076,7 @@ const logout = async (req, res) => {
 module.exports = {
   login,
   logout,
+  refreshToken,
   getProfile,
   updateProfile,
   changePassword,

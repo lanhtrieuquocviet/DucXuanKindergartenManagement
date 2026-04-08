@@ -1,40 +1,46 @@
-import { useEffect, useState } from "react";
-import { useNavigate } from "react-router-dom";
-import { useAuth } from "../../context/AuthContext";
-import { get, post, postFormData, ENDPOINTS, del, put } from "../../service/api";
-import { Pencil, Trash2, Plus } from "lucide-react";
+import { useEffect, useState } from 'react';
+import { useNavigate } from 'react-router-dom';
+import { useAuth } from '../../context/AuthContext';
+import { get, post, postFormData, ENDPOINTS, del, put } from '../../service/api';
+import {
+  Box, Paper, Typography, Avatar, Stack, Chip, IconButton,
+  CircularProgress, Alert, Button, TextField, Select, MenuItem,
+  FormControl, InputLabel, Dialog, DialogTitle, DialogContent,
+  DialogActions, Divider,
+} from '@mui/material';
+import {
+  ArrowBack, Add, Edit, Delete, CameraAlt, Close,
+  HowToReg, Phone, People,
+} from '@mui/icons-material';
 
-function PickupRegistration() {
+const PRIMARY = '#059669';
+const PRIMARY_DARK = '#047857';
+const BG = '#f0fdf4';
+
+const STATUS_CONFIG = {
+  pending:  { label: 'Chờ duyệt', color: 'warning' },
+  approved: { label: 'Đã duyệt',  color: 'success' },
+  rejected: { label: 'Từ chối',   color: 'error'   },
+};
+
+export default function PickupRegistration() {
   const navigate = useNavigate();
   const { user, isInitializing } = useAuth();
   const [children, setChildren] = useState([]);
-  const [loadingRequests, setLoadingRequests] = useState(false);
   const [pickupRequests, setPickupRequests] = useState([]);
+  const [loadingRequests, setLoadingRequests] = useState(false);
   const [previewUrl, setPreviewUrl] = useState(null);
   const [editingId, setEditingId] = useState(null);
   const [deleteId, setDeleteId] = useState(null);
-
-  // Thêm state để quản lý việc nhập "Khác"
   const [isOtherRelation, setIsOtherRelation] = useState(false);
-
-  const [form, setForm] = useState({
-    studentId: "",
-    fullName: "",
-    relation: "",
-    phone: "",
-    imageFile: null,
-  });
-
-  const [error, setError] = useState("");
-  const [success, setSuccess] = useState("");
+  const [form, setForm] = useState({ studentId: '', fullName: '', relation: '', phone: '', imageFile: null });
+  const [error, setError] = useState('');
+  const [success, setSuccess] = useState('');
   const [submitting, setSubmitting] = useState(false);
 
   useEffect(() => {
     if (isInitializing) return;
-    if (!user) {
-      navigate("/login", { replace: true });
-      return;
-    }
+    if (!user) { navigate('/login', { replace: true }); return; }
     fetchChildren();
     fetchMyPickupRequests();
   }, [isInitializing, user, navigate]);
@@ -44,377 +50,275 @@ function PickupRegistration() {
       const res = await get(ENDPOINTS.AUTH.MY_CHILDREN);
       const list = res.data || [];
       setChildren(list);
-      if (list.length > 0) {
-        setForm((prev) => ({ ...prev, studentId: list[0]._id }));
-      }
-    } catch (err) {
-      setError("Không tải được thông tin học sinh.");
-    }
+      if (list.length > 0) setForm(p => ({ ...p, studentId: list[0]._id }));
+    } catch { setError('Không tải được thông tin học sinh.'); }
   };
 
   const fetchMyPickupRequests = async () => {
     try {
       setLoadingRequests(true);
-      const res = await get(ENDPOINTS.PICKUP.MY_REQUESTS || "/pickup/my-requests");
+      const res = await get(ENDPOINTS.PICKUP.MY_REQUESTS || '/pickup/my-requests');
       setPickupRequests(res.data || []);
-    } catch (err) {
-      console.error(err);
-    } finally {
-      setLoadingRequests(false);
-    }
+    } catch {} finally { setLoadingRequests(false); }
   };
 
   const handleChange = (e) => {
     const { name, value, files } = e.target;
-
-    if (name === "image") {
+    if (name === 'image') {
       const file = files?.[0];
-      if (file) {
-        setForm((prev) => ({ ...prev, imageFile: file }));
-        setPreviewUrl(URL.createObjectURL(file));
-      }
-    } 
-    // Validate Họ tên tối đa 50 ký tự
-    else if (name === "fullName") {
-      if (value.length <= 50) {
-        setForm((prev) => ({ ...prev, [name]: value }));
-      }
-    }
-    // Validate Số điện thoại: Chỉ số và tối đa 10 số (định dạng VN)
-    else if (name === "phone") {
-      const onlyNums = value.replace(/[^0-9]/g, "");
-      if (onlyNums.length <= 10) {
-        setForm((prev) => ({ ...prev, [name]: onlyNums }));
-      }
-    } 
-    // Xử lý logic chọn "Khác" cho mối quan hệ
-    else if (name === "relation") {
-      // Nếu đang nhập custom relation (isOtherRelation = true), chỉ cập nhật giá trị
-      if (isOtherRelation) {
-        setForm((prev) => ({ ...prev, relation: value }));
-      } else if (value === "Other") {
-        // Nếu chọn "Khác" từ dropdown
-        setIsOtherRelation(true);
-        setForm((prev) => ({ ...prev, relation: "" })); // Reset để người dùng nhập mới
-      } else {
-        // Chọn mối quan hệ tiêu chuẩn từ dropdown
-        setIsOtherRelation(false);
-        setForm((prev) => ({ ...prev, [name]: value }));
-      }
-    } else {
-      setForm((prev) => ({ ...prev, [name]: value }));
-    }
+      if (file) { setForm(p => ({ ...p, imageFile: file })); setPreviewUrl(URL.createObjectURL(file)); }
+    } else if (name === 'fullName') {
+      if (value.length <= 50) setForm(p => ({ ...p, [name]: value }));
+    } else if (name === 'phone') {
+      const nums = value.replace(/[^0-9]/g, '');
+      if (nums.length <= 10) setForm(p => ({ ...p, phone: nums }));
+    } else if (name === 'relation') {
+      if (isOtherRelation) { setForm(p => ({ ...p, relation: value })); }
+      else if (value === 'Other') { setIsOtherRelation(true); setForm(p => ({ ...p, relation: '' })); }
+      else { setIsOtherRelation(false); setForm(p => ({ ...p, [name]: value })); }
+    } else { setForm(p => ({ ...p, [name]: value })); }
   };
 
   const handleSubmit = async (e) => {
     e.preventDefault();
-    setError("");
-    setSuccess("");
-    setSubmitting(true);
-
+    setError(''); setSuccess(''); setSubmitting(true);
     try {
-      // Validate required fields
-      if (!form.fullName.trim()) {
-        throw new Error("Vui lòng nhập họ tên người đón");
-      }
-      if (!form.phone.trim()) {
-        throw new Error("Vui lòng nhập số điện thoại");
-      }
-      // Validate phone number format: 10 digits (VN mobile: 03/05/07/08/09)
-      const phonePattern = /^0[35789]\d{8}$/;
-      if (!phonePattern.test(form.phone.trim())) {
-        throw new Error("Số điện thoại không hợp lệ.");
-      }
-      if (!form.relation.trim()) {
-        throw new Error("Vui lòng nhập mối quan hệ");
-      }
-      // Image validation: require image for both creating and updating
-      if (!form.imageFile) {
-        throw new Error("Vui lòng chọn ảnh để đăng ký hoặc cập nhật thông tin");
-      }
-
-      let imageUrl = "";
+      if (!form.fullName.trim()) throw new Error('Vui lòng nhập họ tên người đón');
+      if (!form.phone.trim()) throw new Error('Vui lòng nhập số điện thoại');
+      if (!/^0[35789]\d{8}$/.test(form.phone.trim())) throw new Error('Số điện thoại không hợp lệ.');
+      if (!form.relation.trim()) throw new Error('Vui lòng nhập mối quan hệ');
+      if (!form.imageFile && !editingId) throw new Error('Vui lòng chọn ảnh để đăng ký');
+      let imageUrl = '';
       if (form.imageFile) {
-        const formData = new FormData();
-        formData.append("avatar", form.imageFile);
-        const uploadRes = await postFormData(ENDPOINTS.CLOUDINARY.UPLOAD_AVATAR, formData);
-        imageUrl = uploadRes?.data?.url || "";
+        const fd = new FormData(); fd.append('avatar', form.imageFile);
+        const uploadRes = await postFormData(ENDPOINTS.CLOUDINARY.UPLOAD_AVATAR, fd);
+        imageUrl = uploadRes?.data?.url || '';
       }
-
-      const payload = {
-        studentId: form.studentId,
-        fullName: form.fullName.trim(),
-        relation: form.relation.trim(),
-        phone: form.phone.trim(),
-        imageUrl,
-      };
-
-      if (editingId) {
-        await put(ENDPOINTS.PICKUP.UPDATE(editingId), payload);
-        setSuccess("Cập nhật thành công!");
-      } else {
-        if (pickupRequests.length >= 5) {
-          throw new Error("Mỗi học sinh tối đa 5 người đưa đón");
-        }
-        await post(ENDPOINTS.PICKUP.CREATE, payload);
-        setSuccess("Đăng ký thành công!");
+      const payload = { studentId: form.studentId, fullName: form.fullName.trim(), relation: form.relation.trim(), phone: form.phone.trim(), imageUrl };
+      if (editingId) { await put(ENDPOINTS.PICKUP.UPDATE(editingId), payload); setSuccess('Cập nhật thành công!'); }
+      else {
+        if (pickupRequests.length >= 5) throw new Error('Mỗi học sinh tối đa 5 người đưa đón');
+        await post(ENDPOINTS.PICKUP.CREATE, payload); setSuccess('Đăng ký thành công!');
       }
-
-      // Reset Form
-      setEditingId(null);
-      setIsOtherRelation(false);
-      setForm({
-        studentId: children[0]?._id || "",
-        fullName: "",
-        relation: "",
-        phone: "",
-        imageFile: null,
-      });
-      setPreviewUrl(null);
+      resetForm();
       fetchMyPickupRequests();
-    } catch (err) {
-      setError(err.message || "Thao tác thất bại");
-    } finally {
-      setSubmitting(false);
-    }
+    } catch (err) { setError(err.message || 'Thao tác thất bại'); }
+    finally { setSubmitting(false); }
+  };
+
+  const resetForm = () => {
+    setEditingId(null); setIsOtherRelation(false);
+    setForm({ studentId: children[0]?._id || '', fullName: '', relation: '', phone: '', imageFile: null });
+    setPreviewUrl(null);
   };
 
   const handleEdit = (req) => {
     setEditingId(req._id);
-    const standardRelations = ["Bố", "Mẹ", "Ông", "Bà", "Anh/Chị"];
-    const isOther = !standardRelations.includes(req.relation);
-    
-    setIsOtherRelation(isOther);
-    setForm({
-      studentId: req.student?._id || form.studentId,
-      fullName: req.fullName,
-      relation: req.relation,
-      phone: req.phone,
-      imageFile: null,
-    });
+    const std = ['Bố', 'Mẹ', 'Ông', 'Bà', 'Anh/Chị'];
+    setIsOtherRelation(!std.includes(req.relation));
+    setForm({ studentId: req.student?._id || form.studentId, fullName: req.fullName, relation: req.relation, phone: req.phone, imageFile: null });
     setPreviewUrl(req.imageUrl || null);
-    window.scrollTo({ top: 0, behavior: "smooth" });
+    window.scrollTo({ top: 0, behavior: 'smooth' });
   };
 
   const confirmDelete = async () => {
-    try {
-      await del(ENDPOINTS.PICKUP.DELETE(deleteId));
-      setSuccess("Đã hủy đăng ký thành công");
-      fetchMyPickupRequests();
-    } catch (err) { setError(err.message); } finally { setDeleteId(null); }
-  };
-
-  const getStatusBadge = (status) => {
-    const badges = {
-      pending: { text: "Chờ duyệt", color: "bg-amber-100 text-amber-800" },
-      approved: { text: "Đã duyệt", color: "bg-green-100 text-green-800" },
-      rejected: { text: "Từ chối", color: "bg-red-100 text-red-800" },
-    };
-    return badges[status] || { text: status, color: "bg-gray-100 text-gray-800" };
+    try { await del(ENDPOINTS.PICKUP.DELETE(deleteId)); setSuccess('Đã xóa thành công'); fetchMyPickupRequests(); }
+    catch (err) { setError(err.message); } finally { setDeleteId(null); }
   };
 
   return (
-    <div className="min-h-screen bg-gray-50 py-10 px-4">
-      <div className="max-w-4xl mx-auto">
-        <div className="flex justify-between items-center mb-8">
-          <h1 className="text-2xl font-bold text-gray-800">Quản lý đưa đón</h1>
-          <button onClick={() => navigate("/student")} className="text-emerald-600 font-medium">← Quay lại</button>
-        </div>
+    <Box sx={{ minHeight: '100vh', bgcolor: BG }}>
+      {/* AppBar */}
+      <Box sx={{
+        background: `linear-gradient(135deg, ${PRIMARY} 0%, ${PRIMARY_DARK} 100%)`,
+        px: 2, py: 2, position: 'sticky', top: 0, zIndex: 100,
+        boxShadow: '0 2px 12px rgba(5,150,105,0.3)',
+      }}>
+        <Stack direction="row" alignItems="center" spacing={1.5}>
+          <IconButton onClick={() => navigate('/student')} size="small"
+            sx={{ color: 'white', bgcolor: 'rgba(255,255,255,0.15)', '&:hover': { bgcolor: 'rgba(255,255,255,0.25)' } }}>
+            <ArrowBack fontSize="small" />
+          </IconButton>
+          <Box>
+            <Typography color="white" fontWeight={700} fontSize="1rem">Quản lý đưa đón</Typography>
+            <Typography sx={{ color: 'rgba(255,255,255,0.75)', fontSize: '0.72rem' }}>
+              {pickupRequests.length}/5 người đã đăng ký
+            </Typography>
+          </Box>
+        </Stack>
+      </Box>
 
-        <div className="bg-white rounded-2xl shadow-sm border border-gray-200 p-6 mb-8">
-          <h2 className="text-lg font-bold mb-6 flex items-center gap-2">
-            <Plus size={20} className="text-emerald-500" />
-            {editingId ? "Cập nhật thông tin" : "Đăng ký người đưa đón mới"}
-          </h2>
+      <Box sx={{ maxWidth: 600, mx: 'auto', px: 2, py: 2.5, pb: 4 }}>
+        {/* Form Card */}
+        <Paper elevation={0} sx={{ borderRadius: 3, border: '1px solid #bbf7d0', overflow: 'hidden', mb: 2.5 }}>
+          <Stack direction="row" alignItems="center" spacing={1.5} px={2} py={1.5} borderBottom="1px solid #f0fdf4">
+            <Avatar sx={{ bgcolor: '#d1fae5', width: 32, height: 32 }}>
+              <Add sx={{ fontSize: 18, color: PRIMARY }} />
+            </Avatar>
+            <Typography fontWeight={700} fontSize="0.9rem" color="#111827">
+              {editingId ? 'Cập nhật thông tin người đón' : 'Đăng ký người đưa đón mới'}
+            </Typography>
+          </Stack>
 
-          {error && <div className="mb-4 p-3 bg-red-50 text-red-600 rounded-lg text-sm border border-red-100">{error}</div>}
-          {success && <div className="mb-4 p-3 bg-green-50 text-green-600 rounded-lg text-sm border border-green-100">{success}</div>}
+          <Box px={2.5} py={2.5} component="form" onSubmit={handleSubmit}>
+            {error && <Alert severity="error" sx={{ mb: 2, borderRadius: 2 }} onClose={() => setError('')}>{error}</Alert>}
+            {success && <Alert severity="success" sx={{ mb: 2, borderRadius: 2 }} onClose={() => setSuccess('')}>{success}</Alert>}
 
-          <form onSubmit={handleSubmit} className="space-y-6">
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-              
-              {/* Họ tên */}
-              <div className="md:col-span-1">
-                <label className="block text-sm font-semibold text-gray-700 mb-1 flex justify-between">
-                  Họ tên người đón * <span>{form.fullName.length}/50</span>
-                </label>
-                <input
-                  type="text"
-                  name="fullName"
-                  value={form.fullName}
-                  onChange={handleChange}
-                  placeholder="Nhập họ và tên"
-                  className="w-full border border-gray-300 rounded-xl px-4 py-2.5 focus:ring-2 focus:ring-emerald-500 outline-none"
-                  required
-                />
-              </div>
-
-              {/* SĐT */}
-              <div>
-                <label className="block text-sm font-semibold text-gray-700 mb-1">Số điện thoại (10 số) *</label>
-                <input
-                  type="tel"
-                  name="phone"
-                  value={form.phone}
-                  onChange={handleChange}
-                  placeholder="Nhập 10 số"
-                  maxLength="10"
-                  className="w-full border border-gray-300 rounded-xl px-4 py-2.5 focus:ring-2 focus:ring-emerald-500 outline-none"
-                  required
-                />
-              </div>
-
-              {/* Mối quan hệ */}
-              <div>
-                <label className="block text-sm font-semibold text-gray-700 mb-1">Mối quan hệ *</label>
-                {!isOtherRelation ? (
-                  <select
-                    name="relation"
-                    value={form.relation}
-                    onChange={handleChange}
-                    className="w-full border border-gray-300 rounded-xl px-4 py-2.5 bg-white focus:ring-2 focus:ring-emerald-500 outline-none"
-                    required
+            {/* Photo upload */}
+            <Stack alignItems="center" mb={2.5}>
+              <Box sx={{ position: 'relative' }}>
+                <Box component="input" type="file" name="image" id="pickup-image" accept="image/*" onChange={handleChange} sx={{ display: 'none' }} />
+                <Box component="label" htmlFor="pickup-image" sx={{ cursor: 'pointer', display: 'block' }}>
+                  <Avatar
+                    src={previewUrl}
+                    sx={{
+                      width: 96, height: 96, borderRadius: 3,
+                      border: '2px dashed', borderColor: previewUrl ? 'transparent' : PRIMARY,
+                      bgcolor: '#f0fdf4', cursor: 'pointer',
+                    }}
                   >
-                    <option value="">-- Chọn mối quan hệ --</option>
-                    <option value="Bố">Bố</option>
-                    <option value="Mẹ">Mẹ</option>
-                    <option value="Ông">Ông</option>
-                    <option value="Bà">Bà</option>
-                    <option value="Anh/Chị">Anh/Chị</option>
-                    <option value="Other">Khác</option>
-                  </select>
-                ) : (
-                  <div className="flex gap-2 animate-fadeIn">
-                    <input
-                      type="text"
-                      name="relation"
-                      value={form.relation}
-                      onChange={handleChange}
-                      placeholder="Nhập mối quan hệ khác (vd: Dì, Chú, Hàng xóm...)"
-                      className="flex-1 border border-emerald-500 rounded-xl px-4 py-2.5 focus:ring-2 focus:ring-emerald-500 outline-none text-sm"
-                      autoFocus
-                      maxLength="30"
-                    />
-                    <button 
-                      type="button" 
-                      onClick={() => {
-                        setIsOtherRelation(false);
-                        setForm((prev) => ({ ...prev, relation: "" }));
-                      }}
-                      className="text-xs text-gray-400 hover:text-red-500 whitespace-nowrap font-medium"
-                    >
-                      Hủy
-                    </button>
-                  </div>
-                )}
-              </div>
-
-              {/* Ảnh - Bắt buộc khi thêm mới */}
-              <div className="flex flex-col items-center justify-center border-2 border-dashed border-gray-200 rounded-2xl p-4 hover:bg-gray-50 transition-colors relative">
-                <input
-                  type="file"
-                  name="image"
-                  id="pickup-image"
-                  accept="image/*"
-                  onChange={handleChange}
-                  className="hidden"
-                />
-                <label htmlFor="pickup-image" className="cursor-pointer flex flex-col items-center w-full">
-                  {previewUrl ? (
-                    <img src={previewUrl} alt="Preview" className="w-24 h-24 object-cover rounded-xl shadow-md" />
-                  ) : (
-                    <div className="w-16 h-16 flex flex-col items-center justify-center bg-gray-100 rounded-full">
-                      <Plus className="text-gray-400" />
-                      <span className="text-[10px] text-gray-400 mt-1 uppercase font-bold">Ảnh{!editingId && ' *'}</span>
-                    </div>
-                  )}
-                </label>
+                    <Stack alignItems="center">
+                      <CameraAlt sx={{ color: PRIMARY, fontSize: 28 }} />
+                      <Typography fontSize="0.62rem" fontWeight={700} color={PRIMARY} textTransform="uppercase">
+                        Ảnh{!editingId && ' *'}
+                      </Typography>
+                    </Stack>
+                  </Avatar>
+                </Box>
                 {previewUrl && (
-                  <button 
-                    type="button" 
-                    onClick={() => {setPreviewUrl(null); setForm({...form, imageFile: null})}}
-                    className="absolute top-2 right-2 bg-red-500 text-white rounded-full w-5 h-5 text-[10px] flex items-center justify-center hover:bg-red-600"
-                  >
-                    ✕
-                  </button>
+                  <IconButton size="small" onClick={() => { setPreviewUrl(null); setForm(p => ({ ...p, imageFile: null })); }}
+                    sx={{ position: 'absolute', top: -6, right: -6, bgcolor: '#ef4444', color: 'white', width: 22, height: 22,
+                      '&:hover': { bgcolor: '#dc2626' } }}>
+                    <Close sx={{ fontSize: 12 }} />
+                  </IconButton>
                 )}
-              </div>
-            </div>
+              </Box>
+            </Stack>
 
-            <div className="flex justify-end gap-3 pt-4 border-t">
-              {editingId && (
-                <button
-                  type="button"
-                  onClick={() => {
-                    setEditingId(null);
-                    setIsOtherRelation(false);
-                    setForm({ studentId: children[0]?._id, fullName: "", relation: "", phone: "", imageFile: null });
-                    setPreviewUrl(null);
-                  }}
-                  className="px-6 py-2.5 rounded-xl border border-gray-300 font-semibold text-gray-600 hover:bg-gray-50"
-                >Hủy sửa</button>
+            <Stack spacing={2}>
+              <TextField
+                label={`Họ tên người đón (${form.fullName.length}/50)`}
+                name="fullName" value={form.fullName} onChange={handleChange} required fullWidth size="small"
+                InputProps={{ startAdornment: <HowToReg sx={{ mr: 1, fontSize: 18, color: '#9ca3af' }} /> }}
+                sx={{ '& .MuiOutlinedInput-root': { borderRadius: 2 } }}
+              />
+              <TextField
+                label="Số điện thoại" name="phone" value={form.phone} onChange={handleChange}
+                required fullWidth size="small" placeholder="0xxxxxxxxx"
+                InputProps={{ startAdornment: <Phone sx={{ mr: 1, fontSize: 18, color: '#9ca3af' }} /> }}
+                sx={{ '& .MuiOutlinedInput-root': { borderRadius: 2 } }}
+              />
+              {!isOtherRelation ? (
+                <FormControl size="small" fullWidth required>
+                  <InputLabel>Mối quan hệ</InputLabel>
+                  <Select name="relation" value={form.relation} label="Mối quan hệ" onChange={handleChange}
+                    sx={{ borderRadius: 2 }}>
+                    <MenuItem value=""><em>-- Chọn mối quan hệ --</em></MenuItem>
+                    {['Bố','Mẹ','Ông','Bà','Anh/Chị'].map(r => <MenuItem key={r} value={r}>{r}</MenuItem>)}
+                    <MenuItem value="Other">Khác...</MenuItem>
+                  </Select>
+                </FormControl>
+              ) : (
+                <Stack direction="row" spacing={1}>
+                  <TextField
+                    label="Mối quan hệ (nhập tự do)" name="relation" value={form.relation} onChange={handleChange}
+                    required fullWidth size="small" autoFocus inputProps={{ maxLength: 30 }}
+                    sx={{ '& .MuiOutlinedInput-root': { borderRadius: 2 } }}
+                  />
+                  <Button onClick={() => { setIsOtherRelation(false); setForm(p => ({...p, relation: ''})); }}
+                    variant="outlined" color="error" size="small" sx={{ borderRadius: 2, whiteSpace: 'nowrap', minWidth: 'auto', px: 1.5 }}>
+                    Hủy
+                  </Button>
+                </Stack>
               )}
-              <button
-                type="submit"
-                disabled={submitting}
-                className="px-8 py-2.5 rounded-xl bg-emerald-600 text-white font-bold hover:bg-emerald-700 transition-all shadow-lg shadow-emerald-100 disabled:bg-gray-300"
-              >
-                {submitting ? "Đang xử lý..." : editingId ? "Cập nhật thông tin" : "Gửi đăng ký ngay"}
-              </button>
-            </div>
-          </form>
-        </div>
+            </Stack>
 
-        {/* Danh sách - Hiển thị 3/3 */}
-        <div className="bg-white rounded-2xl shadow-sm border border-gray-200 overflow-hidden">
-          <div className="px-6 py-4 border-b border-gray-100 flex justify-between items-center bg-gray-50/50">
-            <h3 className="font-bold text-gray-800 text-lg">Người đưa đón đã đăng ký</h3>
-          </div>
-          <div className="divide-y divide-gray-100">
-            {pickupRequests.map((req) => {
-              const badge = getStatusBadge(req.status);
+            <Stack direction="row" spacing={1.5} mt={3}>
+              {editingId && (
+                <Button onClick={() => { resetForm(); setError(''); setSuccess(''); }}
+                  variant="outlined" sx={{ flex: 1, borderRadius: 2, textTransform: 'none', borderColor: '#d1d5db', color: '#6b7280' }}>
+                  Hủy sửa
+                </Button>
+              )}
+              <Button type="submit" variant="contained" disabled={submitting} sx={{
+                flex: 1, borderRadius: 2, textTransform: 'none', fontWeight: 700,
+                bgcolor: PRIMARY, '&:hover': { bgcolor: PRIMARY_DARK },
+              }}>
+                {submitting ? <CircularProgress size={20} sx={{ color: 'white' }} /> : editingId ? 'Cập nhật' : 'Đăng ký ngay'}
+              </Button>
+            </Stack>
+          </Box>
+        </Paper>
+
+        {/* List */}
+        <Paper elevation={0} sx={{ borderRadius: 3, border: '1px solid #e5e7eb', overflow: 'hidden' }}>
+          <Box px={2} py={1.5} borderBottom="1px solid #f3f4f6">
+            <Typography fontWeight={700} fontSize="0.9rem">Người đưa đón đã đăng ký</Typography>
+          </Box>
+          {loadingRequests ? (
+            <Stack alignItems="center" py={4}><CircularProgress sx={{ color: PRIMARY }} size={28} /></Stack>
+          ) : pickupRequests.length === 0 ? (
+            <Stack alignItems="center" py={6} spacing={1}>
+              <Typography fontSize="2rem">👤</Typography>
+              <Typography color="text.secondary" fontSize="0.875rem">Chưa có người đưa đón nào</Typography>
+            </Stack>
+          ) : (
+            pickupRequests.map((req, idx) => {
+              const cfg = STATUS_CONFIG[req.status] || { label: req.status, color: 'default' };
               return (
-                <div key={req._id} className="p-4 flex items-center justify-between hover:bg-gray-50 transition-colors">
-                  <div className="flex items-center gap-4">
-                    <div className="w-12 h-12 rounded-full bg-gray-100 overflow-hidden border border-gray-200">
-                      {req.imageUrl ? <img src={req.imageUrl} className="w-full h-full object-cover" /> : <div className="w-full h-full flex items-center justify-center text-gray-400">👤</div>}
-                    </div>
-                    <div>
-                      <p className="font-bold text-gray-900">{req.fullName}</p>
-                      <p className="text-xs text-gray-500">{req.relation} • {req.phone}</p>
-                    </div>
-                  </div>
-                  <div className="flex items-center gap-3">
-                    {req.status === "pending" && (
-                      <div className="flex gap-1">
-                        <button onClick={() => handleEdit(req)} className="p-2 text-blue-600 hover:bg-blue-50 rounded-lg transition-colors"><Pencil size={18} /></button>
-                        <button onClick={() => setDeleteId(req._id)} className="p-2 text-red-600 hover:bg-red-50 rounded-lg transition-colors"><Trash2 size={18} /></button>
-                      </div>
+                <Box key={req._id}>
+                  <Stack direction="row" spacing={1.5} alignItems="center" px={2} py={1.75}>
+                    <Avatar src={req.imageUrl} sx={{ width: 52, height: 52, borderRadius: 2.5, flexShrink: 0, border: '1px solid #e5e7eb' }}>
+                      <People sx={{ color: '#9ca3af' }} />
+                    </Avatar>
+                    <Box flex={1} minWidth={0}>
+                      <Typography fontWeight={700} fontSize="0.9rem" noWrap>{req.fullName}</Typography>
+                      <Typography fontSize="0.78rem" color="text.secondary" mt={0.25}>{req.relation} · {req.phone}</Typography>
+                      <Chip label={cfg.label} color={cfg.color} size="small" sx={{ mt: 0.5, height: 20, fontSize: '0.68rem', fontWeight: 700 }} />
+                    </Box>
+                    {req.status === 'pending' && (
+                      <Stack direction="row" spacing={0.5}>
+                        <IconButton size="small" onClick={() => handleEdit(req)}
+                          sx={{ bgcolor: '#eff6ff', color: '#2563eb', borderRadius: 2, '&:hover': { bgcolor: '#dbeafe' } }}>
+                          <Edit fontSize="small" />
+                        </IconButton>
+                        <IconButton size="small" onClick={() => setDeleteId(req._id)}
+                          sx={{ bgcolor: '#fef2f2', color: '#dc2626', borderRadius: 2, '&:hover': { bgcolor: '#fee2e2' } }}>
+                          <Delete fontSize="small" />
+                        </IconButton>
+                      </Stack>
                     )}
-                    <span className={`px-3 py-1 text-[10px] font-bold uppercase rounded-full ${badge.color}`}>{badge.text}</span>
-                  </div>
-                </div>
+                  </Stack>
+                  {idx < pickupRequests.length - 1 && <Divider />}
+                </Box>
               );
-            })}
-          </div>
-        </div>
-      </div>
+            })
+          )}
+        </Paper>
+      </Box>
 
-      {/* Modal xóa - Giữ nguyên */}
-      {deleteId && (
-        <div className="fixed inset-0 bg-black/40 backdrop-blur-sm flex items-center justify-center z-50 p-4">
-          <div className="bg-white rounded-2xl p-6 max-w-sm w-full shadow-2xl animate-scaleUp">
-            <h3 className="text-xl font-bold text-gray-900 mb-2">Xác nhận xóa?</h3>
-            <p className="text-gray-500 text-sm mb-6">Hành động này không thể hoàn tác. Người đưa đón này sẽ bị xóa khỏi danh sách.</p>
-            <div className="flex gap-3">
-              <button onClick={() => setDeleteId(null)} className="flex-1 py-2.5 rounded-xl border border-gray-300 font-bold text-gray-600">Hủy</button>
-              <button onClick={confirmDelete} className="flex-1 py-2.5 rounded-xl bg-red-600 text-white font-bold hover:bg-red-700">Xóa ngay</button>
-            </div>
-          </div>
-        </div>
-      )}
-    </div>
+      {/* Delete Confirm */}
+      <Dialog open={!!deleteId} onClose={() => setDeleteId(null)} maxWidth="xs" fullWidth PaperProps={{ sx: { borderRadius: 3, mx: 2 } }}>
+        <DialogContent>
+          <Stack alignItems="center" spacing={2} pt={2}>
+            <Avatar sx={{ bgcolor: '#fee2e2', width: 56, height: 56 }}>
+              <Delete sx={{ color: '#dc2626', fontSize: 28 }} />
+            </Avatar>
+            <Typography fontWeight={700} fontSize="1rem">Xác nhận xóa?</Typography>
+            <Typography color="text.secondary" fontSize="0.875rem" textAlign="center">
+              Người đưa đón này sẽ bị xóa khỏi danh sách và không thể hoàn tác.
+            </Typography>
+          </Stack>
+        </DialogContent>
+        <DialogActions sx={{ px: 2.5, pb: 2.5, gap: 1 }}>
+          <Button onClick={() => setDeleteId(null)} variant="outlined" sx={{ flex: 1, borderRadius: 2, textTransform: 'none', borderColor: '#d1d5db', color: '#6b7280' }}>
+            Hủy
+          </Button>
+          <Button onClick={confirmDelete} variant="contained" color="error" sx={{ flex: 1, borderRadius: 2, textTransform: 'none', fontWeight: 700 }}>
+            Xóa ngay
+          </Button>
+        </DialogActions>
+      </Dialog>
+    </Box>
   );
 }
-
-export default PickupRegistration;

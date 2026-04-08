@@ -6,8 +6,11 @@ import { useAuth } from '../context/AuthContext';
 
 function Login() {
   const [form, setForm] = useState({ username: '', password: '' });
+  const [usernameError, setUsernameError] = useState('');
   const [usernameWarning, setUsernameWarning] = useState('');
+  const [passwordError, setPasswordError] = useState('');
   const [passwordWarning, setPasswordWarning] = useState('');
+  const [showPassword, setShowPassword] = useState(false);
   const navigate = useNavigate();
   const { login, loading, error } = useAuth();
 
@@ -15,6 +18,7 @@ function Login() {
     const { name, value } = e.target;
     setForm((prev) => ({ ...prev, [name]: value }));
     if (name === 'username') {
+      if (value) setUsernameError('');
       if (value && (/[\s]/.test(value) || /[^A-Za-z0-9]/.test(value))) {
         setUsernameWarning('Tài khoản không được chứa khoảng trắng và ký tự đặc biệt.');
       } else {
@@ -22,6 +26,7 @@ function Login() {
       }
     }
     if (name === 'password') {
+      if (value) setPasswordError('');
       const hasUpper = /[A-Z]/.test(value);
       const hasNumber = /\d/.test(value);
       const hasSpecial = /[^A-Za-z0-9]/.test(value);
@@ -38,10 +43,20 @@ function Login() {
   const handleSubmit = async (e) => {
     e.preventDefault();
     const usernameTrimmed = (form.username || '').trim().toLowerCase();
-    if (/[\s]/.test(usernameTrimmed) || /[^A-Za-z0-9]/.test(usernameTrimmed)) {
+
+    let hasError = false;
+    if (!usernameTrimmed) {
+      setUsernameError('Vui lòng nhập tài khoản.');
+      hasError = true;
+    } else if (/[\s]/.test(usernameTrimmed) || /[^A-Za-z0-9]/.test(usernameTrimmed)) {
       setUsernameWarning('Tài khoản không được chứa khoảng trắng và ký tự đặc biệt.');
-      return;
+      hasError = true;
     }
+    if (!form.password) {
+      setPasswordError('Vui lòng nhập mật khẩu.');
+      hasError = true;
+    }
+    if (hasError) return;
     try {
       const { user: newUser } = await login(usernameTrimmed, form.password);
       // eslint-disable-next-line no-console
@@ -54,7 +69,7 @@ function Login() {
         navigate('/system-admin', { replace: true });
       } else if (roles.includes('SchoolAdmin')) {
         navigate('/school-admin', { replace: true });
-      } else if (roles.includes("Teacher")) {
+      } else if (roles.includes("HeadTeacher") || roles.includes("Teacher")) {
         navigate("/teacher", { replace: true });
       } else if (roles.includes("KitchenStaff")) {// navigate kitchen staff
         navigate("/kitchen", { replace: true });
@@ -121,16 +136,20 @@ function Login() {
                   id="username"
                   name="username"
                   type="text"
-                  required
                   value={form.username}
                   onChange={handleChange}
-                  className="block w-full rounded-xl border border-sky-100 bg-sky-50/60 px-3 py-2.5 text-sm text-sky-900 placeholder-sky-400 shadow-sm focus:border-sky-400 focus:bg-white focus:outline-none focus:ring-2 focus:ring-sky-200 transition"
+                  className={`block w-full rounded-xl border px-3 py-2.5 text-sm text-sky-900 placeholder-sky-400 shadow-sm focus:bg-white focus:outline-none focus:ring-2 transition ${
+                    usernameError
+                      ? 'border-red-400 bg-red-50/40 focus:border-red-400 focus:ring-red-200'
+                      : 'border-sky-100 bg-sky-50/60 focus:border-sky-400 focus:ring-sky-200'
+                  }`}
                   placeholder="vd: admin"
                 />
-                {usernameWarning && (
-                  <p className="mt-1 text-xs text-amber-600">
-                    {usernameWarning}
-                  </p>
+                {usernameError && (
+                  <p className="mt-1 text-xs text-red-600">{usernameError}</p>
+                )}
+                {!usernameError && usernameWarning && (
+                  <p className="mt-1 text-xs text-amber-600">{usernameWarning}</p>
                 )}
               </div>
 
@@ -141,20 +160,44 @@ function Login() {
                 >
                   Mật khẩu
                 </label>
-                <input
-                  id="password"
-                  name="password"
-                  type="password"
-                  required
-                  value={form.password}
-                  onChange={handleChange}
-                  className="block w-full rounded-xl border border-sky-100 bg-sky-50/60 px-3 py-2.5 text-sm text-sky-900 placeholder-sky-400 shadow-sm focus:border-sky-400 focus:bg-white focus:outline-none focus:ring-2 focus:ring-sky-200 transition"
-                  placeholder="Nhập mật khẩu"
-                />
-                {passwordWarning && (
-                  <p className="mt-1 text-xs text-amber-600">
-                    {passwordWarning}
-                  </p>
+                <div className="relative">
+                  <input
+                    id="password"
+                    name="password"
+                    type={showPassword ? 'text' : 'password'}
+                    value={form.password}
+                    onChange={handleChange}
+                    className={`block w-full rounded-xl border px-3 py-2.5 pr-10 text-sm text-sky-900 placeholder-sky-400 shadow-sm focus:bg-white focus:outline-none focus:ring-2 transition ${
+                      passwordError
+                        ? 'border-red-400 bg-red-50/40 focus:border-red-400 focus:ring-red-200'
+                        : 'border-sky-100 bg-sky-50/60 focus:border-sky-400 focus:ring-sky-200'
+                    }`}
+                    placeholder="Nhập mật khẩu"
+                  />
+                  <button
+                    type="button"
+                    onClick={() => setShowPassword((prev) => !prev)}
+                    className="absolute inset-y-0 right-0 flex items-center px-3 text-sky-400 hover:text-sky-600 focus:outline-none"
+                    tabIndex={-1}
+                    aria-label={showPassword ? 'Ẩn mật khẩu' : 'Hiện mật khẩu'}
+                  >
+                    {showPassword ? (
+                      <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13.875 18.825A10.05 10.05 0 0112 19c-4.478 0-8.268-2.943-9.543-7a9.97 9.97 0 011.563-3.029m5.858.908a3 3 0 114.243 4.243M9.878 9.878l4.242 4.242M9.88 9.88l-3.29-3.29m7.532 7.532l3.29 3.29M3 3l3.59 3.59m0 0A9.953 9.953 0 0112 5c4.478 0 8.268 2.943 9.543 7a10.025 10.025 0 01-4.132 5.411m0 0L21 21" />
+                      </svg>
+                    ) : (
+                      <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" />
+                      </svg>
+                    )}
+                  </button>
+                </div>
+                {passwordError && (
+                  <p className="mt-1 text-xs text-red-600">{passwordError}</p>
+                )}
+                {!passwordError && passwordWarning && (
+                  <p className="mt-1 text-xs text-amber-600">{passwordWarning}</p>
                 )}
                 <div className="flex justify-end">
                   <Link

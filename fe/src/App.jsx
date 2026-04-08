@@ -12,7 +12,11 @@ import ManagePermissions from './pages/systemAdmin/ManagePermissions';
 import SystemLogs from './pages/systemAdmin/SystemLogs';
 import TeacherDashboard from './pages/teacher/TeacherDashboard';
 import TeacherAttendance from './pages/teacher/TeacherAttendance';
+import ContactBook from './pages/teacher/ContactBook';
+import ContactBookDetail from './pages/teacher/ContactBookDetail';
+import TeacherStudents from './pages/teacher/TeacherStudents';
 import StudentDashboard from './pages/student/StudentDashboard';
+import StudentContactBook from './pages/student/StudentContactBook';
 import PickupRegistration from './pages/student/PickupRegistration';
 import TodayAttendance from './pages/student/TodayAttendance';
 import AttendanceReport from './pages/student/AttendanceReport';
@@ -25,7 +29,9 @@ import HealthReports from './pages/schoolNurse/HealthReports';
 import ClassList from './pages/schoolAdmin/ClassList';
 import StudentInClass from './pages/schoolAdmin/StudentInClass';
 import ManageStudents from './pages/schoolAdmin/ManageStudents';
+import StudentHealthReport from './pages/schoolAdmin/StudentHealthReport';
 import ManageTeachers from './pages/schoolAdmin/ManageTeachers';
+import ManageStaff from './pages/schoolAdmin/ManageStaff';
 import ContactList from './pages/schoolAdmin/ContactList';
 import QaList from './pages/schoolAdmin/QaList';
 import AttendanceOverview from './pages/schoolAdmin/AttendanceOverview';
@@ -36,6 +42,9 @@ import ExportAttendanceReport from './pages/schoolAdmin/ExportAttendanceReport';
 import ManageBlogs from './pages/schoolAdmin/ManageBlogs';
 import ManageBlogCategories from './pages/schoolAdmin/ManageBlogCategories';
 import ManageDocuments from './pages/schoolAdmin/ManageDocuments';
+import ManageFiles from './pages/schoolAdmin/ManageFiles';
+import ManageImageLibrary from './pages/schoolAdmin/ManageImageLibrary';
+import ManageVideoLibrary from './pages/schoolAdmin/ManageVideoLibrary';
 import BlogDetail from './pages/schoolAdmin/BlogDetail';
 import DocumentDetail from './pages/schoolAdmin/DocumentDetail';
 import Contact from './pages/Contact';
@@ -76,13 +85,20 @@ import RelaxPage from './pages/Library/RelaxPage';
 import PublicInformationDetail from './pages/PublicInformation/PublicInformationDetail';
 import PublicInfoDetail from './pages/PublicInformation/PublicInfoDetail';
 import ManagePublicInfo from './pages/schoolAdmin/ManagePublicInfo';
+import ManageBanners from './pages/schoolAdmin/ManageBanners';
+import ManagePurchaseRequests from './pages/schoolAdmin/ManagePurchaseRequests';
 import PickupRequest from './pages/teacher/PickupRequest';
+import TeacherAssetInspection from './pages/teacher/TeacherAssetInspection';
+import TeacherPurchaseRequest from './pages/teacher/TeacherPurchaseRequest';
+import TeacherClassAssets from './pages/teacher/TeacherClassAssets';
+import HeadTeacherPurchaseRequests from './pages/teacher/HeadTeacherPurchaseRequests';
 import KitchenLayout from './pages/kitchenStaff/KitchenLayout';
 import KitchenDashboard from './pages/kitchenStaff/KitchenDashboard';
 import MenuManagement from './pages/kitchenStaff/MenuManagement';
 import MenuDetail from './pages/kitchenStaff/MenuDetails';
 import CreateMenu from './components/CreateMenu';
 import FoodManagement from './pages/kitchenStaff/FoodManagemet';
+import IngredientManagement from './pages/kitchenStaff/IngredientManagement';
 import MealManagement from './pages/kitchenStaff/MealManagement';
 import MealHeadcount from './pages/kitchenStaff/MealHeadcount';
 import UploadSampleFood from './pages/kitchenStaff/UploadSampleFood';
@@ -91,15 +107,21 @@ import MenuSchoolAdmin from './pages/schoolAdmin/MenuSchoolAdmin';
 import MenuDetailSchoolAdmin from './pages/schoolAdmin/MenuDetailSchoolAdmin';
 import MenuStudent from './pages/student/MenuStudent';
 import MenuDetailStudent from './pages/student/MenuDetailStudent';
+import MealPhotosStudent from './pages/student/MealPhotosStudent';
 import ManageAcademicYears from './pages/schoolAdmin/ManageAcademicYears';
 import AcademicYearDetail from './pages/schoolAdmin/AcademicYearDetail';
 import AcademicYearReport from './pages/schoolAdmin/AcademicYearReport';
 import MealManagementSchoolAdmin from './pages/schoolAdmin/MealManagementSchoolAdmin';
 import AcademicYearPlan from './pages/schoolAdmin/AcademicYearPlan';
+import AcademicEventSetup from './pages/schoolAdmin/AcademicEventSetup';
 import CurriculumPage from './pages/schoolAdmin/CurriculumPage';
 import ClassListOverview from './pages/schoolAdmin/ClassListOverview';
 import TimetableActivitiesPage from './pages/schoolAdmin/TimetableActivitiesPage';
 import FaceAttendancePage from './pages/schoolAdmin/FaceAttendancePage';
+import ManageAssets from './pages/schoolAdmin/ManageAssets';
+import ManageAssetAllocation from './pages/schoolAdmin/ManageAssetAllocation';
+import ManageCommittee from './pages/schoolAdmin/ManageCommittee';
+import ManageMinutes from './pages/schoolAdmin/ManageMinutes';
 import ProtectedRoute from './components/ProtectedRoute';
 
 
@@ -275,6 +297,36 @@ function App() {
             }
           />
           <Route
+            path="/teacher/students"
+            element={
+              <ProtectedRoute>
+                <TeacherProvider>
+                  <TeacherStudents />
+                </TeacherProvider>
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/teacher/contact-book"
+            element={
+              <ProtectedRoute>
+                <TeacherProvider>
+                  <ContactBook />
+                </TeacherProvider>
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/teacher/contact-book/:classId"
+            element={
+              <ProtectedRoute>
+                <TeacherProvider>
+                  <ContactBookDetail />
+                </TeacherProvider>
+              </ProtectedRoute>
+            }
+          />
+          <Route
             path="/teacher/attendance"
             element={
               <ProtectedRoute>
@@ -294,6 +346,46 @@ function App() {
               </ProtectedRoute>
             }
           />
+          <Route
+            path="/teacher/asset-inspection"
+            element={
+              <ProtectedRoute>
+                <TeacherProvider>
+                  <TeacherAssetInspection />
+                </TeacherProvider>
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/teacher/purchase-request"
+            element={
+              <ProtectedRoute>
+                <TeacherProvider>
+                  <TeacherPurchaseRequest />
+                </TeacherProvider>
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/teacher/class-assets"
+            element={
+              <ProtectedRoute>
+                <TeacherProvider>
+                  <TeacherClassAssets />
+                </TeacherProvider>
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/teacher/manage-purchase-requests"
+            element={
+              <ProtectedRoute>
+                <TeacherProvider>
+                  <HeadTeacherPurchaseRequests />
+                </TeacherProvider>
+              </ProtectedRoute>
+            }
+          />
           {/* Kitchen Staff */}
           <Route
             path="/kitchen"
@@ -308,6 +400,7 @@ function App() {
             <Route path="menus/:id" element={<MenuDetail />} />
             <Route path="menus/create" element={<CreateMenu />} />
             <Route path="foods" element={<FoodManagement />} />
+            <Route path="ingredients" element={<IngredientManagement />} />
             <Route path="meal-management" element={<MealManagement />} />
             <Route path="headcount" element={<MealHeadcount />} />
             <Route path="sample-food" element={<UploadSampleFood />} />
@@ -329,6 +422,8 @@ function App() {
           <Route path="/student/menus/:id" element={<ProtectedRoute><MenuDetailStudent /></ProtectedRoute>} />
           <Route path="/student/attendance/today" element={<ProtectedRoute><TodayAttendance /></ProtectedRoute>} />
           <Route path="/student/attendance/report" element={<ProtectedRoute><AttendanceReport /></ProtectedRoute>} />
+          <Route path="/student/meal-photos" element={<ProtectedRoute><MealPhotosStudent /></ProtectedRoute>} />
+          <Route path="/student/contact-book" element={<ProtectedRoute><StudentContactBook /></ProtectedRoute>} />
           <Route
             path="/school-admin"
             element={
@@ -380,10 +475,28 @@ function App() {
             }
           />
           <Route
+            path="/school-admin/students/health-report"
+            element={
+              <ProtectedRoute>
+                <StudentHealthReport />
+              </ProtectedRoute>
+            }
+          />
+          <Route
             path="/school-admin/teachers"
             element={
               <ProtectedRoute>
                 <ManageTeachers />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/school-admin/staff"
+            element={
+              <ProtectedRoute>
+                <SchoolAdminProvider>
+                  <ManageStaff />
+                </SchoolAdminProvider>
               </ProtectedRoute>
             }
           />
@@ -508,6 +621,36 @@ function App() {
             }
           />
           <Route
+            path="/school-admin/files"
+            element={
+              <ProtectedRoute>
+                <SchoolAdminProvider>
+                  <ManageFiles />
+                </SchoolAdminProvider>
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/school-admin/image-library"
+            element={
+              <ProtectedRoute>
+                <SchoolAdminProvider>
+                  <ManageImageLibrary />
+                </SchoolAdminProvider>
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/school-admin/video-library"
+            element={
+              <ProtectedRoute>
+                <SchoolAdminProvider>
+                  <ManageVideoLibrary />
+                </SchoolAdminProvider>
+              </ProtectedRoute>
+            }
+          />
+          <Route
             path="/school-admin/documents/:documentId"
             element={
               <ProtectedRoute>
@@ -553,6 +696,16 @@ function App() {
               <ProtectedRoute>
                 <SchoolAdminProvider>
                   <ManagePublicInfo />
+                </SchoolAdminProvider>
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/school-admin/banners"
+            element={
+              <ProtectedRoute>
+                <SchoolAdminProvider>
+                  <ManageBanners />
                 </SchoolAdminProvider>
               </ProtectedRoute>
             }
@@ -608,6 +761,16 @@ function App() {
             }
           />
           <Route
+            path="/school-admin/academic-report"
+            element={
+              <ProtectedRoute>
+                <SchoolAdminProvider>
+                  <AcademicYearReport />
+                </SchoolAdminProvider>
+              </ProtectedRoute>
+            }
+          />
+          <Route
             path="/school-admin/face-attendance"
             element={
               <ProtectedRoute>
@@ -618,11 +781,71 @@ function App() {
             }
           />
           <Route
+            path="/school-admin/assets"
+            element={
+              <ProtectedRoute>
+                <SchoolAdminProvider>
+                  <ManageAssets />
+                </SchoolAdminProvider>
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/school-admin/asset-allocation"
+            element={
+              <ProtectedRoute>
+                <SchoolAdminProvider>
+                  <ManageAssetAllocation />
+                </SchoolAdminProvider>
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/school-admin/purchase-requests"
+            element={
+              <ProtectedRoute>
+                <SchoolAdminProvider>
+                  <ManagePurchaseRequests />
+                </SchoolAdminProvider>
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/school-admin/committee"
+            element={
+              <ProtectedRoute>
+                <SchoolAdminProvider>
+                  <ManageCommittee />
+                </SchoolAdminProvider>
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/school-admin/minutes"
+            element={
+              <ProtectedRoute>
+                <SchoolAdminProvider>
+                  <ManageMinutes />
+                </SchoolAdminProvider>
+              </ProtectedRoute>
+            }
+          />
+          <Route
             path="/school-admin/academic-plan"
             element={
               <ProtectedRoute>
                 <SchoolAdminProvider>
                   <AcademicYearPlan />
+                </SchoolAdminProvider>
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/school-admin/academic-events"
+            element={
+              <ProtectedRoute>
+                <SchoolAdminProvider>
+                  <AcademicEventSetup />
                 </SchoolAdminProvider>
               </ProtectedRoute>
             }

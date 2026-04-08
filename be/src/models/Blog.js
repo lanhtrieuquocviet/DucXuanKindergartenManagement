@@ -10,9 +10,20 @@ const blogSchema = new mongoose.Schema(
     },
     description: {
       type: String,
-      required: true,
+      default: '',
       trim: true,
     },
+    layout: {
+      type: String,
+      enum: ['layout1', 'layout2'],
+      default: 'layout1',
+    },
+    sections: [
+      {
+        image: { type: String, default: '' },
+        content: { type: String, default: '' },
+      },
+    ],
     category: {
       type: mongoose.Schema.Types.ObjectId,
       ref: 'BlogCategory',

@@ -2,27 +2,33 @@ const bcrypt = require('bcryptjs');
 const Student = require('../models/Student');
 const User = require('../models/User');
 const Role = require('../models/Role');
+const AcademicYear = require('../models/AcademicYear');
 
 /**
- * Lấy danh sách tất cả học sinh (có thể lọc theo classId)
- * GET /api/students?classId=...
+ * Lấy danh sách tất cả học sinh (lọc theo classId, academicYearId)
+ * GET /api/students?classId=...&academicYearId=...
  */
 const getStudents = async (req, res) => {
   try {
-    const { classId } = req.query;
+    const { classId, academicYearId } = req.query;
     const filter = {};
     if (classId) filter.classId = classId;
+    if (academicYearId) filter.academicYearId = academicYearId;
 
     const students = await Student.find(filter)
       .populate('classId', 'className gradeId')
-      .populate('parentId', 'fullName email username avatar phone');
+      .populate('parentId', 'fullName email username avatar phone')
+      .populate('academicYearId', 'yearName');
 
     // Không gửi mảng embedding 128 số về client (tốn bandwidth)
     // Thay bằng flag hasFaceEmbedding và faceRegisteredAt
     const data = students.map((s) => {
       const obj = s.toObject();
       obj.hasFaceEmbedding = Array.isArray(obj.faceEmbedding) && obj.faceEmbedding.length > 0;
+      obj.faceImageUrls = Array.isArray(obj.faceImageUrls) ? obj.faceImageUrls.filter(Boolean) : [];
+      obj.angleCount = Array.isArray(obj.faceEmbeddings) ? obj.faceEmbeddings.length : (obj.hasFaceEmbedding ? 1 : 0);
       delete obj.faceEmbedding;
+      delete obj.faceEmbeddings;
       return obj;
     });
 
@@ -59,6 +65,8 @@ const createStudent = async (req, res) => {
       });
     }
 
+    const activeYear = await AcademicYear.findOne({ status: 'active' }).sort({ startDate: -1 }).lean();
+
     const newStudent = new Student({
       fullName,
       dateOfBirth,
@@ -67,6 +75,7 @@ const createStudent = async (req, res) => {
       address,
       classId,
       parentId: parentId || userId,
+      academicYearId: activeYear?._id || null,
       status: 'active',
     });
 
@@ -74,7 +83,8 @@ const createStudent = async (req, res) => {
 
     const populatedStudent = await Student.findById(newStudent._id)
       .populate('classId', 'className')
-      .populate('parentId', 'fullName email username avatar phone');
+      .populate('parentId', 'fullName email username avatar phone')
+      .populate('academicYearId', 'yearName');
 
     return res.status(201).json({
       status: 'success',
@@ -127,15 +137,17 @@ const createStudentWithParent = async (req, res) => {
       });
     }
 
-    // Trong DB có thể dùng role "Parent" hoặc "Student" cho tài khoản phụ huynh
-    let parentRole = await Role.findOne({ roleName: 'Parent' });
+    // Tìm role cho phụ huynh — thử lần lượt các tên có thể có, không phân biệt hoa thường
+    const parentRole = await Role.findOne({
+      roleName: { $in: ['Parent', 'parent', 'Student', 'student', 'Phụ huynh'] },
+    });
     if (!parentRole) {
-      parentRole = await Role.findOne({ roleName: 'Student' });
-    }
-    if (!parentRole) {
+      // Lấy tên tất cả role hiện có để thông báo rõ hơn
+      const allRoles = await Role.find().select('roleName').lean();
+      const roleNames = allRoles.map(r => r.roleName).join(', ') || 'không có vai trò nào';
       return res.status(400).json({
         status: 'error',
-        message: 'Chưa có vai trò Parent hoặc Student trong hệ thống. Vui lòng tạo vai trò trước.',
+        message: `Chưa có vai trò phụ huynh trong hệ thống. Các vai trò hiện có: ${roleNames}`,
       });
     }
 
@@ -154,6 +166,8 @@ const createStudentWithParent = async (req, res) => {
     });
     await newUser.save();
 
+    const activeYear = await AcademicYear.findOne({ status: 'active' }).sort({ startDate: -1 }).lean();
+
     const newStudent = new Student({
       fullName: studentData.fullName.trim(),
       dateOfBirth: studentData.dateOfBirth,
@@ -164,13 +178,15 @@ const createStudentWithParent = async (req, res) => {
       classId: studentData.classId || null,
       parentId: newUser._id,
       avatar: (studentData.avatar || '').trim(),
+      academicYearId: activeYear?._id || null,
       status: 'active',
     });
     await newStudent.save();
 
     const populatedStudent = await Student.findById(newStudent._id)
       .populate('classId', 'className')
-      .populate('parentId', 'fullName email username avatar phone');
+      .populate('parentId', 'fullName email username avatar phone')
+      .populate('academicYearId', 'yearName');
 
     return res.status(201).json({
       status: 'success',
@@ -210,7 +226,10 @@ const getStudentDetail = async (req, res) => {
     // Không trả embedding (biometric) về client — chỉ trả flag + thời điểm đăng ký
     const obj = student.toObject();
     obj.hasFaceEmbedding = Array.isArray(obj.faceEmbedding) && obj.faceEmbedding.length > 0;
+    obj.faceImageUrls = Array.isArray(obj.faceImageUrls) ? obj.faceImageUrls.filter(Boolean) : [];
+    obj.angleCount = Array.isArray(obj.faceEmbeddings) ? obj.faceEmbeddings.length : (obj.hasFaceEmbedding ? 1 : 0);
     delete obj.faceEmbedding;
+    delete obj.faceEmbeddings;
 
     return res.status(200).json({
       status: 'success',
@@ -361,6 +380,26 @@ const deleteStudent = async (req, res) => {
   }
 };
 
+/**
+ * Kiểm tra username đã tồn tại chưa
+ * GET /api/students/check-username?username=...
+ */
+const checkUsernameAvailability = async (req, res) => {
+  try {
+    const { username } = req.query;
+    if (!username || !username.trim()) {
+      return res.status(400).json({ status: 'error', message: 'Thiếu tham số username' });
+    }
+    const existing = await User.findOne({ username: username.trim() }).lean();
+    return res.status(200).json({
+      status: 'success',
+      available: !existing,
+    });
+  } catch (error) {
+    return res.status(500).json({ status: 'error', message: error.message });
+  }
+};
+
 module.exports = {
   getStudents,
   createStudent,
@@ -368,5 +407,6 @@ module.exports = {
   getStudentDetail,
   updateStudent,
   deleteStudent,
+  checkUsernameAvailability,
 };
 

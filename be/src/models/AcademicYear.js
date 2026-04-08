@@ -47,6 +47,12 @@ const academicYearSchema = new mongoose.Schema({
     enum: ['active', 'inactive'],
     default: 'active',
   },
+  /** Thời gian biểu đang áp dụng: auto = theo tháng (4–9 hè, còn lại đông) */
+  activeTimetableSeason: {
+    type: String,
+    enum: ['summer', 'winter', 'auto'],
+    default: 'auto',
+  },
   createdAt: {
     type: Date,
     default: Date.now,

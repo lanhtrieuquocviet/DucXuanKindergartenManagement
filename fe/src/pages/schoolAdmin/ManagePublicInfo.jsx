@@ -6,6 +6,8 @@ import RoleLayout from '../../layouts/RoleLayout';
 import ConfirmDialog from '../../components/ConfirmDialog';
 import RichTextEditor from '../../components/RichTextEditor';
 import { get, post, put, del, postFormData, ENDPOINTS } from '../../service/api';
+import { createSchoolAdminMenuSelect } from './schoolAdminMenuConfig';
+import { useSchoolAdminMenu } from './useSchoolAdminMenu';
 import {
   Box,
   Paper,
@@ -248,24 +250,11 @@ function PublicInfoFormModal({ open, onClose, initialData, onSubmit, loading }) 
   );
 }
 
-const menuItems = [
-  { key: 'overview', label: 'Tổng quan trường' },
-  { key: 'classes', label: 'Lớp học' },
-  { key: 'teachers', label: 'Giáo viên' },
-  { key: 'students', label: 'Học sinh & phụ huynh' },
-  { key: 'assets', label: 'Quản lý tài sản' },
-  { key: 'reports', label: 'Báo cáo của trường' },
-  { key: 'contacts', label: 'Liên hệ' },
-  { key: 'qa', label: 'Câu hỏi' },
-  { key: 'blogs', label: 'Quản lý blog' },
-  { key: 'documents', label: 'Quản lý tài liệu' },
-  { key: 'public-info', label: 'Thông tin công khai' },
-  { key: 'attendance', label: 'Quản lý điểm danh' },
-];
-
+ 
 export default function ManagePublicInfo() {
   const navigate = useNavigate();
   const { user, logout, isInitializing } = useAuth();
+  const menuItems = useSchoolAdminMenu();
 
   const [items, setItems] = useState([]);
   const [loading, setLoading] = useState(false);
@@ -353,21 +342,7 @@ export default function ManagePublicInfo() {
     }
   };
 
-  const handleMenuSelect = (key) => {
-    const routes = {
-      overview: '/school-admin',
-      classes: '/school-admin/classes',
-      teachers: '/school-admin/teachers',
-      students: '/school-admin/students',
-      contacts: '/school-admin/contacts',
-      qa: '/school-admin/qa',
-      blogs: '/school-admin/blogs',
-      documents: '/school-admin/documents',
-      'public-info': '/school-admin/public-info',
-      attendance: '/school-admin/attendance/overview',
-    };
-    if (routes[key]) navigate(routes[key]);
-  };
+  const handleMenuSelect = createSchoolAdminMenuSelect(navigate);
 
   const userName = user?.fullName || user?.username || 'School Admin';
   const handleLogout = () => { logout(); navigate('/login', { replace: true }); };
@@ -384,7 +359,7 @@ export default function ManagePublicInfo() {
       title="Thông tin công khai"
       description="Quản lý các thông tin công khai của trường."
       menuItems={menuItems}
-      activeKey="public-info"
+      activeKey="public-info-list"
       onLogout={handleLogout}
       onViewProfile={() => navigate('/profile')}
       onMenuSelect={handleMenuSelect}
@@ -396,6 +371,24 @@ export default function ManagePublicInfo() {
           {error}
         </Alert>
       )}
+
+      <Paper
+        elevation={0}
+        sx={{
+          background: 'linear-gradient(135deg, #0ea5e9 0%, #0284c7 100%)',
+          borderRadius: 3,
+          px: 4,
+          py: 3,
+          mb: 2,
+        }}
+      >
+        <Typography variant="h5" fontWeight={700} color="white">
+          Quản lý thông tin công khai
+        </Typography>
+        <Typography variant="body2" sx={{ color: 'rgba(255,255,255,0.9)', mt: 0.5 }}>
+          Tạo, chỉnh sửa, xóa và quản lý thông tin công khai của trường.
+        </Typography>
+      </Paper>
 
       <Paper elevation={1} sx={{ p: 3, borderRadius: 2 }}>
         {/* Header */}

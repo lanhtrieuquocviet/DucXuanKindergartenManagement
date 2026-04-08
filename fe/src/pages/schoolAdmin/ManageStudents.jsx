@@ -1,10 +1,12 @@
 import { useEffect, useState, useRef } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useLocation, useNavigate } from 'react-router-dom';
 import RoleLayout from '../../layouts/RoleLayout';
 import { useAuth } from '../../context/AuthContext';
 import { useSchoolAdmin } from '../../context/SchoolAdminContext';
-import { postFormData, ENDPOINTS, get } from '../../service/api';
-import FaceRegisterModal from '../../components/face/FaceRegisterModal';
+import { postFormData, ENDPOINTS, get, put, patch } from '../../service/api';
+import { createSchoolAdminMenuSelect } from './schoolAdminMenuConfig';
+import { useSchoolAdminMenu } from './useSchoolAdminMenu';
+import { toast } from 'react-toastify';
 import {
   Box,
   Paper,
@@ -34,6 +36,13 @@ import {
   Switch,
   FormControlLabel,
   Tooltip,
+  IconButton,
+  Tabs,
+  Tab,
+  Badge,
+  List,
+  ListItem,
+  ListItemText,
 } from '@mui/material';
 import {
   Refresh as RefreshIcon,
@@ -41,13 +50,17 @@ import {
   Edit as EditIcon,
   Delete as DeleteIcon,
   People as PeopleIcon,
+  PeopleAlt as PeopleAltIcon,
   Visibility as VisibilityIcon,
+  Autorenew as AutorenewIcon,
+  HealthAndSafety as HealthIcon,
+  NotificationsActive as RequestAlertIcon,
+  CheckCircle as ResolveIcon,
 } from '@mui/icons-material';
 
 const GENDER_OPTIONS = [
   { value: 'male', label: 'Nam' },
   { value: 'female', label: 'Nữ' },
-  { value: 'other', label: 'Khác' },
 ];
 
 const PHONE_REGEX = /^[0-9]{10,11}$/;
@@ -62,12 +75,24 @@ function isValidEmail(value) {
 }
 
 function ManageStudents() {
+  const location = useLocation();
   const [students, setStudents] = useState([]);
   const [classes, setClasses] = useState([]);
+  const [activeAcademicYear, setActiveAcademicYear] = useState(null);
+  const [viewAcademicYear, setViewAcademicYear] = useState(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
   const [searchTerm, setSearchTerm] = useState('');
   const [classFilter, setClassFilter] = useState('');
+
+  // Pending change requests: map studentId -> count
+  const [pendingMap, setPendingMap] = useState({});
+  // Dialog xem yêu cầu của 1 học sinh
+  const [reqViewStudent, setReqViewStudent] = useState(null);
+  const [reqViewData, setReqViewData]       = useState([]);
+  const [reqViewLoading, setReqViewLoading] = useState(false);
+  const [resolvingId, setResolvingId]       = useState(null);
+
   const [openAdd, setOpenAdd] = useState(false);
   const [openEdit, setOpenEdit] = useState(false);
   const [openDelete, setOpenDelete] = useState(false);
@@ -79,6 +104,8 @@ function ManageStudents() {
     student: { fullName: '', dateOfBirth: '', gender: 'male', address: '', avatar: '' },
   });
   const [formAddErrors, setFormAddErrors] = useState({});
+  const [addError, setAddError] = useState(null);
+  const [usernameGenerating, setUsernameGenerating] = useState(false);
   const [uploadingImage, setUploadingImage] = useState(false);
   const addImageInputRef = useRef(null);
   const [formEdit, setFormEdit] = useState({
@@ -88,10 +115,11 @@ function ManageStudents() {
   });
   const [formEditErrors, setFormEditErrors] = useState({});
   const [editError, setEditError] = useState(null);
-  const [faceModal, setFaceModal] = useState({ open: false, student: null });
-
+  const [deleteError, setDeleteError] = useState(null);
   const navigate = useNavigate();
+  const requestedYearId = new URLSearchParams(location.search).get('yearId') || '';
   const { user, hasRole, logout, isInitializing } = useAuth();
+  const menuItems = useSchoolAdminMenu();
   const {
     getAllStudents,
     getClasses,
@@ -113,30 +141,94 @@ function ManageStudents() {
       return;
     }
     fetchData();
-  }, [navigate, user, hasRole, isInitializing]);
+  }, [navigate, user, hasRole, isInitializing, requestedYearId]);
+
+  const fetchPendingMap = async () => {
+    try {
+      const res = await get(ENDPOINTS.STUDENTS.CHANGE_REQUESTS_PENDING_MAP);
+      setPendingMap(res.data || {});
+    } catch { /* silent */ }
+  };
 
   const fetchData = async () => {
     setLoading(true);
     setError(null);
     try {
-      const [studentsRes, classesRes] = await Promise.all([
-        getAllStudents(classFilter ? { classId: classFilter } : {}),
+      const studentParams = {
+        ...(classFilter ? { classId: classFilter } : {}),
+        ...(requestedYearId ? { academicYearId: requestedYearId } : {}),
+      };
+      const yearPromise = requestedYearId
+        ? get(`${ENDPOINTS.SCHOOL_ADMIN.ACADEMIC_YEARS.HISTORY}?yearId=${requestedYearId}`).catch(() => null)
+        : get(ENDPOINTS.SCHOOL_ADMIN.ACADEMIC_YEARS.CURRENT).catch(() => null);
+      const [studentsRes, classesRes, yearRes] = await Promise.all([
+        getAllStudents(studentParams),
         getClasses(),
+        yearPromise,
       ]);
       setStudents(studentsRes?.data || []);
       setClasses(classesRes?.data || []);
+      if (yearRes?.status === 'success') {
+        if (requestedYearId) {
+          const yearRow = Array.isArray(yearRes.data) ? yearRes.data[0] : null;
+          setViewAcademicYear(yearRow || null);
+        } else {
+          setViewAcademicYear(yearRes.data || null);
+          setActiveAcademicYear(yearRes.data || null);
+        }
+      } else {
+        setViewAcademicYear(null);
+      }
     } catch (err) {
       setError(err.message || 'Không tải được dữ liệu');
     } finally {
       setLoading(false);
     }
+    fetchPendingMap();
+  };
+
+  const openReqView = async (student) => {
+    setReqViewStudent(student);
+    setReqViewData([]);
+    setReqViewLoading(true);
+    try {
+      const res = await get(`${ENDPOINTS.STUDENTS.CHANGE_REQUESTS}?status=pending`);
+      // Filter for this student
+      const filtered = (res.data || []).filter(r => String(r.studentId?._id || r.studentId) === String(student._id));
+      setReqViewData(filtered);
+    } catch { setReqViewData([]); }
+    finally { setReqViewLoading(false); }
+  };
+
+  const handleResolve = async (reqId) => {
+    setResolvingId(reqId);
+    try {
+      await patch(ENDPOINTS.STUDENTS.CHANGE_REQUEST_RESOLVE(reqId), {});
+      setReqViewData(prev => prev.filter(r => r._id !== reqId));
+      setPendingMap(prev => {
+        const sid = String(reqViewStudent._id);
+        const newCount = (prev[sid] || 1) - 1;
+        const next = { ...prev };
+        if (newCount <= 0) delete next[sid]; else next[sid] = newCount;
+        return next;
+      });
+      toast.success('Đã giải quyết yêu cầu');
+    } catch (err) {
+      toast.error(err.message || 'Thao tác thất bại');
+    } finally {
+      setResolvingId(null);
+    }
   };
 
   useEffect(() => {
     if (user && !isInitializing && (hasRole('SchoolAdmin') || hasRole('SystemAdmin'))) {
-      getAllStudents(classFilter ? { classId: classFilter } : {}).then((res) => setStudents(res?.data || [])).catch(() => {});
+      const studentParams = {
+        ...(classFilter ? { classId: classFilter } : {}),
+        ...(requestedYearId ? { academicYearId: requestedYearId } : {}),
+      };
+      getAllStudents(studentParams).then((res) => setStudents(res?.data || [])).catch(() => {});
     }
-  }, [classFilter]);
+  }, [classFilter, requestedYearId, user, isInitializing, hasRole, getAllStudents]);
 
   const handleLogout = () => {
     logout();
@@ -144,61 +236,8 @@ function ManageStudents() {
   };
   const handleViewProfile = () => navigate('/profile');
 
-  const handleMenuSelect = async (key) => {
-    if (key === 'teachers') { navigate('/school-admin/teachers'); return; }
-    if (key === 'students') return;
-    if (key === 'overview') { navigate('/school-admin'); return; }
-    if (key === 'academic-years' || key === 'academic-year-setup') { navigate('/school-admin/academic-years'); return; }
-    if (key === 'academic-curriculum') { navigate('/school-admin/curriculum'); return; }
-    if (key === 'academic-schedule') { navigate('/school-admin/timetable'); return; }
-    if (key === 'academic-plan') { navigate('/school-admin/academic-plan'); return; }
-    if (key === 'academic-report') {
-      try {
-        const resp = await get(ENDPOINTS.SCHOOL_ADMIN.ACADEMIC_YEARS.CURRENT);
-        const yearId = resp?.status === 'success' ? resp?.data?._id : null;
-        if (yearId) navigate(`/school-admin/academic-years/${yearId}/report`);
-        else navigate('/school-admin/academic-years');
-      } catch (_) {
-        navigate('/school-admin/academic-years');
-      }
-      return;
-    }
-    if (key === 'academic-students') { navigate('/school-admin/class-list'); return; }
-    if (key === 'classes') { navigate('/school-admin/classes'); return; }
-    if (key === 'contacts') { navigate('/school-admin/contacts'); return; }
-    if (key === 'qa') { navigate('/school-admin/qa'); return; }
-    if (key === 'blogs') { navigate('/school-admin/blogs'); return; }
-    if (key === 'documents') { navigate('/school-admin/documents'); return; }
-    if (key === 'public-info') { navigate('/school-admin/public-info'); return; }
-    if (key === 'attendance') { navigate('/school-admin/attendance/overview'); return; }
-    if (key === 'face-attendance') { navigate('/school-admin/face-attendance'); return; }
-  };
-
-  const getMenuItems = () => [
-    { key: 'overview', label: 'Tổng quan trường' },
-    {
-      key: 'academic-years',
-      label: 'Quản lý năm học',
-      children: [
-        { key: 'academic-year-setup', label: 'Thiết lập năm học' },
-        { key: 'academic-plan', label: 'Thiết lập kế hoạch' },
-        { key: 'academic-schedule', label: 'Thời gian biểu' },
-        { key: 'academic-report', label: 'Báo cáo & thống kê' },
-      ],
-    },
-    { key: 'classes', label: 'Lớp học' },
-    { key: 'teachers', label: 'Giáo viên' },
-    { key: 'students', label: 'Học sinh & phụ huynh' },
-    { key: 'face-attendance', label: '📷 Đăng ký khuôn mặt' },
-    { key: 'assets', label: 'Quản lý tài sản' },
-    { key: 'reports', label: 'Báo cáo của trường' },
-    { key: 'contacts', label: 'Liên hệ' },
-    { key: 'qa', label: 'Câu hỏi' },
-    { key: 'blogs', label: 'Quản lý blog' },
-    { key: 'documents', label: 'Quản lý tài liệu' },
-    { key: 'public-info', label: 'Thông tin công khai' },
-    { key: 'attendance', label: 'Quản lý điểm danh' },
-  ];
+  const handleMenuSelect = createSchoolAdminMenuSelect(navigate);
+  const yearName = viewAcademicYear?.yearName || activeAcademicYear?.yearName || '';
 
   const filteredStudents = students.filter((s) => {
     const matchSearch = !searchTerm || (s.fullName || '').toLowerCase().includes(searchTerm.toLowerCase())
@@ -206,13 +245,28 @@ function ManageStudents() {
     return matchSearch;
   });
 
+  const handleGenerateUsername = async () => {
+    setUsernameGenerating(true);
+    setFormAddErrors((prev) => { const n = { ...prev }; delete n.parentUsername; return n; });
+    try {
+      const res = await get(ENDPOINTS.STUDENTS.GENERATE_USERNAME);
+      setFormAdd((prev) => ({ ...prev, parent: { ...prev.parent, username: res.username } }));
+    } catch (err) {
+      setFormAddErrors((prev) => ({ ...prev, parentUsername: err.data?.message || 'Lỗi khi tạo username' }));
+    } finally {
+      setUsernameGenerating(false);
+    }
+  };
+
   const handleOpenAdd = () => {
     setFormAdd({
       parent: { username: '', password: '', fullName: '', email: '', phone: '' },
       student: { fullName: '', dateOfBirth: '', gender: 'male', address: '', avatar: '' },
     });
     setFormAddErrors({});
+    setAddError(null);
     setOpenAdd(true);
+    handleGenerateUsername();
   };
 
   const handleAddImageChange = async (e) => {
@@ -239,7 +293,7 @@ function ManageStudents() {
   const handleSubmitAdd = async () => {
     setCtxError(null);
     const errs = {};
-    if (!(formAdd.parent.username || '').trim()) errs.parentUsername = 'Vui lòng nhập tài khoản đăng nhập';
+    if (!(formAdd.parent.username || '').trim()) errs.parentUsername = 'Vui lòng tạo tài khoản đăng nhập';
     if (!(formAdd.parent.password || '').trim()) errs.parentPassword = 'Vui lòng nhập mật khẩu';
     else if (formAdd.parent.password.trim().length < 6) errs.parentPassword = 'Mật khẩu tối thiểu 6 ký tự';
     if (!(formAdd.parent.fullName || '').trim()) errs.parentFullName = 'Vui lòng nhập họ tên phụ huynh';
@@ -253,12 +307,13 @@ function ManageStudents() {
       return;
     }
     setFormAddErrors({});
+    setAddError(null);
     try {
       await createStudentWithParent(formAdd);
       setOpenAdd(false);
       fetchData();
     } catch (err) {
-      // error set in context
+      setAddError(err?.message || 'Tạo học sinh thất bại');
     }
   };
 
@@ -322,18 +377,22 @@ function ManageStudents() {
 
   const handleOpenDelete = (row) => {
     setSelectedStudent(row);
+    setDeleteError(null);
     setOpenDelete(true);
   };
 
   const handleConfirmDelete = async () => {
     if (!selectedStudent?._id) return;
     setCtxError(null);
+    setDeleteError(null);
     try {
       await deleteStudent(selectedStudent._id);
       setOpenDelete(false);
       setSelectedStudent(null);
       fetchData();
-    } catch (err) {}
+    } catch (err) {
+      setDeleteError(err?.message || 'Xóa học sinh thất bại');
+    }
   };
 
   const handleViewStudentsInClass = (classId) => {
@@ -353,9 +412,9 @@ function ManageStudents() {
 
   return (
     <RoleLayout
-      title="Học sinh & phụ huynh"
-      description="Quản lý danh sách học sinh và tài khoản phụ huynh. parentId của học sinh là _id tài khoản User phụ huynh."
-      menuItems={getMenuItems()}
+      title={yearName ? `Học sinh & phụ huynh - ${yearName}` : 'Học sinh & phụ huynh'}
+      description="Quản lý danh sách học sinh và tài khoản phụ huynh."
+      menuItems={menuItems}
       activeKey="students"
       onLogout={handleLogout}
       onViewProfile={handleViewProfile}
@@ -374,13 +433,25 @@ function ManageStudents() {
           <PeopleIcon sx={{ color: 'white', fontSize: 28 }} />
           <Box>
             <Typography variant="h6" fontWeight={700} color="white">
-              Danh sách học sinh & phụ huynh
+              {yearName ? `Danh sách học sinh & phụ huynh - ${yearName}` : 'Danh sách học sinh & phụ huynh'}
             </Typography>
-            <Typography variant="body2" color="rgba(255,255,255,0.8)" mt={0.25}>
-              Quản lý học sinh, tạo tài khoản phụ huynh và liên kết parentId = User._id.
+            <Typography variant="body2" sx={{ color: 'rgba(255,255,255,0.9)' }}>
+              {yearName ? `Năm học: ${yearName}` : 'Năm học: Chưa xác định'}
             </Typography>
           </Box>
         </Stack>
+      </Paper>
+
+      {/* Tab navigation */}
+      <Paper elevation={0} sx={{ mb: 2, borderRadius: 2, border: '1px solid', borderColor: 'divider' }}>
+        <Tabs
+          value={0}
+          onChange={(_, v) => { if (v === 1) navigate('/school-admin/students/health-report'); }}
+          sx={{ px: 1, '& .MuiTab-root': { textTransform: 'none', fontWeight: 600, fontSize: 13 }, '& .Mui-selected': { color: '#6366f1' }, '& .MuiTabs-indicator': { bgcolor: '#6366f1' } }}
+        >
+          <Tab icon={<PeopleAltIcon fontSize="small" />} iconPosition="start" label="Danh sách học sinh" />
+          <Tab icon={<HealthIcon fontSize="small" />} iconPosition="start" label="Báo cáo sức khỏe" />
+        </Tabs>
       </Paper>
 
       <Paper elevation={1} sx={{ borderRadius: 2, p: 3 }}>
@@ -428,21 +499,38 @@ function ManageStudents() {
                   <TableCell><strong>Họ tên</strong></TableCell>
                   <TableCell><strong>Ngày sinh</strong></TableCell>
                   <TableCell><strong>Giới tính</strong></TableCell>
+                  <TableCell><strong>Năm học</strong></TableCell>
                   {/* <TableCell><strong>Lớp</strong></TableCell> */}
                   <TableCell><strong>Phụ huynh</strong></TableCell>
                   <TableCell><strong>SĐT</strong></TableCell>
                   <TableCell align="center"><strong>Cần chú ý</strong></TableCell>
+                  <TableCell align="center"><strong>Yêu cầu GV</strong></TableCell>
                   <TableCell><strong>Ghi chú đặc biệt</strong></TableCell>
-                  <TableCell align="center"><strong>Khuôn mặt</strong></TableCell>
                   <TableCell align="right"><strong>Thao tác</strong></TableCell>
                 </TableRow>
               </TableHead>
               <TableBody>
-                {filteredStudents.map((row) => (
-                  <TableRow key={row._id}>
-                    <TableCell>{row.fullName || '—'}</TableCell>
+                {filteredStudents.map((row) => {
+                  const pendingCount = pendingMap[String(row._id)] || 0;
+                  return (
+                  <TableRow key={row._id} sx={pendingCount > 0 ? { bgcolor: '#fffbeb' } : {}}>
+                    <TableCell>
+                      <Stack direction="row" alignItems="center" spacing={0.75}>
+                        {pendingCount > 0 && (
+                          <Tooltip title={`${pendingCount} yêu cầu chờ xử lý từ giáo viên`}>
+                            <RequestAlertIcon sx={{ fontSize: 16, color: '#d97706', flexShrink: 0 }} />
+                          </Tooltip>
+                        )}
+                        <span>{row.fullName || '—'}</span>
+                      </Stack>
+                    </TableCell>
                     <TableCell>{formatDate(row.dateOfBirth)}</TableCell>
                     <TableCell>{GENDER_OPTIONS.find((g) => g.value === row.gender)?.label || row.gender || '—'}</TableCell>
+                    <TableCell>
+                      {row.academicYearId?.yearName
+                        ? <Chip label={row.academicYearId.yearName} size="small" sx={{ bgcolor: '#e0f2fe', color: '#0284c7', fontWeight: 600, fontSize: '0.72rem' }} />
+                        : <Typography variant="caption" color="text.disabled">—</Typography>}
+                    </TableCell>
                     {/* <TableCell>{row.classId?.className || '—'}</TableCell> */}
                     <TableCell>{row.parentId?.fullName || '—'}</TableCell>
                     <TableCell>{row.phone || row.parentPhone || row.parentId?.phone || '—'}</TableCell>
@@ -451,20 +539,26 @@ function ManageStudents() {
                         ? <Chip label="Có" color="warning" size="small" />
                         : <Chip label="Không" size="small" variant="outlined" />}
                     </TableCell>
+                    <TableCell align="center">
+                      {pendingCount > 0 ? (
+                        <Tooltip title="Xem các yêu cầu từ giáo viên">
+                          <Chip
+                            label={`${pendingCount} chờ xử lý`}
+                            size="small"
+                            color="warning"
+                            icon={<RequestAlertIcon sx={{ fontSize: 13 }} />}
+                            onClick={() => openReqView(row)}
+                            sx={{ cursor: 'pointer', fontWeight: 700, fontSize: '0.7rem' }}
+                          />
+                        </Tooltip>
+                      ) : (
+                        <Typography variant="caption" color="text.disabled">—</Typography>
+                      )}
+                    </TableCell>
                     <TableCell>
                       {row.specialNote
                         ? <Tooltip title={row.specialNote}><Typography variant="body2" noWrap sx={{ maxWidth: 160 }}>{row.specialNote}</Typography></Tooltip>
                         : '—'}
-                    </TableCell>
-                    <TableCell align="center">
-                      <Chip
-                        label={row.hasFaceEmbedding ? '✓ Đã đăng ký' : 'Chưa đăng ký'}
-                        size="small"
-                        color={row.hasFaceEmbedding ? 'success' : 'default'}
-                        variant={row.hasFaceEmbedding ? 'filled' : 'outlined'}
-                        onClick={() => setFaceModal({ open: true, student: row })}
-                        sx={{ cursor: 'pointer' }}
-                      />
                     </TableCell>
                     <TableCell align="right">
                       <Button size="small" startIcon={<VisibilityIcon />} onClick={() => handleOpenDetail(row)} sx={{ mr: 0.5 }}>
@@ -478,7 +572,7 @@ function ManageStudents() {
                       </Button>
                     </TableCell>
                   </TableRow>
-                ))}
+                );})}
               </TableBody>
             </Table>
           </TableContainer>
@@ -492,16 +586,52 @@ function ManageStudents() {
       <Dialog open={openAdd} onClose={() => setOpenAdd(false)} maxWidth="sm" fullWidth>
         <DialogTitle>Thêm học sinh và tài khoản phụ huynh</DialogTitle>
         <DialogContent dividers>
+          {addError && (
+            <Alert severity="error" sx={{ mb: 2 }} onClose={() => setAddError(null)}>
+              {addError}
+            </Alert>
+          )}
           <Typography variant="subtitle2" color="primary" gutterBottom>Thông tin tài khoản phụ huynh</Typography>
           <Stack spacing={1.5} mb={2}>
-            <TextField size="small" label="Tài khoản đăng nhập" value={formAdd.parent.username} onChange={(e) => setFormAdd((prev) => ({ ...prev, parent: { ...prev.parent, username: e.target.value } }))} fullWidth required error={!!formAddErrors.parentUsername} helperText={formAddErrors.parentUsername} />
+            <Stack direction="row" spacing={1} alignItems="flex-start">
+              <TextField
+                size="small"
+                label="Tài khoản đăng nhập"
+                value={formAdd.parent.username}
+                InputProps={{ readOnly: true }}
+                sx={{ flex: 1 }}
+                required
+                error={!!formAddErrors.parentUsername}
+                helperText={formAddErrors.parentUsername || 'Được tạo tự động'}
+              />
+              <Tooltip title="Tạo lại">
+                <span>
+                  <IconButton
+                    size="small"
+                    onClick={handleGenerateUsername}
+                    disabled={usernameGenerating}
+                    sx={{ mt: 0.5, border: '1px solid', borderColor: 'divider', borderRadius: 1 }}
+                  >
+                    {usernameGenerating ? <CircularProgress size={18} /> : <AutorenewIcon fontSize="small" />}
+                  </IconButton>
+                </span>
+              </Tooltip>
+            </Stack>
             <TextField size="small" type="password" label="Mật khẩu" value={formAdd.parent.password} onChange={(e) => setFormAdd((prev) => ({ ...prev, parent: { ...prev.parent, password: e.target.value } }))} fullWidth required error={!!formAddErrors.parentPassword} helperText={formAddErrors.parentPassword} />
             <TextField size="small" label="Họ tên phụ huynh" value={formAdd.parent.fullName} onChange={(e) => setFormAdd((prev) => ({ ...prev, parent: { ...prev.parent, fullName: e.target.value } }))} fullWidth required error={!!formAddErrors.parentFullName} helperText={formAddErrors.parentFullName} />
             <TextField size="small" type="email" label="Email" value={formAdd.parent.email} onChange={(e) => setFormAdd((prev) => ({ ...prev, parent: { ...prev.parent, email: e.target.value } }))} fullWidth required error={!!formAddErrors.parentEmail} helperText={formAddErrors.parentEmail} />
-            <TextField size="small" label="Số điện thoại" value={formAdd.parent.phone} onChange={(e) => setFormAdd((prev) => ({ ...prev, parent: { ...prev.parent, phone: e.target.value } }))} fullWidth error={!!formAddErrors.parentPhone} helperText={formAddErrors.parentPhone} placeholder="10–11 chữ số" />
+            <TextField size="small" label="Số điện thoại" value={formAdd.parent.phone} onChange={(e) => setFormAdd((prev) => ({ ...prev, parent: { ...prev.parent, phone: e.target.value.replace(/\D/g, '') } }))} fullWidth error={!!formAddErrors.parentPhone} helperText={formAddErrors.parentPhone} placeholder="10–11 chữ số" inputProps={{ inputMode: 'numeric', maxLength: 11 }} />
           </Stack>
           <Typography variant="subtitle2" color="primary" gutterBottom>Thông tin học sinh</Typography>
           <Stack spacing={1.5}>
+            <Box sx={{ p: 1.5, bgcolor: '#e0f2fe', borderRadius: 1.5, display: 'flex', alignItems: 'center', gap: 1 }}>
+              <Typography variant="caption" color="#0284c7" fontWeight={600}>Năm học sẽ được gán:</Typography>
+              <Chip
+                label={activeAcademicYear?.yearName || 'Chưa có năm học đang hoạt động'}
+                size="small"
+                sx={{ bgcolor: activeAcademicYear ? '#0284c7' : '#9e9e9e', color: '#fff', fontWeight: 700, fontSize: '0.75rem' }}
+              />
+            </Box>
             <TextField size="small" label="Họ tên học sinh" value={formAdd.student.fullName} onChange={(e) => setFormAdd((prev) => ({ ...prev, student: { ...prev.student, fullName: e.target.value } }))} fullWidth required error={!!formAddErrors.studentFullName} helperText={formAddErrors.studentFullName} />
             <TextField size="small" type="date" label="Ngày sinh" InputLabelProps={{ shrink: true }} value={formAdd.student.dateOfBirth} onChange={(e) => setFormAdd((prev) => ({ ...prev, student: { ...prev.student, dateOfBirth: e.target.value } }))} fullWidth required error={!!formAddErrors.studentDateOfBirth} helperText={formAddErrors.studentDateOfBirth} />
             <FormControl size="small" fullWidth>
@@ -560,7 +690,7 @@ function ManageStudents() {
             <Typography variant="subtitle2" color="text.secondary" sx={{ mt: 1 }}>Thông tin phụ huynh (tài khoản User)</Typography>
             <TextField size="small" label="Họ tên phụ huynh" value={formEdit.parentFullName} onChange={(e) => setFormEdit((p) => ({ ...p, parentFullName: e.target.value }))} fullWidth />
             <TextField size="small" type="email" label="Email phụ huynh" value={formEdit.parentEmail} onChange={(e) => setFormEdit((p) => ({ ...p, parentEmail: e.target.value }))} fullWidth error={!!formEditErrors.parentEmail} helperText={formEditErrors.parentEmail} />
-            <TextField size="small" label="SĐT phụ huynh" value={formEdit.parentPhone} onChange={(e) => setFormEdit((p) => ({ ...p, parentPhone: e.target.value }))} fullWidth error={!!formEditErrors.parentPhone} helperText={formEditErrors.parentPhone} placeholder="10–11 chữ số" />
+            <TextField size="small" label="SĐT phụ huynh" value={formEdit.parentPhone} onChange={(e) => setFormEdit((p) => ({ ...p, parentPhone: e.target.value.replace(/\D/g, '') }))} fullWidth error={!!formEditErrors.parentPhone} helperText={formEditErrors.parentPhone} placeholder="10–11 chữ số" inputProps={{ inputMode: 'numeric', maxLength: 11 }} />
             <Divider />
             <FormControlLabel
               control={
@@ -685,9 +815,10 @@ function ManageStudents() {
       </Dialog>
 
       {/* Xác nhận xóa */}
-      <Dialog open={openDelete} onClose={() => setOpenDelete(false)}>
+      <Dialog open={openDelete} onClose={() => { setOpenDelete(false); setDeleteError(null); }}>
         <DialogTitle>Xác nhận xóa</DialogTitle>
         <DialogContent>
+          {deleteError && <Alert severity="error" sx={{ mb: 1.5 }} onClose={() => setDeleteError(null)}>{deleteError}</Alert>}
           Bạn có chắc muốn xóa học sinh &quot;{selectedStudent?.fullName}&quot;? Tài khoản phụ huynh vẫn được giữ nguyên.
         </DialogContent>
         <DialogActions>
@@ -698,15 +829,67 @@ function ManageStudents() {
         </DialogActions>
       </Dialog>
 
-      <FaceRegisterModal
-        open={faceModal.open}
-        student={faceModal.student}
-        onClose={() => setFaceModal({ open: false, student: null })}
-        onSuccess={() => {
-          setFaceModal({ open: false, student: null });
-          fetchData();
-        }}
-      />
+      {/* Dialog xem & giải quyết yêu cầu từ giáo viên */}
+      <Dialog open={!!reqViewStudent} onClose={() => setReqViewStudent(null)} maxWidth="sm" fullWidth>
+        <DialogTitle sx={{ fontWeight: 700, pb: 1 }}>
+          Yêu cầu thay đổi thông tin từ giáo viên
+        </DialogTitle>
+        <DialogContent dividers sx={{ p: 0 }}>
+          {reqViewStudent && (
+            <Stack direction="row" alignItems="center" spacing={1.25} sx={{ px: 2.5, py: 1.5, bgcolor: '#fffbeb', borderBottom: '1px solid #fde68a' }}>
+              <RequestAlertIcon sx={{ color: '#d97706', fontSize: 18 }} />
+              <Typography variant="body2" fontWeight={700}>{reqViewStudent.fullName}</Typography>
+            </Stack>
+          )}
+          {reqViewLoading ? (
+            <Box sx={{ py: 5, textAlign: 'center' }}><CircularProgress size={28} /></Box>
+          ) : reqViewData.length === 0 ? (
+            <Box sx={{ py: 5, textAlign: 'center' }}>
+              <ResolveIcon sx={{ fontSize: 36, color: '#22c55e', mb: 1 }} />
+              <Typography variant="body2" color="text.secondary">Không còn yêu cầu nào đang chờ xử lý</Typography>
+            </Box>
+          ) : (
+            <List disablePadding>
+              {reqViewData.map((r, idx) => (
+                <Box key={r._id}>
+                  <ListItem alignItems="flex-start" sx={{ py: 1.5, px: 2.5 }}>
+                    <ListItemText
+                      primary={
+                        <Typography variant="body2" fontWeight={700} mb={0.5}>{r.title}</Typography>
+                      }
+                      secondary={
+                        <>
+                          <Typography variant="body2" color="text.secondary" sx={{ whiteSpace: 'pre-wrap', mb: 0.75 }}>{r.content}</Typography>
+                          <Stack direction="row" alignItems="center" justifyContent="space-between">
+                            <Typography variant="caption" color="text.disabled">
+                              {new Date(r.createdAt).toLocaleString('vi-VN')}
+                              {r.teacherId?.userId?.fullName ? ` · GV: ${r.teacherId.userId.fullName}` : ''}
+                            </Typography>
+                            <Button
+                              size="small" variant="contained"
+                              startIcon={<ResolveIcon sx={{ fontSize: 14 }} />}
+                              disabled={!!resolvingId}
+                              onClick={() => handleResolve(r._id)}
+                              sx={{ bgcolor: '#16a34a', '&:hover': { bgcolor: '#15803d' }, fontSize: '0.72rem', py: 0.4, px: 1.2, borderRadius: 1.5 }}
+                            >
+                              {resolvingId === r._id ? 'Đang xử lý...' : 'Giải quyết'}
+                            </Button>
+                          </Stack>
+                        </>
+                      }
+                    />
+                  </ListItem>
+                  {idx < reqViewData.length - 1 && <Divider />}
+                </Box>
+              ))}
+            </List>
+          )}
+        </DialogContent>
+        <DialogActions sx={{ px: 2, py: 1.5 }}>
+          <Button onClick={() => setReqViewStudent(null)} color="inherit">Đóng</Button>
+        </DialogActions>
+      </Dialog>
+
     </RoleLayout>
   );
 }

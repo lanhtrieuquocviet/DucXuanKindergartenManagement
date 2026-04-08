@@ -3,6 +3,8 @@ import { useNavigate, useParams, useSearchParams } from 'react-router-dom';
 import { useAuth } from '../../context/AuthContext';
 import { useSchoolAdmin } from '../../context/SchoolAdminContext';
 import RoleLayout from '../../layouts/RoleLayout';
+import { createSchoolAdminMenuSelect } from './schoolAdminMenuConfig';
+import { useSchoolAdminMenu } from './useSchoolAdminMenu';
 import {
   Box,
   Paper,
@@ -51,6 +53,7 @@ function StudentAttendanceDetail() {
   const [searchParams] = useSearchParams();
   const { user, logout, isInitializing } = useAuth();
   const { getStudentAttendanceDetail, loading, error } = useSchoolAdmin();
+  const menuItems = useSchoolAdminMenu();
 
   const [studentInfo, setStudentInfo] = useState(null);
   const [attendance, setAttendance] = useState(null);
@@ -92,56 +95,7 @@ function StudentAttendanceDetail() {
     }
   };
 
-  const menuItems = [
-    { key: 'overview', label: 'Tổng quan trường' },
-    { key: 'classes', label: 'Lớp học' },
-    { key: 'teachers', label: 'Giáo viên' },
-    { key: 'students', label: 'Học sinh & phụ huynh' },
-    { key: 'assets', label: 'Quản lý tài sản' },
-    { key: 'reports', label: 'Báo cáo của trường' },
-    { key: 'contacts', label: 'Liên hệ' },
-    { key: 'qa', label: 'Câu hỏi' },
-    { key: 'blogs', label: 'Quản lý blog' },
-    { key: 'documents', label: 'Quản lý tài liệu' },
-    { key: 'public-info', label: 'Thông tin công khai' },
-    { key: 'attendance', label: 'Quản lý điểm danh' },
-  ];
-
-  const handleMenuSelect = (key) => {
-    if (key === 'overview') {
-      navigate('/school-admin');
-      return;
-    }
-    if (key === 'classes') {
-      navigate('/school-admin/classes');
-      return;
-    }
-    if (key === 'teachers') { navigate('/school-admin/teachers'); return; }
-    if (key === 'contacts') {
-      navigate('/school-admin/contacts');
-      return;
-    }
-    if (key === 'qa') {
-      navigate('/school-admin/qa');
-      return;
-    }
-    if (key === 'blogs') {
-      navigate('/school-admin/blogs');
-      return;
-    }
-    if (key === 'documents') {
-      navigate('/school-admin/documents');
-      return;
-    }
-    if (key === 'public-info') {
-      navigate('/school-admin/public-info');
-      return;
-    }
-    if (key === 'attendance') {
-      navigate('/school-admin/attendance/overview');
-      return;
-    }
-  };
+  const handleMenuSelect = createSchoolAdminMenuSelect(navigate);
 
   const userName = user?.fullName || user?.username || 'School Admin';
 
@@ -240,6 +194,17 @@ function StudentAttendanceDetail() {
       )}
 
       <Box sx={{ maxWidth: 896, mx: 'auto' }}>
+        {/* Nút quay lại */}
+        <Button
+          startIcon={<ArrowBackIcon />}
+          onClick={() => navigate(-1)}
+          variant="outlined"
+          size="small"
+          sx={{ mb: 2, textTransform: 'none' }}
+        >
+          Quay lại
+        </Button>
+
         {/* Thông tin học sinh */}
         <Paper
           elevation={0}

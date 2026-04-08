@@ -1,4 +1,4 @@
-const geminiService = require("../utils/geminiService");
+const openaiService = require("../utils/openaiService");
 const Food = require("../models/Food");
 const Ingredient = require("../models/Ingredient");
 const DailyMenu = require("../models/DailyMenu");
@@ -25,7 +25,7 @@ exports.analyzeDailyMenu = async (req, res) => {
     const allFoods = await Food.find();
     const ingredients = await Ingredient.find();
 
-    const analysis = await geminiService.analyzeMenuSuggestions(
+    const analysis = await openaiService.analyzeMenuSuggestions(
       dailyMenu,
       allFoods,
       ingredients
@@ -58,7 +58,7 @@ exports.improveDish = async (req, res) => {
       return res.status(404).json({ success: false, message: "Không tìm thấy món ăn" });
     }
 
-    const improvements = await geminiService.suggestDishImprovements(
+    const improvements = await openaiService.suggestDishImprovements(
       food.name,
       food.ingredients || [],
       {
@@ -90,7 +90,7 @@ exports.suggestNewDishes = async (req, res) => {
 
     const recentDishNames = foods.map((f) => f.name);
 
-    const suggestions = await geminiService.suggestNewDishes(ingredients, recentDishNames);
+    const suggestions = await openaiService.suggestNewDishes(ingredients, recentDishNames);
 
     res.json({
       success: true,
@@ -125,7 +125,7 @@ exports.chatAboutMenu = async (req, res) => {
 
     const allFoods = await Food.find();
 
-    const response = await geminiService.chatWithContext(message, dailyMenu, allFoods);
+    const response = await openaiService.chatWithContext(message, dailyMenu, allFoods);
 
     res.json({
       success: true,
@@ -223,17 +223,48 @@ exports.createDishFromAISuggestion = async (req, res) => {
 };
 
 /**
+ * Gợi ý cân bằng thực đơn
+ */
+exports.suggestMenuBalance = async (req, res) => {
+  try {
+    const { dailyMenuId } = req.body;
+
+    if (!dailyMenuId) {
+      return res.status(400).json({ success: false, message: "dailyMenuId là bắt buộc" });
+    }
+
+    const dailyMenu = await DailyMenu.findById(dailyMenuId)
+      .populate("lunchFoods")
+      .populate("afternoonFoods");
+
+    if (!dailyMenu) {
+      return res.status(404).json({ success: false, message: "Không tìm thấy thực đơn" });
+    }
+
+    const suggestions = await openaiService.suggestMenuBalance(dailyMenu);
+
+    res.json({
+      success: true,
+      data: suggestions,
+    });
+  } catch (error) {
+    console.error("suggestMenuBalance error:", error);
+    res.status(500).json({ success: false, message: error.message });
+  }
+};
+
+/**
  * Health check
  */
 exports.healthCheck = async (req, res) => {
   try {
-    const hasApiKey = !!process.env.GEMINI_API_KEY;
+    const hasApiKey = !!process.env.OPENAI_API_KEY;
     res.json({
       success: true,
       aiEnabled: hasApiKey,
       message: hasApiKey
         ? "AI Menu Assistant sẵn sàng"
-        : "Chưa cấu hình GEMINI_API_KEY",
+        : "Chưa cấu hình OPENAI_API_KEY",
     });
   } catch (error) {
     res.status(500).json({ success: false, message: error.message });

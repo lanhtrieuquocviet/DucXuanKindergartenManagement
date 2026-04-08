@@ -21,6 +21,8 @@ import {
   TableHead,
   TableRow,
   TextField,
+  ToggleButton,
+  ToggleButtonGroup,
 } from '@mui/material';
 import { toast } from 'react-toastify';
 import {
@@ -31,39 +33,15 @@ import {
 } from '@mui/icons-material';
 import { useAuth } from '../../context/AuthContext';
 import RoleLayout from '../../layouts/RoleLayout';
-import { get, put, del, ENDPOINTS } from '../../service/api';
+import { get, put, patch, del, ENDPOINTS } from '../../service/api';
+import { createSchoolAdminMenuSelect } from './schoolAdminMenuConfig';
+import { useSchoolAdminMenu } from './useSchoolAdminMenu';
 
 const SEASON_OPTIONS = [
   { value: 'summer', label: 'Mùa Hè' },
   { value: 'winter', label: 'Mùa Đông' },
 ];
 
-const menuItems = [
-  { key: 'overview', label: 'Tổng quan trường' },
-  {
-    key: 'academic-years',
-    label: 'Quản lý năm học',
-    children: [
-      { key: 'academic-year-setup', label: 'Thiết lập năm học' },
-      { key: 'academic-plan', label: 'Thiết lập kế hoạch' },
-      { key: 'academic-schedule', label: 'Thời gian biểu' },
-      { key: 'academic-report', label: 'Báo cáo & thống kê' },
-    ],
-  },
-  { key: 'classes', label: 'Lớp học' },
-  { key: 'menu', label: 'Quản lý thực đơn' },
-  { key: 'meal-management', label: 'Quản lý bữa ăn' },
-  { key: 'teachers', label: 'Giáo viên' },
-  { key: 'students', label: 'Học sinh & phụ huynh' },
-  { key: 'assets', label: 'Quản lý tài sản' },
-  { key: 'reports', label: 'Báo cáo của trường' },
-  { key: 'contacts', label: 'Liên hệ' },
-  { key: 'qa', label: 'Câu hỏi' },
-  { key: 'blogs', label: 'Quản lý blog' },
-  { key: 'documents', label: 'Quản lý tài liệu' },
-  { key: 'public-info', label: 'Thông tin công khai' },
-  { key: 'attendance', label: 'Quản lý điểm danh' },
-];
 
 // Dùng initialValue + key để reset khi modal mở — không cần sync phức tạp
 function TimeSelect({ label, initialValue = '', onChange }) {
@@ -151,6 +129,7 @@ function seasonContentLabel(appliesToSeason) {
 export default function TimetableActivitiesPage() {
   const navigate = useNavigate();
   const { user, logout } = useAuth();
+  const menuItems = useSchoolAdminMenu();
 
   const [academicYear, setAcademicYear] = useState(null);
   const [activities, setActivities] = useState([]);
@@ -162,6 +141,7 @@ export default function TimetableActivitiesPage() {
   const [saving, setSaving] = useState(false);
   const [deleteTargetId, setDeleteTargetId] = useState(null);
   const [deleting, setDeleting] = useState(false);
+  const [savingSeason, setSavingSeason] = useState(false);
 
   const [form, setForm] = useState({
     appliesToSeason: '',
@@ -175,37 +155,45 @@ export default function TimetableActivitiesPage() {
     navigate('/login', { replace: true });
   };
 
-  const handleMenuSelect = (key) => {
-    if (key === 'overview') navigate('/school-admin');
-    if (key === 'academic-years' || key === 'academic-year-setup') navigate('/school-admin/academic-years');
-    if (key === 'academic-plan') navigate('/school-admin/academic-plan');
-    if (key === 'academic-report') {
-      const yearId = academicYear?._id;
-      if (yearId) navigate(`/school-admin/academic-years/${yearId}/report`);
-      else navigate('/school-admin/academic-years');
-      return;
-    }
-    if (key === 'academic-students') navigate('/school-admin/class-list');
-    if (key === 'academic-curriculum') navigate('/school-admin/curriculum');
-    if (key === 'academic-schedule') return;
-    if (key === 'classes') navigate('/school-admin/classes');
-    if (key === 'menu') navigate('/school-admin/menus');
-    if (key === 'meal-management') navigate('/school-admin/meal-management');
-    if (key === 'teachers') { navigate('/school-admin/teachers'); return; }
-    if (key === 'students') navigate('/school-admin/students');
-    if (key === 'contacts') navigate('/school-admin/contacts');
-    if (key === 'qa') navigate('/school-admin/qa');
-    if (key === 'blogs') navigate('/school-admin/blogs');
-    if (key === 'documents') navigate('/school-admin/documents');
-    if (key === 'public-info') navigate('/school-admin/public-info');
-    if (key === 'attendance') navigate('/school-admin/attendance/overview');
-  };
+  const handleMenuSelect = createSchoolAdminMenuSelect(navigate);
 
   const yearName = academicYear?.yearName || '';
 
   const loadActivities = async (yearId) => {
     const res = await get(ENDPOINTS.SCHOOL_ADMIN.TIMETABLE.LIST(yearId));
-    if (res?.status === 'success') setActivities(Array.isArray(res.data) ? res.data : []);
+    if (res?.status === 'success') {
+      setActivities(Array.isArray(res.data) ? res.data : []);
+      if (typeof res.activeTimetableSeason === 'string' && yearId) {
+        setAcademicYear((prev) =>
+          prev && String(prev._id) === String(yearId)
+            ? { ...prev, activeTimetableSeason: res.activeTimetableSeason }
+            : prev
+        );
+      }
+    }
+  };
+
+  const timetableSeasonValue =
+    academicYear?.activeTimetableSeason === 'summer' || academicYear?.activeTimetableSeason === 'winter'
+      ? academicYear.activeTimetableSeason
+      : 'auto';
+
+  const handleTimetableSeasonChange = async (_event, next) => {
+    if (next == null || !academicYear?._id) return;
+    try {
+      setSavingSeason(true);
+      const res = await patch(ENDPOINTS.SCHOOL_ADMIN.ACADEMIC_YEARS.PATCH_CURRENT_TIMETABLE_SEASON, {
+        activeTimetableSeason: next,
+      });
+      if (res?.status === 'success' && res.data) {
+        setAcademicYear((prev) => ({ ...prev, ...res.data }));
+        toast.success('Đã cập nhật mùa đang áp dụng.');
+      }
+    } catch (err) {
+      toast.error(err?.message || 'Không lưu được.');
+    } finally {
+      setSavingSeason(false);
+    }
   };
 
   useEffect(() => {
@@ -374,7 +362,7 @@ export default function TimetableActivitiesPage() {
 
   return (
     <RoleLayout
-      title={`Thời gian biểu cả trường -- ${yearName || '—'}`}
+      title={`Thời gian biểu cả trường ${yearName || '—'}`}
       description="Thiết lập thời gian biểu hoạt động hằng ngày theo mùa."
       menuItems={menuItems}
       activeKey="academic-schedule"
@@ -398,7 +386,7 @@ export default function TimetableActivitiesPage() {
           >
             <Box>
               <Typography variant="h5" fontWeight={900} sx={{ color: '#1e40af' }}>
-                Thời gian biểu cả trường -- {yearName || '—'}
+                Thời gian biểu cả trường {yearName || '—'}
               </Typography>
               <Typography variant="body2" color="text.secondary" mt={0.5}>
                 THỜI GIAN BIỂU HOẠT ĐỘNG HẰNG NGÀY
@@ -406,6 +394,33 @@ export default function TimetableActivitiesPage() {
               <Typography variant="body2" color="text.secondary" mt={0.5}>
                 Năm học: <strong>{yearName || '—'}</strong>
               </Typography>
+              <Box sx={{ mt: 2 }} className="no-print">
+                <Typography variant="caption" color="text.secondary" fontWeight={700} display="block" sx={{ mb: 0.75 }}>
+                  Đang áp dụng lịch cho toàn trường
+                </Typography>
+                <Typography variant="caption" color="text.secondary" display="block" sx={{ mb: 1, maxWidth: 520 }}>
+                  Chế độ tự động theo tháng: tháng 4–9 dùng lịch mùa hè, các tháng còn lại dùng lịch mùa đông.
+                </Typography>
+                <ToggleButtonGroup
+                  exclusive
+                  value={timetableSeasonValue}
+                  onChange={handleTimetableSeasonChange}
+                  disabled={!academicYear?._id || savingSeason || loading}
+                  size="small"
+                  aria-label="Mùa áp dụng thời gian biểu"
+                  sx={{ flexWrap: 'wrap' }}
+                >
+                  <ToggleButton value="auto" sx={{ textTransform: 'none', fontWeight: 700 }}>
+                    Tự động theo tháng
+                  </ToggleButton>
+                  <ToggleButton value="summer" sx={{ textTransform: 'none', fontWeight: 700 }}>
+                    Mùa Hè
+                  </ToggleButton>
+                  <ToggleButton value="winter" sx={{ textTransform: 'none', fontWeight: 700 }}>
+                    Mùa Đông
+                  </ToggleButton>
+                </ToggleButtonGroup>
+              </Box>
             </Box>
 
             <Stack direction="row" spacing={1} className="no-print" sx={{ flexWrap: 'wrap' }}>
@@ -435,7 +450,7 @@ export default function TimetableActivitiesPage() {
               >
                 In thời gian biểu
               </Button>
-              <Button
+              {/* <Button
                 variant="outlined"
                 sx={{
                   textTransform: 'none',
@@ -446,7 +461,7 @@ export default function TimetableActivitiesPage() {
                 onClick={() => toast.info('Import file đang được phát triển')}
               >
                 Import file
-              </Button>
+              </Button> */}
             </Stack>
           </Stack>
         </Box>

@@ -1,10 +1,30 @@
 const Classroom = require('../models/Classroom');
 const Classes = require('../models/Classes');
 
-/** GET /api/classrooms — Danh sách tất cả phòng học */
+/** GET /api/classrooms — Danh sách tất cả phòng học (kèm thông tin lớp đang sử dụng) */
 const listClassrooms = async (req, res) => {
   try {
+    const AcademicYear = require('../models/AcademicYear');
     const classrooms = await Classroom.find().sort({ floor: 1, roomName: 1 }).lean();
+
+    // Tìm năm học đang hoạt động để kiểm tra phòng đang được sử dụng
+    const activeYear = await AcademicYear.findOne({ status: 'active' }).lean();
+    if (activeYear) {
+      const occupiedClasses = await Classes.find({ academicYearId: activeYear._id, roomId: { $ne: null } })
+        .select('roomId className')
+        .lean();
+      const occupiedMap = {};
+      for (const cls of occupiedClasses) {
+        if (cls.roomId) occupiedMap[cls.roomId.toString()] = cls.className;
+      }
+      for (const room of classrooms) {
+        const usedBy = occupiedMap[room._id.toString()];
+        room.occupiedByClass = usedBy || null;
+      }
+    } else {
+      for (const room of classrooms) room.occupiedByClass = null;
+    }
+
     return res.status(200).json({ status: 'success', data: classrooms });
   } catch (error) {
     console.error('listClassrooms error:', error);

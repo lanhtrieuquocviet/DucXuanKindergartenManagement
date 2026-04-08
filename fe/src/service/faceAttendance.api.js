@@ -3,7 +3,7 @@
  * Các hàm gọi API cho hệ thống điểm danh nhận diện khuôn mặt
  */
 
-import { get, post } from './api';
+import { get, post, patch, del } from './api';
 
 /**
  * Upload ảnh điểm danh (base64 từ camera) lên Cloudinary
@@ -20,8 +20,18 @@ export const uploadAttendanceImage = async (imageBase64) => {
  * @param {string} studentId
  * @param {number[]} embedding - mảng 128 số float từ face-api.js
  */
-export const registerFaceEmbedding = (studentId, embedding) =>
-  post('/face/register', { studentId, embedding });
+export const registerFaceEmbedding = (studentId, embedding, faceImageUrl = '', append = false) =>
+  post('/face/register', { studentId, embedding, faceImageUrl, append });
+
+/**
+ * Xóa toàn bộ dữ liệu khuôn mặt của học sinh
+ * @param {string} studentId
+ */
+export const deleteFaceEmbedding = (studentId) =>
+  del(`/face/register/${studentId}`);
+
+export const deleteFaceAngle = (studentId, index) =>
+  del(`/face/register/${studentId}/angle/${index}`);
 
 /**
  * Nhận diện khuôn mặt + tự động check-in (chế độ ONLINE)
@@ -71,3 +81,30 @@ export const matchPickupFace = (embedding, studentId) =>
  */
 export const matchPickupFaceForCheckout = (embedding, classId, date, checkoutImageUrl = '') =>
   post('/face/pickup/checkout', { embedding, classId, date, checkoutImageUrl });
+
+/**
+ * Quét khuôn mặt học sinh → tự động ghi điểm danh về
+ * Luồng mới: giáo viên đăng ký khuôn mặt học sinh, dùng cho cả check-in lẫn check-out
+ * @param {number[]} embedding
+ * @param {string} classId
+ * @param {string} [date]
+ * @param {string} [checkoutImageUrl]
+ */
+export const matchStudentFaceForCheckout = (embedding, classId, date, checkoutImageUrl = '') =>
+  post('/face/student/checkout', { embedding, classId, date, checkoutImageUrl });
+
+/**
+ * Cập nhật thông tin người đưa/đón cho bản ghi điểm danh
+ * @param {string} attendanceId
+ * @param {string} delivererType - tên / quan hệ người đưa
+ * @param {string} delivererOtherInfo - thông tin thêm
+ */
+export const updateAttendanceDeliverer = (attendanceId, delivererType, delivererOtherInfo = '') =>
+  patch(`/face/attendance/${attendanceId}/deliverer`, { delivererType, delivererOtherInfo });
+
+/**
+ * Lấy danh sách người đón đã được duyệt của học sinh
+ * @param {string} studentId
+ */
+export const getApprovedPickupPersons = (studentId) =>
+  get(`/pickup/requests/student/${studentId}`);

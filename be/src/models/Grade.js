@@ -22,6 +22,21 @@ const gradeSchema = new mongoose.Schema({
     min: 1,
     max: 10
   },
+  minAge: {
+    type: Number,
+    default: 0,
+    min: 0,
+  },
+  maxAge: {
+    type: Number,
+    default: 0,
+    min: 0,
+  },
+  ageRange: {
+    type: String,
+    default: '',
+    trim: true,
+  },
   createdAt: {
     type: Date,
     default: Date.now

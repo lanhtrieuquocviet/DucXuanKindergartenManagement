@@ -18,6 +18,9 @@ router.post("/suggest-dishes", authenticate, aiMenuController.suggestNewDishes);
 // Chat with AI about menu
 router.post("/chat", authenticate, aiMenuController.chatAboutMenu);
 
+// Suggest menu balance improvements
+router.post("/balance-menu", authenticate, aiMenuController.suggestMenuBalance);
+
 // Create dish from AI suggestion - ngoại bếp only
 router.post("/create-from-suggestion", authenticate, aiMenuController.createDishFromAISuggestion);
 

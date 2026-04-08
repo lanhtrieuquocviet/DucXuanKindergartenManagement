@@ -14,17 +14,19 @@
   "author": "",
   "license": "ISC",
   "dependencies": {
-    "@google/generative-ai": "^0.24.1",
     "bcryptjs": "^2.4.3",
     "cloudinary": "^2.9.0",
     "cors": "^2.8.5",
     "dayjs": "^1.11.13",
+    "docx": "^9.6.1",
     "dotenv": "^16.3.1",
     "exceljs": "^4.4.0",
     "express": "^4.18.2",
     "express-session": "^1.18.2",
     "express-validator": "^7.0.1",
+    "jsdom": "^29.0.1",
     "jsonwebtoken": "^9.0.2",
+    "mammoth": "^1.12.0",
     "mongodb": "^7.0.0",
     "mongoose": "^8.22.0",
     "multer": "^2.0.2",
@@ -35,7 +37,8 @@
     "passport-facebook": "^3.0.0",
     "passport-google-oauth20": "^2.0.0",
     "swagger-jsdoc": "^6.2.8",
-    "swagger-ui-express": "^5.0.1"
+    "swagger-ui-express": "^5.0.1",
+    "word-extractor": "^1.0.4"
   },
   "devDependencies": {
     "jest": "^30.3.0",
