@@ -246,7 +246,7 @@ export default function ManageStaff() {
         if (payload.avatar) {
           userUpdatePayload.avatar = payload.avatar;
         }
-        await put(`/school-admin/users/${selectedStaffId}`, userUpdatePayload);
+        await put(`/school-admin/users/${form.userId}`, userUpdatePayload);
         toast.success('Cập nhật nhân sự thành công');
       }
 
