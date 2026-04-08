@@ -96,7 +96,7 @@ exports.bulkCreateAssets = async (req, res) => {
     const results = { created: 0, skipped: 0, errors: [] };
     for (const item of assets) {
       try {
-        const { assetCode, name, category, room, requiredQuantity, quantity, area, constructionType, condition, notes } = item;
+        const { assetCode, name, category, room, requiredQuantity, quantity, area, constructionType, condition, unit, notes } = item;
         if (!assetCode?.trim() || !name?.trim()) {
           results.skipped++;
           results.errors.push(`Thiếu mã hoặc tên: "${assetCode || '?'}"`);
@@ -121,6 +121,7 @@ exports.bulkCreateAssets = async (req, res) => {
           area:             area != null && area !== '' ? Number(area) : null,
           constructionType: VALID_CONSTRUCTION.includes(constructionType) ? constructionType : 'Không áp dụng',
           condition:        VALID_CONDITION.includes(condition) ? condition : 'Tốt',
+          unit:             unit?.trim() || 'Cái',
           notes:            notes?.trim() || '',
           createdBy:        req.user._id,
         });

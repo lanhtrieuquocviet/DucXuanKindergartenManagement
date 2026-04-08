@@ -842,7 +842,6 @@ export function MinutesTab() {
                 <thead>
                   <tr>
                     <th style={{ ...headerCell, width: 32 }}>TT</th>
-                    <th style={{ ...headerCell, width: 80 }}>MÃ SỐ</th>
                     <th style={headerCell}>TÊN THIẾT BỊ</th>
                     <th style={{ ...headerCell, width: 46 }}>ĐVT</th>
                     <th style={{ ...headerCell, width: 46 }}>SL</th>
@@ -865,7 +864,7 @@ export function MinutesTab() {
                       <>
                         {g.category && (
                           <tr key={`cat-${gi}`}>
-                            <td colSpan={isReadOnly ? 7 : 8}
+                            <td colSpan={isReadOnly ? 6 : 7}
                               style={{ ...cellBorder, fontWeight: 700, textAlign: 'center', background: '#f0f0f0' }}>
                               {g.category}
                             </td>
@@ -878,12 +877,6 @@ export function MinutesTab() {
                           return (
                             <tr key={globalIdx}>
                               <td style={{ ...cellBorder, textAlign: 'center' }}>{n}</td>
-                              <td style={cellBorder}>
-                                {isReadOnly ? row.assetCode : (
-                                  <input style={{ width: '100%', border: 'none', outline: 'none', background: 'transparent', fontSize: 13 }}
-                                    value={row.assetCode} onChange={e => handleAssetChange(globalIdx, 'assetCode', e.target.value)} />
-                                )}
-                              </td>
                               <td style={cellBorder}>
                                 {isReadOnly ? row.name : (
                                   <input style={{ width: '100%', border: 'none', outline: 'none', background: 'transparent', fontSize: 13 }}
@@ -1036,6 +1029,73 @@ export function MinutesTab() {
   );
 }
 
+// ─── Shared: Inline-edit cell components ─────────────────────────────────────
+function InlineCell({ a, field, align = 'left', isText = false, ie, setIe, onSave, sx = {} }) {
+  const isEditing = ie?.id === a._id && ie?.field === field;
+  const rawVal    = a[field];
+  const display   = rawVal != null && rawVal !== '' ? rawVal : '—';
+  if (isEditing) {
+    return (
+      <TableCell align={align} sx={{ p: '2px 4px', ...sx }}>
+        <input
+          autoFocus
+          type={isText ? 'text' : 'number'}
+          defaultValue={rawVal ?? ''}
+          style={{
+            width: '100%', border: '1px solid #1a56db', borderRadius: 4,
+            padding: '2px 6px', fontSize: 13, outline: 'none',
+            textAlign: align === 'center' ? 'center' : 'left', background: '#f0f7ff',
+          }}
+          onBlur={e => onSave(a._id, field, e.target.value)}
+          onKeyDown={e => {
+            if (e.key === 'Enter')  e.target.blur();
+            if (e.key === 'Escape') setIe(null);
+          }}
+        />
+      </TableCell>
+    );
+  }
+  return (
+    <TableCell
+      align={align}
+      onClick={() => setIe({ id: a._id, field, value: rawVal })}
+      sx={{ cursor: 'text', '&:hover': { backgroundColor: '#e8f4fd' }, ...sx }}
+    >
+      {display}
+    </TableCell>
+  );
+}
+
+function InlineSelectCell({ a, field, options, align = 'center', ie, setIe, onSave, renderValue }) {
+  const isEditing = ie?.id === a._id && ie?.field === field;
+  const rawVal    = a[field];
+  if (isEditing) {
+    return (
+      <TableCell align={align} sx={{ p: '2px 4px' }}>
+        <select
+          autoFocus
+          defaultValue={rawVal}
+          style={{ width: '100%', border: '1px solid #1a56db', borderRadius: 4, padding: '2px 4px', fontSize: 12 }}
+          onChange={e => onSave(a._id, field, e.target.value)}
+          onBlur={() => setIe(null)}
+          onKeyDown={e => e.key === 'Escape' && setIe(null)}
+        >
+          {options.map(o => <option key={o} value={o}>{o}</option>)}
+        </select>
+      </TableCell>
+    );
+  }
+  return (
+    <TableCell
+      align={align}
+      onClick={() => setIe({ id: a._id, field, value: rawVal })}
+      sx={{ cursor: 'pointer', '&:hover': { backgroundColor: '#e8f4fd' } }}
+    >
+      {renderValue ? renderValue(rawVal) : (rawVal || '—')}
+    </TableCell>
+  );
+}
+
 // ─── Assets Tab (CRUD Tài sản) ────────────────────────────────────────────────
 const CONDITION_OPTIONS  = ['Tốt', 'Hỏng', 'Cần sửa chữa'];
 const CONDITION_COLOR    = { 'Tốt': 'success', 'Hỏng': 'error', 'Cần sửa chữa': 'warning' };
@@ -1051,10 +1111,44 @@ const CATEGORY_OPTIONS   = [
 ];
 const CONSTRUCTION_OPTIONS = ['Kiên cố', 'Bán kiên cố', 'Tạm', 'Không áp dụng'];
 
+// Mục 7 – cơ sở vật chất khác (hiển thị ĐVT + Số lượng thay vì diện tích / loại CT)
+const SECTION7_CATEGORIES = ['Diện tích đất', 'Thiết bị dạy học và CNTT'];
+const SECTION7_SUB_LABELS = {
+  'Diện tích đất':           '7.1. Diện tích đất (Tính đến thời điểm hiện tại)',
+  'Thiết bị dạy học và CNTT': '7.2. Thiết bị dạy học và thiết bị Công nghệ thông tin',
+};
+const SECTION7_PRESETS = {
+  'Diện tích đất': [
+    { name: 'Tổng diện tích khuôn viên đất', unit: 'm²' },
+    { name: 'Diện tích sân chơi', unit: 'm²' },
+    { name: 'Diện tích sân vườn (dùng cho trẻ khám phá, trải nghiệm)', unit: 'm²' },
+  ],
+  'Thiết bị dạy học và CNTT': [
+    { name: 'Thiết bị dạy học tối thiểu', unit: 'Bộ' },
+    { name: 'Thiết bị đồ chơi ngoài trời', unit: 'Loại' },
+    { name: 'Tổng số máy tính đang được sử dụng (Bao gồm cả Laptop và PC)', unit: 'Bộ' },
+    { name: 'Tổng số đường truyền Internet (Bao gồm cả thuê bao miễn phí và trả phí)', unit: 'Bộ' },
+    { name: 'Số máy tính được kết nối Internet', unit: 'Bộ' },
+    { name: 'Số máy tính phục vụ công tác Quản lý', unit: 'Bộ' },
+    { name: 'Số máy tính phục vụ công tác Giảng dạy, Học tập', unit: 'Bộ' },
+    { name: 'Máy chiếu', unit: 'Chiếc' },
+    { name: 'Máy Photocopy', unit: 'Chiếc' },
+    { name: 'Máy in', unit: 'Chiếc' },
+    { name: 'Máy Scaner', unit: 'Chiếc' },
+    { name: 'Máy ép Plastic', unit: 'Chiếc' },
+    { name: 'Tivi dùng cho công tác quản lý', unit: 'Chiếc' },
+    { name: 'Tivi tại các phòng học', unit: 'Chiếc' },
+    { name: 'Đàn phím điện tử', unit: 'Chiếc' },
+    { name: 'Tủ đựng đồ', unit: 'Chiếc' },
+  ],
+};
+const UNIT_OPTIONS = ['Cái', 'Bộ', 'Loại', 'Chiếc', 'm²', 'Phòng', 'Bàn', 'Ghế', 'Khác'];
+
 const emptyAsset = () => ({
   assetCode: '', name: '', category: 'Phòng nuôi dưỡng, chăm sóc, giáo dục trẻ em', room: '',
   requiredQuantity: 0, quantity: 1, area: '', constructionType: 'Không áp dụng',
-  condition: 'Tốt', notes: '',
+  unit: 'Cái', condition: 'Tốt', notes: '',
+  seats1: null, seats2: null, seats4: null,
 });
 
 function AssetsTab() {
@@ -1083,9 +1177,11 @@ function AssetsTab() {
   const [bulkDeleteOpen, setBulkDeleteOpen]   = useState(false);
   const [bulkDeleting, setBulkDeleting]       = useState(false);
 
+  // Inline edit (phần 2 – Số bàn, ghế ngồi)
+  const [inlineEdit, setInlineEdit]           = useState(null); // { id, field, value }
+  const [inlineSaving, setInlineSaving]       = useState(false);
+
   // Pagination
-  const [page, setPage]               = useState(0);
-  const [rowsPerPage, setRowsPerPage] = useState(25);
 
   const load = async () => {
     setLoading(true);
@@ -1101,10 +1197,30 @@ function AssetsTab() {
 
   useEffect(() => { load(); }, []);
 
-  useEffect(() => { setSelected(new Set()); setPage(0); }, [search, filterCategory]);
+  useEffect(() => { setSelected(new Set()); }, [search, filterCategory]);
+
+  const handleInlineSave = async (id, field, value) => {
+    const asset = assets.find(a => a._id === id);
+    if (!asset) return;
+    const STRING_FIELDS = new Set(['name', 'assetCode', 'unit', 'condition', 'constructionType', 'notes', 'room']);
+    const parsed = STRING_FIELDS.has(field) ? value : (value === '' || value == null ? null : Number(value));
+    if (asset[field] === parsed) { setInlineEdit(null); return; }
+    setInlineSaving(true);
+    try {
+      const payload = { ...asset, [field]: parsed };
+      await put(ENDPOINTS.SCHOOL_ADMIN.ASSET_DETAIL(id), payload);
+      setAssets(prev => prev.map(a => a._id === id ? { ...a, [field]: parsed } : a));
+    } catch (err) {
+      toast.error(err?.message || 'Lưu thất bại.');
+    } finally {
+      setInlineSaving(false);
+      setInlineEdit(null);
+    }
+  };
 
   const handleOpen = (asset = null) => {
-    if (asset) {
+    if (asset?._id) {
+      // Edit mode
       setForm({
         assetCode:        asset.assetCode,
         name:             asset.name,
@@ -1114,12 +1230,17 @@ function AssetsTab() {
         quantity:         asset.quantity,
         area:             asset.area ?? '',
         constructionType: asset.constructionType || 'Không áp dụng',
+        unit:             asset.unit || 'Cái',
         condition:        asset.condition,
         notes:            asset.notes || '',
+        seats1:           asset.seats1 ?? null,
+        seats2:           asset.seats2 ?? null,
+        seats4:           asset.seats4 ?? null,
       });
       setEditId(asset._id);
     } else {
-      setForm(emptyAsset());
+      // Add mode – preset category nếu được truyền vào
+      setForm({ ...emptyAsset(), ...(asset?.category ? { category: asset.category } : {}) });
       setEditId(null);
     }
     setOpenModal(true);
@@ -1128,8 +1249,18 @@ function AssetsTab() {
   const handleClose = () => { setOpenModal(false); setForm(emptyAsset()); setEditId(null); };
 
   const handleSave = async () => {
-    if (!form.assetCode.trim()) { toast.error('Vui lòng nhập mã tài sản.'); return; }
-    if (!form.name.trim())      { toast.error('Vui lòng nhập tên tài sản.'); return; }
+    if (!form.name.trim())       { toast.error('Vui lòng nhập tên tài sản.'); return; }
+    if (SECTION7_CATEGORIES.includes(form.category) && !form.unit?.trim()) {
+      toast.error('Vui lòng nhập đơn vị tính (ĐVT).'); return;
+    }
+    if ((form.quantity ?? 0) < 0)         { toast.error('Số lượng không được âm.'); return; }
+    if ((form.requiredQuantity ?? 0) < 0) { toast.error('Nhu cầu QĐ không được âm.'); return; }
+    if (form.category === 'Số bàn, ghế ngồi') {
+      const total = (form.seats1 || 0) + (form.seats2 || 0) + (form.seats4 || 0);
+      if (total > (form.quantity || 0)) {
+        toast.error('Tổng "Trong đó" (1+2+4 chỗ) không được lớn hơn Tổng số chỗ ngồi.'); return;
+      }
+    }
     setSaving(true);
     try {
       const payload = { ...form, area: form.area !== '' ? Number(form.area) : null };
@@ -1167,8 +1298,6 @@ function AssetsTab() {
   const toggleSelect = id =>
     setSelected(prev => { const s = new Set(prev); s.has(id) ? s.delete(id) : s.add(id); return s; });
 
-  const toggleSelectAll = () =>
-    setSelected(prev => prev.size === filtered.length ? new Set() : new Set(filtered.map(a => a._id)));
 
   const handleBulkDelete = async () => {
     setBulkDeleting(true);
@@ -1199,7 +1328,7 @@ function AssetsTab() {
         // ── Section header mapping (theo số thứ tự trong Excel báo cáo) ──
         const SECTION_PATTERNS = [
           { re: /^1[\.\s\)]/,  cat: 'Phòng nuôi dưỡng, chăm sóc, giáo dục trẻ em', fmt: 'room' },
-          { re: /^2[\.\s\)]/,  cat: 'Số bàn, ghế ngồi',                             fmt: 'count' },
+          { re: /^2[\.\s\)]/,  cat: 'Số bàn, ghế ngồi',                             fmt: 'banGhe' },
           { re: /^3[\.\s\)]/,  cat: 'Khối phòng phục vụ học tập',                   fmt: 'room' },
           { re: /^4[\.\s\)]/,  cat: 'Phòng tổ chức ăn, nghỉ',                       fmt: 'room' },
           { re: /^5[\.\s\)]/,  cat: 'Công trình công cộng và khối phòng phục vụ khác', fmt: 'room' },
@@ -1274,13 +1403,13 @@ function AssetsTab() {
 
           if (currentFmt === 'landarea') {
             // Diện tích đất: cấu trúc [tên, ĐVT (m²), giá trị diện tích]
-            // Lưu giá trị vào field 'area' thay vì 'quantity'
+            // Lưu vào unit + quantity để hiển thị đúng trong bảng section 7
             let dvt = '';
-            let areaVal = 0;
+            let qty = 0;
             for (let ci = 1; ci < row.length; ci++) {
               const v = row[ci];
               if (v === '' || v == null) continue;
-              if (isNum(v)) { areaVal = toNum(v); break; }
+              if (isNum(v)) { qty = toNum(v); break; }
               if (!dvt && typeof v === 'string') dvt = v.trim();
             }
             asset = {
@@ -1288,11 +1417,29 @@ function AssetsTab() {
               category:         currentCat,
               room:             '',
               requiredQuantity: 0,
-              quantity:         0,
-              area:             areaVal || null,
+              quantity:         qty,
+              unit:             dvt || 'm²',
+              area:             null,
               constructionType: 'Không áp dụng',
               condition:        'Tốt',
-              notes:            dvt,
+              notes:            '',
+            };
+          } else if (currentFmt === 'banGhe') {
+            // Phần 2 – Số bàn, ghế ngồi
+            // col[1]=nhu cầu QĐ, col[2]=tổng số, col[3]=1 chỗ, col[4]=2 chỗ, col[5]=4 chỗ
+            asset = {
+              assetCode, name,
+              category:         currentCat,
+              room:             '',
+              requiredQuantity: toNum(row[1]),
+              quantity:         toNum(row[2]),
+              area:             null,
+              constructionType: 'Không áp dụng',
+              condition:        'Tốt',
+              notes:            '',
+              seats1: row[3] !== '' && row[3] != null ? toNum(row[3]) : null,
+              seats2: row[4] !== '' && row[4] != null ? toNum(row[4]) : null,
+              seats4: row[5] !== '' && row[5] != null ? toNum(row[5]) : null,
             };
           } else if (currentFmt === 'equip') {
             // Thiết bị: scan toàn bộ row để tìm ĐVT (text đầu tiên) và số lượng (số đầu tiên)
@@ -1311,10 +1458,11 @@ function AssetsTab() {
               room:             '',
               requiredQuantity: 0,
               quantity:         qty,
+              unit:             dvt || 'Cái',
               area:             null,
               constructionType: 'Không áp dụng',
               condition:        'Tốt',
-              notes:            dvt,
+              notes:            '',
             };
           } else {
             // Phòng / Bàn ghế: col[1]=nhu cầu QĐ, col[2]=tổng số, col[3]=diện tích
@@ -1592,12 +1740,90 @@ function AssetsTab() {
 
       // ── Section 2 ──────────────────────────────────────────────────────────
       addSectionHeader('2. Số bàn, ghế ngồi', 1);
-      addDataRow('- Tổng số bàn',   [300, 277, '', '', '', '', '', '', '']);
-      addDataRow('+ Bàn giáo viên', [ 38,  17, '', '', '', '', '', '', ''], true);
-      addDataRow('+ Bàn học sinh',  [260, 260, '', '', '', '', '', '', ''], true);
-      addDataRow('- Tổng số ghế',   [558, 558, '', '', '', '', '', '', '']);
-      addDataRow('+ Ghế giáo viên', [ 38,  17, '', '', '', '', '', '', ''], true);
-      addDataRow('+ Ghế học sinh',  [520, 520, '', '', '', '', '', '', ''], true);
+
+      // Sub-header row đặc biệt cho phần 2: Trong đó 1/2/4 chỗ ngồi
+      (() => {
+        const BG_COLOR = '6A1B9A';
+        const BG_LIGHT = 'AB47BC';
+
+        // Row A: merged "Trong đó" spanning D-F
+        const r1 = ws.addRow([]);
+        r1.height = 20;
+        const applyH = (addr, val, bg, colspan) => {
+          ws.getCell(addr).value = val;
+          styleCell(ws.getCell(addr), {
+            f:  fill(bg),
+            fi: font(9, true, 'FFFFFF'),
+            al: align('center'),
+            bd: allBorders('medium', '90CAF9'),
+          });
+          if (colspan) ws.mergeCells(`${addr}:${String.fromCharCode(addr.charCodeAt(0) + colspan - 1)}${r1.number}`);
+        };
+        ws.mergeCells(`A${r1.number}:A${r1.number}`);
+        applyH(`A${r1.number}`, 'Tên', BG_COLOR);
+        applyH(`B${r1.number}`, 'Tổng nhu cầu cần có\ntheo quy định', BG_COLOR);
+        applyH(`C${r1.number}`, 'Tổng số chỗ ngồi\ncủa tất cả các phòng', BG_COLOR);
+        // Merge D-F for "Trong đó"
+        ws.mergeCells(`D${r1.number}:F${r1.number}`);
+        applyH(`D${r1.number}`, 'Trong đó', BG_LIGHT);
+        // Merge G-J empty
+        ws.mergeCells(`G${r1.number}:J${r1.number}`);
+        styleCell(ws.getCell(`G${r1.number}`), { f: fill('F3E5F5'), bd: allBorders('thin', 'CE93D8') });
+
+        // Row B: sub-cols 1/2/4 chỗ
+        const r2 = ws.addRow([]);
+        r2.height = 18;
+        const sub = (addr, val, bg) => {
+          ws.getCell(addr).value = val;
+          styleCell(ws.getCell(addr), {
+            f:  fill(bg),
+            fi: font(9, true, 'FFFFFF'),
+            al: align('center'),
+            bd: allBorders('medium', 'CE93D8'),
+          });
+        };
+        ws.mergeCells(`A${r2.number}:A${r2.number}`);
+        sub(`A${r2.number}`, '',       BG_COLOR);
+        sub(`B${r2.number}`, '',       BG_COLOR);
+        sub(`C${r2.number}`, '',       BG_COLOR);
+        sub(`D${r2.number}`, '1 chỗ ngồi', BG_LIGHT);
+        sub(`E${r2.number}`, '2 chỗ ngồi', BG_LIGHT);
+        sub(`F${r2.number}`, '4 chỗ ngồi', BG_LIGHT);
+        ws.mergeCells(`G${r2.number}:J${r2.number}`);
+        styleCell(ws.getCell(`G${r2.number}`), { f: fill('F3E5F5'), bd: allBorders('thin', 'CE93D8') });
+      })();
+
+      // Data rows cho phần 2: [nhuCau, tongSo, cho1, cho2, cho4]
+      // cols: B=nhuCau, C=tongSo, D=1chỗ, E=2chỗ, F=4chỗ
+      const addBanGheRow = (label, [nhuCau, tongSo, cho1, cho2, cho4], isSubItem = false) => {
+        const nz = v => (v === 0 || v) ? v : '';
+        const row = ws.addRow([label, nhuCau, tongSo, nz(cho1), nz(cho2), nz(cho4)]);
+        row.height = 18;
+        // Merge G-J empty
+        ws.mergeCells(`G${row.number}:J${row.number}`);
+        row.eachCell({ includeEmpty: true }, (cell, colNum) => {
+          if (colNum === 1) {
+            cell.font      = font(10, !isSubItem, isSubItem ? '424242' : '212121');
+            cell.alignment = align('left');
+            cell.fill      = fill(isSubItem ? 'FAFAFA' : 'F5F5F5');
+          } else if (colNum <= 6) {
+            cell.font      = font(10, false, '1565C0');
+            cell.alignment = align('center');
+            cell.fill      = fill('FFFFFF');
+            cell.numFmt    = '#,##0.##';
+          } else if (colNum === 7) {
+            cell.fill = fill('FCE4EC');
+          }
+          cell.border = allBorders('thin', 'CFD8DC');
+        });
+      };
+
+      addBanGheRow('- Tổng số bàn',   [300, 277,  0,  17, 260]);
+      addBanGheRow('+ Bàn giáo viên', [ 38,  17,  0,  17,   0], true);
+      addBanGheRow('+ Bàn học sinh',  [260, 260,  0,   0, 260], true);
+      addBanGheRow('- Tổng số ghế',   [558, 558, 558,  0,   0]);
+      addBanGheRow('+ Ghế giáo viên', [ 38,  17,  17,  0,   0], true);
+      addBanGheRow('+ Ghế học sinh',  [520, 520, 520,  0,   0], true);
 
       // ── Section 3 ──────────────────────────────────────────────────────────
       addSectionHeader('3. Khối phòng phục vụ học tập', 2);
@@ -1704,16 +1930,18 @@ function AssetsTab() {
       });
 
       const COLS = [
-        { header: 'STT',           key: 'stt',              width: 6  },
-        { header: 'Mã tài sản',    key: 'assetCode',        width: 13 },
-        { header: 'Tên tài sản',   key: 'name',             width: 38 },
-        { header: 'Loại tài sản',  key: 'category',         width: 32 },
-        { header: 'Nhu cầu QĐ',   key: 'requiredQuantity', width: 13 },
-        { header: 'Thực tế',       key: 'quantity',         width: 11 },
-        { header: 'Diện tích (m²)', key: 'area',            width: 14 },
-        { header: 'Loại CT',       key: 'constructionType', width: 14 },
-        { header: 'Tình trạng',    key: 'condition',        width: 13 },
-        { header: 'Ghi chú',       key: 'notes',            width: 22 },
+        { header: 'STT',           key: 'stt',              width: 6  },  // A=1
+        { header: 'Tên tài sản',   key: 'name',             width: 38 },  // B=2
+        { header: 'Loại tài sản',  key: 'category',         width: 32 },  // C=3
+        { header: 'Nhu cầu QĐ',   key: 'requiredQuantity', width: 13 },  // D=4
+        { header: 'Thực tế',       key: 'quantity',         width: 11 },  // E=5
+        { header: 'Diện tích (m²)', key: 'area',            width: 14 },  // F=6
+        { header: 'Loại CT',       key: 'constructionType', width: 14 },  // G=7
+        { header: 'Tình trạng',    key: 'condition',        width: 13 },  // H=8
+        { header: 'Ghi chú',       key: 'notes',            width: 22 },  // I=9
+        { header: '1 chỗ ngồi',   key: 'seats1',           width: 11 },  // J=10 (phần 2)
+        { header: '2 chỗ ngồi',   key: 'seats2',           width: 11 },  // K=11 (phần 2)
+        { header: '4 chỗ ngồi',   key: 'seats4',           width: 11 },  // L=12 (phần 2)
       ];
       const NCOLS = COLS.length;
       ws.columns = COLS;
@@ -1748,7 +1976,7 @@ function AssetsTab() {
       const left   = { horizontal: 'left',   vertical: 'middle', wrapText: true };
       const right  = { horizontal: 'right',  vertical: 'middle', wrapText: true };
 
-      const lastCol = String.fromCharCode(64 + NCOLS); // 'K'
+      const lastCol = String.fromCharCode(64 + NCOLS); // 'M' (13 cols)
 
       // ── Row 1: Logo / School name ─────────────────────────────────────────
       ws.addRow([]);
@@ -1863,20 +2091,23 @@ function AssetsTab() {
         let catReq = 0, catAct = 0;
 
         rows.forEach((a, i) => {
-          const isEven = i % 2 === 0;
-          const dr = ws.getRow(rowIdx++);
-          dr.height = 18;
+          const isEven  = i % 2 === 0;
+          const dr      = ws.getRow(rowIdx++);
+          dr.height     = 18;
+          const isBanGhe = a.category === 'Số bàn, ghế ngồi';
           const vals = [
-            i + 1,
-            a.assetCode,
-            a.name,
-            a.category,
-            a.requiredQuantity || 0,
-            a.quantity || 0,
-            a.area != null ? a.area : '',
-            a.constructionType !== 'Không áp dụng' ? a.constructionType : '',
-            a.condition,
-            a.notes || '',
+            i + 1,                                                              // A (1)
+            a.name,                                                             // B (2)
+            a.category,                                                         // C (3)
+            a.requiredQuantity || 0,                                            // D (4)
+            a.quantity || 0,                                                    // E (5)
+            a.area != null ? a.area : '',                                       // F (6)
+            a.constructionType !== 'Không áp dụng' ? a.constructionType : '',  // G (7)
+            a.condition,                                                        // H (8)
+            a.notes || '',                                                      // I (9)
+            isBanGhe && a.seats1 != null ? a.seats1 : '',                      // J (10)
+            isBanGhe && a.seats2 != null ? a.seats2 : '',                      // K (11)
+            isBanGhe && a.seats4 != null ? a.seats4 : '',                      // L (12)
           ];
           vals.forEach((v, ci) => {
             const cell = dr.getCell(ci + 1);
@@ -1884,20 +2115,20 @@ function AssetsTab() {
             cell.font      = fontNormal(10);
             cell.fill      = fill(isEven ? CLR.rowEven : CLR.rowOdd);
             cell.border    = border(CLR.border);
-            cell.alignment = ci === 0 ? center : ci >= 5 && ci <= 7 ? { ...center } : left;
+            cell.alignment = ci === 0 ? center : (ci >= 4 && ci <= 6) || ci >= 10 ? { ...center } : left;
           });
 
-          // Condition color highlight
+          // Condition color highlight (col I = 9)
           const condColor = COND_COLOR[a.condition];
           if (condColor) {
-            ws.getCell(`J${rowIdx - 1}`).fill = fill(condColor);
+            ws.getCell(`I${rowIdx - 1}`).fill = fill(condColor);
           }
 
-          // Quantity vs required: highlight cell
+          // Quantity vs required: highlight col F (6)
           const qty = a.quantity || 0;
           const req = a.requiredQuantity || 0;
           if (req > 0) {
-            ws.getCell(`G${rowIdx - 1}`).font = {
+            ws.getCell(`F${rowIdx - 1}`).font = {
               name: 'Times New Roman', size: 10,
               bold: true,
               color: { argb: qty >= req ? '059669' : 'D97706' },
@@ -1930,7 +2161,7 @@ function AssetsTab() {
         ws.getCell(`G${rowIdx - 1}`).alignment = center;
         ws.getCell(`G${rowIdx - 1}`).border = border('93B4F0');
 
-        ['H','I','J','K'].forEach(col => {
+        ['H','I','J','K','L','M'].forEach(col => {
           ws.getCell(`${col}${rowIdx - 1}`).fill   = fill(CLR.subtotalBg);
           ws.getCell(`${col}${rowIdx - 1}`).border = border('93B4F0');
         });
@@ -1962,7 +2193,7 @@ function AssetsTab() {
       ws.getCell(`G${rowIdx - 1}`).alignment = center;
       ws.getCell(`G${rowIdx - 1}`).border = ws.getCell(`A${rowIdx - 1}`).border;
 
-      ['H','I','J','K'].forEach(col => {
+      ['H','I','J','K','L','M'].forEach(col => {
         ws.getCell(`${col}${rowIdx - 1}`).fill   = fill(CLR.totalBg);
         ws.getCell(`${col}${rowIdx - 1}`).border = ws.getCell(`A${rowIdx - 1}`).border;
       });
@@ -2017,22 +2248,17 @@ function AssetsTab() {
 
   const filtered = assets.filter(a => {
     const matchSearch = !search ||
-      a.name?.toLowerCase().includes(search.toLowerCase()) ||
-      a.assetCode?.toLowerCase().includes(search.toLowerCase()) ||
-      false;
+      a.name?.toLowerCase().includes(search.toLowerCase());
     const matchCategory = !filterCategory || a.category === filterCategory;
     return matchSearch && matchCategory;
   });
 
-  // Phân trang trên danh sách đã lọc
-  const pagedRows = filtered.slice(page * rowsPerPage, page * rowsPerPage + rowsPerPage);
-
-  // Nhóm theo category theo thứ tự CATEGORY_OPTIONS, phần không khớp vào cuối
+  // Khi search: chỉ hiện nhóm có dữ liệu; khi không search: giữ tất cả section
   const grouped = CATEGORY_OPTIONS.map(cat => ({
     cat,
-    rows: pagedRows.filter(a => a.category === cat),
-  })).filter(g => g.rows.length > 0);
-  const uncategorized = pagedRows.filter(a => !CATEGORY_OPTIONS.includes(a.category));
+    rows: filtered.filter(a => a.category === cat),
+  })).filter(g => (!search && !filterCategory) || g.rows.length > 0);
+  const uncategorized = filtered.filter(a => !CATEGORY_OPTIONS.includes(a.category));
   if (uncategorized.length) grouped.push({ cat: 'Khác', rows: uncategorized });
 
   // Tổng hợp nhanh
@@ -2045,12 +2271,12 @@ function AssetsTab() {
       <Stack direction={{ xs: 'column', sm: 'row' }} gap={1} mb={2} flexWrap="wrap">
         <TextField
           size="small"
-          placeholder="Tìm kiếm theo mã, tên, phòng..."
+          placeholder="Tìm kiếm theo tên tài sản..."
           value={search}
           onChange={e => setSearch(e.target.value)}
           sx={{ minWidth: 220, flex: 1 }}
         />
-        <FormControl size="small" sx={{ minWidth: 160 }}>
+        <FormControl size="small" sx={{ minWidth: 180 }}>
           <InputLabel>Loại tài sản</InputLabel>
           <Select
             value={filterCategory}
@@ -2061,16 +2287,6 @@ function AssetsTab() {
             {CATEGORY_OPTIONS.map(o => <MenuItem key={o} value={o}>{o}</MenuItem>)}
           </Select>
         </FormControl>
-        {selected.size > 0 && (
-          <Button
-            variant="contained" color="error"
-            startIcon={<DeleteIcon />}
-            onClick={() => setBulkDeleteOpen(true)}
-            sx={{ whiteSpace: 'nowrap', textTransform: 'none' }}
-          >
-            Xóa {selected.size} mục
-          </Button>
-        )}
         <Button variant="outlined" startIcon={<UploadFileIcon />} onClick={() => importRef.current?.click()} sx={{ whiteSpace: 'nowrap', textTransform: 'none' }}>
           Import Excel
         </Button>
@@ -2086,131 +2302,270 @@ function AssetsTab() {
         >
           Xuất Excel
         </Button>
-        <Button variant="contained" startIcon={<AddIcon />} onClick={() => handleOpen()} sx={{ whiteSpace: 'nowrap' }}>
-          Thêm tài sản
-        </Button>
       </Stack>
 
-      {/* Tổng hợp nhanh */}
-      {!loading && filtered.length > 0 && (
-        <Stack direction="row" gap={2} mb={2} flexWrap="wrap">
-          <Chip label={`Tổng: ${filtered.length} mục`} variant="outlined" size="small" />
-          <Chip label={`Nhu cầu QĐ: ${totalRequired}`} variant="outlined" size="small" color="primary" />
-          <Chip label={`Thực tế: ${totalActual}`} variant="outlined" size="small" color={totalActual >= totalRequired ? 'success' : 'warning'} />
-        </Stack>
-      )}
 
       {loading ? (
         <Box display="flex" justifyContent="center" py={4}><CircularProgress /></Box>
       ) : (
-        <TableContainer>
-          <Table size="small">
-            <TableHead>
-              <TableRow sx={{ backgroundColor: '#f0f4f8' }}>
-                <TableCell padding="checkbox">
-                  <Tooltip title={selected.size === filtered.length && filtered.length > 0 ? 'Bỏ chọn tất cả' : 'Chọn tất cả'}>
-                    <Checkbox
-                      size="small"
-                      checked={filtered.length > 0 && selected.size === filtered.length}
-                      indeterminate={selected.size > 0 && selected.size < filtered.length}
-                      onChange={toggleSelectAll}
-                    />
-                  </Tooltip>
-                </TableCell>
-                <TableCell sx={{ fontWeight: 700 }}>Mã TS</TableCell>
-                <TableCell sx={{ fontWeight: 700 }}>Tên tài sản</TableCell>
-                <TableCell sx={{ fontWeight: 700 }} align="center">Nhu cầu QĐ</TableCell>
-                <TableCell sx={{ fontWeight: 700 }} align="center">Thực tế</TableCell>
-                {!isMobile && <TableCell sx={{ fontWeight: 700 }} align="center">Diện tích (m²)</TableCell>}
-                {!isMobile && <TableCell sx={{ fontWeight: 700 }} align="center">Loại CT</TableCell>}
-                <TableCell sx={{ fontWeight: 700 }} align="center">Tình trạng</TableCell>
-                <TableCell sx={{ fontWeight: 700 }} align="center">Hoạt động</TableCell>
-              </TableRow>
-            </TableHead>
-            <TableBody>
-              {filtered.length === 0 ? (
-                <TableRow>
-                  <TableCell colSpan={11} align="center">
-                    <Typography variant="body2" color="text.secondary" py={2}>
-                      {search || filterCategory ? 'Không tìm thấy kết quả.' : 'Chưa có tài sản nào.'}
-                    </Typography>
-                  </TableCell>
-                </TableRow>
-              ) : grouped.map(({ cat, rows }, gi) => [
-                <TableRow key={`cat-${gi}`}>
-                  <TableCell
-                    colSpan={11}
-                    sx={{
-                      backgroundColor: '#e8f0fe',
-                      fontWeight: 700,
-                      fontSize: '0.8rem',
-                      color: '#1a56db',
-                      py: 0.75,
-                      borderBottom: '2px solid #c7d7f8',
-                    }}
-                  >
-                    {CATEGORY_OPTIONS.indexOf(cat) >= 0
-                      ? `${CATEGORY_OPTIONS.indexOf(cat) + 1}. ${cat}`
-                      : cat}
-                    <Typography component="span" sx={{ fontWeight: 400, color: 'text.secondary', ml: 1, fontSize: '0.75rem' }}>
-                      ({rows.length} mục)
-                    </Typography>
-                  </TableCell>
-                </TableRow>,
-                ...rows.map(a => (
-                  <TableRow key={a._id} hover selected={selected.has(a._id)}>
-                    <TableCell padding="checkbox">
-                      <Checkbox size="small" checked={selected.has(a._id)} onChange={() => toggleSelect(a._id)} />
-                    </TableCell>
-                    <TableCell sx={{ fontWeight: 600 }}>{a.assetCode}</TableCell>
-                    <TableCell>{a.name}</TableCell>
-                    <TableCell align="center">{a.requiredQuantity || 0}</TableCell>
-                    <TableCell align="center">
-                      <Typography
-                        variant="body2" fontWeight={600}
-                        color={(a.quantity || 0) >= (a.requiredQuantity || 0) ? 'success.main' : 'warning.main'}
-                      >
-                        {a.quantity}
+        <>
+          {(() => {
+            const elements = [];
+            let section7Rendered = false;
+
+            grouped.forEach(({ cat, rows }, gi) => {
+              const isSection7 = SECTION7_CATEGORIES.includes(cat);
+
+              // Helper: toggle all rows in this group
+              const toggleGroupAll = () => {
+                const allSelected = rows.every(a => selected.has(a._id));
+                setSelected(prev => {
+                  const next = new Set(prev);
+                  rows.forEach(a => allSelected ? next.delete(a._id) : next.add(a._id));
+                  return next;
+                });
+              };
+
+              // Nút thêm nhanh vào đúng danh mục
+              const addBtn = (
+                <Tooltip title={`Thêm vào "${cat}"`}>
+                  <IconButton size="small" color="primary" onClick={() => handleOpen({ category: cat })}>
+                    <AddIcon fontSize="small" />
+                  </IconButton>
+                </Tooltip>
+              );
+
+              if (isSection7) {
+                // Render parent "7. Cơ sở vật chất khác" header only once
+                if (!section7Rendered) {
+                  section7Rendered = true;
+                  elements.push(
+                    <Box key="section7-parent" sx={{ backgroundColor: '#d1e3ff', borderLeft: '4px solid #1a56db', px: 1.5, py: 0.75, mt: 2, mb: 0.5, borderRadius: '4px' }}>
+                      <Typography fontWeight={700} fontSize="0.9rem" color="#1a56db">
+                        7. Cơ sở vật chất khác
                       </Typography>
-                    </TableCell>
-                    {!isMobile && <TableCell align="center">{a.area != null ? `${a.area}` : '—'}</TableCell>}
-                    {!isMobile && (
-                      <TableCell align="center">
-                        {a.constructionType !== 'Không áp dụng' ? (
-                          <Chip label={a.constructionType} size="small" variant="outlined" color="info" />
-                        ) : '—'}
-                      </TableCell>
-                    )}
-                    <TableCell align="center">
-                      <Chip label={a.condition} color={CONDITION_COLOR[a.condition] || 'default'} size="small" />
-                    </TableCell>
-                    <TableCell align="center">
-                      <Stack direction="row" justifyContent="center" gap={0.5}>
-                        <IconButton size="small" color="primary" onClick={() => handleOpen(a)}>
-                          <EditIcon fontSize="small" />
-                        </IconButton>
-                        <IconButton size="small" color="error" onClick={() => setDeleteTarget(a)}>
-                          <DeleteIcon fontSize="small" />
-                        </IconButton>
-                      </Stack>
-                    </TableCell>
-                  </TableRow>
-                )),
-              ])}
-            </TableBody>
-          </Table>
-          <TablePagination
-            component="div"
-            count={filtered.length}
-            page={page}
-            onPageChange={(_, newPage) => setPage(newPage)}
-            rowsPerPage={rowsPerPage}
-            onRowsPerPageChange={e => { setRowsPerPage(parseInt(e.target.value, 10)); setPage(0); }}
-            rowsPerPageOptions={[10, 25, 50, 100]}
-            labelRowsPerPage="Số hàng:"
-            labelDisplayedRows={({ from, to, count }) => `${from}–${to} / ${count}`}
-          />
-        </TableContainer>
+                    </Box>
+                  );
+                }
+
+                // Sub-section header + table with ĐVT / Số lượng columns
+                elements.push(
+                  <Box key={`section7-${gi}`} mb={2} ml={2}>
+                    <Box sx={{ backgroundColor: '#e8f0fe', borderLeft: '3px solid #4f86e8', px: 1.5, py: 0.6, borderRadius: '4px 4px 0 0', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                      <Box>
+                        <Typography fontWeight={700} fontSize="0.82rem" color="#1a56db" display="inline">
+                          {SECTION7_SUB_LABELS[cat] || cat}
+                        </Typography>
+                        <Typography component="span" fontWeight={400} color="text.secondary" ml={1} fontSize="0.75rem">
+                          ({rows.length} mục)
+                        </Typography>
+                      </Box>
+                      {addBtn}
+                    </Box>
+                    <TableContainer sx={{ border: '1px solid #c7d7f8', borderTop: 'none', borderRadius: '0 0 4px 4px', maxHeight: 360, overflow: 'auto' }}>
+                      <Table size="small" stickyHeader>
+                        <TableHead>
+                          <TableRow>
+                            <TableCell padding="checkbox" sx={{ backgroundColor: '#f0f4f8', fontWeight: 700 }}>
+                              <Tooltip title="Chọn/bỏ chọn tất cả trong nhóm này">
+                                <Checkbox
+                                  size="small"
+                                  checked={rows.length > 0 && rows.every(a => selected.has(a._id))}
+                                  indeterminate={rows.some(a => selected.has(a._id)) && !rows.every(a => selected.has(a._id))}
+                                  onChange={toggleGroupAll}
+                                />
+                              </Tooltip>
+                            </TableCell>
+                            <TableCell sx={{ fontWeight: 700, backgroundColor: '#f0f4f8' }}>Tên tài sản</TableCell>
+                            <TableCell sx={{ fontWeight: 700, backgroundColor: '#f0f4f8' }} align="center">ĐVT</TableCell>
+                            <TableCell sx={{ fontWeight: 700, backgroundColor: '#f0f4f8' }} align="center">Số lượng</TableCell>
+                            <TableCell sx={{ fontWeight: 700, backgroundColor: '#f0f4f8' }} align="center">Tình trạng</TableCell>
+                            <TableCell sx={{ fontWeight: 700, backgroundColor: '#f0f4f8' }} align="center">Xóa</TableCell>
+                          </TableRow>
+                        </TableHead>
+                        <TableBody>
+                          {rows.length === 0 ? (
+                            <TableRow>
+                              <TableCell colSpan={6} align="center" sx={{ py: 2, color: 'text.secondary', fontSize: '0.8rem' }}>
+                                Chưa có dữ liệu — nhấn <strong>+</strong> để thêm
+                              </TableCell>
+                            </TableRow>
+                          ) : rows.map(a => (
+                            <TableRow key={a._id} hover selected={selected.has(a._id)}>
+                              <TableCell padding="checkbox">
+                                <Checkbox size="small" checked={selected.has(a._id)} onChange={() => toggleSelect(a._id)} />
+                              </TableCell>
+                              <InlineCell a={a} field="name" isText ie={inlineEdit} setIe={setInlineEdit} onSave={handleInlineSave} />
+                              <InlineSelectCell a={a} field="unit" options={UNIT_OPTIONS} align="center" ie={inlineEdit} setIe={setInlineEdit} onSave={handleInlineSave} />
+                              <InlineCell a={a} field="quantity" align="center" ie={inlineEdit} setIe={setInlineEdit} onSave={handleInlineSave} sx={{ fontWeight: 600 }} />
+                              <InlineSelectCell a={a} field="condition" options={CONDITION_OPTIONS} ie={inlineEdit} setIe={setInlineEdit} onSave={handleInlineSave}
+                                renderValue={v => <Chip label={v} color={CONDITION_COLOR[v] || 'default'} size="small" />} />
+                              <TableCell align="center">
+                                <IconButton size="small" color="error" onClick={() => setDeleteTarget(a)}><DeleteIcon fontSize="small" /></IconButton>
+                              </TableCell>
+                            </TableRow>
+                          ))}
+                        </TableBody>
+                      </Table>
+                    </TableContainer>
+                  </Box>
+                );
+              } else if (cat === 'Số bàn, ghế ngồi') {
+                // ── Section 2: Số bàn, ghế ngồi – sticky header + inline edit ──
+                const hSx2 = { fontWeight: 700, backgroundColor: '#f0f4f8' };
+
+                elements.push(
+                  <Box key={`section-${gi}`} mb={3}>
+                    <Box sx={{ backgroundColor: '#e8f0fe', borderLeft: '4px solid #1a56db', px: 1.5, py: 0.75, borderRadius: '4px 4px 0 0', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                      <Box>
+                        <Typography fontWeight={700} fontSize="0.85rem" color="#1a56db" display="inline">2. Số bàn, ghế ngồi</Typography>
+                        <Typography component="span" fontWeight={400} color="text.secondary" ml={1} fontSize="0.75rem">({rows.length} mục) — click vào ô để chỉnh sửa</Typography>
+                      </Box>
+                      {addBtn}
+                    </Box>
+                    <TableContainer sx={{ border: '1px solid #c7d7f8', borderTop: 'none', borderRadius: '0 0 4px 4px', maxHeight: 400, overflow: 'auto' }}>
+                      <Table size="small" stickyHeader>
+                        <TableHead>
+                          <TableRow>
+                            <TableCell padding="checkbox" rowSpan={2} sx={{ ...hSx2, verticalAlign: 'middle' }}>
+                              <Tooltip title="Chọn/bỏ chọn tất cả">
+                                <Checkbox
+                                  size="small"
+                                  checked={rows.length > 0 && rows.every(a => selected.has(a._id))}
+                                  indeterminate={rows.some(a => selected.has(a._id)) && !rows.every(a => selected.has(a._id))}
+                                  onChange={toggleGroupAll}
+                                />
+                              </Tooltip>
+                            </TableCell>
+                            {['Tên tài sản', 'Nhu cầu QĐ', 'Tổng số chỗ ngồi'].map(h => (
+                              <TableCell key={h} rowSpan={2} align="center" sx={{ ...hSx2, verticalAlign: 'middle', whiteSpace: 'nowrap' }}>
+                                {h}
+                              </TableCell>
+                            ))}
+                            <TableCell colSpan={3} align="center" sx={{ ...hSx2, borderBottom: '1px solid #c7d7f8' }}>
+                              Trong đó
+                            </TableCell>
+                            <TableCell rowSpan={2} align="center" sx={{ ...hSx2, verticalAlign: 'middle' }}>Tình trạng</TableCell>
+                            <TableCell rowSpan={2} align="center" sx={{ ...hSx2, verticalAlign: 'middle' }}>Xóa</TableCell>
+                          </TableRow>
+                          <TableRow>
+                            {['1 chỗ ngồi', '2 chỗ ngồi', '4 chỗ ngồi'].map(h => (
+                              <TableCell key={h} align="center" sx={{ ...hSx2, top: 33 }}>
+                                {h}
+                              </TableCell>
+                            ))}
+                          </TableRow>
+                        </TableHead>
+                        <TableBody>
+                          {rows.length === 0 ? (
+                            <TableRow>
+                              <TableCell colSpan={8} align="center" sx={{ py: 2, color: 'text.secondary', fontSize: '0.8rem' }}>
+                                Chưa có dữ liệu — nhấn <strong>+</strong> để thêm
+                              </TableCell>
+                            </TableRow>
+                          ) : rows.map(a => (
+                            <TableRow key={a._id} hover selected={selected.has(a._id)}>
+                              <TableCell padding="checkbox">
+                                <Checkbox size="small" checked={selected.has(a._id)} onChange={() => toggleSelect(a._id)} />
+                              </TableCell>
+                              <InlineCell a={a} field="name" isText ie={inlineEdit} setIe={setInlineEdit} onSave={handleInlineSave} />
+                              <InlineCell a={a} field="requiredQuantity" align="center" ie={inlineEdit} setIe={setInlineEdit} onSave={handleInlineSave} />
+                              <InlineCell a={a} field="quantity" align="center" ie={inlineEdit} setIe={setInlineEdit} onSave={handleInlineSave}
+                                sx={{ fontWeight: 600, color: (a.quantity || 0) >= (a.requiredQuantity || 0) ? 'success.main' : 'warning.main' }} />
+                              <InlineCell a={a} field="seats1" align="center" ie={inlineEdit} setIe={setInlineEdit} onSave={handleInlineSave} />
+                              <InlineCell a={a} field="seats2" align="center" ie={inlineEdit} setIe={setInlineEdit} onSave={handleInlineSave} />
+                              <InlineCell a={a} field="seats4" align="center" ie={inlineEdit} setIe={setInlineEdit} onSave={handleInlineSave} />
+                              <InlineSelectCell a={a} field="condition" options={CONDITION_OPTIONS} ie={inlineEdit} setIe={setInlineEdit} onSave={handleInlineSave}
+                                renderValue={v => <Chip label={v} color={CONDITION_COLOR[v] || 'default'} size="small" />} />
+                              <TableCell align="center">
+                                <IconButton size="small" color="error" onClick={() => setDeleteTarget(a)}><DeleteIcon fontSize="small" /></IconButton>
+                              </TableCell>
+                            </TableRow>
+                          ))}
+                        </TableBody>
+                      </Table>
+                    </TableContainer>
+                  </Box>
+                );
+              } else {
+                // Sections 1, 3-6
+                const catIndex = CATEGORY_OPTIONS.indexOf(cat);
+                const catLabel = catIndex >= 0 ? `${catIndex + 1}. ${cat}` : cat;
+                const hSx = { fontWeight: 700, backgroundColor: '#f0f4f8' };
+                elements.push(
+                  <Box key={`section-${gi}`} mb={3}>
+                    <Box sx={{ backgroundColor: '#e8f0fe', borderLeft: '4px solid #1a56db', px: 1.5, py: 0.75, borderRadius: '4px 4px 0 0', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                      <Box>
+                        <Typography fontWeight={700} fontSize="0.85rem" color="#1a56db" display="inline">{catLabel}</Typography>
+                        <Typography component="span" fontWeight={400} color="text.secondary" ml={1} fontSize="0.75rem">({rows.length} mục) — click vào ô để chỉnh sửa</Typography>
+                      </Box>
+                      {addBtn}
+                    </Box>
+                    <TableContainer sx={{ border: '1px solid #c7d7f8', borderTop: 'none', borderRadius: '0 0 4px 4px', maxHeight: 400, overflow: 'auto' }}>
+                      <Table size="small" stickyHeader>
+                        <TableHead>
+                          <TableRow>
+                            <TableCell padding="checkbox" sx={hSx}>
+                              <Tooltip title="Chọn/bỏ chọn tất cả trong nhóm này">
+                                <Checkbox
+                                  size="small"
+                                  checked={rows.length > 0 && rows.every(a => selected.has(a._id))}
+                                  indeterminate={rows.some(a => selected.has(a._id)) && !rows.every(a => selected.has(a._id))}
+                                  onChange={toggleGroupAll}
+                                />
+                              </Tooltip>
+                            </TableCell>
+                            <TableCell sx={hSx}>Tên tài sản</TableCell>
+                            <TableCell sx={hSx} align="center">Nhu cầu QĐ</TableCell>
+                            <TableCell sx={hSx} align="center">Thực tế</TableCell>
+                            {!isMobile && <TableCell sx={hSx} align="center">Diện tích (m²)</TableCell>}
+                            {!isMobile && <TableCell sx={hSx} align="center">Loại CT</TableCell>}
+                            <TableCell sx={hSx} align="center">Tình trạng</TableCell>
+                            <TableCell sx={hSx} align="center">Xóa</TableCell>
+                          </TableRow>
+                        </TableHead>
+                        <TableBody>
+                          {rows.length === 0 ? (
+                            <TableRow>
+                              <TableCell colSpan={8} align="center" sx={{ py: 2, color: 'text.secondary', fontSize: '0.8rem' }}>
+                                Chưa có dữ liệu — nhấn <strong>+</strong> để thêm
+                              </TableCell>
+                            </TableRow>
+                          ) : rows.map(a => (
+                            <TableRow key={a._id} hover selected={selected.has(a._id)}>
+                              <TableCell padding="checkbox">
+                                <Checkbox size="small" checked={selected.has(a._id)} onChange={() => toggleSelect(a._id)} />
+                              </TableCell>
+                              <InlineCell a={a} field="name" isText ie={inlineEdit} setIe={setInlineEdit} onSave={handleInlineSave} />
+                              <InlineCell a={a} field="requiredQuantity" align="center" ie={inlineEdit} setIe={setInlineEdit} onSave={handleInlineSave} />
+                              <InlineCell a={a} field="quantity" align="center" ie={inlineEdit} setIe={setInlineEdit} onSave={handleInlineSave}
+                                sx={{ fontWeight: 600, color: (a.quantity || 0) >= (a.requiredQuantity || 0) ? 'success.main' : 'warning.main' }} />
+                              {!isMobile && <InlineCell a={a} field="area" align="center" ie={inlineEdit} setIe={setInlineEdit} onSave={handleInlineSave} />}
+                              {!isMobile && (
+                                <InlineSelectCell a={a} field="constructionType" options={CONSTRUCTION_OPTIONS} ie={inlineEdit} setIe={setInlineEdit} onSave={handleInlineSave}
+                                  renderValue={v => v !== 'Không áp dụng'
+                                    ? <Chip label={v} size="small" variant="outlined" color="info" />
+                                    : '—'} />
+                              )}
+                              <InlineSelectCell a={a} field="condition" options={CONDITION_OPTIONS} ie={inlineEdit} setIe={setInlineEdit} onSave={handleInlineSave}
+                                renderValue={v => <Chip label={v} color={CONDITION_COLOR[v] || 'default'} size="small" />} />
+                              <TableCell align="center">
+                                <IconButton size="small" color="error" onClick={() => setDeleteTarget(a)}><DeleteIcon fontSize="small" /></IconButton>
+                              </TableCell>
+                            </TableRow>
+                          ))}
+                        </TableBody>
+                      </Table>
+                    </TableContainer>
+                  </Box>
+                );
+              }
+            });
+
+            return elements;
+          })()}
+
+        </>
       )}
 
       {/* Create/Edit Modal */}
@@ -2219,13 +2574,6 @@ function AssetsTab() {
         <DialogContent>
           <Stack gap={2} mt={1}>
             <Stack direction="row" gap={1}>
-              <TextField
-                label="Mã tài sản *"
-                size="small"
-                sx={{ flex: 1 }}
-                value={form.assetCode}
-                onChange={e => setForm(p => ({ ...p, assetCode: e.target.value }))}
-              />
               <FormControl size="small" sx={{ flex: 1 }}>
                 <InputLabel>Loại tài sản</InputLabel>
                 <Select
@@ -2238,61 +2586,145 @@ function AssetsTab() {
               </FormControl>
             </Stack>
 
-            <TextField
-              label="Tên tài sản *"
-              size="small"
-              fullWidth
-              value={form.name}
-              onChange={e => setForm(p => ({ ...p, name: e.target.value }))}
-            />
+            {SECTION7_CATEGORIES.includes(form.category) ? (
+              <Autocomplete
+                freeSolo
+                options={(SECTION7_PRESETS[form.category] || []).map(p => p.name)}
+                value={form.name}
+                onInputChange={(_, v) => setForm(p => ({ ...p, name: v }))}
+                onChange={(_, v) => {
+                  if (!v) return;
+                  const preset = (SECTION7_PRESETS[form.category] || []).find(p => p.name === v);
+                  setForm(p => ({ ...p, name: v, ...(preset ? { unit: preset.unit } : {}) }));
+                }}
+                size="small"
+                fullWidth
+                renderInput={params => <TextField {...params} label="Tên tài sản *" size="small" />}
+              />
+            ) : (
+              <TextField
+                label="Tên tài sản *"
+                size="small"
+                fullWidth
+                value={form.name}
+                onChange={e => setForm(p => ({ ...p, name: e.target.value }))}
+              />
+            )}
 
             <Divider><Typography variant="caption" color="text.secondary">Số lượng</Typography></Divider>
 
-            <Stack direction="row" gap={1}>
-              <TextField
-                label="Nhu cầu theo QĐ"
-                size="small"
-                type="number"
-                inputProps={{ min: 0 }}
-                sx={{ flex: 1 }}
-                value={form.requiredQuantity}
-                onChange={e => setForm(p => ({ ...p, requiredQuantity: Number(e.target.value) }))}
-              />
-              <TextField
-                label="Số lượng thực tế"
-                size="small"
-                type="number"
-                inputProps={{ min: 0 }}
-                sx={{ flex: 1 }}
-                value={form.quantity}
-                onChange={e => setForm(p => ({ ...p, quantity: Number(e.target.value) }))}
-              />
-            </Stack>
+            {SECTION7_CATEGORIES.includes(form.category) ? (
+              /* Mục 7: chỉ cần ĐVT + Số lượng */
+              <Stack direction="row" gap={1}>
+                <Autocomplete
+                  freeSolo
+                  options={UNIT_OPTIONS}
+                  value={form.unit || ''}
+                  onInputChange={(_, v) => setForm(p => ({ ...p, unit: v }))}
+                  onChange={(_, v) => setForm(p => ({ ...p, unit: v || '' }))}
+                  size="small"
+                  sx={{ flex: 1 }}
+                  renderInput={params => <TextField {...params} label="ĐVT (đơn vị tính)" size="small" />}
+                />
+                <TextField
+                  label="Số lượng"
+                  size="small"
+                  type="number"
+                  inputProps={{ min: 0, step: 0.1 }}
+                  sx={{ flex: 1 }}
+                  value={form.quantity}
+                  onChange={e => setForm(p => ({ ...p, quantity: Number(e.target.value) }))}
+                />
+              </Stack>
+            ) : form.category === 'Số bàn, ghế ngồi' ? (
+              /* Mục 2: Số bàn, ghế ngồi */
+              <>
+                <Stack direction="row" gap={1}>
+                  <TextField
+                    label="Nhu cầu theo QĐ"
+                    size="small" type="number" inputProps={{ min: 0 }} sx={{ flex: 1 }}
+                    value={form.requiredQuantity}
+                    onChange={e => setForm(p => ({ ...p, requiredQuantity: Number(e.target.value) }))}
+                  />
+                  <TextField
+                    label="Tổng số chỗ ngồi"
+                    size="small" type="number" inputProps={{ min: 0 }} sx={{ flex: 1 }}
+                    value={form.quantity}
+                    onChange={e => setForm(p => ({ ...p, quantity: Number(e.target.value) }))}
+                  />
+                </Stack>
+                <Divider><Typography variant="caption" color="text.secondary">Trong đó</Typography></Divider>
+                <Stack direction="row" gap={1}>
+                  <TextField
+                    label="1 chỗ ngồi"
+                    size="small" type="number" inputProps={{ min: 0 }} sx={{ flex: 1 }}
+                    value={form.seats1 ?? ''}
+                    onChange={e => setForm(p => ({ ...p, seats1: e.target.value === '' ? null : Number(e.target.value) }))}
+                  />
+                  <TextField
+                    label="2 chỗ ngồi"
+                    size="small" type="number" inputProps={{ min: 0 }} sx={{ flex: 1 }}
+                    value={form.seats2 ?? ''}
+                    onChange={e => setForm(p => ({ ...p, seats2: e.target.value === '' ? null : Number(e.target.value) }))}
+                  />
+                  <TextField
+                    label="4 chỗ ngồi"
+                    size="small" type="number" inputProps={{ min: 0 }} sx={{ flex: 1 }}
+                    value={form.seats4 ?? ''}
+                    onChange={e => setForm(p => ({ ...p, seats4: e.target.value === '' ? null : Number(e.target.value) }))}
+                  />
+                </Stack>
+              </>
+            ) : (
+              /* Mục 1, 3-6: Nhu cầu QĐ + Thực tế + Diện tích + Loại CT */
+              <>
+                <Stack direction="row" gap={1}>
+                  <TextField
+                    label="Nhu cầu theo QĐ"
+                    size="small"
+                    type="number"
+                    inputProps={{ min: 0 }}
+                    sx={{ flex: 1 }}
+                    value={form.requiredQuantity}
+                    onChange={e => setForm(p => ({ ...p, requiredQuantity: Number(e.target.value) }))}
+                  />
+                  <TextField
+                    label="Số lượng thực tế"
+                    size="small"
+                    type="number"
+                    inputProps={{ min: 0 }}
+                    sx={{ flex: 1 }}
+                    value={form.quantity}
+                    onChange={e => setForm(p => ({ ...p, quantity: Number(e.target.value) }))}
+                  />
+                </Stack>
 
-            <Divider><Typography variant="caption" color="text.secondary">Cơ sở vật chất</Typography></Divider>
+                <Divider><Typography variant="caption" color="text.secondary">Cơ sở vật chất</Typography></Divider>
 
-            <Stack direction="row" gap={1}>
-              <TextField
-                label="Diện tích (m²)"
-                size="small"
-                type="number"
-                inputProps={{ min: 0, step: 0.01 }}
-                sx={{ flex: 1 }}
-                value={form.area}
-                onChange={e => setForm(p => ({ ...p, area: e.target.value }))}
-                helperText="Áp dụng cho phòng học"
-              />
-              <FormControl size="small" sx={{ flex: 1 }}>
-                <InputLabel>Loại công trình</InputLabel>
-                <Select
-                  value={form.constructionType}
-                  label="Loại công trình"
-                  onChange={e => setForm(p => ({ ...p, constructionType: e.target.value }))}
-                >
-                  {CONSTRUCTION_OPTIONS.map(o => <MenuItem key={o} value={o}>{o}</MenuItem>)}
-                </Select>
-              </FormControl>
-            </Stack>
+                <Stack direction="row" gap={1}>
+                  <TextField
+                    label="Diện tích (m²)"
+                    size="small"
+                    type="number"
+                    inputProps={{ min: 0, step: 0.01 }}
+                    sx={{ flex: 1 }}
+                    value={form.area}
+                    onChange={e => setForm(p => ({ ...p, area: e.target.value }))}
+                    helperText="Áp dụng cho phòng học"
+                  />
+                  <FormControl size="small" sx={{ flex: 1 }}>
+                    <InputLabel>Loại công trình</InputLabel>
+                    <Select
+                      value={form.constructionType}
+                      label="Loại công trình"
+                      onChange={e => setForm(p => ({ ...p, constructionType: e.target.value }))}
+                    >
+                      {CONSTRUCTION_OPTIONS.map(o => <MenuItem key={o} value={o}>{o}</MenuItem>)}
+                    </Select>
+                  </FormControl>
+                </Stack>
+              </>
+            )}
 
             <Divider><Typography variant="caption" color="text.secondary">Tình trạng</Typography></Divider>
 
@@ -2330,7 +2762,7 @@ function AssetsTab() {
       <ConfirmDialog
         open={!!deleteTarget}
         title="Xóa tài sản"
-        message={`Bạn có chắc muốn xóa tài sản "${deleteTarget?.name}" (${deleteTarget?.assetCode})?`}
+        message={`Bạn có chắc muốn xóa tài sản "${deleteTarget?.name}"?`}
         onConfirm={handleDelete}
         onCancel={() => setDeleteTarget(null)}
         loading={deleting}
@@ -2361,7 +2793,6 @@ function AssetsTab() {
               <TableHead>
                 <TableRow sx={{ backgroundColor: '#f0f4f8' }}>
                   <TableCell sx={{ fontWeight: 700 }}>#</TableCell>
-                  <TableCell sx={{ fontWeight: 700 }}>Mã TS</TableCell>
                   <TableCell sx={{ fontWeight: 700 }}>Tên tài sản</TableCell>
                   <TableCell sx={{ fontWeight: 700 }}>Loại</TableCell>
                   <TableCell sx={{ fontWeight: 700 }} align="center">Nhu cầu QĐ</TableCell>
@@ -2374,9 +2805,8 @@ function AssetsTab() {
               </TableHead>
               <TableBody>
                 {importPreview.map((row, i) => (
-                  <TableRow key={i} hover sx={!row.assetCode || !row.name ? { backgroundColor: '#fff3cd' } : {}}>
+                  <TableRow key={i} hover sx={!row.name ? { backgroundColor: '#fff3cd' } : {}}>
                     <TableCell>{i + 1}</TableCell>
-                    <TableCell sx={{ fontWeight: 600, color: !row.assetCode ? 'error.main' : 'inherit' }}>{row.assetCode || '(trống)'}</TableCell>
                     <TableCell sx={{ color: !row.name ? 'error.main' : 'inherit' }}>{row.name || '(trống)'}</TableCell>
                     <TableCell>{row.category}</TableCell>
                     <TableCell align="center">{row.requiredQuantity}</TableCell>
@@ -2403,6 +2833,43 @@ function AssetsTab() {
           </Button>
         </DialogActions>
       </Dialog>
+
+      {/* Floating bulk-action bar */}
+      {selected.size > 0 && (
+        <Box sx={{
+          position: 'fixed', bottom: 24, left: '50%', transform: 'translateX(-50%)',
+          zIndex: 1300,
+          backgroundColor: '#1e293b',
+          color: '#fff',
+          borderRadius: 3,
+          px: 3, py: 1.2,
+          display: 'flex', alignItems: 'center', gap: 2,
+          boxShadow: '0 4px 24px rgba(0,0,0,0.25)',
+          whiteSpace: 'nowrap',
+        }}>
+          <Typography variant="body2" sx={{ color: '#94a3b8', fontWeight: 500 }}>
+            Đã chọn <strong style={{ color: '#fff' }}>{selected.size}</strong> mục
+          </Typography>
+          <Button
+            size="small"
+            variant="text"
+            sx={{ color: '#94a3b8', textTransform: 'none', minWidth: 0 }}
+            onClick={() => setSelected(new Set())}
+          >
+            Bỏ chọn
+          </Button>
+          <Button
+            size="small"
+            variant="contained"
+            color="error"
+            startIcon={<DeleteIcon fontSize="small" />}
+            onClick={() => setBulkDeleteOpen(true)}
+            sx={{ textTransform: 'none', borderRadius: 2 }}
+          >
+            Xóa {selected.size} mục
+          </Button>
+        </Box>
+      )}
     </Box>
   );
 }
