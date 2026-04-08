@@ -142,9 +142,26 @@ const authorizePermissions = (...requiredPermissions) => (req, res, next) => {
   next();
 };
 
+/**
+ * Middleware: user phải có ÍT NHẤT MỘT trong số các permission được liệt kê (OR logic)
+ * @param  {...string} permissions
+ */
+const authorizeAnyPermission = (...permissions) => (req, res, next) => {
+  if (!req.user) {
+    return res.status(401).json({ status: 'error', message: 'Chưa đăng nhập' });
+  }
+  const userPerms = req.user.permissions || [];
+  const hasAny = permissions.some(p => userPerms.includes(p));
+  if (!hasAny) {
+    return res.status(403).json({ status: 'error', message: 'Bạn không có quyền thực hiện thao tác này' });
+  }
+  next();
+};
+
 module.exports = {
   authenticate,
   authorizeRoles,
   authorizePermissions,
+  authorizeAnyPermission,
 };
 

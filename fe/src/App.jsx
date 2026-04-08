@@ -123,6 +123,7 @@ import ManageAssetAllocation from './pages/schoolAdmin/ManageAssetAllocation';
 import ManageCommittee from './pages/schoolAdmin/ManageCommittee';
 import ManageMinutes from './pages/schoolAdmin/ManageMinutes';
 import ProtectedRoute from './components/ProtectedRoute';
+import StudentHealthManagement from './pages/medicalStaff/StudentHealthManagement';
 
 
 function AppContent() {
@@ -910,6 +911,16 @@ function App() {
                 <SchoolNurseProvider>
                   <HealthReports />
                 </SchoolNurseProvider>
+              </ProtectedRoute>
+            }
+          />
+
+          {/* Medical Staff Routes */}
+          <Route
+            path="/medical-staff/health"
+            element={
+              <ProtectedRoute>
+                <StudentHealthManagement />
               </ProtectedRoute>
             }
           />
