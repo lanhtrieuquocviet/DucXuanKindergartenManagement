@@ -1137,7 +1137,7 @@ function ClassList() {
                               {cls.teacherIds.map((t, i) => (
                                 <Stack key={t._id || i} direction="row" alignItems="center" spacing={0.5}>
                                   <PersonIcon sx={{ fontSize: 13, color: '#2563eb' }} />
-                                  <Typography variant="caption" fontWeight={500}>{t.userId?.fullName || t.fullName || t}</Typography>
+                                  <Typography variant="caption" fontWeight={500}>{t.userId?.fullName || t.fullName || '—'}</Typography>
                                 </Stack>
                               ))}
                             </Stack>

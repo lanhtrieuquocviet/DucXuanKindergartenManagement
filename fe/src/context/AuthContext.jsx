@@ -274,6 +274,18 @@ export const AuthProvider = ({
     return () => window.removeEventListener('storage', handleStorageChange);
   }, [clearAuth]);
 
+  // Lắng nghe cross-tab logout (BroadcastChannel) - logout from all devices
+  useEffect(() => {
+    const channel = new BroadcastChannel('auth_channel');
+    const handleMessage = (event) => {
+      if (event.data.type === 'LOGOUT_ALL_TABS') {
+        clearAuth('Mật khẩu đã được thay đổi. Vui lòng đăng nhập lại trên tất cả thiết bị.');
+      }
+    };
+    channel.onmessage = handleMessage;
+    return () => channel.close();
+  }, [clearAuth]);
+
   // Check if user is authenticated
   const isAuthenticated = useCallback(() => {
     return !!token && !!user;

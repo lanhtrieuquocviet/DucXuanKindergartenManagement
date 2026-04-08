@@ -517,15 +517,29 @@ function MenuDetail() {
 
   const handleOpenSubmitDialog = () => {
     const missing = [];
+    const nutritionIssues = [];
+    
     const checkWeek = (weekData, weekLabel) => {
       if (!weekData) return;
       days.forEach(dayKey => {
         const dayData = weekData[dayKey];
+        
+        // Check if foods are filled
         if (!dayData?.lunchFoods || dayData.lunchFoods.length === 0) {
           missing.push(`${dayMap[dayKey]} (${weekLabel}) - Bữa trưa`);
         }
         if (!dayData?.afternoonFoods || dayData.afternoonFoods.length === 0) {
           missing.push(`${dayMap[dayKey]} (${weekLabel}) - Bữa chiều`);
+        }
+        
+        // Check nutritional standards for the day
+        const hasFood = (dayData?.lunchFoods?.length || 0) > 0 || (dayData?.afternoonFoods?.length || 0) > 0;
+        if (hasFood) {
+          const evaluation = evaluateDailyNutrition(dayData, nutritionRanges);
+          if (!evaluation.pass) {
+            const reasons = evaluation.reasons.join(", ");
+            nutritionIssues.push(`${dayMap[dayKey]} (${weekLabel}): ${reasons}`);
+          }
         }
       });
     };
@@ -533,8 +547,14 @@ function MenuDetail() {
     checkWeek(menu.weeks?.odd, "Tuần lẻ");
     checkWeek(menu.weeks?.even, "Tuần chẵn");
 
-    if (missing.length > 0) {
-      setIncompleteItems(missing);
+    // Combine all issues
+    const allIssues = [
+      ...missing.map(item => `❌ Thiếu dữ liệu: ${item}`),
+      ...nutritionIssues.map(item => `⚠️ Không đạt chuẩn dinh dưỡng: ${item}`)
+    ];
+
+    if (allIssues.length > 0) {
+      setIncompleteItems(allIssues);
       setShowErrorDialog(true);
       return;
     }
@@ -756,18 +776,21 @@ function MenuDetail() {
       {/* DIALOG LỖI: CHƯA ĐIỀN ĐỦ */}
       <Dialog open={showErrorDialog} onClose={() => setShowErrorDialog(false)} maxWidth="sm" fullWidth PaperProps={{ sx: { borderRadius: 3 } }}>
         <DialogTitle sx={{ display: 'flex', alignItems: 'center', gap: 1, color: 'error.main', fontWeight: 700 }}>
-          <ErrorIcon color="error" /> Thiếu thông tin món ăn
+          <ErrorIcon color="error" /> Thực đơn chưa sẵn sàng gửi duyệt
         </DialogTitle>
         <DialogContent>
           <Typography variant="body2" color="text.secondary" mb={2}>
-            Để gửi duyệt, bạn phải điền đầy đủ món cho tất cả các bữa. Các vị trí sau đang trống:
+            Để gửi duyệt, thực đơn phải đầy đủ dữ liệu và đạt chuẩn dinh dưỡng cho tất cả các ngày. Vui lòng kiểm tra các vấn đề sau:
           </Typography>
-          <Box sx={{ maxHeight: 250, overflow: 'auto', bgcolor: 'grey.50', borderRadius: 2, p: 1, border: '1px solid #eee' }}>
+          <Box sx={{ maxHeight: 300, overflow: 'auto', bgcolor: 'grey.50', borderRadius: 2, p: 1, border: '1px solid #eee' }}>
             <List dense>
               {incompleteItems.map((item, index) => (
                 <ListItem key={index}>
-                  <ListItemIcon sx={{ minWidth: 30 }}><WarningIcon sx={{ fontSize: 16, color: 'orange' }} /></ListItemIcon>
-                  <ListItemText primary={item} primaryTypographyProps={{ variant: 'caption', fontWeight: 600 }} />
+                  <ListItemText 
+                    primary={item} 
+                    primaryTypographyProps={{ variant: 'caption', fontWeight: 600, fontSize: '0.85rem' }}
+                    sx={{ my: 0.5 }}
+                  />
                 </ListItem>
               ))}
             </List>
