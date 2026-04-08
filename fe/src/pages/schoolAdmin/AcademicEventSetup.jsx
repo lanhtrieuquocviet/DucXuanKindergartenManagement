@@ -33,14 +33,14 @@ function toInputDate(dateStr) {
   return d.toISOString().slice(0, 10);
 }
 
-function formatUsDate(dateStr) {
+function toDMY(dateStr) {
   if (!dateStr) return '';
   const d = new Date(dateStr);
   if (Number.isNaN(d.getTime())) return '';
-  const mm = String(d.getMonth() + 1).padStart(2, '0');
   const dd = String(d.getDate()).padStart(2, '0');
+  const mm = String(d.getMonth() + 1).padStart(2, '0');
   const yyyy = d.getFullYear();
-  return `${mm}/${dd}/${yyyy}`;
+  return `${dd}/${mm}/${yyyy}`;
 }
 
 function buildMonthBuckets(startDate, endDate) {
@@ -323,13 +323,13 @@ export default function AcademicEventSetup() {
           />
           <TextField
             label="Bắt đầu"
-            value={formatUsDate(currentYear?.startDate)}
+            value={toDMY(currentYear?.startDate)}
             InputProps={{ readOnly: true }}
             sx={{ width: { xs: '100%', md: 220 } }}
           />
           <TextField
             label="Kết thúc"
-            value={formatUsDate(currentYear?.endDate)}
+            value={toDMY(currentYear?.endDate)}
             InputProps={{ readOnly: true }}
             sx={{ width: { xs: '100%', md: 220 } }}
           />
@@ -382,7 +382,7 @@ export default function AcademicEventSetup() {
                     <Stack direction="row" spacing={1} alignItems="center" sx={{ minWidth: 0 }}>
                       <EventIcon sx={{ color: '#16a34a', fontSize: 18 }} />
                       <Typography variant="body2" sx={{ color: '#166534', fontWeight: 600 }}>
-                        {`${event.name} - ${formatUsDate(event.date)} - ${event.blockLabel || 'Khối lớp'}`}
+                        {`${event.name} - ${toDMY(event.date)} - ${event.blockLabel || 'Khối lớp'}`}
                       </Typography>
                     </Stack>
                     <Stack direction="row" spacing={0.75}>
