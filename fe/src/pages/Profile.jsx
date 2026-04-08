@@ -17,7 +17,13 @@ import EditOutlinedIcon from '@mui/icons-material/EditOutlined';
 const DEFAULT_AVATAR = 'https://via.placeholder.com/300x400.png?text=Avatar+3x4';
 const MAX_AVATAR_SIZE_BYTES = 5 * 1024 * 1024;
 const EMAIL_REGEX = /^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/;
-const PHONE_REGEX = /^(0|\+84)(\d){9,10}$/;
+const PHONE_REGEX = /^0\d{9}$/;
+
+const normalizePhone = (phone) => {
+  const value = String(phone || '').trim();
+  if (value.startsWith('+84')) return `0${value.slice(3)}`;
+  return value;
+};
 
 /* ── Small reusable card ── */
 function SectionCard({ icon, title, accentGradient, children }) {
@@ -142,6 +148,7 @@ function ProfileForm({
         name="fullName"
         value={profileForm.fullName ?? ''}
         onChange={onProfileChange}
+        inputProps={{ maxLength: 50 }}
         error={Boolean(profileErrors.fullName)}
         helperText={profileErrors.fullName || ' '}
         size="small"
@@ -154,6 +161,7 @@ function ProfileForm({
         type="email"
         value={profileForm.email ?? ''}
         onChange={onProfileChange}
+        inputProps={{ maxLength: 50 }}
         error={Boolean(profileErrors.email)}
         helperText={profileErrors.email || ' '}
         size="small"
@@ -163,19 +171,19 @@ function ProfileForm({
       <TextField
         label="Số điện thoại" name="phone" type="tel"
         value={profileForm.phone ?? ''}
-        onChange={(e) => { if (e.target.value.length <= 15) onProfileChange(e); }}
-        inputProps={{ maxLength: 15 }}
+        onChange={(e) => { if (e.target.value.length <= 10) onProfileChange(e); }}
+        inputProps={{ maxLength: 10 }}
         error={Boolean(profileErrors.phone)}
-        helperText={profileErrors.phone || `${profileForm.phone?.length || 0}/15 ký tự`}
+        helperText={profileErrors.phone || `${profileForm.phone?.length || 0}/10 ký tự`}
         size="small" fullWidth color={color}
       />
       <TextField
         label="Địa chỉ" name="address"
         value={profileForm.address ?? ''}
-        onChange={(e) => { if (e.target.value.length <= 255) onProfileChange(e); }}
-        inputProps={{ maxLength: 255 }}
+        onChange={(e) => { if (e.target.value.length <= 200) onProfileChange(e); }}
+        inputProps={{ maxLength: 200 }}
         error={Boolean(profileErrors.address)}
-        helperText={profileErrors.address || `${profileForm.address?.length || 0}/255 ký tự`}
+        helperText={profileErrors.address || `${profileForm.address?.length || 0}/200 ký tự`}
         size="small" fullWidth color={color}
       />
 
@@ -421,7 +429,7 @@ function Profile() {
       email: user.email || '',
       avatar: user.avatar || '',
       address: user.address || '',
-      phone: children.length > 0 ? (children[0]?.parentPhone || children[0]?.phone || '') : '',
+      phone: normalizePhone(children.length > 0 ? (children[0]?.parentPhone || children[0]?.phone || user.phone || '') : (user.phone || '')),
       status: user.status === 'active' ? 'Đang hoạt động' : 'Đã khóa',
     }));
   }, [user, isInitializing]);
@@ -443,7 +451,7 @@ function Profile() {
             email: userData.email || '',
             avatar: userData.avatar || '',
             address: userData.address || '',
-            phone: children.length > 0 ? (children[0]?.parentPhone || children[0]?.phone || '') : '',
+            phone: normalizePhone(children.length > 0 ? (children[0]?.parentPhone || children[0]?.phone || userData.phone || '') : (userData.phone || '')),
             status: userData.status === 'active' ? 'Đang hoạt động' : 'Đã khóa',
           }));
         }
@@ -479,19 +487,20 @@ function Profile() {
     const address = String(profileForm.address || '').trim();
 
     if (!fullName) errors.fullName = 'Vui lòng nhập họ và tên.';
-    else if (fullName.length < 2 || fullName.length > 100) errors.fullName = 'Họ và tên từ 2 đến 100 ký tự.';
+    else if (fullName.length < 2 || fullName.length > 50) errors.fullName = 'Họ và tên từ 2 đến 50 ký tự.';
 
     if (!email) errors.email = 'Vui lòng nhập email.';
+    else if (email.length < 5 || email.length > 50) errors.email = 'Email từ 5 đến 50 ký tự.';
     else if (!EMAIL_REGEX.test(email)) errors.email = 'Email không đúng định dạng.';
 
     if (phone) {
       if (!PHONE_REGEX.test(phone)) {
-        errors.phone = 'Số điện thoại không đúng định dạng Việt Nam (0xxxxxxxxx hoặc +84xxxxxxxxx).';
+        errors.phone = 'Số điện thoại không đúng định dạng Việt Nam (0xxxxxxxxx).';
       }
     }
 
-    if (address && address.length > 255) {
-      errors.address = 'Địa chỉ không vượt quá 255 ký tự.';
+    if (address && address.length > 200) {
+      errors.address = 'Địa chỉ không vượt quá 200 ký tự.';
     }
 
     return errors;
