@@ -117,6 +117,10 @@ const createGrade = async (req, res) => {
       headTeacherId: headTeacherVal,
     });
 
+    if (headTeacherVal) {
+      await Teacher.findByIdAndUpdate(headTeacherVal, { isLeader: true });
+    }
+
     return res.status(201).json({ status: 'success', message: 'Tạo khối lớp thành công', data: grade });
   } catch (error) {
     console.error('createGrade error:', error);
@@ -185,18 +189,32 @@ const updateGrade = async (req, res) => {
 
     // Kiểm tra tổ trưởng: 1 giáo viên không được làm tổ trưởng 2 khối trong cùng năm học
     if (headTeacherId !== undefined) {
-      if (headTeacherId) {
-        const conflict = await Grade.findOne({ headTeacherId, _id: { $ne: id } }).lean();
+      const oldHeadTeacherId = grade.headTeacherId ? grade.headTeacherId.toString() : null;
+      const newHeadTeacherId = headTeacherId || null;
+
+      if (newHeadTeacherId) {
+        const conflict = await Grade.findOne({ headTeacherId: newHeadTeacherId, _id: { $ne: id } }).lean();
         if (conflict) {
           return res.status(400).json({
             status: 'error',
             message: `Giáo viên này đã là tổ trưởng của khối "${conflict.gradeName}" trong năm học hiện tại`,
           });
         }
-        grade.headTeacherId = headTeacherId;
-      } else {
-        grade.headTeacherId = null;
       }
+
+      // Sync isLeader: remove from old, assign to new
+      if (oldHeadTeacherId && oldHeadTeacherId !== newHeadTeacherId) {
+        // Check if old teacher is still head of another grade before unsetting
+        const stillLeader = await Grade.findOne({ headTeacherId: oldHeadTeacherId, _id: { $ne: id } }).lean();
+        if (!stillLeader) {
+          await Teacher.findByIdAndUpdate(oldHeadTeacherId, { isLeader: false });
+        }
+      }
+      if (newHeadTeacherId && newHeadTeacherId !== oldHeadTeacherId) {
+        await Teacher.findByIdAndUpdate(newHeadTeacherId, { isLeader: true });
+      }
+
+      grade.headTeacherId = newHeadTeacherId;
     }
 
     await grade.save();

@@ -1496,6 +1496,7 @@ router.get('/teachers', authenticate, authorizePermissions('MANAGE_TEACHER'), as
         hireDate: t.hireDate,
         employmentType: t.employmentType,
         gender: t.gender,
+        isLeader: t.isLeader,
       }));
 
     return res.status(200).json({ status: 'success', data: teachers });
