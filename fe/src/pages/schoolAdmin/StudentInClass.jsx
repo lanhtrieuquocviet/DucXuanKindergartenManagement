@@ -57,8 +57,7 @@ import HomeIcon from '@mui/icons-material/Home';
 
 function calcAge(dob) {
   if (!dob) return null;
-  const diff = Date.now() - new Date(dob).getTime();
-  return Math.floor(diff / (365.25 * 24 * 3600 * 1000));
+  return new Date().getFullYear() - new Date(dob).getFullYear();
 }
 
 function fmtDate(d) {
