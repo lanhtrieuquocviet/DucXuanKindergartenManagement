@@ -396,9 +396,6 @@ export const ENDPOINTS = {
     PURCHASE_REQUESTS: "/school-admin/purchase-requests",
     PURCHASE_REQUEST_APPROVE: (id) => `/school-admin/purchase-requests/${id}/approve`,
     PURCHASE_REQUEST_REJECT: (id) => `/school-admin/purchase-requests/${id}/reject`,
-    // Asset incidents (admin view)
-    ASSET_INCIDENTS: "/school-admin/asset-incidents",
-    ASSET_INCIDENT_UPDATE: (id) => `/school-admin/asset-incidents/${id}`,
     ASSET_DETAIL: (id) => `/school-admin/assets/${id}`,
   },
   // Contact (public)
@@ -427,11 +424,8 @@ export const ENDPOINTS = {
     MY_CLASSES: "/teacher/my-classes",
     PURCHASE_REQUESTS: "/teacher/purchase-requests",
     PURCHASE_REQUEST_DETAIL: (id) => `/teacher/purchase-requests/${id}`,
-    // Asset allocation & incidents
     MY_ASSET_ALLOCATION: "/teacher/asset-allocations",
     ASSET_ALLOCATION_CONFIRM: (id) => `/teacher/asset-allocations/${id}/confirm`,
-    ASSET_INCIDENTS: "/teacher/asset-incidents",
-    ASSET_INCIDENT_DETAIL: (id) => `/teacher/asset-incidents/${id}`,
     // Danh sách học sinh
     MY_STUDENTS: '/teacher/students',
     CHANGE_REQUESTS: (studentId) => `/teacher/students/${studentId}/change-requests`,

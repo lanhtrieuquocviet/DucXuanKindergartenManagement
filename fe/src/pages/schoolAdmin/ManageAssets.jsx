@@ -1204,7 +1204,7 @@ function AssetsTab() {
           { re: /^4[\.\s\)]/,  cat: 'Phòng tổ chức ăn, nghỉ',                       fmt: 'room' },
           { re: /^5[\.\s\)]/,  cat: 'Công trình công cộng và khối phòng phục vụ khác', fmt: 'room' },
           { re: /^6[\.\s\)]/,  cat: 'Khối phòng hành chính quản trị',               fmt: 'room' },
-          { re: /^7\.1/,       cat: 'Diện tích đất',                                fmt: 'equip' },
+          { re: /^7\.1/,       cat: 'Diện tích đất',                                fmt: 'landarea' },
           { re: /^7\.2/,       cat: 'Thiết bị dạy học và CNTT',                     fmt: 'equip' },
           { re: /^7[\.\s\)]/,  cat: 'Thiết bị dạy học và CNTT',                     fmt: 'equip' },
         ];
@@ -1272,7 +1272,29 @@ function AssetsTab() {
 
           let asset;
 
-          if (currentFmt === 'equip') {
+          if (currentFmt === 'landarea') {
+            // Diện tích đất: cấu trúc [tên, ĐVT (m²), giá trị diện tích]
+            // Lưu giá trị vào field 'area' thay vì 'quantity'
+            let dvt = '';
+            let areaVal = 0;
+            for (let ci = 1; ci < row.length; ci++) {
+              const v = row[ci];
+              if (v === '' || v == null) continue;
+              if (isNum(v)) { areaVal = toNum(v); break; }
+              if (!dvt && typeof v === 'string') dvt = v.trim();
+            }
+            asset = {
+              assetCode, name,
+              category:         currentCat,
+              room:             '',
+              requiredQuantity: 0,
+              quantity:         0,
+              area:             areaVal || null,
+              constructionType: 'Không áp dụng',
+              condition:        'Tốt',
+              notes:            dvt,
+            };
+          } else if (currentFmt === 'equip') {
             // Thiết bị: scan toàn bộ row để tìm ĐVT (text đầu tiên) và số lượng (số đầu tiên)
             // Cần thiết vì Excel gốc để ĐVT/Số lượng ở cột 8-9, còn file mẫu để ở cột 1-2
             let dvt = '';
@@ -1686,7 +1708,6 @@ function AssetsTab() {
         { header: 'Mã tài sản',    key: 'assetCode',        width: 13 },
         { header: 'Tên tài sản',   key: 'name',             width: 38 },
         { header: 'Loại tài sản',  key: 'category',         width: 32 },
-        { header: 'Phòng/Địa điểm', key: 'room',            width: 20 },
         { header: 'Nhu cầu QĐ',   key: 'requiredQuantity', width: 13 },
         { header: 'Thực tế',       key: 'quantity',         width: 11 },
         { header: 'Diện tích (m²)', key: 'area',            width: 14 },
@@ -1850,7 +1871,6 @@ function AssetsTab() {
             a.assetCode,
             a.name,
             a.category,
-            a.room || '',
             a.requiredQuantity || 0,
             a.quantity || 0,
             a.area != null ? a.area : '',
@@ -1999,7 +2019,7 @@ function AssetsTab() {
     const matchSearch = !search ||
       a.name?.toLowerCase().includes(search.toLowerCase()) ||
       a.assetCode?.toLowerCase().includes(search.toLowerCase()) ||
-      a.room?.toLowerCase().includes(search.toLowerCase());
+      false;
     const matchCategory = !filterCategory || a.category === filterCategory;
     return matchSearch && matchCategory;
   });
@@ -2099,7 +2119,6 @@ function AssetsTab() {
                 </TableCell>
                 <TableCell sx={{ fontWeight: 700 }}>Mã TS</TableCell>
                 <TableCell sx={{ fontWeight: 700 }}>Tên tài sản</TableCell>
-                {!isMobile && <TableCell sx={{ fontWeight: 700 }}>Phòng</TableCell>}
                 <TableCell sx={{ fontWeight: 700 }} align="center">Nhu cầu QĐ</TableCell>
                 <TableCell sx={{ fontWeight: 700 }} align="center">Thực tế</TableCell>
                 {!isMobile && <TableCell sx={{ fontWeight: 700 }} align="center">Diện tích (m²)</TableCell>}
@@ -2145,7 +2164,6 @@ function AssetsTab() {
                     </TableCell>
                     <TableCell sx={{ fontWeight: 600 }}>{a.assetCode}</TableCell>
                     <TableCell>{a.name}</TableCell>
-                    {!isMobile && <TableCell>{a.room || '—'}</TableCell>}
                     <TableCell align="center">{a.requiredQuantity || 0}</TableCell>
                     <TableCell align="center">
                       <Typography
@@ -2226,14 +2244,6 @@ function AssetsTab() {
               fullWidth
               value={form.name}
               onChange={e => setForm(p => ({ ...p, name: e.target.value }))}
-            />
-
-            <TextField
-              label="Phòng / Địa điểm"
-              size="small"
-              fullWidth
-              value={form.room}
-              onChange={e => setForm(p => ({ ...p, room: e.target.value }))}
             />
 
             <Divider><Typography variant="caption" color="text.secondary">Số lượng</Typography></Divider>
@@ -2354,7 +2364,6 @@ function AssetsTab() {
                   <TableCell sx={{ fontWeight: 700 }}>Mã TS</TableCell>
                   <TableCell sx={{ fontWeight: 700 }}>Tên tài sản</TableCell>
                   <TableCell sx={{ fontWeight: 700 }}>Loại</TableCell>
-                  <TableCell sx={{ fontWeight: 700 }}>Phòng</TableCell>
                   <TableCell sx={{ fontWeight: 700 }} align="center">Nhu cầu QĐ</TableCell>
                   <TableCell sx={{ fontWeight: 700 }} align="center">Thực tế</TableCell>
                   <TableCell sx={{ fontWeight: 700 }} align="center">Diện tích</TableCell>
@@ -2370,7 +2379,6 @@ function AssetsTab() {
                     <TableCell sx={{ fontWeight: 600, color: !row.assetCode ? 'error.main' : 'inherit' }}>{row.assetCode || '(trống)'}</TableCell>
                     <TableCell sx={{ color: !row.name ? 'error.main' : 'inherit' }}>{row.name || '(trống)'}</TableCell>
                     <TableCell>{row.category}</TableCell>
-                    <TableCell>{row.room || '—'}</TableCell>
                     <TableCell align="center">{row.requiredQuantity}</TableCell>
                     <TableCell align="center">{row.quantity}</TableCell>
                     <TableCell align="center">{row.area ?? '—'}</TableCell>
@@ -2415,7 +2423,7 @@ export default function ManageAssets() {
 
   return (
     <RoleLayout
-      title="Quản lý Tài sản"
+      title="Quản lý Cơ sở vật chất"
       description="Danh sách tài sản, ban kiểm kê và biên bản kiểm kê tài sản trường."
       menuItems={menuItems}
       activeKey="assets-list"
@@ -2426,7 +2434,7 @@ export default function ManageAssets() {
       onMenuSelect={handleMenuSelect}
     >
       <Paper elevation={0} sx={{ p: { xs: 1.5, sm: 3 }, borderRadius: 3, backgroundColor: '#f9fafb' }}>
-        <Typography variant="h5" fontWeight={700} mb={2}>Quản lý Tài sản</Typography>
+        <Typography variant="h5" fontWeight={700} mb={2}>Quản lý Cơ sở vật chất</Typography>
         <AssetsTab />
       </Paper>
     </RoleLayout>

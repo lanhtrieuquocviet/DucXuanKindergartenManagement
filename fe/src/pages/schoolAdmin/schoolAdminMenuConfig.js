@@ -26,18 +26,17 @@ export const SCHOOL_ADMIN_MENU_ITEMS = [
   { key: 'students', label: 'Học sinh & phụ huynh', permission: 'MANAGE_STUDENT' },
   {
     key: 'assets',
-    label: 'Quản lý tài sản',
+    label: 'Quản lý cơ sở vật chất',
     permission: 'MANAGE_ASSET',
     children: [
-      { key: 'assets-list', label: 'Danh sách tài sản', permission: 'MANAGE_ASSET' },
-      { key: 'asset-allocation', label: 'Phân bổ tài sản', permission: 'MANAGE_ASSET' },
+      { key: 'assets-list', label: 'Danh sách cơ sở vật chất', permission: 'MANAGE_ASSET' },
+      { key: 'asset-allocation', label: 'Phân bổ cơ sở vật chất', permission: 'MANAGE_ASSET' },
       { key: 'purchase-requests', label: 'Yêu cầu mua sắm', permission: 'MANAGE_PURCHASE_REQUEST' },
-      { key: 'asset-incidents',   label: 'Sự cố tài sản',   permission: 'MANAGE_ASSET' },
     ],
   },
   {
     key: 'kiemke',
-    label: 'Kiểm kê tài sản',
+    label: 'Kiểm kê cơ sở vật chất',
     permission: 'MANAGE_ASSET',
     children: [
       { key: 'committee', label: 'Ban kiểm kê', permission: 'MANAGE_ASSET' },
