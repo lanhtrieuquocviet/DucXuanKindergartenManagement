@@ -52,16 +52,23 @@ import { useSchoolAdminMenu } from './useSchoolAdminMenu';
 
 // ─── Constants ────────────────────────────────────────────────────────────────
 const STATUS_LABEL = {
-  draft:    { label: 'Nháp',      color: 'default' },
-  pending:  { label: 'Chờ duyệt', color: 'warning' },
-  approved: { label: 'Đã duyệt',  color: 'success' },
-  rejected: { label: 'Từ chối',   color: 'error' },
+  draft: { label: 'Nháp', color: 'default' },
+  pending: { label: 'Chờ duyệt', color: 'warning' },
+  approved: { label: 'Đã duyệt', color: 'success' },
+  rejected: { label: 'Từ chối', color: 'error' },
 };
 
-const emptyMember    = () => ({ userId: null, fullName: '', position: '', role: 'Thành viên', notes: '' });
+function formatDateInput(dateString) {
+  if (!dateString) return '';
+  const d = new Date(dateString);
+  if (Number.isNaN(d.getTime())) return '';
+  return d.toISOString().slice(0, 10);
+}
+
+const emptyMember = () => ({ userId: null, fullName: '', position: '', role: 'Thành viên', notes: '' });
 const emptyCommittee = () => ({ name: '', foundedDate: new Date().toISOString().slice(0, 10), decisionNumber: '', scope: [], members: [emptyMember()] });
-const emptyAssetRow  = () => ({ category: '', assetCode: '', name: '', unit: 'Cái', quantity: 0, targetUser: '', notes: '' });
-const emptyMinutes   = () => ({
+const emptyAssetRow = () => ({ category: '', assetCode: '', name: '', unit: 'Cái', quantity: 0, targetUser: '', notes: '' });
+const emptyMinutes = () => ({
   className: '',
   scope: '',
   location: 'Đức Xuân',
@@ -77,7 +84,11 @@ const emptyMinutes   = () => ({
 
 function formatDate(d) {
   if (!d) return '';
-  return new Date(d).toLocaleDateString('vi-VN');
+  return new Date(d).toLocaleDateString('vi-VN', {
+    day: '2-digit',
+    month: '2-digit',
+    year: 'numeric',
+  });
 }
 
 // ─── Shared: Confirm Delete Dialog ───────────────────────────────────────────
@@ -135,34 +146,34 @@ export function CommitteeTab() {
   const theme = useTheme();
   const isMobile = useMediaQuery(theme.breakpoints.down('sm'));
 
-  const [loading, setLoading]           = useState(true);
-  const [committees, setCommittees]     = useState([]);
-  const [teachers, setTeachers]         = useState([]);
-  const [staff, setStaff]               = useState([]);
-  const [classes, setClasses]           = useState([]);
-  const [showForm, setShowForm]         = useState(false);
-  const [form, setForm]                 = useState(emptyCommittee());
-  const [errors, setErrors]             = useState({});
-  const [saving, setSaving]             = useState(false);
-  const [editId, setEditId]             = useState(null);
+  const [loading, setLoading] = useState(true);
+  const [committees, setCommittees] = useState([]);
+  const [teachers, setTeachers] = useState([]);
+  const [staff, setStaff] = useState([]);
+  const [classes, setClasses] = useState([]);
+  const [showForm, setShowForm] = useState(false);
+  const [form, setForm] = useState(emptyCommittee());
+  const [errors, setErrors] = useState({});
+  const [saving, setSaving] = useState(false);
+  const [editId, setEditId] = useState(null);
   const [viewCommittee, setViewCommittee] = useState(null);
-  const [endTarget, setEndTarget]       = useState(null);
-  const [ending, setEnding]             = useState(false);
+  const [endTarget, setEndTarget] = useState(null);
+  const [ending, setEnding] = useState(false);
   const [committeeTab, setCommitteeTab] = useState(0);
-  const [historyYear, setHistoryYear]   = useState('all');
+  const [historyYear, setHistoryYear] = useState('all');
   // Minutes merged state
-  const [minutesList, setMinutesList]               = useState([]);
-  const [expandedIds, setExpandedIds]               = useState(new Set());
-  const [minutesPage, setMinutesPage]               = useState({});
-  const [openModal, setOpenModal]                   = useState(false);
-  const [editingMinutes, setEditingMinutes]         = useState(null);
-  const [minutesForm, setMinutesForm]               = useState(emptyMinutes());
-  const [savingMinutes, setSavingMinutes]           = useState(false);
+  const [minutesList, setMinutesList] = useState([]);
+  const [expandedIds, setExpandedIds] = useState(new Set());
+  const [minutesPage, setMinutesPage] = useState({});
+  const [openModal, setOpenModal] = useState(false);
+  const [editingMinutes, setEditingMinutes] = useState(null);
+  const [minutesForm, setMinutesForm] = useState(emptyMinutes());
+  const [savingMinutes, setSavingMinutes] = useState(false);
   const [deleteMinutesTarget, setDeleteMinutesTarget] = useState(null);
-  const [deletingMinutes, setDeletingMinutes]       = useState(false);
-  const [rejectDialog, setRejectDialog]             = useState(false);
-  const [rejectReason, setRejectReason]             = useState('');
-  const [categoryDialog, setCategoryDialog]         = useState(false);
+  const [deletingMinutes, setDeletingMinutes] = useState(false);
+  const [rejectDialog, setRejectDialog] = useState(false);
+  const [rejectReason, setRejectReason] = useState('');
+  const [categoryDialog, setCategoryDialog] = useState(false);
   const load = async () => {
     setLoading(true);
     try {
@@ -198,14 +209,14 @@ export function CommitteeTab() {
       return { ...prev, members };
     });
 
-  const handleAddMember    = () => setForm(prev => ({ ...prev, members: [...prev.members, emptyMember()] }));
-  const handleRemoveMember = idx  => setForm(prev => ({ ...prev, members: prev.members.filter((_, i) => i !== idx) }));
+  const handleAddMember = () => setForm(prev => ({ ...prev, members: [...prev.members, emptyMember()] }));
+  const handleRemoveMember = idx => setForm(prev => ({ ...prev, members: prev.members.filter((_, i) => i !== idx) }));
 
   const handleSave = async () => {
     const errs = {};
     const nameTrimmed = form.name.trim();
-    if (!nameTrimmed)                     errs.name = 'Vui lòng nhập tên ban kiểm kê.';
-    else if (nameTrimmed.length > 50)     errs.name = 'Tên ban không được vượt quá 50 ký tự.';
+    if (!nameTrimmed) errs.name = 'Vui lòng nhập tên ban kiểm kê.';
+    else if (nameTrimmed.length > 50) errs.name = 'Tên ban không được vượt quá 50 ký tự.';
 
     if (!form.foundedDate) {
       errs.foundedDate = 'Vui lòng chọn ngày thành lập.';
@@ -216,11 +227,11 @@ export function CommitteeTab() {
     }
 
     const decTrimmed = form.decisionNumber.trim();
-    if (!decTrimmed)                   errs.decisionNumber = 'Vui lòng nhập số quyết định.';
-    else if (decTrimmed.length > 50)   errs.decisionNumber = 'Số quyết định không được vượt quá 50 ký tự.';
+    if (!decTrimmed) errs.decisionNumber = 'Vui lòng nhập số quyết định.';
+    else if (decTrimmed.length > 50) errs.decisionNumber = 'Số quyết định không được vượt quá 50 ký tự.';
 
     const filledNames = form.members.map(m => m.fullName.trim()).filter(Boolean);
-    if (filledNames.length === 0)      errs.members = 'Phải có ít nhất 1 thành viên.';
+    if (filledNames.length === 0) errs.members = 'Phải có ít nhất 1 thành viên.';
     else if (new Set(filledNames).size !== filledNames.length) errs.members = 'Danh sách thành viên có người bị trùng.';
 
     if (Object.keys(errs).length > 0) {
@@ -284,7 +295,7 @@ export function CommitteeTab() {
   const getChairman = c => c.members?.find(m => m.role === 'Trưởng ban')?.fullName || '—';
 
   const activeCommittees = committees.filter(c => c.status === 'active');
-  const endedCommittees  = committees.filter(c => c.status === 'ended');
+  const endedCommittees = committees.filter(c => c.status === 'ended');
   const historyYears = [...new Set(
     endedCommittees.map(c => new Date(c.endedAt || c.foundedDate).getFullYear())
   )].sort((a, b) => b - a);
@@ -310,17 +321,17 @@ export function CommitteeTab() {
   const handleOpenMinutes = m => {
     setEditingMinutes(m);
     setMinutesForm({
-      className:        m.className || '',
-      scope:            m.scope || '',
-      location:         m.location || 'Đức Xuân',
-      inspectionDate:   m.inspectionDate ? new Date(m.inspectionDate).toISOString().slice(0, 10) : '',
-      inspectionTime:   m.inspectionTime || '',
-      endTime:          m.endTime || '',
-      reason:           m.reason || '',
+      className: m.className || '',
+      scope: m.scope || '',
+      location: m.location || 'Đức Xuân',
+      inspectionDate: m.inspectionDate ? new Date(m.inspectionDate).toISOString().slice(0, 10) : '',
+      inspectionTime: m.inspectionTime || '',
+      endTime: m.endTime || '',
+      reason: m.reason || '',
       inspectionMethod: m.inspectionMethod || '',
-      committeeId:      m.committeeId?._id || m.committeeId || '',
-      assets:           m.assets?.length ? m.assets.map(a => ({ ...a })) : [emptyAssetRow()],
-      conclusion:       m.conclusion || '',
+      committeeId: m.committeeId?._id || m.committeeId || '',
+      assets: m.assets?.length ? m.assets.map(a => ({ ...a })) : [emptyAssetRow()],
+      conclusion: m.conclusion || '',
     });
     setOpenModal(true);
   };
@@ -364,9 +375,9 @@ export function CommitteeTab() {
       });
       if (!res.ok) { toast.error('Không xuất được file Word.'); return; }
       const blob = await res.blob();
-      const url  = URL.createObjectURL(blob);
-      const a    = document.createElement('a');
-      a.href     = url;
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
       a.download = `bien_ban_kiem_ke_${m.minutesNumber || m._id}.docx`;
       a.click();
       URL.revokeObjectURL(url);
@@ -374,18 +385,18 @@ export function CommitteeTab() {
   };
 
   // Modal computed values
-  const mParsedDate       = minutesForm.inspectionDate ? new Date(minutesForm.inspectionDate) : null;
-  const mDayStr           = mParsedDate ? mParsedDate.getDate() : '___';
-  const mMonthStr         = mParsedDate ? mParsedDate.getMonth() + 1 : '___';
-  const mYearStr          = mParsedDate ? mParsedDate.getFullYear() : '______';
+  const mParsedDate = minutesForm.inspectionDate ? new Date(minutesForm.inspectionDate) : null;
+  const mDayStr = mParsedDate ? mParsedDate.getDate() : '___';
+  const mMonthStr = mParsedDate ? mParsedDate.getMonth() + 1 : '___';
+  const mYearStr = mParsedDate ? mParsedDate.getFullYear() : '______';
   const mSelectedCommittee = committees.find(c => c._id === minutesForm.committeeId) || null;
-  const mCellBorder       = { border: '1px solid #555', padding: '4px 6px', fontSize: 13 };
-  const mHeaderCell       = { ...mCellBorder, fontWeight: 700, textAlign: 'center', background: '#f3f4f6' };
+  const mCellBorder = { border: '1px solid #555', padding: '4px 6px', fontSize: 13 };
+  const mHeaderCell = { ...mCellBorder, fontWeight: 700, textAlign: 'center', background: '#f3f4f6' };
 
   const renderMinutesPanel = (c) => {
     const cMinutes = minutesByCommittee[String(c._id)] || [];
-    const page     = minutesPage[String(c._id)] || 0;
-    const paged    = cMinutes.slice(page * MPAGE_SIZE, (page + 1) * MPAGE_SIZE);
+    const page = minutesPage[String(c._id)] || 0;
+    const paged = cMinutes.slice(page * MPAGE_SIZE, (page + 1) * MPAGE_SIZE);
     if (cMinutes.length === 0) {
       return (
         <Typography variant="body2" color="text.secondary" textAlign="center" py={1.5}>
@@ -472,22 +483,41 @@ export function CommitteeTab() {
     <Box>
       {/* Header row */}
       <Stack direction={{ xs: 'column', sm: 'row' }} justifyContent="space-between" alignItems={{ xs: 'stretch', sm: 'center' }} mb={2} gap={1}>
-        <Typography variant="h6" fontWeight={700}>Quản lý Ban Kiểm Kê</Typography>
-        {committeeTab === 0 && (
-          <Button
-            variant="contained"
-            startIcon={<AddIcon />}
-            onClick={() => { setEditId(null); setForm(emptyCommittee()); setShowForm(v => !v); }}
-            sx={{ background: 'linear-gradient(90deg,#16a34a,#15803d)', textTransform: 'none', alignSelf: { xs: 'flex-start', sm: 'auto' } }}
-          >
-            {showForm && !editId ? 'Ẩn form' : 'Tạo Ban Kiểm Kê'}
-          </Button>
-        )}
+        <Paper
+          elevation={0}
+          sx={{
+            background: 'linear-gradient(135deg, #0ea5e9 0%, #0284c7 100%)',
+            borderRadius: 3,
+            width: '100%',
+            px: 4,
+            py: 3,
+            mb: 3,
+          }}
+        >
+          <Typography variant="h5" fontWeight={700} color="white">
+            Quản lý ban kiểm kê
+          </Typography>
+          <Typography variant="body2" sx={{ color: 'rgba(255,255,255,0.8)', mt: 0.5 }}>
+            Kiểm kê tài sản của trường và duyệt biên bản.
+          </Typography>
+        </Paper>
       </Stack>
+      {committeeTab === 0 && (
+        <Button
+          variant="contained"
+          startIcon={<AddIcon />}
+          onClick={() => { setEditId(null); setForm(emptyCommittee()); setShowForm(true); }}
+          sx={{ background: 'linear-gradient(90deg,#16a34a,#15803d)', textTransform: 'none', alignSelf: { xs: 'flex-start', sm: 'auto' } }}
+        >
+          Tạo Ban Kiểm Kê
+        </Button>
+      )}
 
-      {/* Create / Edit Form */}
-      {showForm && (
-        <Paper variant="outlined" sx={{ p: { xs: 2, sm: 2.5 }, mb: 3, borderRadius: 2 }}>
+      {/* Create / Edit Form Dialog */}
+      <Dialog open={showForm} onClose={() => !saving && setShowForm(false)} maxWidth="lg" fullWidth>
+        <DialogTitle>{editId ? 'Chỉnh sửa Ban Kiểm Kê' : 'Tạo Ban Kiểm Kê Mới'}</DialogTitle>
+        <DialogContent dividers>
+          <Box sx={{ pt: 0.5 }}>
           <Typography variant="subtitle1" fontWeight={600} mb={2}>
             {editId ? 'Chỉnh sửa Ban Kiểm Kê' : 'Tạo Ban Kiểm Kê Mới'}
           </Typography>
@@ -498,7 +528,8 @@ export function CommitteeTab() {
               error={!!errors.name} helperText={errors.name || `${form.name.length}/50`}
               inputProps={{ maxLength: 50 }} />
             <TextField label="Ngày thành lập" type="date" size="small" required InputLabelProps={{ shrink: true }}
-              value={form.foundedDate}
+              value={formatDateInput(form.foundedDate)}
+              disabled
               onChange={e => { setForm(p => ({ ...p, foundedDate: e.target.value })); setErrors(p => ({ ...p, foundedDate: undefined })); }}
               error={!!errors.foundedDate} helperText={errors.foundedDate}
               inputProps={{ max: new Date().toISOString().slice(0, 10) }}
@@ -554,7 +585,7 @@ export function CommitteeTab() {
                       onChange={(_, sel) => {
                         if (!sel) return;
                         const name = typeof sel === 'string' ? sel : sel.fullName;
-                        const uid  = typeof sel === 'string' ? null : (sel.userId || null);
+                        const uid = typeof sel === 'string' ? null : (sel.userId || null);
                         const duplicate = form.members.some((mm, i) => i !== idx && mm.fullName.trim() === name.trim());
                         if (duplicate) { toast.warning('Thành viên này đã được thêm.'); return; }
                         setForm(prev => {
@@ -640,7 +671,7 @@ export function CommitteeTab() {
                           onChange={(_, sel) => {
                             if (!sel) return;
                             const name = typeof sel === 'string' ? sel : sel.fullName;
-                            const uid  = typeof sel === 'string' ? null : (sel.userId || null);
+                            const uid = typeof sel === 'string' ? null : (sel.userId || null);
                             const duplicate = form.members.some((mm, i) => i !== idx && mm.fullName.trim() === name.trim());
                             if (duplicate) { toast.warning('Thành viên này đã được thêm.'); return; }
                             setForm(prev => {
@@ -698,14 +729,15 @@ export function CommitteeTab() {
 
           <Button size="small" onClick={handleAddMember} sx={{ mb: 1, textTransform: 'none' }}>+ Thêm thành viên</Button>
           {errors.members && <Typography variant="caption" color="error" display="block" mb={1}>{errors.members}</Typography>}
-          <Stack direction="row" spacing={1} justifyContent="flex-end">
-            <Button onClick={() => { setShowForm(false); setEditId(null); setForm(emptyCommittee()); setErrors({}); }} disabled={saving}>Hủy</Button>
-            <Button variant="contained" onClick={handleSave} disabled={saving} sx={{ textTransform: 'none' }}>
-              {saving ? 'Đang lưu...' : 'Lưu Ban Kiểm Kê'}
-            </Button>
-          </Stack>
-        </Paper>
-      )}
+          </Box>
+        </DialogContent>
+        <DialogActions sx={{ px: 3, py: 2 }}>
+          <Button onClick={() => { setShowForm(false); setEditId(null); setForm(emptyCommittee()); setErrors({}); }} disabled={saving}>Hủy</Button>
+          <Button variant="contained" onClick={handleSave} disabled={saving} sx={{ textTransform: 'none' }}>
+            {saving ? 'Đang lưu...' : 'Lưu Ban Kiểm Kê'}
+          </Button>
+        </DialogActions>
+      </Dialog>
 
       {/* Tabs */}
       <Tabs
@@ -1179,15 +1211,15 @@ export function MinutesTab() {
   const theme = useTheme();
   const isMobile = useMediaQuery(theme.breakpoints.down('sm'));
 
-  const [loading, setLoading]           = useState(true);
-  const [minutesList, setMinutesList]   = useState([]);
-  const [committees, setCommittees]     = useState([]);
-  const [openModal, setOpenModal]       = useState(false);
+  const [loading, setLoading] = useState(true);
+  const [minutesList, setMinutesList] = useState([]);
+  const [committees, setCommittees] = useState([]);
+  const [openModal, setOpenModal] = useState(false);
   const [editingMinutes, setEditingMinutes] = useState(null);
-  const [form, setForm]                 = useState(emptyMinutes());
-  const [saving, setSaving]             = useState(false);
+  const [form, setForm] = useState(emptyMinutes());
+  const [saving, setSaving] = useState(false);
   const [deleteTarget, setDeleteTarget] = useState(null);
-  const [deleting, setDeleting]         = useState(false);
+  const [deleting, setDeleting] = useState(false);
   const [categoryDialog, setCategoryDialog] = useState(false);
   const [rejectDialog, setRejectDialog] = useState(false);
   const [rejectReason, setRejectReason] = useState('');
@@ -1211,17 +1243,17 @@ export function MinutesTab() {
   const handleOpenView = m => {
     setEditingMinutes(m);
     setForm({
-      className:        m.className || '',
-      scope:            m.scope || '',
-      location:         m.location || 'Đức Xuân',
-      inspectionDate:   m.inspectionDate ? new Date(m.inspectionDate).toISOString().slice(0, 10) : '',
-      inspectionTime:   m.inspectionTime || '',
-      endTime:          m.endTime || '',
-      reason:           m.reason || '',
+      className: m.className || '',
+      scope: m.scope || '',
+      location: m.location || 'Đức Xuân',
+      inspectionDate: m.inspectionDate ? new Date(m.inspectionDate).toISOString().slice(0, 10) : '',
+      inspectionTime: m.inspectionTime || '',
+      endTime: m.endTime || '',
+      reason: m.reason || '',
       inspectionMethod: m.inspectionMethod || '',
-      committeeId:      m.committeeId?._id || m.committeeId || '',
-      assets:           m.assets?.length ? m.assets.map(a => ({ ...a })) : [emptyAssetRow()],
-      conclusion:       m.conclusion || '',
+      committeeId: m.committeeId?._id || m.committeeId || '',
+      assets: m.assets?.length ? m.assets.map(a => ({ ...a })) : [emptyAssetRow()],
+      conclusion: m.conclusion || '',
     });
     setOpenModal(true);
   };
@@ -1233,9 +1265,9 @@ export function MinutesTab() {
       return { ...prev, assets };
     });
 
-  const handleAddRow      = ()    => setForm(prev => ({ ...prev, assets: [...prev.assets, emptyAssetRow()] }));
-  const handleRemoveRow   = idx   => setForm(prev => ({ ...prev, assets: prev.assets.filter((_, i) => i !== idx) }));
-  const handleAddCategory = name  => setForm(prev => ({ ...prev, assets: [...prev.assets, { ...emptyAssetRow(), category: name }] }));
+  const handleAddRow = () => setForm(prev => ({ ...prev, assets: [...prev.assets, emptyAssetRow()] }));
+  const handleRemoveRow = idx => setForm(prev => ({ ...prev, assets: prev.assets.filter((_, i) => i !== idx) }));
+  const handleAddCategory = name => setForm(prev => ({ ...prev, assets: [...prev.assets, { ...emptyAssetRow(), category: name }] }));
 
   const handleSave = async () => {
     if (!form.inspectionDate) { toast.error('Vui lòng chọn ngày kiểm kê.'); return; }
@@ -1295,9 +1327,9 @@ export function MinutesTab() {
       });
       if (!res.ok) { toast.error('Không xuất được file Word.'); return; }
       const blob = await res.blob();
-      const url  = URL.createObjectURL(blob);
-      const a    = document.createElement('a');
-      a.href     = url;
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
       a.download = `bien_ban_kiem_ke_${m.minutesNumber || m._id}.docx`;
       a.click();
       URL.revokeObjectURL(url);
@@ -1306,13 +1338,13 @@ export function MinutesTab() {
     }
   };
 
-  const isApproved         = editingMinutes?.status === 'approved';
-  const isReadOnly         = true; // BGH chỉ xem, không chỉnh sửa
-  const parsedDate         = form.inspectionDate ? new Date(form.inspectionDate) : null;
-  const dayStr             = parsedDate ? parsedDate.getDate() : '___';
-  const monthStr           = parsedDate ? parsedDate.getMonth() + 1 : '___';
-  const yearStr            = parsedDate ? parsedDate.getFullYear() : '______';
-  const selectedCommittee  = committees.find(c => c._id === form.committeeId) || null;
+  const isApproved = editingMinutes?.status === 'approved';
+  const isReadOnly = true; // BGH chỉ xem, không chỉnh sửa
+  const parsedDate = form.inspectionDate ? new Date(form.inspectionDate) : null;
+  const dayStr = parsedDate ? parsedDate.getDate() : '___';
+  const monthStr = parsedDate ? parsedDate.getMonth() + 1 : '___';
+  const yearStr = parsedDate ? parsedDate.getFullYear() : '______';
+  const selectedCommittee = committees.find(c => c._id === form.committeeId) || null;
 
   const cellBorder = { border: '1px solid #555', padding: '4px 6px', fontSize: 13 };
   const headerCell = { ...cellBorder, fontWeight: 700, textAlign: 'center', background: '#f3f4f6' };
@@ -1517,7 +1549,7 @@ export function MinutesTab() {
                   {(() => {
                     const groups = [];
                     form.assets.forEach(row => {
-                      const cat  = row.category || '';
+                      const cat = row.category || '';
                       const last = groups[groups.length - 1];
                       if (last && last.category === cat) last.rows.push(row);
                       else groups.push({ category: cat, rows: [row] });
@@ -1695,8 +1727,8 @@ export function MinutesTab() {
 // ─── Shared: Inline-edit cell components ─────────────────────────────────────
 function InlineCell({ a, field, align = 'left', isText = false, ie, setIe, onSave, sx = {} }) {
   const isEditing = ie?.id === a._id && ie?.field === field;
-  const rawVal    = a[field];
-  const display   = rawVal != null && rawVal !== '' ? rawVal : '—';
+  const rawVal = a[field];
+  const display = rawVal != null && rawVal !== '' ? rawVal : '—';
   if (isEditing) {
     return (
       <TableCell align={align} sx={{ p: '2px 4px', ...sx }}>
@@ -1711,7 +1743,7 @@ function InlineCell({ a, field, align = 'left', isText = false, ie, setIe, onSav
           }}
           onBlur={e => onSave(a._id, field, e.target.value)}
           onKeyDown={e => {
-            if (e.key === 'Enter')  e.target.blur();
+            if (e.key === 'Enter') e.target.blur();
             if (e.key === 'Escape') setIe(null);
           }}
         />
@@ -1731,7 +1763,7 @@ function InlineCell({ a, field, align = 'left', isText = false, ie, setIe, onSav
 
 function InlineSelectCell({ a, field, options, align = 'center', ie, setIe, onSave, renderValue }) {
   const isEditing = ie?.id === a._id && ie?.field === field;
-  const rawVal    = a[field];
+  const rawVal = a[field];
   if (isEditing) {
     return (
       <TableCell align={align} sx={{ p: '2px 4px' }}>
@@ -1760,9 +1792,9 @@ function InlineSelectCell({ a, field, options, align = 'center', ie, setIe, onSa
 }
 
 // ─── Assets Tab (CRUD Tài sản) ────────────────────────────────────────────────
-const CONDITION_OPTIONS  = ['Tốt', 'Hỏng', 'Cần sửa chữa'];
-const CONDITION_COLOR    = { 'Tốt': 'success', 'Hỏng': 'error', 'Cần sửa chữa': 'warning' };
-const CATEGORY_OPTIONS   = [
+const CONDITION_OPTIONS = ['Tốt', 'Hỏng', 'Cần sửa chữa'];
+const CONDITION_COLOR = { 'Tốt': 'success', 'Hỏng': 'error', 'Cần sửa chữa': 'warning' };
+const CATEGORY_OPTIONS = [
   'Phòng nuôi dưỡng, chăm sóc, giáo dục trẻ em',
   'Số bàn, ghế ngồi',
   'Khối phòng phục vụ học tập',
@@ -1777,7 +1809,7 @@ const CONSTRUCTION_OPTIONS = ['Kiên cố', 'Bán kiên cố', 'Tạm', 'Không 
 // Mục 7 – cơ sở vật chất khác (hiển thị ĐVT + Số lượng thay vì diện tích / loại CT)
 const SECTION7_CATEGORIES = ['Diện tích đất', 'Thiết bị dạy học và CNTT'];
 const SECTION7_SUB_LABELS = {
-  'Diện tích đất':           '7.1. Diện tích đất (Tính đến thời điểm hiện tại)',
+  'Diện tích đất': '7.1. Diện tích đất (Tính đến thời điểm hiện tại)',
   'Thiết bị dạy học và CNTT': '7.2. Thiết bị dạy học và thiết bị Công nghệ thông tin',
 };
 const SECTION7_PRESETS = {
@@ -1815,34 +1847,34 @@ const emptyAsset = () => ({
 });
 
 function AssetsTab() {
-  const theme    = useTheme();
+  const theme = useTheme();
   const isMobile = useMediaQuery(theme.breakpoints.down('sm'));
 
-  const [loading, setLoading]           = useState(true);
-  const [assets, setAssets]             = useState([]);
-  const [search, setSearch]             = useState('');
+  const [loading, setLoading] = useState(true);
+  const [assets, setAssets] = useState([]);
+  const [search, setSearch] = useState('');
   const [filterCategory, setFilterCategory] = useState('');
-  const [openModal, setOpenModal]       = useState(false);
-  const [form, setForm]                 = useState(emptyAsset());
-  const [editId, setEditId]             = useState(null);
-  const [saving, setSaving]             = useState(false);
+  const [openModal, setOpenModal] = useState(false);
+  const [form, setForm] = useState(emptyAsset());
+  const [editId, setEditId] = useState(null);
+  const [saving, setSaving] = useState(false);
   const [deleteTarget, setDeleteTarget] = useState(null);
-  const [deleting, setDeleting]         = useState(false);
+  const [deleting, setDeleting] = useState(false);
 
   // Import Excel
-  const importRef                             = useRef();
-  const [importPreview, setImportPreview]     = useState([]);
-  const [importOpen, setImportOpen]           = useState(false);
-  const [importing, setImporting]             = useState(false);
+  const importRef = useRef();
+  const [importPreview, setImportPreview] = useState([]);
+  const [importOpen, setImportOpen] = useState(false);
+  const [importing, setImporting] = useState(false);
 
   // Bulk select & delete
-  const [selected, setSelected]               = useState(new Set());
-  const [bulkDeleteOpen, setBulkDeleteOpen]   = useState(false);
-  const [bulkDeleting, setBulkDeleting]       = useState(false);
+  const [selected, setSelected] = useState(new Set());
+  const [bulkDeleteOpen, setBulkDeleteOpen] = useState(false);
+  const [bulkDeleting, setBulkDeleting] = useState(false);
 
   // Inline edit (phần 2 – Số bàn, ghế ngồi)
-  const [inlineEdit, setInlineEdit]           = useState(null); // { id, field, value }
-  const [inlineSaving, setInlineSaving]       = useState(false);
+  const [inlineEdit, setInlineEdit] = useState(null); // { id, field, value }
+  const [inlineSaving, setInlineSaving] = useState(false);
 
   // Pagination
 
@@ -1885,20 +1917,20 @@ function AssetsTab() {
     if (asset?._id) {
       // Edit mode
       setForm({
-        assetCode:        asset.assetCode,
-        name:             asset.name,
-        category:         asset.category || 'Khác',
-        room:             asset.room || '',
+        assetCode: asset.assetCode,
+        name: asset.name,
+        category: asset.category || 'Khác',
+        room: asset.room || '',
         requiredQuantity: asset.requiredQuantity ?? 0,
-        quantity:         asset.quantity,
-        area:             asset.area ?? '',
+        quantity: asset.quantity,
+        area: asset.area ?? '',
         constructionType: asset.constructionType || 'Không áp dụng',
-        unit:             asset.unit || 'Cái',
-        condition:        asset.condition,
-        notes:            asset.notes || '',
-        seats1:           asset.seats1 ?? null,
-        seats2:           asset.seats2 ?? null,
-        seats4:           asset.seats4 ?? null,
+        unit: asset.unit || 'Cái',
+        condition: asset.condition,
+        notes: asset.notes || '',
+        seats1: asset.seats1 ?? null,
+        seats2: asset.seats2 ?? null,
+        seats4: asset.seats4 ?? null,
       });
       setEditId(asset._id);
     } else {
@@ -1912,11 +1944,11 @@ function AssetsTab() {
   const handleClose = () => { setOpenModal(false); setForm(emptyAsset()); setEditId(null); };
 
   const handleSave = async () => {
-    if (!form.name.trim())       { toast.error('Vui lòng nhập tên tài sản.'); return; }
+    if (!form.name.trim()) { toast.error('Vui lòng nhập tên tài sản.'); return; }
     if (SECTION7_CATEGORIES.includes(form.category) && !form.unit?.trim()) {
       toast.error('Vui lòng nhập đơn vị tính (ĐVT).'); return;
     }
-    if ((form.quantity ?? 0) < 0)         { toast.error('Số lượng không được âm.'); return; }
+    if ((form.quantity ?? 0) < 0) { toast.error('Số lượng không được âm.'); return; }
     if ((form.requiredQuantity ?? 0) < 0) { toast.error('Nhu cầu QĐ không được âm.'); return; }
     if (form.category === 'Số bàn, ghế ngồi') {
       const total = (form.seats1 || 0) + (form.seats2 || 0) + (form.seats4 || 0);
@@ -1983,34 +2015,34 @@ function AssetsTab() {
     import('xlsx').then(XLSX => {
       const reader = new FileReader();
       reader.onload = evt => {
-        const wb   = XLSX.read(evt.target.result, { type: 'array' });
-        const ws   = wb.Sheets[wb.SheetNames[0]];
+        const wb = XLSX.read(evt.target.result, { type: 'array' });
+        const ws = wb.Sheets[wb.SheetNames[0]];
         const rows = XLSX.utils.sheet_to_json(ws, { header: 1, defval: '' });
         if (!rows?.length) { toast.error('File rỗng hoặc sai định dạng.'); return; }
 
         // ── Section header mapping (theo số thứ tự trong Excel báo cáo) ──
         const SECTION_PATTERNS = [
-          { re: /^1[\.\s\)]/,  cat: 'Phòng nuôi dưỡng, chăm sóc, giáo dục trẻ em', fmt: 'room' },
-          { re: /^2[\.\s\)]/,  cat: 'Số bàn, ghế ngồi',                             fmt: 'banGhe' },
-          { re: /^3[\.\s\)]/,  cat: 'Khối phòng phục vụ học tập',                   fmt: 'room' },
-          { re: /^4[\.\s\)]/,  cat: 'Phòng tổ chức ăn, nghỉ',                       fmt: 'room' },
-          { re: /^5[\.\s\)]/,  cat: 'Công trình công cộng và khối phòng phục vụ khác', fmt: 'room' },
-          { re: /^6[\.\s\)]/,  cat: 'Khối phòng hành chính quản trị',               fmt: 'room' },
-          { re: /^7\.1/,       cat: 'Diện tích đất',                                fmt: 'landarea' },
-          { re: /^7\.2/,       cat: 'Thiết bị dạy học và CNTT',                     fmt: 'equip' },
-          { re: /^7[\.\s\)]/,  cat: 'Thiết bị dạy học và CNTT',                     fmt: 'equip' },
+          { re: /^1[\.\s\)]/, cat: 'Phòng nuôi dưỡng, chăm sóc, giáo dục trẻ em', fmt: 'room' },
+          { re: /^2[\.\s\)]/, cat: 'Số bàn, ghế ngồi', fmt: 'banGhe' },
+          { re: /^3[\.\s\)]/, cat: 'Khối phòng phục vụ học tập', fmt: 'room' },
+          { re: /^4[\.\s\)]/, cat: 'Phòng tổ chức ăn, nghỉ', fmt: 'room' },
+          { re: /^5[\.\s\)]/, cat: 'Công trình công cộng và khối phòng phục vụ khác', fmt: 'room' },
+          { re: /^6[\.\s\)]/, cat: 'Khối phòng hành chính quản trị', fmt: 'room' },
+          { re: /^7\.1/, cat: 'Diện tích đất', fmt: 'landarea' },
+          { re: /^7\.2/, cat: 'Thiết bị dạy học và CNTT', fmt: 'equip' },
+          { re: /^7[\.\s\)]/, cat: 'Thiết bị dạy học và CNTT', fmt: 'equip' },
         ];
 
         // Prefix tự động sinh mã TS theo category
         const CODE_PREFIX = {
           'Phòng nuôi dưỡng, chăm sóc, giáo dục trẻ em': 'PH',
-          'Số bàn, ghế ngồi':                             'BG',
-          'Khối phòng phục vụ học tập':                   'HT',
-          'Phòng tổ chức ăn, nghỉ':                       'AN',
+          'Số bàn, ghế ngồi': 'BG',
+          'Khối phòng phục vụ học tập': 'HT',
+          'Phòng tổ chức ăn, nghỉ': 'AN',
           'Công trình công cộng và khối phòng phục vụ khác': 'CC',
-          'Khối phòng hành chính quản trị':               'HC',
-          'Diện tích đất':                                 'DT',
-          'Thiết bị dạy học và CNTT':                      'TB',
+          'Khối phòng hành chính quản trị': 'HC',
+          'Diện tích đất': 'DT',
+          'Thiết bị dạy học và CNTT': 'TB',
         };
         const codeCounters = {};
 
@@ -2077,29 +2109,29 @@ function AssetsTab() {
             }
             asset = {
               assetCode, name,
-              category:         currentCat,
-              room:             '',
+              category: currentCat,
+              room: '',
               requiredQuantity: 0,
-              quantity:         qty,
-              unit:             dvt || 'm²',
-              area:             null,
+              quantity: qty,
+              unit: dvt || 'm²',
+              area: null,
               constructionType: 'Không áp dụng',
-              condition:        'Tốt',
-              notes:            '',
+              condition: 'Tốt',
+              notes: '',
             };
           } else if (currentFmt === 'banGhe') {
             // Phần 2 – Số bàn, ghế ngồi
             // col[1]=nhu cầu QĐ, col[2]=tổng số, col[3]=1 chỗ, col[4]=2 chỗ, col[5]=4 chỗ
             asset = {
               assetCode, name,
-              category:         currentCat,
-              room:             '',
+              category: currentCat,
+              room: '',
               requiredQuantity: toNum(row[1]),
-              quantity:         toNum(row[2]),
-              area:             null,
+              quantity: toNum(row[2]),
+              area: null,
               constructionType: 'Không áp dụng',
-              condition:        'Tốt',
-              notes:            '',
+              condition: 'Tốt',
+              notes: '',
               seats1: row[3] !== '' && row[3] != null ? toNum(row[3]) : null,
               seats2: row[4] !== '' && row[4] != null ? toNum(row[4]) : null,
               seats4: row[5] !== '' && row[5] != null ? toNum(row[5]) : null,
@@ -2117,42 +2149,42 @@ function AssetsTab() {
             }
             asset = {
               assetCode, name,
-              category:         currentCat,
-              room:             '',
+              category: currentCat,
+              room: '',
               requiredQuantity: 0,
-              quantity:         qty,
-              unit:             dvt || 'Cái',
-              area:             null,
+              quantity: qty,
+              unit: dvt || 'Cái',
+              area: null,
               constructionType: 'Không áp dụng',
-              condition:        'Tốt',
-              notes:            '',
+              condition: 'Tốt',
+              notes: '',
             };
           } else {
             // Phòng / Bàn ghế: col[1]=nhu cầu QĐ, col[2]=tổng số, col[3]=diện tích
             // col[4,5]=Kiên cố; col[6,7]=Bán kiên cố; col[8,9]=Tạm
             const requiredQuantity = toNum(row[1]);
-            const quantity         = toNum(row[2]);
-            const areaRaw          = row[3];
+            const quantity = toNum(row[2]);
+            const areaRaw = row[3];
             const area = areaRaw !== '' && areaRaw != null ? toNum(areaRaw) || null : null;
 
-            const kienCo   = toNum(row[4]);
+            const kienCo = toNum(row[4]);
             const banKienCo = toNum(row[6]);
-            const tam       = toNum(row[8]);
+            const tam = toNum(row[8]);
             let constructionType = 'Không áp dụng';
-            if (kienCo > 0 && !banKienCo && !tam)       constructionType = 'Kiên cố';
-            else if (banKienCo > 0 && !kienCo && !tam)  constructionType = 'Bán kiên cố';
-            else if (tam > 0 && !kienCo && !banKienCo)  constructionType = 'Tạm';
+            if (kienCo > 0 && !banKienCo && !tam) constructionType = 'Kiên cố';
+            else if (banKienCo > 0 && !kienCo && !tam) constructionType = 'Bán kiên cố';
+            else if (tam > 0 && !kienCo && !banKienCo) constructionType = 'Tạm';
 
             asset = {
               assetCode, name,
-              category:         currentCat,
-              room:             '',
+              category: currentCat,
+              room: '',
               requiredQuantity,
               quantity,
               area,
               constructionType,
-              condition:        'Tốt',
-              notes:            '',
+              condition: 'Tốt',
+              notes: '',
             };
           }
 
@@ -2199,21 +2231,21 @@ function AssetsTab() {
       ];
 
       // ── Helpers ────────────────────────────────────────────────────────────
-      const fill  = (argb) => ({ type: 'pattern', pattern: 'solid', fgColor: { argb } });
-      const bdr   = (style = 'thin', color = 'B0BEC5') => ({ style, color: { argb: color } });
+      const fill = (argb) => ({ type: 'pattern', pattern: 'solid', fgColor: { argb } });
+      const bdr = (style = 'thin', color = 'B0BEC5') => ({ style, color: { argb: color } });
       const allBorders = (style = 'thin', color = 'B0BEC5') => ({
         top: bdr(style, color), bottom: bdr(style, color),
         left: bdr(style, color), right: bdr(style, color),
       });
-      const font  = (size, bold, color = '212121', italic = false) =>
+      const font = (size, bold, color = '212121', italic = false) =>
         ({ name: 'Times New Roman', size, bold, italic, color: { argb: color } });
       const align = (h, v = 'middle', wrap = true) => ({ horizontal: h, vertical: v, wrapText: wrap });
 
       const styleCell = (cell, { f, fi, al, bd } = {}) => {
-        if (f)  cell.fill      = f;
-        if (fi) cell.font      = fi;
+        if (f) cell.fill = f;
+        if (fi) cell.font = fi;
         if (al) cell.alignment = al;
-        if (bd) cell.border    = bd;
+        if (bd) cell.border = bd;
       };
 
       const mergeStyle = (addr, opts) => styleCell(ws.getCell(addr), opts);
@@ -2222,7 +2254,7 @@ function AssetsTab() {
       ws.addRow([]);
       ws.mergeCells('A1:J1');
       mergeStyle('A1', {
-        f:  fill('1565C0'),
+        f: fill('1565C0'),
         fi: font(14, true, 'FFFFFF'),
         al: align('center'),
       });
@@ -2233,7 +2265,7 @@ function AssetsTab() {
       ws.addRow([]);
       ws.mergeCells('A2:J2');
       mergeStyle('A2', {
-        f:  fill('1976D2'),
+        f: fill('1976D2'),
         fi: font(13, true, 'FFFFFF'),
         al: align('center'),
       });
@@ -2244,7 +2276,7 @@ function AssetsTab() {
       ws.addRow([]);
       ws.mergeCells('A3:J3');
       mergeStyle('A3', {
-        f:  fill('E3F2FD'),
+        f: fill('E3F2FD'),
         fi: font(9, false, '1565C0', true),
         al: align('left'),
       });
@@ -2266,7 +2298,7 @@ function AssetsTab() {
       const setH = (addr, value, bgColor = '1565C0', fgColor = 'FFFFFF') => {
         ws.getCell(addr).value = value;
         mergeStyle(addr, {
-          f:  fill(bgColor),
+          f: fill(bgColor),
           fi: font(10, true, fgColor),
           al: align('center'),
           bd: allBorders('medium', '90CAF9'),
@@ -2307,11 +2339,11 @@ function AssetsTab() {
       const units = ['', 'Phòng', 'Phòng', 'm²', 'Phòng', 'm²', 'Phòng', 'm²', 'Phòng', 'm²'];
       units.forEach((u, i) => {
         const cell = ws.getRow(7).getCell(i + 1);
-        cell.value     = u;
-        cell.font      = font(9, false, '546E7A', true);
-        cell.fill      = fill('E3F2FD');
+        cell.value = u;
+        cell.font = font(9, false, '546E7A', true);
+        cell.fill = fill('E3F2FD');
         cell.alignment = align('center');
-        cell.border    = allBorders('thin', 'B0BEC5');
+        cell.border = allBorders('thin', 'B0BEC5');
       });
 
       // ── Section builder helpers ────────────────────────────────────────────
@@ -2330,7 +2362,7 @@ function AssetsTab() {
         const row = ws.addRow([title]);
         ws.mergeCells(`A${row.number}:J${row.number}`);
         mergeStyle(`A${row.number}`, {
-          f:  fill(color),
+          f: fill(color),
           fi: font(10, true, 'FFFFFF'),
           al: align('left'),
           bd: { top: bdr('medium', color), bottom: bdr('medium', color), left: bdr('thin'), right: bdr('thin') },
@@ -2344,14 +2376,14 @@ function AssetsTab() {
         row.height = 18;
         row.eachCell({ includeEmpty: true }, (cell, colNum) => {
           if (colNum === 1) {
-            cell.font      = font(10, !isSubItem, isSubItem ? '424242' : '212121');
+            cell.font = font(10, !isSubItem, isSubItem ? '424242' : '212121');
             cell.alignment = align('left');
-            cell.fill      = fill(isSubItem ? 'FAFAFA' : 'F5F5F5');
+            cell.fill = fill(isSubItem ? 'FAFAFA' : 'F5F5F5');
           } else {
-            cell.font      = font(10, false, '1565C0');
+            cell.font = font(10, false, '1565C0');
             cell.alignment = align('center');
-            cell.fill      = fill('FFFFFF');
-            cell.numFmt    = '#,##0.##';
+            cell.fill = fill('FFFFFF');
+            cell.numFmt = '#,##0.##';
           }
           cell.border = allBorders('thin', 'CFD8DC');
         });
@@ -2364,10 +2396,10 @@ function AssetsTab() {
         ws.mergeCells(`C${row.number}:J${row.number}`);
         [1, 2, 3].forEach(ci => {
           const cell = row.getCell(ci);
-          cell.fill      = fill(ci === 1 ? color : color + 'CC');
-          cell.font      = font(10, true, 'FFFFFF');
+          cell.fill = fill(ci === 1 ? color : color + 'CC');
+          cell.font = font(10, true, 'FFFFFF');
           cell.alignment = align(ci === 1 ? 'left' : 'center');
-          cell.border    = allBorders('medium', '80CBC4');
+          cell.border = allBorders('medium', '80CBC4');
         });
         row.height = 20;
       };
@@ -2376,30 +2408,30 @@ function AssetsTab() {
         const row = ws.addRow([label, dvt, qty]);
         ws.mergeCells(`C${row.number}:J${row.number}`);
         row.height = 18;
-        row.getCell(1).font      = font(10, false, '212121');
+        row.getCell(1).font = font(10, false, '212121');
         row.getCell(1).alignment = align('left');
-        row.getCell(1).fill      = fill('FAFAFA');
-        row.getCell(1).border    = allBorders('thin', 'CFD8DC');
-        row.getCell(2).font      = font(10, false, '5D4037');
+        row.getCell(1).fill = fill('FAFAFA');
+        row.getCell(1).border = allBorders('thin', 'CFD8DC');
+        row.getCell(2).font = font(10, false, '5D4037');
         row.getCell(2).alignment = align('center');
-        row.getCell(2).fill      = fill('FFF8E1');
-        row.getCell(2).border    = allBorders('thin', 'CFD8DC');
-        row.getCell(3).font      = font(10, true, '1565C0');
+        row.getCell(2).fill = fill('FFF8E1');
+        row.getCell(2).border = allBorders('thin', 'CFD8DC');
+        row.getCell(3).font = font(10, true, '1565C0');
         row.getCell(3).alignment = align('center');
-        row.getCell(3).fill      = fill('FFFFFF');
-        row.getCell(3).numFmt    = '#,##0.##';
-        row.getCell(3).border    = allBorders('thin', 'CFD8DC');
+        row.getCell(3).fill = fill('FFFFFF');
+        row.getCell(3).numFmt = '#,##0.##';
+        row.getCell(3).border = allBorders('thin', 'CFD8DC');
       };
 
       // ── Section 1 ──────────────────────────────────────────────────────────
       addSectionHeader('1. Phòng nuôi dưỡng, chăm sóc, giáo dục trẻ em', 0);
-      addDataRow('- Tổng số phòng học',   [17, 17, 695, 17, 695, '', '', '', '']);
+      addDataRow('- Tổng số phòng học', [17, 17, 695, 17, 695, '', '', '', '']);
       addDataRow('+ Khu sinh hoạt chung', [17, 17, 695, 17, 695, '', '', '', ''], true);
-      addDataRow('+ Khu ngủ',             [17, 10, 472.2, 10, 472.2, '', '', '', ''], true);
-      addDataRow('+ Khu vệ sinh',         [17, 17, 223.81, 17, 223.81, '', '', '', ''], true);
-      addDataRow('+ Hiên chơi, đón trẻ',  [17, 17, 560.75, 17, 560.75, '', '', '', ''], true);
-      addDataRow('+ Kho nhóm, lớp',       [17, '', '', '', '', '', '', '', ''], true);
-      addDataRow('+ Phòng giáo viên',      [2,  '', '', '', '', '', '', '', ''], true);
+      addDataRow('+ Khu ngủ', [17, 10, 472.2, 10, 472.2, '', '', '', ''], true);
+      addDataRow('+ Khu vệ sinh', [17, 17, 223.81, 17, 223.81, '', '', '', ''], true);
+      addDataRow('+ Hiên chơi, đón trẻ', [17, 17, 560.75, 17, 560.75, '', '', '', ''], true);
+      addDataRow('+ Kho nhóm, lớp', [17, '', '', '', '', '', '', '', ''], true);
+      addDataRow('+ Phòng giáo viên', [2, '', '', '', '', '', '', '', ''], true);
 
       // ── Section 2 ──────────────────────────────────────────────────────────
       addSectionHeader('2. Số bàn, ghế ngồi', 1);
@@ -2415,7 +2447,7 @@ function AssetsTab() {
         const applyH = (addr, val, bg, colspan) => {
           ws.getCell(addr).value = val;
           styleCell(ws.getCell(addr), {
-            f:  fill(bg),
+            f: fill(bg),
             fi: font(9, true, 'FFFFFF'),
             al: align('center'),
             bd: allBorders('medium', '90CAF9'),
@@ -2439,16 +2471,16 @@ function AssetsTab() {
         const sub = (addr, val, bg) => {
           ws.getCell(addr).value = val;
           styleCell(ws.getCell(addr), {
-            f:  fill(bg),
+            f: fill(bg),
             fi: font(9, true, 'FFFFFF'),
             al: align('center'),
             bd: allBorders('medium', 'CE93D8'),
           });
         };
         ws.mergeCells(`A${r2.number}:A${r2.number}`);
-        sub(`A${r2.number}`, '',       BG_COLOR);
-        sub(`B${r2.number}`, '',       BG_COLOR);
-        sub(`C${r2.number}`, '',       BG_COLOR);
+        sub(`A${r2.number}`, '', BG_COLOR);
+        sub(`B${r2.number}`, '', BG_COLOR);
+        sub(`C${r2.number}`, '', BG_COLOR);
         sub(`D${r2.number}`, '1 chỗ ngồi', BG_LIGHT);
         sub(`E${r2.number}`, '2 chỗ ngồi', BG_LIGHT);
         sub(`F${r2.number}`, '4 chỗ ngồi', BG_LIGHT);
@@ -2466,14 +2498,14 @@ function AssetsTab() {
         ws.mergeCells(`G${row.number}:J${row.number}`);
         row.eachCell({ includeEmpty: true }, (cell, colNum) => {
           if (colNum === 1) {
-            cell.font      = font(10, !isSubItem, isSubItem ? '424242' : '212121');
+            cell.font = font(10, !isSubItem, isSubItem ? '424242' : '212121');
             cell.alignment = align('left');
-            cell.fill      = fill(isSubItem ? 'FAFAFA' : 'F5F5F5');
+            cell.fill = fill(isSubItem ? 'FAFAFA' : 'F5F5F5');
           } else if (colNum <= 6) {
-            cell.font      = font(10, false, '1565C0');
+            cell.font = font(10, false, '1565C0');
             cell.alignment = align('center');
-            cell.fill      = fill('FFFFFF');
-            cell.numFmt    = '#,##0.##';
+            cell.fill = fill('FFFFFF');
+            cell.numFmt = '#,##0.##';
           } else if (colNum === 7) {
             cell.fill = fill('FCE4EC');
           }
@@ -2481,45 +2513,45 @@ function AssetsTab() {
         });
       };
 
-      addBanGheRow('- Tổng số bàn',   [300, 277,  0,  17, 260]);
-      addBanGheRow('+ Bàn giáo viên', [ 38,  17,  0,  17,   0], true);
-      addBanGheRow('+ Bàn học sinh',  [260, 260,  0,   0, 260], true);
-      addBanGheRow('- Tổng số ghế',   [558, 558, 558,  0,   0]);
-      addBanGheRow('+ Ghế giáo viên', [ 38,  17,  17,  0,   0], true);
-      addBanGheRow('+ Ghế học sinh',  [520, 520, 520,  0,   0], true);
+      addBanGheRow('- Tổng số bàn', [300, 277, 0, 17, 260]);
+      addBanGheRow('+ Bàn giáo viên', [38, 17, 0, 17, 0], true);
+      addBanGheRow('+ Bàn học sinh', [260, 260, 0, 0, 260], true);
+      addBanGheRow('- Tổng số ghế', [558, 558, 558, 0, 0]);
+      addBanGheRow('+ Ghế giáo viên', [38, 17, 17, 0, 0], true);
+      addBanGheRow('+ Ghế học sinh', [520, 520, 520, 0, 0], true);
 
       // ── Section 3 ──────────────────────────────────────────────────────────
       addSectionHeader('3. Khối phòng phục vụ học tập', 2);
-      addDataRow('- Phòng thư viện',               [1, 1,  40, 1,  40, '', '', '', '']);
-      addDataRow('- Phòng Giáo dục thể chất',      [1, '', '', '', '', '', '', '', '']);
-      addDataRow('- Phòng Giáo dục nghệ thuật',    [1, 1, 73, 1, 73, '', '', '', '']);
-      addDataRow('- Phòng Y tế học đường',          [1, 1, 12, 1, 12, '', '', '', '']);
-      addDataRow('- Nhà tập đa năng',              [1, '', '', '', '', '', '', '', '']);
-      addDataRow('- Phòng làm quen với máy tính',  [1, 1, 16, 1, 16, '', '', '', '']);
-      addDataRow('- Sân chơi riêng',               [2, 1, 540, 1, 540, '', '', '', '']);
+      addDataRow('- Phòng thư viện', [1, 1, 40, 1, 40, '', '', '', '']);
+      addDataRow('- Phòng Giáo dục thể chất', [1, '', '', '', '', '', '', '', '']);
+      addDataRow('- Phòng Giáo dục nghệ thuật', [1, 1, 73, 1, 73, '', '', '', '']);
+      addDataRow('- Phòng Y tế học đường', [1, 1, 12, 1, 12, '', '', '', '']);
+      addDataRow('- Nhà tập đa năng', [1, '', '', '', '', '', '', '', '']);
+      addDataRow('- Phòng làm quen với máy tính', [1, 1, 16, 1, 16, '', '', '', '']);
+      addDataRow('- Sân chơi riêng', [2, 1, 540, 1, 540, '', '', '', '']);
 
       // ── Section 4 ──────────────────────────────────────────────────────────
       addSectionHeader('4. Phòng tổ chức ăn, nghỉ', 3);
-      addDataRow('- Nhà bếp',  [2, 2,  75, 1, 45, 1, 30, '', '']);
-      addDataRow('- Phòng ăn', [1, 1,   9, '', '', '', '', 1, 9]);
-      addDataRow('- Kho bếp',  [2, 2,  12, 1,  6, 1,  6, '', '']);
+      addDataRow('- Nhà bếp', [2, 2, 75, 1, 45, 1, 30, '', '']);
+      addDataRow('- Phòng ăn', [1, 1, 9, '', '', '', '', 1, 9]);
+      addDataRow('- Kho bếp', [2, 2, 12, 1, 6, 1, 6, '', '']);
 
       // ── Section 5 ──────────────────────────────────────────────────────────
       addSectionHeader('5. Công trình công cộng và khối phòng phục vụ khác', 4);
-      addDataRow('- Nhà để xe GV',             [1, 1, 108, '', '', '', '', 1, 108]);
-      addDataRow('- Nhà để xe HS',             [0, '', '', '', '', '', '', '', '']);
-      addDataRow('- Nhà vệ sinh dành cho GV',  [3, 2, 12, 2, 12, '', '', '', '']);
+      addDataRow('- Nhà để xe GV', [1, 1, 108, '', '', '', '', 1, 108]);
+      addDataRow('- Nhà để xe HS', [0, '', '', '', '', '', '', '', '']);
+      addDataRow('- Nhà vệ sinh dành cho GV', [3, 2, 12, 2, 12, '', '', '', '']);
 
       // ── Section 6 ──────────────────────────────────────────────────────────
       addSectionHeader('6. Khối phòng hành chính quản trị', 5);
-      addDataRow('- Phòng Hiệu trưởng',            [1, 1, 18, 1, 18, '', '', '', '']);
-      addDataRow('- Phòng phó Hiệu trưởng',        [2, 2, 36, 2, 36, '', '', '', '']);
-      addDataRow('- Phòng họp Hội đồng',           [1, '', '', '', '', '', '', '', '']);
-      addDataRow('- Phòng họp (Tổ chuyên môn)',    [1, 1, 18, 1, 18, '', '', '', '']);
-      addDataRow('- Văn phòng nhà trường',         [1, 1, 40, 1, 40, '', '', '', '']);
-      addDataRow('- Phòng thường trực (Bảo vệ)',   [2, 1, 6.2, '', '', '', '', 1, 6.2]);
-      addDataRow('- Nhà công vụ giáo viên',        [0, '', '', '', '', '', '', '', '']);
-      addDataRow('- Phòng kho lưu trữ tài liệu',  [1, 1, 18, 1, 18, '', '', '', '']);
+      addDataRow('- Phòng Hiệu trưởng', [1, 1, 18, 1, 18, '', '', '', '']);
+      addDataRow('- Phòng phó Hiệu trưởng', [2, 2, 36, 2, 36, '', '', '', '']);
+      addDataRow('- Phòng họp Hội đồng', [1, '', '', '', '', '', '', '', '']);
+      addDataRow('- Phòng họp (Tổ chuyên môn)', [1, 1, 18, 1, 18, '', '', '', '']);
+      addDataRow('- Văn phòng nhà trường', [1, 1, 40, 1, 40, '', '', '', '']);
+      addDataRow('- Phòng thường trực (Bảo vệ)', [2, 1, 6.2, '', '', '', '', 1, 6.2]);
+      addDataRow('- Nhà công vụ giáo viên', [0, '', '', '', '', '', '', '', '']);
+      addDataRow('- Phòng kho lưu trữ tài liệu', [1, 1, 18, 1, 18, '', '', '', '']);
 
       // ── Blank separator ────────────────────────────────────────────────────
       const sepRow = ws.addRow([]);
@@ -2530,44 +2562,44 @@ function AssetsTab() {
       // ── Section 7.1 ────────────────────────────────────────────────────────
       addEquipSectionHeader('7.1. Diện tích đất (Tính đến thời điểm hiện tại)', 6);
       addEquipRow('- Tổng diện tích khuôn viên đất', 'm²', 3943.3);
-      addEquipRow('- Diện tích sân chơi',             'm²',  540);
-      addEquipRow('- Diện tích sân vườn',             'm²',  250);
+      addEquipRow('- Diện tích sân chơi', 'm²', 540);
+      addEquipRow('- Diện tích sân vườn', 'm²', 250);
 
       // ── Section 7.2 ────────────────────────────────────────────────────────
       addEquipSectionHeader('7.2. Thiết bị dạy học và thiết bị CNTT', 6);
-      addEquipRow('- Thiết bị dạy học tối thiểu',                   'Bộ',    17);
-      addEquipRow('- Thiết bị đồ chơi ngoài trời',                  'Loại',  10);
-      addEquipRow('- Tổng số máy tính đang được sử dụng',            'Bộ',    28);
-      addEquipRow('- Tổng số đường truyền Internet',                 'Bộ',     2);
-      addEquipRow('- Số máy tính được kết nối Internet',             'Bộ',    28);
-      addEquipRow('- Số máy tính phục vụ công tác Quản lý',          'Bộ',     8);
-      addEquipRow('- Số máy tính phục vụ công tác Giảng dạy, Học tập','Bộ',  20);
-      addEquipRow('- Máy chiếu',      'Chiếc',  2);
-      addEquipRow('- Máy Photocopy',  'Chiếc',  1);
-      addEquipRow('- Máy in',         'Chiếc',  6);
-      addEquipRow('- Máy Scaner',     'Chiếc',  2);
-      addEquipRow('- Máy ép Plastic', 'Chiếc',  0);
-      addEquipRow('- Tivi dùng cho công tác quản lý', 'Chiếc',  4);
-      addEquipRow('- Tivi dùng tại các phòng học',    'Chiếc', 17);
-      addEquipRow('- Đàn phím điện tử',               'Chiếc',  2);
-      addEquipRow('- Tủ đựng đồ',                     'Chiếc', 51);
+      addEquipRow('- Thiết bị dạy học tối thiểu', 'Bộ', 17);
+      addEquipRow('- Thiết bị đồ chơi ngoài trời', 'Loại', 10);
+      addEquipRow('- Tổng số máy tính đang được sử dụng', 'Bộ', 28);
+      addEquipRow('- Tổng số đường truyền Internet', 'Bộ', 2);
+      addEquipRow('- Số máy tính được kết nối Internet', 'Bộ', 28);
+      addEquipRow('- Số máy tính phục vụ công tác Quản lý', 'Bộ', 8);
+      addEquipRow('- Số máy tính phục vụ công tác Giảng dạy, Học tập', 'Bộ', 20);
+      addEquipRow('- Máy chiếu', 'Chiếc', 2);
+      addEquipRow('- Máy Photocopy', 'Chiếc', 1);
+      addEquipRow('- Máy in', 'Chiếc', 6);
+      addEquipRow('- Máy Scaner', 'Chiếc', 2);
+      addEquipRow('- Máy ép Plastic', 'Chiếc', 0);
+      addEquipRow('- Tivi dùng cho công tác quản lý', 'Chiếc', 4);
+      addEquipRow('- Tivi dùng tại các phòng học', 'Chiếc', 17);
+      addEquipRow('- Đàn phím điện tử', 'Chiếc', 2);
+      addEquipRow('- Tủ đựng đồ', 'Chiếc', 51);
 
       // ── Footer ─────────────────────────────────────────────────────────────
       const lastR = ws.addRow([]);
       ws.mergeCells(`A${lastR.number}:J${lastR.number}`);
       ws.getCell(`A${lastR.number}`).value =
         `Mẫu tải về từ hệ thống Quản lý Tài sản – Trường MN Đức Xuân  |  ${new Date().toLocaleDateString('vi-VN')}`;
-      ws.getCell(`A${lastR.number}`).font      = font(9, false, '90A4AE', true);
+      ws.getCell(`A${lastR.number}`).font = font(9, false, '90A4AE', true);
       ws.getCell(`A${lastR.number}`).alignment = align('right');
-      ws.getCell(`A${lastR.number}`).fill      = fill('ECEFF1');
+      ws.getCell(`A${lastR.number}`).fill = fill('ECEFF1');
       lastR.height = 14;
 
       // ── Write & download ───────────────────────────────────────────────────
       const buffer = await wb.xlsx.writeBuffer();
-      const blob   = new Blob([buffer], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' });
-      const url    = URL.createObjectURL(blob);
-      const a      = document.createElement('a');
-      a.href     = url;
+      const blob = new Blob([buffer], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
       a.download = 'mau_co_so_vat_chat.xlsx';
       document.body.appendChild(a);
       a.click();
@@ -2593,41 +2625,41 @@ function AssetsTab() {
       });
 
       const COLS = [
-        { header: 'STT',           key: 'stt',              width: 6  },  // A=1
-        { header: 'Tên tài sản',   key: 'name',             width: 38 },  // B=2
-        { header: 'Loại tài sản',  key: 'category',         width: 32 },  // C=3
-        { header: 'Nhu cầu QĐ',   key: 'requiredQuantity', width: 13 },  // D=4
-        { header: 'Thực tế',       key: 'quantity',         width: 11 },  // E=5
-        { header: 'Diện tích (m²)', key: 'area',            width: 14 },  // F=6
-        { header: 'Loại CT',       key: 'constructionType', width: 14 },  // G=7
-        { header: 'Tình trạng',    key: 'condition',        width: 13 },  // H=8
-        { header: 'Ghi chú',       key: 'notes',            width: 22 },  // I=9
-        { header: '1 chỗ ngồi',   key: 'seats1',           width: 11 },  // J=10 (phần 2)
-        { header: '2 chỗ ngồi',   key: 'seats2',           width: 11 },  // K=11 (phần 2)
-        { header: '4 chỗ ngồi',   key: 'seats4',           width: 11 },  // L=12 (phần 2)
+        { header: 'STT', key: 'stt', width: 6 },  // A=1
+        { header: 'Tên tài sản', key: 'name', width: 38 },  // B=2
+        { header: 'Loại tài sản', key: 'category', width: 32 },  // C=3
+        { header: 'Nhu cầu QĐ', key: 'requiredQuantity', width: 13 },  // D=4
+        { header: 'Thực tế', key: 'quantity', width: 11 },  // E=5
+        { header: 'Diện tích (m²)', key: 'area', width: 14 },  // F=6
+        { header: 'Loại CT', key: 'constructionType', width: 14 },  // G=7
+        { header: 'Tình trạng', key: 'condition', width: 13 },  // H=8
+        { header: 'Ghi chú', key: 'notes', width: 22 },  // I=9
+        { header: '1 chỗ ngồi', key: 'seats1', width: 11 },  // J=10 (phần 2)
+        { header: '2 chỗ ngồi', key: 'seats2', width: 11 },  // K=11 (phần 2)
+        { header: '4 chỗ ngồi', key: 'seats4', width: 11 },  // L=12 (phần 2)
       ];
       const NCOLS = COLS.length;
       ws.columns = COLS;
 
       // ── Palette ──────────────────────────────────────────────────────────────
       const CLR = {
-        headerBg:   '1A56DB', headerFg: 'FFFFFF',
-        catBg:      'E8F0FE', catFg:    '1A56DB',
-        subtotalBg: 'EFF6FF', subtotalFg:'1E40AF',
-        totalBg:    'DBEAFE', totalFg:  '1E3A8A',
-        rowEven:    'F8FAFF',
-        rowOdd:     'FFFFFF',
-        condGood:   'D1FAE5', condBad:  'FEF3C7', condBroken: 'FEE2E2',
-        border:     'CBD5E1',
-        titleBg:    '1E40AF', titleFg:  'FFFFFF',
-        subtitleBg: 'DBEAFE', subtitleFg:'1E3A8A',
+        headerBg: '1A56DB', headerFg: 'FFFFFF',
+        catBg: 'E8F0FE', catFg: '1A56DB',
+        subtotalBg: 'EFF6FF', subtotalFg: '1E40AF',
+        totalBg: 'DBEAFE', totalFg: '1E3A8A',
+        rowEven: 'F8FAFF',
+        rowOdd: 'FFFFFF',
+        condGood: 'D1FAE5', condBad: 'FEF3C7', condBroken: 'FEE2E2',
+        border: 'CBD5E1',
+        titleBg: '1E40AF', titleFg: 'FFFFFF',
+        subtitleBg: 'DBEAFE', subtitleFg: '1E3A8A',
       };
 
       const border = (color = CLR.border) => ({
-        top:    { style: 'thin', color: { argb: color } },
-        left:   { style: 'thin', color: { argb: color } },
+        top: { style: 'thin', color: { argb: color } },
+        left: { style: 'thin', color: { argb: color } },
         bottom: { style: 'thin', color: { argb: color } },
-        right:  { style: 'thin', color: { argb: color } },
+        right: { style: 'thin', color: { argb: color } },
       });
 
       const fill = (argb) => ({ type: 'pattern', pattern: 'solid', fgColor: { argb } });
@@ -2636,8 +2668,8 @@ function AssetsTab() {
       const fontNormal = (size = 10) => ({ name: 'Times New Roman', size });
 
       const center = { horizontal: 'center', vertical: 'middle', wrapText: true };
-      const left   = { horizontal: 'left',   vertical: 'middle', wrapText: true };
-      const right  = { horizontal: 'right',  vertical: 'middle', wrapText: true };
+      const left = { horizontal: 'left', vertical: 'middle', wrapText: true };
+      const right = { horizontal: 'right', vertical: 'middle', wrapText: true };
 
       const lastCol = String.fromCharCode(64 + NCOLS); // 'M' (13 cols)
 
@@ -2648,8 +2680,8 @@ function AssetsTab() {
       ws.mergeCells(`A1:${lastCol}1`);
       const c1 = ws.getCell('A1');
       c1.value = 'TRƯỜNG MẦM NON ĐỨC XUÂN';
-      c1.font  = { name: 'Times New Roman', size: 13, bold: true, color: { argb: CLR.titleFg } };
-      c1.fill  = fill(CLR.titleBg);
+      c1.font = { name: 'Times New Roman', size: 13, bold: true, color: { argb: CLR.titleFg } };
+      c1.fill = fill(CLR.titleBg);
       c1.alignment = center;
 
       // ── Row 2: Report title ───────────────────────────────────────────────
@@ -2659,8 +2691,8 @@ function AssetsTab() {
       ws.mergeCells(`A2:${lastCol}2`);
       const c2 = ws.getCell('A2');
       c2.value = 'BÁO CÁO DANH SÁCH TÀI SẢN';
-      c2.font  = { name: 'Times New Roman', size: 13, bold: true, color: { argb: CLR.subtitleFg } };
-      c2.fill  = fill(CLR.subtitleBg);
+      c2.font = { name: 'Times New Roman', size: 13, bold: true, color: { argb: CLR.subtitleFg } };
+      c2.fill = fill(CLR.subtitleBg);
       c2.alignment = center;
 
       // ── Row 3: Meta info ──────────────────────────────────────────────────
@@ -2671,7 +2703,7 @@ function AssetsTab() {
       const c3a = ws.getCell('A3');
       const now = new Date();
       c3a.value = `Ngày xuất: ${now.toLocaleDateString('vi-VN', { day: '2-digit', month: '2-digit', year: 'numeric' })}   Giờ: ${now.toLocaleTimeString('vi-VN', { hour: '2-digit', minute: '2-digit' })}`;
-      c3a.font  = fontNormal(10);
+      c3a.font = fontNormal(10);
       c3a.alignment = left;
       ws.mergeCells(`F3:${lastCol}3`);
       const c3b = ws.getCell('F3');
@@ -2681,7 +2713,7 @@ function AssetsTab() {
         search ? `Tìm kiếm: "${search}"` : '',
       ].filter(Boolean).join('   |   ');
       c3b.value = filterDesc;
-      c3b.font  = fontNormal(10);
+      c3b.font = fontNormal(10);
       c3b.alignment = right;
 
       // ── Row 4: Blank spacer ───────────────────────────────────────────────
@@ -2694,11 +2726,11 @@ function AssetsTab() {
       r5.height = 30;
       COLS.forEach((col, i) => {
         const cell = r5.getCell(i + 1);
-        cell.value     = col.header;
-        cell.font      = fontBold(10, CLR.headerFg);
-        cell.fill      = fill(CLR.headerBg);
+        cell.value = col.header;
+        cell.font = fontBold(10, CLR.headerFg);
+        cell.fill = fill(CLR.headerBg);
         cell.alignment = center;
-        cell.border    = border('90A8C3');
+        cell.border = border('90A8C3');
       });
 
       // ── Row 6: Unit row ───────────────────────────────────────────────────
@@ -2708,20 +2740,20 @@ function AssetsTab() {
       const UNITS = ['', '', '', '', '', 'Cái/Phòng', 'Cái/Phòng', 'm²', '', '', ''];
       UNITS.forEach((u, i) => {
         const cell = r6.getCell(i + 1);
-        cell.value     = u;
-        cell.font      = { name: 'Times New Roman', size: 9, italic: true, color: { argb: '64748B' } };
-        cell.fill      = fill('EFF6FF');
+        cell.value = u;
+        cell.font = { name: 'Times New Roman', size: 9, italic: true, color: { argb: '64748B' } };
+        cell.fill = fill('EFF6FF');
         cell.alignment = center;
-        cell.border    = border('CBD5E1');
+        cell.border = border('CBD5E1');
       });
 
       // ── Data rows, grouped by category ────────────────────────────────────
       const COND_COLOR = {
-        'Tốt':        'D1FAE5',
-        'Khá':        'D1FAE5',
+        'Tốt': 'D1FAE5',
+        'Khá': 'D1FAE5',
         'Trung bình': 'FEF3C7',
-        'Hỏng':       'FEE2E2',
-        'Cần sửa':    'FEF3C7',
+        'Hỏng': 'FEE2E2',
+        'Cần sửa': 'FEF3C7',
       };
 
       const catList = CATEGORY_OPTIONS.map(cat => ({
@@ -2741,22 +2773,22 @@ function AssetsTab() {
         ws.mergeCells(`A${rowIdx - 1}:${lastCol}${rowIdx - 1}`);
         const catCell = ws.getCell(`A${rowIdx - 1}`);
         catCell.value = `${gi + 1}.  ${cat}  (${rows.length} mục)`;
-        catCell.font  = fontBold(10, CLR.catFg);
-        catCell.fill  = fill(CLR.catBg);
+        catCell.font = fontBold(10, CLR.catFg);
+        catCell.fill = fill(CLR.catBg);
         catCell.alignment = left;
         catCell.border = {
-          top:    { style: 'medium', color: { argb: '93B4F0' } },
+          top: { style: 'medium', color: { argb: '93B4F0' } },
           bottom: { style: 'medium', color: { argb: '93B4F0' } },
-          left:   { style: 'thin',   color: { argb: CLR.border } },
-          right:  { style: 'thin',   color: { argb: CLR.border } },
+          left: { style: 'thin', color: { argb: CLR.border } },
+          right: { style: 'thin', color: { argb: CLR.border } },
         };
 
         let catReq = 0, catAct = 0;
 
         rows.forEach((a, i) => {
-          const isEven  = i % 2 === 0;
-          const dr      = ws.getRow(rowIdx++);
-          dr.height     = 18;
+          const isEven = i % 2 === 0;
+          const dr = ws.getRow(rowIdx++);
+          dr.height = 18;
           const isBanGhe = a.category === 'Số bàn, ghế ngồi';
           const vals = [
             i + 1,                                                              // A (1)
@@ -2774,10 +2806,10 @@ function AssetsTab() {
           ];
           vals.forEach((v, ci) => {
             const cell = dr.getCell(ci + 1);
-            cell.value     = v;
-            cell.font      = fontNormal(10);
-            cell.fill      = fill(isEven ? CLR.rowEven : CLR.rowOdd);
-            cell.border    = border(CLR.border);
+            cell.value = v;
+            cell.font = fontNormal(10);
+            cell.fill = fill(isEven ? CLR.rowEven : CLR.rowOdd);
+            cell.border = border(CLR.border);
             cell.alignment = ci === 0 ? center : (ci >= 4 && ci <= 6) || ci >= 10 ? { ...center } : left;
           });
 
@@ -2807,30 +2839,30 @@ function AssetsTab() {
         subRow.height = 18;
         ws.mergeCells(`A${rowIdx - 1}:E${rowIdx - 1}`);
         ws.getCell(`A${rowIdx - 1}`).value = `Cộng: ${rows.length} mục`;
-        ws.getCell(`A${rowIdx - 1}`).font  = fontBold(10, CLR.subtotalFg);
-        ws.getCell(`A${rowIdx - 1}`).fill  = fill(CLR.subtotalBg);
+        ws.getCell(`A${rowIdx - 1}`).font = fontBold(10, CLR.subtotalFg);
+        ws.getCell(`A${rowIdx - 1}`).fill = fill(CLR.subtotalBg);
         ws.getCell(`A${rowIdx - 1}`).alignment = right;
         ws.getCell(`A${rowIdx - 1}`).border = border('93B4F0');
 
         ws.getCell(`F${rowIdx - 1}`).value = catReq;
-        ws.getCell(`F${rowIdx - 1}`).font  = fontBold(10, CLR.subtotalFg);
-        ws.getCell(`F${rowIdx - 1}`).fill  = fill(CLR.subtotalBg);
+        ws.getCell(`F${rowIdx - 1}`).font = fontBold(10, CLR.subtotalFg);
+        ws.getCell(`F${rowIdx - 1}`).fill = fill(CLR.subtotalBg);
         ws.getCell(`F${rowIdx - 1}`).alignment = center;
         ws.getCell(`F${rowIdx - 1}`).border = border('93B4F0');
 
         ws.getCell(`G${rowIdx - 1}`).value = catAct;
-        ws.getCell(`G${rowIdx - 1}`).font  = fontBold(10, CLR.subtotalFg);
-        ws.getCell(`G${rowIdx - 1}`).fill  = fill(CLR.subtotalBg);
+        ws.getCell(`G${rowIdx - 1}`).font = fontBold(10, CLR.subtotalFg);
+        ws.getCell(`G${rowIdx - 1}`).fill = fill(CLR.subtotalBg);
         ws.getCell(`G${rowIdx - 1}`).alignment = center;
         ws.getCell(`G${rowIdx - 1}`).border = border('93B4F0');
 
-        ['H','I','J','K','L','M'].forEach(col => {
-          ws.getCell(`${col}${rowIdx - 1}`).fill   = fill(CLR.subtotalBg);
+        ['H', 'I', 'J', 'K', 'L', 'M'].forEach(col => {
+          ws.getCell(`${col}${rowIdx - 1}`).fill = fill(CLR.subtotalBg);
           ws.getCell(`${col}${rowIdx - 1}`).border = border('93B4F0');
         });
 
-        grandReq   += catReq;
-        grandAct   += catAct;
+        grandReq += catReq;
+        grandAct += catAct;
         grandCount += rows.length;
       });
 
@@ -2839,25 +2871,25 @@ function AssetsTab() {
       totalRow.height = 22;
       ws.mergeCells(`A${rowIdx - 1}:E${rowIdx - 1}`);
       ws.getCell(`A${rowIdx - 1}`).value = `TỔNG CỘNG: ${grandCount} tài sản`;
-      ws.getCell(`A${rowIdx - 1}`).font  = fontBold(11, CLR.totalFg);
-      ws.getCell(`A${rowIdx - 1}`).fill  = fill(CLR.totalBg);
+      ws.getCell(`A${rowIdx - 1}`).font = fontBold(11, CLR.totalFg);
+      ws.getCell(`A${rowIdx - 1}`).fill = fill(CLR.totalBg);
       ws.getCell(`A${rowIdx - 1}`).alignment = center;
       ws.getCell(`A${rowIdx - 1}`).border = { top: { style: 'medium', color: { argb: '3B82F6' } }, bottom: { style: 'medium', color: { argb: '3B82F6' } }, left: border().left, right: border().right };
 
       ws.getCell(`F${rowIdx - 1}`).value = grandReq;
-      ws.getCell(`F${rowIdx - 1}`).font  = fontBold(11, CLR.totalFg);
-      ws.getCell(`F${rowIdx - 1}`).fill  = fill(CLR.totalBg);
+      ws.getCell(`F${rowIdx - 1}`).font = fontBold(11, CLR.totalFg);
+      ws.getCell(`F${rowIdx - 1}`).fill = fill(CLR.totalBg);
       ws.getCell(`F${rowIdx - 1}`).alignment = center;
       ws.getCell(`F${rowIdx - 1}`).border = ws.getCell(`A${rowIdx - 1}`).border;
 
       ws.getCell(`G${rowIdx - 1}`).value = grandAct;
-      ws.getCell(`G${rowIdx - 1}`).font  = fontBold(11, CLR.totalFg);
-      ws.getCell(`G${rowIdx - 1}`).fill  = fill(CLR.totalBg);
+      ws.getCell(`G${rowIdx - 1}`).font = fontBold(11, CLR.totalFg);
+      ws.getCell(`G${rowIdx - 1}`).fill = fill(CLR.totalBg);
       ws.getCell(`G${rowIdx - 1}`).alignment = center;
       ws.getCell(`G${rowIdx - 1}`).border = ws.getCell(`A${rowIdx - 1}`).border;
 
-      ['H','I','J','K','L','M'].forEach(col => {
-        ws.getCell(`${col}${rowIdx - 1}`).fill   = fill(CLR.totalBg);
+      ['H', 'I', 'J', 'K', 'L', 'M'].forEach(col => {
+        ws.getCell(`${col}${rowIdx - 1}`).fill = fill(CLR.totalBg);
         ws.getCell(`${col}${rowIdx - 1}`).border = ws.getCell(`A${rowIdx - 1}`).border;
       });
 
@@ -2866,7 +2898,7 @@ function AssetsTab() {
       footerRow.height = 14;
       ws.mergeCells(`A${rowIdx}:${lastCol}${rowIdx}`);
       ws.getCell(`A${rowIdx}`).value = `Xuất bởi hệ thống Quản lý Tài sản – Trường MN Đức Xuân  |  ${now.toLocaleString('vi-VN')}`;
-      ws.getCell(`A${rowIdx}`).font  = { name: 'Times New Roman', size: 9, italic: true, color: { argb: '94A3B8' } };
+      ws.getCell(`A${rowIdx}`).font = { name: 'Times New Roman', size: 9, italic: true, color: { argb: '94A3B8' } };
       ws.getCell(`A${rowIdx}`).alignment = right;
 
       // ── Auto-filter on header row ─────────────────────────────────────────
@@ -2874,11 +2906,11 @@ function AssetsTab() {
 
       // ── Generate & download ───────────────────────────────────────────────
       const buffer = await wb.xlsx.writeBuffer();
-      const blob   = new Blob([buffer], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' });
-      const url    = URL.createObjectURL(blob);
-      const a      = document.createElement('a');
+      const blob = new Blob([buffer], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
       const dateStr = now.toISOString().slice(0, 10);
-      a.href     = url;
+      a.href = url;
       a.download = `tai-san-${dateStr}.xlsx`;
       document.body.appendChild(a);
       a.click();
@@ -2926,7 +2958,7 @@ function AssetsTab() {
 
   // Tổng hợp nhanh
   const totalRequired = filtered.reduce((s, a) => s + (a.requiredQuantity || 0), 0);
-  const totalActual   = filtered.reduce((s, a) => s + (a.quantity || 0), 0);
+  const totalActual = filtered.reduce((s, a) => s + (a.quantity || 0), 0);
 
   return (
     <Box>

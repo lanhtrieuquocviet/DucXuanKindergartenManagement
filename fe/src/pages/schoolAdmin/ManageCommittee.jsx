@@ -34,7 +34,7 @@ export default function ManageCommittee() {
       onMenuSelect={handleMenuSelect}
     >
       <Paper elevation={0} sx={{ p: { xs: 1.5, sm: 3 }, borderRadius: 3, backgroundColor: '#f9fafb' }}>
-        <Typography variant="h5" fontWeight={700} mb={2}>Ban Kiểm Kê</Typography>
+        {/* <Typography variant="h5" fontWeight={700} mb={2}>Ban Kiểm Kê</Typography> */}
         <CommitteeTab />
       </Paper>
     </RoleLayout>
