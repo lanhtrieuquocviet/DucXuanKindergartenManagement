@@ -3,7 +3,6 @@ import { useLocation, useNavigate, useParams } from 'react-router-dom';
 import { Snackbar, Alert, Box, Typography, Avatar, Paper, Button } from '@mui/material';
 import { EventBusy as EventBusyIcon } from '@mui/icons-material';
 import { useAuth } from '../../context/AuthContext';
-import { useTeacher } from '../../context/TeacherContext';
 import RoleLayout from '../../layouts/RoleLayout';
 import { get, post, ENDPOINTS } from '../../service/api';
 import FaceAttendanceModal from '../../components/face/FaceAttendanceModal';
@@ -61,7 +60,7 @@ function TeacherAttendance() {
   const navigate = useNavigate();
   const location = useLocation();
   const { classId } = useParams();
-  const { user, logout, isInitializing } = useAuth();
+  const { user, logout, isInitializing, hasPermission } = useAuth();
   const todayISO = getLocalISODate();
 
   // ── State: lớp & học sinh ──
@@ -295,7 +294,6 @@ function TeacherAttendance() {
   }, [detailForm.otpSent]);
 
   // ── Menu layout ──
-  const { isCommitteeMember } = useTeacher();
   const menuItems = useMemo(
     () => [
       { key: 'classes', label: 'Lớp phụ trách' },
@@ -306,9 +304,9 @@ function TeacherAttendance() {
       { key: 'contact-book', label: 'Sổ liên lạc điện tử' },
       { key: 'purchase-request', label: 'Cơ sở vật chất' },
       { key: 'class-assets', label: 'Tài sản lớp' },
-      ...(isCommitteeMember ? [{ key: 'asset-inspection', label: 'Kiểm kê tài sản' }] : []),
+      ...(hasPermission('MANAGE_INSPECTION') ? [{ key: 'asset-inspection', label: 'Kiểm kê tài sản' }] : []),
     ],
-    [isCommitteeMember]
+    [hasPermission]
   );
 
   const activeKey = useMemo(() => {

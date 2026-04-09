@@ -51,25 +51,11 @@ router.post('/contact-book/:classId/students/:studentId/notes', authenticate, au
 router.delete('/contact-book/:classId/students/:studentId/notes/:noteId', authenticate, authorizeRoles('Teacher'), contactBookCtrl.deleteNote);
 
 // ── Asset Inspection (Teacher creates/edits own minutes) ──
-
-// GET /teacher/asset-committees/is-member — kiểm tra giáo viên hiện tại có trong ban kiểm kê không
-router.get('/asset-committees/is-member', authenticate, authorizePermissions('MANAGE_ASSET'), async (req, res) => {
-  try {
-    const user = await User.findById(req.user.id).select('fullName').lean();
-    const fullName = user?.fullName;
-    if (!fullName) return res.json({ status: 'success', data: { isMember: false } });
-    const found = await InspectionCommittee.findOne({ 'members.fullName': fullName }).lean();
-    return res.json({ status: 'success', data: { isMember: !!found } });
-  } catch (err) {
-    return res.status(500).json({ status: 'error', message: 'Lỗi kiểm tra thành viên' });
-  }
-});
-
-router.get('/asset-committees', authenticate, authorizePermissions('MANAGE_ASSET'), assetCtrl.listCommittees);
-router.get('/asset-minutes', authenticate, authorizePermissions('MANAGE_ASSET'), assetCtrl.listMyMinutes);
-router.post('/asset-minutes', authenticate, authorizePermissions('MANAGE_ASSET'), assetCtrl.createMinutes);
-router.get('/asset-minutes/:id', authenticate, authorizePermissions('MANAGE_ASSET'), assetCtrl.getMinutes);
-router.put('/asset-minutes/:id', authenticate, authorizePermissions('MANAGE_ASSET'), assetCtrl.updateMinutes);
+router.get('/asset-committees', authenticate, authorizePermissions('MANAGE_INSPECTION'), assetCtrl.listCommittees);
+router.get('/asset-minutes', authenticate, authorizePermissions('MANAGE_INSPECTION'), assetCtrl.listMyMinutes);
+router.post('/asset-minutes', authenticate, authorizePermissions('MANAGE_INSPECTION'), assetCtrl.createMinutes);
+router.get('/asset-minutes/:id', authenticate, authorizePermissions('MANAGE_INSPECTION'), assetCtrl.getMinutes);
+router.put('/asset-minutes/:id', authenticate, authorizePermissions('MANAGE_INSPECTION'), assetCtrl.updateMinutes);
 
 // ── Purchase Requests (Yêu cầu mua sắm) ──
 router.get('/my-classes', authenticate, authorizePermissions('MANAGE_PURCHASE_REQUEST'), purchaseCtrl.getMyClasses);

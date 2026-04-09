@@ -33,7 +33,6 @@ import DeleteIcon from '@mui/icons-material/Delete';
 import EditIcon from '@mui/icons-material/Edit';
 import RoleLayout from '../../layouts/RoleLayout';
 import { useAuth } from '../../context/AuthContext';
-import { useTeacher } from '../../context/TeacherContext';
 import { get, post, put, del, ENDPOINTS } from '../../service/api';
 
 const STATUS_LABEL = {
@@ -104,7 +103,7 @@ export default function TeacherAssetInspection() {
   const navigate  = useNavigate();
   const theme     = useTheme();
   const isMobile  = useMediaQuery(theme.breakpoints.down('sm'));
-  const { user, logout, isInitializing } = useAuth();
+  const { user, logout, isInitializing, hasPermission } = useAuth();
 
   const [loading, setLoading]         = useState(true);
   const [minutes, setMinutes]         = useState([]);
@@ -154,10 +153,11 @@ export default function TeacherAssetInspection() {
       setForm({
         ...emptyForm(),
         className: allocation.className || '',
+        committeeId: myCommittee?._id || '',
         assets: allAssets.length ? allAssets : [emptyAssetRow()],
       });
     } else {
-      setForm(emptyForm());
+      setForm({ ...emptyForm(), committeeId: myCommittee?._id || '' });
     }
     setOpenModal(true);
   };
@@ -223,12 +223,12 @@ export default function TeacherAssetInspection() {
   const dayStr            = parsedDate ? parsedDate.getDate() : '___';
   const monthStr          = parsedDate ? parsedDate.getMonth() + 1 : '___';
   const yearStr           = parsedDate ? parsedDate.getFullYear() : '______';
-  const selectedCommittee = committees.find(c => c._id === form.committeeId) || null;
+  const myCommittee       = committees.find(c => c.status === 'active' && c.members?.some(m => String(m.userId) === String(user?._id)));
+  const selectedCommittee = committees.find(c => c._id === form.committeeId) || myCommittee || null;
 
   const cellBorder = { border: '1px solid #555', padding: '4px 6px', fontSize: 13 };
   const headerCell = { ...cellBorder, fontWeight: 700, textAlign: 'center', background: '#f3f4f6' };
 
-  const { isCommitteeMember } = useTeacher();
   const menuItems = [
     { key: 'classes',          label: 'Lớp phụ trách' },
     { key: 'students',         label: 'Danh sách học sinh' },
@@ -238,7 +238,7 @@ export default function TeacherAssetInspection() {
     { key: 'contact-book',     label: 'Sổ liên lạc điện tử' },
     { key: 'purchase-request', label: 'Cơ sở vật chất' },
     { key: 'class-assets',     label: 'Tài sản lớp' },
-    ...(isCommitteeMember ? [{ key: 'asset-inspection', label: 'Kiểm kê tài sản' }] : []),
+    ...(hasPermission('MANAGE_INSPECTION') ? [{ key: 'asset-inspection', label: 'Kiểm kê tài sản' }] : []),
   ];
 
   const handleMenuSelect = (key) => {
@@ -415,14 +415,9 @@ export default function TeacherAssetInspection() {
               <TextField label="Giờ kết thúc (VD: 11h30)" size="small" value={form.endTime}
                 onChange={e => setForm(p => ({ ...p, endTime: e.target.value }))} disabled={isReadOnly}
                 sx={{ minWidth: { xs: '100%', sm: 175 } }} />
-              <FormControl size="small" sx={{ flex: 1, minWidth: { xs: '100%', sm: 190 } }}>
-                <InputLabel>Ban kiểm kê</InputLabel>
-                <Select value={form.committeeId} label="Ban kiểm kê"
-                  onChange={e => setForm(p => ({ ...p, committeeId: e.target.value }))} disabled={isReadOnly}>
-                  <MenuItem value="">— Không chọn —</MenuItem>
-                  {committees.map(c => <MenuItem key={c._id} value={c._id}>{c.name}</MenuItem>)}
-                </Select>
-              </FormControl>
+              <TextField size="small" label="Ban kiểm kê" disabled
+                value={selectedCommittee?.name || '(Chưa được phân công vào ban kiểm kê)'}
+                sx={{ flex: 1, minWidth: { xs: '100%', sm: 190 } }} />
             </Stack>
             <TextField label="II. Lí do kiểm kê" size="small" fullWidth multiline rows={2}
               value={form.reason} onChange={e => setForm(p => ({ ...p, reason: e.target.value }))}

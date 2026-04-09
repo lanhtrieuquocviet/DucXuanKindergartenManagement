@@ -1,5 +1,21 @@
 const InspectionCommittee = require('../models/InspectionCommittee');
 const InspectionMinutes = require('../models/InspectionMinutes');
+const User = require('../models/User');
+const Role = require('../models/Role');
+
+// Đồng bộ role InventoryStaff — một giáo viên chỉ thuộc 1 ban tại một thời điểm
+async function syncInventoryStaffRole(addUserIds = [], removeUserIds = []) {
+  const inventoryRole = await Role.findOne({ roleName: 'InventoryStaff' }).lean();
+  if (!inventoryRole) return;
+  const roleId = inventoryRole._id;
+
+  if (addUserIds.length) {
+    await User.updateMany({ _id: { $in: addUserIds } }, { $addToSet: { roles: roleId } });
+  }
+  if (removeUserIds.length) {
+    await User.updateMany({ _id: { $in: removeUserIds } }, { $pull: { roles: roleId } });
+  }
+}
 const {
   Document, Packer, Paragraph, Table, TableRow, TableCell,
   TextRun, AlignmentType, WidthType, BorderStyle, VerticalAlign,
@@ -34,13 +50,22 @@ exports.createCommittee = async (req, res) => {
     if (!name || !foundedDate || !decisionNumber) {
       return res.status(400).json({ status: 'error', message: 'Vui lòng điền đầy đủ thông tin.' });
     }
+    const memberIds = (members || []).map(m => m.userId).filter(Boolean);
+    if (memberIds.length) {
+      const conflict = await InspectionCommittee.findOne({
+        status: 'active',
+        'members.userId': { $in: memberIds },
+      }).lean();
+      if (conflict) {
+        return res.status(409).json({ status: 'error', message: 'Một hoặc nhiều thành viên đã thuộc ban kiểm kê đang hoạt động.' });
+      }
+    }
     const committee = await InspectionCommittee.create({
-      name,
-      foundedDate,
-      decisionNumber,
+      name, foundedDate, decisionNumber,
       members: members || [],
       createdBy: req.user._id,
     });
+    await syncInventoryStaffRole(memberIds, []);
     return res.status(201).json({ status: 'success', data: { committee } });
   } catch (err) {
     return res.status(500).json({ status: 'error', message: err.message });
@@ -50,12 +75,33 @@ exports.createCommittee = async (req, res) => {
 exports.updateCommittee = async (req, res) => {
   try {
     const { name, foundedDate, decisionNumber, members } = req.body;
+    const old = await InspectionCommittee.findById(req.params.id).lean();
+    if (!old) return res.status(404).json({ status: 'error', message: 'Không tìm thấy ban kiểm kê.' });
+
+    const oldIds = (old.members || []).map(m => m.userId?.toString()).filter(Boolean);
+    const newIds = (members || []).map(m => m.userId?.toString()).filter(Boolean);
+    const addIds    = newIds.filter(id => !oldIds.includes(id));
+    const removeIds = oldIds.filter(id => !newIds.includes(id));
+
+    // Validate thành viên mới không thuộc ban khác đang active
+    if (addIds.length) {
+      const conflict = await InspectionCommittee.findOne({
+        _id: { $ne: req.params.id },
+        status: 'active',
+        'members.userId': { $in: addIds },
+      }).lean();
+      if (conflict) {
+        return res.status(409).json({ status: 'error', message: 'Một hoặc nhiều thành viên đã thuộc ban kiểm kê đang hoạt động.' });
+      }
+    }
+
     const committee = await InspectionCommittee.findByIdAndUpdate(
       req.params.id,
       { name, foundedDate, decisionNumber, members },
       { new: true, runValidators: true }
     );
-    if (!committee) return res.status(404).json({ status: 'error', message: 'Không tìm thấy ban kiểm kê.' });
+    await syncInventoryStaffRole(addIds, removeIds);
+
     return res.json({ status: 'success', data: { committee } });
   } catch (err) {
     return res.status(500).json({ status: 'error', message: err.message });
@@ -74,12 +120,18 @@ exports.deleteCommittee = async (req, res) => {
 
 exports.endCommittee = async (req, res) => {
   try {
+    const old = await InspectionCommittee.findById(req.params.id).lean();
+    if (!old) return res.status(404).json({ status: 'error', message: 'Không tìm thấy ban kiểm kê.' });
+
     const committee = await InspectionCommittee.findByIdAndUpdate(
       req.params.id,
       { status: 'ended', endedAt: new Date() },
       { new: true }
     );
-    if (!committee) return res.status(404).json({ status: 'error', message: 'Không tìm thấy ban kiểm kê.' });
+
+    const memberIds = (old.members || []).map(m => m.userId?.toString()).filter(Boolean);
+    await syncInventoryStaffRole([], memberIds);
+
     return res.json({ status: 'success', data: { committee } });
   } catch (err) {
     return res.status(500).json({ status: 'error', message: err.message });

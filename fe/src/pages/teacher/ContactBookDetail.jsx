@@ -1,7 +1,6 @@
 import { useEffect, useMemo, useState, useCallback, useRef } from 'react';
 import { useLocation, useNavigate, useParams } from 'react-router-dom';
 import { useAuth } from '../../context/AuthContext';
-import { useTeacher } from '../../context/TeacherContext';
 import RoleLayout from '../../layouts/RoleLayout';
 import { get, post, del, postFormData, ENDPOINTS } from '../../service/api';
 import { toast } from 'react-toastify';
@@ -58,7 +57,7 @@ function genderLabel(g) {
   return 'Khác';
 }
 
-function getTeacherMenuItems(isCommitteeMember, hasPermission) {
+function getTeacherMenuItems(hasPermission) {
   const ALL_TEACHER_MENU = [
     { key: 'classes', label: 'Lớp phụ trách' },
     { key: 'students', label: 'Danh sách học sinh' },
@@ -68,14 +67,11 @@ function getTeacherMenuItems(isCommitteeMember, hasPermission) {
     { key: 'contact-book', label: 'Sổ liên lạc điện tử' },
     { key: 'purchase-request', label: 'Cơ sở vật chất', permission: 'MANAGE_PURCHASE_REQUEST' },
     { key: 'class-assets', label: 'Tài sản lớp', permission: 'MANAGE_ASSET' },
+    { key: 'asset-inspection', label: 'Kiểm kê tài sản', permission: 'MANAGE_INSPECTION' },
   ];
-  const items = ALL_TEACHER_MENU.filter(
+  return ALL_TEACHER_MENU.filter(
     (item) => !item.permission || hasPermission(item.permission)
   );
-  if (isCommitteeMember && hasPermission('MANAGE_ASSET')) {
-    items.push({ key: 'asset-inspection', label: 'Kiểm kê tài sản' });
-  }
-  return items;
 }
 
 // ── InfoRow ──────────────────────────────────────────────────
@@ -738,9 +734,7 @@ export default function ContactBookDetail() {
   const { classId } = useParams();
   const navigate = useNavigate();
   const location = useLocation();
-  const { user, logout, isInitializing } = useAuth();
-  const { isCommitteeMember } = useTeacher();
-  const { hasPermission } = useAuth();
+  const { user, logout, isInitializing, hasPermission } = useAuth();
 
   const [classInfo, setClassInfo]       = useState(null);
   const [students, setStudents]         = useState([]);
@@ -795,8 +789,8 @@ export default function ContactBookDetail() {
   }, [selected]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const menuItems = useMemo(
-    () => getTeacherMenuItems(isCommitteeMember, hasPermission),
-    [isCommitteeMember, hasPermission]
+    () => getTeacherMenuItems(hasPermission),
+    [hasPermission]
   );
 
   const activeKey = useMemo(() => {

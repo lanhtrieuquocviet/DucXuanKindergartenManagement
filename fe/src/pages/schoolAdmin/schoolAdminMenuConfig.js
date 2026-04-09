@@ -34,15 +34,7 @@ export const SCHOOL_ADMIN_MENU_ITEMS = [
       { key: 'purchase-requests', label: 'Yêu cầu mua sắm', permission: 'MANAGE_PURCHASE_REQUEST' },
     ],
   },
-  {
-    key: 'kiemke',
-    label: 'Kiểm kê cơ sở vật chất',
-    permission: 'MANAGE_ASSET',
-    children: [
-      { key: 'committee', label: 'Ban kiểm kê', permission: 'MANAGE_ASSET' },
-      { key: 'minutes', label: 'Biên bản kiểm kê', permission: 'MANAGE_ASSET' },
-    ],
-  },
+  { key: 'kiemke', label: 'Kiểm kê cơ sở vật chất', permission: 'MANAGE_ASSET' },
   { key: 'reports', label: 'Báo cáo của trường', permission: 'VIEW_REPORT' },
   {
     key: 'contacts',
@@ -151,8 +143,6 @@ export const createSchoolAdminMenuSelect = (navigate) => (key) => {
     'purchase-requests': '/school-admin/purchase-requests',
     'asset-incidents': '/school-admin/asset-incidents',
     kiemke: '/school-admin/committee',
-    committee: '/school-admin/committee',
-    minutes: '/school-admin/minutes',
     attendance: '/school-admin/attendance/overview',
     'attendance-overview': '/school-admin/attendance/overview',
     'face-attendance': '/school-admin/face-attendance',

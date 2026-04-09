@@ -1576,6 +1576,7 @@ router.get('/teachers', authenticate, authorizePermissions('MANAGE_TEACHER'), as
       .filter(t => t.userId)
       .map(t => ({
         _id: t._id,
+        userId: t.userId._id,
         fullName: t.userId.fullName,
         email: t.userId.email,
         phone: t.userId.phone,

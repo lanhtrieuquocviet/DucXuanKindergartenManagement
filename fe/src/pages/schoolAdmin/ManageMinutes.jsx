@@ -1,42 +1,10 @@
 import { useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Paper, Typography } from '@mui/material';
-import RoleLayout from '../../layouts/RoleLayout';
-import { useAuth } from '../../context/AuthContext';
-import { createSchoolAdminMenuSelect } from './schoolAdminMenuConfig';
-import { useSchoolAdminMenu } from './useSchoolAdminMenu';
-import { MinutesTab } from './ManageAssets';
 
 export default function ManageMinutes() {
   const navigate = useNavigate();
-  const { user, logout, isInitializing } = useAuth();
-  const menuItems = useSchoolAdminMenu();
-
   useEffect(() => {
-    if (isInitializing) return;
-    if (!user) { navigate('/login', { replace: true }); return; }
-    const roles = user?.roles?.map(r => r.roleName || r) || [];
-    if (!roles.includes('SchoolAdmin')) navigate('/', { replace: true });
-  }, [isInitializing, navigate, user]);
-
-  const handleMenuSelect = createSchoolAdminMenuSelect(navigate);
-
-  return (
-    <RoleLayout
-      title="Biên bản kiểm kê"
-      description="Quản lý biên bản kiểm kê tài sản trường."
-      menuItems={menuItems}
-      activeKey="minutes"
-      onLogout={() => { logout(); navigate('/login', { replace: true }); }}
-      userName={user?.fullName || user?.username || 'School Admin'}
-      userAvatar={user?.avatar}
-      onViewProfile={() => navigate('/profile')}
-      onMenuSelect={handleMenuSelect}
-    >
-      <Paper elevation={0} sx={{ p: { xs: 1.5, sm: 3 }, borderRadius: 3, backgroundColor: '#f9fafb' }}>
-        <Typography variant="h5" fontWeight={700} mb={2}>Biên bản kiểm kê</Typography>
-        <MinutesTab />
-      </Paper>
-    </RoleLayout>
-  );
+    navigate('/school-admin/committee', { replace: true });
+  }, [navigate]);
+  return null;
 }

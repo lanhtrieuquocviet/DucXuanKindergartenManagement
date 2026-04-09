@@ -1,7 +1,6 @@
 import { useEffect, useMemo, useState } from "react";
 import { useLocation, useNavigate } from "react-router-dom";
 import { useAuth } from "../../context/AuthContext";
-import { useTeacher } from "../../context/TeacherContext";
 import RoleLayout from "../../layouts/RoleLayout";
 import { get, post, ENDPOINTS } from "../../service/api";
 import ConfirmDialog from "../../components/ConfirmDialog";
@@ -125,7 +124,7 @@ function RequestCard({ req, onAction, onPreviewImage }) {
 function PickupRequest() {
   const navigate = useNavigate();
   const location = useLocation();
-  const { user, isInitializing } = useAuth();
+  const { user, isInitializing, hasPermission } = useAuth();
 
   const [myClasses, setMyClasses] = useState(null); // null = chưa load
   const [requests, setRequests] = useState([]);
@@ -143,7 +142,6 @@ function PickupRequest() {
 
 
 
-  const { isCommitteeMember } = useTeacher();
   const menuItems = useMemo(() => [
     { key: "classes",          label: "Lớp phụ trách" },
     { key: "students",         label: "Danh sách học sinh" },
@@ -153,8 +151,8 @@ function PickupRequest() {
     { key: "contact-book",     label: "Sổ liên lạc điện tử" },
     { key: "purchase-request", label: "Cơ sở vật chất" },
     { key: "class-assets",     label: "Tài sản lớp" },
-    ...(isCommitteeMember ? [{ key: "asset-inspection", label: "Kiểm kê tài sản" }] : []),
-  ], [isCommitteeMember]);
+    ...(hasPermission("MANAGE_INSPECTION") ? [{ key: "asset-inspection", label: "Kiểm kê tài sản" }] : []),
+  ], [hasPermission]);
 
   const activeKey = useMemo(() => {
     const path = location.pathname || "";

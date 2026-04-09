@@ -1,7 +1,6 @@
 import { useEffect, useMemo, useState } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
 import { useAuth } from '../../context/AuthContext';
-import { useTeacher } from '../../context/TeacherContext';
 import RoleLayout from '../../layouts/RoleLayout';
 import { get, post, ENDPOINTS } from '../../service/api';
 import { toast } from 'react-toastify';
@@ -47,7 +46,7 @@ function calcAge(dob) {
   return years > 0 ? `${years} tuổi` : null;
 }
 
-function getTeacherMenuItems(isCommitteeMember, hasPermission) {
+function getTeacherMenuItems(hasPermission) {
   const ALL_TEACHER_MENU = [
     { key: 'classes', label: 'Lớp phụ trách' },
     { key: 'students', label: 'Danh sách học sinh' },
@@ -57,22 +56,17 @@ function getTeacherMenuItems(isCommitteeMember, hasPermission) {
     { key: 'contact-book', label: 'Sổ liên lạc điện tử' },
     { key: 'purchase-request', label: 'Cơ sở vật chất', permission: 'MANAGE_PURCHASE_REQUEST' },
     { key: 'class-assets', label: 'Tài sản lớp', permission: 'MANAGE_ASSET' },
+    { key: 'asset-inspection', label: 'Kiểm kê tài sản', permission: 'MANAGE_INSPECTION' },
   ];
-  const items = ALL_TEACHER_MENU.filter(
+  return ALL_TEACHER_MENU.filter(
     (item) => !item.permission || hasPermission(item.permission)
   );
-  if (isCommitteeMember && hasPermission('MANAGE_ASSET')) {
-    items.push({ key: 'asset-inspection', label: 'Kiểm kê tài sản' });
-  }
-  return items;
 }
 
 export default function TeacherStudents() {
   const navigate = useNavigate();
   const location = useLocation();
-  const { user, logout, isInitializing } = useAuth();
-  const { isCommitteeMember } = useTeacher();
-  const { hasPermission } = useAuth();
+  const { user, logout, isInitializing, hasPermission } = useAuth();
 
   const [students, setStudents] = useState([]);
   const [classes, setClasses]   = useState([]);
@@ -157,8 +151,8 @@ export default function TeacherStudents() {
   const paginated = filtered.slice(page * PAGE_SIZE, (page + 1) * PAGE_SIZE);
 
   const menuItems = useMemo(
-    () => getTeacherMenuItems(isCommitteeMember, hasPermission),
-    [isCommitteeMember, hasPermission]
+    () => getTeacherMenuItems(hasPermission),
+    [hasPermission]
   );
 
   const activeKey = useMemo(() => {

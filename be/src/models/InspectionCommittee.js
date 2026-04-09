@@ -2,6 +2,7 @@ const mongoose = require('mongoose');
 
 const memberSchema = new mongoose.Schema(
   {
+    userId:   { type: mongoose.Schema.Types.ObjectId, ref: 'User', default: null },
     fullName: { type: String, required: true, trim: true },
     position: { type: String, trim: true, default: '' },       // Chức vụ (e.g. Hiệu trưởng, Kế toán)
     role:     { type: String, trim: true, default: 'Thành viên' }, // Nhiệm vụ phân công

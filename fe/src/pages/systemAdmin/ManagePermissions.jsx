@@ -63,6 +63,9 @@ const ROLE_PERMISSION_POOL = {
   MedicalStaff: [
     'MANAGE_HEALTH', 'VIEW_REPORT',
   ],
+  InventoryStaff: [
+    'MANAGE_INSPECTION',
+  ],
   Parent: [],
   Student: [],
 };

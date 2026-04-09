@@ -211,6 +211,8 @@ require('./src/models/InspectionMinutes');
       // HeadTeacher / Tổ trưởng
       { code: 'SUBMIT_REPORT',          description: 'Gửi báo cáo lên tổ trưởng' },
       { code: 'MANAGE_TEACHER_REPORT',  description: 'Xem, duyệt và chuyển báo cáo giáo viên lên ban giám hiệu' },
+      // InventoryStaff / Người kiểm kê tài sản
+      { code: 'MANAGE_INSPECTION',      description: 'Tạo và quản lý biên bản kiểm kê tài sản' },
     ];
 
     // Upsert tất cả permissions
@@ -250,6 +252,9 @@ require('./src/models/InspectionMinutes');
       ],
       KitchenStaff: [
         'MANAGE_FOOD', 'MANAGE_MENU', 'MANAGE_MEAL_PHOTO', 'VIEW_REPORT',
+      ],
+      InventoryStaff: [
+        'MANAGE_INSPECTION',
       ],
     };
 

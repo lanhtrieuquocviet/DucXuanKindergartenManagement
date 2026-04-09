@@ -116,7 +116,6 @@ function TeacherDashboard() {
     fetchData();
   }, [navigate, user, getDashboard, isInitializing]);
 
-  const { isCommitteeMember } = useTeacher();
   const { hasPermission } = useAuth();
 
   const ALL_TEACHER_MENU = [
@@ -128,21 +127,19 @@ function TeacherDashboard() {
     { key: 'contact-book',     label: 'Sổ liên lạc điện tử' },
     { key: 'purchase-request', label: 'Cơ sở vật chất',         permission: 'MANAGE_PURCHASE_REQUEST' },
     { key: 'class-assets',     label: 'Tài sản lớp',            permission: 'MANAGE_ASSET' },
+    { key: 'asset-inspection', label: 'Kiểm kê tài sản',        permission: 'MANAGE_INSPECTION' },
   ];
 
   const menuItems = useMemo(() => {
     const items = ALL_TEACHER_MENU.filter(
       (item) => !item.permission || hasPermission(item.permission)
     );
-    if (isCommitteeMember && hasPermission('MANAGE_ASSET')) {
-      items.push({ key: 'asset-inspection', label: 'Kiểm kê tài sản' });
-    }
     if (hasPermission('MANAGE_TEACHER_REPORT')) {
       items.push({ key: 'manage-purchase-requests', label: 'Duyệt báo cáo giáo viên' });
     }
     return items;
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [isCommitteeMember, hasPermission]);
+  }, [hasPermission]);
 
   const activeKey = useMemo(() => {
     const path = location.pathname || '';
