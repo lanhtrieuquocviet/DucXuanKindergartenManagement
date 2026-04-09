@@ -137,6 +137,7 @@ const checkoutAttendance = async (req, res) => {
       receiverType,
       receiverOtherInfo,
       receiverOtherImageName,
+      checkoutBelongingsNote,
       time,
       timeString,
       status,
@@ -154,6 +155,15 @@ const checkoutAttendance = async (req, res) => {
     const attendanceDate = date ? new Date(date) : new Date(now);
     attendanceDate.setHours(0, 0, 0, 0);
 
+    // Kiểm tra học sinh đã điểm danh đến trước khi cho phép điểm danh về
+    const existingAttendance = await Attendances.findOne({ studentId, date: attendanceDate });
+    if (!existingAttendance || !existingAttendance.timeString?.checkIn) {
+      return res.status(400).json({
+        status: 'error',
+        message: 'Học sinh chưa điểm danh đến, không thể điểm danh về',
+      });
+    }
+
     const checkOutTime = time && time.checkOut ? new Date(time.checkOut) : now;
     const checkOutTimeString =
       (timeString && timeString.checkOut) ||
@@ -168,6 +178,7 @@ const checkoutAttendance = async (req, res) => {
       receiverType,
       receiverOtherInfo,
       receiverOtherImageName,
+      checkoutBelongingsNote: checkoutBelongingsNote || '',
       isTakeOff: typeof isTakeOff === 'boolean' ? isTakeOff : false,
       status: status || 'present',
       'time.checkOut': checkOutTime,
@@ -183,7 +194,7 @@ const checkoutAttendance = async (req, res) => {
       { $set: update },
       {
         new: true,
-        upsert: true, // nếu chưa có bản ghi check-in vẫn tạo mới khi check-out
+        upsert: false,
         runValidators: true,
       },
     )
@@ -600,6 +611,7 @@ const getStudentAttendanceDetail = async (req, res) => {
               receiverOtherInfo: attendance.receiverOtherInfo || '',
               delivererOtherImageName: attendance.delivererOtherImageName || '',
               receiverOtherImageName: attendance.receiverOtherImageName || '',
+              checkoutBelongingsNote: attendance.checkoutBelongingsNote || '',
               absentReason: attendance.absentReason || '',
               checkinImageName: attendance.checkinImageName || '',
               checkoutImageName: attendance.checkoutImageName || '',

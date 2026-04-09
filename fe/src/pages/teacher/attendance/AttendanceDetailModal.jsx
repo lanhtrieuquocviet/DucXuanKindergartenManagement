@@ -373,55 +373,54 @@ function AttendanceDetailModal({
       <Box
         sx={{
           background: cfg.gradient,
-          px: 2.5, pt: 2.5, pb: 2,
-          display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between',
-          position: 'relative', overflow: 'hidden',
+          px: 2.5, pt: 2, pb: 2,
+          display: 'flex', alignItems: 'center', gap: 1.5,
         }}
       >
-        {/* BG circle decoration */}
-        <Box sx={{ position:'absolute', right:-20, top:-20, width:90, height:90, borderRadius:'50%', bgcolor:'rgba(255,255,255,0.08)' }} />
-        <Box sx={{ display:'flex', alignItems:'center', gap:1.5, position:'relative', zIndex:1 }}>
-          <Avatar sx={{ width:38, height:38, bgcolor:'rgba(255,255,255,0.2)', flexShrink:0 }}>
-            {cfg.icon}
+        <Avatar sx={{ width:36, height:36, bgcolor:'rgba(255,255,255,0.2)', flexShrink:0 }}>
+          {cfg.icon}
+        </Avatar>
+        {student && (
+          <Avatar
+            src={student.avatar || undefined}
+            sx={{
+              width: 44, height: 44, flexShrink: 0,
+              border: '2px solid rgba(255,255,255,0.55)',
+              fontSize: 16, fontWeight: 700,
+              bgcolor: 'rgba(255,255,255,0.25)',
+              color: 'white',
+              boxShadow: '0 2px 8px rgba(0,0,0,0.18)',
+            }}
+          >
+            {student.fullName?.[0] || '?'}
           </Avatar>
-          {student && (
-            <Avatar
-              src={student.avatar || undefined}
-              sx={{
-                width: 48, height: 48, flexShrink: 0,
-                border: '2.5px solid rgba(255,255,255,0.55)',
-                fontSize: 17, fontWeight: 700,
-                bgcolor: 'rgba(255,255,255,0.25)',
-                color: 'white',
-                boxShadow: '0 2px 8px rgba(0,0,0,0.18)',
-              }}
-            >
-              {student.fullName?.[0] || '?'}
-            </Avatar>
-          )}
-          <Box>
-            <Typography variant="subtitle1" fontWeight={700} color="white">
-              {cfg.title}
-            </Typography>
-            <Box sx={{ display:'flex', flexWrap: 'wrap', gap:0.75, mt:0.25 }}>
-              {student?.fullName && (
-                <Chip
-                  icon={<PersonIcon sx={{ fontSize:'12px !important', color:'rgba(255,255,255,0.8) !important' }} />}
-                  label={student.fullName}
-                  size="small"
-                  sx={{ height:20, fontSize:11, bgcolor:'rgba(255,255,255,0.18)', color:'white', fontWeight:600, maxWidth: { xs: 140, sm: 'none' } }}
-                />
-              )}
+        )}
+        <Box sx={{ flex: 1, minWidth: 0 }}>
+          <Typography variant="subtitle1" fontWeight={700} color="white" noWrap>
+            {cfg.title}
+          </Typography>
+          <Box sx={{ display:'flex', flexWrap: 'nowrap', gap:0.75, mt:0.25, overflow: 'hidden' }}>
+            {student?.fullName && (
               <Chip
-                icon={<TimeIcon sx={{ fontSize:'12px !important', color:'rgba(255,255,255,0.8) !important' }} />}
-                label={selectedDate}
+                icon={<PersonIcon sx={{ fontSize:'12px !important', color:'rgba(255,255,255,0.8) !important' }} />}
+                label={student.fullName}
                 size="small"
-                sx={{ height:20, fontSize:11, bgcolor:'rgba(255,255,255,0.18)', color:'white' }}
+                sx={{ height:20, fontSize:11, bgcolor:'rgba(255,255,255,0.18)', color:'white', fontWeight:600, maxWidth: 160, flexShrink: 1 }}
               />
-            </Box>
+            )}
+            <Chip
+              icon={<TimeIcon sx={{ fontSize:'12px !important', color:'rgba(255,255,255,0.8) !important' }} />}
+              label={selectedDate}
+              size="small"
+              sx={{ height:20, fontSize:11, bgcolor:'rgba(255,255,255,0.18)', color:'white', flexShrink: 0 }}
+            />
           </Box>
         </Box>
-        <IconButton size="small" onClick={onClose} sx={{ color:'rgba(255,255,255,0.8)', mt:-0.5, position:'relative', zIndex:1 }}>
+        <IconButton
+          size="small"
+          onClick={onClose}
+          sx={{ color:'rgba(255,255,255,0.85)', flexShrink:0, bgcolor:'rgba(255,255,255,0.12)', '&:hover':{ bgcolor:'rgba(255,255,255,0.22)' } }}
+        >
           <CloseIcon fontSize="small" />
         </IconButton>
       </Box>
@@ -432,11 +431,6 @@ function AttendanceDetailModal({
           {isPastDate && (
             <Alert severity="info" sx={{ mb: 2, borderRadius: 2 }}>
               Ngày đã qua — không thể chỉnh sửa dữ liệu điểm danh.
-            </Alert>
-          )}
-          {(submitError || studentsError) && (
-            <Alert severity="error" sx={{ mb: 2, borderRadius: 2 }}>
-              {submitError || studentsError}
             </Alert>
           )}
 
@@ -672,6 +666,18 @@ function AttendanceDetailModal({
                     </Box>
                   </Box>
 
+                  {/* Đồ mang về */}
+                  <TextField
+                    fullWidth size="small" label="Đồ mang về"
+                    placeholder="Bình nước, balo, đồ dùng cá nhân..."
+                    value={detailForm.checkoutBelongingsNote || ''}
+                    disabled={isPastDate}
+                    slotProps={{ htmlInput: { maxLength: MAX_BELONGINGS_NOTE_LEN } }}
+                    onChange={(e) => setDetailForm((prev) => ({
+                      ...prev, checkoutBelongingsNote: sanitizeSingleLineText(e.target.value, MAX_BELONGINGS_NOTE_LEN),
+                    }))}
+                  />
+
                   {/* Note full width */}
                   <TextField
                     fullWidth size="small" multiline rows={2} label="Ghi chú điểm danh về"
@@ -806,6 +812,35 @@ function AttendanceDetailModal({
                 otpExpired={otpExpired}
                 onResetOtp={onResetOtp}
               />
+
+              {/* Đồ mang về */}
+              <Paper variant="outlined" sx={{ p: 2, borderRadius: 2, borderColor: 'divider' }}>
+                <FormControlLabel
+                  control={
+                    <Checkbox
+                      size="small"
+                      checked={detailForm.hasCheckoutBelongings}
+                      onChange={(e) => setDetailForm((prev) => ({
+                        ...prev, hasCheckoutBelongings: e.target.checked,
+                        checkoutBelongingsNote: e.target.checked ? prev.checkoutBelongingsNote : '',
+                      }))}
+                    />
+                  }
+                  label={<Typography variant="body2" fontWeight={600}>🎒 Có đồ mang về</Typography>}
+                />
+                {detailForm.hasCheckoutBelongings && (
+                  <TextField
+                    fullWidth size="small" multiline rows={2} sx={{ mt: 1 }}
+                    label="Ghi chú đồ mang về"
+                    placeholder="Bình nước, balo, thú bông..."
+                    value={detailForm.checkoutBelongingsNote}
+                    slotProps={{ htmlInput: { maxLength: MAX_BELONGINGS_NOTE_LEN } }}
+                    onChange={(e) => setDetailForm((prev) => ({
+                      ...prev, checkoutBelongingsNote: sanitizeMultiLineText(e.target.value, MAX_BELONGINGS_NOTE_LEN),
+                    }))}
+                  />
+                )}
+              </Paper>
 
               <TextField
                 fullWidth size="small" multiline rows={2} label="Ghi chú"
@@ -985,50 +1020,57 @@ function AttendanceDetailModal({
         </DialogContent>
 
         {/* Actions */}
-        <DialogActions sx={{ px: { xs: 2, sm: 3 }, py: 2, borderTop: '1px solid', borderColor: 'divider', gap: 1, flexWrap: 'wrap' }}>
-          <Button
-            variant="outlined"
-            onClick={onClose}
-            sx={{ borderRadius: 2, textTransform: 'none', fontWeight: 600, flex: { xs: 1, sm: 'unset' } }}
-          >
-            {isPastDate ? 'Đóng' : 'Hủy'}
-          </Button>
-          {!isPastDate && (
-            mode === 'checkout' ? (
-              <Button
-                type="submit"
-                variant="contained"
-                color="info"
-                disabled={!canSaveCheckout}
-                startIcon={<SaveIcon />}
-                sx={{ borderRadius: 2, textTransform: 'none', fontWeight: 700, flex: { xs: 2, sm: 'unset' } }}
-              >
-                Lưu điểm danh về
-              </Button>
-            ) : mode === 'checkin' ? (
-              <Button
-                type="submit"
-                variant="contained"
-                color="success"
-                disabled={!canSubmitCheckin}
-                title={!canSubmitCheckin ? 'Vui lòng chọn ảnh điểm danh' : ''}
-                startIcon={<SaveIcon />}
-                sx={{ borderRadius: 2, textTransform: 'none', fontWeight: 700, flex: { xs: 2, sm: 'unset' } }}
-              >
-                Lưu điểm danh
-              </Button>
-            ) : (
-              <Button
-                type="submit"
-                variant="contained"
-                color="primary"
-                startIcon={<SaveIcon />}
-                sx={{ borderRadius: 2, textTransform: 'none', fontWeight: 700, flex: { xs: 2, sm: 'unset' } }}
-              >
-                Lưu chỉnh sửa
-              </Button>
-            )
+        <DialogActions sx={{ px: { xs: 2, sm: 3 }, pt: 1.5, pb: 2, borderTop: '1px solid', borderColor: 'divider', gap: 1, flexWrap: 'wrap', flexDirection: 'column', alignItems: 'stretch' }}>
+          {(submitError || studentsError) && (
+            <Alert severity="error" sx={{ borderRadius: 2, width: '100%' }} onClose={() => setSubmitError(null)}>
+              {submitError || studentsError}
+            </Alert>
           )}
+          <Box sx={{ display: 'flex', gap: 1, flexWrap: 'wrap' }}>
+            <Button
+              variant="outlined"
+              onClick={onClose}
+              sx={{ borderRadius: 2, textTransform: 'none', fontWeight: 600, flex: { xs: 1, sm: 'unset' } }}
+            >
+              {isPastDate ? 'Đóng' : 'Hủy'}
+            </Button>
+            {!isPastDate && (
+              mode === 'checkout' ? (
+                <Button
+                  type="submit"
+                  variant="contained"
+                  color="info"
+                  disabled={!canSaveCheckout}
+                  startIcon={<SaveIcon />}
+                  sx={{ borderRadius: 2, textTransform: 'none', fontWeight: 700, flex: { xs: 2, sm: 'unset' } }}
+                >
+                  Lưu điểm danh về
+                </Button>
+              ) : mode === 'checkin' ? (
+                <Button
+                  type="submit"
+                  variant="contained"
+                  color="success"
+                  disabled={!canSubmitCheckin}
+                  title={!canSubmitCheckin ? 'Vui lòng chọn ảnh điểm danh' : ''}
+                  startIcon={<SaveIcon />}
+                  sx={{ borderRadius: 2, textTransform: 'none', fontWeight: 700, flex: { xs: 2, sm: 'unset' } }}
+                >
+                  Lưu điểm danh
+                </Button>
+              ) : (
+                <Button
+                  type="submit"
+                  variant="contained"
+                  color="primary"
+                  startIcon={<SaveIcon />}
+                  sx={{ borderRadius: 2, textTransform: 'none', fontWeight: 700, flex: { xs: 2, sm: 'unset' } }}
+                >
+                  Lưu chỉnh sửa
+                </Button>
+              )
+            )}
+          </Box>
         </DialogActions>
       </Box>
     </Dialog>

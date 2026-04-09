@@ -88,8 +88,21 @@ export default function TodayAttendance() {
   const checkInTime = attendance?.timeString?.checkIn || '';
   const checkOutTime = attendance?.timeString?.checkOut || '';
   const note = attendance?.note || '';
-  const delivererDisplay = attendance?.delivererType || attendance?.delivererOtherInfo || '';
-  const receiverDisplay = attendance?.receiverType || attendance?.receiverOtherInfo || '';
+  const delivererType = attendance?.delivererType || '';
+  const delivererOtherInfo = attendance?.delivererOtherInfo || '';
+  const delivererOtherImage = attendance?.delivererOtherImageName || '';
+  const isDelivererOther = delivererType === 'Khác';
+  const delivererDisplay = isDelivererOther
+    ? (delivererOtherInfo || 'Người khác')
+    : (delivererType || delivererOtherInfo || '');
+
+  const receiverType = attendance?.receiverType || '';
+  const receiverOtherInfo = attendance?.receiverOtherInfo || '';
+  const receiverOtherImage = attendance?.receiverOtherImageName || '';
+  const isReceiverOther = receiverType === 'Khác';
+  const receiverDisplay = isReceiverOther
+    ? (receiverOtherInfo || 'Người khác')
+    : (receiverType || receiverOtherInfo || '');
   const hasCheckIn = Boolean(checkInTime || attendance?.status === 'present');
   const hasCheckOut = Boolean(checkOutTime);
   const checkedInByAI = attendance?.checkedInByAI || false;
@@ -172,6 +185,15 @@ export default function TodayAttendance() {
                   } />
                   <Divider />
                   <InfoRow label="Người đưa" value={delivererDisplay || <Typography color="text.disabled" fontSize="0.85rem">Chưa có thông tin</Typography>} />
+                  {isDelivererOther && delivererOtherImage && (
+                    <>
+                      <Divider />
+                      <Box>
+                        <Typography fontSize="0.78rem" fontWeight={600} color="text.secondary" mb={1}>Ảnh người đưa</Typography>
+                        <PhotoSlot src={delivererOtherImage} alt="Ảnh người đưa" color={PRIMARY} />
+                      </Box>
+                    </>
+                  )}
                   <Divider />
                   <InfoRow label="Ghi chú" value={note || <Typography color="text.disabled" fontSize="0.85rem">Không có ghi chú</Typography>} />
                 </Stack>
@@ -210,6 +232,15 @@ export default function TodayAttendance() {
                   } />
                   <Divider />
                   <InfoRow label="Người đón" value={receiverDisplay || <Typography color="text.disabled" fontSize="0.85rem">Chưa có thông tin</Typography>} />
+                  {isReceiverOther && receiverOtherImage && (
+                    <>
+                      <Divider />
+                      <Box>
+                        <Typography fontSize="0.78rem" fontWeight={600} color="text.secondary" mb={1}>Ảnh người đón</Typography>
+                        <PhotoSlot src={receiverOtherImage} alt="Ảnh người đón" color="#2563eb" />
+                      </Box>
+                    </>
+                  )}
                   <Divider />
                   <InfoRow label="Xác nhận PH" value={
                     <Chip label={hasCheckOut ? 'Đã xác nhận' : 'Chưa xác nhận'}

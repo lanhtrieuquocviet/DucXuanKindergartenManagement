@@ -987,17 +987,19 @@ const deleteFaceAngle = async (req, res) => {
 /**
  * Cập nhật thông tin người đưa/đón cho bản ghi điểm danh
  * PATCH /api/face/attendance/:id/deliverer
- * Body: { delivererType, delivererOtherInfo }
+ * Body: { delivererType, delivererOtherInfo } hoặc { receiverType, receiverOtherInfo }
  */
 const updateAttendanceDeliverer = async (req, res) => {
   try {
-    const { delivererType = '', delivererOtherInfo = '' } = req.body;
+    const { delivererType, delivererOtherInfo, receiverType, receiverOtherInfo } = req.body;
     const attendance = await Attendances.findById(req.params.id);
     if (!attendance) {
       return res.status(404).json({ status: 'error', message: 'Không tìm thấy bản ghi điểm danh.' });
     }
-    attendance.delivererType = delivererType;
-    attendance.delivererOtherInfo = delivererOtherInfo;
+    if (delivererType !== undefined) attendance.delivererType = delivererType;
+    if (delivererOtherInfo !== undefined) attendance.delivererOtherInfo = delivererOtherInfo;
+    if (receiverType !== undefined) attendance.receiverType = receiverType;
+    if (receiverOtherInfo !== undefined) attendance.receiverOtherInfo = receiverOtherInfo;
     await attendance.save();
     return res.json({ status: 'success', data: { attendance } });
   } catch (error) {

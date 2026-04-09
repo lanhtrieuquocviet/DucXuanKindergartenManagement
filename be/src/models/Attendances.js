@@ -84,6 +84,12 @@ const attendanceSchema = new mongoose.Schema(
       trim: true,
       default: '',
     },
+    // Ghi chú đồ mang về (check-out)
+    checkoutBelongingsNote: {
+      type: String,
+      trim: true,
+      default: '',
+    },
     // Điểm danh bằng AI (nhận diện khuôn mặt)
     checkedInByAI: {
       type: Boolean,

@@ -17,7 +17,7 @@ import FaceCamera from './FaceCamera';
 import {
   matchStudentFaceForCheckout,
   uploadAttendanceImage,
-  updateAttendanceDeliverer,
+  updateAttendanceReceiver,
   getApprovedPickupPersons,
 } from '../../service/faceAttendance.api';
 
@@ -214,10 +214,10 @@ export default function PickupFaceAttendanceModal({ open, onClose, classId, clas
                               key={p._id}
                               onClick={async () => {
                                 try {
-                                  await updateAttendanceDeliverer(
+                                  await updateAttendanceReceiver(
                                     matchResult.attendance._id,
-                                    `${p.fullName} (${p.relation})`,
-                                    p.phone
+                                    p.relation,
+                                    `${p.fullName} (${p.relation})`
                                   );
                                   setDelivererSaved(true);
                                   waitingForDelivererRef.current = false;
