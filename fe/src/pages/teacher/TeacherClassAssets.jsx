@@ -11,7 +11,6 @@ import ExpandMoreIcon from '@mui/icons-material/ExpandMore';
 import ExpandLessIcon from '@mui/icons-material/ExpandLess';
 import RoleLayout from '../../layouts/RoleLayout';
 import { useAuth } from '../../context/AuthContext';
-import { useTeacher } from '../../context/TeacherContext';
 import CheckCircleIcon from '@mui/icons-material/CheckCircle';
 import { get, patch, ENDPOINTS } from '../../service/api';
 
@@ -120,8 +119,7 @@ function AssetTable({ title, assets }) {
 // ── Main component ─────────────────────────────────────────────────────────
 export default function TeacherClassAssets() {
   const navigate = useNavigate();
-  const { user, logout, isInitializing } = useAuth();
-  const { isCommitteeMember } = useTeacher();
+  const { user, logout, isInitializing, hasPermission } = useAuth();
 
   const [loading, setLoading]         = useState(true);
   const [allocation, setAlloc]        = useState(null);
@@ -164,11 +162,11 @@ export default function TeacherClassAssets() {
     { key: 'classes',          label: 'Lớp phụ trách' },
     { key: 'students',         label: 'Danh sách học sinh' },
     { key: 'attendance',       label: 'Điểm danh' },
-    { key: 'pickup-approval',  label: 'Đơn đưa đón' },
+    { key: 'pickup-approval',  label: 'Đơn đăng ký đưa đón' },
     { key: 'schedule',         label: 'Lịch dạy & hoạt động' },
     { key: 'purchase-request', label: 'Cơ sở vật chất' },
     { key: 'class-assets',     label: 'Tài sản lớp' },
-    ...(isCommitteeMember ? [{ key: 'asset-inspection', label: 'Kiểm kê tài sản' }] : []),
+    ...(hasPermission('MANAGE_INSPECTION') ? [{ key: 'asset-inspection', label: 'Kiểm kê tài sản' }] : []),
   ];
 
   const handleMenuSelect = (key) => {

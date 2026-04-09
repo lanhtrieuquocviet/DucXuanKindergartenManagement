@@ -233,7 +233,7 @@ export default function TeacherAssetInspection() {
     { key: 'classes',          label: 'Lớp phụ trách' },
     { key: 'students',         label: 'Danh sách học sinh' },
     { key: 'attendance',       label: 'Điểm danh' },
-    { key: 'pickup-approval',  label: 'Đơn đưa đón' },
+    { key: 'pickup-approval',  label: 'Đơn đăng ký đưa đón' },
     { key: 'schedule',         label: 'Lịch dạy & hoạt động' },
     { key: 'purchase-request', label: 'Cơ sở vật chất' },
     { key: 'class-assets',     label: 'Tài sản lớp' },

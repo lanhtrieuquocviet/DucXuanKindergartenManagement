@@ -14,7 +14,6 @@ import AddPhotoAlternateIcon from '@mui/icons-material/AddPhotoAlternate';
 import CloseIcon from '@mui/icons-material/Close';
 import RoleLayout from '../../layouts/RoleLayout';
 import { useAuth } from '../../context/AuthContext';
-import { useTeacher } from '../../context/TeacherContext';
 import { get, post, put, del, postFormData, ENDPOINTS } from '../../service/api';
 
 const STATUS_LABEL = {
@@ -65,8 +64,7 @@ function ConfirmDialog({ open, title, message, onConfirm, onCancel, loading }) {
 
 export default function TeacherPurchaseRequest() {
   const navigate  = useNavigate();
-  const { user, logout, isInitializing } = useAuth();
-  const { isCommitteeMember } = useTeacher();
+  const { user, logout, isInitializing, hasPermission } = useAuth();
   const fileInputRef = useRef(null);
 
   const [loading, setLoading]           = useState(true);
@@ -206,12 +204,12 @@ export default function TeacherPurchaseRequest() {
     { key: 'classes',          label: 'Lớp phụ trách' },
     { key: 'students',         label: 'Danh sách học sinh' },
     { key: 'attendance',       label: 'Điểm danh' },
-    { key: 'pickup-approval',  label: 'Đơn đưa đón' },
+    { key: 'pickup-approval',  label: 'Đơn đăng ký đưa đón' },
     { key: 'schedule',         label: 'Lịch dạy & hoạt động' },
     { key: 'purchase-request', label: 'Cơ sở vật chất' },
     { key: 'class-assets',     label: 'Tài sản lớp' },
-    ...(isCommitteeMember ? [{ key: 'asset-inspection', label: 'Kiểm kê tài sản' }] : []),
-  ], [isCommitteeMember]);
+    ...(hasPermission('MANAGE_INSPECTION') ? [{ key: 'asset-inspection', label: 'Kiểm kê tài sản' }] : []),
+  ], [hasPermission]);
 
   const handleMenuSelect = (key) => {
     const MAP = {
