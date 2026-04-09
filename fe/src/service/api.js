@@ -500,6 +500,12 @@ export const ENDPOINTS = {
     CHANGE_REQUESTS: "/school-admin/students/change-requests",
     CHANGE_REQUESTS_PENDING_MAP: "/school-admin/students/change-requests/pending-map",
     CHANGE_REQUEST_RESOLVE: (id) => `/school-admin/students/change-requests/${id}/resolve`,
+    // School admin student contact book endpoints
+    ADMIN_HEALTH_LATEST: (studentId) => `/school-admin/students/${studentId}/health-latest`,
+    ADMIN_ATTENDANCE_MONTHLY: (studentId) => `/school-admin/students/${studentId}/attendance-monthly`,
+    ADMIN_NOTES: (studentId) => `/school-admin/students/${studentId}/notes`,
+    ADMIN_NOTE_DELETE: (studentId, noteId) => `/school-admin/students/${studentId}/notes/${noteId}`,
+    ADMIN_TODAY_MENU: '/school-admin/students/contact-book/today-menu',
     // Sổ liên lạc phụ huynh/học sinh
     CONTACT_BOOK_MY:         '/students/contact-book/my',
     CONTACT_BOOK_HEALTH:     '/students/contact-book/health',

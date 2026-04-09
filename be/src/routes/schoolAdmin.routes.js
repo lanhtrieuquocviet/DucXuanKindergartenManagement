@@ -589,6 +589,86 @@ router.post('/students/health-import', authenticate, authorizeAnyPermission('MAN
   }
 });
 
+// ── Student Contact Book (School Admin view) ─────────────────────────────────
+
+// GET /school-admin/students/contact-book/today-menu
+router.get('/students/contact-book/today-menu', authenticate, authorizePermissions('MANAGE_STUDENT'), async (req, res) => {
+  try {
+    const Menu = require('../models/Menu');
+    const DailyMenu = require('../models/DailyMenu');
+    function getISOWeek(date) {
+      const d = new Date(date); d.setHours(0,0,0,0);
+      d.setDate(d.getDate() + 3 - ((d.getDay() + 6) % 7));
+      const w1 = new Date(d.getFullYear(), 0, 4);
+      return 1 + Math.round(((d - w1) / 86400000 - 3 + ((w1.getDay() + 6) % 7)) / 7);
+    }
+    const today = new Date(new Date().toLocaleString('en-US', { timeZone: 'Asia/Ho_Chi_Minh' }));
+    const jsDay = today.getDay();
+    const DAY_MAP = { 1: 'mon', 2: 'tue', 3: 'wed', 4: 'thu', 5: 'fri' };
+    if (!DAY_MAP[jsDay]) return res.json({ status: 'success', data: null, message: 'Cuối tuần không có thực đơn' });
+    const dayOfWeek = DAY_MAP[jsDay];
+    const month = today.getMonth() + 1; const year = today.getFullYear();
+    const weekNum = getISOWeek(today); const weekType = weekNum % 2 === 1 ? 'odd' : 'even';
+    const menu = await Menu.findOne({ month, year, status: { $in: ['approved','active','completed'] } }).lean();
+    if (!menu) return res.json({ status: 'success', data: null, message: `Chưa có thực đơn tháng ${month}/${year}` });
+    const daily = await DailyMenu.findOne({ menuId: menu._id, weekType, dayOfWeek })
+      .populate('lunchFoods', 'name calories protein fat carb')
+      .populate('afternoonFoods', 'name calories protein fat carb').lean();
+    if (!daily) return res.json({ status: 'success', data: null, message: 'Không có thực đơn cho ngày hôm nay' });
+    const DAY_LABEL = { mon:'Thứ Hai', tue:'Thứ Ba', wed:'Thứ Tư', thu:'Thứ Năm', fri:'Thứ Sáu' };
+    return res.json({ status: 'success', data: { date: today.toISOString().slice(0,10), dayLabel: DAY_LABEL[dayOfWeek], weekType, weekNum, lunchFoods: daily.lunchFoods||[], afternoonFoods: daily.afternoonFoods||[], totalCalories: daily.totalCalories, totalProtein: daily.totalProtein, totalFat: daily.totalFat, totalCarb: daily.totalCarb } });
+  } catch (err) { return res.status(500).json({ status: 'error', message: err.message }); }
+});
+
+// GET /school-admin/students/:studentId/health-latest
+router.get('/students/:studentId/health-latest', authenticate, authorizeAnyPermission('MANAGE_STUDENT', 'MANAGE_HEALTH'), async (req, res) => {
+  try {
+    const HealthCheck = require('../models/HealthCheck');
+    const health = await HealthCheck.findOne({ studentId: req.params.studentId }).sort({ checkDate: -1 }).lean();
+    return res.json({ status: 'success', data: health || null });
+  } catch (err) { return res.status(500).json({ status: 'error', message: err.message }); }
+});
+
+// GET /school-admin/students/:studentId/attendance-monthly?year=&month=
+router.get('/students/:studentId/attendance-monthly', authenticate, authorizePermissions('VIEW_ATTENDANCE'), async (req, res) => {
+  try {
+    const Attendance = require('../models/Attendances');
+    const { studentId } = req.params;
+    const now = new Date();
+    const year = parseInt(req.query.year) || now.getFullYear();
+    const month = parseInt(req.query.month) || (now.getMonth() + 1);
+    const from = new Date(year, month - 1, 1, 0, 0, 0);
+    const to = new Date(year, month, 1, 0, 0, 0);
+    const records = await Attendance.find({ studentId, date: { $gte: from, $lt: to } }).sort({ date: -1 }).lean();
+    const present = records.filter(r => r.status === 'present').length;
+    const absent  = records.filter(r => r.status === 'absent').length;
+    const leave   = records.filter(r => r.status === 'leave').length;
+    const total   = records.length;
+    const rate    = total > 0 ? Math.round((present / total) * 100) : null;
+    return res.json({ status: 'success', data: { year, month, total, present, absent, leave, rate, records } });
+  } catch (err) { return res.status(500).json({ status: 'error', message: err.message }); }
+});
+
+// GET /school-admin/students/:studentId/notes
+router.get('/students/:studentId/notes', authenticate, authorizePermissions('MANAGE_STUDENT'), async (req, res) => {
+  try {
+    const TeacherNote = require('../models/TeacherNote');
+    const notes = await TeacherNote.find({ studentId: req.params.studentId })
+      .populate('teacherId', 'userId')
+      .sort({ createdAt: -1 }).lean();
+    return res.json({ status: 'success', data: notes });
+  } catch (err) { return res.status(500).json({ status: 'error', message: err.message }); }
+});
+
+// DELETE /school-admin/students/:studentId/notes/:noteId
+router.delete('/students/:studentId/notes/:noteId', authenticate, authorizePermissions('MANAGE_STUDENT'), async (req, res) => {
+  try {
+    const TeacherNote = require('../models/TeacherNote');
+    await TeacherNote.deleteOne({ _id: req.params.noteId, studentId: req.params.studentId });
+    return res.json({ status: 'success', message: 'Đã xóa ghi chú' });
+  } catch (err) { return res.status(500).json({ status: 'error', message: err.message }); }
+});
+
 // ============================================
 // Blogs
 // ============================================

@@ -166,7 +166,6 @@ export default function TeacherClassAssets() {
     { key: 'attendance',       label: 'Điểm danh' },
     { key: 'pickup-approval',  label: 'Đơn đưa đón' },
     { key: 'schedule',         label: 'Lịch dạy & hoạt động' },
-    { key: 'contact-book',     label: 'Sổ liên lạc điện tử' },
     { key: 'purchase-request', label: 'Cơ sở vật chất' },
     { key: 'class-assets',     label: 'Tài sản lớp' },
     ...(isCommitteeMember ? [{ key: 'asset-inspection', label: 'Kiểm kê tài sản' }] : []),

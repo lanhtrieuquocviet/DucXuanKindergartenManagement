@@ -124,6 +124,7 @@ import ManageCommittee from './pages/schoolAdmin/ManageCommittee';
 import ManageMinutes from './pages/schoolAdmin/ManageMinutes';
 import ProtectedRoute from './components/ProtectedRoute';
 import StudentHealthManagement from './pages/medicalStaff/StudentHealthManagement';
+import StudentDetailPage from './pages/schoolAdmin/StudentDetailPage';
 
 
 function AppContent() {
@@ -472,6 +473,14 @@ function App() {
                 <SchoolAdminProvider>
                   <ManageStudents />
                 </SchoolAdminProvider>
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/school-admin/students/:studentId/detail"
+            element={
+              <ProtectedRoute>
+                <StudentDetailPage />
               </ProtectedRoute>
             }
           />

@@ -402,8 +402,7 @@ function ManageStudents() {
   };
 
   const handleOpenDetail = (row) => {
-    setDetailStudent(row);
-    setOpenDetail(true);
+    navigate(`/school-admin/students/${row._id}/detail`);
   };
 
   const formatDate = (d) => {

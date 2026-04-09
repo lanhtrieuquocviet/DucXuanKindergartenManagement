@@ -37,7 +37,6 @@ function HeadTeacherPurchaseRequests() {
     { key: 'students',                   label: 'Danh sách học sinh' },
     { key: 'attendance',                 label: 'Điểm danh' },
     { key: 'pickup-approval',            label: 'Đơn đưa đón' },
-    { key: 'contact-book',               label: 'Sổ liên lạc điện tử' },
     { key: 'purchase-request',           label: 'Cơ sở vật chất' },
     { key: 'class-assets',               label: 'Tài sản lớp' },
     { key: 'manage-purchase-requests',   label: 'Duyệt báo cáo giáo viên' },
