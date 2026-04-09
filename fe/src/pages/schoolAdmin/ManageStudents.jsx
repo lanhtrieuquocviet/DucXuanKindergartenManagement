@@ -154,31 +154,37 @@ function ManageStudents() {
     setLoading(true);
     setError(null);
     try {
-      const studentParams = {
-        ...(classFilter ? { classId: classFilter } : {}),
-        ...(requestedYearId ? { academicYearId: requestedYearId } : {}),
-      };
       const yearPromise = requestedYearId
         ? get(`${ENDPOINTS.SCHOOL_ADMIN.ACADEMIC_YEARS.HISTORY}?yearId=${requestedYearId}`).catch(() => null)
         : get(ENDPOINTS.SCHOOL_ADMIN.ACADEMIC_YEARS.CURRENT).catch(() => null);
-      const [studentsRes, classesRes, yearRes] = await Promise.all([
-        getAllStudents(studentParams),
+
+      const [classesRes, yearRes] = await Promise.all([
         getClasses(),
         yearPromise,
       ]);
-      setStudents(studentsRes?.data || []);
-      setClasses(classesRes?.data || []);
+
+      let activeYearId = requestedYearId || null;
       if (yearRes?.status === 'success') {
         if (requestedYearId) {
           const yearRow = Array.isArray(yearRes.data) ? yearRes.data[0] : null;
           setViewAcademicYear(yearRow || null);
+          activeYearId = yearRow?._id || requestedYearId;
         } else {
           setViewAcademicYear(yearRes.data || null);
           setActiveAcademicYear(yearRes.data || null);
+          activeYearId = yearRes.data?._id || null;
         }
       } else {
         setViewAcademicYear(null);
       }
+
+      const studentParams = {
+        ...(classFilter ? { classId: classFilter } : {}),
+        ...(activeYearId ? { academicYearId: activeYearId } : {}),
+      };
+      const studentsRes = await getAllStudents(studentParams);
+      setStudents(studentsRes?.data || []);
+      setClasses(classesRes?.data || []);
     } catch (err) {
       setError(err.message || 'Không tải được dữ liệu');
     } finally {
@@ -222,13 +228,9 @@ function ManageStudents() {
 
   useEffect(() => {
     if (user && !isInitializing && (hasRole('SchoolAdmin') || hasRole('SystemAdmin'))) {
-      const studentParams = {
-        ...(classFilter ? { classId: classFilter } : {}),
-        ...(requestedYearId ? { academicYearId: requestedYearId } : {}),
-      };
-      getAllStudents(studentParams).then((res) => setStudents(res?.data || [])).catch(() => {});
+      fetchData();
     }
-  }, [classFilter, requestedYearId, user, isInitializing, hasRole, getAllStudents]);
+  }, [classFilter, requestedYearId]); // eslint-disable-line
 
   const handleLogout = () => {
     logout();
