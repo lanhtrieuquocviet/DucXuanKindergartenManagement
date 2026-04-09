@@ -20,7 +20,7 @@ export const SCHOOL_ADMIN_MENU_ITEMS = [
   },
   { key: 'classes', label: 'Quản lý khối & lớp học', permission: 'MANAGE_CLASS' },
   { key: 'staff', label: 'Quản lý nhân sự', permission: 'MANAGE_ASSET' },
-  { key: 'students', label: 'Học sinh & phụ huynh', permission: 'MANAGE_STUDENT' },
+  { key: 'students', label: 'Học sinh', permission: 'MANAGE_STUDENT' },
   {
     key: 'attendance',
     label: 'Quản lý điểm danh',

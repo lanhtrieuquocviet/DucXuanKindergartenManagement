@@ -440,9 +440,10 @@ function ClassList() {
 
   // ── create class dialog ───────────────────────────────────────────────────────
   const openCreateDialog = async (presetGradeId = '') => {
+    const resolvedGradeId = presetGradeId || selectedGrade?._id || '';
     setDialogError(null);
     setNoActiveYear(false);
-    setForm({ className: '', gradeId: presetGradeId, maxStudents: '', teacherIds: [], roomId: '' });
+    setForm({ className: '', gradeId: resolvedGradeId, maxStudents: '', teacherIds: [], roomId: '' });
     setFormErrors({});
     setCurrentAcademicYear(null);
     setGrades([]);
@@ -836,14 +837,25 @@ function ClassList() {
                         {/* Footer */}
                         <Box sx={{ px: 2.5, py: 1.5, bgcolor: '#fff', borderTop: '1px solid', borderColor: 'divider' }}>
                           <Stack direction="row" alignItems="center" justifyContent="space-between">
-                            <Button
-                              variant="outlined"
-                              size="small"
-                              onClick={() => { setSelectedGrade(g); setSearchTerm(''); }}
-                              sx={{ textTransform: 'none', fontWeight: 600, borderColor: '#2563eb', color: '#2563eb', '&:hover': { borderColor: '#1d4ed8', bgcolor: '#eff6ff' }, borderRadius: 1.5, fontSize: '0.8rem' }}
-                            >
-                              Quản lý lớp →
-                            </Button>
+                            <Stack direction="row" spacing={0.75}>
+                              <Button
+                                variant="outlined"
+                                size="small"
+                                onClick={() => { setSelectedGrade(g); setSearchTerm(''); }}
+                                sx={{ textTransform: 'none', fontWeight: 600, borderColor: '#2563eb', color: '#2563eb', '&:hover': { borderColor: '#1d4ed8', bgcolor: '#eff6ff' }, borderRadius: 1.5, fontSize: '0.8rem' }}
+                              >
+                                Quản lý lớp →
+                              </Button>
+                              <Button
+                                variant="contained"
+                                size="small"
+                                startIcon={<AddIcon />}
+                                onClick={(e) => { e.stopPropagation(); openCreateDialog(g._id); }}
+                                sx={{ textTransform: 'none', fontWeight: 600, bgcolor: '#2563eb', '&:hover': { bgcolor: '#1d4ed8' }, borderRadius: 1.5, fontSize: '0.8rem' }}
+                              >
+                                Thêm lớp
+                              </Button>
+                            </Stack>
                             <Stack direction="row" spacing={0.5} onClick={e => e.stopPropagation()}>
                               <Tooltip title="Chỉnh sửa">
                                 <IconButton
