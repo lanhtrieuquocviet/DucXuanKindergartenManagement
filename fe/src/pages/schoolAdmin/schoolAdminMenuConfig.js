@@ -23,7 +23,7 @@ export const SCHOOL_ADMIN_MENU_ITEMS = [
   { key: 'meal-management', label: 'Quản lý bữa ăn', permission: 'APPROVE_MENU' },
   { key: 'teachers', label: 'Giáo viên', permission: 'MANAGE_TEACHER' },
   { key: 'staff', label: 'Quản lý nhân sự', permission: 'MANAGE_ASSET' },
-  { key: 'students', label: 'Học sinh & phụ huynh', permission: 'MANAGE_STUDENT' },
+  { key: 'students', label: 'Học sinh', permission: 'MANAGE_STUDENT' },
   {
     key: 'assets',
     label: 'Quản lý cơ sở vật chất',
