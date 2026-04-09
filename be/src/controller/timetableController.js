@@ -318,7 +318,7 @@ const remove = async (req, res) => {
 
 /**
  * GET /api/timetable?yearId=xxx (public)
- * Trả về hoạt động theo năm học (không cần auth).
+ * Trả về toàn bộ hoạt động (cả 2 mùa) + mùa đang hiệu lực.
  */
 const listPublic = async (req, res) => {
   try {
@@ -328,14 +328,11 @@ const listPublic = async (req, res) => {
     }
 
     const year = await AcademicYear.findById(academicYearId)
-      .select('activeTimetableSeason')
+      .select('activeTimetableSeason yearName')
       .lean();
     const effectiveSeason = resolveEffectiveTimetableSeason(year);
 
-    const list = await Timetable.find({
-      academicYear: academicYearId,
-      appliesToSeason: { $in: [effectiveSeason, 'both'] },
-    })
+    const list = await Timetable.find({ academicYear: academicYearId })
       .sort({ startMinutes: 1 })
       .lean();
 
@@ -354,6 +351,7 @@ const listPublic = async (req, res) => {
       data,
       effectiveSeason,
       activeTimetableSeason: year?.activeTimetableSeason || 'auto',
+      yearName: year?.yearName || '',
     });
   } catch (error) {
     console.error('listPublic timetable activities error:', error);

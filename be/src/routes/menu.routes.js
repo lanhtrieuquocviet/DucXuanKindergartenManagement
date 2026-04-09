@@ -54,6 +54,9 @@ const { authenticate, authorizeRoles, authorizePermissions } = require("../middl
  *       403:
  *         description: Không có quyền KitchenStaff
  */
+// Public: no auth required, only approved/active/completed menus
+router.get("/public", menuController.getPublicMenus);
+router.get("/public/:id", menuController.getPublicMenuDetail);
 router.get("/", authenticate, menuController.getMenus);
 router.post("/", authenticate, authorizePermissions("MANAGE_MENU"), menuController.createMenu);
 router.get("/nutrition-plan", authenticate, menuController.getNutritionPlanSetting);

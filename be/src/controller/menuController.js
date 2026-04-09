@@ -92,6 +92,23 @@ exports.createMenu = async (req, res) => {
     res.status(500).json({ message: error.message });
   }
 };
+// Public: trả về thực đơn đã duyệt (không cần auth)
+exports.getPublicMenus = async (req, res) => {
+  try {
+    const filter = { status: { $in: ["approved", "active", "completed"] } };
+    if (req.query.month) filter.month = Number(req.query.month);
+    if (req.query.year)  filter.year  = Number(req.query.year);
+
+    const menus = await Menu.find(filter)
+      .select("month year status createdAt")
+      .sort({ year: -1, month: -1 });
+
+    res.json({ success: true, data: menus });
+  } catch (error) {
+    res.status(500).json({ success: false, message: error.message });
+  }
+};
+
 // Lấy danh sách thực đơn theo role
 exports.getMenus = async (req, res) => {
   try {
@@ -145,6 +162,36 @@ exports.getMenus = async (req, res) => {
     });
   }
 };
+// Public: chi tiết menu (không cần auth, chỉ menu đã duyệt)
+exports.getPublicMenuDetail = async (req, res) => {
+  try {
+    const { id } = req.params;
+    if (!mongoose.Types.ObjectId.isValid(id)) {
+      return res.status(400).json({ message: "ID không hợp lệ" });
+    }
+    const menu = await Menu.findOne({
+      _id: id,
+      status: { $in: ["approved", "active", "completed"] },
+    });
+    if (!menu) {
+      return res.status(404).json({ message: "Không tìm thấy thực đơn" });
+    }
+    const dailyMenus = await DailyMenu.find({ menuId: menu._id })
+      .populate("lunchFoods")
+      .populate("afternoonFoods");
+
+    const result = { odd: {}, even: {} };
+    dailyMenus.forEach((day) => {
+      result[day.weekType][day.dayOfWeek] = day;
+    });
+
+    const menuData = menu.toObject();
+    res.json({ success: true, data: { ...menuData, weeks: result } });
+  } catch (error) {
+    res.status(500).json({ success: false, message: error.message });
+  }
+};
+
 // Chi tiết menu
 
 exports.getMenuDetail = async (req, res) => {

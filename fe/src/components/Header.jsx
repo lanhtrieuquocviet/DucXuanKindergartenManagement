@@ -363,18 +363,11 @@ function Header() {
                             </div>
                             {activeMenu === "library" && (
                                 <div className="absolute top-full left-0 mt-1 bg-white rounded-xl shadow-xl min-w-[220px] z-50 text-gray-800">
-                                    <a href="https://k12online.vn/" target="_blank" rel="noreferrer"><div className="px-4 py-3 hover:bg-green-100 rounded-t-xl">Học trực tuyến</div></a>
-                                    <a href="/weekly-program"><div className="px-4 py-3 hover:bg-green-100">Chương trình tuần</div></a>
-                                    <a href="/weekly-menu"><div className="px-4 py-3 hover:bg-green-100">Thực đơn tuần</div></a>
+                                    <a href="/weekly-menu"><div className="px-4 py-3 hover:bg-green-100 rounded-t-xl">Thực đơn tuần</div></a>
                                     <a href="/photo-gallery"><div className="px-4 py-3 hover:bg-green-100">Thư viện ảnh</div></a>
                                     <a href="/video-gallery"><div className="px-4 py-3 hover:bg-green-100">Video clip</div></a>
                                     <a href="/document-library"><div className="px-4 py-3 hover:bg-green-100">Tài liệu</div></a>
-                                    <a href="/schedule"><div className="px-4 py-3 hover:bg-green-100">Thời khóa biểu</div></a>
-                                    <a href="/lesson-plan"><div className="px-4 py-3 hover:bg-green-100">Giáo án điện tử</div></a>
-                                    <a href="/experience-sharing"><div className="px-4 py-3 hover:bg-green-100">Chia sẻ kinh nghiệm</div></a>
-                                    <a href="/things-to-know"><div className="px-4 py-3 hover:bg-green-100">Điều cần biết</div></a>
-                                    <a href="/poetry-music"><div className="px-4 py-3 hover:bg-green-100">Thơ văn - nhạc</div></a>
-                                    <a href="/relax-page"><div className="px-4 py-3 hover:bg-green-100 rounded-b-xl">Thư giãn</div></a>
+                                    <a href="/schedule"><div className="px-4 py-3 hover:bg-green-100 rounded-b-xl">Thời gian biểu</div></a>
                                 </div>
                             )}
                         </div>
