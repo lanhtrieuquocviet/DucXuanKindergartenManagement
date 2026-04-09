@@ -22,7 +22,6 @@ function HeadTeacherPurchaseRequests() {
       students:                   '/teacher/students',
       attendance:                 '/teacher/attendance',
       'pickup-approval':          '/teacher/pickup-approval',
-      'contact-book':             '/teacher/contact-book',
       'purchase-request':         '/teacher/purchase-request',
       'class-assets':             '/teacher/class-assets',
       'manage-purchase-requests': '/teacher/manage-purchase-requests',
@@ -36,12 +35,7 @@ function HeadTeacherPurchaseRequests() {
     { key: 'classes',                    label: 'Lớp phụ trách' },
     { key: 'students',                   label: 'Danh sách học sinh' },
     { key: 'attendance',                 label: 'Điểm danh' },
-<<<<<<< HEAD
     { key: 'pickup-approval',            label: 'Đơn đưa đón' },
-=======
-    { key: 'pickup-approval',            label: 'Đơn đăng ký đưa đón' },
-    { key: 'contact-book',               label: 'Sổ liên lạc điện tử' },
->>>>>>> 5d71f3fff9fb1f9451dff16297655b5050e8e03f
     { key: 'purchase-request',           label: 'Cơ sở vật chất' },
     { key: 'class-assets',               label: 'Tài sản lớp' },
     { key: 'manage-purchase-requests',   label: 'Duyệt báo cáo giáo viên' },
