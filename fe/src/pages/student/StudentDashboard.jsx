@@ -245,6 +245,9 @@ export default function StudentDashboard() {
                 <Notifications />
               </Badge>
             </IconButton>
+            <IconButton onClick={() => navigate('/profile')} size="small" sx={{ color: 'white' }}>
+              <Person />
+            </IconButton>
             <IconButton onClick={() => logout() || navigate('/login', { replace: true })} size="small" sx={{ color: 'white' }}>
               <Logout />
             </IconButton>

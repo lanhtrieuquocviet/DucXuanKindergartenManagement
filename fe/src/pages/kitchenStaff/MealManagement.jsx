@@ -747,7 +747,7 @@ function UploadMealDialog({ open, onClose, date, onSuccess, editData }) {
             >
               <AddPhotoIcon sx={{ fontSize: 32, color: cfg.color }} />
               <Typography variant="body2" fontWeight={600} color="text.secondary">
-                Nhấn để chụp ảnh
+                Nhấn để chụp hoặc tải ảnh lên
               </Typography>
               <Typography variant="caption" color="text.disabled">
                 Tối thiểu {MIN_PHOTOS} ảnh, tối đa {MAX_PHOTOS} ảnh · JPG, PNG, WebP
@@ -759,7 +759,6 @@ function UploadMealDialog({ open, onClose, date, onSuccess, editData }) {
             ref={fileInputRef}
             type="file"
             accept="image/jpeg,image/jpg,image/png,image/webp"
-            capture="environment"
             multiple
             style={{ display: 'none' }}
             onChange={handleFileChange}

@@ -364,7 +364,7 @@ function UploadSampleFood() {
                 >
                   <AddPhotoIcon sx={{ fontSize: 36, color: FIXED_MEAL_COLOR }} />
                   <Typography variant="body2" fontWeight={600} color="text.secondary">
-                    Nhấn để chụp ảnh mẫu thực phẩm
+                    Nhấn để chụp hoặc tải ảnh mẫu thực phẩm
                   </Typography>
                   <Typography variant="caption" color="text.disabled">
                     Tối thiểu {MIN_PHOTOS} ảnh, tối đa {MAX_PHOTOS} ảnh · JPG, PNG, WebP
@@ -376,7 +376,6 @@ function UploadSampleFood() {
                 ref={fileInputRef}
                 type="file"
                 accept="image/jpeg,image/jpg,image/png,image/webp"
-                capture="environment"
                 multiple
                 style={{ display: 'none' }}
                 onChange={handleFileChange}
