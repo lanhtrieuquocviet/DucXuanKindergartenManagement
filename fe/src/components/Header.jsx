@@ -37,7 +37,6 @@ function Header() {
         'Hoạt động ngoại khóa': '/extracurricular-activities',
     };
 
-    const [newsCategories, setNewsCategories] = useState([]);
     const [organizationGroups, setOrganizationGroups] = useState([]);
     // search state
     const [query, setQuery] = useState("");
@@ -91,18 +90,6 @@ function Header() {
         return () => document.removeEventListener('click', onDocClick);
     }, []);
 
-    useEffect(() => {
-        const loadCats = async () => {
-            try {
-                const resp = await get('/blogs/categories');
-                const list = resp.data || resp;
-                setNewsCategories(list);
-            } catch (err) {
-                console.error('Failed to load news categories', err);
-            }
-        };
-        loadCats();
-    }, []);
 
     useEffect(() => {
         const loadOrganization = async () => {
@@ -339,18 +326,17 @@ function Header() {
                             </div>
                             {activeMenu === "news" && (
                                 <div className="absolute top-full left-0 mt-1 bg-white rounded-xl shadow-xl min-w-[220px] z-50 text-gray-800">
-                                    {newsCategories.length === 0 ? (
-                                        <div className="px-4 py-3 text-sm text-gray-500">Đang tải...</div>
-                                    ) : (
-                                        newsCategories.map((c, idx) => {
-                                            const route = NEWS_ROUTE_MAP[c.name] || "/";
-                                            return (
-                                                <a key={c._id} href={route}>
-                                                    <div className={`px-4 py-3 hover:bg-green-100 ${idx === 0 ? "rounded-t-xl" : ""} ${idx === newsCategories.length - 1 ? "rounded-b-xl" : ""}`}>{c.name}</div>
-                                                </a>
-                                            );
-                                        })
-                                    )}
+                                    {[
+                                        { label: 'Bản tin trường', route: '/school-news' },
+                                        { label: 'Hoạt động ngoại khóa', route: '/extracurricular-activities' },
+                                        { label: 'Thông báo', route: '/notifications-news' },
+                                        { label: 'Thông báo từ Phòng', route: '/department-notifications' },
+                                        { label: 'Tin tức từ Phòng', route: '/department-news' },
+                                    ].map((item, idx, arr) => (
+                                        <a key={item.route} href={item.route}>
+                                            <div className={`px-4 py-3 hover:bg-green-100 ${idx === 0 ? "rounded-t-xl" : ""} ${idx === arr.length - 1 ? "rounded-b-xl" : ""}`}>{item.label}</div>
+                                        </a>
+                                    ))}
                                 </div>
                             )}
                         </div>
