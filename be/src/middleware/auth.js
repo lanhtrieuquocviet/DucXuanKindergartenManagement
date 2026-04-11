@@ -42,10 +42,14 @@ const authenticate = async (req, res, next) => {
     const user = await User.findById(decoded.sub).populate({
       path: 'roles',
       model: 'Roles',
-      populate: {
-        path: 'permissions',
-        model: 'Permission',
-      },
+      populate: [
+        { path: 'permissions', model: 'Permission' },
+        {
+          path: 'parent',
+          model: 'Roles',
+          populate: { path: 'permissions', model: 'Permission' },
+        },
+      ],
     });
 
     if (!user) {
@@ -62,13 +66,17 @@ const authenticate = async (req, res, next) => {
       });
     }
 
-    const roles = (user.roles || []).map((role) => ({
-      id: role._id,
-      roleName: role.roleName,
-      permissions: (role.permissions || []).map((p) =>
-        p && p.code ? p.code : p,
-      ),
-    }));
+    const roles = (user.roles || []).map((role) => {
+      const ownPerms = (role.permissions || []).map((p) => p && p.code ? p.code : p);
+      const parentPerms = role.parent
+        ? (role.parent.permissions || []).map((p) => p && p.code ? p.code : p)
+        : [];
+      return {
+        id: role._id,
+        roleName: role.roleName,
+        permissions: [...new Set([...ownPerms, ...parentPerms])],
+      };
+    });
 
     req.user = {
       id: user._id.toString(),
@@ -76,7 +84,7 @@ const authenticate = async (req, res, next) => {
       roles: roles.map((r) => r.roleName),
       permissions: Array.from(new Set(roles.flatMap((r) => r.permissions))),
       rawUser: user,
-      _id: user._id, // them ObjectId
+      _id: user._id,
     };
 
     next();

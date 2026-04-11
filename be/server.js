@@ -149,10 +149,10 @@ require('./src/models/InspectionMinutes');
       console.log(`🔁 Initialized category field on ${docMigrated.modifiedCount} document(s)`);
     }
 
-    // Ensure MANAGE_DOCUMENTS permission exists
+    // Ensure MANAGE_DOCUMENTS permission exists (legacy – không dùng trong route, giữ để không mất dữ liệu)
     await Permission.findOneAndUpdate(
       { code: 'MANAGE_DOCUMENTS' },
-      { code: 'MANAGE_DOCUMENTS', description: 'Quản lý tài liệu' },
+      { code: 'MANAGE_DOCUMENTS', description: 'Quản lý tài liệu (legacy)', group: 'Nội dung & Truyền thông' },
       { upsert: true, new: true }
     );
     console.log('✅ MANAGE_DOCUMENTS permission seeded');
@@ -160,7 +160,7 @@ require('./src/models/InspectionMinutes');
     // Ensure MANAGE_BLOG_CATEGORY permission exists
     await Permission.findOneAndUpdate(
       { code: 'MANAGE_BLOG_CATEGORY' },
-      { code: 'MANAGE_BLOG_CATEGORY', description: 'Quản lý danh mục blog' },
+      { code: 'MANAGE_BLOG_CATEGORY', description: 'Quản lý danh mục blog', group: 'Nội dung & Truyền thông' },
       { upsert: true, new: true }
     );
     console.log('✅ MANAGE_BLOG_CATEGORY permission seeded');
@@ -177,42 +177,43 @@ require('./src/models/InspectionMinutes');
 
     // Toàn bộ permissions hệ thống
     const allPermissions = [
-      // SchoolAdmin
-      { code: 'MANAGE_CONTACT',       description: 'Xem và phản hồi liên hệ phụ huynh' },
-      { code: 'MANAGE_BANNER',        description: 'Quản lý banner trang chủ' },
-      { code: 'VIEW_ATTENDANCE',      description: 'Xem báo cáo điểm danh' },
-      { code: 'MANAGE_BLOG',          description: 'Quản lý bài viết blog' },
-      { code: 'MANAGE_BLOG_CATEGORY', description: 'Quản lý danh mục blog' },
-      { code: 'MANAGE_QA',            description: 'Quản lý hỏi đáp' },
-      { code: 'MANAGE_DOCUMENT',      description: 'Quản lý tài liệu' },
-      { code: 'MANAGE_PUBLIC_INFO',   description: 'Quản lý thông tin công khai' },
-      { code: 'MANAGE_IMAGE_LIBRARY', description: 'Quản lý thư viện ảnh' },
-      { code: 'MANAGE_ACADEMIC_YEAR', description: 'Quản lý năm học' },
-      { code: 'MANAGE_CURRICULUM',    description: 'Quản lý chương trình học và thời khóa biểu' },
-      { code: 'MANAGE_STUDENT',       description: 'Thêm, sửa, xóa học sinh' },
-      { code: 'MANAGE_CLASS',         description: 'Quản lý lớp học' },
-      { code: 'MANAGE_GRADE',         description: 'Quản lý khối lớp' },
-      { code: 'MANAGE_TEACHER',       description: 'Quản lý giáo viên' },
-      { code: 'APPROVE_MENU',         description: 'Duyệt thực đơn và ảnh bữa ăn' },
-      { code: 'VIEW_REPORT',          description: 'Xem và xuất báo cáo' },
-      { code: 'MANAGE_HEALTH',        description: 'Quản lý hồ sơ y tế học sinh' },
-      // Chia sẻ SchoolAdmin + Teacher
-      { code: 'REGISTER_FACE',        description: 'Đăng ký khuôn mặt học sinh' },
-      { code: 'CHECKOUT_STUDENT',     description: 'Điểm danh về cho học sinh' },
-      { code: 'MANAGE_ATTENDANCE',    description: 'Điểm danh học sinh' },
-      // Teacher
-      { code: 'MANAGE_PURCHASE_REQUEST', description: 'Quản lý đề xuất mua sắm' },
-      { code: 'MANAGE_ASSET',         description: 'Quản lý tài sản (hội đồng, biên bản, cấp phát, sự cố)' },
-      { code: 'MANAGE_PICKUP',        description: 'Quản lý đón trả học sinh' },
-      // KitchenStaff
-      { code: 'MANAGE_FOOD',          description: 'Quản lý thực phẩm và món ăn' },
-      { code: 'MANAGE_MENU',          description: 'Tạo và chỉnh sửa thực đơn' },
-      { code: 'MANAGE_MEAL_PHOTO',    description: 'Quản lý ảnh bữa ăn và mẫu thực phẩm' },
-      // HeadTeacher / Tổ trưởng
-      { code: 'SUBMIT_REPORT',          description: 'Gửi báo cáo lên tổ trưởng' },
-      { code: 'MANAGE_TEACHER_REPORT',  description: 'Xem, duyệt và chuyển báo cáo giáo viên lên ban giám hiệu' },
-      // InventoryStaff / Người kiểm kê tài sản
-      { code: 'MANAGE_INSPECTION',      description: 'Tạo và quản lý biên bản kiểm kê tài sản' },
+      // Nội dung & Truyền thông
+      { code: 'MANAGE_CONTACT',       description: 'Xem và phản hồi liên hệ phụ huynh',             group: 'Nội dung & Truyền thông' },
+      { code: 'MANAGE_BANNER',        description: 'Quản lý banner trang chủ',                       group: 'Nội dung & Truyền thông' },
+      { code: 'MANAGE_BLOG',          description: 'Quản lý bài viết blog',                          group: 'Nội dung & Truyền thông' },
+      { code: 'MANAGE_BLOG_CATEGORY', description: 'Quản lý danh mục blog',                          group: 'Nội dung & Truyền thông' },
+      { code: 'MANAGE_QA',            description: 'Quản lý hỏi đáp',                                group: 'Nội dung & Truyền thông' },
+      { code: 'MANAGE_DOCUMENT',      description: 'Quản lý tài liệu',                               group: 'Nội dung & Truyền thông' },
+      { code: 'MANAGE_PUBLIC_INFO',   description: 'Quản lý thông tin công khai',                    group: 'Nội dung & Truyền thông' },
+      { code: 'MANAGE_IMAGE_LIBRARY', description: 'Quản lý thư viện ảnh',                           group: 'Nội dung & Truyền thông' },
+      // Học vụ
+      { code: 'MANAGE_ACADEMIC_YEAR', description: 'Quản lý năm học',                                group: 'Học vụ' },
+      { code: 'MANAGE_CURRICULUM',    description: 'Quản lý chương trình học và thời khóa biểu',    group: 'Học vụ' },
+      { code: 'MANAGE_STUDENT',       description: 'Thêm, sửa, xóa học sinh',                        group: 'Học vụ' },
+      { code: 'MANAGE_CLASS',         description: 'Quản lý lớp học',                                group: 'Học vụ' },
+      { code: 'MANAGE_GRADE',         description: 'Quản lý khối lớp',                               group: 'Học vụ' },
+      { code: 'MANAGE_TEACHER',       description: 'Quản lý giáo viên',                              group: 'Học vụ' },
+      // Điểm danh
+      { code: 'VIEW_ATTENDANCE',      description: 'Xem báo cáo điểm danh',                          group: 'Điểm danh' },
+      { code: 'MANAGE_ATTENDANCE',    description: 'Điểm danh học sinh',                             group: 'Điểm danh' },
+      { code: 'CHECKOUT_STUDENT',     description: 'Điểm danh về cho học sinh',                      group: 'Điểm danh' },
+      { code: 'REGISTER_FACE',        description: 'Đăng ký khuôn mặt học sinh',                     group: 'Điểm danh' },
+      { code: 'MANAGE_PICKUP',        description: 'Quản lý đón trả học sinh',                       group: 'Điểm danh' },
+      // Y tế
+      { code: 'MANAGE_HEALTH',        description: 'Quản lý hồ sơ y tế học sinh',                   group: 'Y tế' },
+      // Bếp & Thực phẩm
+      { code: 'MANAGE_FOOD',          description: 'Quản lý thực phẩm và món ăn',                    group: 'Bếp & Thực phẩm' },
+      { code: 'MANAGE_MENU',          description: 'Tạo và chỉnh sửa thực đơn',                      group: 'Bếp & Thực phẩm' },
+      { code: 'MANAGE_MEAL_PHOTO',    description: 'Quản lý ảnh bữa ăn và mẫu thực phẩm',           group: 'Bếp & Thực phẩm' },
+      { code: 'APPROVE_MENU',         description: 'Duyệt thực đơn và ảnh bữa ăn',                  group: 'Bếp & Thực phẩm' },
+      // Tài sản & Mua sắm
+      { code: 'MANAGE_ASSET',         description: 'Quản lý tài sản (hội đồng, biên bản, cấp phát, sự cố)', group: 'Tài sản & Mua sắm' },
+      { code: 'MANAGE_PURCHASE_REQUEST', description: 'Quản lý đề xuất mua sắm',                    group: 'Tài sản & Mua sắm' },
+      { code: 'MANAGE_INSPECTION',      description: 'Tạo và quản lý biên bản kiểm kê tài sản',     group: 'Tài sản & Mua sắm' },
+      // Báo cáo
+      { code: 'VIEW_REPORT',            description: 'Xem và xuất báo cáo',                          group: 'Báo cáo' },
+      { code: 'SUBMIT_REPORT',          description: 'Gửi báo cáo lên tổ trưởng',                    group: 'Báo cáo' },
+      { code: 'MANAGE_TEACHER_REPORT',  description: 'Xem, duyệt và chuyển báo cáo giáo viên lên ban giám hiệu', group: 'Báo cáo' },
     ];
 
     // Upsert tất cả permissions
@@ -220,7 +221,7 @@ require('./src/models/InspectionMinutes');
     for (const p of allPermissions) {
       const doc = await Permission.findOneAndUpdate(
         { code: p.code },
-        { code: p.code, description: p.description },
+        { code: p.code, description: p.description, group: p.group || '' },
         { upsert: true, new: true }
       );
       permMap[p.code] = doc._id;

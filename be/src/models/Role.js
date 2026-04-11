@@ -16,6 +16,12 @@ const roleSchema = new mongoose.Schema({
     type: mongoose.Schema.Types.ObjectId,
     ref: 'Permission',
   }],
+  // Role cha để kế thừa quyền (vd: HeadTeacher → parent: Teacher)
+  parent: {
+    type: mongoose.Schema.Types.ObjectId,
+    ref: 'Roles',
+    default: null,
+  },
 }, {
   timestamps: true,
   collection: 'Roles', // Tên collection trong MongoDB

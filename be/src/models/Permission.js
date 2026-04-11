@@ -12,7 +12,12 @@ const permissionSchema = new mongoose.Schema({
     type: String,
     required: true,
     trim: true
-  }
+  },
+  group: {
+    type: String,
+    trim: true,
+    default: '',
+  },
 }, {
   timestamps: true,
   collection: 'Permission' // Tên collection trong MongoDB

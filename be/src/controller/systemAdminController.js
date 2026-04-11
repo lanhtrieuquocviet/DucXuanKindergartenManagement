@@ -342,16 +342,26 @@ const deleteUser = async (req, res) => {
 
 /**
  * GET /api/system-admin/roles
- * Lấy danh sách role
+ * Lấy danh sách role (có populate parent + inheritedPermissions)
  */
 const getRoles = async (req, res) => {
   try {
     const roles = await Role.find()
-      .select('roleName description permissions')
+      .select('roleName description permissions parent')
       .populate({
         path: 'permissions',
         model: 'Permission',
-        select: 'code description',
+        select: 'code description group',
+      })
+      .populate({
+        path: 'parent',
+        model: 'Roles',
+        select: 'roleName permissions',
+        populate: {
+          path: 'permissions',
+          model: 'Permission',
+          select: 'code description group',
+        },
       })
       .sort({ roleName: 1 });
 
@@ -359,11 +369,20 @@ const getRoles = async (req, res) => {
       id: role._id,
       roleName: role.roleName,
       description: role.description,
-      // Trả về đầy đủ thông tin permission (code + description)
+      parentId: role.parent ? role.parent._id : null,
+      parentName: role.parent ? role.parent.roleName : null,
       permissions: (role.permissions || []).map((p) => ({
         code: p.code,
         description: p.description,
+        group: p.group || '',
       })),
+      inheritedPermissions: role.parent
+        ? (role.parent.permissions || []).map((p) => ({
+            code: p.code,
+            description: p.description,
+            group: p.group || '',
+          }))
+        : [],
     }));
 
     return res.status(200).json({
@@ -422,7 +441,7 @@ const validateRoleDescription = (description) => {
 
 const createRole = async (req, res) => {
   try {
-    const { roleName, description } = req.body;
+    const { roleName, description, parentId } = req.body;
 
     const nameError = validateRoleName(roleName);
     if (nameError) {
@@ -440,28 +459,40 @@ const createRole = async (req, res) => {
       });
     }
 
+    let parentObjectId = null;
+    if (parentId) {
+      const parentRole = await Role.findById(parentId).select('_id');
+      if (!parentRole) {
+        return res.status(400).json({ status: 'error', message: 'Role cha không tồn tại' });
+      }
+      parentObjectId = parentRole._id;
+    }
+
     const role = new Role({
       roleName: roleName.trim(),
       description: description ? description.trim() : '',
+      parent: parentObjectId,
     });
 
     await role.save();
 
     const populatedRole = await Role.findById(role._id)
+      .populate({ path: 'permissions', model: 'Permission', select: 'code description group' })
       .populate({
-        path: 'permissions',
-        model: 'Permission',
-        select: 'code description',
+        path: 'parent', model: 'Roles', select: 'roleName permissions',
+        populate: { path: 'permissions', model: 'Permission', select: 'code description group' },
       });
 
     const mapped = {
       id: populatedRole._id,
       roleName: populatedRole.roleName,
       description: populatedRole.description,
-      permissions: (populatedRole.permissions || []).map((p) => ({
-        code: p.code,
-        description: p.description,
-      })),
+      parentId: populatedRole.parent ? populatedRole.parent._id : null,
+      parentName: populatedRole.parent ? populatedRole.parent.roleName : null,
+      permissions: (populatedRole.permissions || []).map((p) => ({ code: p.code, description: p.description, group: p.group || '' })),
+      inheritedPermissions: populatedRole.parent
+        ? (populatedRole.parent.permissions || []).map((p) => ({ code: p.code, description: p.description, group: p.group || '' }))
+        : [],
     };
 
     await createSystemLog({
@@ -497,32 +528,26 @@ const createRole = async (req, res) => {
 const updateRole = async (req, res) => {
   try {
     const { id } = req.params;
-    const { roleName, description } = req.body;
+    const { roleName, description, parentId } = req.body;
 
-    if (!roleName && description === undefined) {
+    if (!roleName && description === undefined && parentId === undefined) {
       return res.status(400).json({
         status: 'error',
-        message: 'Vui lòng cung cấp ít nhất một trường để cập nhật (tên vai trò hoặc mô tả)',
+        message: 'Vui lòng cung cấp ít nhất một trường để cập nhật',
       });
     }
 
     if (roleName) {
       const nameError = validateRoleName(roleName);
       if (nameError) {
-        return res.status(400).json({
-          status: 'error',
-          message: nameError,
-        });
+        return res.status(400).json({ status: 'error', message: nameError });
       }
     }
 
     if (description !== undefined) {
       const descError = validateRoleDescription(description);
       if (descError) {
-        return res.status(400).json({
-          status: 'error',
-          message: descError,
-        });
+        return res.status(400).json({ status: 'error', message: descError });
       }
     }
 
@@ -530,31 +555,43 @@ const updateRole = async (req, res) => {
     if (roleName) updateData.roleName = roleName.trim();
     if (description !== undefined) updateData.description = description.trim();
 
-    const role = await Role.findByIdAndUpdate(
-      id,
-      updateData,
-      { new: true, runValidators: true }
-    ).populate({
-      path: 'permissions',
-      model: 'Permission',
-      select: 'code description',
-    });
+    if (parentId !== undefined) {
+      if (parentId === null || parentId === '') {
+        updateData.parent = null;
+      } else {
+        // Ngăn role tự set chính nó làm parent
+        if (String(parentId) === String(id)) {
+          return res.status(400).json({ status: 'error', message: 'Role không thể kế thừa chính nó' });
+        }
+        const parentRole = await Role.findById(parentId).select('_id');
+        if (!parentRole) {
+          return res.status(400).json({ status: 'error', message: 'Role cha không tồn tại' });
+        }
+        updateData.parent = parentRole._id;
+      }
+    }
+
+    const role = await Role.findByIdAndUpdate(id, updateData, { new: true, runValidators: true })
+      .populate({ path: 'permissions', model: 'Permission', select: 'code description group' })
+      .populate({
+        path: 'parent', model: 'Roles', select: 'roleName permissions',
+        populate: { path: 'permissions', model: 'Permission', select: 'code description group' },
+      });
 
     if (!role) {
-      return res.status(404).json({
-        status: 'error',
-        message: 'Vai trò không tồn tại',
-      });
+      return res.status(404).json({ status: 'error', message: 'Vai trò không tồn tại' });
     }
 
     const mapped = {
       id: role._id,
       roleName: role.roleName,
       description: role.description,
-      permissions: (role.permissions || []).map((p) => ({
-        code: p.code,
-        description: p.description,
-      })),
+      parentId: role.parent ? role.parent._id : null,
+      parentName: role.parent ? role.parent.roleName : null,
+      permissions: (role.permissions || []).map((p) => ({ code: p.code, description: p.description, group: p.group || '' })),
+      inheritedPermissions: role.parent
+        ? (role.parent.permissions || []).map((p) => ({ code: p.code, description: p.description, group: p.group || '' }))
+        : [],
     };
 
     await createSystemLog({
@@ -735,8 +772,8 @@ const validatePermissionData = (code, description) => {
 const getPermissions = async (req, res) => {
   try {
     const permissions = await Permission.find()
-      .select('code description')
-      .sort({ code: 1 });
+      .select('code description group')
+      .sort({ group: 1, code: 1 });
 
     return res.status(200).json({
       status: 'success',
@@ -757,7 +794,7 @@ const getPermissions = async (req, res) => {
  */
 const createPermission = async (req, res) => {
   try {
-    const { code, description } = req.body;
+    const { code, description, group } = req.body;
 
     const validationError = validatePermissionData(code, description);
     if (validationError) {
@@ -770,6 +807,7 @@ const createPermission = async (req, res) => {
     const permission = new Permission({
       code: code.toUpperCase().trim(),
       description: description.trim(),
+      group: group ? group.trim() : '',
     });
 
     await permission.save();
@@ -807,16 +845,15 @@ const createPermission = async (req, res) => {
 const updatePermission = async (req, res) => {
   try {
     const { id } = req.params;
-    const { code, description } = req.body;
+    const { code, description, group } = req.body;
 
-    if (!code && !description) {
+    if (!code && !description && group === undefined) {
       return res.status(400).json({
         status: 'error',
-        message: 'Vui lòng cung cấp ít nhất một trường để cập nhật (code hoặc mô tả)',
+        message: 'Vui lòng cung cấp ít nhất một trường để cập nhật',
       });
     }
 
-    // Nếu có code hoặc description mới, validate đầy đủ
     const validationError = validatePermissionData(
       code || 'DUMMY_CODE',
       description || 'DUMMY_DESCRIPTION',
@@ -831,6 +868,7 @@ const updatePermission = async (req, res) => {
     const updateData = {};
     if (code) updateData.code = code.toUpperCase().trim();
     if (description) updateData.description = description.trim();
+    if (group !== undefined) updateData.group = group.trim();
 
     const permission = await Permission.findByIdAndUpdate(
       id,
@@ -940,11 +978,12 @@ const updateRolePermissions = async (req, res) => {
       id,
       { permissions: validPermissionIds },
       { new: true },
-    ).populate({
-      path: 'permissions',
-      model: 'Permission',
-      select: 'code description',
-    });
+    )
+      .populate({ path: 'permissions', model: 'Permission', select: 'code description group' })
+      .populate({
+        path: 'parent', model: 'Roles', select: 'roleName permissions',
+        populate: { path: 'permissions', model: 'Permission', select: 'code description group' },
+      });
 
     if (!role) {
       return res.status(404).json({
@@ -957,10 +996,12 @@ const updateRolePermissions = async (req, res) => {
       id: role._id,
       roleName: role.roleName,
       description: role.description,
-      permissions: (role.permissions || []).map((p) => ({
-        code: p.code,
-        description: p.description,
-      })),
+      parentId: role.parent ? role.parent._id : null,
+      parentName: role.parent ? role.parent.roleName : null,
+      permissions: (role.permissions || []).map((p) => ({ code: p.code, description: p.description, group: p.group || '' })),
+      inheritedPermissions: role.parent
+        ? (role.parent.permissions || []).map((p) => ({ code: p.code, description: p.description, group: p.group || '' }))
+        : [],
     };
 
     await createSystemLog({

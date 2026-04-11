@@ -23,9 +23,9 @@ import {
   InputAdornment,
   Tooltip,
   Collapse,
+  Autocomplete,
 } from '@mui/material';
 import {
-  Add as AddIcon,
   Edit as EditIcon,
   Delete as DeleteIcon,
   Shield as ShieldIcon,
@@ -33,57 +33,16 @@ import {
   Search as SearchIcon,
   ExpandMore as ExpandMoreIcon,
   ExpandLess as ExpandLessIcon,
+  Lock as LockIcon,
 } from '@mui/icons-material';
 
-// Permissions liên quan đến từng role (dùng để lọc panel gán quyền)
-// Role không có entry → hiện tất cả (SystemAdmin...)
-const ROLE_PERMISSION_POOL = {
-  SchoolAdmin: [
-    'MANAGE_CONTACT', 'MANAGE_BANNER', 'VIEW_ATTENDANCE', 'MANAGE_BLOG',
-    'MANAGE_BLOG_CATEGORY', 'MANAGE_QA', 'MANAGE_DOCUMENT', 'MANAGE_PUBLIC_INFO',
-    'MANAGE_IMAGE_LIBRARY', 'MANAGE_ACADEMIC_YEAR', 'MANAGE_CURRICULUM',
-    'MANAGE_STUDENT', 'MANAGE_CLASS', 'MANAGE_GRADE', 'MANAGE_TEACHER',
-    'APPROVE_MENU', 'VIEW_REPORT', 'MANAGE_HEALTH',
-    'REGISTER_FACE', 'CHECKOUT_STUDENT', 'MANAGE_ATTENDANCE',
-    'MANAGE_PURCHASE_REQUEST', 'MANAGE_ASSET', 'MANAGE_PICKUP',
-  ],
-  HeadTeacher: [
-    'MANAGE_ATTENDANCE', 'MANAGE_PURCHASE_REQUEST', 'MANAGE_ASSET',
-    'MANAGE_PICKUP', 'REGISTER_FACE', 'CHECKOUT_STUDENT',
-    'SUBMIT_REPORT', 'MANAGE_TEACHER_REPORT',
-  ],
-  Teacher: [
-    'MANAGE_ATTENDANCE', 'MANAGE_PURCHASE_REQUEST', 'MANAGE_ASSET',
-    'MANAGE_PICKUP', 'REGISTER_FACE', 'CHECKOUT_STUDENT',
-    'SUBMIT_REPORT',
-  ],
-  KitchenStaff: [
-    'MANAGE_FOOD', 'MANAGE_MENU', 'MANAGE_MEAL_PHOTO', 'VIEW_REPORT', 'APPROVE_MENU',
-  ],
-  MedicalStaff: [
-    'MANAGE_HEALTH', 'VIEW_REPORT',
-  ],
-  InventoryStaff: [
-    'MANAGE_INSPECTION',
-  ],
-  Parent: [],
-  Student: [],
-};
-
-// Trích xuất tên module từ permission code (VD: CREATE_USER → USER, MANAGE_BLOG_CATEGORY → BLOG_CATEGORY)
-function getModule(code) {
-  const idx = code.indexOf('_');
-  if (idx === -1) return code;
-  return code.slice(idx + 1);
-}
-
-// Nhóm permissions theo module
-function groupPermissions(permissions) {
+// Nhóm permissions theo field group (từ DB)
+function groupByField(permissions) {
   const groups = {};
   permissions.forEach((perm) => {
-    const module = getModule(perm.code);
-    if (!groups[module]) groups[module] = [];
-    groups[module].push(perm);
+    const key = perm.group || 'Chưa phân nhóm';
+    if (!groups[key]) groups[key] = [];
+    groups[key].push(perm);
   });
   return groups;
 }
@@ -92,33 +51,26 @@ function ManagePermissions() {
   const [roles, setRoles] = useState([]);
   const [permissions, setPermissions] = useState([]);
   const [selectedRole, setSelectedRole] = useState(null);
+  // Quyền riêng của role (không tính kế thừa)
   const [selectedPermissions, setSelectedPermissions] = useState(new Set());
+  // Quyền kế thừa từ parent (readonly)
+  const [inheritedPermissions, setInheritedPermissions] = useState(new Set());
   const [success, setSuccess] = useState('');
   const [showPermissionForm, setShowPermissionForm] = useState(false);
   const [editingPermission, setEditingPermission] = useState(null);
-  const [permissionForm, setPermissionForm] = useState({ code: '', description: '' });
+  const [permissionForm, setPermissionForm] = useState({ code: '', description: '', group: '' });
   const [permSearch, setPermSearch] = useState('');
   const [assignSearch, setAssignSearch] = useState('');
   const [collapsedGroups, setCollapsedGroups] = useState({});
   const [confirmState, setConfirmState] = useState({
-    open: false,
-    title: '',
-    message: '',
-    onConfirm: null,
+    open: false, title: '', message: '', onConfirm: null,
   });
 
   const navigate = useNavigate();
   const { user, logout, isInitializing } = useAuth();
   const {
-    getRoles,
-    getPermissions,
-    createPermission,
-    updatePermission,
-    deletePermission,
-    updateRolePermissions,
-    loading,
-    error,
-    setError,
+    getRoles, getPermissions, updatePermission, deletePermission, updateRolePermissions,
+    loading, error, setError,
   } = useSystemAdmin();
 
   useEffect(() => {
@@ -140,10 +92,8 @@ function ManagePermissions() {
 
   const handleMenuSelect = (key) => {
     const routes = {
-      overview: '/system-admin',
-      accounts: '/system-admin/manage-accounts',
-      roles: '/system-admin/manage-roles',
-      permissions: '/system-admin/manage-permissions',
+      overview: '/system-admin', accounts: '/system-admin/manage-accounts',
+      roles: '/system-admin/manage-roles', permissions: '/system-admin/manage-permissions',
       'system-logs': '/system-admin/system-logs',
     };
     navigate(routes[key] || '/system-admin');
@@ -155,16 +105,15 @@ function ManagePermissions() {
     { key: 'roles', label: 'Quản lý vai trò' },
     { key: 'permissions', label: 'Quản lý phân quyền' },
     { key: 'system-logs', label: 'Nhật ký hệ thống' },
-    // { key: 'reports', label: 'Báo cáo tổng hợp' },
   ];
 
-  // ── Permissions CRUD ──────────────────────────────────────────────────
+  // ── Permission edit/delete ────────────────────────────────────────────
 
   const handleOpenPermissionForm = (permission = null) => {
     setEditingPermission(permission);
     setPermissionForm(permission
-      ? { code: permission.code || '', description: permission.description || '' }
-      : { code: '', description: '' }
+      ? { code: permission.code || '', description: permission.description || '', group: permission.group || '' }
+      : { code: '', description: '', group: '' }
     );
     setError(null);
     setSuccess('');
@@ -174,7 +123,7 @@ function ManagePermissions() {
   const handleClosePermissionForm = () => {
     setShowPermissionForm(false);
     setEditingPermission(null);
-    setPermissionForm({ code: '', description: '' });
+    setPermissionForm({ code: '', description: '', group: '' });
     setError(null);
   };
 
@@ -185,21 +134,18 @@ function ManagePermissions() {
       setSuccess('');
       const code = permissionForm.code.toUpperCase().trim();
       const description = permissionForm.description.trim();
+      const group = permissionForm.group.trim();
 
       if (code.length < 3 || code.length > 64) { setError('Code phải có từ 3 đến 64 ký tự'); return; }
       if (!description) { setError('Mô tả không được để trống'); return; }
       if (description.length > 255) { setError('Mô tả không được vượt quá 255 ký tự'); return; }
       if (!/^[A-Z]+_[A-Z]/.test(code)) {
-        setError('Code theo định dạng HÀNH_ĐỘNG_MODULE, VD: CREATE_USER');
-        return;
+        setError('Code theo định dạng HÀNH_ĐỘNG_MODULE, VD: CREATE_USER'); return;
       }
 
       if (editingPermission) {
-        await updatePermission(editingPermission._id || editingPermission.id, code, description);
+        await updatePermission(editingPermission._id || editingPermission.id, code, description, group);
         setSuccess('Cập nhật quyền thành công.');
-      } else {
-        await createPermission(code, description);
-        setSuccess('Tạo quyền thành công.');
       }
 
       setTimeout(() => setSuccess(''), 3000);
@@ -233,12 +179,19 @@ function ManagePermissions() {
   const handleSelectRole = (role) => {
     setSelectedRole(role);
     setAssignSearch('');
-    const perms = new Set();
-    (role.permissions || []).forEach((p) => { if (p?.code) perms.add(p.code); });
-    setSelectedPermissions(perms);
+    // Quyền riêng của role
+    const ownPerms = new Set();
+    (role.permissions || []).forEach((p) => { if (p?.code) ownPerms.add(p.code); });
+    setSelectedPermissions(ownPerms);
+    // Quyền kế thừa từ parent (readonly)
+    const inherited = new Set();
+    (role.inheritedPermissions || []).forEach((p) => { if (p?.code) inherited.add(p.code); });
+    setInheritedPermissions(inherited);
   };
 
   const togglePermission = (code) => {
+    // Không cho toggle quyền kế thừa
+    if (inheritedPermissions.has(code)) return;
     setSelectedPermissions((prev) => {
       const next = new Set(prev);
       next.has(code) ? next.delete(code) : next.add(code);
@@ -246,26 +199,36 @@ function ManagePermissions() {
     });
   };
 
-  const toggleGroup = (groupPerms, allCodes) => {
-    const groupCodes = groupPerms.map((p) => p.code);
-    const allChecked = groupCodes.every((c) => allCodes.has(c));
+  const toggleGroup = (groupPerms) => {
+    // Chỉ toggle các quyền không phải kế thừa
+    const editableCodes = groupPerms.map((p) => p.code).filter((c) => !inheritedPermissions.has(c));
+    const allChecked = editableCodes.every((c) => selectedPermissions.has(c));
     setSelectedPermissions((prev) => {
       const next = new Set(prev);
-      if (allChecked) { groupCodes.forEach((c) => next.delete(c)); }
-      else { groupCodes.forEach((c) => next.add(c)); }
+      if (allChecked) { editableCodes.forEach((c) => next.delete(c)); }
+      else { editableCodes.forEach((c) => next.add(c)); }
       return next;
     });
   };
 
   const handleSelectAll = () => {
-    setSelectedPermissions(new Set(filteredAssignPerms.map((p) => p.code)));
+    const editableCodes = filteredAssignPerms
+      .filter((p) => !inheritedPermissions.has(p.code))
+      .map((p) => p.code);
+    setSelectedPermissions((prev) => {
+      const next = new Set(prev);
+      editableCodes.forEach((c) => next.add(c));
+      return next;
+    });
   };
 
   const handleDeselectAll = () => {
-    const filtered = new Set(filteredAssignPerms.map((p) => p.code));
+    const editableCodes = new Set(
+      filteredAssignPerms.filter((p) => !inheritedPermissions.has(p.code)).map((p) => p.code)
+    );
     setSelectedPermissions((prev) => {
       const next = new Set(prev);
-      filtered.forEach((c) => next.delete(c));
+      editableCodes.forEach((c) => next.delete(c));
       return next;
     });
   };
@@ -275,48 +238,54 @@ function ManagePermissions() {
     try {
       setError(null);
       setSuccess('');
+      // Chỉ lưu quyền riêng (không lưu inherited)
       await updateRolePermissions(selectedRole.id || selectedRole._id, Array.from(selectedPermissions));
       setSuccess(`Đã lưu phân quyền cho vai trò "${selectedRole.roleName}".`);
       setTimeout(() => setSuccess(''), 3000);
       const rolesData = await getRoles();
       setRoles(rolesData || []);
       const updated = rolesData?.find((r) => (r.id || r._id) === (selectedRole.id || selectedRole._id));
-      if (updated) setSelectedRole(updated);
+      if (updated) handleSelectRole(updated);
     } catch (_) {}
   };
 
   // ── Derived / memoised values ─────────────────────────────────────────
 
+  // Danh sách tên nhóm đã có (dùng cho autocomplete)
+  const existingGroups = useMemo(
+    () => [...new Set(permissions.map((p) => p.group).filter(Boolean))].sort(),
+    [permissions]
+  );
+
   const filteredPermList = useMemo(() => {
     const q = permSearch.trim().toLowerCase();
     if (!q) return permissions;
     return permissions.filter(
-      (p) => p.code.toLowerCase().includes(q) || p.description?.toLowerCase().includes(q)
+      (p) => p.code.toLowerCase().includes(q) || p.description?.toLowerCase().includes(q) || (p.group || '').toLowerCase().includes(q)
     );
   }, [permissions, permSearch]);
 
+  // Permissions hiển thị ở bảng gán quyền (tất cả, không filter cứng theo role)
   const filteredAssignPerms = useMemo(() => {
-    const roleName = selectedRole?.roleName;
-    const pool = roleName && ROLE_PERMISSION_POOL[roleName];
-    // Nếu role có pool định nghĩa → chỉ hiện permissions trong pool đó
-    // pool rỗng ([]) → role này không có permissions nào → trả về []
-    // pool undefined → role chưa định nghĩa (SystemAdmin...) → hiện tất cả
-    let base = permissions;
-    if (pool !== undefined) {
-      base = pool.length === 0 ? [] : permissions.filter((p) => pool.includes(p.code));
-    }
     const q = assignSearch.trim().toLowerCase();
-    if (!q) return base;
-    return base.filter(
-      (p) => p.code.toLowerCase().includes(q) || p.description?.toLowerCase().includes(q)
+    if (!q) return permissions;
+    return permissions.filter(
+      (p) => p.code.toLowerCase().includes(q) || p.description?.toLowerCase().includes(q) || (p.group || '').toLowerCase().includes(q)
     );
-  }, [permissions, assignSearch, selectedRole]);
+  }, [permissions, assignSearch]);
 
-  const assignGroups = useMemo(() => groupPermissions(filteredAssignPerms), [filteredAssignPerms]);
+  const assignGroups = useMemo(() => groupByField(filteredAssignPerms), [filteredAssignPerms]);
+  const listGroups = useMemo(() => groupByField(filteredPermList), [filteredPermList]);
 
   const toggleGroupCollapse = (module) => {
     setCollapsedGroups((prev) => ({ ...prev, [module]: !prev[module] }));
   };
+
+  // Tổng số quyền hiệu lực (riêng + kế thừa)
+  const effectiveCount = useMemo(
+    () => new Set([...selectedPermissions, ...inheritedPermissions]).size,
+    [selectedPermissions, inheritedPermissions]
+  );
 
   const userName = user?.fullName || user?.username || 'System Admin';
 
@@ -341,8 +310,7 @@ function ManagePermissions() {
         sx={{
           mb: 3, p: 3,
           background: 'linear-gradient(135deg, #6366f1 0%, #4f46e5 100%)',
-          borderRadius: 2,
-          display: 'flex', alignItems: 'center', justifyContent: 'space-between',
+          borderRadius: 2, display: 'flex', alignItems: 'center', justifyContent: 'space-between',
         }}
       >
         <Box sx={{ display: 'flex', alignItems: 'center', gap: 2 }}>
@@ -350,12 +318,12 @@ function ManagePermissions() {
           <Box>
             <Typography variant="h5" fontWeight={700} color="white">Quản lý phân quyền</Typography>
             <Typography variant="body2" sx={{ color: 'rgba(255,255,255,0.8)', mt: 0.5 }}>
-              Tạo quyền và gán cho từng vai trò trong hệ thống
+              Nhóm quyền theo chức năng và gán cho từng vai trò
             </Typography>
           </Box>
         </Box>
         <Chip
-          label={`${permissions.length} quyền`}
+          label={`${permissions.length} quyền · ${existingGroups.length} nhóm`}
           sx={{ bgcolor: 'rgba(255,255,255,0.2)', color: 'white', fontWeight: 700 }}
         />
       </Paper>
@@ -364,19 +332,13 @@ function ManagePermissions() {
         {/* ── LEFT: Danh sách quyền ──────────────────────────────────── */}
         <Grid item xs={12} lg={5}>
           <Paper elevation={1} sx={{ borderRadius: 2, height: 'calc(100vh - 260px)', display: 'flex', flexDirection: 'column' }}>
-            {/* Panel header */}
             <Box sx={{ px: 2.5, py: 2, borderBottom: '1px solid', borderColor: 'divider' }}>
-              <Stack direction="row" alignItems="center" justifyContent="space-between" mb={1.5}>
-                <Typography variant="subtitle2" fontWeight={700}>
-                  Danh sách quyền
-                </Typography>
-              </Stack>
+              <Typography variant="subtitle2" fontWeight={700} mb={1.5}>
+                Danh sách quyền
+              </Typography>
               <TextField
-                size="small"
-                fullWidth
-                placeholder="Tìm kiếm quyền..."
-                value={permSearch}
-                onChange={(e) => setPermSearch(e.target.value)}
+                size="small" fullWidth placeholder="Tìm theo tên, mô tả hoặc nhóm..."
+                value={permSearch} onChange={(e) => setPermSearch(e.target.value)}
                 InputProps={{
                   startAdornment: (
                     <InputAdornment position="start">
@@ -388,53 +350,68 @@ function ManagePermissions() {
               />
             </Box>
 
-            {/* Permissions list */}
             <Box sx={{ flex: 1, overflowY: 'auto', p: 1.5 }}>
               {filteredPermList.length === 0 ? (
                 <Typography variant="body2" color="text.disabled" sx={{ py: 4, textAlign: 'center' }}>
                   {permSearch ? 'Không tìm thấy quyền phù hợp.' : 'Chưa có quyền nào.'}
                 </Typography>
               ) : (
-                <Stack spacing={0.75}>
-                  {filteredPermList.map((perm) => (
-                    <Box
-                      key={perm._id || perm.id}
-                      sx={{
-                        display: 'flex', alignItems: 'center',
-                        p: 1.5, borderRadius: 1.5, border: '1px solid',
-                        borderColor: 'divider', bgcolor: 'grey.50',
-                        '&:hover': { bgcolor: 'grey.100' }, transition: 'background 0.15s',
-                      }}
-                    >
-                      <Box sx={{ flex: 1, minWidth: 0 }}>
-                        <Typography
-                          variant="body2" fontWeight={700} noWrap
-                          sx={{ fontFamily: 'monospace', color: '#4338ca', fontSize: 12 }}
-                        >
-                          {perm.code}
+                <Stack spacing={1.5}>
+                  {Object.entries(listGroups).map(([groupName, groupPerms]) => (
+                    <Box key={groupName} sx={{ border: '1px solid', borderColor: 'divider', borderRadius: 1.5, overflow: 'hidden' }}>
+                      {/* Group header */}
+                      <Stack
+                        direction="row" alignItems="center"
+                        sx={{ px: 1.5, py: 1, bgcolor: 'grey.50', cursor: 'pointer', '&:hover': { bgcolor: 'grey.100' } }}
+                        onClick={() => toggleGroupCollapse(`list_${groupName}`)}
+                      >
+                        <Typography variant="caption" fontWeight={700} color="text.secondary"
+                          sx={{ flex: 1, letterSpacing: 0.5, textTransform: 'uppercase', fontSize: 11 }}>
+                          {groupName}
                         </Typography>
-                        <Typography
-                          variant="caption" color="text.secondary"
-                          sx={{
-                            display: '-webkit-box', WebkitLineClamp: 1,
-                            WebkitBoxOrient: 'vertical', overflow: 'hidden',
-                          }}
-                        >
-                          {perm.description}
-                        </Typography>
-                      </Box>
-                      <Stack direction="row" spacing={0.25} sx={{ ml: 1, flexShrink: 0 }}>
-                        <Tooltip title="Sửa mô tả">
-                          <IconButton size="small" color="primary" onClick={() => handleOpenPermissionForm(perm)}>
-                            <EditIcon sx={{ fontSize: 16 }} />
-                          </IconButton>
-                        </Tooltip>
-                        <Tooltip title="Xóa quyền">
-                          <IconButton size="small" color="error" onClick={() => handleDeletePermission(perm._id || perm.id)}>
-                            <DeleteIcon sx={{ fontSize: 16 }} />
-                          </IconButton>
-                        </Tooltip>
+                        <Chip label={groupPerms.length} size="small"
+                          sx={{ fontSize: 10, height: 18, bgcolor: 'rgba(99,102,241,0.1)', color: '#4338ca', fontWeight: 700, mr: 1 }} />
+                        {collapsedGroups[`list_${groupName}`]
+                          ? <ExpandMoreIcon sx={{ fontSize: 16, color: 'text.disabled' }} />
+                          : <ExpandLessIcon sx={{ fontSize: 16, color: 'text.disabled' }} />}
                       </Stack>
+                      <Collapse in={!collapsedGroups[`list_${groupName}`]}>
+                        <Stack spacing={0} sx={{ p: 0.75 }}>
+                          {groupPerms.map((perm) => (
+                            <Box
+                              key={perm._id || perm.id}
+                              sx={{
+                                display: 'flex', alignItems: 'center',
+                                p: 1, borderRadius: 1.5,
+                                '&:hover': { bgcolor: 'grey.100' }, transition: 'background 0.15s',
+                              }}
+                            >
+                              <Box sx={{ flex: 1, minWidth: 0 }}>
+                                <Typography variant="body2" fontWeight={700} noWrap
+                                  sx={{ fontFamily: 'monospace', color: '#4338ca', fontSize: 12 }}>
+                                  {perm.code}
+                                </Typography>
+                                <Typography variant="caption" color="text.secondary"
+                                  sx={{ display: '-webkit-box', WebkitLineClamp: 1, WebkitBoxOrient: 'vertical', overflow: 'hidden' }}>
+                                  {perm.description}
+                                </Typography>
+                              </Box>
+                              <Stack direction="row" spacing={0.25} sx={{ ml: 1, flexShrink: 0 }}>
+                                <Tooltip title="Sửa mô tả / nhóm">
+                                  <IconButton size="small" color="primary" onClick={() => handleOpenPermissionForm(perm)}>
+                                    <EditIcon sx={{ fontSize: 16 }} />
+                                  </IconButton>
+                                </Tooltip>
+                                <Tooltip title="Xóa quyền">
+                                  <IconButton size="small" color="error" onClick={() => handleDeletePermission(perm._id || perm.id)}>
+                                    <DeleteIcon sx={{ fontSize: 16 }} />
+                                  </IconButton>
+                                </Tooltip>
+                              </Stack>
+                            </Box>
+                          ))}
+                        </Stack>
+                      </Collapse>
                     </Box>
                   ))}
                 </Stack>
@@ -446,12 +423,10 @@ function ManagePermissions() {
         {/* ── RIGHT: Gán quyền cho vai trò ───────────────────────────── */}
         <Grid item xs={12} lg={7}>
           <Paper elevation={1} sx={{ borderRadius: 2, height: 'calc(100vh - 260px)', display: 'flex', flexDirection: 'column' }}>
-            {/* Panel header */}
             <Box sx={{ px: 2.5, py: 2, borderBottom: '1px solid', borderColor: 'divider' }}>
               <Typography variant="subtitle2" fontWeight={700} mb={1.5}>
                 Gán quyền cho vai trò
               </Typography>
-              {/* Role chips */}
               <Stack direction="row" flexWrap="wrap" gap={1}>
                 {roles.filter((r) => !['SystemAdmin', 'Parent', 'Student'].includes(r.roleName)).map((role) => {
                   const roleId = role.id || role._id;
@@ -459,7 +434,7 @@ function ManagePermissions() {
                   return (
                     <Chip
                       key={roleId}
-                      label={role.roleName}
+                      label={role.parentName ? `${role.roleName} ← ${role.parentName}` : role.roleName}
                       clickable
                       onClick={() => handleSelectRole(role)}
                       color={isSelected ? 'primary' : 'default'}
@@ -474,54 +449,40 @@ function ManagePermissions() {
 
             {selectedRole ? (
               <>
-                {/* Role info + search + select actions */}
                 <Box sx={{ px: 2.5, pt: 2, pb: 1.5 }}>
                   <Stack direction="row" alignItems="center" justifyContent="space-between" mb={1.5}>
-                    <Stack direction="row" alignItems="center" spacing={1}>
-                      <Typography variant="body2" color="text.secondary">
-                        Đang chỉnh:
-                      </Typography>
+                    <Stack direction="row" alignItems="center" spacing={1} flexWrap="wrap">
+                      <Typography variant="body2" color="text.secondary">Đang chỉnh:</Typography>
                       <Typography variant="body2" fontWeight={700} color="primary.main">
                         {selectedRole.roleName}
                       </Typography>
+                      {selectedRole.parentName && (
+                        <Chip
+                          label={`Kế thừa từ: ${selectedRole.parentName}`}
+                          size="small"
+                          icon={<LockIcon sx={{ fontSize: '12px !important' }} />}
+                          sx={{ fontSize: 11, bgcolor: 'rgba(234,179,8,0.1)', color: '#92400e', fontWeight: 600 }}
+                        />
+                      )}
                       <Chip
-                        label={`${selectedPermissions.size}/${filteredAssignPerms.length} đã chọn`}
-                        size="small"
-                        color="primary"
-                        variant="filled"
-                        sx={{ fontSize: 11 }}
+                        label={`${selectedPermissions.size} riêng · ${inheritedPermissions.size} kế thừa · ${effectiveCount} hiệu lực`}
+                        size="small" color="primary" variant="filled" sx={{ fontSize: 11 }}
                       />
                     </Stack>
                     <Stack direction="row" spacing={0.75}>
-                      <Tooltip title="Chọn tất cả (đang hiển thị)">
-                        <Button
-                          size="small"
-                          variant="outlined"
-                          onClick={handleSelectAll}
-                          sx={{ textTransform: 'none', fontSize: 12, py: 0.25, borderRadius: 1.5, minWidth: 0, px: 1.5 }}
-                        >
-                          Chọn tất
-                        </Button>
-                      </Tooltip>
-                      <Tooltip title="Bỏ chọn tất cả (đang hiển thị)">
-                        <Button
-                          size="small"
-                          variant="outlined"
-                          color="inherit"
-                          onClick={handleDeselectAll}
-                          sx={{ textTransform: 'none', fontSize: 12, py: 0.25, borderRadius: 1.5, minWidth: 0, px: 1.5, color: 'text.secondary' }}
-                        >
-                          Bỏ hết
-                        </Button>
-                      </Tooltip>
+                      <Button size="small" variant="outlined" onClick={handleSelectAll}
+                        sx={{ textTransform: 'none', fontSize: 12, py: 0.25, borderRadius: 1.5, minWidth: 0, px: 1.5 }}>
+                        Chọn tất
+                      </Button>
+                      <Button size="small" variant="outlined" color="inherit" onClick={handleDeselectAll}
+                        sx={{ textTransform: 'none', fontSize: 12, py: 0.25, borderRadius: 1.5, minWidth: 0, px: 1.5, color: 'text.secondary' }}>
+                        Bỏ hết
+                      </Button>
                     </Stack>
                   </Stack>
                   <TextField
-                    size="small"
-                    fullWidth
-                    placeholder="Lọc quyền..."
-                    value={assignSearch}
-                    onChange={(e) => setAssignSearch(e.target.value)}
+                    size="small" fullWidth placeholder="Lọc quyền..."
+                    value={assignSearch} onChange={(e) => setAssignSearch(e.target.value)}
                     InputProps={{
                       startAdornment: (
                         <InputAdornment position="start">
@@ -533,93 +494,105 @@ function ManagePermissions() {
                   />
                 </Box>
 
-                {/* Grouped permissions */}
                 <Box sx={{ flex: 1, overflowY: 'auto', px: 2.5, pb: 2 }}>
                   {filteredAssignPerms.length === 0 ? (
                     <Typography variant="body2" color="text.disabled" sx={{ py: 4, textAlign: 'center' }}>
-                      {assignSearch
-                        ? 'Không tìm thấy quyền phù hợp.'
-                        : `Vai trò "${selectedRole.roleName}" không có chức năng quản lý nào.`}
+                      Không tìm thấy quyền phù hợp.
                     </Typography>
                   ) : (
                     <Stack spacing={1.5}>
-                      {Object.entries(assignGroups).map(([module, groupPerms]) => {
+                      {Object.entries(assignGroups).map(([groupName, groupPerms]) => {
                         const groupCodes = groupPerms.map((p) => p.code);
-                        const checkedCount = groupCodes.filter((c) => selectedPermissions.has(c)).length;
-                        const allChecked = checkedCount === groupCodes.length;
-                        const someChecked = checkedCount > 0 && !allChecked;
-                        const isCollapsed = collapsedGroups[module];
+                        const editableCodes = groupCodes.filter((c) => !inheritedPermissions.has(c));
+                        const checkedOwn = editableCodes.filter((c) => selectedPermissions.has(c)).length;
+                        const checkedInherited = groupCodes.filter((c) => inheritedPermissions.has(c)).length;
+                        const totalChecked = checkedOwn + checkedInherited;
+                        const allEditableChecked = editableCodes.length > 0 && checkedOwn === editableCodes.length;
+                        const someChecked = totalChecked > 0 && !allEditableChecked;
+                        const isCollapsed = collapsedGroups[groupName];
 
                         return (
-                          <Box key={module} sx={{ border: '1px solid', borderColor: 'divider', borderRadius: 1.5, overflow: 'hidden' }}>
+                          <Box key={groupName} sx={{ border: '1px solid', borderColor: 'divider', borderRadius: 1.5, overflow: 'hidden' }}>
                             {/* Group header */}
-                            <Stack
-                              direction="row" alignItems="center"
-                              sx={{
-                                px: 1.5, py: 1, bgcolor: 'grey.50',
-                                cursor: 'pointer', userSelect: 'none',
-                                '&:hover': { bgcolor: 'grey.100' },
-                              }}
-                              onClick={() => toggleGroupCollapse(module)}
-                            >
+                            <Stack direction="row" alignItems="center"
+                              sx={{ px: 1.5, py: 1, bgcolor: 'grey.50', cursor: 'pointer', userSelect: 'none', '&:hover': { bgcolor: 'grey.100' } }}
+                              onClick={() => toggleGroupCollapse(groupName)}>
                               <Checkbox
                                 size="small"
-                                checked={allChecked}
+                                checked={allEditableChecked}
                                 indeterminate={someChecked}
-                                onChange={() => toggleGroup(groupPerms, selectedPermissions)}
+                                disabled={editableCodes.length === 0}
+                                onChange={() => toggleGroup(groupPerms)}
                                 onClick={(e) => e.stopPropagation()}
-                                sx={{ p: 0, mr: 1, flexShrink: 0, color: someChecked || allChecked ? '#4f46e5' : 'grey.400', '&.Mui-checked, &.MuiCheckbox-indeterminate': { color: '#4f46e5' } }}
+                                sx={{ p: 0, mr: 1, flexShrink: 0, '&.Mui-checked, &.MuiCheckbox-indeterminate': { color: '#4f46e5' } }}
                               />
-                              <Typography variant="caption" fontWeight={700} color="text.secondary" sx={{ flex: 1, letterSpacing: 0.5, textTransform: 'uppercase', fontSize: 11 }}>
-                                {module}
+                              <Typography variant="caption" fontWeight={700} color="text.secondary"
+                                sx={{ flex: 1, letterSpacing: 0.5, textTransform: 'uppercase', fontSize: 11 }}>
+                                {groupName}
                               </Typography>
                               <Chip
-                                label={`${checkedCount}/${groupCodes.length}`}
+                                label={`${totalChecked}/${groupCodes.length}`}
                                 size="small"
                                 sx={{
                                   fontSize: 10, height: 18, mr: 1,
-                                  bgcolor: checkedCount > 0 ? 'rgba(99,102,241,0.1)' : 'grey.200',
-                                  color: checkedCount > 0 ? '#4338ca' : 'text.secondary',
-                                  fontWeight: 700,
+                                  bgcolor: totalChecked > 0 ? 'rgba(99,102,241,0.1)' : 'grey.200',
+                                  color: totalChecked > 0 ? '#4338ca' : 'text.secondary', fontWeight: 700,
                                 }}
                               />
+                              {checkedInherited > 0 && (
+                                <Chip label={`${checkedInherited} kế thừa`} size="small"
+                                  sx={{ fontSize: 10, height: 18, mr: 1, bgcolor: 'rgba(234,179,8,0.15)', color: '#92400e', fontWeight: 600 }} />
+                              )}
                               {isCollapsed
                                 ? <ExpandMoreIcon sx={{ fontSize: 16, color: 'text.disabled' }} />
-                                : <ExpandLessIcon sx={{ fontSize: 16, color: 'text.disabled' }} />
-                              }
+                                : <ExpandLessIcon sx={{ fontSize: 16, color: 'text.disabled' }} />}
                             </Stack>
 
-                            {/* Group items */}
                             <Collapse in={!isCollapsed}>
                               <Stack spacing={0} sx={{ p: 0.75 }}>
                                 {groupPerms.map((perm) => {
-                                  const isChecked = selectedPermissions.has(perm.code);
+                                  const isInherited = inheritedPermissions.has(perm.code);
+                                  const isChecked = isInherited || selectedPermissions.has(perm.code);
                                   return (
                                     <Box
                                       key={perm._id || perm.id}
-                                      onClick={() => togglePermission(perm.code)}
+                                      onClick={() => !isInherited && togglePermission(perm.code)}
                                       sx={{
                                         display: 'flex', alignItems: 'flex-start', p: 1, borderRadius: 1.5,
-                                        cursor: 'pointer',
-                                        bgcolor: isChecked ? 'rgba(99,102,241,0.06)' : 'transparent',
-                                        '&:hover': { bgcolor: isChecked ? 'rgba(99,102,241,0.1)' : 'action.hover' },
+                                        cursor: isInherited ? 'default' : 'pointer',
+                                        bgcolor: isInherited
+                                          ? 'rgba(234,179,8,0.05)'
+                                          : isChecked ? 'rgba(99,102,241,0.06)' : 'transparent',
+                                        '&:hover': isInherited ? {} : {
+                                          bgcolor: isChecked ? 'rgba(99,102,241,0.1)' : 'action.hover',
+                                        },
                                         transition: 'background 0.1s',
+                                        opacity: isInherited ? 0.8 : 1,
                                       }}
                                     >
-                                      <Checkbox
-                                        size="small"
-                                        checked={isChecked}
-                                        onChange={() => togglePermission(perm.code)}
-                                        onClick={(e) => e.stopPropagation()}
-                                        sx={{ p: 0, mr: 1.5, mt: 0.1, flexShrink: 0, '&.Mui-checked': { color: '#4f46e5' } }}
-                                      />
+                                      {isInherited ? (
+                                        <Tooltip title="Quyền kế thừa từ role cha – không thể bỏ">
+                                          <LockIcon sx={{ fontSize: 14, mt: 0.3, mr: 1.5, flexShrink: 0, color: '#b45309' }} />
+                                        </Tooltip>
+                                      ) : (
+                                        <Checkbox
+                                          size="small" checked={isChecked}
+                                          onChange={() => togglePermission(perm.code)}
+                                          onClick={(e) => e.stopPropagation()}
+                                          sx={{ p: 0, mr: 1.5, mt: 0.1, flexShrink: 0, '&.Mui-checked': { color: '#4f46e5' } }}
+                                        />
+                                      )}
                                       <Box sx={{ flex: 1, minWidth: 0 }}>
-                                        <Typography
-                                          variant="body2" fontWeight={600} noWrap
-                                          sx={{ fontFamily: 'monospace', fontSize: 12, color: isChecked ? '#3730a3' : 'text.primary' }}
-                                        >
-                                          {perm.code}
-                                        </Typography>
+                                        <Stack direction="row" alignItems="center" spacing={0.5}>
+                                          <Typography variant="body2" fontWeight={600} noWrap
+                                            sx={{ fontFamily: 'monospace', fontSize: 12, color: isInherited ? '#92400e' : isChecked ? '#3730a3' : 'text.primary' }}>
+                                            {perm.code}
+                                          </Typography>
+                                          {isInherited && (
+                                            <Chip label="kế thừa" size="small"
+                                              sx={{ fontSize: 9, height: 16, bgcolor: 'rgba(234,179,8,0.15)', color: '#92400e', fontWeight: 600 }} />
+                                          )}
+                                        </Stack>
                                         {perm.description && (
                                           <Typography variant="caption" color="text.secondary" sx={{ display: 'block' }}>
                                             {perm.description}
@@ -638,7 +611,6 @@ function ManagePermissions() {
                   )}
                 </Box>
 
-                {/* Save */}
                 <Box sx={{ px: 2.5, py: 2, borderTop: '1px solid', borderColor: 'divider' }}>
                   <Stack direction="row" justifyContent="flex-end">
                     <Button
@@ -646,10 +618,7 @@ function ManagePermissions() {
                       startIcon={loading ? <CircularProgress size={16} color="inherit" /> : <SaveIcon />}
                       disabled={loading}
                       onClick={handleSaveRolePermissions}
-                      sx={{
-                        textTransform: 'none', fontWeight: 700, borderRadius: 1.5,
-                        bgcolor: '#4f46e5', '&:hover': { bgcolor: '#4338ca' },
-                      }}
+                      sx={{ textTransform: 'none', fontWeight: 700, borderRadius: 1.5, bgcolor: '#4f46e5', '&:hover': { bgcolor: '#4338ca' } }}
                     >
                       {loading ? 'Đang lưu...' : 'Lưu phân quyền'}
                     </Button>
@@ -668,24 +637,16 @@ function ManagePermissions() {
         </Grid>
       </Grid>
 
-      {/* Dialog: Thêm / Sửa permission */}
+      {/* Dialog: Sửa permission (group + description) */}
       <Dialog
         open={showPermissionForm}
         onClose={handleClosePermissionForm}
-        maxWidth="sm"
-        fullWidth
+        maxWidth="sm" fullWidth
         slotProps={{ paper: { sx: { borderRadius: 2, overflow: 'hidden' } } }}
       >
-        <Box
-          sx={{
-            background: 'linear-gradient(135deg, #6366f1 0%, #4f46e5 100%)',
-            px: 3, py: 2.5, display: 'flex', alignItems: 'center', gap: 1.5,
-          }}
-        >
+        <Box sx={{ background: 'linear-gradient(135deg, #6366f1 0%, #4f46e5 100%)', px: 3, py: 2.5, display: 'flex', alignItems: 'center', gap: 1.5 }}>
           <ShieldIcon sx={{ color: 'white', fontSize: 22 }} />
-          <Typography variant="h6" fontWeight={700} color="white">
-            {editingPermission ? 'Sửa quyền' : 'Thêm quyền mới'}
-          </Typography>
+          <Typography variant="h6" fontWeight={700} color="white">Sửa quyền</Typography>
         </Box>
 
         <Box component="form" onSubmit={handleSavePermission}>
@@ -693,30 +654,34 @@ function ManagePermissions() {
             {error && <Alert severity="error" sx={{ mb: 2 }}>{error}</Alert>}
 
             <TextField
-              label={<>Code <Box component="span" sx={{ color: 'error.main' }}>*</Box></>}
+              label="Code"
               value={permissionForm.code}
-              onChange={(e) => setPermissionForm({ ...permissionForm, code: e.target.value.toUpperCase() })}
-              fullWidth
-              required
-              disabled={!!editingPermission}
-              slotProps={{ htmlInput: { maxLength: 64 } }}
-              placeholder="VD: CREATE_USER"
-              helperText={editingPermission ? 'Không thể thay đổi code khi sửa' : 'Định dạng: HÀNH_ĐỘNG_MODULE (chữ in hoa, dấu gạch dưới)'}
-              sx={{ mb: 2 }}
-              size="small"
+              fullWidth disabled size="small" sx={{ mb: 2 }}
+              helperText="Không thể thay đổi code"
             />
 
             <TextField
               label={<>Mô tả <Box component="span" sx={{ color: 'error.main' }}>*</Box></>}
               value={permissionForm.description}
               onChange={(e) => setPermissionForm({ ...permissionForm, description: e.target.value })}
-              fullWidth
-              required
-              multiline
-              rows={3}
+              fullWidth required multiline rows={2}
               slotProps={{ htmlInput: { maxLength: 255 } }}
-              placeholder="Mô tả quyền này (tối đa 255 ký tự)"
-              size="small"
+              placeholder="Mô tả quyền này"
+              size="small" sx={{ mb: 2 }}
+            />
+
+            <Autocomplete
+              freeSolo
+              options={existingGroups}
+              value={permissionForm.group}
+              onInputChange={(_, val) => setPermissionForm({ ...permissionForm, group: val })}
+              renderInput={(params) => (
+                <TextField
+                  {...params} label="Nhóm chức năng" size="small"
+                  placeholder="VD: Điểm danh, Quản lý học sinh..."
+                  helperText="Gõ tên nhóm mới hoặc chọn nhóm đã có"
+                />
+              )}
             />
           </DialogContent>
 
@@ -724,14 +689,10 @@ function ManagePermissions() {
             <Button onClick={handleClosePermissionForm} variant="outlined" color="inherit" sx={{ textTransform: 'none', borderRadius: 1.5 }}>
               Hủy
             </Button>
-            <Button
-              type="submit"
-              variant="contained"
-              disabled={loading}
+            <Button type="submit" variant="contained" disabled={loading}
               startIcon={loading ? <CircularProgress size={16} color="inherit" /> : null}
-              sx={{ textTransform: 'none', fontWeight: 700, borderRadius: 1.5, bgcolor: '#4f46e5', '&:hover': { bgcolor: '#4338ca' } }}
-            >
-              {loading ? 'Đang lưu...' : editingPermission ? 'Cập nhật' : 'Tạo mới'}
+              sx={{ textTransform: 'none', fontWeight: 700, borderRadius: 1.5, bgcolor: '#4f46e5', '&:hover': { bgcolor: '#4338ca' } }}>
+              {loading ? 'Đang lưu...' : 'Cập nhật'}
             </Button>
           </DialogActions>
         </Box>
