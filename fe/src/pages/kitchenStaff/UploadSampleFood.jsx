@@ -1,4 +1,4 @@
-import { useState, useRef, useEffect } from 'react';
+import { useState, useRef, useEffect, useCallback } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
 import {
   Box,
@@ -26,6 +26,8 @@ import {
   TodayOutlined as TodayIcon,
   AccessTime as TimeIcon,
   ArrowBack as ArrowBackIcon,
+  CameraAlt as CameraIcon,
+  Cameraswitch as CameraswitchIcon,
 } from '@mui/icons-material';
 import { toast } from 'react-toastify';
 import { uploadKitchenImage, upsertSampleEntry } from '../../service/mealManagement.api';
@@ -138,9 +140,87 @@ function UploadSampleFood() {
     (editData?.images || []).map((url) => ({ kind: 'existing', url }))
   );
   const [uploading, setUploading] = useState(false);
-  const fileInputRef = useRef(null);
 
-  // Cleanup blob URLs on unmount
+  // Camera state
+  const [cameraOpen, setCameraOpen] = useState(false);
+  const [cameraReady, setCameraReady] = useState(false);
+  const [cameraError, setCameraError] = useState(null);
+  const [facingMode, setFacingMode] = useState('environment');
+  const videoRef = useRef(null);
+  const streamRef = useRef(null);
+
+  const stopCamera = useCallback(() => {
+    if (streamRef.current) {
+      streamRef.current.getTracks().forEach((t) => t.stop());
+      streamRef.current = null;
+    }
+    if (videoRef.current) videoRef.current.srcObject = null;
+    setCameraReady(false);
+  }, []);
+
+  const startCamera = useCallback(async (facing) => {
+    setCameraError(null);
+    setCameraReady(false);
+    stopCamera();
+    try {
+      const stream = await navigator.mediaDevices.getUserMedia({
+        video: { width: { ideal: 640 }, height: { ideal: 480 }, facingMode: facing },
+        audio: false,
+      });
+      streamRef.current = stream;
+      if (videoRef.current) {
+        videoRef.current.srcObject = stream;
+        await videoRef.current.play();
+      }
+      setCameraReady(true);
+    } catch (err) {
+      let msg = 'Không thể bật camera';
+      if (err.name === 'NotAllowedError' || err.name === 'PermissionDeniedError')
+        msg = 'Trình duyệt chặn quyền camera — vào Settings > Privacy > Camera để cấp quyền';
+      else if (err.name === 'NotFoundError' || err.name === 'DevicesNotFoundError')
+        msg = 'Không tìm thấy camera trên thiết bị này';
+      else if (err.name === 'NotReadableError' || err.name === 'TrackStartError')
+        msg = 'Camera đang được dùng bởi ứng dụng khác';
+      setCameraError(msg);
+    }
+  }, [stopCamera]);
+
+  const openCamera = () => {
+    setCameraOpen(true);
+    setCameraError(null);
+    startCamera(facingMode);
+  };
+
+  const flipCamera = () => {
+    const next = facingMode === 'environment' ? 'user' : 'environment';
+    setFacingMode(next);
+    startCamera(next);
+  };
+
+  const captureFromCamera = () => {
+    const video = videoRef.current;
+    if (!video || video.readyState < 2) return;
+    const canvas = document.createElement('canvas');
+    canvas.width = video.videoWidth || 640;
+    canvas.height = video.videoHeight || 480;
+    canvas.getContext('2d').drawImage(video, 0, 0);
+    canvas.toBlob(async (blob) => {
+      const rawFile = new File([blob], `capture_${Date.now()}.jpg`, { type: 'image/jpeg' });
+      const { file: stampedFile, url } = await stampImage(rawFile, selectedDate, FIXED_MEAL_LABEL);
+      setPreviewItems((prev) => {
+        const next = [...prev, { kind: 'new', file: stampedFile, url }];
+        if (next.length >= MAX_PHOTOS) {
+          stopCamera();
+          setCameraOpen(false);
+        }
+        return next;
+      });
+    }, 'image/jpeg', 0.92);
+  };
+
+  // Cleanup camera + blob URLs on unmount
+  useEffect(() => () => stopCamera(), [stopCamera]);
+
   useEffect(() => {
     return () => {
       previewItems.forEach((p) => {
@@ -158,25 +238,6 @@ function UploadSampleFood() {
     const val = e.target.value;
     setDescription(val);
     setDescError(validateDesc(val));
-  };
-
-  const handleFileChange = async (e) => {
-    const files = Array.from(e.target.files || []);
-    if (!files.length) return;
-    e.target.value = '';
-    const remaining = MAX_PHOTOS - previewItems.length;
-    if (remaining <= 0) {
-      toast.warning(`Tối đa ${MAX_PHOTOS} ảnh`);
-      return;
-    }
-    const sliced = files.slice(0, remaining);
-    const toAdd = await Promise.all(
-      sliced.map(async (file) => {
-        const { file: stampedFile, url } = await stampImage(file, selectedDate, FIXED_MEAL_LABEL);
-        return { kind: 'new', file: stampedFile, url };
-      })
-    );
-    setPreviewItems((prev) => [...prev, ...toAdd]);
   };
 
   const handleRemove = (idx) => {
@@ -249,7 +310,7 @@ function UploadSampleFood() {
             </Avatar>
             <Box>
               <Typography variant="h5" sx={{ lineHeight: 1.2, fontSize: { xs: 18, md: 22 }, fontWeight: 800, color: 'white', textShadow: '0 1px 4px rgba(0,0,0,0.25)' }}>
-                {isEdit ? 'Chỉnh sửa mẫu thực phẩm' : 'Upload ảnh mẫu thực phẩm'}
+                {isEdit ? 'Chỉnh sửa mẫu thực phẩm' : 'Chụp ảnh mẫu thực phẩm'}
               </Typography>
               <Typography sx={{ color: 'rgba(255,255,255,0.9)', fontSize: 13, mt: 0.25, fontWeight: 500 }}>
                 {isEdit ? 'Cập nhật ảnh mẫu thực phẩm cho bữa ăn' : 'Chụp mẫu thực phẩm sử dụng trong bữa ăn'}
@@ -262,7 +323,7 @@ function UploadSampleFood() {
             <CalIcon sx={{ color: 'white', fontSize: 22 }} />
             <Box>
               <Typography sx={{ color: 'rgba(255,255,255,0.9)', fontSize: 11, fontWeight: 700, mb: 0.1 }}>
-                Ngày upload
+                Ngày chụp
               </Typography>
               <input
                 type="date"
@@ -329,11 +390,11 @@ function UploadSampleFood() {
               sx={{ '& .MuiOutlinedInput-root': { borderRadius: 2.5 } }}
             />
 
-            {/* Upload images */}
+            {/* Chụp ảnh mẫu */}
             <Box>
               <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', mb: 1.25 }}>
                 <Typography variant="body2" fontWeight={700} color="text.primary">
-                  Upload ảnh mẫu *
+                  Chụp ảnh mẫu *
                 </Typography>
                 <Chip
                   label={`${previewItems.length}/${MAX_PHOTOS} ảnh`}
@@ -346,40 +407,92 @@ function UploadSampleFood() {
                 />
               </Box>
 
-              {/* Drop zone */}
-              {previewItems.length < MAX_PHOTOS && (
-                <Box
-                  onClick={() => fileInputRef.current?.click()}
-                  sx={{
-                    border: '2.5px dashed',
-                    borderColor: alpha(FIXED_MEAL_COLOR, 0.4),
-                    borderRadius: 3,
-                    py: 3.5,
-                    display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 1,
-                    cursor: 'pointer', transition: 'all 0.2s',
-                    bgcolor: alpha(FIXED_MEAL_COLOR, 0.03),
-                    '&:hover': { borderColor: FIXED_MEAL_COLOR, bgcolor: alpha(FIXED_MEAL_COLOR, 0.07) },
-                    mb: previewItems.length > 0 ? 2 : 0,
-                  }}
-                >
-                  <AddPhotoIcon sx={{ fontSize: 36, color: FIXED_MEAL_COLOR }} />
-                  <Typography variant="body2" fontWeight={600} color="text.secondary">
-                    Nhấn để chụp hoặc tải ảnh mẫu thực phẩm
-                  </Typography>
-                  <Typography variant="caption" color="text.disabled">
-                    Tối thiểu {MIN_PHOTOS} ảnh, tối đa {MAX_PHOTOS} ảnh · JPG, PNG, WebP
-                  </Typography>
+              {/* Camera UI */}
+              {cameraOpen ? (
+                <Box sx={{ mb: previewItems.length > 0 ? 2 : 0 }}>
+                  {!cameraReady && !cameraError && (
+                    <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'center', height: 220, bgcolor: 'grey.100', borderRadius: 2, gap: 1.5 }}>
+                      <CircularProgress size={22} />
+                      <Typography variant="caption" color="text.secondary">Đang bật camera...</Typography>
+                    </Box>
+                  )}
+                  {cameraError && (
+                    <Box sx={{ p: 2, bgcolor: '#fef2f2', border: '1px solid #fecaca', borderRadius: 2, textAlign: 'center' }}>
+                      <Typography variant="caption" color="error.main" fontWeight={600} sx={{ display: 'block', mb: 1.5 }}>
+                        {cameraError}
+                      </Typography>
+                      <Button size="small" variant="outlined" color="error" onClick={() => startCamera(facingMode)} sx={{ mr: 1 }}>
+                        Thử lại
+                      </Button>
+                      <Button size="small" onClick={() => { setCameraOpen(false); stopCamera(); }}>Hủy</Button>
+                    </Box>
+                  )}
+                  <Box sx={{ display: cameraReady ? 'block' : 'none', borderRadius: 2, overflow: 'hidden', border: '2px solid', borderColor: alpha(FIXED_MEAL_COLOR, 0.4) }}>
+                    <Box sx={{ position: 'relative' }}>
+                      <video
+                        ref={videoRef}
+                        autoPlay
+                        muted
+                        playsInline
+                        style={{ width: '100%', display: 'block', maxHeight: 320, objectFit: 'cover' }}
+                      />
+                      <IconButton
+                        size="small"
+                        onClick={flipCamera}
+                        sx={{
+                          position: 'absolute', top: 8, right: 8,
+                          bgcolor: 'rgba(0,0,0,0.45)', color: 'white',
+                          '&:hover': { bgcolor: 'rgba(0,0,0,0.65)' },
+                        }}
+                      >
+                        <CameraswitchIcon fontSize="small" />
+                      </IconButton>
+                    </Box>
+                    <Box sx={{ display: 'flex', gap: 1, p: 1.5, bgcolor: 'grey.50', justifyContent: 'center' }}>
+                      <Button
+                        variant="contained"
+                        startIcon={<CameraIcon />}
+                        onClick={captureFromCamera}
+                        sx={{ textTransform: 'none', fontWeight: 700, bgcolor: FIXED_MEAL_COLOR, '&:hover': { bgcolor: FIXED_MEAL_COLOR, filter: 'brightness(0.9)' } }}
+                      >
+                        Chụp ảnh ({previewItems.length + 1}/{MAX_PHOTOS})
+                      </Button>
+                      <Button
+                        variant="outlined"
+                        onClick={() => { setCameraOpen(false); stopCamera(); }}
+                        sx={{ textTransform: 'none' }}
+                      >
+                        Đóng camera
+                      </Button>
+                    </Box>
+                  </Box>
                 </Box>
+              ) : (
+                previewItems.length < MAX_PHOTOS && (
+                  <Box
+                    onClick={openCamera}
+                    sx={{
+                      border: '2.5px dashed',
+                      borderColor: alpha(FIXED_MEAL_COLOR, 0.4),
+                      borderRadius: 3,
+                      py: 3.5,
+                      display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 1,
+                      cursor: 'pointer', transition: 'all 0.2s',
+                      bgcolor: alpha(FIXED_MEAL_COLOR, 0.03),
+                      '&:hover': { borderColor: FIXED_MEAL_COLOR, bgcolor: alpha(FIXED_MEAL_COLOR, 0.07) },
+                      mb: previewItems.length > 0 ? 2 : 0,
+                    }}
+                  >
+                    <CameraIcon sx={{ fontSize: 36, color: FIXED_MEAL_COLOR }} />
+                    <Typography variant="body2" fontWeight={600} color="text.secondary">
+                      Nhấn để mở camera
+                    </Typography>
+                    <Typography variant="caption" color="text.disabled">
+                      Tối thiểu {MIN_PHOTOS} ảnh, tối đa {MAX_PHOTOS} ảnh · Ảnh tự động đóng dấu ngày giờ
+                    </Typography>
+                  </Box>
+                )
               )}
-
-              <input
-                ref={fileInputRef}
-                type="file"
-                accept="image/jpeg,image/jpg,image/png,image/webp"
-                multiple
-                style={{ display: 'none' }}
-                onChange={handleFileChange}
-              />
 
               {/* Thumbnails */}
               {previewItems.length > 0 && (
@@ -420,9 +533,9 @@ function UploadSampleFood() {
                     </Box>
                   ))}
                   {/* Add more button if under max */}
-                  {previewItems.length < MAX_PHOTOS && (
+                  {previewItems.length < MAX_PHOTOS && !cameraOpen && (
                     <Box
-                      onClick={() => fileInputRef.current?.click()}
+                      onClick={openCamera}
                       sx={{
                         aspectRatio: '1', borderRadius: 2.5,
                         border: '2.5px dashed', borderColor: alpha(FIXED_MEAL_COLOR, 0.3),
@@ -432,9 +545,9 @@ function UploadSampleFood() {
                         '&:hover': { borderColor: FIXED_MEAL_COLOR, bgcolor: alpha(FIXED_MEAL_COLOR, 0.07) },
                       }}
                     >
-                      <AddPhotoIcon sx={{ fontSize: 24, color: FIXED_MEAL_COLOR }} />
+                      <CameraIcon sx={{ fontSize: 24, color: FIXED_MEAL_COLOR }} />
                       <Typography variant="caption" color="text.disabled" sx={{ fontSize: 10, textAlign: 'center' }}>
-                        Thêm ảnh
+                        Chụp thêm
                       </Typography>
                     </Box>
                   )}
@@ -446,7 +559,7 @@ function UploadSampleFood() {
                 <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.75, mt: 1 }}>
                   <WarningIcon sx={{ fontSize: 14, color: '#d97706' }} />
                   <Typography variant="caption" sx={{ color: '#d97706', fontSize: 12 }}>
-                    Cần ít nhất {MIN_PHOTOS} ảnh để upload
+                    Cần ít nhất {MIN_PHOTOS} ảnh để lưu
                   </Typography>
                 </Box>
               )}
@@ -456,7 +569,7 @@ function UploadSampleFood() {
             <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, px: 2, py: 1.25, borderRadius: 2.5, bgcolor: alpha('#f59e0b', 0.08), border: '1.5px solid', borderColor: alpha('#f59e0b', 0.25) }}>
               <TimeIcon sx={{ fontSize: 16, color: '#d97706' }} />
               <Typography variant="body2" sx={{ color: '#d97706', fontWeight: 600, fontSize: 13 }}>
-                Sau khi upload, mẫu sẽ hiển thị với trạng thái <strong>Chờ kiểm tra</strong> trên trang Quản lý bữa ăn
+                Sau khi lưu, mẫu sẽ hiển thị với trạng thái <strong>Chờ kiểm tra</strong> trên trang Quản lý bữa ăn
               </Typography>
             </Box>
           </Box>
@@ -487,10 +600,10 @@ function UploadSampleFood() {
             }}
           >
             {uploading
-              ? (isEdit ? 'Đang cập nhật...' : 'Đang upload...')
+              ? (isEdit ? 'Đang cập nhật...' : 'Đang lưu...')
               : isEdit
               ? `Cập nhật mẫu (${previewItems.length}/${MIN_PHOTOS} ảnh)`
-              : `Upload mẫu (${previewItems.length}/${MIN_PHOTOS} ảnh)`}
+              : `Lưu mẫu (${previewItems.length}/${MIN_PHOTOS} ảnh)`}
           </Button>
         </Box>
       </Card>

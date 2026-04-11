@@ -403,7 +403,7 @@ exports.getAttendanceSummary = async (req, res) => {
       date: { $gte: startOfDay, $lte: endOfDay },
     })
       .populate('studentId', 'fullName')
-      .populate('classId', 'className')
+      .populate({ path: 'classId', select: 'className gradeId', populate: { path: 'gradeId', select: 'gradeName' } })
       .lean();
 
     const present = records.filter((r) => r.status === 'present').length;
@@ -420,11 +420,29 @@ exports.getAttendanceSummary = async (req, res) => {
       if (c._id) studentCountMap[String(c._id)] = c.totalStudents;
     });
 
-    // Gắn totalStudents vào từng record để frontend dùng
-    const recordsWithTotal = records.map((r) => ({
-      ...r,
-      classTotalStudents: studentCountMap[String(r.classId?._id)] ?? null,
-    }));
+    // Lấy giờ chốt suất ăn từ biến môi trường (chỉ admin/dev mới được đổi)
+    const cutoffTime = process.env.MEAL_CUTOFF_TIME || '08:30';
+    const [cutoffH, cutoffM] = cutoffTime.split(':').map(Number);
+    const cutoffMinutes = cutoffH * 60 + cutoffM;
+
+    // Gắn totalStudents và isSupplementary vào từng record để frontend dùng
+    const recordsWithTotal = records.map((r) => {
+      let isSupplementary = false;
+      if (r.status === 'present' && r.time?.checkIn) {
+        const ci = new Date(r.time.checkIn);
+        const ciMinutes = ci.getHours() * 60 + ci.getMinutes();
+        isSupplementary = ciMinutes > cutoffMinutes;
+      }
+      return {
+        ...r,
+        classTotalStudents: studentCountMap[String(r.classId?._id)] ?? null,
+        isSupplementary,
+      };
+    });
+
+    const supplementaryCount = recordsWithTotal.filter((r) => r.isSupplementary).length;
+    // Suất cơm chính = có mặt và đến TRƯỚC giờ chốt
+    const mealCount = present - supplementaryCount;
 
     // Tổng sĩ số = tổng học sinh đang học (không trùng lớp)
     const total = studentCountsByClass.reduce((s, c) => s + c.totalStudents, 0);
@@ -437,7 +455,9 @@ exports.getAttendanceSummary = async (req, res) => {
         present,
         absent,
         leave,
-        mealCount: present, // Suất cơm = số học sinh có mặt
+        mealCount,         // Suất cơm chính = đến trước giờ chốt
+        supplementaryCount, // Suất bổ sung = đến sau giờ chốt
+        cutoffTime,
         records: recordsWithTotal,
       },
     });
@@ -445,3 +465,4 @@ exports.getAttendanceSummary = async (req, res) => {
     return res.status(500).json({ success: false, message: err.message });
   }
 };
+

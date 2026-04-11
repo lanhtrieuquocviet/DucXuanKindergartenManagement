@@ -536,24 +536,6 @@ function TeacherAttendance() {
     try {
       if (!detailStudentId) throw new Error('Không xác định học sinh.');
 
-      // Kiểm tra & xác minh OTP cho checkin
-      if (detailMode === 'checkin') {
-        if (!detailForm.otpSent) throw new Error('Vui lòng gửi mã OTP trước khi lưu.');
-        if (!detailForm.otpCode) throw new Error('Vui lòng nhập mã OTP.');
-        const isSchoolOtp = detailForm.sendOtpSchoolAccount && !detailForm.sendOtpViaSms;
-        if (isSchoolOtp) {
-          try {
-            const verifyRes = await post(ENDPOINTS.OTP.VERIFY, { studentId: detailStudentId, otpCode: detailForm.otpCode });
-            if (!verifyRes.data?.verified) throw new Error('OTP không chính xác.');
-          } catch (err) {
-            throw new Error(err.message || 'Mã OTP không chính xác hoặc đã hết hạn.');
-          }
-        } else {
-          if (!confirmationResult) throw new Error('Vui lòng gửi mã OTP trước khi lưu.');
-          try { await confirmationResult.confirm(detailForm.otpCode); }
-          catch { throw new Error('Mã OTP không chính xác hoặc đã hết hạn.'); }
-        }
-      }
 
       const basePayload = {
         studentId: detailStudentId,
@@ -563,21 +545,24 @@ function TeacherAttendance() {
       };
 
       if (detailMode === 'checkout') {
-        // Kiểm tra & xác minh OTP cho checkout
-        if (!detailForm.otpSent) throw new Error('Vui lòng gửi mã OTP trước khi lưu.');
-        if (!detailForm.otpCode) throw new Error('Vui lòng nhập mã OTP.');
-        const isSchoolOtpCO = detailForm.sendOtpSchoolAccount && !detailForm.sendOtpViaSms;
-        if (isSchoolOtpCO) {
-          try {
-            const verifyRes = await post(ENDPOINTS.OTP.VERIFY, { studentId: detailStudentId, otpCode: detailForm.otpCode });
-            if (!verifyRes.data?.verified) throw new Error('OTP không chính xác.');
-          } catch (err) {
-            throw new Error(err.message || 'Mã OTP không chính xác hoặc đã hết hạn.');
+        const isReceiverFromList = !!detailForm.receiverPickupPersonId && detailForm.receiverPickupPersonId !== 'KHAC';
+        if (!isReceiverFromList || !detailForm.checkoutConfirmed) {
+          // Người ngoài danh sách → bắt buộc OTP
+          if (!detailForm.otpSent) throw new Error('Vui lòng gửi mã OTP trước khi lưu.');
+          if (!detailForm.otpCode) throw new Error('Vui lòng nhập mã OTP.');
+          const isSchoolOtpCO = detailForm.sendOtpSchoolAccount && !detailForm.sendOtpViaSms;
+          if (isSchoolOtpCO) {
+            try {
+              const verifyRes = await post(ENDPOINTS.OTP.VERIFY, { studentId: detailStudentId, otpCode: detailForm.otpCode });
+              if (!verifyRes.data?.verified) throw new Error('OTP không chính xác.');
+            } catch (err) {
+              throw new Error(err.message || 'Mã OTP không chính xác hoặc đã hết hạn.');
+            }
+          } else {
+            if (!confirmationResult) throw new Error('Vui lòng gửi mã OTP trước khi lưu.');
+            try { await confirmationResult.confirm(detailForm.otpCode); }
+            catch { throw new Error('Mã OTP không chính xác hoặc đã hết hạn.'); }
           }
-        } else {
-          if (!confirmationResult) throw new Error('Vui lòng gửi mã OTP trước khi lưu.');
-          try { await confirmationResult.confirm(detailForm.otpCode); }
-          catch { throw new Error('Mã OTP không chính xác hoặc đã hết hạn.'); }
         }
 
         const timeOutHHmm = detailForm.timeOut || nowHHmm();

@@ -2,6 +2,7 @@
 import { signInWithPhoneNumber, RecaptchaVerifier } from 'firebase/auth';
 import { auth } from '../../../config/firebase';
 import { post, postFormData, ENDPOINTS } from '../../../service/api';
+import CameraCapture from '../../../components/CameraCapture';
 import {
   formatPhoneForFirebase,
   sanitizeSingleLineText,
@@ -11,8 +12,9 @@ import {
   MAX_PERSON_NAME_LEN,
   MAX_PERSON_PHONE_LEN,
 } from './attendanceUtils';
+import { useState } from 'react';
 import {
-  Dialog, DialogContent, DialogActions,
+  Dialog, DialogContent, DialogActions, DialogTitle,
   Box, Grid, Typography, Button, TextField, Select,
   FormControl, InputLabel, MenuItem, Alert, IconButton,
   Chip, FormControlLabel, Checkbox, Paper,
@@ -32,6 +34,10 @@ import {
   AccessTime as TimeIcon,
   Person as PersonIcon,
   Timer as TimerIcon,
+  SmartToy as SmartToyIcon,
+  Backpack as BackpackIcon,
+  CameraAlt as CameraAltIcon,
+  WarningAmber as WarningAmberIcon,
 } from '@mui/icons-material';
 
 // Helper hiển thị ảnh preview
@@ -172,8 +178,8 @@ function OtpSection({ radioName, detailForm, setDetailForm, student, approvedPic
                 {otpExpired && (
                   <Box sx={{ mt: 1.5 }}>
                     {student?.parentId?.phone && (
-                      <Typography variant="caption" color="error.main" sx={{ display: 'block', mb: 1 }}>
-                        📱 {student.parentId.fullName || 'Phụ huynh'}: {student.parentId.phone}
+                      <Typography variant="caption" color="error.main" sx={{ display: 'flex', alignItems: 'center', gap: 0.5, mb: 1 }}>
+                        <PhoneIcon sx={{ fontSize: 13 }} />{student.parentId.fullName || 'Phụ huynh'}: {student.parentId.phone}
                       </Typography>
                     )}
                     <Button
@@ -273,22 +279,29 @@ function AttendanceDetailModal({
   onSave,
   onResetOtp,
 }) {
+  const [confirmDialog, setConfirmDialog] = useState(null); // { field, label }
+
   const isMobileScreen = useMediaQuery('(max-width:599px)');
   const isPastDate = todayISO ? selectedDate < todayISO : false;
   const isCheckoutMode = mode === 'checkout';
-  const isReceiverOther = detailForm.receiverType === 'Khác';
+  const isReceiverFromList = isCheckoutMode && !!detailForm.receiverPickupPersonId && detailForm.receiverPickupPersonId !== 'KHAC';
 
   const canSaveCheckout =
     isCheckoutMode &&
     !!detailForm.receiverType &&
     !!detailForm.checkoutImageName &&
-    (!isReceiverOther || (
-      !!detailForm.receiverName?.trim() &&
-      !!detailForm.receiverPhone?.trim() &&
-      !!detailForm.receiverOtherImageName
-    ));
+    (isReceiverFromList
+      ? !!detailForm.checkoutConfirmed
+      : (
+        !!detailForm.receiverName?.trim() &&
+        !!detailForm.receiverPhone?.trim() &&
+        !!detailForm.receiverOtherImageName
+      )
+    );
 
-  const canSubmitCheckin = mode === 'checkin' ? !!detailForm.checkinImageName : true;
+  const canSubmitCheckin = mode === 'checkin'
+    ? !!detailForm.checkinImageName && !!detailForm.checkinConfirmed
+    : true;
 
   const uploadAttendanceImage = async (file, fieldName) => {
     if (!file) return;
@@ -312,6 +325,12 @@ function AttendanceDetailModal({
     } finally {
       e.target.value = '';
     }
+  };
+
+  // Handler dùng cho CameraCapture — nhận File trực tiếp (không qua event)
+  const handleCameraCapture = (fieldName) => async (file) => {
+    setSubmitError(null);
+    await uploadAttendanceImage(file, fieldName);
   };
 
   const handleSendOtp = async () => {
@@ -458,7 +477,8 @@ function AttendanceDetailModal({
                   <Typography variant="body2" fontWeight={700} color="#15803d">Thông tin Điểm danh</Typography>
                   {detailForm.checkedInByAI && (
                     <Chip
-                      label="🤖 AI"
+                      icon={<SmartToyIcon sx={{ fontSize: '12px !important', color: 'white !important' }} />}
+                      label="AI"
                       size="small"
                       sx={{ height: 20, fontSize: 10, fontWeight: 700, bgcolor: '#7c3aed', color: 'white', px: 0.5 }}
                     />
@@ -542,16 +562,16 @@ function AttendanceDetailModal({
                           )}
                         </Box>
                       </Box>
-                      <TextField
-                        fullWidth size="small" label="Đồ mang theo"
-                        placeholder="Bình nước, balo..."
-                        value={detailForm.belongingsNote}
-                        disabled={isPastDate}
-                        slotProps={{ htmlInput: { maxLength: MAX_BELONGINGS_NOTE_LEN } }}
-                        onChange={(e) => setDetailForm((prev) => ({
-                          ...prev, belongingsNote: sanitizeSingleLineText(e.target.value, MAX_BELONGINGS_NOTE_LEN),
-                        }))}
-                      />
+                    </Box>
+                  </Box>
+
+                  {/* Đồ mang theo */}
+                  <Box sx={{ mb: 1.5 }}>
+                    <Typography variant="caption" fontWeight={600} color="text.secondary" sx={{ display: 'flex', alignItems: 'center', gap: 0.5, mb: 0.4 }}><BackpackIcon sx={{ fontSize: 14 }} />Đồ mang theo</Typography>
+                    <Box sx={{ px: 1.5, py: 0.75, borderRadius: 1.5, bgcolor: 'background.paper', border: '1px solid', borderColor: 'divider', minHeight: 34, display: 'flex', alignItems: 'center' }}>
+                      <Typography variant="body2" color={detailForm.belongingsNote ? 'text.primary' : 'text.disabled'} fontStyle={detailForm.belongingsNote ? 'normal' : 'italic'}>
+                        {detailForm.belongingsNote || 'Không có đồ mang theo'}
+                      </Typography>
                     </Box>
                   </Box>
 
@@ -579,7 +599,8 @@ function AttendanceDetailModal({
                   <Typography variant="body2" fontWeight={700} color="#1d4ed8">Thông tin Điểm danh về</Typography>
                   {detailForm.checkedOutByAI && (
                     <Chip
-                      label="🤖 AI"
+                      icon={<SmartToyIcon sx={{ fontSize: '12px !important', color: 'white !important' }} />}
+                      label="AI"
                       size="small"
                       sx={{ height: 20, fontSize: 10, fontWeight: 700, bgcolor: '#7c3aed', color: 'white', px: 0.5 }}
                     />
@@ -667,16 +688,14 @@ function AttendanceDetailModal({
                   </Box>
 
                   {/* Đồ mang về */}
-                  <TextField
-                    fullWidth size="small" label="Đồ mang về"
-                    placeholder="Bình nước, balo, đồ dùng cá nhân..."
-                    value={detailForm.checkoutBelongingsNote || ''}
-                    disabled={isPastDate}
-                    slotProps={{ htmlInput: { maxLength: MAX_BELONGINGS_NOTE_LEN } }}
-                    onChange={(e) => setDetailForm((prev) => ({
-                      ...prev, checkoutBelongingsNote: sanitizeSingleLineText(e.target.value, MAX_BELONGINGS_NOTE_LEN),
-                    }))}
-                  />
+                  <Box sx={{ mb: 1.5 }}>
+                    <Typography variant="caption" fontWeight={600} color="text.secondary" sx={{ display: 'flex', alignItems: 'center', gap: 0.5, mb: 0.4 }}><BackpackIcon sx={{ fontSize: 14 }} />Đồ mang về</Typography>
+                    <Box sx={{ px: 1.5, py: 0.75, borderRadius: 1.5, bgcolor: 'background.paper', border: '1px solid', borderColor: 'divider', minHeight: 34, display: 'flex', alignItems: 'center' }}>
+                      <Typography variant="body2" color={detailForm.checkoutBelongingsNote ? 'text.primary' : 'text.disabled'} fontStyle={detailForm.checkoutBelongingsNote ? 'normal' : 'italic'}>
+                        {detailForm.checkoutBelongingsNote || 'Không có đồ mang về'}
+                      </Typography>
+                    </Box>
+                  </Box>
 
                   {/* Note full width */}
                   <TextField
@@ -714,19 +733,18 @@ function AttendanceDetailModal({
               {/* Image upload */}
               <Paper variant="outlined" sx={{ p: 2, borderRadius: 2, borderColor: '#bfdbfe', bgcolor: '#f8faff' }}>
                 <Typography variant="caption" fontWeight={700} color="#1d4ed8" sx={{ display: 'flex', alignItems: 'center', gap: 0.5, mb: 1.5 }}>
-                  📷 Ảnh đón trẻ <Box component="span" sx={{ color: 'error.main' }}>*</Box>
+                  <CameraAltIcon sx={{ fontSize: 14 }} />Ảnh đón trẻ <Box component="span" sx={{ color: 'error.main' }}>*</Box>
                 </Typography>
-                <FileUploadField
-                  label=""
+                <CameraCapture
                   currentValue={detailForm.checkoutImageName}
-                  onUpload={handleFileUpload('checkoutImageName', 'Không tải lên được ảnh check-out.')}
+                  onCapture={handleCameraCapture('checkoutImageName')}
                 />
               </Paper>
 
               {/* Person selector */}
               <Paper variant="outlined" sx={{ p: 2, borderRadius: 2, borderColor: 'divider' }}>
                 <Typography variant="caption" fontWeight={700} color="text.secondary" sx={{ display: 'flex', alignItems: 'center', gap: 0.5, mb: 1.5 }}>
-                  👤 Người đón
+                  <PersonIcon sx={{ fontSize: 14 }} />Người đón
                 </Typography>
                 <FormControl fullWidth size="small">
                   <InputLabel>Chọn người đón *</InputLabel>
@@ -762,8 +780,8 @@ function AttendanceDetailModal({
 
                 {detailForm.receiverType === 'Khác' && (
                   <Box sx={{ mt: 2, pt: 2, borderTop: '1px dashed', borderColor: 'divider' }}>
-                    <Typography variant="caption" color="warning.main" fontWeight={600} sx={{ display: 'block', mb: 1.5 }}>
-                      ⚠️ Vui lòng nhập đầy đủ thông tin người đón ngoài danh sách
+                    <Typography variant="caption" color="warning.main" fontWeight={600} sx={{ display: 'flex', alignItems: 'center', gap: 0.5, mb: 1.5 }}>
+                      <WarningAmberIcon sx={{ fontSize: 14 }} />Vui lòng nhập đầy đủ thông tin người đón ngoài danh sách
                     </Typography>
                     <Stack spacing={1.5}>
                       <Grid container spacing={1.5}>
@@ -790,28 +808,65 @@ function AttendanceDetailModal({
                           />
                         </Grid>
                       </Grid>
-                      <FileUploadField
-                        label="Ảnh người đón *"
-                        currentValue={detailForm.receiverOtherImageName}
-                        onUpload={handleFileUpload('receiverOtherImageName', 'Không tải lên được ảnh người đón.')}
+                      <CameraCapture
+                        label="Ảnh người đón"
                         required
+                        currentValue={detailForm.receiverOtherImageName}
+                        onCapture={handleCameraCapture('receiverOtherImageName')}
                       />
                     </Stack>
                   </Box>
                 )}
               </Paper>
 
-              <OtpSection
-                radioName="otpMethodCheckout"
-                detailForm={detailForm}
-                setDetailForm={setDetailForm}
-                student={student}
-                approvedPickupPersons={approvedPickupPersons}
-                onSendOtp={handleSendOtp}
-                otpTimeLeft={otpTimeLeft}
-                otpExpired={otpExpired}
-                onResetOtp={onResetOtp}
-              />
+              {isReceiverFromList ? (
+                <Paper
+                  variant="outlined"
+                  sx={{
+                    p: 1.5, borderRadius: 2,
+                    borderColor: detailForm.checkoutConfirmed ? 'info.400' : 'divider',
+                    bgcolor: detailForm.checkoutConfirmed ? '#eff6ff' : 'grey.50',
+                    cursor: 'pointer',
+                    transition: 'all 0.15s',
+                  }}
+                  onClick={() => {
+                    if (!detailForm.checkoutConfirmed)
+                      setConfirmDialog({ field: 'checkoutConfirmed', label: 'Xác nhận đã giao trẻ an toàn cho người đón?' });
+                    else
+                      setDetailForm((prev) => ({ ...prev, checkoutConfirmed: false }));
+                  }}
+                >
+                  <FormControlLabel
+                    control={
+                      <Checkbox
+                        size="small"
+                        color="info"
+                        checked={!!detailForm.checkoutConfirmed}
+                        onChange={() => {}}
+                        onClick={(e) => e.stopPropagation()}
+                      />
+                    }
+                    label={
+                      <Typography variant="body2" fontWeight={700} color={detailForm.checkoutConfirmed ? 'info.main' : 'text.secondary'}>
+                        Xác nhận đã giao trẻ an toàn cho người đón
+                      </Typography>
+                    }
+                    sx={{ m: 0 }}
+                  />
+                </Paper>
+              ) : (
+                <OtpSection
+                  radioName="otpMethodCheckout"
+                  detailForm={detailForm}
+                  setDetailForm={setDetailForm}
+                  student={student}
+                  approvedPickupPersons={approvedPickupPersons}
+                  onSendOtp={handleSendOtp}
+                  otpTimeLeft={otpTimeLeft}
+                  otpExpired={otpExpired}
+                  onResetOtp={onResetOtp}
+                />
+              )}
 
               {/* Đồ mang về */}
               <Paper variant="outlined" sx={{ p: 2, borderRadius: 2, borderColor: 'divider' }}>
@@ -826,7 +881,7 @@ function AttendanceDetailModal({
                       }))}
                     />
                   }
-                  label={<Typography variant="body2" fontWeight={600}>🎒 Có đồ mang về</Typography>}
+                  label={<Typography variant="body2" fontWeight={600} sx={{ display: 'flex', alignItems: 'center', gap: 0.5 }}><BackpackIcon sx={{ fontSize: 16 }} />Có đồ mang về</Typography>}
                 />
                 {detailForm.hasCheckoutBelongings && (
                   <TextField
@@ -876,19 +931,18 @@ function AttendanceDetailModal({
                 <Grid size={{ xs: 12, sm: 6 }}>
                   <Paper variant="outlined" sx={{ p: 2, borderRadius: 2, height: '100%', borderColor: '#bbf7d0', bgcolor: '#f0fdf4' }}>
                     <Typography variant="caption" fontWeight={700} color="#15803d" sx={{ display: 'flex', alignItems: 'center', gap: 0.5, mb: 1.5 }}>
-                      📷 Ảnh điểm danh <Box component="span" sx={{ color: 'error.main' }}>*</Box>
+                      <CameraAltIcon sx={{ fontSize: 14 }} />Ảnh điểm danh <Box component="span" sx={{ color: 'error.main' }}>*</Box>
                     </Typography>
-                    <FileUploadField
-                      label=""
+                    <CameraCapture
                       currentValue={detailForm.checkinImageName}
-                      onUpload={handleFileUpload('checkinImageName', 'Không tải lên được ảnh check-in.')}
+                      onCapture={handleCameraCapture('checkinImageName')}
                     />
                   </Paper>
                 </Grid>
                 <Grid size={{ xs: 12, sm: 6 }}>
                   <Paper variant="outlined" sx={{ p: 2, borderRadius: 2, height: '100%', borderColor: 'divider' }}>
                     <Typography variant="caption" fontWeight={700} color="text.secondary" sx={{ display: 'flex', alignItems: 'center', gap: 0.5, mb: 1.5 }}>
-                      👤 Người đưa
+                      <PersonIcon sx={{ fontSize: 14 }} />Người đưa
                     </Typography>
                     <FormControl fullWidth size="small">
                       <InputLabel>Chọn người đưa *</InputLabel>
@@ -928,8 +982,8 @@ function AttendanceDetailModal({
               {/* Người đưa "Khác" extra fields */}
               {detailForm.delivererType === 'Khác' && (
                 <Paper variant="outlined" sx={{ p: 2, borderRadius: 2, borderColor: '#fde68a', bgcolor: '#fffbeb' }}>
-                  <Typography variant="caption" color="warning.main" fontWeight={600} sx={{ display: 'block', mb: 1.5 }}>
-                    ⚠️ Vui lòng nhập đầy đủ thông tin người đưa ngoài danh sách
+                  <Typography variant="caption" color="warning.main" fontWeight={600} sx={{ display: 'flex', alignItems: 'center', gap: 0.5, mb: 1.5 }}>
+                    <WarningAmberIcon sx={{ fontSize: 14 }} />Vui lòng nhập đầy đủ thông tin người đưa ngoài danh sách
                   </Typography>
                   <Stack spacing={1.5}>
                     <Grid container spacing={1.5}>
@@ -956,10 +1010,10 @@ function AttendanceDetailModal({
                         />
                       </Grid>
                     </Grid>
-                    <FileUploadField
+                    <CameraCapture
                       label="Ảnh người đưa"
                       currentValue={detailForm.delivererOtherImageName}
-                      onUpload={handleFileUpload('delivererOtherImageName', 'Không tải lên được ảnh người đưa.')}
+                      onCapture={handleCameraCapture('delivererOtherImageName')}
                     />
                   </Stack>
                 </Paper>
@@ -978,7 +1032,7 @@ function AttendanceDetailModal({
                       }))}
                     />
                   }
-                  label={<Typography variant="body2" fontWeight={600}>🎒 Có đồ mang theo</Typography>}
+                  label={<Typography variant="body2" fontWeight={600} sx={{ display: 'flex', alignItems: 'center', gap: 0.5 }}><BackpackIcon sx={{ fontSize: 16 }} />Có đồ mang theo</Typography>}
                 />
                 {detailForm.hasBelongings && (
                   <TextField
@@ -994,18 +1048,6 @@ function AttendanceDetailModal({
                 )}
               </Paper>
 
-              <OtpSection
-                radioName="otpMethodCheckin"
-                detailForm={detailForm}
-                setDetailForm={setDetailForm}
-                student={student}
-                approvedPickupPersons={approvedPickupPersons}
-                onSendOtp={handleSendOtp}
-                otpTimeLeft={otpTimeLeft}
-                otpExpired={otpExpired}
-                onResetOtp={onResetOtp}
-              />
-
               <TextField
                 fullWidth size="small" multiline rows={2} label="Ghi chú"
                 placeholder="Ví dụ: Bé đến muộn 10 phút..."
@@ -1015,6 +1057,42 @@ function AttendanceDetailModal({
                   ...prev, note: sanitizeMultiLineText(e.target.value, MAX_NOTE_LEN),
                 }))}
               />
+
+              {/* Xác nhận điểm danh nhanh */}
+              <Paper
+                variant="outlined"
+                sx={{
+                  p: 1.5, borderRadius: 2,
+                  borderColor: detailForm.checkinConfirmed ? 'success.400' : 'divider',
+                  bgcolor: detailForm.checkinConfirmed ? '#f0fdf4' : 'grey.50',
+                  cursor: 'pointer',
+                  transition: 'all 0.15s',
+                }}
+                onClick={() => {
+                  if (!detailForm.checkinConfirmed)
+                    setConfirmDialog({ field: 'checkinConfirmed', label: 'Xác nhận đã đưa trẻ đến lớp an toàn?' });
+                  else
+                    setDetailForm((prev) => ({ ...prev, checkinConfirmed: false }));
+                }}
+              >
+                <FormControlLabel
+                  control={
+                    <Checkbox
+                      size="small"
+                      color="success"
+                      checked={!!detailForm.checkinConfirmed}
+                      onChange={() => {}}
+                      onClick={(e) => e.stopPropagation()}
+                    />
+                  }
+                  label={
+                    <Typography variant="body2" fontWeight={700} color={detailForm.checkinConfirmed ? 'success.main' : 'text.secondary'}>
+                      Xác nhận đã đưa trẻ đến lớp an toàn
+                    </Typography>
+                  }
+                  sx={{ m: 0 }}
+                />
+              </Paper>
             </Stack>
           )}
         </DialogContent>
@@ -1053,10 +1131,10 @@ function AttendanceDetailModal({
                   color="success"
                   disabled={!canSubmitCheckin}
                   title={!canSubmitCheckin ? 'Vui lòng chọn ảnh điểm danh' : ''}
-                  startIcon={<SaveIcon />}
-                  sx={{ borderRadius: 2, textTransform: 'none', fontWeight: 700, flex: { xs: 2, sm: 'unset' } }}
+                  startIcon={<CheckCircleIcon />}
+                  sx={{ borderRadius: 2, textTransform: 'none', fontWeight: 700, flex: { xs: 2, sm: 'unset' }, bgcolor: 'success.main', '&:hover': { bgcolor: 'success.dark' } }}
                 >
-                  Lưu điểm danh
+                  Xác nhận đưa trẻ
                 </Button>
               ) : (
                 <Button
@@ -1073,6 +1151,30 @@ function AttendanceDetailModal({
           </Box>
         </DialogActions>
       </Box>
+
+      {/* Confirm dialog cho xác nhận nhanh */}
+      <Dialog open={!!confirmDialog} onClose={() => setConfirmDialog(null)} maxWidth="xs" fullWidth>
+        <DialogTitle sx={{ fontWeight: 700, pb: 1 }}>Xác nhận</DialogTitle>
+        <DialogContent>
+          <Typography>{confirmDialog?.label}</Typography>
+        </DialogContent>
+        <DialogActions sx={{ px: 3, pb: 2, gap: 1 }}>
+          <Button variant="outlined" onClick={() => setConfirmDialog(null)} sx={{ textTransform: 'none' }}>
+            Hủy
+          </Button>
+          <Button
+            variant="contained"
+            color="success"
+            onClick={() => {
+              setDetailForm((prev) => ({ ...prev, [confirmDialog.field]: true }));
+              setConfirmDialog(null);
+            }}
+            sx={{ textTransform: 'none', fontWeight: 700 }}
+          >
+            Xác nhận
+          </Button>
+        </DialogActions>
+      </Dialog>
     </Dialog>
   );
 }
