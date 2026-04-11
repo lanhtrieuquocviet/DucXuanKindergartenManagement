@@ -370,18 +370,6 @@ function ManagePermissions() {
                 <Typography variant="subtitle2" fontWeight={700}>
                   Danh sách quyền
                 </Typography>
-                <Button
-                  size="small"
-                  variant="contained"
-                  startIcon={<AddIcon />}
-                  onClick={() => handleOpenPermissionForm()}
-                  sx={{
-                    textTransform: 'none', fontWeight: 600, borderRadius: 1.5,
-                    bgcolor: '#6366f1', '&:hover': { bgcolor: '#4f46e5' },
-                  }}
-                >
-                  Thêm quyền
-                </Button>
               </Stack>
               <TextField
                 size="small"

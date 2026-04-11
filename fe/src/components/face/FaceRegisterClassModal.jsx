@@ -70,7 +70,7 @@ function FaceDetailDialog({ student, onClose, onUpdate, onDeleted }) {
       {/* Lightbox xem ảnh to */}
       {previewImg && (
         <div
-          className="fixed inset-0 z-[60] flex items-center justify-center bg-black/80"
+          className="fixed inset-0 z-[1430] flex items-center justify-center bg-black/80"
           onClick={() => setPreviewImg(null)}
         >
           <img src={previewImg} alt="preview" className="max-w-[90vw] max-h-[85vh] rounded-xl object-contain shadow-2xl" />
@@ -81,10 +81,10 @@ function FaceDetailDialog({ student, onClose, onUpdate, onDeleted }) {
         </div>
       )}
 
-      <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50">
+      <div className="fixed inset-0 z-[1420] flex items-start sm:items-center justify-center bg-black/50 p-2 sm:p-4">
         <div
-          className="bg-white rounded-2xl shadow-2xl flex flex-col"
-          style={{ width: '100%', maxWidth: 400, margin: '0 16px', maxHeight: '90vh' }}
+          className="bg-white rounded-2xl shadow-2xl flex flex-col w-full"
+          style={{ maxWidth: 400, maxHeight: 'calc(100dvh - 1rem)' }}
         >
           {/* Header */}
           <div
@@ -220,7 +220,7 @@ function FaceDetailDialog({ student, onClose, onUpdate, onDeleted }) {
 
       {/* Confirm xóa 1 góc */}
       {confirmDeleteAngle !== null && (
-        <div className="fixed inset-0 z-[70] flex items-center justify-center bg-black/60">
+        <div className="fixed inset-0 z-[1440] flex items-center justify-center bg-black/60">
           <div className="bg-white rounded-2xl shadow-2xl p-6 max-w-xs w-full mx-4">
             <div className="flex flex-col items-center gap-3 text-center">
               <div className="w-12 h-12 rounded-full bg-red-100 flex items-center justify-center">
@@ -254,7 +254,7 @@ function FaceDetailDialog({ student, onClose, onUpdate, onDeleted }) {
 
       {/* Confirm xóa */}
       {confirmDelete && (
-        <div className="fixed inset-0 z-[70] flex items-center justify-center bg-black/60">
+        <div className="fixed inset-0 z-[1440] flex items-center justify-center bg-black/60">
           <div className="bg-white rounded-2xl shadow-2xl p-6 max-w-xs w-full mx-4">
             <div className="flex flex-col items-center gap-3 text-center">
               <div className="w-12 h-12 rounded-full bg-red-100 flex items-center justify-center">
@@ -337,10 +337,10 @@ export default function FaceRegisterClassModal({ open, onClose, classId, classNa
 
   return (
     <>
-      <div className="fixed inset-0 z-40 flex items-center justify-center bg-black/60">
+      <div className="fixed inset-0 z-[1400] flex items-start sm:items-center justify-center bg-black/60 p-2 sm:p-4">
         <div
-          className="bg-white rounded-2xl shadow-2xl flex flex-col"
-          style={{ width: '100%', maxWidth: 560, maxHeight: '88vh', margin: '0 16px' }}
+          className="bg-white rounded-2xl shadow-2xl flex flex-col w-full"
+          style={{ maxWidth: 560, maxHeight: 'calc(100dvh - 1rem)' }}
         >
           {/* ── Header ── */}
           <div

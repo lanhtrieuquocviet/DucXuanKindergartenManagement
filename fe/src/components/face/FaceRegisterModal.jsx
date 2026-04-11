@@ -181,8 +181,11 @@ export default function FaceRegisterModal({ open, onClose, student, onSuccess })
   if (!open) return null;
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60">
-      <div className="bg-white rounded-2xl shadow-2xl w-full max-w-lg mx-4">
+    <div className="fixed inset-0 z-[1410] flex items-start sm:items-center justify-center bg-black/60 p-2 sm:p-4">
+      <div
+        className="bg-white rounded-2xl shadow-2xl w-full max-w-lg overflow-y-auto"
+        style={{ maxHeight: 'calc(100dvh - 1rem)' }}
+      >
         {/* Header */}
         <div className="flex items-center justify-between px-6 py-4 border-b bg-indigo-600 rounded-t-2xl">
           <div>

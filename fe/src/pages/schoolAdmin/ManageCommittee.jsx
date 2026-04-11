@@ -26,7 +26,7 @@ export default function ManageCommittee() {
       title="Ban Kiểm Kê"
       description="Quản lý ban kiểm kê tài sản trường."
       menuItems={menuItems}
-      activeKey="committee"
+      activeKey="kiemke"
       onLogout={() => { logout(); navigate('/login', { replace: true }); }}
       userName={user?.fullName || user?.username || 'School Admin'}
       userAvatar={user?.avatar}

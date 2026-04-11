@@ -4,12 +4,12 @@ import { useAuth } from '../../context/AuthContext';
 import { get, ENDPOINTS } from '../../service/api';
 import {
   Box, Paper, Typography, Avatar, Stack, Chip, IconButton,
-  CircularProgress, Alert, Divider, Grid, Collapse, Select,
+  Alert, Divider, Grid, Collapse, Select,
   MenuItem, FormControl, InputLabel,
 } from '@mui/material';
 import {
   ArrowBack, School, ExpandMore, ExpandLess, CheckCircle,
-  Cancel, AccessTime, CalendarMonth, Login as LoginIcon, Logout as LogoutIcon, Image as ImageIcon,
+  Cancel, AccessTime, CalendarMonth, Login as LoginIcon, Logout as LogoutIcon,
 } from '@mui/icons-material';
 
 const PRIMARY = '#059669';
@@ -51,6 +51,8 @@ const getStatus = (att) => {
 
 const toYmd = (y, m, d) => `${y}-${String(m).padStart(2,'0')}-${String(d).padStart(2,'0')}`;
 
+// ── Helpers ────────────────────────────────────────────────────────────────────
+
 function StatCard({ icon, label, value, color, bg, border }) {
   return (
     <Paper elevation={0} sx={{ p: 2, borderRadius: 3, border: '1px solid', borderColor: border, bgcolor: bg }}>
@@ -65,6 +67,54 @@ function StatCard({ icon, label, value, color, bg, border }) {
   );
 }
 
+/** Ô thông tin: label nhỏ trên, value to dưới — tránh vỡ dòng */
+function InfoItem({ label, value, valueColor, chipItems, chipBg, chipColor }) {
+  const empty = chipItems ? chipItems.length === 0 : !value;
+  return (
+    <Box>
+      <Typography fontSize="0.65rem" fontWeight={700} color="#9ca3af" textTransform="uppercase" letterSpacing="0.05em" mb={0.4}>
+        {label}
+      </Typography>
+      {chipItems !== undefined ? (
+        chipItems.length > 0 ? (
+          <Stack direction="row" flexWrap="wrap" gap={0.5}>
+            {chipItems.map((item, i) => (
+              <Chip key={i} label={item} size="small"
+                sx={{ height: 22, fontSize: '0.72rem', fontWeight: 600, bgcolor: chipBg || '#f3f4f6', color: chipColor || '#374151' }} />
+            ))}
+          </Stack>
+        ) : (
+          <Typography fontSize="0.82rem" color="#cbd5e1" fontStyle="italic">Không có</Typography>
+        )
+      ) : (
+        <Typography fontSize="0.85rem" fontWeight={empty ? 400 : 600}
+          color={empty ? '#cbd5e1' : (valueColor || 'text.primary')}
+          fontStyle={empty ? 'italic' : 'normal'}>
+          {value || 'Không có'}
+        </Typography>
+      )}
+    </Box>
+  );
+}
+
+/** Ảnh có tiêu đề, click mở tab mới */
+function PhotoCard({ label, src }) {
+  return (
+    <Box>
+      <Typography fontSize="0.65rem" fontWeight={700} color="#9ca3af" textTransform="uppercase" letterSpacing="0.05em" mb={0.5}>
+        {label}
+      </Typography>
+      <Box component="a" href={src} target="_blank" rel="noopener noreferrer"
+        sx={{ display: 'block', borderRadius: 1.5, overflow: 'hidden', border: '1px solid #e5e7eb' }}>
+        <Box component="img" src={src} alt={label}
+          sx={{ width: '100%', height: 110, objectFit: 'cover', display: 'block' }} />
+      </Box>
+    </Box>
+  );
+}
+
+// ── Main component ─────────────────────────────────────────────────────────────
+
 export default function AttendanceReport() {
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
@@ -75,13 +125,13 @@ export default function AttendanceReport() {
     return { month: d.getMonth()+1, year: d.getFullYear() };
   }, []);
 
-  const [children, setChildren] = useState([]);
+  const [children, setChildren]     = useState([]);
   const [attendances, setAttendances] = useState([]);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState('');
+  const [loading, setLoading]        = useState(true);
+  const [error, setError]            = useState('');
   const [selectedMonth, setSelectedMonth] = useState(initial.month);
-  const [selectedYear, setSelectedYear] = useState(initial.year);
-  const [expandedId, setExpandedId] = useState(null);
+  const [selectedYear, setSelectedYear]   = useState(initial.year);
+  const [expandedId, setExpandedId]       = useState(null);
 
   useEffect(() => {
     if (isInitializing) return;
@@ -107,15 +157,15 @@ export default function AttendanceReport() {
     })();
   }, [navigate, user, isInitializing, selectedMonth, selectedYear]);
 
-  const student = children[0] || null;
+  const student     = children[0] || null;
   const studentName = student?.fullName || '—';
-  const className = student?.classId?.className || 'Chưa xếp lớp';
+  const className   = student?.classId?.className || 'Chưa xếp lớp';
 
   const stats = useMemo(() => ({
-    total: attendances.length,
+    total:   attendances.length,
     present: attendances.filter(a => a.status === 'present').length,
-    absent: attendances.filter(a => a.status === 'absent').length,
-    late: attendances.filter(a => a.status === 'present' && isLate(a?.timeString?.checkIn || a?.time?.checkIn)).length,
+    absent:  attendances.filter(a => a.status === 'absent').length,
+    late:    attendances.filter(a => a.status === 'present' && isLate(a?.timeString?.checkIn || a?.time?.checkIn)).length,
   }), [attendances]);
 
   const currentYear = new Date().getFullYear();
@@ -139,7 +189,7 @@ export default function AttendanceReport() {
       </Box>
 
       <Box sx={{ maxWidth: 600, mx: 'auto', px: 2, py: 2.5, pb: 4 }}>
-        {/* Student */}
+        {/* Student info */}
         <Paper elevation={0} sx={{ p: 2, borderRadius: 3, border: '1px solid #bbf7d0', mb: 2 }}>
           <Stack direction="row" spacing={1.5} alignItems="center">
             <Avatar sx={{ bgcolor: '#d1fae5', color: PRIMARY, width: 40, height: 40, fontWeight: 700 }}>
@@ -163,8 +213,7 @@ export default function AttendanceReport() {
           <Stack direction="row" spacing={1.5}>
             <FormControl size="small" fullWidth>
               <InputLabel>Tháng</InputLabel>
-              <Select value={selectedMonth} label="Tháng" onChange={e => setSelectedMonth(Number(e.target.value))}
-                sx={{ borderRadius: 2 }}>
+              <Select value={selectedMonth} label="Tháng" onChange={e => setSelectedMonth(Number(e.target.value))} sx={{ borderRadius: 2 }}>
                 {Array.from({length:12},(_,i)=>i+1).map(m => (
                   <MenuItem key={m} value={m}>Tháng {String(m).padStart(2,'0')}</MenuItem>
                 ))}
@@ -172,8 +221,7 @@ export default function AttendanceReport() {
             </FormControl>
             <FormControl size="small" fullWidth>
               <InputLabel>Năm</InputLabel>
-              <Select value={selectedYear} label="Năm" onChange={e => setSelectedYear(Number(e.target.value))}
-                sx={{ borderRadius: 2 }}>
+              <Select value={selectedYear} label="Năm" onChange={e => setSelectedYear(Number(e.target.value))} sx={{ borderRadius: 2 }}>
                 {years.map(y => <MenuItem key={y} value={y}>{y}</MenuItem>)}
               </Select>
             </FormControl>
@@ -182,10 +230,10 @@ export default function AttendanceReport() {
 
         {/* Stats */}
         <Grid container spacing={1.5} mb={2}>
-          <Grid item xs={6}><StatCard icon={<CalendarMonth fontSize="small"/>} label="Ngày học" value={stats.total} color="#374151" bg="white" border="#e5e7eb"/></Grid>
-          <Grid item xs={6}><StatCard icon={<CheckCircle fontSize="small"/>} label="Có mặt" value={stats.present} color={PRIMARY} bg="#f0fdf4" border="#bbf7d0"/></Grid>
-          <Grid item xs={6}><StatCard icon={<Cancel fontSize="small"/>} label="Nghỉ học" value={stats.absent} color="#dc2626" bg="#fef2f2" border="#fecaca"/></Grid>
-          <Grid item xs={6}><StatCard icon={<AccessTime fontSize="small"/>} label="Đi trễ" value={stats.late} color="#d97706" bg="#fffbeb" border="#fde68a"/></Grid>
+          <Grid item xs={6}><StatCard icon={<CalendarMonth fontSize="small"/>} label="Ngày học"  value={stats.total}   color="#374151" bg="white"    border="#e5e7eb"/></Grid>
+          <Grid item xs={6}><StatCard icon={<CheckCircle  fontSize="small"/>} label="Có mặt"   value={stats.present} color={PRIMARY}  bg="#f0fdf4"  border="#bbf7d0"/></Grid>
+          <Grid item xs={6}><StatCard icon={<Cancel       fontSize="small"/>} label="Nghỉ học"  value={stats.absent}  color="#dc2626" bg="#fef2f2"  border="#fecaca"/></Grid>
+          <Grid item xs={6}><StatCard icon={<AccessTime   fontSize="small"/>} label="Đi trễ"    value={stats.late}    color="#d97706" bg="#fffbeb"  border="#fde68a"/></Grid>
         </Grid>
 
         {/* History */}
@@ -200,7 +248,10 @@ export default function AttendanceReport() {
                 <Stack direction="row" justifyContent="space-between" alignItems="center">
                   <Stack direction="row" spacing={1.5} alignItems="center">
                     <Box sx={{ width: 10, height: 10, borderRadius: '50%', bgcolor: '#e5e7eb' }} />
-                    <Stack spacing={0.5}><Box sx={{ width: 80, height: 12, bgcolor: '#e5e7eb', borderRadius: 1 }} /><Box sx={{ width: 60, height: 10, bgcolor: '#f3f4f6', borderRadius: 1 }} /></Stack>
+                    <Stack spacing={0.5}>
+                      <Box sx={{ width: 80, height: 12, bgcolor: '#e5e7eb', borderRadius: 1 }} />
+                      <Box sx={{ width: 60, height: 10, bgcolor: '#f3f4f6', borderRadius: 1 }} />
+                    </Stack>
                   </Stack>
                   <Box sx={{ width: 60, height: 12, bgcolor: '#e5e7eb', borderRadius: 1 }} />
                 </Stack>
@@ -217,9 +268,9 @@ export default function AttendanceReport() {
         ) : (
           <Stack spacing={1.5}>
             {attendances.map((att, idx) => {
-              const id = att._id || idx;
-              const status = getStatus(att);
-              const checkIn = att?.timeString?.checkIn || formatTime(att?.time?.checkIn);
+              const id       = att._id || idx;
+              const status   = getStatus(att);
+              const checkIn  = att?.timeString?.checkIn  || formatTime(att?.time?.checkIn);
               const checkOut = att?.timeString?.checkOut || formatTime(att?.time?.checkOut);
               const expanded = expandedId === id;
               const colorMap = { success: PRIMARY, error: '#dc2626', warning: '#d97706', default: '#6b7280' };
@@ -227,6 +278,7 @@ export default function AttendanceReport() {
 
               return (
                 <Paper key={id} elevation={0} sx={{ borderRadius: 3, border: '1px solid #e5e7eb', overflow: 'hidden' }}>
+                  {/* Row header */}
                   <Box
                     onClick={() => setExpandedId(expanded ? null : id)}
                     sx={{ px: 2, py: 1.75, cursor: 'pointer', display: 'flex', alignItems: 'center', gap: 1.5, '&:hover': { bgcolor: '#f9fafb' } }}
@@ -246,60 +298,137 @@ export default function AttendanceReport() {
                     {expanded ? <ExpandLess sx={{ color: '#9ca3af', fontSize: 20 }} /> : <ExpandMore sx={{ color: '#9ca3af', fontSize: 20 }} />}
                   </Box>
 
+                  {/* Expanded detail */}
                   <Collapse in={expanded}>
                     <Divider />
                     <Box px={2} py={2} bgcolor="#f9fafb">
-                      <Grid container spacing={1.5}>
-                        {/* Check-in */}
-                        <Grid item xs={12}>
+                      {att.status === 'absent' ? (
+                        /* ── Nghỉ học ─────────────────────────────────── */
+                        <Paper elevation={0} sx={{ borderRadius: 2, border: '1px solid #fecaca', overflow: 'hidden' }}>
+                          <Stack direction="row" alignItems="center" spacing={1} px={1.5} py={1} bgcolor="#fef2f2">
+                            <Cancel sx={{ fontSize: 14, color: '#dc2626' }} />
+                            <Typography fontSize="0.78rem" fontWeight={700} color="#dc2626">Vắng mặt</Typography>
+                          </Stack>
+                          <Box px={1.5} py={1.5}>
+                            <InfoItem label="Lý do vắng" value={att.absentReason} valueColor="#dc2626" />
+                          </Box>
+                        </Paper>
+                      ) : (
+                        <Stack spacing={1.5}>
+                          {/* ── Điểm danh đến ─────────────────────────── */}
                           <Paper elevation={0} sx={{ borderRadius: 2, border: '1px solid #bbf7d0', overflow: 'hidden' }}>
+                            {/* Header */}
                             <Stack direction="row" alignItems="center" spacing={1} px={1.5} py={1} bgcolor="#ecfdf5">
                               <LoginIcon sx={{ fontSize: 14, color: PRIMARY }} />
                               <Typography fontSize="0.78rem" fontWeight={700} color={PRIMARY}>Điểm danh đến</Typography>
                               <Box flex={1} />
-                              <Chip label={checkIn !== '—' ? checkIn : 'Chưa có'} size="small"
-                                sx={{ fontWeight: 700, height: 20, fontSize: '0.68rem', bgcolor: checkIn !== '—' ? PRIMARY : '#9ca3af', color: 'white' }} />
+                              {att.checkedInByAI && (
+                                <Chip label="AI" size="small"
+                                  sx={{ fontWeight: 700, height: 18, fontSize: '0.62rem', bgcolor: '#7c3aed', color: 'white', mr: 0.5 }} />
+                              )}
+                              <Chip
+                                label={checkIn !== '—' ? checkIn : 'Chưa có'}
+                                size="small"
+                                sx={{ fontWeight: 700, height: 20, fontSize: '0.68rem', bgcolor: checkIn !== '—' ? PRIMARY : '#9ca3af', color: 'white' }}
+                              />
                             </Stack>
-                            <Stack spacing={1} px={1.5} py={1.5} fontSize="0.8rem">
-                              <Stack direction="row" spacing={1}><Typography color="text.secondary" width={80}>Người đưa:</Typography><Typography fontWeight={600}>{att.deliverer || '—'}</Typography></Stack>
-                              <Stack direction="row" spacing={1}><Typography color="text.secondary" width={80}>Ghi chú:</Typography><Typography fontWeight={600}>{att.note || '—'}</Typography></Stack>
-                            </Stack>
-                            {att.checkinImageName && (
+
+                            {/* Info grid */}
+                            <Grid container spacing={2} px={1.5} pt={1.5} pb={1.5}>
+                              <Grid item xs={6}>
+                                <InfoItem label="Người đưa" value={att.delivererType} />
+                              </Grid>
+                              <Grid item xs={6}>
+                                <InfoItem label="SĐT người đưa" value={att.delivererOtherInfo} />
+                              </Grid>
+                              <Grid item xs={12}>
+                                <InfoItem label="Ghi chú" value={att.note} />
+                              </Grid>
+                              <Grid item xs={12}>
+                                <InfoItem
+                                  label="Đồ mang đến"
+                                  chipItems={att.checkinBelongings || []}
+                                  chipBg="#d1fae5" chipColor="#065f46"
+                                />
+                              </Grid>
+                            </Grid>
+
+                            {/* Photos */}
+                            {(att.delivererOtherImageName || att.checkinImageName) && (
                               <Box px={1.5} pb={1.5}>
-                                <Box component="a" href={att.checkinImageName} target="_blank" rel="noopener noreferrer"
-                                  sx={{ display: 'block', borderRadius: 2, overflow: 'hidden' }}>
-                                  <Box component="img" src={att.checkinImageName} alt="check-in"
-                                    sx={{ width: '100%', height: 140, objectFit: 'cover', display: 'block' }} />
-                                </Box>
+                                <Divider sx={{ mb: 1.5 }} />
+                                <Grid container spacing={1}>
+                                  {att.delivererOtherImageName && (
+                                    <Grid item xs={att.checkinImageName ? 6 : 12}>
+                                      <PhotoCard label="Ảnh người đưa" src={att.delivererOtherImageName} />
+                                    </Grid>
+                                  )}
+                                  {att.checkinImageName && (
+                                    <Grid item xs={att.delivererOtherImageName ? 6 : 12}>
+                                      <PhotoCard label="Ảnh điểm danh" src={att.checkinImageName} />
+                                    </Grid>
+                                  )}
+                                </Grid>
                               </Box>
                             )}
                           </Paper>
-                        </Grid>
-                        {/* Check-out */}
-                        <Grid item xs={12}>
+
+                          {/* ── Điểm danh về ──────────────────────────── */}
                           <Paper elevation={0} sx={{ borderRadius: 2, border: '1px solid #bfdbfe', overflow: 'hidden' }}>
+                            {/* Header */}
                             <Stack direction="row" alignItems="center" spacing={1} px={1.5} py={1} bgcolor="#eff6ff">
                               <LogoutIcon sx={{ fontSize: 14, color: '#2563eb' }} />
                               <Typography fontSize="0.78rem" fontWeight={700} color="#2563eb">Điểm danh về</Typography>
                               <Box flex={1} />
-                              <Chip label={checkOut !== '—' ? checkOut : 'Chưa có'} size="small"
-                                sx={{ fontWeight: 700, height: 20, fontSize: '0.68rem', bgcolor: checkOut !== '—' ? '#2563eb' : '#9ca3af', color: 'white' }} />
+                              {att.checkedOutByAI && (
+                                <Chip label="AI" size="small"
+                                  sx={{ fontWeight: 700, height: 18, fontSize: '0.62rem', bgcolor: '#7c3aed', color: 'white', mr: 0.5 }} />
+                              )}
+                              <Chip
+                                label={checkOut !== '—' ? checkOut : 'Chưa có'}
+                                size="small"
+                                sx={{ fontWeight: 700, height: 20, fontSize: '0.68rem', bgcolor: checkOut !== '—' ? '#2563eb' : '#9ca3af', color: 'white' }}
+                              />
                             </Stack>
-                            <Stack spacing={1} px={1.5} py={1.5} fontSize="0.8rem">
-                              <Stack direction="row" spacing={1}><Typography color="text.secondary" width={80}>Người đón:</Typography><Typography fontWeight={600}>{att.receiver || '—'}</Typography></Stack>
-                            </Stack>
-                            {att.checkoutImageName && (
+
+                            {/* Info grid */}
+                            <Grid container spacing={2} px={1.5} pt={1.5} pb={1.5}>
+                              <Grid item xs={12}>
+                                <InfoItem label="Người đón" value={att.receiverOtherInfo || att.receiverType} />
+                              </Grid>
+                              <Grid item xs={12}>
+                                <InfoItem
+                                  label="Đồ mang về"
+                                  chipItems={att.checkoutBelongings || []}
+                                  chipBg="#dbeafe" chipColor="#1e40af"
+                                />
+                              </Grid>
+                              <Grid item xs={12}>
+                                <InfoItem label="Ghi chú đồ mang về" value={att.checkoutBelongingsNote} />
+                              </Grid>
+                            </Grid>
+
+                            {/* Photos */}
+                            {(att.receiverOtherImageName || att.checkoutImageName) && (
                               <Box px={1.5} pb={1.5}>
-                                <Box component="a" href={att.checkoutImageName} target="_blank" rel="noopener noreferrer"
-                                  sx={{ display: 'block', borderRadius: 2, overflow: 'hidden' }}>
-                                  <Box component="img" src={att.checkoutImageName} alt="check-out"
-                                    sx={{ width: '100%', height: 140, objectFit: 'cover', display: 'block' }} />
-                                </Box>
+                                <Divider sx={{ mb: 1.5 }} />
+                                <Grid container spacing={1}>
+                                  {att.receiverOtherImageName && (
+                                    <Grid item xs={att.checkoutImageName ? 6 : 12}>
+                                      <PhotoCard label="Ảnh người đón" src={att.receiverOtherImageName} />
+                                    </Grid>
+                                  )}
+                                  {att.checkoutImageName && (
+                                    <Grid item xs={att.receiverOtherImageName ? 6 : 12}>
+                                      <PhotoCard label="Ảnh điểm danh" src={att.checkoutImageName} />
+                                    </Grid>
+                                  )}
+                                </Grid>
                               </Box>
                             )}
                           </Paper>
-                        </Grid>
-                      </Grid>
+                        </Stack>
+                      )}
                     </Box>
                   </Collapse>
                 </Paper>
