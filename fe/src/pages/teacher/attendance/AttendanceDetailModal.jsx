@@ -66,6 +66,19 @@ const renderImagePreview = (imageValue, altText) => {
 function OtpSection({ radioName, detailForm, setDetailForm, student, approvedPickupPersons = [], onSendOtp, otpTimeLeft, otpExpired, onResetOtp }) {
   const countdownStr = `${Math.floor(otpTimeLeft / 60)}:${String(otpTimeLeft % 60).padStart(2, '0')}`;
   const otpSelected = detailForm.sendOtpSchoolAccount || detailForm.sendOtpViaSms;
+  const teacherConfirmed = !!detailForm.teacherConfirmedCheckout;
+
+  const handleToggleTeacherConfirm = () => {
+    setDetailForm((prev) => ({
+      ...prev,
+      teacherConfirmedCheckout: !prev.teacherConfirmedCheckout,
+      // reset OTP fields khi chuyển mode
+      sendOtpSchoolAccount: false,
+      sendOtpViaSms: false,
+      otpSent: false,
+      otpCode: '',
+    }));
+  };
 
   return (
     <Box sx={{ mt: 2 }}>
@@ -80,122 +93,169 @@ function OtpSection({ radioName, detailForm, setDetailForm, student, approvedPic
         />
       </Divider>
 
-      <Paper variant="outlined" sx={{ p: 2, borderRadius: 2, bgcolor: 'grey.50' }}>
-        <Typography variant="caption" fontWeight={700} color="text.secondary" sx={{ display: 'block', mb: 1.25 }}>
-          Chọn phương thức gửi OTP
-        </Typography>
-        <FormControl component="fieldset" size="small">
-          <RadioGroup
-            row
-            name={radioName}
-            value={
-              detailForm.sendOtpSchoolAccount ? 'school'
-              : detailForm.sendOtpViaSms ? 'sms'
-              : ''
-            }
-            onChange={(e) => {
-              const val = e.target.value;
-              setDetailForm((prev) => ({
-                ...prev,
-                sendOtpSchoolAccount: val === 'school',
-                sendOtpViaSms: val === 'sms',
-              }));
-            }}
-          >
-            <FormControlLabel value="school" control={<Radio size="small" />} label={<Typography variant="body2">Tài khoản trường</Typography>} />
-            <FormControlLabel value="sms" control={<Radio size="small" />} label={<Typography variant="body2">Gửi qua SMS</Typography>} />
-          </RadioGroup>
-        </FormControl>
-
-        {otpSelected && (
-          <Box sx={{ mt: 1.5 }}>
-            {detailForm.sendOtpViaSms && (
-              <FormControl fullWidth size="small" sx={{ mb: 1.5 }}>
-                <InputLabel>Phụ huynh nhận SMS</InputLabel>
-                <Select
-                  value={detailForm.selectedParentForOtp || ''}
-                  label="Phụ huynh nhận SMS"
-                  onChange={(e) => setDetailForm((prev) => ({ ...prev, selectedParentForOtp: e.target.value }))}
-                >
-                  <MenuItem value="" disabled>-- Chọn --</MenuItem>
-                  {approvedPickupPersons.length > 0
-                    ? approvedPickupPersons.map((p) => (
-                        <MenuItem key={p._id} value={p.phone}>
-                          {p.fullName} – {p.phone}
-                        </MenuItem>
-                      ))
-                    : student?.parentId?.phone && (
-                        <MenuItem value={student.parentId.phone}>
-                          {student.parentId.fullName || 'Phụ huynh'} – {student.parentId.phone}
-                        </MenuItem>
-                      )
-                  }
-                </Select>
-              </FormControl>
-            )}
-
-            <Button
-              fullWidth
-              variant="contained"
-              color="primary"
-              startIcon={detailForm.otpSent && !otpExpired ? <TimerIcon /> : <SendIcon />}
-              onClick={onSendOtp}
-              disabled={detailForm.otpSent && !otpExpired}
-              sx={{ borderRadius: 2, textTransform: 'none', fontWeight: 700, mb: 1.5, boxShadow: 'none' }}
-            >
-              {detailForm.otpSent && !otpExpired ? `OTP đã gửi – còn ${countdownStr}` : 'Gửi mã OTP'}
-            </Button>
-
-            {detailForm.otpSent && (
-              <Paper
-                variant="outlined"
-                sx={{
-                  p: 2, borderRadius: 2,
-                  bgcolor: otpExpired ? '#fff5f5' : '#eff6ff',
-                  borderColor: otpExpired ? '#fca5a5' : '#93c5fd',
-                }}
-              >
-                <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', mb: 1.25 }}>
-                  <Typography variant="caption" fontWeight={700}>Nhập mã xác thực</Typography>
-                  <Chip
-                    label={otpExpired ? '⏰ Hết hạn' : `⏱ ${countdownStr}`}
-                    size="small"
-                    color={otpExpired ? 'error' : 'primary'}
-                    sx={{ fontWeight: 700, height: 20, fontSize: 11 }}
-                  />
-                </Box>
-                <TextField
-                  fullWidth
-                  size="small"
-                  placeholder="Nhập 6 chữ số..."
-                  value={detailForm.otpCode || ''}
-                  disabled={otpExpired}
-                  slotProps={{
-                    htmlInput: { maxLength: 6, style: { fontSize: 20, letterSpacing: 8, textAlign: 'center', fontWeight: 700 } },
-                  }}
-                  onChange={(e) => setDetailForm((prev) => ({ ...prev, otpCode: e.target.value.slice(0, 6) }))}
-                />
-                {otpExpired && (
-                  <Box sx={{ mt: 1.5 }}>
-                    {student?.parentId?.phone && (
-                      <Typography variant="caption" color="error.main" sx={{ display: 'flex', alignItems: 'center', gap: 0.5, mb: 1 }}>
-                        <PhoneIcon sx={{ fontSize: 13 }} />{student.parentId.fullName || 'Phụ huynh'}: {student.parentId.phone}
-                      </Typography>
-                    )}
-                    <Button
-                      fullWidth size="small" variant="contained" color="error"
-                      onClick={onResetOtp}
-                      sx={{ borderRadius: 2, textTransform: 'none', fontWeight: 700, boxShadow: 'none' }}
-                    >
-                      Gửi lại mã OTP
-                    </Button>
-                  </Box>
-                )}
-              </Paper>
-            )}
-          </Box>
-        )}
+      {/* Toggle bỏ qua OTP */}
+      <Paper
+        variant="outlined"
+        onClick={handleToggleTeacherConfirm}
+        sx={{
+          p: 1.5, borderRadius: 2, mb: 1.5, cursor: 'pointer',
+          borderColor: teacherConfirmed ? 'warning.main' : 'divider',
+          bgcolor: teacherConfirmed ? '#fffbeb' : 'grey.50',
+          transition: 'all 0.15s',
+        }}
+      >
+        <FormControlLabel
+          control={
+            <Checkbox
+              size="small"
+              color="warning"
+              checked={teacherConfirmed}
+              onChange={() => {}}
+              onClick={(e) => e.stopPropagation()}
+            />
+          }
+          label={
+            <Box>
+              <Typography variant="body2" fontWeight={700} color={teacherConfirmed ? 'warning.dark' : 'text.secondary'}>
+                Giáo viên xác nhận trực tiếp (bỏ qua OTP)
+              </Typography>
+              <Typography variant="caption" color="text.secondary">
+                Phụ huynh đã thông báo trước hoặc giáo viên tin tưởng người đón
+              </Typography>
+            </Box>
+          }
+          sx={{ m: 0, alignItems: 'flex-start' }}
+        />
       </Paper>
+
+      {teacherConfirmed ? (
+        <Paper
+          variant="outlined"
+          sx={{ p: 1.5, borderRadius: 2, borderColor: 'warning.300', bgcolor: '#fffbeb' }}
+        >
+          <Typography variant="caption" color="warning.dark" fontWeight={600} sx={{ display: 'flex', alignItems: 'center', gap: 0.5 }}>
+            <WarningAmberIcon sx={{ fontSize: 14 }} />
+            Giáo viên chịu trách nhiệm xác nhận danh tính người đón. Hành động này được ghi lại trong hệ thống.
+          </Typography>
+        </Paper>
+      ) : (
+        <Paper variant="outlined" sx={{ p: 2, borderRadius: 2, bgcolor: 'grey.50' }}>
+          <Typography variant="caption" fontWeight={700} color="text.secondary" sx={{ display: 'block', mb: 1.25 }}>
+            Chọn phương thức gửi OTP
+          </Typography>
+          <FormControl component="fieldset" size="small">
+            <RadioGroup
+              row
+              name={radioName}
+              value={
+                detailForm.sendOtpSchoolAccount ? 'school'
+                : detailForm.sendOtpViaSms ? 'sms'
+                : ''
+              }
+              onChange={(e) => {
+                const val = e.target.value;
+                setDetailForm((prev) => ({
+                  ...prev,
+                  sendOtpSchoolAccount: val === 'school',
+                  sendOtpViaSms: val === 'sms',
+                }));
+              }}
+            >
+              <FormControlLabel value="school" control={<Radio size="small" />} label={<Typography variant="body2">Tài khoản trường</Typography>} />
+              <FormControlLabel value="sms" control={<Radio size="small" />} label={<Typography variant="body2">Gửi qua SMS</Typography>} />
+            </RadioGroup>
+          </FormControl>
+
+          {otpSelected && (
+            <Box sx={{ mt: 1.5 }}>
+              {detailForm.sendOtpViaSms && (
+                <FormControl fullWidth size="small" sx={{ mb: 1.5 }}>
+                  <InputLabel>Phụ huynh nhận SMS</InputLabel>
+                  <Select
+                    value={detailForm.selectedParentForOtp || ''}
+                    label="Phụ huynh nhận SMS"
+                    onChange={(e) => setDetailForm((prev) => ({ ...prev, selectedParentForOtp: e.target.value }))}
+                  >
+                    <MenuItem value="" disabled>-- Chọn --</MenuItem>
+                    {approvedPickupPersons.length > 0
+                      ? approvedPickupPersons.map((p) => (
+                          <MenuItem key={p._id} value={p.phone}>
+                            {p.fullName} – {p.phone}
+                          </MenuItem>
+                        ))
+                      : student?.parentId?.phone && (
+                          <MenuItem value={student.parentId.phone}>
+                            {student.parentId.fullName || 'Phụ huynh'} – {student.parentId.phone}
+                          </MenuItem>
+                        )
+                    }
+                  </Select>
+                </FormControl>
+              )}
+
+              <Button
+                fullWidth
+                variant="contained"
+                color="primary"
+                startIcon={detailForm.otpSent && !otpExpired ? <TimerIcon /> : <SendIcon />}
+                onClick={onSendOtp}
+                disabled={detailForm.otpSent && !otpExpired}
+                sx={{ borderRadius: 2, textTransform: 'none', fontWeight: 700, mb: 1.5, boxShadow: 'none' }}
+              >
+                {detailForm.otpSent && !otpExpired ? `OTP đã gửi – còn ${countdownStr}` : 'Gửi mã OTP'}
+              </Button>
+
+              {detailForm.otpSent && (
+                <Paper
+                  variant="outlined"
+                  sx={{
+                    p: 2, borderRadius: 2,
+                    bgcolor: otpExpired ? '#fff5f5' : '#eff6ff',
+                    borderColor: otpExpired ? '#fca5a5' : '#93c5fd',
+                  }}
+                >
+                  <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', mb: 1.25 }}>
+                    <Typography variant="caption" fontWeight={700}>Nhập mã xác thực</Typography>
+                    <Chip
+                      label={otpExpired ? '⏰ Hết hạn' : `⏱ ${countdownStr}`}
+                      size="small"
+                      color={otpExpired ? 'error' : 'primary'}
+                      sx={{ fontWeight: 700, height: 20, fontSize: 11 }}
+                    />
+                  </Box>
+                  <TextField
+                    fullWidth
+                    size="small"
+                    placeholder="Nhập 6 chữ số..."
+                    value={detailForm.otpCode || ''}
+                    disabled={otpExpired}
+                    slotProps={{
+                      htmlInput: { maxLength: 6, style: { fontSize: 20, letterSpacing: 8, textAlign: 'center', fontWeight: 700 } },
+                    }}
+                    onChange={(e) => setDetailForm((prev) => ({ ...prev, otpCode: e.target.value.slice(0, 6) }))}
+                  />
+                  {otpExpired && (
+                    <Box sx={{ mt: 1.5 }}>
+                      {student?.parentId?.phone && (
+                        <Typography variant="caption" color="error.main" sx={{ display: 'flex', alignItems: 'center', gap: 0.5, mb: 1 }}>
+                          <PhoneIcon sx={{ fontSize: 13 }} />{student.parentId.fullName || 'Phụ huynh'}: {student.parentId.phone}
+                        </Typography>
+                      )}
+                      <Button
+                        fullWidth size="small" variant="contained" color="error"
+                        onClick={onResetOtp}
+                        sx={{ borderRadius: 2, textTransform: 'none', fontWeight: 700, boxShadow: 'none' }}
+                      >
+                        Gửi lại mã OTP
+                      </Button>
+                    </Box>
+                  )}
+                </Paper>
+              )}
+            </Box>
+          )}
+        </Paper>
+      )}
     </Box>
   );
 }
@@ -757,6 +817,7 @@ function AttendanceDetailModal({
                         setDetailForm((prev) => ({
                           ...prev, receiverPickupPersonId: 'KHAC', receiverType: 'Khác',
                           receiverOtherInfo: '', receiverName: '', receiverPhone: '', receiverOtherImageName: '',
+                          teacherConfirmedCheckout: false,
                         }));
                       } else {
                         const p = approvedPickupPersons.find((x) => x._id === val);

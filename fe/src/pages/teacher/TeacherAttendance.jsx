@@ -546,8 +546,9 @@ function TeacherAttendance() {
 
       if (detailMode === 'checkout') {
         const isReceiverFromList = !!detailForm.receiverPickupPersonId && detailForm.receiverPickupPersonId !== 'KHAC';
-        if (!isReceiverFromList || !detailForm.checkoutConfirmed) {
-          // Người ngoài danh sách → bắt buộc OTP
+        const isTeacherConfirmed = !!detailForm.teacherConfirmedCheckout;
+        if (!isReceiverFromList && !isTeacherConfirmed) {
+          // Người ngoài danh sách, không có xác nhận giáo viên → bắt buộc OTP
           if (!detailForm.otpSent) throw new Error('Vui lòng gửi mã OTP trước khi lưu.');
           if (!detailForm.otpCode) throw new Error('Vui lòng nhập mã OTP.');
           const isSchoolOtpCO = detailForm.sendOtpSchoolAccount && !detailForm.sendOtpViaSms;
