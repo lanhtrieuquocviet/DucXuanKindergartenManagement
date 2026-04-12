@@ -116,7 +116,7 @@ function TeacherDashboard() {
     fetchData();
   }, [navigate, user, getDashboard, isInitializing]);
 
-  const { hasPermission } = useAuth();
+  const { hasPermission, hasRole } = useAuth();
 
   const ALL_TEACHER_MENU = [
     { key: 'classes',          label: 'Lớp phụ trách' },
@@ -126,19 +126,22 @@ function TeacherDashboard() {
     { key: 'schedule',         label: 'Lịch dạy & hoạt động' },
     { key: 'purchase-request', label: 'Cơ sở vật chất',         permission: 'MANAGE_PURCHASE_REQUEST' },
     { key: 'class-assets',     label: 'Tài sản lớp',            permission: 'MANAGE_ASSET' },
-    { key: 'asset-inspection', label: 'Kiểm kê tài sản',        permission: 'MANAGE_INSPECTION' },
+    // Chỉ hiện với thành viên Ban kiểm kê (role InventoryStaff được backend tự gán khi assign vào ban)
+    { key: 'asset-inspection', label: 'Kiểm kê tài sản',        role: 'InventoryStaff' },
   ];
 
   const menuItems = useMemo(() => {
-    const items = ALL_TEACHER_MENU.filter(
-      (item) => !item.permission || hasPermission(item.permission)
-    );
+    const items = ALL_TEACHER_MENU.filter((item) => {
+      if (item.permission) return hasPermission(item.permission);
+      if (item.role) return hasRole(item.role);
+      return true;
+    });
     if (hasPermission('MANAGE_TEACHER_REPORT')) {
       items.push({ key: 'manage-purchase-requests', label: 'Duyệt báo cáo giáo viên' });
     }
     return items;
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [hasPermission]);
+  }, [hasPermission, hasRole]);
 
   const activeKey = useMemo(() => {
     const path = location.pathname || '';

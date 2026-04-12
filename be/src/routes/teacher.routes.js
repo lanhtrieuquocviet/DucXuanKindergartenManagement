@@ -56,6 +56,7 @@ router.get('/asset-minutes', authenticate, authorizePermissions('MANAGE_INSPECTI
 router.post('/asset-minutes', authenticate, authorizePermissions('MANAGE_INSPECTION'), assetCtrl.createMinutes);
 router.get('/asset-minutes/:id', authenticate, authorizePermissions('MANAGE_INSPECTION'), assetCtrl.getMinutes);
 router.put('/asset-minutes/:id', authenticate, authorizePermissions('MANAGE_INSPECTION'), assetCtrl.updateMinutes);
+router.get('/asset-minutes/:id/export-word', authenticate, authorizePermissions('MANAGE_INSPECTION'), assetCtrl.exportMinutesWord);
 
 // ── Purchase Requests (Yêu cầu mua sắm) ──
 router.get('/my-classes', authenticate, authorizePermissions('MANAGE_PURCHASE_REQUEST'), purchaseCtrl.getMyClasses);
@@ -68,6 +69,8 @@ router.delete('/purchase-requests/:id', authenticate, authorizePermissions('MANA
 // ── Asset Allocation (Tài sản lớp) ──
 router.get('/asset-allocations', authenticate, authorizePermissions('MANAGE_ASSET'), incidentCtrl.getMyAllocation);
 router.patch('/asset-allocations/:id/confirm', authenticate, authorizePermissions('MANAGE_ASSET'), allocationCtrl.confirmAllocation);
+// Danh sách bàn giao active cho Ban kiểm kê chọn lớp
+router.get('/asset-allocations/active', authenticate, authorizePermissions('MANAGE_INSPECTION'), allocationCtrl.listAllocations);
 
 // ── Asset Incidents (Báo cáo sự cố) ──
 router.get('/asset-incidents',     authenticate, authorizePermissions('MANAGE_ASSET'), incidentCtrl.listMyIncidents);
