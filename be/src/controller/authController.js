@@ -76,15 +76,37 @@ const sanitizeUser = (userDoc) => {
 };
 
 /**
- * Helper: build user response (kèm roles đã format)
+ * Cấu hình populate roles kèm permissions riêng + permissions kế thừa từ parent
+ */
+const ROLES_POPULATE = {
+  path: 'roles',
+  model: 'Roles',
+  populate: [
+    { path: 'permissions', model: 'Permission' },
+    {
+      path: 'parent',
+      model: 'Roles',
+      populate: { path: 'permissions', model: 'Permission' },
+    },
+  ],
+};
+
+/**
+ * Helper: build user response (kèm roles đã format, bao gồm permissions kế thừa từ parent)
  * @param {import('../models/User')} user
  */
 const buildUserResponse = (user) => {
-  const roles = (user.roles || []).map((role) => ({
-    id: role._id,
-    roleName: role.roleName,
-    permissions: (role.permissions || []).map((p) => (p.code ? p.code : p)),
-  }));
+  const roles = (user.roles || []).map((role) => {
+    const ownPerms = (role.permissions || []).map((p) => (p.code ? p.code : p));
+    const parentPerms = role.parent
+      ? (role.parent.permissions || []).map((p) => (p.code ? p.code : p))
+      : [];
+    return {
+      id: role._id,
+      roleName: role.roleName,
+      permissions: [...new Set([...ownPerms, ...parentPerms])],
+    };
+  });
 
   return {
     ...sanitizeUser(user),
@@ -207,14 +229,7 @@ const login = async (req, res) => {
       });
     }
 
-    const user = await User.findOne({ username: { $regex: new RegExp(`^${username.trim()}$`, 'i') } }).populate({
-      path: 'roles',
-      model: 'Roles',
-      populate: {
-        path: 'permissions',
-        model: 'Permission',
-      },
-    });
+    const user = await User.findOne({ username: { $regex: new RegExp(`^${username.trim()}$`, 'i') } }).populate(ROLES_POPULATE);
 
     if (!user) {
       return res.status(401).json({
@@ -239,11 +254,17 @@ const login = async (req, res) => {
       });
     }
 
-    const roles = (user.roles || []).map((role) => ({
-      id: role._id,
-      roleName: role.roleName,
-      permissions: (role.permissions || []).map((p) => (p.code ? p.code : p)),
-    }));
+    const roles = (user.roles || []).map((role) => {
+      const ownPerms = (role.permissions || []).map((p) => (p.code ? p.code : p));
+      const parentPerms = role.parent
+        ? (role.parent.permissions || []).map((p) => (p.code ? p.code : p))
+        : [];
+      return {
+        id: role._id,
+        roleName: role.roleName,
+        permissions: [...new Set([...ownPerms, ...parentPerms])],
+      };
+    });
 
     if (roles.length === 0) {
       return res.status(403).json({
@@ -256,13 +277,7 @@ const login = async (req, res) => {
       sub: user._id.toString(),
       username: user.username,
       roles: (user.roles || []).map((r) => r.roleName),
-      permissions: Array.from(
-        new Set(
-          (user.roles || []).flatMap((role) =>
-            (role.permissions || []).map((p) => (p.code ? p.code : p)),
-          ),
-        ),
-      ),
+      permissions: Array.from(new Set(roles.flatMap((r) => r.permissions))),
     };
 
     const accessToken = signToken(payload);
@@ -308,14 +323,7 @@ const login = async (req, res) => {
  */
 const getProfile = async (req, res) => {
   try {
-    const user = await User.findById(req.user.id).populate({
-      path: 'roles',
-      model: 'Roles',
-      populate: {
-        path: 'permissions',
-        model: 'Permission',
-      },
-    });
+    const user = await User.findById(req.user.id).populate(ROLES_POPULATE);
 
     if (!user) {
       return res.status(404).json({
@@ -348,14 +356,7 @@ const updateProfile = async (req, res) => {
     // Hỗ trợ cả phone và parentPhone để tương thích
     const { fullName, email, avatar, phone, parentPhone, address } = req.body;
 
-    const user = await User.findById(req.user.id).populate({
-      path: 'roles',
-      model: 'Roles',
-      populate: {
-        path: 'permissions',
-        model: 'Permission',
-      },
-    });
+    const user = await User.findById(req.user.id).populate(ROLES_POPULATE);
 
     if (!user) {
       return res.status(404).json({
@@ -1011,11 +1012,7 @@ const refreshToken = async (req, res) => {
     }
 
     // 3. Lấy thông tin user
-    const user = await User.findById(decoded.sub).populate({
-      path: 'roles',
-      model: 'Roles',
-      populate: { path: 'permissions', model: 'Permission' },
-    });
+    const user = await User.findById(decoded.sub).populate(ROLES_POPULATE);
 
     if (!user) {
       return res.status(401).json({ status: 'error', message: 'Người dùng không tồn tại' });
@@ -1029,17 +1026,18 @@ const refreshToken = async (req, res) => {
     }
 
     // 4. Cấp access token mới
+    const refreshedRoles = (user.roles || []).map((role) => {
+      const ownPerms = (role.permissions || []).map((p) => (p.code ? p.code : p));
+      const parentPerms = role.parent
+        ? (role.parent.permissions || []).map((p) => (p.code ? p.code : p))
+        : [];
+      return { permissions: [...new Set([...ownPerms, ...parentPerms])] };
+    });
     const payload = {
       sub: user._id.toString(),
       username: user.username,
       roles: (user.roles || []).map((r) => r.roleName),
-      permissions: Array.from(
-        new Set(
-          (user.roles || []).flatMap((role) =>
-            (role.permissions || []).map((p) => (p.code ? p.code : p)),
-          ),
-        ),
-      ),
+      permissions: Array.from(new Set(refreshedRoles.flatMap((r) => r.permissions))),
     };
     const newAccessToken = signToken(payload);
 
