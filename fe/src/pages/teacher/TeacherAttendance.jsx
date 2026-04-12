@@ -209,8 +209,14 @@ function TeacherAttendance() {
       receiverType: serverRec.receiverType || '',
       receiverOtherInfo: serverRec.receiverOtherInfo || '',
       receiverOtherImageName: serverRec.receiverOtherImageName || '',
-      checkoutBelongingsNote: serverRec.checkoutBelongingsNote || '',
-      hasCheckoutBelongings: !!(serverRec.checkoutBelongingsNote),
+      belongingsNote: serverRec.checkinBelongings?.length > 0
+        ? serverRec.checkinBelongings.join(', ')
+        : (base.belongingsNote || ''),
+      hasBelongings: !!(serverRec.checkinBelongings?.length || base.hasBelongings),
+      checkoutBelongingsNote: serverRec.checkoutBelongings?.length > 0
+        ? serverRec.checkoutBelongings.join(', ')
+        : (serverRec.checkoutBelongingsNote || ''),
+      hasCheckoutBelongings: !!(serverRec.checkoutBelongings?.length || serverRec.checkoutBelongingsNote),
       note: serverRec.note || '',
       absentReason: serverRec.absentReason || '',
       checkedInByAI: serverRec.checkedInByAI || false,

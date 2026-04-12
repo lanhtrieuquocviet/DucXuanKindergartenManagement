@@ -127,8 +127,9 @@ export default function TodayAttendance() {
 
   // Check-out data
   const checkOutTime  = attendance?.timeString?.checkOut || '';
-  // receiverType lưu 'other'; receiverOtherInfo lưu tên thật
-  const receiverName  = attendance?.receiverOtherInfo || attendance?.receiverType || '';
+  // receiverType = "Tên (Quan hệ)"; receiverOtherInfo = SĐT — giống pattern check-in
+  const receiverName  = attendance?.receiverType || '';
+  const receiverPhone = attendance?.receiverOtherInfo || '';
   const receiverImg   = attendance?.receiverOtherImageName || '';
   const checkoutImg   = attendance?.checkoutImageName || '';
   const checkoutBelongings = attendance?.checkoutBelongings || [];
@@ -228,20 +229,20 @@ export default function TodayAttendance() {
 
                 {/* Info grid */}
                 <Grid container spacing={2} mb={2}>
-                  <Grid item xs={6}>
+                  <Grid size={{ xs: 6 }}>
                     <InfoItem label="Người đưa" value={delivererName} />
                   </Grid>
-                  <Grid item xs={6}>
+                  <Grid size={{ xs: 6 }}>
                     <InfoItem label="SĐT người đưa" value={delivererPhone} />
                   </Grid>
-                  <Grid item xs={12}>
+                  <Grid size={{ xs: 12 }}>
                     <InfoItem label="Ghi chú" value={note} />
                   </Grid>
-                  <Grid item xs={12}>
+                  <Grid size={{ xs: 12 }}>
                     <InfoItem label="Đồ mang đến" chipItems={checkinBelongings} chipBg="#d1fae5" chipColor="#065f46" />
                   </Grid>
                   {isAbsent && (
-                    <Grid item xs={12}>
+                    <Grid size={{ xs: 12 }}>
                       <InfoItem label="Lý do vắng" value={absentReason} valueColor="#dc2626" />
                     </Grid>
                   )}
@@ -251,11 +252,11 @@ export default function TodayAttendance() {
                 <Divider sx={{ mb: 2 }} />
                 <Grid container spacing={1.5}>
                   {delivererImg && (
-                    <Grid item xs={checkinImg ? 6 : 12}>
+                    <Grid size={{ xs: checkinImg ? 6 : 12 }}>
                       <PhotoCard label="Ảnh người đưa" src={delivererImg} color={PRIMARY} />
                     </Grid>
                   )}
-                  <Grid item xs={delivererImg ? 6 : 12}>
+                  <Grid size={{ xs: delivererImg ? 6 : 12 }}>
                     <PhotoCard label="Ảnh xác nhận check-in" src={checkinImg} color={PRIMARY} />
                   </Grid>
                 </Grid>
@@ -302,14 +303,17 @@ export default function TodayAttendance() {
 
                 {/* Info grid */}
                 <Grid container spacing={2} mb={2}>
-                  <Grid item xs={12}>
+                  <Grid size={{ xs: 6 }}>
                     <InfoItem label="Người đón" value={receiverName} />
                   </Grid>
-                  <Grid item xs={12}>
-                    <InfoItem label="Đồ mang về" chipItems={checkoutBelongings} chipBg="#dbeafe" chipColor="#1e40af" />
+                  <Grid size={{ xs: 6 }}>
+                    <InfoItem label="SĐT người đón" value={receiverPhone} />
                   </Grid>
-                  <Grid item xs={12}>
-                    <InfoItem label="Ghi chú đồ mang về" value={checkoutBelongingsNote} />
+                  <Grid size={{ xs: 12 }}>
+                    <InfoItem label="Ghi chú" value={checkoutBelongingsNote} />
+                  </Grid>
+                  <Grid size={{ xs: 12 }}>
+                    <InfoItem label="Đồ mang về" chipItems={checkoutBelongings} chipBg="#dbeafe" chipColor="#1e40af" />
                   </Grid>
                 </Grid>
 
@@ -317,11 +321,11 @@ export default function TodayAttendance() {
                 <Divider sx={{ mb: 2 }} />
                 <Grid container spacing={1.5}>
                   {receiverImg && (
-                    <Grid item xs={checkoutImg ? 6 : 12}>
+                    <Grid size={{ xs: checkoutImg ? 6 : 12 }}>
                       <PhotoCard label="Ảnh người đón" src={receiverImg} color="#2563eb" />
                     </Grid>
                   )}
-                  <Grid item xs={receiverImg ? 6 : 12}>
+                  <Grid size={{ xs: receiverImg ? 6 : 12 }}>
                     <PhotoCard label="Ảnh xác nhận check-out" src={checkoutImg} color="#2563eb" />
                   </Grid>
                 </Grid>

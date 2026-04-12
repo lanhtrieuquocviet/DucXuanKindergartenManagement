@@ -108,11 +108,13 @@ export const updateAttendanceDeliverer = (attendanceId, delivererType, deliverer
 /**
  * Cập nhật thông tin người đón (checkout) cho bản ghi điểm danh
  * @param {string} attendanceId
- * @param {string} receiverType - quan hệ người đón (Mẹ, Bố, v.v.)
- * @param {string} receiverOtherInfo - tên + quan hệ người đón
+ * @param {string} receiverType - tên + quan hệ người đón (giống delivererType bên check-in)
+ * @param {string} receiverOtherInfo - SĐT người đón (giống delivererOtherInfo bên check-in)
+ * @param {string} checkoutBelongingsNote - ghi chú điểm danh về
+ * @param {string[]} checkoutBelongings - đồ mang về
  */
-export const updateAttendanceReceiver = (attendanceId, receiverType, receiverOtherInfo = '') =>
-  patch(`/face/attendance/${attendanceId}/deliverer`, { receiverType, receiverOtherInfo });
+export const updateAttendanceReceiver = (attendanceId, receiverType, receiverOtherInfo = '', checkoutBelongingsNote = '', checkoutBelongings = []) =>
+  patch(`/face/attendance/${attendanceId}/deliverer`, { receiverType, receiverOtherInfo, checkoutBelongingsNote, checkoutBelongings });
 
 /**
  * Lấy danh sách người đón đã được duyệt của học sinh

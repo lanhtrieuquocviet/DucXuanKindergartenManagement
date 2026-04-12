@@ -39,8 +39,7 @@ const MIN_MARGIN = 0.04;
 const COOLDOWN_MS = 3000;
 const DELIVERER_WAIT_MS = 120000; // 2 phút
 
-const CHECKIN_ITEMS = ['Ba lô', 'Hộp cơm', 'Bình nước', 'Thuốc', 'Tiền học phí', 'Áo đổi'];
-const CHECKOUT_ITEMS = ['Bài tập về nhà', 'Thông báo', 'Thuốc', 'Quần áo', 'Đồ cá nhân'];
+const CHECKIN_ITEMS = ['Ba lô', 'Hộp cơm', 'Bình nước', 'Thuốc', 'Áo đổi', 'Thông báo'];
 
 export default function FaceAttendanceModal({ open, onClose, classId, className, onCheckinSuccess }) {
   const { isOnline, pendingCount, isSyncing, saveOfflineRecord, syncNow } = useOfflineSync();
@@ -70,10 +69,11 @@ export default function FaceAttendanceModal({ open, onClose, classId, className,
   const [selectedDeliverer, setSelectedDeliverer] = useState(null);
   const [delivererSaved, setDelivererSaved] = useState(false);
 
-  // Ghi chú & đồ mang đến/về
+  // Ghi chú & đồ mang đến
   const [note, setNote] = useState('');
   const [checkinBelongings, setCheckinBelongings] = useState([]);
-  const [checkoutBelongings, setCheckoutBelongings] = useState([]);
+  const [checkinOtherChecked, setCheckinOtherChecked] = useState(false);
+  const [checkinOtherText, setCheckinOtherText] = useState('');
 
   // Đếm ngược
   const [delivererCountdown, setDelivererCountdown] = useState(0);
@@ -106,7 +106,8 @@ export default function FaceAttendanceModal({ open, onClose, classId, className,
       setDelivererSaved(false);
       setNote('');
       setCheckinBelongings([]);
-      setCheckoutBelongings([]);
+      setCheckinOtherChecked(false);
+      setCheckinOtherText('');
       setDelivererCountdown(0);
       cooldownRef.current = false;
       waitingForDelivererRef.current = false;
@@ -204,14 +205,18 @@ export default function FaceAttendanceModal({ open, onClose, classId, className,
         ? `${selectedDeliverer.fullName} (${selectedDeliverer.relation})`
         : '';
       const delivererOtherInfo = selectedDeliverer?.phone || '';
+      const finalCheckinBelongings = [
+        ...checkinBelongings,
+        ...(checkinOtherChecked && checkinOtherText.trim() ? [checkinOtherText.trim()] : []),
+      ];
       try {
         await updateAttendanceDeliverer(
           matchResult.attendance._id,
           delivererType,
           delivererOtherInfo,
           note,
-          checkinBelongings,
-          checkoutBelongings,
+          finalCheckinBelongings,
+          [],
         );
         if (selectedDeliverer) setDelivererSaved(true);
         toast.success('Đã lưu thông tin điểm danh');
@@ -223,7 +228,7 @@ export default function FaceAttendanceModal({ open, onClose, classId, className,
     if (countdownIntervalRef.current) clearInterval(countdownIntervalRef.current);
     if (delivererTimeoutRef.current) clearTimeout(delivererTimeoutRef.current);
     setDelivererCountdown(0);
-  }, [matchResult, selectedDeliverer, note, checkinBelongings, checkoutBelongings]);
+  }, [matchResult, selectedDeliverer, note, checkinBelongings, checkinOtherChecked, checkinOtherText]);
 
   // ── Callback nhận embedding từ FaceCamera ─────────────────────────────────
   const handleDetected = useCallback(
@@ -266,7 +271,8 @@ export default function FaceAttendanceModal({ open, onClose, classId, className,
           setSelectedDeliverer(null);
           setNote('');
           setCheckinBelongings([]);
-          setCheckoutBelongings([]);
+          setCheckinOtherChecked(false);
+          setCheckinOtherText('');
 
           if (result.attendance?._id) {
             startDelivererWait();
@@ -464,28 +470,27 @@ export default function FaceAttendanceModal({ open, onClose, classId, className,
                             <span className="text-xs text-gray-600 leading-tight">{item}</span>
                           </label>
                         ))}
-                      </div>
-                    </div>
-
-                    {/* Đồ mang về */}
-                    <div className="border border-gray-200 rounded-lg p-2.5">
-                      <p className="text-xs font-semibold text-gray-600 mb-1.5">Đồ mang về</p>
-                      <div className="grid grid-cols-2 gap-x-2 gap-y-1.5">
-                        {CHECKOUT_ITEMS.map((item) => (
-                          <label key={item} className="flex items-center gap-1.5 cursor-pointer">
-                            <input
-                              type="checkbox"
-                              checked={checkoutBelongings.includes(item)}
-                              onChange={(e) =>
-                                setCheckoutBelongings((prev) =>
-                                  e.target.checked ? [...prev, item] : prev.filter((i) => i !== item)
-                                )
-                              }
-                              className="w-4 h-4 accent-blue-600 flex-shrink-0"
-                            />
-                            <span className="text-xs text-gray-600 leading-tight">{item}</span>
-                          </label>
-                        ))}
+                        <label className="flex items-center gap-1.5 cursor-pointer col-span-2">
+                          <input
+                            type="checkbox"
+                            checked={checkinOtherChecked}
+                            onChange={(e) => {
+                              setCheckinOtherChecked(e.target.checked);
+                              if (!e.target.checked) setCheckinOtherText('');
+                            }}
+                            className="w-4 h-4 accent-blue-600 flex-shrink-0"
+                          />
+                          <span className="text-xs text-gray-600 leading-tight">Khác</span>
+                        </label>
+                        {checkinOtherChecked && (
+                          <input
+                            type="text"
+                            value={checkinOtherText}
+                            onChange={(e) => setCheckinOtherText(e.target.value)}
+                            placeholder="Nhập đồ mang đến..."
+                            className="col-span-2 text-xs border border-gray-200 rounded p-1.5 focus:outline-none focus:ring-1 focus:ring-blue-300"
+                          />
+                        )}
                       </div>
                     </div>
 
