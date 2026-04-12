@@ -27,6 +27,7 @@ const inspectionMinutesSchema = new mongoose.Schema(
     createdBy: { type: mongoose.Schema.Types.ObjectId, ref: 'User', required: true },
     committeeId: { type: mongoose.Schema.Types.ObjectId, ref: 'InspectionCommittee', default: null },
     assets: [assetRowSchema],
+    extraAssets: [assetRowSchema],
     conclusion: { type: String, trim: true, default: '' },
     status: {
       type: String,

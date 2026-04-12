@@ -179,7 +179,7 @@ exports.getMinutes = async (req, res) => {
 
 exports.createMinutes = async (req, res) => {
   try {
-    const { className, scope, location, inspectionDate, inspectionTime, endTime, reason, inspectionMethod, committeeId, assets, conclusion } = req.body;
+    const { className, scope, location, inspectionDate, inspectionTime, endTime, reason, inspectionMethod, committeeId, assets, extraAssets, conclusion } = req.body;
     if (!inspectionDate) {
       return res.status(400).json({ status: 'error', message: 'Vui lòng chọn ngày kiểm kê.' });
     }
@@ -194,6 +194,7 @@ exports.createMinutes = async (req, res) => {
       inspectionMethod: inspectionMethod || '',
       committeeId: committeeId || null,
       assets: assets || [],
+      extraAssets: extraAssets || [],
       conclusion: conclusion || '',
       createdBy: req.user._id,
       status: 'pending',
@@ -207,13 +208,13 @@ exports.createMinutes = async (req, res) => {
 
 exports.updateMinutes = async (req, res) => {
   try {
-    const { className, scope, location, inspectionDate, inspectionTime, endTime, reason, inspectionMethod, committeeId, assets, conclusion } = req.body;
+    const { className, scope, location, inspectionDate, inspectionTime, endTime, reason, inspectionMethod, committeeId, assets, extraAssets, conclusion } = req.body;
     const minutes = await InspectionMinutes.findById(req.params.id);
     if (!minutes) return res.status(404).json({ status: 'error', message: 'Không tìm thấy biên bản.' });
     if (minutes.status === 'approved') {
       return res.status(400).json({ status: 'error', message: 'Không thể chỉnh sửa biên bản đã duyệt.' });
     }
-    Object.assign(minutes, { className: className || '', scope, location, inspectionDate, inspectionTime, endTime, reason, inspectionMethod, committeeId, assets, conclusion });
+    Object.assign(minutes, { className: className || '', scope, location, inspectionDate, inspectionTime, endTime, reason, inspectionMethod, committeeId, assets, extraAssets: extraAssets || [], conclusion });
     await minutes.save();
     await minutes.populate('createdBy', 'fullName username');
     return res.json({ status: 'success', data: { minutes } });
@@ -261,7 +262,7 @@ exports.exportMinutesWord = async (req, res) => {
     const {
       minutesNumber, className, scope, location, inspectionDate,
       inspectionTime, endTime, reason, inspectionMethod,
-      assets = [], committeeId: committee,
+      assets = [], extraAssets = [], committeeId: committee,
     } = minutes;
 
     const d = inspectionDate ? new Date(inspectionDate) : null;
@@ -353,6 +354,56 @@ exports.exportMinutesWord = async (req, res) => {
       columnWidths: [600, 1200, 3000, 700, 700, 1400, 1400],
     });
 
+    // ── extra assets table (ngoài thông tư) ───────────────────────────────────
+    let extraTable = null;
+    if (extraAssets.length > 0) {
+      const extraRows = [];
+      extraRows.push(new TableRow({
+        tableHeader: true,
+        children: [
+          tcell('TT',              { bold: true, align: AlignmentType.CENTER, shading: 'D9D9D9' }),
+          tcell('MÃ SỐ',           { bold: true, align: AlignmentType.CENTER, shading: 'D9D9D9' }),
+          tcell('TÊN THIẾT BỊ',   { bold: true, align: AlignmentType.CENTER, shading: 'D9D9D9' }),
+          tcell('ĐVT',             { bold: true, align: AlignmentType.CENTER, shading: 'D9D9D9' }),
+          tcell('SL',              { bold: true, align: AlignmentType.CENTER, shading: 'D9D9D9' }),
+          tcell('ĐỐI TƯỢNG SD',   { bold: true, align: AlignmentType.CENTER, shading: 'D9D9D9' }),
+          tcell('GHI CHÚ',         { bold: true, align: AlignmentType.CENTER, shading: 'D9D9D9' }),
+        ],
+      }));
+      let extraTt = 0;
+      let extraLastCat = null;
+      for (const a of extraAssets) {
+        if (a.category && a.category !== extraLastCat) {
+          extraLastCat = a.category;
+          extraRows.push(new TableRow({
+            children: [new TableCell({
+              borders: thinBorder,
+              columnSpan: 7,
+              shading: { fill: 'F2F2F2' },
+              children: [new Paragraph({ children: [new TextRun({ text: a.category, bold: true, size: 22, font: 'Times New Roman' })] })],
+            })],
+          }));
+        }
+        extraTt++;
+        extraRows.push(new TableRow({
+          children: [
+            tcell(extraTt,         { align: AlignmentType.CENTER }),
+            tcell(a.assetCode,     { align: AlignmentType.CENTER }),
+            tcell(a.name),
+            tcell(a.unit,          { align: AlignmentType.CENTER }),
+            tcell(a.quantity,      { align: AlignmentType.CENTER }),
+            tcell(a.targetUser,    { align: AlignmentType.CENTER }),
+            tcell(a.notes),
+          ],
+        }));
+      }
+      extraTable = new Table({
+        width: { size: 100, type: WidthType.PERCENTAGE },
+        rows: extraRows,
+        columnWidths: [600, 1200, 3000, 700, 700, 1400, 1400],
+      });
+    }
+
     // ── signature table ────────────────────────────────────────────────────
     const leaderName  = committee?.members?.find(m => m.role === 'Trưởng ban')?.fullName || '';
     const secretName  = committee?.members?.find(m => m.role === 'Phó ban')?.fullName || '';
@@ -414,6 +465,11 @@ exports.exportMinutesWord = async (req, res) => {
           para('KIỂM KÊ TÀI SẢN CÓ TRONG LỚP HỌC:', { bold: true, align: AlignmentType.CENTER }),
 
           assetTable,
+
+          ...(extraTable ? [
+            para('CÁC THIẾT BỊ TÀI SẢN KHÁC NGOÀI THÔNG TƯ', { bold: true, align: AlignmentType.CENTER, spaceBefore: 120 }),
+            extraTable,
+          ] : []),
 
           para(
             `Kiểm kê kết thúc vào lúc ${endTime || '___'} ngày ${dayStr} tháng ${monthStr} năm ${yearStr}. Biên bản này được sao thành 2 bản, giáo viên chủ nhiệm lớp giữ một bản và Ban kiểm kê giữ một bản.`,

@@ -66,11 +66,10 @@ function formatDateInput(dateString) {
 }
 
 const emptyMember = () => ({ userId: null, fullName: '', position: '', role: 'Thành viên', notes: '' });
-const emptyCommittee = () => ({ name: '', foundedDate: new Date().toISOString().slice(0, 10), decisionNumber: '', scope: [], members: [emptyMember()] });
+const emptyCommittee = () => ({ name: '', foundedDate: new Date().toISOString().slice(0, 10), decisionNumber: '', members: [emptyMember()] });
 const emptyAssetRow = () => ({ category: '', assetCode: '', name: '', unit: 'Cái', quantity: 0, targetUser: '', notes: '' });
 const emptyMinutes = () => ({
   className: '',
-  scope: '',
   location: 'Đức Xuân',
   inspectionDate: new Date().toISOString().slice(0, 10),
   inspectionTime: '',
@@ -79,6 +78,7 @@ const emptyMinutes = () => ({
   inspectionMethod: 'Kiểm kê số tài sản có trong lớp học và theo Thông tư 01 của Bộ GD&ĐT ban hành và các thiết bị dạy học khác.\nTổng hợp số liệu báo cáo về nhà trường để có kế hoạch bổ sung và theo dõi.',
   committeeId: '',
   assets: [emptyAssetRow()],
+  extraAssets: [],
   conclusion: '',
 });
 
@@ -222,7 +222,9 @@ export function CommitteeTab() {
       errs.foundedDate = 'Vui lòng chọn ngày thành lập.';
     } else {
       const today = new Date(); today.setHours(0, 0, 0, 0);
-      const chosen = new Date(form.foundedDate);
+      // Parse theo local time (tránh lệch múi giờ khi dùng new Date("YYYY-MM-DD"))
+      const [y, m, d] = form.foundedDate.split('-');
+      const chosen = new Date(Number(y), Number(m) - 1, Number(d));
       if (chosen > today) errs.foundedDate = 'Ngày thành lập không được ở tương lai.';
     }
 
@@ -261,7 +263,6 @@ export function CommitteeTab() {
       name: c.name,
       foundedDate: c.foundedDate ? new Date(c.foundedDate).toISOString().slice(0, 10) : '',
       decisionNumber: c.decisionNumber,
-      scope: Array.isArray(c.scope) ? c.scope : (c.scope ? [c.scope] : []),
       members: c.members?.length
         ? c.members.map(m => ({ userId: m.userId || null, fullName: m.fullName, position: m.position || '', role: m.role || 'Thành viên', notes: m.notes || '' }))
         : [emptyMember()],
@@ -322,7 +323,6 @@ export function CommitteeTab() {
     setEditingMinutes(m);
     setMinutesForm({
       className: m.className || '',
-      scope: m.scope || '',
       location: m.location || 'Đức Xuân',
       inspectionDate: m.inspectionDate ? new Date(m.inspectionDate).toISOString().slice(0, 10) : '',
       inspectionTime: m.inspectionTime || '',
@@ -331,6 +331,7 @@ export function CommitteeTab() {
       inspectionMethod: m.inspectionMethod || '',
       committeeId: m.committeeId?._id || m.committeeId || '',
       assets: m.assets?.length ? m.assets.map(a => ({ ...a })) : [emptyAssetRow()],
+      extraAssets: m.extraAssets?.length ? m.extraAssets.map(a => ({ ...a })) : [],
       conclusion: m.conclusion || '',
     });
     setOpenModal(true);
@@ -541,19 +542,6 @@ export function CommitteeTab() {
               inputProps={{ maxLength: 50 }}
               sx={{ minWidth: { xs: '100%', sm: 165 } }} />
           </Stack>
-          <Autocomplete
-            multiple size="small" sx={{ mb: 2 }}
-            options={classes.map(c => c.className)}
-            value={form.scope}
-            onChange={(_, val) => setForm(p => ({ ...p, scope: val }))}
-            renderTags={(val, getTagProps) =>
-              val.map((opt, i) => <Chip key={opt} label={opt} size="small" {...getTagProps({ index: i })} />)
-            }
-            renderInput={params => (
-              <TextField {...params} label="Phạm vi - Lớp phụ trách" placeholder="Chọn lớp..." />
-            )}
-          />
-
           <Typography variant="body2" fontWeight={600} mb={1}>Thành viên Ban Kiểm Kê</Typography>
 
           {/* Mobile: card per member | Desktop: table */}
@@ -968,9 +956,6 @@ export function CommitteeTab() {
               <Typography><strong>Tên ban:</strong> {viewCommittee.name}</Typography>
               <Typography><strong>Ngày thành lập:</strong> {formatDate(viewCommittee.foundedDate)}</Typography>
               <Typography><strong>Số quyết định:</strong> {viewCommittee.decisionNumber}</Typography>
-              {viewCommittee.scope?.length > 0 && (
-                <Typography><strong>Phạm vi - Lớp phụ trách:</strong> {[].concat(viewCommittee.scope).join(', ')}</Typography>
-              )}
               <Divider />
               <Typography variant="body2" fontWeight={600}>Thành viên:</Typography>
               <Box sx={{ overflowX: 'auto' }}>
@@ -1042,7 +1027,6 @@ export function CommitteeTab() {
             <Typography variant="body2" fontWeight={600} mb={1.5} color="text.secondary">Thông tin biên bản</Typography>
             <Stack direction={{ xs: 'column', sm: 'row' }} spacing={2} mb={2} flexWrap="wrap">
               <TextField label="Lớp" size="small" value={minutesForm.className || '—'} disabled sx={{ flex: 1, minWidth: { xs: '100%', sm: 150 } }} />
-              <TextField label="Phạm vi" size="small" value={minutesForm.scope || '—'} disabled sx={{ flex: 1, minWidth: { xs: '100%', sm: 160 } }} />
               <TextField label="Địa điểm" size="small" value={minutesForm.location} disabled sx={{ minWidth: { xs: '100%', sm: 130 } }} />
               <TextField label="Ngày kiểm kê" type="date" size="small" InputLabelProps={{ shrink: true }} value={minutesForm.inspectionDate} disabled sx={{ minWidth: { xs: '100%', sm: 155 } }} />
             </Stack>
@@ -1135,6 +1119,62 @@ export function CommitteeTab() {
                 </tbody>
               </table>
             </Box>
+            {minutesForm.extraAssets?.length > 0 && (
+              <>
+                <Typography sx={{ fontWeight: 700, textAlign: 'center', mt: 2, mb: 1, fontFamily: 'inherit', fontSize: 'inherit' }}>
+                  CÁC THIẾT BỊ TÀI SẢN KHÁC NGOÀI THÔNG TƯ
+                </Typography>
+                <Box sx={{ overflowX: 'auto', mb: 1 }}>
+                  <table style={{ width: '100%', borderCollapse: 'collapse', minWidth: 560 }}>
+                    <thead>
+                      <tr>
+                        <th style={{ ...mHeaderCell, width: 32 }}>TT</th>
+                        <th style={mHeaderCell}>TÊN THIẾT BỊ</th>
+                        <th style={{ ...mHeaderCell, width: 46 }}>ĐVT</th>
+                        <th style={{ ...mHeaderCell, width: 46 }}>SL</th>
+                        <th style={{ ...mHeaderCell, width: 110 }}>ĐỐI TƯỢNG SỬ DỤNG</th>
+                        <th style={{ ...mHeaderCell, width: 90 }}>GHI CHÚ</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {(() => {
+                        const groups = [];
+                        minutesForm.extraAssets.forEach(row => {
+                          const cat = row.category || '';
+                          const last = groups[groups.length - 1];
+                          if (last && last.category === cat) last.rows.push(row);
+                          else groups.push({ category: cat, rows: [row] });
+                        });
+                        let counter = 0;
+                        return groups.map((g, gi) => (
+                          <Fragment key={gi}>
+                            {g.category && (
+                              <tr>
+                                <td colSpan={6} style={{ ...mCellBorder, fontWeight: 700, textAlign: 'center', background: '#f0f0f0' }}>{g.category}</td>
+                              </tr>
+                            )}
+                            {g.rows.map(row => {
+                              counter++;
+                              const n = counter;
+                              return (
+                                <tr key={n}>
+                                  <td style={{ ...mCellBorder, textAlign: 'center' }}>{n}</td>
+                                  <td style={mCellBorder}>{row.name}</td>
+                                  <td style={{ ...mCellBorder, textAlign: 'center' }}>{row.unit}</td>
+                                  <td style={{ ...mCellBorder, textAlign: 'center' }}>{row.quantity}</td>
+                                  <td style={{ ...mCellBorder, textAlign: 'center' }}>{row.targetUser}</td>
+                                  <td style={mCellBorder}>{row.notes}</td>
+                                </tr>
+                              );
+                            })}
+                          </Fragment>
+                        ));
+                      })()}
+                    </tbody>
+                  </table>
+                </Box>
+              </>
+            )}
             <Typography sx={{ fontFamily: 'inherit', fontSize: { xs: 11, sm: 13 }, mb: 2 }}>
               Kiểm kê kết thúc vào lúc {minutesForm.endTime || '___'} ngày {mDayStr} tháng {mMonthStr} năm {mYearStr}.
               {' '}Biên bản này được sao thành 2 bản, giáo viên chủ nhiệm lớp giữ một bản và Ban kiểm kê giữ một bản.
@@ -1244,7 +1284,6 @@ export function MinutesTab() {
     setEditingMinutes(m);
     setForm({
       className: m.className || '',
-      scope: m.scope || '',
       location: m.location || 'Đức Xuân',
       inspectionDate: m.inspectionDate ? new Date(m.inspectionDate).toISOString().slice(0, 10) : '',
       inspectionTime: m.inspectionTime || '',
@@ -1253,6 +1292,7 @@ export function MinutesTab() {
       inspectionMethod: m.inspectionMethod || '',
       committeeId: m.committeeId?._id || m.committeeId || '',
       assets: m.assets?.length ? m.assets.map(a => ({ ...a })) : [emptyAssetRow()],
+      extraAssets: m.extraAssets?.length ? m.extraAssets.map(a => ({ ...a })) : [],
       conclusion: m.conclusion || '',
     });
     setOpenModal(true);
@@ -1457,8 +1497,6 @@ export function MinutesTab() {
               <TextField label="Lớp" size="small" value={form.className || '—'} disabled
                 sx={{ flex: 1, minWidth: { xs: '100%', sm: 150 } }}
                 InputProps={{ sx: { fontWeight: form.className ? 600 : 400 } }} />
-              <TextField label="Phạm vi" size="small" value={form.scope || '—'} disabled
-                sx={{ flex: 1, minWidth: { xs: '100%', sm: 160 } }} />
               <TextField label="Địa điểm" size="small" value={form.location} disabled
                 sx={{ minWidth: { xs: '100%', sm: 130 } }} />
               <TextField label="Ngày kiểm kê" type="date" size="small" InputLabelProps={{ shrink: true }}
@@ -1632,6 +1670,69 @@ export function MinutesTab() {
                   + Thêm nhóm mới
                 </Button>
               </Stack>
+            )}
+
+            {/* Extra Assets (ngoài thông tư) */}
+            {form.extraAssets?.length > 0 && (
+              <>
+                <Typography sx={{ fontWeight: 700, textAlign: 'center', mt: 2, mb: 1, fontFamily: 'inherit', fontSize: 'inherit' }}>
+                  CÁC THIẾT BỊ TÀI SẢN KHÁC NGOÀI THÔNG TƯ
+                </Typography>
+                <Box sx={{ overflowX: 'auto', mb: 1, WebkitOverflowScrolling: 'touch' }}>
+                  <table style={{ width: '100%', borderCollapse: 'collapse', minWidth: 560 }}>
+                    <thead>
+                      <tr>
+                        <th style={{ ...headerCell, width: 32 }}>TT</th>
+                        <th style={{ ...headerCell, width: 80 }}>MÃ SỐ</th>
+                        <th style={headerCell}>TÊN THIẾT BỊ</th>
+                        <th style={{ ...headerCell, width: 46 }}>ĐVT</th>
+                        <th style={{ ...headerCell, width: 46 }}>SL</th>
+                        <th style={{ ...headerCell, width: 110 }}>ĐỐI TƯỢNG SỬ DỤNG</th>
+                        <th style={{ ...headerCell, width: 90 }}>GHI CHÚ</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {(() => {
+                        const groups = [];
+                        form.extraAssets.forEach(row => {
+                          const cat = row.category || '';
+                          const last = groups[groups.length - 1];
+                          if (last && last.category === cat) last.rows.push(row);
+                          else groups.push({ category: cat, rows: [row] });
+                        });
+                        let counter = 0;
+                        return groups.map((g, gi) => (
+                          <>
+                            {g.category && (
+                              <tr key={`ecat-${gi}`}>
+                                <td colSpan={7}
+                                  style={{ ...cellBorder, fontWeight: 700, textAlign: 'center', background: '#f0f0f0' }}>
+                                  {g.category}
+                                </td>
+                              </tr>
+                            )}
+                            {g.rows.map(row => {
+                              counter++;
+                              const n = counter;
+                              return (
+                                <tr key={n}>
+                                  <td style={{ ...cellBorder, textAlign: 'center' }}>{n}</td>
+                                  <td style={cellBorder}>{row.assetCode}</td>
+                                  <td style={cellBorder}>{row.name}</td>
+                                  <td style={{ ...cellBorder, textAlign: 'center' }}>{row.unit}</td>
+                                  <td style={{ ...cellBorder, textAlign: 'center' }}>{row.quantity}</td>
+                                  <td style={{ ...cellBorder, textAlign: 'center' }}>{row.targetUser}</td>
+                                  <td style={cellBorder}>{row.notes}</td>
+                                </tr>
+                              );
+                            })}
+                          </>
+                        ));
+                      })()}
+                    </tbody>
+                  </table>
+                </Box>
+              </>
             )}
 
             {/* Footer */}

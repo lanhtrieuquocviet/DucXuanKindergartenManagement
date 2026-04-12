@@ -417,6 +417,8 @@ export const ENDPOINTS = {
     ASSET_COMMITTEE_IS_MEMBER: "/teacher/asset-committees/is-member",
     ASSET_MINUTES: "/teacher/asset-minutes",
     ASSET_MINUTES_DETAIL: (id) => `/teacher/asset-minutes/${id}`,
+    ASSET_MINUTES_EXPORT_WORD: (id) => `/teacher/asset-minutes/${id}/export-word`,
+    ASSET_ALLOCATIONS_ACTIVE: "/teacher/asset-allocations/active",
     ATTENDANCES: "/teacher/attendances",
     ATTENDANCE_BY_CLASS: (classId) => `/teacher/attendances/class/${classId}`,
     ATTENDANCE_BY_CLASS_DATE: (classId, date) =>
