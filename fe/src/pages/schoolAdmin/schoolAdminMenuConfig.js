@@ -37,6 +37,7 @@ export const SCHOOL_ADMIN_MENU_ITEMS = [
     children: [
       { key: 'menu', label: 'Quản lý thực đơn', permission: 'APPROVE_MENU' },
       { key: 'meal-management', label: 'Quản lý bữa ăn', permission: 'APPROVE_MENU' },
+      { key: 'district-nutrition-plan', label: 'Kế hoạch dinh dưỡng theo sở', permission: 'APPROVE_MENU' },
     ],
   },
   // { key: 'teachers', label: 'Giáo viên', permission: 'MANAGE_TEACHER' },
@@ -115,6 +116,7 @@ export const createSchoolAdminMenuSelect = (navigate) => (key) => {
     classes: '/school-admin/classes',
     menu: '/school-admin/menus',
     'meal-management': '/school-admin/meal-management',
+    'district-nutrition-plan': '/school-admin/district-nutrition-plan',
     teachers: '/school-admin/teachers',
     staff: '/school-admin/staff',
     students: '/school-admin/students',

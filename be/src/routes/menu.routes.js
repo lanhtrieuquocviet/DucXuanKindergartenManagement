@@ -1,7 +1,46 @@
 const express = require("express");
+const path = require("path");
+const fs = require("fs");
+const multer = require("multer");
 const router = express.Router();
 const menuController = require("../controller/menuController");
-const { authenticate, authorizeRoles, authorizePermissions } = require("../middleware/auth");
+const districtNutritionPlanController = require("../controller/districtNutritionPlanController");
+const { authenticate, authorizePermissions, authorizeAnyPermission } = require("../middleware/auth");
+
+const nutritionUploadDir = path.join(__dirname, "../uploads/nutrition-plans");
+if (!fs.existsSync(nutritionUploadDir)) {
+  fs.mkdirSync(nutritionUploadDir, { recursive: true });
+}
+
+const nutritionStorage = multer.diskStorage({
+  destination: (_, __, cb) => cb(null, nutritionUploadDir),
+  filename: (_, file, cb) => {
+    const safe = (file.originalname || "file").replace(/[^a-zA-Z0-9._-]/g, "_");
+    cb(null, `${Date.now()}_${safe}`);
+  },
+});
+
+const nutritionUpload = multer({
+  storage: nutritionStorage,
+  limits: { fileSize: 25 * 1024 * 1024 },
+  fileFilter: (_, file, cb) => {
+    const name = file.originalname || "";
+    if (/\.(docx|doc)$/i.test(name)) return cb(null, true);
+    cb(new Error("Chỉ chấp nhận file Word (.doc, .docx)"));
+  },
+});
+
+function nutritionUploadOptional(req, res, next) {
+  nutritionUpload.single("regulationFile")(req, res, (err) => {
+    if (err) {
+      return res.status(400).json({
+        success: false,
+        message: err.message || "Tải file thất bại",
+      });
+    }
+    next();
+  });
+}
 
 /**
  * @openapi
@@ -65,6 +104,39 @@ router.put(
   authenticate,
   authorizePermissions("APPROVE_MENU"),
   menuController.updateNutritionPlanSetting
+);
+
+router.get(
+  "/district-nutrition-plans",
+  authenticate,
+  authorizeAnyPermission("APPROVE_MENU", "MANAGE_MENU"),
+  districtNutritionPlanController.listDistrictNutritionPlans
+);
+router.post(
+  "/district-nutrition-plans",
+  authenticate,
+  authorizePermissions("APPROVE_MENU"),
+  nutritionUploadOptional,
+  districtNutritionPlanController.createDistrictNutritionPlan
+);
+router.get(
+  "/district-nutrition-plans/:id/regulation",
+  authenticate,
+  authorizeAnyPermission("APPROVE_MENU", "MANAGE_MENU"),
+  districtNutritionPlanController.downloadRegulationFile
+);
+router.put(
+  "/district-nutrition-plans/:id",
+  authenticate,
+  authorizePermissions("APPROVE_MENU"),
+  nutritionUploadOptional,
+  districtNutritionPlanController.updateDistrictNutritionPlan
+);
+router.patch(
+  "/district-nutrition-plans/:id/end",
+  authenticate,
+  authorizePermissions("APPROVE_MENU"),
+  districtNutritionPlanController.endDistrictNutritionPlan
 );
 
 /**
@@ -196,5 +268,18 @@ router.put("/:id/approve", authenticate, authorizePermissions("APPROVE_MENU"), m
  *         description: Không có quyền SchoolAdmin
  */
 router.put("/:id/reject", authenticate, authorizePermissions("APPROVE_MENU"), menuController.rejectMenu);
+
+router.patch(
+  "/:id/apply",
+  authenticate,
+  authorizePermissions("APPROVE_MENU"),
+  menuController.applyMenu
+);
+router.patch(
+  "/:id/end",
+  authenticate,
+  authorizePermissions("APPROVE_MENU"),
+  menuController.endMenu
+);
 
 module.exports = router;

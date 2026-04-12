@@ -1,8 +1,30 @@
 const Menu = require("../models/Menu");
 const NutritionPlanSetting = require("../models/NutritionPlanSetting");
+const DistrictNutritionPlan = require("../models/DistrictNutritionPlan");
+const districtNutritionPlanController = require("./districtNutritionPlanController");
 
 const mongoose = require("mongoose");
 const DailyMenu = require("../models/DailyMenu");
+
+const REJECT_PRESET_LABELS = {
+  nutrition: "Chưa cân đối dinh dưỡng / chưa đạt chuẩn",
+  regulation: "Chưa đạt tiêu chí theo quy định sở",
+  duplicate: "Trùng lặp món ăn giữa các ngày",
+  variety: "Thiếu đa dạng món",
+  portion: "Khẩu phần / định lượng chưa phù hợp",
+  other: "Khác",
+};
+
+function buildRejectReasonText(presets, detail) {
+  const lines = [];
+  (presets || []).forEach((key) => {
+    const label = REJECT_PRESET_LABELS[key];
+    if (label) lines.push(`• ${label}`);
+  });
+  const d = String(detail || "").trim();
+  if (d) lines.push(`Chi tiết: ${d}`);
+  return lines.join("\n");
+}
 
 const DEFAULT_NUTRITION_PLAN = [
   { name: "Calo trung bình/ngày", min: 615, max: 726, actual: 0 },
@@ -313,7 +335,17 @@ exports.submitMenu = async (req, res) => {
       });
     }
 
+    if (!["draft", "rejected"].includes(menu.status)) {
+      return res.status(400).json({
+        success: false,
+        message: "Chỉ có thể gửi duyệt khi thực đơn ở trạng thái nháp hoặc bị từ chối",
+      });
+    }
+
     menu.status = "pending";
+    menu.rejectReason = "";
+    menu.rejectPresets = [];
+    menu.rejectDetail = "";
 
     await menu.save();
 
@@ -363,8 +395,23 @@ exports.rejectMenu = async (req, res) => {
       });
     }
 
+    const presets = Array.isArray(req.body.presets)
+      ? [...new Set(req.body.presets.map((p) => String(p).trim()).filter(Boolean))]
+      : [];
+    const detail = String(req.body.detail || "").trim();
+
+    if (presets.length === 0 && detail.length < 5) {
+      return res.status(400).json({
+        success: false,
+        message:
+          "Chọn ít nhất một lý do gợi ý hoặc nhập chi tiết từ chối (tối thiểu 5 ký tự)",
+      });
+    }
+
     menu.status = "rejected";
-    menu.rejectReason = req.body.reason;
+    menu.rejectPresets = presets;
+    menu.rejectDetail = detail;
+    menu.rejectReason = buildRejectReasonText(presets, detail);
 
     await menu.save();
 
@@ -378,8 +425,96 @@ exports.rejectMenu = async (req, res) => {
   }
 };
 
+/** Áp dụng thực đơn đã duyệt (trở thành đang dùng; thực đơn đang áp dụng trước đó chuyển sang lịch sử) */
+exports.applyMenu = async (req, res) => {
+  try {
+    const menu = await Menu.findById(req.params.id);
+
+    if (!menu) {
+      return res.status(404).json({
+        success: false,
+        message: "Menu không tồn tại",
+      });
+    }
+
+    if (menu.status !== "approved") {
+      return res.status(400).json({
+        success: false,
+        message: "Chỉ có thể áp dụng thực đơn đã được duyệt",
+      });
+    }
+
+    const now = new Date();
+
+    await Menu.updateMany(
+      { status: "active" },
+      { $set: { status: "completed", endedAt: now } }
+    );
+
+    menu.status = "active";
+    menu.appliedAt = now;
+    await menu.save();
+
+    const populated = await Menu.findById(menu._id).populate("createdBy", "fullName email");
+
+    return res.json({
+      success: true,
+      message: "Đã áp dụng thực đơn",
+      data: populated,
+    });
+  } catch (error) {
+    return res.status(500).json({ success: false, message: error.message });
+  }
+};
+
+/** Kết thúc thực đơn đang áp dụng → lưu vào lịch sử (completed) */
+exports.endMenu = async (req, res) => {
+  try {
+    const menu = await Menu.findById(req.params.id);
+
+    if (!menu) {
+      return res.status(404).json({
+        success: false,
+        message: "Menu không tồn tại",
+      });
+    }
+
+    if (menu.status !== "active") {
+      return res.status(400).json({
+        success: false,
+        message: "Chỉ có thể kết thúc thực đơn đang áp dụng",
+      });
+    }
+
+    menu.status = "completed";
+    menu.endedAt = new Date();
+    await menu.save();
+
+    const populated = await Menu.findById(menu._id).populate("createdBy", "fullName email");
+
+    return res.json({
+      success: true,
+      message: "Đã kết thúc và lưu vào lịch sử thực đơn",
+      data: populated,
+    });
+  } catch (error) {
+    return res.status(500).json({ success: false, message: error.message });
+  }
+};
+
 exports.getNutritionPlanSetting = async (req, res) => {
   try {
+    await districtNutritionPlanController.autoArchiveExpiredDistrictPlans();
+    const activeDistrict = await DistrictNutritionPlan.findOne({ status: "active" })
+      .sort({ endDate: -1 })
+      .lean();
+    if (activeDistrict?.items?.length) {
+      return res.json({
+        success: true,
+        data: activeDistrict.items,
+      });
+    }
+
     let setting = await NutritionPlanSetting.findOne({});
     if (!setting) {
       setting = await NutritionPlanSetting.create({
@@ -413,6 +548,18 @@ exports.updateNutritionPlanSetting = async (req, res) => {
           message: `Chỉ tiêu "${item.name}" có min/max không hợp lệ`,
         });
       }
+    }
+
+    await districtNutritionPlanController.autoArchiveExpiredDistrictPlans();
+    const activeDistrict = await DistrictNutritionPlan.findOne({ status: "active" });
+    if (activeDistrict) {
+      activeDistrict.items = items;
+      await activeDistrict.save();
+      return res.json({
+        success: true,
+        message: "Cập nhật kế hoạch dinh dưỡng thành công",
+        data: activeDistrict.items,
+      });
     }
 
     const setting = await NutritionPlanSetting.findOneAndUpdate(

@@ -237,12 +237,13 @@ export const AuthProvider = ({
   }, []);
 
   // Change password
-  const changePassword = useCallback(async (currentPassword, newPassword) => {
+  const changePassword = useCallback(async (currentPassword, newPassword, refreshTokenOverride = null) => {
     try {
       setLoading(true);
       setError(null);
 
-      await post(ENDPOINTS.AUTH.CHANGE_PASSWORD, { currentPassword, newPassword });
+      const refreshToken = refreshTokenOverride || getRefreshToken();
+      await post(ENDPOINTS.AUTH.CHANGE_PASSWORD, { currentPassword, newPassword, refreshToken });
     } catch (err) {
       const errorMessage = err.message || 'Đổi mật khẩu thất bại';
       setError(errorMessage);

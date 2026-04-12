@@ -103,6 +103,7 @@ import MealManagement from './pages/kitchenStaff/MealManagement';
 import MealHeadcount from './pages/kitchenStaff/MealHeadcount';
 import UploadSampleFood from './pages/kitchenStaff/UploadSampleFood';
 import MenuReport from './pages/kitchenStaff/MenuReport';
+import DistrictNutritionKitchen from './pages/kitchenStaff/DistrictNutritionKitchen';
 import MenuSchoolAdmin from './pages/schoolAdmin/MenuSchoolAdmin';
 import MenuDetailSchoolAdmin from './pages/schoolAdmin/MenuDetailSchoolAdmin';
 import MenuStudent from './pages/student/MenuStudent';
@@ -112,6 +113,7 @@ import ManageAcademicYears from './pages/schoolAdmin/ManageAcademicYears';
 import AcademicYearDetail from './pages/schoolAdmin/AcademicYearDetail';
 import AcademicYearReport from './pages/schoolAdmin/AcademicYearReport';
 import MealManagementSchoolAdmin from './pages/schoolAdmin/MealManagementSchoolAdmin';
+import DistrictNutritionPlanSchoolAdmin from './pages/schoolAdmin/DistrictNutritionPlanSchoolAdmin';
 import AcademicYearPlan from './pages/schoolAdmin/AcademicYearPlan';
 import AcademicEventSetup from './pages/schoolAdmin/AcademicEventSetup';
 import CurriculumPage from './pages/schoolAdmin/CurriculumPage';
@@ -403,6 +405,7 @@ function App() {
             <Route path="menus/create" element={<CreateMenu />} />
             <Route path="foods" element={<FoodManagement />} />
             <Route path="ingredients" element={<IngredientManagement />} />
+            <Route path="district-nutrition" element={<DistrictNutritionKitchen />} />
             <Route path="meal-management" element={<MealManagement />} />
             <Route path="headcount" element={<MealHeadcount />} />
             <Route path="sample-food" element={<UploadSampleFood />} />
@@ -696,6 +699,16 @@ function App() {
               <ProtectedRoute>
                 <SchoolAdminProvider>
                   <MealManagementSchoolAdmin />
+                </SchoolAdminProvider>
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/school-admin/district-nutrition-plan"
+            element={
+              <ProtectedRoute>
+                <SchoolAdminProvider>
+                  <DistrictNutritionPlanSchoolAdmin />
                 </SchoolAdminProvider>
               </ProtectedRoute>
             }

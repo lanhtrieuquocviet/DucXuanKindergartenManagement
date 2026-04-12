@@ -66,6 +66,13 @@ const authenticate = async (req, res, next) => {
       });
     }
 
+    if (user.passwordChangedAt && decoded.iat * 1000 < new Date(user.passwordChangedAt).getTime()) {
+      return res.status(401).json({
+        status: 'error',
+        message: 'Phiên đăng nhập đã bị thu hết do thay đổi mật khẩu. Vui lòng đăng nhập lại.',
+      });
+    }
+
     const roles = (user.roles || []).map((role) => {
       const ownPerms = (role.permissions || []).map((p) => p && p.code ? p.code : p);
       const parentPerms = role.parent

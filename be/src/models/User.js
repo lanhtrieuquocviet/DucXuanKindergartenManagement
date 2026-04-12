@@ -70,7 +70,11 @@ const userSchema = new mongoose.Schema({
     type: Boolean,
     default: false
   },
-    createdAt: {
+  passwordChangedAt: {
+    type: Date,
+    default: null
+  },
+  createdAt: {
       type: Date,
       default: Date.now
     },

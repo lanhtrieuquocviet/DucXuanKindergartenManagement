@@ -437,7 +437,7 @@ const updateProfile = async (req, res) => {
  */
 const changePassword = async (req, res) => {
   try {
-    const { currentPassword, newPassword } = req.body;
+    const { currentPassword, newPassword, refreshToken: refreshTokenStr } = req.body;
 
     if (!currentPassword || !newPassword) {
       return res.status(400).json({
@@ -480,9 +480,28 @@ const changePassword = async (req, res) => {
       });
     }
 
+    const authHeader = req.headers.authorization || '';
+    const accessTokenStr = authHeader.startsWith('Bearer ') ? authHeader.slice(7) : null;
+    if (accessTokenStr) {
+      addToBlacklist(accessTokenStr);
+    }
+
     const salt = await bcrypt.genSalt(10);
     user.passwordHash = await bcrypt.hash(newPassword, salt);
+    user.passwordChangedAt = new Date();
     await user.save();
+
+    if (refreshTokenStr) {
+      await RefreshToken.findOneAndUpdate(
+        { token: refreshTokenStr },
+        { isRevoked: true },
+      );
+    }
+
+    await RefreshToken.updateMany(
+      { userId: user._id, isRevoked: false },
+      { isRevoked: true },
+    );
 
     return res.status(200).json({
       status: 'success',

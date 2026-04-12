@@ -1,23 +1,23 @@
-import { useState, useEffect, useRef } from "react";
+import { useState, useEffect } from "react";
 import {
   getMenus,
   approveMenu,
   rejectMenu,
-  getNutritionPlanSetting,
-  updateNutritionPlanSetting,
+  applyMenu,
+  endMenu,
 } from "../../service/menu.api";
 import { toast } from "react-toastify";
 import { useNavigate } from "react-router-dom";
 import RoleLayout from "../../layouts/RoleLayout";
 import { useAuth } from "../../context/AuthContext";
 import ConfirmDialog from "../../components/ConfirmDialog";
+import { MENU_REJECT_PRESETS } from "../../constants/menuRejectPresets";
 import { createSchoolAdminMenuSelect } from './schoolAdminMenuConfig';
 import { useSchoolAdminMenu } from './useSchoolAdminMenu';
 import {
   Box, Typography, Paper, Chip, Button, TextField, Dialog,
   DialogTitle, DialogContent, DialogActions, Skeleton, Tabs, Tab,
-  Avatar, Tooltip, Stack, Divider, Table, TableBody, TableCell,
-  TableContainer, TableHead, TableRow, IconButton
+  Avatar, Tooltip, Stack, Divider, FormGroup, FormControlLabel, Checkbox
 } from "@mui/material";
 import {
   CheckCircle as CheckCircleIcon,
@@ -27,7 +27,9 @@ import {
   Person as PersonIcon,
   CalendarMonth as CalendarIcon,
   HourglassEmpty as PendingIcon,
-  Delete as DeleteIcon,
+  PlayCircleOutline as ApplyIcon,
+  StopCircle as EndMenuIcon,
+  History as HistoryIcon,
 } from "@mui/icons-material";
 
 const STATUS_CONFIG = {
@@ -40,10 +42,12 @@ const STATUS_CONFIG = {
 };
 
 const TABS = [
-  { value: "all",      label: "Tất cả" },
-  { value: "pending",  label: "Chờ duyệt" },
-  { value: "approved", label: "Đã duyệt" },
-  { value: "rejected", label: "Từ chối" },
+  { value: "all",       label: "Tất cả" },
+  { value: "pending",   label: "Chờ duyệt" },
+  { value: "approved",  label: "Đã duyệt" },
+  { value: "active",    label: "Đang áp dụng" },
+  { value: "completed", label: "Lịch sử" },
+  { value: "rejected",  label: "Từ chối" },
 ];
 
 function MenuCardSkeleton() {
@@ -70,6 +74,8 @@ function EmptyState({ tab }) {
     pending:  { title: "Không có thực đơn chờ duyệt", sub: "Hiện tại không có thực đơn nào đang chờ xét duyệt." },
     approved: { title: "Chưa có thực đơn đã duyệt", sub: "Các thực đơn sau khi được phê duyệt sẽ hiển thị tại đây." },
     rejected: { title: "Chưa có thực đơn bị từ chối", sub: "Các thực đơn bị từ chối sẽ hiển thị tại đây." },
+    active:    { title: "Không có thực đơn đang áp dụng", sub: "Hãy áp dụng một thực đơn đã duyệt để hiển thị tại đây." },
+    completed: { title: "Chưa có lịch sử", sub: "Các thực đơn đã kết thúc sẽ lưu tại đây." },
   };
   const { title, sub } = messages[tab] || messages.all;
   return (
@@ -83,7 +89,9 @@ function EmptyState({ tab }) {
       <Avatar sx={{ width: 64, height: 64, bgcolor: "#f3f4f6" }}>
         {tab === "pending"
           ? <PendingIcon sx={{ fontSize: 36, color: "#f59e0b" }} />
-          : <MenuBookIcon sx={{ fontSize: 36, color: "#9ca3af" }} />
+          : tab === "completed"
+            ? <HistoryIcon sx={{ fontSize: 36, color: "#9ca3af" }} />
+            : <MenuBookIcon sx={{ fontSize: 36, color: "#9ca3af" }} />
         }
       </Avatar>
       <Typography variant="h6" fontWeight={700} color="text.primary">{title}</Typography>
@@ -98,18 +106,10 @@ function MenuSchoolAdmin() {
   const [tab, setTab]                   = useState("all");
   const [confirmApprove, setConfirmApprove] = useState(null);
   const [confirmReject, setConfirmReject]   = useState(null);
-  const [rejectReason, setRejectReason]     = useState("");
-
-  const [showNutritionPlan, setShowNutritionPlan] = useState(false);
-  const [nutritionSaving, setNutritionSaving] = useState(false);
-  const [nutritionPlan, setNutritionPlan] = useState([
-    { id: 1, name: "Calo trung bình/ngày", min: 615, max: 726, actual: 0 },
-    { id: 2, name: "Đạm (g)", min: 13, max: 20, actual: 0 },
-    { id: 3, name: "Béo (g)", min: 25, max: 35, actual: 0 },
-    { id: 4, name: "Tinh bột (g)", min: 52, max: 60, actual: 0 },
-  ]);
-  const [newPlanItem, setNewPlanItem] = useState({ name: "", min: "", max: "", actual: "" });
-  const nutritionSectionRef = useRef(null);
+  const [rejectDetail, setRejectDetail]     = useState("");
+  const [rejectPresetSel, setRejectPresetSel] = useState({});
+  const [confirmApply, setConfirmApply]     = useState(null);
+  const [confirmEnd, setConfirmEnd]         = useState(null);
 
   const navigate       = useNavigate();
   const { user, logout } = useAuth();
@@ -117,38 +117,18 @@ function MenuSchoolAdmin() {
 
   useEffect(() => {
     fetchMenus();
-    fetchNutritionPlan();
   }, []);
 
   const fetchMenus = async () => {
     try {
       setLoading(true);
-      const res = await getMenus();
-      setMenus(res.data || []);
+      const res = await getMenus({ limit: 500 });
+      const list = Array.isArray(res?.data) ? res.data : [];
+      setMenus(list);
     } catch {
       toast.error("Không thể tải danh sách thực đơn");
     } finally {
       setLoading(false);
-    }
-  };
-
-  const fetchNutritionPlan = async () => {
-    try {
-      const res = await getNutritionPlanSetting();
-      const rows = Array.isArray(res?.data?.data) ? res.data.data : [];
-      if (rows.length > 0) {
-        setNutritionPlan(
-          rows.map((item, idx) => ({
-            id: idx + 1,
-            name: item.name,
-            min: Number(item.min) || 0,
-            max: Number(item.max) || 0,
-            actual: Number(item.actual) || 0,
-          }))
-        );
-      }
-    } catch {
-      // Keep fallback values if config API fails.
     }
   };
 
@@ -163,114 +143,59 @@ function MenuSchoolAdmin() {
     }
   };
 
-  const handleReject = async () => {
-    if (!rejectReason.trim()) { toast.error("Vui lòng nhập lý do từ chối"); return; }
+  const handleApply = async () => {
+    if (!confirmApply) return;
     try {
-      await rejectMenu(confirmReject._id, rejectReason);
+      await applyMenu(confirmApply._id);
+      toast.success("Đã áp dụng thực đơn");
+      setConfirmApply(null);
+      fetchMenus();
+    } catch (e) {
+      toast.error(e?.message || e?.data?.message || "Áp dụng thất bại");
+    }
+  };
+
+  const handleEndMenu = async () => {
+    if (!confirmEnd) return;
+    try {
+      await endMenu(confirmEnd._id);
+      toast.success("Đã kết thúc và lưu vào lịch sử");
+      setConfirmEnd(null);
+      fetchMenus();
+    } catch (e) {
+      toast.error(e?.message || e?.data?.message || "Kết thúc thất bại");
+    }
+  };
+
+  const handleReject = async () => {
+    if (!confirmReject) return;
+    const presets = MENU_REJECT_PRESETS.filter((p) => rejectPresetSel[p.id]).map((p) => p.id);
+    const detail = rejectDetail.trim();
+    if (presets.length === 0 && detail.length < 5) {
+      toast.error("Chọn ít nhất một lý do gợi ý hoặc nhập chi tiết (tối thiểu 5 ký tự)");
+      return;
+    }
+    try {
+      await rejectMenu(confirmReject._id, { presets, detail });
       toast.success("Đã từ chối thực đơn");
       setConfirmReject(null);
-      setRejectReason("");
+      setRejectDetail("");
+      setRejectPresetSel({});
       fetchMenus();
-    } catch {
-      toast.error("Từ chối thất bại");
+    } catch (e) {
+      toast.error(e?.message || e?.data?.message || "Từ chối thất bại");
     }
   };
 
   const handleMenuSelect = createSchoolAdminMenuSelect(navigate);
   const userName = user?.fullName || user?.username || "School Admin";
 
-  const handleScrollToNutritionPlan = () => {
-    setShowNutritionPlan((prev) => {
-      const next = !prev;
-      if (!prev) {
-        setTimeout(() => {
-          nutritionSectionRef.current?.scrollIntoView({ behavior: "smooth", block: "start" });
-        }, 120);
-      }
-      return next;
-    });
-  };
-
-  const handleAddPlanItem = () => {
-    if (!newPlanItem.name.trim()) {
-      toast.error("Vui lòng nhập tên mục kế hoạch");
-      return;
-    }
-
-    const min = Number(newPlanItem.min);
-    const max = Number(newPlanItem.max);
-    if (Number.isNaN(min) || Number.isNaN(max) || min <= 0 || max <= 0) {
-      toast.error("Giá trị tối thiểu và tối đa phải là số dương");
-      return;
-    }
-    if (max <= min) {
-      toast.error("Giá trị tối đa phải lớn hơn giá trị tối thiểu");
-      return;
-    }
-
-    setNutritionPlan((prev) => [
-      ...prev,
-      {
-        id: Date.now(),
-        name: newPlanItem.name.trim(),
-        min,
-        max,
-        actual: Number(newPlanItem.actual) || 0,
-      },
-    ]);
-
-    setNewPlanItem({ name: "", min: "", max: "", actual: "" });
-  };
-
-  const handleUpdatePlanItem = (id, field, value) => {
-    setNutritionPlan((prev) => prev.map((item) => {
-      if (item.id !== id) return item;
-      if (field === "name") return { ...item, name: value };
-      if (field === "actual") return { ...item, actual: Number(value || 0) };
-      const parsed = Number(value);
-      if (Number.isNaN(parsed)) return item;
-      return { ...item, [field]: parsed };
-    }));
-  };
-
-  const handleDeletePlanItem = (id) => {
-    setNutritionPlan((prev) => prev.filter((item) => item.id !== id));
-  };
-
-  const handleUpdateNutritionPlan = async () => {
-    for (const item of nutritionPlan) {
-      if (item.min == null || item.max == null) {
-        toast.error(`Mục ${item.name} cần nhập đầy đủ giá trị tối thiểu/tối đa`);
-        return;
-      }
-      if (item.max <= item.min) {
-        toast.error(`Mục ${item.name}: giá trị tối đa phải lớn hơn tối thiểu`);
-        return;
-      }
-    }
-
-    try {
-      setNutritionSaving(true);
-      const payload = nutritionPlan.map(({ name, min, max, actual }) => ({
-        name: String(name || "").trim(),
-        min: Number(min),
-        max: Number(max),
-        actual: Number(actual || 0),
-      }));
-      await updateNutritionPlanSetting(payload);
-      // Notify other tabs/pages (e.g. Kitchen Staff) to refresh ranges immediately.
-      localStorage.setItem("nutrition_plan_updated_at", String(Date.now()));
-      toast.success("Đã cập nhật kế hoạch dinh dưỡng theo sở");
-    } catch (error) {
-      toast.error(error?.response?.data?.message || "Cập nhật kế hoạch thất bại");
-    } finally {
-      setNutritionSaving(false);
-    }
-  };
-
   const filtered = tab === "all" ? menus : menus.filter((m) => m.status === tab);
 
   const pendingCount = menus.filter((m) => m.status === "pending").length;
+  const activeCount = menus.filter((m) => m.status === "active").length;
+  const historyCount = menus.filter((m) => m.status === "completed").length;
+  const rejectedCount = menus.filter((m) => m.status === "rejected").length;
 
   return (
     <RoleLayout
@@ -304,146 +229,6 @@ function MenuSchoolAdmin() {
         )}
       </Stack>
 
-      <Box mb={2}>
-        <Button
-          variant="contained"
-          color={showNutritionPlan ? "secondary" : "primary"}
-          onClick={handleScrollToNutritionPlan}
-          sx={{ textTransform: "none", fontWeight: 700 }}
-        >
-          {showNutritionPlan ? "Ẩn kế hoạch dinh dưỡng theo sở" : "Hiển thị kế hoạch dinh dưỡng theo sở"}
-        </Button>
-      </Box>
-
-      {showNutritionPlan && (
-        <Box ref={nutritionSectionRef} sx={{ p: 3, border: "1px solid #e5e7eb", borderRadius: 2, mb: 3, maxHeight: 360, overflowY: "auto", background: "#ffffff" }}>
-          <Typography variant="h6" fontWeight={700} mb={2}>
-            Kế hoạch dinh dưỡng theo sở
-          </Typography>
-
-          <TableContainer>
-            <Table size="small">
-              <TableHead>
-                <TableRow>
-                  <TableCell>Chỉ tiêu</TableCell>
-                  <TableCell>Mục tiêu Min</TableCell>
-                  <TableCell>Mục tiêu Max</TableCell>
-                  <TableCell>Giá trị thực tế</TableCell>
-                  <TableCell>Hành động</TableCell>
-                </TableRow>
-              </TableHead>
-              <TableBody>
-                {nutritionPlan.map((item) => (
-                  <TableRow key={item.id}>
-                    <TableCell>
-                      <TextField
-                        fullWidth
-                        size="small"
-                        value={item.name}
-                        onChange={(e) => handleUpdatePlanItem(item.id, "name", e.target.value)}
-                      />
-                    </TableCell>
-                    <TableCell>
-                      <TextField
-                        fullWidth
-                        size="small"
-                        type="number"
-                        value={item.min}
-                        onChange={(e) => handleUpdatePlanItem(item.id, "min", e.target.value)}
-                        inputProps={{ min: 0 }}
-                      />
-                    </TableCell>
-                    <TableCell>
-                      <TextField
-                        fullWidth
-                        size="small"
-                        type="number"
-                        value={item.max}
-                        onChange={(e) => handleUpdatePlanItem(item.id, "max", e.target.value)}
-                        inputProps={{ min: 0 }}
-                      />
-                    </TableCell>
-                    <TableCell>
-                      <TextField
-                        fullWidth
-                        size="small"
-                        type="number"
-                        value={item.actual}
-                        onChange={(e) => handleUpdatePlanItem(item.id, "actual", e.target.value)}
-                        inputProps={{ min: 0 }}
-                      />
-                    </TableCell>
-                    <TableCell>
-                      <IconButton color="error" size="small" onClick={() => handleDeletePlanItem(item.id)}>
-                        <DeleteIcon fontSize="small" />
-                      </IconButton>
-                    </TableCell>
-                  </TableRow>
-                ))}
-
-                <TableRow>
-                  <TableCell>
-                    <TextField
-                      fullWidth
-                      size="small"
-                      placeholder="Thêm mục mới"
-                      value={newPlanItem.name}
-                      onChange={(e) => setNewPlanItem((prev) => ({ ...prev, name: e.target.value }))}
-                    />
-                  </TableCell>
-                  <TableCell>
-                    <TextField
-                      fullWidth
-                      size="small"
-                      type="number"
-                      placeholder="Min"
-                      value={newPlanItem.min}
-                      onChange={(e) => setNewPlanItem((prev) => ({ ...prev, min: e.target.value }))}
-                    />
-                  </TableCell>
-                  <TableCell>
-                    <TextField
-                      fullWidth
-                      size="small"
-                      type="number"
-                      placeholder="Max"
-                      value={newPlanItem.max}
-                      onChange={(e) => setNewPlanItem((prev) => ({ ...prev, max: e.target.value }))}
-                    />
-                  </TableCell>
-                  <TableCell>
-                    <TextField
-                      fullWidth
-                      size="small"
-                      type="number"
-                      placeholder="Actual"
-                      value={newPlanItem.actual}
-                      onChange={(e) => setNewPlanItem((prev) => ({ ...prev, actual: e.target.value }))}
-                    />
-                  </TableCell>
-                  <TableCell>
-                    <Button variant="contained" size="small" onClick={handleAddPlanItem}>
-                      Thêm
-                    </Button>
-                  </TableCell>
-                </TableRow>
-              </TableBody>
-            </Table>
-          </TableContainer>
-
-          <Box mt={2} textAlign="right">
-            <Button
-              variant="outlined"
-              color="primary"
-              onClick={handleUpdateNutritionPlan}
-              disabled={nutritionSaving}
-            >
-              {nutritionSaving ? "Đang cập nhật..." : "Cập nhật"}
-            </Button>
-          </Box>
-        </Box>
-      )}
-
       {/* Tabs */}
       <Paper elevation={0} sx={{ borderRadius: 2, border: "1px solid #e5e7eb", mb: 3 }}>
         <Tabs
@@ -451,20 +236,29 @@ function MenuSchoolAdmin() {
           onChange={(_, v) => setTab(v)}
           sx={{ px: 2, "& .MuiTab-root": { fontWeight: 600, fontSize: 13, minHeight: 48 } }}
         >
-          {TABS.map((t) => (
-            <Tab
-              key={t.value}
-              value={t.value}
-              label={
-                t.value === "pending" && pendingCount > 0
-                  ? <Stack direction="row" alignItems="center" gap={0.75}>
-                      {t.label}
-                      <Chip label={pendingCount} size="small" color="warning" sx={{ height: 18, fontSize: 10, fontWeight: 700 }} />
-                    </Stack>
-                  : t.label
-              }
-            />
-          ))}
+          {TABS.map((t) => {
+            let badge = null;
+            if (t.value === "pending" && pendingCount > 0) {
+              badge = <Chip label={pendingCount} size="small" color="warning" sx={{ height: 18, fontSize: 10, fontWeight: 700 }} />;
+            } else if (t.value === "active" && activeCount > 0) {
+              badge = <Chip label={activeCount} size="small" color="info" sx={{ height: 18, fontSize: 10, fontWeight: 700 }} />;
+            } else if (t.value === "completed" && historyCount > 0) {
+              badge = <Chip label={historyCount} size="small" color="secondary" sx={{ height: 18, fontSize: 10, fontWeight: 700 }} />;
+            } else if (t.value === "rejected" && rejectedCount > 0) {
+              badge = <Chip label={rejectedCount} size="small" color="error" sx={{ height: 18, fontSize: 10, fontWeight: 700 }} />;
+            }
+            return (
+              <Tab
+                key={t.value}
+                value={t.value}
+                label={
+                  badge
+                    ? <Stack direction="row" alignItems="center" gap={0.75}>{t.label}{badge}</Stack>
+                    : t.label
+                }
+              />
+            );
+          })}
         </Tabs>
       </Paper>
 
@@ -483,8 +277,18 @@ function MenuSchoolAdmin() {
                     sx={{
                       p: 3, borderRadius: 2,
                       border: "1px solid",
-                      borderColor: menu.status === "pending" ? "#fde68a" : "#e5e7eb",
-                      bgcolor: menu.status === "pending" ? "#fffbeb" : "#fff",
+                      borderColor:
+                        menu.status === "pending"
+                          ? "#fde68a"
+                          : menu.status === "active"
+                            ? "#93c5fd"
+                            : "#e5e7eb",
+                      bgcolor:
+                        menu.status === "pending"
+                          ? "#fffbeb"
+                          : menu.status === "active"
+                            ? "#eff6ff"
+                            : "#fff",
                       transition: "box-shadow 0.15s",
                       "&:hover": { boxShadow: "0 2px 12px rgba(0,0,0,0.08)" },
                     }}
@@ -504,7 +308,7 @@ function MenuSchoolAdmin() {
                             sx={{ fontWeight: 600, fontSize: 11 }}
                           />
                         </Stack>
-                        <Stack direction="row" alignItems="center" gap={0.75}>
+                        <Stack direction="row" alignItems="center" gap={0.75} flexWrap="wrap">
                           <PersonIcon sx={{ fontSize: 15, color: "#9ca3af" }} />
                           <Typography variant="body2" color="text.secondary">
                             Tạo bởi: <strong>{menu.createdBy?.fullName || "Không rõ"}</strong>
@@ -514,6 +318,16 @@ function MenuSchoolAdmin() {
                             {new Date(menu.createdAt).toLocaleDateString("vi-VN")}
                           </Typography>
                         </Stack>
+                        {menu.status === "active" && menu.appliedAt && (
+                          <Typography variant="caption" color="primary.main" display="block" mt={0.75}>
+                            Áp dụng từ: {new Date(menu.appliedAt).toLocaleString("vi-VN")}
+                          </Typography>
+                        )}
+                        {menu.status === "completed" && menu.endedAt && (
+                          <Typography variant="caption" color="text.secondary" display="block" mt={0.75}>
+                            Kết thúc: {new Date(menu.endedAt).toLocaleString("vi-VN")}
+                          </Typography>
+                        )}
                       </Box>
 
                       {/* Actions */}
@@ -550,13 +364,45 @@ function MenuSchoolAdmin() {
                                 size="small"
                                 color="error"
                                 startIcon={<CancelIcon />}
-                                onClick={() => setConfirmReject(menu)}
+                                onClick={() => {
+                                  setRejectDetail("");
+                                  setRejectPresetSel({});
+                                  setConfirmReject(menu);
+                                }}
                                 sx={{ borderRadius: 1.5, textTransform: "none", fontWeight: 600 }}
                               >
                                 Từ chối
                               </Button>
                             </Tooltip>
                           </>
+                        )}
+                        {menu.status === "approved" && (
+                          <Tooltip title="Áp dụng làm thực đơn hiện tại của trường">
+                            <Button
+                              variant="contained"
+                              size="small"
+                              color="primary"
+                              startIcon={<ApplyIcon />}
+                              onClick={() => setConfirmApply(menu)}
+                              sx={{ borderRadius: 1.5, textTransform: "none", fontWeight: 600 }}
+                            >
+                              Áp dụng
+                            </Button>
+                          </Tooltip>
+                        )}
+                        {menu.status === "active" && (
+                          <Tooltip title="Kết thúc và chuyển vào lịch sử">
+                            <Button
+                              variant="contained"
+                              size="small"
+                              color="warning"
+                              startIcon={<EndMenuIcon />}
+                              onClick={() => setConfirmEnd(menu)}
+                              sx={{ borderRadius: 1.5, textTransform: "none", fontWeight: 600 }}
+                            >
+                              Kết thúc
+                            </Button>
+                          </Tooltip>
                         )}
                       </Stack>
                     </Stack>
@@ -582,29 +428,92 @@ function MenuSchoolAdmin() {
       />
 
       {/* Reject Dialog */}
-      <Dialog open={!!confirmReject} onClose={() => setConfirmReject(null)} maxWidth="xs" fullWidth>
+      <Dialog
+        open={!!confirmReject}
+        onClose={() => { setConfirmReject(null); setRejectDetail(""); setRejectPresetSel({}); }}
+        maxWidth="sm"
+        fullWidth
+      >
         <DialogTitle fontWeight={700}>Từ chối duyệt thực đơn</DialogTitle>
         <DialogContent>
           {confirmReject && (
             <Typography mb={2} color="text.secondary">
-              Từ chối Thực đơn Tháng <strong>{confirmReject.month}/{confirmReject.year}</strong>?
+              Từ chối Thực đơn Tháng <strong>{confirmReject.month}/{confirmReject.year}</strong>. Nội dung sẽ gửi cho bộ phận bếp.
             </Typography>
           )}
+          <Typography variant="subtitle2" fontWeight={700} gutterBottom>
+            Gợi ý lý do (chọn một hoặc nhiều)
+          </Typography>
+          <FormGroup sx={{ mb: 2 }}>
+            {MENU_REJECT_PRESETS.map((p) => (
+              <FormControlLabel
+                key={p.id}
+                control={
+                  <Checkbox
+                    size="small"
+                    checked={!!rejectPresetSel[p.id]}
+                    onChange={() =>
+                      setRejectPresetSel((prev) => ({ ...prev, [p.id]: !prev[p.id] }))
+                    }
+                  />
+                }
+                label={<Typography variant="body2">{p.label}</Typography>}
+              />
+            ))}
+          </FormGroup>
           <TextField
-            fullWidth multiline rows={3}
-            label="Lý do từ chối *"
-            placeholder="Nhập lý do từ chối để thông báo cho người tạo..."
-            value={rejectReason}
-            onChange={(e) => setRejectReason(e.target.value)}
+            fullWidth
+            multiline
+            minRows={4}
+            label="Chi tiết lý do từ chối"
+            placeholder="Mô tả cụ thể để bếp chỉnh sửa (bắt buộc nếu không chọn gợi ý nào ở trên, tối thiểu 5 ký tự)..."
+            value={rejectDetail}
+            onChange={(e) => setRejectDetail(e.target.value)}
           />
         </DialogContent>
         <DialogActions sx={{ px: 3, pb: 2 }}>
-          <Button onClick={() => { setConfirmReject(null); setRejectReason(""); }}>Hủy</Button>
+          <Button
+            onClick={() => {
+              setConfirmReject(null);
+              setRejectDetail("");
+              setRejectPresetSel({});
+            }}
+          >
+            Hủy
+          </Button>
           <Button variant="contained" color="error" onClick={handleReject}>
             Xác nhận từ chối
           </Button>
         </DialogActions>
       </Dialog>
+
+      <ConfirmDialog
+        open={!!confirmApply}
+        title="Áp dụng thực đơn"
+        message={
+          confirmApply
+            ? `Áp dụng Thực đơn Tháng ${confirmApply.month}/${confirmApply.year}? Thực đơn đang áp dụng (nếu có) sẽ được kết thúc và lưu lịch sử.`
+            : ""
+        }
+        confirmText="Áp dụng"
+        cancelText="Hủy"
+        onConfirm={handleApply}
+        onCancel={() => setConfirmApply(null)}
+      />
+
+      <ConfirmDialog
+        open={!!confirmEnd}
+        title="Kết thúc thực đơn"
+        message={
+          confirmEnd
+            ? `Kết thúc Thực đơn Tháng ${confirmEnd.month}/${confirmEnd.year}? Thực đơn sẽ chuyển sang lịch sử.`
+            : ""
+        }
+        confirmText="Kết thúc"
+        cancelText="Hủy"
+        onConfirm={handleEndMenu}
+        onCancel={() => setConfirmEnd(null)}
+      />
     </RoleLayout>
   );
 }

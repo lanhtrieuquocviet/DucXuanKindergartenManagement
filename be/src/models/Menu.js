@@ -34,6 +34,30 @@ const menuSchema = new mongoose.Schema(
       type: String,
       default: "",
     },
+
+    /** Mã lý do gợi ý (vd: nutrition, other, ...) */
+    rejectPresets: {
+      type: [String],
+      default: [],
+    },
+
+    /** Chi tiết phản hồi của ban giám hiệu */
+    rejectDetail: {
+      type: String,
+      default: "",
+    },
+
+    /** Thời điểm bấm "Áp dụng" (chuyển sang đang áp dụng) */
+    appliedAt: {
+      type: Date,
+      default: null,
+    },
+
+    /** Thời điểm bấm "Kết thúc" (chuyển sang lịch sử / completed) */
+    endedAt: {
+      type: Date,
+      default: null,
+    },
     nutrition: {
       calories: { type: Number, default: 0 },
       protein: { type: Number, default: 0 },

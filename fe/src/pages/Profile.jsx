@@ -185,7 +185,7 @@ function HeroBanner({ gradient, roleLabel, extra, currentAvatar, displayName, us
 
 function Profile() {
   const navigate = useNavigate();
-  const { user, logout, getProfile, updateProfile, changePassword, isInitializing } = useAuth();
+  const { user, token, logout, getProfile, updateProfile, changePassword, isInitializing } = useAuth();
   const userRoles = user?.roles?.map((r) => r.roleName || r) || [];
   const isStudentRole = userRoles.includes('Student') || userRoles.includes('Parent') || userRoles.includes('StudentParent');
 
@@ -267,7 +267,7 @@ function Profile() {
 
     setChangingPassword(true);
     try {
-      await changePassword(passwordForm.currentPassword, passwordForm.newPassword);
+      await changePassword(passwordForm.currentPassword, passwordForm.newPassword, token);
       toast.success('Đổi mật khẩu thành công. Vui lòng đăng nhập lại.');
       new BroadcastChannel('auth_channel').postMessage({ type: 'LOGOUT_ALL_TABS' });
       await logout();

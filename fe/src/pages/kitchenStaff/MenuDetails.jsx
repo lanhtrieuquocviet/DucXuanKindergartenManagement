@@ -7,6 +7,7 @@ import {
   getFoods,
   getNutritionPlanSetting,
 } from "../../service/menu.api";
+import { labelForRejectPreset } from "../../constants/menuRejectPresets";
 import { toast } from "react-toastify";
 import FoodSelectorModal from "../../components/FoodSelectorModal";
 import { downloadMenuTemplate, exportMenuToExcel } from "../../utils/excelMenuTemplate";
@@ -36,8 +37,8 @@ import {
   alpha,
   List,
   ListItem,
-  ListItemIcon,
   ListItemText,
+  Alert,
 } from "@mui/material";
 import {
   ArrowBack as BackIcon,
@@ -48,7 +49,6 @@ import {
   Opacity as FatIcon,
   Grain as CarbIcon,
   Send as SendIcon,
-  Warning as WarningIcon,
   ErrorOutline as ErrorIcon,
   Download as DownloadIcon,
   Upload as UploadIcon,
@@ -349,8 +349,6 @@ function MenuDetail() {
   const [submitting, setSubmitting] = useState(false);
   const [selectedCell, setSelectedCell] = useState(null);
   const [cellFoods, setCellFoods] = useState([]);
-  const [incompleteItems, setIncompleteItems] = useState([]);
-  const [showErrorDialog, setShowErrorDialog] = useState(false);
   const [importDialogOpen, setImportDialogOpen] = useState(false);
   const [importErrors, setImportErrors] = useState([]);
   const [importUpdates, setImportUpdates] = useState([]);
@@ -433,7 +431,7 @@ function MenuDetail() {
   const fetchNutritionPlanSetting = async () => {
     try {
       const res = await getNutritionPlanSetting();
-      const rows = Array.isArray(res?.data?.data) ? res.data.data : [];
+      const rows = Array.isArray(res?.data) ? res.data : [];
       setNutritionRanges(getNutritionRangesFromPlan(rows));
     } catch {
       setNutritionRanges(DEFAULT_NUTRITION_RANGES);
@@ -516,48 +514,6 @@ function MenuDetail() {
   };
 
   const handleOpenSubmitDialog = () => {
-    const missing = [];
-    const nutritionIssues = [];
-    
-    const checkWeek = (weekData, weekLabel) => {
-      if (!weekData) return;
-      days.forEach(dayKey => {
-        const dayData = weekData[dayKey];
-        
-        // Check if foods are filled
-        if (!dayData?.lunchFoods || dayData.lunchFoods.length === 0) {
-          missing.push(`${dayMap[dayKey]} (${weekLabel}) - Bữa trưa`);
-        }
-        if (!dayData?.afternoonFoods || dayData.afternoonFoods.length === 0) {
-          missing.push(`${dayMap[dayKey]} (${weekLabel}) - Bữa chiều`);
-        }
-        
-        // Check nutritional standards for the day
-        const hasFood = (dayData?.lunchFoods?.length || 0) > 0 || (dayData?.afternoonFoods?.length || 0) > 0;
-        if (hasFood) {
-          const evaluation = evaluateDailyNutrition(dayData, nutritionRanges);
-          if (!evaluation.pass) {
-            const reasons = evaluation.reasons.join(", ");
-            nutritionIssues.push(`${dayMap[dayKey]} (${weekLabel}): ${reasons}`);
-          }
-        }
-      });
-    };
-
-    checkWeek(menu.weeks?.odd, "Tuần lẻ");
-    checkWeek(menu.weeks?.even, "Tuần chẵn");
-
-    // Combine all issues
-    const allIssues = [
-      ...missing.map(item => `❌ Thiếu dữ liệu: ${item}`),
-      ...nutritionIssues.map(item => `⚠️ Không đạt chuẩn dinh dưỡng: ${item}`)
-    ];
-
-    if (allIssues.length > 0) {
-      setIncompleteItems(allIssues);
-      setShowErrorDialog(true);
-      return;
-    }
     setShowSubmitDialog(true);
   };
 
@@ -627,7 +583,7 @@ function MenuDetail() {
           <Typography variant="h5" fontWeight={800}>Thực đơn Tháng {menu.month}/{menu.year}</Typography>
           {menu.status === "rejected" && (
             <Typography variant="body2" color="error.main" sx={{ mt: 0.5, fontWeight: 600 }}>
-              * Thực đơn bị từ chối. Vui lòng kiểm tra, sửa đổi và gửi lại.
+              Chỉnh sửa thực đơn bên dưới rồi bấm &quot;Gửi lại thực đơn&quot;.
             </Typography>
           )}
         </Box>
@@ -683,6 +639,37 @@ function MenuDetail() {
         onChange={handleFileChange} 
         style={{ display: 'none' }} 
       />
+
+      {menu.status === "rejected" && (menu.rejectPresets?.length > 0 || menu.rejectDetail || menu.rejectReason) && (
+        <Alert severity="error" sx={{ mb: 3, borderRadius: 2 }}>
+          <Typography variant="subtitle2" fontWeight={800} gutterBottom>
+            Lý do từ chối (từ ban giám hiệu)
+          </Typography>
+          {Array.isArray(menu.rejectPresets) && menu.rejectPresets.length > 0 && (
+            <Stack direction="row" flexWrap="wrap" gap={0.75} sx={{ mb: menu.rejectDetail ? 1 : 0 }}>
+              {menu.rejectPresets.map((pid) => (
+                <Chip
+                  key={pid}
+                  size="small"
+                  label={labelForRejectPreset(pid)}
+                  color="error"
+                  variant="outlined"
+                  sx={{ fontWeight: 600 }}
+                />
+              ))}
+            </Stack>
+          )}
+          {menu.rejectDetail ? (
+            <Typography variant="body2" sx={{ whiteSpace: "pre-wrap", fontWeight: 500 }}>
+              Chi tiết: {menu.rejectDetail}
+            </Typography>
+          ) : menu.rejectReason ? (
+            <Typography variant="body2" sx={{ whiteSpace: "pre-wrap" }}>
+              {menu.rejectReason}
+            </Typography>
+          ) : null}
+        </Alert>
+      )}
 
       {menu?.nutrition && (
         <Card elevation={0} sx={{ border: '1px solid', borderColor: nutritionEvaluation.overallPass ? 'success.main' : 'warning.main', borderRadius: 3, mb: 4, p: 2, bgcolor: nutritionEvaluation.overallPass ? 'success.50' : 'warning.50' }}>
@@ -773,42 +760,12 @@ function MenuDetail() {
 
       <FoodSelectorModal open={showFoodModal} selectedFoods={cellFoods} onClose={() => setShowFoodModal(false)} onSave={handleSaveFoods} />
 
-      {/* DIALOG LỖI: CHƯA ĐIỀN ĐỦ */}
-      <Dialog open={showErrorDialog} onClose={() => setShowErrorDialog(false)} maxWidth="sm" fullWidth PaperProps={{ sx: { borderRadius: 3 } }}>
-        <DialogTitle sx={{ display: 'flex', alignItems: 'center', gap: 1, color: 'error.main', fontWeight: 700 }}>
-          <ErrorIcon color="error" /> Thực đơn chưa sẵn sàng gửi duyệt
-        </DialogTitle>
-        <DialogContent>
-          <Typography variant="body2" color="text.secondary" mb={2}>
-            Để gửi duyệt, thực đơn phải đầy đủ dữ liệu và đạt chuẩn dinh dưỡng cho tất cả các ngày. Vui lòng kiểm tra các vấn đề sau:
-          </Typography>
-          <Box sx={{ maxHeight: 300, overflow: 'auto', bgcolor: 'grey.50', borderRadius: 2, p: 1, border: '1px solid #eee' }}>
-            <List dense>
-              {incompleteItems.map((item, index) => (
-                <ListItem key={index}>
-                  <ListItemText 
-                    primary={item} 
-                    primaryTypographyProps={{ variant: 'caption', fontWeight: 600, fontSize: '0.85rem' }}
-                    sx={{ my: 0.5 }}
-                  />
-                </ListItem>
-              ))}
-            </List>
-          </Box>
-        </DialogContent>
-        <DialogActions sx={{ p: 2.5 }}>
-          <Button onClick={() => setShowErrorDialog(false)} variant="contained" color="inherit" fullWidth sx={{ borderRadius: 2, textTransform: 'none' }}>
-            Tôi sẽ bổ sung ngay
-          </Button>
-        </DialogActions>
-      </Dialog>
-
       {/* DIALOG XÁC NHẬN GỬI */}
       <Dialog open={showSubmitDialog} onClose={() => !submitting && setShowSubmitDialog(false)} maxWidth="xs" fullWidth PaperProps={{ sx: { borderRadius: 3 } }}>
         <DialogTitle sx={{ fontWeight: 700 }}>Xác nhận gửi duyệt</DialogTitle>
         <DialogContent>
           <DialogContentText variant="body2">
-            Hệ thống đã kiểm tra, thực đơn đã đầy đủ. Bạn chắc chắn muốn gửi chứ?
+            Bạn có chắc muốn gửi thực đơn lên duyệt?
           </DialogContentText>
         </DialogContent>
         <DialogActions sx={{ pb: 2.5, px: 3 }}>

@@ -11,9 +11,10 @@ import {
   CardContent,
   Chip,
   InputAdornment,
-  MenuItem,
-  Select,
   Skeleton,
+  Paper,
+  Tabs,
+  Tab,
   Stack,
   TextField,
   Typography,
@@ -26,7 +27,6 @@ import {
   CalendarMonth as CalendarIcon,
   ArrowForward as ArrowIcon,
   Clear as ClearIcon,
-  FilterList as FilterIcon,
 } from "@mui/icons-material";
 
 const STATUS_CONFIG = {
@@ -35,8 +35,18 @@ const STATUS_CONFIG = {
   draft: { label: "Nháp", color: "default" },
   rejected: { label: "Từ chối", color: "error" },
   active: { label: "Đang áp dụng", color: "info" },
-  completed: { label: "Hoàn thành", color: "secondary" },
+  completed: { label: "Lịch sử", color: "secondary" },
 };
+
+const TABS = [
+  { value: "all", label: "Tất cả" },
+  { value: "draft", label: "Nháp" },
+  { value: "pending", label: "Chờ duyệt" },
+  { value: "approved", label: "Đã duyệt" },
+  { value: "active", label: "Đang áp dụng" },
+  { value: "completed", label: "Lịch sử" },
+  { value: "rejected", label: "Từ chối" },
+];
 
 const MONTH_NAMES = [
   "", "Tháng 1", "Tháng 2", "Tháng 3", "Tháng 4",
@@ -66,7 +76,7 @@ function MenuManagement() {
   const [menus, setMenus] = useState([]);
   const [loading, setLoading] = useState(false);
   const [search, setSearch] = useState("");
-  const [statusFilter, setStatusFilter] = useState("all");
+  const [tab, setTab] = useState("all");
   const navigate = useNavigate();
 
   useEffect(() => {
@@ -76,8 +86,9 @@ function MenuManagement() {
   const fetchMenus = async () => {
     try {
       setLoading(true);
-      const res = await getMenus();
-      setMenus(res.data || []);
+      const res = await getMenus({ limit: 500 });
+      const list = Array.isArray(res?.data) ? res.data : [];
+      setMenus(list);
     } catch {
       toast.error("Không thể tải danh sách thực đơn");
     } finally {
@@ -87,7 +98,7 @@ function MenuManagement() {
 
   const filtered = useMemo(() => {
     return menus.filter((m) => {
-      const matchStatus = statusFilter === "all" || m.status === statusFilter;
+      const matchStatus = tab === "all" || m.status === tab;
       const q = search.toLowerCase();
       const matchSearch =
         !q ||
@@ -96,7 +107,7 @@ function MenuManagement() {
         String(m.year).includes(q);
       return matchStatus && matchSearch;
     });
-  }, [menus, search, statusFilter]);
+  }, [menus, search, tab]);
 
   const stats = useMemo(() => ({
     total: menus.length,
@@ -104,6 +115,11 @@ function MenuManagement() {
     active: menus.filter((m) => m.status === "active").length,
     draft: menus.filter((m) => m.status === "draft").length,
   }), [menus]);
+
+  const pendingCount = menus.filter((m) => m.status === "pending").length;
+  const activeCount = menus.filter((m) => m.status === "active").length;
+  const historyCount = menus.filter((m) => m.status === "completed").length;
+  const rejectedCount = menus.filter((m) => m.status === "rejected").length;
 
   return (
     <Box>
@@ -153,50 +169,69 @@ function MenuManagement() {
         <StatCard label="Nháp" count={stats.draft} color="secondary" />
       </Stack>
 
-      {/* Filter bar */}
-      <Stack direction={{ xs: "column", sm: "row" }} spacing={1.5} mb={2.5}>
-        <TextField
-          size="small"
-          placeholder="Tìm theo tháng/năm..."
-          value={search}
-          onChange={(e) => setSearch(e.target.value)}
-          sx={{ flex: 1 }}
-          InputProps={{
-            startAdornment: (
-              <InputAdornment position="start">
-                <SearchIcon sx={{ fontSize: 18, color: "text.disabled" }} />
-              </InputAdornment>
-            ),
-            endAdornment: search && (
-              <InputAdornment position="end">
-                <ClearIcon
-                  sx={{ fontSize: 16, cursor: "pointer", color: "text.disabled" }}
-                  onClick={() => setSearch("")}
-                />
-              </InputAdornment>
-            ),
-            sx: { borderRadius: 2 },
-          }}
-        />
-        <Select
-          size="small"
-          value={statusFilter}
-          onChange={(e) => setStatusFilter(e.target.value)}
-          startAdornment={
-            <InputAdornment position="start">
-              <FilterIcon sx={{ fontSize: 16, color: "text.disabled", mr: 0.5 }} />
-            </InputAdornment>
-          }
-          sx={{ minWidth: 160, borderRadius: 2 }}
+      <Paper elevation={0} sx={{ borderRadius: 2, border: "1px solid", borderColor: "divider", mb: 2.5 }}>
+        <Tabs
+          value={tab}
+          onChange={(_, v) => setTab(v)}
+          variant="scrollable"
+          scrollButtons="auto"
+          sx={{ px: 1, "& .MuiTab-root": { fontWeight: 600, fontSize: 12, minHeight: 44 } }}
         >
-          <MenuItem value="all">Tất cả trạng thái</MenuItem>
-          {Object.entries(STATUS_CONFIG).map(([key, cfg]) => (
-            <MenuItem key={key} value={key}>
-              {cfg.label}
-            </MenuItem>
-          ))}
-        </Select>
-      </Stack>
+          {TABS.map((t) => {
+            let badge = null;
+            if (t.value === "pending" && pendingCount > 0) {
+              badge = <Chip label={pendingCount} size="small" color="warning" sx={{ height: 18, fontSize: 10, fontWeight: 700 }} />;
+            } else if (t.value === "active" && activeCount > 0) {
+              badge = <Chip label={activeCount} size="small" color="info" sx={{ height: 18, fontSize: 10, fontWeight: 700 }} />;
+            } else if (t.value === "completed" && historyCount > 0) {
+              badge = <Chip label={historyCount} size="small" color="secondary" sx={{ height: 18, fontSize: 10, fontWeight: 700 }} />;
+            } else if (t.value === "rejected" && rejectedCount > 0) {
+              badge = <Chip label={rejectedCount} size="small" color="error" sx={{ height: 18, fontSize: 10, fontWeight: 700 }} />;
+            }
+            return (
+              <Tab
+                key={t.value}
+                value={t.value}
+                label={
+                  badge ? (
+                    <Stack direction="row" alignItems="center" gap={0.5}>
+                      {t.label}
+                      {badge}
+                    </Stack>
+                  ) : (
+                    t.label
+                  )
+                }
+              />
+            );
+          })}
+        </Tabs>
+      </Paper>
+
+      <TextField
+        size="small"
+        placeholder="Tìm theo tháng/năm..."
+        value={search}
+        onChange={(e) => setSearch(e.target.value)}
+        fullWidth
+        sx={{ mb: 2.5 }}
+        InputProps={{
+          startAdornment: (
+            <InputAdornment position="start">
+              <SearchIcon sx={{ fontSize: 18, color: "text.disabled" }} />
+            </InputAdornment>
+          ),
+          endAdornment: search && (
+            <InputAdornment position="end">
+              <ClearIcon
+                sx={{ fontSize: 16, cursor: "pointer", color: "text.disabled" }}
+                onClick={() => setSearch("")}
+              />
+            </InputAdornment>
+          ),
+          sx: { borderRadius: 2 },
+        }}
+      />
 
       {/* Menu list */}
       {loading ? (
@@ -231,11 +266,11 @@ function MenuManagement() {
             <MenuIcon sx={{ fontSize: 32, color: "grey.400" }} />
           </Avatar>
           <Typography fontWeight={600} color="text.secondary">
-            {search || statusFilter !== "all"
+            {search || tab !== "all"
               ? "Không tìm thấy thực đơn phù hợp"
               : "Chưa có thực đơn nào"}
           </Typography>
-          {!search && statusFilter === "all" && (
+          {!search && tab === "all" && (
             <Button
               size="small"
               startIcon={<AddIcon />}

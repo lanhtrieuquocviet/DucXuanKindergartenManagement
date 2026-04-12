@@ -69,6 +69,7 @@ require('./src/models/HomepageBannerSetting');
 require('./src/models/ImageLibraryItem');
 require('./src/models/VideoClipItem');
 require('./src/models/NutritionPlanSetting');
+require('./src/models/DistrictNutritionPlan');
 require('./src/models/InspectionCommittee');
 require('./src/models/InspectionMinutes');
 

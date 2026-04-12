@@ -34,6 +34,7 @@ import {
   Group as GroupIcon,
   Article as ArticleIcon,
   ReportProblem as ReportProblemIcon,
+  AssignmentTurnedIn as AssignmentTurnedInIcon,
 } from '@mui/icons-material';
 import { CurrencyIcon } from 'lucide-react';
 
@@ -77,6 +78,7 @@ export const KEY_ICONS = {
   qa:                     <QaIcon fontSize="small" />,
   menu:                   <MenuBookIcon fontSize="small" />,
   'meal-management':      <RestaurantIcon fontSize="small" />,
+  'district-nutrition-plan': <AssignmentTurnedInIcon fontSize="small" />,
   contacts:               <EmailIcon fontSize="small" />,
   'contacts-list':        <EmailIcon fontSize="small" />,
   'assets-list':          <InventoryIcon fontSize="small" />,
