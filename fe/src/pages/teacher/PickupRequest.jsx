@@ -124,7 +124,7 @@ function RequestCard({ req, onAction, onPreviewImage }) {
 function PickupRequest() {
   const navigate = useNavigate();
   const location = useLocation();
-  const { user, isInitializing, hasPermission } = useAuth();
+  const { user, isInitializing, hasPermission, hasRole } = useAuth();
 
   const [myClasses, setMyClasses] = useState(null); // null = chưa load
   const [requests, setRequests] = useState([]);
@@ -150,8 +150,8 @@ function PickupRequest() {
     { key: "schedule",         label: "Lịch dạy & hoạt động" },
     { key: "purchase-request", label: "Cơ sở vật chất" },
     { key: "class-assets",     label: "Tài sản lớp" },
-    ...(hasPermission("MANAGE_INSPECTION") ? [{ key: "asset-inspection", label: "Kiểm kê tài sản" }] : []),
-  ], [hasPermission]);
+    ...(hasRole("InventoryStaff") ? [{ key: "asset-inspection", label: "Kiểm kê tài sản" }] : []),
+  ], [hasPermission, hasRole]);
 
   const activeKey = useMemo(() => {
     const path = location.pathname || "";

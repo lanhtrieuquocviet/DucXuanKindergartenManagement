@@ -82,7 +82,7 @@ function ClassCard({ cls, onClick, colorIdx }) {
   );
 }
 
-function getTeacherMenuItems(hasPermission) {
+function getTeacherMenuItems(hasPermission, hasRole) {
   const ALL_TEACHER_MENU = [
     { key: 'classes', label: 'Lớp phụ trách' },
     { key: 'students', label: 'Danh sách học sinh' },
@@ -91,17 +91,19 @@ function getTeacherMenuItems(hasPermission) {
     { key: 'schedule', label: 'Lịch dạy & hoạt động' },
     { key: 'purchase-request', label: 'Cơ sở vật chất', permission: 'MANAGE_PURCHASE_REQUEST' },
     { key: 'class-assets', label: 'Tài sản lớp', permission: 'MANAGE_ASSET' },
-    { key: 'asset-inspection', label: 'Kiểm kê tài sản', permission: 'MANAGE_INSPECTION' },
+    { key: 'asset-inspection', label: 'Kiểm kê tài sản', role: 'InventoryStaff' },
   ];
-  return ALL_TEACHER_MENU.filter(
-    (item) => !item.permission || hasPermission(item.permission)
-  );
+  return ALL_TEACHER_MENU.filter((item) => {
+    if (item.permission) return hasPermission(item.permission);
+    if (item.role) return hasRole(item.role);
+    return true;
+  });
 }
 
 export default function ContactBook() {
   const navigate = useNavigate();
   const location = useLocation();
-  const { user, logout, isInitializing, hasPermission } = useAuth();
+  const { user, logout, isInitializing, hasPermission, hasRole } = useAuth();
 
   const [classes, setClasses] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -125,8 +127,8 @@ export default function ContactBook() {
   }, [user, isInitializing, navigate]);
 
   const menuItems = useMemo(
-    () => getTeacherMenuItems(hasPermission),
-    [hasPermission]
+    () => getTeacherMenuItems(hasPermission, hasRole),
+    [hasPermission, hasRole]
   );
 
   const activeKey = useMemo(() => {

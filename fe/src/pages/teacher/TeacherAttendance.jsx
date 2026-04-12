@@ -60,7 +60,7 @@ function TeacherAttendance() {
   const navigate = useNavigate();
   const location = useLocation();
   const { classId } = useParams();
-  const { user, logout, isInitializing, hasPermission } = useAuth();
+  const { user, logout, isInitializing, hasPermission, hasRole } = useAuth();
   const todayISO = getLocalISODate();
 
   // ── State: lớp & học sinh ──
@@ -309,9 +309,9 @@ function TeacherAttendance() {
       { key: 'schedule', label: 'Lịch dạy & hoạt động' },
       { key: 'purchase-request', label: 'Cơ sở vật chất' },
       { key: 'class-assets', label: 'Tài sản lớp' },
-      ...(hasPermission('MANAGE_INSPECTION') ? [{ key: 'asset-inspection', label: 'Kiểm kê tài sản' }] : []),
+      ...(hasRole('InventoryStaff') ? [{ key: 'asset-inspection', label: 'Kiểm kê tài sản' }] : []),
     ],
-    [hasPermission]
+    [hasPermission, hasRole]
   );
 
   const activeKey = useMemo(() => {

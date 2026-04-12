@@ -64,7 +64,7 @@ function ConfirmDialog({ open, title, message, onConfirm, onCancel, loading }) {
 
 export default function TeacherPurchaseRequest() {
   const navigate  = useNavigate();
-  const { user, logout, isInitializing, hasPermission } = useAuth();
+  const { user, logout, isInitializing, hasPermission, hasRole } = useAuth();
   const fileInputRef = useRef(null);
 
   const [loading, setLoading]           = useState(true);
@@ -208,8 +208,8 @@ export default function TeacherPurchaseRequest() {
     { key: 'schedule',         label: 'Lịch dạy & hoạt động' },
     { key: 'purchase-request', label: 'Cơ sở vật chất' },
     { key: 'class-assets',     label: 'Tài sản lớp' },
-    ...(hasPermission('MANAGE_INSPECTION') ? [{ key: 'asset-inspection', label: 'Kiểm kê tài sản' }] : []),
-  ], [hasPermission]);
+    ...(hasRole('InventoryStaff') ? [{ key: 'asset-inspection', label: 'Kiểm kê tài sản' }] : []),
+  ], [hasPermission, hasRole]);
 
   const handleMenuSelect = (key) => {
     const MAP = {

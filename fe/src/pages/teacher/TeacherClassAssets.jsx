@@ -119,7 +119,7 @@ function AssetTable({ title, assets }) {
 // ── Main component ─────────────────────────────────────────────────────────
 export default function TeacherClassAssets() {
   const navigate = useNavigate();
-  const { user, logout, isInitializing, hasPermission } = useAuth();
+  const { user, logout, isInitializing, hasPermission, hasRole } = useAuth();
 
   const [loading, setLoading]         = useState(true);
   const [allocation, setAlloc]        = useState(null);
@@ -166,7 +166,7 @@ export default function TeacherClassAssets() {
     { key: 'schedule',         label: 'Lịch dạy & hoạt động' },
     { key: 'purchase-request', label: 'Cơ sở vật chất' },
     { key: 'class-assets',     label: 'Tài sản lớp' },
-    ...(hasPermission('MANAGE_INSPECTION') ? [{ key: 'asset-inspection', label: 'Kiểm kê tài sản' }] : []),
+    ...(hasRole('InventoryStaff') ? [{ key: 'asset-inspection', label: 'Kiểm kê tài sản' }] : []),
   ];
 
   const handleMenuSelect = (key) => {

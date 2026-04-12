@@ -104,7 +104,7 @@ export default function TeacherAssetInspection() {
   const navigate  = useNavigate();
   const theme     = useTheme();
   const isMobile  = useMediaQuery(theme.breakpoints.down('sm'));
-  const { user, logout, isInitializing, hasPermission } = useAuth();
+  const { user, logout, isInitializing, hasPermission, hasRole } = useAuth();
 
   const [loading, setLoading]         = useState(true);
   const [minutes, setMinutes]         = useState([]);
@@ -279,7 +279,7 @@ export default function TeacherAssetInspection() {
     { key: 'schedule',         label: 'Lịch dạy & hoạt động' },
     { key: 'purchase-request', label: 'Cơ sở vật chất' },
     { key: 'class-assets',     label: 'Tài sản lớp' },
-    ...(hasPermission('MANAGE_INSPECTION') ? [{ key: 'asset-inspection', label: 'Kiểm kê tài sản' }] : []),
+    ...(hasRole('InventoryStaff') ? [{ key: 'asset-inspection', label: 'Kiểm kê tài sản' }] : []),
   ];
 
   const handleMenuSelect = (key) => {

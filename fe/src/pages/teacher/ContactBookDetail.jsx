@@ -57,7 +57,7 @@ function genderLabel(g) {
   return 'Khác';
 }
 
-function getTeacherMenuItems(hasPermission) {
+function getTeacherMenuItems(hasPermission, hasRole) {
   const ALL_TEACHER_MENU = [
     { key: 'classes', label: 'Lớp phụ trách' },
     { key: 'students', label: 'Danh sách học sinh' },
@@ -66,11 +66,13 @@ function getTeacherMenuItems(hasPermission) {
     { key: 'schedule', label: 'Lịch dạy & hoạt động' },
     { key: 'purchase-request', label: 'Cơ sở vật chất', permission: 'MANAGE_PURCHASE_REQUEST' },
     { key: 'class-assets', label: 'Tài sản lớp', permission: 'MANAGE_ASSET' },
-    { key: 'asset-inspection', label: 'Kiểm kê tài sản', permission: 'MANAGE_INSPECTION' },
+    { key: 'asset-inspection', label: 'Kiểm kê tài sản', role: 'InventoryStaff' },
   ];
-  return ALL_TEACHER_MENU.filter(
-    (item) => !item.permission || hasPermission(item.permission)
-  );
+  return ALL_TEACHER_MENU.filter((item) => {
+    if (item.permission) return hasPermission(item.permission);
+    if (item.role) return hasRole(item.role);
+    return true;
+  });
 }
 
 // ── InfoRow ──────────────────────────────────────────────────
@@ -733,7 +735,7 @@ export default function ContactBookDetail() {
   const { classId } = useParams();
   const navigate = useNavigate();
   const location = useLocation();
-  const { user, logout, isInitializing, hasPermission } = useAuth();
+  const { user, logout, isInitializing, hasPermission, hasRole } = useAuth();
 
   const [classInfo, setClassInfo]       = useState(null);
   const [students, setStudents]         = useState([]);
@@ -788,8 +790,8 @@ export default function ContactBookDetail() {
   }, [selected]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const menuItems = useMemo(
-    () => getTeacherMenuItems(hasPermission),
-    [hasPermission]
+    () => getTeacherMenuItems(hasPermission, hasRole),
+    [hasPermission, hasRole]
   );
 
   const activeKey = useMemo(() => {
