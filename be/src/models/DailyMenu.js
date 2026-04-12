@@ -1,5 +1,29 @@
 const mongoose = require("mongoose");
 
+const mealIngredientLineSchema = new mongoose.Schema(
+  {
+    name: { type: String, required: true, trim: true },
+    grams: { type: Number, default: 100 },
+    caloriesPer100g: { type: Number, default: 0 },
+    proteinPer100g: { type: Number, default: 0 },
+    fatPer100g: { type: Number, default: 0 },
+    carbPer100g: { type: Number, default: 0 },
+  },
+  { _id: false }
+);
+
+const mealSlotSchema = new mongoose.Schema(
+  {
+    food: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: "Foods",
+      required: true,
+    },
+    ingredientLines: { type: [mealIngredientLineSchema], default: [] },
+  },
+  { _id: false }
+);
+
 const dailyMenuSchema = new mongoose.Schema(
   {
     // thuộc menu tháng nào
@@ -38,6 +62,10 @@ const dailyMenuSchema = new mongoose.Schema(
         ref: "Foods",
       },
     ],
+
+    /** Bung nguyên liệu + chỉnh gram — đồng bộ với lunchFoods */
+    lunchMealSlots: { type: [mealSlotSchema], default: undefined },
+    afternoonMealSlots: { type: [mealSlotSchema], default: undefined },
 
     // tổng dinh dưỡng (Calories từ database)
     totalCalories: {

@@ -1,8 +1,19 @@
 const Ingredient = require('../models/Ingredient');
 
+const CATEGORY_IDS = ['luong_thuc', 'giau_dam', 'rau_cu', 'gia_vi', 'phu_lieu'];
+
 exports.getIngredients = async (req, res) => {
   try {
-    const ingredients = await Ingredient.find().sort({ name: 1 });
+    const missing = await Ingredient.countDocuments({
+      $or: [{ category: { $exists: false } }, { category: null }, { category: '' }],
+    });
+    if (missing > 0) {
+      await Ingredient.updateMany(
+        { $or: [{ category: { $exists: false } }, { category: null }, { category: '' }] },
+        { $set: { category: 'luong_thuc' } }
+      );
+    }
+    const ingredients = await Ingredient.find().sort({ category: 1, name: 1 });
     res.json({ success: true, data: ingredients });
   } catch (error) {
     res.status(500).json({ success: false, message: error.message });
@@ -11,11 +22,13 @@ exports.getIngredients = async (req, res) => {
 
 exports.createIngredient = async (req, res) => {
   try {
-    const { name, unit, calories, protein, fat, carb } = req.body;
+    const { name, unit, calories, protein, fat, carb, category } = req.body;
 
     if (!name) {
       return res.status(400).json({ success: false, message: 'Tên nguyên liệu là bắt buộc' });
     }
+
+    const cat = CATEGORY_IDS.includes(category) ? category : 'luong_thuc';
 
     const existed = await Ingredient.findOne({ name: name.trim() });
     if (existed) {
@@ -24,6 +37,7 @@ exports.createIngredient = async (req, res) => {
 
     const ingredient = new Ingredient({
       name: name.trim(),
+      category: cat,
       unit: unit || '100g',
       calories: Number(calories) || 0,
       protein: Number(protein) || 0,
@@ -42,11 +56,13 @@ exports.createIngredient = async (req, res) => {
 exports.updateIngredient = async (req, res) => {
   try {
     const { id } = req.params;
-    const { name, unit, calories, protein, fat, carb } = req.body;
+    const { name, unit, calories, protein, fat, carb, category } = req.body;
 
     if (!name) {
       return res.status(400).json({ success: false, message: 'Tên nguyên liệu là bắt buộc' });
     }
+
+    const cat = CATEGORY_IDS.includes(category) ? category : 'luong_thuc';
 
     // Check if name is duplicate (excluding current ingredient)
     const existed = await Ingredient.findOne({
@@ -61,6 +77,7 @@ exports.updateIngredient = async (req, res) => {
       id,
       {
         name: name.trim(),
+        category: cat,
         unit: unit || '100g',
         calories: Number(calories) || 0,
         protein: Number(protein) || 0,

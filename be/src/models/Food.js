@@ -36,6 +36,13 @@ const foodSchema = new mongoose.Schema(
     ingredients: [
       {
         name: { type: String, required: true, trim: true },
+        /** Đồng bộ mã nhóm với Ingredient.category */
+        category: {
+          type: String,
+          enum: ["luong_thuc", "giau_dam", "rau_cu", "gia_vi", "phu_lieu"],
+          default: "luong_thuc",
+          trim: true,
+        },
         quantity: { type: String, default: "" },
         calories: { type: Number, default: 0 },
         protein: { type: Number, default: 0 },

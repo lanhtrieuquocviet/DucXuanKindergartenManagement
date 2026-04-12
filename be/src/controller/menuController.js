@@ -200,7 +200,9 @@ exports.getPublicMenuDetail = async (req, res) => {
     }
     const dailyMenus = await DailyMenu.find({ menuId: menu._id })
       .populate("lunchFoods")
-      .populate("afternoonFoods");
+      .populate("afternoonFoods")
+      .populate("lunchMealSlots.food")
+      .populate("afternoonMealSlots.food");
 
     const result = { odd: {}, even: {} };
     dailyMenus.forEach((day) => {
@@ -236,7 +238,9 @@ exports.getMenuDetail = async (req, res) => {
 
     const dailyMenus = await DailyMenu.find({ menuId: menu._id })
       .populate("lunchFoods")
-      .populate("afternoonFoods");
+      .populate("afternoonFoods")
+      .populate("lunchMealSlots.food")
+      .populate("afternoonMealSlots.food");
 
     const result = {
       odd: {},

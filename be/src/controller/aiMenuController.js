@@ -16,7 +16,9 @@ exports.analyzeDailyMenu = async (req, res) => {
 
     const dailyMenu = await DailyMenu.findById(dailyMenuId)
       .populate("lunchFoods")
-      .populate("afternoonFoods");
+      .populate("afternoonFoods")
+      .populate("lunchMealSlots.food")
+      .populate("afternoonMealSlots.food");
 
     if (!dailyMenu) {
       return res.status(404).json({ success: false, message: "Không tìm thấy thực đơn" });
@@ -117,7 +119,9 @@ exports.chatAboutMenu = async (req, res) => {
 
     const dailyMenu = await DailyMenu.findById(dailyMenuId)
       .populate("lunchFoods")
-      .populate("afternoonFoods");
+      .populate("afternoonFoods")
+      .populate("lunchMealSlots.food")
+      .populate("afternoonMealSlots.food");
 
     if (!dailyMenu) {
       return res.status(404).json({ success: false, message: "Không tìm thấy thực đơn" });
@@ -235,7 +239,9 @@ exports.suggestMenuBalance = async (req, res) => {
 
     const dailyMenu = await DailyMenu.findById(dailyMenuId)
       .populate("lunchFoods")
-      .populate("afternoonFoods");
+      .populate("afternoonFoods")
+      .populate("lunchMealSlots.food")
+      .populate("afternoonMealSlots.food");
 
     if (!dailyMenu) {
       return res.status(404).json({ success: false, message: "Không tìm thấy thực đơn" });
