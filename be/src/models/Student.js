@@ -34,9 +34,8 @@ const studentSchema = new mongoose.Schema({
     ref: 'Classes'
   },
   academicYearId: {
-    type: mongoose.Schema.Types.ObjectId,
-    ref: 'AcademicYears',
-    default: null,
+    type: [{ type: mongoose.Schema.Types.ObjectId, ref: 'AcademicYears' }],
+    default: [],
   },
   status: {
     type: String,

@@ -324,6 +324,7 @@ export const ENDPOINTS = {
       FINISH: (id) => `/school-admin/academic-years/${id}/finish`,
       HISTORY: "/school-admin/academic-years/history",
       CLASSES: (yearId) => `/school-admin/academic-years/${yearId}/classes`,
+      STUDENTS: (yearId) => `/school-admin/academic-years/${yearId}/students`,
     },
     ACADEMIC_PLAN: {
       LIST_TOPICS: (yearId, gradeId) => {

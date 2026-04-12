@@ -1384,6 +1384,7 @@ router.patch('/academic-years/:id/finish', authenticate, authorizePermissions('M
  *         description: Danh sách lớp của năm học
  */
 router.get('/academic-years/:yearId/classes', authenticate, authorizePermissions('MANAGE_ACADEMIC_YEAR'), academicYearController.getClassesByAcademicYear);
+router.get('/academic-years/:yearId/students', authenticate, authorizePermissions('MANAGE_ACADEMIC_YEAR'), academicYearController.getStudentsByAcademicYear);
 
 // ============================================
 // Academic Plan

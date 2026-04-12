@@ -137,6 +137,44 @@ const listAcademicYears = async (req, res) => {
 };
 
 /**
+ * GET /api/school-admin/academic-years/:yearId/students
+ * Danh sách học sinh trong năm học (qua classId → class.academicYearId)
+ */
+const getStudentsByAcademicYear = async (req, res) => {
+  try {
+    const { yearId } = req.params;
+    const year = await AcademicYear.findById(yearId).lean();
+    if (!year) {
+      return res.status(404).json({ status: 'error', message: 'Không tìm thấy năm học' });
+    }
+
+    const classes = await Classes.find({ academicYearId: yearId }).select('_id className').lean();
+    const classIds = classes.map((c) => c._id);
+    const classMap = {};
+    classes.forEach((c) => { classMap[String(c._id)] = c.className; });
+
+    const students = await Student.find({ classId: { $in: classIds } })
+      .select('_id fullName dateOfBirth gender classId avatar status')
+      .lean();
+
+    const data = students.map((s) => ({
+      _id: s._id,
+      fullName: s.fullName,
+      dateOfBirth: s.dateOfBirth,
+      gender: s.gender,
+      avatar: s.avatar || '',
+      status: s.status,
+      className: classMap[String(s.classId)] || '',
+    }));
+
+    return res.status(200).json({ status: 'success', data });
+  } catch (error) {
+    console.error('getStudentsByAcademicYear error:', error);
+    return res.status(500).json({ status: 'error', message: 'Lỗi khi lấy danh sách học sinh' });
+  }
+};
+
+/**
  * POST /api/school-admin/academic-years
  * Tạo năm học mới, tự động set các năm học khác về inactive
  */
@@ -152,6 +190,7 @@ const createAcademicYear = async (req, res) => {
       term2StartDate,
       term2EndDate,
       description = '',
+      carryOverStudentIds,
     } = req.body;
 
     const errors = [];
@@ -269,10 +308,40 @@ const createAcademicYear = async (req, res) => {
       status: 'active',
     });
 
+    // Thêm id năm học mới vào academicYearId của những học sinh được chọn chuyển tiếp
+    const ids = Array.isArray(carryOverStudentIds)
+      ? carryOverStudentIds.filter(Boolean)
+      : [];
+    if (ids.length > 0) {
+      await Student.updateMany(
+        { _id: { $in: ids } },
+        [
+          {
+            $set: {
+              academicYearId: {
+                $cond: {
+                  if: { $isArray: '$academicYearId' },
+                  then: { $setUnion: ['$academicYearId', [newYear._id]] },
+                  else: {
+                    $cond: {
+                      if: { $eq: ['$academicYearId', null] },
+                      then: [newYear._id],
+                      else: { $setUnion: [['$academicYearId'], [newYear._id]] },
+                    },
+                  },
+                },
+              },
+            },
+          },
+        ],
+      );
+    }
+
     return res.status(201).json({
       status: 'success',
       message: 'Tạo năm học mới thành công',
       data: newYear,
+      carryOverCount: ids.length,
     });
   } catch (error) {
     console.error('createAcademicYear error:', error);
@@ -492,5 +561,6 @@ module.exports = {
   finishAcademicYear,
   getAcademicYearHistory,
   getClassesByAcademicYear,
+  getStudentsByAcademicYear,
 };
 
