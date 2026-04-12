@@ -1,4 +1,4 @@
-import { useEffect, useState, useMemo } from "react";
+import { useEffect, useState, useMemo, useRef, useCallback } from "react";
 import { toast } from "react-toastify";
 import {
   getIngredients,
@@ -6,18 +6,26 @@ import {
   updateIngredient,
   deleteIngredient,
 } from "../../service/menu.api";
+import { INGREDIENT_GROUPS } from "../../constants/ingredientCategories";
+import {
+  downloadIngredientTemplate,
+  exportIngredientsExcel,
+  parseIngredientExcel,
+} from "../../utils/excelIngredients";
 import {
   Box,
   Button,
   Card,
-  CardContent,
   Dialog,
   DialogActions,
   DialogContent,
   DialogTitle,
+  FormControl,
   IconButton,
   InputAdornment,
-  LinearProgress,
+  InputLabel,
+  MenuItem,
+  Select,
   Skeleton,
   Stack,
   Table,
@@ -29,182 +37,189 @@ import {
   TextField,
   Tooltip,
   Typography,
-  alpha,
-  Avatar,
-  useTheme,
   useMediaQuery,
-  Chip,
+  useTheme,
 } from "@mui/material";
 import {
   Add as AddIcon,
   Delete as DeleteIcon,
   Edit as EditIcon,
   Search as SearchIcon,
-  Restaurant as IngredientIcon,
   Clear as ClearIcon,
+  UploadFile as UploadFileIcon,
+  Download as DownloadIcon,
 } from "@mui/icons-material";
 
-const emptyIngredient = {
+const normCat = (ing) => ing?.category || "luong_thuc";
+
+const emptyForm = (category = "luong_thuc") => ({
   name: "",
-};
+  category,
+  unit: "100g",
+  calories: "",
+  protein: "",
+  fat: "",
+  carb: "",
+});
 
-function IngredientCard({ ingredient, onEdit, onDelete }) {
-  return (
-    <Card elevation={0} sx={{ border: "1px solid", borderColor: "divider", borderRadius: 2.5 }}>
-      <CardContent sx={{ p: 2, "&:last-child": { pb: 2 } }}>
-        <Stack direction="row" alignItems="center" justifyContent="space-between">
-          <Stack direction="row" alignItems="center" spacing={1.25}>
-            <Avatar sx={{ width: 34, height: 34, bgcolor: alpha("#4f46e5", 0.1), fontSize: 15 }}>🥕</Avatar>
-            <Typography variant="body2" fontWeight={700}>{ingredient.name}</Typography>
-          </Stack>
-          <Stack direction="row" spacing={0.5}>
-            <Tooltip title="Chỉnh sửa" arrow>
-              <IconButton size="small" onClick={() => onEdit(ingredient)}
-                sx={{ color: "#4f46e5", bgcolor: alpha("#4f46e5", 0.07), borderRadius: 1.5, "&:hover": { bgcolor: alpha("#4f46e5", 0.14) } }}>
-                <EditIcon sx={{ fontSize: 16 }} />
-              </IconButton>
-            </Tooltip>
-            <Tooltip title="Xóa" arrow>
-              <IconButton size="small" onClick={() => onDelete(ingredient)}
-                sx={{ color: "error.main", bgcolor: alpha("#ef4444", 0.07), borderRadius: 1.5, "&:hover": { bgcolor: alpha("#ef4444", 0.14) } }}>
-                <DeleteIcon sx={{ fontSize: 16 }} />
-              </IconButton>
-            </Tooltip>
-          </Stack>
-        </Stack>
-      </CardContent>
-    </Card>
-  );
-}
-
-function IngredientManagement() {
+export default function IngredientManagement() {
   const theme = useTheme();
   const isMobile = useMediaQuery(theme.breakpoints.down("sm"));
+  const fileImportRef = useRef(null);
+
   const [ingredients, setIngredients] = useState([]);
   const [loading, setLoading] = useState(false);
   const [search, setSearch] = useState("");
+  const [groupFilter, setGroupFilter] = useState("all");
 
   const [showModal, setShowModal] = useState(false);
-  const [form, setForm] = useState(emptyIngredient);
+  const [form, setForm] = useState(() => emptyForm());
   const [errors, setErrors] = useState({});
   const [saving, setSaving] = useState(false);
   const [deleteTarget, setDeleteTarget] = useState(null);
   const [deleting, setDeleting] = useState(false);
   const [editingIngredient, setEditingIngredient] = useState(null);
 
-  useEffect(() => {
-    fetchIngredients();
-  }, []);
-
   const fetchIngredients = async () => {
     try {
       setLoading(true);
       const res = await getIngredients();
-      setIngredients(res.data || []);
-    } catch (error) {
-      console.error("Lấy nguyên liệu thất bại", error);
+      setIngredients(Array.isArray(res?.data) ? res.data : []);
+    } catch {
       toast.error("Không thể tải danh sách nguyên liệu");
     } finally {
       setLoading(false);
     }
   };
 
-  const filtered = useMemo(() => {
-    if (!search.trim()) return ingredients;
-    const q = search.toLowerCase();
-    return ingredients.filter((i) => i.name.toLowerCase().includes(q));
-  }, [ingredients, search]);
+  useEffect(() => {
+    fetchIngredients();
+  }, []);
 
-  const handleOpenCreate = () => {
+  const filteredList = useMemo(() => {
+    let list = ingredients;
+    if (search.trim()) {
+      const q = search.toLowerCase();
+      list = list.filter((i) => i.name.toLowerCase().includes(q));
+    }
+    if (groupFilter !== "all") {
+      list = list.filter((i) => normCat(i) === groupFilter);
+    }
+    return list;
+  }, [ingredients, search, groupFilter]);
+
+  const rowsForGroup = useCallback(
+    (gid) => filteredList.filter((i) => normCat(i) === gid),
+    [filteredList]
+  );
+
+  const groupsToRender = useMemo(
+    () => (groupFilter === "all" ? INGREDIENT_GROUPS : INGREDIENT_GROUPS.filter((g) => g.id === groupFilter)),
+    [groupFilter]
+  );
+
+  const handleOpenCreate = (categoryId = "luong_thuc") => {
     setEditingIngredient(null);
-    setForm(emptyIngredient);
+    setForm(emptyForm(categoryId));
     setErrors({});
     setShowModal(true);
   };
 
   const handleOpenEdit = (ingredient) => {
     setEditingIngredient(ingredient);
-    setForm({ name: ingredient.name });
+    setForm({
+      name: ingredient.name,
+      category: normCat(ingredient),
+      unit: ingredient.unit || "100g",
+      calories: ingredient.calories ?? "",
+      protein: ingredient.protein ?? "",
+      fat: ingredient.fat ?? "",
+      carb: ingredient.carb ?? "",
+    });
     setErrors({});
     setShowModal(true);
   };
 
   const handleCloseModal = () => {
     setShowModal(false);
-    setForm(emptyIngredient);
+    setForm(emptyForm());
     setErrors({});
     setEditingIngredient(null);
   };
 
   const validateForm = () => {
-    let isValid = true;
     const newErrors = {};
+    if (!form.name?.trim()) newErrors.name = "Tên nguyên liệu không được để trống";
+    else if (form.name.trim().length > 100) newErrors.name = "Tối đa 100 ký tự";
 
-    if (!form.name || !form.name.trim()) {
-      newErrors.name = "Tên nguyên liệu không được để trống";
-      isValid = false;
-    } else if (form.name.length > 30) {
-      newErrors.name = "Tên nguyên liệu tối đa 30 ký tự";
-      isValid = false;
-    }
+    const num = (v) => (v === "" || v === undefined ? 0 : Number(v));
+    if (Number.isNaN(num(form.calories))) newErrors.calories = "Số không hợp lệ";
+    if (Number.isNaN(num(form.protein))) newErrors.protein = "Số không hợp lệ";
+    if (Number.isNaN(num(form.fat))) newErrors.fat = "Số không hợp lệ";
+    if (Number.isNaN(num(form.carb))) newErrors.carb = "Số không hợp lệ";
 
     setErrors(newErrors);
-    return isValid;
+    return Object.keys(newErrors).length === 0;
   };
 
-  const handleChange = (e) => {
-    const { name, value } = e.target;
-    setForm((prev) => ({ ...prev, [name]: value }));
-  };
+  const buildPayload = () => ({
+    name: form.name.trim(),
+    category: form.category,
+    unit: (form.unit || "100g").trim(),
+    calories: Number(form.calories) || 0,
+    protein: Number(form.protein) || 0,
+    fat: Number(form.fat) || 0,
+    carb: Number(form.carb) || 0,
+  });
 
   const handleSubmit = async () => {
     if (!validateForm()) return;
+    const payload = buildPayload();
 
     try {
       setSaving(true);
-      
       if (editingIngredient) {
-        // Nếu tên không thay đổi, chỉ show success mà không gọi API
-        if (form.name.trim() === editingIngredient.name.trim()) {
-          toast.success("Cập nhật nguyên liệu thành công");
+        const unchanged =
+          payload.name === editingIngredient.name.trim() &&
+          payload.category === normCat(editingIngredient) &&
+          payload.unit === (editingIngredient.unit || "100g") &&
+          payload.calories === (Number(editingIngredient.calories) || 0) &&
+          payload.protein === (Number(editingIngredient.protein) || 0) &&
+          payload.fat === (Number(editingIngredient.fat) || 0) &&
+          payload.carb === (Number(editingIngredient.carb) || 0);
+        if (unchanged) {
+          toast.success("Không có thay đổi");
           handleCloseModal();
           return;
         }
 
-        // Kiểm tra trùng lặp với các nguyên liệu khác
-        const isDuplicate = ingredients.some(
-          (i) => i._id !== editingIngredient._id && i.name.trim().toLowerCase() === form.name.trim().toLowerCase()
+        const dup = ingredients.some(
+          (i) =>
+            i._id !== editingIngredient._id &&
+            i.name.trim().toLowerCase() === payload.name.toLowerCase()
         );
-
-        if (isDuplicate) {
-          toast.error(`Nguyên liệu "${form.name}" đã tồn tại!`);
-          setErrors((prev) => ({ ...prev, name: "Nguyên liệu đã tồn tại" }));
-          setSaving(false);
+        if (dup) {
+          toast.error(`Nguyên liệu "${payload.name}" đã tồn tại`);
+          setErrors((p) => ({ ...p, name: "Trùng tên" }));
           return;
         }
 
-        await updateIngredient(editingIngredient._id, { name: form.name.trim() });
+        await updateIngredient(editingIngredient._id, payload);
         toast.success("Cập nhật nguyên liệu thành công");
       } else {
-        // Kiểm tra trùng lặp (tạo mới)
-        const isDuplicate = ingredients.some(
-          (i) => i.name.trim().toLowerCase() === form.name.trim().toLowerCase()
-        );
-
-        if (isDuplicate) {
-          toast.error(`Nguyên liệu "${form.name}" đã tồn tại!`);
-          setErrors((prev) => ({ ...prev, name: "Nguyên liệu đã tồn tại" }));
-          setSaving(false);
+        const dup = ingredients.some((i) => i.name.trim().toLowerCase() === payload.name.toLowerCase());
+        if (dup) {
+          toast.error(`Nguyên liệu "${payload.name}" đã tồn tại`);
+          setErrors((p) => ({ ...p, name: "Trùng tên" }));
           return;
         }
-
-        await createIngredient({ name: form.name.trim() });
+        await createIngredient(payload);
         toast.success("Thêm nguyên liệu thành công");
       }
       handleCloseModal();
       fetchIngredients();
     } catch (error) {
-      toast.error(error.response?.data?.message || "Thao tác thất bại");
+      toast.error(error?.message || error?.data?.message || "Thao tác thất bại");
     } finally {
       setSaving(false);
     }
@@ -215,99 +230,132 @@ function IngredientManagement() {
     try {
       setDeleting(true);
       await deleteIngredient(deleteTarget._id);
-      toast.success("Xóa thành công");
+      toast.success("Đã xóa");
       setDeleteTarget(null);
       fetchIngredients();
     } catch (error) {
-      toast.error(error.response?.data?.message || "Xóa thất bại");
+      toast.error(error?.message || error?.data?.message || "Xóa thất bại");
     } finally {
       setDeleting(false);
     }
   };
 
+  const downloadTemplate = async () => {
+    try {
+      await downloadIngredientTemplate();
+      toast.success("Đã tải file mẫu Excel (.xlsx)");
+    } catch (err) {
+      toast.error("Không tải được mẫu: " + (err?.message || ""));
+    }
+  };
+
+  const exportExcel = async () => {
+    try {
+      await exportIngredientsExcel(ingredients);
+      toast.success("Đã xuất Excel");
+    } catch (err) {
+      toast.error("Xuất Excel thất bại: " + (err?.message || ""));
+    }
+  };
+
+  const handleImportFile = async (e) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    e.target.value = "";
+    try {
+      const buf = await file.arrayBuffer();
+      const rows = await parseIngredientExcel(buf);
+      if (!rows.length) {
+        toast.error("Không đọc được dòng dữ liệu. Hãy dùng mẫu Excel của hệ thống.");
+        return;
+      }
+      let ok = 0;
+      let fail = 0;
+      for (const row of rows) {
+        const name = row.name?.trim();
+        if (!name) continue;
+        try {
+          const exists = ingredients.some((x) => x.name.trim().toLowerCase() === name.toLowerCase());
+          if (exists) {
+            fail++;
+            continue;
+          }
+          await createIngredient({
+            name,
+            category: row.category || "luong_thuc",
+            unit: row.unit || "100g",
+            calories: row.calories ?? 0,
+            protein: row.protein ?? 0,
+            fat: row.fat ?? 0,
+            carb: row.carb ?? 0,
+          });
+          ok++;
+        } catch {
+          fail++;
+        }
+      }
+      toast.info(`Import Excel: thành công ${ok}, bỏ qua/trùng/lỗi ${fail}`);
+      fetchIngredients();
+    } catch {
+      toast.error("Không đọc được file Excel (.xlsx)");
+    }
+  };
+
+  const hCell = {
+    fontWeight: 700,
+    backgroundColor: "#f0f4f8",
+    fontSize: "0.8rem",
+    whiteSpace: "nowrap",
+  };
+
   return (
     <Box>
-      {/* Header */}
       <Stack
         direction={{ xs: "column", sm: "row" }}
         justifyContent="space-between"
         alignItems={{ xs: "flex-start", sm: "center" }}
         spacing={2}
-        mb={3}
+        mb={2}
       >
         <Box>
           <Typography variant="h5" fontWeight={800} lineHeight={1.3}>
             Quản lý nguyên liệu
           </Typography>
           <Typography variant="body2" color="text.secondary" mt={0.25}>
-            Quản lý danh sách nguyên liệu sử dụng trong bếp
+            Phân nhóm theo dinh dưỡng — đồng bộ dùng cho thực đơn và kho
           </Typography>
         </Box>
         <Button
           variant="contained"
           startIcon={<AddIcon />}
-          onClick={handleOpenCreate}
-          fullWidth={isMobile}
+          onClick={() => handleOpenCreate("luong_thuc")}
           sx={{
-            borderRadius: 2.5,
-            px: 2.5,
-            py: 1,
-            background: "linear-gradient(135deg, #4f46e5 0%, #7c3aed 100%)",
-            boxShadow: "0 4px 14px rgba(99,102,241,0.35)",
-            fontWeight: 700,
+            borderRadius: 2,
             textTransform: "none",
-            "&:hover": {
-              background: "linear-gradient(135deg, #4338ca 0%, #6d28d9 100%)",
-              boxShadow: "0 6px 20px rgba(99,102,241,0.45)",
-            },
+            fontWeight: 700,
+            background: "linear-gradient(135deg, #4f46e5 0%, #7c3aed 100%)",
           }}
         >
           Thêm nguyên liệu
         </Button>
       </Stack>
 
-      {/* Stats */}
-      <Box sx={{ display: "grid", gridTemplateColumns: { xs: "repeat(2, 1fr)", sm: "repeat(2, 1fr)" }, gap: { xs: 1.5, sm: 2 }, mb: 3 }}>
-        <Card elevation={0} sx={{ border: "1px solid", borderColor: "divider", borderRadius: 2.5 }}>
-          <CardContent sx={{ p: { xs: 1.5, sm: 2 }, "&:last-child": { pb: { xs: 1.5, sm: 2 } } }}>
-            <Box sx={{ display: "flex", alignItems: "center", gap: 1.5 }}>
-              <Avatar sx={{ width: { xs: 32, sm: 40 }, height: { xs: 32, sm: 40 }, bgcolor: alpha("#4f46e5", 0.12), flexShrink: 0 }}>
-                <IngredientIcon sx={{ color: "#4f46e5" }} />
-              </Avatar>
-              <Box>
-                <Typography fontWeight={700} sx={{ fontSize: { xs: 16, sm: 20 } }}>{ingredients.length}</Typography>
-                <Typography variant="caption" color="text.secondary" sx={{ fontSize: { xs: 10, sm: 12 } }}>Tổng nguyên liệu</Typography>
-              </Box>
-            </Box>
-          </CardContent>
-        </Card>
-        <Card elevation={0} sx={{ border: "1px solid", borderColor: "divider", borderRadius: 2.5 }}>
-          <CardContent sx={{ p: { xs: 1.5, sm: 2 }, "&:last-child": { pb: { xs: 1.5, sm: 2 } } }}>
-            <Box sx={{ display: "flex", alignItems: "center", gap: 1.5 }}>
-              <Avatar sx={{ width: { xs: 32, sm: 40 }, height: { xs: 32, sm: 40 }, bgcolor: alpha("#22c55e", 0.12), flexShrink: 0 }}>
-                <SearchIcon sx={{ color: "#22c55e" }} />
-              </Avatar>
-              <Box>
-                <Typography fontWeight={700} sx={{ fontSize: { xs: 16, sm: 20 } }}>{filtered.length}</Typography>
-                <Typography variant="caption" color="text.secondary" sx={{ fontSize: { xs: 10, sm: 12 } }}>Kết quả</Typography>
-              </Box>
-            </Box>
-          </CardContent>
-        </Card>
-      </Box>
-
-      {/* Search & List */}
       <Card
         elevation={0}
-        sx={{ border: "1px solid", borderColor: "divider", borderRadius: 3, mb: 2.5 }}
+        sx={{ border: "1px solid", borderColor: "divider", borderRadius: 2, p: 2, mb: 2 }}
       >
-        <Box sx={{ p: 2 }}>
+        <Stack
+          direction={{ xs: "column", md: "row" }}
+          spacing={1.5}
+          alignItems={{ xs: "stretch", md: "center" }}
+          justifyContent="space-between"
+        >
           <TextField
-            fullWidth
             size="small"
-            placeholder="Tìm kiếm nguyên liệu..."
+            placeholder="Tìm kiếm theo tên nguyên liệu..."
             value={search}
             onChange={(e) => setSearch(e.target.value)}
+            sx={{ flex: 1, minWidth: { md: 220 } }}
             InputProps={{
               startAdornment: (
                 <InputAdornment position="start">
@@ -317,236 +365,300 @@ function IngredientManagement() {
               endAdornment: search && (
                 <InputAdornment position="end">
                   <IconButton size="small" onClick={() => setSearch("")}>
-                    <ClearIcon sx={{ fontSize: 16 }} />
+                    <ClearIcon fontSize="small" />
                   </IconButton>
                 </InputAdornment>
               ),
-              sx: { borderRadius: 2 },
             }}
           />
-        </Box>
-
-        {/* Mobile: card list | Desktop: table */}
-        {isMobile ? (
-          <Box sx={{ px: 1.5, pb: 1.5 }}>
-            {loading ? (
-              <Stack spacing={1.5}>
-                {Array.from({ length: 4 }).map((_, i) => (
-                  <Skeleton key={i} variant="rounded" height={80} sx={{ borderRadius: 2.5 }} />
-                ))}
-              </Stack>
-            ) : filtered.length === 0 ? (
-              <Box sx={{ py: 6, textAlign: "center" }}>
-                <Avatar sx={{ width: 56, height: 56, bgcolor: "grey.100", mx: "auto", mb: 1.5 }}>
-                  <IngredientIcon sx={{ fontSize: 28, color: "grey.400" }} />
-                </Avatar>
-                <Typography color="text.secondary" fontWeight={600} variant="body2">
-                  {search ? "Không tìm thấy nguyên liệu phù hợp" : "Chưa có nguyên liệu nào"}
-                </Typography>
-                {!search && (
-                  <Button size="small" startIcon={<AddIcon />} onClick={handleOpenCreate} sx={{ mt: 1, textTransform: "none" }}>
-                    Thêm nguyên liệu đầu tiên
-                  </Button>
-                )}
-              </Box>
-            ) : (
-              <Stack spacing={1.5}>
-                {filtered.map((ingredient) => (
-                  <IngredientCard key={ingredient._id} ingredient={ingredient} onEdit={handleOpenEdit} onDelete={setDeleteTarget} />
-                ))}
-              </Stack>
-            )}
-          </Box>
-        ) : (
-          <>
-            <TableContainer sx={{ overflowX: 'auto' }}>
-              <Table sx={{ minWidth: 400 }}>
-                <TableHead>
-                  <TableRow sx={{ bgcolor: "grey.50" }}>
-                    <TableCell sx={{ fontWeight: 700, fontSize: 13, py: 1.5 }}>Tên nguyên liệu</TableCell>
-                    <TableCell align="center" sx={{ fontWeight: 700, fontSize: 13, py: 1.5, width: 100 }}>Hành động</TableCell>
-                  </TableRow>
-                </TableHead>
-                <TableBody>
-                  {loading ? (
-                    Array.from({ length: 5 }).map((_, i) => (
-                      <TableRow key={i}>
-                        {Array.from({ length: 2 }).map((__, j) => (
-                          <TableCell key={j}><Skeleton variant="text" height={32} /></TableCell>
-                        ))}
-                      </TableRow>
-                    ))
-                  ) : filtered.length === 0 ? (
-                    <TableRow>
-                      <TableCell colSpan={2} align="center" sx={{ py: 6 }}>
-                        <Stack alignItems="center" spacing={1}>
-                          <Avatar sx={{ width: 56, height: 56, bgcolor: "grey.100" }}>
-                            <IngredientIcon sx={{ fontSize: 28, color: "grey.400" }} />
-                          </Avatar>
-                          <Typography color="text.secondary" fontWeight={600}>
-                            {search ? "Không tìm thấy nguyên liệu phù hợp" : "Chưa có nguyên liệu nào"}
-                          </Typography>
-                          {!search && (
-                            <Button size="small" startIcon={<AddIcon />} onClick={handleOpenCreate} sx={{ textTransform: "none" }}>
-                              Thêm nguyên liệu đầu tiên
-                            </Button>
-                          )}
-                        </Stack>
-                      </TableCell>
-                    </TableRow>
-                  ) : (
-                    filtered.map((ingredient) => (
-                      <TableRow key={ingredient._id} hover sx={{ "&:hover": { bgcolor: "rgba(99,102,241,0.03)" }, transition: "background 0.15s" }}>
-                        <TableCell>
-                          <Stack direction="row" alignItems="center" spacing={1.5}>
-                            <Avatar sx={{ width: 34, height: 34, bgcolor: alpha("#4f46e5", 0.1), fontSize: 15 }}>🥕</Avatar>
-                            <Typography variant="body2" fontWeight={600}>{ingredient.name}</Typography>
-                          </Stack>
-                        </TableCell>
-                        <TableCell align="center">
-                          <Stack direction="row" spacing={0.5} justifyContent="center">
-                            <Tooltip title="Chỉnh sửa" arrow>
-                              <IconButton size="small" onClick={() => handleOpenEdit(ingredient)}
-                                sx={{ color: "#4f46e5", bgcolor: alpha("#4f46e5", 0.07), "&:hover": { bgcolor: alpha("#4f46e5", 0.14) }, borderRadius: 1.5 }}>
-                                <EditIcon sx={{ fontSize: 16 }} />
-                              </IconButton>
-                            </Tooltip>
-                            <Tooltip title="Xóa" arrow>
-                              <IconButton size="small" onClick={() => setDeleteTarget(ingredient)}
-                                sx={{ color: "error.main", bgcolor: alpha("#ef4444", 0.07), "&:hover": { bgcolor: alpha("#ef4444", 0.14) }, borderRadius: 1.5 }}>
-                                <DeleteIcon sx={{ fontSize: 16 }} />
-                              </IconButton>
-                            </Tooltip>
-                          </Stack>
-                        </TableCell>
-                      </TableRow>
-                    ))
-                  )}
-                </TableBody>
-              </Table>
-            </TableContainer>
-          </>
-        )}
-
-        {!loading && filtered.length > 0 && (
-          <Box sx={{ px: 2, py: 1.25, borderTop: "1px solid", borderColor: "divider", bgcolor: "grey.50" }}>
-            <Typography variant="caption" color="text.secondary">
-              Hiển thị <strong>{filtered.length}/{ingredients.length}</strong> nguyên liệu
-              {search && (
-                <Chip label={`Lọc: "${search}"`} size="small" onDelete={() => setSearch("")} sx={{ ml: 1, height: 20, fontSize: 11 }} />
-              )}
-            </Typography>
-          </Box>
-        )}
+          <FormControl size="small" sx={{ minWidth: { xs: "100%", md: 220 } }}>
+            <InputLabel>Nhóm nguyên liệu</InputLabel>
+            <Select
+              label="Nhóm nguyên liệu"
+              value={groupFilter}
+              onChange={(e) => setGroupFilter(e.target.value)}
+            >
+              <MenuItem value="all">Tất cả nhóm</MenuItem>
+              {INGREDIENT_GROUPS.map((g) => (
+                <MenuItem key={g.id} value={g.id}>
+                  {g.order}. {g.title}
+                </MenuItem>
+              ))}
+            </Select>
+          </FormControl>
+          <Stack direction="row" spacing={1} flexWrap="wrap" useFlexGap>
+            <Button
+              size="small"
+              variant="outlined"
+              startIcon={<UploadFileIcon />}
+              onClick={() => fileImportRef.current?.click()}
+              sx={{ textTransform: "none" }}
+            >
+              Import Excel
+            </Button>
+            <Button
+              size="small"
+              variant="outlined"
+              startIcon={<DownloadIcon />}
+              onClick={downloadTemplate}
+              sx={{ textTransform: "none" }}
+            >
+              Tải mẫu
+            </Button>
+            <Button
+              size="small"
+              variant="outlined"
+              color="success"
+              startIcon={<DownloadIcon />}
+              onClick={exportExcel}
+              sx={{ textTransform: "none" }}
+            >
+              Xuất Excel
+            </Button>
+          </Stack>
+        </Stack>
+        <input
+          ref={fileImportRef}
+          type="file"
+          accept=".xlsx,.xls,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
+          hidden
+          onChange={handleImportFile}
+        />
       </Card>
 
-      {/* Create Dialog */}
-      <Dialog
-        open={showModal}
-        onClose={handleCloseModal}
-        maxWidth="xs"
-        fullWidth
-        PaperProps={{
-          sx: {
-            borderRadius: 3,
-            boxShadow: "0 20px 60px rgba(0,0,0,0.15)",
-          },
-        }}
-      >
-        <DialogTitle
-          sx={{
-            pb: 1,
-            pt: 2.5,
-            px: 3,
-            fontWeight: 800,
-            fontSize: 17,
-            display: "flex",
-            alignItems: "center",
-            gap: 1.5,
-          }}
-        >
-          <Avatar
-            sx={{
-              width: 36,
-              height: 36,
-              background: "linear-gradient(135deg, #4f46e5, #7c3aed)",
-              fontSize: 18,
-            }}
-          >
-            {editingIngredient ? <EditIcon sx={{ fontSize: 18 }} /> : <AddIcon sx={{ fontSize: 18 }} />}
-          </Avatar>
-          {editingIngredient ? "Chỉnh sửa nguyên liệu" : "Thêm nguyên liệu mới"}
+      {loading ? (
+        <Stack spacing={2}>
+          {[1, 2, 3].map((i) => (
+            <Skeleton key={i} variant="rounded" height={160} sx={{ borderRadius: 1 }} />
+          ))}
+        </Stack>
+      ) : (
+        groupsToRender.map((group) => {
+          const rows = rowsForGroup(group.id);
+          return (
+            <Box key={group.id} mb={3}>
+              <Box
+                sx={{
+                  backgroundColor: "#e8f0fe",
+                  borderLeft: "4px solid #1a56db",
+                  px: 1.5,
+                  py: 0.75,
+                  borderRadius: "4px 4px 0 0",
+                  display: "flex",
+                  alignItems: "center",
+                  justifyContent: "space-between",
+                  gap: 1,
+                  flexWrap: "wrap",
+                }}
+              >
+                <Box>
+                  <Typography fontWeight={700} fontSize="0.85rem" color="#1a56db" display="inline">
+                    {group.order}. {group.title}
+                  </Typography>
+                  <Typography component="span" fontWeight={400} color="text.secondary" ml={1} fontSize="0.75rem">
+                    ({rows.length} mục) — {group.hint}
+                  </Typography>
+                </Box>
+                <Tooltip title="Thêm vào nhóm này">
+                  <IconButton size="small" sx={{ color: "#1a56db" }} onClick={() => handleOpenCreate(group.id)}>
+                    <AddIcon fontSize="small" />
+                  </IconButton>
+                </Tooltip>
+              </Box>
+              <TableContainer
+                sx={{
+                  border: "1px solid #c7d7f8",
+                  borderTop: "none",
+                  borderRadius: "0 0 4px 4px",
+                  maxHeight: isMobile ? 320 : 420,
+                  overflow: "auto",
+                }}
+              >
+                <Table size="small" stickyHeader>
+                  <TableHead>
+                    <TableRow>
+                      <TableCell sx={hCell}>Tên nguyên liệu</TableCell>
+                      <TableCell sx={hCell} align="center">
+                        ĐVT
+                      </TableCell>
+                      <TableCell sx={hCell} align="center">
+                        Kcal
+                      </TableCell>
+                      <TableCell sx={hCell} align="center">
+                        Đạm (g)
+                      </TableCell>
+                      <TableCell sx={hCell} align="center">
+                        Béo (g)
+                      </TableCell>
+                      <TableCell sx={hCell} align="center">
+                        Tinh bột (g)
+                      </TableCell>
+                      <TableCell sx={hCell} align="center">
+                        Xóa
+                      </TableCell>
+                    </TableRow>
+                  </TableHead>
+                  <TableBody>
+                    {rows.length === 0 ? (
+                      <TableRow>
+                        <TableCell colSpan={7} align="center" sx={{ py: 2, color: "text.secondary", fontSize: "0.8rem" }}>
+                          Chưa có dữ liệu — nhấn <strong>+</strong> để thêm
+                        </TableCell>
+                      </TableRow>
+                    ) : (
+                      rows.map((ing) => (
+                        <TableRow key={ing._id} hover>
+                          <TableCell>
+                            <Stack direction="row" alignItems="center" spacing={1}>
+                              <Typography variant="body2" fontWeight={600}>
+                                {ing.name}
+                              </Typography>
+                              <Tooltip title="Sửa">
+                                <IconButton size="small" onClick={() => handleOpenEdit(ing)} sx={{ color: "#4f46e5" }}>
+                                  <EditIcon sx={{ fontSize: 16 }} />
+                                </IconButton>
+                              </Tooltip>
+                            </Stack>
+                          </TableCell>
+                          <TableCell align="center">{ing.unit || "100g"}</TableCell>
+                          <TableCell align="center">{ing.calories ?? 0}</TableCell>
+                          <TableCell align="center">{ing.protein ?? 0}</TableCell>
+                          <TableCell align="center">{ing.fat ?? 0}</TableCell>
+                          <TableCell align="center">{ing.carb ?? 0}</TableCell>
+                          <TableCell align="center">
+                            <IconButton size="small" color="error" onClick={() => setDeleteTarget(ing)}>
+                              <DeleteIcon fontSize="small" />
+                            </IconButton>
+                          </TableCell>
+                        </TableRow>
+                      ))
+                    )}
+                  </TableBody>
+                </Table>
+              </TableContainer>
+            </Box>
+          );
+        })
+      )}
+
+      {!loading && (
+        <Typography variant="caption" color="text.secondary" display="block" sx={{ mt: 1 }}>
+          Hiển thị {filteredList.length}/{ingredients.length} nguyên liệu
+          {search ? ` — lọc "${search}"` : ""}
+        </Typography>
+      )}
+
+      <Dialog open={showModal} onClose={handleCloseModal} maxWidth="sm" fullWidth PaperProps={{ sx: { borderRadius: 2 } }}>
+        <DialogTitle sx={{ fontWeight: 800 }}>
+          {editingIngredient ? "Chỉnh sửa nguyên liệu" : "Thêm nguyên liệu"}
         </DialogTitle>
-
-        <DialogContent sx={{ px: 3, pt: 1.5, pb: 1 }}>
-          <TextField
-            fullWidth
-            size="small"
-            name="name"
-            label="Tên nguyên liệu"
-            value={form.name}
-            onChange={handleChange}
-            error={Boolean(errors.name)}
-            helperText={errors.name || " "}
-            inputProps={{ maxLength: 30 }}
-            sx={{ mt: 1 }}
-          />
+        <DialogContent dividers>
+          <Stack spacing={2} sx={{ pt: 0.5 }}>
+            <FormControl fullWidth size="small">
+              <InputLabel>Nhóm</InputLabel>
+              <Select
+                label="Nhóm"
+                value={form.category}
+                onChange={(e) => setForm((p) => ({ ...p, category: e.target.value }))}
+              >
+                {INGREDIENT_GROUPS.map((g) => (
+                  <MenuItem key={g.id} value={g.id}>
+                    {g.order}. {g.title}
+                  </MenuItem>
+                ))}
+              </Select>
+            </FormControl>
+            <TextField
+              fullWidth
+              size="small"
+              label="Tên nguyên liệu"
+              value={form.name}
+              onChange={(e) => setForm((p) => ({ ...p, name: e.target.value }))}
+              error={Boolean(errors.name)}
+              helperText={errors.name || " "}
+            />
+            <TextField
+              fullWidth
+              size="small"
+              label="Đơn vị tính (VD: 100g)"
+              value={form.unit}
+              onChange={(e) => setForm((p) => ({ ...p, unit: e.target.value }))}
+            />
+            <Stack direction={{ xs: "column", sm: "row" }} spacing={1.5}>
+              <TextField
+                size="small"
+                label="Kcal"
+                type="number"
+                value={form.calories}
+                onChange={(e) => setForm((p) => ({ ...p, calories: e.target.value }))}
+                error={Boolean(errors.calories)}
+                helperText={errors.calories || " "}
+                fullWidth
+              />
+              <TextField
+                size="small"
+                label="Đạm (g)"
+                type="number"
+                value={form.protein}
+                onChange={(e) => setForm((p) => ({ ...p, protein: e.target.value }))}
+                error={Boolean(errors.protein)}
+                helperText={errors.protein || " "}
+                fullWidth
+              />
+            </Stack>
+            <Stack direction={{ xs: "column", sm: "row" }} spacing={1.5}>
+              <TextField
+                size="small"
+                label="Béo (g)"
+                type="number"
+                value={form.fat}
+                onChange={(e) => setForm((p) => ({ ...p, fat: e.target.value }))}
+                error={Boolean(errors.fat)}
+                helperText={errors.fat || " "}
+                fullWidth
+              />
+              <TextField
+                size="small"
+                label="Tinh bột (g)"
+                type="number"
+                value={form.carb}
+                onChange={(e) => setForm((p) => ({ ...p, carb: e.target.value }))}
+                error={Boolean(errors.carb)}
+                helperText={errors.carb || " "}
+                fullWidth
+              />
+            </Stack>
+            <Typography variant="caption" color="text.secondary">
+              Giá trị dinh dưỡng theo đơn vị đã chọn (thường là trên 100g).
+            </Typography>
+          </Stack>
         </DialogContent>
-
-        <DialogActions sx={{ px: 3, pb: 2.5, pt: 1 }}>
+        <DialogActions sx={{ px: 3, pb: 2 }}>
           <Button onClick={handleCloseModal} sx={{ textTransform: "none" }}>
             Hủy
           </Button>
-          <Button
-            variant="contained"
-            onClick={handleSubmit}
-            disabled={saving}
-            sx={{
-              borderRadius: 2,
-              background: "linear-gradient(135deg, #4f46e5 0%, #7c3aed 100%)",
-              textTransform: "none",
-            }}
-          >
-            {saving ? "Đang lưu..." : editingIngredient ? "Cập nhật" : "Thêm"}
+          <Button variant="contained" onClick={handleSubmit} disabled={saving} sx={{ textTransform: "none" }}>
+            {saving ? "Đang lưu…" : editingIngredient ? "Cập nhật" : "Thêm"}
           </Button>
         </DialogActions>
       </Dialog>
 
-      {/* Delete Confirmation Dialog */}
-      <Dialog
-        open={Boolean(deleteTarget)}
-        onClose={() => setDeleteTarget(null)}
-        maxWidth="xs"
-        fullWidth
-      >
-        <DialogTitle sx={{ fontWeight: 800, fontSize: 16 }}>
-          Xác nhận xóa
-        </DialogTitle>
-        <DialogContent sx={{ pt: 2 }}>
-          <Typography>
-            Bạn có chắc chắn muốn xóa nguyên liệu <strong>"{deleteTarget?.name}"</strong>?
-          </Typography>
-          <Typography variant="caption" color="error" sx={{ display: "block", mt: 1 }}>
-            Hành động này không thể hoàn tác.
+      <Dialog open={Boolean(deleteTarget)} onClose={() => setDeleteTarget(null)} maxWidth="xs" fullWidth>
+        <DialogTitle sx={{ fontWeight: 800 }}>Xác nhận xóa</DialogTitle>
+        <DialogContent>
+          <Typography variant="body2">
+            Xóa nguyên liệu <strong>{deleteTarget?.name}</strong>?
           </Typography>
         </DialogContent>
         <DialogActions sx={{ p: 2 }}>
           <Button onClick={() => setDeleteTarget(null)} sx={{ textTransform: "none" }}>
             Hủy
           </Button>
-          <Button
-            variant="contained"
-            color="error"
-            onClick={handleDelete}
-            disabled={deleting}
-            sx={{ textTransform: "none" }}
-          >
-            {deleting ? "Đang xóa..." : "Xóa"}
+          <Button variant="contained" color="error" onClick={handleDelete} disabled={deleting} sx={{ textTransform: "none" }}>
+            {deleting ? "Đang xóa…" : "Xóa"}
           </Button>
         </DialogActions>
       </Dialog>
     </Box>
   );
 }
-
-export default IngredientManagement;

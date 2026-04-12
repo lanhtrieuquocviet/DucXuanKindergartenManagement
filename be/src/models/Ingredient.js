@@ -8,6 +8,12 @@ const ingredientSchema = new mongoose.Schema(
       trim: true,
       unique: true,
     },
+    /** Nhóm nguyên liệu (dinh dưỡng / kho) */
+    category: {
+      type: String,
+      enum: ['luong_thuc', 'giau_dam', 'rau_cu', 'gia_vi', 'phu_lieu'],
+      default: 'luong_thuc',
+    },
     unit: {
       type: String,
       default: '100g',

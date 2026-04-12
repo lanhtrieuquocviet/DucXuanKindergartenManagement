@@ -10,6 +10,7 @@ import {
 import { labelForRejectPreset } from "../../constants/menuRejectPresets";
 import { toast } from "react-toastify";
 import FoodSelectorModal from "../../components/FoodSelectorModal";
+import MealFoodFineTuneDialog from "../../components/MealFoodFineTuneDialog";
 import { downloadMenuTemplate, exportMenuToExcel } from "../../utils/excelMenuTemplate";
 import { parseMenuExcel, formatImportErrors } from "../../utils/excelMenuImporter";
 import {
@@ -68,6 +69,9 @@ const mealTypes = [
   { key: "lunchFoods", label: "Bữa trưa" },
   { key: "afternoonFoods", label: "Bữa chiều" },
 ];
+
+const mealKeyToSlotsKey = (mealKey) =>
+  mealKey === "lunchFoods" ? "lunchMealSlots" : "afternoonMealSlots";
 
 const STATUS_CONFIG = {
   draft: { label: "Nháp", color: "default" },
@@ -226,10 +230,30 @@ function NutritionCard({ item, value }) {
   );
 }
 
-function FoodTag({ food, canDelete, onDelete }) {
+function FoodTag({ food, canDelete, onDelete, canTune, onTune }) {
   return (
     <Box sx={{ display: "inline-flex", alignItems: "center", gap: 0.5, bgcolor: alpha("#4f46e5", 0.07), border: "1px solid", borderColor: alpha("#4f46e5", 0.15), borderRadius: 1.5, px: 1, py: 0.25, mb: 0.5, mr: 0.5 }}>
-      <Typography variant="caption" fontWeight={600} color="primary.main" sx={{ fontSize: 11 }}>{food.name}</Typography>
+      <Typography
+        variant="caption"
+        fontWeight={600}
+        color="primary.main"
+        sx={{
+          fontSize: 11,
+          cursor: canTune ? "pointer" : "default",
+          textDecoration: canTune ? "underline" : "none",
+          textUnderlineOffset: 2,
+        }}
+        onClick={
+          canTune && onTune
+            ? (e) => {
+                e.stopPropagation();
+                onTune(food);
+              }
+            : undefined
+        }
+      >
+        {food.name}
+      </Typography>
       <Typography variant="caption" color="text.disabled" sx={{ fontSize: 10 }}>{food.calories}kcal</Typography>
       {canDelete && (
         <IconButton size="small" onClick={onDelete} sx={{ width: 14, height: 14, ml: 0.25, color: "error.main", opacity: 0.7, "&:hover": { opacity: 1 }, p: 0 }}>
@@ -240,7 +264,7 @@ function FoodTag({ food, canDelete, onDelete }) {
   );
 }
 
-function WeekTable({ title, weekData, isEditable, onCellClick, onRemoveFood, nutritionRanges }) {
+function WeekTable({ title, weekData, isEditable, onCellClick, onRemoveFood, nutritionRanges, onFoodTune }) {
   return (
     <Box mb={4}>
       <Stack direction="row" alignItems="center" spacing={1.5} mb={2}>
@@ -270,7 +294,14 @@ function WeekTable({ title, weekData, isEditable, onCellClick, onRemoveFood, nut
                         onClick={() => isEditable && onCellClick(dayMenu._id, day, meal.key, foods)}>
                         <Box>
                           {foods.map((food) => (
-                            <FoodTag key={food._id} food={food} canDelete={isEditable} onDelete={(e) => { e.stopPropagation(); onRemoveFood(dayMenu._id, meal.key, food._id, foods); }} />
+                            <FoodTag
+                              key={food._id}
+                              food={food}
+                              canDelete={isEditable}
+                              onDelete={(e) => { e.stopPropagation(); onRemoveFood(dayMenu._id, meal.key, food._id, foods); }}
+                              canTune={isEditable && typeof onFoodTune === "function"}
+                              onTune={(f) => onFoodTune(dayMenu, meal.key, f)}
+                            />
                           ))}
 
                           {isEditable && (
@@ -357,6 +388,8 @@ function MenuDetail() {
   const [importLoading, setImportLoading] = useState(false);
   const [availableFoods, setAvailableFoods] = useState([]);
   const [nutritionRanges, setNutritionRanges] = useState(DEFAULT_NUTRITION_RANGES);
+  const [fineTune, setFineTune] = useState(null);
+  const [savingFineTune, setSavingFineTune] = useState(false);
 
   // LOGIC: Cho phép sửa nếu ở trạng thái Nháp hoặc Bị từ chối
   const isEditable = menu && (menu.status === "draft" || menu.status === "rejected");
@@ -545,6 +578,68 @@ function MenuDetail() {
       fetchMenuDetail();
     } catch {
       toast.error("Xoá món thất bại");
+    }
+  };
+
+  const handleFoodTune = (dayMenu, mealKey, food) => {
+    const slotsKey = mealKeyToSlotsKey(mealKey);
+    const slots = dayMenu?.[slotsKey] || [];
+    const fid = String(food._id);
+    const slot = slots.find((s) => String(s.food?._id || s.food) === fid);
+    if (!slot) {
+      toast.info("Chưa có dữ liệu bung nguyên liệu. Hãy mở ô món, bấm lưu lại để hệ thống khởi tạo từ kho nguyên liệu.");
+      return;
+    }
+    setFineTune({
+      dayMenuId: dayMenu._id,
+      slotsKey,
+      slots,
+      slot,
+      foodName: food.name,
+    });
+  };
+
+  const serializeSlot = (s) => ({
+    food: s.food?._id || s.food,
+    ingredientLines: (s.ingredientLines || []).map((l) => ({
+      name: l.name,
+      grams: Number(l.grams) || 0,
+      caloriesPer100g: Number(l.caloriesPer100g) || 0,
+      proteinPer100g: Number(l.proteinPer100g) || 0,
+      fatPer100g: Number(l.fatPer100g) || 0,
+      carbPer100g: Number(l.carbPer100g) || 0,
+    })),
+  });
+
+  const handleSaveFineTuneLines = async (newLines) => {
+    if (!fineTune) return;
+    const { dayMenuId, slotsKey, slots, slot } = fineTune;
+    const foodId = slot.food?._id || slot.food;
+    const newSlots = slots.map((s) => {
+      const sid = String(s.food?._id || s.food);
+      if (sid !== String(foodId)) return serializeSlot(s);
+      return {
+        food: foodId,
+        ingredientLines: newLines.map((l) => ({
+          name: l.name,
+          grams: Number(l.grams) || 0,
+          caloriesPer100g: Number(l.caloriesPer100g) || 0,
+          proteinPer100g: Number(l.proteinPer100g) || 0,
+          fatPer100g: Number(l.fatPer100g) || 0,
+          carbPer100g: Number(l.carbPer100g) || 0,
+        })),
+      };
+    });
+    try {
+      setSavingFineTune(true);
+      await updateDailyMenu(dayMenuId, { [slotsKey]: newSlots });
+      toast.success("Đã cập nhật định lượng");
+      setFineTune(null);
+      fetchMenuDetail();
+    } catch {
+      toast.error("Lưu thất bại");
+    } finally {
+      setSavingFineTune(false);
     }
   };
 
@@ -748,6 +843,7 @@ function MenuDetail() {
         onCellClick={handleCellClick}
         onRemoveFood={handleRemoveFood}
         nutritionRanges={nutritionRanges}
+        onFoodTune={handleFoodTune}
       />
       <WeekTable
         title="Tuần chẵn"
@@ -756,9 +852,19 @@ function MenuDetail() {
         onCellClick={handleCellClick}
         onRemoveFood={handleRemoveFood}
         nutritionRanges={nutritionRanges}
+        onFoodTune={handleFoodTune}
       />
 
       <FoodSelectorModal open={showFoodModal} selectedFoods={cellFoods} onClose={() => setShowFoodModal(false)} onSave={handleSaveFoods} />
+
+      <MealFoodFineTuneDialog
+        open={Boolean(fineTune)}
+        onClose={() => !savingFineTune && setFineTune(null)}
+        foodName={fineTune?.foodName}
+        ingredientLines={fineTune?.slot?.ingredientLines}
+        saving={savingFineTune}
+        onSave={handleSaveFineTuneLines}
+      />
 
       {/* DIALOG XÁC NHẬN GỬI */}
       <Dialog open={showSubmitDialog} onClose={() => !submitting && setShowSubmitDialog(false)} maxWidth="xs" fullWidth PaperProps={{ sx: { borderRadius: 3 } }}>
