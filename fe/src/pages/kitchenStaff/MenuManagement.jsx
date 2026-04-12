@@ -45,8 +45,12 @@ const TABS = [
   { value: "approved", label: "Đã duyệt" },
   { value: "active", label: "Đang áp dụng" },
   { value: "completed", label: "Lịch sử" },
-  { value: "rejected", label: "Từ chối" },
 ];
+
+/** Lịch sử: đã kết thúc + bị trả về / từ chối (chip vẫn đỏ "Từ chối") */
+function isHistoryListStatus(menu) {
+  return menu.status === "completed" || menu.status === "rejected";
+}
 
 const MONTH_NAMES = [
   "", "Tháng 1", "Tháng 2", "Tháng 3", "Tháng 4",
@@ -98,7 +102,12 @@ function MenuManagement() {
 
   const filtered = useMemo(() => {
     return menus.filter((m) => {
-      const matchStatus = tab === "all" || m.status === tab;
+      const matchStatus =
+        tab === "all"
+          ? true
+          : tab === "completed"
+            ? isHistoryListStatus(m)
+            : m.status === tab;
       const q = search.toLowerCase();
       const matchSearch =
         !q ||
@@ -118,8 +127,7 @@ function MenuManagement() {
 
   const pendingCount = menus.filter((m) => m.status === "pending").length;
   const activeCount = menus.filter((m) => m.status === "active").length;
-  const historyCount = menus.filter((m) => m.status === "completed").length;
-  const rejectedCount = menus.filter((m) => m.status === "rejected").length;
+  const historyCount = menus.filter(isHistoryListStatus).length;
 
   return (
     <Box>
@@ -185,8 +193,6 @@ function MenuManagement() {
               badge = <Chip label={activeCount} size="small" color="info" sx={{ height: 18, fontSize: 10, fontWeight: 700 }} />;
             } else if (t.value === "completed" && historyCount > 0) {
               badge = <Chip label={historyCount} size="small" color="secondary" sx={{ height: 18, fontSize: 10, fontWeight: 700 }} />;
-            } else if (t.value === "rejected" && rejectedCount > 0) {
-              badge = <Chip label={rejectedCount} size="small" color="error" sx={{ height: 18, fontSize: 10, fontWeight: 700 }} />;
             }
             return (
               <Tab

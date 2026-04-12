@@ -100,6 +100,11 @@ export const rejectMenu = (id, body) => {
   return api.put(ENDPOINTS.KITCHEN.REJECT_MENU(id), body);
 };
 
+/** Yêu cầu chỉnh sửa khi thực đơn đang áp dụng — body giống reject */
+export const requestEditFromActiveMenu = (id, body) => {
+  return api.patch(ENDPOINTS.KITCHEN.REQUEST_EDIT_MENU(id), body);
+};
+
 export const applyMenu = (id) => {
   return api.patch(`${ENDPOINTS.KITCHEN.MENUS}/${id}/apply`, {});
 };

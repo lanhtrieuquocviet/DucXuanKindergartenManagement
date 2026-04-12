@@ -576,6 +576,7 @@ export const ENDPOINTS = {
     SUBMIT_MENU: (id) => `/menus/${id}/submit`,
     APPROVE_MENU: (id) => `/menus/${id}/approve`,
     REJECT_MENU: (id) => `/menus/${id}/reject`,
+    REQUEST_EDIT_MENU: (id) => `/menus/${id}/request-edit`,
     DISTRICT_NUTRITION_PLANS: "/menus/district-nutrition-plans",
   },
 };

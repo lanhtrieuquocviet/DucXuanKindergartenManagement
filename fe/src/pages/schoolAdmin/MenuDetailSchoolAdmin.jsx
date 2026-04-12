@@ -6,6 +6,16 @@ import RoleLayout from "../../layouts/RoleLayout";
 import { createSchoolAdminMenuSelect } from "./schoolAdminMenuConfig";
 import { useSchoolAdminMenu } from "./useSchoolAdminMenu";
 import { useAuth } from "../../context/AuthContext";
+import { labelForRejectPreset } from "../../constants/menuRejectPresets";
+
+const HISTORY_EVENT_LABELS = {
+  submitted: "Gửi duyệt",
+  approved: "Đã duyệt",
+  rejected_pending: "Từ chối duyệt",
+  request_edit_active: "Yêu cầu chỉnh sửa (từ thực đơn đang áp dụng)",
+  applied: "Áp dụng thực đơn",
+  ended: "Kết thúc áp dụng",
+};
 
 const days = ["mon", "tue", "wed", "thu", "fri"];
 
@@ -170,6 +180,37 @@ const MenuDetailSchoolAdmin = () => {
             Tạo bởi: {menu.createdBy?.fullName}
           </p>
         </div>
+
+        {Array.isArray(menu.statusHistory) && menu.statusHistory.length > 0 && (
+          <div className="mb-8 rounded-lg border border-gray-200 bg-gray-50 p-4">
+            <h2 className="font-semibold text-gray-800 mb-3">Lịch sử thao tác</h2>
+            <ul className="space-y-3 text-sm">
+              {menu.statusHistory.map((ev, idx) => (
+                <li
+                  key={`${ev.at || idx}-${ev.type}-${idx}`}
+                  className="border-l-2 border-indigo-300 pl-3"
+                >
+                  <div className="font-medium text-gray-800">
+                    {HISTORY_EVENT_LABELS[ev.type] || ev.type}
+                  </div>
+                  <div className="text-gray-500 text-xs mt-0.5">
+                    {ev.at ? new Date(ev.at).toLocaleString("vi-VN") : ""}
+                  </div>
+                  {(ev.presets?.length > 0 || (ev.detail && String(ev.detail).trim())) && (
+                    <div className="mt-1 text-gray-600 text-xs whitespace-pre-wrap">
+                      {(ev.presets || []).map((pid) => (
+                        <div key={pid}>• {labelForRejectPreset(pid)}</div>
+                      ))}
+                      {ev.detail && String(ev.detail).trim() ? (
+                        <div className="mt-1">Chi tiết: {ev.detail}</div>
+                      ) : null}
+                    </div>
+                  )}
+                </li>
+              ))}
+            </ul>
+          </div>
+        )}
 
         {renderWeek("Tuần lẻ", menu.weeks?.odd)}
         {renderWeek("Tuần chẵn", menu.weeks?.even)}

@@ -230,6 +230,7 @@ export default function DistrictNutritionPlanSchoolAdmin() {
       if (createFile) fd.append("regulationFile", createFile);
       await createDistrictNutritionPlan(fd);
       localStorage.setItem("nutrition_plan_updated_at", String(Date.now()));
+      window.dispatchEvent(new Event("nutrition_plan_updated"));
       toast.success("Đã tạo kế hoạch mới");
       setCreateOpen(false);
       await load();
@@ -257,6 +258,7 @@ export default function DistrictNutritionPlanSchoolAdmin() {
       if (editFile) fd.append("regulationFile", editFile);
       await updateDistrictNutritionPlan(active._id, fd);
       localStorage.setItem("nutrition_plan_updated_at", String(Date.now()));
+      window.dispatchEvent(new Event("nutrition_plan_updated"));
       toast.success("Đã cập nhật kế hoạch");
       setEditFile(null);
       await load();
@@ -287,6 +289,7 @@ export default function DistrictNutritionPlanSchoolAdmin() {
     try {
       await endDistrictNutritionPlan(confirmEndId);
       localStorage.setItem("nutrition_plan_updated_at", String(Date.now()));
+      window.dispatchEvent(new Event("nutrition_plan_updated"));
       toast.success("Đã kết thúc kế hoạch và lưu vào lịch sử");
       setConfirmEndId(null);
       await load();

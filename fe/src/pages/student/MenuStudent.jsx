@@ -6,8 +6,7 @@ import {
   Box, Paper, Typography, Stack, Avatar, Chip, IconButton, CircularProgress, Divider,
 } from '@mui/material';
 import {
-  ArrowBack, CalendarMonth, CheckCircle, AccessTime, Cancel,
-  PlayCircle, StopCircle, Help, ChevronRight, RestaurantMenu,
+  ArrowBack, CalendarMonth, PlayCircle, StopCircle, Help, ChevronRight, RestaurantMenu,
 } from '@mui/icons-material';
 
 const PRIMARY = '#059669';
@@ -15,12 +14,11 @@ const PRIMARY_DARK = '#047857';
 const BG = '#f0fdf4';
 
 const STATUS_CONFIG = {
-  approved:  { label: 'Đã duyệt',       color: 'success', Icon: CheckCircle },
-  pending:   { label: 'Chờ duyệt',       color: 'warning', Icon: AccessTime   },
-  rejected:  { label: 'Bị từ chối',      color: 'error',   Icon: Cancel       },
-  active:    { label: 'Đang áp dụng',    color: 'info',    Icon: PlayCircle   },
-  completed: { label: 'Đã kết thúc',     color: 'default', Icon: StopCircle   },
+  active:    { label: 'Đang áp dụng', color: 'info',    Icon: PlayCircle },
+  completed: { label: 'Đã kết thúc',  color: 'default', Icon: StopCircle },
 };
+
+const STUDENT_VISIBLE_STATUSES = ['active', 'completed'];
 
 export default function MenuStudent() {
   const navigate = useNavigate();
@@ -32,7 +30,8 @@ export default function MenuStudent() {
       try {
         setLoading(true);
         const res = await getMenus();
-        setMenus(res.data || []);
+        const list = Array.isArray(res.data) ? res.data : [];
+        setMenus(list.filter((m) => STUDENT_VISIBLE_STATUSES.includes(m.status)));
       } catch { toast.error('Không thể tải danh sách thực đơn'); }
       finally { setLoading(false); }
     })();

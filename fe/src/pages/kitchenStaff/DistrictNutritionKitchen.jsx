@@ -76,9 +76,12 @@ export default function DistrictNutritionKitchen() {
         loadAll();
       }
     };
+    const onPlanUpdated = () => loadAll();
     window.addEventListener("storage", onStorage);
+    window.addEventListener("nutrition_plan_updated", onPlanUpdated);
     return () => {
       window.removeEventListener("storage", onStorage);
+      window.removeEventListener("nutrition_plan_updated", onPlanUpdated);
     };
   }, [loadAll]);
 

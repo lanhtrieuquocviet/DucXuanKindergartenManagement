@@ -110,25 +110,44 @@ const getNutritionRangesFromPlan = (planItems = []) => {
     const max = Number(item?.max);
     if (Number.isNaN(min) || Number.isNaN(max) || max <= min) return;
 
-    if (/calo|kcal|năng lượng/.test(label)) {
+    // Khớp chỉ tiêu từ Kế hoạch dinh dưỡng theo sở (BGH) — tên có thể là "Đạm (g)", "Đạm (%)", v.v.
+    if (/calo|kcal|năng lượng|nang luong/.test(label)) {
       ranges.avgCalories = { min, max };
       return;
     }
-    if (/đạm|protein/.test(label)) {
+    if (/đạm|chất đạm|protein/.test(label)) {
       ranges.protein = { min, max };
       return;
     }
-    if (/béo|fat/.test(label)) {
+    if (/béo|chất béo|fat|lipid/.test(label)) {
       ranges.fat = { min, max };
       return;
     }
-    if (/tinh bột|carb/.test(label)) {
+    if (/tinh bột|carb|glucid|starch/.test(label)) {
       ranges.carb = { min, max };
     }
   });
 
   return ranges;
 };
+
+/** Tổng trong ngày: cộng mọi lần xuất hiện (trưa + chiều), món trùng vẫn cộng dồn. */
+function aggregateDayNutritionSumAll(dayMenu) {
+  let calories = 0;
+  let protein = 0;
+  let fat = 0;
+  let carb = 0;
+  const add = (food) => {
+    if (!food) return;
+    calories += Number(food.calories) || 0;
+    protein += Number(food.protein) || 0;
+    fat += Number(food.fat) || 0;
+    carb += Number(food.carb) || 0;
+  };
+  (dayMenu?.lunchFoods || []).forEach(add);
+  (dayMenu?.afternoonFoods || []).forEach(add);
+  return { calories, protein, fat, carb };
+}
 
 const evaluateNutrition = (nutrition = {}, ranges = DEFAULT_NUTRITION_RANGES) => {
   const avgCalories = Number(nutrition.avgCalories || 0);
@@ -175,10 +194,8 @@ const evaluateNutrition = (nutrition = {}, ranges = DEFAULT_NUTRITION_RANGES) =>
 };
 
 const evaluateDailyNutrition = (dayMenu, ranges = DEFAULT_NUTRITION_RANGES) => {
-  const calories = Number(dayMenu?.totalCalories || 0);
-  const protein = Number(dayMenu?.totalProtein || 0);
-  const fat = Number(dayMenu?.totalFat || 0);
-  const carb = Number(dayMenu?.totalCarb || 0);
+  const { calories: calRaw, protein, fat, carb } = aggregateDayNutritionSumAll(dayMenu);
+  const calories = Number(calRaw || 0);
 
   const pKcal = protein * 4;
   const fKcal = fat * 9;
@@ -213,6 +230,49 @@ const evaluateDailyNutrition = (dayMenu, ranges = DEFAULT_NUTRITION_RANGES) => {
   };
 };
 
+/** Điều kiện gửi duyệt: đủ món mọi ô + mọi ngày đạt + đánh giá tổng đạt. */
+function computeSubmitReadiness(menu, nutritionRanges, nutritionEvaluation) {
+  if (!menu?.weeks) {
+    return { ok: false, message: "Chưa có dữ liệu thực đơn đầy đủ." };
+  }
+  const weekLabel = (wt) => (wt === "odd" ? "tuần lẻ" : "tuần chẵn");
+  for (const wt of ["odd", "even"]) {
+    const weekData = menu.weeks[wt];
+    if (!weekData) {
+      return { ok: false, message: `Thiếu dữ liệu ${weekLabel(wt)}.` };
+    }
+    for (const day of days) {
+      const dayMenu = weekData[day];
+      if (!dayMenu) {
+        return { ok: false, message: `Thiếu ô ${dayMap[day]} (${weekLabel(wt)}).` };
+      }
+      for (const meal of mealTypes) {
+        const foods = dayMenu[meal.key] || [];
+        if (!foods.length) {
+          return {
+            ok: false,
+            message: `Ô còn trống: ${meal.label} — ${dayMap[day]} (${weekLabel(wt)}).`,
+          };
+        }
+      }
+      const ev = evaluateDailyNutrition(dayMenu, nutritionRanges);
+      if (!ev.pass) {
+        return {
+          ok: false,
+          message: `Đánh giá ngày chưa đạt: ${dayMap[day]} (${weekLabel(wt)}).`,
+        };
+      }
+    }
+  }
+  if (!nutritionEvaluation?.overallPass) {
+    return {
+      ok: false,
+      message: "Đánh giá dinh dưỡng tổng chưa đạt. Vui lòng chỉnh thực đơn.",
+    };
+  }
+  return { ok: true, message: "" };
+}
+
 // --- Sub-components ---
 
 function NutritionCard({ item, value }) {
@@ -240,8 +300,7 @@ function FoodTag({ food, canDelete, onDelete, canTune, onTune }) {
         sx={{
           fontSize: 11,
           cursor: canTune ? "pointer" : "default",
-          textDecoration: canTune ? "underline" : "none",
-          textUnderlineOffset: 2,
+          textDecoration: "none",
         }}
         onClick={
           canTune && onTune
@@ -322,7 +381,9 @@ function WeekTable({ title, weekData, isEditable, onCellClick, onRemoveFood, nut
                 {days.map((day) => {
                   const dayMenu = weekData?.[day];
                   const evaluation = evaluateDailyNutrition(dayMenu, nutritionRanges);
-                  const hasData = (dayMenu?.lunchFoods?.length || 0) > 0 || (dayMenu?.afternoonFoods?.length || 0) > 0;
+                  const hasData =
+                    (dayMenu?.lunchFoods?.length || 0) > 0 ||
+                    (dayMenu?.afternoonFoods?.length || 0) > 0;
 
                   return (
                     <TableCell key={day} sx={{ verticalAlign: "top", p: 1.25, minWidth: 120, bgcolor: alpha(evaluation.pass ? "#16a34a" : "#dc2626", 0.03) }}>
@@ -341,7 +402,7 @@ function WeekTable({ title, weekData, isEditable, onCellClick, onRemoveFood, nut
                           <Chip
                             size="small"
                             color={evaluation.pass ? "success" : "error"}
-                            label={evaluation.pass ? "PASS" : "CẦN CHỈNH"}
+                            label={evaluation.pass ? "Đạt" : "Không đạt"}
                             sx={{ mt: 0.75, fontWeight: 700 }}
                           />
                           {!evaluation.pass && (
@@ -398,15 +459,21 @@ function MenuDetail() {
     const plan = menu?.nutritionPlan;
     if (Array.isArray(plan) && plan.length > 0) {
       const planNutrition = {
-        avgCalories: plan.find((row) => /năng lượng|calo/i.test(row.label))?.actual || menu?.nutrition?.avgCalories || 0,
-        protein: plan.find((row) => /protein/i.test(row.label))?.actual || menu?.nutrition?.protein || 0,
-        fat: plan.find((row) => /chất béo|fat/i.test(row.label))?.actual || menu?.nutrition?.fat || 0,
-        carb: plan.find((row) => /tinh bột|carb/i.test(row.label))?.actual || menu?.nutrition?.carb || 0,
+        avgCalories: plan.find((row) => /năng lượng|calo|kcal/i.test(row.label))?.actual || menu?.nutrition?.avgCalories || 0,
+        protein: plan.find((row) => /đạm|protein|chất đạm/i.test(row.label))?.actual || menu?.nutrition?.protein || 0,
+        fat: plan.find((row) => /chất béo|béo|fat|lipid/i.test(row.label))?.actual || menu?.nutrition?.fat || 0,
+        carb: plan.find((row) => /tinh bột|carb|glucid/i.test(row.label))?.actual || menu?.nutrition?.carb || 0,
       };
-      return evaluateNutrition(planNutrition);
+      // Luôn dùng ngưỡng từ API (kế hoạch sở / cài đặt), không dùng DEFAULT cố định
+      return evaluateNutrition(planNutrition, nutritionRanges);
     }
     return evaluateNutrition(menu?.nutrition, nutritionRanges);
   }, [menu, nutritionRanges]);
+
+  const submitReadiness = useMemo(
+    () => computeSubmitReadiness(menu, nutritionRanges, nutritionEvaluation),
+    [menu, nutritionRanges, nutritionEvaluation]
+  );
 
   useEffect(() => { 
     fetchMenuDetail();
@@ -427,12 +494,19 @@ function MenuDetail() {
       }
     };
 
+    /** Cùng tab: BGH lưu kế hoạch sở → bếp cập nhật ngưỡng ngay (storage chỉ có tab khác) */
+    const handleNutritionPlanUpdated = () => {
+      fetchNutritionPlanSetting();
+    };
+
     window.addEventListener("storage", handleStorage);
+    window.addEventListener("nutrition_plan_updated", handleNutritionPlanUpdated);
     document.addEventListener("visibilitychange", handleVisibilityChange);
     const intervalId = window.setInterval(fetchNutritionPlanSetting, 15000);
 
     return () => {
       window.removeEventListener("storage", handleStorage);
+      window.removeEventListener("nutrition_plan_updated", handleNutritionPlanUpdated);
       document.removeEventListener("visibilitychange", handleVisibilityChange);
       window.clearInterval(intervalId);
     };
@@ -547,6 +621,10 @@ function MenuDetail() {
   };
 
   const handleOpenSubmitDialog = () => {
+    if (!submitReadiness.ok) {
+      toast.error(submitReadiness.message || "Chưa đủ điều kiện gửi duyệt");
+      return;
+    }
     setShowSubmitDialog(true);
   };
 
@@ -644,6 +722,10 @@ function MenuDetail() {
   };
 
   const handleSubmitMenu = async () => {
+    if (!submitReadiness.ok) {
+      toast.error(submitReadiness.message || "Chưa đủ điều kiện gửi duyệt");
+      return;
+    }
     try {
       setSubmitting(true);
       await submitMenu(menu._id);
@@ -714,12 +796,12 @@ function MenuDetail() {
             Xuất Excel
           </Button>
           {isEditable && (
-            <Button 
-              variant="contained" 
-              color={menu.status === "rejected" ? "primary" : "success"} 
-              startIcon={<SendIcon />} 
-              onClick={handleOpenSubmitDialog} 
-              sx={{ borderRadius: 2.5, px: 3, fontWeight: 700, textTransform: 'none' }}
+            <Button
+              variant="contained"
+              color={menu.status === "rejected" ? "primary" : "success"}
+              startIcon={<SendIcon />}
+              onClick={handleOpenSubmitDialog}
+              sx={{ borderRadius: 2.5, px: 3, fontWeight: 700, textTransform: "none" }}
             >
               {menu.status === "rejected" ? "Gửi lại thực đơn" : "Gửi duyệt"}
             </Button>
@@ -767,9 +849,9 @@ function MenuDetail() {
       )}
 
       {menu?.nutrition && (
-        <Card elevation={0} sx={{ border: '1px solid', borderColor: nutritionEvaluation.overallPass ? 'success.main' : 'warning.main', borderRadius: 3, mb: 4, p: 2, bgcolor: nutritionEvaluation.overallPass ? 'success.50' : 'warning.50' }}>
+        <Card elevation={0} sx={{ border: '1px solid', borderColor: nutritionEvaluation.overallPass ? 'success.main' : 'error.main', borderRadius: 3, mb: 4, p: 2, bgcolor: nutritionEvaluation.overallPass ? 'success.50' : 'error.50' }}>
           <CardContent>
-            <Typography variant="subtitle1" sx={{ fontWeight: 700, mb: 1, color: nutritionEvaluation.overallPass ? 'success.main' : 'warning.main' }}>
+            <Typography variant="subtitle1" sx={{ fontWeight: 700, mb: 1, color: nutritionEvaluation.overallPass ? 'success.main' : 'error.main' }}>
               Đánh giá dinh dưỡng
             </Typography>
 
@@ -777,7 +859,7 @@ function MenuDetail() {
               <Typography variant="body2" sx={{ fontWeight: 600 }}>
                 Calo trung bình/ngày: {nutritionEvaluation.calories.value?.toFixed(1) || 0} kcal
               </Typography>
-                <Chip label={nutritionEvaluation.calories.pass ? 'ĐẠT' : 'CẦN CHỈNH'} color={nutritionEvaluation.calories.pass ? 'success' : 'warning'} size="small" />
+                <Chip label={nutritionEvaluation.calories.pass ? 'Đạt' : 'Không đạt'} color={nutritionEvaluation.calories.pass ? 'success' : 'error'} size="small" />
                 <Typography variant="caption" color="text.secondary">
                   (Tiêu chuẩn {nutritionEvaluation.calories.range} kcal)
                 </Typography>
@@ -785,26 +867,26 @@ function MenuDetail() {
 
               <Stack direction={{ xs: 'column', sm: 'row' }} spacing={2} alignItems="stretch">
                 {['protein', 'fat', 'carb'].map((key) => (
-                  <Box key={key} sx={{ flex: 1, p: 1, borderRadius: 2, border: '1px solid', borderColor: nutritionEvaluation[key].pass ? 'success.main' : 'warning.main' }}>
-                    <Typography variant="body2" sx={{ fontWeight: 700, color: nutritionEvaluation[key].pass ? 'success.main' : 'warning.main' }}>
+                  <Box key={key} sx={{ flex: 1, p: 1, borderRadius: 2, border: '1px solid', borderColor: nutritionEvaluation[key].pass ? 'success.main' : 'error.main' }}>
+                    <Typography variant="body2" sx={{ fontWeight: 700, color: nutritionEvaluation[key].pass ? 'success.main' : 'error.main' }}>
                       {key === 'carb' ? 'Tinh bột' : key === 'fat' ? 'Chất béo' : 'Chất đạm'}
                     </Typography>
                     <Typography variant="caption" sx={{ display: 'block', mt: 0.5 }}>
                       {nutritionEvaluation[key].value.toFixed(1)}% / {nutritionEvaluation[key].range}
                     </Typography>
-                    <Chip label={nutritionEvaluation[key].pass ? 'ĐẠT' : 'CẦN CHỈNH'} color={nutritionEvaluation[key].pass ? 'success' : 'warning'} size="small" sx={{ mt: 0.75 }} />
+                    <Chip label={nutritionEvaluation[key].pass ? 'Đạt' : 'Không đạt'} color={nutritionEvaluation[key].pass ? 'success' : 'error'} size="small" sx={{ mt: 0.75 }} />
                   </Box>
                 ))}
               </Stack>
               <Box mt={2}>
                 {nutritionEvaluation.overallPass ? (
                   <Typography variant="body2" color="success.main" sx={{ fontWeight: 700 }}>
-                    Kết luận: Thực đơn đạt chuẩn dinh dưỡng.
+                    Kết luận: Đạt
                   </Typography>
                 ) : (
                 <Box>
-                  <Typography variant="body2" color="warning.main" sx={{ fontWeight: 700, mb: 1 }}>
-                    Kết luận: Thực đơn chưa đạt chuẩn
+                  <Typography variant="body2" color="error.main" sx={{ fontWeight: 700, mb: 1 }}>
+                    Kết luận: Không đạt
                   </Typography>
                   <List dense>
                     {!nutritionEvaluation.calories.pass && (

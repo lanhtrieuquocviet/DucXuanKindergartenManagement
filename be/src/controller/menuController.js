@@ -26,6 +26,17 @@ function buildRejectReasonText(presets, detail) {
   return lines.join("\n");
 }
 
+function pushMenuHistory(menu, entry) {
+  if (!Array.isArray(menu.statusHistory)) menu.statusHistory = [];
+  menu.statusHistory.push({
+    type: entry.type,
+    at: entry.at || new Date(),
+    actorId: entry.actorId || null,
+    presets: entry.presets || [],
+    detail: entry.detail != null ? String(entry.detail) : "",
+  });
+}
+
 const DEFAULT_NUTRITION_PLAN = [
   { name: "Calo trung bình/ngày", min: 615, max: 726, actual: 0 },
   { name: "Đạm (g)", min: 13, max: 20, actual: 0 },
@@ -67,6 +78,17 @@ exports.createMenu = async (req, res) => {
       return res.status(400).json({
         success: false,
         message: "month phải từ 1 đến 12",
+      });
+    }
+
+    const now = new Date();
+    const selectedPeriod = Number(year) * 12 + Number(month);
+    const currentPeriod = now.getFullYear() * 12 + (now.getMonth() + 1);
+    if (selectedPeriod < currentPeriod) {
+      return res.status(400).json({
+        success: false,
+        message:
+          "Chỉ được tạo thực đơn cho tháng hiện tại hoặc trong tương lai",
       });
     }
 
@@ -151,9 +173,9 @@ exports.getMenus = async (req, res) => {
       filter = { status: { $ne: "draft" } };
     }
 
-    // Phụ huynh / học sinh: chỉ menu đã duyệt
+    // Học sinh: chỉ thực đơn đang áp dụng hoặc đã kết thúc (không hiện chỉ mới duyệt)
     if (roleName === "Student") {
-      filter = { status: { $in: ["approved", "active", "completed"] } };
+      filter = { status: { $in: ["active", "completed"] } };
     }
 
     const page = Math.max(Number(req.query.page) || 1, 1);
@@ -233,6 +255,13 @@ exports.getMenuDetail = async (req, res) => {
     if (!menu) {
       return res.status(404).json({
         message: "Menu không tồn tại",
+      });
+    }
+
+    const roleName = req.user?.roles?.[0]?.roleName || req.user?.roles?.[0];
+    if (roleName === "Student" && !["active", "completed"].includes(menu.status)) {
+      return res.status(404).json({
+        message: "Không tìm thấy thực đơn",
       });
     }
 
@@ -351,6 +380,11 @@ exports.submitMenu = async (req, res) => {
     menu.rejectPresets = [];
     menu.rejectDetail = "";
 
+    pushMenuHistory(menu, {
+      type: "submitted",
+      actorId: req.user?._id,
+    });
+
     await menu.save();
 
     res.json({
@@ -374,7 +408,19 @@ exports.approveMenu = async (req, res) => {
       });
     }
 
+    if (menu.status !== "pending") {
+      return res.status(400).json({
+        success: false,
+        message: "Chỉ có thể duyệt thực đơn đang chờ duyệt",
+      });
+    }
+
     menu.status = "approved";
+
+    pushMenuHistory(menu, {
+      type: "approved",
+      actorId: req.user?._id,
+    });
 
     await menu.save();
 
@@ -399,6 +445,13 @@ exports.rejectMenu = async (req, res) => {
       });
     }
 
+    if (menu.status !== "pending") {
+      return res.status(400).json({
+        success: false,
+        message: "Chỉ có thể từ chối thực đơn đang chờ duyệt",
+      });
+    }
+
     const presets = Array.isArray(req.body.presets)
       ? [...new Set(req.body.presets.map((p) => String(p).trim()).filter(Boolean))]
       : [];
@@ -417,6 +470,13 @@ exports.rejectMenu = async (req, res) => {
     menu.rejectDetail = detail;
     menu.rejectReason = buildRejectReasonText(presets, detail);
 
+    pushMenuHistory(menu, {
+      type: "rejected_pending",
+      actorId: req.user?._id,
+      presets,
+      detail,
+    });
+
     await menu.save();
 
     res.json({
@@ -426,6 +486,65 @@ exports.rejectMenu = async (req, res) => {
     });
   } catch (error) {
     res.status(500).json({ message: error.message });
+  }
+};
+
+/** Ban giám hiệu yêu cầu chỉnh sửa khi thực đơn đang áp dụng → trả về bếp (rejected), ghi lịch sử */
+exports.requestEditFromActiveMenu = async (req, res) => {
+  try {
+    const menu = await Menu.findById(req.params.id);
+
+    if (!menu) {
+      return res.status(404).json({
+        success: false,
+        message: "Menu không tồn tại",
+      });
+    }
+
+    if (menu.status !== "active") {
+      return res.status(400).json({
+        success: false,
+        message: "Chỉ có thể yêu cầu chỉnh sửa khi thực đơn đang áp dụng",
+      });
+    }
+
+    const presets = Array.isArray(req.body.presets)
+      ? [...new Set(req.body.presets.map((p) => String(p).trim()).filter(Boolean))]
+      : [];
+    const detail = String(req.body.detail || "").trim();
+
+    if (presets.length === 0 && detail.length < 5) {
+      return res.status(400).json({
+        success: false,
+        message:
+          "Chọn ít nhất một lý do gợi ý hoặc nhập chi tiết (tối thiểu 5 ký tự)",
+      });
+    }
+
+    menu.status = "rejected";
+    menu.rejectPresets = presets;
+    menu.rejectDetail = detail;
+    menu.rejectReason = buildRejectReasonText(presets, detail);
+    menu.appliedAt = null;
+
+    pushMenuHistory(menu, {
+      type: "request_edit_active",
+      actorId: req.user?._id,
+      presets,
+      detail,
+    });
+
+    await menu.save();
+
+    const populated = await Menu.findById(menu._id).populate("createdBy", "fullName email");
+
+    return res.json({
+      success: true,
+      message: "Đã gửi yêu cầu chỉnh sửa cho bộ phận bếp",
+      data: populated,
+    });
+  } catch (error) {
+    return res.status(500).json({ success: false, message: error.message });
   }
 };
 
@@ -450,13 +569,26 @@ exports.applyMenu = async (req, res) => {
 
     const now = new Date();
 
-    await Menu.updateMany(
-      { status: "active" },
-      { $set: { status: "completed", endedAt: now } }
-    );
+    const previouslyActive = await Menu.find({ status: "active" });
+    for (const prev of previouslyActive) {
+      prev.status = "completed";
+      prev.endedAt = now;
+      pushMenuHistory(prev, {
+        type: "ended",
+        actorId: req.user?._id,
+        detail: "Kết thúc do áp dụng thực đơn khác",
+      });
+      await prev.save();
+    }
 
     menu.status = "active";
     menu.appliedAt = now;
+
+    pushMenuHistory(menu, {
+      type: "applied",
+      actorId: req.user?._id,
+    });
+
     await menu.save();
 
     const populated = await Menu.findById(menu._id).populate("createdBy", "fullName email");
@@ -490,8 +622,15 @@ exports.endMenu = async (req, res) => {
       });
     }
 
+    const endedAt = new Date();
     menu.status = "completed";
-    menu.endedAt = new Date();
+    menu.endedAt = endedAt;
+
+    pushMenuHistory(menu, {
+      type: "ended",
+      actorId: req.user?._id,
+    });
+
     await menu.save();
 
     const populated = await Menu.findById(menu._id).populate("createdBy", "fullName email");

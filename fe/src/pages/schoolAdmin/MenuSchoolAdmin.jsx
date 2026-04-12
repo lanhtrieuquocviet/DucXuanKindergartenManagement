@@ -3,6 +3,7 @@ import {
   getMenus,
   approveMenu,
   rejectMenu,
+  requestEditFromActiveMenu,
   applyMenu,
   endMenu,
 } from "../../service/menu.api";
@@ -30,6 +31,7 @@ import {
   PlayCircleOutline as ApplyIcon,
   StopCircle as EndMenuIcon,
   History as HistoryIcon,
+  EditNote as EditNoteIcon,
 } from "@mui/icons-material";
 
 const STATUS_CONFIG = {
@@ -47,8 +49,18 @@ const TABS = [
   { value: "approved",  label: "Đã duyệt" },
   { value: "active",    label: "Đang áp dụng" },
   { value: "completed", label: "Lịch sử" },
-  { value: "rejected",  label: "Từ chối" },
 ];
+
+/** Tab Lịch sử: đã kết thúc + các lần trả về bếp (từ chối / yêu cầu sửa) */
+function isHistoryListStatus(menu) {
+  return menu.status === "completed" || menu.status === "rejected";
+}
+
+function lastHistoryEntry(menu) {
+  const h = menu.statusHistory;
+  if (!Array.isArray(h) || h.length === 0) return null;
+  return h[h.length - 1];
+}
 
 function MenuCardSkeleton() {
   return (
@@ -73,9 +85,11 @@ function EmptyState({ tab }) {
     all:      { title: "Chưa có thực đơn nào", sub: "Khi y tế hoặc giáo viên gửi thực đơn, chúng sẽ xuất hiện tại đây." },
     pending:  { title: "Không có thực đơn chờ duyệt", sub: "Hiện tại không có thực đơn nào đang chờ xét duyệt." },
     approved: { title: "Chưa có thực đơn đã duyệt", sub: "Các thực đơn sau khi được phê duyệt sẽ hiển thị tại đây." },
-    rejected: { title: "Chưa có thực đơn bị từ chối", sub: "Các thực đơn bị từ chối sẽ hiển thị tại đây." },
     active:    { title: "Không có thực đơn đang áp dụng", sub: "Hãy áp dụng một thực đơn đã duyệt để hiển thị tại đây." },
-    completed: { title: "Chưa có lịch sử", sub: "Các thực đơn đã kết thúc sẽ lưu tại đây." },
+    completed: {
+      title: "Chưa có mục trong lịch sử",
+      sub: "Đã kết thúc áp dụng, từ chối duyệt hoặc yêu cầu bếp chỉnh sửa đều được ghi tại đây.",
+    },
   };
   const { title, sub } = messages[tab] || messages.all;
   return (
@@ -110,6 +124,9 @@ function MenuSchoolAdmin() {
   const [rejectPresetSel, setRejectPresetSel] = useState({});
   const [confirmApply, setConfirmApply]     = useState(null);
   const [confirmEnd, setConfirmEnd]         = useState(null);
+  const [confirmRequestEdit, setConfirmRequestEdit] = useState(null);
+  const [requestEditDetail, setRequestEditDetail] = useState("");
+  const [requestEditPresetSel, setRequestEditPresetSel] = useState({});
 
   const navigate       = useNavigate();
   const { user, logout } = useAuth();
@@ -177,7 +194,7 @@ function MenuSchoolAdmin() {
     }
     try {
       await rejectMenu(confirmReject._id, { presets, detail });
-      toast.success("Đã từ chối thực đơn");
+      toast.success("Đã từ chối; đã ghi vào Lịch sử");
       setConfirmReject(null);
       setRejectDetail("");
       setRejectPresetSel({});
@@ -187,15 +204,39 @@ function MenuSchoolAdmin() {
     }
   };
 
+  const handleRequestEditFromActive = async () => {
+    if (!confirmRequestEdit) return;
+    const presets = MENU_REJECT_PRESETS.filter((p) => requestEditPresetSel[p.id]).map((p) => p.id);
+    const detail = requestEditDetail.trim();
+    if (presets.length === 0 && detail.length < 5) {
+      toast.error("Chọn ít nhất một lý do gợi ý hoặc nhập chi tiết (tối thiểu 5 ký tự)");
+      return;
+    }
+    try {
+      await requestEditFromActiveMenu(confirmRequestEdit._id, { presets, detail });
+      toast.success("Đã gửi yêu cầu chỉnh sửa cho bếp; đã ghi vào Lịch sử");
+      setConfirmRequestEdit(null);
+      setRequestEditDetail("");
+      setRequestEditPresetSel({});
+      fetchMenus();
+    } catch (e) {
+      toast.error(e?.message || e?.data?.message || "Gửi yêu cầu thất bại");
+    }
+  };
+
   const handleMenuSelect = createSchoolAdminMenuSelect(navigate);
   const userName = user?.fullName || user?.username || "School Admin";
 
-  const filtered = tab === "all" ? menus : menus.filter((m) => m.status === tab);
+  const filtered =
+    tab === "all"
+      ? menus
+      : tab === "completed"
+        ? menus.filter(isHistoryListStatus)
+        : menus.filter((m) => m.status === tab);
 
   const pendingCount = menus.filter((m) => m.status === "pending").length;
   const activeCount = menus.filter((m) => m.status === "active").length;
-  const historyCount = menus.filter((m) => m.status === "completed").length;
-  const rejectedCount = menus.filter((m) => m.status === "rejected").length;
+  const historyCount = menus.filter(isHistoryListStatus).length;
 
   return (
     <RoleLayout
@@ -244,8 +285,6 @@ function MenuSchoolAdmin() {
               badge = <Chip label={activeCount} size="small" color="info" sx={{ height: 18, fontSize: 10, fontWeight: 700 }} />;
             } else if (t.value === "completed" && historyCount > 0) {
               badge = <Chip label={historyCount} size="small" color="secondary" sx={{ height: 18, fontSize: 10, fontWeight: 700 }} />;
-            } else if (t.value === "rejected" && rejectedCount > 0) {
-              badge = <Chip label={rejectedCount} size="small" color="error" sx={{ height: 18, fontSize: 10, fontWeight: 700 }} />;
             }
             return (
               <Tab
@@ -328,6 +367,18 @@ function MenuSchoolAdmin() {
                             Kết thúc: {new Date(menu.endedAt).toLocaleString("vi-VN")}
                           </Typography>
                         )}
+                        {menu.status === "rejected" && (() => {
+                          const last = lastHistoryEntry(menu);
+                          const ctx =
+                            last?.type === "request_edit_active"
+                              ? "Yêu cầu chỉnh sửa từ thực đơn đang áp dụng"
+                              : "Từ chối duyệt — bếp có thể chỉnh và gửi lại";
+                          return (
+                            <Typography variant="caption" color="error.main" display="block" mt={0.75}>
+                              {ctx}
+                            </Typography>
+                          );
+                        })()}
                       </Box>
 
                       {/* Actions */}
@@ -391,18 +442,36 @@ function MenuSchoolAdmin() {
                           </Tooltip>
                         )}
                         {menu.status === "active" && (
-                          <Tooltip title="Kết thúc và chuyển vào lịch sử">
-                            <Button
-                              variant="contained"
-                              size="small"
-                              color="warning"
-                              startIcon={<EndMenuIcon />}
-                              onClick={() => setConfirmEnd(menu)}
-                              sx={{ borderRadius: 1.5, textTransform: "none", fontWeight: 600 }}
-                            >
-                              Kết thúc
-                            </Button>
-                          </Tooltip>
+                          <>
+                            <Tooltip title="Gửi lại bếp chỉnh sửa (ghi vào Lịch sử)">
+                              <Button
+                                variant="outlined"
+                                size="small"
+                                color="secondary"
+                                startIcon={<EditNoteIcon />}
+                                onClick={() => {
+                                  setRequestEditDetail("");
+                                  setRequestEditPresetSel({});
+                                  setConfirmRequestEdit(menu);
+                                }}
+                                sx={{ borderRadius: 1.5, textTransform: "none", fontWeight: 600 }}
+                              >
+                                Yêu cầu chỉnh sửa
+                              </Button>
+                            </Tooltip>
+                            <Tooltip title="Kết thúc và chuyển vào lịch sử">
+                              <Button
+                                variant="contained"
+                                size="small"
+                                color="warning"
+                                startIcon={<EndMenuIcon />}
+                                onClick={() => setConfirmEnd(menu)}
+                                sx={{ borderRadius: 1.5, textTransform: "none", fontWeight: 600 }}
+                              >
+                                Kết thúc
+                              </Button>
+                            </Tooltip>
+                          </>
                         )}
                       </Stack>
                     </Stack>
@@ -483,6 +552,70 @@ function MenuSchoolAdmin() {
           </Button>
           <Button variant="contained" color="error" onClick={handleReject}>
             Xác nhận từ chối
+          </Button>
+        </DialogActions>
+      </Dialog>
+
+      {/* Yêu cầu chỉnh sửa (đang áp dụng) */}
+      <Dialog
+        open={!!confirmRequestEdit}
+        onClose={() => {
+          setConfirmRequestEdit(null);
+          setRequestEditDetail("");
+          setRequestEditPresetSel({});
+        }}
+        maxWidth="sm"
+        fullWidth
+      >
+        <DialogTitle fontWeight={700}>Yêu cầu chỉnh sửa thực đơn đang áp dụng</DialogTitle>
+        <DialogContent>
+          {confirmRequestEdit && (
+            <Typography mb={2} color="text.secondary">
+              Thực đơn Tháng <strong>{confirmRequestEdit.month}/{confirmRequestEdit.year}</strong> sẽ ngừng áp dụng và được gửi lại bộ phận bếp. Mọi thao tác được lưu trong Lịch sử.
+            </Typography>
+          )}
+          <Typography variant="subtitle2" fontWeight={700} gutterBottom>
+            Gợi ý lý do (chọn một hoặc nhiều)
+          </Typography>
+          <FormGroup sx={{ mb: 2 }}>
+            {MENU_REJECT_PRESETS.map((p) => (
+              <FormControlLabel
+                key={p.id}
+                control={
+                  <Checkbox
+                    size="small"
+                    checked={!!requestEditPresetSel[p.id]}
+                    onChange={() =>
+                      setRequestEditPresetSel((prev) => ({ ...prev, [p.id]: !prev[p.id] }))
+                    }
+                  />
+                }
+                label={<Typography variant="body2">{p.label}</Typography>}
+              />
+            ))}
+          </FormGroup>
+          <TextField
+            fullWidth
+            multiline
+            minRows={4}
+            label="Chi tiết yêu cầu"
+            placeholder="Mô tả cụ thể để bếp chỉnh sửa (bắt buộc nếu không chọn gợi ý nào ở trên, tối thiểu 5 ký tự)..."
+            value={requestEditDetail}
+            onChange={(e) => setRequestEditDetail(e.target.value)}
+          />
+        </DialogContent>
+        <DialogActions sx={{ px: 3, pb: 2 }}>
+          <Button
+            onClick={() => {
+              setConfirmRequestEdit(null);
+              setRequestEditDetail("");
+              setRequestEditPresetSel({});
+            }}
+          >
+            Hủy
+          </Button>
+          <Button variant="contained" color="secondary" onClick={handleRequestEditFromActive}>
+            Gửi yêu cầu chỉnh sửa
           </Button>
         </DialogActions>
       </Dialog>

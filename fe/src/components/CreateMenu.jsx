@@ -38,6 +38,14 @@ const MONTH_OPTIONS = [
   { value: 12, label: "Tháng 12 - Tháng Chạp" },
 ];
 
+/** So sánh (năm, tháng) với tháng hiện tại: true nếu (y,m) là quá khứ */
+function isMonthYearInPast(y, m) {
+  const now = new Date();
+  const selected = y * 12 + m;
+  const current = now.getFullYear() * 12 + (now.getMonth() + 1);
+  return selected < current;
+}
+
 function CreateMenu() {
   const navigate = useNavigate();
   const currentYear = new Date().getFullYear();
@@ -50,25 +58,42 @@ function CreateMenu() {
   const validate = () => {
     const newErrors = {};
     if (!month) newErrors.month = "Vui lòng chọn tháng";
-    if (!year) newErrors.year = "Vui lòng nhập năm";
-    else if (Number(year) < currentYear)
+    const y = year === "" ? NaN : Number(year);
+    if (!year || String(year).trim() === "") newErrors.year = "Vui lòng nhập năm";
+    else if (Number.isNaN(y)) newErrors.year = "Năm không hợp lệ";
+    else if (y < currentYear)
       newErrors.year = `Năm phải lớn hơn hoặc bằng ${currentYear}`;
-    else if (Number(year) > currentYear + 5)
+    else if (y > currentYear + 5)
       newErrors.year = `Năm không được vượt quá ${currentYear + 5}`;
+
+    const m = month === "" ? NaN : Number(month);
+    if (!newErrors.month && !newErrors.year && !Number.isNaN(y) && !Number.isNaN(m)) {
+      if (isMonthYearInPast(y, m)) {
+        newErrors.period =
+          "Chỉ được tạo thực đơn cho tháng hiện tại hoặc trong tương lai, không được chọn tháng đã qua.";
+      }
+    }
+
     setErrors(newErrors);
-    return Object.keys(newErrors).length === 0;
+    return newErrors;
   };
 
   const handleSubmit = async (e) => {
     e.preventDefault();
-    if (!validate()) return;
+    const newErrors = validate();
+    if (Object.keys(newErrors).length > 0) {
+      if (newErrors.period) toast.error(newErrors.period);
+      return;
+    }
     try {
       setLoading(true);
       await createMenu({ month: Number(month), year: Number(year) });
       toast.success("Tạo thực đơn thành công");
       navigate("/kitchen/menus");
     } catch (error) {
-      toast.error(error?.response?.data?.message || "Tạo thực đơn thất bại");
+      toast.error(
+        error?.message || error?.response?.data?.message || "Tạo thực đơn thất bại"
+      );
     } finally {
       setLoading(false);
     }
@@ -129,7 +154,7 @@ function CreateMenu() {
                   label="Tháng"
                   onChange={(e) => {
                     setMonth(e.target.value);
-                    setErrors((p) => ({ ...p, month: "" }));
+                    setErrors((p) => ({ ...p, month: "", period: "" }));
                   }}
                   sx={{ borderRadius: 2 }}
                 >
@@ -153,33 +178,64 @@ function CreateMenu() {
                 value={year}
                 onChange={(e) => {
                   setYear(e.target.value);
-                  setErrors((p) => ({ ...p, year: "" }));
+                  setErrors((p) => ({ ...p, year: "", period: "" }));
                 }}
                 inputProps={{ min: currentYear, max: currentYear + 5 }}
-                error={Boolean(errors.year)}
-                helperText={errors.year || `Năm học từ ${currentYear} đến ${currentYear + 5}`}
+                error={Boolean(errors.year || errors.period)}
+                helperText={
+                  errors.year ||
+                  errors.period ||
+                  `Năm học từ ${currentYear} đến ${currentYear + 5}`
+                }
                 InputProps={{ sx: { borderRadius: 2 } }}
               />
 
               {/* Preview */}
-              {month && year && !errors.month && !errors.year && (
-                <Box
-                  sx={{
-                    p: 2,
-                    bgcolor: "rgba(99,102,241,0.06)",
-                    borderRadius: 2,
-                    border: "1px solid",
-                    borderColor: "rgba(99,102,241,0.2)",
-                  }}
-                >
-                  <Typography variant="body2" color="primary.main" fontWeight={700}>
-                    Xem trước: Thực đơn Tháng {month}/{year}
-                  </Typography>
-                  <Typography variant="caption" color="text.secondary">
-                    Thực đơn sẽ được tạo ở trạng thái Nháp
-                  </Typography>
-                </Box>
-              )}
+              {month &&
+                year &&
+                !errors.month &&
+                !errors.year &&
+                (() => {
+                  const y = Number(year);
+                  const mo = Number(month);
+                  if (Number.isNaN(y) || Number.isNaN(mo)) return null;
+                  const past = isMonthYearInPast(y, mo);
+                  if (past) {
+                    return (
+                      <Box
+                        sx={{
+                          p: 2,
+                          bgcolor: "#fef2f2",
+                          borderRadius: 2,
+                          border: "1px solid",
+                          borderColor: "error.light",
+                        }}
+                      >
+                        <Typography variant="body2" color="error.main" fontWeight={700}>
+                          Tháng {month}/{year} đã qua — không thể tạo thực đơn cho kỳ này.
+                        </Typography>
+                      </Box>
+                    );
+                  }
+                  return (
+                    <Box
+                      sx={{
+                        p: 2,
+                        bgcolor: "rgba(99,102,241,0.06)",
+                        borderRadius: 2,
+                        border: "1px solid",
+                        borderColor: "rgba(99,102,241,0.2)",
+                      }}
+                    >
+                      <Typography variant="body2" color="primary.main" fontWeight={700}>
+                        Xem trước: Thực đơn Tháng {month}/{year}
+                      </Typography>
+                      <Typography variant="caption" color="text.secondary">
+                        Thực đơn sẽ được tạo ở trạng thái Nháp
+                      </Typography>
+                    </Box>
+                  );
+                })()}
 
               {/* Actions */}
               <Stack direction="row" justifyContent="flex-end" spacing={1.5} pt={0.5}>

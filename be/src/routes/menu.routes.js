@@ -270,6 +270,13 @@ router.put("/:id/approve", authenticate, authorizePermissions("APPROVE_MENU"), m
 router.put("/:id/reject", authenticate, authorizePermissions("APPROVE_MENU"), menuController.rejectMenu);
 
 router.patch(
+  "/:id/request-edit",
+  authenticate,
+  authorizePermissions("APPROVE_MENU"),
+  menuController.requestEditFromActiveMenu
+);
+
+router.patch(
   "/:id/apply",
   authenticate,
   authorizePermissions("APPROVE_MENU"),
