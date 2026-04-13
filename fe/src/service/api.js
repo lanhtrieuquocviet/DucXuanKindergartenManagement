@@ -563,6 +563,12 @@ export const ENDPOINTS = {
     UPDATE: (id) => `/pickup/requests/${id}`,
     DELETE: (id) => `/pickup/requests/${id}`,
   },
+  LEAVE: {
+    CREATE: '/leave/requests',
+    MY_REQUESTS: '/leave/my-requests',
+    REQUESTS: '/leave/requests',
+    UPDATE_STATUS: '/leave/requests/status',
+  },
   // Kitchen
   KITCHEN: {
     PUBLIC_MENUS: "/menus/public",

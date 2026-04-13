@@ -18,6 +18,7 @@ import TeacherStudents from './pages/teacher/TeacherStudents';
 import StudentDashboard from './pages/student/StudentDashboard';
 import StudentContactBook from './pages/student/StudentContactBook';
 import PickupRegistration from './pages/student/PickupRegistration';
+import LeaveRequest from './pages/student/LeaveRequest';
 import TodayAttendance from './pages/student/TodayAttendance';
 import AttendanceReport from './pages/student/AttendanceReport';
 import SchoolAdminDashboard from './pages/schoolAdmin/SchoolAdminDashboard';
@@ -92,6 +93,7 @@ import TeacherAssetInspection from './pages/teacher/TeacherAssetInspection';
 import TeacherPurchaseRequest from './pages/teacher/TeacherPurchaseRequest';
 import TeacherClassAssets from './pages/teacher/TeacherClassAssets';
 import HeadTeacherPurchaseRequests from './pages/teacher/HeadTeacherPurchaseRequests';
+import TeacherLeaveRequests from './pages/teacher/TeacherLeaveRequests';
 import KitchenLayout from './pages/kitchenStaff/KitchenLayout';
 import KitchenDashboard from './pages/kitchenStaff/KitchenDashboard';
 import MenuManagement from './pages/kitchenStaff/MenuManagement';
@@ -390,6 +392,16 @@ function App() {
               </ProtectedRoute>
             }
           />
+          <Route
+            path="/teacher/leave-requests"
+            element={
+              <ProtectedRoute>
+                <TeacherProvider>
+                  <TeacherLeaveRequests />
+                </TeacherProvider>
+              </ProtectedRoute>
+            }
+          />
           {/* Kitchen Staff */}
           <Route
             path="/kitchen"
@@ -423,6 +435,7 @@ function App() {
           />
           <Route path="/student" element={<ProtectedRoute><StudentDashboard /></ProtectedRoute>} />
           <Route path="/student/pickup" element={<ProtectedRoute><PickupRegistration /></ProtectedRoute>} />
+          <Route path="/student/leave-request" element={<ProtectedRoute><LeaveRequest /></ProtectedRoute>} />
           <Route path="/student/menus" element={<ProtectedRoute><MenuStudent /></ProtectedRoute>} />
           <Route path="/student/menus/:id" element={<ProtectedRoute><MenuDetailStudent /></ProtectedRoute>} />
           <Route path="/student/attendance/today" element={<ProtectedRoute><TodayAttendance /></ProtectedRoute>} />

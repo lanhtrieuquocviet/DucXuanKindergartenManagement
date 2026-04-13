@@ -24,6 +24,7 @@ const blogsRoutes = require('./src/routes/blogs.routes');
 const documentsRoutes = require('./src/routes/documents.routes');
 const otpRoutes = require('./src/routes/otp.routes');
 const pickupRoutes = require("./src/routes/pickup.routes");
+const leaveRequestRoutes = require('./src/routes/leaveRequest.routes');
 const foodRoutes = require("./src/routes/food.routes");
 const ingredientRoutes = require("./src/routes/ingredient.routes");
 const menuRoutes = require("./src/routes/menu.routes");
@@ -72,6 +73,7 @@ require('./src/models/NutritionPlanSetting');
 require('./src/models/DistrictNutritionPlan');
 require('./src/models/InspectionCommittee');
 require('./src/models/InspectionMinutes');
+require('./src/models/LeaveRequest');
 
 // Seed default roles on startup
 (async () => {
@@ -448,6 +450,7 @@ app.use('/api/otp', otpRoutes);
 
 // pickup-requets
 app.use("/api/pickup", pickupRoutes);
+app.use('/api/leave', leaveRequestRoutes);
 
 //menus
 app.use("/api/foods", foodRoutes);
