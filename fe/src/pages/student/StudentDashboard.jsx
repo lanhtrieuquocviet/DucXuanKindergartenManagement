@@ -75,6 +75,7 @@ export default function StudentDashboard() {
   const [notifications, setNotifications] = useState([]);
   const [unreadCount, setUnreadCount] = useState(0);
   const [notifLoading, setNotifLoading] = useState(false);
+  const [selectedChildId, setSelectedChildId] = useState(null);
 
   const pollRef = useRef(null);
   const lastOtpCodeRef = useRef(null);
@@ -92,7 +93,17 @@ export default function StudentDashboard() {
       .finally(() => setLoading(false));
   }, [navigate, user, isInitializing]);
 
-  const studentInfo = children[0] || null;
+  useEffect(() => {
+    if (!children.length) {
+      setSelectedChildId(null);
+      return;
+    }
+    if (!selectedChildId || !children.some((c) => c._id === selectedChildId)) {
+      setSelectedChildId(children[0]._id);
+    }
+  }, [children, selectedChildId]);
+
+  const studentInfo = children.find((c) => c._id === selectedChildId) || children[0] || null;
 
   useEffect(() => {
     if (!studentInfo?._id) return;
@@ -277,6 +288,9 @@ export default function StudentDashboard() {
               </Avatar>
               <Box flex={1} minWidth={0}>
                 <Typography fontWeight={800} fontSize="1.05rem" color="#111827" noWrap>{studentName}</Typography>
+                <Typography fontSize="0.78rem" color="text.secondary" mt={0.2}>
+                  Mã học sinh: {studentInfo?.studentCode || '—'}
+                </Typography>
                 <Stack direction="row" spacing={0.75} alignItems="center" mt={0.25} mb={1}>
                   <School sx={{ fontSize: 14, color: '#6b7280' }} />
                   <Typography fontSize="0.82rem" color="text.secondary">{className}</Typography>
@@ -291,6 +305,35 @@ export default function StudentDashboard() {
             </Stack>
           )}
         </Paper>
+
+        {children.length > 1 && (
+          <Paper elevation={0} sx={{ mb: 2.5, p: 2, borderRadius: 3, border: '1px solid', borderColor: '#bbf7d0' }}>
+            <Typography fontWeight={700} fontSize="0.9rem" mb={1.25}>Chọn bé cần thao tác</Typography>
+            <Grid container spacing={1.25}>
+              {children.map((child) => (
+                <Grid item xs={12} sm={6} key={child._id}>
+                  <Paper
+                    elevation={0}
+                    onClick={() => setSelectedChildId(child._id)}
+                    sx={{
+                      p: 1.5,
+                      borderRadius: 2.5,
+                      border: '1.5px solid',
+                      borderColor: selectedChildId === child._id ? PRIMARY : '#d1fae5',
+                      bgcolor: selectedChildId === child._id ? '#ecfdf5' : 'white',
+                      cursor: 'pointer',
+                    }}
+                  >
+                    <Typography fontWeight={700} fontSize="0.86rem" noWrap>{child.fullName}</Typography>
+                    <Typography fontSize="0.76rem" color="text.secondary">
+                      Mã HS: {child.studentCode || '—'}
+                    </Typography>
+                  </Paper>
+                </Grid>
+              ))}
+            </Grid>
+          </Paper>
+        )}
 
         {/* ── Action Grid ── */}
         <Grid container spacing={1.5}>

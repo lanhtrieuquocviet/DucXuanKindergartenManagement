@@ -203,6 +203,9 @@ const calcRefreshTokenExpiry = () => {
   return new Date(Date.now() + value * ms);
 };
 
+const normalizePhone = (value = '') => String(value).replace(/\D/g, '').trim();
+const isParentRoleName = (roleName = '') => ['parent', 'studentparent'].includes(String(roleName).toLowerCase());
+
 // ============================================
 // Các hàm controller
 // ============================================
@@ -213,12 +216,13 @@ const calcRefreshTokenExpiry = () => {
  */
 const login = async (req, res) => {
   try {
-    const { username, password } = req.body;
+    const { email, phone, loginId, username, password } = req.body;
+    const identifierRaw = (loginId || email || phone || username || '').trim();
 
-    if (!username || !password) {
+    if (!identifierRaw || !password) {
       return res.status(400).json({
         status: 'error',
-        message: 'Vui lòng nhập đầy đủ tài khoản và mật khẩu',
+        message: 'Vui lòng nhập đầy đủ email hoặc số điện thoại và mật khẩu',
       });
     }
 
@@ -229,7 +233,44 @@ const login = async (req, res) => {
       });
     }
 
-    const user = await User.findOne({ username: { $regex: new RegExp(`^${username.trim()}$`, 'i') } }).populate(ROLES_POPULATE);
+    const normalizedPhone = normalizePhone(identifierRaw);
+    const isEmailInput = identifierRaw.includes('@');
+    const isPhoneInput = /^\d{9,11}$/.test(normalizedPhone);
+
+    let user = null;
+
+    // Chỉ role phụ huynh được đăng nhập bằng email/số điện thoại.
+    if (isEmailInput || isPhoneInput) {
+      if (isEmailInput) {
+        user = await User.findOne({
+          email: { $regex: new RegExp(`^${identifierRaw}$`, 'i') },
+        }).populate(ROLES_POPULATE);
+      } else {
+        user = await User.findOne({ phone: normalizedPhone }).populate(ROLES_POPULATE);
+        if (!user) {
+          // hỗ trợ dữ liệu legacy phone lưu trong username
+          user = await User.findOne({ username: normalizedPhone }).populate(ROLES_POPULATE);
+        }
+      }
+
+      if (user) {
+        const roleNames = (user.roles || []).map((r) => r.roleName || r);
+        const isParentAccount = roleNames.some(isParentRoleName);
+        if (!isParentAccount) {
+          return res.status(401).json({
+            status: 'error',
+            message: 'Tài khoản này không đăng nhập bằng email/số điện thoại. Vui lòng đăng nhập bằng tài khoản.',
+          });
+        }
+      }
+    }
+
+    // Luồng mặc định cho toàn hệ thống: đăng nhập bằng username
+    if (!user) {
+      user = await User.findOne({
+        username: { $regex: new RegExp(`^${identifierRaw}$`, 'i') },
+      }).populate(ROLES_POPULATE);
+    }
 
     if (!user) {
       return res.status(401).json({
@@ -489,6 +530,7 @@ const changePassword = async (req, res) => {
     const salt = await bcrypt.genSalt(10);
     user.passwordHash = await bcrypt.hash(newPassword, salt);
     user.passwordChangedAt = new Date();
+    user.isChangePassword = true;
     await user.save();
 
     if (refreshTokenStr) {
@@ -759,6 +801,7 @@ const resetPassword = async (req, res) => {
     user.otpCode = null;
     user.otpExpiresAt = null;
     user.otpVerified = false;
+    user.isChangePassword = true;
     await user.save();
 
     return res.status(200).json({

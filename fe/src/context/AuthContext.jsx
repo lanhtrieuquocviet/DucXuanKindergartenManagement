@@ -105,12 +105,12 @@ export const AuthProvider = ({
   }, [autoLoadUser]);
 
   // Login
-  const login = useCallback(async (username, password) => {
+  const login = useCallback(async (loginId, password) => {
     try {
       setLoading(true);
       setError(null);
 
-      const response = await post(ENDPOINTS.AUTH.LOGIN, { username, password }, { includeAuth: false });
+      const response = await post(ENDPOINTS.AUTH.LOGIN, { loginId, password }, { includeAuth: false });
       const { token: newToken, user: newUser } = response.data || {};
 
       if (!newToken || !newUser) {

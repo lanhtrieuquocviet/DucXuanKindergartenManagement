@@ -1,5 +1,5 @@
 import { useEffect, useState, useRef } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useLocation, useNavigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import { ENDPOINTS, get, put } from '../service/api';
 import {
@@ -185,6 +185,7 @@ function HeroBanner({ gradient, roleLabel, extra, currentAvatar, displayName, us
 
 function Profile() {
   const navigate = useNavigate();
+  const location = useLocation();
   const { user, token, logout, getProfile, updateProfile, changePassword, isInitializing } = useAuth();
   const userRoles = user?.roles?.map((r) => r.roleName || r) || [];
   const isStudentRole = userRoles.includes('Student') || userRoles.includes('Parent') || userRoles.includes('StudentParent');
@@ -199,6 +200,13 @@ function Profile() {
   const [profileFormLoading, setProfileFormLoading] = useState(false);
   const hasLoadedProfileRef = useRef(false);
   const hasUserEditedRef = useRef(false);
+  const forceChangePassword = new URLSearchParams(location.search).get('forceChangePassword') === '1';
+
+  useEffect(() => {
+    if (forceChangePassword) {
+      toast.info('Đây là lần đăng nhập đầu tiên. Vui lòng đổi mật khẩu trước khi tiếp tục sử dụng.');
+    }
+  }, [forceChangePassword]);
 
   useEffect(() => {
     if (isInitializing || !user || hasLoadedProfileRef.current) return;
@@ -293,6 +301,14 @@ function Profile() {
           user={user} profileFormLoading={profileFormLoading} profileForm={profileForm}
           onBack={() => isStudentRole ? navigate('/student') : navigate(-1)}
           onLogout={() => { logout(); navigate('/login'); }}
+          extra={forceChangePassword ? (
+            <Chip
+              label="Bắt buộc đổi mật khẩu lần đầu"
+              size="small"
+              sx={{ color: 'white', borderColor: 'rgba(255,255,255,0.4)' }}
+              variant="outlined"
+            />
+          ) : null}
         />
         <Box sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr', lg: '1fr 1fr' }, gap: 3 }}>
           <SectionCard icon={<PersonOutlineIcon sx={{ color: 'white' }} />} title="Chỉnh sửa hồ sơ" accentGradient={isStudentRole ? "linear-gradient(135deg, #059669 0%, #0d9488 100%)" : "linear-gradient(135deg, #4f46e5 0%, #7c3aed 100%)"}>

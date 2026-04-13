@@ -492,6 +492,8 @@ export const ENDPOINTS = {
     DETAIL: (studentId) => `/students/${studentId}`,
     CREATE: "/students",
     CREATE_WITH_PARENT: "/students/with-parent",
+    IMPORT_WITH_PARENT_EXCEL: "/students/with-parent/import-excel",
+    CHECK_PARENT_PHONE: "/students/check-parent-phone",
     CHECK_USERNAME: "/students/check-username",
     GENERATE_USERNAME: "/students/generate-username",
     HEALTH_OVERVIEW: "/school-admin/students/health-overview",

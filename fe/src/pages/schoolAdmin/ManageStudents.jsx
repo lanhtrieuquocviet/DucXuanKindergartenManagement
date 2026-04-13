@@ -3,7 +3,7 @@ import { useLocation, useNavigate } from 'react-router-dom';
 import RoleLayout from '../../layouts/RoleLayout';
 import { useAuth } from '../../context/AuthContext';
 import { useSchoolAdmin } from '../../context/SchoolAdminContext';
-import { postFormData, ENDPOINTS, get, put, patch } from '../../service/api';
+import { postFormData, ENDPOINTS, get, patch } from '../../service/api';
 import { createSchoolAdminMenuSelect } from './schoolAdminMenuConfig';
 import { useSchoolAdminMenu } from './useSchoolAdminMenu';
 import { toast } from 'react-toastify';
@@ -36,7 +36,6 @@ import {
   Switch,
   FormControlLabel,
   Tooltip,
-  IconButton,
   Tabs,
   Tab,
   Badge,
@@ -52,10 +51,11 @@ import {
   People as PeopleIcon,
   PeopleAlt as PeopleAltIcon,
   Visibility as VisibilityIcon,
-  Autorenew as AutorenewIcon,
   HealthAndSafety as HealthIcon,
   NotificationsActive as RequestAlertIcon,
   CheckCircle as ResolveIcon,
+  UploadFile as UploadFileIcon,
+  FileDownload as FileDownloadIcon,
 } from '@mui/icons-material';
 
 const GENDER_OPTIONS = [
@@ -72,6 +72,12 @@ function isValidPhone(value) {
 function isValidEmail(value) {
   if (!value || !value.trim()) return false;
   return EMAIL_REGEX.test(value.trim());
+}
+function formatPhoneDisplay(value) {
+  const digits = String(value || '').replace(/\D/g, '');
+  if (!digits) return '—';
+  if (digits.length === 9) return `0${digits}`;
+  return digits;
 }
 
 function ManageStudents() {
@@ -105,9 +111,16 @@ function ManageStudents() {
   });
   const [formAddErrors, setFormAddErrors] = useState({});
   const [addError, setAddError] = useState(null);
-  const [usernameGenerating, setUsernameGenerating] = useState(false);
+  const [existingParentFound, setExistingParentFound] = useState(null);
+  const [showParentConfirm, setShowParentConfirm] = useState(false);
+  const [checkingParentPhone, setCheckingParentPhone] = useState(false);
+  const [isParentInfoLocked, setIsParentInfoLocked] = useState(false);
   const [uploadingImage, setUploadingImage] = useState(false);
   const addImageInputRef = useRef(null);
+  const importInputRef = useRef(null);
+  const [importing, setImporting] = useState(false);
+  const [importResult, setImportResult] = useState(null);
+  const [openImportResult, setOpenImportResult] = useState(false);
   const [formEdit, setFormEdit] = useState({
     fullName: '', dateOfBirth: '', gender: 'male', classId: '', address: '', status: 'active',
     parentFullName: '', parentEmail: '', parentPhone: '',
@@ -247,19 +260,6 @@ function ManageStudents() {
     return matchSearch;
   });
 
-  const handleGenerateUsername = async () => {
-    setUsernameGenerating(true);
-    setFormAddErrors((prev) => { const n = { ...prev }; delete n.parentUsername; return n; });
-    try {
-      const res = await get(ENDPOINTS.STUDENTS.GENERATE_USERNAME);
-      setFormAdd((prev) => ({ ...prev, parent: { ...prev.parent, username: res.username } }));
-    } catch (err) {
-      setFormAddErrors((prev) => ({ ...prev, parentUsername: err.data?.message || 'Lỗi khi tạo username' }));
-    } finally {
-      setUsernameGenerating(false);
-    }
-  };
-
   const handleOpenAdd = () => {
     setFormAdd({
       parent: { username: '', password: '', fullName: '', email: '', phone: '' },
@@ -267,8 +267,45 @@ function ManageStudents() {
     });
     setFormAddErrors({});
     setAddError(null);
+    setExistingParentFound(null);
+    setShowParentConfirm(false);
+    setIsParentInfoLocked(false);
     setOpenAdd(true);
-    handleGenerateUsername();
+  };
+
+  const handleCheckExistingParent = async (rawPhone) => {
+    const phone = String(rawPhone || '').replace(/\D/g, '');
+    if (!PHONE_REGEX.test(phone)) return;
+    try {
+      setCheckingParentPhone(true);
+      const res = await get(`${ENDPOINTS.STUDENTS.CHECK_PARENT_PHONE}?phone=${phone}`);
+      if (res?.exists && res?.data) {
+        setExistingParentFound(res.data);
+        setShowParentConfirm(true);
+      } else {
+        setExistingParentFound(null);
+        setIsParentInfoLocked(false);
+      }
+    } catch {
+      setExistingParentFound(null);
+    } finally {
+      setCheckingParentPhone(false);
+    }
+  };
+
+  const handleConfirmExistingParent = () => {
+    if (!existingParentFound) return;
+    setFormAdd((prev) => ({
+      ...prev,
+      parent: {
+        ...prev.parent,
+        fullName: existingParentFound.fullName || prev.parent.fullName,
+        email: existingParentFound.email || prev.parent.email,
+        phone: existingParentFound.phone || prev.parent.phone,
+      },
+    }));
+    setIsParentInfoLocked(true);
+    setShowParentConfirm(false);
   };
 
   const handleAddImageChange = async (e) => {
@@ -295,12 +332,9 @@ function ManageStudents() {
   const handleSubmitAdd = async () => {
     setCtxError(null);
     const errs = {};
-    if (!(formAdd.parent.username || '').trim()) errs.parentUsername = 'Vui lòng tạo tài khoản đăng nhập';
-    if (!(formAdd.parent.password || '').trim()) errs.parentPassword = 'Vui lòng nhập mật khẩu';
-    else if (formAdd.parent.password.trim().length < 6) errs.parentPassword = 'Mật khẩu tối thiểu 6 ký tự';
+    if (!isValidPhone(formAdd.parent.phone)) errs.parentPhone = 'Số điện thoại phải 10–11 chữ số';
     if (!(formAdd.parent.fullName || '').trim()) errs.parentFullName = 'Vui lòng nhập họ tên phụ huynh';
     if (!isValidEmail(formAdd.parent.email)) errs.parentEmail = 'Email không hợp lệ';
-    if (formAdd.parent.phone && !isValidPhone(formAdd.parent.phone)) errs.parentPhone = 'Số điện thoại phải 10–11 chữ số';
     if (!(formAdd.student.fullName || '').trim()) errs.studentFullName = 'Vui lòng nhập họ tên học sinh';
     if (!formAdd.student.dateOfBirth) errs.studentDateOfBirth = 'Vui lòng chọn ngày sinh';
     else if (new Date(formAdd.student.dateOfBirth) >= new Date()) errs.studentDateOfBirth = 'Ngày sinh phải nhỏ hơn ngày hiện tại';
@@ -311,11 +345,180 @@ function ManageStudents() {
     setFormAddErrors({});
     setAddError(null);
     try {
-      await createStudentWithParent(formAdd);
+      const payload = {
+        ...formAdd,
+        parent: {
+          ...formAdd.parent,
+          username: (formAdd.parent.phone || '').trim(),
+        },
+      };
+      await createStudentWithParent(payload);
       setOpenAdd(false);
       fetchData();
     } catch (err) {
       setAddError(err?.message || 'Tạo học sinh thất bại');
+    }
+  };
+
+  const handleImportExcel = async (e) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    setImporting(true);
+    try {
+      const formData = new FormData();
+      formData.append('file', file);
+      const res = await postFormData(ENDPOINTS.STUDENTS.IMPORT_WITH_PARENT_EXCEL, formData);
+      const data = res?.data || {};
+      const lines = [
+        `Import thành công: ${data.createdStudents || 0} học sinh`,
+        `Phụ huynh mới: ${data.createdParents || 0}`,
+        `Gán phụ huynh cũ theo SĐT: ${data.linkedExistingParents || 0}`,
+      ];
+      toast.success(lines.join(' | '));
+      setImportResult({
+        createdStudents: data.createdStudents || 0,
+        createdParents: data.createdParents || 0,
+        linkedExistingParents: data.linkedExistingParents || 0,
+        errors: Array.isArray(data.errors) ? data.errors : [],
+      });
+      setOpenImportResult(true);
+      if (Array.isArray(data.errors) && data.errors.length > 0) {
+        toast.warning(`Có ${data.errors.length} dòng lỗi. Kiểm tra console để xem chi tiết.`);
+        // eslint-disable-next-line no-console
+        console.warn('Import errors:', data.errors);
+      }
+      fetchData();
+    } catch (err) {
+      toast.error(err?.message || 'Import Excel thất bại');
+    } finally {
+      setImporting(false);
+      if (importInputRef.current) importInputRef.current.value = '';
+    }
+  };
+
+  const handleDownloadTemplate = async () => {
+    try {
+      const ExcelJS = (await import('exceljs')).default;
+      const wb = new ExcelJS.Workbook();
+      wb.creator = 'Trường MN Đức Xuân';
+      wb.created = new Date();
+
+      const ws = wb.addWorksheet('Mẫu nhập học sinh', {
+        pageSetup: { paperSize: 9, orientation: 'landscape', fitToPage: true, fitToWidth: 1 },
+        views: [{ state: 'frozen', xSplit: 0, ySplit: 6 }],
+      });
+
+      ws.columns = [
+        { key: 'A', width: 28 },
+        { key: 'B', width: 30 },
+        { key: 'C', width: 24 },
+        { key: 'D', width: 26 },
+        { key: 'E', width: 14 },
+        { key: 'F', width: 14 },
+        { key: 'G', width: 24 },
+        { key: 'H', width: 36 },
+        { key: 'I', width: 18 },
+      ];
+
+      const fill = (argb) => ({ type: 'pattern', pattern: 'solid', fgColor: { argb } });
+      const font = (size, bold, color = '212121', italic = false) => ({ name: 'Times New Roman', size, bold, italic, color: { argb: color } });
+      const border = (style = 'thin', color = 'B0BEC5') => ({ style, color: { argb: color } });
+      const allBorders = (style = 'thin', color = 'B0BEC5') => ({
+        top: border(style, color),
+        bottom: border(style, color),
+        left: border(style, color),
+        right: border(style, color),
+      });
+      const align = (horizontal = 'center', vertical = 'middle', wrapText = true) => ({ horizontal, vertical, wrapText });
+
+      ws.mergeCells('A1:I1');
+      ws.getCell('A1').value = 'TRƯỜNG MẦM NON ĐỨC XUÂN';
+      ws.getCell('A1').fill = fill('1565C0');
+      ws.getCell('A1').font = font(14, true, 'FFFFFF');
+      ws.getCell('A1').alignment = align('center');
+      ws.getRow(1).height = 26;
+
+      ws.mergeCells('A2:I2');
+      ws.getCell('A2').value = 'DANH SÁCH HỌC SINH - PHỤ HUYNH (MẪU NHẬP EXCEL)';
+      ws.getCell('A2').fill = fill('1976D2');
+      ws.getCell('A2').font = font(13, true, 'FFFFFF');
+      ws.getCell('A2').alignment = align('center');
+      ws.getRow(2).height = 24;
+
+      ws.mergeCells('A3:I3');
+      ws.getCell('A3').value =
+        'Hướng dẫn: Chỉ nhập ở các dòng dữ liệu bên dưới. Cột bắt buộc gồm Họ tên phụ huynh, Email phụ huynh, Số điện thoại phụ huynh, Họ tên học sinh, Ngày sinh, Giới tính.';
+      ws.getCell('A3').fill = fill('E3F2FD');
+      ws.getCell('A3').font = font(9, false, '1565C0', true);
+      ws.getCell('A3').alignment = align('left');
+      ws.getRow(3).height = 20;
+
+      ws.mergeCells('A4:I4');
+      ws.getCell('A4').value = 'Quy ước: Giới tính nhận Nam/Nữ/Khác (hoặc male/female/other). Ngày sinh theo định dạng YYYY-MM-DD.';
+      ws.getCell('A4').fill = fill('E8F5E9');
+      ws.getCell('A4').font = font(9, false, '2E7D32', true);
+      ws.getCell('A4').alignment = align('left');
+      ws.getRow(4).height = 18;
+
+      const headers = [
+        'Họ tên phụ huynh',
+        'Email phụ huynh',
+        'Số điện thoại phụ huynh',
+        'Họ tên học sinh',
+        'Ngày sinh',
+        'Giới tính',
+        'Địa chỉ',
+        'Ảnh học sinh (URL)',
+        'Lớp',
+      ];
+      ws.addRow(headers);
+      ws.getRow(5).height = 24;
+      ws.getRow(5).eachCell((cell) => {
+        cell.fill = fill('0D47A1');
+        cell.font = font(10, true, 'FFFFFF');
+        cell.alignment = align('center');
+        cell.border = allBorders('medium', '90CAF9');
+      });
+
+      const sampleRows = [
+        ['Nguyễn Văn A', 'phuhuynh.a@example.com', '0987654321', 'Nguyễn Thị B', '2020-09-01', 'Nữ', 'Bắc Kạn', '', 'Mẫu giáo 1'],
+        ['Nguyễn Văn A', 'phuhuynh.a@example.com', '0987654321', 'Nguyễn Văn C', '2021-03-15', 'Nam', 'Bắc Kạn', '', 'Mẫu giáo 1'],
+      ];
+      sampleRows.forEach((row) => ws.addRow(row));
+
+      for (let r = 6; r <= 30; r += 1) {
+        if (r > 7) ws.addRow(new Array(9).fill(''));
+        const row = ws.getRow(r);
+        row.height = 20;
+        row.eachCell({ includeEmpty: true }, (cell, colNumber) => {
+          cell.border = allBorders('thin', 'CFD8DC');
+          cell.alignment = align(colNumber === 8 ? 'left' : 'center');
+          cell.fill = fill(r % 2 === 0 ? 'FFFFFF' : 'FAFAFA');
+          cell.font = font(10, false, colNumber <= 3 ? '1565C0' : '212121');
+          if (colNumber === 5) cell.numFmt = 'yyyy-mm-dd';
+        });
+      }
+
+      ws.mergeCells('A31:I31');
+      ws.getCell('A31').value = `Mẫu tải từ hệ thống lúc ${new Date().toLocaleString('vi-VN')}`;
+      ws.getCell('A31').fill = fill('ECEFF1');
+      ws.getCell('A31').font = font(9, false, '607D8B', true);
+      ws.getCell('A31').alignment = align('right');
+      ws.getRow(31).height = 16;
+
+      const buffer = await wb.xlsx.writeBuffer();
+      const blob = new Blob([buffer], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = 'mau_nhap_hoc_sinh_phu_huynh.xlsx';
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      URL.revokeObjectURL(url);
+      toast.success('Tải file mẫu thành công');
+    } catch (err) {
+      toast.error(`Không tải được file mẫu: ${err?.message || ''}`);
     }
   };
 
@@ -456,6 +659,59 @@ function ManageStudents() {
       </Paper>
 
       <Paper elevation={1} sx={{ borderRadius: 2, p: 3 }}>
+        <Paper
+          elevation={0}
+          sx={{
+            mb: 2.5,
+            p: 2,
+            borderRadius: 2,
+            border: '1px dashed',
+            borderColor: 'primary.light',
+            bgcolor: '#f8fbff',
+          }}
+        >
+          <Stack
+            direction={{ xs: 'column', md: 'row' }}
+            spacing={1.5}
+            alignItems={{ xs: 'flex-start', md: 'center' }}
+            justifyContent="space-between"
+          >
+            <Box>
+              <Typography variant="subtitle2" fontWeight={700} color="primary.main">
+                Import danh sách học sinh từ Excel
+              </Typography>
+              <Typography variant="caption" color="text.secondary">
+                Dùng file mẫu chuẩn để import nhanh và hạn chế lỗi dữ liệu.
+              </Typography>
+            </Box>
+            <Stack direction="row" spacing={1} flexWrap="wrap">
+              <Button
+                variant="outlined"
+                startIcon={<FileDownloadIcon />}
+                onClick={handleDownloadTemplate}
+              >
+                Tải mẫu Excel
+              </Button>
+              <input
+                ref={importInputRef}
+                type="file"
+                accept=".xlsx,.xls"
+                style={{ display: 'none' }}
+                onChange={handleImportExcel}
+              />
+              <Button
+                variant="contained"
+                color="secondary"
+                startIcon={importing ? <CircularProgress color="inherit" size={16} /> : <UploadFileIcon />}
+                onClick={() => importInputRef.current?.click()}
+                disabled={importing}
+              >
+                {importing ? 'Đang import...' : 'Import Excel'}
+              </Button>
+            </Stack>
+          </Stack>
+        </Paper>
+
         <Stack direction={{ xs: 'column', md: 'row' }} justifyContent="space-between" spacing={2} mb={3}>
           <Typography variant="subtitle2" fontWeight={600}>
             Tổng: {filteredStudents.length} học sinh
@@ -497,6 +753,7 @@ function ManageStudents() {
             <Table size="small">
               <TableHead>
                 <TableRow>
+                  <TableCell><strong>Mã HS</strong></TableCell>
                   <TableCell><strong>Họ tên</strong></TableCell>
                   <TableCell><strong>Ngày sinh</strong></TableCell>
                   <TableCell><strong>Giới tính</strong></TableCell>
@@ -513,9 +770,12 @@ function ManageStudents() {
               <TableBody>
                 {filteredStudents.map((row) => {
                   const pendingCount = pendingMap[String(row._id)] || 0;
+                  const parentName = row.parentId?.fullName || row.parentFullName || '—';
+                  const parentPhone = row.parentId?.phone || row.parentPhone || row.phone || '';
                   return (
                   <TableRow key={row._id} sx={pendingCount > 0 ? { bgcolor: '#fffbeb' } : {}}>
-                    <TableCell>
+                    <TableCell sx={{ whiteSpace: 'nowrap' }}>{row.studentCode || '—'}</TableCell>
+                    <TableCell sx={{ minWidth: 170 }}>
                       <Stack direction="row" alignItems="center" spacing={0.75}>
                         {pendingCount > 0 && (
                           <Tooltip title={`${pendingCount} yêu cầu chờ xử lý từ giáo viên`}>
@@ -525,16 +785,16 @@ function ManageStudents() {
                         <span>{row.fullName || '—'}</span>
                       </Stack>
                     </TableCell>
-                    <TableCell>{formatDate(row.dateOfBirth)}</TableCell>
-                    <TableCell>{GENDER_OPTIONS.find((g) => g.value === row.gender)?.label || row.gender || '—'}</TableCell>
-                    <TableCell>
+                    <TableCell sx={{ whiteSpace: 'nowrap' }}>{formatDate(row.dateOfBirth)}</TableCell>
+                    <TableCell sx={{ whiteSpace: 'nowrap' }}>{GENDER_OPTIONS.find((g) => g.value === row.gender)?.label || row.gender || '—'}</TableCell>
+                    <TableCell sx={{ minWidth: 120 }}>
                       {row.academicYearId?.yearName
                         ? <Chip label={row.academicYearId.yearName} size="small" sx={{ bgcolor: '#e0f2fe', color: '#0284c7', fontWeight: 600, fontSize: '0.72rem' }} />
                         : <Typography variant="caption" color="text.disabled">—</Typography>}
                     </TableCell>
                     {/* <TableCell>{row.classId?.className || '—'}</TableCell> */}
-                    <TableCell>{row.parentId?.fullName || '—'}</TableCell>
-                    <TableCell>{row.phone || row.parentPhone || row.parentId?.phone || '—'}</TableCell>
+                    <TableCell sx={{ minWidth: 160 }}>{parentName}</TableCell>
+                    <TableCell sx={{ whiteSpace: 'nowrap', minWidth: 120 }}>{formatPhoneDisplay(parentPhone)}</TableCell>
                     <TableCell align="center">
                       {row.needsSpecialAttention
                         ? <Chip label="Có" color="warning" size="small" />
@@ -556,7 +816,7 @@ function ManageStudents() {
                         <Typography variant="caption" color="text.disabled">—</Typography>
                       )}
                     </TableCell>
-                    <TableCell>
+                    <TableCell sx={{ maxWidth: 180 }}>
                       {row.specialNote
                         ? <Tooltip title={row.specialNote}><Typography variant="body2" noWrap sx={{ maxWidth: 160 }}>{row.specialNote}</Typography></Tooltip>
                         : '—'}
@@ -594,35 +854,51 @@ function ManageStudents() {
           )}
           <Typography variant="subtitle2" color="primary" gutterBottom>Thông tin tài khoản phụ huynh</Typography>
           <Stack spacing={1.5} mb={2}>
-            <Stack direction="row" spacing={1} alignItems="flex-start">
-              <TextField
-                size="small"
-                label="Tài khoản đăng nhập"
-                value={formAdd.parent.username}
-                InputProps={{ readOnly: true }}
-                sx={{ flex: 1 }}
-                required
-                error={!!formAddErrors.parentUsername}
-                helperText={formAddErrors.parentUsername || 'Được tạo tự động'}
-              />
-              <Tooltip title="Tạo lại">
-                <span>
-                  <IconButton
-                    size="small"
-                    onClick={handleGenerateUsername}
-                    disabled={usernameGenerating}
-                    sx={{ mt: 0.5, border: '1px solid', borderColor: 'divider', borderRadius: 1 }}
-                  >
-                    {usernameGenerating ? <CircularProgress size={18} /> : <AutorenewIcon fontSize="small" />}
-                  </IconButton>
-                </span>
-              </Tooltip>
-            </Stack>
-            <TextField size="small" type="password" label="Mật khẩu" value={formAdd.parent.password} onChange={(e) => setFormAdd((prev) => ({ ...prev, parent: { ...prev.parent, password: e.target.value } }))} fullWidth required error={!!formAddErrors.parentPassword} helperText={formAddErrors.parentPassword} />
-            <TextField size="small" label="Họ tên phụ huynh" value={formAdd.parent.fullName} onChange={(e) => setFormAdd((prev) => ({ ...prev, parent: { ...prev.parent, fullName: e.target.value } }))} fullWidth required error={!!formAddErrors.parentFullName} helperText={formAddErrors.parentFullName} />
-            <TextField size="small" type="email" label="Email" value={formAdd.parent.email} onChange={(e) => setFormAdd((prev) => ({ ...prev, parent: { ...prev.parent, email: e.target.value } }))} fullWidth required error={!!formAddErrors.parentEmail} helperText={formAddErrors.parentEmail} />
-            <TextField size="small" label="Số điện thoại" value={formAdd.parent.phone} onChange={(e) => setFormAdd((prev) => ({ ...prev, parent: { ...prev.parent, phone: e.target.value.replace(/\D/g, '') } }))} fullWidth error={!!formAddErrors.parentPhone} helperText={formAddErrors.parentPhone} placeholder="10–11 chữ số" inputProps={{ inputMode: 'numeric', maxLength: 11 }} />
+            <TextField
+              size="small"
+              label="Số điện thoại (đồng thời là tài khoản đăng nhập)"
+              value={formAdd.parent.phone}
+              onChange={(e) => setFormAdd((prev) => ({ ...prev, parent: { ...prev.parent, phone: e.target.value.replace(/\D/g, '') } }))}
+              onBlur={() => handleCheckExistingParent(formAdd.parent.phone)}
+              fullWidth
+              required
+              error={!!formAddErrors.parentPhone}
+              helperText={formAddErrors.parentPhone || (checkingParentPhone ? 'Đang kiểm tra số điện thoại...' : 'Nếu trùng số, hệ thống sẽ dùng lại tài khoản phụ huynh hiện có')}
+              placeholder="10–11 chữ số"
+              inputProps={{ inputMode: 'numeric', maxLength: 11 }}
+            />
+            <Alert severity="info">
+              Tài khoản và mật khẩu tạm sẽ được hệ thống tự sinh và gửi qua email phụ huynh khi tạo tài khoản mới.
+              Nếu số điện thoại đã tồn tại, hệ thống sẽ dùng lại tài khoản cũ.
+            </Alert>
+            <TextField
+              size="small"
+              label="Họ tên phụ huynh"
+              value={formAdd.parent.fullName}
+              onChange={(e) => setFormAdd((prev) => ({ ...prev, parent: { ...prev.parent, fullName: e.target.value } }))}
+              fullWidth
+              required
+              disabled={isParentInfoLocked}
+              error={!!formAddErrors.parentFullName}
+              helperText={isParentInfoLocked ? 'Đã xác nhận phụ huynh, không thể chỉnh sửa' : formAddErrors.parentFullName}
+            />
+            <TextField
+              size="small"
+              type="email"
+              label="Email"
+              value={formAdd.parent.email}
+              onChange={(e) => setFormAdd((prev) => ({ ...prev, parent: { ...prev.parent, email: e.target.value } }))}
+              fullWidth
+              required
+              disabled={isParentInfoLocked}
+              error={!!formAddErrors.parentEmail}
+              helperText={isParentInfoLocked ? 'Đã xác nhận phụ huynh, không thể chỉnh sửa' : formAddErrors.parentEmail}
+            />
           </Stack>
+          <Alert severity="warning" sx={{ mb: 2 }}>
+            File import Excel dùng tiêu đề tiếng Việt: Họ tên phụ huynh, Email phụ huynh, Số điện thoại phụ huynh, Họ tên học sinh, Ngày sinh, Giới tính. Có thể thêm Địa chỉ, Ảnh học sinh (URL), Lớp.
+            Cột tùy chọn: address, className.
+          </Alert>
           <Typography variant="subtitle2" color="primary" gutterBottom>Thông tin học sinh</Typography>
           <Stack spacing={1.5}>
             <Box sx={{ p: 1.5, bgcolor: '#e0f2fe', borderRadius: 1.5, display: 'flex', alignItems: 'center', gap: 1 }}>
@@ -670,6 +946,54 @@ function ManageStudents() {
           <Button variant="contained" onClick={handleSubmitAdd} disabled={ctxLoading}>
             {ctxLoading ? <CircularProgress size={24} /> : 'Tạo'}
           </Button>
+        </DialogActions>
+      </Dialog>
+
+      <Dialog open={openImportResult} onClose={() => setOpenImportResult(false)} maxWidth="sm" fullWidth>
+        <DialogTitle>Kết quả import Excel</DialogTitle>
+        <DialogContent dividers>
+          <Stack spacing={1}>
+            <Alert severity="success">
+              Tạo học sinh thành công: <strong>{importResult?.createdStudents || 0}</strong>
+            </Alert>
+            <Alert severity="info">
+              Phụ huynh tạo mới: <strong>{importResult?.createdParents || 0}</strong> - Gán phụ huynh đã có: <strong>{importResult?.linkedExistingParents || 0}</strong>
+            </Alert>
+            {(importResult?.errors || []).length > 0 && (
+              <Alert severity="warning">
+                Có {(importResult?.errors || []).length} dòng lỗi:
+                <Box component="ul" sx={{ mt: 1, mb: 0, pl: 2 }}>
+                  {(importResult?.errors || []).slice(0, 8).map((err) => (
+                    <li key={err}>
+                      <Typography variant="caption">{err}</Typography>
+                    </li>
+                  ))}
+                </Box>
+              </Alert>
+            )}
+          </Stack>
+        </DialogContent>
+        <DialogActions>
+          <Button onClick={() => setOpenImportResult(false)}>Đóng</Button>
+        </DialogActions>
+      </Dialog>
+
+      <Dialog open={showParentConfirm} onClose={() => setShowParentConfirm(false)} maxWidth="xs" fullWidth>
+        <DialogTitle>Xác nhận phụ huynh</DialogTitle>
+        <DialogContent dividers>
+          <Typography variant="body2" sx={{ mb: 1 }}>
+            Số điện thoại này đã tồn tại trong hệ thống.
+          </Typography>
+          <Typography variant="body2" fontWeight={700}>
+            Có phải bạn là: {existingParentFound?.fullName || '—'}?
+          </Typography>
+          <Typography variant="body2" color="text.secondary">
+            Email đã đăng ký: {existingParentFound?.email || '—'}
+          </Typography>
+        </DialogContent>
+        <DialogActions>
+          <Button onClick={() => setShowParentConfirm(false)}>Không</Button>
+          <Button variant="contained" onClick={handleConfirmExistingParent}>Đúng</Button>
         </DialogActions>
       </Dialog>
 

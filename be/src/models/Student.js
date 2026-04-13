@@ -1,6 +1,12 @@
 const mongoose = require('mongoose');
 
 const studentSchema = new mongoose.Schema({
+  studentCode: {
+    type: String,
+    trim: true,
+    unique: true,
+    sparse: true,
+  },
   fullName: {
     type: String,
     required: true,
@@ -46,6 +52,11 @@ const studentSchema = new mongoose.Schema({
   parentId: {
     type: mongoose.Schema.Types.ObjectId,
     ref: 'User'
+  },
+  parentProfileId: {
+    type: mongoose.Schema.Types.ObjectId,
+    ref: 'ParentProfiles',
+    default: null,
   },
   avatar: {
     type: String,
