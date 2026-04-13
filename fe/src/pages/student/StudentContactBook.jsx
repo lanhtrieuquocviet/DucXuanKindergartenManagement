@@ -1,5 +1,5 @@
 import { useEffect, useState, useCallback } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useSearchParams } from 'react-router-dom';
 import { useAuth } from '../../context/AuthContext';
 import { get, ENDPOINTS } from '../../service/api';
 import {
@@ -170,7 +170,7 @@ function TabSucKhoe({ health, loading }) {
 }
 
 /* ── Tab: Điểm danh ──────────────────────────────────────── */
-function TabDiemDanh() {
+function TabDiemDanh({ studentId }) {
   const now = new Date();
   const [year, setYear]   = useState(now.getFullYear());
   const [month, setMonth] = useState(now.getMonth() + 1);
@@ -180,11 +180,12 @@ function TabDiemDanh() {
   const fetch = useCallback(async (y, m) => {
     setLoading(true);
     try {
-      const res = await get(`${ENDPOINTS.STUDENTS.CONTACT_BOOK_ATTENDANCE}?year=${y}&month=${m}`);
+      const q = studentId ? `&studentId=${studentId}` : '';
+      const res = await get(`${ENDPOINTS.STUDENTS.CONTACT_BOOK_ATTENDANCE}?year=${y}&month=${m}${q}`);
       setData(res.data || null);
     } catch { setData(null); }
     finally { setLoading(false); }
-  }, []);
+  }, [studentId]);
 
   useEffect(() => { fetch(year, month); }, [year, month, fetch]);
 
@@ -328,17 +329,19 @@ function TabThucDon() {
 }
 
 /* ── Tab: Ghi chú giáo viên ──────────────────────────────── */
-function TabGhiChu() {
+function TabGhiChu({ studentId }) {
   const [notes, setNotes]     = useState([]);
   const [loading, setLoading] = useState(true);
   const [lightbox, setLightbox] = useState(null);
 
   useEffect(() => {
-    get(ENDPOINTS.STUDENTS.CONTACT_BOOK_NOTES)
+    setLoading(true);
+    const q = studentId ? `?studentId=${studentId}` : '';
+    get(`${ENDPOINTS.STUDENTS.CONTACT_BOOK_NOTES}${q}`)
       .then(res => setNotes(res.data || []))
       .catch(() => setNotes([]))
       .finally(() => setLoading(false));
-  }, []);
+  }, [studentId]);
 
   if (loading) return <Stack spacing={1.5}>{[1,2].map(i => <Skeleton key={i} variant="rounded" height={100} sx={{ borderRadius: 3 }} />)}</Stack>;
   if (notes.length === 0) return (
@@ -388,8 +391,11 @@ const TABS = [
 
 export default function StudentContactBook() {
   const navigate = useNavigate();
+  const [searchParams] = useSearchParams();
   const { user, isInitializing } = useAuth();
 
+  const [children, setChildren] = useState([]);
+  const [selectedChildId, setSelectedChildId] = useState(() => searchParams.get('studentId') || '');
   const [student, setStudent]   = useState(null);
   const [health, setHealth]     = useState(null);
   const [loadingInfo, setLoadingInfo] = useState(true);
@@ -400,11 +406,31 @@ export default function StudentContactBook() {
   useEffect(() => {
     if (isInitializing) return;
     if (!user) { navigate('/login', { replace: true }); return; }
-    Promise.all([
-      get(ENDPOINTS.STUDENTS.CONTACT_BOOK_MY).then(res => setStudent(res.data)).catch(() => setError('Không tìm thấy thông tin học sinh.')).finally(() => setLoadingInfo(false)),
-      get(ENDPOINTS.STUDENTS.CONTACT_BOOK_HEALTH).then(res => setHealth(res.data)).catch(() => setHealth(null)).finally(() => setLoadingHealth(false)),
-    ]);
+    get(ENDPOINTS.AUTH.MY_CHILDREN)
+      .then(res => {
+        const list = res.data || [];
+        setChildren(list);
+        setSelectedChildId(prev => {
+          if (prev && list.some(c => c._id === prev)) return prev;
+          return list[0]?._id || '';
+        });
+      })
+      .catch(() => {});
   }, [isInitializing, user, navigate]);
+
+  useEffect(() => {
+    if (!selectedChildId) return;
+    setLoadingInfo(true);
+    setLoadingHealth(true);
+    setStudent(null);
+    setHealth(null);
+    setError('');
+    const q = `?studentId=${selectedChildId}`;
+    Promise.all([
+      get(`${ENDPOINTS.STUDENTS.CONTACT_BOOK_MY}${q}`).then(res => setStudent(res.data)).catch(() => setError('Không tìm thấy thông tin học sinh.')).finally(() => setLoadingInfo(false)),
+      get(`${ENDPOINTS.STUDENTS.CONTACT_BOOK_HEALTH}${q}`).then(res => setHealth(res.data)).catch(() => setHealth(null)).finally(() => setLoadingHealth(false)),
+    ]);
+  }, [selectedChildId]);
 
   const studentName = student?.fullName || 'Học sinh';
   const className   = student?.classId?.className || 'Chưa xếp lớp';
@@ -458,6 +484,29 @@ export default function StudentContactBook() {
           ) : null}
         </Paper>
 
+        {children.length > 1 && (
+          <Paper elevation={0} sx={{ mb: 2, p: 1.5, borderRadius: 3, border: '1px solid #bbf7d0' }}>
+            <Typography fontWeight={700} fontSize="0.82rem" mb={1}>Chọn bé</Typography>
+            <Stack direction="row" spacing={1} flexWrap="wrap" gap={0.75}>
+              {children.map(child => (
+                <Chip
+                  key={child._id}
+                  label={child.fullName}
+                  onClick={() => { setSelectedChildId(child._id); setTab(0); }}
+                  variant={selectedChildId === child._id ? 'filled' : 'outlined'}
+                  sx={{
+                    fontWeight: 700,
+                    bgcolor: selectedChildId === child._id ? PRIMARY : 'transparent',
+                    color: selectedChildId === child._id ? 'white' : '#374151',
+                    borderColor: PRIMARY,
+                    '&:hover': { bgcolor: selectedChildId === child._id ? PRIMARY : '#ecfdf5' },
+                  }}
+                />
+              ))}
+            </Stack>
+          </Paper>
+        )}
+
         {/* Tabs */}
         <Paper elevation={0} sx={{ mb: 2, borderRadius: 2, border: '1px solid', borderColor: 'divider', overflow: 'hidden' }}>
           <Tabs
@@ -472,9 +521,9 @@ export default function StudentContactBook() {
         <Box>
           {tab === 0 && <TabHoSo student={student} />}
           {tab === 1 && <TabSucKhoe health={health} loading={loadingHealth} />}
-          {tab === 2 && <TabDiemDanh />}
+          {tab === 2 && <TabDiemDanh studentId={selectedChildId} />}
           {tab === 3 && <TabThucDon />}
-          {tab === 4 && <TabGhiChu />}
+          {tab === 4 && <TabGhiChu studentId={selectedChildId} />}
         </Box>
       </Box>
     </Box>

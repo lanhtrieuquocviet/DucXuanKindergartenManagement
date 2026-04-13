@@ -1,18 +1,26 @@
 import { useEffect, useState } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useSearchParams } from 'react-router-dom';
 import { useAuth } from '../../context/AuthContext';
 import { get, post, ENDPOINTS } from '../../service/api';
 import { toast } from 'react-toastify';
 import {
   Box, Paper, Typography, Stack, IconButton, TextField, Button,
-  CircularProgress, Chip, Divider, Dialog, DialogTitle, DialogContent, DialogActions,
+  CircularProgress, Chip, Divider, Dialog, DialogContent, DialogActions,
+  Select, MenuItem, FormControl, InputLabel, Avatar, Skeleton,
 } from '@mui/material';
-import { ArrowBack } from '@mui/icons-material';
+import {
+  ArrowBack, Add, EditNote, CalendarMonth, Person, School,
+  CheckCircle, HourglassEmpty, Cancel, Close,
+} from '@mui/icons-material';
+
+const PRIMARY      = '#059669';
+const PRIMARY_DARK = '#047857';
+const BG           = '#f0fdf4';
 
 const STATUS_MAP = {
-  pending: { label: 'Chờ duyệt', color: 'warning' },
-  approved: { label: 'Đã duyệt', color: 'success' },
-  rejected: { label: 'Từ chối', color: 'error' },
+  pending:  { label: 'Chờ duyệt', color: 'warning',  icon: <HourglassEmpty sx={{ fontSize: 14 }} /> },
+  approved: { label: 'Đã duyệt',  color: 'success',  icon: <CheckCircle    sx={{ fontSize: 14 }} /> },
+  rejected: { label: 'Từ chối',   color: 'error',    icon: <Cancel         sx={{ fontSize: 14 }} /> },
 };
 
 const toYmd = (date) => {
@@ -31,30 +39,33 @@ const formatDdMmYyyy = (ymd) => {
 
 const nextDayYmd = (ymd) => {
   if (!ymd) return '';
-  const date = new Date(ymd);
-  date.setDate(date.getDate() + 1);
-  return toYmd(date);
+  const d = new Date(ymd);
+  d.setDate(d.getDate() + 1);
+  return toYmd(d);
 };
 
 export default function LeaveRequest() {
   const navigate = useNavigate();
+  const [searchParams] = useSearchParams();
   const { user, isInitializing } = useAuth();
-  const [children, setChildren] = useState([]);
-  const [requests, setRequests] = useState([]);
-  const [loading, setLoading] = useState(false);
-  const [submitting, setSubmitting] = useState(false);
-  const [openCreateDialog, setOpenCreateDialog] = useState(false);
+
+  const [children, setChildren]       = useState([]);
+  const [requests, setRequests]       = useState([]);
+  const [loading, setLoading]         = useState(false);
+  const [submitting, setSubmitting]   = useState(false);
+  const [openDialog, setOpenDialog]   = useState(false);
   const [form, setForm] = useState({
-    studentId: '',
+    studentId: searchParams.get('studentId') || '',
     startDate: '',
     endDate: '',
     reason: '',
   });
-  const selectedStudent = children.find((c) => c._id === form.studentId) || children[0] || null;
-  const parentName = user?.fullName || user?.username || 'Phụ huynh';
-  const todayYmd = toYmd(new Date());
 
-  const fetchMyRequests = async () => {
+  const selectedStudent = children.find((c) => c._id === form.studentId) || children[0] || null;
+  const parentName      = user?.fullName || user?.username || 'Phụ huynh';
+  const todayYmd        = toYmd(new Date());
+
+  const fetchData = async () => {
     try {
       setLoading(true);
       const [childrenRes, reqRes] = await Promise.all([
@@ -64,7 +75,12 @@ export default function LeaveRequest() {
       const childList = childrenRes.data || [];
       setChildren(childList);
       setRequests(reqRes.data || []);
-      setForm((prev) => ({ ...prev, studentId: prev.studentId || childList[0]?._id || '' }));
+      setForm((prev) => ({
+        ...prev,
+        studentId: prev.studentId && childList.some(c => c._id === prev.studentId)
+          ? prev.studentId
+          : childList[0]?._id || '',
+      }));
     } catch (e) {
       toast.error(e.message || 'Không tải được dữ liệu');
     } finally {
@@ -74,26 +90,25 @@ export default function LeaveRequest() {
 
   useEffect(() => {
     if (isInitializing) return;
-    if (!user) {
-      navigate('/login', { replace: true });
-      return;
-    }
-    fetchMyRequests();
+    if (!user) { navigate('/login', { replace: true }); return; }
+    fetchData();
   }, [isInitializing, user]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  const openCreate = () => {
+    setForm(prev => ({ ...prev, startDate: '', endDate: '', reason: '' }));
+    setOpenDialog(true);
+  };
 
   const onSubmit = async (e) => {
     e?.preventDefault?.();
     if (!form.studentId || !form.startDate || !form.endDate || !form.reason.trim()) {
-      toast.error('Vui lòng nhập đủ thông tin');
-      return;
+      toast.error('Vui lòng nhập đủ thông tin'); return;
     }
     if (form.startDate < todayYmd) {
-      toast.error('Từ ngày không được nhỏ hơn ngày hiện tại');
-      return;
+      toast.error('Từ ngày không được nhỏ hơn ngày hiện tại'); return;
     }
     if (form.endDate <= form.startDate) {
-      toast.error('Đến ngày phải lớn hơn Từ ngày');
-      return;
+      toast.error('Đến ngày phải lớn hơn Từ ngày'); return;
     }
     setSubmitting(true);
     try {
@@ -104,9 +119,8 @@ export default function LeaveRequest() {
         reason: form.reason.trim(),
       });
       toast.success('Đã gửi đơn xin nghỉ thành công');
-      setForm((prev) => ({ ...prev, startDate: '', endDate: '', reason: '' }));
-      setOpenCreateDialog(false);
-      fetchMyRequests();
+      setOpenDialog(false);
+      fetchData();
     } catch (e2) {
       toast.error(e2.data?.message || e2.message || 'Gửi đơn thất bại');
     } finally {
@@ -115,126 +129,292 @@ export default function LeaveRequest() {
   };
 
   return (
-    <Box sx={{ minHeight: '100vh', bgcolor: '#f0fdf4' }}>
-      <Box sx={{ background: 'linear-gradient(135deg, #059669 0%, #047857 100%)', px: 2, py: 2 }}>
-        <Stack direction="row" alignItems="center" spacing={1.5}>
-          <IconButton onClick={() => navigate('/student')} size="small" sx={{ color: 'white', bgcolor: 'rgba(255,255,255,0.18)' }}>
-            <ArrowBack fontSize="small" />
-          </IconButton>
-          <Typography color="white" fontWeight={700}>Đơn xin nghỉ</Typography>
+    <Box sx={{ minHeight: '100vh', bgcolor: BG }}>
+      {/* ── AppBar ── */}
+      <Box sx={{
+        background: `linear-gradient(135deg, ${PRIMARY} 0%, ${PRIMARY_DARK} 100%)`,
+        px: 2, py: 2, position: 'sticky', top: 0, zIndex: 100,
+        boxShadow: '0 2px 12px rgba(5,150,105,0.3)',
+      }}>
+        <Stack direction="row" alignItems="center" justifyContent="space-between">
+          <Stack direction="row" alignItems="center" spacing={1.5}>
+            <IconButton onClick={() => navigate('/student')} size="small"
+              sx={{ color: 'white', bgcolor: 'rgba(255,255,255,0.15)', '&:hover': { bgcolor: 'rgba(255,255,255,0.25)' } }}>
+              <ArrowBack fontSize="small" />
+            </IconButton>
+            <Box>
+              <Typography color="white" fontWeight={700} fontSize="1rem">Đơn xin nghỉ</Typography>
+              <Typography sx={{ color: 'rgba(255,255,255,0.75)', fontSize: '0.72rem' }}>
+                {requests.length} đơn đã gửi
+              </Typography>
+            </Box>
+          </Stack>
+          <Button
+            onClick={openCreate}
+            startIcon={<Add />}
+            size="small"
+            sx={{
+              bgcolor: 'rgba(255,255,255,0.18)', color: 'white', fontWeight: 700,
+              borderRadius: 2.5, textTransform: 'none', fontSize: '0.82rem',
+              px: 1.75, py: 0.75,
+              '&:hover': { bgcolor: 'rgba(255,255,255,0.28)' },
+            }}
+          >
+            Tạo đơn
+          </Button>
         </Stack>
       </Box>
 
-      <Box sx={{ maxWidth: 700, mx: 'auto', p: 2 }}>
-        <Paper sx={{ borderRadius: 3, overflow: 'hidden' }}>
-          <Box sx={{ p: 2, borderBottom: '1px solid #eee' }}>
-            <Stack direction="row" alignItems="center" justifyContent="space-between" spacing={2}>
-              <Typography fontWeight={700}>Danh sách đơn xin nghỉ học</Typography>
-              <Button variant="contained" onClick={() => setOpenCreateDialog(true)}>
-                Tạo đơn xin nghỉ
-              </Button>
-            </Stack>
-          </Box>
-          {loading ? (
-            <Stack alignItems="center" py={4}><CircularProgress size={24} /></Stack>
-          ) : requests.length === 0 ? (
-            <Typography sx={{ p: 2, color: 'text.secondary' }}>Chưa có đơn nào.</Typography>
-          ) : (
-            requests.map((r, idx) => {
+      <Box sx={{ maxWidth: 600, mx: 'auto', px: 2, py: 2.5, pb: 4 }}>
+        {/* ── List ── */}
+        {loading ? (
+          <Stack spacing={1.5}>
+            {[1, 2, 3].map(i => (
+              <Paper key={i} elevation={0} sx={{ p: 2, borderRadius: 3, border: '1px solid #e5e7eb' }}>
+                <Stack spacing={1}>
+                  <Stack direction="row" justifyContent="space-between" alignItems="center">
+                    <Skeleton variant="text" width={120} height={20} />
+                    <Skeleton variant="rounded" width={72} height={24} sx={{ borderRadius: 2 }} />
+                  </Stack>
+                  <Skeleton variant="text" width={180} height={16} />
+                  <Skeleton variant="text" width="90%" height={16} />
+                </Stack>
+              </Paper>
+            ))}
+          </Stack>
+        ) : requests.length === 0 ? (
+          <Paper elevation={0} sx={{ py: 8, borderRadius: 3, border: '1px solid #e5e7eb', textAlign: 'center' }}>
+            <Typography fontSize="2.5rem" mb={1}>📋</Typography>
+            <Typography color="text.secondary" fontSize="0.9rem" fontWeight={600}>Chưa có đơn xin nghỉ nào</Typography>
+            <Typography color="text.disabled" fontSize="0.8rem" mt={0.5}>Nhấn "Tạo đơn" để gửi đơn mới</Typography>
+          </Paper>
+        ) : (
+          <Stack spacing={1.5}>
+            {requests.map((r) => {
               const status = STATUS_MAP[r.status] || { label: r.status, color: 'default' };
+              const from   = formatDdMmYyyy(r.startDate?.split('T')[0]);
+              const to     = formatDdMmYyyy(r.endDate?.split('T')[0]);
               return (
-                <Box key={r._id}>
-                  <Box sx={{ p: 2 }}>
-                    <Stack direction="row" justifyContent="space-between" alignItems="center" mb={0.5}>
-                      <Typography fontWeight={600}>{r.student?.fullName || 'Học sinh'}</Typography>
-                      <Chip size="small" color={status.color} label={status.label} />
-                    </Stack>
-                    <Typography variant="body2" color="text.secondary">
-                      {new Date(r.startDate).toLocaleDateString('vi-VN')} - {new Date(r.endDate).toLocaleDateString('vi-VN')}
-                    </Typography>
-                    <Typography variant="body2" sx={{ mt: 0.75 }}>{r.reason}</Typography>
-                    {r.status === 'rejected' && r.rejectedReason ? (
-                      <Typography variant="caption" color="error" sx={{ mt: 0.75, display: 'block' }}>
-                        Lý do từ chối: {r.rejectedReason}
+                <Paper key={r._id} elevation={0} sx={{
+                  borderRadius: 3, border: '1.5px solid',
+                  borderColor: r.status === 'approved' ? '#bbf7d0' : r.status === 'rejected' ? '#fecaca' : '#e5e7eb',
+                  overflow: 'hidden',
+                }}>
+                  {/* Header strip */}
+                  <Stack direction="row" alignItems="center" spacing={1.5} px={2} py={1.25}
+                    sx={{
+                      bgcolor: r.status === 'approved' ? '#f0fdf4' : r.status === 'rejected' ? '#fef2f2' : '#fafafa',
+                      borderBottom: '1px solid',
+                      borderColor: r.status === 'approved' ? '#d1fae5' : r.status === 'rejected' ? '#fecaca' : '#f3f4f6',
+                    }}>
+                    <Avatar sx={{
+                      width: 32, height: 32, fontSize: '0.82rem', fontWeight: 700, flexShrink: 0,
+                      bgcolor: PRIMARY + '20', color: PRIMARY,
+                    }}>
+                      {(r.student?.fullName || 'H').charAt(0)}
+                    </Avatar>
+                    <Box flex={1} minWidth={0}>
+                      <Typography fontWeight={700} fontSize="0.88rem" noWrap>
+                        {r.student?.fullName || 'Học sinh'}
                       </Typography>
-                    ) : null}
+                      <Typography fontSize="0.72rem" color="text.secondary" noWrap>
+                        {r.student?.classId?.className || ''}
+                      </Typography>
+                    </Box>
+                    <Chip
+                      label={status.label}
+                      color={status.color}
+                      size="small"
+                      icon={status.icon}
+                      sx={{ fontWeight: 700, fontSize: '0.72rem', height: 24 }}
+                    />
+                  </Stack>
+
+                  {/* Body */}
+                  <Box px={2} py={1.5}>
+                    <Stack direction="row" spacing={0.75} alignItems="center" mb={0.75}>
+                      <CalendarMonth sx={{ fontSize: 14, color: '#6b7280' }} />
+                      <Typography fontSize="0.82rem" color="text.secondary">
+                        {from} <Box component="span" sx={{ mx: 0.5, color: '#d1d5db' }}>→</Box> {to}
+                      </Typography>
+                    </Stack>
+                    <Typography fontSize="0.85rem" color="#374151" sx={{ lineHeight: 1.6 }}>
+                      {r.reason}
+                    </Typography>
+                    {r.status === 'rejected' && r.rejectedReason && (
+                      <Box mt={1} px={1.5} py={1} sx={{ bgcolor: '#fef2f2', borderRadius: 2, border: '1px solid #fecaca' }}>
+                        <Typography fontSize="0.75rem" color="#dc2626" fontWeight={600}>
+                          Lý do từ chối:
+                        </Typography>
+                        <Typography fontSize="0.8rem" color="#dc2626" mt={0.25}>
+                          {r.rejectedReason}
+                        </Typography>
+                      </Box>
+                    )}
                   </Box>
-                  {idx < requests.length - 1 && <Divider />}
-                </Box>
+                </Paper>
               );
-            })
-          )}
-        </Paper>
+            })}
+          </Stack>
+        )}
       </Box>
 
-      <Dialog open={openCreateDialog} onClose={() => setOpenCreateDialog(false)} maxWidth="sm" fullWidth>
-        <DialogTitle>Tạo đơn xin nghỉ</DialogTitle>
-        <DialogContent>
-          <Stack component="form" spacing={2} onSubmit={onSubmit} sx={{ mt: 1 }}>
-            <TextField
-              label="Học sinh"
-              value={selectedStudent?.fullName || ''}
-              size="small"
-              InputProps={{ readOnly: true }}
-            />
-            <TextField
-              label="Lớp"
-              value={selectedStudent?.classId?.className || 'Chưa xếp lớp'}
-              size="small"
-              InputProps={{ readOnly: true }}
-            />
-            <TextField
-              label="Phụ huynh"
-              value={parentName}
-              size="small"
-              InputProps={{ readOnly: true }}
-            />
-            <Stack direction={{ xs: 'column', sm: 'row' }} spacing={2}>
-              <TextField
-                type="date"
-                label="Từ ngày"
-                InputLabelProps={{ shrink: true }}
-                size="small"
-                fullWidth
-                value={form.startDate}
-                inputProps={{ min: todayYmd }}
-                onChange={(e) => {
-                  const value = e.target.value;
-                  setForm((prev) => {
-                    const shouldResetEnd = prev.endDate && prev.endDate <= value;
-                    return { ...prev, startDate: value, endDate: shouldResetEnd ? '' : prev.endDate };
-                  });
-                }}
-              />
-              <TextField
-                type="date"
-                label="Đến ngày"
-                InputLabelProps={{ shrink: true }}
-                size="small"
-                fullWidth
-                value={form.endDate}
-                inputProps={{ min: form.startDate ? nextDayYmd(form.startDate) : todayYmd }}
-                onChange={(e) => setForm((prev) => ({ ...prev, endDate: e.target.value }))}
-              />
+      {/* ── Create Dialog ── */}
+      <Dialog
+        open={openDialog}
+        onClose={() => setOpenDialog(false)}
+        maxWidth="sm"
+        fullWidth
+        PaperProps={{ sx: { borderRadius: 3, mx: 2 } }}
+      >
+        {/* Dialog Header */}
+        <Box sx={{
+          background: `linear-gradient(135deg, ${PRIMARY} 0%, ${PRIMARY_DARK} 100%)`,
+          px: 2.5, py: 2,
+        }}>
+          <Stack direction="row" alignItems="center" justifyContent="space-between">
+            <Stack direction="row" alignItems="center" spacing={1.5}>
+              <Avatar sx={{ bgcolor: 'rgba(255,255,255,0.2)', width: 36, height: 36 }}>
+                <EditNote sx={{ fontSize: 20, color: 'white' }} />
+              </Avatar>
+              <Box>
+                <Typography color="white" fontWeight={700} fontSize="1rem">Tạo đơn xin nghỉ</Typography>
+                <Typography sx={{ color: 'rgba(255,255,255,0.75)', fontSize: '0.72rem' }}>
+                  Điền đầy đủ thông tin bên dưới
+                </Typography>
+              </Box>
             </Stack>
-            {(form.startDate || form.endDate) && (
-              <Typography variant="caption" color="text.secondary">
-                Từ ngày {formatDdMmYyyy(form.startDate) || '--/--/----'} · Đến ngày {formatDdMmYyyy(form.endDate) || '--/--/----'}
-              </Typography>
+            <IconButton size="small" onClick={() => setOpenDialog(false)}
+              sx={{ color: 'white', bgcolor: 'rgba(255,255,255,0.15)', '&:hover': { bgcolor: 'rgba(255,255,255,0.25)' } }}>
+              <Close fontSize="small" />
+            </IconButton>
+          </Stack>
+        </Box>
+
+        <DialogContent sx={{ px: 2.5, pt: 2.5, pb: 1 }}>
+          <Stack spacing={2}>
+            {/* Học sinh */}
+            {children.length > 1 ? (
+              <FormControl size="small" fullWidth>
+                <InputLabel>Học sinh</InputLabel>
+                <Select
+                  label="Học sinh"
+                  value={form.studentId}
+                  onChange={e => setForm(prev => ({ ...prev, studentId: e.target.value, startDate: '', endDate: '' }))}
+                  sx={{ borderRadius: 2 }}
+                >
+                  {children.map(c => (
+                    <MenuItem key={c._id} value={c._id}>
+                      {c.fullName} — {c.classId?.className || 'Chưa xếp lớp'}
+                    </MenuItem>
+                  ))}
+                </Select>
+              </FormControl>
+            ) : (
+              <Paper elevation={0} sx={{ p: 1.5, borderRadius: 2, border: '1px solid #e5e7eb', bgcolor: '#f9fafb' }}>
+                <Stack direction="row" spacing={1.5} alignItems="center">
+                  <Avatar sx={{ bgcolor: PRIMARY + '20', color: PRIMARY, width: 36, height: 36, fontWeight: 700, fontSize: '0.9rem' }}>
+                    {(selectedStudent?.fullName || 'H').charAt(0)}
+                  </Avatar>
+                  <Box>
+                    <Stack direction="row" spacing={0.75} alignItems="center">
+                      <Person sx={{ fontSize: 13, color: '#6b7280' }} />
+                      <Typography fontSize="0.88rem" fontWeight={700}>{selectedStudent?.fullName || '—'}</Typography>
+                    </Stack>
+                    <Stack direction="row" spacing={0.75} alignItems="center">
+                      <School sx={{ fontSize: 13, color: '#6b7280' }} />
+                      <Typography fontSize="0.78rem" color="text.secondary">
+                        {selectedStudent?.classId?.className || 'Chưa xếp lớp'}
+                      </Typography>
+                    </Stack>
+                  </Box>
+                </Stack>
+              </Paper>
             )}
-            <TextField
-              label="Lý do xin nghỉ"
-              multiline
-              minRows={3}
-              value={form.reason}
-              onChange={(e) => setForm((prev) => ({ ...prev, reason: e.target.value }))}
-            />
+
+            <Divider />
+
+            {/* Khoảng thời gian */}
+            <Box>
+              <Typography fontSize="0.75rem" fontWeight={700} color="text.secondary"
+                textTransform="uppercase" letterSpacing="0.05em" mb={1}>
+                Thời gian nghỉ
+              </Typography>
+              <Stack direction={{ xs: 'column', sm: 'row' }} spacing={1.5}>
+                <TextField
+                  type="date"
+                  label="Từ ngày"
+                  InputLabelProps={{ shrink: true }}
+                  size="small"
+                  fullWidth
+                  value={form.startDate}
+                  inputProps={{ min: todayYmd }}
+                  sx={{ '& .MuiOutlinedInput-root': { borderRadius: 2 } }}
+                  onChange={(e) => {
+                    const value = e.target.value;
+                    setForm((prev) => ({
+                      ...prev,
+                      startDate: value,
+                      endDate: prev.endDate && prev.endDate <= value ? '' : prev.endDate,
+                    }));
+                  }}
+                />
+                <TextField
+                  type="date"
+                  label="Đến ngày"
+                  InputLabelProps={{ shrink: true }}
+                  size="small"
+                  fullWidth
+                  value={form.endDate}
+                  inputProps={{ min: form.startDate ? nextDayYmd(form.startDate) : todayYmd }}
+                  sx={{ '& .MuiOutlinedInput-root': { borderRadius: 2 } }}
+                  onChange={(e) => setForm((prev) => ({ ...prev, endDate: e.target.value }))}
+                />
+              </Stack>
+              {(form.startDate && form.endDate) && (
+                <Stack direction="row" spacing={0.75} alignItems="center" mt={1}>
+                  <CalendarMonth sx={{ fontSize: 13, color: PRIMARY }} />
+                  <Typography fontSize="0.78rem" color={PRIMARY} fontWeight={600}>
+                    {formatDdMmYyyy(form.startDate)} → {formatDdMmYyyy(form.endDate)}
+                  </Typography>
+                </Stack>
+              )}
+            </Box>
+
+            {/* Lý do */}
+            <Box>
+              <Typography fontSize="0.75rem" fontWeight={700} color="text.secondary"
+                textTransform="uppercase" letterSpacing="0.05em" mb={1}>
+                Lý do xin nghỉ
+              </Typography>
+              <TextField
+                placeholder="Nhập lý do xin nghỉ..."
+                multiline
+                minRows={3}
+                fullWidth
+                value={form.reason}
+                sx={{ '& .MuiOutlinedInput-root': { borderRadius: 2 } }}
+                onChange={(e) => setForm((prev) => ({ ...prev, reason: e.target.value }))}
+              />
+            </Box>
           </Stack>
         </DialogContent>
-        <DialogActions sx={{ px: 3, pb: 2 }}>
-          <Button color="inherit" onClick={() => setOpenCreateDialog(false)}>Hủy</Button>
-          <Button onClick={onSubmit} variant="contained" disabled={submitting}>
-            {submitting ? <CircularProgress size={18} sx={{ color: 'white' }} /> : 'Tạo đơn xin nghỉ'}
+
+        <DialogActions sx={{ px: 2.5, pb: 2.5, gap: 1, pt: 1.5 }}>
+          <Button
+            onClick={() => setOpenDialog(false)}
+            variant="outlined"
+            sx={{ flex: 1, borderRadius: 2, textTransform: 'none', borderColor: '#d1d5db', color: '#6b7280', fontWeight: 600 }}
+          >
+            Hủy
+          </Button>
+          <Button
+            onClick={onSubmit}
+            variant="contained"
+            disabled={submitting}
+            sx={{ flex: 1, borderRadius: 2, textTransform: 'none', fontWeight: 700, bgcolor: PRIMARY, '&:hover': { bgcolor: PRIMARY_DARK } }}
+          >
+            {submitting ? <CircularProgress size={18} sx={{ color: 'white' }} /> : 'Gửi đơn'}
           </Button>
         </DialogActions>
       </Dialog>

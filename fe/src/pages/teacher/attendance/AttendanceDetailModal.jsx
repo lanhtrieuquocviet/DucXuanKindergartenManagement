@@ -397,7 +397,20 @@ function AttendanceDetailModal({
     setSubmitError(null);
     try {
       if (detailForm.sendOtpSchoolAccount && !detailForm.sendOtpViaSms) {
-        await post(ENDPOINTS.OTP.SEND, { studentId, method: 'school' });
+        if (detailForm.receiverType === 'Khác') {
+          if (!detailForm.receiverName?.trim()) {
+            setSubmitError('Vui lòng nhập tên người đón trước khi gửi OTP.');
+            return;
+          }
+          if (!detailForm.receiverPhone?.trim()) {
+            setSubmitError('Vui lòng nhập số điện thoại người đón trước khi gửi OTP.');
+            return;
+          }
+        }
+        const extraPerson = (detailForm.receiverName || detailForm.receiverPhone)
+          ? { fullName: detailForm.receiverName || '', phone: detailForm.receiverPhone || '', imageUrl: detailForm.receiverOtherImageName || '' }
+          : null;
+        await post(ENDPOINTS.OTP.SEND, { studentId, method: 'school', extraPerson });
         setDetailForm((prev) => ({ ...prev, otpSent: true, otpCode: '' }));
         setOtpTimeLeft(60);
         setOtpExpired(false);
@@ -880,7 +893,7 @@ function AttendanceDetailModal({
                 )}
               </Paper>
 
-              {isReceiverFromList ? (
+              {isReceiverFromList && (
                 <Paper
                   variant="outlined"
                   sx={{
@@ -915,7 +928,8 @@ function AttendanceDetailModal({
                     sx={{ m: 0 }}
                   />
                 </Paper>
-              ) : (
+              )}
+              {detailForm.receiverPickupPersonId === 'KHAC' && (
                 <OtpSection
                   radioName="otpMethodCheckout"
                   detailForm={detailForm}

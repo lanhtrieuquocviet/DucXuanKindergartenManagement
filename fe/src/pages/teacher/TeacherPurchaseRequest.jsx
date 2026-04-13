@@ -205,6 +205,7 @@ export default function TeacherPurchaseRequest() {
     { key: 'students',         label: 'Danh sách học sinh' },
     { key: 'attendance',       label: 'Điểm danh' },
     { key: 'pickup-approval',  label: 'Đơn đăng ký đưa đón' },
+    { key: 'leave-requests',   label: 'Danh sách đơn xin nghỉ' },
     { key: 'schedule',         label: 'Lịch dạy & hoạt động' },
     { key: 'purchase-request', label: 'Cơ sở vật chất' },
     { key: 'class-assets',     label: 'Tài sản lớp' },
@@ -215,7 +216,8 @@ export default function TeacherPurchaseRequest() {
     const MAP = {
       classes: '/teacher', students: '/teacher/students',
       'contact-book': '/teacher/contact-book', attendance: '/teacher/attendance',
-      'pickup-approval': '/teacher/pickup-approval', 'purchase-request': '/teacher/purchase-request',
+      'pickup-approval': '/teacher/pickup-approval', 'leave-requests': '/teacher/leave-requests',
+      'purchase-request': '/teacher/purchase-request',
       'class-assets': '/teacher/class-assets', 'asset-inspection': '/teacher/asset-inspection',
     };
     if (MAP[key]) navigate(MAP[key]);

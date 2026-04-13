@@ -122,10 +122,11 @@ export default function AttendanceReport() {
 
   const initial = useMemo(() => {
     const d = searchParams.get('date') ? new Date(searchParams.get('date')) : new Date();
-    return { month: d.getMonth()+1, year: d.getFullYear() };
+    return { month: d.getMonth()+1, year: d.getFullYear(), studentId: searchParams.get('studentId') || '' };
   }, []);
 
   const [children, setChildren]     = useState([]);
+  const [selectedChildId, setSelectedChildId] = useState(initial.studentId);
   const [attendances, setAttendances] = useState([]);
   const [loading, setLoading]        = useState(true);
   const [error, setError]            = useState('');
@@ -140,24 +141,33 @@ export default function AttendanceReport() {
     if (!roles.includes('Parent') && !roles.includes('Student') && !roles.includes('StudentParent')) {
       navigate('/', { replace: true }); return;
     }
-    (async () => {
-      try {
-        setError(''); setLoading(true);
-        const childRes = await get(ENDPOINTS.AUTH.MY_CHILDREN);
-        const list = childRes.data || [];
+    get(ENDPOINTS.AUTH.MY_CHILDREN)
+      .then(res => {
+        const list = res.data || [];
         setChildren(list);
-        const student = list[0];
-        if (!student?._id) { setError('Chưa có thông tin trẻ để xem báo cáo.'); setAttendances([]); return; }
-        const lastDay = new Date(selectedYear, selectedMonth, 0).getDate();
-        const endpoint = `${ENDPOINTS.STUDENTS.ATTENDANCE_LIST}?studentId=${student._id}&from=${toYmd(selectedYear, selectedMonth, 1)}&to=${toYmd(selectedYear, selectedMonth, lastDay)}${student?.classId?._id || student?.classId ? `&classId=${student?.classId?._id || student?.classId}` : ''}`;
-        const res = await get(endpoint);
-        setAttendances(res.data || []);
-      } catch { setError('Không tải được báo cáo điểm danh.'); setAttendances([]); }
-      finally { setLoading(false); }
-    })();
-  }, [navigate, user, isInitializing, selectedMonth, selectedYear]);
+        setSelectedChildId(prev => {
+          if (prev && list.some(c => c._id === prev)) return prev;
+          return list[0]?._id || '';
+        });
+      })
+      .catch(() => setError('Không tải được thông tin trẻ.'));
+  }, [navigate, user, isInitializing]);
 
-  const student     = children[0] || null;
+  useEffect(() => {
+    if (!selectedChildId) return;
+    const student = children.find(c => c._id === selectedChildId);
+    if (!student) return;
+    setError(''); setLoading(true);
+    const lastDay = new Date(selectedYear, selectedMonth, 0).getDate();
+    const classParam = student?.classId?._id || student?.classId ? `&classId=${student?.classId?._id || student?.classId}` : '';
+    const endpoint = `${ENDPOINTS.STUDENTS.ATTENDANCE_LIST}?studentId=${student._id}&from=${toYmd(selectedYear, selectedMonth, 1)}&to=${toYmd(selectedYear, selectedMonth, lastDay)}${classParam}`;
+    get(endpoint)
+      .then(res => setAttendances(res.data || []))
+      .catch(() => { setError('Không tải được báo cáo điểm danh.'); setAttendances([]); })
+      .finally(() => setLoading(false));
+  }, [selectedChildId, selectedMonth, selectedYear, children]);
+
+  const student     = children.find(c => c._id === selectedChildId) || children[0] || null;
   const studentName = student?.fullName || '—';
   const className   = student?.classId?.className || 'Chưa xếp lớp';
 
@@ -204,6 +214,29 @@ export default function AttendanceReport() {
             </Box>
           </Stack>
         </Paper>
+
+        {children.length > 1 && (
+          <Paper elevation={0} sx={{ p: 1.5, borderRadius: 3, border: '1px solid #bbf7d0', mb: 2 }}>
+            <Typography fontWeight={700} fontSize="0.82rem" mb={1}>Chọn bé</Typography>
+            <Stack direction="row" spacing={1} flexWrap="wrap" gap={0.75}>
+              {children.map(child => (
+                <Chip
+                  key={child._id}
+                  label={child.fullName}
+                  onClick={() => setSelectedChildId(child._id)}
+                  variant={selectedChildId === child._id ? 'filled' : 'outlined'}
+                  sx={{
+                    fontWeight: 700,
+                    bgcolor: selectedChildId === child._id ? PRIMARY : 'transparent',
+                    color: selectedChildId === child._id ? 'white' : '#374151',
+                    borderColor: PRIMARY,
+                    '&:hover': { bgcolor: selectedChildId === child._id ? PRIMARY : '#ecfdf5' },
+                  }}
+                />
+              ))}
+            </Stack>
+          </Paper>
+        )}
 
         {/* Filters */}
         <Paper elevation={0} sx={{ p: 2, borderRadius: 3, border: '1px solid #e5e7eb', mb: 2 }}>

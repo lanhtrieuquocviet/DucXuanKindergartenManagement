@@ -42,7 +42,8 @@ const MATCH_THRESHOLD = 0.92;
 
 // Khoảng cách tối thiểu giữa kết quả tốt nhất và thứ 2
 // Nếu 2 khuôn mặt giống nhau (margin < MIN_MARGIN), từ chối để tránh nhầm
-const MIN_MARGIN = 0.02;
+// Tăng lên 0.04 để đồng bộ với frontend offline và tránh nhầm anh chị em có khuôn mặt tương tự
+const MIN_MARGIN = 0.04;
 
 /**
  * Lấy tất cả embeddings của một học sinh (hỗ trợ nhiều góc mặt)
@@ -249,7 +250,7 @@ const matchFaceEmbedding = async (req, res) => {
     }
 
     // Kiểm tra margin: kết quả tốt nhất phải rõ ràng hơn kết quả thứ 2
-    // Tránh nhầm khi 2 học sinh có khuôn mặt giống nhau
+    // Tránh nhầm khi 2 học sinh có khuôn mặt giống nhau (đặc biệt anh chị em ruột)
     const margin = bestSimilarity - secondBestSimilarity;
     if (secondBestSimilarity > 0.78 && margin < MIN_MARGIN) {
       return res.status(200).json({
@@ -258,6 +259,16 @@ const matchFaceEmbedding = async (req, res) => {
         matched: false,
         bestSimilarity: bestSimilarity.toFixed(4),
         margin: margin.toFixed(4),
+      });
+    }
+
+    // Đảm bảo học sinh được match thuộc đúng lớp được yêu cầu
+    if (bestMatch.classId?.toString() !== classId?.toString()) {
+      return res.status(200).json({
+        status: 'no_match',
+        message: 'Không nhận diện được khuôn mặt trong lớp này',
+        matched: false,
+        bestSimilarity: bestSimilarity.toFixed(4),
       });
     }
 
@@ -287,6 +298,7 @@ const matchFaceEmbedding = async (req, res) => {
             _id: bestMatch._id,
             fullName: bestMatch.fullName,
             avatar: bestMatch.avatar,
+            classId: bestMatch.classId,
           },
           similarity: bestSimilarity.toFixed(4),
           attendance: existingAttendance,
@@ -832,6 +844,16 @@ const matchStudentFaceForCheckout = async (req, res) => {
         matched: false,
         bestSimilarity: bestSimilarity.toFixed(4),
         margin: margin.toFixed(4),
+      });
+    }
+
+    // Đảm bảo học sinh được match thuộc đúng lớp được yêu cầu
+    if (bestMatch.classId?.toString() !== classId?.toString()) {
+      return res.status(200).json({
+        status: 'no_match',
+        message: 'Không nhận diện được khuôn mặt trong lớp này',
+        matched: false,
+        bestSimilarity: bestSimilarity.toFixed(4),
       });
     }
 

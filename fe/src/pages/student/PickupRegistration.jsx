@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useSearchParams } from 'react-router-dom';
 import { useAuth } from '../../context/AuthContext';
 import { get, post, postFormData, ENDPOINTS, del, put } from '../../service/api';
 import {
@@ -25,6 +25,7 @@ const STATUS_CONFIG = {
 
 export default function PickupRegistration() {
   const navigate = useNavigate();
+  const [searchParams] = useSearchParams();
   const { user, isInitializing } = useAuth();
   const [children, setChildren] = useState([]);
   const [pickupRequests, setPickupRequests] = useState([]);
@@ -33,7 +34,7 @@ export default function PickupRegistration() {
   const [editingId, setEditingId] = useState(null);
   const [deleteId, setDeleteId] = useState(null);
   const [isOtherRelation, setIsOtherRelation] = useState(false);
-  const [form, setForm] = useState({ studentId: '', fullName: '', relation: '', phone: '', imageFile: null });
+  const [form, setForm] = useState({ studentId: searchParams.get('studentId') || '', fullName: '', relation: '', phone: '', imageFile: null });
   const [error, setError] = useState('');
   const [success, setSuccess] = useState('');
   const [submitting, setSubmitting] = useState(false);
@@ -50,7 +51,12 @@ export default function PickupRegistration() {
       const res = await get(ENDPOINTS.AUTH.MY_CHILDREN);
       const list = res.data || [];
       setChildren(list);
-      if (list.length > 0) setForm(p => ({ ...p, studentId: list[0]._id }));
+      if (list.length > 0) {
+        setForm(p => ({
+          ...p,
+          studentId: p.studentId && list.some(c => c._id === p.studentId) ? p.studentId : list[0]._id,
+        }));
+      }
     } catch { setError('Không tải được thông tin học sinh.'); }
   };
 
@@ -108,7 +114,7 @@ export default function PickupRegistration() {
 
   const resetForm = () => {
     setEditingId(null); setIsOtherRelation(false);
-    setForm({ studentId: children[0]?._id || '', fullName: '', relation: '', phone: '', imageFile: null });
+    setForm(p => ({ studentId: p.studentId || children[0]?._id || '', fullName: '', relation: '', phone: '', imageFile: null }));
     setPreviewUrl(null);
   };
 
@@ -196,6 +202,23 @@ export default function PickupRegistration() {
             </Stack>
 
             <Stack spacing={2}>
+              {children.length > 1 && !editingId && (
+                <FormControl size="small" fullWidth required>
+                  <InputLabel>Đăng ký cho bé</InputLabel>
+                  <Select
+                    label="Đăng ký cho bé"
+                    value={form.studentId}
+                    onChange={e => setForm(p => ({ ...p, studentId: e.target.value }))}
+                    sx={{ borderRadius: 2 }}
+                  >
+                    {children.map(c => (
+                      <MenuItem key={c._id} value={c._id}>
+                        {c.fullName} — {c.classId?.className || 'Chưa xếp lớp'}
+                      </MenuItem>
+                    ))}
+                  </Select>
+                </FormControl>
+              )}
               <TextField
                 label={`Họ tên người đón (${form.fullName.length}/50)`}
                 name="fullName" value={form.fullName} onChange={handleChange} required fullWidth size="small"

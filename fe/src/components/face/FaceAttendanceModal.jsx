@@ -39,7 +39,7 @@ const MIN_MARGIN = 0.04;
 const COOLDOWN_MS = 3000;
 const DELIVERER_WAIT_MS = 120000; // 2 phút
 
-const CHECKIN_ITEMS = ['Ba lô', 'Hộp cơm', 'Bình nước', 'Thuốc', 'Áo đổi', 'Thông báo'];
+const CHECKIN_ITEMS = ['Ba lô', 'Hộp cơm', 'Bình nước', 'Thuốc', 'Áo đổi'];
 
 export default function FaceAttendanceModal({ open, onClose, classId, className, onCheckinSuccess }) {
   const { isOnline, pendingCount, isSyncing, saveOfflineRecord, syncNow } = useOfflineSync();
@@ -77,6 +77,11 @@ export default function FaceAttendanceModal({ open, onClose, classId, className,
 
   // Đếm ngược
   const [delivererCountdown, setDelivererCountdown] = useState(0);
+
+  // Reset checkedInToday khi classId thay đổi (tránh nhầm lớp trong offline mode)
+  useEffect(() => {
+    setCheckedInToday([]);
+  }, [classId]);
 
   // ── Tải embeddings về local khi modal mở ─────────────────────────────────
   useEffect(() => {

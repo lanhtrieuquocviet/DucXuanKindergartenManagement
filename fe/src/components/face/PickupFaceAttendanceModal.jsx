@@ -25,7 +25,7 @@ import {
 const COOLDOWN_MS = 4000;
 const WAIT_MS = 120000; // 2 phút
 
-const CHECKOUT_ITEMS = ['Ba lô', 'Hộp cơm', 'Bình nước', 'Thuốc', 'Áo đổi', 'Thông báo'];
+const CHECKOUT_ITEMS = ['Ba lô', 'Hộp cơm', 'Bình nước', 'Thuốc', 'Áo đổi'];
 
 export default function PickupFaceAttendanceModal({ open, onClose, classId, className, onCheckoutSuccess }) {
   const [matchResult, setMatchResult] = useState(null);

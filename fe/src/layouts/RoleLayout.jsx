@@ -95,6 +95,7 @@ export const KEY_ICONS = {
   'purchase-requests':    <ShoppingCartIcon fontSize="small" />,
   'asset-incidents':          <ReportProblemIcon fontSize="small" />,
   'manage-purchase-requests': <GradingIcon fontSize="small" />,
+  'leave-requests':       <ArticleIcon fontSize="small" />,
   'asset-inspection':     <ContentPasteSearchIcon fontSize="small" />,
   'class-assets':         <InventoryIcon fontSize="small" />,
   'asset-allocation':     <AccountTreeIcon fontSize="small" />,

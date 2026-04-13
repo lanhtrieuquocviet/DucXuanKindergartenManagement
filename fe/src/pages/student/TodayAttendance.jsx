@@ -1,11 +1,12 @@
 import { useEffect, useMemo, useState } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useSearchParams } from 'react-router-dom';
 import { useAuth } from '../../context/AuthContext';
 import { get, ENDPOINTS } from '../../service/api';
 import {
   Box, Paper, Typography, Avatar, Stack, Chip, IconButton,
   CircularProgress, Alert, Divider, Grid,
 } from '@mui/material';
+
 import {
   ArrowBack, School, CalendarMonth,
   Login as LoginIcon, Logout as LogoutIcon, Image as ImageIcon, SmartToy,
@@ -78,8 +79,10 @@ function PhotoCard({ label, src, color }) {
 
 export default function TodayAttendance() {
   const navigate = useNavigate();
+  const [searchParams] = useSearchParams();
   const { user, isInitializing } = useAuth();
   const [children, setChildren]   = useState([]);
+  const [selectedChildId, setSelectedChildId] = useState(() => searchParams.get('studentId') || '');
   const [attendance, setAttendance] = useState(null);
   const [loading, setLoading]     = useState(true);
   const [error, setError]         = useState('');
@@ -95,22 +98,30 @@ export default function TodayAttendance() {
     if (!roles.includes('Parent') && !roles.includes('Student') && !roles.includes('StudentParent')) {
       navigate('/', { replace: true }); return;
     }
-    (async () => {
-      try {
-        setError(''); setLoading(true);
-        const childRes = await get(ENDPOINTS.AUTH.MY_CHILDREN);
-        const list = childRes.data || [];
+    get(ENDPOINTS.AUTH.MY_CHILDREN)
+      .then(res => {
+        const list = res.data || [];
         setChildren(list);
-        const student = list[0];
-        if (!student?._id) { setError('Chưa có thông tin trẻ để xem điểm danh.'); return; }
-        const attRes = await get(`${ENDPOINTS.STUDENTS.ATTENDANCE_LIST}?studentId=${student._id}&date=${todayQuery}`);
-        setAttendance((attRes.data || [])[0] || null);
-      } catch { setError('Không tải được dữ liệu điểm danh hôm nay.'); }
-      finally { setLoading(false); }
-    })();
-  }, [navigate, user, isInitializing, todayQuery]);
+        setSelectedChildId(prev => {
+          if (prev && list.some(c => c._id === prev)) return prev;
+          return list[0]?._id || '';
+        });
+      })
+      .catch(() => setError('Không tải được thông tin trẻ.'));
+  }, [navigate, user, isInitializing]);
 
-  const student     = children[0] || null;
+  useEffect(() => {
+    if (!selectedChildId) return;
+    setLoading(true);
+    setError('');
+    setAttendance(null);
+    get(`${ENDPOINTS.STUDENTS.ATTENDANCE_LIST}?studentId=${selectedChildId}&date=${todayQuery}`)
+      .then(res => setAttendance((res.data || [])[0] || null))
+      .catch(() => setError('Không tải được dữ liệu điểm danh hôm nay.'))
+      .finally(() => setLoading(false));
+  }, [selectedChildId, todayQuery]);
+
+  const student     = children.find(c => c._id === selectedChildId) || children[0] || null;
   const studentName = student?.fullName || '—';
   const className   = student?.classId?.className || 'Chưa xếp lớp';
 
@@ -182,6 +193,29 @@ export default function TodayAttendance() {
             </Box>
           </Stack>
         </Paper>
+
+        {children.length > 1 && (
+          <Paper elevation={0} sx={{ p: 1.5, borderRadius: 3, border: '1px solid #bbf7d0', mb: 2 }}>
+            <Typography fontWeight={700} fontSize="0.82rem" mb={1}>Chọn bé</Typography>
+            <Stack direction="row" spacing={1} flexWrap="wrap" gap={0.75}>
+              {children.map(child => (
+                <Chip
+                  key={child._id}
+                  label={child.fullName}
+                  onClick={() => setSelectedChildId(child._id)}
+                  variant={selectedChildId === child._id ? 'filled' : 'outlined'}
+                  sx={{
+                    fontWeight: 700,
+                    bgcolor: selectedChildId === child._id ? PRIMARY : 'transparent',
+                    color: selectedChildId === child._id ? 'white' : '#374151',
+                    borderColor: PRIMARY,
+                    '&:hover': { bgcolor: selectedChildId === child._id ? PRIMARY : '#ecfdf5' },
+                  }}
+                />
+              ))}
+            </Stack>
+          </Paper>
+        )}
 
         {loading ? (
           <Stack alignItems="center" py={8}><CircularProgress sx={{ color: PRIMARY }} /></Stack>

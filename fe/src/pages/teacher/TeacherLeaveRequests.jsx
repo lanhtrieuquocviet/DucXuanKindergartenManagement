@@ -38,16 +38,23 @@ export default function TeacherLeaveRequests() {
       { key: 'class-assets', label: 'Tài sản lớp', permission: 'MANAGE_ASSET' },
       { key: 'asset-inspection', label: 'Kiểm kê tài sản', role: 'InventoryStaff' },
     ];
-    return all.filter((item) => {
+    const items = all.filter((item) => {
       if (item.permission) return hasPermission(item.permission);
       if (item.role) return hasRole(item.role);
       return true;
     });
+    if (hasPermission('MANAGE_TEACHER_REPORT')) {
+      items.push({ key: 'manage-purchase-requests', label: 'Duyệt báo cáo giáo viên' });
+    }
+    return items;
   }, [hasPermission, hasRole]);
 
   const fetchRows = async () => {
     try {
-      const res = await get(`${ENDPOINTS.LEAVE.REQUESTS}?status=${status}`);
+      const url = status === 'all'
+        ? ENDPOINTS.LEAVE.REQUESTS
+        : `${ENDPOINTS.LEAVE.REQUESTS}?status=${status}`;
+      const res = await get(url);
       setRows(res.data || []);
     } catch (e) {
       toast.error(e.message || 'Không tải được danh sách đơn');
@@ -83,6 +90,7 @@ export default function TeacherLeaveRequests() {
       'purchase-request': '/teacher/purchase-request',
       'class-assets': '/teacher/class-assets',
       'asset-inspection': '/teacher/asset-inspection',
+      'manage-purchase-requests': '/teacher/manage-purchase-requests',
     };
     if (map[key]) navigate(map[key]);
   };

@@ -76,6 +76,7 @@ export default function StudentDashboard() {
   const [unreadCount, setUnreadCount] = useState(0);
   const [notifLoading, setNotifLoading] = useState(false);
   const [selectedChildId, setSelectedChildId] = useState(null);
+  const [previewImageUrl, setPreviewImageUrl] = useState(null);
 
   const pollRef = useRef(null);
   const lastOtpCodeRef = useRef(null);
@@ -203,15 +204,17 @@ export default function StudentDashboard() {
   };
 
   const handleCardAction = (key) => {
+    const id = selectedChildId || children[0]?._id || '';
+    const q = id ? `?studentId=${id}` : '';
     const routes = {
       info: () => setShowChildInfo(true),
-      today: () => navigate('/student/attendance/today'),
-      report: () => navigate('/student/attendance/report'),
-      pickup: () => navigate('/student/pickup'),
+      today: () => navigate(`/student/attendance/today${q}`),
+      report: () => navigate(`/student/attendance/report${q}`),
+      pickup: () => navigate(`/student/pickup${q}`),
       menu: () => navigate('/student/menus'),
       photos: () => navigate('/student/meal-photos'),
-      'contact-book': () => navigate('/student/contact-book'),
-      leave: () => navigate('/student/leave-request'),
+      'contact-book': () => navigate(`/student/contact-book${q}`),
+      leave: () => navigate(`/student/leave-request${q}`),
     };
     routes[key]?.();
   };
@@ -524,33 +527,120 @@ export default function StudentDashboard() {
       {/* ── OTP Dialog ── */}
       <Dialog open={showOtpModal && !!pendingOtp} onClose={() => setShowOtpModal(false)}
         maxWidth="xs" fullWidth PaperProps={{ sx: { borderRadius: 4, mx: 2 } }}>
-        <DialogTitle>
+        <DialogTitle sx={{ pb: 1 }}>
           <Stack direction="row" alignItems="center" justifyContent="space-between">
             <Typography fontWeight={700}>🔑 Mã OTP của bạn</Typography>
             <IconButton size="small" onClick={() => setShowOtpModal(false)}><Close fontSize="small" /></IconButton>
           </Stack>
         </DialogTitle>
-        <DialogContent>
-          <Stack alignItems="center" spacing={3}>
-            <Typography fontSize="2.5rem" fontWeight={800} letterSpacing="0.3em" color="#111827">
-              {pendingOtp?.code}
-            </Typography>
-            <Box sx={{ position: 'relative', display: 'inline-flex' }}>
-              <CircularProgress
-                variant="determinate"
-                value={otpTotalTime > 0 ? (otpTimeLeft / otpTotalTime) * 100 : 0}
-                size={80} thickness={4}
-                sx={{ color: PRIMARY }}
-              />
-              <Box sx={{ position: 'absolute', inset: 0, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-                <Typography fontWeight={800} fontSize="1.1rem" color={PRIMARY}>{otpTimeLeft}s</Typography>
-              </Box>
+        <DialogContent sx={{ pt: 0 }}>
+          <Stack spacing={2}>
+            {/* Thông tin học sinh */}
+            <Box sx={{ bgcolor: '#ecfdf5', borderRadius: 2.5, p: 1.5, border: '1px solid #bbf7d0' }}>
+              <Typography fontSize="0.7rem" fontWeight={700} color={PRIMARY} textTransform="uppercase" letterSpacing={0.5} mb={0.75}>
+                Học sinh
+              </Typography>
+              <Stack direction="row" spacing={1.5} alignItems="center">
+                <Avatar sx={{ bgcolor: PRIMARY_LIGHT, color: PRIMARY, width: 40, height: 40, fontWeight: 700, fontSize: '1rem', flexShrink: 0 }}>
+                  {(pendingOtp?.student?.fullName || studentInfo?.fullName || '?').charAt(0)}
+                </Avatar>
+                <Box>
+                  <Typography fontWeight={800} fontSize="0.95rem" color="#111827" lineHeight={1.2}>
+                    {pendingOtp?.student?.fullName || studentInfo?.fullName}
+                  </Typography>
+                  <Typography fontSize="0.75rem" color="text.secondary">
+                    Mã HS: {studentInfo?.studentCode || '—'} · {pendingOtp?.student?.className || studentInfo?.classId?.className || ''}
+                  </Typography>
+                </Box>
+              </Stack>
             </Box>
-            <Typography fontSize="0.8rem" color="text.secondary" textAlign="center">
-              Mã này dùng để giáo viên xác nhận đón trẻ trong vòng <strong>{otpTotalTime} giây</strong>.
-            </Typography>
+
+            {/* Thông tin người ngoài danh sách */}
+            {pendingOtp?.extraPerson?.fullName && (
+              <Box sx={{ bgcolor: '#fff7ed', borderRadius: 2.5, p: 1.5, border: '1px solid #fed7aa' }}>
+                <Typography fontSize="0.7rem" fontWeight={700} color="#d97706" textTransform="uppercase" letterSpacing={0.5} mb={0.75}>
+                  Người đến đón
+                </Typography>
+                <Stack direction="row" spacing={1.5} alignItems="center">
+                  {pendingOtp.extraPerson.imageUrl ? (
+                    <Box
+                      component="img"
+                      src={pendingOtp.extraPerson.imageUrl}
+                      alt={pendingOtp.extraPerson.fullName}
+                      onClick={() => setPreviewImageUrl(pendingOtp.extraPerson.imageUrl)}
+                      sx={{
+                        width: 72, height: 72, borderRadius: 2.5, objectFit: 'cover',
+                        border: '2px solid #fed7aa', flexShrink: 0, cursor: 'zoom-in',
+                        transition: 'transform 0.15s, box-shadow 0.15s',
+                        '&:active': { transform: 'scale(0.96)' },
+                        boxShadow: '0 2px 8px rgba(217,119,6,0.2)',
+                      }}
+                    />
+                  ) : (
+                    <Avatar sx={{ bgcolor: '#fef3c7', color: '#d97706', width: 72, height: 72, fontSize: '1.5rem', flexShrink: 0 }}>
+                      {pendingOtp.extraPerson.fullName.charAt(0)}
+                    </Avatar>
+                  )}
+                  <Box>
+                    <Typography fontWeight={700} fontSize="0.9rem" color="#111827">
+                      {pendingOtp.extraPerson.fullName}
+                    </Typography>
+                    {pendingOtp.extraPerson.phone && (
+                      <Typography fontSize="0.75rem" color="text.secondary">📞 {pendingOtp.extraPerson.phone}</Typography>
+                    )}
+                    {pendingOtp.extraPerson.imageUrl && (
+                      <Typography fontSize="0.68rem" color="#d97706" mt={0.25}>Nhấn ảnh để xem to</Typography>
+                    )}
+                  </Box>
+                </Stack>
+              </Box>
+            )}
+
+            {/* Mã OTP + đếm ngược */}
+            <Stack alignItems="center" spacing={2} pt={0.5}>
+              <Typography fontSize="2.5rem" fontWeight={800} letterSpacing="0.3em" color="#111827">
+                {pendingOtp?.code}
+              </Typography>
+              <Box sx={{ position: 'relative', display: 'inline-flex' }}>
+                <CircularProgress
+                  variant="determinate"
+                  value={otpTotalTime > 0 ? (otpTimeLeft / otpTotalTime) * 100 : 0}
+                  size={80} thickness={4}
+                  sx={{ color: PRIMARY }}
+                />
+                <Box sx={{ position: 'absolute', inset: 0, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                  <Typography fontWeight={800} fontSize="1.1rem" color={PRIMARY}>{otpTimeLeft}s</Typography>
+                </Box>
+              </Box>
+              <Typography fontSize="0.8rem" color="text.secondary" textAlign="center">
+                Mã này dùng để giáo viên xác nhận đón trẻ trong vòng <strong>{otpTotalTime} giây</strong>.
+              </Typography>
+            </Stack>
           </Stack>
         </DialogContent>
+      </Dialog>
+
+      {/* ── Image Preview Dialog ── */}
+      <Dialog open={!!previewImageUrl} onClose={() => setPreviewImageUrl(null)}
+        maxWidth="sm" fullWidth
+        PaperProps={{ sx: { bgcolor: 'transparent', boxShadow: 'none', borderRadius: 3, mx: 2 } }}>
+        <Box sx={{ position: 'relative' }}>
+          <IconButton
+            onClick={() => setPreviewImageUrl(null)}
+            size="small"
+            sx={{ position: 'absolute', top: 8, right: 8, zIndex: 1, bgcolor: 'rgba(0,0,0,0.55)', color: 'white', '&:hover': { bgcolor: 'rgba(0,0,0,0.8)' } }}
+          >
+            <Close fontSize="small" />
+          </IconButton>
+          {previewImageUrl && (
+            <Box
+              component="img"
+              src={previewImageUrl}
+              alt="Xem ảnh"
+              sx={{ width: '100%', maxHeight: '80vh', objectFit: 'contain', borderRadius: 3, display: 'block' }}
+            />
+          )}
+        </Box>
       </Dialog>
 
       {/* ── OTP Toast (khi đóng modal) ── */}

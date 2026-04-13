@@ -22,6 +22,7 @@ const sendOTP = async (req, res) => {
 
     const student = await Students.findById(studentId)
       .populate('parentId', 'fullName phone')
+      .populate('classId', 'className')
       .lean();
 
     if (!student) {
@@ -32,7 +33,8 @@ const sendOTP = async (req, res) => {
       // Generate 6-digit OTP nội bộ
       const code = String(Math.floor(100000 + Math.random() * 900000));
       const expiresAt = Date.now() + OTP_TTL_MS;
-      otpStore.set(String(studentId), { code, expiresAt });
+      const extraPerson = req.body.extraPerson || null;
+      otpStore.set(String(studentId), { code, expiresAt, extraPerson, student: { fullName: student.fullName, studentCode: student.studentCode, className: student.classId?.className || '' } });
 
       // Tự xóa sau khi hết hạn
       setTimeout(() => {
@@ -123,6 +125,8 @@ const getPendingOTP = async (req, res) => {
         code: stored.code,
         expiresAt: stored.expiresAt,
         timeLeft: Math.ceil((stored.expiresAt - Date.now()) / 1000),
+        extraPerson: stored.extraPerson || null,
+        student: stored.student || null,
       },
     });
   } catch (error) {
