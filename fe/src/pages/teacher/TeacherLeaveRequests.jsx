@@ -3,8 +3,9 @@ import { useLocation, useNavigate } from 'react-router-dom';
 import { useAuth } from '../../context/AuthContext';
 import RoleLayout from '../../layouts/RoleLayout';
 import { get, post, ENDPOINTS } from '../../service/api';
+import { toast } from 'react-toastify';
 import {
-  Alert, Box, Button, Chip, Dialog, DialogActions, DialogContent, DialogTitle,
+  Box, Button, Chip, Dialog, DialogActions, DialogContent, DialogTitle,
   FormControl, InputLabel, MenuItem, Paper, Select, Stack, Table, TableBody,
   TableCell, TableContainer, TableHead, TableRow, TextField, Typography,
 } from '@mui/material';
@@ -22,7 +23,6 @@ export default function TeacherLeaveRequests() {
   const { user, logout, isInitializing, hasPermission, hasRole } = useAuth();
   const [status, setStatus] = useState('pending');
   const [rows, setRows] = useState([]);
-  const [error, setError] = useState('');
   const [rejectDialog, setRejectDialog] = useState(null);
   const [rejectReason, setRejectReason] = useState('');
 
@@ -50,7 +50,7 @@ export default function TeacherLeaveRequests() {
       const res = await get(`${ENDPOINTS.LEAVE.REQUESTS}?status=${status}`);
       setRows(res.data || []);
     } catch (e) {
-      setError(e.message || 'Không tải được danh sách đơn');
+      toast.error(e.message || 'Không tải được danh sách đơn');
     }
   };
 
@@ -66,9 +66,10 @@ export default function TeacherLeaveRequests() {
   const updateStatus = async (requestId, nextStatus, reason = '') => {
     try {
       await post(ENDPOINTS.LEAVE.UPDATE_STATUS, { requestId, status: nextStatus, rejectedReason: reason });
+      toast.success(nextStatus === 'approved' ? 'Đã duyệt đơn xin nghỉ' : 'Đã từ chối đơn xin nghỉ');
       fetchRows();
     } catch (e) {
-      setError(e.data?.message || e.message || 'Cập nhật trạng thái thất bại');
+      toast.error(e.data?.message || e.message || 'Cập nhật trạng thái thất bại');
     }
   };
 
@@ -98,7 +99,6 @@ export default function TeacherLeaveRequests() {
       onViewProfile={() => navigate('/profile')}
       onMenuSelect={handleMenuSelect}
     >
-      {error && <Alert severity="error" sx={{ mb: 2 }} onClose={() => setError('')}>{error}</Alert>}
       <Paper sx={{ p: 2.5, borderRadius: 3 }}>
         <Stack direction="row" justifyContent="space-between" alignItems="center" mb={2}>
           <FormControl size="small" sx={{ minWidth: 190 }}>

@@ -5,7 +5,7 @@ import { get, post, ENDPOINTS } from '../../service/api';
 import { toast } from 'react-toastify';
 import {
   Box, Paper, Typography, Stack, IconButton, TextField, Button,
-  CircularProgress, Alert, Chip, Divider, Dialog, DialogTitle, DialogContent, DialogActions,
+  CircularProgress, Chip, Divider, Dialog, DialogTitle, DialogContent, DialogActions,
 } from '@mui/material';
 import { ArrowBack } from '@mui/icons-material';
 
@@ -43,8 +43,6 @@ export default function LeaveRequest() {
   const [requests, setRequests] = useState([]);
   const [loading, setLoading] = useState(false);
   const [submitting, setSubmitting] = useState(false);
-  const [error, setError] = useState('');
-  const [success, setSuccess] = useState('');
   const [openCreateDialog, setOpenCreateDialog] = useState(false);
   const [form, setForm] = useState({
     studentId: '',
@@ -68,7 +66,7 @@ export default function LeaveRequest() {
       setRequests(reqRes.data || []);
       setForm((prev) => ({ ...prev, studentId: prev.studentId || childList[0]?._id || '' }));
     } catch (e) {
-      setError(e.message || 'Không tải được dữ liệu');
+      toast.error(e.message || 'Không tải được dữ liệu');
     } finally {
       setLoading(false);
     }
@@ -85,18 +83,16 @@ export default function LeaveRequest() {
 
   const onSubmit = async (e) => {
     e?.preventDefault?.();
-    setError('');
-    setSuccess('');
     if (!form.studentId || !form.startDate || !form.endDate || !form.reason.trim()) {
-      setError('Vui lòng nhập đủ thông tin');
+      toast.error('Vui lòng nhập đủ thông tin');
       return;
     }
     if (form.startDate < todayYmd) {
-      setError('Từ ngày không được nhỏ hơn ngày hiện tại');
+      toast.error('Từ ngày không được nhỏ hơn ngày hiện tại');
       return;
     }
     if (form.endDate <= form.startDate) {
-      setError('Đến ngày phải lớn hơn Từ ngày');
+      toast.error('Đến ngày phải lớn hơn Từ ngày');
       return;
     }
     setSubmitting(true);
@@ -107,13 +103,12 @@ export default function LeaveRequest() {
         endDate: form.endDate,
         reason: form.reason.trim(),
       });
-      setSuccess('');
       toast.success('Đã gửi đơn xin nghỉ thành công');
       setForm((prev) => ({ ...prev, startDate: '', endDate: '', reason: '' }));
       setOpenCreateDialog(false);
       fetchMyRequests();
     } catch (e2) {
-      setError(e2.data?.message || e2.message || 'Gửi đơn thất bại');
+      toast.error(e2.data?.message || e2.message || 'Gửi đơn thất bại');
     } finally {
       setSubmitting(false);
     }
@@ -131,9 +126,6 @@ export default function LeaveRequest() {
       </Box>
 
       <Box sx={{ maxWidth: 700, mx: 'auto', p: 2 }}>
-        {error && <Alert severity="error" sx={{ mb: 2 }} onClose={() => setError('')}>{error}</Alert>}
-        {success && <Alert severity="success" sx={{ mb: 2 }} onClose={() => setSuccess('')}>{success}</Alert>}
-
         <Paper sx={{ borderRadius: 3, overflow: 'hidden' }}>
           <Box sx={{ p: 2, borderBottom: '1px solid #eee' }}>
             <Stack direction="row" alignItems="center" justifyContent="space-between" spacing={2}>
