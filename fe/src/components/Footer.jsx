@@ -19,7 +19,7 @@ function Footer() {
                 { label: "Văn bản", link: "/legal-documents" },
                 { label: "Thư viện", link: "/photo-gallery" },
                 { label: "Liên hệ", link: "/contact" },
-                { label: "Hỏi đáp", link: "/qa" },
+                // { label: "Hỏi đáp", link: "/qa" },
               ].map((item) => (
                 <a
                   key={item.label}

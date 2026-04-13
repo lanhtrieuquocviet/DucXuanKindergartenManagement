@@ -375,9 +375,9 @@ function Header() {
                         <a href="/contact" className="px-3 py-2.5 hover:bg-white/15 whitespace-nowrap transition-colors rounded">
                             Liên hệ
                         </a>
-                        <a href="/qa" className="px-3 py-2.5 hover:bg-white/15 whitespace-nowrap transition-colors rounded">
+                        {/* <a href="/qa" className="px-3 py-2.5 hover:bg-white/15 whitespace-nowrap transition-colors rounded">
                             Hỏi đáp
-                        </a>
+                        </a> */}
                     </nav>
                 </div>
             </div>

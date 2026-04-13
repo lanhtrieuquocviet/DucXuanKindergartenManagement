@@ -62,7 +62,7 @@ export const SCHOOL_ADMIN_MENU_ITEMS = [
       { key: 'documents', label: 'Quản lý tài liệu', permission: 'MANAGE_DOCUMENT' },
       { key: 'files-management', label: 'Quản lý file', permission: 'MANAGE_DOCUMENT' },
       { key: 'contacts-list', label: 'Danh sách liên hệ', permission: 'MANAGE_CONTACT' },
-      { key: 'qa', label: 'Câu hỏi', permission: 'MANAGE_QA' },
+      // { key: 'qa', label: 'Câu hỏi', permission: 'MANAGE_QA' },
       { key: 'image-library', label: 'Quản lý ảnh', permission: 'MANAGE_IMAGE_LIBRARY' },
       { key: 'video-library', label: 'Quản lý video-clip', permission: 'MANAGE_IMAGE_LIBRARY' },
     ],
