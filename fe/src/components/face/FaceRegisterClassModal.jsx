@@ -155,7 +155,7 @@ function FaceDetailDialog({ student, onClose, onUpdate, onDeleted }) {
                         {/* Nút xóa góc */}
                         <button
                           onClick={() => setConfirmDeleteAngle(idx)}
-                          className="absolute top-1.5 right-1.5 opacity-0 group-hover:opacity-100 transition-opacity bg-red-500 hover:bg-red-600 rounded-full p-1"
+                          className="absolute top-1.5 right-1.5 opacity-100 sm:opacity-0 sm:group-hover:opacity-100 transition-opacity bg-red-500 hover:bg-red-600 rounded-full p-1"
                           title={`Xóa góc ${idx + 1}`}
                         >
                           <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="3" strokeLinecap="round">
@@ -165,7 +165,7 @@ function FaceDetailDialog({ student, onClose, onUpdate, onDeleted }) {
                       </div>
                     ))}
                   </div>
-                  <p className="text-[10px] text-gray-400 text-center mt-1.5">Nhấn vào ảnh để xem to · Hover để xóa góc</p>
+                  <p className="text-[10px] text-gray-400 text-center mt-1.5">Nhấn vào ảnh để xem to hơn · chọn ảnh để xóa </p>
                 </>
               ) : (
                 <div className="flex flex-col items-center gap-1.5 py-3 bg-amber-50 rounded-xl border border-dashed border-amber-200">

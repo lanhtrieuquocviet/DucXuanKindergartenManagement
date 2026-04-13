@@ -392,14 +392,21 @@ function TeacherAttendance() {
     });
   };
 
-  const handleSelectedDateChange = (value) => {
+  const handleSelectedDateChange = useCallback((value) => {
     if (!value) return;
     if (value > todayISO) { setSelectedDate(todayISO); return; }
     setSelectedDate(value);
-  };
+  }, [todayISO]);
+
+  const resetOtpState = useCallback(() => {
+    setConfirmationResult(null);
+    setOtpExpired(false);
+    setOtpTimeLeft(0);
+    setDetailForm((prev) => ({ ...prev, otpSent: false, otpCode: '' }));
+  }, []);
 
   // ── Detail modal ──
-  const openDetail = (studentId, mode = 'view') => {
+  const openDetail = useCallback((studentId, mode = 'view') => {
     setSubmitError(null);
     setDetailStudentId(studentId);
     setDetailOpenedDate(selectedDate);
@@ -467,14 +474,7 @@ function TeacherAttendance() {
     setDetailMode(mode);
     setIsDetailOpen(true);
     resetOtpState();
-  };
-
-  const resetOtpState = () => {
-    setConfirmationResult(null);
-    setOtpExpired(false);
-    setOtpTimeLeft(0);
-    setDetailForm((prev) => ({ ...prev, otpSent: false, otpCode: '' }));
-  };
+  }, [selectedDate, draftForms, attendanceByStudent, resetOtpState]);
 
   const closeDetail = () => {
     // Lưu draft khi đóng modal (không lưu OTP vì hết hạn)
@@ -486,6 +486,17 @@ function TeacherAttendance() {
     setIsDetailOpen(false);
     setSubmitError(null);
   };
+
+  // ── Stable callbacks cho AttendanceTable (tránh re-render khi gõ form) ──
+  const handleCheckin = useCallback((id) => openDetail(id, 'checkin'), [openDetail]);
+  const handleCheckout = useCallback((id) => openDetail(id, 'checkout'), [openDetail]);
+  const handleViewDetail = useCallback((id) => openDetail(id), [openDetail]);
+  const handleAbsent = useCallback((id) => {
+    setAbsentStudentId(id);
+    setAbsentForm({ reason: '', note: '' });
+    setAbsentError(null);
+    setIsAbsentOpen(true);
+  }, []);
 
   // Đóng modal sau khi lưu thành công — xóa draft thay vì lưu
   const closeDetailAndClearDraft = () => {
@@ -726,13 +737,22 @@ function TeacherAttendance() {
   };
 
   // ── Computed ──
-  const detailStudent = students.find((s) => s._id === detailStudentId) || null;
-  const selectedClass = classes.find((c) => (c._id || c.id) === classId) || null;
-  const selectedClassName =
-    selectedClass?.className ||
-    selectedClass?.name ||
-    (selectedClass?.gradeId?.gradeName ? `${selectedClass.gradeId.gradeName} - ${selectedClass?._id || ''}` : '') ||
-    '';
+  const detailStudent = useMemo(
+    () => students.find((s) => s._id === detailStudentId) || null,
+    [students, detailStudentId]
+  );
+  const selectedClass = useMemo(
+    () => classes.find((c) => (c._id || c.id) === classId) || null,
+    [classes, classId]
+  );
+  const selectedClassName = useMemo(
+    () =>
+      selectedClass?.className ||
+      selectedClass?.name ||
+      (selectedClass?.gradeId?.gradeName ? `${selectedClass.gradeId.gradeName} - ${selectedClass?._id || ''}` : '') ||
+      '',
+    [selectedClass]
+  );
 
   return (
     <RoleLayout
@@ -942,15 +962,10 @@ function TeacherAttendance() {
           todayISO={todayISO}
           selectedDate={selectedDate}
           onDateChange={handleSelectedDateChange}
-          onCheckin={(id) => openDetail(id, 'checkin')}
-          onCheckout={(id) => openDetail(id, 'checkout')}
-          onViewDetail={(id) => openDetail(id)}
-          onAbsent={(id) => {
-            setAbsentStudentId(id);
-            setAbsentForm({ reason: '', note: '' });
-            setAbsentError(null);
-            setIsAbsentOpen(true);
-          }}
+          onCheckin={handleCheckin}
+          onCheckout={handleCheckout}
+          onViewDetail={handleViewDetail}
+          onAbsent={handleAbsent}
           selectedClassName={selectedClassName}
           classId={classId}
         />

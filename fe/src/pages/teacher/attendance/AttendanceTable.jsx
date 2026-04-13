@@ -1,5 +1,5 @@
 // Bảng danh sách điểm danh học sinh theo lớp
-import { useRef, useState } from 'react';
+import { memo, useMemo, useRef, useState } from 'react';
 import {
   Box, Paper, Typography, Button, TextField, Chip, Alert, Skeleton,
   Table, TableBody, TableCell, TableContainer, TableHead, TableRow,
@@ -33,15 +33,20 @@ function getChipProps(status) {
   return STATUS_CHIP[status] || { label: status || 'Không rõ', color: 'default', dotColor: '#9ca3af' };
 }
 
-function SummaryBar({ students, attendanceByStudent }) {
-  const counts = { present: 0, out: 0, absent: 0, empty: 0 };
-  (students || []).forEach((s) => {
-    const st = attendanceByStudent?.[s._id]?.status || 'empty';
-    if (st === 'checked_in') counts.present++;
-    else if (st === 'checked_out') counts.out++;
-    else if (st === 'absent') counts.absent++;
-    else counts.empty++;
-  });
+const STATUS_SORT_ORDER = { empty: 0, checked_in: 1, absent: 2, checked_out: 3 };
+
+const SummaryBar = memo(function SummaryBar({ students, attendanceByStudent }) {
+  const counts = useMemo(() => {
+    const c = { present: 0, out: 0, absent: 0, empty: 0 };
+    (students || []).forEach((s) => {
+      const st = attendanceByStudent?.[s._id]?.status || 'empty';
+      if (st === 'checked_in') c.present++;
+      else if (st === 'checked_out') c.out++;
+      else if (st === 'absent') c.absent++;
+      else c.empty++;
+    });
+    return c;
+  }, [students, attendanceByStudent]);
   const total = students?.length || 0;
   const attended = counts.present + counts.out;
 
@@ -86,7 +91,7 @@ function SummaryBar({ students, attendanceByStudent }) {
       </Stack>
     </Box>
   );
-}
+});
 
 const FILTER_OPTIONS = [
   { key: 'all',         label: 'Tất cả',             color: 'default' },
@@ -264,6 +269,7 @@ function StudentAvatar({ student, chipProps, size = 48, onLightbox }) {
               component="img"
               src={student.avatar}
               alt={student.fullName}
+              loading="lazy"
               sx={{ width: '100%', height: '100%', objectFit: 'cover', display: 'block', transition: 'transform 0.2s ease' }}
             />
             <Box
@@ -425,26 +431,27 @@ function AttendanceTable({
   const isMobile = useMediaQuery(theme.breakpoints.down('sm'));
   const isPastDate = selectedDate < todayISO;
 
-  const STATUS_SORT_ORDER = { empty: 0, checked_in: 1, absent: 2, checked_out: 3 };
-
-  const filteredStudents = (students || [])
-    .filter((s) => {
-      const matchName = s.fullName?.toLowerCase().includes(searchText.toLowerCase().trim());
-      if (!matchName) return false;
-      if (filterStatus === 'all') return true;
-      const st = attendanceByStudent?.[s._id]?.status || 'empty';
-      if (filterStatus === 'empty')      return st === 'empty';
-      if (filterStatus === 'checked_in') return st === 'checked_in';
-      if (filterStatus === 'not_left')   return st === 'checked_in';
-      if (filterStatus === 'present')    return st === 'checked_in' || st === 'checked_out';
-      if (filterStatus === 'absent')     return st === 'absent';
-      return true;
-    })
-    .sort((a, b) => {
-      const stA = attendanceByStudent?.[a._id]?.status || 'empty';
-      const stB = attendanceByStudent?.[b._id]?.status || 'empty';
-      return (STATUS_SORT_ORDER[stA] ?? 99) - (STATUS_SORT_ORDER[stB] ?? 99);
-    });
+  const filteredStudents = useMemo(() => {
+    const lower = searchText.toLowerCase().trim();
+    return (students || [])
+      .filter((s) => {
+        const matchName = s.fullName?.toLowerCase().includes(lower);
+        if (!matchName) return false;
+        if (filterStatus === 'all') return true;
+        const st = attendanceByStudent?.[s._id]?.status || 'empty';
+        if (filterStatus === 'empty')      return st === 'empty';
+        if (filterStatus === 'checked_in') return st === 'checked_in';
+        if (filterStatus === 'not_left')   return st === 'checked_in';
+        if (filterStatus === 'present')    return st === 'checked_in' || st === 'checked_out';
+        if (filterStatus === 'absent')     return st === 'absent';
+        return true;
+      })
+      .sort((a, b) => {
+        const stA = attendanceByStudent?.[a._id]?.status || 'empty';
+        const stB = attendanceByStudent?.[b._id]?.status || 'empty';
+        return (STATUS_SORT_ORDER[stA] ?? 99) - (STATUS_SORT_ORDER[stB] ?? 99);
+      });
+  }, [students, attendanceByStudent, searchText, filterStatus]);
 
   return (
     <>
@@ -748,4 +755,4 @@ function AttendanceTable({
   );
 }
 
-export default AttendanceTable;
+export default memo(AttendanceTable);
