@@ -1,11 +1,6 @@
-const Classes = require('../models/Classes');
-const Student = require('../models/Student');
-const Grade = require('../models/Grade');
-const AcademicYear = require('../models/AcademicYear');
-const User = require('../models/User');
-const Teacher = require('../models/Teacher');
-const Classroom = require('../models/Classroom');
+const service = require('../services/classService.js');
 
+<<<<<<< HEAD
 /**
  * Validate teacher assignment rules:
  * 1. Tối đa 2 giáo viên / lớp
@@ -534,6 +529,17 @@ const deleteClass = async (req, res) => {
     return res.status(500).json({ status: 'error', message: 'Lỗi khi xóa lớp học', error: error.message });
   }
 };
+=======
+const getClassList = async (req, res, next) => service.getClassList(req, res, next);
+const getStudentInClass = async (req, res, next) => service.getStudentInClass(req, res, next);
+const getClassDetail = async (req, res, next) => service.getClassDetail(req, res, next);
+const getGradeList = async (req, res, next) => service.getGradeList(req, res, next);
+const createClass = async (req, res, next) => service.createClass(req, res, next);
+const updateClass = async (req, res, next) => service.updateClass(req, res, next);
+const addStudentsToClass = async (req, res, next) => service.addStudentsToClass(req, res, next);
+const removeStudentFromClass = async (req, res, next) => service.removeStudentFromClass(req, res, next);
+const deleteClass = async (req, res, next) => service.deleteClass(req, res, next);
+>>>>>>> thinhQT
 
 module.exports = {
   getClassList,
