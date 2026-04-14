@@ -23,6 +23,58 @@ const normalizeHeaderKey = (value = '') =>
     .toLowerCase()
     .replace(/[^a-z0-9]/g, '');
 
+const excelDateSerialToDate = (serial) => {
+  const number = Number(serial);
+  if (!Number.isFinite(number)) return null;
+  // Excel serial date (1900 date system)
+  const utcDays = Math.floor(number - 25569);
+  const utcValue = utcDays * 86400;
+  const dateInfo = new Date(utcValue * 1000);
+  if (Number.isNaN(dateInfo.getTime())) return null;
+  return dateInfo;
+};
+
+const extractCellText = (cellValue) => {
+  if (cellValue === null || cellValue === undefined) return '';
+  if (typeof cellValue === 'string') return cellValue.trim();
+  if (typeof cellValue === 'number' || typeof cellValue === 'boolean') return String(cellValue).trim();
+  if (cellValue instanceof Date) return cellValue.toISOString().slice(0, 10);
+  if (typeof cellValue === 'object') {
+    if (typeof cellValue.text === 'string') return cellValue.text.trim();
+    if (typeof cellValue.result === 'string') return cellValue.result.trim();
+    if (typeof cellValue.result === 'number') return String(cellValue.result).trim();
+    if (Array.isArray(cellValue.richText)) {
+      return cellValue.richText.map((entry) => entry?.text || '').join('').trim();
+    }
+    if (typeof cellValue.hyperlink === 'string' && typeof cellValue.text === 'string') return cellValue.text.trim();
+  }
+  return String(cellValue || '').trim();
+};
+
+const parseExcelDateValue = (cellValue) => {
+  if (!cellValue && cellValue !== 0) return null;
+  if (cellValue instanceof Date) {
+    return Number.isNaN(cellValue.getTime()) ? null : cellValue;
+  }
+  if (typeof cellValue === 'number') {
+    return excelDateSerialToDate(cellValue);
+  }
+  if (typeof cellValue === 'object' && cellValue !== null) {
+    if (cellValue.result instanceof Date) {
+      return Number.isNaN(cellValue.result.getTime()) ? null : cellValue.result;
+    }
+    if (typeof cellValue.result === 'number') {
+      return excelDateSerialToDate(cellValue.result);
+    }
+    if (typeof cellValue.text === 'string') {
+      const date = new Date(cellValue.text.trim());
+      return Number.isNaN(date.getTime()) ? null : date;
+    }
+  }
+  const parsed = new Date(String(cellValue).trim());
+  return Number.isNaN(parsed.getTime()) ? null : parsed;
+};
+
 const generateStudentCode = async (date = new Date()) => {
   const year = date.getFullYear() % 100;
   const prefix = String(year).padStart(2, '0');
@@ -137,6 +189,8 @@ const createStudentWithParentCore = async ({ parent, studentData }) => {
     parentId: parentUser._id,
     parentProfileId: parentProfile?._id || null,
     avatar: (studentData.avatar || '').trim(),
+    needsSpecialAttention: !!String(studentData.specialNote || '').trim(),
+    specialNote: String(studentData.specialNote || '').trim(),
     academicYearId: activeYear?._id || null,
     status: 'active',
   });
@@ -355,9 +409,19 @@ const importStudentsWithParents = async (req, res) => {
     const getCellValue = (row, keys) => {
       for (const key of keys) {
         const idx = headers[normalizeHeaderKey(key)];
-        if (idx) return String(row.getCell(idx).value || '').trim();
+        if (idx) return extractCellText(row.getCell(idx).value);
       }
       return '';
+    };
+
+    const getCellDateValue = (row, keys) => {
+      for (const key of keys) {
+        const idx = headers[normalizeHeaderKey(key)];
+        if (!idx) continue;
+        const parsedDate = parseExcelDateValue(row.getCell(idx).value);
+        if (parsedDate) return parsedDate;
+      }
+      return null;
     };
 
     let createdStudents = 0;
@@ -371,11 +435,11 @@ const importStudentsWithParents = async (req, res) => {
       const parentEmail = getCellValue(row, ['Email phụ huynh']);
       const parentPhone = getCellValue(row, ['Số điện thoại phụ huynh']);
       const studentFullName = getCellValue(row, ['Họ tên học sinh']);
-      const dateOfBirth = getCellValue(row, ['Ngày sinh']);
+      const dateOfBirth = getCellDateValue(row, ['Ngày sinh']);
       const genderRaw = getCellValue(row, ['Giới tính']);
       const address = getCellValue(row, ['Địa chỉ']);
       const avatar = getCellValue(row, ['Ảnh học sinh (URL)']);
-      const className = getCellValue(row, ['Lớp']);
+      const specialNote = getCellValue(row, ['Ghi chú']);
 
       if (!parentFullName && !parentEmail && !parentPhone && !studentFullName) {
         continue;
@@ -387,13 +451,6 @@ const importStudentsWithParents = async (req, res) => {
       }
 
       try {
-        let classId = null;
-        if (className) {
-          const Classes = require('../models/Classes');
-          const foundClass = await Classes.findOne({ className: className.trim() }).lean();
-          if (foundClass) classId = foundClass._id;
-        }
-
         const beforeParent = await User.findOne({ $or: [{ username: normalizePhone(parentPhone) }, { phone: normalizePhone(parentPhone) }] }).lean();
         const { isNewParent } = await createStudentWithParentCore({
           parent: {
@@ -404,11 +461,11 @@ const importStudentsWithParents = async (req, res) => {
           },
           studentData: {
             fullName: studentFullName,
-            dateOfBirth: new Date(dateOfBirth),
+            dateOfBirth,
             gender: normalizeGender(genderRaw || 'other'),
             address,
             avatar,
-            classId,
+            specialNote,
             parentPhone,
           },
         });
