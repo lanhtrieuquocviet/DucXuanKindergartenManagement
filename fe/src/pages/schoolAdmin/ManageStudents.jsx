@@ -469,7 +469,7 @@ function ManageStudents() {
         'Giới tính',
         'Địa chỉ',
         'Ảnh học sinh (URL)',
-        'Lớp',
+        'Ghi chú',
       ];
       ws.addRow(headers);
       ws.getRow(5).height = 24;
@@ -481,8 +481,8 @@ function ManageStudents() {
       });
 
       const sampleRows = [
-        ['Nguyễn Văn A', 'phuhuynh.a@example.com', '0987654321', 'Nguyễn Thị B', '2020-09-01', 'Nữ', 'Bắc Kạn', '', 'Mẫu giáo 1'],
-        ['Nguyễn Văn A', 'phuhuynh.a@example.com', '0987654321', 'Nguyễn Văn C', '2021-03-15', 'Nam', 'Bắc Kạn', '', 'Mẫu giáo 1'],
+        ['Nguyễn Văn A', 'phuhuynh.a@example.com', '0987654321', 'Nguyễn Thị B', '2020-09-01', 'Nữ', 'Bắc Kạn', '', 'Dị ứng đậu phộng'],
+        ['Nguyễn Văn A', 'phuhuynh.a@example.com', '0987654321', 'Nguyễn Văn C', '2021-03-15', 'Nam', 'Bắc Kạn', '', 'Không'],
       ];
       sampleRows.forEach((row) => ws.addRow(row));
 
@@ -519,6 +519,63 @@ function ManageStudents() {
       toast.success('Tải file mẫu thành công');
     } catch (err) {
       toast.error(`Không tải được file mẫu: ${err?.message || ''}`);
+    }
+  };
+
+  const handleExportExcel = async () => {
+    try {
+      const ExcelJS = (await import('exceljs')).default;
+      const wb = new ExcelJS.Workbook();
+      wb.creator = 'Trường MN Đức Xuân';
+      wb.created = new Date();
+
+      const ws = wb.addWorksheet('Danh sách học sinh');
+      ws.columns = [
+        { header: 'Mã HS', key: 'studentCode', width: 14 },
+        { header: 'Họ tên', key: 'fullName', width: 26 },
+        { header: 'Ngày sinh', key: 'dateOfBirth', width: 14 },
+        { header: 'Giới tính', key: 'gender', width: 12 },
+        { header: 'Năm học', key: 'yearName', width: 18 },
+        { header: 'Phụ huynh', key: 'parentName', width: 24 },
+        { header: 'SĐT', key: 'parentPhone', width: 14 },
+        { header: 'Ghi chú', key: 'specialNote', width: 34 },
+      ];
+
+      ws.getRow(1).eachCell((cell) => {
+        cell.font = { bold: true, color: { argb: 'FFFFFFFF' } };
+        cell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: '1E40AF' } };
+        cell.alignment = { horizontal: 'center', vertical: 'middle' };
+      });
+
+      filteredStudents.forEach((row) => {
+        const parentName = row.parentId?.fullName || row.parentFullName || '';
+        const parentPhone = row.parentId?.phone || row.parentPhone || row.phone || '';
+        ws.addRow({
+          studentCode: row.studentCode || '',
+          fullName: row.fullName || '',
+          dateOfBirth: row.dateOfBirth ? formatDate(row.dateOfBirth) : '',
+          gender: GENDER_OPTIONS.find((g) => g.value === row.gender)?.label || row.gender || '',
+          yearName: getAcademicYearLabel(row) || '',
+          parentName,
+          parentPhone: formatPhoneDisplay(parentPhone) === '—' ? '' : formatPhoneDisplay(parentPhone),
+          specialNote: row.specialNote || '',
+        });
+      });
+
+      const fileYear = yearName ? yearName.replace(/[^\w\-]+/g, '_') : 'all';
+      const buffer = await wb.xlsx.writeBuffer();
+      const blob = new Blob([buffer], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `danh_sach_hoc_sinh_${fileYear}.xlsx`;
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      URL.revokeObjectURL(url);
+      toast.success('Export Excel thành công');
+    } catch (err) {
+      toast.error(`Không export được Excel: ${err?.message || ''}`);
     }
   };
 
@@ -612,6 +669,16 @@ function ManageStudents() {
     if (!d) return '—';
     const x = new Date(d);
     return Number.isNaN(x.getTime()) ? '—' : x.toLocaleDateString('vi-VN');
+  };
+
+  const getAcademicYearLabel = (row) => {
+    const ay = row?.academicYearId;
+    if (ay && typeof ay === 'object' && ay.yearName) return ay.yearName;
+    if (Array.isArray(ay)) {
+      const firstWithName = ay.find((item) => item && typeof item === 'object' && item.yearName);
+      if (firstWithName?.yearName) return firstWithName.yearName;
+    }
+    return yearName || '';
   };
 
   return (
@@ -740,6 +807,9 @@ function ManageStudents() {
             <Button variant="outlined" startIcon={<RefreshIcon />} onClick={fetchData} disabled={loading}>
               Tải lại
             </Button>
+            <Button variant="outlined" startIcon={<FileDownloadIcon />} onClick={handleExportExcel} disabled={loading || filteredStudents.length === 0}>
+              Export Excel
+            </Button>
             <Button variant="contained" startIcon={<AddIcon />} onClick={handleOpenAdd} disabled={ctxLoading}>
               Thêm học sinh
             </Button>
@@ -758,12 +828,9 @@ function ManageStudents() {
                   <TableCell><strong>Ngày sinh</strong></TableCell>
                   <TableCell><strong>Giới tính</strong></TableCell>
                   <TableCell><strong>Năm học</strong></TableCell>
-                  {/* <TableCell><strong>Lớp</strong></TableCell> */}
                   <TableCell><strong>Phụ huynh</strong></TableCell>
                   <TableCell><strong>SĐT</strong></TableCell>
-                  <TableCell align="center"><strong>Cần chú ý</strong></TableCell>
-                  <TableCell align="center"><strong>Yêu cầu GV</strong></TableCell>
-                  <TableCell><strong>Ghi chú đặc biệt</strong></TableCell>
+                  <TableCell><strong>Ghi chú</strong></TableCell>
                   <TableCell align="right"><strong>Thao tác</strong></TableCell>
                 </TableRow>
               </TableHead>
@@ -788,37 +855,15 @@ function ManageStudents() {
                     <TableCell sx={{ whiteSpace: 'nowrap' }}>{formatDate(row.dateOfBirth)}</TableCell>
                     <TableCell sx={{ whiteSpace: 'nowrap' }}>{GENDER_OPTIONS.find((g) => g.value === row.gender)?.label || row.gender || '—'}</TableCell>
                     <TableCell sx={{ minWidth: 120 }}>
-                      {row.academicYearId?.yearName
-                        ? <Chip label={row.academicYearId.yearName} size="small" sx={{ bgcolor: '#e0f2fe', color: '#0284c7', fontWeight: 600, fontSize: '0.72rem' }} />
+                      {getAcademicYearLabel(row)
+                        ? <Chip label={getAcademicYearLabel(row)} size="small" sx={{ bgcolor: '#e0f2fe', color: '#0284c7', fontWeight: 600, fontSize: '0.72rem' }} />
                         : <Typography variant="caption" color="text.disabled">—</Typography>}
                     </TableCell>
-                    {/* <TableCell>{row.classId?.className || '—'}</TableCell> */}
                     <TableCell sx={{ minWidth: 160 }}>{parentName}</TableCell>
                     <TableCell sx={{ whiteSpace: 'nowrap', minWidth: 120 }}>{formatPhoneDisplay(parentPhone)}</TableCell>
-                    <TableCell align="center">
-                      {row.needsSpecialAttention
-                        ? <Chip label="Có" color="warning" size="small" />
-                        : <Chip label="Không" size="small" variant="outlined" />}
-                    </TableCell>
-                    <TableCell align="center">
-                      {pendingCount > 0 ? (
-                        <Tooltip title="Xem các yêu cầu từ giáo viên">
-                          <Chip
-                            label={`${pendingCount} chờ xử lý`}
-                            size="small"
-                            color="warning"
-                            icon={<RequestAlertIcon sx={{ fontSize: 13 }} />}
-                            onClick={() => openReqView(row)}
-                            sx={{ cursor: 'pointer', fontWeight: 700, fontSize: '0.7rem' }}
-                          />
-                        </Tooltip>
-                      ) : (
-                        <Typography variant="caption" color="text.disabled">—</Typography>
-                      )}
-                    </TableCell>
-                    <TableCell sx={{ maxWidth: 180 }}>
+                    <TableCell sx={{ maxWidth: 220 }}>
                       {row.specialNote
-                        ? <Tooltip title={row.specialNote}><Typography variant="body2" noWrap sx={{ maxWidth: 160 }}>{row.specialNote}</Typography></Tooltip>
+                        ? <Tooltip title={row.specialNote}><Typography variant="body2" noWrap sx={{ maxWidth: 200 }}>{row.specialNote}</Typography></Tooltip>
                         : '—'}
                     </TableCell>
                     <TableCell align="right">
@@ -896,8 +941,8 @@ function ManageStudents() {
             />
           </Stack>
           <Alert severity="warning" sx={{ mb: 2 }}>
-            File import Excel dùng tiêu đề tiếng Việt: Họ tên phụ huynh, Email phụ huynh, Số điện thoại phụ huynh, Họ tên học sinh, Ngày sinh, Giới tính. Có thể thêm Địa chỉ, Ảnh học sinh (URL), Lớp.
-            Cột tùy chọn: address, className.
+            File import Excel dùng tiêu đề tiếng Việt: Họ tên phụ huynh, Email phụ huynh, Số điện thoại phụ huynh, Họ tên học sinh, Ngày sinh, Giới tính. Có thể thêm Địa chỉ, Ảnh học sinh (URL), Ghi chú.
+            Cột tùy chọn: Địa chỉ, Ảnh học sinh (URL), Ghi chú.
           </Alert>
           <Typography variant="subtitle2" color="primary" gutterBottom>Thông tin học sinh</Typography>
           <Stack spacing={1.5}>
