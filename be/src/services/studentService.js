@@ -4,6 +4,7 @@ const User = require('../models/User');
 const ParentProfile = require('../models/ParentProfile');
 const Role = require('../models/Role');
 const AcademicYear = require('../models/AcademicYear');
+const RefreshToken = require('../models/RefreshToken');
 const ExcelJS = require('exceljs');
 const { generateRandomPassword, sendParentAccountEmail } = require('../utils/email');
 
@@ -22,6 +23,53 @@ const normalizeHeaderKey = (value = '') =>
     .replace(/[\u0300-\u036f]/g, '')
     .toLowerCase()
     .replace(/[^a-z0-9]/g, '');
+
+const excelSerialToDate = (serial) => {
+  const utcDays = Math.floor(serial - 25569);
+  const utcValue = utcDays * 86400;
+  return new Date(utcValue * 1000);
+};
+
+const toPlainCellValue = (cellValue) => {
+  if (cellValue === null || cellValue === undefined) return '';
+  if (cellValue instanceof Date) return cellValue;
+  if (typeof cellValue === 'number' || typeof cellValue === 'string') return cellValue;
+  if (typeof cellValue === 'object') {
+    if (cellValue.text) return cellValue.text;
+    if (cellValue.result !== undefined && cellValue.result !== null) return cellValue.result;
+    if (Array.isArray(cellValue.richText)) {
+      return cellValue.richText.map((x) => x.text || '').join('');
+    }
+  }
+  return String(cellValue);
+};
+
+const parseDateInput = (rawValue) => {
+  if (rawValue instanceof Date) {
+    if (!Number.isNaN(rawValue.getTime())) return rawValue;
+    return null;
+  }
+  if (typeof rawValue === 'number') {
+    const fromSerial = excelSerialToDate(rawValue);
+    return Number.isNaN(fromSerial.getTime()) ? null : fromSerial;
+  }
+
+  const text = String(rawValue || '').trim();
+  if (!text) return null;
+
+  const normalized = text.replace(/\./g, '/').replace(/-/g, '/');
+  const ddmmyyyy = normalized.match(/^(\d{1,2})\/(\d{1,2})\/(\d{4})$/);
+  if (ddmmyyyy) {
+    const d = Number(ddmmyyyy[1]);
+    const m = Number(ddmmyyyy[2]) - 1;
+    const y = Number(ddmmyyyy[3]);
+    const parsed = new Date(y, m, d);
+    return Number.isNaN(parsed.getTime()) ? null : parsed;
+  }
+
+  const parsed = new Date(text);
+  return Number.isNaN(parsed.getTime()) ? null : parsed;
+};
 
 const generateStudentCode = async (date = new Date()) => {
   const year = date.getFullYear() % 100;
@@ -53,6 +101,79 @@ const upsertParentProfileFromUser = async (userDoc) => {
   );
 };
 
+const isParentOnlyAccount = async (userDoc) => {
+  if (!userDoc?._id) return false;
+  const parentRoles = await Role.find({
+    roleName: { $in: ['Parent', 'parent', 'StudentParent', 'studentparent', 'Phụ huynh'] },
+  }).select('_id').lean();
+  const parentRoleIds = new Set(parentRoles.map((r) => String(r._id)));
+  if (parentRoleIds.size === 0) return false;
+  const userRoleIds = (userDoc.roles || []).map((r) => String(r));
+  if (userRoleIds.length === 0) return false;
+  return userRoleIds.every((roleId) => parentRoleIds.has(roleId));
+};
+
+const countLinkedStudentsByUserId = async (userId) => {
+  if (!userId) return 0;
+  return Student.countDocuments({
+    $or: [
+      { parentId: userId },
+      { ParentId: userId },
+      { userId },
+      { UserId: userId },
+    ],
+  });
+};
+
+const purgeOrphanParentAccount = async (userDoc) => {
+  if (!userDoc?._id) return false;
+  const isParentOnly = await isParentOnlyAccount(userDoc);
+  if (!isParentOnly) return false;
+  const linkedStudents = await countLinkedStudentsByUserId(userDoc._id);
+  if (linkedStudents > 0) return false;
+
+  await ParentProfile.deleteOne({ userId: userDoc._id });
+  await RefreshToken.deleteMany({ userId: userDoc._id });
+  await User.findByIdAndDelete(userDoc._id);
+  return true;
+};
+
+const syncParentProfileFields = async ({
+  parentUserId,
+  parentProfileId,
+  fullName,
+  email,
+  phone,
+}) => {
+  if (!parentUserId && !parentProfileId) return null;
+  let profile = null;
+
+  if (parentProfileId) {
+    profile = await ParentProfile.findById(parentProfileId);
+  }
+  if (!profile && parentUserId) {
+    profile = await ParentProfile.findOne({ userId: parentUserId });
+  }
+  if (!profile && parentUserId) {
+    profile = await ParentProfile.create({
+      userId: parentUserId,
+      fullName: fullName || '',
+      email: (email || '').toLowerCase(),
+      phone: normalizePhone(phone || ''),
+      address: '',
+      status: 'active',
+    });
+    return profile;
+  }
+  if (!profile) return null;
+
+  if (fullName !== undefined) profile.fullName = String(fullName || '').trim();
+  if (email !== undefined) profile.email = String(email || '').trim().toLowerCase();
+  if (phone !== undefined) profile.phone = normalizePhone(phone || '');
+  await profile.save();
+  return profile;
+};
+
 const createStudentWithParentCore = async ({ parent, studentData }) => {
   const normalizedParentPhone = normalizePhone(parent.phone);
   if (!normalizedParentPhone) {
@@ -73,6 +194,13 @@ const createStudentWithParentCore = async ({ parent, studentData }) => {
   let isNewParent = false;
   let generatedPassword = null;
 
+  if (parentUser) {
+    const removed = await purgeOrphanParentAccount(parentUser);
+    if (removed) {
+      parentUser = null;
+    }
+  }
+
   // Dữ liệu cũ có thể lưu username = phone nhưng phone đã bị xóa/rỗng.
   // Trường hợp này cho phép "re-claim" lại đúng số điện thoại, tránh báo trùng sai.
   if (!parentUser) {
@@ -87,7 +215,11 @@ const createStudentWithParentCore = async ({ parent, studentData }) => {
   if (!parentUser) {
     const existingEmailUser = await User.findOne({ email: normalizedParentEmail }).lean();
     if (existingEmailUser) {
-      throw new Error('Email phụ huynh đã tồn tại trong hệ thống');
+      const existingUserDoc = await User.findById(existingEmailUser._id).select('_id roles');
+      const removed = await purgeOrphanParentAccount(existingUserDoc);
+      if (!removed) {
+        throw new Error('Email phụ huynh đã tồn tại trong hệ thống');
+      }
     }
 
     generatedPassword = generateRandomPassword(10);
@@ -116,6 +248,8 @@ const createStudentWithParentCore = async ({ parent, studentData }) => {
     parentUser.phone = normalizedParentPhone;
     parentUser.username = normalizedParentPhone;
     parentUser.address = (parent.address || '').trim() || parentUser.address || '';
+    // Nếu tái sử dụng tài khoản phụ huynh đã tồn tại theo SĐT thì không ép đổi mật khẩu lần đầu nữa.
+    parentUser.isChangePassword = true;
     if (!Array.isArray(parentUser.roles) || !parentUser.roles.some((roleId) => String(roleId) === String(parentRole._id))) {
       parentUser.roles = [...(parentUser.roles || []), parentRole._id];
     }
@@ -355,7 +489,12 @@ const importStudentsWithParents = async (req, res) => {
     const getCellValue = (row, keys) => {
       for (const key of keys) {
         const idx = headers[normalizeHeaderKey(key)];
-        if (idx) return String(row.getCell(idx).value || '').trim();
+        if (idx) {
+          const raw = toPlainCellValue(row.getCell(idx).value);
+          if (raw instanceof Date) return raw;
+          if (typeof raw === 'number') return raw;
+          return String(raw || '').trim();
+        }
       }
       return '';
     };
@@ -371,7 +510,7 @@ const importStudentsWithParents = async (req, res) => {
       const parentEmail = getCellValue(row, ['Email phụ huynh']);
       const parentPhone = getCellValue(row, ['Số điện thoại phụ huynh']);
       const studentFullName = getCellValue(row, ['Họ tên học sinh']);
-      const dateOfBirth = getCellValue(row, ['Ngày sinh']);
+      const dateOfBirthRaw = getCellValue(row, ['Ngày sinh']);
       const genderRaw = getCellValue(row, ['Giới tính']);
       const address = getCellValue(row, ['Địa chỉ']);
       const avatar = getCellValue(row, ['Ảnh học sinh (URL)']);
@@ -381,7 +520,10 @@ const importStudentsWithParents = async (req, res) => {
         continue;
       }
 
-      if (!parentFullName || !parentEmail || !parentPhone || !studentFullName || !dateOfBirth) {
+      const normalizedParentPhone = normalizePhone(parentPhone);
+      const dob = parseDateInput(dateOfBirthRaw);
+
+      if (!parentFullName || !parentEmail || !normalizedParentPhone || !studentFullName || !dob) {
         errors.push(`Dòng ${rowIndex}: thiếu thông tin bắt buộc`);
         continue;
       }
@@ -394,22 +536,22 @@ const importStudentsWithParents = async (req, res) => {
           if (foundClass) classId = foundClass._id;
         }
 
-        const beforeParent = await User.findOne({ $or: [{ username: normalizePhone(parentPhone) }, { phone: normalizePhone(parentPhone) }] }).lean();
+        const beforeParent = await User.findOne({ $or: [{ username: normalizedParentPhone }, { phone: normalizedParentPhone }] }).lean();
         const { isNewParent } = await createStudentWithParentCore({
           parent: {
             fullName: parentFullName,
             email: parentEmail,
-            phone: parentPhone,
+            phone: normalizedParentPhone,
             address,
           },
           studentData: {
             fullName: studentFullName,
-            dateOfBirth: new Date(dateOfBirth),
+            dateOfBirth: dob,
             gender: normalizeGender(genderRaw || 'other'),
             address,
             avatar,
             classId,
-            parentPhone,
+            parentPhone: normalizedParentPhone,
           },
         });
         createdStudents += 1;
@@ -543,15 +685,26 @@ const updateStudent = async (req, res) => {
     }
 
     if (isSchoolAdmin && student.parentId && (parentFullName !== undefined || parentEmail !== undefined || parentPhoneField !== undefined)) {
+      // Nghiệp vụ: sửa thông tin phụ huynh ở ParentProfile.
+      const safeFullName = parentFullName !== undefined ? String(parentFullName || '').trim() : undefined;
+      const safeEmail = parentEmail !== undefined ? String(parentEmail || '').trim().toLowerCase() : undefined;
+      const safePhone = parentPhoneField !== undefined ? normalizePhone(parentPhoneField || '') : undefined;
+
+      await syncParentProfileFields({
+        parentUserId: student.parentId,
+        parentProfileId: student.parentProfileId,
+        fullName: safeFullName,
+        email: safeEmail,
+        phone: safePhone,
+      });
+
+      // Đồng bộ ngược về User để không lệch dữ liệu đăng nhập.
       const parentUpdate = {};
-      if (parentFullName !== undefined) parentUpdate.fullName = parentFullName.trim();
-      if (parentEmail !== undefined) parentUpdate.email = parentEmail.trim().toLowerCase();
-      if (parentPhoneField !== undefined) parentUpdate.phone = parentPhoneField.trim();
+      if (safeFullName !== undefined) parentUpdate.fullName = safeFullName;
+      if (safeEmail !== undefined) parentUpdate.email = safeEmail;
+      if (safePhone !== undefined) parentUpdate.phone = safePhone;
       if (Object.keys(parentUpdate).length > 0) {
-        const updatedParent = await User.findByIdAndUpdate(student.parentId, parentUpdate, { new: true, runValidators: true });
-        if (updatedParent) {
-          await upsertParentProfileFromUser(updatedParent);
-        }
+        await User.findByIdAndUpdate(student.parentId, parentUpdate, { new: true, runValidators: true });
       }
     }
 
@@ -586,7 +739,8 @@ const updateStudent = async (req, res) => {
 const deleteStudent = async (req, res) => {
   try {
     const { studentId } = req.params;
-
+    const studentToDelete = await Student.findById(studentId).select('_id parentId');
+    const parentId = studentToDelete?.parentId || null;
     const deletedStudent = await Student.findByIdAndDelete(studentId);
 
     if (!deletedStudent) {
@@ -595,6 +749,27 @@ const deleteStudent = async (req, res) => {
         message: 'Không tìm thấy học sinh',
         data: null,
       });
+    }
+
+    if (parentId) {
+      const remainingChildren = await Student.countDocuments({
+        $or: [
+          { parentId },
+          { ParentId: parentId },
+          { userId: parentId },
+          { UserId: parentId },
+        ],
+      });
+
+      if (remainingChildren === 0) {
+        // Nghiệp vụ: xóa profile phụ huynh khi không còn học sinh nào.
+        await ParentProfile.deleteOne({ userId: parentId });
+        const parentUser = await User.findById(parentId).select('_id roles');
+        if (parentUser && await isParentOnlyAccount(parentUser)) {
+          await RefreshToken.deleteMany({ userId: parentId });
+          await User.findByIdAndDelete(parentId);
+        }
+      }
     }
 
     return res.status(200).json({
@@ -643,9 +818,18 @@ const checkParentByPhone = async (req, res) => {
       return res.status(400).json({ status: 'error', message: 'Thiếu hoặc sai số điện thoại' });
     }
 
-    const parent = await User.findOne({ phone })
+    let parent = await User.findOne({ phone })
       .select('_id fullName email phone username')
       .lean();
+
+    // Dọn dữ liệu mồ côi: còn User phụ huynh nhưng không còn học sinh nào gắn.
+    if (parent?._id) {
+      const parentDoc = await User.findById(parent._id).select('_id roles');
+      const removed = await purgeOrphanParentAccount(parentDoc);
+      if (removed) {
+        parent = null;
+      }
+    }
 
     if (parent?._id) {
       await upsertParentProfileFromUser(parent);

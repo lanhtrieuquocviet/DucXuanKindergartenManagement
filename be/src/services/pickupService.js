@@ -45,10 +45,29 @@ exports.createPickupRequest = async (req, res) => {
         message: "Học sinh không thuộc quyền quản lý của bạn",
       });
     }
+
+    if (!student.classId) {
+      return res.status(400).json({
+        success: false,
+        message: "Học sinh chưa được đăng ký lớp, không thể gửi đơn đưa đón",
+      });
+    }
+
+    const existingCount = await PickupRequest.countDocuments({
+      student: studentObjectId,
+      status: { $in: ["pending", "approved"] },
+    });
+    if (existingCount >= 5) {
+      return res.status(400).json({
+        success: false,
+        message: "Mỗi học sinh tối đa 5 người đưa đón",
+      });
+    }
+
     const duplicateByNameRelation = await PickupRequest.findOne({
       student: studentObjectId,
       fullName: fullName.trim(),
-      relation: relation,
+      relation: relation.trim(),
     });
 
     if (
@@ -63,6 +82,7 @@ exports.createPickupRequest = async (req, res) => {
     console.log("Creating PickupRequest...");
     const pickupRequest = new PickupRequest({
       student: studentObjectId,
+      classId: student.classId,
       parent: userObjectId,
       fullName,
       relation,
@@ -123,20 +143,14 @@ exports.getPickupRequests = async (req, res) => {
     );
     const classIds = classes.map((c) => c._id);
 
-    // Tìm học sinh thuộc các lớp đó
-    const students = await Student.find({ classId: { $in: classIds } }).select(
-      "_id"
-    );
-    const studentIds = students.map((s) => s._id);
-
-    // Xây dựng filter cho status
-    const filter = { student: { $in: studentIds } };
+    // Xây dựng filter theo lớp để giáo viên chỉ duyệt đơn của lớp mình
+    const filter = { classId: { $in: classIds } };
     if (status && status !== "all") {
       filter.status = status; // chỉ lấy theo trạng thái cụ thể
     }
 
     const requests = await PickupRequest.find(filter)
-      .populate("student", "fullName")
+      .populate("student", "fullName classId studentCode")
       .populate("parent", "fullName phone")
       .sort({ createdAt: -1 });
 

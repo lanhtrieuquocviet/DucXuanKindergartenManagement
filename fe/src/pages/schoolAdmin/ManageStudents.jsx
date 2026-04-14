@@ -529,35 +529,43 @@ function ManageStudents() {
       wb.creator = 'Trường MN Đức Xuân';
       wb.created = new Date();
 
-      const ws = wb.addWorksheet('Danh sách học sinh');
+      const ws = wb.addWorksheet('Danh sách học sinh - import');
       ws.columns = [
-        { header: 'Mã HS', key: 'studentCode', width: 14 },
-        { header: 'Họ tên', key: 'fullName', width: 26 },
+        { header: 'Họ tên phụ huynh', key: 'parentFullName', width: 28 },
+        { header: 'Email phụ huynh', key: 'parentEmail', width: 30 },
+        { header: 'Số điện thoại phụ huynh', key: 'parentPhone', width: 24 },
+        { header: 'Họ tên học sinh', key: 'studentFullName', width: 26 },
         { header: 'Ngày sinh', key: 'dateOfBirth', width: 14 },
-        { header: 'Giới tính', key: 'gender', width: 12 },
-        { header: 'Năm học', key: 'yearName', width: 18 },
-        { header: 'Phụ huynh', key: 'parentName', width: 24 },
-        { header: 'SĐT', key: 'parentPhone', width: 14 },
-        { header: 'Ghi chú', key: 'specialNote', width: 34 },
+        { header: 'Giới tính', key: 'gender', width: 14 },
+        { header: 'Địa chỉ', key: 'address', width: 24 },
+        { header: 'Ảnh học sinh (URL)', key: 'avatar', width: 36 },
+        { header: 'Ghi chú', key: 'specialNote', width: 24 },
       ];
 
       ws.getRow(1).eachCell((cell) => {
         cell.font = { bold: true, color: { argb: 'FFFFFFFF' } };
-        cell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: '1E40AF' } };
-        cell.alignment = { horizontal: 'center', vertical: 'middle' };
+        cell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: '0D47A1' } };
+        cell.alignment = { horizontal: 'center', vertical: 'middle', wrapText: true };
       });
 
       filteredStudents.forEach((row) => {
         const parentName = row.parentId?.fullName || row.parentFullName || '';
-        const parentPhone = row.parentId?.phone || row.parentPhone || row.phone || '';
+        const parentEmail = row.parentId?.email || row.parentEmail || '';
+        const parentPhone = String(row.parentId?.phone || row.parentPhone || row.phone || '').replace(/\D/g, '');
+        const dateValue = row.dateOfBirth ? new Date(row.dateOfBirth) : null;
+        const dateText = dateValue && !Number.isNaN(dateValue.getTime())
+          ? dateValue.toISOString().slice(0, 10)
+          : '';
+        const genderText = row.gender === 'male' ? 'Nam' : row.gender === 'female' ? 'Nữ' : 'Khác';
         ws.addRow({
-          studentCode: row.studentCode || '',
-          fullName: row.fullName || '',
-          dateOfBirth: row.dateOfBirth ? formatDate(row.dateOfBirth) : '',
-          gender: GENDER_OPTIONS.find((g) => g.value === row.gender)?.label || row.gender || '',
-          yearName: getAcademicYearLabel(row) || '',
-          parentName,
-          parentPhone: formatPhoneDisplay(parentPhone) === '—' ? '' : formatPhoneDisplay(parentPhone),
+          parentFullName: parentName,
+          parentEmail,
+          parentPhone,
+          studentFullName: row.fullName || '',
+          dateOfBirth: dateText,
+          gender: genderText,
+          address: row.address || '',
+          avatar: row.avatar || '',
           specialNote: row.specialNote || '',
         });
       });
@@ -568,7 +576,7 @@ function ManageStudents() {
       const url = URL.createObjectURL(blob);
       const a = document.createElement('a');
       a.href = url;
-      a.download = `danh_sach_hoc_sinh_${fileYear}.xlsx`;
+      a.download = `students_import_export_${fileYear}.xlsx`;
       document.body.appendChild(a);
       a.click();
       document.body.removeChild(a);
