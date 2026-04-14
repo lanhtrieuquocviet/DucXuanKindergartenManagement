@@ -425,10 +425,29 @@ export default function PickupFaceAttendanceModal({ open, onClose, classId, clas
                   <div className="text-center py-4">
                     <span className="text-3xl">⚠️</span>
                     <p className="text-sm text-orange-600 font-medium mt-2">Khuôn mặt không rõ ràng</p>
-                    <p className="text-xs text-gray-400 mt-1">
-                      Khuôn mặt giống nhiều học sinh — không thể xác định chính xác.
-                      Hãy đăng ký thêm góc mặt khác nhau.
-                    </p>
+                    {matchResult.candidates?.length > 0 ? (
+                      <div className="mt-2 text-left">
+                        <p className="text-xs text-gray-500 mb-1 text-center">
+                          Giống các học sinh sau:
+                        </p>
+                        <ul className="text-xs text-orange-700 space-y-0.5">
+                          {matchResult.candidates.map((c, i) => (
+                            <li key={i} className="flex justify-between px-2 py-0.5 bg-orange-50 rounded">
+                              <span className="font-medium">{c.fullName}</span>
+                              <span className="text-orange-400">({(parseFloat(c.similarity) * 100).toFixed(1)}%)</span>
+                            </li>
+                          ))}
+                        </ul>
+                        <p className="text-xs text-gray-400 mt-1 text-center">
+                          Hãy đăng ký thêm góc mặt để phân biệt.
+                        </p>
+                      </div>
+                    ) : (
+                      <p className="text-xs text-gray-400 mt-1">
+                        Khuôn mặt giống nhiều học sinh — không thể xác định chính xác.
+                        Hãy đăng ký thêm góc mặt khác nhau.
+                      </p>
+                    )}
                   </div>
                 )}
 

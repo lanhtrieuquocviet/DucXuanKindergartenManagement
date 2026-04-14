@@ -59,7 +59,7 @@ function FaceDetailDialog({ student, onClose, onUpdate, onDeleted }) {
   const rawUrls = localImageUrls ?? (
     Array.isArray(student.faceImageUrls) && student.faceImageUrls.some(Boolean)
       ? student.faceImageUrls
-      : student.faceImageUrl ? [student.faceImageUrl] : []
+      : student.faceImageUrls?.[0] ? [student.faceImageUrls[0]] : []
   );
   const imageUrls = rawUrls.filter(Boolean);
 

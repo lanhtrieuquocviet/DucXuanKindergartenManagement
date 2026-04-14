@@ -570,10 +570,29 @@ export default function FaceAttendanceModal({ open, onClose, classId, className,
                   <div className="p-3 bg-orange-50 rounded-lg border border-orange-200 text-center">
                     <p className="text-2xl mb-1">⚠️</p>
                     <p className="text-orange-700 font-medium text-sm">Khuôn mặt không rõ ràng</p>
-                    <p className="text-xs text-orange-500 mt-1">
-                      Giống nhiều học sinh, không thể xác định chính xác.
-                      Hãy đăng ký thêm góc mặt.
-                    </p>
+                    {matchResult.candidates?.length > 0 ? (
+                      <div className="mt-1 text-left">
+                        <p className="text-xs text-orange-500 mb-1 text-center">
+                          Giống các học sinh sau, không thể xác định chính xác:
+                        </p>
+                        <ul className="text-xs text-orange-700 space-y-0.5">
+                          {matchResult.candidates.map((c, i) => (
+                            <li key={i} className="flex justify-between px-2 py-0.5 bg-orange-100 rounded">
+                              <span className="font-medium">{c.fullName}</span>
+                              <span className="text-orange-500">({(parseFloat(c.similarity) * 100).toFixed(1)}%)</span>
+                            </li>
+                          ))}
+                        </ul>
+                        <p className="text-xs text-orange-500 mt-1 text-center">
+                          Hãy đăng ký thêm góc mặt để phân biệt.
+                        </p>
+                      </div>
+                    ) : (
+                      <p className="text-xs text-orange-500 mt-1">
+                        Giống nhiều học sinh, không thể xác định chính xác.
+                        Hãy đăng ký thêm góc mặt.
+                      </p>
+                    )}
                   </div>
                 )}
 

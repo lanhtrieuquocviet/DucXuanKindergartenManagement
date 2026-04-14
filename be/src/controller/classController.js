@@ -160,7 +160,7 @@ const getStudentInClass = async (req, res) => {
     const data = students.map((s) => {
       const obj = { ...s };
       obj.hasFaceEmbedding = Array.isArray(obj.faceEmbedding) && obj.faceEmbedding.length > 0;
-      obj.faceImageUrl = obj.faceImageUrl || '';
+      obj.faceImageUrl = (Array.isArray(obj.faceImageUrls) && obj.faceImageUrls[0]) ? obj.faceImageUrls[0] : '';
       obj.faceImageUrls = Array.isArray(obj.faceImageUrls) ? obj.faceImageUrls.filter(Boolean) : [];
       obj.angleCount = Array.isArray(obj.faceEmbeddings) ? obj.faceEmbeddings.length : (obj.hasFaceEmbedding ? 1 : 0);
       delete obj.faceEmbedding;

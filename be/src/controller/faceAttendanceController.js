@@ -145,8 +145,6 @@ const registerFaceEmbedding = async (req, res) => {
 
     // Giữ faceEmbedding (góc mới nhất) để backward compat
     student.faceEmbedding = embedding;
-    // faceImageUrl = ảnh góc đầu tiên (để hiển thị ở những nơi chỉ dùng 1 ảnh)
-    student.faceImageUrl = student.faceImageUrls[0] || faceImageUrl || '';
     student.faceRegisteredAt = new Date();
     student.markModified('faceEmbeddings');
     student.markModified('faceImageUrls');
@@ -223,20 +221,16 @@ const matchFaceEmbedding = async (req, res) => {
     }
 
     // So sánh với từng học sinh (xét tất cả góc mặt đã đăng ký)
-    let bestMatch = null;
-    let bestSimilarity = -1;
-    let secondBestSimilarity = -1;
+    // Lưu top N kết quả để có thể hiển thị danh sách khi ambiguous
+    const allScores = students.map((student) => ({
+      student,
+      similarity: maxSimilarityToStudent(embedding, student),
+    }));
+    allScores.sort((a, b) => b.similarity - a.similarity);
 
-    for (const student of students) {
-      const similarity = maxSimilarityToStudent(embedding, student);
-      if (similarity > bestSimilarity) {
-        secondBestSimilarity = bestSimilarity;
-        bestSimilarity = similarity;
-        bestMatch = student;
-      } else if (similarity > secondBestSimilarity) {
-        secondBestSimilarity = similarity;
-      }
-    }
+    const bestMatch = allScores[0]?.student || null;
+    const bestSimilarity = allScores[0]?.similarity ?? -1;
+    const secondBestSimilarity = allScores[1]?.similarity ?? -1;
 
     // Không đủ ngưỡng → không nhận diện được
     if (bestSimilarity < MATCH_THRESHOLD) {
@@ -253,12 +247,18 @@ const matchFaceEmbedding = async (req, res) => {
     // Tránh nhầm khi 2 học sinh có khuôn mặt giống nhau (đặc biệt anh chị em ruột)
     const margin = bestSimilarity - secondBestSimilarity;
     if (secondBestSimilarity > 0.78 && margin < MIN_MARGIN) {
+      // Lấy top 3 học sinh có độ tương đồng cao để hiển thị cho giáo viên
+      const candidates = allScores
+        .filter((s) => s.similarity > 0.78)
+        .slice(0, 3)
+        .map((s) => ({ fullName: s.student.fullName, similarity: s.similarity.toFixed(4) }));
       return res.status(200).json({
         status: 'ambiguous',
         message: 'Khuôn mặt quá giống nhau giữa các học sinh, không thể xác định chính xác',
         matched: false,
         bestSimilarity: bestSimilarity.toFixed(4),
         margin: margin.toFixed(4),
+        candidates,
       });
     }
 
@@ -941,7 +941,6 @@ const deleteFaceEmbedding = async (req, res) => {
     student.faceEmbedding = [];
     student.faceEmbeddings = [];
     student.faceImageUrls = [];
-    student.faceImageUrl = '';
     student.faceRegisteredAt = null;
     student.markModified('faceEmbeddings');
     student.markModified('faceImageUrls');
@@ -985,7 +984,6 @@ const deleteFaceAngle = async (req, res) => {
     student.faceEmbeddings = embeddings;
     student.faceImageUrls = imageUrls;
     student.faceEmbedding = embeddings[0] || [];
-    student.faceImageUrl = imageUrls[0] || '';
 
     if (embeddings.length === 0) {
       student.faceRegisteredAt = null;

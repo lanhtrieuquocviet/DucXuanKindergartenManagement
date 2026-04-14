@@ -91,10 +91,6 @@ const studentSchema = new mongoose.Schema({
     type: Date,
     default: null
   },
-  faceImageUrl: {
-    type: String,
-    default: ''
-  },
   createdAt: {
     type: Date,
     default: Date.now
@@ -105,7 +101,14 @@ const studentSchema = new mongoose.Schema({
   }
 }, {
   timestamps: true,
-  collection: 'Students'
+  collection: 'Students',
+  toJSON: { virtuals: true },
+  toObject: { virtuals: true }
+});
+
+// Virtual: luôn trả về ảnh đầu tiên, không lưu vào DB
+studentSchema.virtual('faceImageUrl').get(function () {
+  return (Array.isArray(this.faceImageUrls) && this.faceImageUrls[0]) ? this.faceImageUrls[0] : '';
 });
 
 const Student = mongoose.model('Students', studentSchema);
