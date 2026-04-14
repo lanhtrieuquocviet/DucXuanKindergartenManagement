@@ -17,6 +17,32 @@ const STATUS_LABEL = {
   rejected: { label: 'Từ chối', color: 'error' },
 };
 
+const toYmd = (date) => {
+  const y = date.getFullYear();
+  const m = String(date.getMonth() + 1).padStart(2, '0');
+  const d = String(date.getDate()).padStart(2, '0');
+  return `${y}-${m}-${d}`;
+};
+
+const nextDayYmd = (ymd) => {
+  if (!ymd) return '';
+  const d = new Date(ymd);
+  d.setDate(d.getDate() + 1);
+  return toYmd(d);
+};
+
+const formatLeaveDateRange = (startDate, endDate) => {
+  const startYmd = startDate?.split('T')[0];
+  const endYmd = endDate?.split('T')[0];
+  if (!startYmd) return '—';
+
+  const startLabel = new Date(startDate).toLocaleDateString('vi-VN');
+  if (!endYmd) return startLabel;
+
+  const endLabel = new Date(endDate).toLocaleDateString('vi-VN');
+  return nextDayYmd(startYmd) === endYmd ? startLabel : `${startLabel} - ${endLabel}`;
+};
+
 export default function TeacherLeaveRequests() {
   const navigate = useNavigate();
   const location = useLocation();
@@ -139,7 +165,7 @@ export default function TeacherLeaveRequests() {
                     <TableCell>{r.student?.fullName || '—'}</TableCell>
                     <TableCell>{r.parent?.fullName || '—'}</TableCell>
                     <TableCell>
-                      {new Date(r.startDate).toLocaleDateString('vi-VN')} - {new Date(r.endDate).toLocaleDateString('vi-VN')}
+                      {formatLeaveDateRange(r.startDate, r.endDate)}
                     </TableCell>
                     <TableCell sx={{ maxWidth: 240 }}>
                       <Typography variant="body2" sx={{ whiteSpace: 'pre-wrap' }}>{r.reason}</Typography>

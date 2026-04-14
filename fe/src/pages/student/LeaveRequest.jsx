@@ -44,6 +44,8 @@ const nextDayYmd = (ymd) => {
   return toYmd(d);
 };
 
+const isSingleDayRange = (start, end) => !!start && !!end && nextDayYmd(start) === end;
+
 export default function LeaveRequest() {
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
@@ -56,6 +58,7 @@ export default function LeaveRequest() {
   const [openDialog, setOpenDialog]   = useState(false);
   const [form, setForm] = useState({
     studentId: searchParams.get('studentId') || '',
+    leaveType: 'short',
     startDate: '',
     endDate: '',
     reason: '',
@@ -95,19 +98,23 @@ export default function LeaveRequest() {
   }, [isInitializing, user]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const openCreate = () => {
-    setForm(prev => ({ ...prev, startDate: '', endDate: '', reason: '' }));
+    setForm(prev => ({ ...prev, leaveType: 'short', startDate: '', endDate: '', reason: '' }));
     setOpenDialog(true);
   };
 
   const onSubmit = async (e) => {
     e?.preventDefault?.();
-    if (!form.studentId || !form.startDate || !form.endDate || !form.reason.trim()) {
+    if (!form.studentId || !form.startDate || !form.reason.trim()) {
       toast.error('Vui lòng nhập đủ thông tin'); return;
+    }
+    if (form.leaveType === 'long' && !form.endDate) {
+      toast.error('Vui lòng chọn đến ngày'); return;
     }
     if (form.startDate < todayYmd) {
       toast.error('Từ ngày không được nhỏ hơn ngày hiện tại'); return;
     }
-    if (form.endDate <= form.startDate) {
+    const submitEndDate = form.leaveType === 'short' ? nextDayYmd(form.startDate) : form.endDate;
+    if (submitEndDate <= form.startDate) {
       toast.error('Đến ngày phải lớn hơn Từ ngày'); return;
     }
     setSubmitting(true);
@@ -115,7 +122,7 @@ export default function LeaveRequest() {
       await post(ENDPOINTS.LEAVE.CREATE, {
         studentId: form.studentId,
         startDate: form.startDate,
-        endDate: form.endDate,
+        endDate: submitEndDate,
         reason: form.reason.trim(),
       });
       toast.success('Đã gửi đơn xin nghỉ thành công');
@@ -192,8 +199,11 @@ export default function LeaveRequest() {
           <Stack spacing={1.5}>
             {requests.map((r) => {
               const status = STATUS_MAP[r.status] || { label: r.status, color: 'default' };
-              const from   = formatDdMmYyyy(r.startDate?.split('T')[0]);
-              const to     = formatDdMmYyyy(r.endDate?.split('T')[0]);
+              const rawStart = r.startDate?.split('T')[0];
+              const rawEnd = r.endDate?.split('T')[0];
+              const from = formatDdMmYyyy(rawStart);
+              const to = formatDdMmYyyy(rawEnd);
+              const dateText = isSingleDayRange(rawStart, rawEnd) ? from : `${from} → ${to}`;
               return (
                 <Paper key={r._id} elevation={0} sx={{
                   borderRadius: 3, border: '1.5px solid',
@@ -235,7 +245,7 @@ export default function LeaveRequest() {
                     <Stack direction="row" spacing={0.75} alignItems="center" mb={0.75}>
                       <CalendarMonth sx={{ fontSize: 14, color: '#6b7280' }} />
                       <Typography fontSize="0.82rem" color="text.secondary">
-                        {from} <Box component="span" sx={{ mx: 0.5, color: '#d1d5db' }}>→</Box> {to}
+                        {dateText}
                       </Typography>
                     </Stack>
                     <Typography fontSize="0.85rem" color="#374151" sx={{ lineHeight: 1.6 }}>
@@ -336,14 +346,31 @@ export default function LeaveRequest() {
 
             {/* Khoảng thời gian */}
             <Box>
+              <FormControl size="small" fullWidth sx={{ mb: 1.5 }}>
+                <InputLabel>Loại nghỉ</InputLabel>
+                <Select
+                  label="Loại nghỉ"
+                  value={form.leaveType}
+                  onChange={(e) => setForm((prev) => ({
+                    ...prev,
+                    leaveType: e.target.value,
+                    startDate: '',
+                    endDate: '',
+                  }))}
+                  sx={{ borderRadius: 2 }}
+                >
+                  <MenuItem value="short">Nghỉ ngắn</MenuItem>
+                  <MenuItem value="long">Nghỉ dài</MenuItem>
+                </Select>
+              </FormControl>
               <Typography fontSize="0.75rem" fontWeight={700} color="text.secondary"
                 textTransform="uppercase" letterSpacing="0.05em" mb={1}>
                 Thời gian nghỉ
               </Typography>
-              <Stack direction={{ xs: 'column', sm: 'row' }} spacing={1.5}>
+              {form.leaveType === 'short' ? (
                 <TextField
                   type="date"
-                  label="Từ ngày"
+                  label="Ngày nghỉ"
                   InputLabelProps={{ shrink: true }}
                   size="small"
                   fullWidth
@@ -355,27 +382,50 @@ export default function LeaveRequest() {
                     setForm((prev) => ({
                       ...prev,
                       startDate: value,
-                      endDate: prev.endDate && prev.endDate <= value ? '' : prev.endDate,
+                      endDate: value ? nextDayYmd(value) : '',
                     }));
                   }}
                 />
-                <TextField
-                  type="date"
-                  label="Đến ngày"
-                  InputLabelProps={{ shrink: true }}
-                  size="small"
-                  fullWidth
-                  value={form.endDate}
-                  inputProps={{ min: form.startDate ? nextDayYmd(form.startDate) : todayYmd }}
-                  sx={{ '& .MuiOutlinedInput-root': { borderRadius: 2 } }}
-                  onChange={(e) => setForm((prev) => ({ ...prev, endDate: e.target.value }))}
-                />
-              </Stack>
-              {(form.startDate && form.endDate) && (
+              ) : (
+                <Stack direction={{ xs: 'column', sm: 'row' }} spacing={1.5}>
+                  <TextField
+                    type="date"
+                    label="Từ ngày"
+                    InputLabelProps={{ shrink: true }}
+                    size="small"
+                    fullWidth
+                    value={form.startDate}
+                    inputProps={{ min: todayYmd }}
+                    sx={{ '& .MuiOutlinedInput-root': { borderRadius: 2 } }}
+                    onChange={(e) => {
+                      const value = e.target.value;
+                      setForm((prev) => ({
+                        ...prev,
+                        startDate: value,
+                        endDate: prev.endDate && prev.endDate <= value ? '' : prev.endDate,
+                      }));
+                    }}
+                  />
+                  <TextField
+                    type="date"
+                    label="Đến ngày"
+                    InputLabelProps={{ shrink: true }}
+                    size="small"
+                    fullWidth
+                    value={form.endDate}
+                    inputProps={{ min: form.startDate ? nextDayYmd(form.startDate) : todayYmd }}
+                    sx={{ '& .MuiOutlinedInput-root': { borderRadius: 2 } }}
+                    onChange={(e) => setForm((prev) => ({ ...prev, endDate: e.target.value }))}
+                  />
+                </Stack>
+              )}
+              {(form.startDate && (form.leaveType === 'short' || form.endDate)) && (
                 <Stack direction="row" spacing={0.75} alignItems="center" mt={1}>
                   <CalendarMonth sx={{ fontSize: 13, color: PRIMARY }} />
                   <Typography fontSize="0.78rem" color={PRIMARY} fontWeight={600}>
-                    {formatDdMmYyyy(form.startDate)} → {formatDdMmYyyy(form.endDate)}
+                    {form.leaveType === 'short'
+                      ? formatDdMmYyyy(form.startDate)
+                      : `${formatDdMmYyyy(form.startDate)} → ${formatDdMmYyyy(form.endDate)}`}
                   </Typography>
                 </Stack>
               )}
