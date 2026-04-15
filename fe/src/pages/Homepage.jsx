@@ -3,33 +3,26 @@ import { useNavigate, Link } from 'react-router-dom';
 import { get, ENDPOINTS } from '../service/api';
 import './Homepage.css';
 
-const HIGHLIGHTS = [
-  { title: 'Học toán tư duy', text: 'Giúp bé làm quen con số qua trò chơi tương tác trực quan.' },
-  { title: 'Tư duy logic', text: 'Xây dựng nền tảng phân tích, quan sát và giải quyết vấn đề từ sớm.' },
-  { title: 'Nhiều chuyến đi', text: 'Dã ngoại và hoạt động ngoài trời giúp bé tự tin, năng động hơn.' },
-  { title: 'Đào tạo âm nhạc', text: 'Phát triển cảm thụ nghệ thuật và khả năng biểu đạt cảm xúc cho bé.' },
-];
-
 const WHY_CHOOSE_ITEMS = [
   {
-    title: 'Rèn luyện thói quen tốt',
-    text: 'Bé được xây dựng nền nếp sinh hoạt khoa học, tự lập và lễ phép ngay từ nhỏ.',
+    title: 'Mầm non chất lượng cao',
+    text: 'Kết hợp chương trình học trải nghiệm, vận động và phát triển cảm xúc để bé tự tin hội nhập.',
   },
   {
-    title: 'Khơi mở tài năng nhí',
-    text: 'Các hoạt động năng khiếu đa dạng giúp bé khám phá thế mạnh cá nhân.',
+    title: 'Quy trình chăm sóc toàn diện',
+    text: 'Từ dinh dưỡng, giấc ngủ đến theo dõi phát triển đều được cá nhân hóa theo từng độ tuổi.',
   },
   {
-    title: 'Phương pháp hiện đại',
-    text: 'Mô hình học tập kết hợp vui chơi, trải nghiệm và phát triển cảm xúc xã hội.',
+    title: 'Đội ngũ giáo viên tận tâm',
+    text: 'Giáo viên và nhân sự được đào tạo bài bản, đồng hành cùng phụ huynh trong từng giai đoạn.',
+  },
+  {
+    title: 'Cơ sở vật chất hiện đại',
+    text: 'Cơ sở vật chất hiện đại, đầy đủ, an toàn và thân thiện cho trẻ.',
   },
 ];
 
-const COURSES = [
-  { title: 'Lớp năng khiếu vẽ', price: '600.000đ', detail: 'Khơi gợi trí tưởng tượng và tư duy màu sắc.' },
-  { title: 'Lớp năng khiếu múa', price: '700.000đ', detail: 'Phát triển nhịp điệu, sự dẻo dai và tự tin trình diễn.' },
-  { title: 'Lớp năng khiếu thanh nhạc', price: '500.000đ', detail: 'Giúp bé cảm nhạc, phát âm rõ và biểu diễn tự nhiên.' },
-];
+const DEFAULT_TEACHER_AVATAR = 'https://via.placeholder.com/300x400.png?text=Avatar+3x4';
 
 const FALLBACK_BANNERS = [
   'https://images.unsplash.com/photo-1588072432836-e10032774350?auto=format&fit=crop&w=1400&q=80',
@@ -42,6 +35,9 @@ const stripHtml = (html) => (html || '').replace(/<[^>]*>/g, '').trim();
 function Homepage() {
   const navigate = useNavigate();
   const [featured, setFeatured] = useState([]);
+  const [timetablePrograms, setTimetablePrograms] = useState([]);
+  const [effectiveSeason, setEffectiveSeason] = useState(null);
+  const [teacherTeam, setTeacherTeam] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const [banners, setBanners] = useState(FALLBACK_BANNERS);
@@ -98,7 +94,7 @@ function Homepage() {
             img: item.imageUrls?.[0] || item.imageUrl,
             id: item._id || item.imageUrl,
           }));
-        setGalleryPhotos(normalized.slice(0, 4));
+        setGalleryPhotos(normalized.slice(0, 6));
       } catch {
         setGalleryPhotos([]);
       }
@@ -121,6 +117,68 @@ function Homepage() {
   }, []);
 
   useEffect(() => {
+    const loadTimetablePrograms = async () => {
+      try {
+        const res = await get(ENDPOINTS.TIMETABLE_PUBLIC(), { includeAuth: false });
+        const activities = Array.isArray(res?.data) ? res.data : [];
+        const mapped = activities
+          .filter((item) => (item?.content || '').trim())
+          .slice(0, 6)
+          .map((item, index) => ({
+            id: item._id || `${item.startLabel || 'slot'}-${index}`,
+            title: item.content,
+            time: item.startLabel && item.endLabel ? `${item.startLabel} - ${item.endLabel}` : 'Theo thời gian biểu',
+            season: item.appliesToSeason === 'summer'
+              ? 'Mùa hè'
+              : item.appliesToSeason === 'winter'
+                ? 'Mùa đông'
+                : 'Quanh năm',
+          }));
+        setTimetablePrograms(mapped);
+        setEffectiveSeason(res?.effectiveSeason || null);
+      } catch {
+        setTimetablePrograms([]);
+        setEffectiveSeason(null);
+      }
+    };
+    loadTimetablePrograms();
+  }, []);
+
+  useEffect(() => {
+    const loadOrganizationTeachers = async () => {
+      try {
+        const resp = await get(ENDPOINTS.PUBLIC_INFO.ORGANIZATION_STRUCTURE, { includeAuth: false });
+        const data = resp?.data || {};
+        const fromProfessionalGroup = Array.isArray(data?.professionalGroup?.members)
+          ? data.professionalGroup.members
+          : [];
+        const fromDirectors = Array.isArray(data?.boardOfDirectors?.members)
+          ? data.boardOfDirectors.members
+          : [];
+
+        const merged = [...fromDirectors, ...fromProfessionalGroup]
+          .map((member, index) => {
+            const item = typeof member === 'string' ? { fullName: member } : member;
+            return {
+              id: item.id || item._id || `${item.fullName || 'member'}-${index}`,
+              name: item.fullName || 'Chưa cập nhật',
+              role: item.position || 'Giáo viên',
+              specialty: item.department || 'Đội ngũ giáo viên tận tâm, đồng hành cùng phụ huynh.',
+              avatar: item.avatar || DEFAULT_TEACHER_AVATAR,
+            };
+          })
+          .filter((item) => item.name !== 'Chưa cập nhật')
+          .slice(0, 4);
+
+        setTeacherTeam(merged);
+      } catch {
+        setTeacherTeam([]);
+      }
+    };
+    loadOrganizationTeachers();
+  }, []);
+
+  useEffect(() => {
     if (banners.length <= 1) return undefined;
     const id = setInterval(() => {
       setCurrentBanner((prev) => (prev + 1) % banners.length);
@@ -134,10 +192,9 @@ function Homepage() {
     }
   }, [banners.length, currentBanner]);
 
-
   const mainBlog = featured[0];
   const sideBlogs = featured.slice(1, 4);
-  const newsList = featured.slice(0, 3);
+  const introPhotos = galleryPhotos.length > 0 ? galleryPhotos.slice(0, 3) : FALLBACK_BANNERS.slice(0, 3);
 
   return (
     <div className="home-v2">
@@ -169,14 +226,13 @@ function Homepage() {
             </>
           )}
         </div>
-        <div className="home-v2-hero-content">
-          <p className="home-v2-kicker">Ngôi trường tốt nhất</p>
-          <h1>dành cho con bạn</h1>
-          <ul>
-            <li>Cơ sở vật chất và chất lượng</li>
-            <li>Giáo viên được đào tạo bài bản</li>
-            <li>Môi trường vừa học vừa chơi</li>
-          </ul>
+        <div className="home-v2-hero-overlay">
+          <p className="home-v2-kicker">Trường mầm non chất lượng cao</p>
+          <h1>Cùng con lớn lên hạnh phúc và tự tin</h1>
+          <p>
+            Chương trình học trải nghiệm kết hợp chăm sóc toàn diện, tạo nền tảng tốt cho hành trình phát triển
+            của trẻ trong những năm đầu đời.
+          </p>
           <div className="home-v2-cta-row">
             <Link to="/introduce-school" className="home-v2-btn-primary">Khám phá ngay</Link>
             <Link to="/contact" className="home-v2-btn-outline">Đăng ký tư vấn</Link>
@@ -184,27 +240,18 @@ function Homepage() {
         </div>
       </section>
 
-      <section className="home-v2-highlight-grid">
-        {HIGHLIGHTS.map((item) => (
-          <article key={item.title} className="home-v2-highlight-card">
-            <h3>{item.title}</h3>
-            <p>{item.text}</p>
-          </article>
-        ))}
-      </section>
-
       <section className="home-v2-intro">
         <div>
-          <p className="home-v2-kicker">Phát triển tư duy với</p>
-          <h2>Bộ não sáng tạo</h2>
+          <p className="home-v2-kicker">Về Đức Xuân Kindergarten</p>
+          <h2>Tiên phong giáo dục trải nghiệm cho trẻ mầm non</h2>
           <p>
-            Lấy trẻ làm trung tâm với lộ trình rõ ràng, tích hợp các ưu điểm của chương trình học
-            hiện đại để bé phát triển toàn diện về thể chất, cảm xúc và tư duy.
+            Chúng tôi tập trung xây dựng môi trường học tập an toàn, giàu yêu thương, nơi mỗi em bé được tôn
+            trọng cá tính và phát triển theo năng lực riêng.
           </p>
-          <Link to="/introduce-school" className="home-v2-link-btn">Đọc thêm</Link>
+          <Link to="/photo-gallery" className="home-v2-link-btn">Đọc thêm</Link>
         </div>
         <div className="home-v2-intro-images">
-          {(galleryPhotos.length > 0 ? galleryPhotos.slice(0, 2) : FALLBACK_BANNERS.slice(0, 2)).map((item, idx) => (
+          {introPhotos.map((item, idx) => (
             <img
               key={item.id || idx}
               src={item.img || item}
@@ -215,7 +262,7 @@ function Homepage() {
       </section>
 
       <section className="home-v2-why">
-        <h2>Vì sao chọn Đức Xuân Kids?</h2>
+        <h2>Vì sao chọn Đức Xuân Kindergarten?</h2>
         <div className="home-v2-why-grid">
           {WHY_CHOOSE_ITEMS.map((item) => (
             <article key={item.title} className="home-v2-why-card">
@@ -226,9 +273,68 @@ function Homepage() {
         </div>
       </section>
 
+      <section className="home-v2-programs">
+        <div className="home-v2-section-head">
+          <h2>Thông tin chương trình học</h2>
+          <Link to="/schedule">Xem tất cả</Link>
+        </div>
+        <div className="home-v2-program-grid">
+          {timetablePrograms.map((program) => (
+            <article key={program.id} className="home-v2-program-card">
+              <h3>{program.title}</h3>
+              <p>Khung giờ hoạt động: {program.time}</p>
+              <span>
+                Áp dụng: {program.season}
+                {effectiveSeason ? ` • Hiện tại: ${effectiveSeason === 'summer' ? 'Mùa hè' : 'Mùa đông'}` : ''}
+              </span>
+            </article>
+          ))}
+          {timetablePrograms.length === 0 && (
+            <article className="home-v2-program-card">
+              <h3>Chưa có dữ liệu thời gian biểu</h3>
+              <p>Nhà trường sẽ cập nhật chương trình học ngay khi thời khóa biểu được thiết lập.</p>
+              <span>Vui lòng quay lại sau</span>
+            </article>
+          )}
+        </div>
+      </section>
+
+      <section className="home-v2-campus">
+        <h2>Đội ngũ giáo viên</h2>
+        <div className="home-v2-campus-grid">
+          {teacherTeam.map((teacher, index) => (
+            <article key={teacher.id || `${teacher.name}-${index}`} className="home-v2-campus-card">
+              <div className="home-v2-teacher-avatar-wrap">
+                <img
+                  src={teacher.avatar || DEFAULT_TEACHER_AVATAR}
+                  alt={teacher.name}
+                  className="home-v2-teacher-avatar"
+                />
+              </div>
+              <h3>{teacher.name}</h3>
+              <p><strong>Vai trò:</strong> {teacher.role}</p>
+              <p><strong>Chuyên môn:</strong> {teacher.specialty}</p>
+            </article>
+          ))}
+        </div>
+      </section>
+
+      <section className="home-v2-consult">
+        <div className="home-v2-consult-content">
+          <h2>Ba mẹ cần tư vấn thêm?</h2>
+          <p>Để lại thông tin để nhà trường hỗ trợ nhanh, nhận thông tin về chương trình học.</p>
+        </div>
+        <form className="home-v2-consult-form">
+          <input type="text" disabled placeholder="Họ và tên cha/mẹ*" />
+          <input type="tel" disabled placeholder="Số điện thoại*" />
+          <input type="email" disabled placeholder="Email" />
+          <Link to="/contact" className="home-v2-btn-outline">Đăng ký tư vấn</Link>
+        </form>
+      </section>
+
       <section className="home-v2-news">
         <div className="home-v2-section-head">
-          <h2>Tin tức mới nhất</h2>
+          <h2>Tin tức - Sự kiện</h2>
           <Link to="/school-news">Xem thêm</Link>
         </div>
         {loading && <p className="home-v2-state">Đang tải dữ liệu tin tức...</p>}
@@ -258,30 +364,6 @@ function Homepage() {
         )}
       </section>
 
-      <section className="home-v2-courses">
-        <h2>Các khóa học nổi bật</h2>
-        <div className="home-v2-course-grid">
-          {COURSES.map((course) => (
-            <article key={course.title} className="home-v2-course-card">
-              <h3>{course.title}</h3>
-              <p>{course.detail}</p>
-              <strong>{course.price}</strong>
-            </article>
-          ))}
-        </div>
-      </section>
-
-      <section className="home-v2-testimonials">
-        <h2>Cảm nhận từ phụ huynh</h2>
-        <div className="home-v2-testimonial-grid">
-          {newsList.map((item) => (
-            <article key={item.id}>
-              <p>"{(item.content || 'Môi trường học tập sáng tạo, an toàn và thân thiện cho trẻ.').slice(0, 150)}..."</p>
-              <h4>{item.title}</h4>
-            </article>
-          ))}
-        </div>
-      </section>
     </div>
   );
 }
