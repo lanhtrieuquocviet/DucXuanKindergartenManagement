@@ -9,10 +9,8 @@ import {
   listDistrictNutritionPlans,
   createDistrictNutritionPlan,
   updateDistrictNutritionPlan,
-  endDistrictNutritionPlan,
   downloadDistrictRegulationFile,
 } from "../../service/menu.api";
-import ConfirmDialog from "../../components/ConfirmDialog";
 import {
   Box,
   Typography,
@@ -43,7 +41,6 @@ import {
   Add as AddIcon,
   FileDownload as FileDownloadIcon,
   UploadFile as UploadFileIcon,
-  StopCircle as StopCircleIcon,
 } from "@mui/icons-material";
 
 const DEFAULT_ROWS = [
@@ -53,8 +50,6 @@ const DEFAULT_ROWS = [
   { id: 4, name: "Tinh bột (g)", min: 52, max: 60 },
 ];
 
-const MSG_END_PLAN_INVALID = "Kết thúc kế hoạch không hợp lệ";
-
 /** YYYY-MM-DD theo Asia/Ho_Chi_Minh (khớp logic backend) */
 function todayVNString() {
   return new Intl.DateTimeFormat("en-CA", {
@@ -63,13 +58,6 @@ function todayVNString() {
     month: "2-digit",
     day: "2-digit",
   }).format(new Date());
-}
-
-function isEndPlanDateInvalid(startDateStr) {
-  const start = String(startDateStr || "").trim();
-  if (!/^\d{4}-\d{2}-\d{2}$/.test(start)) return true;
-  const endStr = todayVNString();
-  return endStr <= start;
 }
 
 function formatDMY(iso) {
@@ -122,7 +110,6 @@ export default function DistrictNutritionPlanSchoolAdmin() {
   const [editStart, setEditStart] = useState("");
   const [editFile, setEditFile] = useState(null);
   const [editSaving, setEditSaving] = useState(false);
-  const [confirmEndId, setConfirmEndId] = useState(null);
   const [viewPlan, setViewPlan] = useState(null);
   const [editNewRow, setEditNewRow] = useState({ name: "", min: "", max: "" });
 
@@ -277,37 +264,6 @@ export default function DistrictNutritionPlanSchoolAdmin() {
       toast.error(e?.message || e?.data?.message || "Cập nhật thất bại");
     } finally {
       setEditSaving(false);
-    }
-  };
-
-  const handleRequestEndPlan = () => {
-    if (!active) return;
-    if (isEndPlanDateInvalid(active.startDate)) {
-      toast.error(MSG_END_PLAN_INVALID);
-      return;
-    }
-    setConfirmEndId(active._id);
-  };
-
-  const handleEndConfirm = async () => {
-    if (!confirmEndId) return;
-    const plan = activePlans.find((p) => String(p._id) === String(confirmEndId));
-    if (!plan || isEndPlanDateInvalid(plan.startDate)) {
-      toast.error(MSG_END_PLAN_INVALID);
-      setConfirmEndId(null);
-      return;
-    }
-    try {
-      await endDistrictNutritionPlan(confirmEndId);
-      localStorage.setItem("nutrition_plan_updated_at", String(Date.now()));
-      window.dispatchEvent(new Event("nutrition_plan_updated"));
-      toast.success("Đã kết thúc kế hoạch và lưu vào lịch sử");
-      setConfirmEndId(null);
-      await load();
-      setMainTab(1);
-    } catch (e) {
-      const msg = e?.message || e?.data?.message || "Thao tác thất bại";
-      toast.error(msg);
     }
   };
 
@@ -518,6 +474,11 @@ export default function DistrictNutritionPlanSchoolAdmin() {
                 value={editStart}
                 onChange={(e) => setEditStart(e.target.value)}
               />
+              {!!active?.endDate && (
+                <Typography variant="body2" sx={{ mb: 2 }} color="text.secondary">
+                  Ngày kết thúc áp dụng: <strong>{formatDMY(active.endDate)}</strong>
+                </Typography>
+              )}
 
               <Typography variant="caption" color="text.secondary" display="block" sx={{ mb: 1 }}>
                 
@@ -567,15 +528,6 @@ export default function DistrictNutritionPlanSchoolAdmin() {
               )}
 
               <Stack direction="row" justifyContent="space-between" flexWrap="wrap" gap={2} mt={3}>
-                <Button
-                  color="warning"
-                  variant="outlined"
-                  startIcon={<StopCircleIcon />}
-                  onClick={handleRequestEndPlan}
-                  sx={{ textTransform: "none" }}
-                >
-                  Kết thúc kế hoạch
-                </Button>
                 <Button
                   variant="contained"
                   onClick={handleEditSave}
@@ -778,15 +730,6 @@ export default function DistrictNutritionPlanSchoolAdmin() {
         </DialogActions>
       </Dialog>
 
-      <ConfirmDialog
-        open={!!confirmEndId}
-        title="Kết thúc kế hoạch?"
-        message="Ngày kết thúc sẽ là hôm nay và kế hoạch được chuyển sang tab Lịch sử. Sau đó bạn có thể tạo kế hoạch mới."
-        confirmText="Kết thúc"
-        cancelText="Hủy"
-        onConfirm={handleEndConfirm}
-        onCancel={() => setConfirmEndId(null)}
-      />
     </RoleLayout>
   );
 }

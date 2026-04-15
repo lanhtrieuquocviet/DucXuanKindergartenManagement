@@ -222,6 +222,8 @@ export default function StudentDashboard() {
   const studentName = studentInfo?.fullName || 'Học sinh';
   const className = studentInfo?.classId?.className || 'Chưa xếp lớp';
   const parentDisplayName = user?.fullName || user?.username || 'Phụ huynh';
+  const checkInText = attendanceToday?.time?.checkIn || 'Chưa có';
+  const checkOutText = attendanceToday?.time?.checkOut || 'Chưa có';
 
   const attendanceStatus = (() => {
     if (!attendanceToday) return { label: 'Chưa điểm danh', color: 'default' };
@@ -236,20 +238,22 @@ export default function StudentDashboard() {
       {/* ── AppBar ── */}
       <Box sx={{
         background: `linear-gradient(135deg, ${PRIMARY} 0%, ${PRIMARY_DARK} 100%)`,
-        px: 2, pt: 2.5, pb: 3,
+        px: { xs: 1.5, sm: 2.5 },
+        pt: { xs: 1.75, sm: 2.5 },
+        pb: { xs: 2.25, sm: 3 },
         position: 'sticky', top: 0, zIndex: 100,
         boxShadow: '0 2px 12px rgba(5,150,105,0.3)',
       }}>
         <Stack direction="row" alignItems="center" justifyContent="space-between">
           <Stack direction="row" alignItems="center" spacing={1.5}>
-            <Avatar sx={{ bgcolor: 'rgba(255,255,255,0.2)', width: 36, height: 36 }}>
+            <Avatar sx={{ bgcolor: 'rgba(255,255,255,0.2)', width: { xs: 34, sm: 38 }, height: { xs: 34, sm: 38 } }}>
               <School sx={{ fontSize: 20, color: 'white' }} />
             </Avatar>
             <Box>
-              <Typography sx={{ color: 'rgba(255,255,255,0.8)', fontSize: '0.7rem', fontWeight: 500 }}>
+              <Typography sx={{ color: 'rgba(255,255,255,0.8)', fontSize: { xs: '0.64rem', sm: '0.72rem' }, fontWeight: 500 }}>
                 Trường mầm non Đức Xuân
               </Typography>
-              <Typography sx={{ color: 'white', fontSize: '0.95rem', fontWeight: 700, lineHeight: 1.2 }}>
+              <Typography sx={{ color: 'white', fontSize: { xs: '0.88rem', sm: '1rem' }, fontWeight: 700, lineHeight: 1.2 }}>
                 👋 Xin chào, {parentDisplayName}
               </Typography>
             </Box>
@@ -271,10 +275,13 @@ export default function StudentDashboard() {
         </Stack>
       </Box>
 
-      <Box sx={{ maxWidth: 600, mx: 'auto', px: 2, pb: 4 }}>
+      <Box sx={{ maxWidth: 1180, mx: 'auto', px: { xs: 1.5, sm: 2 }, pb: { xs: 3, sm: 4 } }}>
         {/* ── Student Card ── */}
         <Paper elevation={0} sx={{
-          mt: -1.5, mb: 2.5, p: 2.5, borderRadius: 4,
+          mt: { xs: -1.25, sm: -1.5 },
+          mb: { xs: 1.75, sm: 2.5 },
+          p: { xs: 1.75, sm: 2.5 },
+          borderRadius: { xs: 3, sm: 4 },
           border: '1px solid', borderColor: '#bbf7d0',
           background: 'white',
         }}>
@@ -285,18 +292,18 @@ export default function StudentDashboard() {
               <Skeleton variant="rounded" width={120} height={28} />
             </Stack>
           ) : (
-            <Stack direction="row" spacing={2} alignItems="flex-start">
-              <Avatar sx={{ bgcolor: PRIMARY_LIGHT, color: PRIMARY, width: 56, height: 56, fontSize: '1.4rem', fontWeight: 700, flexShrink: 0 }}>
+            <Stack direction="row" spacing={{ xs: 1.5, sm: 2 }} alignItems="flex-start">
+              <Avatar sx={{ bgcolor: PRIMARY_LIGHT, color: PRIMARY, width: { xs: 50, sm: 56 }, height: { xs: 50, sm: 56 }, fontSize: { xs: '1.2rem', sm: '1.4rem' }, fontWeight: 700, flexShrink: 0 }}>
                 {studentName.charAt(0)}
               </Avatar>
               <Box flex={1} minWidth={0}>
-                <Typography fontWeight={800} fontSize="1.05rem" color="#111827" noWrap>{studentName}</Typography>
-                <Typography fontSize="0.78rem" color="text.secondary" mt={0.2}>
+                <Typography fontWeight={800} fontSize={{ xs: '0.96rem', sm: '1.05rem' }} color="#111827" noWrap>{studentName}</Typography>
+                <Typography fontSize={{ xs: '0.73rem', sm: '0.78rem' }} color="text.secondary" mt={0.2}>
                   Mã học sinh: {studentInfo?.studentCode || '—'}
                 </Typography>
                 <Stack direction="row" spacing={0.75} alignItems="center" mt={0.25} mb={1}>
                   <School sx={{ fontSize: 14, color: '#6b7280' }} />
-                  <Typography fontSize="0.82rem" color="text.secondary">{className}</Typography>
+                  <Typography fontSize={{ xs: '0.78rem', sm: '0.82rem' }} color="text.secondary">{className}</Typography>
                 </Stack>
                 <Chip
                   label={attendanceStatus.label}
@@ -304,13 +311,27 @@ export default function StudentDashboard() {
                   size="small"
                   sx={{ fontWeight: 700, fontSize: '0.72rem', height: 24 }}
                 />
+                <Stack direction="row" spacing={1} mt={1.2} flexWrap="wrap" useFlexGap>
+                  <Chip
+                    size="small"
+                    variant="outlined"
+                    label={`Đến: ${checkInText}`}
+                    sx={{ height: 22, fontSize: '0.7rem', borderColor: '#86efac', color: '#166534' }}
+                  />
+                  <Chip
+                    size="small"
+                    variant="outlined"
+                    label={`Về: ${checkOutText}`}
+                    sx={{ height: 22, fontSize: '0.7rem', borderColor: '#93c5fd', color: '#1e40af' }}
+                  />
+                </Stack>
               </Box>
             </Stack>
           )}
         </Paper>
 
         {children.length > 1 && (
-          <Paper elevation={0} sx={{ mb: 2.5, p: 2, borderRadius: 3, border: '1px solid', borderColor: '#bbf7d0' }}>
+          <Paper elevation={0} sx={{ mb: { xs: 1.75, sm: 2.5 }, p: { xs: 1.5, sm: 2 }, borderRadius: 3, border: '1px solid', borderColor: '#bbf7d0' }}>
             <Typography fontWeight={700} fontSize="0.9rem" mb={1.25}>Chọn bé cần thao tác</Typography>
             <Grid container spacing={1.25}>
               {children.map((child) => (
@@ -339,32 +360,68 @@ export default function StudentDashboard() {
         )}
 
         {/* ── Action Grid ── */}
-        <Grid container spacing={1.5}>
-          {ACTION_CARDS.map((card) => (
-            <Grid item xs={6} sm={4} key={card.key}>
+        <Paper
+          elevation={0}
+          sx={{
+            p: { xs: 1.25, sm: 1.5 },
+            borderRadius: 3,
+            border: '1px solid #d1fae5',
+            bgcolor: '#f8fffb',
+          }}
+        >
+          <Typography fontWeight={800} fontSize={{ xs: '0.9rem', sm: '1rem' }} color="#065f46" mb={1.25}>
+            Tiện ích phụ huynh
+          </Typography>
+          <Box
+            sx={{
+              display: 'grid',
+              gridTemplateColumns: {
+                xs: 'repeat(2, minmax(0, 1fr))',
+                sm: 'repeat(3, minmax(0, 1fr))',
+                md: 'repeat(4, minmax(0, 1fr))',
+              },
+              gap: { xs: 1.1, sm: 1.4 },
+            }}
+          >
+            {ACTION_CARDS.map((card) => (
               <Paper
+                key={card.key}
                 elevation={0}
                 onClick={() => !card.disabled && handleCardAction(card.key)}
                 sx={{
-                  p: 2, borderRadius: 3, cursor: card.disabled ? 'not-allowed' : 'pointer',
-                  border: '1.5px solid', borderColor: card.disabled ? '#e5e7eb' : `${card.color}30`,
+                  p: { xs: 1.4, sm: 1.8 },
+                  borderRadius: { xs: 2.5, sm: 3 },
+                  minHeight: { xs: 106, sm: 116 },
+                  display: 'flex',
+                  flexDirection: 'column',
+                  justifyContent: 'space-between',
+                  cursor: card.disabled ? 'not-allowed' : 'pointer',
+                  border: '1.5px solid',
+                  borderColor: card.disabled ? '#e5e7eb' : `${card.color}30`,
                   bgcolor: card.disabled ? '#f9fafb' : card.bg,
                   opacity: card.disabled ? 0.5 : 1,
                   transition: 'all 0.15s',
-                  '&:hover': !card.disabled ? { transform: 'translateY(-2px)', boxShadow: `0 4px 16px ${card.color}25` } : {},
+                  '&:hover': !card.disabled
+                    ? { transform: 'translateY(-2px)', boxShadow: `0 4px 16px ${card.color}25` }
+                    : {},
                   '&:active': !card.disabled ? { transform: 'scale(0.97)' } : {},
                 }}
               >
-                <Box sx={{ color: card.color, mb: 1, '& svg': { fontSize: 28 } }}>
+                <Box sx={{ color: card.color, mb: 1, '& svg': { fontSize: { xs: 24, sm: 28 } } }}>
                   {card.icon}
                 </Box>
-                <Typography fontSize="0.82rem" fontWeight={700} color={card.disabled ? '#9ca3af' : '#111827'} lineHeight={1.3}>
+                <Typography
+                  fontSize={{ xs: '0.76rem', sm: '0.82rem' }}
+                  fontWeight={700}
+                  color={card.disabled ? '#9ca3af' : '#111827'}
+                  lineHeight={1.35}
+                >
                   {card.label}
                 </Typography>
               </Paper>
-            </Grid>
-          ))}
-        </Grid>
+            ))}
+          </Box>
+        </Paper>
       </Box>
 
       {/* ── Notification Dialog ── */}
@@ -446,7 +503,8 @@ export default function StudentDashboard() {
 
       {/* ── Child Info Dialog ── */}
       <Dialog open={showChildInfo} onClose={() => { setShowChildInfo(false); setIsEditMode(false); setSaveMessage(null); }}
-        maxWidth="sm" fullWidth PaperProps={{ sx: { borderRadius: 3, mx: 2 } }}>
+        fullScreen={isMobile}
+        maxWidth="sm" fullWidth PaperProps={{ sx: { borderRadius: isMobile ? 0 : 3, mx: isMobile ? 0 : 2 } }}>
         <DialogTitle>
           <Stack direction="row" alignItems="center" justifyContent="space-between">
             <Typography fontWeight={700}>Thông tin của trẻ</Typography>
@@ -526,7 +584,8 @@ export default function StudentDashboard() {
 
       {/* ── OTP Dialog ── */}
       <Dialog open={showOtpModal && !!pendingOtp} onClose={() => setShowOtpModal(false)}
-        maxWidth="xs" fullWidth PaperProps={{ sx: { borderRadius: 4, mx: 2 } }}>
+        fullScreen={isMobile}
+        maxWidth="xs" fullWidth PaperProps={{ sx: { borderRadius: isMobile ? 0 : 4, mx: isMobile ? 0 : 2 } }}>
         <DialogTitle sx={{ pb: 1 }}>
           <Stack direction="row" alignItems="center" justifyContent="space-between">
             <Typography fontWeight={700}>🔑 Mã OTP của bạn</Typography>
@@ -649,8 +708,15 @@ export default function StudentDashboard() {
           onClick={() => setShowOtpModal(true)}
           elevation={6}
           sx={{
-            position: 'fixed', bottom: 24, right: 16, zIndex: 200,
-            px: 2.5, py: 1.5, borderRadius: 3, cursor: 'pointer',
+            position: 'fixed',
+            bottom: { xs: 14, sm: 24 },
+            right: { xs: 10, sm: 16 },
+            left: { xs: 10, sm: 'auto' },
+            zIndex: 200,
+            px: { xs: 1.8, sm: 2.5 },
+            py: { xs: 1.15, sm: 1.5 },
+            borderRadius: 3,
+            cursor: 'pointer',
             bgcolor: PRIMARY, display: 'flex', alignItems: 'center', gap: 1.5,
           }}
         >

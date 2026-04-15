@@ -17,6 +17,7 @@ const {
   checkoutAttendance,
   getAttendances,
 } = require('../controller/attendanceController');
+const contactBookCtrl = require('../controller/contactBookController');
 
 const router = express.Router();
 const excelUpload = multer({ storage: multer.memoryStorage(), limits: { fileSize: 10 * 1024 * 1024 } });
@@ -381,6 +382,9 @@ router.get('/contact-book/attendance', authenticate, async (req, res) => {
     return res.status(500).json({ status: 'error', message: err.message });
   }
 });
+
+// GET /students/contact-book/today-menu — thực đơn hôm nay cho phụ huynh/học sinh
+router.get('/contact-book/today-menu', authenticate, contactBookCtrl.getTodayMenu);
 
 // GET /students/contact-book/notes — ghi chú của giáo viên
 router.get('/contact-book/notes', authenticate, async (req, res) => {
