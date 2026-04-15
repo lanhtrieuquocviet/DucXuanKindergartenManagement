@@ -81,15 +81,6 @@ function getChipStyles(tone) {
   return {};
 }
 
-function isSameCalendarDay(a, b) {
-  if (!a || !b) return false;
-  return (
-    a.getFullYear() === b.getFullYear() &&
-    a.getMonth() === b.getMonth() &&
-    a.getDate() === b.getDate()
-  );
-}
-
 export default function AcademicYearReport() {
   const { yearId } = useParams();
   const navigate = useNavigate();
