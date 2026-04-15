@@ -78,7 +78,9 @@ export default function AcademicEventSetup() {
     monthKey: '',
     eventId: '',
     value: '',
+    eventType: 'short',
     date: '',
+    endDate: '',
     blockKey: '',
   });
   const [deleteDialog, setDeleteDialog] = useState({
@@ -121,6 +123,7 @@ export default function AcademicEventSetup() {
                 id: String(it._id || `${it.name}-${it.date}`),
                 name: it.name || '',
                 date: toInputDate(it.date),
+                endDate: toInputDate(it.endDate),
                 blockKey: String(it.grade || ''),
                 blockLabel: it.gradeName || 'Khối lớp',
               }));
@@ -171,7 +174,9 @@ export default function AcademicEventSetup() {
       monthKey,
       eventId: '',
       value: '',
+      eventType: 'short',
       date: '',
+      endDate: '',
       blockKey: blocks[0]?.key || '',
     });
   };
@@ -183,7 +188,9 @@ export default function AcademicEventSetup() {
       monthKey,
       eventId: event.id,
       value: event.name || '',
+      eventType: event.endDate ? 'long' : 'short',
       date: event.date || '',
+      endDate: event.endDate || '',
       blockKey: event.blockKey || blocks[0]?.key || '',
     });
   };
@@ -195,6 +202,7 @@ export default function AcademicEventSetup() {
       items: (items || []).map((it) => ({
         name: it.name,
         date: it.date,
+        endDate: it.endDate || null,
         grade: it.blockKey,
       })),
     }));
@@ -208,10 +216,16 @@ export default function AcademicEventSetup() {
   const addEvent = async () => {
     const value = dialog.value.trim();
     if (!value) { toast.error('Vui lòng nhập tên sự kiện'); return; }
-    if (!dialog.date) { toast.error('Vui lòng chọn ngày sự kiện'); return; }
+    if (!dialog.date) { toast.error('Vui lòng chọn ngày bắt đầu sự kiện'); return; }
+    if (dialog.eventType === 'long' && !dialog.endDate) { toast.error('Vui lòng chọn ngày kết thúc sự kiện'); return; }
+    if (dialog.eventType === 'long' && dialog.endDate < dialog.date) {
+      toast.error('Ngày kết thúc phải sau hoặc bằng ngày bắt đầu');
+      return;
+    }
     if (!dialog.blockKey) { toast.error('Vui lòng chọn khối lớp'); return; }
-    const selectedMonthKey = String(dialog.date).slice(0, 7);
-    if (selectedMonthKey !== dialog.monthKey) {
+    const startMonthKey = String(dialog.date).slice(0, 7);
+    const endMonthKey = String((dialog.eventType === 'long' ? dialog.endDate : dialog.date)).slice(0, 7);
+    if (startMonthKey !== dialog.monthKey || endMonthKey !== dialog.monthKey) {
       toast.error('Ngày sự kiện phải thuộc đúng tháng bạn đang thêm');
       return;
     }
@@ -226,6 +240,7 @@ export default function AcademicEventSetup() {
         id: `${ts}-${i}`,
         name: value,
         date: dialog.date,
+        endDate: dialog.eventType === 'long' ? dialog.endDate : '',
         blockKey: b.key,
         blockLabel: b.label,
       }));
@@ -235,6 +250,7 @@ export default function AcademicEventSetup() {
         id: dialog.mode === 'edit' ? dialog.eventId : Date.now().toString(),
         name: value,
         date: dialog.date,
+        endDate: dialog.eventType === 'long' ? dialog.endDate : '',
         blockKey: dialog.blockKey,
         blockLabel,
       };
@@ -251,7 +267,7 @@ export default function AcademicEventSetup() {
     try {
       await persistEvents(nextEvents, dialog.mode === 'edit' ? 'Đã sửa và lưu sự kiện' : `Đã thêm và lưu ${newItems.length > 1 ? `${newItems.length} sự kiện` : 'sự kiện'}`);
       setEventsByMonth(nextEvents);
-      setDialog({ open: false, mode: 'add', monthKey: '', eventId: '', value: '', date: '', blockKey: '' });
+      setDialog({ open: false, mode: 'add', monthKey: '', eventId: '', value: '', eventType: 'short', date: '', endDate: '', blockKey: '' });
     } catch (err) {
       toast.error(err?.message || 'Lưu sự kiện thất bại');
     }
@@ -382,7 +398,7 @@ export default function AcademicEventSetup() {
                     <Stack direction="row" spacing={1} alignItems="center" sx={{ minWidth: 0 }}>
                       <EventIcon sx={{ color: '#16a34a', fontSize: 18 }} />
                       <Typography variant="body2" sx={{ color: '#166534', fontWeight: 600 }}>
-                        {`${event.name} - ${toDMY(event.date)} - ${event.blockLabel || 'Khối lớp'}`}
+                        {`${event.name} - ${toDMY(event.date)}${event.endDate ? ` đến ${toDMY(event.endDate)}` : ''} - ${event.blockLabel || 'Khối lớp'}`}
                       </Typography>
                     </Stack>
                     <Stack direction="row" spacing={0.75}>
@@ -416,7 +432,7 @@ export default function AcademicEventSetup() {
 
       <Dialog
         open={dialog.open}
-        onClose={() => setDialog({ open: false, mode: 'add', monthKey: '', eventId: '', value: '', date: '', blockKey: '' })}
+        onClose={() => setDialog({ open: false, mode: 'add', monthKey: '', eventId: '', value: '', eventType: 'short', date: '', endDate: '', blockKey: '' })}
         maxWidth="sm"
         fullWidth
       >
@@ -432,13 +448,41 @@ export default function AcademicEventSetup() {
           />
           <TextField
             margin="dense"
-            label="Ngày sự kiện"
+            label="Loại sự kiện"
+            select
+            fullWidth
+            value={dialog.eventType}
+            onChange={(e) =>
+              setDialog((prev) => ({
+                ...prev,
+                eventType: e.target.value,
+                endDate: e.target.value === 'short' ? '' : prev.endDate,
+              }))
+            }
+          >
+            <MenuItem value="short">Ngắn ngày</MenuItem>
+            <MenuItem value="long">Dài ngày</MenuItem>
+          </TextField>
+          <TextField
+            margin="dense"
+            label={dialog.eventType === 'long' ? 'Từ ngày' : 'Ngày sự kiện'}
             type="date"
             fullWidth
             InputLabelProps={{ shrink: true }}
             value={dialog.date}
             onChange={(e) => setDialog((prev) => ({ ...prev, date: e.target.value }))}
           />
+          {dialog.eventType === 'long' && (
+            <TextField
+              margin="dense"
+              label="Đến ngày"
+              type="date"
+              fullWidth
+              InputLabelProps={{ shrink: true }}
+              value={dialog.endDate}
+              onChange={(e) => setDialog((prev) => ({ ...prev, endDate: e.target.value }))}
+            />
+          )}
           <TextField
             margin="dense"
             label="Khối lớp"
@@ -460,7 +504,7 @@ export default function AcademicEventSetup() {
           </TextField>
         </DialogContent>
         <DialogActions>
-          <Button onClick={() => setDialog({ open: false, mode: 'add', monthKey: '', eventId: '', value: '', date: '', blockKey: '' })}>Hủy</Button>
+          <Button onClick={() => setDialog({ open: false, mode: 'add', monthKey: '', eventId: '', value: '', eventType: 'short', date: '', endDate: '', blockKey: '' })}>Hủy</Button>
           <Button variant="contained" onClick={addEvent}>{dialog.mode === 'edit' ? 'Lưu sửa' : 'Thêm'}</Button>
         </DialogActions>
       </Dialog>

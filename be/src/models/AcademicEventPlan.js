@@ -4,6 +4,7 @@ const academicEventItemSchema = new mongoose.Schema(
   {
     name: { type: String, required: true, trim: true },
     date: { type: Date, required: true },
+    endDate: { type: Date, default: null },
     grade: { type: mongoose.Schema.Types.ObjectId, ref: 'Grades', required: true },
     gradeName: { type: String, trim: true, default: '' },
   },

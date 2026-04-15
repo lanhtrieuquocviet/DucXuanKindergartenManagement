@@ -45,6 +45,7 @@ function normalizeMonths(inputMonths, validGradeMap) {
     const items = rawItems.map((it) => {
       const name = String(it?.name || '').trim();
       const date = it?.date ? new Date(it.date) : null;
+      const endDate = it?.endDate ? new Date(it.endDate) : null;
       const grade = String(it?.grade || '').trim();
 
       if (!name) throw createHttpError(400, 'Tên sự kiện không được để trống');
@@ -54,6 +55,15 @@ function normalizeMonths(inputMonths, validGradeMap) {
       if (monthKeyFromDate(date) !== monthKey) {
         throw createHttpError(400, `Sự kiện "${name}" không thuộc tháng ${monthKey}`);
       }
+      if (endDate && Number.isNaN(endDate.getTime())) {
+        throw createHttpError(400, `Ngày kết thúc của sự kiện "${name}" không hợp lệ`);
+      }
+      if (endDate && endDate < date) {
+        throw createHttpError(400, `Ngày kết thúc của sự kiện "${name}" phải sau hoặc bằng ngày bắt đầu`);
+      }
+      if (endDate && monthKeyFromDate(endDate) !== monthKey) {
+        throw createHttpError(400, `Ngày kết thúc của sự kiện "${name}" phải thuộc tháng ${monthKey}`);
+      }
       if (!mongoose.Types.ObjectId.isValid(grade) || !validGradeMap.has(grade)) {
         throw createHttpError(400, `Khối lớp của sự kiện "${name}" không hợp lệ`);
       }
@@ -61,6 +71,7 @@ function normalizeMonths(inputMonths, validGradeMap) {
       return {
         name,
         date,
+        endDate: endDate || null,
         grade,
         gradeName: validGradeMap.get(grade) || 'Khối lớp',
       };

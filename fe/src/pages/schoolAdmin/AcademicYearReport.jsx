@@ -181,12 +181,28 @@ export default function AcademicYearReport() {
         const months = Array.isArray(eventsRes?.data?.months) ? eventsRes.data.months : [];
         const flattenedEvents = months
           .flatMap((m) =>
-            (m?.items || []).map((it) => ({
-              name: it?.name || '',
-              time: formatVnDate(it?.date),
-              classes: it?.gradeName || 'Khối lớp',
-              dateObj: normalizeDateOnly(it?.date),
-            })),
+            (m?.items || []).map((it) => {
+              const startDateRaw = it?.startDate || it?.date;
+              const endDateRaw = it?.endDate || it?.toDate || it?.dateEnd || it?.dateTo || null;
+              const startDateText = formatVnDate(startDateRaw);
+              const endDateText = formatVnDate(endDateRaw);
+              const hasDateRange = Boolean(
+                endDateRaw &&
+                startDateText &&
+                endDateText &&
+                startDateText !== endDateText,
+              );
+
+              return {
+                name: it?.name || '',
+                time: hasDateRange
+                  ? `Từ ${startDateText} đến ${endDateText}`
+                  : startDateText,
+                classes: it?.gradeName || 'Khối lớp',
+                dateObj: normalizeDateOnly(startDateRaw),
+                endDateObj: normalizeDateOnly(endDateRaw || startDateRaw),
+              };
+            }),
           )
           .filter((e) => e.name && e.time)
           .sort((a, b) => {
@@ -201,10 +217,13 @@ export default function AcademicYearReport() {
             let status = 'Sắp diễn ra';
             let statusTone = 'upcoming';
             if (e.dateObj) {
-              if (isSameCalendarDay(e.dateObj, todayOnly)) {
+              if (
+                isSameCalendarDay(e.dateObj, todayOnly) ||
+                (e.endDateObj && e.dateObj <= todayOnly && e.endDateObj >= todayOnly)
+              ) {
                 status = 'Đang diễn ra';
                 statusTone = 'ongoing';
-              } else if (e.dateObj < todayOnly) {
+              } else if (e.endDateObj && e.endDateObj < todayOnly) {
                 status = 'Đã tổ chức';
                 statusTone = 'done';
               }
