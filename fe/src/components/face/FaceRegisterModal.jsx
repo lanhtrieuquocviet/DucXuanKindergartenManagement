@@ -22,9 +22,9 @@ export default function FaceRegisterModal({ open, onClose, student, onSuccess })
   const [saving, setSaving] = useState(false);
   const [detectionResult, setDetectionResult] = useState(null); // null | 'ok' | 'no_face' | 'multi' | 'low_quality'
   const [pendingEmbedding, setPendingEmbedding] = useState(null);
-  const [savedAngles, setSavedAngles] = useState(0); // số góc đã lưu trong phiên này
+  const [savedAngles, setSavedAngles] = useState(0); // tổng số góc đã lưu (gồm cả góc cũ)
   const [conflictInfo, setConflictInfo] = useState(null);
-  const MAX_ANGLES = 3; // đề nghị tối đa 3 góc
+  const MAX_ANGLES = 5; // tối đa 5 góc, khớp với backend
 
   const imgRef = useRef(null);
   const canvasRef = useRef(null);
@@ -178,9 +178,16 @@ export default function FaceRegisterModal({ open, onClose, student, onSuccess })
     setDetectionResult(null);
     setPendingEmbedding(null);
     setConflictInfo(null);
-    setSavedAngles(0);
+    setSavedAngles(student?.angleCount || 0);
     onClose();
   };
+
+  // Sync số góc hiện có của học sinh khi mở modal
+  useEffect(() => {
+    if (open) {
+      setSavedAngles(student?.angleCount || 0);
+    }
+  }, [open, student]);
 
   useEffect(() => {
     if (open && !previewSrc) {
@@ -219,12 +226,17 @@ export default function FaceRegisterModal({ open, onClose, student, onSuccess })
           {/* Hướng dẫn góc mặt */}
           {savedAngles === 0 && (
             <div className="mb-3 p-3 bg-blue-50 border border-blue-200 rounded-lg text-xs text-blue-700">
-              Để tăng độ chính xác, hãy chụp <strong>2–3 góc mặt</strong>: nhìn thẳng, hơi nghiêng trái, hơi nghiêng phải.
+              Để tăng độ chính xác, hãy chụp <strong>2–5 góc mặt</strong>: nhìn thẳng, hơi nghiêng trái, hơi nghiêng phải.
             </div>
           )}
           {savedAngles > 0 && savedAngles < MAX_ANGLES && (
             <div className="mb-3 p-3 bg-green-50 border border-green-200 rounded-lg text-xs text-green-700">
-              Đã lưu {savedAngles} góc. Hãy xoay mặt nhẹ sang {savedAngles === 1 ? 'bên trái hoặc phải' : 'hướng khác'} rồi chụp tiếp.
+              Đã lưu {savedAngles}/{MAX_ANGLES} góc. Hãy xoay mặt nhẹ sang {savedAngles === 1 ? 'bên trái hoặc phải' : 'hướng khác'} rồi chụp tiếp.
+            </div>
+          )}
+          {savedAngles >= MAX_ANGLES && (
+            <div className="mb-3 p-3 bg-orange-50 border border-orange-200 rounded-lg text-xs text-orange-700">
+              Đã đăng ký đủ {MAX_ANGLES} góc mặt. Để thêm góc mới, hãy xóa góc và đăng ký lại.
             </div>
           )}
 

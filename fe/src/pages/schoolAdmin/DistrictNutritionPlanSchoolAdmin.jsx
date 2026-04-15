@@ -113,6 +113,7 @@ export default function DistrictNutritionPlanSchoolAdmin() {
   const [createOpen, setCreateOpen] = useState(false);
   const [createSaving, setCreateSaving] = useState(false);
   const [createStart, setCreateStart] = useState("");
+  const [createEnd, setCreateEnd] = useState("");
   const [createFile, setCreateFile] = useState(null);
   const [createRows, setCreateRows] = useState(() => DEFAULT_ROWS.map((r) => ({ ...r })));
   const [createNewRow, setCreateNewRow] = useState({ name: "", min: "", max: "" });
@@ -172,6 +173,7 @@ export default function DistrictNutritionPlanSchoolAdmin() {
     setCreateRows(DEFAULT_ROWS.map((r) => ({ ...r, id: r.id })));
     setCreateNewRow({ name: "", min: "", max: "" });
     setCreateStart("");
+    setCreateEnd("");
     setCreateFile(null);
     if (createFileInputRef.current) createFileInputRef.current.value = "";
     setCreateOpen(true);
@@ -220,12 +222,21 @@ export default function DistrictNutritionPlanSchoolAdmin() {
       toast.error("Vui lòng chọn ngày bắt đầu áp dụng");
       return;
     }
+    if (!createEnd) {
+      toast.error("Vui lòng chọn ngày kết thúc áp dụng");
+      return;
+    }
+    if (createEnd <= createStart) {
+      toast.error("Ngày kết thúc phải lớn hơn ngày bắt đầu");
+      return;
+    }
     if (!validateRows(createRows)) return;
 
     try {
       setCreateSaving(true);
       const fd = new FormData();
       fd.append("startDate", createStart);
+      fd.append("endDate", createEnd);
       fd.append("items", JSON.stringify(rowsToPayload(createRows)));
       if (createFile) fd.append("regulationFile", createFile);
       await createDistrictNutritionPlan(fd);
@@ -665,6 +676,16 @@ export default function DistrictNutritionPlanSchoolAdmin() {
               InputLabelProps={{ shrink: true }}
               value={createStart}
               onChange={(e) => setCreateStart(e.target.value)}
+            />
+            <TextField
+              label="Ngày kết thúc áp dụng"
+              type="date"
+              size="small"
+              fullWidth
+              InputLabelProps={{ shrink: true }}
+              value={createEnd}
+              inputProps={{ min: createStart || todayVNString() }}
+              onChange={(e) => setCreateEnd(e.target.value)}
             />
             <Typography variant="caption" color="text.secondary" display="block">
               Chỉ một tệp Word — chọn tệp khác sẽ thay thế tệp vừa chọn.

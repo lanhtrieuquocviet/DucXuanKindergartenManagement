@@ -53,17 +53,17 @@ function AssetTable({ title, assets }) {
         </IconButton>
       </Stack>
       <Collapse in={open}>
-        <Paper variant="outlined" sx={{ overflow: 'hidden' }}>
-          <TableContainer>
-            <Table size="small">
+        <Paper variant="outlined" sx={{ overflow: 'hidden', borderRadius: 1 }}>
+          <TableContainer sx={{ overflowX: 'auto' }}>
+            <Table size="small" sx={{ minWidth: 480 }}>
               <TableHead>
                 <TableRow sx={{ bgcolor: 'grey.100' }}>
                   <TableCell width={36} align="center">STT</TableCell>
                   <TableCell>Tên tài sản</TableCell>
-                  <TableCell width={80} align="center">Đơn vị</TableCell>
-                  <TableCell width={80} align="center">SL</TableCell>
-                  <TableCell width={110} align="center">Đối tượng</TableCell>
-                  <TableCell>Ghi chú</TableCell>
+                  <TableCell width={70} align="center">Đơn vị</TableCell>
+                  <TableCell width={50} align="center">SL</TableCell>
+                  <TableCell width={100} align="center">Đối tượng</TableCell>
+                  <TableCell sx={{ display: { xs: 'none', sm: 'table-cell' } }}>Ghi chú</TableCell>
                 </TableRow>
               </TableHead>
               <TableBody>
@@ -91,7 +91,7 @@ function AssetTable({ title, assets }) {
                             sx={{ fontSize: 11 }}
                           />
                         </TableCell>
-                        <TableCell sx={{ color: 'text.secondary', fontSize: 12 }}>{a.notes}</TableCell>
+                        <TableCell sx={{ color: 'text.secondary', fontSize: 12, display: { xs: 'none', sm: 'table-cell' } }}>{a.notes}</TableCell>
                       </TableRow>
                     ))}
                   </>
@@ -108,6 +108,10 @@ function AssetTable({ title, assets }) {
               rowsPerPageOptions={[10, 25, 50]}
               labelRowsPerPage="Số hàng:"
               labelDisplayedRows={({ from, to, count }) => `${from}–${to} / ${count}`}
+              sx={{
+                '.MuiTablePagination-selectLabel': { display: { xs: 'none', sm: 'block' } },
+                '.MuiTablePagination-input':       { display: { xs: 'none', sm: 'flex' } },
+              }}
             />
           </TableContainer>
         </Paper>
@@ -192,13 +196,19 @@ export default function TeacherClassAssets() {
       userName={user?.fullName || user?.username}
     >
       <Box sx={{ p: { xs: 2, md: 3 }, maxWidth: 1100, mx: 'auto' }}>
-        <Stack direction="row" alignItems="center" justifyContent="space-between" mb={3}>
+        <Stack direction="row" alignItems="flex-start" justifyContent="space-between" mb={3}>
           <Box>
-            <Typography variant="h5" fontWeight={700}>Tài sản lớp</Typography>
+            <Typography variant="h5" fontWeight={700} sx={{ fontSize: { xs: '1.15rem', sm: '1.5rem' } }}>
+              Tài sản lớp
+            </Typography>
             {allocation && (
-              <Typography variant="body2" color="text.secondary">
-                Lớp: {allocation.className} · Ngày bàn giao: {formatDate(allocation.handoverDate)} · {totalAssets} tài sản
-              </Typography>
+              <Stack direction={{ xs: 'column', sm: 'row' }} spacing={{ xs: 0, sm: 1 }} mt={0.5}>
+                <Typography variant="body2" color="text.secondary">Lớp: <strong>{allocation.className}</strong></Typography>
+                <Typography variant="body2" color="text.secondary" sx={{ display: { xs: 'none', sm: 'block' } }}>·</Typography>
+                <Typography variant="body2" color="text.secondary">Ngày BG: {formatDate(allocation.handoverDate)}</Typography>
+                <Typography variant="body2" color="text.secondary" sx={{ display: { xs: 'none', sm: 'block' } }}>·</Typography>
+                <Typography variant="body2" color="text.secondary">{totalAssets} tài sản</Typography>
+              </Stack>
             )}
           </Box>
         </Stack>
@@ -223,6 +233,13 @@ export default function TeacherClassAssets() {
                         <Box flex={1}>
                           <Typography variant="caption" color="text.secondary">Lớp</Typography>
                           <Typography variant="body2" fontWeight={600}>{allocation.className}</Typography>
+                        </Box>
+                        <Box flex={1}>
+                          <Typography variant="caption" color="text.secondary">Người bàn giao</Typography>
+                          <Typography variant="body2" fontWeight={600}>{allocation.handoverByName || '—'}</Typography>
+                          {allocation.handoverByPosition && (
+                            <Typography variant="caption" color="text.secondary">{allocation.handoverByPosition}</Typography>
+                          )}
                         </Box>
                         <Box flex={1}>
                           <Typography variant="caption" color="text.secondary">Giáo viên nhận</Typography>
@@ -265,8 +282,10 @@ export default function TeacherClassAssets() {
                             color="success"
                             startIcon={<CheckCircleIcon />}
                             onClick={() => setConfirmOpen(true)}
+                            fullWidth={false}
+                            sx={{ alignSelf: { xs: 'stretch', sm: 'auto' } }}
                           >
-                            Xác nhận nhận bàn giao
+                            Xác nhận bàn giao
                           </Button>
                         </Stack>
                       </Paper>

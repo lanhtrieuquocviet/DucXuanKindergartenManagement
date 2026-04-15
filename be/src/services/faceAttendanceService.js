@@ -251,8 +251,9 @@ const matchFaceEmbedding = async (req, res) => {
 
     // Kiểm tra margin: kết quả tốt nhất phải rõ ràng hơn kết quả thứ 2
     // Tránh nhầm khi 2 học sinh có khuôn mặt giống nhau (đặc biệt anh chị em ruột)
+    // Ngưỡng 0.83 thay vì 0.78 để tránh báo "ambiguous" sai khi lớp có nhiều học sinh
     const margin = bestSimilarity - secondBestSimilarity;
-    if (secondBestSimilarity > 0.78 && margin < MIN_MARGIN) {
+    if (secondBestSimilarity > 0.83 && margin < MIN_MARGIN) {
       return res.status(200).json({
         status: 'ambiguous',
         message: 'Khuôn mặt quá giống nhau giữa các học sinh, không thể xác định chính xác',
@@ -272,39 +273,38 @@ const matchFaceEmbedding = async (req, res) => {
       });
     }
 
-    // Đã nhận diện → tự động check-in nếu autoCheckIn = true
+    // Tính thời gian hiện tại (dùng cho cả check preview và auto check-in)
+    const now = new Date();
+    const attendanceDate = date ? new Date(date) : new Date(now);
+    attendanceDate.setHours(0, 0, 0, 0);
+    const checkInTime = now;
+    const checkInTimeString = `${now.getHours().toString().padStart(2, '0')}:${now.getMinutes().toString().padStart(2, '0')}`;
+
+    // Kiểm tra đã điểm danh hôm nay chưa (luôn kiểm tra, không phụ thuộc autoCheckIn)
+    const existingAttendance = await Attendances.findOne({
+      studentId: bestMatch._id,
+      date: attendanceDate,
+    });
+
+    if (existingAttendance) {
+      return res.status(200).json({
+        status: 'already_checked_in',
+        message: `${bestMatch.fullName} đã được điểm danh hôm nay lúc ${existingAttendance.timeString?.checkIn || ''}`,
+        matched: true,
+        student: {
+          _id: bestMatch._id,
+          fullName: bestMatch.fullName,
+          avatar: bestMatch.avatar,
+          classId: bestMatch.classId,
+        },
+        similarity: bestSimilarity.toFixed(4),
+        attendance: existingAttendance,
+      });
+    }
+
+    // Tự động check-in nếu autoCheckIn = true, ngược lại chỉ trả về kết quả nhận diện
     let attendance = null;
     if (autoCheckIn) {
-      const now = new Date();
-      const attendanceDate = date ? new Date(date) : new Date(now);
-      attendanceDate.setHours(0, 0, 0, 0);
-
-      const checkInTime = now;
-      const checkInTimeString = `${now.getHours().toString().padStart(2, '0')}:${now.getMinutes().toString().padStart(2, '0')}`;
-
-      // Upsert: nếu đã điểm danh hôm nay thì không ghi đè
-      const existingAttendance = await Attendances.findOne({
-        studentId: bestMatch._id,
-        date: attendanceDate,
-      });
-
-      if (existingAttendance) {
-        // Đã điểm danh rồi → trả về thông báo
-        return res.status(200).json({
-          status: 'already_checked_in',
-          message: `${bestMatch.fullName} đã được điểm danh hôm nay lúc ${existingAttendance.timeString?.checkIn || ''}`,
-          matched: true,
-          student: {
-            _id: bestMatch._id,
-            fullName: bestMatch.fullName,
-            avatar: bestMatch.avatar,
-            classId: bestMatch.classId,
-          },
-          similarity: bestSimilarity.toFixed(4),
-          attendance: existingAttendance,
-        });
-      }
-
       // Tạo bản ghi điểm danh mới
       attendance = await Attendances.create({
         studentId: bestMatch._id,
@@ -347,6 +347,8 @@ const matchFaceEmbedding = async (req, res) => {
       },
       similarity: bestSimilarity.toFixed(4),
       attendance: attendance,
+      // Thời gian preview để frontend hiển thị (khi autoCheckIn=false)
+      previewTime: { checkIn: checkInTimeString },
     });
   } catch (error) {
     console.error('matchFaceEmbedding error:', error);
@@ -783,7 +785,7 @@ const matchPickupFaceForCheckout = async (req, res) => {
  */
 const matchStudentFaceForCheckout = async (req, res) => {
   try {
-    const { embedding, classId, date, checkoutImageUrl = '' } = req.body;
+    const { embedding, classId, date, checkoutImageUrl = '', autoCheckOut = true } = req.body;
 
     if (!Array.isArray(embedding) || embedding.length !== 128) {
       return res.status(400).json({ status: 'error', message: 'embedding phải là mảng 128 số float' });
@@ -837,7 +839,7 @@ const matchStudentFaceForCheckout = async (req, res) => {
     }
 
     const margin = bestSimilarity - secondBestSimilarity;
-    if (secondBestSimilarity > 0.78 && margin < MIN_MARGIN) {
+    if (secondBestSimilarity > 0.83 && margin < MIN_MARGIN) {
       return res.status(200).json({
         status: 'ambiguous',
         message: 'Khuôn mặt quá giống nhau giữa các học sinh, không thể xác định chính xác',
@@ -879,8 +881,22 @@ const matchStudentFaceForCheckout = async (req, res) => {
       });
     }
 
-    // Ghi checkout
     const checkOutTimeString = `${now.getHours().toString().padStart(2, '0')}:${now.getMinutes().toString().padStart(2, '0')}`;
+
+    // Nếu autoCheckOut=false: chỉ trả kết quả nhận diện, không ghi DB
+    if (!autoCheckOut) {
+      return res.status(200).json({
+        status: 'success',
+        message: `Nhận diện thành công: ${bestMatch.fullName}`,
+        matched: true,
+        student: { _id: bestMatch._id, fullName: bestMatch.fullName, avatar: bestMatch.avatar },
+        similarity: bestSimilarity.toFixed(4),
+        attendance: existingAttendance,
+        previewTime: { checkOut: checkOutTimeString },
+      });
+    }
+
+    // Ghi checkout
     const attendance = await Attendances.findOneAndUpdate(
       { studentId: bestMatch._id, date: attendanceDate },
       {
@@ -918,6 +934,7 @@ const matchStudentFaceForCheckout = async (req, res) => {
       student: { _id: bestMatch._id, fullName: bestMatch.fullName, avatar: bestMatch.avatar },
       similarity: bestSimilarity.toFixed(4),
       attendance,
+      previewTime: { checkOut: checkOutTimeString },
     });
   } catch (error) {
     console.error('matchStudentFaceForCheckout error:', error);

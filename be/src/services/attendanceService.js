@@ -26,6 +26,8 @@ const upsertAttendance = async (req, res) => {
       time,
       timeString,
       isTakeOff,
+      checkinBelongings,
+      checkedInByAI,
     } = req.body;
 
     if (!studentId || !date) {
@@ -59,6 +61,8 @@ const upsertAttendance = async (req, res) => {
         checkOut: timeString && timeString.checkOut ? timeString.checkOut : '',
       },
       isTakeOff: !!isTakeOff,
+      ...(Array.isArray(checkinBelongings) && { checkinBelongings }),
+      ...(typeof checkedInByAI === 'boolean' && { checkedInByAI }),
     };
 
     const attendance = await Attendances.findOneAndUpdate(
@@ -138,6 +142,8 @@ const checkoutAttendance = async (req, res) => {
       receiverOtherInfo,
       receiverOtherImageName,
       checkoutBelongingsNote,
+      checkoutBelongings,
+      checkedOutByAI,
       time,
       timeString,
       status,
@@ -183,6 +189,8 @@ const checkoutAttendance = async (req, res) => {
       status: status || 'present',
       'time.checkOut': checkOutTime,
       'timeString.checkOut': checkOutTimeString,
+      ...(Array.isArray(checkoutBelongings) && { checkoutBelongings }),
+      ...(typeof checkedOutByAI === 'boolean' && { checkedOutByAI }),
     };
 
     if (classId) {
