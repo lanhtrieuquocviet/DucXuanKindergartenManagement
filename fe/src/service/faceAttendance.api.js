@@ -39,8 +39,9 @@ export const deleteFaceAngle = (studentId, index) =>
  * @param {string} classId
  * @param {string} [date] - YYYY-MM-DD, mặc định hôm nay
  */
-export const matchFaceEmbedding = (embedding, classId, date, checkinImageUrl = '') =>
-  post('/face/match', { embedding, classId, date, checkinImageUrl });
+// autoCheckIn=false: chỉ nhận diện, KHÔNG tự ghi điểm danh — giáo viên phải ấn Lưu
+export const matchFaceEmbedding = (embedding, classId, date, checkinImageUrl = '', autoCheckIn = false) =>
+  post('/face/match', { embedding, classId, date, checkinImageUrl, autoCheckIn });
 
 /**
  * Tải toàn bộ embeddings của lớp về thiết bị (cho chế độ OFFLINE)
@@ -90,8 +91,9 @@ export const matchPickupFaceForCheckout = (embedding, classId, date, checkoutIma
  * @param {string} [date]
  * @param {string} [checkoutImageUrl]
  */
-export const matchStudentFaceForCheckout = (embedding, classId, date, checkoutImageUrl = '') =>
-  post('/face/student/checkout', { embedding, classId, date, checkoutImageUrl });
+// autoCheckOut=false: chỉ nhận diện, KHÔNG tự ghi checkout — giáo viên phải ấn Lưu
+export const matchStudentFaceForCheckout = (embedding, classId, date, checkoutImageUrl = '', autoCheckOut = false) =>
+  post('/face/student/checkout', { embedding, classId, date, checkoutImageUrl, autoCheckOut });
 
 /**
  * Cập nhật thông tin người đưa/đón, ghi chú và đồ mang đến/về cho bản ghi điểm danh
@@ -115,6 +117,20 @@ export const updateAttendanceDeliverer = (attendanceId, delivererType, deliverer
  */
 export const updateAttendanceReceiver = (attendanceId, receiverType, receiverOtherInfo = '', checkoutBelongingsNote = '', checkoutBelongings = []) =>
   patch(`/face/attendance/${attendanceId}/deliverer`, { receiverType, receiverOtherInfo, checkoutBelongingsNote, checkoutBelongings });
+
+/**
+ * Lưu điểm danh đến (check-in) sau khi giáo viên xác nhận
+ * Gọi sau khi matchFaceEmbedding trả về success và giáo viên ấn "Lưu"
+ */
+export const saveCheckinAttendance = (data) =>
+  post('/students/attendance', data);
+
+/**
+ * Lưu điểm danh về (check-out) sau khi giáo viên xác nhận
+ * Gọi sau khi matchStudentFaceForCheckout trả về success và giáo viên ấn "Lưu"
+ */
+export const saveCheckoutAttendance = (data) =>
+  post('/students/attendance/checkout', data);
 
 /**
  * Lấy danh sách người đón đã được duyệt của học sinh

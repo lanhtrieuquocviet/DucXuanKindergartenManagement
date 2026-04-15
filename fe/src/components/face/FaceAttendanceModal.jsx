@@ -19,7 +19,7 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { toast } from 'react-toastify';
 import FaceCamera from './FaceCamera';
-import { matchFaceEmbedding, getClassEmbeddings, uploadAttendanceImage, updateAttendanceDeliverer, getApprovedPickupPersons } from '../../service/faceAttendance.api';
+import { matchFaceEmbedding, getClassEmbeddings, uploadAttendanceImage, saveCheckinAttendance, getApprovedPickupPersons } from '../../service/faceAttendance.api';
 import { useOfflineSync } from '../../hooks/useOfflineSync';
 
 // Cosine similarity (dùng khi offline - giống backend)
@@ -47,6 +47,7 @@ export default function FaceAttendanceModal({ open, onClose, classId, className,
   // Trạng thái nhận diện
   const [matchResult, setMatchResult] = useState(null);
   const [isProcessing, setIsProcessing] = useState(false);
+  const [isSaving, setIsSaving] = useState(false);
   const [checkedInToday, setCheckedInToday] = useState([]);
 
   // Embeddings local (cho offline)
@@ -114,6 +115,7 @@ export default function FaceAttendanceModal({ open, onClose, classId, className,
       setCheckinOtherChecked(false);
       setCheckinOtherText('');
       setDelivererCountdown(0);
+      setIsSaving(false);
       cooldownRef.current = false;
       waitingForDelivererRef.current = false;
       if (delivererTimeoutRef.current) clearTimeout(delivererTimeoutRef.current);
@@ -121,9 +123,9 @@ export default function FaceAttendanceModal({ open, onClose, classId, className,
     }
   }, [open]);
 
-  // ── Xử lý offline match ────────────────────────────────────────────────────
+  // ── Xử lý offline match — chỉ nhận diện, KHÔNG lưu (lưu khi ấn nút Lưu) ──
   const matchOffline = useCallback(
-    async (embedding) => {
+    (embedding) => {
       if (localEmbeddings.length === 0) return null;
 
       let bestMatch = null;
@@ -145,12 +147,10 @@ export default function FaceAttendanceModal({ open, onClose, classId, className,
       }
 
       if (bestSim < MATCH_THRESHOLD) return null;
-      if (secondBestSim > 0.78 && (bestSim - secondBestSim) < MIN_MARGIN) return null;
+      if (secondBestSim > 0.83 && (bestSim - secondBestSim) < MIN_MARGIN) return null;
 
-      const today = new Date().toISOString().split('T')[0];
       const now = new Date();
       const timeStr = `${now.getHours().toString().padStart(2, '0')}:${now.getMinutes().toString().padStart(2, '0')}`;
-
       const studentId = bestMatch.studentId || bestMatch._id;
 
       if (checkedInToday.includes(studentId)) {
@@ -160,22 +160,15 @@ export default function FaceAttendanceModal({ open, onClose, classId, className,
         };
       }
 
-      await saveOfflineRecord({
-        studentId,
-        classId: bestMatch.classId,
-        date: today,
-        checkInTime: now.toISOString(),
-        checkInTimeString: timeStr,
-      });
-
-      setCheckedInToday((prev) => [...prev, studentId]);
+      // Chỉ trả kết quả, lưu thực sự khi giáo viên ấn "Lưu & Tiếp tục"
       return {
         status: 'success',
         student: { ...bestMatch, _id: studentId },
         similarity: bestSim.toFixed(4),
+        previewTime: { checkIn: timeStr },
       };
     },
-    [localEmbeddings, checkedInToday, saveOfflineRecord]
+    [localEmbeddings, checkedInToday]
   );
 
   // ── Bắt đầu thời gian chờ 2 phút + đếm ngược ─────────────────────────────
@@ -188,7 +181,6 @@ export default function FaceAttendanceModal({ open, onClose, classId, className,
       setDelivererCountdown((prev) => {
         if (prev <= 1) {
           clearInterval(countdownIntervalRef.current);
-          waitingForDelivererRef.current = false;
           return 0;
         }
         return prev - 1;
@@ -197,43 +189,96 @@ export default function FaceAttendanceModal({ open, onClose, classId, className,
 
     if (delivererTimeoutRef.current) clearTimeout(delivererTimeoutRef.current);
     delivererTimeoutRef.current = setTimeout(() => {
+      // Hết giờ mà chưa ấn Lưu → reset form, KHÔNG lưu điểm danh
       waitingForDelivererRef.current = false;
       if (countdownIntervalRef.current) clearInterval(countdownIntervalRef.current);
       setDelivererCountdown(0);
+      setMatchResult(null);
+      setPickupPersons([]);
+      setSelectedDeliverer(null);
+      setNote('');
+      setCheckinBelongings([]);
+      setCheckinOtherChecked(false);
+      setCheckinOtherText('');
+      toast.warn('Hết thời gian — điểm danh chưa được lưu. Hãy quét lại.');
     }, DELIVERER_WAIT_MS);
   }, []);
 
-  // ── Lưu toàn bộ thông tin và tiếp tục quét ───────────────────────────────
+  // ── Lưu điểm danh khi giáo viên ấn nút "Lưu & Tiếp tục" ─────────────────
   const handleSaveAll = useCallback(async () => {
-    if (matchResult?.attendance?._id) {
-      const delivererType = selectedDeliverer
-        ? `${selectedDeliverer.fullName} (${selectedDeliverer.relation})`
-        : '';
-      const delivererOtherInfo = selectedDeliverer?.phone || '';
-      const finalCheckinBelongings = [
-        ...checkinBelongings,
-        ...(checkinOtherChecked && checkinOtherText.trim() ? [checkinOtherText.trim()] : []),
-      ];
-      try {
-        await updateAttendanceDeliverer(
-          matchResult.attendance._id,
+    if (!matchResult?.student?._id || isSaving) return;
+
+    const studentId = matchResult.student._id;
+
+    // Ngăn lưu trùng trong cùng phiên
+    if (checkedInToday.includes(studentId)) {
+      toast.warn('Học sinh này đã được lưu điểm danh trong phiên này');
+      return;
+    }
+
+    const detectedAt = matchResult.timestamp || new Date();
+    const timeStr =
+      matchResult.previewTime?.checkIn ||
+      `${detectedAt.getHours().toString().padStart(2, '0')}:${detectedAt.getMinutes().toString().padStart(2, '0')}`;
+    const today = detectedAt.toISOString().split('T')[0];
+
+    const delivererType = selectedDeliverer
+      ? `${selectedDeliverer.fullName} (${selectedDeliverer.relation})`
+      : '';
+    const delivererOtherInfo = selectedDeliverer?.phone || '';
+    const finalCheckinBelongings = [
+      ...checkinBelongings,
+      ...(checkinOtherChecked && checkinOtherText.trim() ? [checkinOtherText.trim()] : []),
+    ];
+
+    setIsSaving(true);
+    try {
+      if (isOnline) {
+        await saveCheckinAttendance({
+          studentId,
+          classId: matchResult.student.classId,
+          date: today,
+          status: 'present',
+          note,
           delivererType,
           delivererOtherInfo,
-          note,
-          finalCheckinBelongings,
-          [],
-        );
-        if (selectedDeliverer) setDelivererSaved(true);
-        toast.success('Đã lưu thông tin điểm danh');
-      } catch {
-        toast.error('Không lưu được thông tin');
+          checkinBelongings: finalCheckinBelongings,
+          checkinImageName: matchResult.checkinImageUrl || '',
+          checkedInByAI: true,
+          time: { checkIn: detectedAt.toISOString() },
+          timeString: { checkIn: timeStr },
+        });
+      } else {
+        // Offline: lưu vào IndexedDB để sync sau
+        await saveOfflineRecord({
+          studentId,
+          classId: matchResult.student.classId,
+          date: today,
+          checkInTime: detectedAt.toISOString(),
+          checkInTimeString: timeStr,
+        });
       }
+
+      setCheckedInToday((prev) => [...prev, studentId]);
+      setDelivererSaved(true);
+      toast.success('Đã lưu điểm danh thành công');
+      onCheckinSuccess?.();
+
+      // Dừng countdown, sẵn sàng quét học sinh tiếp theo
+      waitingForDelivererRef.current = false;
+      if (countdownIntervalRef.current) clearInterval(countdownIntervalRef.current);
+      if (delivererTimeoutRef.current) clearTimeout(delivererTimeoutRef.current);
+      setDelivererCountdown(0);
+    } catch {
+      toast.error('Không lưu được điểm danh. Vui lòng thử lại.');
+    } finally {
+      setIsSaving(false);
     }
-    waitingForDelivererRef.current = false;
-    if (countdownIntervalRef.current) clearInterval(countdownIntervalRef.current);
-    if (delivererTimeoutRef.current) clearTimeout(delivererTimeoutRef.current);
-    setDelivererCountdown(0);
-  }, [matchResult, selectedDeliverer, note, checkinBelongings, checkinOtherChecked, checkinOtherText]);
+  }, [
+    matchResult, isSaving, checkedInToday, selectedDeliverer, note,
+    checkinBelongings, checkinOtherChecked, checkinOtherText,
+    isOnline, saveOfflineRecord, onCheckinSuccess,
+  ]);
 
   // ── Callback nhận embedding từ FaceCamera ─────────────────────────────────
   const handleDetected = useCallback(
@@ -247,10 +292,10 @@ export default function FaceAttendanceModal({ open, onClose, classId, className,
 
       try {
         let result;
+        let checkinImageUrl = '';
 
         if (isOnline) {
           const today = new Date().toISOString().split('T')[0];
-          let checkinImageUrl = '';
           if (capturedFrame) {
             try {
               checkinImageUrl = await uploadAttendanceImage(capturedFrame);
@@ -266,12 +311,10 @@ export default function FaceAttendanceModal({ open, onClose, classId, className,
           }
         }
 
-        setMatchResult({ ...result, isOnline, timestamp: new Date(), capturedFrame });
+        // Lưu checkinImageUrl vào result để dùng khi ấn Lưu
+        setMatchResult({ ...result, isOnline, timestamp: new Date(), capturedFrame, checkinImageUrl });
 
         if (result.status === 'success' && result.student?._id) {
-          setCheckedInToday((prev) =>
-            prev.includes(result.student._id) ? prev : [...prev, result.student._id]
-          );
           setDelivererSaved(false);
           setSelectedDeliverer(null);
           setNote('');
@@ -279,9 +322,8 @@ export default function FaceAttendanceModal({ open, onClose, classId, className,
           setCheckinOtherChecked(false);
           setCheckinOtherText('');
 
-          if (result.attendance?._id) {
-            startDelivererWait();
-          }
+          // Bắt đầu đếm ngược 2 phút để giáo viên nhập thông tin và ấn Lưu
+          startDelivererWait();
 
           getApprovedPickupPersons(result.student._id)
             .then((res) => {
@@ -291,8 +333,7 @@ export default function FaceAttendanceModal({ open, onClose, classId, className,
               setPickupPersons([]);
             });
 
-          toast.success(`Điểm danh: ${result.student.fullName}`);
-          onCheckinSuccess?.();
+          toast.info(`Nhận diện: ${result.student.fullName} — Hãy ấn Lưu để xác nhận điểm danh`);
         } else if (result.status === 'already_checked_in') {
           toast.info(`${result.student?.fullName || 'Học sinh'} đã điểm danh rồi`);
         } else if (result.status === 'no_match') {
@@ -436,7 +477,7 @@ export default function FaceAttendanceModal({ open, onClose, classId, className,
                       <div>
                         <p className="font-bold text-green-700 text-sm sm:text-base">{matchResult.student?.fullName}</p>
                         <p className="text-xs text-green-600">
-                          ✓ Điểm danh thành công{!matchResult.isOnline && ' (offline)'}
+                          ✓ Nhận diện thành công — hãy ấn Lưu để xác nhận{!matchResult.isOnline && ' (offline)'}
                         </p>
                         <p className="text-xs text-gray-400">
                           {matchResult.timestamp?.toLocaleTimeString('vi-VN')}
@@ -500,7 +541,7 @@ export default function FaceAttendanceModal({ open, onClose, classId, className,
                     </div>
 
                     {/* Người đưa */}
-                    {matchResult.attendance?._id && (
+                    {matchResult.status === 'success' && (
                       <div className="border border-blue-100 rounded-lg p-2.5 bg-blue-50">
                         <p className="text-xs font-semibold text-blue-700 mb-1.5">👤 Người đưa hôm nay</p>
                         {delivererSaved ? (
@@ -530,7 +571,7 @@ export default function FaceAttendanceModal({ open, onClose, classId, className,
                     )}
 
                     {/* Đếm ngược + nút Lưu */}
-                    {matchResult.attendance?._id && !delivererSaved && (
+                    {matchResult.status === 'success' && !delivererSaved && (
                       <div className="flex items-center gap-2 pt-1">
                         {delivererCountdown > 0 && (
                           <span className="text-xs text-orange-500 font-semibold tabular-nums whitespace-nowrap">
@@ -539,9 +580,10 @@ export default function FaceAttendanceModal({ open, onClose, classId, className,
                         )}
                         <button
                           onClick={handleSaveAll}
-                          className="flex-1 py-2 bg-blue-600 active:bg-blue-700 text-white rounded-lg text-sm font-medium transition-colors"
+                          disabled={isSaving}
+                          className="flex-1 py-2 bg-blue-600 active:bg-blue-700 text-white rounded-lg text-sm font-medium transition-colors disabled:opacity-60"
                         >
-                          Lưu &amp; Tiếp tục
+                          {isSaving ? 'Đang lưu...' : 'Lưu & Tiếp tục'}
                         </button>
                       </div>
                     )}

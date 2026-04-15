@@ -790,19 +790,19 @@ function TeacherAttendance() {
           <button
             onClick={() => setIsFaceModalOpen(true)}
             style={{
-              background: 'linear-gradient(135deg, #3b82f6 0%, #6366f1 100%)',
-              boxShadow: '0 4px 15px rgba(99, 102, 241, 0.4)',
+              background: 'linear-gradient(135deg, #10b981 0%, #059669 100%)',
+              boxShadow: '0 4px 15px rgba(16, 185, 129, 0.4)',
               transition: 'all 0.25s ease',
               border: 'none',
               cursor: 'pointer',
             }}
             onMouseEnter={e => {
               e.currentTarget.style.transform = 'translateY(-2px)';
-              e.currentTarget.style.boxShadow = '0 8px 25px rgba(99, 102, 241, 0.55)';
+              e.currentTarget.style.boxShadow = '0 8px 25px rgba(16, 185, 129, 0.55)';
             }}
             onMouseLeave={e => {
               e.currentTarget.style.transform = 'translateY(0)';
-              e.currentTarget.style.boxShadow = '0 4px 15px rgba(99, 102, 241, 0.4)';
+              e.currentTarget.style.boxShadow = '0 4px 15px rgba(16, 185, 129, 0.4)';
             }}
             className="relative flex items-center gap-2 px-4 py-2 sm:px-5 sm:py-2.5 text-white text-xs sm:text-sm font-semibold rounded-xl overflow-hidden"
           >
@@ -838,19 +838,19 @@ function TeacherAttendance() {
               setIsPickupFaceModalOpen(true);
             }}
             style={{
-              background: 'linear-gradient(135deg, #10b981 0%, #059669 100%)',
-              boxShadow: '0 4px 15px rgba(16, 185, 129, 0.4)',
+              background: 'linear-gradient(135deg, #3b82f6 0%, #6366f1 100%)',
+              boxShadow: '0 4px 15px rgba(99, 102, 241, 0.4)',
               transition: 'all 0.25s ease',
               border: 'none',
               cursor: 'pointer',
             }}
             onMouseEnter={e => {
               e.currentTarget.style.transform = 'translateY(-2px)';
-              e.currentTarget.style.boxShadow = '0 8px 25px rgba(16, 185, 129, 0.55)';
+              e.currentTarget.style.boxShadow = '0 8px 25px rgba(99, 102, 241, 0.55)';
             }}
             onMouseLeave={e => {
               e.currentTarget.style.transform = 'translateY(0)';
-              e.currentTarget.style.boxShadow = '0 4px 15px rgba(16, 185, 129, 0.4)';
+              e.currentTarget.style.boxShadow = '0 4px 15px rgba(99, 102, 241, 0.4)';
             }}
             className="relative flex items-center gap-2 px-4 py-2 sm:px-5 sm:py-2.5 text-white text-xs sm:text-sm font-semibold rounded-xl overflow-hidden"
           >

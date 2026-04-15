@@ -1,4 +1,6 @@
 import { memo, useCallback, useEffect, useRef, useState } from 'react';
+import { useTheme } from '@mui/material/styles';
+import useMediaQuery from '@mui/material/useMediaQuery';
 import { useNavigate } from 'react-router-dom';
 import { toast } from 'react-toastify';
 import {
@@ -166,8 +168,8 @@ const AssetRowEditor = memo(function AssetRowEditor({ rows, onChange, onMoveToOt
   let assetIdx = 0;
 
   return (
-    <Box>
-      <Table size="small" sx={{ mb: 1 }}>
+    <Box sx={{ overflowX: 'auto' }}>
+      <Table size="small" sx={{ mb: 1, minWidth: 700 }}>
         <TableHead>
           <TableRow sx={{ bgcolor: 'grey.100' }}>
             <TableCell sx={{ width: 28, p: 0 }} />
@@ -421,6 +423,8 @@ function AllocationDocument({ allocation, onClose }) {
 export default function ManageAssetAllocation() {
   const navigate = useNavigate();
   const { user, logout } = useAuth();
+  const theme = useTheme();
+  const isMobile = useMediaQuery(theme.breakpoints.down('sm'));
   const menuItems = useSchoolAdminMenu();
   const userName = user?.fullName || user?.username || 'School Admin';
 
@@ -718,7 +722,7 @@ export default function ManageAssetAllocation() {
       <Box sx={{ p: { xs: 1, md: 3 } }}>
         {/* Title */}
         <Stack direction="row" alignItems="center" justifyContent="space-between" mb={2} flexWrap="wrap" gap={1}>
-          <Typography variant="h5" fontWeight="bold">Phân bổ & Bàn giao tài sản</Typography>
+          <Typography variant="h5" fontWeight="bold" sx={{ fontSize: { xs: '1.15rem', sm: '1.5rem' } }}>Phân bổ & Bàn giao tài sản</Typography>
           <Button variant="contained" startIcon={<AddIcon />} onClick={openCreate}>
             Tạo biên bản bàn giao
           </Button>
@@ -753,12 +757,12 @@ export default function ManageAssetAllocation() {
             <Typography color="text.secondary">Chưa có biên bản bàn giao nào.</Typography>
           </Paper>
         ) : (
-          <Paper>
-            <Table size="small">
+          <Paper sx={{ overflowX: 'auto' }}>
+            <Table size="small" sx={{ minWidth: 860 }}>
               <TableHead>
                 <TableRow sx={{ bgcolor: 'primary.main' }}>
-                  {['Mã biên bản','Lớp','Giáo viên nhận','Ngày bàn giao','Năm học','Số TS','Trạng thái','Thao tác'].map((h) => (
-                    <TableCell key={h} sx={{ color: 'white', fontWeight: 'bold' }}>{h}</TableCell>
+                  {['Mã biên bản','Lớp','Người bàn giao','Giáo viên nhận','Ngày bàn giao','Năm học','Số TS','Trạng thái','Thao tác'].map((h) => (
+                    <TableCell key={h} sx={{ color: 'white', fontWeight: 'bold', whiteSpace: 'nowrap' }}>{h}</TableCell>
                   ))}
                 </TableRow>
               </TableHead>
@@ -767,11 +771,12 @@ export default function ManageAssetAllocation() {
                   const si = STATUS_INFO[alloc.status] || STATUS_INFO.active;
                   return (
                     <TableRow key={alloc._id} hover>
-                      <TableCell sx={{ fontFamily: 'monospace' }}>{alloc.documentCode}</TableCell>
-                      <TableCell>{alloc.className || '—'}</TableCell>
-                      <TableCell>{alloc.teacherName || '—'}</TableCell>
-                      <TableCell>{formatDate(alloc.handoverDate)}</TableCell>
-                      <TableCell>{alloc.academicYear || '—'}</TableCell>
+                      <TableCell sx={{ fontFamily: 'monospace', whiteSpace: 'nowrap' }}>{alloc.documentCode}</TableCell>
+                      <TableCell sx={{ whiteSpace: 'nowrap' }}>{alloc.className || '—'}</TableCell>
+                      <TableCell sx={{ whiteSpace: 'nowrap' }}>{alloc.handoverByName || '—'}</TableCell>
+                      <TableCell sx={{ whiteSpace: 'nowrap' }}>{alloc.teacherName || '—'}</TableCell>
+                      <TableCell sx={{ whiteSpace: 'nowrap' }}>{formatDate(alloc.handoverDate)}</TableCell>
+                      <TableCell sx={{ whiteSpace: 'nowrap' }}>{alloc.academicYear || '—'}</TableCell>
                       <TableCell align="center">{alloc.assets?.length || 0}</TableCell>
                       <TableCell>
                         <Chip label={si.label} color={si.color} size="small" />
@@ -865,7 +870,7 @@ export default function ManageAssetAllocation() {
       </Popover>
 
       {/* ── Create / Edit Form Dialog ───────────────────────────────────────── */}
-      <Dialog open={formOpen} onClose={() => setFormOpen(false)} maxWidth="lg" fullWidth>
+      <Dialog open={formOpen} onClose={() => setFormOpen(false)} maxWidth="lg" fullWidth fullScreen={isMobile}>
         <DialogTitle>{editTarget ? 'Chỉnh sửa biên bản bàn giao' : 'Tạo biên bản bàn giao tài sản'}</DialogTitle>
         <DialogContent dividers>
           <Stack gap={2}>
@@ -996,7 +1001,7 @@ export default function ManageAssetAllocation() {
             <Divider />
 
             {/* Thiết bị ngoài thông tư */}
-            <Stack direction="row" alignItems="center" justifyContent="space-between">
+            <Stack direction={{ xs: 'column', sm: 'row' }} alignItems={{ xs: 'flex-start', sm: 'center' }} justifyContent="space-between" gap={1}>
               <Box>
                 <Typography variant="subtitle2" fontWeight="bold">
                   Các thiết bị tài sản khác ngoài thông tư
@@ -1048,7 +1053,7 @@ export default function ManageAssetAllocation() {
       {viewTarget && <AllocationDocument allocation={viewTarget} onClose={() => setViewTarget(null)} />}
 
       {/* ── Transfer Dialog ─────────────────────────────────────────────────── */}
-      <Dialog open={transferOpen} onClose={() => setTransferOpen(false)} maxWidth="sm" fullWidth>
+      <Dialog open={transferOpen} onClose={() => setTransferOpen(false)} maxWidth="sm" fullWidth fullScreen={isMobile}>
         <DialogTitle>Chuyển giao tài sản sang lớp khác</DialogTitle>
         <DialogContent dividers>
           <Stack gap={2} pt={1}>
@@ -1102,36 +1107,38 @@ export default function ManageAssetAllocation() {
       </Dialog>
 
       {/* ── History Dialog ──────────────────────────────────────────────────── */}
-      <Dialog open={!!historyTarget} onClose={() => setHistoryTarget(null)} maxWidth="md" fullWidth>
+      <Dialog open={!!historyTarget} onClose={() => setHistoryTarget(null)} maxWidth="md" fullWidth fullScreen={isMobile}>
         <DialogTitle>Lịch sử chuyển giao — {historyTarget?.documentCode}</DialogTitle>
         <DialogContent dividers>
           {!historyTarget?.transferHistory?.length ? (
             <Typography color="text.secondary">Chưa có lịch sử chuyển giao.</Typography>
           ) : (
-            <Table size="small">
-              <TableHead>
-                <TableRow sx={{ bgcolor: 'grey.100' }}>
-                  <TableCell>Ngày chuyển</TableCell>
-                  <TableCell>Từ lớp</TableCell>
-                  <TableCell>Sang lớp</TableCell>
-                  <TableCell>GV cũ</TableCell>
-                  <TableCell>GV mới</TableCell>
-                  <TableCell>Ghi chú</TableCell>
-                </TableRow>
-              </TableHead>
-              <TableBody>
-                {historyTarget.transferHistory.map((h, i) => (
-                  <TableRow key={i}>
-                    <TableCell>{formatDate(h.transferDate)}</TableCell>
-                    <TableCell>{h.fromClassName || '—'}</TableCell>
-                    <TableCell>{h.toClassName || '—'}</TableCell>
-                    <TableCell>{h.fromTeacherName || '—'}</TableCell>
-                    <TableCell>{h.toTeacherName || '—'}</TableCell>
-                    <TableCell>{h.note || '—'}</TableCell>
+            <Box sx={{ overflowX: 'auto' }}>
+              <Table size="small" sx={{ minWidth: 500 }}>
+                <TableHead>
+                  <TableRow sx={{ bgcolor: 'grey.100' }}>
+                    <TableCell sx={{ whiteSpace: 'nowrap' }}>Ngày chuyển</TableCell>
+                    <TableCell sx={{ whiteSpace: 'nowrap' }}>Từ lớp</TableCell>
+                    <TableCell sx={{ whiteSpace: 'nowrap' }}>Sang lớp</TableCell>
+                    <TableCell sx={{ whiteSpace: 'nowrap' }}>GV cũ</TableCell>
+                    <TableCell sx={{ whiteSpace: 'nowrap' }}>GV mới</TableCell>
+                    <TableCell>Ghi chú</TableCell>
                   </TableRow>
-                ))}
-              </TableBody>
-            </Table>
+                </TableHead>
+                <TableBody>
+                  {historyTarget.transferHistory.map((h, i) => (
+                    <TableRow key={i}>
+                      <TableCell sx={{ whiteSpace: 'nowrap' }}>{formatDate(h.transferDate)}</TableCell>
+                      <TableCell sx={{ whiteSpace: 'nowrap' }}>{h.fromClassName || '—'}</TableCell>
+                      <TableCell sx={{ whiteSpace: 'nowrap' }}>{h.toClassName || '—'}</TableCell>
+                      <TableCell sx={{ whiteSpace: 'nowrap' }}>{h.fromTeacherName || '—'}</TableCell>
+                      <TableCell sx={{ whiteSpace: 'nowrap' }}>{h.toTeacherName || '—'}</TableCell>
+                      <TableCell>{h.note || '—'}</TableCell>
+                    </TableRow>
+                  ))}
+                </TableBody>
+              </Table>
+            </Box>
           )}
         </DialogContent>
         <DialogActions>

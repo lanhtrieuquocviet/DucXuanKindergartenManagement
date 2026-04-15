@@ -18,7 +18,7 @@ import FaceCamera from './FaceCamera';
 import {
   matchStudentFaceForCheckout,
   uploadAttendanceImage,
-  updateAttendanceReceiver,
+  saveCheckoutAttendance,
   getApprovedPickupPersons,
 } from '../../service/faceAttendance.api';
 
@@ -30,6 +30,7 @@ const CHECKOUT_ITEMS = ['Ba lô', 'Hộp cơm', 'Bình nước', 'Thuốc', 'Áo
 export default function PickupFaceAttendanceModal({ open, onClose, classId, className, onCheckoutSuccess }) {
   const [matchResult, setMatchResult] = useState(null);
   const [isProcessing, setIsProcessing] = useState(false);
+  const [isSaving, setIsSaving] = useState(false);
   const [checkedOutToday, setCheckedOutToday] = useState([]);
 
   const [pickupPersons, setPickupPersons] = useState([]);
@@ -64,6 +65,7 @@ export default function PickupFaceAttendanceModal({ open, onClose, classId, clas
       setCheckoutOtherChecked(false);
       setCheckoutOtherText('');
       setDelivererCountdown(0);
+      setIsSaving(false);
       cooldownRef.current = false;
       waitingForDelivererRef.current = false;
       if (delivererTimeoutRef.current) clearTimeout(delivererTimeoutRef.current);
@@ -81,7 +83,6 @@ export default function PickupFaceAttendanceModal({ open, onClose, classId, clas
       setDelivererCountdown((prev) => {
         if (prev <= 1) {
           clearInterval(countdownIntervalRef.current);
-          waitingForDelivererRef.current = false;
           return 0;
         }
         return prev - 1;
@@ -90,44 +91,84 @@ export default function PickupFaceAttendanceModal({ open, onClose, classId, clas
 
     if (delivererTimeoutRef.current) clearTimeout(delivererTimeoutRef.current);
     delivererTimeoutRef.current = setTimeout(() => {
+      // Hết giờ mà chưa ấn Lưu → reset form, KHÔNG lưu điểm danh về
       waitingForDelivererRef.current = false;
       if (countdownIntervalRef.current) clearInterval(countdownIntervalRef.current);
       setDelivererCountdown(0);
+      setMatchResult(null);
+      setPickupPersons([]);
+      setSelectedReceiver(null);
+      setNote('');
+      setCheckoutBelongings([]);
+      setCheckoutOtherChecked(false);
+      setCheckoutOtherText('');
+      toast.warn('Hết thời gian — điểm danh về chưa được lưu. Hãy quét lại.');
     }, WAIT_MS);
   }, []);
 
-  // ── Lưu toàn bộ thông tin và tiếp tục quét ───────────────────────────────
+  // ── Lưu điểm danh về khi giáo viên ấn nút "Lưu & Tiếp tục" ─────────────
   const handleSaveAll = useCallback(async () => {
-    if (matchResult?.attendance?._id) {
-      const finalCheckoutBelongings = [
-        ...checkoutBelongings,
-        ...(checkoutOtherChecked && checkoutOtherText.trim() ? [checkoutOtherText.trim()] : []),
-      ];
-      try {
-        // receiverType = "Tên (Quan hệ)" — giống delivererType bên check-in
-        const receiverType = selectedReceiver
-          ? `${selectedReceiver.fullName} (${selectedReceiver.relation})`
-          : '';
-        // receiverOtherInfo = SĐT — giống delivererOtherInfo bên check-in
-        const receiverOtherInfo = selectedReceiver?.phone || '';
-        await updateAttendanceReceiver(
-          matchResult.attendance._id,
-          receiverType,
-          receiverOtherInfo,
-          note,
-          finalCheckoutBelongings,
-        );
-        setDelivererSaved(true);
-        toast.success('Đã lưu thông tin điểm danh về');
-      } catch {
-        toast.error('Không lưu được thông tin');
-      }
+    if (!matchResult?.student?._id || isSaving) return;
+
+    const studentId = matchResult.student._id;
+
+    // Ngăn lưu trùng trong cùng phiên
+    if (checkedOutToday.includes(studentId)) {
+      toast.warn('Học sinh này đã được lưu điểm danh về trong phiên này');
+      return;
     }
-    waitingForDelivererRef.current = false;
-    if (countdownIntervalRef.current) clearInterval(countdownIntervalRef.current);
-    if (delivererTimeoutRef.current) clearTimeout(delivererTimeoutRef.current);
-    setDelivererCountdown(0);
-  }, [matchResult, selectedReceiver, note, checkoutBelongings, checkoutOtherChecked, checkoutOtherText]);
+
+    const detectedAt = matchResult.timestamp || new Date();
+    const timeStr =
+      matchResult.previewTime?.checkOut ||
+      `${detectedAt.getHours().toString().padStart(2, '0')}:${detectedAt.getMinutes().toString().padStart(2, '0')}`;
+    const today = detectedAt.toISOString().split('T')[0];
+
+    const receiverType = selectedReceiver
+      ? `${selectedReceiver.fullName} (${selectedReceiver.relation})`
+      : '';
+    const receiverOtherInfo = selectedReceiver?.phone || '';
+    const finalCheckoutBelongings = [
+      ...checkoutBelongings,
+      ...(checkoutOtherChecked && checkoutOtherText.trim() ? [checkoutOtherText.trim()] : []),
+    ];
+
+    setIsSaving(true);
+    try {
+      await saveCheckoutAttendance({
+        studentId,
+        classId,
+        date: today,
+        note,
+        receiverType,
+        receiverOtherInfo,
+        checkoutBelongings: finalCheckoutBelongings,
+        checkoutImageName: matchResult.checkoutImageUrl || '',
+        checkedOutByAI: true,
+        time: { checkOut: detectedAt.toISOString() },
+        timeString: { checkOut: timeStr },
+      });
+
+      setCheckedOutToday((prev) => [...prev, studentId]);
+      setDelivererSaved(true);
+      toast.success('Đã lưu điểm danh về thành công');
+      onCheckoutSuccess?.();
+
+      // Dừng countdown, sẵn sàng quét học sinh tiếp theo
+      waitingForDelivererRef.current = false;
+      if (countdownIntervalRef.current) clearInterval(countdownIntervalRef.current);
+      if (delivererTimeoutRef.current) clearTimeout(delivererTimeoutRef.current);
+      setDelivererCountdown(0);
+    } catch {
+      toast.error('Không lưu được điểm danh về. Vui lòng thử lại.');
+    } finally {
+      setIsSaving(false);
+    }
+  }, [
+    matchResult, isSaving, checkedOutToday, selectedReceiver, note,
+    checkoutBelongings, checkoutOtherChecked, checkoutOtherText,
+    classId, onCheckoutSuccess,
+  ]);
 
   // ── Callback nhận embedding từ FaceCamera ─────────────────────────────────
   const handleDetected = useCallback(
@@ -149,12 +190,12 @@ export default function PickupFaceAttendanceModal({ open, onClose, classId, clas
 
         const result = await matchStudentFaceForCheckout(embedding, classId, today, checkoutImageUrl);
 
-        setMatchResult({ ...result, capturedFrame, timestamp: new Date() });
+        // Lưu checkoutImageUrl vào result để dùng khi ấn Lưu
+        setMatchResult({ ...result, capturedFrame, timestamp: new Date(), checkoutImageUrl });
 
         if (result.status === 'success') {
           const studentId = result.student?._id;
           if (studentId && !checkedOutToday.includes(studentId)) {
-            setCheckedOutToday((prev) => [...prev, studentId]);
             setDelivererSaved(false);
             setSelectedReceiver(null);
             setNote('');
@@ -162,25 +203,18 @@ export default function PickupFaceAttendanceModal({ open, onClose, classId, clas
             setCheckoutOtherChecked(false);
             setCheckoutOtherText('');
 
-            if (result.attendance?._id) {
-              startWait();
-            }
+            // Bắt đầu đếm ngược 2 phút để giáo viên nhập thông tin và ấn Lưu
+            startWait();
 
             getApprovedPickupPersons(studentId)
               .then((res) => {
-                const persons = res?.data || [];
-                setPickupPersons(persons);
-                if (persons.length === 0) {
-                  // Không có người đón duyệt → không cần đợi chọn người
-                  // vẫn cho nhập note/đồ mang về
-                }
+                setPickupPersons(res?.data || []);
               })
               .catch(() => {
                 setPickupPersons([]);
               });
 
-            toast.success(`Điểm danh về: ${result.student.fullName}`);
-            onCheckoutSuccess?.();
+            toast.info(`Nhận diện: ${result.student.fullName} — Hãy ấn Lưu để xác nhận điểm danh về`);
           }
         } else if (result.status === 'already_checked_out') {
           toast.info(result.message);
@@ -290,8 +324,8 @@ export default function PickupFaceAttendanceModal({ open, onClose, classId, clas
                       </div>
                       <div>
                         <p className="font-bold text-emerald-700 text-sm sm:text-base">{matchResult.student?.fullName}</p>
-                        <p className="text-xs text-emerald-600">✓ Đã ghi điểm danh về</p>
-                        <p className="text-xs text-gray-400">{matchResult.attendance?.timeString?.checkOut}</p>
+                        <p className="text-xs text-emerald-600">✓ Nhận diện thành công — hãy ấn Lưu để xác nhận</p>
+                        <p className="text-xs text-gray-400">{matchResult.previewTime?.checkOut}</p>
                       </div>
                     </div>
 
@@ -351,7 +385,7 @@ export default function PickupFaceAttendanceModal({ open, onClose, classId, clas
                     </div>
 
                     {/* Người đón */}
-                    {matchResult.attendance?._id && (
+                    {matchResult.status === 'success' && (
                       <div className="border border-emerald-100 rounded-lg p-2.5 bg-emerald-50">
                         <p className="text-xs font-semibold text-emerald-700 mb-1.5">👤 Người đón hôm nay</p>
                         {delivererSaved ? (
@@ -381,7 +415,7 @@ export default function PickupFaceAttendanceModal({ open, onClose, classId, clas
                     )}
 
                     {/* Đếm ngược + nút Lưu */}
-                    {matchResult.attendance?._id && !delivererSaved && (
+                    {matchResult.status === 'success' && !delivererSaved && (
                       <div className="flex items-center gap-2 pt-1">
                         {delivererCountdown > 0 && (
                           <span className="text-xs text-orange-500 font-semibold tabular-nums whitespace-nowrap">
@@ -390,9 +424,10 @@ export default function PickupFaceAttendanceModal({ open, onClose, classId, clas
                         )}
                         <button
                           onClick={handleSaveAll}
-                          className="flex-1 py-2 bg-emerald-600 active:bg-emerald-700 text-white rounded-lg text-sm font-medium transition-colors"
+                          disabled={isSaving}
+                          className="flex-1 py-2 bg-emerald-600 active:bg-emerald-700 text-white rounded-lg text-sm font-medium transition-colors disabled:opacity-60"
                         >
-                          Lưu &amp; Tiếp tục
+                          {isSaving ? 'Đang lưu...' : 'Lưu & Tiếp tục'}
                         </button>
                       </div>
                     )}
