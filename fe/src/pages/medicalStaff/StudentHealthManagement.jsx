@@ -4,7 +4,7 @@ import * as XLSX from 'xlsx';
 import { toast } from 'react-toastify';
 import { useAuth } from '../../context/AuthContext';
 import RoleLayout from '../../layouts/RoleLayout';
-import { get, post, put, del, ENDPOINTS } from '../../service/api';
+import { get, post, del, ENDPOINTS } from '../../service/api';
 import {
   Box, Paper, Typography, Button, Stack, TextField, Chip,
   Table, TableHead, TableBody, TableRow, TableCell, TableContainer,
@@ -25,6 +25,8 @@ import {
   Edit as EditIcon,
   Delete as DeleteIcon,
   Person as PersonIcon,
+  History as HistoryIcon,
+  Warning as WarningIcon,
 } from '@mui/icons-material';
 
 // ── Constants ────────────────────────────────────────────────────────────────
@@ -45,7 +47,8 @@ function bmiLabel(bmi) {
 const IMPORT_COLUMNS = ['Tên học sinh', 'Lớp', 'Chiều cao (cm)', 'Cân nặng (kg)', 'Tiền sử bệnh', 'Dị ứng', 'Ghi chú'];
 
 const MENU_ITEMS = [
-  { key: 'health', label: 'Quản lý sức khỏe', icon: <MedicalIcon fontSize="small" /> },
+  { key: 'health',    label: 'Quản lý sức khỏe',    icon: <MedicalIcon fontSize="small" /> },
+  { key: 'incidents', label: 'Ghi nhận bất thường',  icon: <WarningIcon fontSize="small" /> },
 ];
 
 const EMPTY_FORM = {
@@ -56,33 +59,33 @@ const EMPTY_FORM = {
   followUpDate: '', recommendations: '',
 };
 
-// ── HealthFormDialog ─────────────────────────────────────────────────────────
-function HealthFormDialog({ open, onClose, student, existing, onSaved }) {
+// ── HealthFormDialog — luôn tạo bản ghi mới ─────────────────────────────────
+function HealthFormDialog({ open, onClose, student, prefill, onSaved }) {
   const [form, setForm] = useState(EMPTY_FORM);
   const [saving, setSaving] = useState(false);
   const [err, setErr] = useState(null);
 
   useEffect(() => {
     if (!open) return;
-    if (existing) {
+    if (prefill) {
       setForm({
-        height:          existing.height ?? '',
-        weight:          existing.weight ?? '',
-        temperature:     existing.temperature ?? '',
-        heartRate:       existing.heartRate ?? '',
-        chronicDiseases: Array.isArray(existing.chronicDiseases) ? existing.chronicDiseases.join(', ') : (existing.chronicDiseases || ''),
-        allergies:       (existing.allergies || []).map(a => a.allergen || a).filter(Boolean).join(', '),
-        notes:           existing.notes || '',
-        generalStatus:   existing.generalStatus || 'healthy',
-        checkDate:       existing.checkDate ? new Date(existing.checkDate).toISOString().slice(0, 10) : new Date().toISOString().slice(0, 10),
-        followUpDate:    existing.followUpDate ? new Date(existing.followUpDate).toISOString().slice(0, 10) : '',
-        recommendations: existing.recommendations || '',
+        height:          prefill.height ?? '',
+        weight:          prefill.weight ?? '',
+        temperature:     prefill.temperature ?? '',
+        heartRate:       prefill.heartRate ?? '',
+        chronicDiseases: Array.isArray(prefill.chronicDiseases) ? prefill.chronicDiseases.join(', ') : (prefill.chronicDiseases || ''),
+        allergies:       (prefill.allergies || []).map(a => a.allergen || a).filter(Boolean).join(', '),
+        notes:           prefill.notes || '',
+        generalStatus:   prefill.generalStatus || 'healthy',
+        checkDate:       new Date().toISOString().slice(0, 10),
+        followUpDate:    prefill.followUpDate ? new Date(prefill.followUpDate).toISOString().slice(0, 10) : '',
+        recommendations: prefill.recommendations || '',
       });
     } else {
-      setForm(EMPTY_FORM);
+      setForm({ ...EMPTY_FORM, checkDate: new Date().toISOString().slice(0, 10) });
     }
     setErr(null);
-  }, [open, existing]);
+  }, [open, prefill]);
 
   const f = (field) => (e) => setForm(p => ({ ...p, [field]: e.target.value }));
 
@@ -96,13 +99,8 @@ function HealthFormDialog({ open, onClose, student, existing, onSaved }) {
         chronicDiseases: form.chronicDiseases.split(',').map(s => s.trim()).filter(Boolean),
         allergies: form.allergies.split(',').map(s => s.trim()).filter(Boolean).map(a => ({ allergen: a })),
       };
-      if (existing) {
-        await put(ENDPOINTS.STUDENTS.HEALTH_RECORD_UPDATE(existing.healthId || existing._id), payload);
-        toast.success('Cập nhật hồ sơ sức khỏe thành công');
-      } else {
-        await post(ENDPOINTS.STUDENTS.HEALTH_RECORD_CREATE, payload);
-        toast.success('Tạo hồ sơ sức khỏe thành công');
-      }
+      await post(ENDPOINTS.STUDENTS.HEALTH_RECORD_CREATE, payload);
+      toast.success(prefill ? 'Đã ghi nhận lần khám mới' : 'Tạo hồ sơ sức khỏe thành công');
       onSaved();
       onClose();
     } catch (e) {
@@ -115,10 +113,15 @@ function HealthFormDialog({ open, onClose, student, existing, onSaved }) {
   return (
     <Dialog open={open} onClose={() => !saving && onClose()} maxWidth="sm" fullWidth>
       <DialogTitle sx={{ fontWeight: 700 }}>
-        {existing ? 'Cập nhật hồ sơ sức khỏe' : 'Tạo hồ sơ sức khỏe'} — {student?.fullName}
+        {prefill ? 'Ghi nhận lần khám mới' : 'Tạo hồ sơ sức khỏe'} — {student?.fullName}
       </DialogTitle>
       <DialogContent dividers>
         {err && <Alert severity="error" sx={{ mb: 2 }}>{err}</Alert>}
+        {prefill && (
+          <Alert severity="info" sx={{ mb: 2, fontSize: '0.8rem' }}>
+            Thông tin được điền sẵn từ lần khám trước. Bản ghi mới sẽ được tạo khi lưu.
+          </Alert>
+        )}
         <Stack spacing={2}>
           <Typography variant="subtitle2" color="primary">Chỉ số cơ thể</Typography>
           <Stack direction={{ xs: 'column', sm: 'row' }} spacing={1.5}>
@@ -170,7 +173,7 @@ function HealthFormDialog({ open, onClose, student, existing, onSaved }) {
           variant="contained" onClick={handleSave} disabled={saving}
           sx={{ bgcolor: '#0891b2', '&:hover': { bgcolor: '#0e7490' } }}
         >
-          {saving ? <CircularProgress size={18} color="inherit" /> : (existing ? 'Lưu thay đổi' : 'Tạo hồ sơ')}
+          {saving ? <CircularProgress size={18} color="inherit" /> : (prefill ? 'Lưu lần khám mới' : 'Tạo hồ sơ')}
         </Button>
       </DialogActions>
     </Dialog>
@@ -192,8 +195,8 @@ export default function StudentHealthManagement() {
   const [page, setPage]         = useState(0);
   const PAGE_SIZE = 15;
 
-  // CRUD dialog
-  const [healthDialog, setHealthDialog] = useState({ open: false, student: null, existing: null });
+  // CRUD dialog — prefill = latest record data (or null for brand new)
+  const [healthDialog, setHealthDialog] = useState({ open: false, student: null, prefill: null });
 
   // Delete confirm
   const [deleteTarget, setDeleteTarget] = useState(null); // { healthId, studentName }
@@ -346,7 +349,7 @@ export default function StudentHealthManagement() {
     <RoleLayout
       menuItems={MENU_ITEMS}
       activeKey="health"
-      onMenuSelect={() => {}}
+      onMenuSelect={k => k === 'incidents' ? navigate('/medical-staff/incidents') : null}
       onLogout={handleLogout}
       onViewProfile={() => navigate('/profile')}
       userName={user?.fullName || user?.username || 'Nhân viên y tế'}
@@ -429,7 +432,7 @@ export default function StudentHealthManagement() {
                 <Table size="small" sx={{ minWidth: 960 }}>
                   <TableHead sx={{ bgcolor: '#f0f9ff' }}>
                     <TableRow>
-                      {['#', 'Tên học sinh', 'Lớp', 'Chiều cao', 'Cân nặng', 'BMI', 'Tiền sử bệnh', 'Dị ứng', 'Tình trạng', 'Cập nhật', ''].map(col => (
+                      {['#', 'Tên học sinh / Lớp', 'Chiều cao', 'Cân nặng', 'BMI', 'Tiền sử bệnh', 'Dị ứng', 'Tình trạng', 'Lần khám', 'Ngày khám gần nhất', ''].map(col => (
                         <TableCell key={col} sx={{ fontWeight: 700, fontSize: '0.72rem', textTransform: 'uppercase', color: 'text.secondary', py: 1, whiteSpace: 'nowrap' }}>
                           {col}
                         </TableCell>
@@ -448,10 +451,23 @@ export default function StudentHealthManagement() {
                       const bmi = bmiLabel(r.bmi);
                       const statusCfg = STATUS_CONFIG[r.generalStatus];
                       return (
-                        <TableRow key={r._id} hover sx={{ bgcolor: r.generalStatus === 'concerning' ? '#fff5f5' : r.generalStatus === 'monitor' ? '#fffbeb' : undefined }}>
+                        <TableRow
+                          key={r._id}
+                          hover
+                          onClick={() => navigate(`/medical-staff/health/${r._id}/history`, { state: r })}
+                          sx={{
+                            cursor: 'pointer',
+                            bgcolor: r.generalStatus === 'concerning' ? '#fff5f5' : r.generalStatus === 'monitor' ? '#fffbeb' : undefined,
+                            '&:hover': { bgcolor: r.generalStatus === 'concerning' ? '#fee2e2' : r.generalStatus === 'monitor' ? '#fde68a33' : '#f0f9ff' },
+                          }}
+                        >
                           <TableCell sx={{ fontSize: '0.78rem', color: 'text.secondary' }}>{page * PAGE_SIZE + idx + 1}</TableCell>
-                          <TableCell sx={{ fontWeight: 600, fontSize: '0.82rem', whiteSpace: 'nowrap' }}>{r.fullName}</TableCell>
-                          <TableCell sx={{ fontSize: '0.78rem' }}>{r.className}</TableCell>
+                          <TableCell sx={{ whiteSpace: 'nowrap' }}>
+                            <Typography variant="body2" fontWeight={700} color="primary" sx={{ fontSize: '0.85rem', '&:hover': { textDecoration: 'underline' } }}>
+                              {r.fullName}
+                            </Typography>
+                            <Typography variant="caption" color="text.disabled">{r.className}</Typography>
+                          </TableCell>
                           <TableCell sx={{ fontSize: '0.82rem' }}>
                             {r.height ? `${r.height} cm` : <Typography variant="caption" color="text.disabled">—</Typography>}
                           </TableCell>
@@ -478,22 +494,35 @@ export default function StudentHealthManagement() {
                               ? <Chip label={statusCfg.label} size="small" color={statusCfg.color} sx={{ fontSize: '0.7rem', height: 20, fontWeight: 600 }} />
                               : <Typography variant="caption" color="text.disabled">Chưa có</Typography>}
                           </TableCell>
+                          <TableCell onClick={e => e.stopPropagation()}>
+                            {r.checkupCount > 0 ? (
+                              <Chip
+                                icon={<HistoryIcon sx={{ fontSize: '0.85rem !important' }} />}
+                                label={`${r.checkupCount} lần`}
+                                size="small"
+                                onClick={e => { e.stopPropagation(); navigate(`/medical-staff/health/${r._id}/history`, { state: r }); }}
+                                sx={{ fontSize: '0.7rem', height: 22, bgcolor: '#f3e8ff', color: '#7c3aed', fontWeight: 600, cursor: 'pointer', '&:hover': { bgcolor: '#e9d5ff' } }}
+                              />
+                            ) : (
+                              <Typography variant="caption" color="text.disabled">—</Typography>
+                            )}
+                          </TableCell>
                           <TableCell sx={{ fontSize: '0.75rem', color: 'text.secondary', whiteSpace: 'nowrap' }}>
                             {r.checkDate ? new Date(r.checkDate).toLocaleDateString('vi-VN') : '—'}
                           </TableCell>
-                          <TableCell align="right" sx={{ whiteSpace: 'nowrap' }}>
-                            <Tooltip title={r.healthId ? 'Cập nhật hồ sơ' : 'Tạo hồ sơ sức khỏe'}>
+                          <TableCell align="right" sx={{ whiteSpace: 'nowrap' }} onClick={e => e.stopPropagation()}>
+                            <Tooltip title={r.healthId ? 'Ghi nhận lần khám mới' : 'Tạo hồ sơ sức khỏe'}>
                               <IconButton
                                 size="small"
-                                onClick={() => setHealthDialog({ open: true, student: r, existing: r.healthId ? r : null })}
+                                onClick={e => { e.stopPropagation(); setHealthDialog({ open: true, student: r, prefill: r.healthId ? r : null }); }}
                                 sx={{ color: r.healthId ? '#2563eb' : '#16a34a' }}
                               >
                                 {r.healthId ? <EditIcon fontSize="small" /> : <AddIcon fontSize="small" />}
                               </IconButton>
                             </Tooltip>
                             {r.healthId && (
-                              <Tooltip title="Xóa hồ sơ">
-                                <IconButton size="small" onClick={() => setDeleteTarget({ healthId: r.healthId, studentName: r.fullName })} sx={{ color: 'error.main' }}>
+                              <Tooltip title="Xóa hồ sơ mới nhất">
+                                <IconButton size="small" onClick={e => { e.stopPropagation(); setDeleteTarget({ healthId: r.healthId, studentName: r.fullName }); }} sx={{ color: 'error.main' }}>
                                   <DeleteIcon fontSize="small" />
                                 </IconButton>
                               </Tooltip>
@@ -517,12 +546,12 @@ export default function StudentHealthManagement() {
         </Paper>
       </Box>
 
-      {/* Health CRUD dialog */}
+      {/* Health form dialog — always creates new record */}
       <HealthFormDialog
         open={healthDialog.open}
-        onClose={() => setHealthDialog({ open: false, student: null, existing: null })}
+        onClose={() => setHealthDialog({ open: false, student: null, prefill: null })}
         student={healthDialog.student}
-        existing={healthDialog.existing}
+        prefill={healthDialog.prefill}
         onSaved={fetchData}
       />
 
@@ -531,7 +560,7 @@ export default function StudentHealthManagement() {
         <DialogTitle sx={{ fontWeight: 700 }}>Xóa hồ sơ sức khỏe</DialogTitle>
         <DialogContent>
           <Typography variant="body2">
-            Bạn có chắc muốn xóa hồ sơ sức khỏe của <strong>{deleteTarget?.studentName}</strong>?<br />
+            Bạn có chắc muốn xóa hồ sơ sức khỏe gần nhất của <strong>{deleteTarget?.studentName}</strong>?<br />
             Hành động này không thể hoàn tác.
           </Typography>
         </DialogContent>

@@ -402,14 +402,22 @@ router.get('/students/health-overview', authenticate, authorizeAnyPermission('MA
 
     const studentIds = students.map(s => s._id);
 
-    // Lấy bản ghi sức khỏe mới nhất của mỗi học sinh
-    const healthRecords = await HealthCheck.aggregate([
-      { $match: { studentId: { $in: studentIds } } },
-      { $sort: { studentId: 1, checkDate: -1 } },
-      { $group: { _id: '$studentId', doc: { $first: '$$ROOT' } } },
+    // Lấy bản ghi sức khỏe mới nhất + đếm tổng số lần khám của mỗi học sinh
+    const [healthRecords, countRecords] = await Promise.all([
+      HealthCheck.aggregate([
+        { $match: { studentId: { $in: studentIds } } },
+        { $sort: { studentId: 1, checkDate: -1 } },
+        { $group: { _id: '$studentId', doc: { $first: '$$ROOT' } } },
+      ]),
+      HealthCheck.aggregate([
+        { $match: { studentId: { $in: studentIds } } },
+        { $group: { _id: '$studentId', count: { $sum: 1 } } },
+      ]),
     ]);
     const healthMap = {};
     healthRecords.forEach(r => { healthMap[r._id.toString()] = r.doc; });
+    const countMap = {};
+    countRecords.forEach(r => { countMap[r._id.toString()] = r.count; });
 
     const data = students.map(s => {
       const h = healthMap[s._id.toString()] || null;
@@ -428,6 +436,7 @@ router.get('/students/health-overview', authenticate, authorizeAnyPermission('MA
         generalStatus: h?.generalStatus || null,
         checkDate: h?.checkDate || null,
         healthId: h?._id || null,
+        checkupCount: countMap[s._id.toString()] || 0,
       };
     });
 
@@ -437,6 +446,13 @@ router.get('/students/health-overview', authenticate, authorizeAnyPermission('MA
     return res.status(500).json({ status: 'error', message: err.message });
   }
 });
+
+// Helper: chuyển lỗi ValidationError của Mongoose sang tiếng Việt
+const formatHealthValidationError = (err) => {
+  if (err.name !== 'ValidationError') return err.message;
+  const msgs = Object.values(err.errors).map(e => e.message);
+  return msgs.join('; ');
+};
 
 // POST /school-admin/students/health-record — tạo/cập nhật hồ sơ sức khỏe cho 1 học sinh
 router.post('/students/health-record', authenticate, authorizeAnyPermission('MANAGE_STUDENT', 'MANAGE_HEALTH'), async (req, res) => {
@@ -475,7 +491,8 @@ router.post('/students/health-record', authenticate, authorizeAnyPermission('MAN
     return res.status(201).json({ status: 'success', message: 'Tạo hồ sơ sức khỏe thành công', data: record });
   } catch (err) {
     console.error('health-record create error:', err);
-    return res.status(500).json({ status: 'error', message: err.message });
+    const isValidation = err.name === 'ValidationError';
+    return res.status(isValidation ? 400 : 500).json({ status: 'error', message: formatHealthValidationError(err) });
   }
 });
 
@@ -511,7 +528,8 @@ router.put('/students/health-record/:id', authenticate, authorizeAnyPermission('
     return res.json({ status: 'success', message: 'Cập nhật hồ sơ thành công', data: record });
   } catch (err) {
     console.error('health-record update error:', err);
-    return res.status(500).json({ status: 'error', message: err.message });
+    const isValidation = err.name === 'ValidationError';
+    return res.status(isValidation ? 400 : 500).json({ status: 'error', message: formatHealthValidationError(err) });
   }
 });
 
@@ -524,6 +542,107 @@ router.delete('/students/health-record/:id', authenticate, authorizeAnyPermissio
     return res.json({ status: 'success', message: 'Đã xóa hồ sơ sức khỏe' });
   } catch (err) {
     console.error('health-record delete error:', err);
+    return res.status(500).json({ status: 'error', message: err.message });
+  }
+});
+
+// ══════════════════════════════════════════════════════════════
+// HEALTH INCIDENTS — ghi nhận bất thường theo ngày
+// ══════════════════════════════════════════════════════════════
+
+// GET /school-admin/health-incidents?date=YYYY-MM-DD&classId=xxx
+router.get('/health-incidents', authenticate, authorizeAnyPermission('MANAGE_STUDENT', 'MANAGE_HEALTH'), async (req, res) => {
+  try {
+    const HealthIncident = require('../models/HealthIncident');
+    const { date, classId } = req.query;
+
+    const filter = {};
+    if (date) {
+      const d = new Date(date);
+      const start = new Date(d); start.setHours(0, 0, 0, 0);
+      const end   = new Date(d); end.setHours(23, 59, 59, 999);
+      filter.date = { $gte: start, $lte: end };
+    }
+    if (classId) filter.classId = classId;
+
+    const incidents = await HealthIncident.find(filter)
+      .populate('studentId', 'fullName avatar')
+      .populate('classId',   'className')
+      .populate('recordedBy', 'fullName username')
+      .sort({ date: -1, createdAt: -1 })
+      .lean();
+
+    return res.json({ status: 'success', data: incidents });
+  } catch (err) {
+    return res.status(500).json({ status: 'error', message: err.message });
+  }
+});
+
+// POST /school-admin/health-incidents — tạo mới bản ghi bất thường
+router.post('/health-incidents', authenticate, authorizeAnyPermission('MANAGE_STUDENT', 'MANAGE_HEALTH'), async (req, res) => {
+  try {
+    const HealthIncident = require('../models/HealthIncident');
+    const Student        = require('../models/Student');
+    const { studentId, date, symptoms, description, severity, status } = req.body;
+
+    if (!studentId) return res.status(400).json({ status: 'error', message: 'Vui lòng chọn học sinh' });
+    if (!symptoms)  return res.status(400).json({ status: 'error', message: 'Vui lòng nhập triệu chứng' });
+
+    const student = await Student.findById(studentId).select('classId').lean();
+    if (!student) return res.status(404).json({ status: 'error', message: 'Không tìm thấy học sinh' });
+
+    const incident = await HealthIncident.create({
+      studentId,
+      classId:    student.classId || null,
+      date:       date ? new Date(date) : new Date(),
+      symptoms:   symptoms.trim(),
+      description: (description || '').trim(),
+      severity:   severity   || 'mild',
+      status:     status     || 'monitoring',
+      recordedBy: req.user._id,
+    });
+
+    const populated = await HealthIncident.findById(incident._id)
+      .populate('studentId', 'fullName avatar')
+      .populate('classId',   'className')
+      .populate('recordedBy', 'fullName username')
+      .lean();
+
+    return res.status(201).json({ status: 'success', message: 'Đã ghi nhận bất thường', data: populated });
+  } catch (err) {
+    const isValidation = err.name === 'ValidationError';
+    const msg = isValidation
+      ? Object.values(err.errors).map(e => e.message).join('; ')
+      : err.message;
+    return res.status(isValidation ? 400 : 500).json({ status: 'error', message: msg });
+  }
+});
+
+// PATCH /school-admin/health-incidents/:id — cập nhật trạng thái
+router.patch('/health-incidents/:id', authenticate, authorizeAnyPermission('MANAGE_STUDENT', 'MANAGE_HEALTH'), async (req, res) => {
+  try {
+    const HealthIncident = require('../models/HealthIncident');
+    const { status, description, severity } = req.body;
+    const incident = await HealthIncident.findById(req.params.id);
+    if (!incident) return res.status(404).json({ status: 'error', message: 'Không tìm thấy bản ghi' });
+    if (status      !== undefined) incident.status      = status;
+    if (description !== undefined) incident.description = description;
+    if (severity    !== undefined) incident.severity    = severity;
+    await incident.save();
+    return res.json({ status: 'success', message: 'Đã cập nhật', data: incident });
+  } catch (err) {
+    return res.status(500).json({ status: 'error', message: err.message });
+  }
+});
+
+// DELETE /school-admin/health-incidents/:id
+router.delete('/health-incidents/:id', authenticate, authorizeAnyPermission('MANAGE_STUDENT', 'MANAGE_HEALTH'), async (req, res) => {
+  try {
+    const HealthIncident = require('../models/HealthIncident');
+    const incident = await HealthIncident.findByIdAndDelete(req.params.id);
+    if (!incident) return res.status(404).json({ status: 'error', message: 'Không tìm thấy bản ghi' });
+    return res.json({ status: 'success', message: 'Đã xóa bản ghi' });
+  } catch (err) {
     return res.status(500).json({ status: 'error', message: err.message });
   }
 });
@@ -626,6 +745,18 @@ router.get('/students/:studentId/health-latest', authenticate, authorizeAnyPermi
     const HealthCheck = require('../models/HealthCheck');
     const health = await HealthCheck.findOne({ studentId: req.params.studentId }).sort({ checkDate: -1 }).lean();
     return res.json({ status: 'success', data: health || null });
+  } catch (err) { return res.status(500).json({ status: 'error', message: err.message }); }
+});
+
+// GET /school-admin/students/:studentId/health-history — toàn bộ lịch sử khám sức khỏe
+router.get('/students/:studentId/health-history', authenticate, authorizeAnyPermission('MANAGE_STUDENT', 'MANAGE_HEALTH'), async (req, res) => {
+  try {
+    const HealthCheck = require('../models/HealthCheck');
+    const records = await HealthCheck.find({ studentId: req.params.studentId })
+      .populate('recordedBy', 'fullName username')
+      .sort({ checkDate: -1 })
+      .lean();
+    return res.json({ status: 'success', data: records });
   } catch (err) { return res.status(500).json({ status: 'error', message: err.message }); }
 });
 

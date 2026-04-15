@@ -507,6 +507,10 @@ export const ENDPOINTS = {
     CHANGE_REQUEST_RESOLVE: (id) => `/school-admin/students/change-requests/${id}/resolve`,
     // School admin student contact book endpoints
     ADMIN_HEALTH_LATEST: (studentId) => `/school-admin/students/${studentId}/health-latest`,
+    ADMIN_HEALTH_HISTORY: (studentId) => `/school-admin/students/${studentId}/health-history`,
+    HEALTH_INCIDENTS: '/school-admin/health-incidents',
+    HEALTH_INCIDENT_UPDATE: (id) => `/school-admin/health-incidents/${id}`,
+    HEALTH_INCIDENT_DELETE: (id) => `/school-admin/health-incidents/${id}`,
     ADMIN_ATTENDANCE_MONTHLY: (studentId) => `/school-admin/students/${studentId}/attendance-monthly`,
     ADMIN_NOTES: (studentId) => `/school-admin/students/${studentId}/notes`,
     ADMIN_NOTE_DELETE: (studentId, noteId) => `/school-admin/students/${studentId}/notes/${noteId}`,

@@ -128,6 +128,8 @@ import ManageCommittee from './pages/schoolAdmin/ManageCommittee';
 import ManageMinutes from './pages/schoolAdmin/ManageMinutes';
 import ProtectedRoute from './components/ProtectedRoute';
 import StudentHealthManagement from './pages/medicalStaff/StudentHealthManagement';
+import StudentHealthHistory from './pages/medicalStaff/StudentHealthHistory';
+import HealthIncidentPage from './pages/medicalStaff/HealthIncidentPage';
 import StudentDetailPage from './pages/schoolAdmin/StudentDetailPage';
 
 
@@ -956,6 +958,22 @@ function App() {
             element={
               <ProtectedRoute>
                 <StudentHealthManagement />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/medical-staff/health/:studentId/history"
+            element={
+              <ProtectedRoute>
+                <StudentHealthHistory />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/medical-staff/incidents"
+            element={
+              <ProtectedRoute>
+                <HealthIncidentPage />
               </ProtectedRoute>
             }
           />

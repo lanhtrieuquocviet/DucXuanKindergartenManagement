@@ -13,28 +13,24 @@ const healthCheckSchema = new mongoose.Schema(
     },
     height: {
       type: Number,
-      min: 0,
-      description: "cm",
+      min: [0, 'Chiều cao không được âm'],
     },
     weight: {
       type: Number,
-      min: 0,
-      description: "kg",
+      min: [0, 'Cân nặng không được âm'],
     },
     temperature: {
       type: Number,
-      min: 35,
-      max: 43,
-      description: "Celsius",
+      min: [35, 'Nhiệt độ phải từ 35°C trở lên'],
+      max: [43, 'Nhiệt độ không được vượt quá 43°C'],
     },
     bloodPressure: {
-      systolic: { type: Number, min: 0 },
-      diastolic: { type: Number, min: 0 },
+      systolic:  { type: Number, min: [0, 'Huyết áp tâm thu không hợp lệ'] },
+      diastolic: { type: Number, min: [0, 'Huyết áp tâm trương không hợp lệ'] },
     },
     heartRate: {
       type: Number,
-      min: 0,
-      description: "bpm",
+      min: [0, 'Nhịp tim không được âm'],
     },
     vision: {
       left: { type: Number, description: "Left eye" },
