@@ -44,15 +44,28 @@ function normalizeMonths(inputMonths, validGradeMap) {
     const rawItems = Array.isArray(month?.items) ? month.items : [];
     const items = rawItems.map((it) => {
       const name = String(it?.name || '').trim();
-      const date = it?.date ? new Date(it.date) : null;
+      const startDate = it?.startDate
+        ? new Date(it.startDate)
+        : (it?.date ? new Date(it.date) : null);
+      const endDate = it?.endDate
+        ? new Date(it.endDate)
+        : (it?.date ? new Date(it.date) : null);
       const grade = String(it?.grade || '').trim();
 
       if (!name) throw createHttpError(400, 'Tên sự kiện không được để trống');
-      if (!date || Number.isNaN(date.getTime())) {
-        throw createHttpError(400, `Ngày sự kiện "${name}" không hợp lệ`);
+      if (
+        !startDate ||
+        Number.isNaN(startDate.getTime()) ||
+        !endDate ||
+        Number.isNaN(endDate.getTime())
+      ) {
+        throw createHttpError(400, `Khoảng ngày sự kiện "${name}" không hợp lệ`);
       }
-      if (monthKeyFromDate(date) !== monthKey) {
-        throw createHttpError(400, `Sự kiện "${name}" không thuộc tháng ${monthKey}`);
+      if (startDate > endDate) {
+        throw createHttpError(400, `Sự kiện "${name}" có ngày kết thúc nhỏ hơn ngày bắt đầu`);
+      }
+      if (monthKeyFromDate(startDate) !== monthKey || monthKeyFromDate(endDate) !== monthKey) {
+        throw createHttpError(400, `Khoảng ngày sự kiện "${name}" phải thuộc tháng ${monthKey}`);
       }
       if (!mongoose.Types.ObjectId.isValid(grade) || !validGradeMap.has(grade)) {
         throw createHttpError(400, `Khối lớp của sự kiện "${name}" không hợp lệ`);
@@ -60,13 +73,15 @@ function normalizeMonths(inputMonths, validGradeMap) {
 
       return {
         name,
-        date,
+        date: startDate,
+        startDate,
+        endDate,
         grade,
         gradeName: validGradeMap.get(grade) || 'Khối lớp',
       };
     });
 
-    items.sort((a, b) => new Date(a.date) - new Date(b.date));
+    items.sort((a, b) => new Date(a.startDate || a.date) - new Date(b.startDate || b.date));
     return { monthKey, items };
   });
 }

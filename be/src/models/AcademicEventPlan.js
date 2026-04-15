@@ -3,7 +3,10 @@ const mongoose = require('mongoose');
 const academicEventItemSchema = new mongoose.Schema(
   {
     name: { type: String, required: true, trim: true },
-    date: { type: Date, required: true },
+    // Backward compatible: keep `date` for old records, new records use startDate/endDate
+    date: { type: Date, required: false },
+    startDate: { type: Date, required: false },
+    endDate: { type: Date, required: false },
     grade: { type: mongoose.Schema.Types.ObjectId, ref: 'Grades', required: true },
     gradeName: { type: String, trim: true, default: '' },
   },

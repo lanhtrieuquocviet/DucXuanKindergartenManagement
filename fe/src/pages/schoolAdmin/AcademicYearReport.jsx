@@ -35,6 +35,14 @@ function formatVnDate(dateStr) {
   return `${dd}/${mm}/${yyyy}`;
 }
 
+function formatVnDateRange(startDateStr, endDateStr) {
+  const start = formatVnDate(startDateStr);
+  const end = formatVnDate(endDateStr || startDateStr);
+  if (!start) return '';
+  if (!end || start === end) return start;
+  return `${start} - ${end}`;
+}
+
 function normalizeDateOnly(value) {
   if (!value) return null;
   const d = new Date(value);
@@ -183,28 +191,29 @@ export default function AcademicYearReport() {
           .flatMap((m) =>
             (m?.items || []).map((it) => ({
               name: it?.name || '',
-              time: formatVnDate(it?.date),
+              time: formatVnDateRange(it?.startDate || it?.date, it?.endDate || it?.startDate || it?.date),
               classes: it?.gradeName || 'Khối lớp',
-              dateObj: normalizeDateOnly(it?.date),
+              startDateObj: normalizeDateOnly(it?.startDate || it?.date),
+              endDateObj: normalizeDateOnly(it?.endDate || it?.startDate || it?.date),
             })),
           )
           .filter((e) => e.name && e.time)
           .sort((a, b) => {
-            if (!a.dateObj && !b.dateObj) return 0;
-            if (!a.dateObj) return 1;
-            if (!b.dateObj) return -1;
-            return a.dateObj - b.dateObj;
+            if (!a.startDateObj && !b.startDateObj) return 0;
+            if (!a.startDateObj) return 1;
+            if (!b.startDateObj) return -1;
+            return a.startDateObj - b.startDateObj;
           })
           .map((e) => {
             const today = new Date();
             const todayOnly = new Date(today.getFullYear(), today.getMonth(), today.getDate());
             let status = 'Sắp diễn ra';
             let statusTone = 'upcoming';
-            if (e.dateObj) {
-              if (isSameCalendarDay(e.dateObj, todayOnly)) {
+            if (e.startDateObj && e.endDateObj) {
+              if (todayOnly >= e.startDateObj && todayOnly <= e.endDateObj) {
                 status = 'Đang diễn ra';
                 statusTone = 'ongoing';
-              } else if (e.dateObj < todayOnly) {
+              } else if (e.endDateObj < todayOnly) {
                 status = 'Đã tổ chức';
                 statusTone = 'done';
               }

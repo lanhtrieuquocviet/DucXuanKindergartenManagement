@@ -112,6 +112,14 @@ exports.createDistrictNutritionPlan = async (req, res) => {
         message: "Ngày bắt đầu áp dụng phải có định dạng YYYY-MM-DD",
       });
     }
+    const endDateRaw = String(req.body?.endDate || "").trim();
+    const endDate = endDateRaw || null;
+    if (!endDate || !DATE_RE.test(endDate) || endDate <= startDate) {
+      return res.status(400).json({
+        success: false,
+        message: "Ngày kết thúc áp dụng phải đúng định dạng YYYY-MM-DD và lớn hơn ngày bắt đầu",
+      });
+    }
 
     const items = normalizeItems(parseItemsFromBody(req.body?.items));
     if (!items.length) {
@@ -142,7 +150,7 @@ exports.createDistrictNutritionPlan = async (req, res) => {
     const plan = await DistrictNutritionPlan.create({
       items,
       startDate,
-      endDate: null,
+      endDate,
       regulationFile,
       status: "active",
       createdBy: req.user?._id || null,
