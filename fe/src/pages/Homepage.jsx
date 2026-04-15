@@ -1,7 +1,6 @@
 import { useState, useEffect } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
 import { get, ENDPOINTS } from '../service/api';
-import './Homepage.css';
 
 const WHY_CHOOSE_ITEMS = [
   {
@@ -24,12 +23,6 @@ const WHY_CHOOSE_ITEMS = [
 
 const DEFAULT_TEACHER_AVATAR = 'https://via.placeholder.com/300x400.png?text=Avatar+3x4';
 
-const FALLBACK_BANNERS = [
-  'https://images.unsplash.com/photo-1588072432836-e10032774350?auto=format&fit=crop&w=1400&q=80',
-  'https://images.unsplash.com/photo-1503676260728-1c00da094a0b?auto=format&fit=crop&w=1400&q=80',
-  'https://images.unsplash.com/photo-1596464716127-f2a82984de30?auto=format&fit=crop&w=1400&q=80',
-];
-
 const stripHtml = (html) => (html || '').replace(/<[^>]*>/g, '').trim();
 
 function Homepage() {
@@ -40,7 +33,7 @@ function Homepage() {
   const [teacherTeam, setTeacherTeam] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
-  const [banners, setBanners] = useState(FALLBACK_BANNERS);
+  const [banners, setBanners] = useState([]);
   const [currentBanner, setCurrentBanner] = useState(0);
   const [galleryPhotos, setGalleryPhotos] = useState([]);
 
@@ -108,9 +101,9 @@ function Homepage() {
         const resp = await get(ENDPOINTS.BANNERS.HOMEPAGE, { includeAuth: false });
         const list = resp?.data?.banners || [];
         const urls = list.map((item) => item?.imageUrl).filter(Boolean);
-        setBanners(urls.length > 0 ? urls : FALLBACK_BANNERS);
+        setBanners(urls);
       } catch {
-        setBanners(FALLBACK_BANNERS);
+        setBanners([]);
       }
     };
     loadBanners();
@@ -194,22 +187,27 @@ function Homepage() {
 
   const mainBlog = featured[0];
   const sideBlogs = featured.slice(1, 4);
-  const introPhotos = galleryPhotos.length > 0 ? galleryPhotos.slice(0, 3) : FALLBACK_BANNERS.slice(0, 3);
+  const introPhotos = galleryPhotos.slice(0, 3);
 
   return (
-    <div className="home-v2">
-      <section className="home-v2-hero">
-        <div className="home-v2-hero-media">
+    <div className="mx-auto max-w-7xl px-4 pb-12 sm:px-6">
+      <section className="relative mt-5 min-h-[440px] overflow-hidden rounded-3xl">
+        <div className="absolute inset-0">
           {banners.length > 0 ? (
-            <img src={banners[currentBanner]} alt="Trường mầm non Đức Xuân" className="home-v2-hero-image" />
+            <img
+              src={banners[currentBanner]}
+              alt="Trường mầm non Đức Xuân"
+              className="h-full w-full object-cover transition-all duration-500"
+            />
           ) : (
-            <div className="home-v2-hero-image home-v2-hero-fallback">Chưa có banner hiển thị</div>
+            <div className="grid h-full w-full place-items-center bg-slate-200 text-slate-600">Chưa có banner hiển thị</div>
           )}
+          <div className="absolute inset-0 bg-gradient-to-r from-black/75 via-black/35 to-black/10" />
           {banners.length > 1 && (
             <>
               <button
                 type="button"
-                className="home-v2-slider-btn home-v2-slider-prev"
+                className="absolute left-3 top-1/2 z-20 h-10 w-10 -translate-y-1/2 rounded-full bg-white/35 text-xl text-white transition hover:bg-white/55"
                 onClick={() => setCurrentBanner((prev) => (prev - 1 + banners.length) % banners.length)}
                 aria-label="Banner trước"
               >
@@ -217,7 +215,7 @@ function Homepage() {
               </button>
               <button
                 type="button"
-                className="home-v2-slider-btn home-v2-slider-next"
+                className="absolute right-3 top-1/2 z-20 h-10 w-10 -translate-y-1/2 rounded-full bg-white/35 text-xl text-white transition hover:bg-white/55"
                 onClick={() => setCurrentBanner((prev) => (prev + 1) % banners.length)}
                 aria-label="Banner tiếp theo"
               >
@@ -226,137 +224,151 @@ function Homepage() {
             </>
           )}
         </div>
-        <div className="home-v2-hero-overlay">
-          <p className="home-v2-kicker">Trường mầm non chất lượng cao</p>
-          <h1>Cùng con lớn lên hạnh phúc và tự tin</h1>
-          <p>
+        <div className="relative z-10 max-w-2xl px-6 py-10 text-white sm:px-10 sm:py-14">
+          <p className="mb-2 text-xs font-bold uppercase tracking-[0.18em] text-amber-300">Trường mầm non chất lượng cao</p>
+          <h1 className="text-3xl font-extrabold leading-tight sm:text-5xl">Cùng con lớn lên hạnh phúc và tự tin</h1>
+          <p className="mt-4 text-sm leading-7 text-white/95 sm:text-base">
             Chương trình học trải nghiệm kết hợp chăm sóc toàn diện, tạo nền tảng tốt cho hành trình phát triển
             của trẻ trong những năm đầu đời.
           </p>
-          <div className="home-v2-cta-row">
-            <Link to="/introduce-school" className="home-v2-btn-primary">Khám phá ngay</Link>
-            <Link to="/contact" className="home-v2-btn-outline">Đăng ký tư vấn</Link>
+          <div className="mt-6 flex flex-wrap gap-3">
+            <Link to="/introduce-school" className="rounded-full bg-amber-500 px-5 py-2.5 text-sm font-bold text-white transition hover:bg-amber-600">Khám phá ngay</Link>
+            <Link to="/contact" className="rounded-full border border-white/80 px-5 py-2.5 text-sm font-bold text-white transition hover:bg-white/20">Đăng ký tư vấn</Link>
           </div>
         </div>
       </section>
 
-      <section className="home-v2-intro">
+      <section className="mt-8 grid gap-6 rounded-3xl border border-amber-100 bg-amber-50/40 p-6 md:grid-cols-[1fr_1.15fr]">
         <div>
-          <p className="home-v2-kicker">Về Đức Xuân Kindergarten</p>
-          <h2>Tiên phong giáo dục trải nghiệm cho trẻ mầm non</h2>
-          <p>
+          <p className="mb-2 text-xs font-bold uppercase tracking-[0.16em] text-amber-500">Về Đức Xuân Kindergarten</p>
+          <h2 className="text-2xl font-bold leading-snug text-emerald-900 sm:text-3xl">Tiên phong giáo dục trải nghiệm cho trẻ mầm non</h2>
+          <p className="mt-3 leading-7 text-slate-600">
             Chúng tôi tập trung xây dựng môi trường học tập an toàn, giàu yêu thương, nơi mỗi em bé được tôn
             trọng cá tính và phát triển theo năng lực riêng.
           </p>
-          <Link to="/photo-gallery" className="home-v2-link-btn">Đọc thêm</Link>
+          <Link to="/photo-gallery" className="mt-5 inline-flex rounded-full bg-emerald-700 px-5 py-2.5 text-sm font-bold text-white transition hover:bg-emerald-800">Đọc thêm</Link>
         </div>
-        <div className="home-v2-intro-images">
-          {introPhotos.map((item, idx) => (
-            <img
-              key={item.id || idx}
-              src={item.img || item}
-              alt={item.title || `Hình ảnh hoạt động ${idx + 1}`}
-            />
-          ))}
+        <div className="grid gap-3 sm:grid-cols-3">
+          {introPhotos.length > 0 ? (
+            introPhotos.map((item, idx) => (
+              <img
+                key={item.id || idx}
+                src={item.img}
+                alt={item.title || `Hình ảnh hoạt động ${idx + 1}`}
+                className="h-40 w-full rounded-xl object-cover sm:h-48"
+              />
+            ))
+          ) : (
+            <div className="grid h-40 place-items-center rounded-xl bg-slate-100 text-slate-500 sm:col-span-3">Chưa có ảnh thư viện</div>
+          )}
         </div>
       </section>
 
-      <section className="home-v2-why">
-        <h2>Vì sao chọn Đức Xuân Kindergarten?</h2>
-        <div className="home-v2-why-grid">
+      <section className="mt-8">
+        <h2 className="mb-4 text-2xl font-bold text-emerald-900 sm:text-3xl">Vì sao chọn Đức Xuân Kindergarten?</h2>
+        <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
           {WHY_CHOOSE_ITEMS.map((item) => (
-            <article key={item.title} className="home-v2-why-card">
-              <h3>{item.title}</h3>
-              <p>{item.text}</p>
+            <article key={item.title} className="rounded-2xl border border-emerald-100 bg-white p-5 shadow-sm transition hover:-translate-y-0.5 hover:shadow-md">
+              <h3 className="mb-2 font-bold text-emerald-900">{item.title}</h3>
+              <p className="text-sm leading-6 text-slate-600">{item.text}</p>
             </article>
           ))}
         </div>
       </section>
 
-      <section className="home-v2-programs">
-        <div className="home-v2-section-head">
-          <h2>Thông tin chương trình học</h2>
-          <Link to="/schedule">Xem tất cả</Link>
+      <section className="mt-8">
+        <div className="mb-4 flex items-center justify-between gap-4">
+          <h2 className="text-2xl font-bold text-emerald-900 sm:text-3xl">Thông tin chương trình học</h2>
+          <Link to="/schedule" className="text-sm font-bold text-emerald-700 hover:underline">Xem tất cả</Link>
         </div>
-        <div className="home-v2-program-grid">
+        <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-3">
           {timetablePrograms.map((program) => (
-            <article key={program.id} className="home-v2-program-card">
-              <h3>{program.title}</h3>
-              <p>Khung giờ hoạt động: {program.time}</p>
-              <span>
+            <article key={program.id} className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm transition hover:shadow-md">
+              <h3 className="mb-2 font-bold text-emerald-900">{program.title}</h3>
+              <p className="text-sm text-slate-600">Khung giờ hoạt động: {program.time}</p>
+              <span className="mt-2 inline-block text-xs font-bold text-amber-600">
                 Áp dụng: {program.season}
                 {effectiveSeason ? ` • Hiện tại: ${effectiveSeason === 'summer' ? 'Mùa hè' : 'Mùa đông'}` : ''}
               </span>
             </article>
           ))}
           {timetablePrograms.length === 0 && (
-            <article className="home-v2-program-card">
-              <h3>Chưa có dữ liệu thời gian biểu</h3>
+            <article className="rounded-2xl border border-slate-200 bg-white p-5 text-slate-600 shadow-sm">
+              <h3 className="mb-2 font-bold text-emerald-900">Chưa có dữ liệu thời gian biểu</h3>
               <p>Nhà trường sẽ cập nhật chương trình học ngay khi thời khóa biểu được thiết lập.</p>
-              <span>Vui lòng quay lại sau</span>
+              <span className="mt-2 inline-block text-xs font-bold text-amber-600">Vui lòng quay lại sau</span>
             </article>
           )}
         </div>
       </section>
 
-      <section className="home-v2-campus">
-        <h2>Đội ngũ giáo viên</h2>
-        <div className="home-v2-campus-grid">
+      <section className="mt-8">
+        <h2 className="mb-4 text-2xl font-bold text-emerald-900 sm:text-3xl">Đội ngũ giáo viên</h2>
+        <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
           {teacherTeam.map((teacher, index) => (
-            <article key={teacher.id || `${teacher.name}-${index}`} className="home-v2-campus-card">
-              <div className="home-v2-teacher-avatar-wrap">
+            <article key={teacher.id || `${teacher.name}-${index}`} className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm transition hover:-translate-y-0.5 hover:shadow-md">
+              <div className="mb-3 aspect-[3/4] overflow-hidden rounded-xl bg-slate-100">
                 <img
                   src={teacher.avatar || DEFAULT_TEACHER_AVATAR}
                   alt={teacher.name}
-                  className="home-v2-teacher-avatar"
+                  className="h-full w-full object-cover"
                 />
               </div>
-              <h3>{teacher.name}</h3>
-              <p><strong>Vai trò:</strong> {teacher.role}</p>
-              <p><strong>Chuyên môn:</strong> {teacher.specialty}</p>
+              <h3 className="mb-1 font-bold text-emerald-900">{teacher.name}</h3>
+              <p className="mb-1 text-sm text-slate-600"><strong>Vai trò:</strong> {teacher.role}</p>
+              <p className="text-sm text-slate-600"><strong>Chuyên môn:</strong> {teacher.specialty}</p>
             </article>
           ))}
         </div>
       </section>
 
-      <section className="home-v2-consult">
-        <div className="home-v2-consult-content">
-          <h2>Ba mẹ cần tư vấn thêm?</h2>
-          <p>Để lại thông tin để nhà trường hỗ trợ nhanh, nhận thông tin về chương trình học.</p>
+      <section className="mt-8 grid gap-4 rounded-3xl bg-gradient-to-r from-emerald-900 to-emerald-700 p-6 text-white md:grid-cols-[1fr_1.2fr]">
+        <div>
+          <h2 className="text-2xl font-bold sm:text-3xl">Ba mẹ cần tư vấn thêm?</h2>
+          <p className="mt-2 text-white/90">Để lại thông tin để nhà trường hỗ trợ nhanh, nhận thông tin về chương trình học.</p>
         </div>
-        <form className="home-v2-consult-form">
-          <input type="text" disabled placeholder="Họ và tên cha/mẹ*" />
-          <input type="tel" disabled placeholder="Số điện thoại*" />
-          <input type="email" disabled placeholder="Email" />
-          <Link to="/contact" className="home-v2-btn-outline">Đăng ký tư vấn</Link>
+        <form className="grid gap-2 sm:grid-cols-2">
+          <input type="text" disabled placeholder="Họ và tên cha/mẹ*" className="rounded-xl border-none bg-white px-3 py-2.5 text-sm text-slate-700" />
+          <input type="tel" disabled placeholder="Số điện thoại*" className="rounded-xl border-none bg-white px-3 py-2.5 text-sm text-slate-700" />
+          <input type="email" disabled placeholder="Email" className="rounded-xl border-none bg-white px-3 py-2.5 text-sm text-slate-700 sm:col-span-2" />
+          <Link to="/contact" className="rounded-xl border border-white/80 px-4 py-2.5 text-center text-sm font-bold text-white transition hover:bg-white/20 sm:col-span-2">Đăng ký tư vấn</Link>
         </form>
       </section>
 
-      <section className="home-v2-news">
-        <div className="home-v2-section-head">
-          <h2>Tin tức - Sự kiện</h2>
-          <Link to="/school-news">Xem thêm</Link>
+      <section className="mt-8">
+        <div className="mb-4 flex items-center justify-between gap-4">
+          <h2 className="text-2xl font-bold text-emerald-900 sm:text-3xl">Tin tức - Sự kiện</h2>
+          <Link to="/school-news" className="text-sm font-bold text-emerald-700 hover:underline">Xem thêm</Link>
         </div>
-        {loading && <p className="home-v2-state">Đang tải dữ liệu tin tức...</p>}
-        {error && <p className="home-v2-state home-v2-error">{error}</p>}
-        {!loading && !error && featured.length === 0 && <p className="home-v2-state">Chưa có bài viết.</p>}
+        {loading && <p className="py-3 text-slate-600">Đang tải dữ liệu tin tức...</p>}
+        {error && <p className="py-3 text-red-600">{error}</p>}
+        {!loading && !error && featured.length === 0 && <p className="py-3 text-slate-600">Chưa có bài viết.</p>}
         {!loading && !error && featured.length > 0 && (
-          <div className="home-v2-news-layout">
+          <div className="grid gap-4 lg:grid-cols-[1.4fr_1fr]">
             {mainBlog && (
-              <article className="home-v2-main-news" onClick={() => navigate(`/news/${mainBlog.id}`)}>
-                {mainBlog.image ? <img src={mainBlog.image} alt={mainBlog.title} /> : <div className="home-v2-no-image">Không có ảnh</div>}
-                <div>
-                  <span>{mainBlog.category}</span>
-                  <h3>{mainBlog.title}</h3>
-                  <p>{mainBlog.content || 'Nội dung đang được cập nhật.'}</p>
+              <article className="overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm transition hover:shadow-md" onClick={() => navigate(`/news/${mainBlog.id}`)}>
+                {mainBlog.image ? (
+                  <img src={mainBlog.image} alt={mainBlog.title} className="h-60 w-full object-cover" />
+                ) : (
+                  <div className="grid h-60 place-items-center bg-slate-100 text-slate-500">Không có ảnh</div>
+                )}
+                <div className="p-4">
+                  <span className="text-xs font-bold text-emerald-700">{mainBlog.category}</span>
+                  <h3 className="mt-1 font-bold text-slate-900">{mainBlog.title}</h3>
+                  <p className="mt-2 text-sm leading-6 text-slate-600">{mainBlog.content || 'Nội dung đang được cập nhật.'}</p>
                 </div>
               </article>
             )}
-            <div className="home-v2-side-news">
+            <div className="grid gap-3">
               {sideBlogs.map((item) => (
-                <button key={item.id} type="button" onClick={() => navigate(`/news/${item.id}`)}>
-                  <h4>{item.title}</h4>
-                  <p>{item.createdAt ? new Date(item.createdAt).toLocaleDateString('vi-VN') : item.category}</p>
+                <button
+                  key={item.id}
+                  type="button"
+                  onClick={() => navigate(`/news/${item.id}`)}
+                  className="rounded-2xl border border-slate-200 bg-white p-4 text-left shadow-sm transition hover:-translate-y-0.5 hover:shadow-md"
+                >
+                  <h4 className="mb-1 font-bold text-slate-900">{item.title}</h4>
+                  <p className="text-xs text-slate-500">{item.createdAt ? new Date(item.createdAt).toLocaleDateString('vi-VN') : item.category}</p>
                 </button>
               ))}
             </div>
