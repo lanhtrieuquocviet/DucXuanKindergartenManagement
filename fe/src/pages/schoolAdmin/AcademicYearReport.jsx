@@ -92,7 +92,9 @@ export default function AcademicYearReport() {
   const [stats, setStats] = useState({
     totalStudents: 0,
     totalClasses: 0,
-    totalStaff: 0,
+    healthyPercent: 0,
+    monitorPercent: 0,
+    concerningPercent: 0,
   });
   const [events, setEvents] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -152,16 +154,29 @@ export default function AcademicYearReport() {
           }
         }
 
-        const [studentsRes, classesRes, staffRes, eventsRes] = await Promise.all([
-          get(ENDPOINTS.STUDENTS.LIST),
-          get(ENDPOINTS.CLASSES.LIST),
-          get(ENDPOINTS.SCHOOL_ADMIN.STAFF_MEMBERS),
+        const [yearClassesRes, healthRes, eventsRes] = await Promise.all([
+          get(ENDPOINTS.SCHOOL_ADMIN.ACADEMIC_YEARS.CLASSES(resolvedYearId)),
+          get(ENDPOINTS.STUDENTS.HEALTH_OVERVIEW),
           get(ENDPOINTS.SCHOOL_ADMIN.ACADEMIC_EVENTS.GET(resolvedYearId)),
         ]);
 
-        const totalStudents = Number(studentsRes?.total ?? studentsRes?.data?.length ?? 0);
-        const totalClasses = Number(classesRes?.total ?? classesRes?.data?.length ?? 0);
-        const totalStaff = Number(staffRes?.total ?? staffRes?.data?.length ?? 0);
+        const classRows = Array.isArray(yearClassesRes?.data) ? yearClassesRes.data : [];
+        const classIdSet = new Set(classRows.map((c) => String(c?._id || '')).filter(Boolean));
+        const totalClasses = classRows.length;
+        const totalStudents = classRows.reduce(
+          (sum, c) => sum + Number(c?.studentCount || 0),
+          0,
+        );
+
+        const healthRows = Array.isArray(healthRes?.data) ? healthRes.data : [];
+        const yearHealthRows = healthRows.filter((r) => classIdSet.has(String(r?.classId || '')));
+        const healthyCount = yearHealthRows.filter((r) => r?.generalStatus === 'healthy').length;
+        const monitorCount = yearHealthRows.filter((r) => r?.generalStatus === 'monitor').length;
+        const concerningCount = yearHealthRows.filter((r) => r?.generalStatus === 'concerning').length;
+        const denominator = totalStudents > 0 ? totalStudents : 1;
+        const healthyPercent = Math.round((healthyCount / denominator) * 100);
+        const monitorPercent = Math.round((monitorCount / denominator) * 100);
+        const concerningPercent = Math.round((concerningCount / denominator) * 100);
 
         const months = Array.isArray(eventsRes?.data?.months) ? eventsRes.data.months : [];
         const flattenedEvents = months
@@ -204,7 +219,13 @@ export default function AcademicYearReport() {
           });
 
         if (!cancelled) {
-          setStats({ totalStudents, totalClasses, totalStaff });
+          setStats({
+            totalStudents,
+            totalClasses,
+            healthyPercent,
+            monitorPercent,
+            concerningPercent,
+          });
           setEvents(flattenedEvents);
         }
 
@@ -227,7 +248,9 @@ export default function AcademicYearReport() {
   const kpis = [
     { value: stats.totalStudents, label: 'Tổng số trẻ', accent: '#4f46e5' },
     { value: stats.totalClasses, label: 'Tổng số lớp học', accent: '#6366f1' },
-    { value: stats.totalStaff, label: 'Tổng số nhân sự', accent: '#6366f1' },
+    { value: `${stats.healthyPercent}%`, label: '% trẻ bình thường', accent: '#16a34a' },
+    { value: `${stats.monitorPercent}%`, label: '% trẻ đang theo dõi', accent: '#d97706' },
+    { value: `${stats.concerningPercent}%`, label: '% trẻ đáng lo ngại', accent: '#dc2626' },
   ];
 
   const filteredEvents = useMemo(() => {

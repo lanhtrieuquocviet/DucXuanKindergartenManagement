@@ -109,46 +109,51 @@ function TeacherDashboard() {
     if (isInitializing) return;
     if (!user) { navigate('/login', { replace: true }); return; }
     const userRoles = user?.roles?.map((r) => r.roleName || r) || [];
-    if (!userRoles.includes('Teacher')) { navigate('/', { replace: true }); return; }
+    if (!userRoles.includes('Teacher') && !userRoles.includes('HeadTeacher')) { navigate('/', { replace: true }); return; }
     const fetchData = async () => {
       try { setData(await getDashboard()); } catch (_) {}
     };
     fetchData();
   }, [navigate, user, getDashboard, isInitializing]);
 
-  const { isCommitteeMember } = useTeacher();
-  const { hasPermission } = useAuth();
+  const { hasPermission, hasRole } = useAuth();
 
   const ALL_TEACHER_MENU = [
     { key: 'classes',          label: 'Lớp phụ trách' },
     { key: 'students',         label: 'Danh sách học sinh' },
     { key: 'attendance',       label: 'Điểm danh',              permission: 'MANAGE_ATTENDANCE' },
-    { key: 'pickup-approval',  label: 'Đơn đưa đón',            permission: 'MANAGE_PICKUP' },
+    { key: 'pickup-approval',  label: 'Đơn đăng ký đưa đón',    permission: 'MANAGE_PICKUP' },
+    { key: 'leave-requests',   label: 'Danh sách đơn xin nghỉ', permission: 'MANAGE_ATTENDANCE' },
     { key: 'schedule',         label: 'Lịch dạy & hoạt động' },
-    { key: 'contact-book',     label: 'Sổ liên lạc điện tử' },
     { key: 'purchase-request', label: 'Cơ sở vật chất',         permission: 'MANAGE_PURCHASE_REQUEST' },
     { key: 'class-assets',     label: 'Tài sản lớp',            permission: 'MANAGE_ASSET' },
+    // Chỉ hiện với thành viên Ban kiểm kê (role InventoryStaff được backend tự gán khi assign vào ban)
+    { key: 'asset-inspection', label: 'Kiểm kê tài sản',        role: 'InventoryStaff' },
   ];
 
   const menuItems = useMemo(() => {
-    const items = ALL_TEACHER_MENU.filter(
-      (item) => !item.permission || hasPermission(item.permission)
-    );
-    if (isCommitteeMember && hasPermission('MANAGE_ASSET')) {
-      items.push({ key: 'asset-inspection', label: 'Kiểm kê tài sản' });
+    const items = ALL_TEACHER_MENU.filter((item) => {
+      if (item.permission) return hasPermission(item.permission);
+      if (item.role) return hasRole(item.role);
+      return true;
+    });
+    if (hasPermission('MANAGE_TEACHER_REPORT')) {
+      items.push({ key: 'manage-purchase-requests', label: 'Duyệt báo cáo giáo viên' });
     }
     return items;
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [isCommitteeMember, hasPermission]);
+  }, [hasPermission, hasRole]);
 
   const activeKey = useMemo(() => {
     const path = location.pathname || '';
     if (path.startsWith('/teacher/contact-book'))   return 'contact-book';
     if (path.startsWith('/teacher/attendance'))     return 'attendance';
     if (path.startsWith('/teacher/pickup-approval')) return 'pickup-approval';
+    if (path.startsWith('/teacher/leave-requests')) return 'leave-requests';
     if (path.startsWith('/teacher/purchase-request')) return 'purchase-request';
     if (path.startsWith('/teacher/class-assets'))   return 'class-assets';
     if (path.startsWith('/teacher/asset-inspection')) return 'asset-inspection';
+    if (path.startsWith('/teacher/manage-purchase-requests')) return 'manage-purchase-requests';
     return 'classes';
   }, [location.pathname]);
 
@@ -161,6 +166,7 @@ function TeacherDashboard() {
       'contact-book': '/teacher/contact-book',
       attendance: '/teacher/attendance',
       'pickup-approval': '/teacher/pickup-approval',
+      'leave-requests': '/teacher/leave-requests',
       'purchase-request': '/teacher/purchase-request',
       'class-assets': '/teacher/class-assets',
       'asset-inspection': '/teacher/asset-inspection',

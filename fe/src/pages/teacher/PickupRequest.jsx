@@ -1,7 +1,6 @@
 import { useEffect, useMemo, useState } from "react";
 import { useLocation, useNavigate } from "react-router-dom";
 import { useAuth } from "../../context/AuthContext";
-import { useTeacher } from "../../context/TeacherContext";
 import RoleLayout from "../../layouts/RoleLayout";
 import { get, post, ENDPOINTS } from "../../service/api";
 import ConfirmDialog from "../../components/ConfirmDialog";
@@ -125,7 +124,7 @@ function RequestCard({ req, onAction, onPreviewImage }) {
 function PickupRequest() {
   const navigate = useNavigate();
   const location = useLocation();
-  const { user, isInitializing } = useAuth();
+  const { user, isInitializing, hasPermission, hasRole } = useAuth();
 
   const [myClasses, setMyClasses] = useState(null); // null = chưa load
   const [requests, setRequests] = useState([]);
@@ -143,18 +142,17 @@ function PickupRequest() {
 
 
 
-  const { isCommitteeMember } = useTeacher();
   const menuItems = useMemo(() => [
     { key: "classes",          label: "Lớp phụ trách" },
     { key: "students",         label: "Danh sách học sinh" },
     { key: "attendance",       label: "Điểm danh" },
-    { key: "pickup-approval",  label: "Đơn đưa đón" },
+    { key: "pickup-approval",  label: "Đơn đăng ký đưa đón" },
+    { key: "leave-requests",   label: "Danh sách đơn xin nghỉ" },
     { key: "schedule",         label: "Lịch dạy & hoạt động" },
-    { key: "contact-book",     label: "Sổ liên lạc điện tử" },
     { key: "purchase-request", label: "Cơ sở vật chất" },
     { key: "class-assets",     label: "Tài sản lớp" },
-    ...(isCommitteeMember ? [{ key: "asset-inspection", label: "Kiểm kê tài sản" }] : []),
-  ], [isCommitteeMember]);
+    ...(hasRole("InventoryStaff") ? [{ key: "asset-inspection", label: "Kiểm kê tài sản" }] : []),
+  ], [hasPermission, hasRole]);
 
   const activeKey = useMemo(() => {
     const path = location.pathname || "";
@@ -168,13 +166,19 @@ function PickupRequest() {
   }, [location.pathname]);
 
   const handleMenuSelect = (key) => {
-    if (key === "classes")          { navigate("/teacher");                    return; }
-    if (key === "contact-book")     { navigate("/teacher/contact-book");       return; }
-    if (key === "attendance")       { navigate("/teacher/attendance");          return; }
-    if (key === "pickup-approval")  { navigate("/teacher/pickup-approval");     return; }
-    if (key === "purchase-request") { navigate("/teacher/purchase-request");    return; }
-    if (key === "class-assets")     { navigate("/teacher/class-assets");        return; }
-    if (key === "asset-inspection") { navigate("/teacher/asset-inspection");    return; }
+    const MAP = {
+      classes: "/teacher",
+      students: "/teacher/students",
+      schedule: "/teacher",
+      "contact-book": "/teacher/contact-book",
+      attendance: "/teacher/attendance",
+      "pickup-approval": "/teacher/pickup-approval",
+      "leave-requests": "/teacher/leave-requests",
+      "purchase-request": "/teacher/purchase-request",
+      "class-assets": "/teacher/class-assets",
+      "asset-inspection": "/teacher/asset-inspection",
+    };
+    if (MAP[key]) navigate(MAP[key]);
   };
 
   useEffect(() => {

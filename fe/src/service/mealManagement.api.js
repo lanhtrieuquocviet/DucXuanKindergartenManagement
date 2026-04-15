@@ -21,6 +21,7 @@ export const upsertMealPhoto = (data) =>
 export const getAttendanceSummary = (date) =>
   get(`${ENDPOINTS.MEAL_PHOTOS.ATTENDANCE_SUMMARY}?date=${date}`);
 
+
 /**
  * Thêm / cập nhật ảnh cho một bữa ăn cụ thể
  * @param {{ date: string, mealType: 'sang'|'trua'|'chieu'|'xe', description?: string, images: string[] }} data

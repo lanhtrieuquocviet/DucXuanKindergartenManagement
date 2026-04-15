@@ -34,6 +34,59 @@ const menuSchema = new mongoose.Schema(
       type: String,
       default: "",
     },
+
+    /** Mã lý do gợi ý (vd: nutrition, other, ...) */
+    rejectPresets: {
+      type: [String],
+      default: [],
+    },
+
+    /** Chi tiết phản hồi của ban giám hiệu */
+    rejectDetail: {
+      type: String,
+      default: "",
+    },
+
+    /** Thời điểm bấm "Áp dụng" (chuyển sang đang áp dụng) */
+    appliedAt: {
+      type: Date,
+      default: null,
+    },
+
+    /** Thời điểm bấm "Kết thúc" (chuyển sang lịch sử / completed) */
+    endedAt: {
+      type: Date,
+      default: null,
+    },
+
+    /** Nhật ký thao tác (duyệt, từ chối, yêu cầu sửa, áp dụng, kết thúc, gửi duyệt…) */
+    statusHistory: {
+      type: [
+        {
+          type: {
+            type: String,
+            enum: [
+              "submitted",
+              "approved",
+              "rejected_pending",
+              "request_edit_active",
+              "applied",
+              "ended",
+            ],
+            required: true,
+          },
+          at: { type: Date, default: Date.now },
+          actorId: {
+            type: mongoose.Schema.Types.ObjectId,
+            ref: "User",
+            default: null,
+          },
+          presets: { type: [String], default: [] },
+          detail: { type: String, default: "" },
+        },
+      ],
+      default: [],
+    },
     nutrition: {
       calories: { type: Number, default: 0 },
       protein: { type: Number, default: 0 },

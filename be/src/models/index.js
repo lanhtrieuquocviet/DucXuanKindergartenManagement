@@ -11,6 +11,7 @@ const TakeOff = require('./TakeOff');
 const Question = require('./Question');
 const Document = require('./Document');
 const SystemLog = require('./SystemLog');
+const ParentProfile = require('./ParentProfile');
 
 module.exports = {
   User,
@@ -26,4 +27,5 @@ module.exports = {
   Question,
   Document,
   SystemLog,
+  ParentProfile,
 };

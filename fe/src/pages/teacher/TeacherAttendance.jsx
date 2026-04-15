@@ -3,7 +3,6 @@ import { useLocation, useNavigate, useParams } from 'react-router-dom';
 import { Snackbar, Alert, Box, Typography, Avatar, Paper, Button } from '@mui/material';
 import { EventBusy as EventBusyIcon } from '@mui/icons-material';
 import { useAuth } from '../../context/AuthContext';
-import { useTeacher } from '../../context/TeacherContext';
 import RoleLayout from '../../layouts/RoleLayout';
 import { get, post, ENDPOINTS } from '../../service/api';
 import FaceAttendanceModal from '../../components/face/FaceAttendanceModal';
@@ -61,7 +60,7 @@ function TeacherAttendance() {
   const navigate = useNavigate();
   const location = useLocation();
   const { classId } = useParams();
-  const { user, logout, isInitializing } = useAuth();
+  const { user, logout, isInitializing, hasPermission, hasRole } = useAuth();
   const todayISO = getLocalISODate();
 
   // ── State: lớp & học sinh ──
@@ -147,7 +146,7 @@ function TeacherAttendance() {
       return;
     }
     const userRoles = user?.roles?.map((r) => r.roleName || r) || [];
-    if (!userRoles.includes('Teacher')) {
+    if (!userRoles.includes('Teacher') && !userRoles.includes('HeadTeacher')) {
       navigate('/', { replace: true });
     }
   }, [navigate, user, isInitializing]);
@@ -210,6 +209,14 @@ function TeacherAttendance() {
       receiverType: serverRec.receiverType || '',
       receiverOtherInfo: serverRec.receiverOtherInfo || '',
       receiverOtherImageName: serverRec.receiverOtherImageName || '',
+      belongingsNote: serverRec.checkinBelongings?.length > 0
+        ? serverRec.checkinBelongings.join(', ')
+        : (base.belongingsNote || ''),
+      hasBelongings: !!(serverRec.checkinBelongings?.length || base.hasBelongings),
+      checkoutBelongingsNote: serverRec.checkoutBelongings?.length > 0
+        ? serverRec.checkoutBelongings.join(', ')
+        : (serverRec.checkoutBelongingsNote || ''),
+      hasCheckoutBelongings: !!(serverRec.checkoutBelongings?.length || serverRec.checkoutBelongingsNote),
       note: serverRec.note || '',
       absentReason: serverRec.absentReason || '',
       checkedInByAI: serverRec.checkedInByAI || false,
@@ -293,20 +300,19 @@ function TeacherAttendance() {
   }, [detailForm.otpSent]);
 
   // ── Menu layout ──
-  const { isCommitteeMember } = useTeacher();
   const menuItems = useMemo(
     () => [
       { key: 'classes', label: 'Lớp phụ trách' },
       { key: 'students', label: 'Danh sách học sinh' },
       { key: 'attendance', label: 'Điểm danh' },
-      { key: 'pickup-approval', label: 'Đơn đưa đón' },
+      { key: 'pickup-approval', label: 'Đơn đăng ký đưa đón' },
+      { key: 'leave-requests', label: 'Danh sách đơn xin nghỉ' },
       { key: 'schedule', label: 'Lịch dạy & hoạt động' },
-      { key: 'contact-book', label: 'Sổ liên lạc điện tử' },
       { key: 'purchase-request', label: 'Cơ sở vật chất' },
       { key: 'class-assets', label: 'Tài sản lớp' },
-      ...(isCommitteeMember ? [{ key: 'asset-inspection', label: 'Kiểm kê tài sản' }] : []),
+      ...(hasRole('InventoryStaff') ? [{ key: 'asset-inspection', label: 'Kiểm kê tài sản' }] : []),
     ],
-    [isCommitteeMember]
+    [hasPermission, hasRole]
   );
 
   const activeKey = useMemo(() => {
@@ -329,6 +335,7 @@ function TeacherAttendance() {
       'contact-book': '/teacher/contact-book',
       attendance: '/teacher/attendance',
       'pickup-approval': '/teacher/pickup-approval',
+      'leave-requests': '/teacher/leave-requests',
       'purchase-request': '/teacher/purchase-request',
       'class-assets': '/teacher/class-assets',
       'asset-inspection': '/teacher/asset-inspection',
@@ -387,14 +394,21 @@ function TeacherAttendance() {
     });
   };
 
-  const handleSelectedDateChange = (value) => {
+  const handleSelectedDateChange = useCallback((value) => {
     if (!value) return;
     if (value > todayISO) { setSelectedDate(todayISO); return; }
     setSelectedDate(value);
-  };
+  }, [todayISO]);
+
+  const resetOtpState = useCallback(() => {
+    setConfirmationResult(null);
+    setOtpExpired(false);
+    setOtpTimeLeft(0);
+    setDetailForm((prev) => ({ ...prev, otpSent: false, otpCode: '' }));
+  }, []);
 
   // ── Detail modal ──
-  const openDetail = (studentId, mode = 'view') => {
+  const openDetail = useCallback((studentId, mode = 'view') => {
     setSubmitError(null);
     setDetailStudentId(studentId);
     setDetailOpenedDate(selectedDate);
@@ -449,6 +463,8 @@ function TeacherAttendance() {
         receiverPhone: parsePersonOtherInfo(rec.receiverOtherInfo).phone,
         receiverOtherImageName: rec.receiverOtherImageName || '',
         checkoutNote: rec.checkoutNote || '',
+        checkoutBelongingsNote: rec.checkoutBelongingsNote || '',
+        hasCheckoutBelongings: !!(rec.checkoutBelongingsNote),
         sendOtpSchoolAccount: false,
         sendOtpViaSms: false,
         selectedParentForOtp: '',
@@ -460,14 +476,7 @@ function TeacherAttendance() {
     setDetailMode(mode);
     setIsDetailOpen(true);
     resetOtpState();
-  };
-
-  const resetOtpState = () => {
-    setConfirmationResult(null);
-    setOtpExpired(false);
-    setOtpTimeLeft(0);
-    setDetailForm((prev) => ({ ...prev, otpSent: false, otpCode: '' }));
-  };
+  }, [selectedDate, draftForms, attendanceByStudent, resetOtpState]);
 
   const closeDetail = () => {
     // Lưu draft khi đóng modal (không lưu OTP vì hết hạn)
@@ -479,6 +488,17 @@ function TeacherAttendance() {
     setIsDetailOpen(false);
     setSubmitError(null);
   };
+
+  // ── Stable callbacks cho AttendanceTable (tránh re-render khi gõ form) ──
+  const handleCheckin = useCallback((id) => openDetail(id, 'checkin'), [openDetail]);
+  const handleCheckout = useCallback((id) => openDetail(id, 'checkout'), [openDetail]);
+  const handleViewDetail = useCallback((id) => openDetail(id), [openDetail]);
+  const handleAbsent = useCallback((id) => {
+    setAbsentStudentId(id);
+    setAbsentForm({ reason: '', note: '' });
+    setAbsentError(null);
+    setIsAbsentOpen(true);
+  }, []);
 
   // Đóng modal sau khi lưu thành công — xóa draft thay vì lưu
   const closeDetailAndClearDraft = () => {
@@ -535,24 +555,6 @@ function TeacherAttendance() {
     try {
       if (!detailStudentId) throw new Error('Không xác định học sinh.');
 
-      // Kiểm tra & xác minh OTP cho checkin
-      if (detailMode === 'checkin') {
-        if (!detailForm.otpSent) throw new Error('Vui lòng gửi mã OTP trước khi lưu.');
-        if (!detailForm.otpCode) throw new Error('Vui lòng nhập mã OTP.');
-        const isSchoolOtp = detailForm.sendOtpSchoolAccount && !detailForm.sendOtpViaSms;
-        if (isSchoolOtp) {
-          try {
-            const verifyRes = await post(ENDPOINTS.OTP.VERIFY, { studentId: detailStudentId, otpCode: detailForm.otpCode });
-            if (!verifyRes.data?.verified) throw new Error('OTP không chính xác.');
-          } catch (err) {
-            throw new Error(err.message || 'Mã OTP không chính xác hoặc đã hết hạn.');
-          }
-        } else {
-          if (!confirmationResult) throw new Error('Vui lòng gửi mã OTP trước khi lưu.');
-          try { await confirmationResult.confirm(detailForm.otpCode); }
-          catch { throw new Error('Mã OTP không chính xác hoặc đã hết hạn.'); }
-        }
-      }
 
       const basePayload = {
         studentId: detailStudentId,
@@ -562,21 +564,25 @@ function TeacherAttendance() {
       };
 
       if (detailMode === 'checkout') {
-        // Kiểm tra & xác minh OTP cho checkout
-        if (!detailForm.otpSent) throw new Error('Vui lòng gửi mã OTP trước khi lưu.');
-        if (!detailForm.otpCode) throw new Error('Vui lòng nhập mã OTP.');
-        const isSchoolOtpCO = detailForm.sendOtpSchoolAccount && !detailForm.sendOtpViaSms;
-        if (isSchoolOtpCO) {
-          try {
-            const verifyRes = await post(ENDPOINTS.OTP.VERIFY, { studentId: detailStudentId, otpCode: detailForm.otpCode });
-            if (!verifyRes.data?.verified) throw new Error('OTP không chính xác.');
-          } catch (err) {
-            throw new Error(err.message || 'Mã OTP không chính xác hoặc đã hết hạn.');
+        const isReceiverFromList = !!detailForm.receiverPickupPersonId && detailForm.receiverPickupPersonId !== 'KHAC';
+        const isTeacherConfirmed = !!detailForm.teacherConfirmedCheckout;
+        if (!isReceiverFromList && !isTeacherConfirmed) {
+          // Người ngoài danh sách, không có xác nhận giáo viên → bắt buộc OTP
+          if (!detailForm.otpSent) throw new Error('Vui lòng gửi mã OTP trước khi lưu.');
+          if (!detailForm.otpCode) throw new Error('Vui lòng nhập mã OTP.');
+          const isSchoolOtpCO = detailForm.sendOtpSchoolAccount && !detailForm.sendOtpViaSms;
+          if (isSchoolOtpCO) {
+            try {
+              const verifyRes = await post(ENDPOINTS.OTP.VERIFY, { studentId: detailStudentId, otpCode: detailForm.otpCode });
+              if (!verifyRes.data?.verified) throw new Error('OTP không chính xác.');
+            } catch (err) {
+              throw new Error(err.message || 'Mã OTP không chính xác hoặc đã hết hạn.');
+            }
+          } else {
+            if (!confirmationResult) throw new Error('Vui lòng gửi mã OTP trước khi lưu.');
+            try { await confirmationResult.confirm(detailForm.otpCode); }
+            catch { throw new Error('Mã OTP không chính xác hoặc đã hết hạn.'); }
           }
-        } else {
-          if (!confirmationResult) throw new Error('Vui lòng gửi mã OTP trước khi lưu.');
-          try { await confirmationResult.confirm(detailForm.otpCode); }
-          catch { throw new Error('Mã OTP không chính xác hoặc đã hết hạn.'); }
         }
 
         const timeOutHHmm = detailForm.timeOut || nowHHmm();
@@ -592,6 +598,7 @@ function TeacherAttendance() {
           receiverType: detailForm.receiverType || '',
           receiverOtherInfo: receiverOtherInfoFinal,
           receiverOtherImageName: detailForm.receiverOtherImageName || '',
+          checkoutBelongingsNote: detailForm.checkoutBelongingsNote?.trim() || '',
           time: isoOut ? { checkOut: isoOut } : undefined,
           timeString: { checkOut: timeOutHHmm },
           status: 'present',
@@ -604,6 +611,7 @@ function TeacherAttendance() {
           timeOut: timeOutHHmm,
           timeIn: detailForm.timeIn || '',
           checkoutNote: detailForm.checkoutNote?.trim() || '',
+          checkoutBelongingsNote: detailForm.checkoutBelongingsNote?.trim() || '',
           checkoutImageName: detailForm.checkoutImageName,
           receiverType: detailForm.receiverType,
           receiverOtherInfo: receiverOtherInfoFinal,
@@ -731,13 +739,22 @@ function TeacherAttendance() {
   };
 
   // ── Computed ──
-  const detailStudent = students.find((s) => s._id === detailStudentId) || null;
-  const selectedClass = classes.find((c) => (c._id || c.id) === classId) || null;
-  const selectedClassName =
-    selectedClass?.className ||
-    selectedClass?.name ||
-    (selectedClass?.gradeId?.gradeName ? `${selectedClass.gradeId.gradeName} - ${selectedClass?._id || ''}` : '') ||
-    '';
+  const detailStudent = useMemo(
+    () => students.find((s) => s._id === detailStudentId) || null,
+    [students, detailStudentId]
+  );
+  const selectedClass = useMemo(
+    () => classes.find((c) => (c._id || c.id) === classId) || null,
+    [classes, classId]
+  );
+  const selectedClassName = useMemo(
+    () =>
+      selectedClass?.className ||
+      selectedClass?.name ||
+      (selectedClass?.gradeId?.gradeName ? `${selectedClass.gradeId.gradeName} - ${selectedClass?._id || ''}` : '') ||
+      '',
+    [selectedClass]
+  );
 
   return (
     <RoleLayout
@@ -947,15 +964,10 @@ function TeacherAttendance() {
           todayISO={todayISO}
           selectedDate={selectedDate}
           onDateChange={handleSelectedDateChange}
-          onCheckin={(id) => openDetail(id, 'checkin')}
-          onCheckout={(id) => openDetail(id, 'checkout')}
-          onViewDetail={(id) => openDetail(id)}
-          onAbsent={(id) => {
-            setAbsentStudentId(id);
-            setAbsentForm({ reason: '', note: '' });
-            setAbsentError(null);
-            setIsAbsentOpen(true);
-          }}
+          onCheckin={handleCheckin}
+          onCheckout={handleCheckout}
+          onViewDetail={handleViewDetail}
+          onAbsent={handleAbsent}
           selectedClassName={selectedClassName}
           classId={classId}
         />

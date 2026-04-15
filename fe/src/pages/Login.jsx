@@ -5,9 +5,8 @@ import logoDucXuan from '../assets/logo/ducxuan-logo.png';
 import { useAuth } from '../context/AuthContext';
 
 function Login() {
-  const [form, setForm] = useState({ username: '', password: '' });
-  const [usernameError, setUsernameError] = useState('');
-  const [usernameWarning, setUsernameWarning] = useState('');
+  const [form, setForm] = useState({ loginId: '', password: '' });
+  const [loginIdError, setLoginIdError] = useState('');
   const [passwordError, setPasswordError] = useState('');
   const [passwordWarning, setPasswordWarning] = useState('');
   const [showPassword, setShowPassword] = useState(false);
@@ -17,13 +16,8 @@ function Login() {
   const handleChange = (e) => {
     const { name, value } = e.target;
     setForm((prev) => ({ ...prev, [name]: value }));
-    if (name === 'username') {
-      if (value) setUsernameError('');
-      if (value && (/[\s]/.test(value) || /[^A-Za-z0-9]/.test(value))) {
-        setUsernameWarning('Tài khoản không được chứa khoảng trắng và ký tự đặc biệt.');
-      } else {
-        setUsernameWarning('');
-      }
+    if (name === 'loginId') {
+      if (value) setLoginIdError('');
     }
     if (name === 'password') {
       if (value) setPasswordError('');
@@ -42,14 +36,21 @@ function Login() {
 
   const handleSubmit = async (e) => {
     e.preventDefault();
-    const usernameTrimmed = (form.username || '').trim().toLowerCase();
+    const loginId = (form.loginId || '').trim();
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    const phoneRegex = /^[0-9]{9,11}$/;
+    const usernameRegex = /^[A-Za-z0-9]+$/;
 
     let hasError = false;
-    if (!usernameTrimmed) {
-      setUsernameError('Vui lòng nhập tài khoản.');
+    if (!loginId) {
+      setLoginIdError('Vui lòng nhập email hoặc số điện thoại.');
       hasError = true;
-    } else if (/[\s]/.test(usernameTrimmed) || /[^A-Za-z0-9]/.test(usernameTrimmed)) {
-      setUsernameWarning('Tài khoản không được chứa khoảng trắng và ký tự đặc biệt.');
+    } else if (
+      !emailRegex.test(loginId.toLowerCase()) &&
+      !phoneRegex.test(loginId.replace(/\D/g, '')) &&
+      !usernameRegex.test(loginId)
+    ) {
+      setLoginIdError('Vui lòng nhập đúng định dạng email, số điện thoại hoặc tài khoản.');
       hasError = true;
     }
     if (!form.password) {
@@ -58,23 +59,30 @@ function Login() {
     }
     if (hasError) return;
     try {
-      const { user: newUser } = await login(usernameTrimmed, form.password);
+      const { user: newUser } = await login(loginId.toLowerCase(), form.password);
+      const roles = (newUser.roles || []).map((r) => r.roleName || r);
+      const isParentRole = roles.includes('Parent') || roles.includes('StudentParent');
+      if (isParentRole && newUser?.isChangePassword === false) {
+        navigate('/profile?forceChangePassword=1', { replace: true });
+        return;
+      }
       // eslint-disable-next-line no-console
       console.log('Login successful - newUser:', newUser);
       // Chuyển hướng theo role
-      const roles = (newUser.roles || []).map((r) => r.roleName || r);
       // eslint-disable-next-line no-console
       console.log('Mapped roles:', roles);
       if (roles.includes('SystemAdmin')) {
         navigate('/system-admin', { replace: true });
       } else if (roles.includes('SchoolAdmin')) {
         navigate('/school-admin', { replace: true });
-      } else if (roles.includes("Teacher")) {
+      } else if (roles.includes("HeadTeacher") || roles.includes("Teacher")) {
         navigate("/teacher", { replace: true });
       } else if (roles.includes("KitchenStaff")) {// navigate kitchen staff
         navigate("/kitchen", { replace: true });
       } else if (roles.includes("SchoolNurse")) {
         navigate("/school-nurse", { replace: true });
+      } else if (roles.includes("MedicalStaff")) {
+        navigate("/medical-staff/health", { replace: true });
       } else if (
         roles.includes("Parent") ||
         roles.includes("StudentParent") ||
@@ -127,29 +135,26 @@ function Login() {
             <form onSubmit={handleSubmit} className="space-y-5">
               <div className="space-y-2">
                 <label
-                  htmlFor="username"
+                  htmlFor="loginId"
                   className="block text-sm font-medium text-sky-900"
                 >
-                  Tài khoản
+                  Email hoặc số điện thoại
                 </label>
                 <input
-                  id="username"
-                  name="username"
+                  id="loginId"
+                  name="loginId"
                   type="text"
-                  value={form.username}
+                  value={form.loginId}
                   onChange={handleChange}
                   className={`block w-full rounded-xl border px-3 py-2.5 text-sm text-sky-900 placeholder-sky-400 shadow-sm focus:bg-white focus:outline-none focus:ring-2 transition ${
-                    usernameError
+                    loginIdError
                       ? 'border-red-400 bg-red-50/40 focus:border-red-400 focus:ring-red-200'
                       : 'border-sky-100 bg-sky-50/60 focus:border-sky-400 focus:ring-sky-200'
                   }`}
-                  placeholder="vd: admin"
+                  placeholder="vd: admin hoặc phuhuynh@gmail.com hoặc 0987654321"
                 />
-                {usernameError && (
-                  <p className="mt-1 text-xs text-red-600">{usernameError}</p>
-                )}
-                {!usernameError && usernameWarning && (
-                  <p className="mt-1 text-xs text-amber-600">{usernameWarning}</p>
+                {loginIdError && (
+                  <p className="mt-1 text-xs text-red-600">{loginIdError}</p>
                 )}
               </div>
 

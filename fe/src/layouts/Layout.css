@@ -20,7 +20,7 @@
 /* LEFT NAV – SÁT MÉP TRÁI */
 .sidebar.left {
   position: sticky;
-  top: 100px; /* dưới header */
+  top: 138px; /* đẩy xuống thấp hơn header */
   left: 0;
   padding-left: 16px;
 }
@@ -28,7 +28,7 @@
 /* RIGHT NAV – SÁT MÉP PHẢI */
 .sidebar.right {
   position: sticky;
-  top: 100px;
+  top: 138px;
   right: 0;
   padding-right: 16px;
 }

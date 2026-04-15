@@ -161,11 +161,11 @@ export const SystemAdminProvider = ({
   }, []);
 
   // Create role
-  const createRole = useCallback(async (roleName, description) => {
+  const createRole = useCallback(async (roleName, description, parentId = null) => {
     try {
       setLoading(true);
       setError(null);
-      const response = await post(ENDPOINTS.SYSTEM_ADMIN.CREATE_ROLE, { roleName, description });
+      const response = await post(ENDPOINTS.SYSTEM_ADMIN.CREATE_ROLE, { roleName, description, parentId });
       if (onSuccessRef.current) {
         onSuccessRef.current({ role: response.data });
       }
@@ -183,13 +183,14 @@ export const SystemAdminProvider = ({
   }, []);
 
   // Update role
-  const updateRole = useCallback(async (roleId, roleName, description) => {
+  const updateRole = useCallback(async (roleId, roleName, description, parentId) => {
     try {
       setLoading(true);
       setError(null);
       const updateData = {};
       if (roleName) updateData.roleName = roleName;
       if (description !== undefined) updateData.description = description;
+      if (parentId !== undefined) updateData.parentId = parentId;
       const response = await put(ENDPOINTS.SYSTEM_ADMIN.UPDATE_ROLE(roleId), updateData);
       if (onSuccessRef.current) {
         onSuccessRef.current({ role: response.data });
@@ -280,11 +281,11 @@ export const SystemAdminProvider = ({
   }, []);
 
   // Create permission
-  const createPermission = useCallback(async (code, description) => {
+  const createPermission = useCallback(async (code, description, group = '') => {
     try {
       setLoading(true);
       setError(null);
-      const response = await post(ENDPOINTS.SYSTEM_ADMIN.CREATE_PERMISSION, { code, description });
+      const response = await post(ENDPOINTS.SYSTEM_ADMIN.CREATE_PERMISSION, { code, description, group });
       if (onSuccessRef.current) {
         onSuccessRef.current({ permission: response.data });
       }
@@ -302,13 +303,14 @@ export const SystemAdminProvider = ({
   }, []);
 
   // Update permission
-  const updatePermission = useCallback(async (permissionId, code, description) => {
+  const updatePermission = useCallback(async (permissionId, code, description, group) => {
     try {
       setLoading(true);
       setError(null);
       const updateData = {};
       if (code) updateData.code = code;
       if (description) updateData.description = description;
+      if (group !== undefined) updateData.group = group;
       const response = await put(ENDPOINTS.SYSTEM_ADMIN.UPDATE_PERMISSION(permissionId), updateData);
       if (onSuccessRef.current) {
         onSuccessRef.current({ permission: response.data });

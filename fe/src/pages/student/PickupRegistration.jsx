@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useSearchParams } from 'react-router-dom';
 import { useAuth } from '../../context/AuthContext';
 import { get, post, postFormData, ENDPOINTS, del, put } from '../../service/api';
 import {
@@ -25,6 +25,7 @@ const STATUS_CONFIG = {
 
 export default function PickupRegistration() {
   const navigate = useNavigate();
+  const [searchParams] = useSearchParams();
   const { user, isInitializing } = useAuth();
   const [children, setChildren] = useState([]);
   const [pickupRequests, setPickupRequests] = useState([]);
@@ -33,10 +34,16 @@ export default function PickupRegistration() {
   const [editingId, setEditingId] = useState(null);
   const [deleteId, setDeleteId] = useState(null);
   const [isOtherRelation, setIsOtherRelation] = useState(false);
-  const [form, setForm] = useState({ studentId: '', fullName: '', relation: '', phone: '', imageFile: null });
+  const [form, setForm] = useState({ studentId: searchParams.get('studentId') || '', fullName: '', relation: '', phone: '', imageFile: null });
   const [error, setError] = useState('');
   const [success, setSuccess] = useState('');
   const [submitting, setSubmitting] = useState(false);
+  const selectedChild = children.find((c) => c._id === form.studentId) || null;
+  const selectedClassId = selectedChild?.classId?._id || selectedChild?.classId || '';
+  const selectedStudentRequests = pickupRequests.filter((r) => {
+    const reqStudentId = r.student?._id || r.student;
+    return String(reqStudentId || '') === String(form.studentId || '');
+  });
 
   useEffect(() => {
     if (isInitializing) return;
@@ -50,7 +57,12 @@ export default function PickupRegistration() {
       const res = await get(ENDPOINTS.AUTH.MY_CHILDREN);
       const list = res.data || [];
       setChildren(list);
-      if (list.length > 0) setForm(p => ({ ...p, studentId: list[0]._id }));
+      if (list.length > 0) {
+        setForm(p => ({
+          ...p,
+          studentId: p.studentId && list.some(c => c._id === p.studentId) ? p.studentId : list[0]._id,
+        }));
+      }
     } catch { setError('Không tải được thông tin học sinh.'); }
   };
 
@@ -84,6 +96,8 @@ export default function PickupRegistration() {
     setError(''); setSuccess(''); setSubmitting(true);
     try {
       if (!form.fullName.trim()) throw new Error('Vui lòng nhập họ tên người đón');
+      if (!form.studentId) throw new Error('Vui lòng chọn học sinh');
+      if (!selectedClassId) throw new Error('Học sinh chưa được đăng ký lớp nên không thể gửi đơn');
       if (!form.phone.trim()) throw new Error('Vui lòng nhập số điện thoại');
       if (!/^0[35789]\d{8}$/.test(form.phone.trim())) throw new Error('Số điện thoại không hợp lệ.');
       if (!form.relation.trim()) throw new Error('Vui lòng nhập mối quan hệ');
@@ -97,7 +111,7 @@ export default function PickupRegistration() {
       const payload = { studentId: form.studentId, fullName: form.fullName.trim(), relation: form.relation.trim(), phone: form.phone.trim(), imageUrl };
       if (editingId) { await put(ENDPOINTS.PICKUP.UPDATE(editingId), payload); setSuccess('Cập nhật thành công!'); }
       else {
-        if (pickupRequests.length >= 5) throw new Error('Mỗi học sinh tối đa 5 người đưa đón');
+        if (selectedStudentRequests.length >= 5) throw new Error('Mỗi học sinh tối đa 5 người đưa đón');
         await post(ENDPOINTS.PICKUP.CREATE, payload); setSuccess('Đăng ký thành công!');
       }
       resetForm();
@@ -108,7 +122,7 @@ export default function PickupRegistration() {
 
   const resetForm = () => {
     setEditingId(null); setIsOtherRelation(false);
-    setForm({ studentId: children[0]?._id || '', fullName: '', relation: '', phone: '', imageFile: null });
+    setForm(p => ({ studentId: p.studentId || children[0]?._id || '', fullName: '', relation: '', phone: '', imageFile: null }));
     setPreviewUrl(null);
   };
 
@@ -196,6 +210,28 @@ export default function PickupRegistration() {
             </Stack>
 
             <Stack spacing={2}>
+              {children.length > 1 && !editingId && (
+                <FormControl size="small" fullWidth required>
+                  <InputLabel>Đăng ký cho bé</InputLabel>
+                  <Select
+                    label="Đăng ký cho bé"
+                    value={form.studentId}
+                    onChange={e => setForm(p => ({ ...p, studentId: e.target.value }))}
+                    sx={{ borderRadius: 2 }}
+                  >
+                    {children.map(c => (
+                      <MenuItem key={c._id} value={c._id}>
+                        {c.fullName} — {c.classId?.className || 'Chưa xếp lớp'}
+                      </MenuItem>
+                    ))}
+                  </Select>
+                </FormControl>
+              )}
+              {!selectedClassId && !!form.studentId && (
+                <Alert severity="warning" sx={{ borderRadius: 2 }}>
+                  Học sinh này chưa được xếp lớp. Vui lòng liên hệ nhà trường để đăng ký lớp trước khi gửi đơn đưa đón.
+                </Alert>
+              )}
               <TextField
                 label={`Họ tên người đón (${form.fullName.length}/50)`}
                 name="fullName" value={form.fullName} onChange={handleChange} required fullWidth size="small"
@@ -240,7 +276,7 @@ export default function PickupRegistration() {
                   Hủy sửa
                 </Button>
               )}
-              <Button type="submit" variant="contained" disabled={submitting} sx={{
+              <Button type="submit" variant="contained" disabled={submitting || (!editingId && !selectedClassId)} sx={{
                 flex: 1, borderRadius: 2, textTransform: 'none', fontWeight: 700,
                 bgcolor: PRIMARY, '&:hover': { bgcolor: PRIMARY_DARK },
               }}>

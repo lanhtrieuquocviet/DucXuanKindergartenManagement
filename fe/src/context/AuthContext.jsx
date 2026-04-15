@@ -105,12 +105,12 @@ export const AuthProvider = ({
   }, [autoLoadUser]);
 
   // Login
-  const login = useCallback(async (username, password) => {
+  const login = useCallback(async (loginId, password) => {
     try {
       setLoading(true);
       setError(null);
 
-      const response = await post(ENDPOINTS.AUTH.LOGIN, { username, password }, { includeAuth: false });
+      const response = await post(ENDPOINTS.AUTH.LOGIN, { loginId, password }, { includeAuth: false });
       const { token: newToken, user: newUser } = response.data || {};
 
       if (!newToken || !newUser) {
@@ -237,12 +237,13 @@ export const AuthProvider = ({
   }, []);
 
   // Change password
-  const changePassword = useCallback(async (currentPassword, newPassword) => {
+  const changePassword = useCallback(async (currentPassword, newPassword, refreshTokenOverride = null) => {
     try {
       setLoading(true);
       setError(null);
 
-      await post(ENDPOINTS.AUTH.CHANGE_PASSWORD, { currentPassword, newPassword });
+      const refreshToken = refreshTokenOverride || getRefreshToken();
+      await post(ENDPOINTS.AUTH.CHANGE_PASSWORD, { currentPassword, newPassword, refreshToken });
     } catch (err) {
       const errorMessage = err.message || 'Đổi mật khẩu thất bại';
       setError(errorMessage);
@@ -272,6 +273,18 @@ export const AuthProvider = ({
     };
     window.addEventListener('storage', handleStorageChange);
     return () => window.removeEventListener('storage', handleStorageChange);
+  }, [clearAuth]);
+
+  // Lắng nghe cross-tab logout (BroadcastChannel) - logout from all devices
+  useEffect(() => {
+    const channel = new BroadcastChannel('auth_channel');
+    const handleMessage = (event) => {
+      if (event.data.type === 'LOGOUT_ALL_TABS') {
+        clearAuth('Mật khẩu đã được thay đổi. Vui lòng đăng nhập lại trên tất cả thiết bị.');
+      }
+    };
+    channel.onmessage = handleMessage;
+    return () => channel.close();
   }, [clearAuth]);
 
   // Check if user is authenticated

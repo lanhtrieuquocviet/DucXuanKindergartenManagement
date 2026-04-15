@@ -33,17 +33,50 @@ import DeleteIcon from '@mui/icons-material/Delete';
 import { toast } from 'react-toastify';
 import RoleLayout from '../../layouts/RoleLayout';
 import { useAuth } from '../../context/AuthContext';
-import { get, post, put, del, ENDPOINTS } from '../../service/api';
+import { get, post, put, del, postFormData, ENDPOINTS } from '../../service/api';
 import { createSchoolAdminMenuSelect } from './schoolAdminMenuConfig';
 import { useSchoolAdminMenu } from './useSchoolAdminMenu';
 
-const POSITION_OPTIONS = ['BGH', 'Giáo viên', 'Nhân viên văn phòng', 'nhân viên y tế', 'nhân viên bếp'];
+const ROLE_TO_POSITION = {
+  SchoolAdmin: 'BGH',
+  Teacher: 'Giáo viên',
+  KitchenStaff: 'Nhân viên nhà bếp',
+  MedicalStaff: 'Nhân viên y tế',
+  HeadTeacher: 'Tổ trưởng tổ chuyên môn',
+};
+
+const POSITION_OPTIONS = [
+  'BGH',
+  'Giáo viên',
+  'Nhân viên văn phòng',
+  'Nhân viên y tế',
+  'Nhân viên nhà bếp',
+  'Tổ trưởng tổ chuyên môn',
+];
+
+const KNOWN_POSITIONS = new Set(Object.values(ROLE_TO_POSITION));
 
 const EMPTY_FORM = {
   position: '',
   customPosition: '',
   status: 'active',
   userId: null,
+};
+
+const getPositionFromRoleNames = (roleNames) => {
+  if (!roleNames) return '';
+  const roles = String(roleNames).split(',').map((role) => role.trim());
+  for (const role of roles) {
+    if (ROLE_TO_POSITION[role]) {
+      return ROLE_TO_POSITION[role];
+    }
+  }
+  return '';
+};
+
+const resolvePositionLabel = (item) => {
+  if (item.position) return item.position;
+  return getPositionFromRoleNames(item.roleNames) || 'Nhân viên văn phòng';
 };
 
 const DEFAULT_STAFF_AVATAR_3X4 = `data:image/svg+xml;charset=UTF-8,${encodeURIComponent(
@@ -81,6 +114,8 @@ export default function ManageStaff() {
   const [saveLoading, setSaveLoading] = useState(false);
   const [selectedStaffId, setSelectedStaffId] = useState(null);
   const [deleteDialog, setDeleteDialog] = useState({ open: false, item: null });
+  const [avatarFile, setAvatarFile] = useState(null);
+  const [avatarPreview, setAvatarPreview] = useState('');
 
   useEffect(() => {
     if (isInitializing) return;
@@ -102,7 +137,8 @@ export default function ManageStaff() {
     setError('');
     try {
       const response = await get(ENDPOINTS.SCHOOL_ADMIN.STAFF_MEMBERS);
-      setStaff(response.data || []);
+      const staffMembers = response.data || [];
+      setStaff(staffMembers);
     } catch (err) {
       const msg = err?.data?.message || err?.message || 'Lỗi khi tải danh sách nhân sự';
       setError(msg);
@@ -115,7 +151,11 @@ export default function ManageStaff() {
   const loadUsers = async () => {
     try {
       const response = await get(ENDPOINTS.SCHOOL_ADMIN.STAFF_USERS);
-      setUsers(response.data || []);
+      const allUsers = response.data || [];
+      setUsers(allUsers.filter((item) => {
+        const roles = String(item.roleNames || '').split(',').map((role) => role.trim());
+        return !roles.includes('SystemAdmin');
+      }));
     } catch (err) {
       console.error('loadUsers error', err);
     }
@@ -130,10 +170,12 @@ export default function ManageStaff() {
   const handleOpenDialog = (mode = 'create', staffItem = null) => {
     setDialogMode(mode);
     setFormErrors({});
+    setAvatarFile(null);
+    setAvatarPreview('');
 
     if (mode === 'edit' && staffItem) {
       setSelectedStaffId(staffItem._id);
-      const existingPosition = staffItem.position || '';
+      const existingPosition = resolvePositionLabel(staffItem);
       const isKnownPosition = POSITION_OPTIONS.includes(existingPosition);
       setForm({
         position: isKnownPosition ? existingPosition : 'other',
@@ -141,6 +183,7 @@ export default function ManageStaff() {
         status: staffItem.status || 'active',
         userId: staffItem.user?._id || null,
       });
+      setAvatarPreview(staffItem.avatar || staffItem.user?.avatar || '');
     } else {
       setSelectedStaffId(null);
       setForm(EMPTY_FORM);
@@ -155,8 +198,18 @@ export default function ManageStaff() {
     if (form.position === 'other' && !form.customPosition.trim()) {
       errors.customPosition = 'Vui lòng nhập chức vụ khác';
     }
-    if (!form.userId) errors.userId = 'Vui lòng chọn người dùng';
     return errors;
+  };
+
+  const handleAvatarSelect = async (e) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    if (!/^image\/(jpeg|jpg|png|gif|webp)$/i.test(file.type)) {
+      toast.error('Chỉ chấp nhận file ảnh (JPEG, PNG, GIF, WebP).');
+      return;
+    }
+    setAvatarFile(file);
+    setAvatarPreview(URL.createObjectURL(file));
   };
 
   const handleSave = async () => {
@@ -171,14 +224,29 @@ export default function ManageStaff() {
       const payload = {
         position: form.position === 'other' ? form.customPosition.trim() : form.position.trim(),
         status: form.status,
-        userId: form.userId,
       };
 
+      // Upload avatar nếu có file mới
+      if (avatarFile && dialogMode === 'edit') {
+        const formData = new FormData();
+        formData.append('avatar', avatarFile);
+        const uploadResponse = await postFormData(ENDPOINTS.CLOUDINARY.UPLOAD_AVATAR, formData);
+        if (uploadResponse.data?.url) {
+          payload.avatar = uploadResponse.data.url;
+        }
+      }
+
       if (dialogMode === 'create') {
+        payload.userId = form.userId;
         await post(ENDPOINTS.SCHOOL_ADMIN.STAFF_MEMBERS, payload);
         toast.success('Thêm nhân sự thành công');
       } else {
-        await put(ENDPOINTS.SCHOOL_ADMIN.STAFF_MEMBER(selectedStaffId), payload);
+        // Update user via school-admin endpoint
+        const userUpdatePayload = { status: form.status };
+        if (payload.avatar) {
+          userUpdatePayload.avatar = payload.avatar;
+        }
+        await put(`/school-admin/users/${form.userId}`, userUpdatePayload);
         toast.success('Cập nhật nhân sự thành công');
       }
 
@@ -212,12 +280,11 @@ export default function ManageStaff() {
   };
 
   const availableUsers = useMemo(() => {
-    const assignedUserIds = new Set(staff.map((item) => item.user?._id));
-    return users.filter((u) => {
-      if (dialogMode === 'edit' && form.userId === u._id) return true;
-      return !assignedUserIds.has(u._id);
-    });
-  }, [users, staff, dialogMode, form.userId]);
+    if (dialogMode === 'edit') return [];
+    return users;
+  }, [users, dialogMode]);
+
+  const getDisplayPosition = (item) => resolvePositionLabel(item);
 
   const userById = useMemo(() => {
     const map = new Map();
@@ -228,17 +295,14 @@ export default function ManageStaff() {
   }, [users]);
 
   const getStaffEmail = (item) => {
-    const fromStaffApi = item?.user?.email;
-    if (fromStaffApi) return fromStaffApi;
-    const fromUsersApi = userById.get(item?.user?._id)?.email;
-    return fromUsersApi || '—';
+    return item?.user?.email || item?.email || '—';
   };
 
   const filteredStaff = useMemo(() => {
     const searchTerm = searchName.trim().toLowerCase();
     return staff.filter((item) => {
-      const fullName = String(item.user?.fullName || '').toLowerCase();
-      const position = String(item.position || '');
+      const fullName = String(item.user?.fullName || item.fullName || '').toLowerCase();
+      const position = String(resolvePositionLabel(item));
       const matchesName = !searchTerm || fullName.includes(searchTerm);
       const matchesPosition =
         !filterPosition ||
@@ -286,9 +350,6 @@ export default function ManageStaff() {
             </Typography>
           </Box>
           <Stack direction="row" spacing={1} alignItems="center" sx={{ mt: { xs: 2, sm: 0 } }}>
-            <Button variant="contained" color="secondary" onClick={() => handleOpenDialog('create')} sx={{ textTransform: 'none' }}>
-              Thêm nhân sự
-            </Button>
             <Button variant="outlined" color="inherit" onClick={handleRefresh} disabled={refreshing} sx={{ textTransform: 'none' }}>
               {refreshing ? 'Làm mới...' : 'Làm mới'}
             </Button>
@@ -372,8 +433,8 @@ export default function ManageStaff() {
                         <TableCell>
                           <Avatar
                             variant="rounded"
-                            src={item.user?.avatar || DEFAULT_STAFF_AVATAR_3X4}
-                            alt={item.user?.fullName || 'Ảnh nhân sự'}
+                            src={item.avatar || item.user?.avatar || DEFAULT_STAFF_AVATAR_3X4}
+                            alt={item.user?.fullName || item.fullName || 'Ảnh nhân sự'}
                             sx={{
                               width: 48,
                               height: 64,
@@ -385,10 +446,10 @@ export default function ManageStaff() {
                             }}
                           />
                         </TableCell>
-                        <TableCell sx={{ whiteSpace: 'nowrap' }}>{item.user?.fullName || '—'}</TableCell>
+                        <TableCell sx={{ whiteSpace: 'nowrap' }}>{item.user?.fullName || item.fullName || '—'}</TableCell>
                         <TableCell sx={{ whiteSpace: 'nowrap' }}>{getStaffEmail(item)}</TableCell>
-                        <TableCell>{item.position || '—'}</TableCell>
-                        <TableCell sx={{ display: { xs: 'none', md: 'table-cell' } }}>{item.user?.phone || '—'}</TableCell>
+                        <TableCell>{resolvePositionLabel(item) || '—'}</TableCell>
+                        <TableCell sx={{ display: { xs: 'none', md: 'table-cell' } }}>{item.user?.phone || item.phone || '—'}</TableCell>
                         <TableCell sx={{ display: { xs: 'none', sm: 'table-cell' } }}>
                           {item.status === 'active' ? 'Hoạt động' : 'Không hoạt động'}
                         </TableCell>
@@ -418,27 +479,66 @@ export default function ManageStaff() {
         <DialogTitle>{dialogMode === 'create' ? 'Thêm nhân sự mới' : 'Chỉnh sửa nhân sự'}</DialogTitle>
         <DialogContent dividers>
           <Stack spacing={2} sx={{ mt: 1 }}>
-            <Autocomplete
-              options={availableUsers}
-              getOptionLabel={(option) => {
-                const title = option.fullName || option.username || 'Người dùng';
-                const meta = option.roleNames || option.phone || option.email || option.username;
-                return `${title} • ${meta}`;
-              }}
-              value={availableUsers.find((u) => u._id === form.userId) || null}
-              onChange={(_, value) => setForm((prev) => ({ ...prev, userId: value ? value._id : null }))}
-              renderInput={(params) => (
-                <TextField
-                  {...params}
-                  label="Chọn người dùng"
-                  error={!!formErrors.userId}
-                  helperText={formErrors.userId}
-                  size="small"
-                />
-              )}
-              disabled={dialogMode === 'edit'}
-              fullWidth
-            />
+            {dialogMode === 'create' && (
+              <Autocomplete
+                options={availableUsers}
+                getOptionLabel={(option) => {
+                  const title = option.fullName || option.username || 'Người dùng';
+                  const meta = option.roleNames || option.phone || option.email || option.username;
+                  return `${title} • ${meta}`;
+                }}
+                value={availableUsers.find((u) => u._id === form.userId) || null}
+                onChange={(_, value) => {
+                  setForm((prev) => ({
+                    ...prev,
+                    userId: value ? value._id : null,
+                    position: value ? getPositionFromRoleNames(value.roleNames) || prev.position : '',
+                    customPosition: '',
+                  }));
+                }}
+                renderInput={(params) => (
+                  <TextField
+                    {...params}
+                    label="Chọn người dùng"
+                    error={!!formErrors.userId}
+                    helperText={formErrors.userId}
+                    size="small"
+                  />
+                )}
+                fullWidth
+              />
+            )}
+            
+            {dialogMode === 'edit' && (
+              <Box>
+                <Typography variant="subtitle2" fontSize={12} fontWeight={600} sx={{ mb: 1 }}>Ảnh đại diện</Typography>
+                <Box sx={{ display: 'flex', gap: 2, alignItems: 'flex-start' }}>
+                  <Avatar
+                    variant="rounded"
+                    src={avatarPreview}
+                    alt="Avatar"
+                    sx={{
+                      width: 80,
+                      height: 107,
+                      borderRadius: 1.5,
+                      border: '1px solid',
+                      borderColor: 'divider',
+                      bgcolor: '#e2e8f0',
+                      '& .MuiAvatar-img': { objectFit: 'cover' },
+                    }}
+                  />
+                  <Button
+                    variant="outlined"
+                    size="small"
+                    component="label"
+                    sx={{ textTransform: 'none' }}
+                  >
+                    Chọn ảnh
+                    <input type="file" accept="image/*" hidden onChange={handleAvatarSelect} />
+                  </Button>
+                </Box>
+              </Box>
+            )}
 
             <FormControl fullWidth size="small" error={!!formErrors.position}>
               <InputLabel id="staff-position-label">Chức vụ</InputLabel>

@@ -34,6 +34,8 @@ import {
   Badge,
   Tooltip,
 } from '@mui/material';
+import WbSunnyIcon from '@mui/icons-material/WbSunny';
+import AcUnitIcon from '@mui/icons-material/AcUnit';
 import DeleteOutlineIcon from '@mui/icons-material/DeleteOutline';
 import WarningAmberIcon from '@mui/icons-material/WarningAmber';
 import ArrowBackIcon from '@mui/icons-material/ArrowBack';
@@ -57,8 +59,7 @@ import HomeIcon from '@mui/icons-material/Home';
 
 function calcAge(dob) {
   if (!dob) return null;
-  const diff = Date.now() - new Date(dob).getTime();
-  return Math.floor(diff / (365.25 * 24 * 3600 * 1000));
+  return new Date().getFullYear() - new Date(dob).getFullYear();
 }
 
 function fmtDate(d) {
@@ -237,7 +238,8 @@ function StudentInClass() {
   const [removeLoading, setRemoveLoading] = useState(false);
   const [removeError, setRemoveError] = useState(null);
 
-  // Nhật ký: trạng thái hoàn thành từng tiết
+  // Nhật ký: mùa từ năm học và trạng thái hoàn thành từng tiết
+  const [activeSeason, setActiveSeason] = useState('summer'); // 'summer' | 'winter'
   const [completedItems, setCompletedItems] = useState(new Set());
   const toggleCompleted = (id) =>
     setCompletedItems(prev => {
@@ -269,11 +271,12 @@ function StudentInClass() {
     setLoading(true);
     setError(null);
     try {
-      const [detailRes, studentsRes, attRes, timetableRes] = await Promise.allSettled([
+      const [detailRes, studentsRes, attRes, timetableRes, yearRes] = await Promise.allSettled([
         get(ENDPOINTS.CLASSES.DETAIL(classId)),
         get(ENDPOINTS.CLASSES.STUDENTS(classId)),
         get(ENDPOINTS.SCHOOL_ADMIN.CLASS_ATTENDANCE_DETAIL(classId)),
         get(ENDPOINTS.SCHOOL_ADMIN.TIMETABLE.LIST()),
+        get(ENDPOINTS.SCHOOL_ADMIN.ACADEMIC_YEARS.CURRENT),
       ]);
 
       if (detailRes.status === 'fulfilled') {
@@ -294,6 +297,13 @@ function StudentInClass() {
       }
       if (timetableRes.status === 'fulfilled') {
         setTimetable(timetableRes.value.data || []);
+      }
+      if (yearRes.status === 'fulfilled') {
+        const year = yearRes.value.data || null;
+        const s = year?.activeTimetableSeason;
+        const month = new Date().getMonth() + 1;
+        const calSeason = month >= 4 && month <= 9 ? 'summer' : 'winter';
+        setActiveSeason((s === 'summer' || s === 'winter') ? s : calSeason);
       }
     } catch (err) {
       setError(err.message || 'Lỗi khi tải dữ liệu');
@@ -755,62 +765,84 @@ function StudentInClass() {
           {/* ── Tab 2: Nhật ký lớp ──────────────────────────────────────── */}
           {activeTab === 2 && (
             <Box>
-              <Typography variant="subtitle2" fontWeight={700} sx={{ mb: 2 }}>
-                Nhật ký ngày {new Date().toLocaleDateString('vi-VN')}
-              </Typography>
+              <Stack direction="row" alignItems="center" justifyContent="space-between" sx={{ mb: 2 }} flexWrap="wrap" gap={1}>
+                <Typography variant="subtitle2" fontWeight={700}>
+                  Nhật ký ngày {new Date().toLocaleDateString('vi-VN')}
+                </Typography>
+                <Chip
+                  icon={activeSeason === 'summer'
+                    ? <WbSunnyIcon sx={{ fontSize: '16px !important', color: '#d97706 !important' }} />
+                    : <AcUnitIcon sx={{ fontSize: '16px !important', color: '#2563eb !important' }} />}
+                  label={activeSeason === 'summer' ? 'Đang áp dụng: Mùa hè' : 'Đang áp dụng: Mùa đông'}
+                  size="small"
+                  sx={{
+                    fontWeight: 600,
+                    bgcolor: activeSeason === 'summer' ? '#fef3c7' : '#dbeafe',
+                    color: activeSeason === 'summer' ? '#92400e' : '#1e40af',
+                    border: '1px solid',
+                    borderColor: activeSeason === 'summer' ? '#fde68a' : '#bfdbfe',
+                  }}
+                />
+              </Stack>
 
               {timetable.length === 0 ? (
                 <Typography variant="body2" color="text.secondary">Chưa có thời khóa biểu</Typography>
-              ) : (
-                <Stack spacing={1.5}>
-                  {timetable.map((item, idx) => {
-                    const ICONS = [
-                      <CheckCircleIcon sx={{ color: '#16a34a', fontSize: 24 }} />,
-                      <FavoriteIcon    sx={{ color: '#d97706', fontSize: 24 }} />,
-                      <SchoolIcon      sx={{ color: '#2563eb', fontSize: 24 }} />,
-                      <ScheduleIcon    sx={{ color: '#7c3aed', fontSize: 24 }} />,
-                      <BookIcon        sx={{ color: '#0284c7', fontSize: 24 }} />,
-                    ];
-                    const seasonNote = item.appliesToSeason !== 'both'
-                      ? (item.appliesToSeason === 'summer' ? 'Mùa hè' : 'Mùa đông')
-                      : null;
-                    const done = completedItems.has(item._id);
-                    return (
-                      <Paper
-                        key={item._id}
-                        variant="outlined"
-                        sx={{
-                          p: 2, borderRadius: 2, display: 'flex', alignItems: 'center', gap: 2,
-                          borderColor: done ? '#16a34a' : 'grey.200',
-                          bgcolor: done ? '#f0fdf4' : '#fff',
-                          transition: 'all 0.2s',
-                        }}
-                      >
-                        <Box sx={{ width: 56, textAlign: 'center', flexShrink: 0 }}>
-                          <Typography variant="body2" sx={{ color: '#7c3aed', fontWeight: 700 }}>
-                            {item.startLabel}
-                          </Typography>
-                        </Box>
-                        <Divider orientation="vertical" flexItem />
-                        <Box sx={{ flex: 1 }}>
-                          <Typography variant="body2" fontWeight={700} sx={{ textDecoration: done ? 'line-through' : 'none', color: done ? 'text.secondary' : 'text.primary' }}>
-                            {item.content}
-                          </Typography>
-                          {seasonNote && !done && (
-                            <Typography variant="caption" sx={{ color: item.appliesToSeason === 'summer' ? '#d97706' : '#2563eb' }}>
-                              {seasonNote}
+              ) : (() => {
+                const filtered = timetable.filter(item =>
+                  item.appliesToSeason === 'both' || item.appliesToSeason === activeSeason
+                );
+                if (filtered.length === 0) {
+                  return (
+                    <Typography variant="body2" color="text.secondary">
+                      Không có hoạt động nào cho {activeSeason === 'summer' ? 'mùa hè' : 'mùa đông'}.
+                    </Typography>
+                  );
+                }
+                return (
+                  <Stack spacing={1.5}>
+                    {filtered.map((item, idx) => {
+                      const ICONS = [
+                        <CheckCircleIcon sx={{ color: '#16a34a', fontSize: 24 }} />,
+                        <FavoriteIcon    sx={{ color: '#d97706', fontSize: 24 }} />,
+                        <SchoolIcon      sx={{ color: '#2563eb', fontSize: 24 }} />,
+                        <ScheduleIcon    sx={{ color: '#7c3aed', fontSize: 24 }} />,
+                        <BookIcon        sx={{ color: '#0284c7', fontSize: 24 }} />,
+                      ];
+                      const done = completedItems.has(item._id);
+                      return (
+                        <Paper
+                          key={item._id}
+                          variant="outlined"
+                          sx={{
+                            p: 2, borderRadius: 2, display: 'flex', alignItems: 'center', gap: 2,
+                            borderColor: done ? '#16a34a' : 'grey.200',
+                            bgcolor: done ? '#f0fdf4' : '#fff',
+                            transition: 'all 0.2s',
+                            cursor: 'pointer',
+                          }}
+                          onClick={() => toggleCompleted(item._id)}
+                        >
+                          <Box sx={{ width: 56, textAlign: 'center', flexShrink: 0 }}>
+                            <Typography variant="body2" sx={{ color: '#7c3aed', fontWeight: 700 }}>
+                              {item.startLabel}
                             </Typography>
-                          )}
-                          {done && (
-                            <Typography variant="caption" sx={{ color: '#16a34a', fontWeight: 600 }}>Đã hoạt động</Typography>
-                          )}
-                        </Box>
-                        {ICONS[idx % ICONS.length]}
-                      </Paper>
-                    );
-                  })}
-                </Stack>
-              )}
+                          </Box>
+                          <Divider orientation="vertical" flexItem />
+                          <Box sx={{ flex: 1 }}>
+                            <Typography variant="body2" fontWeight={700} sx={{ textDecoration: done ? 'line-through' : 'none', color: done ? 'text.secondary' : 'text.primary' }}>
+                              {item.content}
+                            </Typography>
+                            {done && (
+                              <Typography variant="caption" sx={{ color: '#16a34a', fontWeight: 600 }}>Đã hoạt động</Typography>
+                            )}
+                          </Box>
+                          {ICONS[idx % ICONS.length]}
+                        </Paper>
+                      );
+                    })}
+                  </Stack>
+                );
+              })()}
             </Box>
           )}
         </Box>

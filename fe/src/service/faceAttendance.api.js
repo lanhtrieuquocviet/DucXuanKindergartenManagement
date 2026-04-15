@@ -94,13 +94,27 @@ export const matchStudentFaceForCheckout = (embedding, classId, date, checkoutIm
   post('/face/student/checkout', { embedding, classId, date, checkoutImageUrl });
 
 /**
- * Cập nhật thông tin người đưa/đón cho bản ghi điểm danh
+ * Cập nhật thông tin người đưa/đón, ghi chú và đồ mang đến/về cho bản ghi điểm danh
  * @param {string} attendanceId
  * @param {string} delivererType - tên / quan hệ người đưa
- * @param {string} delivererOtherInfo - thông tin thêm
+ * @param {string} delivererOtherInfo - thông tin thêm (SĐT)
+ * @param {string} note - ghi chú
+ * @param {string[]} checkinBelongings - đồ mang đến
+ * @param {string[]} checkoutBelongings - đồ mang về
  */
-export const updateAttendanceDeliverer = (attendanceId, delivererType, delivererOtherInfo = '') =>
-  patch(`/face/attendance/${attendanceId}/deliverer`, { delivererType, delivererOtherInfo });
+export const updateAttendanceDeliverer = (attendanceId, delivererType, delivererOtherInfo = '', note = '', checkinBelongings = [], checkoutBelongings = []) =>
+  patch(`/face/attendance/${attendanceId}/deliverer`, { delivererType, delivererOtherInfo, note, checkinBelongings, checkoutBelongings });
+
+/**
+ * Cập nhật thông tin người đón (checkout) cho bản ghi điểm danh
+ * @param {string} attendanceId
+ * @param {string} receiverType - tên + quan hệ người đón (giống delivererType bên check-in)
+ * @param {string} receiverOtherInfo - SĐT người đón (giống delivererOtherInfo bên check-in)
+ * @param {string} checkoutBelongingsNote - ghi chú điểm danh về
+ * @param {string[]} checkoutBelongings - đồ mang về
+ */
+export const updateAttendanceReceiver = (attendanceId, receiverType, receiverOtherInfo = '', checkoutBelongingsNote = '', checkoutBelongings = []) =>
+  patch(`/face/attendance/${attendanceId}/deliverer`, { receiverType, receiverOtherInfo, checkoutBelongingsNote, checkoutBelongings });
 
 /**
  * Lấy danh sách người đón đã được duyệt của học sinh

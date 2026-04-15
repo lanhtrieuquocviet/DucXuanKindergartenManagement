@@ -18,62 +18,9 @@ export const SCHOOL_ADMIN_MENU_ITEMS = [
       { key: 'academic-report', label: 'Báo cáo & thống kê', permission: 'VIEW_REPORT' },
     ],
   },
-  { key: 'classes', label: 'Lớp học', permission: 'MANAGE_CLASS' },
-  { key: 'menu', label: 'Quản lý thực đơn', permission: 'APPROVE_MENU' },
-  { key: 'meal-management', label: 'Quản lý bữa ăn', permission: 'APPROVE_MENU' },
-  { key: 'teachers', label: 'Giáo viên', permission: 'MANAGE_TEACHER' },
+  { key: 'classes', label: 'Quản lý khối & lớp học', permission: 'MANAGE_CLASS' },
   { key: 'staff', label: 'Quản lý nhân sự', permission: 'MANAGE_ASSET' },
-  { key: 'students', label: 'Học sinh & phụ huynh', permission: 'MANAGE_STUDENT' },
-  {
-    key: 'assets',
-    label: 'Quản lý tài sản',
-    permission: 'MANAGE_ASSET',
-    children: [
-      { key: 'assets-list', label: 'Danh sách tài sản', permission: 'MANAGE_ASSET' },
-      { key: 'asset-allocation', label: 'Phân bổ tài sản', permission: 'MANAGE_ASSET' },
-      { key: 'purchase-requests', label: 'Yêu cầu mua sắm', permission: 'MANAGE_PURCHASE_REQUEST' },
-      { key: 'asset-incidents',   label: 'Sự cố tài sản',   permission: 'MANAGE_ASSET' },
-    ],
-  },
-  {
-    key: 'kiemke',
-    label: 'Kiểm kê tài sản',
-    permission: 'MANAGE_ASSET',
-    children: [
-      { key: 'committee', label: 'Ban kiểm kê', permission: 'MANAGE_ASSET' },
-      { key: 'minutes', label: 'Biên bản kiểm kê', permission: 'MANAGE_ASSET' },
-    ],
-  },
-  { key: 'reports', label: 'Báo cáo của trường', permission: 'VIEW_REPORT' },
-  {
-    key: 'contacts',
-    label: 'Liên hệ',
-    permission: 'MANAGE_CONTACT',
-    children: [
-      { key: 'contacts-list', label: 'Danh sách liên hệ', permission: 'MANAGE_CONTACT' },
-      { key: 'qa', label: 'Câu hỏi', permission: 'MANAGE_QA' },
-    ],
-  },
-  {
-    key: 'public-info',
-    label: 'Thông tin công khai',
-    children: [
-      { key: 'public-info-list', label: 'Danh sách thông tin', permission: 'MANAGE_PUBLIC_INFO' },
-      { key: 'blogs', label: 'Quản lý blog', permission: 'MANAGE_BLOG' },
-      { key: 'banner-management', label: 'Quản lý banner', permission: 'MANAGE_BANNER' },
-      { key: 'documents', label: 'Quản lý tài liệu', permission: 'MANAGE_DOCUMENT' },
-      { key: 'files-management', label: 'Quản lý file', permission: 'MANAGE_DOCUMENT' },
-    ],
-  },
-  {
-    key: 'library',
-    label: 'Quản lý thư viện',
-    permission: 'MANAGE_IMAGE_LIBRARY',
-    children: [
-      { key: 'image-library', label: 'Quản lý ảnh', permission: 'MANAGE_IMAGE_LIBRARY' },
-      { key: 'video-library', label: 'Quản lý video-clip', permission: 'MANAGE_IMAGE_LIBRARY' },
-    ],
-  },
+  { key: 'students', label: 'Học sinh', permission: 'MANAGE_STUDENT' },
   {
     key: 'attendance',
     label: 'Quản lý điểm danh',
@@ -83,6 +30,44 @@ export const SCHOOL_ADMIN_MENU_ITEMS = [
       { key: 'face-attendance', label: 'Trạng thái khuôn mặt AI', permission: 'REGISTER_FACE' },
     ],
   },
+  {
+    key: 'menu-management',
+    label: 'Quản lý thực đơn & bữa ăn',
+    permission: 'APPROVE_MENU',
+    children: [
+      { key: 'menu', label: 'Quản lý thực đơn', permission: 'APPROVE_MENU' },
+      { key: 'meal-management', label: 'Quản lý bữa ăn', permission: 'APPROVE_MENU' },
+      { key: 'district-nutrition-plan', label: 'Kế hoạch dinh dưỡng theo sở', permission: 'APPROVE_MENU' },
+    ],
+  },
+  // { key: 'teachers', label: 'Giáo viên', permission: 'MANAGE_TEACHER' },
+  {
+    key: 'assets',
+    label: 'Quản lý cơ sở vật chất',
+    permission: 'MANAGE_ASSET',
+    children: [
+      { key: 'assets-list', label: 'Danh sách cơ sở vật chất', permission: 'MANAGE_ASSET' },
+      { key: 'asset-allocation', label: 'Phân bổ cơ sở vật chất', permission: 'MANAGE_ASSET' },
+      { key: 'purchase-requests', label: 'Yêu cầu mua sắm', permission: 'MANAGE_PURCHASE_REQUEST' },
+    ],
+  },
+  { key: 'kiemke', label: 'Quản lý kiểm kê tài sản', permission: 'MANAGE_ASSET' },
+  {
+    key: 'public-info',
+    label: 'Quản lý cổng thông tin',
+    children: [
+      { key: 'public-info-list', label: 'Danh sách thông tin', permission: 'MANAGE_PUBLIC_INFO' },
+      { key: 'blogs', label: 'Quản lý blog', permission: 'MANAGE_BLOG' },
+      { key: 'banner-management', label: 'Quản lý banner', permission: 'MANAGE_BANNER' },
+      { key: 'documents', label: 'Quản lý tài liệu', permission: 'MANAGE_DOCUMENT' },
+      { key: 'files-management', label: 'Quản lý file', permission: 'MANAGE_DOCUMENT' },
+      { key: 'contacts-list', label: 'Danh sách liên hệ', permission: 'MANAGE_CONTACT' },
+      // { key: 'qa', label: 'Câu hỏi', permission: 'MANAGE_QA' },
+      { key: 'image-library', label: 'Quản lý ảnh', permission: 'MANAGE_IMAGE_LIBRARY' },
+      { key: 'video-library', label: 'Quản lý video-clip', permission: 'MANAGE_IMAGE_LIBRARY' },
+    ],
+  },
+  
 ];
 
 /**
@@ -131,6 +116,7 @@ export const createSchoolAdminMenuSelect = (navigate) => (key) => {
     classes: '/school-admin/classes',
     menu: '/school-admin/menus',
     'meal-management': '/school-admin/meal-management',
+    'district-nutrition-plan': '/school-admin/district-nutrition-plan',
     teachers: '/school-admin/teachers',
     staff: '/school-admin/staff',
     students: '/school-admin/students',
@@ -152,8 +138,6 @@ export const createSchoolAdminMenuSelect = (navigate) => (key) => {
     'purchase-requests': '/school-admin/purchase-requests',
     'asset-incidents': '/school-admin/asset-incidents',
     kiemke: '/school-admin/committee',
-    committee: '/school-admin/committee',
-    minutes: '/school-admin/minutes',
     attendance: '/school-admin/attendance/overview',
     'attendance-overview': '/school-admin/attendance/overview',
     'face-attendance': '/school-admin/face-attendance',

@@ -1,4 +1,5 @@
 const express = require('express');
+const multer = require('multer');
 const { authenticate, authorizeRoles, authorizePermissions } = require('../middleware/auth');
 const {
   getStudents,
@@ -8,6 +9,8 @@ const {
   updateStudent,
   deleteStudent,
   checkUsernameAvailability,
+  checkParentByPhone,
+  importStudentsWithParents,
 } = require('../controller/studentController');
 const {
   upsertAttendance,
@@ -16,6 +19,7 @@ const {
 } = require('../controller/attendanceController');
 
 const router = express.Router();
+const excelUpload = multer({ storage: multer.memoryStorage(), limits: { fileSize: 10 * 1024 * 1024 } });
 
 /**
  * @openapi
@@ -77,6 +81,7 @@ const router = express.Router();
  *         description: Không có quyền SchoolAdmin
  */
 router.get('/check-username', authenticate, checkUsernameAvailability);
+router.get('/check-parent-phone', authenticate, authorizePermissions('MANAGE_STUDENT'), checkParentByPhone);
 
 router.get('/generate-username', authenticate, authorizePermissions('MANAGE_STUDENT'), async (req, res) => {
   const User = require('../models/User');
@@ -150,6 +155,7 @@ router.post('/', authenticate, authorizePermissions('MANAGE_STUDENT'), createStu
  *         description: Không có quyền SchoolAdmin
  */
 router.post('/with-parent', authenticate, authorizePermissions('MANAGE_STUDENT'), createStudentWithParent);
+router.post('/with-parent/import-excel', authenticate, authorizePermissions('MANAGE_STUDENT'), excelUpload.single('file'), importStudentsWithParents);
 
 /**
  * @openapi

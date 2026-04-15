@@ -24,6 +24,7 @@ const blogsRoutes = require('./src/routes/blogs.routes');
 const documentsRoutes = require('./src/routes/documents.routes');
 const otpRoutes = require('./src/routes/otp.routes');
 const pickupRoutes = require("./src/routes/pickup.routes");
+const leaveRequestRoutes = require('./src/routes/leaveRequest.routes');
 const foodRoutes = require("./src/routes/food.routes");
 const ingredientRoutes = require("./src/routes/ingredient.routes");
 const menuRoutes = require("./src/routes/menu.routes");
@@ -70,15 +71,17 @@ require('./src/models/HomepageBannerSetting');
 require('./src/models/ImageLibraryItem');
 require('./src/models/VideoClipItem');
 require('./src/models/NutritionPlanSetting');
+require('./src/models/DistrictNutritionPlan');
 require('./src/models/InspectionCommittee');
 require('./src/models/InspectionMinutes');
 require('./src/models/BPMWorkflow');
+require('./src/models/LeaveRequest');
 
 // Seed default roles on startup
 (async () => {
   try {
     const Role = require('./src/models/Role');
-    const defaultRoles = ['SystemAdmin', 'SchoolAdmin', 'Teacher', 'Parent', 'KitchenStaff'];
+    const defaultRoles = ['SystemAdmin', 'SchoolAdmin', 'HeadTeacher', 'Teacher', 'Parent', 'KitchenStaff'];
     for (const roleName of defaultRoles) {
       await Role.findOneAndUpdate(
         { roleName },
@@ -151,10 +154,10 @@ require('./src/models/BPMWorkflow');
       console.log(`🔁 Initialized category field on ${docMigrated.modifiedCount} document(s)`);
     }
 
-    // Ensure MANAGE_DOCUMENTS permission exists
+    // Ensure MANAGE_DOCUMENTS permission exists (legacy – không dùng trong route, giữ để không mất dữ liệu)
     await Permission.findOneAndUpdate(
       { code: 'MANAGE_DOCUMENTS' },
-      { code: 'MANAGE_DOCUMENTS', description: 'Quản lý tài liệu' },
+      { code: 'MANAGE_DOCUMENTS', description: 'Quản lý tài liệu (legacy)', group: 'Nội dung & Truyền thông' },
       { upsert: true, new: true }
     );
     console.log('✅ MANAGE_DOCUMENTS permission seeded');
@@ -162,7 +165,7 @@ require('./src/models/BPMWorkflow');
     // Ensure MANAGE_BLOG_CATEGORY permission exists
     await Permission.findOneAndUpdate(
       { code: 'MANAGE_BLOG_CATEGORY' },
-      { code: 'MANAGE_BLOG_CATEGORY', description: 'Quản lý danh mục blog' },
+      { code: 'MANAGE_BLOG_CATEGORY', description: 'Quản lý danh mục blog', group: 'Nội dung & Truyền thông' },
       { upsert: true, new: true }
     );
     console.log('✅ MANAGE_BLOG_CATEGORY permission seeded');
@@ -179,37 +182,49 @@ require('./src/models/BPMWorkflow');
 
     // Toàn bộ permissions hệ thống
     const allPermissions = [
-      // SchoolAdmin
-      { code: 'MANAGE_CONTACT',       description: 'Xem và phản hồi liên hệ phụ huynh' },
-      { code: 'MANAGE_BANNER',        description: 'Quản lý banner trang chủ' },
-      { code: 'VIEW_ATTENDANCE',      description: 'Xem báo cáo điểm danh' },
-      { code: 'MANAGE_BLOG',          description: 'Quản lý bài viết blog' },
-      { code: 'MANAGE_BLOG_CATEGORY', description: 'Quản lý danh mục blog' },
-      { code: 'MANAGE_QA',            description: 'Quản lý hỏi đáp' },
-      { code: 'MANAGE_DOCUMENT',      description: 'Quản lý tài liệu' },
-      { code: 'MANAGE_PUBLIC_INFO',   description: 'Quản lý thông tin công khai' },
-      { code: 'MANAGE_IMAGE_LIBRARY', description: 'Quản lý thư viện ảnh' },
-      { code: 'MANAGE_ACADEMIC_YEAR', description: 'Quản lý năm học' },
-      { code: 'MANAGE_CURRICULUM',    description: 'Quản lý chương trình học và thời khóa biểu' },
-      { code: 'MANAGE_STUDENT',       description: 'Thêm, sửa, xóa học sinh' },
-      { code: 'MANAGE_CLASS',         description: 'Quản lý lớp học' },
-      { code: 'MANAGE_GRADE',         description: 'Quản lý khối lớp' },
-      { code: 'MANAGE_TEACHER',       description: 'Quản lý giáo viên' },
-      { code: 'APPROVE_MENU',         description: 'Duyệt thực đơn và ảnh bữa ăn' },
-      { code: 'VIEW_REPORT',          description: 'Xem và xuất báo cáo' },
-      { code: 'MANAGE_HEALTH',        description: 'Quản lý hồ sơ y tế học sinh' },
-      // Chia sẻ SchoolAdmin + Teacher
-      { code: 'REGISTER_FACE',        description: 'Đăng ký khuôn mặt học sinh' },
-      { code: 'CHECKOUT_STUDENT',     description: 'Điểm danh về cho học sinh' },
-      { code: 'MANAGE_ATTENDANCE',    description: 'Điểm danh học sinh' },
-      // Teacher
-      { code: 'MANAGE_PURCHASE_REQUEST', description: 'Quản lý đề xuất mua sắm' },
-      { code: 'MANAGE_ASSET',         description: 'Quản lý tài sản (hội đồng, biên bản, cấp phát, sự cố)' },
-      { code: 'MANAGE_PICKUP',        description: 'Quản lý đón trả học sinh' },
-      // KitchenStaff
-      { code: 'MANAGE_FOOD',          description: 'Quản lý thực phẩm và món ăn' },
-      { code: 'MANAGE_MENU',          description: 'Tạo và chỉnh sửa thực đơn' },
-      { code: 'MANAGE_MEAL_PHOTO',    description: 'Quản lý ảnh bữa ăn và mẫu thực phẩm' },
+      // Nội dung & Truyền thông
+      { code: 'MANAGE_CONTACT', description: 'Xem và phản hồi liên hệ từ phụ huynh gửi qua trang web', group: 'Nội dung & Truyền thông' },
+      { code: 'MANAGE_BANNER', description: 'Thêm, sửa, xóa banner hiển thị trên trang chủ', group: 'Nội dung & Truyền thông' },
+      { code: 'MANAGE_BLOG', description: 'Thêm, sửa, xóa và xuất bản bài viết blog của trường', group: 'Nội dung & Truyền thông' },
+      { code: 'MANAGE_BLOG_CATEGORY', description: 'Thêm, sửa, xóa danh mục phân loại bài viết blog', group: 'Nội dung & Truyền thông' },
+      { code: 'MANAGE_QA', description: 'Xem và trả lời câu hỏi từ phụ huynh trên trang web hỏi đáp', group: 'Nội dung & Truyền thông' },
+      { code: 'MANAGE_DOCUMENT', description: 'Tải lên, sửa và xóa tài liệu nội bộ (công văn, thông báo, biểu mẫu)', group: 'Nội dung & Truyền thông' },
+      { code: 'MANAGE_DOCUMENTS', description: 'Tải lên, sửa và xóa tài liệu nội bộ (công văn, thông báo, biểu mẫu)', group: 'Nội dung & Truyền thông' },
+      { code: 'MANAGE_PUBLIC_INFO', description: 'Cập nhật thông tin giới thiệu trường hiển thị công khai trên web', group: 'Nội dung & Truyền thông' },
+      { code: 'MANAGE_IMAGE_LIBRARY', description: 'Tải lên, sắp xếp và xóa ảnh trong thư viện ảnh của trường', group: 'Nội dung & Truyền thông' },
+      // Học vụ
+      { code: 'MANAGE_ACADEMIC_YEAR', description: 'Tạo và quản lý năm học, học kỳ trong hệ thống', group: 'Học vụ' },
+      { code: 'MANAGE_CURRICULUM', description: 'Quản lý chủ đề học tập, thời khóa biểu và kế hoạch giảng dạy', group: 'Học vụ' },
+      { code: 'MANAGE_STUDENT', description: 'Thêm, sửa, xóa hồ sơ học sinh và quản lý thông tin phụ huynh', group: 'Học vụ' },
+      { code: 'MANAGE_CLASS', description: 'Thêm, sửa, xóa lớp học và phân công giáo viên chủ nhiệm', group: 'Học vụ' },
+      { code: 'MANAGE_CLASSES', description: 'Thêm, sửa, xóa lớp học và phân công giáo viên chủ nhiệm', group: 'Học vụ' },
+      { code: 'MANAGE_GRADE', description: 'Thêm, sửa, xóa khối lớp (Lá, Chồi, Mầm, ...) trong hệ thống', group: 'Học vụ' },
+      { code: 'MANAGE_GRADES', description: 'Thêm, sửa, xóa khối lớp (Lá, Chồi, Mầm, ...) trong hệ thống', group: 'Học vụ' },
+      { code: 'MANAGE_TEACHER', description: 'Thêm, sửa, xóa hồ sơ giáo viên và nhân viên trường', group: 'Học vụ' },
+      // Điểm danh
+      { code: 'VIEW_ATTENDANCE', description: 'Xem tổng quan, tra cứu lịch sử và xuất dữ liệu điểm danh theo lớp/học sinh', group: 'Điểm danh' },
+      { code: 'MANAGE_ATTENDANCE', description: 'Thực hiện điểm danh vào buổi sáng (check-in) cho học sinh', group: 'Điểm danh' },
+      { code: 'CHECKOUT_STUDENT', description: 'Thực hiện điểm danh ra về (check-out) cho học sinh cuối ngày', group: 'Điểm danh' },
+      { code: 'REGISTER_FACE', description: 'Đăng ký và cập nhật dữ liệu khuôn mặt nhận diện cho học sinh', group: 'Điểm danh' },
+      { code: 'MANAGE_PICKUP', description: 'Quản lý yêu cầu đón trả học sinh và xác nhận người được phép đón', group: 'Điểm danh' },
+      // Y tế
+      { code: 'MANAGE_HEALTH', description: 'Ghi nhận, cập nhật và xem hồ sơ y tế, lịch kiểm tra sức khỏe học sinh', group: 'Y tế' },
+      // Bếp & Thực phẩm
+      { code: 'MANAGE_FOOD', description: 'Thêm, sửa, xóa danh mục thực phẩm, nguyên liệu và món ăn', group: 'Bếp & Thực phẩm' },
+      { code: 'MANAGE_MENU', description: 'Tạo, sửa và gửi duyệt thực đơn hàng ngày cho học sinh', group: 'Bếp & Thực phẩm' },
+      { code: 'MANAGE_MEAL_PHOTO', description: 'Tải lên ảnh bữa ăn thực tế và quản lý mẫu thực phẩm kiểm tra', group: 'Bếp & Thực phẩm' },
+      { code: 'APPROVE_MENU', description: 'Xem xét và duyệt thực đơn, ảnh bữa ăn do bếp gửi lên', group: 'Bếp & Thực phẩm' },
+      // Tài sản & Mua sắm
+      { code: 'MANAGE_ASSET', description: 'Quản lý danh mục tài sản, biên bản bàn giao, phân bổ và sự cố hư hỏng', group: 'Tài sản & Mua sắm' },
+      { code: 'MANAGE_PURCHASE_REQUEST', description: 'Tạo, theo dõi và xét duyệt đề xuất mua sắm thiết bị, vật tư', group: 'Tài sản & Mua sắm' },
+      { code: 'MANAGE_INSPECTION', description: 'Lập và quản lý biên bản kiểm kê, kiểm tra tình trạng tài sản', group: 'Tài sản & Mua sắm' },
+      { code: 'MANAGE_FACILITIES', description: 'Quản lý cơ sở vật chất, phòng học và trang thiết bị trường học', group: 'Tài sản & Mua sắm' },
+      // Quản trị hệ thống
+      { code: 'MANAGE_USERS', description: 'Tạo, sửa, vô hiệu hóa tài khoản người dùng trong hệ thống', group: 'Quản trị hệ thống' },
+      // Báo cáo
+      { code: 'VIEW_REPORT', description: 'Xem và xuất báo cáo tuần, tháng, báo cáo mẫu thực phẩm và khẩu phần ăn', group: 'Báo cáo' },
+      { code: 'SUBMIT_REPORT', description: 'Gửi báo cáo giảng dạy, điểm danh lên tổ trưởng để xét duyệt', group: 'Báo cáo' },
+      { code: 'MANAGE_TEACHER_REPORT', description: 'Xem danh sách, duyệt và chuyển tiếp báo cáo giáo viên lên ban giám hiệu', group: 'Báo cáo' },
     ];
 
     // Upsert tất cả permissions
@@ -217,7 +232,7 @@ require('./src/models/BPMWorkflow');
     for (const p of allPermissions) {
       const doc = await Permission.findOneAndUpdate(
         { code: p.code },
-        { code: p.code, description: p.description },
+        { code: p.code, description: p.description, group: p.group || '' },
         { upsert: true, new: true }
       );
       permMap[p.code] = doc._id;
@@ -234,12 +249,24 @@ require('./src/models/BPMWorkflow');
         'REGISTER_FACE', 'CHECKOUT_STUDENT', 'MANAGE_ATTENDANCE',
         'MANAGE_PURCHASE_REQUEST', 'MANAGE_ASSET', 'MANAGE_PICKUP',
       ],
+      HeadTeacher: [
+        // Tất cả quyền của giáo viên
+        'MANAGE_ATTENDANCE', 'MANAGE_PURCHASE_REQUEST', 'MANAGE_ASSET',
+        'MANAGE_PICKUP', 'REGISTER_FACE', 'CHECKOUT_STUDENT',
+        'SUBMIT_REPORT',
+        // Quyền riêng của tổ trưởng: xem, duyệt và chuyển báo cáo lên ban giám hiệu
+        'MANAGE_TEACHER_REPORT',
+      ],
       Teacher: [
         'MANAGE_ATTENDANCE', 'MANAGE_PURCHASE_REQUEST', 'MANAGE_ASSET',
         'MANAGE_PICKUP', 'REGISTER_FACE', 'CHECKOUT_STUDENT',
+        'SUBMIT_REPORT',
       ],
       KitchenStaff: [
         'MANAGE_FOOD', 'MANAGE_MENU', 'MANAGE_MEAL_PHOTO', 'VIEW_REPORT',
+      ],
+      InventoryStaff: [
+        'MANAGE_INSPECTION',
       ],
     };
 
@@ -256,6 +283,23 @@ require('./src/models/BPMWorkflow');
       }
     }
     console.log('✅ Default permissions seeded and assigned to roles');
+
+    // Cấu hình kế thừa role (parent)
+    // HeadTeacher kế thừa toàn bộ quyền của Teacher, chỉ thêm MANAGE_TEACHER_REPORT
+    const parentConfig = [
+      { child: 'HeadTeacher', parent: 'Teacher' },
+    ];
+    for (const { child, parent } of parentConfig) {
+      const childRole = await Role.findOne({ roleName: child });
+      const parentRole = await Role.findOne({ roleName: parent });
+      if (!childRole || !parentRole) continue;
+      // Chỉ set nếu chưa có parent (không ghi đè cấu hình thủ công)
+      if (!childRole.parent) {
+        await Role.updateOne({ _id: childRole._id }, { $set: { parent: parentRole._id } });
+        console.log(`✅ Set ${child}.parent = ${parent}`);
+      }
+    }
+    console.log('✅ Role parent relationships configured');
   } catch (err) {
     console.error('Error seeding permissions:', err);
   }
@@ -409,6 +453,7 @@ app.use('/api/otp', otpRoutes);
 
 // pickup-requets
 app.use("/api/pickup", pickupRoutes);
+app.use('/api/leave', leaveRequestRoutes);
 
 //menus
 app.use("/api/foods", foodRoutes);

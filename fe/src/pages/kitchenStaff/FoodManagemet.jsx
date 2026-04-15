@@ -39,7 +39,12 @@ import {
   useTheme,
   useMediaQuery,
   Autocomplete,
+  FormControl,
+  InputLabel,
+  Select,
+  MenuItem,
 } from "@mui/material";
+import { INGREDIENT_GROUPS, labelForIngredientCategory } from "../../constants/ingredientCategories";
 import {
   Add as AddIcon,
   Delete as DeleteIcon,
@@ -93,24 +98,6 @@ const NUTRITION_CONFIG = [
     icon: <CarbIcon sx={{ fontSize: 16 }} />,
   },
 ];
-
-function StatCard({ icon, label, value, color }) {
-  return (
-    <Card elevation={0} sx={{ border: "1px solid", borderColor: "divider", borderRadius: 2.5 }}>
-      <CardContent sx={{ p: { xs: 1.5, sm: 2 }, "&:last-child": { pb: { xs: 1.5, sm: 2 } } }}>
-        <Box sx={{ display: "flex", flexDirection: { xs: "column", sm: "row" }, alignItems: { xs: "flex-start", sm: "center" }, gap: { xs: 0.5, sm: 1.5 } }}>
-          <Avatar sx={{ width: { xs: 32, sm: 40 }, height: { xs: 32, sm: 40 }, bgcolor: alpha(color, 0.12), flexShrink: 0 }}>
-            <Box sx={{ color, display: "flex", fontSize: { xs: 14, sm: 16 } }}>{icon}</Box>
-          </Avatar>
-          <Box>
-            <Typography fontWeight={700} lineHeight={1.2} sx={{ fontSize: { xs: 16, sm: 20 } }}>{value}</Typography>
-            <Typography variant="caption" color="text.secondary" sx={{ fontSize: { xs: 10, sm: 12 } }}>{label}</Typography>
-          </Box>
-        </Box>
-      </CardContent>
-    </Card>
-  );
-}
 
 function NutritionBar({ value, max, color }) {
   const pct = max > 0 ? Math.min((value / max) * 100, 100) : 0;
@@ -229,7 +216,16 @@ function FoodManagement() {
   const [newIngredient, setNewIngredient] = useState({ name: "", quantity: "", unit: "g", calories: "", protein: "", fat: "", carb: "" });
   const [selectedIngredient, setSelectedIngredient] = useState(null);
   const [showCustomRow, setShowCustomRow] = useState(false);
-  const [customIngredient, setCustomIngredient] = useState({ name: "", quantity: 100, unit: "g", calories: "", protein: "", fat: "", carb: "" });
+  const [customIngredient, setCustomIngredient] = useState({
+    name: "",
+    quantity: 100,
+    unit: "g",
+    calories: "",
+    protein: "",
+    fat: "",
+    carb: "",
+    category: "luong_thuc",
+  });
   const [errors, setErrors] = useState({});
 
   useEffect(() => {
@@ -275,13 +271,22 @@ function FoodManagement() {
     [foods]
   );
 
-  const totalCalories = foods.length > 0 ? foods.reduce((s, f) => s + (Number(f.calories) || 0), 0) : 0;
-  const avgCalories = foods.length > 0 ? Math.round(totalCalories / foods.length) : 0;
-
   const handleOpenCreate = () => {
     setEditingFood(null);
     setForm(emptyFood);
     setErrors({});
+    setShowCustomRow(false);
+    setSelectedIngredient(null);
+    setCustomIngredient({
+      name: "",
+      quantity: 100,
+      unit: "g",
+      calories: "",
+      protein: "",
+      fat: "",
+      carb: "",
+      category: "luong_thuc",
+    });
     setShowModal(true);
   };
 
@@ -295,9 +300,14 @@ function FoodManagement() {
       protein: nutrition.protein,
       fat: nutrition.fat,
       carb: nutrition.carb,
-      ingredients,
+      ingredients: ingredients.map((it) => ({
+        ...it,
+        category: it.category || "luong_thuc",
+      })),
     });
     setErrors({});
+    setShowCustomRow(false);
+    setSelectedIngredient(null);
     setShowModal(true);
   };
 
@@ -364,6 +374,7 @@ function FoodManagement() {
       ...form.ingredients,
       {
         name: ingredient.name || '',
+        category: ingredient.category || "luong_thuc",
         quantity: 100,
         unit: finalUnit,
         calories: calculatedCalories,
@@ -408,8 +419,11 @@ function FoodManagement() {
       ? Number(customIngredient.calories)
       : caloriesFromMacros;
 
+    const category = customIngredient.category || "luong_thuc";
+
     const newItem = {
       name,
+      category,
       quantity,
       unit: String(customIngredient.unit || "g").trim() || "g",
       calories,
@@ -423,18 +437,27 @@ function FoodManagement() {
 
     setAvailableIngredients((prev) => {
       if (prev.some((it) => it.name.trim().toLowerCase() === name.toLowerCase())) return prev;
-      return [...prev, { name, calories, protein, fat, carb, unit: newItem.unit }];
+      return [...prev, { name, calories, protein, fat, carb, unit: newItem.unit, category }];
     });
 
     try {
-      await createIngredient({ name, calories, protein, fat, carb, unit: newItem.unit });
+      await createIngredient({ name, calories, protein, fat, carb, unit: newItem.unit, category });
       toast.success("Thêm nguyên liệu mới thành công và lưu vào danh sách chung");
     } catch (error) {
       toast.error("Không thể lưu nguyên liệu mới vào server, vẫn thêm vào món ăn tạm thời");
       console.error("createIngredient error", error);
     }
 
-    setCustomIngredient({ name: "", quantity: 100, unit: "g", calories: "", protein: "", fat: "", carb: "" });
+    setCustomIngredient((prev) => ({
+      name: "",
+      quantity: 100,
+      unit: "g",
+      calories: "",
+      protein: "",
+      fat: "",
+      carb: "",
+      category: prev.category || "luong_thuc",
+    }));
   };
 
   const computeNutritionFromIngredients = (ingredients) => {
@@ -504,13 +527,13 @@ function FoodManagement() {
 
       // Convert numeric fields to number
       let finalValue = value;
-      if (['calories', 'protein', 'fat', 'carb'].includes(field)) {
-        finalValue = value === '' ? 0 : Number(value);
+      if (["calories", "protein", "fat", "carb"].includes(field)) {
+        finalValue = value === "" ? 0 : Number(value);
       }
 
       const updatedIngredients = prev.ingredients.map((item, i) => {
         if (i !== index) return item;
-        
+
         const updated = { ...item, [field]: finalValue };
         
         // Auto-calculate calories from P/F/C if editing those fields
@@ -587,7 +610,9 @@ function FoodManagement() {
         carb: Number(form.carb),
         ingredients: (form.ingredients || []).map((item) => ({
           name: item.name,
+          category: item.category || "luong_thuc",
           quantity: item.quantity,
+          unit: item.unit,
           calories: Number(item.calories) || 0,
           protein: Number(item.protein) || 0,
           fat: Number(item.fat) || 0,
@@ -669,13 +694,6 @@ function FoodManagement() {
           Thêm món ăn
         </Button>
       </Stack>
-
-      {/* Stats */}
-      <Box sx={{ display: "grid", gridTemplateColumns: { xs: "repeat(3, 1fr)", sm: "repeat(3, 1fr)" }, gap: { xs: 1.5, sm: 2 }, mb: 3 }}>
-        <StatCard icon={<FoodIcon />} label="Tổng số món" value={foods.length} color="#4f46e5" />
-        <StatCard icon={<CalorieIcon />} label="Tổng calories" value={`${totalCalories}`} color="#f97316" />
-        <StatCard icon={<SearchIcon />} label="Kết quả" value={filtered.length} color="#22c55e" />
-      </Box>
 
       {/* Search */}
       <Card
@@ -846,7 +864,11 @@ function FoodManagement() {
       {/* Create / Edit Dialog */}
       <Dialog
         open={showModal}
-        onClose={() => !saving && setShowModal(false)}
+        onClose={() => {
+          if (saving) return;
+          setShowModal(false);
+          setShowCustomRow(false);
+        }}
         maxWidth="lg"
         fullWidth
         PaperProps={{
@@ -942,13 +964,26 @@ function FoodManagement() {
                   Thêm
                 </Button>
                 <Button
-                  variant={showCustomRow ? 'contained' : 'outlined'}
-                  onClick={() => setShowCustomRow((prev) => !prev)}
+                  variant={showCustomRow ? "contained" : "outlined"}
+                  onClick={() =>
+                    setShowCustomRow((prev) => {
+                      const next = !prev;
+                      if (next) {
+                        setCustomIngredient((c) => ({ ...c, category: c.category || "luong_thuc" }));
+                      }
+                      return next;
+                    })
+                  }
                   sx={{ mt: 0.5 }}
                 >
                   Khác
                 </Button>
               </Box>
+              {showCustomRow && (
+                <Typography variant="caption" color="text.secondary" sx={{ display: "block", mt: 0.75 }}>
+                  Chọn nhóm nguyên liệu trong bảng, điền thông tin rồi bấm Thêm mới để thêm vào món.
+                </Typography>
+              )}
 
               <Typography sx={{ fontWeight: 700, mb: 1, mt: 2 }}>
                 Danh sách nguyên liệu ({form.ingredients?.length || 0})
@@ -959,6 +994,7 @@ function FoodManagement() {
                   <TableHead>
                     <TableRow sx={{ bgcolor: 'grey.50' }}>
                       <TableCell sx={{ fontWeight: 700, flex: 1.2 }}>Nguyên liệu</TableCell>
+                      <TableCell sx={{ fontWeight: 700, minWidth: 128, maxWidth: 200 }}>Nhóm</TableCell>
                       <TableCell align="center" sx={{ fontWeight: 700, flex: 1 }}>Số lượng</TableCell>
                       <TableCell align="center" sx={{ fontWeight: 700, flex: 1 }}>Kcal</TableCell>
                       <TableCell align="center" sx={{ fontWeight: 700, flex: 1, display: { xs: 'none', sm: 'table-cell' } }}>Chất đạm (g)</TableCell>
@@ -971,6 +1007,23 @@ function FoodManagement() {
                     {(form.ingredients || []).map((item, idx) => (
                       <TableRow key={idx} hover>
                         <TableCell sx={{ fontWeight: 600, flex: 1.2, wordBreak: 'break-word' }}>{item.name}</TableCell>
+                        <TableCell sx={{ py: 0.5, verticalAlign: "middle", minWidth: 128, maxWidth: 220 }}>
+                          <FormControl size="small" fullWidth>
+                            <InputLabel id={`ing-cat-${idx}`}>Nhóm</InputLabel>
+                            <Select
+                              labelId={`ing-cat-${idx}`}
+                              label="Nhóm"
+                              value={item.category || "luong_thuc"}
+                              onChange={(e) => handleIngredientChange(idx, "category", e.target.value)}
+                            >
+                              {INGREDIENT_GROUPS.map((g) => (
+                                <MenuItem key={g.id} value={g.id}>
+                                  {g.title}
+                                </MenuItem>
+                              ))}
+                            </Select>
+                          </FormControl>
+                        </TableCell>
                         <TableCell align="center" sx={{ flex: 1 }}>
                           <TextField
                             size="small"
@@ -1040,6 +1093,25 @@ function FoodManagement() {
                             fullWidth
                           />
                         </TableCell>
+                        <TableCell sx={{ py: 0.5, verticalAlign: "middle", minWidth: 128, maxWidth: 220 }}>
+                          <FormControl size="small" fullWidth>
+                            <InputLabel id="custom-ing-cat">Nhóm</InputLabel>
+                            <Select
+                              labelId="custom-ing-cat"
+                              label="Nhóm"
+                              value={customIngredient.category || "luong_thuc"}
+                              onChange={(e) =>
+                                setCustomIngredient((prev) => ({ ...prev, category: e.target.value }))
+                              }
+                            >
+                              {INGREDIENT_GROUPS.map((g) => (
+                                <MenuItem key={g.id} value={g.id}>
+                                  {g.title}
+                                </MenuItem>
+                              ))}
+                            </Select>
+                          </FormControl>
+                        </TableCell>
                         <TableCell align="center" sx={{ flex: 1 }}>
                           <TextField
                             size="small"
@@ -1101,9 +1173,9 @@ function FoodManagement() {
                         </TableCell>
                       </TableRow>
                     )}
-                    {(form.ingredients || []).length === 0 && (
+                    {(form.ingredients || []).length === 0 && !showCustomRow && (
                       <TableRow>
-                        <TableCell colSpan={7} align="center" sx={{ py: 3, color: 'text.secondary' }}>
+                        <TableCell colSpan={8} align="center" sx={{ py: 3, color: 'text.secondary' }}>
                           Chưa có nguyên liệu nào
                         </TableCell>
                       </TableRow>
@@ -1133,7 +1205,10 @@ function FoodManagement() {
 
         <DialogActions sx={{ px: 3, pb: 2.5, gap: 1 }}>
           <Button
-            onClick={() => setShowModal(false)}
+            onClick={() => {
+              setShowModal(false);
+              setShowCustomRow(false);
+            }}
             disabled={saving}
             sx={{
               borderRadius: 2,
@@ -1197,6 +1272,7 @@ function FoodManagement() {
               <TableHead>
                 <TableRow>
                   <TableCell sx={{ fontWeight: 700, p: 1 }}>Nguyên liệu</TableCell>
+                  <TableCell sx={{ fontWeight: 700, p: 1 }}>Nhóm</TableCell>
                   <TableCell align="center" sx={{ fontWeight: 700, p: 1 }}>Khối lượng</TableCell>
                   <TableCell align="center" sx={{ fontWeight: 700, p: 1 }}>Calories</TableCell>
                   <TableCell align="center" sx={{ fontWeight: 700, p: 1 }}>Protein</TableCell>
@@ -1209,6 +1285,9 @@ function FoodManagement() {
                   detailFood.ingredients.map((item, idx) => (
                     <TableRow key={idx} hover>
                       <TableCell sx={{ p: 1 }}>{item.name}</TableCell>
+                      <TableCell sx={{ p: 1, fontSize: 13 }}>
+                        {labelForIngredientCategory(item.category || "luong_thuc")}
+                      </TableCell>
                       <TableCell align="center" sx={{ p: 1 }}>{item.quantity}</TableCell>
                       <TableCell align="center" sx={{ p: 1 }}>{item.calories}</TableCell>
                       <TableCell align="center" sx={{ p: 1 }}>{item.protein}</TableCell>
@@ -1218,7 +1297,7 @@ function FoodManagement() {
                   ))
                 ) : detailFood ? (
                   <TableRow>
-                    <TableCell colSpan={6} align="center" sx={{ p: 2, color: 'text.secondary' }}>
+                    <TableCell colSpan={7} align="center" sx={{ p: 2, color: 'text.secondary' }}>
                       Chưa có nguyên liệu chi tiết.
                     </TableCell>
                   </TableRow>

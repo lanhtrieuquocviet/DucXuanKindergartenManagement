@@ -331,6 +331,7 @@ export const ENDPOINTS = {
       FINISH: (id) => `/school-admin/academic-years/${id}/finish`,
       HISTORY: "/school-admin/academic-years/history",
       CLASSES: (yearId) => `/school-admin/academic-years/${yearId}/classes`,
+      STUDENTS: (yearId) => `/school-admin/academic-years/${yearId}/students`,
     },
     ACADEMIC_PLAN: {
       LIST_TOPICS: (yearId, gradeId) => {
@@ -403,9 +404,6 @@ export const ENDPOINTS = {
     PURCHASE_REQUESTS: "/school-admin/purchase-requests",
     PURCHASE_REQUEST_APPROVE: (id) => `/school-admin/purchase-requests/${id}/approve`,
     PURCHASE_REQUEST_REJECT: (id) => `/school-admin/purchase-requests/${id}/reject`,
-    // Asset incidents (admin view)
-    ASSET_INCIDENTS: "/school-admin/asset-incidents",
-    ASSET_INCIDENT_UPDATE: (id) => `/school-admin/asset-incidents/${id}`,
     ASSET_DETAIL: (id) => `/school-admin/assets/${id}`,
   },
   // Contact (public)
@@ -427,6 +425,8 @@ export const ENDPOINTS = {
     ASSET_COMMITTEE_IS_MEMBER: "/teacher/asset-committees/is-member",
     ASSET_MINUTES: "/teacher/asset-minutes",
     ASSET_MINUTES_DETAIL: (id) => `/teacher/asset-minutes/${id}`,
+    ASSET_MINUTES_EXPORT_WORD: (id) => `/teacher/asset-minutes/${id}/export-word`,
+    ASSET_ALLOCATIONS_ACTIVE: "/teacher/asset-allocations/active",
     ATTENDANCES: "/teacher/attendances",
     ATTENDANCE_BY_CLASS: (classId) => `/teacher/attendances/class/${classId}`,
     ATTENDANCE_BY_CLASS_DATE: (classId, date) =>
@@ -434,11 +434,8 @@ export const ENDPOINTS = {
     MY_CLASSES: "/teacher/my-classes",
     PURCHASE_REQUESTS: "/teacher/purchase-requests",
     PURCHASE_REQUEST_DETAIL: (id) => `/teacher/purchase-requests/${id}`,
-    // Asset allocation & incidents
     MY_ASSET_ALLOCATION: "/teacher/asset-allocations",
     ASSET_ALLOCATION_CONFIRM: (id) => `/teacher/asset-allocations/${id}/confirm`,
-    ASSET_INCIDENTS: "/teacher/asset-incidents",
-    ASSET_INCIDENT_DETAIL: (id) => `/teacher/asset-incidents/${id}`,
     // Danh sách học sinh
     MY_STUDENTS: '/teacher/students',
     CHANGE_REQUESTS: (studentId) => `/teacher/students/${studentId}/change-requests`,
@@ -502,14 +499,29 @@ export const ENDPOINTS = {
     DETAIL: (studentId) => `/students/${studentId}`,
     CREATE: "/students",
     CREATE_WITH_PARENT: "/students/with-parent",
+    IMPORT_WITH_PARENT_EXCEL: "/students/with-parent/import-excel",
+    CHECK_PARENT_PHONE: "/students/check-parent-phone",
     CHECK_USERNAME: "/students/check-username",
     GENERATE_USERNAME: "/students/generate-username",
     HEALTH_OVERVIEW: "/school-admin/students/health-overview",
     HEALTH_IMPORT: "/school-admin/students/health-import",
     HEALTH_CLASSES: "/school-admin/students/health-classes",
+    HEALTH_RECORD_CREATE: "/school-admin/students/health-record",
+    HEALTH_RECORD_UPDATE: (id) => `/school-admin/students/health-record/${id}`,
+    HEALTH_RECORD_DELETE: (id) => `/school-admin/students/health-record/${id}`,
     CHANGE_REQUESTS: "/school-admin/students/change-requests",
     CHANGE_REQUESTS_PENDING_MAP: "/school-admin/students/change-requests/pending-map",
     CHANGE_REQUEST_RESOLVE: (id) => `/school-admin/students/change-requests/${id}/resolve`,
+    // School admin student contact book endpoints
+    ADMIN_HEALTH_LATEST: (studentId) => `/school-admin/students/${studentId}/health-latest`,
+    ADMIN_HEALTH_HISTORY: (studentId) => `/school-admin/students/${studentId}/health-history`,
+    HEALTH_INCIDENTS: '/school-admin/health-incidents',
+    HEALTH_INCIDENT_UPDATE: (id) => `/school-admin/health-incidents/${id}`,
+    HEALTH_INCIDENT_DELETE: (id) => `/school-admin/health-incidents/${id}`,
+    ADMIN_ATTENDANCE_MONTHLY: (studentId) => `/school-admin/students/${studentId}/attendance-monthly`,
+    ADMIN_NOTES: (studentId) => `/school-admin/students/${studentId}/notes`,
+    ADMIN_NOTE_DELETE: (studentId, noteId) => `/school-admin/students/${studentId}/notes/${noteId}`,
+    ADMIN_TODAY_MENU: '/school-admin/students/contact-book/today-menu',
     // Sổ liên lạc phụ huynh/học sinh
     CONTACT_BOOK_MY:         '/students/contact-book/my',
     CONTACT_BOOK_HEALTH:     '/students/contact-book/health',
@@ -564,8 +576,16 @@ export const ENDPOINTS = {
     UPDATE: (id) => `/pickup/requests/${id}`,
     DELETE: (id) => `/pickup/requests/${id}`,
   },
+  LEAVE: {
+    CREATE: '/leave/requests',
+    MY_REQUESTS: '/leave/my-requests',
+    REQUESTS: '/leave/requests',
+    UPDATE_STATUS: '/leave/requests/status',
+  },
   // Kitchen
   KITCHEN: {
+    PUBLIC_MENUS: "/menus/public",
+    PUBLIC_MENU_DETAIL: (id) => `/menus/public/${id}`,
     MENUS: "/menus",
     NUTRITION_PLAN: "/menus/nutrition-plan",
     CREATE_MENU: "/menus",
@@ -575,6 +595,8 @@ export const ENDPOINTS = {
     SUBMIT_MENU: (id) => `/menus/${id}/submit`,
     APPROVE_MENU: (id) => `/menus/${id}/approve`,
     REJECT_MENU: (id) => `/menus/${id}/reject`,
+    REQUEST_EDIT_MENU: (id) => `/menus/${id}/request-edit`,
+    DISTRICT_NUTRITION_PLANS: "/menus/district-nutrition-plans",
   },
 };
 

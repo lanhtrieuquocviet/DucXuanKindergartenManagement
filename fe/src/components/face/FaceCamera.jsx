@@ -73,8 +73,19 @@ const FaceCamera = forwardRef(function FaceCamera({ onDetected, onError, isActiv
           .withFaceDescriptor();
 
         if (detection) {
-          setFaceStatus('detected');
           drawDetection(detection, video, canvas);
+
+          // Lọc chất lượng khuôn mặt trước khi gửi embedding:
+          // 1. score < 0.75 → detection không đủ tin cậy (khuôn mặt mờ/bị che)
+          // 2. face box < 80px → khuôn mặt quá nhỏ/xa, embedding bị nhiễu
+          const score = detection.detection.score;
+          const boxWidth = detection.detection.box.width;
+          if (score < 0.75 || boxWidth < 80) {
+            setFaceStatus('no_face');
+            return;
+          }
+
+          setFaceStatus('detected');
 
           // Gửi embedding về parent component để xử lý match/save
           const embedding = Array.from(detection.descriptor);

@@ -61,6 +61,8 @@ export const defaultRecord = () => ({
   receiverPhone: '',
   receiverOtherImageName: '',
   checkoutNote: '',
+  hasCheckoutBelongings: false,
+  checkoutBelongingsNote: '',
   sendOtpSchoolAccount: false,
   sendOtpViaSms: false,
   selectedParentForOtp: '',

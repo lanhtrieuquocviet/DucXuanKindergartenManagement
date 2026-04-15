@@ -58,13 +58,12 @@ function SystemAdminDashboard() {
 
   const menuItems = [
     { key: 'overview', label: 'Tổng quan hệ thống' },
-    { key: 'schools', label: 'Quản lý trường' },
-    { key: 'accounts', label: 'Quản lý tài khoản' },
+    { key: 'accounts', label: 'Quản lý người dùng' },
     { key: 'roles', label: 'Quản lý vai trò' },
     { key: 'permissions', label: 'Quản lý phân quyền' },
     { key: 'bpm', label: 'Quản lý quy trình (BPM)' },
     { key: 'system-logs', label: 'Nhật ký hệ thống' },
-    { key: 'reports', label: 'Báo cáo tổng hợp' },
+    // { key: 'reports', label: 'Báo cáo tổng hợp' },
   ];
 
   const handleMenuSelect = (key) => {

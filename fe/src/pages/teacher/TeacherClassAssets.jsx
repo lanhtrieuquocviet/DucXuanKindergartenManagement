@@ -1,22 +1,18 @@
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { toast } from 'react-toastify';
 import {
   Box, Button, Chip, CircularProgress, Dialog, DialogActions,
-  DialogContent, DialogTitle, FormControl, IconButton, InputLabel,
-  MenuItem, Paper, Select, Stack, Tab, Table, TableBody, TableCell,
-  TableContainer, TableHead, TablePagination, TableRow, Tabs, TextField, Typography, Collapse,
+  DialogContent, DialogTitle, IconButton,
+  Paper, Stack, Table, TableBody, TableCell,
+  TableContainer, TableHead, TablePagination, TableRow, Typography, Collapse,
 } from '@mui/material';
-import AddIcon from '@mui/icons-material/Add';
-import AddPhotoAlternateIcon from '@mui/icons-material/AddPhotoAlternate';
-import CloseIcon from '@mui/icons-material/Close';
 import ExpandMoreIcon from '@mui/icons-material/ExpandMore';
 import ExpandLessIcon from '@mui/icons-material/ExpandLess';
 import RoleLayout from '../../layouts/RoleLayout';
 import { useAuth } from '../../context/AuthContext';
-import { useTeacher } from '../../context/TeacherContext';
 import CheckCircleIcon from '@mui/icons-material/CheckCircle';
-import { get, post, patch, postFormData, ENDPOINTS } from '../../service/api';
+import { get, patch, ENDPOINTS } from '../../service/api';
 
 // ── Allocation status labels ───────────────────────────────────────────────
 const ALLOCATION_STATUS = {
@@ -25,20 +21,6 @@ const ALLOCATION_STATUS = {
   transferred:          { label: 'Đã chuyển',      color: 'default' },
   returned:             { label: 'Đã thu hồi',     color: 'default' },
 };
-
-// ── Status labels ──────────────────────────────────────────────────────────
-const INCIDENT_STATUS = {
-  pending:    { label: 'Đã gửi',       color: 'warning' },
-  processing: { label: 'Đang xử lý',   color: 'info' },
-  fixed:      { label: 'Đã xử lý',     color: 'success' },
-};
-
-const TYPE_LABEL = {
-  broken: 'Hỏng',
-  lost:   'Mất',
-};
-
-const MAX_IMAGES = 5;
 
 function formatDate(d) {
   if (!d) return '—';
@@ -134,183 +116,21 @@ function AssetTable({ title, assets }) {
   );
 }
 
-// ── Incident Form Dialog ───────────────────────────────────────────────────
-function IncidentFormDialog({ open, onClose, allocation, onSaved }) {
-  const fileInputRef = useRef(null);
-  const [form, setForm] = useState({ assetName: '', assetCode: '', type: 'broken', description: '', images: [] });
-  const [uploading, setUploading] = useState(false);
-  const [saving, setSaving] = useState(false);
-
-  const allAssets = [
-    ...(allocation?.assets || []),
-    ...(allocation?.extraAssets || []),
-  ];
-
-  const handleAssetSelect = (name) => {
-    const found = allAssets.find(a => a.name === name);
-    setForm(f => ({ ...f, assetName: name, assetCode: found?.assetCode || '' }));
-  };
-
-  const handleUpload = async (e) => {
-    const files = Array.from(e.target.files || []);
-    if (!files.length) return;
-    if (form.images.length + files.length > MAX_IMAGES) {
-      toast.warning(`Tối đa ${MAX_IMAGES} ảnh`); return;
-    }
-    setUploading(true);
-    try {
-      const urls = [];
-      for (const file of files) {
-        const fd = new FormData();
-        fd.append('image', file);
-        const res = await postFormData(ENDPOINTS.CLOUDINARY.UPLOAD_PURCHASE_IMAGE, fd);
-        urls.push(res.data?.url || res.url);
-      }
-      setForm(f => ({ ...f, images: [...f.images, ...urls] }));
-    } catch {
-      toast.error('Tải ảnh thất bại');
-    } finally {
-      setUploading(false);
-      if (fileInputRef.current) fileInputRef.current.value = '';
-    }
-  };
-
-  const removeImage = (idx) => {
-    setForm(f => ({ ...f, images: f.images.filter((_, i) => i !== idx) }));
-  };
-
-  const handleSubmit = async () => {
-    if (!form.assetName) { toast.warning('Vui lòng chọn tài sản'); return; }
-    setSaving(true);
-    try {
-      await post(ENDPOINTS.TEACHER.ASSET_INCIDENTS, {
-        classId:      allocation?.classId?._id || allocation?.classId,
-        className:    allocation?.className,
-        allocationId: allocation?._id,
-        assetName:    form.assetName,
-        assetCode:    form.assetCode,
-        type:         form.type,
-        description:  form.description,
-        images:       form.images,
-      });
-      toast.success('Đã gửi báo cáo sự cố');
-      setForm({ assetName: '', assetCode: '', type: 'broken', description: '', images: [] });
-      onSaved();
-      onClose();
-    } catch (err) {
-      toast.error(err.message || 'Gửi thất bại');
-    } finally {
-      setSaving(false);
-    }
-  };
-
-  return (
-    <Dialog open={open} onClose={onClose} maxWidth="sm" fullWidth>
-      <DialogTitle>Báo cáo sự cố tài sản</DialogTitle>
-      <DialogContent dividers>
-        <Stack spacing={2} mt={0.5}>
-          <FormControl fullWidth size="small">
-            <InputLabel>Tài sản *</InputLabel>
-            <Select
-              value={form.assetName}
-              label="Tài sản *"
-              onChange={(e) => handleAssetSelect(e.target.value)}
-            >
-              {allAssets.map((a, i) => (
-                <MenuItem key={i} value={a.name}>{a.name}</MenuItem>
-              ))}
-              <MenuItem value="__other__">Khác (nhập tay)</MenuItem>
-            </Select>
-          </FormControl>
-          {form.assetName === '__other__' && (
-            <TextField
-              size="small" fullWidth label="Tên tài sản"
-              value={form.assetCode}
-              onChange={(e) => setForm(f => ({ ...f, assetName: e.target.value, assetCode: '' }))}
-            />
-          )}
-          <FormControl fullWidth size="small">
-            <InputLabel>Loại sự cố *</InputLabel>
-            <Select value={form.type} label="Loại sự cố *" onChange={(e) => setForm(f => ({ ...f, type: e.target.value }))}>
-              <MenuItem value="broken">Hỏng</MenuItem>
-              <MenuItem value="lost">Mất</MenuItem>
-            </Select>
-          </FormControl>
-          <TextField
-            size="small" fullWidth multiline rows={3}
-            label="Mô tả chi tiết"
-            value={form.description}
-            onChange={(e) => setForm(f => ({ ...f, description: e.target.value }))}
-          />
-          {/* Image upload */}
-          <Box>
-            <Stack direction="row" alignItems="center" spacing={1} mb={1}>
-              <Typography variant="body2" color="text.secondary">Ảnh đính kèm ({form.images.length}/{MAX_IMAGES})</Typography>
-              <Button
-                size="small" variant="outlined" startIcon={<AddPhotoAlternateIcon />}
-                onClick={() => fileInputRef.current?.click()}
-                disabled={uploading || form.images.length >= MAX_IMAGES}
-              >
-                {uploading ? 'Đang tải...' : 'Thêm ảnh'}
-              </Button>
-              <input ref={fileInputRef} type="file" accept="image/*" multiple hidden onChange={handleUpload} />
-            </Stack>
-            {form.images.length > 0 && (
-              <Stack direction="row" flexWrap="wrap" gap={1}>
-                {form.images.map((url, i) => (
-                  <Box key={i} sx={{ position: 'relative', width: 80, height: 80 }}>
-                    <img src={url} alt="" style={{ width: '100%', height: '100%', objectFit: 'cover', borderRadius: 6 }} />
-                    <IconButton
-                      size="small"
-                      onClick={() => removeImage(i)}
-                      sx={{ position: 'absolute', top: -8, right: -8, bgcolor: 'white', boxShadow: 1, p: 0.25 }}
-                    >
-                      <CloseIcon sx={{ fontSize: 14 }} />
-                    </IconButton>
-                  </Box>
-                ))}
-              </Stack>
-            )}
-          </Box>
-        </Stack>
-      </DialogContent>
-      <DialogActions sx={{ px: 2, pb: 2 }}>
-        <Button onClick={onClose} disabled={saving}>Hủy</Button>
-        <Button variant="contained" onClick={handleSubmit} disabled={saving || uploading}>
-          {saving ? 'Đang gửi...' : 'Gửi báo cáo'}
-        </Button>
-      </DialogActions>
-    </Dialog>
-  );
-}
-
 // ── Main component ─────────────────────────────────────────────────────────
 export default function TeacherClassAssets() {
   const navigate = useNavigate();
-  const { user, logout, isInitializing } = useAuth();
-  const { isCommitteeMember } = useTeacher();
+  const { user, logout, isInitializing, hasPermission, hasRole } = useAuth();
 
-  const [tab, setTab]               = useState(0);
-  const [loading, setLoading]       = useState(true);
-  const [allocation, setAlloc]      = useState(null);
-  const [incidents, setIncidents]   = useState([]);
-  const [openForm, setOpenForm]     = useState(false);
+  const [loading, setLoading]         = useState(true);
+  const [allocation, setAlloc]        = useState(null);
   const [confirmOpen, setConfirmOpen] = useState(false);
   const [confirming, setConfirming]   = useState(false);
-
-  // Incidents pagination
-  const [incPage, setIncPage]               = useState(0);
-  const [incRowsPerPage, setIncRowsPerPage] = useState(10);
 
   const fetchData = async () => {
     setLoading(true);
     try {
-      const [aRes, iRes] = await Promise.all([
-        get(ENDPOINTS.TEACHER.MY_ASSET_ALLOCATION),
-        get(ENDPOINTS.TEACHER.ASSET_INCIDENTS),
-      ]);
+      const aRes = await get(ENDPOINTS.TEACHER.MY_ASSET_ALLOCATION);
       setAlloc(aRes.data?.allocation || null);
-      setIncidents(iRes.data?.incidents || []);
     } catch (err) {
       toast.error(err.message || 'Lỗi tải dữ liệu');
     } finally {
@@ -342,26 +162,26 @@ export default function TeacherClassAssets() {
     { key: 'classes',          label: 'Lớp phụ trách' },
     { key: 'students',         label: 'Danh sách học sinh' },
     { key: 'attendance',       label: 'Điểm danh' },
-    { key: 'pickup-approval',  label: 'Đơn đưa đón' },
+    { key: 'pickup-approval',  label: 'Đơn đăng ký đưa đón' },
+    { key: 'leave-requests',   label: 'Danh sách đơn xin nghỉ' },
     { key: 'schedule',         label: 'Lịch dạy & hoạt động' },
-    { key: 'contact-book',     label: 'Sổ liên lạc điện tử' },
     { key: 'purchase-request', label: 'Cơ sở vật chất' },
     { key: 'class-assets',     label: 'Tài sản lớp' },
-    ...(isCommitteeMember ? [{ key: 'asset-inspection', label: 'Kiểm kê tài sản' }] : []),
+    ...(hasRole('InventoryStaff') ? [{ key: 'asset-inspection', label: 'Kiểm kê tài sản' }] : []),
   ];
 
   const handleMenuSelect = (key) => {
     const MAP = {
       classes: '/teacher', students: '/teacher/students',
       'contact-book': '/teacher/contact-book', attendance: '/teacher/attendance',
-      'pickup-approval': '/teacher/pickup-approval', 'purchase-request': '/teacher/purchase-request',
+      'pickup-approval': '/teacher/pickup-approval', 'leave-requests': '/teacher/leave-requests',
+      'purchase-request': '/teacher/purchase-request',
       'class-assets': '/teacher/class-assets', 'asset-inspection': '/teacher/asset-inspection',
     };
     if (MAP[key]) navigate(MAP[key]);
   };
 
   const totalAssets = (allocation?.assets?.length || 0) + (allocation?.extraAssets?.length || 0);
-  const pendingCount = incidents.filter(i => i.status === 'pending').length;
 
   return (
     <RoleLayout
@@ -381,26 +201,13 @@ export default function TeacherClassAssets() {
               </Typography>
             )}
           </Box>
-          {tab === 1 && allocation && (
-            <Button variant="contained" startIcon={<AddIcon />} onClick={() => setOpenForm(true)}>
-              Báo cáo sự cố
-            </Button>
-          )}
         </Stack>
-
-        <Tabs value={tab} onChange={(_, v) => setTab(v)} sx={{ mb: 3 }}>
-          <Tab label="Danh sách tài sản" />
-          <Tab label={`Sự cố${pendingCount ? ` (${pendingCount} chờ)` : ''}`} />
-        </Tabs>
 
         {loading ? (
           <Box display="flex" justifyContent="center" py={6}><CircularProgress /></Box>
         ) : (
-          <>
-            {/* ── Tab 0: Asset list ── */}
-            {tab === 0 && (
-              <Box>
-                {!allocation ? (
+          <Box>
+            {!allocation ? (
                   <Paper sx={{ p: 4, textAlign: 'center', color: 'text.secondary' }}>
                     Lớp của bạn chưa có biên bản bàn giao tài sản nào đang hoạt động.
                   </Paper>
@@ -469,100 +276,7 @@ export default function TeacherClassAssets() {
                     <AssetTable title="Thiết bị khác ngoài Thông tư" assets={allocation.extraAssets} />
                   </>
                 )}
-              </Box>
-            )}
-
-            {/* ── Tab 1: Incidents ── */}
-            {tab === 1 && (
-              <Box>
-                {incidents.length === 0 ? (
-                  <Paper sx={{ p: 4, textAlign: 'center', color: 'text.secondary' }}>
-                    Chưa có sự cố nào được báo cáo.
-                    {allocation && (
-                      <Box mt={2}>
-                        <Button variant="outlined" startIcon={<AddIcon />} onClick={() => setOpenForm(true)}>
-                          Báo cáo sự cố đầu tiên
-                        </Button>
-                      </Box>
-                    )}
-                  </Paper>
-                ) : (
-                  <Paper variant="outlined" sx={{ overflow: 'hidden' }}>
-                    <TableContainer>
-                      <Table size="small">
-                        <TableHead>
-                          <TableRow sx={{ bgcolor: 'grey.100' }}>
-                            <TableCell>Tài sản</TableCell>
-                            <TableCell width={90}>Loại</TableCell>
-                            <TableCell>Mô tả</TableCell>
-                            <TableCell width={90}>Ảnh</TableCell>
-                            <TableCell width={110}>Trạng thái</TableCell>
-                            <TableCell width={110}>Ngày gửi</TableCell>
-                            <TableCell>Ghi chú BGH</TableCell>
-                          </TableRow>
-                        </TableHead>
-                        <TableBody>
-                          {incidents.slice(incPage * incRowsPerPage, incPage * incRowsPerPage + incRowsPerPage).map((inc) => {
-                            const st = INCIDENT_STATUS[inc.status] || { label: inc.status, color: 'default' };
-                            return (
-                              <TableRow key={inc._id} hover>
-                                <TableCell>
-                                  <Typography variant="body2" fontWeight={600}>{inc.assetName}</Typography>
-                                  {inc.assetCode && <Typography variant="caption" color="text.secondary">{inc.assetCode}</Typography>}
-                                </TableCell>
-                                <TableCell>
-                                  <Chip label={TYPE_LABEL[inc.type] || inc.type} size="small" color={inc.type === 'broken' ? 'warning' : 'error'} variant="outlined" />
-                                </TableCell>
-                                <TableCell sx={{ maxWidth: 200, fontSize: 12 }}>{inc.description || '—'}</TableCell>
-                                <TableCell>
-                                  {inc.images?.length > 0 ? (
-                                    <Stack direction="row" spacing={0.5}>
-                                      {inc.images.slice(0, 3).map((url, i) => (
-                                        <Box
-                                          key={i}
-                                          component="a"
-                                          href={url}
-                                          target="_blank"
-                                          rel="noopener noreferrer"
-                                        >
-                                          <img src={url} alt="" style={{ width: 36, height: 36, objectFit: 'cover', borderRadius: 4 }} />
-                                        </Box>
-                                      ))}
-                                      {inc.images.length > 3 && (
-                                        <Box sx={{ width: 36, height: 36, bgcolor: 'grey.200', borderRadius: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 11 }}>
-                                          +{inc.images.length - 3}
-                                        </Box>
-                                      )}
-                                    </Stack>
-                                  ) : '—'}
-                                </TableCell>
-                                <TableCell>
-                                  <Chip label={st.label} size="small" color={st.color} />
-                                </TableCell>
-                                <TableCell sx={{ fontSize: 12, color: 'text.secondary' }}>{formatDate(inc.createdAt)}</TableCell>
-                                <TableCell sx={{ fontSize: 12, color: 'text.secondary' }}>{inc.adminNotes || '—'}</TableCell>
-                              </TableRow>
-                            );
-                          })}
-                        </TableBody>
-                      </Table>
-                      <TablePagination
-                        component="div"
-                        count={incidents.length}
-                        page={incPage}
-                        onPageChange={(_, newPage) => setIncPage(newPage)}
-                        rowsPerPage={incRowsPerPage}
-                        onRowsPerPageChange={e => { setIncRowsPerPage(parseInt(e.target.value, 10)); setIncPage(0); }}
-                        rowsPerPageOptions={[5, 10, 25]}
-                        labelRowsPerPage="Số hàng:"
-                        labelDisplayedRows={({ from, to, count }) => `${from}–${to} / ${count}`}
-                      />
-                    </TableContainer>
-                  </Paper>
-                )}
-              </Box>
-            )}
-          </>
+          </Box>
         )}
       </Box>
 
@@ -587,13 +301,6 @@ export default function TeacherClassAssets() {
         </DialogActions>
       </Dialog>
 
-      {/* ── Incident form dialog ── */}
-      <IncidentFormDialog
-        open={openForm}
-        onClose={() => setOpenForm(false)}
-        allocation={allocation}
-        onSaved={fetchData}
-      />
     </RoleLayout>
   );
 }

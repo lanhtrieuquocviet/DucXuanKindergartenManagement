@@ -37,6 +37,11 @@ const gradeSchema = new mongoose.Schema({
     default: '',
     trim: true,
   },
+  headTeacherId: {
+    type: mongoose.Schema.Types.ObjectId,
+    ref: 'Teacher',
+    default: null,
+  },
   createdAt: {
     type: Date,
     default: Date.now

@@ -26,6 +26,7 @@ const NOTIF_CONFIG = {
   timetable_realtime:  { icon: '⏰', bg: '#fef9c3', label: 'Lịch học' },
   timetable_daily:     { icon: '📅', bg: '#dcfce7', label: 'Lịch ngày' },
   meal_issue:          { icon: '🍽️', bg: '#fef3c7', label: 'Bữa ăn' },
+  leave_request:       { icon: '📝', bg: '#ede9fe', label: 'Đơn xin nghỉ' },
 };
 
 function timeAgo(dateStr) {
@@ -49,7 +50,7 @@ const ACTION_CARDS = [
   { icon: <Restaurant />,   label: 'Thực đơn',               color: '#059669', bg: '#ecfdf5', key: 'menu' },
   { icon: <PhotoLibrary />, label: 'Hình ảnh bữa ăn',       color: '#0891b2', bg: '#ecfeff', key: 'photos' },
   { icon: <School />,       label: 'Sổ liên lạc điện tử',   color: '#7c3aed', bg: '#f5f3ff', key: 'contact-book' },
-  { icon: <EditNote />,     label: 'Đơn xin nghỉ',          color: '#6b7280', bg: '#f9fafb', key: 'leave', disabled: true },
+  { icon: <EditNote />,     label: 'Đơn xin nghỉ',          color: '#6b7280', bg: '#f9fafb', key: 'leave' },
   { icon: <SwapHoriz />,    label: 'Chuyển lớp',             color: '#6b7280', bg: '#f9fafb', key: 'transfer', disabled: true },
 ];
 
@@ -74,6 +75,8 @@ export default function StudentDashboard() {
   const [notifications, setNotifications] = useState([]);
   const [unreadCount, setUnreadCount] = useState(0);
   const [notifLoading, setNotifLoading] = useState(false);
+  const [selectedChildId, setSelectedChildId] = useState(null);
+  const [previewImageUrl, setPreviewImageUrl] = useState(null);
 
   const pollRef = useRef(null);
   const lastOtpCodeRef = useRef(null);
@@ -91,7 +94,17 @@ export default function StudentDashboard() {
       .finally(() => setLoading(false));
   }, [navigate, user, isInitializing]);
 
-  const studentInfo = children[0] || null;
+  useEffect(() => {
+    if (!children.length) {
+      setSelectedChildId(null);
+      return;
+    }
+    if (!selectedChildId || !children.some((c) => c._id === selectedChildId)) {
+      setSelectedChildId(children[0]._id);
+    }
+  }, [children, selectedChildId]);
+
+  const studentInfo = children.find((c) => c._id === selectedChildId) || children[0] || null;
 
   useEffect(() => {
     if (!studentInfo?._id) return;
@@ -191,14 +204,17 @@ export default function StudentDashboard() {
   };
 
   const handleCardAction = (key) => {
+    const id = selectedChildId || children[0]?._id || '';
+    const q = id ? `?studentId=${id}` : '';
     const routes = {
       info: () => setShowChildInfo(true),
-      today: () => navigate('/student/attendance/today'),
-      report: () => navigate('/student/attendance/report'),
-      pickup: () => navigate('/student/pickup'),
+      today: () => navigate(`/student/attendance/today${q}`),
+      report: () => navigate(`/student/attendance/report${q}`),
+      pickup: () => navigate(`/student/pickup${q}`),
       menu: () => navigate('/student/menus'),
       photos: () => navigate('/student/meal-photos'),
-      'contact-book': () => navigate('/student/contact-book'),
+      'contact-book': () => navigate(`/student/contact-book${q}`),
+      leave: () => navigate(`/student/leave-request${q}`),
     };
     routes[key]?.();
   };
@@ -245,6 +261,9 @@ export default function StudentDashboard() {
                 <Notifications />
               </Badge>
             </IconButton>
+            <IconButton onClick={() => navigate('/profile')} size="small" sx={{ color: 'white' }}>
+              <Person />
+            </IconButton>
             <IconButton onClick={() => logout() || navigate('/login', { replace: true })} size="small" sx={{ color: 'white' }}>
               <Logout />
             </IconButton>
@@ -272,6 +291,9 @@ export default function StudentDashboard() {
               </Avatar>
               <Box flex={1} minWidth={0}>
                 <Typography fontWeight={800} fontSize="1.05rem" color="#111827" noWrap>{studentName}</Typography>
+                <Typography fontSize="0.78rem" color="text.secondary" mt={0.2}>
+                  Mã học sinh: {studentInfo?.studentCode || '—'}
+                </Typography>
                 <Stack direction="row" spacing={0.75} alignItems="center" mt={0.25} mb={1}>
                   <School sx={{ fontSize: 14, color: '#6b7280' }} />
                   <Typography fontSize="0.82rem" color="text.secondary">{className}</Typography>
@@ -286,6 +308,35 @@ export default function StudentDashboard() {
             </Stack>
           )}
         </Paper>
+
+        {children.length > 1 && (
+          <Paper elevation={0} sx={{ mb: 2.5, p: 2, borderRadius: 3, border: '1px solid', borderColor: '#bbf7d0' }}>
+            <Typography fontWeight={700} fontSize="0.9rem" mb={1.25}>Chọn bé cần thao tác</Typography>
+            <Grid container spacing={1.25}>
+              {children.map((child) => (
+                <Grid item xs={12} sm={6} key={child._id}>
+                  <Paper
+                    elevation={0}
+                    onClick={() => setSelectedChildId(child._id)}
+                    sx={{
+                      p: 1.5,
+                      borderRadius: 2.5,
+                      border: '1.5px solid',
+                      borderColor: selectedChildId === child._id ? PRIMARY : '#d1fae5',
+                      bgcolor: selectedChildId === child._id ? '#ecfdf5' : 'white',
+                      cursor: 'pointer',
+                    }}
+                  >
+                    <Typography fontWeight={700} fontSize="0.86rem" noWrap>{child.fullName}</Typography>
+                    <Typography fontSize="0.76rem" color="text.secondary">
+                      Mã HS: {child.studentCode || '—'}
+                    </Typography>
+                  </Paper>
+                </Grid>
+              ))}
+            </Grid>
+          </Paper>
+        )}
 
         {/* ── Action Grid ── */}
         <Grid container spacing={1.5}>
@@ -476,33 +527,120 @@ export default function StudentDashboard() {
       {/* ── OTP Dialog ── */}
       <Dialog open={showOtpModal && !!pendingOtp} onClose={() => setShowOtpModal(false)}
         maxWidth="xs" fullWidth PaperProps={{ sx: { borderRadius: 4, mx: 2 } }}>
-        <DialogTitle>
+        <DialogTitle sx={{ pb: 1 }}>
           <Stack direction="row" alignItems="center" justifyContent="space-between">
             <Typography fontWeight={700}>🔑 Mã OTP của bạn</Typography>
             <IconButton size="small" onClick={() => setShowOtpModal(false)}><Close fontSize="small" /></IconButton>
           </Stack>
         </DialogTitle>
-        <DialogContent>
-          <Stack alignItems="center" spacing={3}>
-            <Typography fontSize="2.5rem" fontWeight={800} letterSpacing="0.3em" color="#111827">
-              {pendingOtp?.code}
-            </Typography>
-            <Box sx={{ position: 'relative', display: 'inline-flex' }}>
-              <CircularProgress
-                variant="determinate"
-                value={otpTotalTime > 0 ? (otpTimeLeft / otpTotalTime) * 100 : 0}
-                size={80} thickness={4}
-                sx={{ color: PRIMARY }}
-              />
-              <Box sx={{ position: 'absolute', inset: 0, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-                <Typography fontWeight={800} fontSize="1.1rem" color={PRIMARY}>{otpTimeLeft}s</Typography>
-              </Box>
+        <DialogContent sx={{ pt: 0 }}>
+          <Stack spacing={2}>
+            {/* Thông tin học sinh */}
+            <Box sx={{ bgcolor: '#ecfdf5', borderRadius: 2.5, p: 1.5, border: '1px solid #bbf7d0' }}>
+              <Typography fontSize="0.7rem" fontWeight={700} color={PRIMARY} textTransform="uppercase" letterSpacing={0.5} mb={0.75}>
+                Học sinh
+              </Typography>
+              <Stack direction="row" spacing={1.5} alignItems="center">
+                <Avatar sx={{ bgcolor: PRIMARY_LIGHT, color: PRIMARY, width: 40, height: 40, fontWeight: 700, fontSize: '1rem', flexShrink: 0 }}>
+                  {(pendingOtp?.student?.fullName || studentInfo?.fullName || '?').charAt(0)}
+                </Avatar>
+                <Box>
+                  <Typography fontWeight={800} fontSize="0.95rem" color="#111827" lineHeight={1.2}>
+                    {pendingOtp?.student?.fullName || studentInfo?.fullName}
+                  </Typography>
+                  <Typography fontSize="0.75rem" color="text.secondary">
+                    Mã HS: {studentInfo?.studentCode || '—'} · {pendingOtp?.student?.className || studentInfo?.classId?.className || ''}
+                  </Typography>
+                </Box>
+              </Stack>
             </Box>
-            <Typography fontSize="0.8rem" color="text.secondary" textAlign="center">
-              Mã này dùng để giáo viên xác nhận đón trẻ trong vòng <strong>{otpTotalTime} giây</strong>.
-            </Typography>
+
+            {/* Thông tin người ngoài danh sách */}
+            {pendingOtp?.extraPerson?.fullName && (
+              <Box sx={{ bgcolor: '#fff7ed', borderRadius: 2.5, p: 1.5, border: '1px solid #fed7aa' }}>
+                <Typography fontSize="0.7rem" fontWeight={700} color="#d97706" textTransform="uppercase" letterSpacing={0.5} mb={0.75}>
+                  Người đến đón
+                </Typography>
+                <Stack direction="row" spacing={1.5} alignItems="center">
+                  {pendingOtp.extraPerson.imageUrl ? (
+                    <Box
+                      component="img"
+                      src={pendingOtp.extraPerson.imageUrl}
+                      alt={pendingOtp.extraPerson.fullName}
+                      onClick={() => setPreviewImageUrl(pendingOtp.extraPerson.imageUrl)}
+                      sx={{
+                        width: 72, height: 72, borderRadius: 2.5, objectFit: 'cover',
+                        border: '2px solid #fed7aa', flexShrink: 0, cursor: 'zoom-in',
+                        transition: 'transform 0.15s, box-shadow 0.15s',
+                        '&:active': { transform: 'scale(0.96)' },
+                        boxShadow: '0 2px 8px rgba(217,119,6,0.2)',
+                      }}
+                    />
+                  ) : (
+                    <Avatar sx={{ bgcolor: '#fef3c7', color: '#d97706', width: 72, height: 72, fontSize: '1.5rem', flexShrink: 0 }}>
+                      {pendingOtp.extraPerson.fullName.charAt(0)}
+                    </Avatar>
+                  )}
+                  <Box>
+                    <Typography fontWeight={700} fontSize="0.9rem" color="#111827">
+                      {pendingOtp.extraPerson.fullName}
+                    </Typography>
+                    {pendingOtp.extraPerson.phone && (
+                      <Typography fontSize="0.75rem" color="text.secondary">📞 {pendingOtp.extraPerson.phone}</Typography>
+                    )}
+                    {pendingOtp.extraPerson.imageUrl && (
+                      <Typography fontSize="0.68rem" color="#d97706" mt={0.25}>Nhấn ảnh để xem to</Typography>
+                    )}
+                  </Box>
+                </Stack>
+              </Box>
+            )}
+
+            {/* Mã OTP + đếm ngược */}
+            <Stack alignItems="center" spacing={2} pt={0.5}>
+              <Typography fontSize="2.5rem" fontWeight={800} letterSpacing="0.3em" color="#111827">
+                {pendingOtp?.code}
+              </Typography>
+              <Box sx={{ position: 'relative', display: 'inline-flex' }}>
+                <CircularProgress
+                  variant="determinate"
+                  value={otpTotalTime > 0 ? (otpTimeLeft / otpTotalTime) * 100 : 0}
+                  size={80} thickness={4}
+                  sx={{ color: PRIMARY }}
+                />
+                <Box sx={{ position: 'absolute', inset: 0, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                  <Typography fontWeight={800} fontSize="1.1rem" color={PRIMARY}>{otpTimeLeft}s</Typography>
+                </Box>
+              </Box>
+              <Typography fontSize="0.8rem" color="text.secondary" textAlign="center">
+                Mã này dùng để giáo viên xác nhận đón trẻ trong vòng <strong>{otpTotalTime} giây</strong>.
+              </Typography>
+            </Stack>
           </Stack>
         </DialogContent>
+      </Dialog>
+
+      {/* ── Image Preview Dialog ── */}
+      <Dialog open={!!previewImageUrl} onClose={() => setPreviewImageUrl(null)}
+        maxWidth="sm" fullWidth
+        PaperProps={{ sx: { bgcolor: 'transparent', boxShadow: 'none', borderRadius: 3, mx: 2 } }}>
+        <Box sx={{ position: 'relative' }}>
+          <IconButton
+            onClick={() => setPreviewImageUrl(null)}
+            size="small"
+            sx={{ position: 'absolute', top: 8, right: 8, zIndex: 1, bgcolor: 'rgba(0,0,0,0.55)', color: 'white', '&:hover': { bgcolor: 'rgba(0,0,0,0.8)' } }}
+          >
+            <Close fontSize="small" />
+          </IconButton>
+          {previewImageUrl && (
+            <Box
+              component="img"
+              src={previewImageUrl}
+              alt="Xem ảnh"
+              sx={{ width: '100%', maxHeight: '80vh', objectFit: 'contain', borderRadius: 3, display: 'block' }}
+            />
+          )}
+        </Box>
       </Dialog>
 
       {/* ── OTP Toast (khi đóng modal) ── */}

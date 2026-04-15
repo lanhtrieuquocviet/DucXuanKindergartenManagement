@@ -1,6 +1,12 @@
 const mongoose = require('mongoose');
 
 const studentSchema = new mongoose.Schema({
+  studentCode: {
+    type: String,
+    trim: true,
+    unique: true,
+    sparse: true,
+  },
   fullName: {
     type: String,
     required: true,
@@ -34,9 +40,8 @@ const studentSchema = new mongoose.Schema({
     ref: 'Classes'
   },
   academicYearId: {
-    type: mongoose.Schema.Types.ObjectId,
-    ref: 'AcademicYears',
-    default: null,
+    type: [{ type: mongoose.Schema.Types.ObjectId, ref: 'AcademicYears' }],
+    default: [],
   },
   status: {
     type: String,
@@ -47,6 +52,11 @@ const studentSchema = new mongoose.Schema({
   parentId: {
     type: mongoose.Schema.Types.ObjectId,
     ref: 'User'
+  },
+  parentProfileId: {
+    type: mongoose.Schema.Types.ObjectId,
+    ref: 'ParentProfiles',
+    default: null,
   },
   avatar: {
     type: String,
@@ -81,10 +91,6 @@ const studentSchema = new mongoose.Schema({
     type: Date,
     default: null
   },
-  faceImageUrl: {
-    type: String,
-    default: ''
-  },
   createdAt: {
     type: Date,
     default: Date.now
@@ -95,7 +101,14 @@ const studentSchema = new mongoose.Schema({
   }
 }, {
   timestamps: true,
-  collection: 'Students'
+  collection: 'Students',
+  toJSON: { virtuals: true },
+  toObject: { virtuals: true }
+});
+
+// Virtual: luôn trả về ảnh đầu tiên, không lưu vào DB
+studentSchema.virtual('faceImageUrl').get(function () {
+  return (Array.isArray(this.faceImageUrls) && this.faceImageUrls[0]) ? this.faceImageUrls[0] : '';
 });
 
 const Student = mongoose.model('Students', studentSchema);

@@ -37,7 +37,6 @@ function Header() {
         'Hoạt động ngoại khóa': '/extracurricular-activities',
     };
 
-    const [newsCategories, setNewsCategories] = useState([]);
     const [organizationGroups, setOrganizationGroups] = useState([]);
     // search state
     const [query, setQuery] = useState("");
@@ -91,18 +90,6 @@ function Header() {
         return () => document.removeEventListener('click', onDocClick);
     }, []);
 
-    useEffect(() => {
-        const loadCats = async () => {
-            try {
-                const resp = await get('/blogs/categories');
-                const list = resp.data || resp;
-                setNewsCategories(list);
-            } catch (err) {
-                console.error('Failed to load news categories', err);
-            }
-        };
-        loadCats();
-    }, []);
 
     useEffect(() => {
         const loadOrganization = async () => {
@@ -339,18 +326,17 @@ function Header() {
                             </div>
                             {activeMenu === "news" && (
                                 <div className="absolute top-full left-0 mt-1 bg-white rounded-xl shadow-xl min-w-[220px] z-50 text-gray-800">
-                                    {newsCategories.length === 0 ? (
-                                        <div className="px-4 py-3 text-sm text-gray-500">Đang tải...</div>
-                                    ) : (
-                                        newsCategories.map((c, idx) => {
-                                            const route = NEWS_ROUTE_MAP[c.name] || "/";
-                                            return (
-                                                <a key={c._id} href={route}>
-                                                    <div className={`px-4 py-3 hover:bg-green-100 ${idx === 0 ? "rounded-t-xl" : ""} ${idx === newsCategories.length - 1 ? "rounded-b-xl" : ""}`}>{c.name}</div>
-                                                </a>
-                                            );
-                                        })
-                                    )}
+                                    {[
+                                        { label: 'Bản tin trường', route: '/school-news' },
+                                        { label: 'Hoạt động ngoại khóa', route: '/extracurricular-activities' },
+                                        { label: 'Thông báo', route: '/notifications-news' },
+                                        { label: 'Thông báo từ Phòng', route: '/department-notifications' },
+                                        { label: 'Tin tức từ Phòng', route: '/department-news' },
+                                    ].map((item, idx, arr) => (
+                                        <a key={item.route} href={item.route}>
+                                            <div className={`px-4 py-3 hover:bg-green-100 ${idx === 0 ? "rounded-t-xl" : ""} ${idx === arr.length - 1 ? "rounded-b-xl" : ""}`}>{item.label}</div>
+                                        </a>
+                                    ))}
                                 </div>
                             )}
                         </div>
@@ -377,18 +363,11 @@ function Header() {
                             </div>
                             {activeMenu === "library" && (
                                 <div className="absolute top-full left-0 mt-1 bg-white rounded-xl shadow-xl min-w-[220px] z-50 text-gray-800">
-                                    <a href="https://k12online.vn/" target="_blank" rel="noreferrer"><div className="px-4 py-3 hover:bg-green-100 rounded-t-xl">Học trực tuyến</div></a>
-                                    <a href="/weekly-program"><div className="px-4 py-3 hover:bg-green-100">Chương trình tuần</div></a>
-                                    <a href="/weekly-menu"><div className="px-4 py-3 hover:bg-green-100">Thực đơn tuần</div></a>
+                                    <a href="/weekly-menu"><div className="px-4 py-3 hover:bg-green-100 rounded-t-xl">Thực đơn tuần</div></a>
                                     <a href="/photo-gallery"><div className="px-4 py-3 hover:bg-green-100">Thư viện ảnh</div></a>
                                     <a href="/video-gallery"><div className="px-4 py-3 hover:bg-green-100">Video clip</div></a>
                                     <a href="/document-library"><div className="px-4 py-3 hover:bg-green-100">Tài liệu</div></a>
-                                    <a href="/schedule"><div className="px-4 py-3 hover:bg-green-100">Thời khóa biểu</div></a>
-                                    <a href="/lesson-plan"><div className="px-4 py-3 hover:bg-green-100">Giáo án điện tử</div></a>
-                                    <a href="/experience-sharing"><div className="px-4 py-3 hover:bg-green-100">Chia sẻ kinh nghiệm</div></a>
-                                    <a href="/things-to-know"><div className="px-4 py-3 hover:bg-green-100">Điều cần biết</div></a>
-                                    <a href="/poetry-music"><div className="px-4 py-3 hover:bg-green-100">Thơ văn - nhạc</div></a>
-                                    <a href="/relax-page"><div className="px-4 py-3 hover:bg-green-100 rounded-b-xl">Thư giãn</div></a>
+                                    <a href="/schedule"><div className="px-4 py-3 hover:bg-green-100 rounded-b-xl">Thời gian biểu</div></a>
                                 </div>
                             )}
                         </div>
@@ -396,9 +375,9 @@ function Header() {
                         <a href="/contact" className="px-3 py-2.5 hover:bg-white/15 whitespace-nowrap transition-colors rounded">
                             Liên hệ
                         </a>
-                        <a href="/qa" className="px-3 py-2.5 hover:bg-white/15 whitespace-nowrap transition-colors rounded">
+                        {/* <a href="/qa" className="px-3 py-2.5 hover:bg-white/15 whitespace-nowrap transition-colors rounded">
                             Hỏi đáp
-                        </a>
+                        </a> */}
                     </nav>
                 </div>
             </div>

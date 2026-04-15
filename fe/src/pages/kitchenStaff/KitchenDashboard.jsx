@@ -32,6 +32,7 @@ import {
   WbTwilight as EveningIcon,
   NightsStay as NightIcon,
   LunchDining as LunchIcon,
+  AssignmentTurnedIn as DistrictNutritionIcon,
 } from "@mui/icons-material";
 
 const STATUS_CONFIG = {
@@ -71,6 +72,13 @@ const QUICK_ACTIONS = [
     path: "/kitchen/foods",
     gradient: "linear-gradient(135deg, #f97316 0%, #ef4444 100%)",
     icon: <FoodIcon sx={{ fontSize: 26 }} />,
+  },
+  {
+    label: "Quy định dinh dưỡng sở",
+    desc: "Chỉ số & tài liệu đồng bộ BGH",
+    path: "/kitchen/district-nutrition",
+    gradient: "linear-gradient(135deg, #0284c7 0%, #0d9488 100%)",
+    icon: <DistrictNutritionIcon sx={{ fontSize: 26 }} />,
   },
   {
     label: "Sĩ số & Suất cơm",

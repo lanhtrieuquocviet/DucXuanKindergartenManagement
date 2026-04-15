@@ -1,3 +1,4 @@
+<<<<<<< HEAD
 const PickupRequest = require("../models/PickupRequest");
 const Student = require("../models/Student"); // Students
 const Classes = require("../models/Classes"); // Classes
@@ -9,85 +10,28 @@ exports.createPickupRequest = async (req, res) => {
   try {
 
     const { fullName, relation, phone, imageUrl, studentId } = req.body;
+=======
+const service = require('../services/pickupService.js');
+>>>>>>> 4353c6d86870654ca8aec10b6e87b538d89e8813
 
-    if (!studentId) {
-      return res.status(400).json({
-        success: false,
-        message: "Thiếu studentId",
-      });
-    }
+const createPickupRequest = async (req, res, next) => service.createPickupRequest(req, res, next);
+const getMyPickupRequests = async (req, res, next) => service.getMyPickupRequests(req, res, next);
+const getPickupRequests = async (req, res, next) => service.getPickupRequests(req, res, next);
+const getApprovedPickupPersonsByStudent = async (req, res, next) => service.getApprovedPickupPersonsByStudent(req, res, next);
+const updatePickupRequestStatus = async (req, res, next) => service.updatePickupRequestStatus(req, res, next);
+const updateMyPickupRequest = async (req, res, next) => service.updateMyPickupRequest(req, res, next);
+const deleteMyPickupRequest = async (req, res, next) => service.deleteMyPickupRequest(req, res, next);
 
-    let studentObjectId;
-    let userObjectId;
-    try {
-      studentObjectId = new mongoose.Types.ObjectId(studentId);
-      userObjectId = new mongoose.Types.ObjectId(req.user.id);
-      console.log("ObjectIds created successfully");
-    } catch (castErr) {
-      console.error("Cast ObjectId error:", castErr);
-      return res.status(400).json({
-        success: false,
-        message:
-          "ID học sinh hoặc user không hợp lệ (không phải ObjectId hợp lệ)",
-      });
-    }
-
-    console.log("Querying student...");
-    const student = await Student.findOne({
-      _id: studentObjectId,
-      parentId: userObjectId,
-    });
-
-    console.log("Student query result:", student ? "Found" : "Not found");
-
-    if (!student) {
-      return res.status(403).json({
-        success: false,
-        message: "Học sinh không thuộc quyền quản lý của bạn",
-      });
-    }
-    const duplicateByNameRelation = await PickupRequest.findOne({
-      student: studentObjectId,
-      fullName: fullName.trim(),
-      relation: relation,
-    });
-
-    if (
-      duplicateByNameRelation &&
-      duplicateByNameRelation.phone === phone.trim()
-    ) {
-      return res.status(400).json({
-        message: "Trùng tên, quan hệ và số điện thoại đã đăng ký trước đó",
-      });
-    }
-
-    console.log("Creating PickupRequest...");
-    const pickupRequest = new PickupRequest({
-      student: studentObjectId,
-      parent: userObjectId,
-      fullName,
-      relation,
-      phone,
-      imageUrl: imageUrl || "",
-    });
-
-    await pickupRequest.save();
-    console.log("Saved successfully:", pickupRequest._id);
-
-    res.status(201).json({
-      success: true,
-      message: "Đăng ký thành công, đang chờ duyệt",
-      data: pickupRequest,
-    });
-  } catch (error) {
-    console.error("Create pickup request error:", error.stack);
-    res.status(500).json({
-      success: false,
-      message: "Lỗi server khi tạo đăng ký",
-      error: error.message,
-    });
-  }
+module.exports = {
+  createPickupRequest,
+  getMyPickupRequests,
+  getPickupRequests,
+  getApprovedPickupPersonsByStudent,
+  updatePickupRequestStatus,
+  updateMyPickupRequest,
+  deleteMyPickupRequest,
 };
+<<<<<<< HEAD
 
 // 2. Phụ huynh xem danh sách đăng ký của mình
 exports.getMyPickupRequests = async (req, res) => {
@@ -409,3 +353,5 @@ exports.deleteMyPickupRequest = async (req, res) => {
     });
   }
 };
+=======
+>>>>>>> 4353c6d86870654ca8aec10b6e87b538d89e8813

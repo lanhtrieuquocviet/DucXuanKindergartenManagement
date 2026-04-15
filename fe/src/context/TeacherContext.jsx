@@ -18,13 +18,6 @@ export const TeacherProvider = ({
 }) => {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
-  const [isCommitteeMember, setIsCommitteeMember] = useState(false);
-
-  useEffect(() => {
-    get(ENDPOINTS.TEACHER.ASSET_COMMITTEE_IS_MEMBER)
-      .then(res => setIsCommitteeMember(res?.data?.isMember === true))
-      .catch(() => setIsCommitteeMember(false));
-  }, []);
 
   // Sử dụng useRef để lưu trữ callback functions, tránh thay đổi kích thước mảng dependencies
   const onErrorRef = useRef(onError);
@@ -63,7 +56,6 @@ export const TeacherProvider = ({
     error,
     getDashboard,
     setError,
-    isCommitteeMember,
   };
 
   return (

@@ -9,6 +9,12 @@ const pickupRequestSchema = new mongoose.Schema(
       required: true,
       index: true, // tăng tốc độ query theo học sinh
     },
+    classId: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: "Classes",
+      required: true,
+      index: true,
+    },
 
     // Phụ huynh đăng ký (người tạo request)
     parent: {

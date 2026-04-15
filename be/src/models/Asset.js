@@ -32,6 +32,10 @@ const assetSchema = new mongoose.Schema(
       enum: ['Tốt', 'Hỏng', 'Cần sửa chữa'],
       default: 'Tốt',
     },
+    unit:     { type: String, trim: true, default: 'Cái' },  // ĐVT – dùng cho mục 7
+    seats1:   { type: Number, min: 0, default: null },  // Trong đó: 1 chỗ ngồi (phần 2)
+    seats2:   { type: Number, min: 0, default: null },  // Trong đó: 2 chỗ ngồi (phần 2)
+    seats4:   { type: Number, min: 0, default: null },  // Trong đó: 4 chỗ ngồi (phần 2)
     notes:    { type: String, trim: true, default: '' },
     createdBy: { type: mongoose.Schema.Types.ObjectId, ref: 'User', required: true },
   },

@@ -20,7 +20,7 @@ export default function FaceRegisterModal({ open, onClose, student, onSuccess })
   const [previewSrc, setPreviewSrc] = useState(null);
   const [detecting, setDetecting] = useState(false);
   const [saving, setSaving] = useState(false);
-  const [detectionResult, setDetectionResult] = useState(null); // null | 'ok' | 'no_face' | 'multi'
+  const [detectionResult, setDetectionResult] = useState(null); // null | 'ok' | 'no_face' | 'multi' | 'low_quality'
   const [pendingEmbedding, setPendingEmbedding] = useState(null);
   const [savedAngles, setSavedAngles] = useState(0); // số góc đã lưu trong phiên này
   const [conflictInfo, setConflictInfo] = useState(null);
@@ -81,7 +81,7 @@ export default function FaceRegisterModal({ open, onClose, student, onSuccess })
     setPendingEmbedding(null);
 
     try {
-      const options = new faceapi.TinyFaceDetectorOptions({ inputSize: 320, scoreThreshold: 0.5 });
+      const options = new faceapi.TinyFaceDetectorOptions({ inputSize: 320, scoreThreshold: 0.7 });
 
       // Detect tất cả khuôn mặt (kiểm tra có nhiều hơn 1 không)
       const allDetections = await faceapi
@@ -103,12 +103,25 @@ export default function FaceRegisterModal({ open, onClose, student, onSuccess })
         return;
       }
 
-      // Đúng 1 khuôn mặt
-      const embedding = Array.from(allDetections[0].descriptor);
+      const det = allDetections[0];
+
+      // Kiểm tra chất lượng: khuôn mặt phải đủ lớn và rõ nét
+      // box.width < 80px trên ảnh 320px → mặt quá nhỏ/xa, embedding sẽ bị nhiễu
+      const boxWidth = det.detection.box.width;
+      const score = det.detection.score;
+      if (boxWidth < 80 || score < 0.75) {
+        setDetectionResult('low_quality');
+        const canvas2 = canvasRef.current;
+        const dims2 = faceapi.matchDimensions(canvas2, imgRef.current, true);
+        faceapi.draw.drawDetections(canvas2, faceapi.resizeResults(allDetections, dims2));
+        return;
+      }
+
+      // Đúng 1 khuôn mặt, chất lượng đủ tốt
+      const embedding = Array.from(det.descriptor);
       setPendingEmbedding(embedding);
       setDetectionResult('ok');
 
-      // Vẽ bounding box
       const canvas = canvasRef.current;
       const dims = faceapi.matchDimensions(canvas, imgRef.current, true);
       faceapi.draw.drawDetections(canvas, faceapi.resizeResults(allDetections, dims));
@@ -181,8 +194,11 @@ export default function FaceRegisterModal({ open, onClose, student, onSuccess })
   if (!open) return null;
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60">
-      <div className="bg-white rounded-2xl shadow-2xl w-full max-w-lg mx-4">
+    <div className="fixed inset-0 z-[1410] flex items-start sm:items-center justify-center bg-black/60 p-2 sm:p-4">
+      <div
+        className="bg-white rounded-2xl shadow-2xl w-full max-w-lg overflow-y-auto"
+        style={{ maxHeight: 'calc(100dvh - 1rem)' }}
+      >
         {/* Header */}
         <div className="flex items-center justify-between px-6 py-4 border-b bg-indigo-600 rounded-t-2xl">
           <div>
@@ -264,11 +280,13 @@ export default function FaceRegisterModal({ open, onClose, student, onSuccess })
             <div className={`mt-3 p-3 rounded-lg text-sm ${
               detectionResult === 'ok' ? 'bg-green-50 text-green-700 border border-green-200' :
               detectionResult === 'no_face' ? 'bg-red-50 text-red-700 border border-red-200' :
+              detectionResult === 'low_quality' ? 'bg-yellow-50 text-yellow-800 border border-yellow-300' :
               'bg-orange-50 text-orange-700 border border-orange-200'
             }`}>
               {detectionResult === 'ok' && '✓ Phát hiện đúng 1 khuôn mặt — sẵn sàng lưu'}
               {detectionResult === 'no_face' && '✗ Không phát hiện khuôn mặt — thử chụp lại'}
               {detectionResult === 'multi' && '⚠ Phát hiện nhiều khuôn mặt — thử chụp lại'}
+              {detectionResult === 'low_quality' && '⚠ Khuôn mặt quá nhỏ hoặc không rõ — lại gần camera hơn và chụp lại'}
             </div>
           )}
 

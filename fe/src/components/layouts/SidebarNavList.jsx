@@ -60,9 +60,24 @@ export default function SidebarNavList({
     };
   }, []);
 
+  // Giữ nguyên vị trí cuộn khi chuyển trang/menu trong cùng sidebar
+  useEffect(() => {
+    const node = scrollRef.current;
+    if (!node) return undefined;
+    const rafId = requestAnimationFrame(() => {
+      if (scrollRef.current) {
+        scrollRef.current.scrollTop = _savedScrollTop;
+      }
+    });
+    return () => cancelAnimationFrame(rafId);
+  }, [activeKey, collapsed, menuItems.length]);
+
   return (
     <Box
       ref={scrollRef}
+      onScroll={(e) => {
+        _savedScrollTop = e.currentTarget.scrollTop;
+      }}
       sx={{
         flex: 1, overflowY: 'auto', overflowX: 'hidden', pt: 0.75, pb: 1,
         '&::-webkit-scrollbar': { width: 4 },

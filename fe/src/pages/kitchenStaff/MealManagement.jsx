@@ -55,6 +55,7 @@ import {
   LockOpen as LockOpenIcon,
   ChevronLeft as ChevronLeftIcon,
   ChevronRight as ChevronRightIcon,
+  Cameraswitch as CameraswitchIcon,
 } from '@mui/icons-material';
 import { toast } from 'react-toastify';
 import {
@@ -514,16 +515,95 @@ const DESC_MAX = 200;
 function UploadMealDialog({ open, onClose, date, onSuccess, editData }) {
   const isEdit = Boolean(editData?.images?.length);
 
+  const MIN_PHOTOS = 3;
+  const MAX_PHOTOS = 5;
+
   // previewItems: { kind: 'existing', url } | { kind: 'new', file, url }
   const [mealType, setMealType] = useState('trua');
   const [description, setDescription] = useState('');
   const [previewItems, setPreviewItems] = useState([]);
   const [descError, setDescError] = useState('');
   const [uploading, setUploading] = useState(false);
-  const fileInputRef = useRef(null);
 
-  const MIN_PHOTOS = 3;
-  const MAX_PHOTOS = 5;
+  // Camera state
+  const [cameraOpen, setCameraOpen] = useState(false);
+  const [cameraReady, setCameraReady] = useState(false);
+  const [cameraError, setCameraError] = useState(null);
+  const [facingMode, setFacingMode] = useState('environment');
+  const videoRef = useRef(null);
+  const streamRef = useRef(null);
+
+  const stopCamera = useCallback(() => {
+    if (streamRef.current) {
+      streamRef.current.getTracks().forEach((t) => t.stop());
+      streamRef.current = null;
+    }
+    if (videoRef.current) videoRef.current.srcObject = null;
+    setCameraReady(false);
+  }, []);
+
+  const startCamera = useCallback(async (facing) => {
+    setCameraError(null);
+    setCameraReady(false);
+    stopCamera();
+    try {
+      const stream = await navigator.mediaDevices.getUserMedia({
+        video: { width: { ideal: 640 }, height: { ideal: 480 }, facingMode: facing },
+        audio: false,
+      });
+      streamRef.current = stream;
+      if (videoRef.current) {
+        videoRef.current.srcObject = stream;
+        await videoRef.current.play();
+      }
+      setCameraReady(true);
+    } catch (err) {
+      let msg = 'Không thể bật camera';
+      if (err.name === 'NotAllowedError' || err.name === 'PermissionDeniedError')
+        msg = 'Trình duyệt chặn quyền camera — vào Settings > Privacy > Camera để cấp quyền';
+      else if (err.name === 'NotFoundError' || err.name === 'DevicesNotFoundError')
+        msg = 'Không tìm thấy camera trên thiết bị này';
+      else if (err.name === 'NotReadableError' || err.name === 'TrackStartError')
+        msg = 'Camera đang được dùng bởi ứng dụng khác';
+      setCameraError(msg);
+    }
+  }, [stopCamera]);
+
+  const openCamera = () => {
+    setCameraOpen(true);
+    setCameraError(null);
+    startCamera(facingMode);
+  };
+
+  const flipCamera = () => {
+    const next = facingMode === 'environment' ? 'user' : 'environment';
+    setFacingMode(next);
+    startCamera(next);
+  };
+
+  const captureFromCamera = () => {
+    const video = videoRef.current;
+    if (!video || video.readyState < 2) return;
+    const canvas = document.createElement('canvas');
+    canvas.width = video.videoWidth || 640;
+    canvas.height = video.videoHeight || 480;
+    canvas.getContext('2d').drawImage(video, 0, 0);
+    canvas.toBlob((blob) => {
+      const file = new File([blob], `capture_${Date.now()}.jpg`, { type: 'image/jpeg' });
+      const url = URL.createObjectURL(file);
+      setPreviewItems((prev) => {
+        const next = [...prev, { kind: 'new', file, url }];
+        if (next.length >= MAX_PHOTOS) {
+          stopCamera();
+          setCameraOpen(false);
+        }
+        return next;
+      });
+    }, 'image/jpeg', 0.85);
+  };
+
+  // Cleanup camera on unmount
+  useEffect(() => () => stopCamera(), [stopCamera]);
 
   // Sync state when editData changes (dialog opens in edit mode)
   useEffect(() => {
@@ -540,11 +620,16 @@ function UploadMealDialog({ open, onClose, date, onSuccess, editData }) {
       }
       setDescError('');
       setUploading(false);
+      setCameraOpen(false);
+      setCameraError(null);
+      stopCamera();
     }
-  }, [open, editData]);
+  }, [open, editData, stopCamera]);
 
   const handleClose = () => {
     if (uploading) return;
+    stopCamera();
+    setCameraOpen(false);
     // revoke blob URLs for new files
     previewItems.forEach((p) => { if (p.kind === 'new') URL.revokeObjectURL(p.url); });
     onClose();
@@ -559,16 +644,6 @@ function UploadMealDialog({ open, onClose, date, onSuccess, editData }) {
     const val = e.target.value;
     setDescription(val);
     setDescError(validateDesc(val));
-  };
-
-  const handleFileChange = (e) => {
-    const files = Array.from(e.target.files || []);
-    if (!files.length) return;
-    e.target.value = '';
-    const remaining = MAX_PHOTOS - previewItems.length;
-    if (remaining <= 0) { toast.warning(`Tối đa ${MAX_PHOTOS} ảnh`); return; }
-    const toAdd = files.slice(0, remaining).map((file) => ({ kind: 'new', file, url: URL.createObjectURL(file) }));
-    setPreviewItems((prev) => [...prev, ...toAdd]);
   };
 
   const handleRemove = (idx) => {
@@ -631,7 +706,7 @@ function UploadMealDialog({ open, onClose, date, onSuccess, editData }) {
           </Avatar>
           <Box>
             <Typography variant="h6" fontWeight={800} color="white" sx={{ lineHeight: 1.2, fontSize: 16 }}>
-              {isEdit ? 'Chỉnh sửa ảnh món ăn' : 'Upload ảnh món ăn'}
+              {isEdit ? 'Chỉnh sửa ảnh món ăn' : 'Chụp ảnh món ăn'}
             </Typography>
             <Typography variant="caption" sx={{ color: 'rgba(255,255,255,0.8)', fontSize: 11.5 }}>
               Ngày {formatDisplayDate(date)}
@@ -712,11 +787,11 @@ function UploadMealDialog({ open, onClose, date, onSuccess, editData }) {
           sx={{ '& .MuiOutlinedInput-root': { borderRadius: 2.5 } }}
         />
 
-        {/* Upload ảnh */}
+        {/* Chụp ảnh */}
         <Box>
           <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', mb: 1.25 }}>
             <Typography variant="body2" fontWeight={700} color="text.primary">
-              Upload ảnh *
+              Chụp ảnh *
             </Typography>
             <Chip
               label={`${previewItems.length}/${MAX_PHOTOS} ảnh`}
@@ -729,41 +804,92 @@ function UploadMealDialog({ open, onClose, date, onSuccess, editData }) {
             />
           </Box>
 
-          {/* Drop zone */}
-          {previewItems.length < MAX_PHOTOS && (
-            <Box
-              onClick={() => fileInputRef.current?.click()}
-              sx={{
-                border: '2.5px dashed',
-                borderColor: alpha(cfg.color, 0.4),
-                borderRadius: 3,
-                py: 3,
-                display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 1,
-                cursor: 'pointer', transition: 'all 0.2s',
-                bgcolor: alpha(cfg.color, 0.03),
-                '&:hover': { borderColor: cfg.color, bgcolor: alpha(cfg.color, 0.07) },
-                mb: previewItems.length > 0 ? 2 : 0,
-              }}
-            >
-              <AddPhotoIcon sx={{ fontSize: 32, color: cfg.color }} />
-              <Typography variant="body2" fontWeight={600} color="text.secondary">
-                Nhấn để chụp ảnh
-              </Typography>
-              <Typography variant="caption" color="text.disabled">
-                Tối thiểu {MIN_PHOTOS} ảnh, tối đa {MAX_PHOTOS} ảnh · JPG, PNG, WebP
-              </Typography>
+          {/* Camera UI */}
+          {cameraOpen ? (
+            <Box sx={{ mb: previewItems.length > 0 ? 2 : 0 }}>
+              {!cameraReady && !cameraError && (
+                <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'center', height: 200, bgcolor: 'grey.100', borderRadius: 2, gap: 1.5 }}>
+                  <CircularProgress size={22} />
+                  <Typography variant="caption" color="text.secondary">Đang bật camera...</Typography>
+                </Box>
+              )}
+              {cameraError && (
+                <Box sx={{ p: 2, bgcolor: '#fef2f2', border: '1px solid #fecaca', borderRadius: 2, textAlign: 'center' }}>
+                  <Typography variant="caption" color="error.main" fontWeight={600} sx={{ display: 'block', mb: 1.5 }}>
+                    {cameraError}
+                  </Typography>
+                  <Button size="small" variant="outlined" color="error" onClick={() => startCamera(facingMode)} sx={{ mr: 1 }}>
+                    Thử lại
+                  </Button>
+                  <Button size="small" onClick={() => { setCameraOpen(false); stopCamera(); }}>Hủy</Button>
+                </Box>
+              )}
+              <Box sx={{ display: cameraReady ? 'block' : 'none', borderRadius: 2, overflow: 'hidden', border: '2px solid', borderColor: alpha(cfg.color, 0.4) }}>
+                <Box sx={{ position: 'relative' }}>
+                  <video
+                    ref={videoRef}
+                    autoPlay
+                    muted
+                    playsInline
+                    style={{ width: '100%', display: 'block', maxHeight: 260, objectFit: 'cover' }}
+                  />
+                  <IconButton
+                    size="small"
+                    onClick={flipCamera}
+                    sx={{
+                      position: 'absolute', top: 8, right: 8,
+                      bgcolor: 'rgba(0,0,0,0.45)', color: 'white',
+                      '&:hover': { bgcolor: 'rgba(0,0,0,0.65)' },
+                    }}
+                  >
+                    <CameraswitchIcon fontSize="small" />
+                  </IconButton>
+                </Box>
+                <Box sx={{ display: 'flex', gap: 1, p: 1.5, bgcolor: 'grey.50', justifyContent: 'center' }}>
+                  <Button
+                    variant="contained"
+                    startIcon={<CameraIcon />}
+                    onClick={captureFromCamera}
+                    sx={{ textTransform: 'none', fontWeight: 700, bgcolor: cfg.color, '&:hover': { bgcolor: cfg.color, filter: 'brightness(0.9)' } }}
+                  >
+                    Chụp ảnh ({previewItems.length + 1}/{MAX_PHOTOS})
+                  </Button>
+                  <Button
+                    variant="outlined"
+                    onClick={() => { setCameraOpen(false); stopCamera(); }}
+                    sx={{ textTransform: 'none' }}
+                  >
+                    Đóng camera
+                  </Button>
+                </Box>
+              </Box>
             </Box>
+          ) : (
+            previewItems.length < MAX_PHOTOS && (
+              <Box
+                onClick={openCamera}
+                sx={{
+                  border: '2.5px dashed',
+                  borderColor: alpha(cfg.color, 0.4),
+                  borderRadius: 3,
+                  py: 3,
+                  display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 1,
+                  cursor: 'pointer', transition: 'all 0.2s',
+                  bgcolor: alpha(cfg.color, 0.03),
+                  '&:hover': { borderColor: cfg.color, bgcolor: alpha(cfg.color, 0.07) },
+                  mb: previewItems.length > 0 ? 2 : 0,
+                }}
+              >
+                <CameraIcon sx={{ fontSize: 32, color: cfg.color }} />
+                <Typography variant="body2" fontWeight={600} color="text.secondary">
+                  Nhấn để mở camera
+                </Typography>
+                <Typography variant="caption" color="text.disabled">
+                  Tối thiểu {MIN_PHOTOS} ảnh, tối đa {MAX_PHOTOS} ảnh · Chụp bằng camera
+                </Typography>
+              </Box>
+            )
           )}
-
-          <input
-            ref={fileInputRef}
-            type="file"
-            accept="image/jpeg,image/jpg,image/png,image/webp"
-            capture="environment"
-            multiple
-            style={{ display: 'none' }}
-            onChange={handleFileChange}
-          />
 
           {/* Thumbnails */}
           {previewItems.length > 0 && (
@@ -820,7 +946,7 @@ function UploadMealDialog({ open, onClose, date, onSuccess, editData }) {
             <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.75, mt: 1.25 }}>
               <WarningIcon sx={{ fontSize: 15, color: '#d97706' }} />
               <Typography variant="caption" sx={{ color: '#d97706', fontSize: 12 }}>
-                Cần thêm {MIN_PHOTOS - previewItems.length} ảnh nữa để upload
+                Cần chụp thêm {MIN_PHOTOS - previewItems.length} ảnh nữa
               </Typography>
             </Box>
           )}
@@ -849,7 +975,7 @@ function UploadMealDialog({ open, onClose, date, onSuccess, editData }) {
             '&:disabled': { opacity: 0.6 },
           }}
         >
-          {uploading ? (isEdit ? 'Đang lưu...' : 'Đang upload...') : (isEdit ? `Lưu thay đổi (${previewItems.length} ảnh)` : `Upload (${previewItems.length}/${MIN_PHOTOS} ảnh)`)}
+          {uploading ? 'Đang lưu...' : (isEdit ? `Lưu thay đổi (${previewItems.length} ảnh)` : `Lưu (${previewItems.length}/${MIN_PHOTOS} ảnh)`)}
         </Button>
       </DialogActions>
     </Dialog>

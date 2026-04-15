@@ -1,7 +1,6 @@
 import { useEffect, useMemo, useState } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
 import { useAuth } from '../../context/AuthContext';
-import { useTeacher } from '../../context/TeacherContext';
 import RoleLayout from '../../layouts/RoleLayout';
 import { get, ENDPOINTS } from '../../service/api';
 import {
@@ -83,32 +82,28 @@ function ClassCard({ cls, onClick, colorIdx }) {
   );
 }
 
-function getTeacherMenuItems(isCommitteeMember, hasPermission) {
+function getTeacherMenuItems(hasPermission, hasRole) {
   const ALL_TEACHER_MENU = [
     { key: 'classes', label: 'Lớp phụ trách' },
     { key: 'students', label: 'Danh sách học sinh' },
     { key: 'attendance', label: 'Điểm danh', permission: 'MANAGE_ATTENDANCE' },
-    { key: 'pickup-approval', label: 'Đơn đưa đón', permission: 'MANAGE_PICKUP' },
+    { key: 'pickup-approval', label: 'Đơn đăng ký đưa đón', permission: 'MANAGE_PICKUP' },
     { key: 'schedule', label: 'Lịch dạy & hoạt động' },
-    { key: 'contact-book', label: 'Sổ liên lạc điện tử' },
     { key: 'purchase-request', label: 'Cơ sở vật chất', permission: 'MANAGE_PURCHASE_REQUEST' },
     { key: 'class-assets', label: 'Tài sản lớp', permission: 'MANAGE_ASSET' },
+    { key: 'asset-inspection', label: 'Kiểm kê tài sản', role: 'InventoryStaff' },
   ];
-  const items = ALL_TEACHER_MENU.filter(
-    (item) => !item.permission || hasPermission(item.permission)
-  );
-  if (isCommitteeMember && hasPermission('MANAGE_ASSET')) {
-    items.push({ key: 'asset-inspection', label: 'Kiểm kê tài sản' });
-  }
-  return items;
+  return ALL_TEACHER_MENU.filter((item) => {
+    if (item.permission) return hasPermission(item.permission);
+    if (item.role) return hasRole(item.role);
+    return true;
+  });
 }
 
 export default function ContactBook() {
   const navigate = useNavigate();
   const location = useLocation();
-  const { user, logout, isInitializing } = useAuth();
-  const { isCommitteeMember } = useTeacher();
-  const { hasPermission } = useAuth();
+  const { user, logout, isInitializing, hasPermission, hasRole } = useAuth();
 
   const [classes, setClasses] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -132,8 +127,8 @@ export default function ContactBook() {
   }, [user, isInitializing, navigate]);
 
   const menuItems = useMemo(
-    () => getTeacherMenuItems(isCommitteeMember, hasPermission),
-    [isCommitteeMember, hasPermission]
+    () => getTeacherMenuItems(hasPermission, hasRole),
+    [hasPermission, hasRole]
   );
 
   const activeKey = useMemo(() => {

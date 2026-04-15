@@ -22,9 +22,8 @@ const MEAL_TYPES = [
 ];
 
 const STATUS_MAP = {
-  approved:  { label: 'Đã duyệt',    color: 'success' },
-  active:    { label: 'Đang áp dụng', color: 'info'   },
-  completed: { label: 'Hoàn thành',  color: 'default' },
+  active:    { label: 'Đang áp dụng', color: 'info'    },
+  completed: { label: 'Đã kết thúc',  color: 'default' },
 };
 
 function NutriCard({ icon, label, value, unit, color, bg, border }) {

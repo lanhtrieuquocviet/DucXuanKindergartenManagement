@@ -25,6 +25,7 @@ import {
   Restaurant as MealIcon,
   People as PeopleIcon,
   LocalOffer as IngredientIcon,
+  AssignmentTurnedIn as DistrictNutritionIcon,
 } from '@mui/icons-material';
 
 import SidebarBrand from '../../components/layouts/SidebarBrand';
@@ -59,6 +60,12 @@ const KITCHEN_MENU = [
     key: 'ingredients',
     icon: <IngredientIcon fontSize="small" />,
     path: '/kitchen/ingredients',
+  },
+  {
+    label: 'Quy định dinh dưỡng của sở',
+    key: 'district-nutrition',
+    icon: <DistrictNutritionIcon fontSize="small" />,
+    path: '/kitchen/district-nutrition',
   },
   {
     label: 'Quản lý bữa ăn',

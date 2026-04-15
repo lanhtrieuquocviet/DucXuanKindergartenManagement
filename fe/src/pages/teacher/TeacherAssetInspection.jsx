@@ -31,10 +31,10 @@ import {
 import AddIcon from '@mui/icons-material/Add';
 import DeleteIcon from '@mui/icons-material/Delete';
 import EditIcon from '@mui/icons-material/Edit';
+import DownloadIcon from '@mui/icons-material/Download';
 import RoleLayout from '../../layouts/RoleLayout';
 import { useAuth } from '../../context/AuthContext';
-import { useTeacher } from '../../context/TeacherContext';
-import { get, post, put, del, ENDPOINTS } from '../../service/api';
+import { get, post, put, del, getToken, ENDPOINTS } from '../../service/api';
 
 const STATUS_LABEL = {
   draft:    { label: 'Nháp',      color: 'default' },
@@ -46,7 +46,6 @@ const STATUS_LABEL = {
 const emptyAssetRow = () => ({ category: '', assetCode: '', name: '', unit: 'Cái', quantity: 0, targetUser: '', notes: '' });
 const emptyForm = () => ({
   className: '',
-  scope: '',
   location: 'Đức Xuân',
   inspectionDate: new Date().toISOString().slice(0, 10),
   inspectionTime: '',
@@ -55,6 +54,7 @@ const emptyForm = () => ({
   inspectionMethod: 'Kiểm kê số tài sản có trong lớp học và theo Thông tư 01 của Bộ GD&ĐT ban hành và các thiết bị dạy học khác.\nTổng hợp số liệu báo cáo về nhà trường để có kế hoạch bổ sung và theo dõi.',
   committeeId: '',
   assets: [emptyAssetRow()],
+  extraAssets: [],
   conclusion: '',
 });
 
@@ -104,7 +104,7 @@ export default function TeacherAssetInspection() {
   const navigate  = useNavigate();
   const theme     = useTheme();
   const isMobile  = useMediaQuery(theme.breakpoints.down('sm'));
-  const { user, logout, isInitializing } = useAuth();
+  const { user, logout, isInitializing, hasPermission, hasRole } = useAuth();
 
   const [loading, setLoading]         = useState(true);
   const [minutes, setMinutes]         = useState([]);
@@ -117,12 +117,16 @@ export default function TeacherAssetInspection() {
   const [deleteTarget, setDeleteTarget] = useState(null);
   const [deleting, setDeleting]       = useState(false);
   const [categoryDialog, setCategoryDialog] = useState(false);
+  const [exportingWord, setExportingWord]     = useState(false);
+  const [allAllocations, setAllAllocations]   = useState([]); // danh sách bàn giao active
+  const [selectedAllocation, setSelectedAllocation] = useState(null); // bàn giao của lớp đang chọn
 
   useEffect(() => {
     if (isInitializing) return;
     if (!user) { navigate('/login', { replace: true }); return; }
     const roles = user?.roles?.map(r => r.roleName || r) || [];
-    if (!roles.includes('Teacher')) { navigate('/', { replace: true }); return; }
+    // Chỉ thành viên được assign vào Ban kiểm kê (có role InventoryStaff) mới được truy cập
+    if (!roles.includes('InventoryStaff')) { navigate('/', { replace: true }); return; }
     load();
   }, [isInitializing, user, navigate]);
 
@@ -132,41 +136,48 @@ export default function TeacherAssetInspection() {
       const [mRes, cRes, aRes] = await Promise.all([
         get(ENDPOINTS.TEACHER.ASSET_MINUTES),
         get(ENDPOINTS.TEACHER.ASSET_COMMITTEES),
-        get(ENDPOINTS.TEACHER.MY_ASSET_ALLOCATION),
+        get(ENDPOINTS.TEACHER.ASSET_ALLOCATIONS_ACTIVE, { params: { status: 'active' } }),
       ]);
       setMinutes(mRes?.data?.minutes || []);
       setCommittees(cRes?.data?.committees || []);
-      setAllocation(aRes?.data?.allocation || null);
+      setAllAllocations(aRes?.data?.allocations || []);
+      // Giữ lại MY_ASSET_ALLOCATION cho pre-fill khi tạo mới (nếu giáo viên có lớp)
+      setAllocation(null);
     } catch (err) {
       toast.error(err?.message || 'Không tải được dữ liệu.');
     } finally { setLoading(false); }
   };
 
+  // Khi chọn lớp từ dropdown → tìm allocation tương ứng + pre-fill assets
+  const handleClassSelect = (className) => {
+    const found = allAllocations.find(a => a.className === className) || null;
+    setSelectedAllocation(found);
+    const mapRow = ({ category, assetCode, name, unit, quantity, targetUser, notes }) =>
+      ({ category: category || '', assetCode: assetCode || '', name, unit: unit || 'Cái', quantity: quantity ?? 0, targetUser: targetUser || '', notes: notes || '' });
+    const allAssets   = found ? (found.assets      || []).map(mapRow) : null;
+    const extraAssets = found ? (found.extraAssets  || []).map(mapRow) : null;
+    setForm(p => ({
+      ...p,
+      className,
+      assets:      allAssets?.length   ? allAssets   : p.assets,
+      extraAssets: extraAssets?.length ? extraAssets : p.extraAssets,
+    }));
+  };
+
   const handleOpenCreate = () => {
     setEditing(null);
-    if (allocation) {
-      const allAssets = [
-        ...(allocation.assets || []),
-        ...(allocation.extraAssets || []),
-      ].map(({ category, assetCode, name, unit, quantity, targetUser, notes }) =>
-        ({ category: category || '', assetCode: assetCode || '', name, unit: unit || 'Cái', quantity: quantity ?? 0, targetUser: targetUser || '', notes: notes || '' })
-      );
-      setForm({
-        ...emptyForm(),
-        className: allocation.className || '',
-        assets: allAssets.length ? allAssets : [emptyAssetRow()],
-      });
-    } else {
-      setForm(emptyForm());
-    }
+    setSelectedAllocation(null);
+    setForm({ ...emptyForm(), committeeId: myCommittee?._id || '' });
     setOpenModal(true);
   };
 
   const handleOpenEdit = m => {
     setEditing(m);
+    // Khôi phục selectedAllocation từ className đã lưu
+    const found = allAllocations.find(a => a.className === m.className) || null;
+    setSelectedAllocation(found);
     setForm({
       className:        m.className || '',
-      scope:            m.scope || '',
       location:         m.location || 'Đức Xuân',
       inspectionDate:   m.inspectionDate ? new Date(m.inspectionDate).toISOString().slice(0, 10) : '',
       inspectionTime:   m.inspectionTime || '',
@@ -175,6 +186,7 @@ export default function TeacherAssetInspection() {
       inspectionMethod: m.inspectionMethod || '',
       committeeId:      m.committeeId?._id || m.committeeId || '',
       assets:           m.assets?.length ? m.assets.map(a => ({ ...a })) : [emptyAssetRow()],
+      extraAssets:      m.extraAssets?.length ? m.extraAssets.map(a => ({ ...a })) : [],
       conclusion:       m.conclusion || '',
     });
     setOpenModal(true);
@@ -190,6 +202,15 @@ export default function TeacherAssetInspection() {
   const handleAddRow      = ()    => setForm(prev => ({ ...prev, assets: [...prev.assets, emptyAssetRow()] }));
   const handleRemoveRow   = idx   => setForm(prev => ({ ...prev, assets: prev.assets.filter((_, i) => i !== idx) }));
   const handleAddCategory = name  => setForm(prev => ({ ...prev, assets: [...prev.assets, { ...emptyAssetRow(), category: name }] }));
+
+  const handleExtraAssetChange = (idx, field, value) =>
+    setForm(prev => {
+      const extraAssets = [...prev.extraAssets];
+      extraAssets[idx] = { ...extraAssets[idx], [field]: field === 'quantity' ? Number(value) : value };
+      return { ...prev, extraAssets };
+    });
+  const handleAddExtraRow    = ()  => setForm(prev => ({ ...prev, extraAssets: [...prev.extraAssets, emptyAssetRow()] }));
+  const handleRemoveExtraRow = idx => setForm(prev => ({ ...prev, extraAssets: prev.extraAssets.filter((_, i) => i !== idx) }));
 
   const handleSave = async () => {
     if (!form.className.trim()) { toast.error('Vui lòng nhập Lớp.'); return; }
@@ -208,6 +229,27 @@ export default function TeacherAssetInspection() {
     finally { setSaving(false); }
   };
 
+  // ── Export Word ────────────────────────────────────────────────────────────
+  const handleExportWord = async () => {
+    if (!editing?._id) return;
+    setExportingWord(true);
+    try {
+      const API_BASE = import.meta.env.VITE_API_BASE_URL || 'http://localhost:5000/api';
+      const res = await fetch(`${API_BASE}${ENDPOINTS.TEACHER.ASSET_MINUTES_EXPORT_WORD(editing._id)}`, {
+        headers: { Authorization: `Bearer ${getToken()}` },
+      });
+      if (!res.ok) { toast.error('Không xuất được file Word.'); return; }
+      const blob = await res.blob();
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `bien_ban_kiem_ke_${editing.minutesNumber || editing._id}.docx`;
+      a.click();
+      URL.revokeObjectURL(url);
+    } catch { toast.error('Lỗi xuất Word.'); }
+    finally { setExportingWord(false); }
+  };
+
   const handleConfirmDelete = async () => {
     setDeleting(true);
     try {
@@ -223,29 +265,30 @@ export default function TeacherAssetInspection() {
   const dayStr            = parsedDate ? parsedDate.getDate() : '___';
   const monthStr          = parsedDate ? parsedDate.getMonth() + 1 : '___';
   const yearStr           = parsedDate ? parsedDate.getFullYear() : '______';
-  const selectedCommittee = committees.find(c => c._id === form.committeeId) || null;
+  const myCommittee       = committees.find(c => c.status === 'active' && c.members?.some(m => String(m.userId) === String(user?._id)));
+  const selectedCommittee = committees.find(c => c._id === form.committeeId) || myCommittee || null;
 
   const cellBorder = { border: '1px solid #555', padding: '4px 6px', fontSize: 13 };
   const headerCell = { ...cellBorder, fontWeight: 700, textAlign: 'center', background: '#f3f4f6' };
 
-  const { isCommitteeMember } = useTeacher();
   const menuItems = [
     { key: 'classes',          label: 'Lớp phụ trách' },
     { key: 'students',         label: 'Danh sách học sinh' },
     { key: 'attendance',       label: 'Điểm danh' },
-    { key: 'pickup-approval',  label: 'Đơn đưa đón' },
+    { key: 'pickup-approval',  label: 'Đơn đăng ký đưa đón' },
+    { key: 'leave-requests',   label: 'Danh sách đơn xin nghỉ' },
     { key: 'schedule',         label: 'Lịch dạy & hoạt động' },
-    { key: 'contact-book',     label: 'Sổ liên lạc điện tử' },
     { key: 'purchase-request', label: 'Cơ sở vật chất' },
     { key: 'class-assets',     label: 'Tài sản lớp' },
-    ...(isCommitteeMember ? [{ key: 'asset-inspection', label: 'Kiểm kê tài sản' }] : []),
+    ...(hasRole('InventoryStaff') ? [{ key: 'asset-inspection', label: 'Kiểm kê tài sản' }] : []),
   ];
 
   const handleMenuSelect = (key) => {
     const MAP = {
       classes: '/teacher', students: '/teacher/students',
       'contact-book': '/teacher/contact-book', attendance: '/teacher/attendance',
-      'pickup-approval': '/teacher/pickup-approval', 'purchase-request': '/teacher/purchase-request',
+      'pickup-approval': '/teacher/pickup-approval', 'leave-requests': '/teacher/leave-requests',
+      'purchase-request': '/teacher/purchase-request',
       'class-assets': '/teacher/class-assets', 'asset-inspection': '/teacher/asset-inspection',
     };
     if (MAP[key]) navigate(MAP[key]);
@@ -391,16 +434,22 @@ export default function TeacherAssetInspection() {
           <Paper variant="outlined" sx={{ p: { xs: 1.5, sm: 2 }, mb: 3, borderRadius: 2, bgcolor: '#f9fafb' }}>
             <Typography variant="body2" fontWeight={600} mb={1.5} color="text.secondary">Thông tin biên bản</Typography>
             <Stack direction={{ xs: 'column', sm: 'row' }} spacing={2} mb={2} flexWrap="wrap">
-              <TextField label="Lớp *" size="small" value={form.className}
-                onChange={e => setForm(p => ({ ...p, className: e.target.value }))} disabled={isReadOnly}
-                placeholder="VD: MẪU GIÁO LỚN 1" required
-                error={!form.className && !isReadOnly}
-                helperText={!form.className && !isReadOnly ? 'Bắt buộc nhập' : ''}
-                sx={{ flex: 1, minWidth: { xs: '100%', sm: 150 } }} />
-              <TextField label="Phạm vi" size="small" value={form.scope}
-                onChange={e => setForm(p => ({ ...p, scope: e.target.value }))} disabled={isReadOnly}
-                placeholder="VD: Phòng học, Nhà bếp"
-                sx={{ flex: 1, minWidth: { xs: '100%', sm: 160 } }} />
+              <FormControl size="small" required error={!form.className && !isReadOnly}
+                sx={{ flex: 1, minWidth: { xs: '100%', sm: 150 } }} disabled={isReadOnly}>
+                <InputLabel>Lớp *</InputLabel>
+                <Select label="Lớp *" value={form.className}
+                  onChange={e => handleClassSelect(e.target.value)}>
+                  {allAllocations.length === 0 && (
+                    <MenuItem value="" disabled>Không có lớp nào có bàn giao active</MenuItem>
+                  )}
+                  {allAllocations.map(a => (
+                    <MenuItem key={a._id} value={a.className}>{a.className}</MenuItem>
+                  ))}
+                </Select>
+                {!form.className && !isReadOnly && (
+                  <Typography variant="caption" color="error" sx={{ mt: 0.5, ml: 1.5 }}>Bắt buộc chọn</Typography>
+                )}
+              </FormControl>
               <TextField label="Địa điểm" size="small" value={form.location}
                 onChange={e => setForm(p => ({ ...p, location: e.target.value }))} disabled={isReadOnly}
                 sx={{ minWidth: { xs: '100%', sm: 130 } }} />
@@ -415,14 +464,9 @@ export default function TeacherAssetInspection() {
               <TextField label="Giờ kết thúc (VD: 11h30)" size="small" value={form.endTime}
                 onChange={e => setForm(p => ({ ...p, endTime: e.target.value }))} disabled={isReadOnly}
                 sx={{ minWidth: { xs: '100%', sm: 175 } }} />
-              <FormControl size="small" sx={{ flex: 1, minWidth: { xs: '100%', sm: 190 } }}>
-                <InputLabel>Ban kiểm kê</InputLabel>
-                <Select value={form.committeeId} label="Ban kiểm kê"
-                  onChange={e => setForm(p => ({ ...p, committeeId: e.target.value }))} disabled={isReadOnly}>
-                  <MenuItem value="">— Không chọn —</MenuItem>
-                  {committees.map(c => <MenuItem key={c._id} value={c._id}>{c.name}</MenuItem>)}
-                </Select>
-              </FormControl>
+              <TextField size="small" label="Ban kiểm kê" disabled
+                value={selectedCommittee?.name || '(Chưa được phân công vào ban kiểm kê)'}
+                sx={{ flex: 1, minWidth: { xs: '100%', sm: 190 } }} />
             </Stack>
             <TextField label="II. Lí do kiểm kê" size="small" fullWidth multiline rows={2}
               value={form.reason} onChange={e => setForm(p => ({ ...p, reason: e.target.value }))}
@@ -579,12 +623,133 @@ export default function TeacherAssetInspection() {
             </Box>
 
             {!isReadOnly && (
-              <Stack direction={{ xs: 'column', sm: 'row' }} spacing={1} mb={2}>
+              <Stack direction={{ xs: 'column', sm: 'row' }} spacing={1} mb={2} flexWrap="wrap">
                 <Button size="small" onClick={handleAddRow} sx={{ textTransform: 'none' }}>+ Thêm dòng tài sản</Button>
                 <Button size="small" variant="outlined" onClick={() => setCategoryDialog(true)} sx={{ textTransform: 'none' }}>
                   + Thêm nhóm mới
                 </Button>
               </Stack>
+            )}
+
+            {/* ── Extra Assets (ngoài thông tư) ── */}
+            {(form.extraAssets?.length > 0 || !isReadOnly) && (
+              <>
+                <Typography sx={{ fontWeight: 700, textAlign: 'center', mt: 2, mb: 1, fontFamily: 'inherit', fontSize: 'inherit' }}>
+                  CÁC THIẾT BỊ TÀI SẢN KHÁC NGOÀI THÔNG TƯ
+                </Typography>
+                <Box sx={{ overflowX: 'auto', mb: 1, WebkitOverflowScrolling: 'touch' }}>
+                  <table style={{ width: '100%', borderCollapse: 'collapse', minWidth: 560 }}>
+                    <thead>
+                      <tr>
+                        <th style={{ ...headerCell, width: 32 }}>TT</th>
+                        <th style={{ ...headerCell, width: 80 }}>MÃ SỐ</th>
+                        <th style={headerCell}>TÊN THIẾT BỊ</th>
+                        <th style={{ ...headerCell, width: 46 }}>ĐVT</th>
+                        <th style={{ ...headerCell, width: 46 }}>SL</th>
+                        <th style={{ ...headerCell, width: 110 }}>ĐỐI TƯỢNG SỬ DỤNG</th>
+                        <th style={{ ...headerCell, width: 90 }}>GHI CHÚ</th>
+                        {!isReadOnly && <th style={{ ...headerCell, width: 36 }} />}
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {form.extraAssets?.length === 0 && isReadOnly ? (
+                        <tr>
+                          <td colSpan={7} style={{ ...cellBorder, textAlign: 'center', color: '#aaa', fontStyle: 'italic' }}>
+                            (Không có thiết bị ngoài thông tư)
+                          </td>
+                        </tr>
+                      ) : (
+                        (() => {
+                          const groups = [];
+                          (form.extraAssets || []).forEach(row => {
+                            const cat = row.category || '';
+                            const last = groups[groups.length - 1];
+                            if (last && last.category === cat) last.rows.push(row);
+                            else groups.push({ category: cat, rows: [row] });
+                          });
+                          let counter = 0;
+                          return groups.map((g, gi) => (
+                            <>
+                              {g.category && (
+                                <tr key={`ecat-${gi}`}>
+                                  <td colSpan={isReadOnly ? 7 : 8}
+                                    style={{ ...cellBorder, fontWeight: 700, textAlign: 'center', background: '#f0f0f0' }}>
+                                    {g.category}
+                                  </td>
+                                </tr>
+                              )}
+                              {g.rows.map(row => {
+                                counter++;
+                                const globalIdx = (form.extraAssets || []).indexOf(row);
+                                const n = counter;
+                                return (
+                                  <tr key={globalIdx}>
+                                    <td style={{ ...cellBorder, textAlign: 'center' }}>{n}</td>
+                                    <td style={cellBorder}>
+                                      {isReadOnly ? row.assetCode : (
+                                        <input style={{ width: '100%', border: 'none', outline: 'none', background: 'transparent', fontSize: 13 }}
+                                          value={row.assetCode} onChange={e => handleExtraAssetChange(globalIdx, 'assetCode', e.target.value)} />
+                                      )}
+                                    </td>
+                                    <td style={cellBorder}>
+                                      {isReadOnly ? row.name : (
+                                        <input style={{ width: '100%', border: 'none', outline: 'none', background: 'transparent', fontSize: 13 }}
+                                          value={row.name} onChange={e => handleExtraAssetChange(globalIdx, 'name', e.target.value)} placeholder="Tên thiết bị" />
+                                      )}
+                                    </td>
+                                    <td style={{ ...cellBorder, textAlign: 'center' }}>
+                                      {isReadOnly ? row.unit : (
+                                        <input style={{ width: '100%', border: 'none', outline: 'none', background: 'transparent', textAlign: 'center', fontSize: 13 }}
+                                          value={row.unit} onChange={e => handleExtraAssetChange(globalIdx, 'unit', e.target.value)} />
+                                      )}
+                                    </td>
+                                    <td style={{ ...cellBorder, textAlign: 'center' }}>
+                                      {isReadOnly ? row.quantity : (
+                                        <input type="number" min={0}
+                                          style={{ width: '100%', border: 'none', outline: 'none', background: 'transparent', textAlign: 'center', fontSize: 13 }}
+                                          value={row.quantity} onChange={e => handleExtraAssetChange(globalIdx, 'quantity', e.target.value)} />
+                                      )}
+                                    </td>
+                                    <td style={{ ...cellBorder, textAlign: 'center' }}>
+                                      {isReadOnly ? row.targetUser : (
+                                        <select style={{ width: '100%', border: 'none', outline: 'none', background: 'transparent', fontSize: 13 }}
+                                          value={row.targetUser} onChange={e => handleExtraAssetChange(globalIdx, 'targetUser', e.target.value)}>
+                                          <option value="">—</option>
+                                          <option value="Trẻ">Trẻ</option>
+                                          <option value="Giáo viên">Giáo viên</option>
+                                          <option value="Dùng chung">Dùng chung</option>
+                                        </select>
+                                      )}
+                                    </td>
+                                    <td style={cellBorder}>
+                                      {isReadOnly ? row.notes : (
+                                        <input style={{ width: '100%', border: 'none', outline: 'none', background: 'transparent', fontSize: 13 }}
+                                          value={row.notes} onChange={e => handleExtraAssetChange(globalIdx, 'notes', e.target.value)} />
+                                      )}
+                                    </td>
+                                    {!isReadOnly && (
+                                      <td style={{ ...cellBorder, textAlign: 'center', padding: 2 }}>
+                                        <IconButton size="small" color="error" onClick={() => handleRemoveExtraRow(globalIdx)}>
+                                          <DeleteIcon sx={{ fontSize: 15 }} />
+                                        </IconButton>
+                                      </td>
+                                    )}
+                                  </tr>
+                                );
+                              })}
+                            </>
+                          ));
+                        })()
+                      )}
+                    </tbody>
+                  </table>
+                </Box>
+                {!isReadOnly && (
+                  <Stack direction={{ xs: 'column', sm: 'row' }} spacing={1} mb={2} flexWrap="wrap">
+                    <Button size="small" onClick={handleAddExtraRow} sx={{ textTransform: 'none' }}>+ Thêm dòng ngoài thông tư</Button>
+                  </Stack>
+                )}
+              </>
             )}
 
             <Typography sx={{ fontFamily: 'inherit', fontSize: { xs: 11, sm: 13 }, mb: 2 }}>
@@ -612,6 +777,15 @@ export default function TeacherAssetInspection() {
 
         <DialogActions sx={{ px: { xs: 1.5, sm: 3 }, pb: 2, gap: 1, flexWrap: 'wrap' }}>
           <Button onClick={() => setOpenModal(false)} disabled={saving}>Đóng</Button>
+          {editing?._id && (
+            <Button variant="outlined" color="secondary"
+              startIcon={exportingWord ? <CircularProgress size={14} /> : <DownloadIcon fontSize="small" />}
+              onClick={handleExportWord}
+              disabled={exportingWord}
+              sx={{ textTransform: 'none' }}>
+              {exportingWord ? 'Đang xuất...' : 'Xuất Word'}
+            </Button>
+          )}
           {!isReadOnly && (
             <Button variant="contained" onClick={handleSave} disabled={saving} sx={{ textTransform: 'none' }}>
               {saving ? 'Đang lưu...' : editing?.status === 'rejected' ? 'Lưu & Gửi lại' : 'Lưu & Gửi duyệt'}

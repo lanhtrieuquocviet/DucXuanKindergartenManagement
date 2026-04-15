@@ -499,10 +499,8 @@ export default function AcademicYearPlan() {
             />
             <TextField
               label="Thời gian bắt đầu"
-              type="date"
               size="small"
-              InputLabelProps={{ shrink: true }}
-              value={formatDateInput(currentYear?.startDate)}
+              value={toDMY(currentYear?.startDate)}
               InputProps={{ readOnly: true }}
               sx={{
                 flex: 1,
@@ -511,10 +509,8 @@ export default function AcademicYearPlan() {
             />
             <TextField
               label="Thời gian kết thúc"
-              type="date"
               size="small"
-              InputLabelProps={{ shrink: true }}
-              value={formatDateInput(currentYear?.endDate)}
+              value={toDMY(currentYear?.endDate)}
               InputProps={{ readOnly: true }}
               sx={{
                 flex: 1,

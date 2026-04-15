@@ -13,8 +13,6 @@ import { useEffect, useMemo, useRef, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { toast } from 'react-toastify';
 import { useAuth } from '../../context/AuthContext';
-import { useTeacher } from '../../context/TeacherContext';
-import RoleLayout from '../../layouts/RoleLayout';
 import { del, ENDPOINTS, get, post, postFormData, put } from '../../service/api';
 
 const STATUS_LABEL = {
@@ -65,8 +63,7 @@ function ConfirmDialog({ open, title, message, onConfirm, onCancel, loading }) {
 
 export default function TeacherPurchaseRequest() {
   const navigate = useNavigate();
-  const { user, logout, isInitializing } = useAuth();
-  const { isCommitteeMember } = useTeacher();
+  const { user, logout, isInitializing, hasPermission, hasRole } = useAuth();
   const fileInputRef = useRef(null);
 
   const [loading, setLoading] = useState(true);
@@ -85,7 +82,7 @@ export default function TeacherPurchaseRequest() {
     if (isInitializing) return;
     if (!user) { navigate('/login', { replace: true }); return; }
     const roles = user?.roles?.map(r => r.roleName || r) || [];
-    if (!roles.includes('Teacher')) { navigate('/', { replace: true }); return; }
+    if (!roles.includes('Teacher') && !roles.includes('HeadTeacher')) { navigate('/', { replace: true }); return; }
     load();
   }, [isInitializing, user, navigate]);
 
@@ -206,19 +203,20 @@ export default function TeacherPurchaseRequest() {
     { key: 'classes', label: 'Lớp phụ trách' },
     { key: 'students', label: 'Danh sách học sinh' },
     { key: 'attendance', label: 'Điểm danh' },
-    { key: 'pickup-approval', label: 'Đơn đưa đón' },
+    { key: 'pickup-approval', label: 'Đơn đăng ký đưa đón' },
+    { key: 'leave-requests', label: 'Danh sách đơn xin nghỉ' },
     { key: 'schedule', label: 'Lịch dạy & hoạt động' },
-    { key: 'contact-book', label: 'Sổ liên lạc điện tử' },
     { key: 'purchase-request', label: 'Cơ sở vật chất' },
     { key: 'class-assets', label: 'Tài sản lớp' },
-    ...(isCommitteeMember ? [{ key: 'asset-inspection', label: 'Kiểm kê tài sản' }] : []),
-  ], [isCommitteeMember]);
+    ...(hasRole('InventoryStaff') ? [{ key: 'asset-inspection', label: 'Kiểm kê tài sản' }] : []),
+  ], [hasPermission, hasRole]);
 
   const handleMenuSelect = (key) => {
     const MAP = {
       classes: '/teacher', students: '/teacher/students',
       'contact-book': '/teacher/contact-book', attendance: '/teacher/attendance',
-      'pickup-approval': '/teacher/pickup-approval', 'purchase-request': '/teacher/purchase-request',
+      'pickup-approval': '/teacher/pickup-approval', 'leave-requests': '/teacher/leave-requests',
+      'purchase-request': '/teacher/purchase-request',
       'class-assets': '/teacher/class-assets', 'asset-inspection': '/teacher/asset-inspection',
     };
     if (MAP[key]) navigate(MAP[key]);

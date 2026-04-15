@@ -241,8 +241,10 @@ function ClassList() {
   const [gradeError, setGradeError] = useState(null);
   const [gradeSearchTerm, setGradeSearchTerm] = useState('');
   const [gradeDialog, setGradeDialog] = useState({ open: false, mode: 'create', data: null });
-  const [gradeForm, setGradeForm] = useState({ gradeName: '', description: '', maxClasses: 10, minAge: '', maxAge: '', ageRange: '' });
+  const [gradeForm, setGradeForm] = useState({ gradeName: '', description: '', maxClasses: 10, minAge: '', maxAge: '', ageRange: '', headTeacherId: '' });
   const [gradeFormErrors, setGradeFormErrors] = useState({});
+  const [gradeTeachers, setGradeTeachers] = useState([]);
+  const [gradeTeachersLoading, setGradeTeachersLoading] = useState(false);
   const [gradeSubmitting, setGradeSubmitting] = useState(false);
   const [gradeDeleteConfirm, setGradeDeleteConfirm] = useState(null);
 
@@ -354,13 +356,22 @@ function ClassList() {
   };
 
   // ── grade CRUD ────────────────────────────────────────────────────────────────
-  const openGradeDialog = (mode, data = null) => {
+  const openGradeDialog = async (mode, data = null) => {
     setGradeFormErrors({});
     setGradeForm(data
-      ? { gradeName: data.gradeName, description: data.description || '', maxClasses: data.maxClasses ?? 10, minAge: data.minAge || '', maxAge: data.maxAge || '', ageRange: data.ageRange || '' }
-      : { gradeName: '', description: '', maxClasses: 10, minAge: '', maxAge: '', ageRange: '' }
+      ? { gradeName: data.gradeName, description: data.description || '', maxClasses: data.maxClasses ?? 10, minAge: data.minAge || '', maxAge: data.maxAge || '', ageRange: data.ageRange || '', headTeacherId: data.headTeacherId?._id || data.headTeacherId || '' }
+      : { gradeName: '', description: '', maxClasses: 10, minAge: '', maxAge: '', ageRange: '', headTeacherId: '' }
     );
     setGradeDialog({ open: true, mode, data });
+    // Fetch teachers for tổ trưởng selection
+    if (gradeTeachers.length === 0) {
+      setGradeTeachersLoading(true);
+      try {
+        const res = await get(ENDPOINTS.SCHOOL_ADMIN.TEACHERS);
+        setGradeTeachers(res.data || []);
+      } catch (_) {}
+      finally { setGradeTeachersLoading(false); }
+    }
   };
 
   const validateGradeForm = () => {
@@ -429,9 +440,10 @@ function ClassList() {
 
   // ── create class dialog ───────────────────────────────────────────────────────
   const openCreateDialog = async (presetGradeId = '') => {
+    const resolvedGradeId = presetGradeId || selectedGrade?._id || '';
     setDialogError(null);
     setNoActiveYear(false);
-    setForm({ className: '', gradeId: presetGradeId, maxStudents: '', teacherIds: [], roomId: '' });
+    setForm({ className: '', gradeId: resolvedGradeId, maxStudents: '', teacherIds: [], roomId: '' });
     setFormErrors({});
     setCurrentAcademicYear(null);
     setGrades([]);
@@ -813,20 +825,37 @@ function ClassList() {
                               <Typography variant="body2" color="text.secondary" sx={{ minWidth: 90 }}>Tổng số trẻ:</Typography>
                               <Typography variant="body2" fontWeight={600}>{g.totalStudents ?? 0}</Typography>
                             </Stack>
+                            <Stack direction="row" spacing={0.5}>
+                              <Typography variant="body2" color="text.secondary" sx={{ minWidth: 90 }}>Tổ trưởng:</Typography>
+                              <Typography variant="body2" fontWeight={600}>
+                                {g.headTeacher?.fullName || <span style={{ color: '#9ca3af' }}>Chưa phân công</span>}
+                              </Typography>
+                            </Stack>
                           </Stack>
                         </Box>
 
                         {/* Footer */}
                         <Box sx={{ px: 2.5, py: 1.5, bgcolor: '#fff', borderTop: '1px solid', borderColor: 'divider' }}>
                           <Stack direction="row" alignItems="center" justifyContent="space-between">
-                            <Button
-                              variant="outlined"
-                              size="small"
-                              onClick={() => { setSelectedGrade(g); setSearchTerm(''); }}
-                              sx={{ textTransform: 'none', fontWeight: 600, borderColor: '#2563eb', color: '#2563eb', '&:hover': { borderColor: '#1d4ed8', bgcolor: '#eff6ff' }, borderRadius: 1.5, fontSize: '0.8rem' }}
-                            >
-                              Quản lý lớp →
-                            </Button>
+                            <Stack direction="row" spacing={0.75}>
+                              <Button
+                                variant="outlined"
+                                size="small"
+                                onClick={() => { setSelectedGrade(g); setSearchTerm(''); }}
+                                sx={{ textTransform: 'none', fontWeight: 600, borderColor: '#2563eb', color: '#2563eb', '&:hover': { borderColor: '#1d4ed8', bgcolor: '#eff6ff' }, borderRadius: 1.5, fontSize: '0.8rem' }}
+                              >
+                                Quản lý lớp →
+                              </Button>
+                              <Button
+                                variant="contained"
+                                size="small"
+                                startIcon={<AddIcon />}
+                                onClick={(e) => { e.stopPropagation(); openCreateDialog(g._id); }}
+                                sx={{ textTransform: 'none', fontWeight: 600, bgcolor: '#2563eb', '&:hover': { bgcolor: '#1d4ed8' }, borderRadius: 1.5, fontSize: '0.8rem' }}
+                              >
+                                Thêm lớp
+                              </Button>
+                            </Stack>
                             <Stack direction="row" spacing={0.5} onClick={e => e.stopPropagation()}>
                               <Tooltip title="Chỉnh sửa">
                                 <IconButton
@@ -858,11 +887,14 @@ function ClassList() {
 
           {/* ── Student summary & list ────────────────────────────────────── */}
           {(() => {
-            // Chỉ hiển thị học sinh thuộc năm học hiện tại (theo trường academicYearId)
+            // Chỉ hiển thị học sinh thuộc năm học hiện tại (academicYearId là mảng)
             const activeYearId = String(activeAcademicYear?._id || '');
-            const currentYearStudents = activeYearId
-              ? allStudents.filter(s => String(s.academicYearId?._id || s.academicYearId || '') === activeYearId)
-              : [];
+            const matchesYear = (s) => {
+              if (!activeYearId) return false;
+              const ids = Array.isArray(s.academicYearId) ? s.academicYearId : [s.academicYearId];
+              return ids.some(id => String(id?._id || id || '') === activeYearId);
+            };
+            const currentYearStudents = activeYearId ? allStudents.filter(matchesYear) : [];
 
             const total = currentYearStudents.length;
             const inClass = currentYearStudents.filter(s => s.classId).length;
@@ -981,10 +1013,14 @@ function ClassList() {
                                   }
                                 </TableCell>
                                 <TableCell sx={{ fontSize: '0.82rem' }}>
-                                  {s.academicYearId?.yearName
-                                    ? <Chip label={s.academicYearId.yearName} size="small" sx={{ bgcolor: '#e0f2fe', color: '#0284c7', fontWeight: 600, fontSize: '0.72rem' }} />
-                                    : <Typography variant="caption" color="text.disabled">—</Typography>
-                                  }
+                                  {(() => {
+                                    const ids = Array.isArray(s.academicYearId) ? s.academicYearId : (s.academicYearId ? [s.academicYearId] : []);
+                                    const last = ids[ids.length - 1];
+                                    const yearName = last?.yearName;
+                                    return yearName
+                                      ? <Chip label={yearName} size="small" sx={{ bgcolor: '#e0f2fe', color: '#0284c7', fontWeight: 600, fontSize: '0.72rem' }} />
+                                      : <Typography variant="caption" color="text.disabled">—</Typography>;
+                                  })()}
                                 </TableCell>
                                 <TableCell>
                                   {s.classId
@@ -1120,7 +1156,7 @@ function ClassList() {
                               {cls.teacherIds.map((t, i) => (
                                 <Stack key={t._id || i} direction="row" alignItems="center" spacing={0.5}>
                                   <PersonIcon sx={{ fontSize: 13, color: '#2563eb' }} />
-                                  <Typography variant="caption" fontWeight={500}>{t.userId?.fullName || t.fullName || t}</Typography>
+                                  <Typography variant="caption" fontWeight={500}>{t.userId?.fullName || t.fullName || '—'}</Typography>
                                 </Stack>
                               ))}
                             </Stack>
@@ -1184,7 +1220,7 @@ function ClassList() {
       {/* ══════════════════════════════════════════════════════════════════════ */}
 
       {/* Grade Create/Edit Dialog */}
-      <Dialog open={gradeDialog.open} onClose={() => setGradeDialog({ open: false, mode: 'create', data: null })} fullWidth maxWidth="xs">
+      <Dialog open={gradeDialog.open} onClose={() => setGradeDialog({ open: false, mode: 'create', data: null })} fullWidth maxWidth="sm">
         <DialogTitle sx={{ fontWeight: 700 }}>
           {gradeDialog.mode === 'create' ? 'Thêm khối lớp mới' : 'Chỉnh sửa khối lớp'}
         </DialogTitle>
@@ -1236,6 +1272,23 @@ function ClassList() {
               helperText={gradeFormErrors.ageRange || 'Ví dụ: 18 – 36 tháng'}
               inputProps={{ maxLength: 50 }}
             />
+            <FormControl size="small" fullWidth>
+              <InputLabel>Tổ trưởng khối</InputLabel>
+              <Select
+                label="Tổ trưởng khối"
+                value={gradeForm.headTeacherId}
+                onChange={(e) => setGradeForm((f) => ({ ...f, headTeacherId: e.target.value }))}
+                disabled={gradeTeachersLoading}
+              >
+                <MenuItem value=""><em>— Chưa phân công —</em></MenuItem>
+                {gradeTeachers.filter(t => t.status === 'active').map(t => (
+                  <MenuItem key={t._id} value={t._id}>{t.fullName}</MenuItem>
+                ))}
+              </Select>
+              {gradeFormErrors.headTeacherId && (
+                <Typography variant="caption" color="error" sx={{ mt: 0.5, ml: 1.75 }}>{gradeFormErrors.headTeacherId}</Typography>
+              )}
+            </FormControl>
           </Stack>
         </DialogContent>
         <DialogActions sx={{ px: 3, py: 2 }}>
