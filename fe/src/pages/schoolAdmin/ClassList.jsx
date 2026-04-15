@@ -887,11 +887,14 @@ function ClassList() {
 
           {/* ── Student summary & list ────────────────────────────────────── */}
           {(() => {
-            // Chỉ hiển thị học sinh thuộc năm học hiện tại (theo trường academicYearId)
+            // Chỉ hiển thị học sinh thuộc năm học hiện tại (academicYearId là mảng)
             const activeYearId = String(activeAcademicYear?._id || '');
-            const currentYearStudents = activeYearId
-              ? allStudents.filter(s => String(s.academicYearId?._id || s.academicYearId || '') === activeYearId)
-              : [];
+            const matchesYear = (s) => {
+              if (!activeYearId) return false;
+              const ids = Array.isArray(s.academicYearId) ? s.academicYearId : [s.academicYearId];
+              return ids.some(id => String(id?._id || id || '') === activeYearId);
+            };
+            const currentYearStudents = activeYearId ? allStudents.filter(matchesYear) : [];
 
             const total = currentYearStudents.length;
             const inClass = currentYearStudents.filter(s => s.classId).length;
@@ -1010,10 +1013,14 @@ function ClassList() {
                                   }
                                 </TableCell>
                                 <TableCell sx={{ fontSize: '0.82rem' }}>
-                                  {s.academicYearId?.yearName
-                                    ? <Chip label={s.academicYearId.yearName} size="small" sx={{ bgcolor: '#e0f2fe', color: '#0284c7', fontWeight: 600, fontSize: '0.72rem' }} />
-                                    : <Typography variant="caption" color="text.disabled">—</Typography>
-                                  }
+                                  {(() => {
+                                    const ids = Array.isArray(s.academicYearId) ? s.academicYearId : (s.academicYearId ? [s.academicYearId] : []);
+                                    const last = ids[ids.length - 1];
+                                    const yearName = last?.yearName;
+                                    return yearName
+                                      ? <Chip label={yearName} size="small" sx={{ bgcolor: '#e0f2fe', color: '#0284c7', fontWeight: 600, fontSize: '0.72rem' }} />
+                                      : <Typography variant="caption" color="text.disabled">—</Typography>;
+                                  })()}
                                 </TableCell>
                                 <TableCell>
                                   {s.classId

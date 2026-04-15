@@ -271,7 +271,7 @@ const createStudentWithParentCore = async ({ parent, studentData }) => {
     parentId: parentUser._id,
     parentProfileId: parentProfile?._id || null,
     avatar: (studentData.avatar || '').trim(),
-    academicYearId: activeYear?._id || null,
+    academicYearId: activeYear?._id ? [activeYear._id] : [],
     status: 'active',
   });
   await newStudent.save();
@@ -292,7 +292,12 @@ const getStudents = async (req, res) => {
     const { classId, academicYearId } = req.query;
     const filter = {};
     if (classId) filter.classId = classId;
-    if (academicYearId) filter.academicYearId = academicYearId;
+    if (academicYearId) {
+      filter.academicYearId = academicYearId;
+    } else {
+      const activeYear = await AcademicYear.findOne({ status: 'active' }).sort({ startDate: -1 }).lean();
+      if (activeYear) filter.academicYearId = activeYear._id;
+    }
 
     const students = await Student.find(filter)
       .populate('classId', 'className gradeId')
@@ -366,7 +371,7 @@ const createStudent = async (req, res) => {
       classId,
       parentId: parentId || userId,
       parentProfileId,
-      academicYearId: activeYear?._id || null,
+      academicYearId: activeYear?._id ? [activeYear._id] : [],
       status: 'active',
     });
 
