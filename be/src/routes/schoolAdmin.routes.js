@@ -1,5 +1,6 @@
 const express = require('express');
 const multer = require('multer');
+const bcrypt = require('bcryptjs');
 const { authenticate, authorizeRoles, authorizePermissions, authorizeAnyPermission } = require('../middleware/auth');
 const contactController = require('../controller/contactController');
 const User = require('../models/User');
@@ -2036,17 +2037,69 @@ const generateEmployeeId = async (position) => {
   return `${code}${nextNumber.toString().padStart(3, '0')}`;
 };
 
+const normalizeRoleName = (roleName = '') =>
+  String(roleName)
+    .toLowerCase()
+    .replace(/[\s_-]/g, '');
+
+const ALLOWED_STAFF_ROLE_MAP = new Map([
+  ['schooladmin', 'SchoolAdmin'],
+  ['teacher', 'Teacher'],
+  ['kitchenstaff', 'KitchenStaff'],
+  ['medicalstaff', 'MedicalStaff'],
+  ['headteacher', 'HeadTeacher'],
+]);
+const BLOCKED_STAFF_ROLES = new Set(['parent', 'systemadmin']);
+
+const STAFF_PASSWORD_REGEX = /^(?=.*[A-Z])(?=.*\d)(?=.*[^A-Za-z0-9]).{6,}$/;
+
+const normalizePhone = (phone = '') => String(phone).replace(/\s+/g, '').trim();
+
+const isPhoneTaken = async (phone, excludeUserId = null) => {
+  const normalized = normalizePhone(phone);
+  if (!normalized) return false;
+  const query = { phone: normalized };
+  if (excludeUserId) query._id = { $ne: excludeUserId };
+  const existing = await User.findOne(query).select('_id').lean();
+  return Boolean(existing);
+};
+
+const resolveOrCreateStaffRole = async (inputRoleName) => {
+  const rawRoleName = String(inputRoleName || '').trim();
+  if (!rawRoleName) return null;
+
+  const normalizedRole = normalizeRoleName(rawRoleName);
+  if (BLOCKED_STAFF_ROLES.has(normalizedRole)) return null;
+  const canonicalRoleName = ALLOWED_STAFF_ROLE_MAP.get(normalizedRole);
+  if (canonicalRoleName) {
+    const role = await Role.findOne({ roleName: canonicalRoleName }).lean();
+    return role || null;
+  }
+
+  const existingRole = await Role.findOne({ roleName: rawRoleName }).lean();
+  if (existingRole) return existingRole;
+
+  const createdRole = await Role.create({
+    roleName: rawRoleName,
+    description: 'Tạo từ trang quản lý nhân sự',
+  });
+  return createdRole;
+};
+
 router.get('/staff-users', authenticate, authorizeRoles('SchoolAdmin'), async (req, res) => {
   try {
-    const users = await User.find({ status: 'active' })
+    const users = await User.find({})
       .populate('roles', 'roleName')
       .select('fullName phone username email roles avatar status')
       .sort({ fullName: 1 })
       .lean();
 
     const filteredUsers = users.filter((user) => {
-      const roleNames = (user.roles || []).map((role) => role.roleName || '').filter(Boolean);
-      return roleNames.length > 0 && !roleNames.includes('Student');
+      const roleNames = (user.roles || [])
+        .map((role) => normalizeRoleName(role.roleName || ''))
+        .filter(Boolean);
+      if (roleNames.length === 0) return false;
+      return !roleNames.includes('parent') && !roleNames.includes('systemadmin');
     });
 
     const data = filteredUsers.map((user) => ({
@@ -2058,6 +2111,106 @@ router.get('/staff-users', authenticate, authorizeRoles('SchoolAdmin'), async (r
   } catch (error) {
     console.error('staffUsers error:', error);
     return res.status(500).json({ status: 'error', message: 'Lỗi khi lấy danh sách người dùng' });
+  }
+});
+
+router.post('/users', authenticate, authorizeRoles('SchoolAdmin'), async (req, res) => {
+  try {
+    const { username, password, fullName, email, phone, status, roleName } = req.body;
+
+    if (!username?.trim() || !password || !fullName?.trim() || !email?.trim()) {
+      return res.status(400).json({
+        status: 'error',
+        message: 'Vui lòng nhập đầy đủ: tên tài khoản, mật khẩu, họ tên, email',
+      });
+    }
+
+    if (/[\s]/.test(username.trim()) || /[^A-Za-z0-9]/.test(username.trim())) {
+      return res.status(400).json({
+        status: 'error',
+        message: 'Tên tài khoản không được chứa khoảng trắng và ký tự đặc biệt',
+      });
+    }
+
+    if (!STAFF_PASSWORD_REGEX.test(password)) {
+      return res.status(400).json({
+        status: 'error',
+        message: 'Mật khẩu phải có chữ hoa, số, ký tự đặc biệt và tối thiểu 6 ký tự',
+      });
+    }
+
+    const resolvedRole = await resolveOrCreateStaffRole(roleName);
+    if (!resolvedRole) {
+      return res.status(400).json({
+        status: 'error',
+        message: 'Vui lòng chọn hoặc nhập chức vụ',
+      });
+    }
+
+    const existingUser = await User.findOne({
+      $or: [
+        { username: username.trim() },
+        { email: email.trim().toLowerCase() },
+      ],
+    }).lean();
+    if (existingUser) {
+      return res.status(400).json({
+        status: 'error',
+        message: 'Tên tài khoản hoặc email đã tồn tại',
+      });
+    }
+
+    const phoneValue = normalizePhone(phone);
+    if (await isPhoneTaken(phoneValue)) {
+      return res.status(400).json({
+        status: 'error',
+        message: 'Số điện thoại đã tồn tại trong hệ thống',
+      });
+    }
+
+    const salt = await bcrypt.genSalt(10);
+    const passwordHash = await bcrypt.hash(password, salt);
+
+    const user = await User.create({
+      username: username.trim(),
+      passwordHash,
+      fullName: fullName.trim(),
+      email: email.trim().toLowerCase(),
+      phone: phoneValue,
+      roles: [resolvedRole._id],
+      status: status === 'inactive' ? 'inactive' : 'active',
+    });
+
+    if (normalizeRoleName(resolvedRole.roleName) === 'teacher') {
+      await Teacher.findOneAndUpdate(
+        { userId: user._id },
+        { $setOnInsert: { userId: user._id }, $set: { status: user.status } },
+        { upsert: true, new: true }
+      );
+    }
+
+    return res.status(201).json({
+      status: 'success',
+      message: 'Tạo tài khoản nhân sự thành công',
+      data: {
+        _id: user._id,
+        username: user.username,
+        fullName: user.fullName,
+        email: user.email,
+        phone: user.phone,
+        status: user.status,
+        roleName: resolvedRole.roleName,
+      },
+    });
+  } catch (error) {
+    if (error.code === 11000) {
+      return res.status(400).json({
+        status: 'error',
+        message: 'Tên tài khoản hoặc email đã tồn tại',
+      });
+    }
+    console.error('createSchoolAdminUser error:', error);
+    return res.status(500).json({ status: 'error', message: 'Lỗi khi tạo tài khoản nhân sự' });
   }
 });
 
@@ -2186,14 +2339,44 @@ router.put('/staff-members/:id', authenticate, authorizeRoles('SchoolAdmin'), as
 
 router.put('/users/:id', authenticate, authorizeRoles('SchoolAdmin'), async (req, res) => {
   try {
-    const { avatar, status } = req.body;
+    const { avatar, status, phone, roleName } = req.body;
     const user = await User.findById(req.params.id);
     if (!user) return res.status(404).json({ status: 'error', message: 'Không tìm thấy người dùng' });
 
     if (avatar !== undefined) user.avatar = avatar;
     if (status && ['active', 'inactive'].includes(status)) user.status = status;
+    if (phone !== undefined) {
+      const phoneValue = normalizePhone(phone);
+      if (await isPhoneTaken(phoneValue, user._id)) {
+        return res.status(400).json({ status: 'error', message: 'Số điện thoại đã tồn tại trong hệ thống' });
+      }
+      user.phone = phoneValue;
+    }
+    if (roleName !== undefined) {
+      const resolvedRole = await resolveOrCreateStaffRole(roleName);
+      if (!resolvedRole) {
+        return res.status(400).json({ status: 'error', message: 'Chức vụ không hợp lệ' });
+      }
+      user.roles = [resolvedRole._id];
+    }
 
     await user.save();
+
+    const teacherRole = await Role.findOne({ roleName: 'Teacher' }).select('_id').lean();
+    const hasTeacherRole = Boolean(
+      teacherRole &&
+      Array.isArray(user.roles) &&
+      user.roles.some((id) => String(id) === String(teacherRole._id))
+    );
+    if (hasTeacherRole) {
+      await Teacher.findOneAndUpdate(
+        { userId: user._id },
+        { $setOnInsert: { userId: user._id }, $set: { status: user.status } },
+        { upsert: true, new: true }
+      );
+    } else {
+      await Teacher.findOneAndUpdate({ userId: user._id }, { $set: { status: 'inactive' } });
+    }
 
     return res.status(200).json({
       status: 'success',

@@ -18,17 +18,8 @@ export const getMenuDetail = (id) => {
   return api.get(ENDPOINTS.KITCHEN.MENU_DETAIL(id));
 };
 
-// Update menu
-export const updateMenu = (id, data) => {
-  return api.put(ENDPOINTS.KITCHEN.UPDATE_MENU(id), data);
-};
-
 export const getNutritionPlanSetting = () => {
   return api.get(ENDPOINTS.KITCHEN.NUTRITION_PLAN);
-};
-
-export const updateNutritionPlanSetting = (items) => {
-  return api.put(ENDPOINTS.KITCHEN.NUTRITION_PLAN, { items });
 };
 
 export const listDistrictNutritionPlans = () => {
@@ -59,9 +50,6 @@ export const deleteScheduledDistrictNutritionPlan = (id) => {
   return api.delete(`${ENDPOINTS.KITCHEN.DISTRICT_NUTRITION_PLANS}/${id}/scheduled`);
 };
 
-export const endDistrictNutritionPlan = (id) => {
-  return api.patch(`${ENDPOINTS.KITCHEN.DISTRICT_NUTRITION_PLANS}/${id}/end`, {});
-};
 
 /** Tải file Word kế hoạch quy định sở (cần đăng nhập) */
 export async function downloadDistrictRegulationFile(planId) {
@@ -168,36 +156,4 @@ export const updateIngredient = (id, data) => {
 
 export const deleteIngredient = (id) => {
   return api.delete(`/ingredients/${id}`);
-};
-
-// ============================================
-// AI Menu Assistant APIs
-// ============================================
-
-export const aiAnalyzeMenu = (dailyMenuId) => {
-  return api.post("/ai/analyze-menu", { dailyMenuId });
-};
-
-export const aiImproveDish = (foodId) => {
-  return api.post("/ai/improve-dish", { foodId });
-};
-
-export const aiSuggestNewDishes = () => {
-  return api.post("/ai/suggest-dishes");
-};
-
-export const aiChatAboutMenu = (message, dailyMenuId) => {
-  return api.post("/ai/chat", { message, dailyMenuId });
-};
-
-export const aiCreateDishFromSuggestion = (data) => {
-  return api.post("/ai/create-from-suggestion", data);
-};
-
-export const aiBalanceMenu = (dailyMenuId) => {
-  return api.post("/ai/balance-menu", { dailyMenuId });
-};
-
-export const aiHealthCheck = () => {
-  return api.get("/ai/health");
 };
