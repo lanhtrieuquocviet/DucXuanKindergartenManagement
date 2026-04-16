@@ -35,6 +35,10 @@ export const listDistrictNutritionPlans = () => {
   return api.get(ENDPOINTS.KITCHEN.DISTRICT_NUTRITION_PLANS);
 };
 
+export const getDistrictNutritionPlanDetail = (id) => {
+  return api.get(`${ENDPOINTS.KITCHEN.DISTRICT_NUTRITION_PLANS}/${id}`);
+};
+
 export const createDistrictNutritionPlan = (formData) => {
   return api.postFormData(ENDPOINTS.KITCHEN.DISTRICT_NUTRITION_PLANS, formData);
 };
