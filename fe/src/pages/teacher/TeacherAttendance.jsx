@@ -408,16 +408,18 @@ function TeacherAttendance() {
   }, []);
 
   // ── Detail modal ──
-  const openDetail = useCallback((studentId, mode = 'view') => {
+  // overrides: dữ liệu từ AI scan (checkinImageName, checkoutImageName, timeIn, timeOut, checkedInByAI, checkedOutByAI)
+  const openDetail = useCallback((studentId, mode = 'view', overrides = {}) => {
     setSubmitError(null);
     setDetailStudentId(studentId);
     setDetailOpenedDate(selectedDate);
 
     const draftKey = `${studentId}__${mode}__${selectedDate}`;
     const draft = draftForms[draftKey];
+    const hasOverrides = Object.keys(overrides).length > 0;
 
-    if (draft) {
-      // Có draft: khôi phục form đã nhập, chỉ reset OTP vì OTP hết hạn
+    if (draft && !hasOverrides) {
+      // Có draft và không có override từ AI: khôi phục form đã nhập, chỉ reset OTP
       setDetailForm({
         ...draft,
         otpSent: false,
@@ -427,7 +429,7 @@ function TeacherAttendance() {
         selectedParentForOtp: '',
       });
     } else {
-      // Không có draft: khởi tạo form từ bản ghi hiện tại
+      // Không có draft hoặc có override từ AI: khởi tạo form (override được ưu tiên)
       const rec = attendanceByStudent?.[studentId] || defaultRecord();
       setDetailForm({
         status:
@@ -437,12 +439,14 @@ function TeacherAttendance() {
             ? 'checked_out'
             : rec.status || 'empty',
         timeIn:
-          mode === 'checkin' && (!rec.timeIn || rec.status === 'empty' || rec.status === 'absent')
+          overrides.timeIn ||
+          (mode === 'checkin' && (!rec.timeIn || rec.status === 'empty' || rec.status === 'absent')
             ? nowHHmm()
-            : rec.timeIn || '',
+            : rec.timeIn || ''),
         timeOut:
-          mode === 'checkout' && !rec.timeOut ? nowHHmm() : rec.timeOut || '',
-        checkinImageName: rec.checkinImageName || '',
+          overrides.timeOut ||
+          (mode === 'checkout' && !rec.timeOut ? nowHHmm() : rec.timeOut || ''),
+        checkinImageName: overrides.checkinImageName || rec.checkinImageName || '',
         delivererType: rec.delivererType || '',
         delivererPickupPersonId: rec.delivererPickupPersonId || '',
         delivererOtherInfo: rec.delivererOtherInfo || '',
@@ -453,9 +457,9 @@ function TeacherAttendance() {
         belongingsNote: rec.belongingsNote || '',
         note: rec.note || '',
         absentReason: rec.absentReason || '',
-        checkedInByAI: rec.checkedInByAI || false,
-        checkedOutByAI: rec.checkedOutByAI || false,
-        checkoutImageName: rec.checkoutImageName || '',
+        checkedInByAI: overrides.checkedInByAI !== undefined ? overrides.checkedInByAI : rec.checkedInByAI || false,
+        checkedOutByAI: overrides.checkedOutByAI !== undefined ? overrides.checkedOutByAI : rec.checkedOutByAI || false,
+        checkoutImageName: overrides.checkoutImageName || rec.checkoutImageName || '',
         receiverType: rec.receiverType || '',
         receiverPickupPersonId: rec.receiverPickupPersonId || '',
         receiverOtherInfo: rec.receiverOtherInfo || '',
@@ -499,6 +503,25 @@ function TeacherAttendance() {
     setAbsentError(null);
     setIsAbsentOpen(true);
   }, []);
+
+  // Callbacks từ AI scan: đóng modal quét và mở form chi tiết với ảnh đã chụp
+  const handleAICheckinRecognized = useCallback(({ studentId, checkinImageUrl, timeStr }) => {
+    setIsFaceModalOpen(false);
+    openDetail(studentId, 'checkin', {
+      checkinImageName: checkinImageUrl,
+      timeIn: timeStr,
+      checkedInByAI: true,
+    });
+  }, [openDetail]);
+
+  const handleAICheckoutRecognized = useCallback(({ studentId, checkoutImageUrl, timeStr }) => {
+    setIsPickupFaceModalOpen(false);
+    openDetail(studentId, 'checkout', {
+      checkoutImageName: checkoutImageUrl,
+      timeOut: timeStr,
+      checkedOutByAI: true,
+    });
+  }, [openDetail]);
 
   // Đóng modal sau khi lưu thành công — xóa draft thay vì lưu
   const closeDetailAndClearDraft = () => {
@@ -603,6 +626,7 @@ function TeacherAttendance() {
           timeString: { checkOut: timeOutHHmm },
           status: 'present',
           isTakeOff: false,
+          checkedOutByAI: detailForm.checkedOutByAI || false,
         });
 
         updateRecord(detailStudentId, {
@@ -616,6 +640,7 @@ function TeacherAttendance() {
           receiverType: detailForm.receiverType,
           receiverOtherInfo: receiverOtherInfoFinal,
           receiverOtherImageName: detailForm.receiverOtherImageName,
+          checkedOutByAI: detailForm.checkedOutByAI || false,
         });
 
         const studentNameOut = students.find((s) => s._id === detailStudentId)?.fullName || 'Học sinh';
@@ -638,6 +663,7 @@ function TeacherAttendance() {
           timeString: { checkIn: timeInHHmm },
           status: 'present',
           isTakeOff: false,
+          checkedInByAI: detailForm.checkedInByAI || false,
         });
 
         updateRecord(detailStudentId, {
@@ -651,6 +677,7 @@ function TeacherAttendance() {
           checkinImageName: detailForm.checkinImageName,
           hasBelongings: detailForm.hasBelongings,
           belongingsNote: detailForm.belongingsNote,
+          checkedInByAI: detailForm.checkedInByAI || false,
         });
 
         const studentName = students.find((s) => s._id === detailStudentId)?.fullName || 'Học sinh';
@@ -1043,7 +1070,7 @@ onResetOtp={resetOtpState}
             setIsFaceModalOpen(false);
             loadAttendance();
           }}
-          onCheckinSuccess={loadAttendance}
+          onStudentRecognized={handleAICheckinRecognized}
           classId={classId}
           className={selectedClassName}
         />
@@ -1058,10 +1085,13 @@ onResetOtp={resetOtpState}
 
       <PickupFaceAttendanceModal
         open={isPickupFaceModalOpen}
-        onClose={() => setIsPickupFaceModalOpen(false)}
+        onClose={() => {
+          setIsPickupFaceModalOpen(false);
+          loadAttendance();
+        }}
         classId={classId}
         className={selectedClassName}
-        onCheckoutSuccess={loadAttendance}
+        onStudentRecognized={handleAICheckoutRecognized}
       />
     </RoleLayout>
   );
