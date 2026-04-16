@@ -39,6 +39,7 @@ const notificationRoutes = require('./src/routes/notification.routes');
 const reportRoutes = require('./src/routes/report.routes');
 const faceRoutes = require('./src/routes/face.routes');
 const healthRoutes = require('./src/routes/health.routes');
+const staticBlockRoutes = require('./src/routes/staticBlockRoutes');
 const { startAutoApproveSampleEntries } = require('./src/jobs/autoApproveSampleEntries');
 const { startDailyTimetableSummary, startTimetableRealtime } = require('./src/jobs/timetableNotifier');
 
@@ -47,6 +48,7 @@ require('./src/models/Role');
 require('./src/models/Permission');
 require('./src/models/Student');
 require('./src/models/Grade');
+require('./src/models/StaticBlock');
 require('./src/models/Classes');
 require('./src/models/AcademicYear');
 require('./src/models/User');
@@ -64,6 +66,7 @@ require('./src/models/Timetable');
 require('./src/models/Notification');
 require('./src/models/Classroom');
 require('./src/models/Teacher');
+require('./src/models/Enrollment');
 require('./src/models/Ingredient');
 require('./src/models/HealthCheck');
 require('./src/models/HomepageBannerSetting');
@@ -198,6 +201,7 @@ require('./src/models/LeaveRequest');
       { code: 'MANAGE_CLASSES',        description: 'Thêm, sửa, xóa lớp học và phân công giáo viên chủ nhiệm',             group: 'Học vụ' },
       { code: 'MANAGE_GRADE',          description: 'Thêm, sửa, xóa khối lớp (Lá, Chồi, Mầm, ...) trong hệ thống',        group: 'Học vụ' },
       { code: 'MANAGE_GRADES',         description: 'Thêm, sửa, xóa khối lớp (Lá, Chồi, Mầm, ...) trong hệ thống',        group: 'Học vụ' },
+      { code: 'MANAGE_STATIC_BLOCK',   description: 'Thêm, sửa, xóa danh mục khối (Khối Lá, Chồi, Mầm, ...) trong hệ thống', group: 'Học vụ' },
       { code: 'MANAGE_TEACHER',        description: 'Thêm, sửa, xóa hồ sơ giáo viên và nhân viên trường',                  group: 'Học vụ' },
       // Điểm danh
       { code: 'VIEW_ATTENDANCE',       description: 'Xem tổng quan, tra cứu lịch sử và xuất dữ liệu điểm danh theo lớp/học sinh', group: 'Điểm danh' },
@@ -242,7 +246,7 @@ require('./src/models/LeaveRequest');
         'MANAGE_CONTACT', 'MANAGE_BANNER', 'VIEW_ATTENDANCE', 'MANAGE_BLOG',
         'MANAGE_BLOG_CATEGORY', 'MANAGE_QA', 'MANAGE_DOCUMENT', 'MANAGE_PUBLIC_INFO',
         'MANAGE_IMAGE_LIBRARY', 'MANAGE_ACADEMIC_YEAR', 'MANAGE_CURRICULUM',
-        'MANAGE_STUDENT', 'MANAGE_CLASS', 'MANAGE_GRADE', 'MANAGE_TEACHER',
+        'MANAGE_STUDENT', 'MANAGE_CLASS', 'MANAGE_GRADE', 'MANAGE_STATIC_BLOCK', 'MANAGE_TEACHER',
         'APPROVE_MENU', 'VIEW_REPORT', 'MANAGE_HEALTH',
         'REGISTER_FACE', 'CHECKOUT_STUDENT', 'MANAGE_ATTENDANCE',
         'MANAGE_PURCHASE_REQUEST', 'MANAGE_ASSET', 'MANAGE_PICKUP',
@@ -422,6 +426,7 @@ app.use('/api/teacher', teacherRoutes);
 // Classes routes
 app.use('/api/classes', classesRoutes);
 app.use('/api/grades', gradeRoutes);
+app.use('/api/school-admin/static-blocks', staticBlockRoutes);
 
 // Student routes
 app.use('/api/students', studentRoutes);

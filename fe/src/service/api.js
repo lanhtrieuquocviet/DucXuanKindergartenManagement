@@ -461,6 +461,13 @@ export const ENDPOINTS = {
     UPDATE: (id) => `/grades/${id}`,
     DELETE: (id) => `/grades/${id}`,
   },
+  // Static Blocks management (SchoolAdmin)
+  STATIC_BLOCKS: {
+    LIST: "/school-admin/static-blocks",
+    CREATE: "/school-admin/static-blocks",
+    UPDATE: (id) => `/school-admin/static-blocks/${id}`,
+    DELETE: (id) => `/school-admin/static-blocks/${id}`,
+  },
   // Blogs (public)
   BLOGS: {
     PUBLISHED: "/blogs/published",
