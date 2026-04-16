@@ -41,18 +41,28 @@ import PictureAsPdfIcon from '@mui/icons-material/PictureAsPdf';
 import DescriptionIcon from '@mui/icons-material/Description';
 import UploadFileIcon from '@mui/icons-material/UploadFile';
 
+const getFileIcon = (type) => {
+  if (type === 'pdf') return <PictureAsPdfIcon sx={{ fontSize: 16, color: '#dc2626' }} />;
+  if (type === 'word') return <DescriptionIcon sx={{ fontSize: 16, color: '#2563eb' }} />;
+  return <DescriptionIcon sx={{ fontSize: 16, color: '#64748b' }} />;
+};
+
+const getPreviewUrl = (item) => {
+  if (!item?.attachmentUrl) return '#';
+
+  if (item.attachmentType === 'word') {
+    return `https://docs.google.com/gview?url=${encodeURIComponent(item.attachmentUrl)}&embedded=1`;
+  }
+
+  return item.attachmentUrl;
+};
+
 const STATUS_OPTIONS = [
   { value: '', label: 'Tất cả trạng thái' },
   { value: 'draft', label: 'Nháp' },
   { value: 'published', label: 'Đã xuất bản' },
   { value: 'inactive', label: 'Ngưng hiển thị' },
 ];
-
-const getFileIcon = (type) => {
-  if (type === 'pdf') return <PictureAsPdfIcon sx={{ fontSize: 16, color: '#dc2626' }} />;
-  if (type === 'word') return <DescriptionIcon sx={{ fontSize: 16, color: '#2563eb' }} />;
-  return <DescriptionIcon sx={{ fontSize: 16, color: '#64748b' }} />;
-};
 
 export default function ManageFiles() {
   const location = useLocation();
@@ -397,7 +407,7 @@ export default function ManageFiles() {
                           <TableCell>
                             <Stack direction="row" alignItems="center" spacing={0.75}>
                               {getFileIcon(item.attachmentType)}
-                              <Link href={item.attachmentUrl} target="_blank" rel="noopener noreferrer" underline="hover">
+                              <Link href={getPreviewUrl(item)} target="_blank" rel="noopener noreferrer" underline="hover">
                                 Xem file
                               </Link>
                             </Stack>
@@ -409,7 +419,7 @@ export default function ManageFiles() {
                               <IconButton
                                 size="small"
                                 component={Link}
-                                href={item.attachmentUrl}
+                                href={getPreviewUrl(item)}
                                 target="_blank"
                                 rel="noopener noreferrer"
                                 sx={{ color: '#0284c7' }}
