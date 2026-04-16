@@ -991,9 +991,17 @@ export default function ContactBookDetail() {
                       <Chip label="Cần chú ý" size="small" color="warning" sx={{ fontWeight: 700 }} />
                     )}
                     <Chip
-                      label={selected.status === 'active' ? 'Đang học' : 'Nghỉ học'}
+                      label={
+                        selected.status === 'active' ? 'Đang học' :
+                        selected.status === 'graduated' ? 'Đã tốt nghiệp' :
+                        'Nghỉ học'
+                      }
                       size="small"
-                      color={selected.status === 'active' ? 'success' : 'default'}
+                      color={
+                        selected.status === 'active' ? 'success' :
+                        selected.status === 'graduated' ? 'primary' :
+                        'default'
+                      }
                       sx={{ fontWeight: 600 }}
                     />
                   </Stack>

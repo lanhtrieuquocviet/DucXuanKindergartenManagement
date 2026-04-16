@@ -29,6 +29,7 @@ import FollowUpManagement from './pages/schoolNurse/FollowUpManagement';
 import HealthReports from './pages/schoolNurse/HealthReports';
 import ClassList from './pages/schoolAdmin/ClassList';
 import ManageGradeCatalog from './pages/schoolAdmin/ManageGradeCatalog';
+import ManageStaticBlockCatalog from './pages/schoolAdmin/ManageStaticBlockCatalog';
 import StudentInClass from './pages/schoolAdmin/StudentInClass';
 import ManageStudents from './pages/schoolAdmin/ManageStudents';
 import StudentHealthReport from './pages/schoolAdmin/StudentHealthReport';
@@ -481,6 +482,16 @@ function App() {
               <ProtectedRoute>
                 <SchoolAdminProvider>
                   <ManageGradeCatalog />
+                </SchoolAdminProvider>
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/school-admin/static-blocks"
+            element={
+              <ProtectedRoute>
+                <SchoolAdminProvider>
+                  <ManageStaticBlockCatalog />
                 </SchoolAdminProvider>
               </ProtectedRoute>
             }

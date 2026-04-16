@@ -12,6 +12,16 @@ const gradeSchema = new mongoose.Schema({
     default: '',
     trim: true
   },
+  staticBlockId: {
+    type: mongoose.Schema.Types.ObjectId,
+    ref: 'StaticBlock',
+    required: [true, 'Danh mục khối là bắt buộc'],
+  },
+  academicYearId: {
+    type: mongoose.Schema.Types.ObjectId,
+    ref: 'AcademicYears',
+    required: [true, 'Năm học là bắt buộc'],
+  },
   classList: [{
     type: mongoose.Schema.Types.ObjectId,
     ref: 'Classes'

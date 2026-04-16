@@ -39,6 +39,8 @@ import {
   Search as SearchIcon,
   CheckBox as CheckBoxIcon,
   CheckBoxOutlineBlank as CheckBoxBlankIcon,
+  Warning as WarningIcon,
+  Info as InfoIcon,
 } from '@mui/icons-material';
 
 function formatDate(dateString) {
@@ -118,8 +120,12 @@ function ManageAcademicYears() {
       const resp = await get(ENDPOINTS.SCHOOL_ADMIN.ACADEMIC_YEARS.STUDENTS(currentYear._id));
       if (resp?.status === 'success' && Array.isArray(resp.data)) {
         setFinishStudents(resp.data);
-        // Mặc định chọn tất cả
-        setSelectedStudentIds(new Set(resp.data.map((s) => s._id)));
+        // Mặc định chọn tất cả học sinh không có ghi chú đặc biệt
+        // Học sinh có ghi chú đặc biệt để người dùng tự quyết định
+        const defaultSelected = resp.data
+          .filter(s => !s.needsSpecialAttention)
+          .map((s) => s._id);
+        setSelectedStudentIds(new Set(defaultSelected));
       }
     } catch (err) {
       console.error('Error loading students for finish:', err);
@@ -138,26 +144,36 @@ function ManageAcademicYears() {
   };
 
   const handleToggleAll = () => {
+    const normalStudents = finishStudents.filter(s => !s.needsSpecialAttention);
+    const specialStudents = finishStudents.filter(s => s.needsSpecialAttention);
+
     if (selectedStudentIds.size === finishStudents.length) {
+      // Nếu đã chọn tất cả, bỏ chọn tất cả
       setSelectedStudentIds(new Set());
-    } else {
+    } else if (selectedStudentIds.size === normalStudents.length && specialStudents.length > 0) {
+      // Nếu chỉ chọn học sinh bình thường, chọn thêm học sinh đặc biệt
       setSelectedStudentIds(new Set(finishStudents.map((s) => s._id)));
+    } else {
+      // Chọn tất cả học sinh bình thường
+      setSelectedStudentIds(new Set(normalStudents.map((s) => s._id)));
     }
   };
 
   const handleConfirmFinish = async () => {
     if (!currentYear) return;
     try {
-      const resp = await patch(ENDPOINTS.SCHOOL_ADMIN.ACADEMIC_YEARS.FINISH(currentYear._id), {});
+      const selectedIds = Array.from(selectedStudentIds);
+      const resp = await patch(ENDPOINTS.SCHOOL_ADMIN.ACADEMIC_YEARS.FINISH(currentYear._id), {
+        selectedStudentIds: selectedIds
+      });
       if (resp?.status === 'success') {
         const updated = resp.data;
         setCurrentYear(updated);
         setYears((prev) => prev.map((y) => (y._id === updated._id ? updated : y)));
-        const ids = Array.from(selectedStudentIds);
-        setCarryOverStudentIds(ids);
+        setCarryOverStudentIds(selectedIds);
         setOpenFinish(false);
         toast.success(
-          `Đã kết thúc năm học. ${ids.length} học sinh sẽ được chuyển tiếp sang năm học mới.`,
+          `Đã kết thúc năm học. ${selectedIds.length} học sinh sẽ được chuyển tiếp sang năm học mới. ${updated.graduatedCount || 0} học sinh đã tốt nghiệp.`,
         );
       }
     } catch (error) {
@@ -454,7 +470,8 @@ function ManageAcademicYears() {
               Kết thúc năm học — Chọn học sinh chuyển tiếp
             </Typography>
             <Typography variant="body2" sx={{ opacity: 0.9, mt: 0.25 }}>
-              Chọn những học sinh sẽ được tự động thêm vào năm học tiếp theo khi tạo mới.
+              Chọn những học sinh sẽ được chuyển tiếp sang năm học mới. Học sinh không được chọn sẽ có trạng thái "Đã tốt nghiệp".
+              Học sinh có ghi chú đặc biệt được đánh dấu màu vàng — hãy xem xét kỹ trước khi quyết định.
             </Typography>
           </DialogTitle>
           <DialogContent dividers sx={{ p: 0 }}>
@@ -492,7 +509,13 @@ function ManageAcademicYears() {
                       hover
                       selected={selectedStudentIds.has(s._id)}
                       onClick={() => handleToggleStudent(s._id)}
-                      sx={{ cursor: 'pointer' }}
+                      sx={{
+                        cursor: 'pointer',
+                        bgcolor: s.needsSpecialAttention ? '#fffbeb' : 'inherit',
+                        '&:hover': {
+                          bgcolor: s.needsSpecialAttention ? '#fef3c7' : '#f9fafb'
+                        }
+                      }}
                     >
                       <TableCell padding="checkbox">
                         <Checkbox checked={selectedStudentIds.has(s._id)} onChange={() => handleToggleStudent(s._id)} onClick={(e) => e.stopPropagation()} />
@@ -502,13 +525,38 @@ function ManageAcademicYears() {
                           <Avatar src={s.avatar} sx={{ width: 32, height: 32, fontSize: 13 }}>
                             {s.fullName?.[0]}
                           </Avatar>
-                          <Typography variant="body2" fontWeight={600}>{s.fullName}</Typography>
+                          <Box>
+                            <Typography variant="body2" fontWeight={600}>{s.fullName}</Typography>
+                            {s.needsSpecialAttention && s.specialNote && (
+                              <Typography variant="caption" color="warning.main" sx={{ display: 'block', mt: 0.25 }}>
+                                <WarningIcon sx={{ fontSize: 12, mr: 0.25, verticalAlign: 'middle' }} />
+                                {s.specialNote}
+                              </Typography>
+                            )}
+                          </Box>
                         </Stack>
                       </TableCell>
                       <TableCell><Typography variant="body2">{s.className || '—'}</Typography></TableCell>
                       <TableCell><Typography variant="body2">{s.dateOfBirth ? new Date(s.dateOfBirth).toLocaleDateString('vi-VN') : '—'}</Typography></TableCell>
                       <TableCell>
-                        <Chip size="small" label={s.status === 'active' ? 'Đang học' : 'Nghỉ học'} color={s.status === 'active' ? 'success' : 'default'} />
+                        <Stack direction="row" alignItems="center" spacing={1}>
+                          <Chip
+                            size="small"
+                            label={
+                              s.status === 'active' ? 'Đang học' :
+                              s.status === 'graduated' ? 'Đã tốt nghiệp' :
+                              'Nghỉ học'
+                            }
+                            color={
+                              s.status === 'active' ? 'success' :
+                              s.status === 'graduated' ? 'primary' :
+                              'default'
+                            }
+                          />
+                          {s.needsSpecialAttention && (
+                            <InfoIcon sx={{ fontSize: 16, color: 'warning.main' }} titleAccess="Học sinh cần chú ý đặc biệt" />
+                          )}
+                        </Stack>
                       </TableCell>
                     </TableRow>
                   ))}

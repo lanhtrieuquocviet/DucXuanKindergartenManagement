@@ -19,6 +19,7 @@ export const SCHOOL_ADMIN_MENU_ITEMS = [
     ],
   },
   { key: 'classes', label: 'Quản lý khối & lớp học', permission: 'MANAGE_CLASS' },
+  { key: 'static-blocks', label: 'Danh mục khối', permission: 'MANAGE_STATIC_BLOCK' },
   { key: 'staff', label: 'Quản lý nhân sự', permission: 'MANAGE_ASSET' },
   { key: 'students', label: 'Học sinh', permission: 'MANAGE_STUDENT' },
   {
@@ -114,6 +115,7 @@ export const createSchoolAdminMenuSelect = (navigate) => (key) => {
     'academic-students': '/school-admin/class-list',
     'academic-report': '/school-admin/academic-report',
     classes: '/school-admin/classes',
+    'static-blocks': '/school-admin/static-blocks',
     menu: '/school-admin/menus',
     'meal-management': '/school-admin/meal-management',
     'district-nutrition-plan': '/school-admin/district-nutrition-plan',
