@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import {
-  Autocomplete,
+  Alert,
   Avatar,
   Box,
   Paper,
@@ -27,56 +27,101 @@ import {
   InputLabel,
   IconButton,
   Tooltip,
+  InputAdornment,
 } from '@mui/material';
 import EditIcon from '@mui/icons-material/Edit';
 import DeleteIcon from '@mui/icons-material/Delete';
+import Visibility from '@mui/icons-material/Visibility';
+import VisibilityOff from '@mui/icons-material/VisibilityOff';
 import { toast } from 'react-toastify';
 import RoleLayout from '../../layouts/RoleLayout';
 import { useAuth } from '../../context/AuthContext';
-import { get, post, put, del, postFormData, ENDPOINTS } from '../../service/api';
+import { get, post, put, postFormData, ENDPOINTS } from '../../service/api';
 import { createSchoolAdminMenuSelect } from './schoolAdminMenuConfig';
 import { useSchoolAdminMenu } from './useSchoolAdminMenu';
 
 const ROLE_TO_POSITION = {
-  SchoolAdmin: 'BGH',
-  Teacher: 'Giáo viên',
-  KitchenStaff: 'Nhân viên nhà bếp',
-  MedicalStaff: 'Nhân viên y tế',
-  HeadTeacher: 'Tổ trưởng tổ chuyên môn',
+  schooladmin: 'Ban Giám Hiệu',
+  teacher: 'Giáo viên',
+  kitchenstaff: 'Nhân viên nhà bếp',
+  medicalstaff: 'Nhân viên y tế',
+  headteacher: 'Tổ trưởng chuyên môn',
 };
 
+const ALLOWED_STAFF_ROLES = new Set([
+  'schooladmin',
+  'teacher',
+  'kitchenstaff',
+  'medicalstaff',
+  'headteacher',
+]);
+
 const POSITION_OPTIONS = [
-  'BGH',
+  'Ban Giám Hiệu',
   'Giáo viên',
   'Nhân viên văn phòng',
   'Nhân viên y tế',
   'Nhân viên nhà bếp',
-  'Tổ trưởng tổ chuyên môn',
+  'Tổ trưởng chuyên môn',
 ];
 
 const KNOWN_POSITIONS = new Set(Object.values(ROLE_TO_POSITION));
 
 const EMPTY_FORM = {
+  username: '',
+  fullName: '',
+  email: '',
+  password: '',
+  confirmPassword: '',
   position: '',
   customPosition: '',
+  phone: '',
   status: 'active',
   userId: null,
 };
 
+const splitRoleNames = (roleNames) =>
+  String(roleNames || '')
+    .split(',')
+    .map((role) => role.trim())
+    .filter(Boolean);
+
+const normalizeRoleName = (roleName) =>
+  String(roleName || '')
+    .toLowerCase()
+    .replace(/[\s_-]/g, '');
+
 const getPositionFromRoleNames = (roleNames) => {
-  if (!roleNames) return '';
-  const roles = String(roleNames).split(',').map((role) => role.trim());
+  const roles = splitRoleNames(roleNames);
   for (const role of roles) {
-    if (ROLE_TO_POSITION[role]) {
-      return ROLE_TO_POSITION[role];
+    const normalizedRole = normalizeRoleName(role);
+    if (ALLOWED_STAFF_ROLES.has(normalizedRole) && ROLE_TO_POSITION[normalizedRole]) {
+      return ROLE_TO_POSITION[normalizedRole];
     }
   }
   return '';
 };
 
+const hasRole = (roleNames, targetRole) =>
+  splitRoleNames(roleNames).some((role) => normalizeRoleName(role) === normalizeRoleName(targetRole));
+
+const getFirstRoleName = (roleNames) => splitRoleNames(roleNames)[0] || '';
+
+const POSITION_TO_ROLE_NAME = {
+  'Ban Giám Hiệu': 'SchoolAdmin',
+  'Giáo viên': 'Teacher',
+  'Nhân viên y tế': 'MedicalStaff',
+  'Nhân viên nhà bếp': 'KitchenStaff',
+  'Nhân viên bếp': 'KitchenStaff',
+  'Tổ trưởng chuyên môn': 'HeadTeacher',
+};
+
 const resolvePositionLabel = (item) => {
-  if (item.position) return item.position;
-  return getPositionFromRoleNames(item.roleNames) || 'Nhân viên văn phòng';
+  if (item.position) {
+    const mappedFromPosition = getPositionFromRoleNames(item.position);
+    return mappedFromPosition || item.position;
+  }
+  return getPositionFromRoleNames(item.roleNames) || getFirstRoleName(item.roleNames) || 'Nhân viên văn phòng';
 };
 
 const DEFAULT_STAFF_AVATAR_3X4 = `data:image/svg+xml;charset=UTF-8,${encodeURIComponent(
@@ -100,7 +145,6 @@ export default function ManageStaff() {
   const menuItems = useSchoolAdminMenu();
 
   const [staff, setStaff] = useState([]);
-  const [users, setUsers] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
   const [refreshing, setRefreshing] = useState(false);
@@ -116,6 +160,8 @@ export default function ManageStaff() {
   const [deleteDialog, setDeleteDialog] = useState({ open: false, item: null });
   const [avatarFile, setAvatarFile] = useState(null);
   const [avatarPreview, setAvatarPreview] = useState('');
+  const [showPassword, setShowPassword] = useState(false);
+  const [showConfirmPassword, setShowConfirmPassword] = useState(false);
 
   useEffect(() => {
     if (isInitializing) return;
@@ -129,16 +175,33 @@ export default function ManageStaff() {
     }
 
     loadStaff();
-    loadUsers();
   }, [isInitializing, navigate, user, hasRole]);
 
   const loadStaff = async () => {
     setLoading(true);
     setError('');
     try {
-      const response = await get(ENDPOINTS.SCHOOL_ADMIN.STAFF_MEMBERS);
-      const staffMembers = response.data || [];
-      setStaff(staffMembers);
+      const response = await get(ENDPOINTS.SCHOOL_ADMIN.STAFF_USERS);
+      const staffUsers = response.data || [];
+      const mappedUsers = staffUsers
+        .filter((item) => !hasRole(item.roleNames, 'Parent') && !hasRole(item.roleNames, 'SystemAdmin'))
+        .map((item) => ({
+          _id: item._id,
+          employeeId: item.username || '—',
+          position: getPositionFromRoleNames(item.roleNames) || 'Nhân viên văn phòng',
+          status: item.status || 'inactive',
+          roleNames: item.roleNames || '',
+          user: {
+            _id: item._id,
+            fullName: item.fullName,
+            email: item.email,
+            phone: item.phone,
+            avatar: item.avatar,
+            status: item.status,
+            roleNames: item.roleNames || '',
+          },
+        }));
+      setStaff(mappedUsers);
     } catch (err) {
       const msg = err?.data?.message || err?.message || 'Lỗi khi tải danh sách nhân sự';
       setError(msg);
@@ -148,22 +211,9 @@ export default function ManageStaff() {
     }
   };
 
-  const loadUsers = async () => {
-    try {
-      const response = await get(ENDPOINTS.SCHOOL_ADMIN.STAFF_USERS);
-      const allUsers = response.data || [];
-      setUsers(allUsers.filter((item) => {
-        const roles = String(item.roleNames || '').split(',').map((role) => role.trim());
-        return !roles.includes('SystemAdmin');
-      }));
-    } catch (err) {
-      console.error('loadUsers error', err);
-    }
-  };
-
   const handleRefresh = async () => {
     setRefreshing(true);
-    await Promise.all([loadStaff(), loadUsers()]);
+    await loadStaff();
     setRefreshing(false);
   };
 
@@ -172,14 +222,22 @@ export default function ManageStaff() {
     setFormErrors({});
     setAvatarFile(null);
     setAvatarPreview('');
+    setShowPassword(false);
+    setShowConfirmPassword(false);
 
     if (mode === 'edit' && staffItem) {
       setSelectedStaffId(staffItem._id);
       const existingPosition = resolvePositionLabel(staffItem);
       const isKnownPosition = POSITION_OPTIONS.includes(existingPosition);
       setForm({
+        username: staffItem.employeeId || '',
+        fullName: staffItem.user?.fullName || staffItem.fullName || '',
+        email: staffItem.user?.email || staffItem.email || '',
+        password: '',
+        confirmPassword: '',
         position: isKnownPosition ? existingPosition : 'other',
         customPosition: isKnownPosition ? '' : existingPosition,
+        phone: staffItem.user?.phone || staffItem.phone || '',
         status: staffItem.status || 'active',
         userId: staffItem.user?._id || null,
       });
@@ -194,9 +252,41 @@ export default function ManageStaff() {
 
   const validateForm = () => {
     const errors = {};
+    const selectedPosition = form.position === 'other' ? form.customPosition.trim() : form.position.trim();
+    const normalizedPhone = String(form.phone || '').replace(/\s+/g, '');
+
     if (!form.position.trim()) errors.position = 'Chức vụ bắt buộc';
-    if (form.position === 'other' && !form.customPosition.trim()) {
+    if (form.position === 'other' && !selectedPosition) {
       errors.customPosition = 'Vui lòng nhập chức vụ khác';
+    }
+    if (dialogMode === 'create' && !normalizedPhone) {
+      errors.phone = 'Số điện thoại bắt buộc';
+    }
+    if (normalizedPhone && !/^[0-9]{9,11}$/.test(normalizedPhone)) {
+      errors.phone = 'Số điện thoại không hợp lệ (9-11 chữ số)';
+    }
+
+    if (dialogMode === 'create') {
+      const username = (form.username || '').trim();
+      const fullName = (form.fullName || '').trim();
+      const email = (form.email || '').trim();
+      const password = form.password || '';
+      const confirmPassword = form.confirmPassword || '';
+
+      if (!username) errors.username = 'Tên tài khoản bắt buộc';
+      else if (/[\s]/.test(username) || /[^A-Za-z0-9]/.test(username)) {
+        errors.username = 'Tên tài khoản không chứa khoảng trắng/ký tự đặc biệt';
+      }
+      if (!fullName) errors.fullName = 'Họ và tên bắt buộc';
+      if (!email) errors.email = 'Email bắt buộc';
+      else if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) errors.email = 'Email không hợp lệ';
+      if (!password) errors.password = 'Mật khẩu bắt buộc';
+      else if (!/^(?=.*[A-Z])(?=.*\d)(?=.*[^A-Za-z0-9]).{6,}$/.test(password)) {
+        errors.password = 'Mật khẩu cần chữ hoa, số, ký tự đặc biệt và >= 6 ký tự';
+      }
+      if (!confirmPassword) errors.confirmPassword = 'Vui lòng xác nhận mật khẩu';
+      else if (password !== confirmPassword) errors.confirmPassword = 'Xác nhận mật khẩu không khớp';
+      if (!selectedPosition) errors.position = 'Vui lòng chọn chức vụ';
     }
     return errors;
   };
@@ -223,6 +313,7 @@ export default function ManageStaff() {
     try {
       const payload = {
         position: form.position === 'other' ? form.customPosition.trim() : form.position.trim(),
+        phone: String(form.phone || '').replace(/\s+/g, ''),
         status: form.status,
       };
 
@@ -237,12 +328,24 @@ export default function ManageStaff() {
       }
 
       if (dialogMode === 'create') {
-        payload.userId = form.userId;
-        await post(ENDPOINTS.SCHOOL_ADMIN.STAFF_MEMBERS, payload);
-        toast.success('Thêm nhân sự thành công');
+        const roleName = POSITION_TO_ROLE_NAME[payload.position] || payload.position;
+        await post('/school-admin/users', {
+          username: form.username.trim(),
+          fullName: form.fullName.trim(),
+          email: form.email.trim(),
+          password: form.password,
+          phone: payload.phone,
+          status: payload.status,
+          roleName,
+        });
+        toast.success('Tạo tài khoản nhân sự thành công');
       } else {
         // Update user via school-admin endpoint
-        const userUpdatePayload = { status: form.status };
+        const userUpdatePayload = {
+          status: form.status,
+          phone: payload.phone,
+        };
+        userUpdatePayload.roleName = POSITION_TO_ROLE_NAME[payload.position] || payload.position;
         if (payload.avatar) {
           userUpdatePayload.avatar = payload.avatar;
         }
@@ -268,31 +371,18 @@ export default function ManageStaff() {
     if (!item?._id) return;
     try {
       setSaveLoading(true);
-      await del(ENDPOINTS.SCHOOL_ADMIN.STAFF_MEMBER(item._id));
+      await put(`/school-admin/users/${item._id}`, { status: 'inactive' });
       await loadStaff();
-      toast.success('Xóa nhân sự thành công');
+      toast.success('Đã vô hiệu hóa tài khoản nhân sự');
       setDeleteDialog({ open: false, item: null });
     } catch (err) {
-      toast.error(err?.data?.message || err?.message || 'Lỗi khi xóa nhân sự');
+      toast.error(err?.data?.message || err?.message || 'Lỗi khi cập nhật trạng thái nhân sự');
     } finally {
       setSaveLoading(false);
     }
   };
 
-  const availableUsers = useMemo(() => {
-    if (dialogMode === 'edit') return [];
-    return users;
-  }, [users, dialogMode]);
-
   const getDisplayPosition = (item) => resolvePositionLabel(item);
-
-  const userById = useMemo(() => {
-    const map = new Map();
-    users.forEach((u) => {
-      if (u?._id) map.set(u._id, u);
-    });
-    return map;
-  }, [users]);
 
   const getStaffEmail = (item) => {
     return item?.user?.email || item?.email || '—';
@@ -350,6 +440,13 @@ export default function ManageStaff() {
             </Typography>
           </Box>
           <Stack direction="row" spacing={1} alignItems="center" sx={{ mt: { xs: 2, sm: 0 } }}>
+            <Button
+              variant="contained"
+              onClick={() => handleOpenDialog('create')}
+              sx={{ textTransform: 'none', fontWeight: 600 }}
+            >
+              + Thêm nhân sự
+            </Button>
             <Button variant="outlined" color="inherit" onClick={handleRefresh} disabled={refreshing} sx={{ textTransform: 'none' }}>
               {refreshing ? 'Làm mới...' : 'Làm mới'}
             </Button>
@@ -395,7 +492,7 @@ export default function ManageStaff() {
                   onChange={(e) => setFilterPosition(e.target.value)}
                 >
                   <MenuItem value="">Tất cả</MenuItem>
-                  <MenuItem value="BGH">BGH</MenuItem>
+                  <MenuItem value="Ban Giám Hiệu">Ban Giám Hiệu</MenuItem>
                   <MenuItem value="Giáo viên">Giáo viên</MenuItem>
                   <MenuItem value="Nhân viên văn phòng">Nhân viên văn phòng</MenuItem>
                   <MenuItem value="Nhân viên y tế">Nhân viên y tế</MenuItem>
@@ -416,7 +513,7 @@ export default function ManageStaff() {
                 <Table size="small" sx={{ minWidth: 920 }}>
                   <TableHead>
                     <TableRow>
-                      <TableCell>Mã NV</TableCell>
+                      <TableCell>Tên tài khoản</TableCell>
                       <TableCell>Hình ảnh</TableCell>
                       <TableCell>Họ và tên</TableCell>
                       <TableCell sx={{ minWidth: 220 }}>Email</TableCell>
@@ -480,33 +577,83 @@ export default function ManageStaff() {
         <DialogContent dividers>
           <Stack spacing={2} sx={{ mt: 1 }}>
             {dialogMode === 'create' && (
-              <Autocomplete
-                options={availableUsers}
-                getOptionLabel={(option) => {
-                  const title = option.fullName || option.username || 'Người dùng';
-                  const meta = option.roleNames || option.phone || option.email || option.username;
-                  return `${title} • ${meta}`;
-                }}
-                value={availableUsers.find((u) => u._id === form.userId) || null}
-                onChange={(_, value) => {
-                  setForm((prev) => ({
-                    ...prev,
-                    userId: value ? value._id : null,
-                    position: value ? getPositionFromRoleNames(value.roleNames) || prev.position : '',
-                    customPosition: '',
-                  }));
-                }}
-                renderInput={(params) => (
-                  <TextField
-                    {...params}
-                    label="Chọn người dùng"
-                    error={!!formErrors.userId}
-                    helperText={formErrors.userId}
-                    size="small"
-                  />
-                )}
-                fullWidth
-              />
+              <>
+                <TextField
+                  label="Tên tài khoản"
+                  size="small"
+                  value={form.username}
+                  onChange={(e) => setForm((prev) => ({ ...prev, username: e.target.value }))}
+                  error={!!formErrors.username}
+                  helperText={formErrors.username}
+                  fullWidth
+                />
+                <TextField
+                  label="Họ và tên"
+                  size="small"
+                  value={form.fullName}
+                  onChange={(e) => setForm((prev) => ({ ...prev, fullName: e.target.value }))}
+                  error={!!formErrors.fullName}
+                  helperText={formErrors.fullName}
+                  fullWidth
+                />
+                <TextField
+                  label="Email"
+                  size="small"
+                  type="email"
+                  value={form.email}
+                  onChange={(e) => setForm((prev) => ({ ...prev, email: e.target.value }))}
+                  error={!!formErrors.email}
+                  helperText={formErrors.email}
+                  fullWidth
+                />
+                <TextField
+                  label="Mật khẩu"
+                  size="small"
+                  type={showPassword ? 'text' : 'password'}
+                  value={form.password}
+                  onChange={(e) => setForm((prev) => ({ ...prev, password: e.target.value }))}
+                  error={!!formErrors.password}
+                  helperText={formErrors.password}
+                  InputProps={{
+                    endAdornment: (
+                      <InputAdornment position="end">
+                        <IconButton edge="end" onClick={() => setShowPassword((prev) => !prev)}>
+                          {showPassword ? <VisibilityOff fontSize="small" /> : <Visibility fontSize="small" />}
+                        </IconButton>
+                      </InputAdornment>
+                    ),
+                  }}
+                  fullWidth
+                />
+                <TextField
+                  label="Xác nhận mật khẩu"
+                  size="small"
+                  type={showConfirmPassword ? 'text' : 'password'}
+                  value={form.confirmPassword}
+                  onChange={(e) => setForm((prev) => ({ ...prev, confirmPassword: e.target.value }))}
+                  error={!!formErrors.confirmPassword}
+                  helperText={formErrors.confirmPassword}
+                  InputProps={{
+                    endAdornment: (
+                      <InputAdornment position="end">
+                        <IconButton edge="end" onClick={() => setShowConfirmPassword((prev) => !prev)}>
+                          {showConfirmPassword ? <VisibilityOff fontSize="small" /> : <Visibility fontSize="small" />}
+                        </IconButton>
+                      </InputAdornment>
+                    ),
+                  }}
+                  fullWidth
+                />
+                <TextField
+                  label="Số điện thoại"
+                  size="small"
+                  value={form.phone}
+                  onChange={(e) => setForm((prev) => ({ ...prev, phone: e.target.value }))}
+                  error={!!formErrors.phone}
+                  helperText={formErrors.phone}
+                  fullWidth
+                />
+              </>
             )}
             
             {dialogMode === 'edit' && (
@@ -540,6 +687,18 @@ export default function ManageStaff() {
               </Box>
             )}
 
+            {dialogMode === 'edit' && (
+              <TextField
+                label="Số điện thoại"
+                size="small"
+                value={form.phone}
+                onChange={(e) => setForm((prev) => ({ ...prev, phone: e.target.value }))}
+                error={!!formErrors.phone}
+                helperText={formErrors.phone}
+                fullWidth
+              />
+            )}
+
             <FormControl fullWidth size="small" error={!!formErrors.position}>
               <InputLabel id="staff-position-label">Chức vụ</InputLabel>
               <Select
@@ -548,7 +707,7 @@ export default function ManageStaff() {
                 value={form.position}
                 onChange={(e) => setForm((prev) => ({ ...prev, position: e.target.value }))}
               >
-                <MenuItem value="BGH">BGH</MenuItem>
+                <MenuItem value="Ban Giám Hiệu">Ban Giám Hiệu</MenuItem>
                 <MenuItem value="Giáo viên">Giáo viên</MenuItem>
                 <MenuItem value="Nhân viên văn phòng">Nhân viên văn phòng</MenuItem>
                 <MenuItem value="Nhân viên y tế">Nhân viên y tế</MenuItem>
