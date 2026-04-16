@@ -28,6 +28,7 @@ import HealthCheckForm from './pages/schoolNurse/HealthCheckForm';
 import FollowUpManagement from './pages/schoolNurse/FollowUpManagement';
 import HealthReports from './pages/schoolNurse/HealthReports';
 import ClassList from './pages/schoolAdmin/ClassList';
+import ManageGradeCatalog from './pages/schoolAdmin/ManageGradeCatalog';
 import StudentInClass from './pages/schoolAdmin/StudentInClass';
 import ManageStudents from './pages/schoolAdmin/ManageStudents';
 import StudentHealthReport from './pages/schoolAdmin/StudentHealthReport';
@@ -470,6 +471,16 @@ function App() {
               <ProtectedRoute>
                 <SchoolAdminProvider>
                   <ClassList />
+                </SchoolAdminProvider>
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/school-admin/grades"
+            element={
+              <ProtectedRoute>
+                <SchoolAdminProvider>
+                  <ManageGradeCatalog />
                 </SchoolAdminProvider>
               </ProtectedRoute>
             }
