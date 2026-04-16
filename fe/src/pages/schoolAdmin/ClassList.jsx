@@ -253,11 +253,13 @@ function ClassList() {
   const [gradeError, setGradeError] = useState(null);
   const [gradeSearchTerm, setGradeSearchTerm] = useState('');
   const [gradeDialog, setGradeDialog] = useState({ open: false, mode: 'create', data: null });
-  const [gradeForm, setGradeForm] = useState({ gradeName: '', description: '', maxClasses: 10, minAge: '', maxAge: '', ageRange: '', headTeacherId: '' });
+  const [gradeForm, setGradeForm] = useState({ gradeName: '', description: '', maxClasses: 10, minAge: '', maxAge: '', ageRange: '', headTeacherId: '', staticBlockId: '' });
   const [gradeFormErrors, setGradeFormErrors] = useState({});
   const [gradeTeachers, setGradeTeachers] = useState([]);
   const [gradeTeachersLoading, setGradeTeachersLoading] = useState(false);
   const [gradeSubmitting, setGradeSubmitting] = useState(false);
+  const [staticBlocks, setStaticBlocks] = useState([]);
+  const [staticBlocksLoading, setStaticBlocksLoading] = useState(false);
   const [gradeDeleteConfirm, setGradeDeleteConfirm] = useState(null);
 
   const navigate = useNavigate();
@@ -368,26 +370,38 @@ function ClassList() {
   };
 
   // ── grade CRUD ────────────────────────────────────────────────────────────────
-  // const openGradeDialog = async (mode, data = null) => {
-  //   setGradeFormErrors({});
-  //   setGradeForm(data
-  //     ? { gradeName: data.gradeName, description: data.description || '', maxClasses: data.maxClasses ?? 10, minAge: data.minAge || '', maxAge: data.maxAge || '', ageRange: data.ageRange || '', headTeacherId: data.headTeacherId?._id || data.headTeacherId || '' }
-  //     : { gradeName: '', description: '', maxClasses: 10, minAge: '', maxAge: '', ageRange: '', headTeacherId: '' }
-  //   );
-  //   setGradeDialog({ open: true, mode, data });
-  //   // Fetch teachers for tổ trưởng selection
-  //   if (gradeTeachers.length === 0) {
-  //     setGradeTeachersLoading(true);
-  //     try {
-  //       const res = await get(ENDPOINTS.SCHOOL_ADMIN.TEACHERS);
-  //       setGradeTeachers(res.data || []);
-  //     } catch (_) {}
-  //     finally { setGradeTeachersLoading(false); }
-  //   }
-  // };
+  const openGradeDialog = async (mode, data = null) => {
+    setGradeFormErrors({});
+    setGradeForm(data
+      ? { gradeName: data.gradeName, description: data.description || '', maxClasses: data.maxClasses ?? 10, minAge: data.minAge || '', maxAge: data.maxAge || '', ageRange: data.ageRange || '', headTeacherId: data.headTeacherId?._id || data.headTeacherId || '', staticBlockId: data.staticBlockId?._id || data.staticBlockId || '' }
+      : { gradeName: '', description: '', maxClasses: 10, minAge: '', maxAge: '', ageRange: '', headTeacherId: '', staticBlockId: '' }
+    );
+    setGradeDialog({ open: true, mode, data });
+    // Fetch teachers for tổ trưởng selection
+    if (gradeTeachers.length === 0) {
+      setGradeTeachersLoading(true);
+      try {
+        const res = await get(ENDPOINTS.SCHOOL_ADMIN.TEACHERS);
+        setGradeTeachers(res.data || []);
+      } catch (_) {}
+      finally { setGradeTeachersLoading(false); }
+    }
+    // Fetch static blocks for danh mục khối selection
+    if (staticBlocks.length === 0) {
+      setStaticBlocksLoading(true);
+      try {
+        const res = await get(ENDPOINTS.STATIC_BLOCKS.LIST);
+        setStaticBlocks(res.data || []);
+      } catch (_) {}
+      finally { setStaticBlocksLoading(false); }
+    }
+  };
 
   const validateGradeForm = () => {
     const errs = {};
+    if (!gradeForm.staticBlockId) {
+      errs.staticBlockId = 'Danh mục khối là bắt buộc';
+    }
     if (!gradeForm.gradeName.trim()) {
       errs.gradeName = 'Tên khối lớp không được để trống';
     } else if (gradeForm.gradeName.trim().length > 10) {
@@ -745,21 +759,21 @@ function ClassList() {
               >
                 Tải lại
               </Button>
-              {/* <Button
-                variant="contained"
-                startIcon={<AddIcon />}
-                onClick={() => openGradeDialog('create')}
-                sx={{ bgcolor: '#16a34a', '&:hover': { bgcolor: '#15803d' }, borderRadius: 1.5, textTransform: 'none', fontWeight: 600 }}
+              <Button
+                variant="outlined"
+                startIcon={<LayersIcon />}
+                onClick={() => navigate('/school-admin/static-blocks')}
+                sx={{ borderRadius: 1.5, textTransform: 'none', fontWeight: 600, whiteSpace: 'nowrap' }}
               >
-                Thêm khối mới
-              </Button> */}
+               Quản lý danh mục khối 
+              </Button>
               <Button
                 variant="outlined"
                 startIcon={<LayersIcon />}
                 onClick={() => navigate('/school-admin/grades')}
                 sx={{ borderRadius: 1.5, textTransform: 'none', fontWeight: 600, whiteSpace: 'nowrap' }}
               >
-                Quản lý danh mục khối
+                Quản lý khối trong năm học 
               </Button>
             </Stack>
           </Stack>
@@ -1228,6 +1242,25 @@ function ClassList() {
         <DialogContent dividers>
           {gradeFormErrors.submit && <Alert severity="error" sx={{ mb: 2 }}>{gradeFormErrors.submit}</Alert>}
           <Stack spacing={2.5} mt={0.5}>
+            <FormControl size="small" fullWidth>
+              <InputLabel>Danh mục khối *</InputLabel>
+              <Select
+                label="Danh mục khối *"
+                value={gradeForm.staticBlockId}
+                onChange={(e) => setGradeForm((f) => ({ ...f, staticBlockId: e.target.value }))}
+                disabled={staticBlocksLoading}
+              >
+                <MenuItem value=""><em>— Chọn danh mục khối —</em></MenuItem>
+                {staticBlocks.map(block => (
+                  <MenuItem key={block._id} value={block._id}>
+                    {block.name} ({block.ageLabel})
+                  </MenuItem>
+                ))}
+              </Select>
+              {gradeFormErrors.staticBlockId && (
+                <Typography variant="caption" color="error" sx={{ mt: 0.5, ml: 1.75 }}>{gradeFormErrors.staticBlockId}</Typography>
+              )}
+            </FormControl>
             <TextField
               label="Tên khối lớp"
               required

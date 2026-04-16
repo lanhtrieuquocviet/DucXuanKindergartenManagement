@@ -45,8 +45,10 @@ const studentSchema = new mongoose.Schema({
   },
   status: {
     type: String,
-    enum: ['active', 'inactive'],
-    default: 'active'
+    enum: ['active', 'inactive', 'graduated'],
+    default: 'active',
+    trim: true,
+    lowercase: true,
   },
   // parentId: tham chiếu đến tài khoản User của phụ huynh
   parentId: {

@@ -154,7 +154,7 @@ const getStudentsByAcademicYear = async (req, res) => {
     classes.forEach((c) => { classMap[String(c._id)] = c.className; });
 
     const students = await Student.find({ classId: { $in: classIds } })
-      .select('_id fullName dateOfBirth gender classId avatar status')
+      .select('_id fullName dateOfBirth gender classId avatar status needsSpecialAttention specialNote')
       .lean();
 
     const data = students.map((s) => ({
@@ -164,6 +164,8 @@ const getStudentsByAcademicYear = async (req, res) => {
       gender: s.gender,
       avatar: s.avatar || '',
       status: s.status,
+      needsSpecialAttention: s.needsSpecialAttention || false,
+      specialNote: s.specialNote || '',
       className: classMap[String(s.classId)] || '',
     }));
 
@@ -359,6 +361,7 @@ const createAcademicYear = async (req, res) => {
 const finishAcademicYear = async (req, res) => {
   try {
     const { id } = req.params;
+    const { selectedStudentIds } = req.body; // Array of student IDs to keep active (transfer to next year)
 
     const year = await AcademicYear.findById(id);
     if (!year) {
@@ -376,13 +379,39 @@ const finishAcademicYear = async (req, res) => {
       });
     }
 
+    // Get all students in this academic year
+    const allStudents = await Student.find({
+      academicYearId: id,
+      status: 'active'
+    }).select('_id status');
+
+    // Students not selected will be marked as graduated
+    const unselectedStudentIds = allStudents
+      .filter(student => !selectedStudentIds.includes(student._id.toString()))
+      .map(student => student._id);
+
+    // Update unselected students to graduated status
+    if (unselectedStudentIds.length > 0) {
+      await Student.updateMany(
+        { _id: { $in: unselectedStudentIds } },
+        { $set: { status: 'graduated' } }
+      );
+    }
+
+    // Selected students remain active for transfer to next year
+    // (status remains 'active')
+
     year.status = 'inactive';
     await year.save();
 
     return res.status(200).json({
       status: 'success',
-      message: 'Kết thúc năm học thành công',
-      data: year,
+      message: `Kết thúc năm học thành công. ${unselectedStudentIds.length} học sinh đã tốt nghiệp.`,
+      data: {
+        ...year.toObject(),
+        graduatedCount: unselectedStudentIds.length,
+        transferredCount: selectedStudentIds.length
+      },
     });
   } catch (error) {
     console.error('finishAcademicYear error:', error);

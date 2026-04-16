@@ -290,7 +290,7 @@ const createStudentWithParentCore = async ({ parent, studentData }) => {
 const getStudents = async (req, res) => {
   try {
     const { classId, academicYearId } = req.query;
-    const filter = {};
+    const filter = { status: 'active' };
     if (classId) filter.classId = classId;
     if (academicYearId) {
       filter.academicYearId = academicYearId;

@@ -256,7 +256,8 @@ function ManageStudents() {
 
   const filteredStudents = students.filter((s) => {
     const matchSearch = !searchTerm || (s.fullName || '').toLowerCase().includes(searchTerm.toLowerCase())
-      || (s.parentId?.fullName || '').toLowerCase().includes(searchTerm.toLowerCase());
+      || (s.parentId?.fullName || '').toLowerCase().includes(searchTerm.toLowerCase())
+      || (s.studentCode || '').toLowerCase().includes(searchTerm.toLowerCase());
     return matchSearch;
   });
 
@@ -350,6 +351,10 @@ function ManageStudents() {
         parent: {
           ...formAdd.parent,
           username: (formAdd.parent.phone || '').trim(),
+        },
+        student: {
+          ...formAdd.student,
+          status: 'active',
         },
       };
       await createStudentWithParent(payload);
@@ -729,7 +734,7 @@ function ManageStudents() {
           <Stack direction={{ xs: 'column', sm: 'row' }} spacing={1}>
             <TextField
               size="small"
-              placeholder="Tìm theo tên học sinh / phụ huynh..."
+              placeholder="Tìm theo tên học sinh / mã học sinh / phụ huynh..."
               value={searchTerm}
               onChange={(e) => setSearchTerm(e.target.value)}
               sx={{ minWidth: 220 }}
@@ -1045,8 +1050,16 @@ function ManageStudents() {
                   <Typography variant="h6" fontWeight={700}>{detailStudent.fullName || '—'}</Typography>
                   <Chip
                     size="small"
-                    label={detailStudent.status === 'active' ? 'Đang học' : 'Nghỉ học'}
-                    color={detailStudent.status === 'active' ? 'success' : 'default'}
+                    label={
+                      detailStudent.status === 'active' ? 'Đang học' :
+                      detailStudent.status === 'graduated' ? 'Đã tốt nghiệp' :
+                      'Nghỉ học'
+                    }
+                    color={
+                      detailStudent.status === 'active' ? 'success' :
+                      detailStudent.status === 'graduated' ? 'primary' :
+                      'default'
+                    }
                     sx={{ mt: 0.5 }}
                   />
                 </Box>
