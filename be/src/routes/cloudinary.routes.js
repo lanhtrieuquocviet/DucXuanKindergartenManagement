@@ -1,6 +1,7 @@
 const express = require('express');
 const multer = require('multer');
-const { getMediaLibrarySignature, uploadAvatar, uploadBlogImage, uploadBlogFile, uploadKitchenImage, uploadAttendanceImage, uploadPurchaseImage, uploadNoteImage } = require('../controller/cloudinaryController');
+const { getMediaLibrarySignature, uploadAvatar, uploadBlogImage, uploadBlogFile, uploadKitchenImage, uploadPurchaseImage, uploadNoteImage } = require('../controller/cloudinaryController');
+const { uploadAttendanceImageLocal, uploadAttendanceFileLocal } = require('../controller/localUploadController');
 const { authenticate, authorizeRoles, authorizePermissions } = require('../middleware/auth');
 
 const router = express.Router();
@@ -156,8 +157,11 @@ router.post('/upload-blog-file', authenticate, authorizePermissions('MANAGE_BLOG
  */
 router.post('/upload-kitchen-image', authenticate, authorizePermissions('MANAGE_MEAL_PHOTO'), uploadMiddleware.single('image'), uploadKitchenImage, handleUploadError);
 
-// Upload ảnh điểm danh AI (base64 JSON, không cần multer)
-router.post('/upload-attendance-image', authenticate, authorizePermissions('MANAGE_ATTENDANCE'), uploadAttendanceImage);
+// Upload ảnh điểm danh AI (base64 JSON) → lưu server local, không đẩy lên cloud
+router.post('/upload-attendance-image', authenticate, authorizePermissions('MANAGE_ATTENDANCE'), uploadAttendanceImageLocal);
+
+// Upload ảnh điểm danh thủ công (file/camera) → lưu server local
+router.post('/upload-attendance-file', authenticate, authorizePermissions('MANAGE_ATTENDANCE'), uploadMiddleware.single('image'), uploadAttendanceFileLocal, handleUploadError);
 
 // Upload ảnh bằng chứng yêu cầu mua sắm (Teacher)
 router.post('/upload-purchase-image', authenticate, authorizePermissions('MANAGE_PURCHASE_REQUEST'), uploadMiddleware.single('image'), uploadPurchaseImage, handleUploadError);

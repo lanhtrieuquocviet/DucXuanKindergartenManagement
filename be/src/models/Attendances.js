@@ -109,6 +109,17 @@ const attendanceSchema = new mongoose.Schema(
       type: Boolean,
       default: false,
     },
+    // Giáo viên xác nhận trực tiếp khi đón trẻ (bỏ qua OTP)
+    teacherConfirmedCheckout: {
+      type: Boolean,
+      default: false,
+    },
+    // Phương thức xác nhận checkout: 'teacher' | 'school_otp' | 'sms_otp' | ''
+    checkoutConfirmMethod: {
+      type: String,
+      trim: true,
+      default: '',
+    },
     // Lý do vắng mặt (nếu status = 'absent')
     absentReason: {
       type: String,

@@ -2,6 +2,7 @@ const express = require('express');
 const mongoose = require('mongoose');
 const cors = require('cors');
 const dotenv = require('dotenv');
+const path = require('path');
 const swaggerUi = require('swagger-ui-express');
 const swaggerSpec = require('./src/config/swagger');
 
@@ -399,6 +400,9 @@ const corsOptions = {
 app.use(cors(corsOptions));
 app.use(express.json({ limit: '10mb' }));
 app.use(express.urlencoded({ extended: true, limit: '10mb' }));
+
+// Phục vụ ảnh lưu local (ảnh điểm danh trẻ em không đẩy lên cloud)
+app.use('/uploads', express.static(path.join(__dirname, 'uploads')));
 
 // ============================================
 // Swagger API Docs

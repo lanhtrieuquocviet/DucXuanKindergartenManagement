@@ -535,6 +535,8 @@ export const ENDPOINTS = {
     UPLOAD_BLOG_FILE: "/cloudinary/upload-blog-file",
     UPLOAD_KITCHEN_IMAGE: "/cloudinary/upload-kitchen-image",
     UPLOAD_PURCHASE_IMAGE: "/cloudinary/upload-purchase-image",
+    // Ảnh điểm danh lưu server local (không đẩy lên Cloudinary - bảo vệ dữ liệu trẻ em)
+    UPLOAD_ATTENDANCE_FILE: "/cloudinary/upload-attendance-file",
   },
   // Meal Photos (Kitchen Staff)
   MEAL_PHOTOS: {

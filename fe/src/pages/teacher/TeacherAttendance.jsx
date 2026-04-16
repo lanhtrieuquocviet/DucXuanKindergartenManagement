@@ -627,6 +627,12 @@ function TeacherAttendance() {
           status: 'present',
           isTakeOff: false,
           checkedOutByAI: detailForm.checkedOutByAI || false,
+          teacherConfirmedCheckout: detailForm.teacherConfirmedCheckout || false,
+          checkoutConfirmMethod:
+            detailForm.teacherConfirmedCheckout ? 'teacher'
+            : detailForm.sendOtpSchoolAccount && !detailForm.sendOtpViaSms ? 'school_otp'
+            : detailForm.sendOtpViaSms ? 'sms_otp'
+            : '',
         });
 
         updateRecord(detailStudentId, {

@@ -7,6 +7,7 @@
 
 import { useRef, useState, useEffect } from 'react';
 import { toast } from 'react-toastify';
+import { Camera, Check, X, AlertTriangle, ScanFace, Save } from 'lucide-react';
 import * as faceapi from '@vladmandic/face-api';
 import { useFaceApi } from '../../hooks/useFaceApi';
 import { registerPickupFaceEmbedding } from '../../service/faceAttendance.api';
@@ -187,9 +188,10 @@ export default function PickupFaceRegisterModal({ open, onClose, pickupPerson, o
               />
               <button
                 onClick={captureFrame}
-                className="absolute bottom-3 left-1/2 -translate-x-1/2 px-6 py-2 bg-white text-gray-800 rounded-full font-medium text-sm shadow-lg hover:bg-gray-100"
+                className="absolute bottom-3 left-1/2 -translate-x-1/2 px-6 py-2 bg-white text-gray-800 rounded-full font-medium text-sm shadow-lg hover:bg-gray-100 flex items-center gap-1.5"
               >
-                📸 Chụp ảnh
+                <Camera size={15} />
+                Chụp ảnh
               </button>
             </div>
           )}
@@ -200,9 +202,9 @@ export default function PickupFaceRegisterModal({ open, onClose, pickupPerson, o
               detectionResult === 'no_face' ? 'bg-red-50 text-red-700 border border-red-200' :
               'bg-orange-50 text-orange-700 border border-orange-200'
             }`}>
-              {detectionResult === 'ok' && '✓ Phát hiện đúng 1 khuôn mặt — sẵn sàng lưu'}
-              {detectionResult === 'no_face' && '✗ Không phát hiện khuôn mặt — thử chụp lại'}
-              {detectionResult === 'multi' && '⚠ Phát hiện nhiều khuôn mặt — thử chụp lại'}
+              {detectionResult === 'ok' && <span className="flex items-center gap-1.5"><Check size={14} /> Phát hiện đúng 1 khuôn mặt — sẵn sàng lưu</span>}
+              {detectionResult === 'no_face' && <span className="flex items-center gap-1.5"><X size={14} /> Không phát hiện khuôn mặt — thử chụp lại</span>}
+              {detectionResult === 'multi' && <span className="flex items-center gap-1.5"><AlertTriangle size={14} /> Phát hiện nhiều khuôn mặt — thử chụp lại</span>}
             </div>
           )}
         </div>
@@ -221,7 +223,7 @@ export default function PickupFaceRegisterModal({ open, onClose, pickupPerson, o
                 disabled={detecting || !isReady}
                 className="px-4 py-2 bg-emerald-100 text-emerald-700 rounded-lg text-sm font-medium hover:bg-emerald-200 disabled:opacity-50"
               >
-                {detecting ? 'Đang phân tích...' : '🔍 Phân tích khuôn mặt'}
+                {detecting ? 'Đang phân tích...' : <span className="flex items-center gap-1.5"><ScanFace size={15} /> Phân tích khuôn mặt</span>}
               </button>
             )}
             {detectionResult === 'ok' && (
@@ -230,7 +232,7 @@ export default function PickupFaceRegisterModal({ open, onClose, pickupPerson, o
                 disabled={saving}
                 className="px-4 py-2 bg-emerald-600 text-white rounded-lg text-sm font-medium hover:bg-emerald-700 disabled:opacity-50"
               >
-                {saving ? 'Đang lưu...' : '✓ Lưu khuôn mặt'}
+                {saving ? 'Đang lưu...' : <span className="flex items-center gap-1.5"><Save size={15} /> Lưu khuôn mặt</span>}
               </button>
             )}
           </div>
