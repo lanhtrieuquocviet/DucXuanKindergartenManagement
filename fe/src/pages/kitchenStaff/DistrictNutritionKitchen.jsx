@@ -42,6 +42,7 @@ export default function DistrictNutritionKitchen() {
   const [loading, setLoading] = useState(true);
   const [mainTab, setMainTab] = useState(0);
   const [activePlans, setActivePlans] = useState([]);
+  const [upcomingPlans, setUpcomingPlans] = useState([]);
   const [historyPlans, setHistoryPlans] = useState([]);
   const [historyYear, setHistoryYear] = useState("all");
   const [viewPlan, setViewPlan] = useState(null);
@@ -51,6 +52,7 @@ export default function DistrictNutritionKitchen() {
       const res = await listDistrictNutritionPlans();
       const data = res?.data;
       setActivePlans(Array.isArray(data?.active) ? data.active : []);
+      setUpcomingPlans(Array.isArray(data?.upcoming) ? data.upcoming : []);
       setHistoryPlans(Array.isArray(data?.history) ? data.history : []);
     } catch {
       toast.error("Không thể tải kế hoạch dinh dưỡng theo sở");
@@ -100,6 +102,7 @@ export default function DistrictNutritionKitchen() {
     <Box>
       <Tabs value={mainTab} onChange={(_, v) => setMainTab(v)} sx={{ mb: 2, borderBottom: 1, borderColor: "divider" }}>
         <Tab label={`Đang áp dụng (${activePlans.length})`} sx={{ textTransform: "none", fontWeight: 600 }} />
+        <Tab label={`Kế hoạch sắp tới (${upcomingPlans.length})`} sx={{ textTransform: "none", fontWeight: 600 }} />
         <Tab label={`Lịch sử (${historyPlans.length})`} sx={{ textTransform: "none", fontWeight: 600 }} />
       </Tabs>
 
@@ -158,6 +161,45 @@ export default function DistrictNutritionKitchen() {
                 </Table>
               </TableContainer>
             </Paper>
+          )}
+        </Box>
+      ) : mainTab === 1 ? (
+        <Box>
+          {upcomingPlans.length === 0 ? (
+            <Typography color="text.secondary" textAlign="center" py={4}>
+              Chưa có kế hoạch sắp tới.
+            </Typography>
+          ) : (
+            <TableContainer component={Paper} variant="outlined">
+              <Table size="small">
+                <TableHead>
+                  <TableRow sx={{ bgcolor: "#dbeafe" }}>
+                    <TableCell>Ngày bắt đầu</TableCell>
+                    <TableCell>File quy định</TableCell>
+                    <TableCell align="center">Hành động</TableCell>
+                  </TableRow>
+                </TableHead>
+                <TableBody>
+                  {upcomingPlans.map((p) => (
+                    <TableRow key={p._id}>
+                      <TableCell>{formatDMY(p.startDate)}</TableCell>
+                      <TableCell>{p.regulationFile?.originalName || "—"}</TableCell>
+                      <TableCell align="center">
+                        <Button
+                          size="small"
+                          variant="outlined"
+                          color="info"
+                          onClick={() => setViewPlan(p)}
+                          sx={{ textTransform: "none" }}
+                        >
+                          Xem chỉ tiêu
+                        </Button>
+                      </TableCell>
+                    </TableRow>
+                  ))}
+                </TableBody>
+              </Table>
+            </TableContainer>
           )}
         </Box>
       ) : (
