@@ -1270,6 +1270,7 @@ router.delete('/video-library/:id', authenticate, authorizePermissions('MANAGE_I
  */
 router.get('/documents/:id', authenticate, authorizePermissions('MANAGE_DOCUMENT'), documentController.getDocument);
 router.put('/documents/:id', authenticate, authorizePermissions('MANAGE_DOCUMENT'), documentController.updateDocument);
+router.patch('/documents/:id/publish', authenticate, authorizePermissions('MANAGE_DOCUMENT'), documentController.publishDocument);
 router.delete('/documents/:id', authenticate, authorizePermissions('MANAGE_DOCUMENT'), documentController.deleteDocument);
 
 // ============================================

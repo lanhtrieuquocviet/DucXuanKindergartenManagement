@@ -164,15 +164,34 @@ const uploadBlogFile = async (req, res) => {
       });
     }
 
-    const isPdf = req.file.mimetype === 'application/pdf';
-    const fileType = isPdf ? 'pdf' : 'word';
+    let fileType = 'pdf';
+    if (req.file.mimetype === 'application/pdf') {
+      fileType = 'pdf';
+    } else if (req.file.mimetype === 'application/msword') {
+      fileType = 'word';
+    } else if (req.file.mimetype === 'application/vnd.openxmlformats-officedocument.wordprocessingml.document') {
+      fileType = 'word';
+    } else {
+      return res.status(400).json({
+        status: 'error',
+        message: 'Định dạng file không được hỗ trợ.',
+      });
+    }
+
+    const originalName = String(req.file.originalname || '').trim();
+    const safeName = originalName
+      .replace(/[^\w.\-]+/g, '_')
+      .replace(/_{2,}/g, '_')
+      .replace(/^_+|_+$/g, '');
 
     const result = await new Promise((resolve, reject) => {
       cloudinary.uploader.upload_stream(
         {
           resource_type: 'raw',
           folder: BLOG_FOLDER,
-          format: isPdf ? 'pdf' : 'docx',
+          use_filename: true,
+          unique_filename: true,
+          filename_override: safeName || undefined,
         },
         (error, uploadResult) => {
           if (error) return reject(error);
