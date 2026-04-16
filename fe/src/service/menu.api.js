@@ -35,12 +35,28 @@ export const listDistrictNutritionPlans = () => {
   return api.get(ENDPOINTS.KITCHEN.DISTRICT_NUTRITION_PLANS);
 };
 
+export const getDistrictNutritionPlanDetail = (id) => {
+  return api.get(`${ENDPOINTS.KITCHEN.DISTRICT_NUTRITION_PLANS}/${id}`);
+};
+
 export const createDistrictNutritionPlan = (formData) => {
   return api.postFormData(ENDPOINTS.KITCHEN.DISTRICT_NUTRITION_PLANS, formData);
 };
 
 export const updateDistrictNutritionPlan = (id, formData) => {
   return api.putFormData(`${ENDPOINTS.KITCHEN.DISTRICT_NUTRITION_PLANS}/${id}`, formData);
+};
+
+export const updateScheduledDistrictNutritionPlan = (id, formData) => {
+  return api.putFormData(`${ENDPOINTS.KITCHEN.DISTRICT_NUTRITION_PLANS}/${id}/scheduled`, formData);
+};
+
+export const applyScheduledDistrictNutritionPlanNow = (id) => {
+  return api.patch(`${ENDPOINTS.KITCHEN.DISTRICT_NUTRITION_PLANS}/${id}/apply-now`, {});
+};
+
+export const deleteScheduledDistrictNutritionPlan = (id) => {
+  return api.delete(`${ENDPOINTS.KITCHEN.DISTRICT_NUTRITION_PLANS}/${id}/scheduled`);
 };
 
 export const endDistrictNutritionPlan = (id) => {

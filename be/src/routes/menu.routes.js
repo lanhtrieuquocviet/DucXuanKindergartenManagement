@@ -112,6 +112,12 @@ router.get(
   authorizeAnyPermission("APPROVE_MENU", "MANAGE_MENU"),
   districtNutritionPlanController.listDistrictNutritionPlans
 );
+router.get(
+  "/district-nutrition-plans/:id",
+  authenticate,
+  authorizeAnyPermission("APPROVE_MENU", "MANAGE_MENU"),
+  districtNutritionPlanController.getDistrictNutritionPlanDetail
+);
 router.post(
   "/district-nutrition-plans",
   authenticate,
@@ -131,6 +137,25 @@ router.put(
   authorizePermissions("APPROVE_MENU"),
   nutritionUploadOptional,
   districtNutritionPlanController.updateDistrictNutritionPlan
+);
+router.put(
+  "/district-nutrition-plans/:id/scheduled",
+  authenticate,
+  authorizePermissions("APPROVE_MENU"),
+  nutritionUploadOptional,
+  districtNutritionPlanController.updateScheduledDistrictPlan
+);
+router.patch(
+  "/district-nutrition-plans/:id/apply-now",
+  authenticate,
+  authorizePermissions("APPROVE_MENU"),
+  districtNutritionPlanController.applyScheduledDistrictPlanNow
+);
+router.delete(
+  "/district-nutrition-plans/:id/scheduled",
+  authenticate,
+  authorizePermissions("APPROVE_MENU"),
+  districtNutritionPlanController.deleteScheduledDistrictPlan
 );
 router.patch(
   "/district-nutrition-plans/:id/end",
