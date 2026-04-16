@@ -23,6 +23,14 @@ function TeacherTeam() {
         Tận tâm, yêu trẻ và tuyệt đối tôn trọng đạo đức nghề nghiệp.
       </p>
 
+      <div className="mb-6 sm:mb-8">
+        <img
+          src="/images/introduce-school-team.png"
+          alt="Tập thể giáo viên Trường Mầm non Đức Xuân"
+          className="w-full rounded-xl border border-gray-200 shadow-sm object-cover"
+        />
+      </div>
+
       {/* ===== NỘI DUNG ===== */}
       <div className="text-justify text-base leading-8 text-gray-800 space-y-6">
 

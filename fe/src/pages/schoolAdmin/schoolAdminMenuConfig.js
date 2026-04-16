@@ -40,7 +40,7 @@ export const SCHOOL_ADMIN_MENU_ITEMS = [
       { key: 'district-nutrition-plan', label: 'Kế hoạch dinh dưỡng theo sở', permission: 'APPROVE_MENU' },
     ],
   },
-  // { key: 'teachers', label: 'Giáo viên', permission: 'MANAGE_TEACHER' },
+  { key: 'teachers', label: 'Giáo viên', permission: 'MANAGE_TEACHER' },
   {
     key: 'assets',
     label: 'Quản lý cơ sở vật chất',

@@ -526,6 +526,7 @@ export const ENDPOINTS = {
     CONTACT_BOOK_MY:         '/students/contact-book/my',
     CONTACT_BOOK_HEALTH:     '/students/contact-book/health',
     CONTACT_BOOK_ATTENDANCE: '/students/contact-book/attendance',
+    CONTACT_BOOK_TODAY_MENU: '/students/contact-book/today-menu',
     CONTACT_BOOK_NOTES:      '/students/contact-book/notes',
     UPDATE: (studentId) => `/students/${studentId}`,
     DELETE: (studentId) => `/students/${studentId}`,

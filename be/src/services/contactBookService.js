@@ -194,11 +194,20 @@ exports.getTodayMenu = async (req, res) => {
     const weekNum = getISOWeek(today);
     const weekType = weekNum % 2 === 1 ? 'odd' : 'even';
 
-    // Tìm menu tháng này đã được duyệt/đang áp dụng
-    const menu = await Menu.findOne({
-      month, year,
+    // Tìm menu tháng này: ưu tiên menu đang áp dụng (active) trước.
+    const candidateMenus = await Menu.find({
+      month,
+      year,
       status: { $in: ['approved', 'active', 'completed'] },
-    }).lean();
+    })
+      .sort({ updatedAt: -1, createdAt: -1 })
+      .lean();
+
+    const menu =
+      candidateMenus.find((m) => m.status === 'active') ||
+      candidateMenus.find((m) => m.status === 'approved') ||
+      candidateMenus.find((m) => m.status === 'completed') ||
+      null;
 
     if (!menu) {
       return res.json({ status: 'success', data: null, message: `Chưa có thực đơn tháng ${month}/${year} được duyệt` });

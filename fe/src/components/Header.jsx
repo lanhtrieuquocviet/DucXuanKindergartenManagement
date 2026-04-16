@@ -414,7 +414,7 @@ function Header() {
                             <a href="/legal-documents" className="block px-3 py-2 rounded-lg hover:bg-green-50 text-gray-800" onClick={() => setMobileOpen(false)}>Văn bản</a>
                             <a href="/photo-gallery" className="block px-3 py-2 rounded-lg hover:bg-green-50 text-gray-800" onClick={() => setMobileOpen(false)}>Thư viện</a>
                             <a href="/contact" className="block px-3 py-2 rounded-lg hover:bg-green-50 text-gray-800" onClick={() => setMobileOpen(false)}>Liên hệ</a>
-                            <a href="/qa" className="block px-3 py-2 rounded-lg hover:bg-green-50 text-gray-800" onClick={() => setMobileOpen(false)}>Hỏi đáp</a>
+                            {/* <a href="/qa" className="block px-3 py-2 rounded-lg hover:bg-green-50 text-gray-800" onClick={() => setMobileOpen(false)}>Hỏi đáp</a> */}
                         </div>
 
                         <div className="px-4 pb-6 space-y-6">

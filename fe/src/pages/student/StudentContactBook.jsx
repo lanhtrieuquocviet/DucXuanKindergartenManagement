@@ -268,9 +268,12 @@ function TabThucDon() {
   const [message, setMessage] = useState('');
 
   useEffect(() => {
-    get(ENDPOINTS.TEACHER.CONTACT_BOOK_TODAY_MENU)
+    get(ENDPOINTS.STUDENTS.CONTACT_BOOK_TODAY_MENU)
       .then(res => { setData(res.data || null); setMessage(res.message || ''); })
-      .catch(() => setData(null))
+      .catch((err) => {
+        setData(null);
+        setMessage(err?.message || 'Không tải được thực đơn hôm nay');
+      })
       .finally(() => setLoading(false));
   }, []);
 

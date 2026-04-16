@@ -1,7 +1,7 @@
 import { useEffect, useState, useRef } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
-import { ENDPOINTS, get, put } from '../service/api';
+import { ENDPOINTS, postFormData } from '../service/api';
 import {
   Box, Button, TextField, Typography, Paper, Chip,
   CircularProgress, Stack, Avatar, IconButton,
@@ -54,7 +54,19 @@ function SectionCard({ icon, title, accentGradient, children }) {
   );
 }
 
-function ProfileForm({ color = 'primary', profileForm, onProfileChange, onSubmit, savingProfile, currentAvatar }) {
+function ProfileForm({
+  color = 'primary',
+  profileForm,
+  onProfileChange,
+  onSubmit,
+  savingProfile,
+  currentAvatar,
+  canEditAvatar = false,
+  onAvatarSelect,
+  uploadingAvatar = false,
+}) {
+  const avatarInputRef = useRef(null);
+
   return (
     <Stack component="form" onSubmit={onSubmit} spacing={2.5}>
       <TextField
@@ -90,7 +102,36 @@ function ProfileForm({ color = 'primary', profileForm, onProfileChange, onSubmit
           <Box sx={{ width: 80, aspectRatio: '3/4', borderRadius: 2, overflow: 'hidden', border: '2px solid', borderColor: 'divider', bgcolor: 'grey.100' }}>
             <img src={currentAvatar} alt="avatar" style={{ width: '100%', height: '100%', objectFit: 'cover', display: 'block' }} />
           </Box>
-          <Typography variant="body2" color="text.secondary" sx={{ maxWidth: 420 }}>Ảnh đại diện chỉ hiển thị, không thể chỉnh sửa trong trang này.</Typography>
+          <Stack spacing={0.5}>
+            {canEditAvatar ? (
+              <>
+                <Button
+                  variant="outlined"
+                  color={color}
+                  size="small"
+                  disabled={uploadingAvatar}
+                  onClick={() => avatarInputRef.current?.click()}
+                  sx={{ width: 'fit-content', borderRadius: 2, textTransform: 'none', fontWeight: 700 }}
+                >
+                  {uploadingAvatar ? 'Đang tải ảnh...' : 'Đổi ảnh đại diện'}
+                </Button>
+                <Typography variant="body2" color="text.secondary" sx={{ maxWidth: 420 }}>
+                  Chọn ảnh JPG/PNG dưới 5MB. Ảnh sẽ được áp dụng khi bạn bấm "Lưu thay đổi".
+                </Typography>
+                <input
+                  ref={avatarInputRef}
+                  type="file"
+                  hidden
+                  accept="image/png,image/jpeg,image/jpg"
+                  onChange={onAvatarSelect}
+                />
+              </>
+            ) : (
+              <Typography variant="body2" color="text.secondary" sx={{ maxWidth: 420 }}>
+                Ảnh đại diện chỉ hiển thị, không thể chỉnh sửa trong trang này.
+              </Typography>
+            )}
+          </Stack>
         </Box>
       </Box>
       <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5 }}>
@@ -198,9 +239,11 @@ function Profile() {
   const [showNewPassword, setShowNewPassword] = useState(false);
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
   const [profileFormLoading, setProfileFormLoading] = useState(false);
+  const [uploadingAvatar, setUploadingAvatar] = useState(false);
   const hasLoadedProfileRef = useRef(false);
   const hasUserEditedRef = useRef(false);
   const forceChangePassword = new URLSearchParams(location.search).get('forceChangePassword') === '1';
+  const canEditParentAvatar = userRoles.includes('Parent') || userRoles.includes('StudentParent');
 
   useEffect(() => {
     if (forceChangePassword) {
@@ -259,10 +302,43 @@ function Profile() {
         email: profileForm.email.trim(),
         phone: profileForm.phone.trim(),
         address: profileForm.address.trim(),
+        avatar: profileForm.avatar || '',
       });
       toast.success('Cập nhật hồ sơ thành công.');
     } catch (err) { toast.error(err.message || 'Cập nhật thất bại'); }
     finally { setSavingProfile(false); }
+  };
+
+  const handleAvatarSelect = async (e) => {
+    const file = e.target.files?.[0];
+    e.target.value = '';
+    if (!file) return;
+    if (!/^image\/(png|jpe?g)$/i.test(file.type)) {
+      toast.error('Chỉ hỗ trợ ảnh JPG/PNG.');
+      return;
+    }
+    if (file.size > 5 * 1024 * 1024) {
+      toast.error('Ảnh vượt quá 5MB.');
+      return;
+    }
+
+    setUploadingAvatar(true);
+    try {
+      const formData = new FormData();
+      formData.append('avatar', file);
+      const uploadRes = await postFormData(ENDPOINTS.CLOUDINARY.UPLOAD_AVATAR, formData);
+      const avatarUrl = uploadRes?.data?.url || uploadRes?.url || '';
+      if (!avatarUrl) {
+        throw new Error('Không lấy được đường dẫn ảnh.');
+      }
+      hasUserEditedRef.current = true;
+      setProfileForm((prev) => ({ ...prev, avatar: avatarUrl }));
+      toast.success('Đã tải ảnh lên. Nhấn "Lưu thay đổi" để cập nhật hồ sơ.');
+    } catch (err) {
+      toast.error(err?.message || 'Tải ảnh thất bại.');
+    } finally {
+      setUploadingAvatar(false);
+    }
   };
 
   const handleSubmitPassword = async (e) => {
@@ -312,7 +388,17 @@ function Profile() {
         />
         <Box sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr', lg: '1fr 1fr' }, gap: 3 }}>
           <SectionCard icon={<PersonOutlineIcon sx={{ color: 'white' }} />} title="Chỉnh sửa hồ sơ" accentGradient={isStudentRole ? "linear-gradient(135deg, #059669 0%, #0d9488 100%)" : "linear-gradient(135deg, #4f46e5 0%, #7c3aed 100%)"}>
-            <ProfileForm color={isStudentRole ? "success" : "primary"} profileForm={profileForm} onProfileChange={handleProfileChange} onSubmit={handleSubmitProfile} savingProfile={savingProfile} currentAvatar={profileForm.avatar || DEFAULT_AVATAR} />
+            <ProfileForm
+              color={isStudentRole ? "success" : "primary"}
+              profileForm={profileForm}
+              onProfileChange={handleProfileChange}
+              onSubmit={handleSubmitProfile}
+              savingProfile={savingProfile}
+              currentAvatar={profileForm.avatar || DEFAULT_AVATAR}
+              canEditAvatar={canEditParentAvatar}
+              onAvatarSelect={handleAvatarSelect}
+              uploadingAvatar={uploadingAvatar}
+            />
           </SectionCard>
           <SectionCard icon={<LockOutlinedIcon sx={{ color: 'white' }} />} title="Đổi mật khẩu" accentGradient="linear-gradient(135deg, #f59e0b 0%, #f97316 100%)">
             <PasswordForm passwordForm={passwordForm} onPasswordChange={(e) => setPasswordForm({...passwordForm, [e.target.name]: e.target.value})} onSubmit={handleSubmitPassword} changingPassword={changingPassword} showCurrentPassword={showCurrentPassword} showNewPassword={showNewPassword} showConfirmPassword={showConfirmPassword} togglePasswordVisibility={togglePasswordVisibility} />
