@@ -28,6 +28,14 @@ function todayVN() {
   return dayjs().tz("Asia/Ho_Chi_Minh").format("YYYY-MM-DD");
 }
 
+function nowVN() {
+  return dayjs().tz("Asia/Ho_Chi_Minh");
+}
+
+function toVNDateStart(startDate) {
+  return dayjs.tz(`${startDate} 00:30`, "YYYY-MM-DD HH:mm", "Asia/Ho_Chi_Minh");
+}
+
 function parseItemsFromBody(raw) {
   if (Array.isArray(raw)) return raw;
   if (typeof raw === "string") {
@@ -74,14 +82,25 @@ async function safeUnlink(storedName) {
 }
 
 exports.autoArchiveExpiredDistrictPlans = async () => {
-  const today = todayVN();
-  await DistrictNutritionPlan.updateMany(
-    {
-      status: "active",
-      endDate: { $ne: null, $lt: today },
-    },
-    { $set: { status: "archived", archivedAt: new Date() } }
-  );
+  const now = nowVN();
+  const today = now.format("YYYY-MM-DD");
+  let active = await DistrictNutritionPlan.findOne({ status: "active" }).sort({ startAt: -1, _id: -1 });
+  const duePlans = await DistrictNutritionPlan.find({
+    status: "scheduled",
+    startAt: { $ne: null, $lte: now.toDate() },
+  }).sort({ startAt: 1, _id: 1 });
+
+  for (const nextPlan of duePlans) {
+    if (active && String(active._id) !== String(nextPlan._id)) {
+      active.status = "archived";
+      active.endDate = today;
+      active.archivedAt = now.toDate();
+      await active.save();
+    }
+    nextPlan.status = "active";
+    await nextPlan.save();
+    active = nextPlan;
+  }
 };
 
 exports.listDistrictNutritionPlans = async (req, res) => {
@@ -91,13 +110,17 @@ exports.listDistrictNutritionPlans = async (req, res) => {
       .sort({ startDate: -1 })
       .populate("createdBy", "fullName username")
       .lean();
+    const upcoming = await DistrictNutritionPlan.find({ status: "scheduled" })
+      .sort({ startAt: 1, _id: 1 })
+      .populate("createdBy", "fullName username")
+      .lean();
     const history = await DistrictNutritionPlan.find({ status: "archived" })
       .sort({ archivedAt: -1, updatedAt: -1, endDate: -1, _id: -1 })
       .populate("createdBy", "fullName username")
       .lean();
     return res.json({
       success: true,
-      data: { active, history },
+      data: { active, upcoming, history },
     });
   } catch (error) {
     return res.status(500).json({ success: false, message: error.message });
@@ -123,23 +146,6 @@ exports.createDistrictNutritionPlan = async (req, res) => {
   try {
     await exports.autoArchiveExpiredDistrictPlans();
 
-    const existing = await DistrictNutritionPlan.findOne({ status: "active" });
-    if (existing) {
-      const today = todayVN();
-      const prevStart = String(existing.startDate || "").trim();
-      if (!DATE_RE.test(prevStart) || today <= prevStart) {
-        return res.status(400).json({
-          success: false,
-          message:
-            "Chưa thể tạo kế hoạch mới thay thế: ngày bắt đầu phiên bản hiện tại là hôm nay hoặc tương lai. Hãy dùng Cập nhật trên kế hoạch đang áp dụng hoặc thử lại vào ngày làm việc tiếp theo.",
-        });
-      }
-      existing.status = "archived";
-      existing.endDate = today;
-      existing.archivedAt = new Date();
-      await existing.save();
-    }
-
     const startDate = String(req.body?.startDate || "").trim();
     if (!DATE_RE.test(startDate)) {
       return res.status(400).json({
@@ -147,13 +153,16 @@ exports.createDistrictNutritionPlan = async (req, res) => {
         message: "Ngày bắt đầu áp dụng phải có định dạng YYYY-MM-DD",
       });
     }
-    const endDateRaw = String(req.body?.endDate || "").trim();
-    const endDate = endDateRaw || null;
-    if (!endDate || !DATE_RE.test(endDate) || endDate <= startDate) {
-      return res.status(400).json({
-        success: false,
-        message: "Ngày kết thúc áp dụng phải đúng định dạng YYYY-MM-DD và lớn hơn ngày bắt đầu",
-      });
+    const startAt = toVNDateStart(startDate);
+    if (!startAt.isValid()) {
+      return res.status(400).json({ success: false, message: "Thời điểm áp dụng không hợp lệ" });
+    }
+    const duplicateDate = await DistrictNutritionPlan.findOne({
+      status: { $in: ["active", "scheduled"] },
+      startDate,
+    }).lean();
+    if (duplicateDate) {
+      return res.status(400).json({ success: false, message: "Ngày này đã tồn tại" });
     }
 
     const items = normalizeItems(parseItemsFromBody(req.body?.items));
@@ -173,21 +182,39 @@ exports.createDistrictNutritionPlan = async (req, res) => {
       }
     }
 
-    let regulationFile = null;
-    if (req.file) {
-      await ensureUploadDir();
-      regulationFile = {
-        originalName: normalizeUploadedFileName(req.file.originalname),
-        storedName: req.file.filename,
-      };
+    if (!req.file) {
+      return res.status(400).json({
+        success: false,
+        message: "Vui lòng tải lên tệp Word quy định sở",
+      });
     }
+
+    await ensureUploadDir();
+    const regulationFile = {
+      originalName: normalizeUploadedFileName(req.file.originalname),
+      storedName: req.file.filename,
+    };
+
+    const now = nowVN();
+    const existing = await DistrictNutritionPlan.findOne({ status: "active" }).sort({ startAt: -1, _id: -1 });
+    if (existing && !startAt.isAfter(now)) {
+      return res.status(400).json({
+        success: false,
+        message: "Kế hoạch sắp tới phải có thời điểm bắt đầu trong tương lai",
+      });
+    }
+    const nextStatus = existing
+      ? "scheduled"
+      : (startAt.isAfter(now) ? "scheduled" : "active");
 
     const plan = await DistrictNutritionPlan.create({
       items,
       startDate,
-      endDate,
+      startTime: "00:30",
+      startAt: startAt.toDate(),
+      endDate: null,
       regulationFile,
-      status: "active",
+      status: nextStatus,
       createdBy: req.user?._id || null,
     });
 
@@ -197,7 +224,7 @@ exports.createDistrictNutritionPlan = async (req, res) => {
 
     return res.status(201).json({
       success: true,
-      message: "Đã tạo kế hoạch dinh dưỡng theo sở",
+      message: nextStatus === "scheduled" ? "Đã tạo kế hoạch sắp tới" : "Đã tạo kế hoạch dinh dưỡng theo sở",
       data: populated,
     });
   } catch (error) {
@@ -263,22 +290,6 @@ exports.updateDistrictNutritionPlan = async (req, res) => {
       items = next;
     }
 
-    const scheduledEnd =
-      req.body?.endDate != null
-        ? String(req.body.endDate).trim()
-        : String(plan.endDate || "").trim();
-    if (
-      !scheduledEnd ||
-      !DATE_RE.test(scheduledEnd) ||
-      scheduledEnd <= startDate
-    ) {
-      return res.status(400).json({
-        success: false,
-        message:
-          "Kế hoạch đang áp dụng không có ngày kết thúc hợp lệ. Vui lòng tạo kế hoạch mới (có khoảng ngày bắt đầu – kết thúc) để thay thế.",
-      });
-    }
-
     let regulationFile = plan.regulationFile?.storedName
       ? {
           originalName: plan.regulationFile.originalName || "",
@@ -293,47 +304,18 @@ exports.updateDistrictNutritionPlan = async (req, res) => {
       };
     }
 
-    const supersedeDay = todayVN();
-    const prevStart = String(plan.startDate || "").trim();
-    if (!DATE_RE.test(prevStart)) {
-      return res.status(400).json({
-        success: false,
-        message: "Ngày bắt đầu của kế hoạch hiện tại không hợp lệ",
-      });
-    }
-
-    // Nếu kế hoạch chưa bắt đầu (startDate hôm nay hoặc tương lai) thì cho sửa trực tiếp,
-    // không tạo phiên bản lịch sử vì chưa có giai đoạn áp dụng thực tế.
-    if (supersedeDay <= prevStart) {
-      const oldName = plan.regulationFile?.storedName;
-      plan.startDate = startDate;
-      plan.endDate = scheduledEnd;
-      plan.items = items;
-      plan.regulationFile = regulationFile;
-      await plan.save();
-      if (req.file && oldName && oldName !== req.file.filename) {
-        await safeUnlink(oldName);
-      }
-
-      const populated = await DistrictNutritionPlan.findById(plan._id)
-        .populate("createdBy", "fullName username")
-        .lean();
-      return res.json({
-        success: true,
-        message: "Đã cập nhật kế hoạch",
-        data: populated,
-      });
-    }
-
+    const now = nowVN();
     plan.status = "archived";
-    plan.endDate = supersedeDay;
-    plan.archivedAt = new Date();
+    plan.endDate = now.format("YYYY-MM-DD");
+    plan.archivedAt = now.toDate();
     await plan.save();
 
     const created = await DistrictNutritionPlan.create({
       items,
       startDate,
-      endDate: scheduledEnd,
+      startTime: plan.startTime || "00:30",
+      startAt: now.toDate(),
+      endDate: null,
       regulationFile,
       status: "active",
       createdBy: req.user?._id || null,
@@ -345,13 +327,129 @@ exports.updateDistrictNutritionPlan = async (req, res) => {
 
     return res.json({
       success: true,
-      message: "Đã cập nhật kế hoạch; phiên bản trước đó đã được lưu vào lịch sử",
+      message: "Đã cập nhật kế hoạch; phiên bản trước đã được lưu vào lịch sử",
       data: populated,
     });
   } catch (error) {
     if (req.file?.filename) {
       await safeUnlink(req.file.filename);
     }
+    return res.status(500).json({ success: false, message: error.message });
+  }
+};
+
+exports.applyScheduledDistrictPlanNow = async (req, res) => {
+  try {
+    await exports.autoArchiveExpiredDistrictPlans();
+    const scheduled = await DistrictNutritionPlan.findById(req.params.id);
+    if (!scheduled) return res.status(404).json({ success: false, message: "Không tìm thấy kế hoạch" });
+    if (scheduled.status !== "scheduled") {
+      return res.status(400).json({ success: false, message: "Chỉ áp dụng ngay cho kế hoạch sắp tới" });
+    }
+
+    const now = nowVN();
+    const active = await DistrictNutritionPlan.findOne({ status: "active" }).sort({ startAt: -1, _id: -1 });
+    if (active && String(active._id) !== String(scheduled._id)) {
+      active.status = "archived";
+      active.endDate = now.format("YYYY-MM-DD");
+      active.archivedAt = now.toDate();
+      await active.save();
+    }
+
+    scheduled.status = "active";
+    scheduled.startDate = now.format("YYYY-MM-DD");
+    scheduled.startTime = now.format("HH:mm");
+    scheduled.startAt = now.toDate();
+    await scheduled.save();
+
+    const populated = await DistrictNutritionPlan.findById(scheduled._id)
+      .populate("createdBy", "fullName username")
+      .lean();
+    return res.json({ success: true, message: "Đã áp dụng kế hoạch ngay lập tức", data: populated });
+  } catch (error) {
+    return res.status(500).json({ success: false, message: error.message });
+  }
+};
+
+exports.updateScheduledDistrictPlan = async (req, res) => {
+  try {
+    await exports.autoArchiveExpiredDistrictPlans();
+    const plan = await DistrictNutritionPlan.findById(req.params.id);
+    if (!plan) return res.status(404).json({ success: false, message: "Không tìm thấy kế hoạch" });
+    if (plan.status !== "scheduled") {
+      return res.status(400).json({ success: false, message: "Chỉ có thể chỉnh sửa kế hoạch sắp tới" });
+    }
+
+    const startDate = req.body?.startDate != null ? String(req.body.startDate).trim() : plan.startDate;
+    if (!DATE_RE.test(startDate)) {
+      return res.status(400).json({ success: false, message: "Ngày bắt đầu áp dụng phải có định dạng YYYY-MM-DD" });
+    }
+    const startAt = toVNDateStart(startDate);
+    if (!startAt.isValid()) return res.status(400).json({ success: false, message: "Thời điểm áp dụng không hợp lệ" });
+    if (!startAt.isAfter(nowVN())) {
+      return res.status(400).json({ success: false, message: "Kế hoạch sắp tới phải có thời điểm bắt đầu trong tương lai" });
+    }
+    const duplicateDate = await DistrictNutritionPlan.findOne({
+      _id: { $ne: plan._id },
+      status: { $in: ["active", "scheduled"] },
+      startDate,
+    }).lean();
+    if (duplicateDate) {
+      return res.status(400).json({ success: false, message: "Ngày này đã tồn tại" });
+    }
+
+    let items = plan.items;
+    if (req.body?.items != null) {
+      const next = normalizeItems(parseItemsFromBody(req.body.items));
+      if (!next.length) {
+        return res.status(400).json({ success: false, message: "Danh sách chỉ tiêu dinh dưỡng không hợp lệ" });
+      }
+      for (const item of next) {
+        if (item.min < 0 || item.max < 0 || item.max <= item.min) {
+          return res.status(400).json({ success: false, message: `Chỉ tiêu "${item.name}" có min/max không hợp lệ` });
+        }
+      }
+      items = next;
+    }
+
+    const oldName = plan.regulationFile?.storedName;
+    plan.startDate = startDate;
+    plan.startTime = "00:30";
+    plan.startAt = startAt.toDate();
+    plan.items = items;
+    if (req.file) {
+      await ensureUploadDir();
+      plan.regulationFile = {
+        originalName: normalizeUploadedFileName(req.file.originalname),
+        storedName: req.file.filename,
+      };
+    }
+    await plan.save();
+    if (req.file && oldName && oldName !== req.file.filename) await safeUnlink(oldName);
+
+    const populated = await DistrictNutritionPlan.findById(plan._id)
+      .populate("createdBy", "fullName username")
+      .lean();
+    return res.json({ success: true, message: "Đã cập nhật kế hoạch sắp tới", data: populated });
+  } catch (error) {
+    if (req.file?.filename) await safeUnlink(req.file.filename);
+    return res.status(500).json({ success: false, message: error.message });
+  }
+};
+
+exports.deleteScheduledDistrictPlan = async (req, res) => {
+  try {
+    await exports.autoArchiveExpiredDistrictPlans();
+    const plan = await DistrictNutritionPlan.findById(req.params.id);
+    if (!plan) return res.status(404).json({ success: false, message: "Không tìm thấy kế hoạch" });
+    if (plan.status !== "scheduled") {
+      return res.status(400).json({ success: false, message: "Chỉ có thể xóa kế hoạch sắp tới" });
+    }
+    const oldName = plan.regulationFile?.storedName;
+    await DistrictNutritionPlan.deleteOne({ _id: plan._id });
+    if (oldName) await safeUnlink(oldName);
+    return res.json({ success: true, message: "Đã xóa kế hoạch sắp tới" });
+  } catch (error) {
     return res.status(500).json({ success: false, message: error.message });
   }
 };
