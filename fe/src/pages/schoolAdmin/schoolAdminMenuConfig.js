@@ -144,3 +144,5 @@ export const createSchoolAdminMenuSelect = (navigate) => (key) => {
   };
   if (routes[key]) navigate(routes[key], { preventScrollReset: true });
 };
+
+
