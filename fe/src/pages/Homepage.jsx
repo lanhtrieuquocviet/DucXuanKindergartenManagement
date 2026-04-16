@@ -302,23 +302,46 @@ function Homepage() {
         </div>
       </section>
 
-      <section className="mt-8">
-        <h2 className="mb-4 text-2xl font-bold text-emerald-900 sm:text-3xl">Đội ngũ giáo viên</h2>
+      <section className="mt-10 rounded-3xl border border-emerald-100 bg-gradient-to-b from-emerald-50/60 to-white p-5 sm:p-6">
+        <div className="mb-5 flex flex-wrap items-end justify-between gap-3">
+          <div>
+            <p className="mb-1 text-xs font-bold uppercase tracking-[0.16em] text-emerald-600">Đồng hành cùng bé mỗi ngày</p>
+            <h2 className="text-2xl font-bold text-emerald-900 sm:text-3xl">Đội ngũ giáo viên</h2>
+            <p className="mt-2 max-w-2xl text-sm leading-6 text-slate-600 sm:text-base">
+              Những thầy cô tận tâm, được đào tạo chuyên môn bài bản và luôn phối hợp chặt chẽ cùng phụ huynh
+              trong quá trình phát triển của trẻ.
+            </p>
+          </div>
+        </div>
+
         <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
           {teacherTeam.map((teacher, index) => (
-            <article key={teacher.id || `${teacher.name}-${index}`} className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm transition hover:-translate-y-0.5 hover:shadow-md">
-              <div className="mb-3 aspect-[3/4] overflow-hidden rounded-xl bg-slate-100">
+            <article
+              key={teacher.id || `${teacher.name}-${index}`}
+              className="group overflow-hidden rounded-2xl border border-emerald-100 bg-white p-3 shadow-sm transition duration-300 hover:-translate-y-1 hover:shadow-lg"
+            >
+              <div className="relative mb-3 aspect-[3/4] overflow-hidden rounded-xl bg-slate-100">
                 <img
                   src={teacher.avatar || DEFAULT_TEACHER_AVATAR}
                   alt={teacher.name}
-                  className="h-full w-full object-cover"
+                  className="h-full w-full object-cover transition duration-500 group-hover:scale-105"
                 />
+                <span className="absolute left-2 top-2 rounded-full bg-emerald-800/90 px-2.5 py-1 text-[11px] font-semibold text-white backdrop-blur">
+                  {teacher.role || 'Giáo viên'}
+                </span>
               </div>
-              <h3 className="mb-1 font-bold text-emerald-900">{teacher.name}</h3>
-              <p className="mb-1 text-sm text-slate-600"><strong>Vai trò:</strong> {teacher.role}</p>
-              <p className="text-sm text-slate-600"><strong>Chuyên môn:</strong> {teacher.specialty}</p>
+              <h3 className="line-clamp-1 text-base font-bold text-emerald-900">{teacher.name}</h3>
+              <p className="mt-2 min-h-[54px] text-sm leading-6 text-slate-600">
+                <strong>Chuyên môn:</strong> {teacher.specialty}
+              </p>
             </article>
           ))}
+          {teacherTeam.length === 0 && (
+            <article className="rounded-2xl border border-slate-200 bg-white p-5 text-slate-600 shadow-sm sm:col-span-2 xl:col-span-4">
+              <h3 className="mb-2 font-bold text-emerald-900">Chưa có thông tin giáo viên</h3>
+              <p>Nhà trường sẽ cập nhật hồ sơ đội ngũ giáo viên trong thời gian sớm nhất.</p>
+            </article>
+          )}
         </div>
       </section>
 

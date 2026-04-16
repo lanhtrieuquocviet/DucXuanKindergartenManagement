@@ -195,6 +195,23 @@ function ManageAcademicYears() {
       if (new Date(createForm.startDate) >= new Date(createForm.endDate))
         errors.endDate = 'Ngày kết thúc phải sau ngày bắt đầu';
     }
+    if (createForm.startDate && createForm.endDate) {
+      const yearStart = new Date(createForm.startDate);
+      const yearEnd = new Date(createForm.endDate);
+      const termDateChecks = [
+        ['term1StartDate', createForm.term1StartDate, 'Ngày bắt đầu kỳ 1'],
+        ['term1EndDate', createForm.term1EndDate, 'Ngày kết thúc kỳ 1'],
+        ['term2StartDate', createForm.term2StartDate, 'Ngày bắt đầu kỳ 2'],
+        ['term2EndDate', createForm.term2EndDate, 'Ngày kết thúc kỳ 2'],
+      ];
+      termDateChecks.forEach(([field, value, label]) => {
+        if (!value) return;
+        const dateValue = new Date(value);
+        if (dateValue < yearStart || dateValue > yearEnd) {
+          errors[field] = `${label} phải nằm trong khoảng thời gian năm học`;
+        }
+      });
+    }
     if (createForm.term1StartDate && createForm.term1EndDate) {
       if (new Date(createForm.term1StartDate) >= new Date(createForm.term1EndDate))
         errors.term1EndDate = 'Ngày kết thúc kỳ 1 phải sau ngày bắt đầu kỳ 1';
@@ -551,6 +568,7 @@ function ManageAcademicYears() {
                     error={!!createErrors.startDate} helperText={createErrors.startDate} />
                   <TextField label="Ngày kết thúc *" type="date" InputLabelProps={{ shrink: true }} fullWidth size="small"
                     value={createForm.endDate} onChange={(e) => setCreateForm((p) => ({ ...p, endDate: e.target.value }))}
+                    inputProps={{ min: createForm.startDate || undefined }}
                     error={!!createErrors.endDate} helperText={createErrors.endDate} />
                 </Stack>
 
@@ -569,9 +587,17 @@ function ManageAcademicYears() {
                       <Stack direction={{ xs: 'column', sm: 'row' }} spacing={2}>
                         <TextField label="Ngày bắt đầu kỳ 1 *" type="date" InputLabelProps={{ shrink: true }} fullWidth size="small"
                           value={createForm.term1StartDate} onChange={(e) => setCreateForm((p) => ({ ...p, term1StartDate: e.target.value }))}
+                          inputProps={{
+                            min: createForm.startDate || undefined,
+                            max: createForm.endDate || undefined,
+                          }}
                           error={!!createErrors.term1StartDate} helperText={createErrors.term1StartDate} />
                         <TextField label="Ngày kết thúc kỳ 1 *" type="date" InputLabelProps={{ shrink: true }} fullWidth size="small"
                           value={createForm.term1EndDate} onChange={(e) => setCreateForm((p) => ({ ...p, term1EndDate: e.target.value }))}
+                          inputProps={{
+                            min: createForm.term1StartDate || createForm.startDate || undefined,
+                            max: createForm.endDate || undefined,
+                          }}
                           error={!!createErrors.term1EndDate} helperText={createErrors.term1EndDate} />
                       </Stack>
                     </Paper>
@@ -580,9 +606,17 @@ function ManageAcademicYears() {
                       <Stack direction={{ xs: 'column', sm: 'row' }} spacing={2}>
                         <TextField label="Ngày bắt đầu kỳ 2 *" type="date" InputLabelProps={{ shrink: true }} fullWidth size="small"
                           value={createForm.term2StartDate} onChange={(e) => setCreateForm((p) => ({ ...p, term2StartDate: e.target.value }))}
+                          inputProps={{
+                            min: createForm.startDate || undefined,
+                            max: createForm.endDate || undefined,
+                          }}
                           error={!!createErrors.term2StartDate} helperText={createErrors.term2StartDate} />
                         <TextField label="Ngày kết thúc kỳ 2 *" type="date" InputLabelProps={{ shrink: true }} fullWidth size="small"
                           value={createForm.term2EndDate} onChange={(e) => setCreateForm((p) => ({ ...p, term2EndDate: e.target.value }))}
+                          inputProps={{
+                            min: createForm.term2StartDate || createForm.startDate || undefined,
+                            max: createForm.endDate || undefined,
+                          }}
                           error={!!createErrors.term2EndDate} helperText={createErrors.term2EndDate} />
                       </Stack>
                     </Paper>

@@ -31,6 +31,12 @@ function SchoolAdminDashboard() {
     attendanceRows: [],
     questionTodayTotal: 0,
   });
+  const todayKey = useMemo(() => {
+    const yyyy = now.getFullYear();
+    const mm = String(now.getMonth() + 1).padStart(2, '0');
+    const dd = String(now.getDate()).padStart(2, '0');
+    return `${yyyy}-${mm}-${dd}`;
+  }, [now]);
 
   useEffect(() => {
     if (isInitializing) return;
@@ -60,12 +66,12 @@ function SchoolAdminDashboard() {
         const dd = String(today.getDate()).padStart(2, '0');
         const todayStr = `${yyyy}-${mm}-${dd}`;
 
-        const [studentsRes, classesRes, teachersRes, attendanceRes, questionsRes] = await Promise.all([
+        const [studentsRes, classesRes, teachersRes, attendanceRes, contactsRes] = await Promise.all([
           get(ENDPOINTS.STUDENTS.LIST),
           get(ENDPOINTS.CLASSES.LIST),
           get(ENDPOINTS.SCHOOL_ADMIN.TEACHERS),
           get(`${ENDPOINTS.SCHOOL_ADMIN.ATTENDANCE_OVERVIEW}?date=${todayStr}`),
-          get(ENDPOINTS.SCHOOL_ADMIN.QA_QUESTIONS),
+          get(ENDPOINTS.SCHOOL_ADMIN.CONTACTS),
         ]);
 
         const studentTotal = Number(studentsRes?.total ?? studentsRes?.data?.length ?? 0);
@@ -106,7 +112,9 @@ function SchoolAdminDashboard() {
           };
         });
 
-        const questionRows = Array.isArray(questionsRes?.data) ? questionsRes.data : [];
+        const questionRows = Array.isArray(contactsRes?.data?.contacts)
+          ? contactsRes.data.contacts
+          : [];
         const questionTodayTotal = questionRows.filter((q) => {
           const created = q?.createdAt ? new Date(q.createdAt) : null;
           if (!created || Number.isNaN(created.getTime())) return false;
@@ -134,7 +142,7 @@ function SchoolAdminDashboard() {
     };
 
     fetchDashboardStats();
-  }, [isInitializing, user]);
+  }, [isInitializing, user, todayKey]);
 
   const userName = user?.fullName || user?.username || 'School Admin';
 
@@ -150,7 +158,6 @@ function SchoolAdminDashboard() {
       second: '2-digit',
     }).format(now);
   }, [now]);
-
   const statCards = [
     {
       label: 'Tổng học sinh',

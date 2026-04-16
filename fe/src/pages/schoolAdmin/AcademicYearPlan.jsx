@@ -456,8 +456,8 @@ export default function AcademicYearPlan() {
     <RoleLayout
       title={
         currentYear
-          ? `Danh sách chủ đề theo khối năm học ${currentYear.yearName}`
-          : 'Danh sách chủ đề theo khối năm học'
+          ? `Danh sách chủ đề theo khối lớp năm học ${currentYear.yearName}`
+          : 'Danh sách chủ đề theo khối lớp năm học'
       }
       description="Quản lý danh sách chủ đề theo từng khối lớp và chi tiết hoạt động theo tuần."
       menuItems={menuItems}
@@ -470,9 +470,28 @@ export default function AcademicYearPlan() {
     >
       <Stack spacing={3}>
         <Typography variant="overline" color="text.secondary">
-          MamNon DX &gt; Ban Giám Hiệu &gt; Quản lý Năm học &gt; Danh sách chủ đề theo khối năm học
+          MamNon DX &gt; Ban Giám Hiệu &gt; Quản lý Năm học &gt; Danh sách chủ đề theo khối lớp năm học
         </Typography>
 
+        {!loadingYear && !currentYear && (
+          <Paper
+            elevation={0}
+            sx={{
+              p: 3,
+              borderRadius: 2,
+              border: '1px dashed',
+              borderColor: '#a5b4fc',
+              bgcolor: '#eef2ff',
+            }}
+          >
+            <Typography variant="h6" fontWeight={700} sx={{ color: '#4338ca' }}>
+              Vui lòng hãy tạo năm học mới.
+            </Typography>
+          </Paper>
+        )}
+
+        {!!currentYear && (
+          <>
         <Paper
           elevation={0}
           sx={{
@@ -523,11 +542,6 @@ export default function AcademicYearPlan() {
               Đang tải thông tin năm học...
             </Typography>
           )}
-          {!loadingYear && !currentYear && (
-            <Typography variant="body2" color="error" mt={1.5}>
-              Chưa có năm học đang hoạt động. Vui lòng tạo năm học trước.
-            </Typography>
-          )}
         </Paper>
 
         <Paper
@@ -547,7 +561,7 @@ export default function AcademicYearPlan() {
             color="#1f3b5b"
             sx={{ mb: 2.5 }}
           >
-            DANH SÁCH CHỦ ĐỀ THEO KHỐI NĂM HỌC {currentYear?.yearName || '2025-2026'}
+            DANH SÁCH CHỦ ĐỀ THEO KHỐI LỚP NĂM HỌC {currentYear?.yearName || '2025-2026'}
           </Typography>
 
           <Tabs
@@ -582,7 +596,7 @@ export default function AcademicYearPlan() {
             color="#1f3b5b"
             sx={{ mb: 2 }}
           >
-            Khối {blocks.find((b) => b.key === activeBlock)?.label || ''}
+            Khối lớp {blocks.find((b) => b.key === activeBlock)?.label || ''}
           </Typography>
 
           <Button
@@ -696,6 +710,8 @@ export default function AcademicYearPlan() {
             </Button>
           </Box> */}
         </Paper>
+          </>
+        )}
       </Stack>
 
       <Dialog
