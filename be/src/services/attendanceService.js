@@ -144,6 +144,8 @@ const checkoutAttendance = async (req, res) => {
       checkoutBelongingsNote,
       checkoutBelongings,
       checkedOutByAI,
+      teacherConfirmedCheckout,
+      checkoutConfirmMethod,
       time,
       timeString,
       status,
@@ -191,6 +193,8 @@ const checkoutAttendance = async (req, res) => {
       'timeString.checkOut': checkOutTimeString,
       ...(Array.isArray(checkoutBelongings) && { checkoutBelongings }),
       ...(typeof checkedOutByAI === 'boolean' && { checkedOutByAI }),
+      ...(typeof teacherConfirmedCheckout === 'boolean' && { teacherConfirmedCheckout }),
+      ...(checkoutConfirmMethod !== undefined && { checkoutConfirmMethod: checkoutConfirmMethod || '' }),
     };
 
     if (classId) {

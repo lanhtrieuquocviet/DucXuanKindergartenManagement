@@ -12,6 +12,7 @@
  */
 
 import { useCallback, useEffect, useImperativeHandle, useRef, useState, forwardRef } from 'react';
+import { CameraOff, RefreshCw, Check } from 'lucide-react';
 import * as faceapi from '@vladmandic/face-api';
 import { useFaceApi, detectAndEmbed } from '../../hooks/useFaceApi';
 
@@ -213,13 +214,13 @@ const FaceCamera = forwardRef(function FaceCamera({ onDetected, onError, isActiv
       {/* Lỗi camera */}
       {cameraStatus === 'error' && (
         <div className="flex flex-col items-center justify-center h-64 bg-red-50 rounded-xl border border-red-200 px-4 text-center gap-3">
-          <span className="text-red-500 text-4xl">📷</span>
+          <CameraOff size={36} className="text-red-400" />
           <p className="text-red-600 font-medium text-sm">{cameraError}</p>
           <button
             onClick={() => startCamera().then(() => startDetectionLoop())}
-            className="px-4 py-1.5 bg-red-600 text-white text-xs font-semibold rounded-lg hover:bg-red-700"
+            className="px-4 py-1.5 bg-red-600 text-white text-xs font-semibold rounded-lg hover:bg-red-700 flex items-center gap-1.5"
           >
-            🔄 Thử lại
+            <RefreshCw size={13} /> Thử lại
           </button>
         </div>
       )}
@@ -261,7 +262,10 @@ const FaceCamera = forwardRef(function FaceCamera({ onDetected, onError, isActiv
               : 'bg-black/50 text-white'
           }`}
         >
-          {faceStatus === 'detected' ? '✓ Phát hiện khuôn mặt' : 'Đưa khuôn mặt vào khung hình'}
+          {faceStatus === 'detected'
+            ? <span className="flex items-center justify-center gap-1"><Check size={13} /> Phát hiện khuôn mặt</span>
+            : 'Đưa khuôn mặt vào khung hình'
+          }
         </div>
       </div>
     </div>

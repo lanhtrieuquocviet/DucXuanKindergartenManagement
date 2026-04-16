@@ -16,6 +16,7 @@
 
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { toast } from 'react-toastify';
+import { User, Camera, Check, AlertTriangle, XCircle, ClipboardList } from 'lucide-react';
 import FaceCamera from './FaceCamera';
 import {
   matchStudentFaceForCheckout,
@@ -150,7 +151,7 @@ export default function PickupFaceAttendanceModal({ open, onClose, classId, clas
 
                 {!matchResult && (
                   <div className="text-center text-gray-400 py-4 sm:py-6">
-                    <span className="text-3xl sm:text-4xl">🧒</span>
+                    <User size={40} className="mx-auto text-gray-300" />
                     <p className="text-sm mt-2">Đưa khuôn mặt học sinh vào camera</p>
                   </div>
                 )}
@@ -163,7 +164,9 @@ export default function PickupFaceAttendanceModal({ open, onClose, classId, clas
                           {matchResult.student?.avatar ? (
                             <img src={matchResult.student.avatar} alt="Ảnh hồ sơ" className="w-full h-full object-cover" />
                           ) : (
-                            <div className="w-full h-full flex items-center justify-center text-2xl sm:text-3xl">🧒</div>
+                            <div className="w-full h-full flex items-center justify-center">
+                              <User size={32} className="text-gray-400" />
+                            </div>
                           )}
                         </div>
                         <p className="text-xs text-gray-500">Hồ sơ</p>
@@ -173,15 +176,18 @@ export default function PickupFaceAttendanceModal({ open, onClose, classId, clas
                           {matchResult.capturedFrame ? (
                             <img src={matchResult.capturedFrame} alt="Ảnh vừa chụp" className="w-full h-full object-cover" />
                           ) : (
-                            <div className="w-full h-full flex items-center justify-center text-2xl sm:text-3xl">📷</div>
+                            <div className="w-full h-full flex items-center justify-center">
+                              <Camera size={32} className="text-gray-400" />
+                            </div>
                           )}
                         </div>
                         <p className="text-xs text-gray-500">Vừa chụp</p>
                       </div>
                     </div>
                     <p className="font-bold text-emerald-700 text-sm sm:text-base">{matchResult.student?.fullName}</p>
-                    <p className="text-xs text-emerald-600 mt-0.5">
-                      ✓ Nhận diện thành công — đang mở form điểm danh về...
+                    <p className="text-xs text-emerald-600 mt-0.5 flex items-center gap-1">
+                      <Check size={12} />
+                      Nhận diện thành công — đang mở form điểm danh về...
                     </p>
                   </div>
                 )}
@@ -195,14 +201,14 @@ export default function PickupFaceAttendanceModal({ open, onClose, classId, clas
 
                 {matchResult?.status === 'not_checked_in' && (
                   <div className="p-3 bg-orange-50 rounded-lg border border-orange-200">
-                    <p className="text-sm font-semibold text-orange-700">⚠ {matchResult.student?.fullName}</p>
+                    <p className="text-sm font-semibold text-orange-700 flex items-center gap-1"><AlertTriangle size={14} /> {matchResult.student?.fullName}</p>
                     <p className="text-xs text-orange-600 mt-1">{matchResult.message}</p>
                   </div>
                 )}
 
                 {matchResult?.status === 'no_match' && (
                   <div className="text-center py-4">
-                    <span className="text-3xl">❌</span>
+                    <XCircle size={32} className="mx-auto text-red-400" />
                     <p className="text-sm text-red-600 font-medium mt-2">Không nhận diện được khuôn mặt</p>
                     <p className="text-xs text-gray-400 mt-1">Học sinh chưa đăng ký khuôn mặt hoặc ảnh không rõ</p>
                   </div>
@@ -210,7 +216,7 @@ export default function PickupFaceAttendanceModal({ open, onClose, classId, clas
 
                 {matchResult?.status === 'ambiguous' && (
                   <div className="text-center py-4">
-                    <span className="text-3xl">⚠️</span>
+                    <AlertTriangle size={32} className="mx-auto text-orange-400" />
                     <p className="text-sm text-orange-600 font-medium mt-2">Khuôn mặt không rõ ràng</p>
                     {matchResult.candidates?.length > 0 ? (
                       <div className="mt-2 text-left">
@@ -237,7 +243,7 @@ export default function PickupFaceAttendanceModal({ open, onClose, classId, clas
 
                 {matchResult?.status === 'no_data' && (
                   <div className="text-center py-4 text-gray-400">
-                    <span className="text-3xl">📋</span>
+                    <ClipboardList size={32} className="mx-auto text-gray-300" />
                     <p className="text-sm mt-2">{matchResult.message}</p>
                   </div>
                 )}

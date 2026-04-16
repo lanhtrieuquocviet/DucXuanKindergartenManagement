@@ -14,6 +14,7 @@
 
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { toast } from 'react-toastify';
+import { User, Camera, Check, AlertTriangle, Circle } from 'lucide-react';
 import FaceCamera from './FaceCamera';
 import { matchFaceEmbedding, getClassEmbeddings, uploadAttendanceImage } from '../../service/faceAttendance.api';
 import { useOfflineSync } from '../../hooks/useOfflineSync';
@@ -201,11 +202,12 @@ export default function FaceAttendanceModal({ open, onClose, classId, className,
           </div>
           <div className="flex items-center gap-2 sm:gap-3">
             <span
-              className={`text-xs font-semibold px-2 py-0.5 rounded-full ${
+              className={`text-xs font-semibold px-2 py-0.5 rounded-full flex items-center gap-1 ${
                 isOnline ? 'bg-green-400 text-white' : 'bg-orange-400 text-white'
               }`}
             >
-              {isOnline ? '● Online' : '● Offline'}
+              <Circle size={8} className="fill-current" />
+              {isOnline ? 'Online' : 'Offline'}
             </span>
             <button
               onClick={onClose}
@@ -262,7 +264,7 @@ export default function FaceAttendanceModal({ open, onClose, classId, className,
 
                 {!matchResult && (
                   <div className="text-center text-gray-400 py-4 sm:py-6">
-                    <span className="text-3xl sm:text-4xl">👤</span>
+                    <User size={40} className="mx-auto text-gray-300" />
                     <p className="text-sm mt-2">Đưa khuôn mặt vào camera</p>
                   </div>
                 )}
@@ -275,7 +277,9 @@ export default function FaceAttendanceModal({ open, onClose, classId, className,
                           {matchResult.student?.avatar ? (
                             <img src={matchResult.student.avatar} alt="Ảnh hồ sơ" className="w-full h-full object-cover" />
                           ) : (
-                            <div className="w-full h-full flex items-center justify-center text-2xl sm:text-3xl">👦</div>
+                            <div className="w-full h-full flex items-center justify-center">
+                              <User size={32} className="text-gray-400" />
+                            </div>
                           )}
                         </div>
                         <p className="text-xs text-gray-500">Hồ sơ</p>
@@ -285,15 +289,18 @@ export default function FaceAttendanceModal({ open, onClose, classId, className,
                           {matchResult.capturedFrame ? (
                             <img src={matchResult.capturedFrame} alt="Ảnh vừa chụp" className="w-full h-full object-cover" />
                           ) : (
-                            <div className="w-full h-full flex items-center justify-center text-2xl sm:text-3xl">📷</div>
+                            <div className="w-full h-full flex items-center justify-center">
+                              <Camera size={32} className="text-gray-400" />
+                            </div>
                           )}
                         </div>
                         <p className="text-xs text-gray-500">Vừa chụp</p>
                       </div>
                     </div>
                     <p className="font-bold text-green-700 text-sm sm:text-base">{matchResult.student?.fullName}</p>
-                    <p className="text-xs text-green-600 mt-0.5">
-                      ✓ Nhận diện thành công — đang mở form điểm danh...
+                    <p className="text-xs text-green-600 mt-0.5 flex items-center gap-1">
+                      <Check size={12} />
+                      Nhận diện thành công — đang mở form điểm danh...
                     </p>
                   </div>
                 )}
@@ -318,7 +325,7 @@ export default function FaceAttendanceModal({ open, onClose, classId, className,
 
                 {matchResult?.status === 'ambiguous' && (
                   <div className="p-3 bg-orange-50 rounded-lg border border-orange-200 text-center">
-                    <p className="text-2xl mb-1">⚠️</p>
+                    <AlertTriangle size={22} className="mx-auto mb-1 text-orange-500" />
                     <p className="text-orange-700 font-medium text-sm">Khuôn mặt không rõ ràng</p>
                     {matchResult.candidates?.length > 0 ? (
                       <div className="mt-1 text-left">

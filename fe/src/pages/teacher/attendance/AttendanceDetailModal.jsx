@@ -369,8 +369,8 @@ function AttendanceDetailModal({
       throw new Error('Chỉ chấp nhận file ảnh (JPEG, PNG, GIF, WebP).');
     }
     const formData = new FormData();
-    formData.append('avatar', file);
-    const response = await postFormData(ENDPOINTS.CLOUDINARY.UPLOAD_AVATAR, formData);
+    formData.append('image', file);
+    const response = await postFormData(ENDPOINTS.CLOUDINARY.UPLOAD_ATTENDANCE_FILE, formData);
     const url = response?.data?.url;
     if (!url) throw new Error('Không nhận được đường dẫn ảnh từ server.');
     setDetailForm((prev) => ({ ...prev, [fieldName]: url }));
