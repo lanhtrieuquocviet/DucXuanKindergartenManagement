@@ -32,11 +32,6 @@ const gradeSchema = new mongoose.Schema({
     default: 0,
     min: 0,
   },
-  ageRange: {
-    type: String,
-    default: '',
-    trim: true,
-  },
   headTeacherId: {
     type: mongoose.Schema.Types.ObjectId,
     ref: 'Teacher',

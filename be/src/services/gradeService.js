@@ -2,7 +2,22 @@ const Grade = require('../models/Grade');
 const Classes = require('../models/Classes');
 const Student = require('../models/Student');
 const Teacher = require('../models/Teacher');
-const AcademicYear = require('../models/AcademicYear');
+
+function normalizeAgeLabel(minAge, maxAge) {
+  const min = Number(minAge);
+  const max = Number(maxAge);
+
+  if (Number.isFinite(min) && Number.isFinite(max) && min > 0 && max > 0) {
+    return `${min} - ${max}`;
+  }
+  if (Number.isFinite(min) && min > 0) {
+    return `${min}+`;
+  }
+  if (Number.isFinite(max) && max > 0) {
+    return `0 - ${max}`;
+  }
+  return '';
+}
 
 /**
  * GET /api/grades
@@ -10,6 +25,8 @@ const AcademicYear = require('../models/AcademicYear');
  */
 const listGrades = async (req, res) => {
   try {
+    await Grade.updateMany({ ageRange: { $exists: true } }, { $unset: { ageRange: '' } });
+
     const grades = await Grade.find().sort({ gradeName: 1 })
       .populate({ path: 'headTeacherId', populate: { path: 'userId', select: 'fullName' } })
       .lean();
@@ -43,6 +60,7 @@ const listGrades = async (req, res) => {
 
     const data = grades.map(g => ({
       ...g,
+      ageLabel: normalizeAgeLabel(g.minAge, g.maxAge),
       totalStudents: gradeStats[g._id.toString()]?.totalStudents || 0,
       teacherNames: gradeStats[g._id.toString()]
         ? [...gradeStats[g._id.toString()].teacherNames]
@@ -65,7 +83,7 @@ const listGrades = async (req, res) => {
  */
 const createGrade = async (req, res) => {
   try {
-    const { gradeName, description, maxClasses, minAge, maxAge, ageRange, headTeacherId } = req.body;
+    const { gradeName, description, maxClasses, minAge, maxAge, headTeacherId } = req.body;
 
     if (!gradeName || !String(gradeName).trim()) {
       return res.status(400).json({ status: 'error', message: 'Tên khối lớp không được để trống' });
@@ -109,13 +127,23 @@ const createGrade = async (req, res) => {
 
     const minAgeVal = minAge !== undefined ? Number(minAge) : 0;
     const maxAgeVal = maxAge !== undefined ? Number(maxAge) : 0;
-    const ageRangeVal = typeof ageRange === 'string' ? ageRange.trim() : '';
+    if (Number.isNaN(minAgeVal) || minAgeVal < 0) {
+      return res.status(400).json({ status: 'error', message: 'Độ tuổi tối thiểu không hợp lệ' });
+    }
+    if (Number.isNaN(maxAgeVal) || maxAgeVal < 0) {
+      return res.status(400).json({ status: 'error', message: 'Độ tuổi tối đa không hợp lệ' });
+    }
+    if (minAgeVal > 0 && maxAgeVal > 0 && minAgeVal >= maxAgeVal) {
+      return res.status(400).json({ status: 'error', message: 'Tuổi tối đa phải lớn hơn tuổi tối thiểu' });
+    }
 
     const grade = await Grade.create({
       gradeName: trimmed, description: desc, maxClasses: maxCls,
-      minAge: minAgeVal, maxAge: maxAgeVal, ageRange: ageRangeVal,
+      minAge: minAgeVal, maxAge: maxAgeVal,
       headTeacherId: headTeacherVal,
     });
+
+    await Grade.updateOne({ _id: grade._id }, { $unset: { ageRange: '' } });
 
     if (headTeacherVal) {
       await Teacher.findByIdAndUpdate(headTeacherVal, { isLeader: true });
@@ -135,28 +163,28 @@ const createGrade = async (req, res) => {
 const updateGrade = async (req, res) => {
   try {
     const { id } = req.params;
-    const { gradeName, description, maxClasses, minAge, maxAge, ageRange, headTeacherId } = req.body;
+    const { maxClasses, headTeacherId } = req.body;
 
     const grade = await Grade.findById(id);
     if (!grade) {
       return res.status(404).json({ status: 'error', message: 'Không tìm thấy khối lớp' });
     }
 
-    if (!gradeName || !String(gradeName).trim()) {
-      return res.status(400).json({ status: 'error', message: 'Tên khối lớp không được để trống' });
-    }
+    const immutableFieldChanged = [
+      ['gradeName', String(req.body?.gradeName || '').trim(), String(grade.gradeName || '').trim()],
+      ['description', String(req.body?.description || '').trim(), String(grade.description || '').trim()],
+      ['minAge', req.body?.minAge ?? grade.minAge, grade.minAge],
+      ['maxAge', req.body?.maxAge ?? grade.maxAge, grade.maxAge],
+    ].some(([field, incoming, current]) => {
+      if (!(field in (req.body || {}))) return false;
+      return String(incoming) !== String(current);
+    });
 
-    const trimmed = String(gradeName).trim();
-    if (trimmed.length > 10) {
-      return res.status(400).json({ status: 'error', message: 'Tên khối lớp không được quá 10 ký tự' });
-    }
-
-    if (description !== undefined) {
-      const desc = typeof description === 'string' ? description.trim() : '';
-      if (desc.length > 50) {
-        return res.status(400).json({ status: 'error', message: 'Mô tả không được quá 50 ký tự' });
-      }
-      grade.description = desc;
+    if (immutableFieldChanged) {
+      return res.status(400).json({
+        status: 'error',
+        message: 'Chỉ được phép chỉnh sửa tổ trưởng khối và số lớp tối đa',
+      });
     }
 
     if (maxClasses !== undefined) {
@@ -174,18 +202,6 @@ const updateGrade = async (req, res) => {
       }
       grade.maxClasses = maxCls;
     }
-
-    if (trimmed !== grade.gradeName) {
-      const existing = await Grade.findOne({ gradeName: trimmed });
-      if (existing) {
-        return res.status(400).json({ status: 'error', message: 'Tên khối lớp đã tồn tại' });
-      }
-    }
-
-    grade.gradeName = trimmed;
-    if (minAge !== undefined) grade.minAge = Number(minAge) || 0;
-    if (maxAge !== undefined) grade.maxAge = Number(maxAge) || 0;
-    if (ageRange !== undefined) grade.ageRange = typeof ageRange === 'string' ? ageRange.trim() : '';
 
     // Kiểm tra tổ trưởng: 1 giáo viên không được làm tổ trưởng 2 khối trong cùng năm học
     if (headTeacherId !== undefined) {
@@ -217,7 +233,9 @@ const updateGrade = async (req, res) => {
       grade.headTeacherId = newHeadTeacherId;
     }
 
+    grade.set('ageRange', undefined, { strict: false });
     await grade.save();
+    await Grade.updateOne({ _id: grade._id }, { $unset: { ageRange: '' } });
 
     return res.status(200).json({ status: 'success', message: 'Cập nhật khối lớp thành công', data: grade });
   } catch (error) {
