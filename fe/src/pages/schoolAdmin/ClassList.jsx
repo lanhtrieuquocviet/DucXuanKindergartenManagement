@@ -803,7 +803,7 @@ function ClassList() {
                           onClick={() => { setSelectedGrade(g); setSearchTerm(''); }}
                         >
                           <Typography variant="h6" fontWeight={700} color="#fff" noWrap>
-                            Khối {g.gradeName}
+                           {g.gradeName}
                           </Typography>
                         </Box>
 

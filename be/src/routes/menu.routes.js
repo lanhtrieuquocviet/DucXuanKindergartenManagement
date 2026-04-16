@@ -112,6 +112,12 @@ router.get(
   authorizeAnyPermission("APPROVE_MENU", "MANAGE_MENU"),
   districtNutritionPlanController.listDistrictNutritionPlans
 );
+router.get(
+  "/district-nutrition-plans/:id",
+  authenticate,
+  authorizeAnyPermission("APPROVE_MENU", "MANAGE_MENU"),
+  districtNutritionPlanController.getDistrictNutritionPlanDetail
+);
 router.post(
   "/district-nutrition-plans",
   authenticate,
