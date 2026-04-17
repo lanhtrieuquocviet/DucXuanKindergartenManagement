@@ -1,6 +1,7 @@
 const Teacher = require('../models/Teacher');
 const Classes = require('../models/Classes');
 const Student = require('../models/Student');
+const Enrollment = require('../models/Enrollment');
 const HealthCheck = require('../models/HealthCheck');
 const Attendance = require('../models/Attendances');
 const Menu = require('../models/Menu');
@@ -39,9 +40,28 @@ exports.getMyStudents = async (req, res) => {
 
     const students = await Student.find(filter)
       .populate('parentId', 'fullName phone email')
-      .populate('classId', 'className')
+      .populate('classId', 'className gradeId academicYearId')
       .sort({ fullName: 1 })
       .lean();
+
+    // Thêm thông tin đánh giá học tập cho từng học sinh
+    const studentsWithEvaluation = await Promise.all(
+      students.map(async (student) => {
+        const enrollment = await Enrollment.findOne({
+          studentId: student._id,
+          academicYearId: student.classId.academicYearId,
+          gradeId: student.classId.gradeId
+        }).select('academicEvaluation evaluationNote').lean();
+
+        return {
+          ...student,
+          evaluation: enrollment ? {
+            academicEvaluation: enrollment.academicEvaluation,
+            evaluationNote: enrollment.evaluationNote
+          } : null
+        };
+      })
+    );
 
     const classesData = classes.map(c => ({
       _id: c._id,
@@ -50,7 +70,7 @@ exports.getMyStudents = async (req, res) => {
       yearName: c.academicYearId?.yearName || '',
     }));
 
-    return res.json({ status: 'success', data: students, classes: classesData });
+    return res.json({ status: 'success', data: studentsWithEvaluation, classes: classesData });
   } catch (err) {
     return res.status(500).json({ status: 'error', message: err.message });
   }
@@ -383,6 +403,95 @@ exports.createChangeRequest = async (req, res) => {
     });
 
     return res.status(201).json({ status: 'success', data: request });
+  } catch (err) {
+    return res.status(500).json({ status: 'error', message: err.message });
+  }
+};
+
+// ── Student Evaluation ────────────────────────────────────────
+
+/** GET /teacher/students/:studentId/evaluation */
+exports.getStudentEvaluation = async (req, res) => {
+  try {
+    const { studentId } = req.params;
+    const teacher = await Teacher.findOne({ userId: req.user._id }).lean();
+    if (!teacher) return res.status(403).json({ status: 'error', message: 'Không có hồ sơ giáo viên.' });
+
+    // Lấy học sinh và kiểm tra giáo viên có phụ trách lớp không
+    const student = await Student.findById(studentId).populate('classId').lean();
+    if (!student) return res.status(404).json({ status: 'error', message: 'Không tìm thấy học sinh.' });
+
+    const cls = await Classes.findOne({ _id: student.classId._id, teacherIds: teacher._id }).lean();
+    if (!cls) return res.status(403).json({ status: 'error', message: 'Bạn không phụ trách lớp của học sinh này.' });
+
+    // Lấy enrollment hiện tại của học sinh
+    const enrollment = await Enrollment.findOne({
+      studentId,
+      academicYearId: cls.academicYearId,
+      gradeId: cls.gradeId
+    }).lean();
+
+    return res.json({
+      status: 'success',
+      data: {
+        student: {
+          _id: student._id,
+          fullName: student.fullName,
+          className: student.classId.className
+        },
+        evaluation: enrollment ? {
+          academicEvaluation: enrollment.academicEvaluation,
+          evaluationNote: enrollment.evaluationNote
+        } : null
+      }
+    });
+  } catch (err) {
+    return res.status(500).json({ status: 'error', message: err.message });
+  }
+};
+
+/** PUT /teacher/students/:studentId/evaluation */
+exports.updateStudentEvaluation = async (req, res) => {
+  try {
+    const { studentId } = req.params;
+    const { academicEvaluation, evaluationNote } = req.body;
+
+    const teacher = await Teacher.findOne({ userId: req.user._id }).lean();
+    if (!teacher) return res.status(403).json({ status: 'error', message: 'Không có hồ sơ giáo viên.' });
+
+    // Lấy học sinh và kiểm tra giáo viên có phụ trách lớp không
+    const student = await Student.findById(studentId).populate('classId').lean();
+    if (!student) return res.status(404).json({ status: 'error', message: 'Không tìm thấy học sinh.' });
+
+    const cls = await Classes.findOne({ _id: student.classId._id, teacherIds: teacher._id }).lean();
+    if (!cls) return res.status(403).json({ status: 'error', message: 'Bạn không phụ trách lớp của học sinh này.' });
+
+    // Cập nhật hoặc tạo enrollment
+    const enrollment = await Enrollment.findOneAndUpdate(
+      {
+        studentId,
+        academicYearId: cls.academicYearId,
+        gradeId: cls.gradeId
+      },
+      {
+        academicEvaluation,
+        evaluationNote: evaluationNote?.trim() || ''
+      },
+      {
+        new: true,
+        upsert: true,
+        setDefaultsOnInsert: true
+      }
+    );
+
+    return res.json({
+      status: 'success',
+      data: {
+        academicEvaluation: enrollment.academicEvaluation,
+        evaluationNote: enrollment.evaluationNote
+      },
+      message: 'Đã cập nhật đánh giá học tập.'
+    });
   } catch (err) {
     return res.status(500).json({ status: 'error', message: err.message });
   }

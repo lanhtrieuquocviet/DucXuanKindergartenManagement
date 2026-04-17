@@ -39,6 +39,8 @@ router.get('/dashboard', authenticate, authorizeRoles('Teacher'), (req, res) => 
 router.get('/students', authenticate, authorizeRoles('Teacher'), contactBookCtrl.getMyStudents);
 router.get('/students/:studentId/change-requests', authenticate, authorizeRoles('Teacher'), contactBookCtrl.getChangeRequests);
 router.post('/students/:studentId/change-requests', authenticate, authorizeRoles('Teacher'), contactBookCtrl.createChangeRequest);
+router.get('/students/:studentId/evaluation', authenticate, authorizeRoles('Teacher'), contactBookCtrl.getStudentEvaluation);
+router.put('/students/:studentId/evaluation', authenticate, authorizeRoles('Teacher'), contactBookCtrl.updateStudentEvaluation);
 
 // ── Sổ liên lạc điện tử ──
 router.get('/contact-book', authenticate, authorizeRoles('Teacher'), contactBookCtrl.getMyClasses);
