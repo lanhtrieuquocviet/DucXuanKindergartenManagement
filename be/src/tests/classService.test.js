@@ -262,24 +262,18 @@ describe('createClass', () => {
   const validBody = { className: 'Lá 1', gradeId: 'grade1', teacherIds: ['t1', 't2'] };
 
   const setupCreateMocks = () => {
-    AcademicYear.findOne = jest.fn().mockReturnValue({
-      sort: jest.fn().mockResolvedValue(makeActiveYear()),
-    });
-    Classes.findOne = jest.fn().mockResolvedValue(null);
+    AcademicYear.findOne = jest.fn()
+      .mockReturnValueOnce({ sort: jest.fn().mockResolvedValue(makeActiveYear()) }) // createClass active year
+      .mockReturnValue({ lean: jest.fn().mockResolvedValue(null) }); // validateTeacher prevYear
+    Classes.findOne = jest.fn()
+      .mockResolvedValueOnce(null)  // existing class name check (direct await, no .lean())
+      .mockReturnValue({ lean: jest.fn().mockResolvedValue(null) }); // validateTeacher calls (.lean())
     Grade.findById = jest.fn().mockResolvedValue(makeGrade());
-    Classes.countDocuments = jest.fn().mockResolvedValue(2);
-    // validateTeacherAssignment mocks
+    Classes.countDocuments = jest.fn().mockResolvedValue(0);
     Teacher.findById = jest.fn().mockReturnValue({
       populate: jest.fn().mockReturnValue({ lean: jest.fn().mockResolvedValue({ userId: { fullName: 'Giáo viên A' } }) }),
     });
-    AcademicYear.findById = jest.fn().mockResolvedValue(makeActiveYear());
-    AcademicYear.findOne = jest.fn()
-      .mockReturnValueOnce({ sort: jest.fn().mockResolvedValue(makeActiveYear()) }) // getClassList call
-      .mockResolvedValue(null); // prevYear check
-    Classes.findOne = jest.fn()
-      .mockResolvedValueOnce(null)   // existing class check
-      .mockResolvedValue(null);       // teacher assignment checks
-    Classes.countDocuments = jest.fn().mockResolvedValue(0);
+    AcademicYear.findById = jest.fn().mockReturnValue({ lean: jest.fn().mockResolvedValue(makeActiveYear()) });
     const cls = makeClass();
     Classes.mockImplementation(() => cls);
     Classes.findById = jest.fn().mockReturnValue(makeFullPopulateClass(cls));

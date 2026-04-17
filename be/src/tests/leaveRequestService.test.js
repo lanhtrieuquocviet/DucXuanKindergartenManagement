@@ -1,4 +1,12 @@
-jest.mock('../models/LeaveRequest');
+jest.mock('../models/LeaveRequest', () => {
+  const LeaveRequest = jest.fn();
+  LeaveRequest.find = jest.fn();
+  LeaveRequest.findOne = jest.fn();
+  LeaveRequest.findById = jest.fn();
+  LeaveRequest.create = jest.fn();
+  LeaveRequest.findOneAndUpdate = jest.fn();
+  return LeaveRequest;
+});
 jest.mock('../models/Student');
 jest.mock('../models/Classes');
 jest.mock('../models/Teacher');

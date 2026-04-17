@@ -2,11 +2,15 @@ jest.mock('../models/Grade');
 jest.mock('../models/Classes');
 jest.mock('../models/Student');
 jest.mock('../models/Teacher');
+jest.mock('../models/StaticBlock');
+jest.mock('../models/AcademicYear');
 
 const Grade = require('../models/Grade');
 const Classes = require('../models/Classes');
 const Student = require('../models/Student');
 const Teacher = require('../models/Teacher');
+const StaticBlock = require('../models/StaticBlock');
+const AcademicYear = require('../models/AcademicYear');
 
 const { listGrades, createGrade, updateGrade, deleteGrade } = require('../services/gradeService');
 
@@ -26,8 +30,22 @@ const makeGrade = (o = {}) => ({
   minAge: 5,
   maxAge: 6,
   headTeacherId: null,
+  academicYearId: 'yr1',
+  staticBlockId: 'sb1',
   set: jest.fn(),
   save: jest.fn().mockResolvedValue(undefined),
+  ...o,
+});
+
+const makeActiveYear = () => ({ _id: 'yr1', yearName: '2025-2026', startDate: new Date('2025-09-01') });
+
+const makeStaticBlock = (o = {}) => ({
+  _id: 'sb1',
+  name: 'Mẫu giáo lớn',
+  description: 'Lớp lớn',
+  maxClasses: 5,
+  minAge: 5,
+  maxAge: 6,
   ...o,
 });
 
@@ -37,11 +55,16 @@ const makeGrade = (o = {}) => ({
 describe('listGrades', () => {
   beforeEach(() => jest.clearAllMocks());
 
-  test('UTC001 [N] Lấy danh sách khối lớp thành công → 200', async () => {
+  const setupListMocks = (year = makeActiveYear(), grades = [makeGrade()]) => {
     Grade.updateMany = jest.fn().mockResolvedValue({});
+    AcademicYear.findOne = jest.fn().mockReturnValue({
+      sort: jest.fn().mockReturnValue({ lean: jest.fn().mockResolvedValue(year) }),
+    });
     Grade.find = jest.fn().mockReturnValue({
       sort: jest.fn().mockReturnValue({
-        populate: jest.fn().mockReturnValue({ lean: jest.fn().mockResolvedValue([makeGrade()]) }),
+        populate: jest.fn().mockReturnValue({
+          populate: jest.fn().mockReturnValue({ lean: jest.fn().mockResolvedValue(grades) }),
+        }),
       }),
     });
     Classes.find = jest.fn().mockReturnValue({
@@ -50,32 +73,36 @@ describe('listGrades', () => {
       }),
     });
     Student.aggregate = jest.fn().mockResolvedValue([]);
+  };
+
+  test('UTC001 [N] Lấy danh sách khối lớp thành công → 200', async () => {
+    setupListMocks();
     const res = mockRes();
     await listGrades(mockReq(), res);
     expect(res.status).toHaveBeenCalledWith(200);
     expect(res.json).toHaveBeenCalledWith(expect.objectContaining({ status: 'success' }));
   });
 
-  test('UTC002 [N] Danh sách khối rỗng → 200 mảng rỗng', async () => {
+  test('UTC002 [N] Không có năm học đang hoạt động → 200 mảng rỗng', async () => {
     Grade.updateMany = jest.fn().mockResolvedValue({});
-    Grade.find = jest.fn().mockReturnValue({
-      sort: jest.fn().mockReturnValue({
-        populate: jest.fn().mockReturnValue({ lean: jest.fn().mockResolvedValue([]) }),
-      }),
+    AcademicYear.findOne = jest.fn().mockReturnValue({
+      sort: jest.fn().mockReturnValue({ lean: jest.fn().mockResolvedValue(null) }),
     });
-    Classes.find = jest.fn().mockReturnValue({
-      select: jest.fn().mockReturnValue({
-        populate: jest.fn().mockReturnValue({ lean: jest.fn().mockResolvedValue([]) }),
-      }),
-    });
-    Student.aggregate = jest.fn().mockResolvedValue([]);
     const res = mockRes();
     await listGrades(mockReq(), res);
     expect(res.status).toHaveBeenCalledWith(200);
     expect(res.json).toHaveBeenCalledWith(expect.objectContaining({ data: [] }));
   });
 
-  test('UTC003 [A] DB throw exception → 500', async () => {
+  test('UTC003 [N] Danh sách khối rỗng → 200 mảng rỗng', async () => {
+    setupListMocks(makeActiveYear(), []);
+    const res = mockRes();
+    await listGrades(mockReq(), res);
+    expect(res.status).toHaveBeenCalledWith(200);
+    expect(res.json).toHaveBeenCalledWith(expect.objectContaining({ data: [] }));
+  });
+
+  test('UTC004 [A] DB throw exception → 500', async () => {
     Grade.updateMany = jest.fn().mockRejectedValue(new Error('DB error'));
     const res = mockRes();
     await listGrades(mockReq(), res);
@@ -89,14 +116,23 @@ describe('listGrades', () => {
 describe('createGrade', () => {
   beforeEach(() => jest.clearAllMocks());
 
-  const validBody = { gradeName: 'Nhà trẻ', description: 'Lớp nhỏ nhất', maxClasses: 3, minAge: 2, maxAge: 4 };
+  const validBody = { staticBlockId: 'sb1' };
 
-  const setupCreateMocks = (existingGrade = null, headConflict = null) => {
-    Grade.findOne = jest.fn()
-      .mockResolvedValueOnce(existingGrade)   // check existing name
-      .mockResolvedValueOnce(headConflict);   // check head teacher conflict
-    Grade.create = jest.fn().mockResolvedValue(makeGrade({ ...validBody }));
+  const setupCreateMocks = () => {
+    AcademicYear.findOne = jest.fn().mockReturnValue({
+      sort: jest.fn().mockReturnValue({ lean: jest.fn().mockResolvedValue(makeActiveYear()) }),
+    });
+    StaticBlock.findById = jest.fn().mockReturnValue({ lean: jest.fn().mockResolvedValue(makeStaticBlock()) });
+    Grade.findOne = jest.fn().mockReturnValue({ lean: jest.fn().mockResolvedValue(null) });
+    Grade.create = jest.fn().mockResolvedValue(makeGrade());
     Grade.updateOne = jest.fn().mockResolvedValue({});
+    Grade.findById = jest.fn().mockReturnValue({
+      populate: jest.fn().mockReturnValue({
+        populate: jest.fn().mockReturnValue({
+          populate: jest.fn().mockResolvedValue(makeGrade()),
+        }),
+      }),
+    });
   };
 
   test('UTC001 [N] Tạo khối lớp thành công → 201', async () => {
@@ -107,94 +143,76 @@ describe('createGrade', () => {
     expect(res.json).toHaveBeenCalledWith(expect.objectContaining({ status: 'success' }));
   });
 
-  test('UTC002 [A] Thiếu gradeName → 400', async () => {
+  test('UTC002 [A] Thiếu staticBlockId → 400', async () => {
     const res = mockRes();
-    await createGrade(mockReq({ description: 'abc' }), res);
+    await createGrade(mockReq({}), res);
     expect(res.status).toHaveBeenCalledWith(400);
-    expect(res.json).toHaveBeenCalledWith(expect.objectContaining({ message: expect.stringContaining('không được để trống') }));
+    expect(res.json).toHaveBeenCalledWith(expect.objectContaining({ message: expect.stringContaining('bắt buộc') }));
   });
 
-  test('UTC003 [A] gradeName chỉ khoảng trắng → 400', async () => {
-    const res = mockRes();
-    await createGrade(mockReq({ gradeName: '   ' }), res);
-    expect(res.status).toHaveBeenCalledWith(400);
-  });
-
-  test('UTC004 [B] gradeName > 10 ký tự → 400', async () => {
-    const res = mockRes();
-    await createGrade(mockReq({ gradeName: 'Tên quá dài cho khối' }), res);
-    expect(res.status).toHaveBeenCalledWith(400);
-    expect(res.json).toHaveBeenCalledWith(expect.objectContaining({ message: expect.stringContaining('10 ký tự') }));
-  });
-
-  test('UTC005 [B] description > 50 ký tự → 400', async () => {
-    const res = mockRes();
-    await createGrade(mockReq({ gradeName: 'NT', description: 'a'.repeat(51) }), res);
-    expect(res.status).toHaveBeenCalledWith(400);
-    expect(res.json).toHaveBeenCalledWith(expect.objectContaining({ message: expect.stringContaining('50 ký tự') }));
-  });
-
-  test('UTC006 [A] maxClasses < 1 → 400', async () => {
-    const res = mockRes();
-    await createGrade(mockReq({ gradeName: 'NT', maxClasses: 0 }), res);
-    expect(res.status).toHaveBeenCalledWith(400);
-    expect(res.json).toHaveBeenCalledWith(expect.objectContaining({ message: expect.stringContaining('1 đến 10') }));
-  });
-
-  test('UTC007 [A] maxClasses > 10 → 400', async () => {
-    const res = mockRes();
-    await createGrade(mockReq({ gradeName: 'NT', maxClasses: 11 }), res);
-    expect(res.status).toHaveBeenCalledWith(400);
-    expect(res.json).toHaveBeenCalledWith(expect.objectContaining({ message: expect.stringContaining('1 đến 10') }));
-  });
-
-  test('UTC008 [A] Tên khối lớp đã tồn tại → 400', async () => {
-    Grade.findOne = jest.fn().mockResolvedValue(makeGrade({ gradeName: 'Nhà trẻ' }));
+  test('UTC003 [A] Không có năm học đang hoạt động → 400', async () => {
+    AcademicYear.findOne = jest.fn().mockReturnValue({
+      sort: jest.fn().mockReturnValue({ lean: jest.fn().mockResolvedValue(null) }),
+    });
     const res = mockRes();
     await createGrade(mockReq(validBody), res);
     expect(res.status).toHaveBeenCalledWith(400);
-    expect(res.json).toHaveBeenCalledWith(expect.objectContaining({ message: expect.stringContaining('đã tồn tại') }));
+    expect(res.json).toHaveBeenCalledWith(expect.objectContaining({ message: expect.stringContaining('năm học') }));
   });
 
-  test('UTC009 [A] Head teacher đã là tổ trưởng khối khác → 400', async () => {
+  test('UTC004 [A] StaticBlock không tồn tại → 400', async () => {
+    AcademicYear.findOne = jest.fn().mockReturnValue({
+      sort: jest.fn().mockReturnValue({ lean: jest.fn().mockResolvedValue(makeActiveYear()) }),
+    });
+    StaticBlock.findById = jest.fn().mockReturnValue({ lean: jest.fn().mockResolvedValue(null) });
+    const res = mockRes();
+    await createGrade(mockReq(validBody), res);
+    expect(res.status).toHaveBeenCalledWith(400);
+    expect(res.json).toHaveBeenCalledWith(expect.objectContaining({ message: expect.stringContaining('không tồn tại') }));
+  });
+
+  test('UTC005 [A] Danh mục khối đã được tạo trong năm học → 400', async () => {
+    AcademicYear.findOne = jest.fn().mockReturnValue({
+      sort: jest.fn().mockReturnValue({ lean: jest.fn().mockResolvedValue(makeActiveYear()) }),
+    });
+    StaticBlock.findById = jest.fn().mockReturnValue({ lean: jest.fn().mockResolvedValue(makeStaticBlock()) });
+    Grade.findOne = jest.fn().mockReturnValue({ lean: jest.fn().mockResolvedValue(makeGrade()) });
+    const res = mockRes();
+    await createGrade(mockReq(validBody), res);
+    expect(res.status).toHaveBeenCalledWith(400);
+    expect(res.json).toHaveBeenCalledWith(expect.objectContaining({ message: expect.stringContaining('đã được tạo') }));
+  });
+
+  test('UTC006 [A] staticBlock.maxClasses = 0 (ngoài phạm vi) → 400', async () => {
+    AcademicYear.findOne = jest.fn().mockReturnValue({
+      sort: jest.fn().mockReturnValue({ lean: jest.fn().mockResolvedValue(makeActiveYear()) }),
+    });
+    StaticBlock.findById = jest.fn().mockReturnValue({ lean: jest.fn().mockResolvedValue(makeStaticBlock({ maxClasses: 0 })) });
+    Grade.findOne = jest.fn().mockReturnValue({ lean: jest.fn().mockResolvedValue(null) });
+    const res = mockRes();
+    await createGrade(mockReq(validBody), res);
+    expect(res.status).toHaveBeenCalledWith(400);
+    expect(res.json).toHaveBeenCalledWith(expect.objectContaining({ message: expect.stringContaining('1 đến 10') }));
+  });
+
+  test('UTC007 [A] Head teacher đã là tổ trưởng khối khác → 400', async () => {
+    AcademicYear.findOne = jest.fn().mockReturnValue({
+      sort: jest.fn().mockReturnValue({ lean: jest.fn().mockResolvedValue(makeActiveYear()) }),
+    });
+    StaticBlock.findById = jest.fn().mockReturnValue({ lean: jest.fn().mockResolvedValue(makeStaticBlock()) });
     Grade.findOne = jest.fn()
-      .mockResolvedValueOnce(null)                   // check existing name
-      .mockResolvedValueOnce(makeGrade({ gradeName: 'Mẫu giáo bé' }));  // head conflict
+      .mockReturnValueOnce({ lean: jest.fn().mockResolvedValue(null) })
+      .mockReturnValue({ lean: jest.fn().mockResolvedValue(makeGrade({ gradeName: 'Mẫu giáo bé' })) });
     const res = mockRes();
     await createGrade(mockReq({ ...validBody, headTeacherId: 'teacher1' }), res);
     expect(res.status).toHaveBeenCalledWith(400);
     expect(res.json).toHaveBeenCalledWith(expect.objectContaining({ message: expect.stringContaining('tổ trưởng') }));
   });
 
-  test('UTC010 [A] minAge >= maxAge → 400', async () => {
-    const res = mockRes();
-    await createGrade(mockReq({ gradeName: 'NT', minAge: 5, maxAge: 4 }), res);
-    expect(res.status).toHaveBeenCalledWith(400);
-    expect(res.json).toHaveBeenCalledWith(expect.objectContaining({ message: expect.stringContaining('tối đa phải lớn hơn') }));
-  });
-
-  test('UTC011 [A] minAge âm → 400', async () => {
-    const res = mockRes();
-    await createGrade(mockReq({ gradeName: 'NT', minAge: -1, maxAge: 4 }), res);
-    expect(res.status).toHaveBeenCalledWith(400);
-  });
-
-  test('UTC012 [B] maxClasses = 1 (biên dưới) → 201', async () => {
-    setupCreateMocks();
-    const res = mockRes();
-    await createGrade(mockReq({ ...validBody, maxClasses: 1 }), res);
-    expect(res.status).toHaveBeenCalledWith(201);
-  });
-
-  test('UTC013 [B] maxClasses = 10 (biên trên) → 201', async () => {
-    setupCreateMocks();
-    const res = mockRes();
-    await createGrade(mockReq({ ...validBody, maxClasses: 10 }), res);
-    expect(res.status).toHaveBeenCalledWith(201);
-  });
-
-  test('UTC014 [A] DB throw exception → 500', async () => {
-    Grade.findOne = jest.fn().mockRejectedValue(new Error('DB error'));
+  test('UTC008 [A] DB throw exception → 500', async () => {
+    AcademicYear.findOne = jest.fn().mockReturnValue({
+      sort: jest.fn().mockReturnValue({ lean: jest.fn().mockRejectedValue(new Error('DB error')) }),
+    });
     const res = mockRes();
     await createGrade(mockReq(validBody), res);
     expect(res.status).toHaveBeenCalledWith(500);
@@ -210,7 +228,6 @@ describe('updateGrade', () => {
   test('UTC001 [N] Cập nhật maxClasses thành công → 200', async () => {
     Grade.findById = jest.fn().mockResolvedValue(makeGrade({ maxClasses: 5 }));
     Classes.countDocuments = jest.fn().mockResolvedValue(3);
-    Grade.findOne = jest.fn().mockResolvedValue(null);
     Grade.updateOne = jest.fn().mockResolvedValue({});
     const res = mockRes();
     await updateGrade(mockReq({ maxClasses: 8 }, { id: 'grade1' }), res);
@@ -251,7 +268,7 @@ describe('updateGrade', () => {
 
   test('UTC006 [A] Head teacher đã là tổ trưởng khối khác → 400', async () => {
     Grade.findById = jest.fn().mockResolvedValue(makeGrade({ headTeacherId: null }));
-    Grade.findOne = jest.fn().mockResolvedValue(makeGrade({ _id: 'grade2', gradeName: 'Mẫu giáo bé' }));
+    Grade.findOne = jest.fn().mockReturnValue({ lean: jest.fn().mockResolvedValue(makeGrade({ _id: 'grade2', gradeName: 'Mẫu giáo bé' })) });
     const res = mockRes();
     await updateGrade(mockReq({ headTeacherId: 'teacher1' }, { id: 'grade1' }), res);
     expect(res.status).toHaveBeenCalledWith(400);
