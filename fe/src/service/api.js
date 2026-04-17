@@ -432,6 +432,8 @@ export const ENDPOINTS = {
     // Danh sách học sinh
     MY_STUDENTS: '/teacher/students',
     CHANGE_REQUESTS: (studentId) => `/teacher/students/${studentId}/change-requests`,
+    // Đánh giá học tập
+    STUDENT_EVALUATION: (studentId) => `/teacher/students/${studentId}/evaluation`,
     // Sổ liên lạc
     CONTACT_BOOK_CLASSES: '/teacher/contact-book',
     CONTACT_BOOK_STUDENTS: (classId) => `/teacher/contact-book/${classId}/students`,

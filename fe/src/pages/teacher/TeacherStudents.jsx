@@ -2,7 +2,7 @@ import { useEffect, useMemo, useState } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
 import { useAuth } from '../../context/AuthContext';
 import RoleLayout from '../../layouts/RoleLayout';
-import { get, post, ENDPOINTS } from '../../service/api';
+import { get, post, put, ENDPOINTS } from '../../service/api';
 import { toast } from 'react-toastify';
 import {
   Box, Paper, Typography, Avatar, Chip, Skeleton, Alert, Stack,
@@ -10,6 +10,7 @@ import {
   TablePagination, TextField, InputAdornment, FormControl, InputLabel,
   Select, MenuItem, Button, Tooltip, Dialog, DialogTitle, DialogContent,
   DialogActions, Badge, List, ListItem, ListItemText, Divider,
+  Radio, FormControlLabel, FormLabel,
 } from '@mui/material';
 import {
   Search as SearchIcon,
@@ -89,6 +90,12 @@ export default function TeacherStudents() {
   const [histData, setHistData]     = useState([]);
   const [histLoading, setHistLoading] = useState(false);
 
+  // Evaluation dialog — đánh giá học tập
+  const [evalDialog, setEvalDialog] = useState(null); // student object
+  const [evalData, setEvalData]     = useState({ academicEvaluation: null, evaluationNote: '' });
+  const [evalLoading, setEvalLoading] = useState(false);
+  const [evalSubmitting, setEvalSubmitting] = useState(false);
+
   useEffect(() => {
     if (isInitializing) return;
     if (!user) { navigate('/login', { replace: true }); return; }
@@ -112,6 +119,28 @@ export default function TeacherStudents() {
     }
   };
 
+  const submitEvaluation = async () => {
+    if (!evalData.academicEvaluation) {
+      toast.error('Vui lòng chọn kết quả đánh giá');
+      return;
+    }
+    setEvalSubmitting(true);
+    try {
+      await put(ENDPOINTS.TEACHER.STUDENT_EVALUATION(evalDialog._id), {
+        academicEvaluation: evalData.academicEvaluation,
+        evaluationNote: evalData.evaluationNote.trim(),
+      });
+      toast.success('Đã cập nhật đánh giá học tập');
+      closeEvalDialog();
+      // Refresh student list to show updated evaluation
+      fetchStudents(classFilter);
+    } catch (err) {
+      toast.error(err.data?.message || err.message || 'Cập nhật thất bại');
+    } finally {
+      setEvalSubmitting(false);
+    }
+  };
+
   const openHistDialog = async (student) => {
     setHistDialog(student);
     setHistData([]);
@@ -125,6 +154,27 @@ export default function TeacherStudents() {
       setHistLoading(false);
     }
   };
+
+  const openEvalDialog = async (student) => {
+    setEvalDialog(student);
+    setEvalData({ academicEvaluation: null, evaluationNote: '' });
+    setEvalLoading(true);
+    try {
+      const res = await get(ENDPOINTS.TEACHER.STUDENT_EVALUATION(student._id));
+      if (res.data?.evaluation) {
+        setEvalData({
+          academicEvaluation: res.data.evaluation.academicEvaluation,
+          evaluationNote: res.data.evaluation.evaluationNote || ''
+        });
+      }
+    } catch (err) {
+      toast.error('Không thể tải thông tin đánh giá');
+    } finally {
+      setEvalLoading(false);
+    }
+  };
+
+  const closeEvalDialog = () => { setEvalDialog(null); };
 
   const fetchStudents = async (cId = classFilter) => {
     setLoading(true);
@@ -282,7 +332,7 @@ export default function TeacherStudents() {
               <Table size="small" sx={{ minWidth: 820 }}>
                 <TableHead sx={{ bgcolor: '#f5f3ff' }}>
                   <TableRow>
-                    {['#', 'Học sinh', 'Lớp', 'Ngày sinh', 'Giới tính', 'Phụ huynh', 'Số điện thoại', 'Cần chú ý', ''].map(col => (
+                    {['#', 'Học sinh', 'Lớp', 'Ngày sinh', 'Giới tính', 'Phụ huynh', 'Số điện thoại', 'Cần chú ý', 'Đánh giá học tập', ''].map(col => (
                       <TableCell key={col} sx={{ fontWeight: 700, fontSize: '0.72rem', textTransform: 'uppercase', color: 'text.secondary', py: 1, whiteSpace: 'nowrap' }}>
                         {col}
                       </TableCell>
@@ -358,8 +408,37 @@ export default function TeacherStudents() {
                             ? <Chip label="Có" color="warning" size="small" sx={{ height: 20, fontSize: '0.7rem' }} />
                             : <Chip label="Không" size="small" variant="outlined" sx={{ height: 20, fontSize: '0.7rem' }} />}
                         </TableCell>
+                        <TableCell>
+                          {s.evaluation?.academicEvaluation ? (
+                            <Stack direction="row" alignItems="center" spacing={1}>
+                              <Chip
+                                label={s.evaluation.academicEvaluation === 'đạt' ? 'Đạt' : 'Chưa đạt'}
+                                size="small"
+                                color={s.evaluation.academicEvaluation === 'đạt' ? 'success' : 'error'}
+                                sx={{ height: 20, fontSize: '0.7rem' }}
+                              />
+                              {s.evaluation.evaluationNote && (
+                                <Tooltip title={s.evaluation.evaluationNote}>
+                                  <InfoIcon sx={{ fontSize: 14, color: 'text.secondary' }} />
+                                </Tooltip>
+                              )}
+                            </Stack>
+                          ) : (
+                            <Typography variant="caption" color="text.secondary">Chưa đánh giá</Typography>
+                          )}
+                        </TableCell>
                         <TableCell align="right">
                           <Stack direction="row" spacing={0.75} justifyContent="flex-end" flexWrap="nowrap">
+                            <Tooltip title="Đánh giá học tập">
+                              <Button
+                                size="small" variant="text"
+                                startIcon={<SchoolIcon sx={{ fontSize: 14 }} />}
+                                onClick={() => openEvalDialog(s)}
+                                sx={{ fontSize: '0.72rem', py: 0.4, px: 1, color: '#0891b2', whiteSpace: 'nowrap' }}
+                              >
+                                Đánh giá
+                              </Button>
+                            </Tooltip>
                             <Tooltip title="Lịch sử yêu cầu đã gửi">
                               <Button
                                 size="small" variant="text"
@@ -513,6 +592,80 @@ export default function TeacherStudents() {
         </DialogContent>
         <DialogActions sx={{ px: 2, py: 1.5 }}>
           <Button onClick={() => setHistDialog(null)} color="inherit">Đóng</Button>
+        </DialogActions>
+      </Dialog>
+
+      {/* Dialog đánh giá học tập */}
+      <Dialog open={!!evalDialog} onClose={closeEvalDialog} maxWidth="sm" fullWidth>
+        <DialogTitle sx={{ fontWeight: 700, pb: 1 }}>
+          Đánh giá học tập tổng quan
+        </DialogTitle>
+        <DialogContent dividers>
+          {evalDialog && (
+            <Stack spacing={0.5} mb={2} direction="row" alignItems="center">
+              <Avatar src={evalDialog.avatar || undefined} sx={{ width: 32, height: 32, bgcolor: '#ede9fe', color: '#7c3aed', fontSize: '0.8rem' }}>
+                {evalDialog.fullName?.charAt(0)}
+              </Avatar>
+              <Typography variant="body2" fontWeight={600}>{evalDialog.fullName}</Typography>
+              <Typography variant="caption" color="text.secondary">· {evalDialog.classId?.className || ''}</Typography>
+            </Stack>
+          )}
+          {evalLoading ? (
+            <Box sx={{ py: 4, textAlign: 'center' }}>
+              <Typography variant="body2" color="text.secondary">Đang tải thông tin đánh giá...</Typography>
+            </Box>
+          ) : (
+            <Stack spacing={2}>
+              <FormControl component="fieldset">
+                <Typography variant="body2" fontWeight={600} gutterBottom>
+                  Kết quả đánh giá học tập *
+                </Typography>
+                <Stack direction="row" spacing={2}>
+                  <FormControlLabel
+                    control={
+                      <Radio
+                        checked={evalData.academicEvaluation === 'đạt'}
+                        onChange={(e) => setEvalData(prev => ({ ...prev, academicEvaluation: e.target.checked ? 'đạt' : null }))}
+                        color="success"
+                      />
+                    }
+                    label="Đạt"
+                  />
+                  <FormControlLabel
+                    control={
+                      <Radio
+                        checked={evalData.academicEvaluation === 'chưa đạt'}
+                        onChange={(e) => setEvalData(prev => ({ ...prev, academicEvaluation: e.target.checked ? 'chưa đạt' : null }))}
+                        color="error"
+                      />
+                    }
+                    label="Chưa đạt"
+                  />
+                </Stack>
+              </FormControl>
+              <TextField
+                label="Ghi chú đánh giá"
+                size="small"
+                fullWidth
+                multiline
+                minRows={3}
+                value={evalData.evaluationNote}
+                onChange={(e) => setEvalData(prev => ({ ...prev, evaluationNote: e.target.value }))}
+                placeholder="Nhập ghi chú chi tiết về kết quả học tập của học sinh..."
+              />
+            </Stack>
+          )}
+        </DialogContent>
+        <DialogActions sx={{ px: 2, py: 1.5 }}>
+          <Button onClick={closeEvalDialog} disabled={evalSubmitting} color="inherit">Huỷ</Button>
+          <Button
+            variant="contained"
+            onClick={submitEvaluation}
+            disabled={evalSubmitting || evalLoading || !evalData.academicEvaluation}
+            sx={{ bgcolor: '#0891b2', '&:hover': { bgcolor: '#0284a8' } }}
+          >
+            {evalSubmitting ? 'Đang lưu...' : 'Lưu đánh giá'}
+          </Button>
         </DialogActions>
       </Dialog>
     </RoleLayout>

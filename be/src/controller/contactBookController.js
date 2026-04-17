@@ -11,6 +11,8 @@ const createNote = async (req, res, next) => service.createNote(req, res, next);
 const deleteNote = async (req, res, next) => service.deleteNote(req, res, next);
 const getChangeRequests = async (req, res, next) => service.getChangeRequests(req, res, next);
 const createChangeRequest = async (req, res, next) => service.createChangeRequest(req, res, next);
+const getStudentEvaluation = async (req, res, next) => service.getStudentEvaluation(req, res, next);
+const updateStudentEvaluation = async (req, res, next) => service.updateStudentEvaluation(req, res, next);
 
 module.exports = {
   getMyStudents,
@@ -24,4 +26,6 @@ module.exports = {
   deleteNote,
   getChangeRequests,
   createChangeRequest,
+  getStudentEvaluation,
+  updateStudentEvaluation,
 };

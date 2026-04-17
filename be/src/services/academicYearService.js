@@ -27,6 +27,18 @@ const autoFinishExpiredAcademicYears = async () => {
 };
 
 /**
+ * Khối được xét tốt nghiệp (năm cuối mầm non): theo khoảng tuổi cấu hình trên Grade
+ * (đồng bộ static block, ví dụ min 5 — max 6). Không dựa vào tên hiển thị "Khối chồi", "5-6"...
+ */
+function isGraduationEligibleBand(grade) {
+  if (!grade) return false;
+  const min = Number(grade.minAge);
+  const max = Number(grade.maxAge);
+  if (!Number.isFinite(min) || !Number.isFinite(max)) return false;
+  return min >= 5 && max >= 6;
+}
+
+/**
  * GET /api/school-admin/academic-years/current
  * Lấy năm học đang hoạt động (active) mới nhất
  */
@@ -148,25 +160,59 @@ const getStudentsByAcademicYear = async (req, res) => {
       return res.status(404).json({ status: 'error', message: 'Không tìm thấy năm học' });
     }
 
-    const classes = await Classes.find({ academicYearId: yearId }).select('_id className').lean();
+    const classes = await Classes.find({ academicYearId: yearId })
+      .populate('gradeId', 'gradeName minAge maxAge')
+      .select('_id className gradeId')
+      .lean();
     const classIds = classes.map((c) => c._id);
     const classMap = {};
-    classes.forEach((c) => { classMap[String(c._id)] = c.className; });
+    const gradeMap = {};
+    const gradeDocByClassId = {};
+    classes.forEach((c) => {
+      const cid = String(c._id);
+      classMap[cid] = c.className;
+      const g = c.gradeId;
+      gradeMap[cid] = g?.gradeName || '';
+      gradeDocByClassId[cid] = g || null;
+    });
 
     const students = await Student.find({ classId: { $in: classIds } })
       .select('_id fullName dateOfBirth gender classId avatar status needsSpecialAttention specialNote')
       .lean();
 
-    const data = students.map((s) => ({
-      _id: s._id,
-      fullName: s.fullName,
-      dateOfBirth: s.dateOfBirth,
-      gender: s.gender,
-      avatar: s.avatar || '',
-      status: s.status,
-      needsSpecialAttention: s.needsSpecialAttention || false,
-      specialNote: s.specialNote || '',
-      className: classMap[String(s.classId)] || '',
+    const Enrollment = require('../models/Enrollment');
+    const data = await Promise.all(students.map(async (s) => {
+      const cid = String(s.classId);
+      const classRow = classes.find((c) => String(c._id) === cid);
+      const gradeDoc = gradeDocByClassId[cid];
+      const gradeIdForEnroll = classRow?.gradeId?._id ?? classRow?.gradeId;
+
+      // Get evaluation data
+      const enrollment = await Enrollment.findOne({
+        studentId: s._id,
+        academicYearId: yearId,
+        gradeId: gradeIdForEnroll,
+      }).select('academicEvaluation evaluationNote').lean();
+
+      return {
+        _id: s._id,
+        fullName: s.fullName,
+        dateOfBirth: s.dateOfBirth,
+        gender: s.gender,
+        avatar: s.avatar || '',
+        status: s.status,
+        needsSpecialAttention: s.needsSpecialAttention || false,
+        specialNote: s.specialNote || '',
+        className: classMap[cid] || '',
+        gradeName: gradeMap[cid] || '',
+        gradeMinAge: gradeDoc?.minAge,
+        gradeMaxAge: gradeDoc?.maxAge,
+        canChooseGraduation: isGraduationEligibleBand(gradeDoc),
+        evaluation: enrollment ? {
+          academicEvaluation: enrollment.academicEvaluation,
+          evaluationNote: enrollment.evaluationNote
+        } : null
+      };
     }));
 
     return res.status(200).json({ status: 'success', data });
@@ -361,7 +407,7 @@ const createAcademicYear = async (req, res) => {
 const finishAcademicYear = async (req, res) => {
   try {
     const { id } = req.params;
-    const { selectedStudentIds } = req.body; // Array of student IDs to keep active (transfer to next year)
+    const { selectedStudentIds } = req.body; // Học sinh khối năm cuối (5–6 tuổi theo cấu hình) được tick tốt nghiệp
 
     const year = await AcademicYear.findById(id);
     if (!year) {
@@ -379,38 +425,60 @@ const finishAcademicYear = async (req, res) => {
       });
     }
 
-    // Get all students in this academic year
+    // Get the newest academic year (for automatic transfer)
+    const newestYear = await AcademicYear.findOne()
+      .sort({ createdAt: -1 })
+      .lean();
+
+    // Get all students in this academic year with their class and grade info
     const allStudents = await Student.find({
       academicYearId: id,
       status: 'active'
-    }).select('_id status');
+    })
+    .populate('classId', 'gradeId')
+    .select('_id status classId needsSpecialAttention');
 
-    // Students not selected will be marked as graduated
-    const unselectedStudentIds = allStudents
-      .filter(student => !selectedStudentIds.includes(student._id.toString()))
-      .map(student => student._id);
+    const Grade = require('../models/Grade');
 
-    // Update unselected students to graduated status
-    if (unselectedStudentIds.length > 0) {
-      await Student.updateMany(
-        { _id: { $in: unselectedStudentIds } },
-        { $set: { status: 'graduated' } }
-      );
+    let graduatedCount = 0;
+    let transferredCount = 0;
+
+    // Process each student: chỉ khối đủ khoảng tuổi năm cuối (min≥5, max≥6) mới xét tốt nghiệp theo tick
+    for (const student of allStudents) {
+      const gradeRef = student.classId?.gradeId;
+      const gradeId = gradeRef?._id ?? gradeRef;
+      const grade = await Grade.findById(gradeId)
+        .select('gradeName minAge maxAge')
+        .lean();
+
+      if (isGraduationEligibleBand(grade)) {
+        if (selectedStudentIds && selectedStudentIds.includes(student._id.toString())) {
+          await Student.findByIdAndUpdate(student._id, { status: 'graduated' });
+          graduatedCount++;
+        } else if (newestYear && newestYear._id.toString() !== id) {
+          await Student.findByIdAndUpdate(student._id, {
+            $addToSet: { academicYearId: newestYear._id }
+          });
+          transferredCount++;
+        }
+      } else if (newestYear && newestYear._id.toString() !== id) {
+        await Student.findByIdAndUpdate(student._id, {
+          $addToSet: { academicYearId: newestYear._id }
+        });
+        transferredCount++;
+      }
     }
-
-    // Selected students remain active for transfer to next year
-    // (status remains 'active')
 
     year.status = 'inactive';
     await year.save();
 
     return res.status(200).json({
       status: 'success',
-      message: `Kết thúc năm học thành công. ${unselectedStudentIds.length} học sinh đã tốt nghiệp.`,
+      message: `Kết thúc năm học thành công. ${graduatedCount} học sinh tốt nghiệp (khối 5-6), ${transferredCount} học sinh chuyển tiếp.`,
       data: {
         ...year.toObject(),
-        graduatedCount: unselectedStudentIds.length,
-        transferredCount: selectedStudentIds.length
+        graduatedCount,
+        transferredCount
       },
     });
   } catch (error) {

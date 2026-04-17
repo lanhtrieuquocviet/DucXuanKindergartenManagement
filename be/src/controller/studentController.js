@@ -251,28 +251,43 @@ const getStudents = async (req, res) => {
     if (academicYearId) filter.academicYearId = academicYearId;
 
     const students = await Student.find(filter)
-      .populate('classId', 'className gradeId')
+      .populate('classId', 'className gradeId academicYearId')
       .populate('parentId', 'fullName email username avatar phone')
       .populate('parentProfileId', 'fullName email phone')
       .populate('academicYearId', 'yearName');
 
-    // Không gửi mảng embedding 128 số về client (tốn bandwidth)
-    // Thay bằng flag hasFaceEmbedding và faceRegisteredAt
-    const data = students.map((s) => {
-      const obj = s.toObject();
-      obj.hasFaceEmbedding = Array.isArray(obj.faceEmbedding) && obj.faceEmbedding.length > 0;
-      obj.faceImageUrls = Array.isArray(obj.faceImageUrls) ? obj.faceImageUrls.filter(Boolean) : [];
-      obj.angleCount = Array.isArray(obj.faceEmbeddings) ? obj.faceEmbeddings.length : (obj.hasFaceEmbedding ? 1 : 0);
-      delete obj.faceEmbedding;
-      delete obj.faceEmbeddings;
-      return obj;
-    });
+    // Thêm thông tin đánh giá học tập từ enrollment
+    const Enrollment = require('../models/Enrollment');
+    const studentsWithEvaluation = await Promise.all(
+      students.map(async (student) => {
+        const enrollment = await Enrollment.findOne({
+          studentId: student._id,
+          academicYearId: student.classId?.academicYearId,
+          gradeId: student.classId?.gradeId
+        }).select('academicEvaluation evaluationNote').lean();
+
+        const obj = student.toObject();
+        obj.hasFaceEmbedding = Array.isArray(obj.faceEmbedding) && obj.faceEmbedding.length > 0;
+        obj.faceImageUrls = Array.isArray(obj.faceImageUrls) ? obj.faceImageUrls.filter(Boolean) : [];
+        obj.angleCount = Array.isArray(obj.faceEmbeddings) ? obj.faceEmbeddings.length : (obj.hasFaceEmbedding ? 1 : 0);
+        delete obj.faceEmbedding;
+        delete obj.faceEmbeddings;
+
+        // Thêm thông tin đánh giá
+        obj.evaluation = enrollment ? {
+          academicEvaluation: enrollment.academicEvaluation,
+          evaluationNote: enrollment.evaluationNote
+        } : null;
+
+        return obj;
+      })
+    );
 
     return res.status(200).json({
       status: 'success',
       message: 'Lấy danh sách học sinh thành công',
-      data,
-      total: data.length,
+      data: studentsWithEvaluation,
+      total: studentsWithEvaluation.length,
     });
   } catch (error) {
     console.error('Error in getStudents:', error);

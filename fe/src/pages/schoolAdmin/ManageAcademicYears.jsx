@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import RoleLayout from '../../layouts/RoleLayout';
 import { useAuth } from '../../context/AuthContext';
@@ -50,6 +50,29 @@ function formatDate(dateString) {
   return d.toLocaleDateString('vi-VN');
 }
 
+function normalizeGradeLabel(name) {
+  return String(name || '')
+    .replace(/\u2013|\u2014/g, '-')
+    .toLowerCase();
+}
+
+function hasGraduationAgeBandFromNumbers(minAge, maxAge) {
+  const min = Number(minAge);
+  const max = Number(maxAge);
+  if (!Number.isFinite(min) || !Number.isFinite(max)) return false;
+  return min >= 5 && max >= 6;
+}
+
+/**
+ * Khối năm cuối (được tick tốt nghiệp): ưu tiên cờ từ API theo min/max tuổi Grade;
+ * không phụ thuộc tên "Khối chồi" / "Khối lá". Fallback: tên khối có chuỗi 5-6 (dữ liệu cũ).
+ */
+function isFinishRowSelectable(s) {
+  if (typeof s.canChooseGraduation === 'boolean') return s.canChooseGraduation;
+  if (hasGraduationAgeBandFromNumbers(s.gradeMinAge, s.gradeMaxAge)) return true;
+  return normalizeGradeLabel(s.gradeName).includes('5-6');
+}
+
 function ManageAcademicYears() {
   const [currentYear, setCurrentYear] = useState(null);
   const [years, setYears] = useState([]);
@@ -67,11 +90,13 @@ function ManageAcademicYears() {
   });
   const [createErrors, setCreateErrors] = useState({});
 
-  // --- Kết thúc năm học + chọn học sinh chuyển tiếp ---
+  // --- Kết thúc năm học: tick = tốt nghiệp (chỉ khối năm cuối theo tuổi cấu hình); API selectedStudentIds = id tốt nghiệp ---
   const [openFinish, setOpenFinish] = useState(false);
   const [finishStudents, setFinishStudents] = useState([]);
   const [finishLoading, setFinishLoading] = useState(false);
-  const [selectedStudentIds, setSelectedStudentIds] = useState(new Set());
+  const [graduateMarkedIds, setGraduateMarkedIds] = useState(new Set());
+  const [finishGradeFilter, setFinishGradeFilter] = useState('');
+  const [finishClassFilter, setFinishClassFilter] = useState('');
   // Lưu lại khi đã confirm kết thúc, dùng khi tạo năm mới
   const [carryOverStudentIds, setCarryOverStudentIds] = useState([]);
 
@@ -115,17 +140,14 @@ function ManageAcademicYears() {
     setOpenFinish(true);
     setFinishLoading(true);
     setFinishStudents([]);
-    setSelectedStudentIds(new Set());
+    setFinishGradeFilter('');
+    setFinishClassFilter('');
+    setGraduateMarkedIds(new Set());
     try {
       const resp = await get(ENDPOINTS.SCHOOL_ADMIN.ACADEMIC_YEARS.STUDENTS(currentYear._id));
       if (resp?.status === 'success' && Array.isArray(resp.data)) {
         setFinishStudents(resp.data);
-        // Mặc định chọn tất cả học sinh không có ghi chú đặc biệt
-        // Học sinh có ghi chú đặc biệt để người dùng tự quyết định
-        const defaultSelected = resp.data
-          .filter(s => !s.needsSpecialAttention)
-          .map((s) => s._id);
-        setSelectedStudentIds(new Set(defaultSelected));
+        // Mặc định không tick = học tiếp; tick = tốt nghiệp (chỉ các dòng có ô chọn)
       }
     } catch (err) {
       console.error('Error loading students for finish:', err);
@@ -134,8 +156,10 @@ function ManageAcademicYears() {
     }
   };
 
-  const handleToggleStudent = (id) => {
-    setSelectedStudentIds((prev) => {
+  const handleToggleGraduateMark = (id) => {
+    const row = finishStudents.find((s) => String(s._id) === String(id));
+    if (!row || !isFinishRowSelectable(row)) return;
+    setGraduateMarkedIds((prev) => {
       const next = new Set(prev);
       if (next.has(id)) next.delete(id);
       else next.add(id);
@@ -143,37 +167,46 @@ function ManageAcademicYears() {
     });
   };
 
-  const handleToggleAll = () => {
-    const normalStudents = finishStudents.filter(s => !s.needsSpecialAttention);
-    const specialStudents = finishStudents.filter(s => s.needsSpecialAttention);
-
-    if (selectedStudentIds.size === finishStudents.length) {
-      // Nếu đã chọn tất cả, bỏ chọn tất cả
-      setSelectedStudentIds(new Set());
-    } else if (selectedStudentIds.size === normalStudents.length && specialStudents.length > 0) {
-      // Nếu chỉ chọn học sinh bình thường, chọn thêm học sinh đặc biệt
-      setSelectedStudentIds(new Set(finishStudents.map((s) => s._id)));
-    } else {
-      // Chọn tất cả học sinh bình thường
-      setSelectedStudentIds(new Set(normalStudents.map((s) => s._id)));
-    }
+  const handleToggleAllGraduateMarks = () => {
+    const visibleSelectable = filteredFinishStudents.filter(isFinishRowSelectable);
+    const ids = visibleSelectable.map((s) => s._id);
+    setGraduateMarkedIds((prev) => {
+      const allVisibleMarked = ids.length > 0 && ids.every((id) => prev.has(id));
+      const next = new Set(prev);
+      if (allVisibleMarked) {
+        ids.forEach((id) => next.delete(id));
+      } else {
+        ids.forEach((id) => next.add(id));
+      }
+      return next;
+    });
   };
 
   const handleConfirmFinish = async () => {
     if (!currentYear) return;
     try {
-      const selectedIds = Array.from(selectedStudentIds);
+      // API: selectedStudentIds = học sinh khối 5–6 được tick tốt nghiệp (chỉ khối này có thể tốt nghiệp)
+      const graduateIds = finishStudents
+        .filter((s) => isFinishRowSelectable(s) && graduateMarkedIds.has(s._id))
+        .map((s) => String(s._id));
+
+      const carryContinueIds = finishStudents
+        .filter((s) => isFinishRowSelectable(s) && !graduateMarkedIds.has(s._id))
+        .map((s) => String(s._id));
+
       const resp = await patch(ENDPOINTS.SCHOOL_ADMIN.ACADEMIC_YEARS.FINISH(currentYear._id), {
-        selectedStudentIds: selectedIds
+        selectedStudentIds: graduateIds
       });
       if (resp?.status === 'success') {
         const updated = resp.data;
         setCurrentYear(updated);
         setYears((prev) => prev.map((y) => (y._id === updated._id ? updated : y)));
-        setCarryOverStudentIds(selectedIds);
+        setCarryOverStudentIds(carryContinueIds);
         setOpenFinish(false);
+        const gradN = updated.graduatedCount ?? 0;
+        const transferN = updated.transferredCount ?? 0;
         toast.success(
-          `Đã kết thúc năm học. ${selectedIds.length} học sinh sẽ được chuyển tiếp sang năm học mới. ${updated.graduatedCount || 0} học sinh đã tốt nghiệp.`,
+          `Đã kết thúc năm học. ${gradN} học sinh tốt nghiệp (khối 5-6). ${transferN} học sinh chuyển tiếp năm học mới.`,
         );
       }
     } catch (error) {
@@ -268,7 +301,7 @@ function ManageAcademicYears() {
           const count = resp.carryOverCount ?? carryOverStudentIds.length;
           toast.success(
             count > 0
-              ? `Tạo năm học mới thành công. Đã chuyển tiếp ${count} học sinh.`
+              ? `Tạo năm học mới thành công. Đã gắn năm học mới cho ${count} học sinh xác nhận học tiếp khi kết thúc năm.`
               : 'Tạo năm học mới thành công.',
           );
         }
@@ -301,8 +334,54 @@ function ManageAcademicYears() {
     }
   };
 
-  const allSelected = finishStudents.length > 0 && selectedStudentIds.size === finishStudents.length;
-  const someSelected = selectedStudentIds.size > 0 && !allSelected;
+  const filteredFinishStudents = useMemo(() => {
+    const g = finishGradeFilter.trim();
+    const c = finishClassFilter.trim();
+    return finishStudents.filter((s) => {
+      const gn = (s.gradeName || '').trim();
+      const cn = (s.className || '').trim();
+      if (g && gn !== g) return false;
+      if (c && cn !== c) return false;
+      return true;
+    });
+  }, [finishStudents, finishGradeFilter, finishClassFilter]);
+
+  const finishGradeOptions = useMemo(() => {
+    const set = new Set(finishStudents.map((s) => (s.gradeName || '').trim()).filter(Boolean));
+    return Array.from(set).sort((a, b) => a.localeCompare(b, 'vi'));
+  }, [finishStudents]);
+
+  const finishClassOptions = useMemo(() => {
+    const pool = finishGradeFilter.trim()
+      ? finishStudents.filter((s) => (s.gradeName || '').trim() === finishGradeFilter.trim())
+      : finishStudents;
+    const set = new Set(pool.map((s) => (s.className || '').trim()).filter(Boolean));
+    return Array.from(set).sort((a, b) => a.localeCompare(b, 'vi'));
+  }, [finishStudents, finishGradeFilter]);
+
+  const visibleSelectableFinish = useMemo(
+    () => filteredFinishStudents.filter(isFinishRowSelectable),
+    [filteredFinishStudents],
+  );
+
+  const allSelected =
+    visibleSelectableFinish.length > 0 &&
+    visibleSelectableFinish.every((s) => graduateMarkedIds.has(s._id));
+  const someSelected =
+    visibleSelectableFinish.some((s) => graduateMarkedIds.has(s._id)) && !allSelected;
+
+  const finishSelectableTotal = useMemo(
+    () => finishStudents.filter(isFinishRowSelectable).length,
+    [finishStudents],
+  );
+  const graduateTickCount = useMemo(
+    () =>
+      finishStudents.reduce(
+        (n, s) => n + (isFinishRowSelectable(s) && graduateMarkedIds.has(s._id) ? 1 : 0),
+        0,
+      ),
+    [finishStudents, graduateMarkedIds],
+  );
 
   return (
     <RoleLayout
@@ -373,7 +452,7 @@ function ManageAcademicYears() {
               {carryOverStudentIds.length > 0 && (
                 <Chip
                   size="small"
-                  label={`${carryOverStudentIds.length} học sinh sẽ được chuyển tiếp`}
+                  label={`${carryOverStudentIds.length} học sinh xác nhận học tiếp — gắn năm mới khi tạo năm học`}
                   color="info"
                   sx={{ mt: 1, fontWeight: 600 }}
                 />
@@ -467,11 +546,12 @@ function ManageAcademicYears() {
         <Dialog open={openFinish} onClose={() => setOpenFinish(false)} maxWidth="md" fullWidth>
           <DialogTitle sx={{ pb: 1.5, background: 'linear-gradient(135deg, #dc2626 0%, #b91c1c 100%)', color: 'white' }}>
             <Typography variant="subtitle1" fontWeight={700}>
-              Kết thúc năm học — Chọn học sinh chuyển tiếp
+              Kết thúc năm học — Xử lý học sinh theo khối lớp
             </Typography>
             <Typography variant="body2" sx={{ opacity: 0.9, mt: 0.25 }}>
-              Chọn những học sinh sẽ được chuyển tiếp sang năm học mới. Học sinh không được chọn sẽ có trạng thái "Đã tốt nghiệp".
-              Học sinh có ghi chú đặc biệt được đánh dấu màu vàng — hãy xem xét kỹ trước khi quyết định.
+              • Các khối <strong>chưa phải năm cuối</strong> (theo tuổi min–max của khối, ví dụ chưa đủ 5–6 tuổi): <strong>luôn học tiếp</strong>, không ô chọn<br/>
+              • <strong>Chỉ khối năm cuối</strong> (cấu hình tuổi tối thiểu ≥ 5 và tối đa ≥ 6, ví dụ khối Chồi 5–6 tuổi) mới có ô — không tick = học tiếp, tick = tốt nghiệp<br/>
+              • Học sinh có ghi chú đặc biệt được đánh dấu màu vàng
             </Typography>
           </DialogTitle>
           <DialogContent dividers sx={{ p: 0 }}>
@@ -484,33 +564,92 @@ function ManageAcademicYears() {
                 <Typography color="text.secondary">Không có học sinh nào trong năm học này.</Typography>
               </Box>
             ) : (
-              <Table size="small" stickyHeader>
+              <>
+                <Stack
+                  direction={{ xs: 'column', sm: 'row' }}
+                  spacing={2}
+                  alignItems={{ xs: 'stretch', sm: 'center' }}
+                  sx={{ px: 2, py: 1.5, bgcolor: 'grey.50', borderBottom: 1, borderColor: 'divider' }}
+                >
+                  <Typography variant="body2" color="text.secondary" sx={{ display: { xs: 'none', sm: 'block' }, flexShrink: 0 }}>
+                    Lọc danh sách xét duyệt:
+                  </Typography>
+                  <FormControl size="small" sx={{ minWidth: { xs: '100%', sm: 200 } }}>
+                    <InputLabel>Khối</InputLabel>
+                    <Select
+                      label="Khối"
+                      value={finishGradeFilter}
+                      onChange={(e) => {
+                        setFinishGradeFilter(e.target.value);
+                        setFinishClassFilter('');
+                      }}
+                    >
+                      <MenuItem value="">
+                        <em>Tất cả khối</em>
+                      </MenuItem>
+                      {finishGradeOptions.map((name) => (
+                        <MenuItem key={name} value={name}>
+                          {name}
+                        </MenuItem>
+                      ))}
+                    </Select>
+                  </FormControl>
+                  <FormControl size="small" sx={{ minWidth: { xs: '100%', sm: 200 } }}>
+                    <InputLabel>Lớp</InputLabel>
+                    <Select
+                      label="Lớp"
+                      value={finishClassFilter}
+                      onChange={(e) => setFinishClassFilter(e.target.value)}
+                      disabled={finishClassOptions.length === 0}
+                    >
+                      <MenuItem value="">
+                        <em>Tất cả lớp{finishGradeFilter.trim() ? ' (theo khối đã chọn)' : ''}</em>
+                      </MenuItem>
+                      {finishClassOptions.map((name) => (
+                        <MenuItem key={name} value={name}>
+                          {name}
+                        </MenuItem>
+                      ))}
+                    </Select>
+                  </FormControl>
+                </Stack>
+                {filteredFinishStudents.length === 0 ? (
+                  <Box sx={{ py: 6, textAlign: 'center', px: 2 }}>
+                    <Typography color="text.secondary">
+                      Không có học sinh nào khớp bộ lọc khối / lớp. Hãy đổi bộ lọc hoặc chọn &quot;Tất cả&quot; để xem lại danh sách.
+                    </Typography>
+                  </Box>
+                ) : (
+                <Table size="small" stickyHeader>
                 <TableHead>
                   <TableRow>
-                    <TableCell padding="checkbox" sx={{ bgcolor: '#f9fafb' }}>
+                    <TableCell padding="checkbox" sx={{ bgcolor: '#f9fafb' }} title="Chỉ khối năm cuối (tuổi cấu hình): tick = tốt nghiệp. Các khối khác không có ô.">
                       <Checkbox
                         checked={allSelected}
                         indeterminate={someSelected}
-                        onChange={handleToggleAll}
+                        onChange={handleToggleAllGraduateMarks}
                         icon={<CheckBoxBlankIcon />}
                         checkedIcon={<CheckBoxIcon />}
                       />
                     </TableCell>
                     <TableCell sx={{ bgcolor: '#f9fafb', fontWeight: 700 }}>Học sinh</TableCell>
                     <TableCell sx={{ bgcolor: '#f9fafb', fontWeight: 700 }}>Lớp</TableCell>
-                    <TableCell sx={{ bgcolor: '#f9fafb', fontWeight: 700 }}>Ngày sinh</TableCell>
-                    <TableCell sx={{ bgcolor: '#f9fafb', fontWeight: 700 }}>Trạng thái</TableCell>
+                    <TableCell sx={{ bgcolor: '#f9fafb', fontWeight: 700 }}>Khối</TableCell>
+                    <TableCell sx={{ bgcolor: '#f9fafb', fontWeight: 700 }}>Đánh giá</TableCell>
+                    <TableCell sx={{ bgcolor: '#f9fafb', fontWeight: 700 }}>Xử lý</TableCell>
                   </TableRow>
                 </TableHead>
                 <TableBody>
-                  {finishStudents.map((s) => (
+                  {filteredFinishStudents.map((s) => (
                     <TableRow
                       key={s._id}
                       hover
-                      selected={selectedStudentIds.has(s._id)}
-                      onClick={() => handleToggleStudent(s._id)}
+                      selected={isFinishRowSelectable(s) && graduateMarkedIds.has(s._id)}
+                      onClick={() => {
+                        if (isFinishRowSelectable(s)) handleToggleGraduateMark(s._id);
+                      }}
                       sx={{
-                        cursor: 'pointer',
+                        cursor: isFinishRowSelectable(s) ? 'pointer' : 'default',
                         bgcolor: s.needsSpecialAttention ? '#fffbeb' : 'inherit',
                         '&:hover': {
                           bgcolor: s.needsSpecialAttention ? '#fef3c7' : '#f9fafb'
@@ -518,7 +657,15 @@ function ManageAcademicYears() {
                       }}
                     >
                       <TableCell padding="checkbox">
-                        <Checkbox checked={selectedStudentIds.has(s._id)} onChange={() => handleToggleStudent(s._id)} onClick={(e) => e.stopPropagation()} />
+                        {isFinishRowSelectable(s) ? (
+                            <Checkbox
+                              checked={graduateMarkedIds.has(s._id)}
+                              onChange={() => handleToggleGraduateMark(s._id)}
+                              onClick={(e) => e.stopPropagation()}
+                            />
+                          ) : (
+                            <Box sx={{ width: 24, height: 24 }} /> // Placeholder for alignment
+                          )}
                       </TableCell>
                       <TableCell>
                         <Stack direction="row" alignItems="center" spacing={1.5}>
@@ -537,37 +684,59 @@ function ManageAcademicYears() {
                         </Stack>
                       </TableCell>
                       <TableCell><Typography variant="body2">{s.className || '—'}</Typography></TableCell>
-                      <TableCell><Typography variant="body2">{s.dateOfBirth ? new Date(s.dateOfBirth).toLocaleDateString('vi-VN') : '—'}</Typography></TableCell>
+                      <TableCell><Typography variant="body2">{s.gradeName || '—'}</Typography></TableCell>
                       <TableCell>
-                        <Stack direction="row" alignItems="center" spacing={1}>
+                        {s.evaluation?.academicEvaluation ? (
                           <Chip
                             size="small"
-                            label={
-                              s.status === 'active' ? 'Đang học' :
-                              s.status === 'graduated' ? 'Đã tốt nghiệp' :
-                              'Nghỉ học'
-                            }
-                            color={
-                              s.status === 'active' ? 'success' :
-                              s.status === 'graduated' ? 'primary' :
-                              'default'
-                            }
+                            label={s.evaluation.academicEvaluation === 'đạt' ? 'Đạt' : 'Chưa đạt'}
+                            color={s.evaluation.academicEvaluation === 'đạt' ? 'success' : 'error'}
                           />
-                          {s.needsSpecialAttention && (
-                            <InfoIcon sx={{ fontSize: 16, color: 'warning.main' }} titleAccess="Học sinh cần chú ý đặc biệt" />
-                          )}
-                        </Stack>
+                        ) : (
+                          <Typography variant="caption" color="text.secondary">Chưa đánh giá</Typography>
+                        )}
+                      </TableCell>
+                      <TableCell>
+                        {(() => {
+                          if (!isFinishRowSelectable(s)) {
+                            return (
+                              <Typography variant="body2" color="primary.main">
+                                Học tiếp <Box component="span" sx={{ color: 'text.secondary', fontSize: '0.75rem' }}> (cố định)</Box>
+                              </Typography>
+                            );
+                          }
+                          return graduateMarkedIds.has(s._id) ? (
+                            <Typography variant="body2" color="text.secondary">Tốt nghiệp</Typography>
+                          ) : (
+                            <Typography variant="body2" color="primary.main">Học tiếp</Typography>
+                          );
+                        })()}
                       </TableCell>
                     </TableRow>
                   ))}
                 </TableBody>
               </Table>
+                )}
+              </>
             )}
           </DialogContent>
-          <DialogActions sx={{ px: 3, py: 2, justifyContent: 'space-between' }}>
+          <DialogActions sx={{ px: 3, py: 2, justifyContent: 'space-between', flexWrap: 'wrap', gap: 1 }}>
+            <Box>
             <Typography variant="body2" color="text.secondary">
-              Đã chọn <strong>{selectedStudentIds.size}</strong> / {finishStudents.length} học sinh
+              Khối <strong>năm cuối</strong> (tuổi cấu hình): đã tick <strong>{graduateTickCount}</strong> / {finishSelectableTotal} để <strong>tốt nghiệp</strong>
+              {' · '}
+              <strong>{finishSelectableTotal - graduateTickCount}</strong> học sinh cùng nhóm <strong>học tiếp</strong>
             </Typography>
+            <Typography variant="caption" color="text.secondary" display="block" mt={0.25}>
+              Các khối chưa đủ điều kiện năm cuối: luôn học tiếp, không chỉnh · Tổng trong năm: {finishStudents.length} học sinh
+            </Typography>
+            {!finishLoading && finishStudents.length > 0 && (
+              <Typography variant="caption" color="text.secondary" display="block" mt={0.25}>
+                Đang hiển thị <strong>{filteredFinishStudents.length}</strong> học sinh
+                {(finishGradeFilter || finishClassFilter) ? ' sau lọc khối / lớp' : ''}
+              </Typography>
+            )}
+            </Box>
             <Stack direction="row" spacing={1.5}>
               <Button onClick={() => setOpenFinish(false)} sx={{ textTransform: 'none' }}>Hủy</Button>
               <Button
@@ -593,7 +762,7 @@ function ManageAcademicYears() {
                 <Typography variant="subtitle1" fontWeight={700}>Tạo năm học mới</Typography>
                 {carryOverStudentIds.length > 0 && (
                   <Typography variant="caption" sx={{ opacity: 0.9 }}>
-                    {carryOverStudentIds.length} học sinh sẽ được chuyển tiếp tự động
+                    {carryOverStudentIds.length} học sinh xác nhận học tiếp sẽ được gắn năm học mới khi tạo
                   </Typography>
                 )}
               </Box>
@@ -685,7 +854,7 @@ function ManageAcademicYears() {
               {carryOverStudentIds.length > 0 && (
                 <Paper elevation={0} sx={{ p: 2, borderRadius: 2, bgcolor: '#eff6ff', border: '1px solid #bfdbfe' }}>
                   <Typography variant="body2" color="primary" fontWeight={700}>
-                    ✓ {carryOverStudentIds.length} học sinh được chuyển tiếp từ năm học cũ sẽ tự động được thêm vào năm học mới này.
+                    ✓ {carryOverStudentIds.length} học sinh xác nhận học tiếp khi kết thúc năm sẽ được thêm vào năm học mới này.
                   </Typography>
                 </Paper>
               )}
