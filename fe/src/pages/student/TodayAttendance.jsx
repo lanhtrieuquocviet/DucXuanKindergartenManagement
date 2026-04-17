@@ -251,8 +251,8 @@ export default function TodayAttendance() {
                     />
                   )}
                   {isOtherDeliverer && hasCheckIn && (
-                    <Chip icon={<VerifiedUserIcon sx={{ fontSize: '14px !important' }} />}
-                      label="Giáo viên xác nhận trực tiếp" size="small"
+                    <Chip icon={<PersonOffIcon sx={{ fontSize: '14px !important' }} />}
+                      label="Người đưa: Khác ngoài danh sách" size="small"
                       sx={{ fontWeight: 700, bgcolor: '#fffbeb', color: '#b45309', border: '1px solid #fde68a' }}
                     />
                   )}
@@ -273,11 +273,11 @@ export default function TodayAttendance() {
 
                 {/* Info grid */}
                 <Grid container spacing={2} mb={2}>
-                  <Grid size={{ xs: 6 }}>
+                  <Grid size={{ xs: 12, sm: 6 }}>
                     <InfoItem label="Người đưa" value={delivererName} />
                   </Grid>
-                  <Grid size={{ xs: 6 }}>
-                    <InfoItem label="SĐT người đưa" value={delivererPhone} />
+                  <Grid size={{ xs: 12, sm: 6 }}>
+                    <InfoItem label="Thông tin người đưa" value={delivererPhone} />
                   </Grid>
                   <Grid size={{ xs: 12 }}>
                     <InfoItem label="Ghi chú" value={note} />
@@ -296,12 +296,12 @@ export default function TodayAttendance() {
                 <Divider sx={{ mb: 2 }} />
                 <Grid container spacing={1.5}>
                   {delivererImg && (
-                    <Grid size={{ xs: checkinImg ? 6 : 12 }}>
+                    <Grid size={{ xs: 12, sm: checkinImg ? 6 : 12 }}>
                       <PhotoCard label="Ảnh người đưa" src={delivererImg} color={PRIMARY} />
                     </Grid>
                   )}
-                  <Grid size={{ xs: delivererImg ? 6 : 12 }}>
-                    <PhotoCard label="Ảnh xác nhận check-in" src={checkinImg} color={PRIMARY} />
+                  <Grid size={{ xs: 12, sm: delivererImg ? 6 : 12 }}>
+                    <PhotoCard label="Ảnh check-in" src={checkinImg} color={PRIMARY} />
                   </Grid>
                 </Grid>
               </Box>
@@ -365,11 +365,11 @@ export default function TodayAttendance() {
 
                 {/* Info grid */}
                 <Grid container spacing={2} mb={2}>
-                  <Grid size={{ xs: 6 }}>
+                  <Grid size={{ xs: 12, sm: 6 }}>
                     <InfoItem label="Người đón" value={receiverName} />
                   </Grid>
-                  <Grid size={{ xs: 6 }}>
-                    <InfoItem label="SĐT người đón" value={receiverPhone} />
+                  <Grid size={{ xs: 12, sm: 6 }}>
+                    <InfoItem label="Thông tin người đón" value={receiverPhone} />
                   </Grid>
                   <Grid size={{ xs: 12 }}>
                     <InfoItem label="Ghi chú" value={checkoutBelongingsNote} />
@@ -383,12 +383,12 @@ export default function TodayAttendance() {
                 <Divider sx={{ mb: 2 }} />
                 <Grid container spacing={1.5}>
                   {receiverImg && (
-                    <Grid size={{ xs: checkoutImg ? 6 : 12 }}>
+                    <Grid size={{ xs: 12, sm: checkoutImg ? 6 : 12 }}>
                       <PhotoCard label="Ảnh người đón" src={receiverImg} color="#2563eb" />
                     </Grid>
                   )}
-                  <Grid size={{ xs: receiverImg ? 6 : 12 }}>
-                    <PhotoCard label="Ảnh xác nhận check-out" src={checkoutImg} color="#2563eb" />
+                  <Grid size={{ xs: 12, sm: receiverImg ? 6 : 12 }}>
+                    <PhotoCard label="Ảnh check-out" src={checkoutImg} color="#2563eb" />
                   </Grid>
                 </Grid>
               </Box>

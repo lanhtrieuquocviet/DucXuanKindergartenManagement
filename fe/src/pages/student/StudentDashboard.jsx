@@ -19,6 +19,16 @@ const PRIMARY_DARK = '#047857';
 const PRIMARY_LIGHT = '#d1fae5';
 const BG = '#f0fdf4';
 
+const formatHHmm = (value) => {
+  if (!value) return null;
+  if (/^\d{2}:\d{2}$/.test(value)) return value;
+  try {
+    const d = new Date(value);
+    if (isNaN(d.getTime())) return null;
+    return `${String(d.getHours()).padStart(2, '0')}:${String(d.getMinutes()).padStart(2, '0')}`;
+  } catch { return null; }
+};
+
 const NOTIF_CONFIG = {
   attendance_checkin:  { icon: '🏫', bg: '#dbeafe', label: 'Đến trường' },
   attendance_checkout: { icon: '🏠', bg: '#fce7f3', label: 'Về nhà' },
@@ -222,8 +232,14 @@ export default function StudentDashboard() {
   const studentName = studentInfo?.fullName || 'Học sinh';
   const className = studentInfo?.classId?.className || 'Chưa xếp lớp';
   const parentDisplayName = user?.fullName || user?.username || 'Phụ huynh';
-  const checkInText = attendanceToday?.time?.checkIn || 'Chưa có';
-  const checkOutText = attendanceToday?.time?.checkOut || 'Chưa có';
+  const checkInText =
+    attendanceToday?.timeString?.checkIn ||
+    formatHHmm(attendanceToday?.time?.checkIn) ||
+    'Chưa có';
+  const checkOutText =
+    attendanceToday?.timeString?.checkOut ||
+    formatHHmm(attendanceToday?.time?.checkOut) ||
+    'Chưa có';
 
   const attendanceStatus = (() => {
     if (!attendanceToday) return { label: 'Chưa điểm danh', color: 'default' };

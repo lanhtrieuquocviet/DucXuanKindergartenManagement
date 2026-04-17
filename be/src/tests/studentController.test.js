@@ -12,6 +12,7 @@ jest.mock('../models/Role', () => {
 });
 jest.mock('../models/AcademicYear');
 jest.mock('../models/RefreshToken');
+jest.mock('../models/Enrollment');
 jest.mock('bcryptjs');
 jest.mock('../utils/email', () => ({
   generateRandomPassword: jest.fn().mockReturnValue('RandPass1!'),
@@ -23,7 +24,14 @@ const User = require('../models/User');
 const ParentProfile = require('../models/ParentProfile');
 const Role = require('../models/Role');
 const AcademicYear = require('../models/AcademicYear');
+const Enrollment = require('../models/Enrollment');
 const bcrypt = require('bcryptjs');
+
+const mockEnrollmentFind = () => {
+  Enrollment.findOne = jest.fn().mockReturnValue({
+    select: jest.fn().mockReturnValue({ lean: jest.fn().mockResolvedValue(null) }),
+  });
+};
 
 const {
   getStudents,
@@ -81,6 +89,7 @@ describe('getStudents', () => {
 
   test('UTC001 [N] Lấy danh sách học sinh thành công → 200', async () => {
     Student.find = jest.fn().mockReturnValue(makePopulateChain4([makeStudentObj()]));
+    mockEnrollmentFind();
     const res = mockRes();
     await getStudents(mockReq({}, {}, {}), res);
     expect(res.status).toHaveBeenCalledWith(200);
@@ -112,6 +121,7 @@ describe('getStudents', () => {
   test('UTC005 [B] Response không chứa faceEmbedding (bảo mật)', async () => {
     const stuWithFace = makeStudentObj({ faceEmbedding: [0.1, 0.2], faceEmbeddings: [[0.1]] });
     Student.find = jest.fn().mockReturnValue(makePopulateChain4([stuWithFace]));
+    mockEnrollmentFind();
     const res = mockRes();
     await getStudents(mockReq({}, {}, {}), res);
     const jsonCall = res.json.mock.calls[0][0];
@@ -267,7 +277,10 @@ describe('createStudentWithParent', () => {
 
   test('UTC008 [N] Tạo thành công (phụ huynh mới) → 201', async () => {
     Role.findOne = jest.fn().mockResolvedValue({ _id: 'role1' });
-    User.findOne = jest.fn().mockResolvedValue(null);
+    User.findOne = jest.fn()
+      .mockResolvedValueOnce(null)  // phone check
+      .mockResolvedValueOnce(null)  // legacy username check
+      .mockReturnValue({ lean: jest.fn().mockResolvedValue(null) });  // email check
     const parentUser = {
       _id: 'par1', email: 'binh@example.com', phone: '0901234567', roles: [],
       fullName: 'Trần Văn Bình', username: '0901234567',
@@ -405,7 +418,7 @@ describe('deleteStudent', () => {
   beforeEach(() => jest.clearAllMocks());
 
   test('UTC001 [N] Xóa học sinh thành công → 200', async () => {
-    Student.findById = jest.fn().mockResolvedValue(makeStudentObj({ parentId: null, parentProfileId: null }));
+    Student.findById = jest.fn().mockReturnValue({ select: jest.fn().mockResolvedValue(makeStudentObj({ parentId: null, parentProfileId: null })) });
     Student.findByIdAndDelete = jest.fn().mockResolvedValue(makeStudentObj());
     Student.countDocuments = jest.fn().mockResolvedValue(0);
     const res = mockRes();
@@ -415,7 +428,7 @@ describe('deleteStudent', () => {
   });
 
   test('UTC002 [A] Không tìm thấy học sinh → 404', async () => {
-    Student.findById = jest.fn().mockResolvedValue(null);
+    Student.findById = jest.fn().mockReturnValue({ select: jest.fn().mockResolvedValue(null) });
     Student.findByIdAndDelete = jest.fn().mockResolvedValue(null);
     const res = mockRes();
     await deleteStudent(mockReq({}, { studentId: 'notexist' }), res);
@@ -423,7 +436,7 @@ describe('deleteStudent', () => {
   });
 
   test('UTC003 [A] DB throw exception → 500', async () => {
-    Student.findById = jest.fn().mockRejectedValue(new Error('DB error'));
+    Student.findById = jest.fn().mockReturnValue({ select: jest.fn().mockRejectedValue(new Error('DB error')) });
     const res = mockRes();
     await deleteStudent(mockReq({}, { studentId: 'stu1' }), res);
     expect(res.status).toHaveBeenCalledWith(500);

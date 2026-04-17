@@ -193,6 +193,8 @@ function TeacherAttendance() {
       status = 'absent';
     } else if (serverRec.status === 'present') {
       status = serverRec.timeString?.checkOut ? 'checked_out' : 'checked_in';
+    } else if (serverRec.status === 'leave') {
+      status = 'absent';
     } else {
       status = 'checked_in';
     }
@@ -551,7 +553,7 @@ function TeacherAttendance() {
       if (!dName) return 'Vui lòng nhập tên người đưa.';
       if (dName.length > MAX_PERSON_NAME_LEN) return `Tên người đưa tối đa ${MAX_PERSON_NAME_LEN} ký tự.`;
       if (!dPhone) return 'Vui lòng nhập số điện thoại người đưa.';
-      if (!PHONE_REGEX.test(dPhone)) return 'Số điện thoại người đưa không hợp lệ (7–15 chữ số).';
+      if (!PHONE_REGEX.test(dPhone)) return 'Số điện thoại người đưa không hợp lệ (10–11 chữ số).';
     }
 
     if (detailForm.receiverType === 'Khác') {
@@ -560,7 +562,7 @@ function TeacherAttendance() {
       if (!rName) return 'Vui lòng nhập tên người đón.';
       if (rName.length > MAX_PERSON_NAME_LEN) return `Tên người đón tối đa ${MAX_PERSON_NAME_LEN} ký tự.`;
       if (!rPhone) return 'Vui lòng nhập số điện thoại người đón.';
-      if (!PHONE_REGEX.test(rPhone)) return 'Số điện thoại người đón không hợp lệ (7–15 chữ số).';
+      if (!PHONE_REGEX.test(rPhone)) return 'Số điện thoại người đón không hợp lệ (10–11 chữ số).';
     }
 
     if (detailForm.hasBelongings && !belongingsNote) return 'Vui lòng nhập ghi chú đồ mang theo.';
@@ -659,6 +661,11 @@ function TeacherAttendance() {
           ? buildPersonOtherInfo(detailForm.delivererName, detailForm.delivererPhone)
           : detailForm.delivererOtherInfo || '';
 
+        const checkinBelongingsArray =
+          detailForm.hasBelongings && detailForm.belongingsNote?.trim()
+            ? detailForm.belongingsNote.split(',').map((s) => s.trim()).filter(Boolean)
+            : [];
+
         await post(ENDPOINTS.STUDENTS.ATTENDANCE_CHECKIN, {
           ...basePayload,
           checkinImageName: detailForm.checkinImageName || '',
@@ -670,6 +677,7 @@ function TeacherAttendance() {
           status: 'present',
           isTakeOff: false,
           checkedInByAI: detailForm.checkedInByAI || false,
+          checkinBelongings: checkinBelongingsArray,
         });
 
         updateRecord(detailStudentId, {
@@ -690,7 +698,21 @@ function TeacherAttendance() {
         showSuccessToast(`Điểm danh thành công cho ${studentName}!`);
         closeDetailAndClearDraft();
       } else {
-        // view mode: chỉ lưu local
+        // view mode: lưu ghi chú lên server nếu học sinh đã có bản ghi điểm danh
+        const currentRec = attendanceByStudent?.[detailStudentId];
+        if (currentRec && currentRec.status !== 'empty') {
+          const serverStatus =
+            currentRec.status === 'checked_in' || currentRec.status === 'checked_out'
+              ? 'present'
+              : currentRec.status;
+          await post(ENDPOINTS.STUDENTS.ATTENDANCE_CHECKIN, {
+            studentId: detailStudentId,
+            classId,
+            date: selectedDate,
+            status: serverStatus,
+            note: basePayload.note,
+          });
+        }
         updateRecord(detailStudentId, {
           ...(attendanceByStudent?.[detailStudentId] || defaultRecord()),
           ...detailForm,

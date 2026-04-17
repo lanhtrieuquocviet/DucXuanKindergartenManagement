@@ -73,10 +73,18 @@ export const defaultRecord = () => ({
 
 export const ABSENT_REASONS = ['Ốm', 'Nghỉ phép', 'Gia đình có việc', 'Khác'];
 export const MAX_PERSON_NAME_LEN = 50;
-export const MAX_PERSON_PHONE_LEN = 15;
+export const MAX_PERSON_PHONE_LEN = 11;
 export const MAX_BELONGINGS_NOTE_LEN = 100;
 export const MAX_NOTE_LEN = 100;
-export const PHONE_REGEX = /^[0-9+\-\s()]{7,15}$/;
+// Số điện thoại Việt Nam: 10–11 chữ số
+export const PHONE_REGEX = /^\d{10,11}$/;
+
+// Chỉ giữ chữ cái (bao gồm tiếng Việt) và khoảng trắng — loại bỏ ký tự đặc biệt
+export const sanitizePersonName = (value = '', maxLen = MAX_PERSON_NAME_LEN) =>
+  value
+    .replace(/[^\p{L}\p{M}\s]/gu, '')
+    .replace(/\s+/g, ' ')
+    .slice(0, maxLen);
 
 export const parsePersonOtherInfo = (info) => {
   if (!info) return { name: '', phone: '' };
@@ -127,9 +135,11 @@ export const formatPhoneForFirebase = (phone) => {
 };
 
 export const buildDateTimeISO = (dateStr, hhmm) => {
-  const [hh, mm] = (hhmm || '').split(':');
-  if (!dateStr || !hh || !mm) return null;
+  if (!hhmm || !/^\d{2}:\d{2}$/.test(hhmm)) return null;
+  const [hh, mm] = hhmm.split(':');
+  if (!dateStr) return null;
   const d = new Date(dateStr);
+  if (isNaN(d.getTime())) return null;
   d.setHours(Number(hh), Number(mm), 0, 0);
   return d.toISOString();
 };

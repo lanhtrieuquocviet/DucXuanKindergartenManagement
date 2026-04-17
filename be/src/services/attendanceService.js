@@ -37,9 +37,39 @@ const upsertAttendance = async (req, res) => {
       });
     }
 
+    // Validate date hợp lệ
     const attendanceDate = new Date(date);
+    if (isNaN(attendanceDate.getTime())) {
+      return res.status(400).json({ status: 'error', message: 'Ngày điểm danh không hợp lệ' });
+    }
     // Chuẩn hoá về đầu ngày để đảm bảo 1 học sinh chỉ có 1 bản ghi / ngày
     attendanceDate.setHours(0, 0, 0, 0);
+
+    // Không cho phép điểm danh ngày tương lai
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+    if (attendanceDate > today) {
+      return res.status(400).json({ status: 'error', message: 'Không thể điểm danh cho ngày trong tương lai' });
+    }
+
+    // Validate status enum
+    const VALID_STATUSES = ['present', 'absent', 'leave'];
+    if (status && !VALID_STATUSES.includes(status)) {
+      return res.status(400).json({
+        status: 'error',
+        message: `Trạng thái không hợp lệ. Chỉ chấp nhận: ${VALID_STATUSES.join(', ')}`,
+      });
+    }
+
+    // Bắt buộc có lý do khi vắng mặt
+    if (status === 'absent' && !absentReason?.trim()) {
+      return res.status(400).json({ status: 'error', message: 'Vui lòng cung cấp lý do vắng mặt' });
+    }
+
+    // Validate định dạng giờ check-in nếu được cung cấp
+    if (timeString?.checkIn && !/^\d{2}:\d{2}$/.test(timeString.checkIn)) {
+      return res.status(400).json({ status: 'error', message: 'Giờ điểm danh đến phải theo định dạng HH:mm' });
+    }
 
     const payload = {
       studentId,
@@ -52,14 +82,8 @@ const upsertAttendance = async (req, res) => {
       delivererOtherInfo,
       delivererOtherImageName,
       absentReason,
-      time: {
-        checkIn: time && time.checkIn ? new Date(time.checkIn) : null,
-        checkOut: time && time.checkOut ? new Date(time.checkOut) : null,
-      },
-      timeString: {
-        checkIn: timeString && timeString.checkIn ? timeString.checkIn : '',
-        checkOut: timeString && timeString.checkOut ? timeString.checkOut : '',
-      },
+      'time.checkIn': time && time.checkIn ? new Date(time.checkIn) : null,
+      'timeString.checkIn': timeString && timeString.checkIn ? timeString.checkIn : '',
       isTakeOff: !!isTakeOff,
       ...(Array.isArray(checkinBelongings) && { checkinBelongings }),
       ...(typeof checkedInByAI === 'boolean' && { checkedInByAI }),
@@ -161,7 +185,28 @@ const checkoutAttendance = async (req, res) => {
 
     const now = new Date();
     const attendanceDate = date ? new Date(date) : new Date(now);
+    if (isNaN(attendanceDate.getTime())) {
+      return res.status(400).json({ status: 'error', message: 'Ngày điểm danh không hợp lệ' });
+    }
     attendanceDate.setHours(0, 0, 0, 0);
+
+    // Không cho phép điểm danh về cho ngày tương lai
+    const todayForCheckout = new Date();
+    todayForCheckout.setHours(0, 0, 0, 0);
+    if (attendanceDate > todayForCheckout) {
+      return res.status(400).json({ status: 'error', message: 'Không thể điểm danh về cho ngày trong tương lai' });
+    }
+
+    // Validate định dạng giờ check-out nếu client cung cấp tường minh
+    if (timeString?.checkOut && !/^\d{2}:\d{2}$/.test(timeString.checkOut)) {
+      return res.status(400).json({ status: 'error', message: 'Giờ điểm danh về phải theo định dạng HH:mm' });
+    }
+
+    // Validate checkoutConfirmMethod
+    const VALID_CONFIRM_METHODS = ['teacher', 'school_otp', 'sms_otp', ''];
+    if (checkoutConfirmMethod !== undefined && !VALID_CONFIRM_METHODS.includes(checkoutConfirmMethod || '')) {
+      return res.status(400).json({ status: 'error', message: 'Phương thức xác nhận không hợp lệ' });
+    }
 
     // Kiểm tra học sinh đã điểm danh đến trước khi cho phép điểm danh về
     const existingAttendance = await Attendances.findOne({ studentId, date: attendanceDate });
@@ -185,6 +230,14 @@ const checkoutAttendance = async (req, res) => {
         .getMinutes()
         .toString()
         .padStart(2, '0')}`;
+
+    // Giờ về không thể trước giờ đến
+    if (existingAttendance.time?.checkIn && checkOutTime < existingAttendance.time.checkIn) {
+      return res.status(400).json({
+        status: 'error',
+        message: `Giờ về (${checkOutTimeString}) không thể trước giờ đến (${existingAttendance.timeString?.checkIn || ''})`,
+      });
+    }
 
     const update = {
       note,
