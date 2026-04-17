@@ -1030,15 +1030,17 @@ const deleteFaceAngle = async (req, res) => {
  */
 const updateAttendanceDeliverer = async (req, res) => {
   try {
-    const { delivererType, delivererOtherInfo, receiverType, receiverOtherInfo, note, checkinBelongings, checkoutBelongings, checkoutBelongingsNote } = req.body;
+    const { delivererType, delivererOtherInfo, delivererOtherImageName, receiverType, receiverOtherInfo, receiverOtherImageName, note, checkinBelongings, checkoutBelongings, checkoutBelongingsNote } = req.body;
     const attendance = await Attendances.findById(req.params.id);
     if (!attendance) {
       return res.status(404).json({ status: 'error', message: 'Không tìm thấy bản ghi điểm danh.' });
     }
     if (delivererType !== undefined) attendance.delivererType = delivererType;
     if (delivererOtherInfo !== undefined) attendance.delivererOtherInfo = delivererOtherInfo;
+    if (delivererOtherImageName !== undefined) attendance.delivererOtherImageName = delivererOtherImageName;
     if (receiverType !== undefined) attendance.receiverType = receiverType;
     if (receiverOtherInfo !== undefined) attendance.receiverOtherInfo = receiverOtherInfo;
+    if (receiverOtherImageName !== undefined) attendance.receiverOtherImageName = receiverOtherImageName;
     if (note !== undefined) attendance.note = note;
     if (checkinBelongings !== undefined) attendance.checkinBelongings = checkinBelongings;
     if (checkoutBelongings !== undefined) attendance.checkoutBelongings = checkoutBelongings;
