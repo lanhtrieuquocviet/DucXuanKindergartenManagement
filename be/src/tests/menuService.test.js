@@ -729,9 +729,9 @@ describe('updateNutritionPlanSetting', () => {
     expect(res.json).toHaveBeenCalledWith(expect.objectContaining({ success: true }));
   });
 
-  test('UTC003 [A] Items rỗng hoặc không hợp lệ → 400', async () => {
+  test('UTC003 [A] Items chứa item không hợp lệ (tên rỗng, min/max NaN) → 400', async () => {
     const res = mockRes();
-    await updateNutritionPlanSetting(mockReq({ items: [] }), res);
+    await updateNutritionPlanSetting(mockReq({ items: [{ name: '', min: 'abc', max: 'xyz' }] }), res);
     expect(res.status).toHaveBeenCalledWith(400);
   });
 

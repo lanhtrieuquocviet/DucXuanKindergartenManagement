@@ -1,4 +1,13 @@
-jest.mock('../models/PickupRequest');
+jest.mock('../models/PickupRequest', () => {
+  const PickupRequest = jest.fn();
+  PickupRequest.find = jest.fn();
+  PickupRequest.findOne = jest.fn();
+  PickupRequest.findById = jest.fn();
+  PickupRequest.create = jest.fn();
+  PickupRequest.findByIdAndDelete = jest.fn();
+  PickupRequest.findOneAndUpdate = jest.fn();
+  return PickupRequest;
+});
 jest.mock('../models/Student');
 jest.mock('../models/Classes');
 jest.mock('../models/Teacher');

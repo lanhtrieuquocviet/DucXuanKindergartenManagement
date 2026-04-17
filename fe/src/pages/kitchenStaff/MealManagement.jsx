@@ -2065,17 +2065,17 @@ function MealManagement() {
                 {sampleEntries.length > 0 && (
                   <Chip
                     icon={<CheckCircleIcon sx={{ fontSize: '14px !important', color: '#16a34a !important' }} />}
-                    label="Đã upload"
+                    label={`${sampleEntries.filter(e => ['trua','chieu'].includes(e.mealType)).length}/2 bữa`}
                     size="small"
                     sx={{ height: 24, fontSize: 11.5, bgcolor: alpha('#16a34a', 0.08), color: '#16a34a', border: '1px solid', borderColor: alpha('#16a34a', 0.25) }}
                   />
                 )}
               </Box>
-              {isToday && sampleEntries.length < 1 && (
+              {isToday && !(sampleEntries.some(e => e.mealType === 'trua') && sampleEntries.some(e => e.mealType === 'chieu')) && (
                 <Button
                   variant="contained"
                   startIcon={<AddPhotoIcon />}
-                  onClick={() => navigate('/kitchen/sample-food')}
+                  onClick={() => navigate('/kitchen/sample-food', { state: { existingEntries: sampleEntries } })}
                   sx={{
                     borderRadius: 2.5, fontSize: 13, fontWeight: 700, px: 2.5, py: 0.9, textTransform: 'none',
                     bgcolor: '#ef4444', '&:hover': { bgcolor: '#dc2626' },
@@ -2116,7 +2116,7 @@ function MealManagement() {
                   transition: 'background 0.2s',
                   '&:hover': isToday ? { bgcolor: alpha('#ef4444', 0.05) } : {},
                 }}
-                onClick={isToday ? () => navigate('/kitchen/sample-food') : undefined}
+                onClick={isToday ? () => navigate('/kitchen/sample-food', { state: { existingEntries: sampleEntries } }) : undefined}
               >
                 <Box
                   sx={{
@@ -2140,7 +2140,7 @@ function MealManagement() {
                   <Button
                     variant="outlined"
                     startIcon={<AddPhotoIcon />}
-                    onClick={(e) => { e.stopPropagation(); navigate('/kitchen/sample-food'); }}
+                    onClick={(e) => { e.stopPropagation(); navigate('/kitchen/sample-food', { state: { existingEntries: sampleEntries } }); }}
                     sx={{
                       borderRadius: 2.5, fontSize: 13, fontWeight: 600, px: 3, py: 0.8, textTransform: 'none',
                       borderColor: alpha('#ef4444', 0.5), color: '#ef4444',

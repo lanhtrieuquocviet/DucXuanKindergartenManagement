@@ -1,7 +1,15 @@
 jest.mock('../models/Student');
 jest.mock('../models/User');
 jest.mock('../models/ParentProfile');
-jest.mock('../models/Role');
+jest.mock('../models/Role', () => {
+  const Role = jest.fn();
+  Role.find = jest.fn();
+  Role.findOne = jest.fn();
+  Role.findById = jest.fn();
+  Role.create = jest.fn();
+  Role.countDocuments = jest.fn();
+  return Role;
+});
 jest.mock('../models/AcademicYear');
 jest.mock('../models/RefreshToken');
 jest.mock('bcryptjs');
