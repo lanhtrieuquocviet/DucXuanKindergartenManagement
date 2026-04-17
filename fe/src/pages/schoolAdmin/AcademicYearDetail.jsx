@@ -267,7 +267,7 @@ export default function AcademicYearDetail() {
             <Tab label="Tổng quan" />
             <Tab label="Danh sách lớp học" />
             <Tab label="Danh sách trẻ em" />
-            <Tab label="Chương trình & Kế hoạch" disabled />
+            <Tab label="Chương trình & Kế hoạch" />
             <Tab label="Báo cáo & Thống kê" />
             <Tab label="Lưu trữ & Tài liệu" />
           </Tabs>
@@ -380,6 +380,52 @@ export default function AcademicYearDetail() {
                     }}
                   >
                     Xem danh sách đầy đủ &amp; hồ sơ cá nhân
+                  </Button>
+                </Box>
+              </Paper>
+            </Box>
+          )}
+
+          {tab === 3 && (
+            <Box sx={{ p: 3, borderTop: '1px solid', borderColor: 'divider' }}>
+              <Paper
+                elevation={0}
+                sx={{
+                  borderRadius: 2,
+                  border: '1px solid',
+                  borderColor: 'divider',
+                  p: 3,
+                  backgroundColor: 'grey.50',
+                }}
+              >
+                <Typography variant="h6" fontWeight={700} color="#4f46e5" gutterBottom>
+                  Chương trình &amp; Kế hoạch
+                </Typography>
+                <Stack spacing={1.5}>
+                  <Typography variant="body1" color="text.primary">
+                    Xem và chỉnh sửa chủ đề theo khối lớp, kế hoạch tuần cho năm học{' '}
+                    <strong>{summary?.yearName || ''}</strong>.
+                  </Typography>
+                  <Typography variant="body2" color="text.secondary">
+                    Mở trang thiết lập kế hoạch để quản lý đầy đủ nội dung chương trình của năm này.
+                  </Typography>
+                </Stack>
+
+                <Box sx={{ mt: 3 }}>
+                  <Button
+                    variant="contained"
+                    onClick={() => {
+                      if (yearId) navigate(`/school-admin/academic-plan?yearId=${yearId}`);
+                    }}
+                    sx={{
+                      borderRadius: 2,
+                      textTransform: 'none',
+                      fontWeight: 700,
+                      bgcolor: '#6366f1',
+                      '&:hover': { bgcolor: '#4f46e5' },
+                    }}
+                  >
+                    Mở thiết lập kế hoạch năm học
                   </Button>
                 </Box>
               </Paper>

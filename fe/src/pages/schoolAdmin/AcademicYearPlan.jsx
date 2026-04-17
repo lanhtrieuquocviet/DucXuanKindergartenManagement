@@ -23,7 +23,7 @@ import {
   Typography,
 } from '@mui/material';
 import CloseIcon from '@mui/icons-material/Close';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useSearchParams } from 'react-router-dom';
 import { toast } from 'react-toastify';
 import { useAuth } from '../../context/AuthContext';
 import RoleLayout from '../../layouts/RoleLayout';
@@ -79,6 +79,8 @@ function buildWeeks(count, currentWeeks = []) {
 
 export default function AcademicYearPlan() {
   const navigate = useNavigate();
+  const [searchParams] = useSearchParams();
+  const yearIdFromQuery = searchParams.get('yearId');
   const { user, logout } = useAuth();
   const menuItems = useSchoolAdminMenu();
 
@@ -116,26 +118,39 @@ export default function AcademicYearPlan() {
   const handleMenuSelect = createSchoolAdminMenuSelect(navigate);
 
   useEffect(() => {
-    const loadCurrentYear = async () => {
+    const loadYear = async () => {
       try {
         setLoadingYear(true);
-        const resp = await get(ENDPOINTS.SCHOOL_ADMIN.ACADEMIC_YEARS.CURRENT);
-        if (resp?.status === 'success' && resp.data) {
-          setCurrentYear(resp.data);
+        if (yearIdFromQuery) {
+          const params = new URLSearchParams();
+          params.set('yearId', yearIdFromQuery);
+          const resp = await get(
+            `${ENDPOINTS.SCHOOL_ADMIN.ACADEMIC_YEARS.HISTORY}?${params.toString()}`,
+          );
+          if (resp?.status === 'success' && Array.isArray(resp.data) && resp.data[0]) {
+            setCurrentYear(resp.data[0]);
+          } else {
+            setCurrentYear(null);
+          }
         } else {
-          setCurrentYear(null);
+          const resp = await get(ENDPOINTS.SCHOOL_ADMIN.ACADEMIC_YEARS.CURRENT);
+          if (resp?.status === 'success' && resp.data) {
+            setCurrentYear(resp.data);
+          } else {
+            setCurrentYear(null);
+          }
         }
       } catch (error) {
         // eslint-disable-next-line no-console
-        console.error('Error loading current academic year:', error);
+        console.error('Error loading academic year:', error);
         setCurrentYear(null);
       } finally {
         setLoadingYear(false);
       }
     };
 
-    loadCurrentYear();
-  }, []);
+    loadYear();
+  }, [yearIdFromQuery]);
 
   useEffect(() => {
     const loadBlocksByYear = async () => {
@@ -485,7 +500,9 @@ export default function AcademicYearPlan() {
             }}
           >
             <Typography variant="h6" fontWeight={700} sx={{ color: '#4338ca' }}>
-              Vui lòng hãy tạo năm học mới.
+              {yearIdFromQuery
+                ? 'Không tìm thấy năm học tương ứng với liên kết này.'
+                : 'Vui lòng hãy tạo năm học mới.'}
             </Typography>
           </Paper>
         )}
