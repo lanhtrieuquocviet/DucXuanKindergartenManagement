@@ -28,6 +28,7 @@ const attendanceSchema = new mongoose.Schema(
       type: String,
       trim: true,
       default: '',
+      maxlength: [300, 'Ghi chú tối đa 300 ký tự'],
     },
     // Ảnh check-in và check-out riêng biệt
     checkinImageName: {
@@ -45,8 +46,24 @@ const attendanceSchema = new mongoose.Schema(
       checkOut: { type: Date, default: null },
     },
     timeString: {
-      checkIn: { type: String, trim: true, default: '' },
-      checkOut: { type: String, trim: true, default: '' },
+      checkIn: {
+        type: String,
+        trim: true,
+        default: '',
+        validate: {
+          validator: (v) => !v || /^\d{2}:\d{2}$/.test(v),
+          message: 'Giờ check-in phải theo định dạng HH:mm',
+        },
+      },
+      checkOut: {
+        type: String,
+        trim: true,
+        default: '',
+        validate: {
+          validator: (v) => !v || /^\d{2}:\d{2}$/.test(v),
+          message: 'Giờ check-out phải theo định dạng HH:mm',
+        },
+      },
     },
     isTakeOff: {
       type: Boolean,
@@ -62,6 +79,7 @@ const attendanceSchema = new mongoose.Schema(
       type: String,
       trim: true,
       default: '',
+      maxlength: [100, 'Thông tin người đưa tối đa 100 ký tự'],
     },
     delivererOtherImageName: {
       type: String,
@@ -78,6 +96,7 @@ const attendanceSchema = new mongoose.Schema(
       type: String,
       trim: true,
       default: '',
+      maxlength: [100, 'Thông tin người đón tối đa 100 ký tự'],
     },
     receiverOtherImageName: {
       type: String,
@@ -89,6 +108,7 @@ const attendanceSchema = new mongoose.Schema(
       type: String,
       trim: true,
       default: '',
+      maxlength: [200, 'Ghi chú đồ mang về tối đa 200 ký tự'],
     },
     // Đồ mang đến (ghi nhận khi check-in)
     checkinBelongings: {
@@ -119,12 +139,17 @@ const attendanceSchema = new mongoose.Schema(
       type: String,
       trim: true,
       default: '',
+      enum: {
+        values: ['teacher', 'school_otp', 'sms_otp', ''],
+        message: 'Phương thức xác nhận không hợp lệ: {VALUE}',
+      },
     },
     // Lý do vắng mặt (nếu status = 'absent')
     absentReason: {
       type: String,
       trim: true,
       default: '',
+      maxlength: [100, 'Lý do vắng mặt tối đa 100 ký tự'],
     },
     createdAt: {
       type: Date,

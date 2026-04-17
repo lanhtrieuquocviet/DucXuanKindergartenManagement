@@ -67,7 +67,7 @@ const isLate = (checkInTime) => {
       hours = d.getHours();
       minutes = d.getMinutes();
     }
-    return hours > 7 || (hours === 7 && minutes > 30);
+    return hours > 8 || (hours === 8 && minutes > 30);
   } catch {
     return false;
   }

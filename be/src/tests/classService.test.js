@@ -5,6 +5,7 @@ jest.mock('../models/AcademicYear');
 jest.mock('../models/User');
 jest.mock('../models/Teacher');
 jest.mock('../models/Classroom');
+jest.mock('../models/Enrollment');
 
 const Classes = require('../models/Classes');
 const Student = require('../models/Student');
@@ -12,6 +13,7 @@ const Grade = require('../models/Grade');
 const AcademicYear = require('../models/AcademicYear');
 const Teacher = require('../models/Teacher');
 const Classroom = require('../models/Classroom');
+const Enrollment = require('../models/Enrollment');
 
 const {
   getClassList,
@@ -35,11 +37,13 @@ const mockReq = (body = {}, params = {}, query = {}, user = { _id: 'user1' }) =>
   body, params, query, user,
 });
 
+const VALID_OID = '507f1f77bcf86cd799439011';
+
 const makeClass = (o = {}) => ({
-  _id: 'cls1',
+  _id: VALID_OID,
   className: 'Lá 1',
-  gradeId: 'grade1',
-  academicYearId: 'yr1',
+  gradeId: VALID_OID,
+  academicYearId: VALID_OID,
   teacherIds: ['t1', 't2'],
   maxStudents: 0,
   roomId: null,
@@ -377,15 +381,20 @@ describe('addStudentsToClass', () => {
 
   test('UTC001 [N] Thêm học sinh vào lớp thành công → 200', async () => {
     Classes.findById = jest.fn().mockReturnValue({ lean: jest.fn().mockResolvedValue(makeClass({ maxStudents: 30 })) });
-    Student.countDocuments = jest.fn()
-      .mockResolvedValueOnce(10)  // currentCount
-      .mockResolvedValueOnce(11); // updatedCount
-    Student.find = jest.fn().mockReturnValue({
-      select: jest.fn().mockReturnValue({ lean: jest.fn().mockResolvedValue([]) }),
+    Grade.findById = jest.fn().mockReturnValue({
+      populate: jest.fn().mockReturnValue({ lean: jest.fn().mockResolvedValue({ staticBlockId: { minAge: 2, maxAge: 6 } }) }),
     });
+    Student.countDocuments = jest.fn()
+      .mockResolvedValueOnce(10)  // currentCount (max students check)
+      .mockResolvedValueOnce(11); // updatedCount (final response)
+    Student.find = jest.fn()
+      .mockReturnValueOnce({ select: jest.fn().mockReturnValue({ lean: jest.fn().mockResolvedValue([]) }) }) // alreadyAssigned check → []
+      .mockReturnValue({ select: jest.fn().mockReturnValue({ lean: jest.fn().mockResolvedValue([{ _id: VALID_OID, fullName: 'An', dateOfBirth: new Date('2022-01-01') }]) }) }); // students fetch
+    Enrollment.aggregate = jest.fn().mockResolvedValue([]);
     Student.updateMany = jest.fn().mockResolvedValue({ nModified: 1 });
+    Enrollment.insertMany = jest.fn().mockResolvedValue([]);
     const res = mockRes();
-    await addStudentsToClass(mockReq({ studentIds: ['stu1'] }, { classId: 'cls1' }), res);
+    await addStudentsToClass(mockReq({ studentIds: [VALID_OID] }, { classId: 'cls1' }), res);
     expect(res.status).toHaveBeenCalledWith(200);
     expect(res.json).toHaveBeenCalledWith(expect.objectContaining({ status: 'success' }));
   });
@@ -411,6 +420,9 @@ describe('addStudentsToClass', () => {
 
   test('UTC005 [A] Vượt quá sĩ số tối đa → 400', async () => {
     Classes.findById = jest.fn().mockReturnValue({ lean: jest.fn().mockResolvedValue(makeClass({ maxStudents: 5 })) });
+    Grade.findById = jest.fn().mockReturnValue({
+      populate: jest.fn().mockReturnValue({ lean: jest.fn().mockResolvedValue({ staticBlockId: { minAge: 2, maxAge: 6 } }) }),
+    });
     Student.countDocuments = jest.fn().mockResolvedValue(5);
     const res = mockRes();
     await addStudentsToClass(mockReq({ studentIds: ['stu1'] }, { classId: 'cls1' }), res);
@@ -420,6 +432,9 @@ describe('addStudentsToClass', () => {
 
   test('UTC006 [A] Học sinh đã thuộc lớp khác → 400', async () => {
     Classes.findById = jest.fn().mockReturnValue({ lean: jest.fn().mockResolvedValue(makeClass()) });
+    Grade.findById = jest.fn().mockReturnValue({
+      populate: jest.fn().mockReturnValue({ lean: jest.fn().mockResolvedValue({ staticBlockId: { minAge: 2, maxAge: 6 } }) }),
+    });
     Student.countDocuments = jest.fn().mockResolvedValue(0);
     Student.find = jest.fn().mockReturnValue({
       select: jest.fn().mockReturnValue({
