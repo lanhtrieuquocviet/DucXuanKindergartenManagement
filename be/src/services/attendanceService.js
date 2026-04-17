@@ -171,6 +171,12 @@ const checkoutAttendance = async (req, res) => {
         message: 'Học sinh chưa điểm danh đến, không thể điểm danh về',
       });
     }
+    if (existingAttendance.time?.checkOut) {
+      return res.status(400).json({
+        status: 'error',
+        message: 'Học sinh đã điểm danh về rồi',
+      });
+    }
 
     const checkOutTime = time && time.checkOut ? new Date(time.checkOut) : now;
     const checkOutTimeString =

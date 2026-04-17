@@ -258,7 +258,7 @@ const uploadAttendanceImage = async (req, res) => {
     const result = await cloudinary.uploader.upload(imageBase64, {
       folder: ATTENDANCE_FOLDER,
       resource_type: 'image',
-      quality: 'auto:low', // Nén nhẹ để tiết kiệm dung lượng
+      quality: 'auto:low',
     });
 
     return res.status(200).json({
@@ -267,6 +267,31 @@ const uploadAttendanceImage = async (req, res) => {
     });
   } catch (error) {
     console.error('uploadAttendanceImage error:', error);
+    return res.status(500).json({ status: 'error', message: error.message || 'Lỗi upload ảnh điểm danh' });
+  }
+};
+
+/**
+ * POST /api/cloudinary/upload-attendance-file
+ * Upload ảnh điểm danh từ file multipart (chụp tay / chọn file)
+ * Body: multipart/form-data, field: "image"
+ */
+const uploadAttendanceFile = async (req, res) => {
+  try {
+    if (!req.file || !req.file.buffer) {
+      return res.status(400).json({ status: 'error', message: 'Vui lòng chọn một file ảnh.' });
+    }
+
+    const dataUri = `data:${req.file.mimetype || 'image/jpeg'};base64,${req.file.buffer.toString('base64')}`;
+    const result = await cloudinary.uploader.upload(dataUri, {
+      folder: ATTENDANCE_FOLDER,
+      resource_type: 'image',
+      quality: 'auto:low',
+    });
+
+    return res.status(200).json({ status: 'success', data: { url: result.secure_url } });
+  } catch (error) {
+    console.error('uploadAttendanceFile error:', error);
     return res.status(500).json({ status: 'error', message: error.message || 'Lỗi upload ảnh điểm danh' });
   }
 };
@@ -331,6 +356,7 @@ module.exports = {
   uploadBlogFile,
   uploadKitchenImage,
   uploadAttendanceImage,
+  uploadAttendanceFile,
   uploadPurchaseImage,
   uploadNoteImage,
 };

@@ -31,7 +31,7 @@ function cosineSimilarity(a, b) {
   return dot / (Math.sqrt(normA) * Math.sqrt(normB));
 }
 
-const MATCH_THRESHOLD = 0.87;
+const MATCH_THRESHOLD = 0.92;
 const MIN_MARGIN = 0.04;
 const COOLDOWN_MS = 3000;
 

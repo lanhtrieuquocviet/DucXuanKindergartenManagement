@@ -175,11 +175,15 @@ export default function FaceRegisterModal({ open, onClose, student, onSuccess })
 
   const handleClose = () => {
     stopCamera();
+    const hadNewAngles = savedAngles > (student?.angleCount || 0);
     setPreviewSrc(null);
     setDetectionResult(null);
     setPendingEmbedding(null);
     setConflictInfo(null);
     setSavedAngles(student?.angleCount || 0);
+    if (hadNewAngles) {
+      onSuccess?.();
+    }
     onClose();
   };
 
