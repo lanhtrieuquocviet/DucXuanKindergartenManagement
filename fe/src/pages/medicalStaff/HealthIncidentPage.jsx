@@ -8,7 +8,7 @@ import {
   Box, Paper, Typography, Button, Stack, TextField, Chip,
   Table, TableHead, TableBody, TableRow, TableCell, TableContainer,
   CircularProgress, Alert, Avatar, MenuItem, Select, FormControl,
-  InputLabel, InputAdornment, IconButton, Tooltip, Divider,
+  InputLabel, IconButton, Tooltip,
   Dialog, DialogTitle, DialogContent, DialogActions, Autocomplete,
 } from '@mui/material';
 import {
@@ -23,6 +23,7 @@ import {
   Warning as WarningIcon,
   CheckCircle as RecoveredIcon,
   Person as PersonIcon,
+  Dashboard as DashboardIcon,
 } from '@mui/icons-material';
 
 // ── Constants ─────────────────────────────────────────────────────────────────
@@ -42,6 +43,7 @@ const STATUS_CONFIG = {
 const COMMON_SYMPTOMS = ['Sốt', 'Ho', 'Đau bụng', 'Đau đầu', 'Nôn mửa', 'Tiêu chảy', 'Dị ứng', 'Chấn thương', 'Khó thở', 'Mệt mỏi'];
 
 const MENU_ITEMS = [
+  { key: 'overview',  label: 'Tổng quan sức khỏe', icon: <DashboardIcon fontSize="small" /> },
   { key: 'health',    label: 'Quản lý sức khỏe', icon: <MedicalIcon fontSize="small" /> },
   { key: 'incidents', label: 'Ghi nhận bất thường', icon: <WarningIcon fontSize="small" /> },
 ];
@@ -67,7 +69,8 @@ export default function HealthIncidentPage() {
   const [classes, setClasses]           = useState([]);
   const [classFilter, setClassFilter]   = useState('');
 
-  // Form state
+  // Form state (trong dialog ghi nhận mới)
+  const [createOpen, setCreateOpen] = useState(false);
   const [form, setForm] = useState({
     studentId: null, symptoms: '', description: '', severity: 'mild', status: 'monitoring',
   });
@@ -144,6 +147,7 @@ export default function HealthIncidentPage() {
       });
       toast.success('Đã ghi nhận bất thường');
       setForm({ studentId: null, symptoms: '', description: '', severity: 'mild', status: 'monitoring' });
+      setCreateOpen(false);
       fetchIncidents();
     } catch (e) {
       toast.error(e.data?.message || e.message || 'Lỗi khi lưu');
@@ -202,14 +206,17 @@ export default function HealthIncidentPage() {
     <RoleLayout
       menuItems={MENU_ITEMS}
       activeKey="incidents"
-      onMenuSelect={k => k === 'health' ? navigate('/medical-staff/health') : null}
+      onMenuSelect={k => {
+        if (k === 'overview') navigate('/medical-staff');
+        else if (k === 'health') navigate('/medical-staff/health');
+      }}
       onLogout={handleLogout}
       onViewProfile={() => navigate('/profile')}
       userName={user?.fullName || user?.username || 'Nhân viên y tế'}
       userRole="MedicalStaff"
       pageTitle="Ghi nhận bất thường"
     >
-      <Box sx={{ p: { xs: 2, md: 3 }, maxWidth: 1200, mx: 'auto' }}>
+      <Box sx={{ p: { xs: 2, md: 3 }, width: '100%', maxWidth: 1800, mx: 'auto' }}>
 
         {/* Header */}
         <Paper elevation={0} sx={{ mb: 3, p: 2.5, background: 'linear-gradient(135deg, #dc2626 0%, #b91c1c 100%)', borderRadius: 2 }}>
@@ -279,98 +286,28 @@ export default function HealthIncidentPage() {
           ))}
         </Stack>
 
-        <Stack direction={{ xs: 'column', lg: 'row' }} spacing={2.5} alignItems="flex-start">
-
-          {/* ── Form nhập ───────────────────────────────────────── */}
-          <Paper elevation={1} sx={{ borderRadius: 2, p: 2.5, width: { xs: '100%', lg: 380 }, flexShrink: 0 }}>
-            <Stack direction="row" alignItems="center" spacing={1} mb={2}>
-              <AddIcon sx={{ color: '#dc2626' }} />
-              <Typography variant="subtitle1" fontWeight={700}>Ghi nhận bất thường</Typography>
-              <Typography variant="caption" color="text.secondary">({new Date(selectedDate).toLocaleDateString('vi-VN')})</Typography>
-            </Stack>
-
-            <Stack spacing={2}>
-              {/* Chọn học sinh */}
-              <Autocomplete
-                size="small"
-                options={students}
-                getOptionLabel={o => `${o.fullName} — ${o.className}`}
-                value={form.studentId}
-                onChange={(_, v) => setForm(p => ({ ...p, studentId: v }))}
-                renderInput={params => <TextField {...params} label="Chọn học sinh *" placeholder="Tìm theo tên..." />}
-                renderOption={(props, o) => (
-                  <Box component="li" {...props} key={o._id}>
-                    <Avatar sx={{ width: 28, height: 28, mr: 1, fontSize: '0.75rem', bgcolor: '#fecaca' }}>
-                      {o.fullName?.[0]}
-                    </Avatar>
-                    <Box>
-                      <Typography variant="body2" fontWeight={600}>{o.fullName}</Typography>
-                      <Typography variant="caption" color="text.secondary">{o.className}</Typography>
-                    </Box>
-                  </Box>
-                )}
-                noOptionsText="Không tìm thấy học sinh"
-              />
-
-              {/* Triệu chứng */}
-              <Autocomplete
-                size="small" freeSolo
-                options={COMMON_SYMPTOMS}
-                value={form.symptoms}
-                onInputChange={(_, v) => setForm(p => ({ ...p, symptoms: v }))}
-                onChange={(_, v) => setForm(p => ({ ...p, symptoms: v || '' }))}
-                renderInput={params => <TextField {...params} label="Triệu chứng *" placeholder="Chọn hoặc nhập triệu chứng..." />}
-              />
-
-              {/* Mức độ */}
-              <FormControl size="small" fullWidth>
-                <InputLabel>Mức độ</InputLabel>
-                <Select label="Mức độ" value={form.severity} onChange={e => setForm(p => ({ ...p, severity: e.target.value }))}>
-                  {Object.entries(SEVERITY_CONFIG).map(([v, c]) => (
-                    <MenuItem key={v} value={v}>{c.label}</MenuItem>
-                  ))}
-                </Select>
-              </FormControl>
-
-              {/* Trạng thái */}
-              <FormControl size="small" fullWidth>
-                <InputLabel>Trạng thái xử lý</InputLabel>
-                <Select label="Trạng thái xử lý" value={form.status} onChange={e => setForm(p => ({ ...p, status: e.target.value }))}>
-                  {Object.entries(STATUS_CONFIG).map(([v, c]) => (
-                    <MenuItem key={v} value={v}>{c.label}</MenuItem>
-                  ))}
-                </Select>
-              </FormControl>
-
-              {/* Mô tả */}
-              <TextField
-                size="small" label="Mô tả chi tiết" fullWidth multiline rows={3}
-                value={form.description}
-                onChange={e => setForm(p => ({ ...p, description: e.target.value }))}
-                placeholder="Ghi chú thêm về triệu chứng, xử lý..."
-              />
-
-              <Button
-                variant="contained" fullWidth onClick={handleSubmit} disabled={saving}
-                sx={{ bgcolor: '#dc2626', '&:hover': { bgcolor: '#b91c1c' }, fontWeight: 700 }}
-              >
-                {saving ? <CircularProgress size={20} color="inherit" /> : 'Lưu bản ghi'}
-              </Button>
-            </Stack>
-          </Paper>
-
-          {/* ── Bảng lịch sử trong ngày ───────────────────────── */}
-          <Paper elevation={1} sx={{ borderRadius: 2, flex: 1, minWidth: 0 }}>
+        {/* ── Bảng full width ───────────────────────────────── */}
+        <Paper elevation={1} sx={{ borderRadius: 2, width: '100%' }}>
             <Box sx={{ px: 2.5, py: 2, borderBottom: '1px solid', borderColor: 'divider' }}>
-              <Stack direction="row" alignItems="center" spacing={1}>
-                <WarningIcon sx={{ color: '#dc2626', fontSize: 20 }} />
-                <Typography variant="subtitle1" fontWeight={700}>
-                  Danh sách bất thường — {new Date(selectedDate).toLocaleDateString('vi-VN')}
-                </Typography>
-                {incidents.length > 0 && (
-                  <Chip label={incidents.length} size="small"
-                    sx={{ bgcolor: '#fee2e2', color: '#dc2626', fontWeight: 700, fontSize: '0.72rem' }} />
-                )}
+              <Stack direction={{ xs: 'column', sm: 'row' }} alignItems={{ sm: 'center' }} spacing={1.5} justifyContent="space-between">
+                <Stack direction="row" alignItems="center" spacing={1} flexWrap="wrap" useFlexGap>
+                  <WarningIcon sx={{ color: '#dc2626', fontSize: 20 }} />
+                  <Typography variant="subtitle1" fontWeight={700}>
+                    Danh sách bất thường — {new Date(selectedDate).toLocaleDateString('vi-VN')}
+                  </Typography>
+                  {incidents.length > 0 && (
+                    <Chip label={incidents.length} size="small"
+                      sx={{ bgcolor: '#fee2e2', color: '#dc2626', fontWeight: 700, fontSize: '0.72rem' }} />
+                  )}
+                </Stack>
+                <Button
+                  variant="contained"
+                  startIcon={<AddIcon />}
+                  onClick={() => setCreateOpen(true)}
+                  sx={{ bgcolor: '#dc2626', '&:hover': { bgcolor: '#b91c1c' }, fontWeight: 700, whiteSpace: 'nowrap' }}
+                >
+                  Ghi nhận bất thường
+                </Button>
               </Stack>
             </Box>
 
@@ -471,9 +408,79 @@ export default function HealthIncidentPage() {
                 </Table>
               </TableContainer>
             )}
-          </Paper>
-        </Stack>
+        </Paper>
       </Box>
+
+      {/* ── Dialog ghi nhận mới ───────────────────────────────── */}
+      <Dialog open={createOpen} onClose={() => !saving && setCreateOpen(false)} maxWidth="sm" fullWidth>
+        <DialogTitle sx={{ fontWeight: 700 }}>
+          Ghi nhận bất thường
+          <Typography component="span" variant="body2" color="text.secondary" sx={{ display: 'block', fontWeight: 400, mt: 0.5 }}>
+            Ngày: {new Date(selectedDate).toLocaleDateString('vi-VN')}
+          </Typography>
+        </DialogTitle>
+        <DialogContent dividers>
+          <Stack spacing={2} sx={{ pt: 0.5 }}>
+            <Autocomplete
+              size="small"
+              options={students}
+              getOptionLabel={o => `${o.fullName} — ${o.className}`}
+              value={form.studentId}
+              onChange={(_, v) => setForm(p => ({ ...p, studentId: v }))}
+              renderInput={params => <TextField {...params} label="Chọn học sinh *" placeholder="Tìm theo tên..." />}
+              renderOption={(props, o) => (
+                <Box component="li" {...props} key={o._id}>
+                  <Avatar sx={{ width: 28, height: 28, mr: 1, fontSize: '0.75rem', bgcolor: '#fecaca' }}>
+                    {o.fullName?.[0]}
+                  </Avatar>
+                  <Box>
+                    <Typography variant="body2" fontWeight={600}>{o.fullName}</Typography>
+                    <Typography variant="caption" color="text.secondary">{o.className}</Typography>
+                  </Box>
+                </Box>
+              )}
+              noOptionsText="Không tìm thấy học sinh"
+            />
+            <Autocomplete
+              size="small" freeSolo
+              options={COMMON_SYMPTOMS}
+              value={form.symptoms}
+              onInputChange={(_, v) => setForm(p => ({ ...p, symptoms: v }))}
+              onChange={(_, v) => setForm(p => ({ ...p, symptoms: v || '' }))}
+              renderInput={params => <TextField {...params} label="Triệu chứng *" placeholder="Chọn hoặc nhập triệu chứng..." />}
+            />
+            <FormControl size="small" fullWidth>
+              <InputLabel>Mức độ</InputLabel>
+              <Select label="Mức độ" value={form.severity} onChange={e => setForm(p => ({ ...p, severity: e.target.value }))}>
+                {Object.entries(SEVERITY_CONFIG).map(([v, c]) => (
+                  <MenuItem key={v} value={v}>{c.label}</MenuItem>
+                ))}
+              </Select>
+            </FormControl>
+            <FormControl size="small" fullWidth>
+              <InputLabel>Trạng thái xử lý</InputLabel>
+              <Select label="Trạng thái xử lý" value={form.status} onChange={e => setForm(p => ({ ...p, status: e.target.value }))}>
+                {Object.entries(STATUS_CONFIG).map(([v, c]) => (
+                  <MenuItem key={v} value={v}>{c.label}</MenuItem>
+                ))}
+              </Select>
+            </FormControl>
+            <TextField
+              size="small" label="Mô tả chi tiết" fullWidth multiline rows={3}
+              value={form.description}
+              onChange={e => setForm(p => ({ ...p, description: e.target.value }))}
+              placeholder="Ghi chú thêm về triệu chứng, xử lý..."
+            />
+          </Stack>
+        </DialogContent>
+        <DialogActions sx={{ px: 2, py: 1.5 }}>
+          <Button onClick={() => !saving && setCreateOpen(false)} color="inherit" disabled={saving}>Hủy</Button>
+          <Button variant="contained" onClick={handleSubmit} disabled={saving}
+            sx={{ bgcolor: '#dc2626', '&:hover': { bgcolor: '#b91c1c' }, fontWeight: 700 }}>
+            {saving ? <CircularProgress size={20} color="inherit" /> : 'Lưu bản ghi'}
+          </Button>
+        </DialogActions>
+      </Dialog>
 
       {/* ── Edit dialog ─────────────────────────────────────────── */}
       {editTarget && (

@@ -439,6 +439,7 @@ export const ENDPOINTS = {
     CONTACT_BOOK_STUDENTS: (classId) => `/teacher/contact-book/${classId}/students`,
     CONTACT_BOOK_ATTENDANCE: (classId, studentId) => `/teacher/contact-book/${classId}/students/${studentId}/attendance`,
     CONTACT_BOOK_HEALTH: (classId, studentId) => `/teacher/contact-book/${classId}/students/${studentId}/health`,
+    CONTACT_BOOK_HEALTH_HISTORY: (classId, studentId) => `/teacher/contact-book/${classId}/students/${studentId}/health-history`,
     CONTACT_BOOK_NOTES: (classId, studentId) => `/teacher/contact-book/${classId}/students/${studentId}/notes`,
     CONTACT_BOOK_NOTE_DELETE: (classId, studentId, noteId) => `/teacher/contact-book/${classId}/students/${studentId}/notes/${noteId}`,
     CONTACT_BOOK_TODAY_MENU: '/teacher/contact-book/today-menu',

@@ -129,6 +129,7 @@ import ManageAssetAllocation from './pages/schoolAdmin/ManageAssetAllocation';
 import ManageCommittee from './pages/schoolAdmin/ManageCommittee';
 import ManageMinutes from './pages/schoolAdmin/ManageMinutes';
 import ProtectedRoute from './components/ProtectedRoute';
+import MedicalStaffDashboard from './pages/medicalStaff/MedicalStaffDashboard';
 import StudentHealthManagement from './pages/medicalStaff/StudentHealthManagement';
 import StudentHealthHistory from './pages/medicalStaff/StudentHealthHistory';
 import HealthIncidentPage from './pages/medicalStaff/HealthIncidentPage';
@@ -975,6 +976,14 @@ function App() {
           />
 
           {/* Medical Staff Routes */}
+          <Route
+            path="/medical-staff"
+            element={
+              <ProtectedRoute>
+                <MedicalStaffDashboard />
+              </ProtectedRoute>
+            }
+          />
           <Route
             path="/medical-staff/health"
             element={

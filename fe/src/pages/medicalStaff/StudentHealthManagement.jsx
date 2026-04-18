@@ -4,7 +4,7 @@ import * as XLSX from 'xlsx';
 import { toast } from 'react-toastify';
 import { useAuth } from '../../context/AuthContext';
 import RoleLayout from '../../layouts/RoleLayout';
-import { get, post, del, ENDPOINTS } from '../../service/api';
+import { get, post, put, del, ENDPOINTS } from '../../service/api';
 import {
   Box, Paper, Typography, Button, Stack, TextField, Chip,
   Table, TableHead, TableBody, TableRow, TableCell, TableContainer,
@@ -27,6 +27,7 @@ import {
   Person as PersonIcon,
   History as HistoryIcon,
   Warning as WarningIcon,
+  Dashboard as DashboardIcon,
 } from '@mui/icons-material';
 
 // ── Constants ────────────────────────────────────────────────────────────────
@@ -47,8 +48,9 @@ function bmiLabel(bmi) {
 const IMPORT_COLUMNS = ['Tên học sinh', 'Lớp', 'Chiều cao (cm)', 'Cân nặng (kg)', 'Tiền sử bệnh', 'Dị ứng', 'Ghi chú'];
 
 const MENU_ITEMS = [
+  { key: 'overview',  label: 'Tổng quan sức khỏe', icon: <DashboardIcon fontSize="small" /> },
   { key: 'health',    label: 'Quản lý sức khỏe',    icon: <MedicalIcon fontSize="small" /> },
-  { key: 'incidents', label: 'Ghi nhận bất thường',  icon: <WarningIcon fontSize="small" /> },
+  { key: 'incidents', label: 'Ghi nhận bất thường', icon: <WarningIcon fontSize="small" /> },
 ];
 
 const EMPTY_FORM = {
@@ -59,8 +61,8 @@ const EMPTY_FORM = {
   followUpDate: '', recommendations: '',
 };
 
-// ── HealthFormDialog — luôn tạo bản ghi mới ─────────────────────────────────
-function HealthFormDialog({ open, onClose, student, prefill, onSaved }) {
+// ── HealthFormDialog — tạo mới hoặc cập nhật bản ghi đang hiển thị (editHealthId) ──
+function HealthFormDialog({ open, onClose, student, prefill, editHealthId, onSaved }) {
   const [form, setForm] = useState(EMPTY_FORM);
   const [saving, setSaving] = useState(false);
   const [err, setErr] = useState(null);
@@ -68,16 +70,21 @@ function HealthFormDialog({ open, onClose, student, prefill, onSaved }) {
   useEffect(() => {
     if (!open) return;
     if (prefill) {
+      const allergiesStr = Array.isArray(prefill.allergies)
+        ? prefill.allergies.map(a => (typeof a === 'string' ? a : a.allergen)).filter(Boolean).join(', ')
+        : '';
       setForm({
         height:          prefill.height ?? '',
         weight:          prefill.weight ?? '',
         temperature:     prefill.temperature ?? '',
         heartRate:       prefill.heartRate ?? '',
         chronicDiseases: Array.isArray(prefill.chronicDiseases) ? prefill.chronicDiseases.join(', ') : (prefill.chronicDiseases || ''),
-        allergies:       (prefill.allergies || []).map(a => a.allergen || a).filter(Boolean).join(', '),
+        allergies:       allergiesStr,
         notes:           prefill.notes || '',
         generalStatus:   prefill.generalStatus || 'healthy',
-        checkDate:       new Date().toISOString().slice(0, 10),
+        checkDate:       editHealthId && prefill.checkDate
+          ? new Date(prefill.checkDate).toISOString().slice(0, 10)
+          : new Date().toISOString().slice(0, 10),
         followUpDate:    prefill.followUpDate ? new Date(prefill.followUpDate).toISOString().slice(0, 10) : '',
         recommendations: prefill.recommendations || '',
       });
@@ -85,7 +92,7 @@ function HealthFormDialog({ open, onClose, student, prefill, onSaved }) {
       setForm({ ...EMPTY_FORM, checkDate: new Date().toISOString().slice(0, 10) });
     }
     setErr(null);
-  }, [open, prefill]);
+  }, [open, prefill, editHealthId]);
 
   const f = (field) => (e) => setForm(p => ({ ...p, [field]: e.target.value }));
 
@@ -93,14 +100,28 @@ function HealthFormDialog({ open, onClose, student, prefill, onSaved }) {
     setSaving(true);
     setErr(null);
     try {
-      const payload = {
-        ...form,
-        studentId: student._id,
-        chronicDiseases: form.chronicDiseases.split(',').map(s => s.trim()).filter(Boolean),
-        allergies: form.allergies.split(',').map(s => s.trim()).filter(Boolean).map(a => ({ allergen: a })),
+      const chronicDiseases = form.chronicDiseases.split(',').map(s => s.trim()).filter(Boolean);
+      const allergies = form.allergies.split(',').map(s => s.trim()).filter(Boolean).map(a => ({ allergen: a }));
+      const common = {
+        height: form.height,
+        weight: form.weight,
+        temperature: form.temperature,
+        heartRate: form.heartRate,
+        chronicDiseases,
+        allergies,
+        notes: form.notes,
+        generalStatus: form.generalStatus,
+        checkDate: form.checkDate,
+        followUpDate: form.followUpDate || undefined,
+        recommendations: form.recommendations,
       };
-      await post(ENDPOINTS.STUDENTS.HEALTH_RECORD_CREATE, payload);
-      toast.success(prefill ? 'Đã ghi nhận lần khám mới' : 'Tạo hồ sơ sức khỏe thành công');
+      if (editHealthId) {
+        await put(ENDPOINTS.STUDENTS.HEALTH_RECORD_UPDATE(editHealthId), common);
+        toast.success('Đã cập nhật hồ sơ sức khỏe');
+      } else {
+        await post(ENDPOINTS.STUDENTS.HEALTH_RECORD_CREATE, { ...common, studentId: student._id });
+        toast.success('Tạo hồ sơ sức khỏe thành công');
+      }
       onSaved();
       onClose();
     } catch (e) {
@@ -113,13 +134,18 @@ function HealthFormDialog({ open, onClose, student, prefill, onSaved }) {
   return (
     <Dialog open={open} onClose={() => !saving && onClose()} maxWidth="sm" fullWidth>
       <DialogTitle sx={{ fontWeight: 700 }}>
-        {prefill ? 'Ghi nhận lần khám mới' : 'Tạo hồ sơ sức khỏe'} — {student?.fullName}
+        {editHealthId ? 'Cập nhật lần khám (đang hiển thị)' : prefill ? 'Ghi nhận lần khám mới' : 'Tạo hồ sơ sức khỏe'} — {student?.fullName}
       </DialogTitle>
       <DialogContent dividers>
         {err && <Alert severity="error" sx={{ mb: 2 }}>{err}</Alert>}
-        {prefill && (
+        {prefill && !editHealthId && (
           <Alert severity="info" sx={{ mb: 2, fontSize: '0.8rem' }}>
             Thông tin được điền sẵn từ lần khám trước. Bản ghi mới sẽ được tạo khi lưu.
+          </Alert>
+        )}
+        {editHealthId && (
+          <Alert severity="info" sx={{ mb: 2, fontSize: '0.8rem' }}>
+            Bạn đang sửa đúng bản ghi đang hiển thị trên bảng tổng quan. Lưu để cập nhật (không tạo thêm lần khám mới).
           </Alert>
         )}
         <Stack spacing={2}>
@@ -173,7 +199,7 @@ function HealthFormDialog({ open, onClose, student, prefill, onSaved }) {
           variant="contained" onClick={handleSave} disabled={saving}
           sx={{ bgcolor: '#0891b2', '&:hover': { bgcolor: '#0e7490' } }}
         >
-          {saving ? <CircularProgress size={18} color="inherit" /> : (prefill ? 'Lưu lần khám mới' : 'Tạo hồ sơ')}
+          {saving ? <CircularProgress size={18} color="inherit" /> : (editHealthId ? 'Cập nhật' : prefill ? 'Lưu lần khám mới' : 'Tạo hồ sơ')}
         </Button>
       </DialogActions>
     </Dialog>
@@ -196,7 +222,7 @@ export default function StudentHealthManagement() {
   const PAGE_SIZE = 15;
 
   // CRUD dialog — prefill = latest record data (or null for brand new)
-  const [healthDialog, setHealthDialog] = useState({ open: false, student: null, prefill: null });
+  const [healthDialog, setHealthDialog] = useState({ open: false, student: null, prefill: null, editHealthId: null });
 
   // Delete confirm
   const [deleteTarget, setDeleteTarget] = useState(null); // { healthId, studentName }
@@ -349,7 +375,10 @@ export default function StudentHealthManagement() {
     <RoleLayout
       menuItems={MENU_ITEMS}
       activeKey="health"
-      onMenuSelect={k => k === 'incidents' ? navigate('/medical-staff/incidents') : null}
+      onMenuSelect={k => {
+        if (k === 'overview') navigate('/medical-staff');
+        else if (k === 'incidents') navigate('/medical-staff/incidents');
+      }}
       onLogout={handleLogout}
       onViewProfile={() => navigate('/profile')}
       userName={user?.fullName || user?.username || 'Nhân viên y tế'}
@@ -371,7 +400,7 @@ export default function StudentHealthManagement() {
         </Paper>
 
         {/* Tabs */}
-        <Paper elevation={0} sx={{ mb: 2, borderRadius: 2, border: '1px solid', borderColor: 'divider' }}>
+        {/* <Paper elevation={0} sx={{ mb: 2, borderRadius: 2, border: '1px solid', borderColor: 'divider' }}>
           <Tabs
             value={1}
             sx={{ px: 1, '& .MuiTab-root': { textTransform: 'none', fontWeight: 600, fontSize: 13 }, '& .Mui-selected': { color: '#0891b2' }, '& .MuiTabs-indicator': { bgcolor: '#0891b2' } }}
@@ -379,7 +408,7 @@ export default function StudentHealthManagement() {
             <Tab icon={<PeopleIcon fontSize="small" />} iconPosition="start" label="Danh sách học sinh" disabled />
             <Tab icon={<HealthIcon fontSize="small" />} iconPosition="start" label="Báo cáo sức khỏe" />
           </Tabs>
-        </Paper>
+        </Paper> */}
 
         {error && <Alert severity="error" sx={{ mb: 2 }} onClose={() => setError(null)}>{error}</Alert>}
 
@@ -511,10 +540,18 @@ export default function StudentHealthManagement() {
                             {r.checkDate ? new Date(r.checkDate).toLocaleDateString('vi-VN') : '—'}
                           </TableCell>
                           <TableCell align="right" sx={{ whiteSpace: 'nowrap' }} onClick={e => e.stopPropagation()}>
-                            <Tooltip title={r.healthId ? 'Ghi nhận lần khám mới' : 'Tạo hồ sơ sức khỏe'}>
+                            <Tooltip title={r.healthId ? 'Sửa hồ sơ đang hiển thị' : 'Tạo hồ sơ sức khỏe'}>
                               <IconButton
                                 size="small"
-                                onClick={e => { e.stopPropagation(); setHealthDialog({ open: true, student: r, prefill: r.healthId ? r : null }); }}
+                                onClick={e => {
+                                  e.stopPropagation();
+                                  setHealthDialog({
+                                    open: true,
+                                    student: r,
+                                    prefill: r.healthId ? r : null,
+                                    editHealthId: r.healthId || null,
+                                  });
+                                }}
                                 sx={{ color: r.healthId ? '#2563eb' : '#16a34a' }}
                               >
                                 {r.healthId ? <EditIcon fontSize="small" /> : <AddIcon fontSize="small" />}
@@ -549,9 +586,10 @@ export default function StudentHealthManagement() {
       {/* Health form dialog — always creates new record */}
       <HealthFormDialog
         open={healthDialog.open}
-        onClose={() => setHealthDialog({ open: false, student: null, prefill: null })}
+        onClose={() => setHealthDialog({ open: false, student: null, prefill: null, editHealthId: null })}
         student={healthDialog.student}
         prefill={healthDialog.prefill}
+        editHealthId={healthDialog.editHealthId}
         onSaved={fetchData}
       />
 

@@ -9,6 +9,8 @@ import {
   List, ListItemButton, ListItemAvatar, ListItemText, Divider,
   Tabs, Tab, Grid, InputAdornment, TextField, CircularProgress,
   MenuItem, Select, LinearProgress, IconButton, Button, Tooltip,
+  Dialog, DialogTitle, DialogContent, DialogActions,
+  Table, TableHead, TableBody, TableRow, TableCell, TableContainer,
 } from '@mui/material';
 import {
   ArrowBack as BackIcon,
@@ -63,7 +65,8 @@ function getTeacherMenuItems(hasPermission, hasRole) {
     { key: 'students', label: 'Danh sách học sinh' },
     { key: 'attendance', label: 'Điểm danh', permission: 'MANAGE_ATTENDANCE' },
     { key: 'pickup-approval', label: 'Đơn đăng ký đưa đón', permission: 'MANAGE_PICKUP' },
-    { key: 'schedule', label: 'Lịch dạy & hoạt động' },
+    { key: 'leave-requests', label: 'Danh sách đơn xin nghỉ', permission: 'MANAGE_ATTENDANCE' },
+    { key: 'contact-book', label: 'Sổ liên lạc' },
     { key: 'purchase-request', label: 'Cơ sở vật chất', permission: 'MANAGE_PURCHASE_REQUEST' },
     { key: 'class-assets', label: 'Tài sản lớp', permission: 'MANAGE_ASSET' },
     { key: 'asset-inspection', label: 'Kiểm kê tài sản', role: 'InventoryStaff' },
@@ -91,7 +94,7 @@ function InfoRow({ icon, label, value }) {
 }
 
 // ── Tab panels ───────────────────────────────────────────────
-function TabHoSo({ student, health, healthLoading }) {
+function TabHoSo({ student }) {
   return (
     <Box>
       <Paper elevation={0} sx={{ borderRadius: 3, border: '1px solid', borderColor: 'divider', p: 3 }}>
@@ -159,44 +162,35 @@ function bmiLabel(bmi) {
   return           { label: 'Béo phì',    color: 'error'   };
 }
 
-function TabSucKhoe({ health, healthLoading }) {
-  if (healthLoading) {
-    return <Skeleton variant="rounded" height={180} sx={{ borderRadius: 3 }} />;
-  }
-  if (!health) {
-    return (
-      <Paper elevation={0} sx={{ borderRadius: 3, border: '1px solid', borderColor: 'divider', p: 5, textAlign: 'center' }}>
-        <HealthIcon sx={{ fontSize: 44, color: 'grey.300', mb: 1 }} />
-        <Typography color="text.secondary">Chưa có dữ liệu sức khỏe.</Typography>
-      </Paper>
-    );
-  }
-
+/** Chi tiết một bản ghi khám (dùng trong dialog) */
+function HealthRecordDetailView({ health }) {
+  if (!health) return null;
   const bmi    = calcBMI(health.height, health.weight);
   const bmiCfg = bmiLabel(bmi);
   const statusCfg = STATUS_HEALTH[health.generalStatus];
+  const recorder = health.recordedBy?.fullName || health.recordedBy?.username;
 
   return (
-    <Paper elevation={0} sx={{ borderRadius: 3, border: '1px solid', borderColor: 'divider', p: 3 }}>
-      <Stack direction="row" alignItems="center" spacing={1} mb={2.5}>
-        <HealthIcon sx={{ fontSize: 18, color: '#0891b2' }} />
-        <Typography variant="subtitle2" fontWeight={700}>Hồ sơ sức khỏe</Typography>
-        <Chip label={fmtDate(health.checkDate)} size="small" sx={{ height: 20, fontSize: '0.7rem' }} />
+    <Box>
+      <Stack direction="row" alignItems="center" spacing={1} flexWrap="wrap" useFlexGap mb={2}>
+        <Chip label={fmtDate(health.checkDate)} size="small" sx={{ height: 22, fontSize: '0.72rem' }} />
         {statusCfg && (
-          <Chip label={statusCfg.label} size="small" color={statusCfg.color} sx={{ height: 20, fontSize: '0.7rem', fontWeight: 700 }} />
+          <Chip label={statusCfg.label} size="small" color={statusCfg.color} sx={{ height: 22, fontSize: '0.72rem', fontWeight: 700 }} />
+        )}
+        {recorder && (
+          <Typography variant="caption" color="text.secondary">Người ghi: <strong>{recorder}</strong></Typography>
         )}
       </Stack>
 
-      {/* Chỉ số thể chất */}
       <Stack direction="row" spacing={1.5} flexWrap="wrap" mb={2}>
-        {health.height && (
+        {health.height != null && health.height !== '' && (
           <Box sx={{ bgcolor: '#f0f9ff', border: '1px solid #bae6fd', borderRadius: 2, px: 2, py: 1, textAlign: 'center', minWidth: 80 }}>
             <Typography variant="caption" color="text.secondary" sx={{ display: 'block', fontSize: '0.68rem' }}>Chiều cao</Typography>
             <Typography variant="body1" fontWeight={800} color="#0891b2">{health.height}</Typography>
             <Typography variant="caption" color="text.secondary" sx={{ fontSize: '0.68rem' }}>cm</Typography>
           </Box>
         )}
-        {health.weight && (
+        {health.weight != null && health.weight !== '' && (
           <Box sx={{ bgcolor: '#f0fdf4', border: '1px solid #bbf7d0', borderRadius: 2, px: 2, py: 1, textAlign: 'center', minWidth: 80 }}>
             <Typography variant="caption" color="text.secondary" sx={{ display: 'block', fontSize: '0.68rem' }}>Cân nặng</Typography>
             <Typography variant="body1" fontWeight={800} color="#16a34a">{health.weight}</Typography>
@@ -213,14 +207,14 @@ function TabSucKhoe({ health, healthLoading }) {
             )}
           </Box>
         )}
-        {health.temperature && (
+        {health.temperature != null && health.temperature !== '' && (
           <Box sx={{ bgcolor: '#fff1f2', border: '1px solid #fecdd3', borderRadius: 2, px: 2, py: 1, textAlign: 'center', minWidth: 80 }}>
             <Typography variant="caption" color="text.secondary" sx={{ display: 'block', fontSize: '0.68rem' }}>Thân nhiệt</Typography>
             <Typography variant="body1" fontWeight={800} color="#e11d48">{health.temperature}</Typography>
             <Typography variant="caption" color="text.secondary" sx={{ fontSize: '0.68rem' }}>°C</Typography>
           </Box>
         )}
-        {health.heartRate && (
+        {health.heartRate != null && health.heartRate !== '' && (
           <Box sx={{ bgcolor: '#fdf4ff', border: '1px solid #e9d5ff', borderRadius: 2, px: 2, py: 1, textAlign: 'center', minWidth: 80 }}>
             <Typography variant="caption" color="text.secondary" sx={{ display: 'block', fontSize: '0.68rem' }}>Nhịp tim</Typography>
             <Typography variant="body1" fontWeight={800} color="#9333ea">{health.heartRate}</Typography>
@@ -250,13 +244,121 @@ function TabSucKhoe({ health, healthLoading }) {
             </Stack>
           </Grid>
         )}
+        {health.recommendations && (
+          <Grid size={{ xs: 12 }}>
+            <InfoRow label="Khuyến nghị" value={health.recommendations} icon={<NoteIcon sx={{ fontSize: 14 }} />} />
+          </Grid>
+        )}
+        {health.followUpDate && (
+          <Grid size={{ xs: 12 }}>
+            <InfoRow label="Ngày tái khám" value={fmtDate(health.followUpDate)} icon={<CalendarIcon sx={{ fontSize: 14 }} />} />
+          </Grid>
+        )}
         {health.notes && (
           <Grid size={{ xs: 12 }}>
             <InfoRow label="Ghi chú" value={health.notes} icon={<NoteIcon sx={{ fontSize: 14 }} />} />
           </Grid>
         )}
       </Grid>
-    </Paper>
+    </Box>
+  );
+}
+
+function sortHealthRecordsNewestFirst(list) {
+  return [...(list || [])].sort((a, b) => {
+    const db = new Date(b.checkDate || 0).getTime();
+    const da = new Date(a.checkDate || 0).getTime();
+    if (db !== da) return db - da;
+    const cb = new Date(b.createdAt || 0).getTime();
+    const ca = new Date(a.createdAt || 0).getTime();
+    if (cb !== ca) return cb - ca;
+    return String(b._id || '').localeCompare(String(a._id || ''));
+  });
+}
+
+function TabSucKhoe({ records, healthLoading }) {
+  const [detail, setDetail] = useState(null);
+
+  if (healthLoading) {
+    return <Skeleton variant="rounded" height={220} sx={{ borderRadius: 3 }} />;
+  }
+  if (!records?.length) {
+    return (
+      <Paper elevation={0} sx={{ borderRadius: 3, border: '1px solid', borderColor: 'divider', p: 5, textAlign: 'center' }}>
+        <HealthIcon sx={{ fontSize: 44, color: 'grey.300', mb: 1 }} />
+        <Typography color="text.secondary">Chưa có dữ liệu sức khỏe.</Typography>
+      </Paper>
+    );
+  }
+
+  return (
+    <>
+      <Paper elevation={0} sx={{ borderRadius: 3, border: '1px solid', borderColor: 'divider', overflow: 'hidden' }}>
+        <Box sx={{ px: 2, py: 1.5, borderBottom: '1px solid', borderColor: 'divider', bgcolor: '#f0f9ff' }}>
+          <Stack direction="row" alignItems="center" spacing={1}>
+            <HealthIcon sx={{ fontSize: 18, color: '#0891b2' }} />
+            <Typography variant="subtitle2" fontWeight={700}>Lịch sử khám sức khỏe</Typography>
+            <Chip label={`${records.length} lần`} size="small" sx={{ height: 20, fontSize: '0.7rem', fontWeight: 600 }} />
+          </Stack>
+          <Typography variant="caption" color="text.secondary" sx={{ display: 'block', mt: 0.5 }}>
+            Bản ghi mới nhất ở trên. Nhấn một dòng để xem chi tiết.
+          </Typography>
+        </Box>
+        <TableContainer>
+          <Table size="small">
+            <TableHead sx={{ bgcolor: '#f8fafc' }}>
+              <TableRow>
+                {['#', 'Ngày khám', 'Tình trạng', 'Cao (cm)', 'Nặng (kg)', 'BMI', 'Người ghi'].map((h) => (
+                  <TableCell key={h} sx={{ fontWeight: 700, fontSize: '0.7rem', color: 'text.secondary', whiteSpace: 'nowrap' }}>{h}</TableCell>
+                ))}
+              </TableRow>
+            </TableHead>
+            <TableBody>
+              {records.map((row, idx) => {
+                const bmi = calcBMI(row.height, row.weight);
+                const st = STATUS_HEALTH[row.generalStatus];
+                const recorder = row.recordedBy?.fullName || row.recordedBy?.username || '—';
+                return (
+                  <TableRow
+                    key={row._id}
+                    hover
+                    onClick={() => setDetail(row)}
+                    sx={{ cursor: 'pointer', bgcolor: idx === 0 ? 'rgba(8,145,178,0.06)' : undefined }}
+                  >
+                    <TableCell sx={{ fontSize: '0.8rem' }}>
+                      <Stack direction="row" alignItems="center" spacing={0.75}>
+                        <span>{idx + 1}</span>
+                        {idx === 0 && (
+                          <Chip label="Mới nhất" size="small" color="success" sx={{ height: 18, fontSize: '0.62rem' }} />
+                        )}
+                      </Stack>
+                    </TableCell>
+                    <TableCell sx={{ fontSize: '0.8rem', whiteSpace: 'nowrap' }}>{fmtDate(row.checkDate)}</TableCell>
+                    <TableCell>
+                      {st ? <Chip label={st.label} size="small" color={st.color} sx={{ height: 20, fontSize: '0.65rem' }} /> : '—'}
+                    </TableCell>
+                    <TableCell sx={{ fontSize: '0.8rem' }}>{row.height ?? '—'}</TableCell>
+                    <TableCell sx={{ fontSize: '0.8rem' }}>{row.weight ?? '—'}</TableCell>
+                    <TableCell sx={{ fontSize: '0.8rem' }}>{bmi ?? '—'}</TableCell>
+                    <TableCell sx={{ fontSize: '0.75rem', color: 'text.secondary', maxWidth: 140 }} noWrap title={recorder}>{recorder}</TableCell>
+                  </TableRow>
+                );
+              })}
+            </TableBody>
+          </Table>
+        </TableContainer>
+      </Paper>
+
+      <Dialog open={!!detail} onClose={() => setDetail(null)} maxWidth="sm" fullWidth scroll="paper">
+        <DialogTitle sx={{ fontWeight: 700, pr: 6 }}>Chi tiết khám sức khỏe</DialogTitle>
+        <DialogContent dividers>
+          {detail && <HealthRecordDetailView health={detail} />}
+        </DialogContent>
+        <DialogActions sx={{ px: 2, py: 1.5 }}>
+          <Button onClick={() => setDetail(null)} variant="contained" color="inherit">Đóng</Button>
+        </DialogActions>
+      </Dialog>
+    </>
   );
 }
 
@@ -744,7 +846,7 @@ export default function ContactBookDetail() {
   const [selected, setSelected]         = useState(null);
   const [search, setSearch]             = useState('');
   const [tab, setTab]                   = useState(0);
-  const [health, setHealth]             = useState(null);
+  const [healthRecords, setHealthRecords] = useState([]);
   const [healthLoading, setHealthLoading] = useState(false);
 
   // Fetch class + students
@@ -767,16 +869,16 @@ export default function ContactBookDetail() {
     fetch();
   }, [classId, user, isInitializing]);
 
-  // Fetch health when student changes
-  const fetchHealth = useCallback(async (student) => {
+  // Lịch sử khám (mới nhất trước) khi đổi học sinh
+  const fetchHealthHistory = useCallback(async (student) => {
     if (!student?._id) return;
     setHealthLoading(true);
-    setHealth(null);
+    setHealthRecords([]);
     try {
-      const res = await get(ENDPOINTS.TEACHER.CONTACT_BOOK_HEALTH(classId, student._id));
-      setHealth(res.data || null);
+      const res = await get(ENDPOINTS.TEACHER.CONTACT_BOOK_HEALTH_HISTORY(classId, student._id));
+      setHealthRecords(sortHealthRecordsNewestFirst(res.data));
     } catch (_) {
-      setHealth(null);
+      setHealthRecords([]);
     } finally {
       setHealthLoading(false);
     }
@@ -785,7 +887,7 @@ export default function ContactBookDetail() {
   useEffect(() => {
     if (selected) {
       setTab(0);
-      fetchHealth(selected);
+      fetchHealthHistory(selected);
     }
   }, [selected]); // eslint-disable-line react-hooks/exhaustive-deps
 
@@ -807,6 +909,7 @@ export default function ContactBookDetail() {
       'contact-book': '/teacher/contact-book',
       attendance: '/teacher/attendance',
       'pickup-approval': '/teacher/pickup-approval',
+      'leave-requests': '/teacher/leave-requests',
       'purchase-request': '/teacher/purchase-request',
       'class-assets': '/teacher/class-assets',
       'asset-inspection': '/teacher/asset-inspection',
@@ -1033,10 +1136,10 @@ export default function ContactBookDetail() {
                     <TabDiemDanh classId={classId} studentId={selected._id} />
                   )}
                   {tab === 1 && (
-                    <TabHoSo student={selected} health={health} healthLoading={healthLoading} />
+                    <TabHoSo student={selected} />
                   )}
                   {tab === 2 && (
-                    <TabSucKhoe health={health} healthLoading={healthLoading} />
+                    <TabSucKhoe records={healthRecords} healthLoading={healthLoading} />
                   )}
                   {tab === 3 && (
                     <TabThucDon />
