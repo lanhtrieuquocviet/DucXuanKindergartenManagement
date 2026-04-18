@@ -6,6 +6,7 @@ const getStudentsInClass = async (req, res, next) => service.getStudentsInClass(
 const getStudentAttendance = async (req, res, next) => service.getStudentAttendance(req, res, next);
 const getTodayMenu = async (req, res, next) => service.getTodayMenu(req, res, next);
 const getStudentHealth = async (req, res, next) => service.getStudentHealth(req, res, next);
+const getStudentHealthHistory = async (req, res, next) => service.getStudentHealthHistory(req, res, next);
 const getNotes = async (req, res, next) => service.getNotes(req, res, next);
 const createNote = async (req, res, next) => service.createNote(req, res, next);
 const deleteNote = async (req, res, next) => service.deleteNote(req, res, next);
@@ -21,6 +22,7 @@ module.exports = {
   getStudentAttendance,
   getTodayMenu,
   getStudentHealth,
+  getStudentHealthHistory,
   getNotes,
   createNote,
   deleteNote,

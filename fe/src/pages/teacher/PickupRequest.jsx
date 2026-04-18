@@ -148,7 +148,7 @@ function PickupRequest() {
     { key: "attendance",       label: "Điểm danh" },
     { key: "pickup-approval",  label: "Đơn đăng ký đưa đón" },
     { key: "leave-requests",   label: "Danh sách đơn xin nghỉ" },
-    { key: "schedule",         label: "Lịch dạy & hoạt động" },
+    { key: "contact-book",     label: "Sổ liên lạc" },
     { key: "purchase-request", label: "Cơ sở vật chất" },
     { key: "class-assets",     label: "Tài sản lớp" },
     ...(hasRole("InventoryStaff") ? [{ key: "asset-inspection", label: "Kiểm kê tài sản" }] : []),
@@ -169,7 +169,6 @@ function PickupRequest() {
     const MAP = {
       classes: "/teacher",
       students: "/teacher/students",
-      schedule: "/teacher",
       "contact-book": "/teacher/contact-book",
       attendance: "/teacher/attendance",
       "pickup-approval": "/teacher/pickup-approval",

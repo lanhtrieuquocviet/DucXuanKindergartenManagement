@@ -407,7 +407,8 @@ router.get('/students/health-overview', authenticate, authorizeAnyPermission('MA
     const [healthRecords, countRecords] = await Promise.all([
       HealthCheck.aggregate([
         { $match: { studentId: { $in: studentIds } } },
-        { $sort: { studentId: 1, checkDate: -1 } },
+        // Cùng ngày khám: checkDate từ form thường 00:00, bản cũ có giờ → cần createdAt để lấy đúng lần khám mới nhất
+        { $sort: { studentId: 1, checkDate: -1, createdAt: -1 } },
         { $group: { _id: '$studentId', doc: { $first: '$$ROOT' } } },
       ]),
       HealthCheck.aggregate([
@@ -432,10 +433,15 @@ router.get('/students/health-overview', authenticate, authorizeAnyPermission('MA
         height: h?.height || null,
         weight: h?.weight || null,
         bmi: (h?.height && h?.weight) ? +(h.weight / ((h.height / 100) ** 2)).toFixed(1) : null,
+        temperature: h?.temperature ?? null,
+        heartRate: h?.heartRate ?? null,
         chronicDiseases: h?.chronicDiseases || [],
         allergies: (h?.allergies || []).map(a => a.allergen || a).filter(Boolean),
         generalStatus: h?.generalStatus || null,
         checkDate: h?.checkDate || null,
+        notes: h?.notes || '',
+        recommendations: h?.recommendations || '',
+        followUpDate: h?.followUpDate || null,
         healthId: h?._id || null,
         checkupCount: countMap[s._id.toString()] || 0,
       };
@@ -744,7 +750,7 @@ router.get('/students/contact-book/today-menu', authenticate, authorizePermissio
 router.get('/students/:studentId/health-latest', authenticate, authorizeAnyPermission('MANAGE_STUDENT', 'MANAGE_HEALTH'), async (req, res) => {
   try {
     const HealthCheck = require('../models/HealthCheck');
-    const health = await HealthCheck.findOne({ studentId: req.params.studentId }).sort({ checkDate: -1 }).lean();
+    const health = await HealthCheck.findOne({ studentId: req.params.studentId }).sort({ checkDate: -1, createdAt: -1 }).lean();
     return res.json({ status: 'success', data: health || null });
   } catch (err) { return res.status(500).json({ status: 'error', message: err.message }); }
 });
@@ -755,7 +761,7 @@ router.get('/students/:studentId/health-history', authenticate, authorizeAnyPerm
     const HealthCheck = require('../models/HealthCheck');
     const records = await HealthCheck.find({ studentId: req.params.studentId })
       .populate('recordedBy', 'fullName username')
-      .sort({ checkDate: -1 })
+      .sort({ checkDate: -1, createdAt: -1 })
       .lean();
     return res.json({ status: 'success', data: records });
   } catch (err) { return res.status(500).json({ status: 'error', message: err.message }); }

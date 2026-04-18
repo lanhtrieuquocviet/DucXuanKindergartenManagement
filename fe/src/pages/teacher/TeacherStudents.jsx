@@ -54,7 +54,7 @@ function getTeacherMenuItems(hasPermission, hasRole) {
     { key: 'attendance', label: 'Điểm danh', permission: 'MANAGE_ATTENDANCE' },
     { key: 'pickup-approval', label: 'Đơn đăng ký đưa đón', permission: 'MANAGE_PICKUP' },
     { key: 'leave-requests', label: 'Danh sách đơn xin nghỉ', permission: 'MANAGE_ATTENDANCE' },
-    { key: 'schedule', label: 'Lịch dạy & hoạt động' },
+    { key: 'contact-book', label: 'Sổ liên lạc' },
     { key: 'purchase-request', label: 'Cơ sở vật chất', permission: 'MANAGE_PURCHASE_REQUEST' },
     { key: 'class-assets', label: 'Tài sản lớp', permission: 'MANAGE_ASSET' },
     { key: 'asset-inspection', label: 'Kiểm kê tài sản', role: 'InventoryStaff' },

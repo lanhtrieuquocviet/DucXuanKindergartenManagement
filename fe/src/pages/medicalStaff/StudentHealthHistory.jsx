@@ -24,6 +24,8 @@ import {
   CalendarToday as CalendarIcon,
   MonitorWeight as WeightIcon,
   Height as HeightIcon,
+  Dashboard as DashboardIcon,
+  Warning as WarningIcon,
 } from '@mui/icons-material';
 
 // ── Constants ────────────────────────────────────────────────────────────────
@@ -42,8 +44,23 @@ function bmiCategory(bmi) {
 }
 
 const MENU_ITEMS = [
-  { key: 'health', label: 'Quản lý sức khỏe', icon: <MedicalIcon fontSize="small" /> },
+  { key: 'overview',  label: 'Tổng quan sức khỏe', icon: <DashboardIcon fontSize="small" /> },
+  { key: 'health',    label: 'Quản lý sức khỏe',    icon: <MedicalIcon fontSize="small" /> },
+  { key: 'incidents', label: 'Ghi nhận bất thường', icon: <WarningIcon fontSize="small" /> },
 ];
+
+/** Cùng ngày khám: checkDate từ form thường là 00:00 còn bản ghi cũ có thể có giờ → cần createdAt để bản mới luôn lên đầu */
+function sortHealthRecordsNewestFirst(list) {
+  return [...(list || [])].sort((a, b) => {
+    const db = new Date(b.checkDate || 0).getTime();
+    const da = new Date(a.checkDate || 0).getTime();
+    if (db !== da) return db - da;
+    const cb = new Date(b.createdAt || 0).getTime();
+    const ca = new Date(a.createdAt || 0).getTime();
+    if (cb !== ca) return cb - ca;
+    return String(b._id || '').localeCompare(String(a._id || ''));
+  });
+}
 
 const EMPTY_FORM = {
   height: '', weight: '', temperature: '', heartRate: '',
@@ -192,7 +209,7 @@ export default function StudentHealthHistory() {
     setError(null);
     try {
       const res = await get(ENDPOINTS.STUDENTS.ADMIN_HEALTH_HISTORY(studentId));
-      setRecords(res.data || []);
+      setRecords(sortHealthRecordsNewestFirst(res.data));
       // Nếu chưa có student info, lấy từ bản ghi đầu tiên hoặc gọi API
       if (!student && res.data?.length > 0) {
         if (!student) setStudent({ _id: studentId, fullName: 'Học sinh' });
@@ -265,7 +282,11 @@ export default function StudentHealthHistory() {
     <RoleLayout
       menuItems={MENU_ITEMS}
       activeKey="health"
-      onMenuSelect={() => navigate('/medical-staff/health')}
+      onMenuSelect={k => {
+        if (k === 'overview') navigate('/medical-staff');
+        else if (k === 'health') navigate('/medical-staff/health');
+        else if (k === 'incidents') navigate('/medical-staff/incidents');
+      }}
       onLogout={handleLogout}
       onViewProfile={() => navigate('/profile')}
       userName={user?.fullName || user?.username || 'Nhân viên y tế'}

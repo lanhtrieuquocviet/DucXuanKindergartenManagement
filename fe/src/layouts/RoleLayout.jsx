@@ -65,6 +65,7 @@ export const KEY_ICONS = {
   attendance:             <ChecklistIcon fontSize="small" />,
   'face-attendance':      <CameraAltIcon fontSize="small" />,
   'pickup-approval':      <HomeIcon fontSize="small" />,
+  'contact-book':         <MenuBookIcon fontSize="small" />,
   schedule:               <CalendarIcon fontSize="small" />,
   messages:               <NotifIcon fontSize="small" />,
   'class-list':           <SchoolIcon fontSize="small" />,

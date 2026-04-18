@@ -277,10 +277,34 @@ exports.getStudentHealth = async (req, res) => {
     }
 
     const health = await HealthCheck.findOne({ studentId })
-      .sort({ checkDate: -1 })
+      .sort({ checkDate: -1, createdAt: -1 })
       .lean();
 
     return res.json({ status: 'success', data: health || null });
+  } catch (err) {
+    return res.status(500).json({ status: 'error', message: err.message });
+  }
+};
+
+/** GET /teacher/contact-book/:classId/students/:studentId/health-history — toàn bộ lịch sử khám (mới nhất trước) */
+exports.getStudentHealthHistory = async (req, res) => {
+  try {
+    const { classId, studentId } = req.params;
+    const teacher = await Teacher.findOne({ userId: req.user._id }).lean();
+    if (!teacher) {
+      return res.status(403).json({ status: 'error', message: 'Không có hồ sơ giáo viên.' });
+    }
+    const cls = await Classes.findOne({ _id: classId, teacherIds: teacher._id }).lean();
+    if (!cls) {
+      return res.status(403).json({ status: 'error', message: 'Bạn không phụ trách lớp này.' });
+    }
+
+    const records = await HealthCheck.find({ studentId })
+      .populate('recordedBy', 'fullName username')
+      .sort({ checkDate: -1, createdAt: -1 })
+      .lean();
+
+    return res.json({ status: 'success', data: records });
   } catch (err) {
     return res.status(500).json({ status: 'error', message: err.message });
   }
