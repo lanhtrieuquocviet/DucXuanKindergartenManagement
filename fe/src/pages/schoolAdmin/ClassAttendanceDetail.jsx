@@ -30,6 +30,12 @@ import ArrowBackIcon from '@mui/icons-material/ArrowBack';
 import SearchIcon from '@mui/icons-material/Search';
 import VisibilityIcon from '@mui/icons-material/Visibility';
 
+const isWeekendDate = (dateStr) => {
+  if (!dateStr) return false;
+  const d = new Date(dateStr + 'T00:00:00');
+  return d.getDay() === 0 || d.getDay() === 6;
+};
+
 const getLocalISODate = () => {
   const d = new Date();
   const tzOffset = d.getTimezoneOffset() * 60000;
@@ -319,6 +325,12 @@ function ClassAttendanceDetail() {
           </Grid>
         ))}
       </Grid>
+
+      {isWeekendDate(selectedDate) && (
+        <Alert severity="info" sx={{ mb: 2, borderRadius: 2 }}>
+          Ngày <strong>{selectedDate}</strong> là thứ 7 hoặc chủ nhật — học sinh không đi học, sẽ không có dữ liệu điểm danh.
+        </Alert>
+      )}
 
       {/* Bảng điểm danh */}
       <Paper elevation={1} sx={{ borderRadius: 2, overflow: 'hidden' }}>
