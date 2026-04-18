@@ -767,7 +767,26 @@ export default function ManageAssetAllocation() {
                 </TableRow>
               </TableHead>
               <TableBody>
-                {allocations.map((alloc) => {
+                {(() => {
+                  const grouped = {};
+                  for (const alloc of allocations) {
+                    const key = alloc.classId?.gradeId?._id ? String(alloc.classId.gradeId._id) : '__none__';
+                    const gradeName = alloc.classId?.gradeId?.gradeName || 'Chưa phân khối';
+                    if (!grouped[key]) grouped[key] = { gradeName, items: [] };
+                    grouped[key].items.push(alloc);
+                  }
+                  const groups = Object.values(grouped).sort((a, b) => a.gradeName.localeCompare(b.gradeName, 'vi'));
+                  return groups.flatMap((group, gi) => [
+                    <TableRow key={`gh-${gi}`}>
+                      <TableCell colSpan={9} sx={{
+                        py: 0.75, pl: 2.5, fontWeight: 700, fontSize: 13,
+                        bgcolor: '#dbeafe', color: '#1d4ed8',
+                        borderTop: gi > 0 ? '2px solid #93c5fd' : 'none',
+                      }}>
+                        {group.gradeName} — {group.items.length} biên bản
+                      </TableCell>
+                    </TableRow>,
+                    ...group.items.map((alloc) => {
                   const si = STATUS_INFO[alloc.status] || STATUS_INFO.active;
                   return (
                     <TableRow key={alloc._id} hover>
@@ -821,7 +840,9 @@ export default function ManageAssetAllocation() {
                       </TableCell>
                     </TableRow>
                   );
-                })}
+                    })
+                  ]);
+                })()}
               </TableBody>
             </Table>
           </Paper>
