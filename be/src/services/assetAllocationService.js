@@ -17,13 +17,18 @@ try {
 // ─── List all allocations ──────────────────────────────────────────────────
 exports.listAllocations = async (req, res) => {
   try {
-    const { status, classId } = req.query;
+    const { status, classId, gradeId } = req.query;
     const filter = {};
     if (status) filter.status = status;
-    if (classId) filter.classId = classId;
+    if (classId) {
+      filter.classId = classId;
+    } else if (gradeId) {
+      const gradeClasses = await Classes.find({ gradeId }, '_id').lean();
+      filter.classId = { $in: gradeClasses.map((c) => c._id) };
+    }
 
     const allocations = await AssetAllocation.find(filter)
-      .populate('classId', 'className')
+      .populate({ path: 'classId', select: 'className gradeId', populate: { path: 'gradeId', select: 'gradeName' } })
       .populate('createdBy', 'fullName username')
       .populate('confirmedBy', 'fullName username')
       .sort({ createdAt: -1 });
@@ -1023,17 +1028,20 @@ exports.generateExcelTemplate = async (req, res) => {
 // ─── Get list of classes with teachers (helper for frontend dropdown) ─────
 exports.listClasses = async (req, res) => {
   try {
-    const classes = await Classes.find({}, 'className _id teacherIds')
+    const classes = await Classes.find({}, 'className _id teacherIds gradeId')
       .populate({
         path: 'teacherIds',
         select: 'userId',
         populate: { path: 'userId', select: 'fullName' },
       })
+      .populate('gradeId', 'gradeName')
       .sort({ className: 1 });
 
     const result = classes.map((cls) => ({
       _id: cls._id,
       className: cls.className,
+      gradeId: cls.gradeId?._id || null,
+      gradeName: cls.gradeId?.gradeName || '',
       teachers: (cls.teacherIds || [])
         .map((t) => t?.userId?.fullName || '')
         .filter(Boolean),

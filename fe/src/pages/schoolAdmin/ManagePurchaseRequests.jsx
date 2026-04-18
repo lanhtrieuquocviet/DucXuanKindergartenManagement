@@ -329,7 +329,26 @@ export default function ManagePurchaseRequests() {
                 </TableRow>
               </TableHead>
               <TableBody>
-                {filtered.map((r) => {
+                {(() => {
+                  const grouped = {};
+                  for (const r of filtered) {
+                    const key = r.classId?.gradeId?._id ? String(r.classId.gradeId._id) : '__none__';
+                    const gradeName = r.classId?.gradeId?.gradeName || 'Chưa phân khối';
+                    if (!grouped[key]) grouped[key] = { gradeName, items: [] };
+                    grouped[key].items.push(r);
+                  }
+                  const groups = Object.values(grouped).sort((a, b) => a.gradeName.localeCompare(b.gradeName, 'vi'));
+                  return groups.flatMap((group, gi) => [
+                    <TableRow key={`gh-${gi}`}>
+                      <TableCell colSpan={10} sx={{
+                        py: 0.75, pl: 2.5, fontWeight: 700, fontSize: 13,
+                        bgcolor: '#ede9fe', color: '#5b21b6',
+                        borderTop: gi > 0 ? '2px solid #c4b5fd' : 'none',
+                      }}>
+                        Khối {group.gradeName} — {group.items.length} yêu cầu
+                      </TableCell>
+                    </TableRow>,
+                    ...group.items.map((r) => {
                   const canAct = r.status === 'pending';
                   return (
                     <TableRow
@@ -410,7 +429,9 @@ export default function ManagePurchaseRequests() {
                       </TableCell>
                     </TableRow>
                   );
-                })}
+                    })
+                  ]);
+                })()}
               </TableBody>
             </Table>
           </Box>

@@ -147,7 +147,7 @@ exports.deleteRequest = async (req, res) => {
 exports.listAllRequests = async (req, res) => {
   try {
     const requests = await PurchaseRequest.find()
-      .populate('classId', 'className')
+      .populate({ path: 'classId', select: 'className gradeId', populate: { path: 'gradeId', select: 'gradeName' } })
       .populate('createdBy', 'fullName username')
       .populate('reviewedBy', 'fullName username')
       .sort({ createdAt: -1 });
