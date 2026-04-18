@@ -4,7 +4,7 @@ import { toast } from 'react-toastify';
 import { useAuth } from '../../context/AuthContext';
 import RoleLayout from '../../layouts/RoleLayout';
 import ConfirmDialog from '../../components/ConfirmDialog';
-import { get, post, del, postFormData, ENDPOINTS } from '../../service/api';
+import { get, post, patch, del, postFormData, ENDPOINTS } from '../../service/api';
 import { createSchoolAdminMenuSelect } from './schoolAdminMenuConfig';
 import { useSchoolAdminMenu } from './useSchoolAdminMenu';
 import {
@@ -24,6 +24,10 @@ import {
   DialogActions,
   TextField,
   Link,
+  Chip,
+  Switch,
+  FormControlLabel,
+  CircularProgress,
 } from '@mui/material';
 import VideoLibraryIcon from '@mui/icons-material/VideoLibrary';
 import AddPhotoAlternateIcon from '@mui/icons-material/AddPhotoAlternate';
@@ -42,6 +46,7 @@ export default function ManageVideoLibrary() {
   const [confirmDelete, setConfirmDelete] = useState(null);
   const [form, setForm] = useState({ title: '', videoUrl: '', file: null });
   const [coverPreviewUrl, setCoverPreviewUrl] = useState('');
+  const [statusUpdatingId, setStatusUpdatingId] = useState(null);
 
   useEffect(() => {
     if (!form.file) {
@@ -128,6 +133,24 @@ export default function ManageVideoLibrary() {
     }
   };
 
+  const handleTogglePublic = async (item, nextActive) => {
+    const id = item._id;
+    setStatusUpdatingId(id);
+    try {
+      await patch(ENDPOINTS.SCHOOL_ADMIN.VIDEO_LIBRARY_DETAIL(id), {
+        status: nextActive ? 'active' : 'inactive',
+      });
+      toast.success(
+        nextActive ? 'Đã bật hiển thị trên thư viện video công khai' : 'Đã ẩn khỏi thư viện video công khai'
+      );
+      await loadItems();
+    } catch (err) {
+      toast.error(err.data?.message || err.message || 'Không cập nhật được trạng thái');
+    } finally {
+      setStatusUpdatingId(null);
+    }
+  };
+
   const handleDelete = async () => {
     if (!confirmDelete) return;
     try {
@@ -146,7 +169,7 @@ export default function ManageVideoLibrary() {
   return (
     <RoleLayout
       title="Quản lý video-clip"
-      description="Thêm ảnh bìa và link video — không upload file video lên hệ thống."
+      description="Bật/tắt hiển thị từng clip trên trang Thư viện video công khai."
       menuItems={menuItems}
       activeKey="video-library"
       onLogout={() => {
@@ -178,7 +201,7 @@ export default function ManageVideoLibrary() {
           Quản lý video-clip
         </Typography>
         <Typography variant="body2" sx={{ color: 'rgba(255,255,255,0.9)', mt: 0.5 }}>
-          Nhập tiêu đề, tải ảnh bìa và dán link video. Trang Thư viện video sẽ mở link khi khách bấm vào ảnh.
+          Nhập tiêu đề, tải ảnh bìa và dán link video. Tắt công tắc để ẩn clip khỏi trang công khai — không upload file video lên hệ thống.
         </Typography>
       </Paper>
 
@@ -199,39 +222,72 @@ export default function ManageVideoLibrary() {
             gap: 2,
           }}
         >
-          {items.map((item) => (
-            <Card key={item._id} variant="outlined" sx={{ borderRadius: 2 }}>
-              <CardMedia
-                component="img"
-                height="180"
-                image={item.thumbnailUrl}
-                alt={item.title}
-                sx={{ objectFit: 'cover' }}
-              />
-              <CardContent>
-                <Typography variant="subtitle2" fontWeight={600}>
-                  {item.title}
-                </Typography>
-                <Typography variant="caption" color="text.secondary" display="block">
-                  {new Date(item.createdAt).toLocaleDateString('vi-VN')}
-                </Typography>
-                <Link
-                  href={item.videoUrl}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  variant="caption"
-                  sx={{ wordBreak: 'break-all', display: 'inline-flex', alignItems: 'center', gap: 0.5, mt: 0.5 }}
-                >
-                  Mở link <OpenInNewIcon sx={{ fontSize: 14 }} />
-                </Link>
-              </CardContent>
-              <CardActions sx={{ justifyContent: 'flex-end' }}>
-                <Button size="small" color="error" startIcon={<DeleteIcon />} onClick={() => setConfirmDelete(item)}>
-                  Xóa
-                </Button>
-              </CardActions>
-            </Card>
-          ))}
+          {items.map((item) => {
+            const isPublic = item.status !== 'inactive';
+            const busy = statusUpdatingId === item._id;
+            return (
+              <Card key={item._id} variant="outlined" sx={{ borderRadius: 2, opacity: isPublic ? 1 : 0.92 }}>
+                <CardMedia
+                  component="img"
+                  height="180"
+                  image={item.thumbnailUrl}
+                  alt={item.title}
+                  sx={{ objectFit: 'cover' }}
+                />
+                <CardContent>
+                  <Stack direction="row" alignItems="center" justifyContent="space-between" gap={1} sx={{ mb: 0.5 }}>
+                    <Typography variant="subtitle2" fontWeight={600} sx={{ flex: 1 }}>
+                      {item.title}
+                    </Typography>
+                    <Chip
+                      size="small"
+                      label={isPublic ? 'Đang hiển thị' : 'Đã ẩn'}
+                      color={isPublic ? 'success' : 'default'}
+                      variant={isPublic ? 'filled' : 'outlined'}
+                      sx={{ fontWeight: 600, fontSize: '0.7rem' }}
+                    />
+                  </Stack>
+                  <Typography variant="caption" color="text.secondary" display="block">
+                    {new Date(item.createdAt).toLocaleDateString('vi-VN')}
+                  </Typography>
+                  <Link
+                    href={item.videoUrl}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    variant="caption"
+                    sx={{ wordBreak: 'break-all', display: 'inline-flex', alignItems: 'center', gap: 0.5, mt: 0.5 }}
+                  >
+                    Mở link <OpenInNewIcon sx={{ fontSize: 14 }} />
+                  </Link>
+                  <FormControlLabel
+                    sx={{ mt: 1, ml: 0, alignItems: 'center' }}
+                    control={
+                      busy ? (
+                        <CircularProgress size={22} sx={{ mx: 1 }} />
+                      ) : (
+                        <Switch
+                          size="small"
+                          checked={isPublic}
+                          onChange={(_, checked) => handleTogglePublic(item, checked)}
+                          color="primary"
+                        />
+                      )
+                    }
+                    label={
+                      <Typography variant="caption" color="text.secondary">
+                        Hiển thị trên thư viện video (công khai)
+                      </Typography>
+                    }
+                  />
+                </CardContent>
+                <CardActions sx={{ justifyContent: 'flex-end', flexWrap: 'wrap', gap: 0.5 }}>
+                  <Button size="small" color="error" startIcon={<DeleteIcon />} onClick={() => setConfirmDelete(item)}>
+                    Xóa
+                  </Button>
+                </CardActions>
+              </Card>
+            );
+          })}
         </Box>
 
         {items.length === 0 && (
