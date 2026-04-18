@@ -56,6 +56,23 @@ const deleteImageLibraryItem = async (req, res) => {
   }
 };
 
+/** PATCH body: { status: 'active' | 'inactive' } — ẩn khỏi thư viện công khai khi inactive */
+const updateImageLibraryItem = async (req, res) => {
+  try {
+    const { status } = req.body || {};
+    if (status !== 'active' && status !== 'inactive') {
+      return res.status(400).json({ status: 'error', message: 'Trạng thái phải là active hoặc inactive' });
+    }
+    const doc = await ImageLibraryItem.findById(req.params.id);
+    if (!doc) return res.status(404).json({ status: 'error', message: 'Không tìm thấy album ảnh' });
+    doc.status = status;
+    await doc.save();
+    return res.status(200).json({ status: 'success', data: normalizeItem(doc.toObject()) });
+  } catch (error) {
+    return res.status(500).json({ status: 'error', message: error.message || 'Lỗi cập nhật thư viện ảnh' });
+  }
+};
+
 const listPublicImageLibrary = async (req, res) => {
   try {
     const items = await ImageLibraryItem.find({ status: 'active' })
@@ -71,6 +88,7 @@ const listPublicImageLibrary = async (req, res) => {
 module.exports = {
   listAdminImageLibrary,
   createImageLibraryItem,
+  updateImageLibraryItem,
   deleteImageLibraryItem,
   listPublicImageLibrary,
 };

@@ -47,13 +47,21 @@ const getFileIcon = (type) => {
   return <DescriptionIcon sx={{ fontSize: 16, color: '#64748b' }} />;
 };
 
+/** PDF/Word trên Cloudinary (raw) mở trực tiếp thường lỗi hoặc tab trống; gview ổn định hơn. Không dùng fl_inline trên raw — Cloudinary trả 400. */
+const googleDocsViewerUrl = (fileUrl) =>
+  `https://docs.google.com/gview?url=${encodeURIComponent(fileUrl)}&embedded=1`;
+
+const isPdfAttachment = (item) =>
+  item?.attachmentType === 'pdf' || /\.pdf(\?|#|$)/i.test(item?.attachmentUrl || '');
+
+const isWordAttachment = (item) =>
+  item?.attachmentType === 'word' || /\.docx?(\?|#|$)/i.test(item?.attachmentUrl || '');
+
 const getPreviewUrl = (item) => {
   if (!item?.attachmentUrl) return '#';
-
-  if (item.attachmentType === 'word') {
-    return `https://docs.google.com/gview?url=${encodeURIComponent(item.attachmentUrl)}&embedded=1`;
+  if (isWordAttachment(item) || isPdfAttachment(item)) {
+    return googleDocsViewerUrl(item.attachmentUrl);
   }
-
   return item.attachmentUrl;
 };
 
@@ -236,13 +244,13 @@ export default function ManageFiles() {
         title: titleFromFileName || `Tài liệu ${new Date().toLocaleDateString('vi-VN')}`,
         description: `Import từ Quản lý file (${importCategory})`,
         category: importCategory,
-        status: 'published',
+        status: 'draft',
         academicYearId: currentYear?._id,
         attachmentUrl: uploadResp.data.url,
         attachmentType: uploadResp.data.type || null,
       });
 
-      toast.success(`Import file "${importFile.name}" thành công`);
+      toast.success(`Đã import "${importFile.name}" — thành công`);
       handleCloseImportDialog();
       await loadFiles();
     } catch (err) {

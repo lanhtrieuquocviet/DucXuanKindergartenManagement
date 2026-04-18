@@ -27,6 +27,15 @@ const deleteVideoClipItem = async (req, res) => {
   }
 };
 
+const updateVideoClipItem = async (req, res) => {
+  try {
+    const updated = await videoClipService.updateVideoClipItem(req.params.id, req.body);
+    return res.status(200).json({ status: 'success', data: updated });
+  } catch (error) {
+    return res.status(error.statusCode || 500).json({ status: 'error', message: error.message || 'Lỗi cập nhật video' });
+  }
+};
+
 const listPublicVideoClips = async (req, res) => {
   try {
     const items = await videoClipService.listPublicVideoClips();
@@ -39,6 +48,7 @@ const listPublicVideoClips = async (req, res) => {
 module.exports = {
   listAdminVideoClips,
   createVideoClipItem,
+  updateVideoClipItem,
   deleteVideoClipItem,
   listPublicVideoClips,
 };

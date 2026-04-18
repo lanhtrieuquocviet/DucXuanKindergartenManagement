@@ -1208,9 +1208,11 @@ router.get('/documents', authenticate, authorizePermissions('MANAGE_DOCUMENT'), 
 router.post('/documents', authenticate, authorizePermissions('MANAGE_DOCUMENT'), documentController.createDocument);
 router.get('/image-library', authenticate, authorizePermissions('MANAGE_IMAGE_LIBRARY'), imageLibraryController.listAdminImageLibrary);
 router.post('/image-library', authenticate, authorizePermissions('MANAGE_IMAGE_LIBRARY'), imageLibraryController.createImageLibraryItem);
+router.patch('/image-library/:id', authenticate, authorizePermissions('MANAGE_IMAGE_LIBRARY'), imageLibraryController.updateImageLibraryItem);
 router.delete('/image-library/:id', authenticate, authorizePermissions('MANAGE_IMAGE_LIBRARY'), imageLibraryController.deleteImageLibraryItem);
 router.get('/video-library', authenticate, authorizePermissions('MANAGE_IMAGE_LIBRARY'), videoClipController.listAdminVideoClips);
 router.post('/video-library', authenticate, authorizePermissions('MANAGE_IMAGE_LIBRARY'), videoClipController.createVideoClipItem);
+router.patch('/video-library/:id', authenticate, authorizePermissions('MANAGE_IMAGE_LIBRARY'), videoClipController.updateVideoClipItem);
 router.delete('/video-library/:id', authenticate, authorizePermissions('MANAGE_IMAGE_LIBRARY'), videoClipController.deleteVideoClipItem);
 
 /**

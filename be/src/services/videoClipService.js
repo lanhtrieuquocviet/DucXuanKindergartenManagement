@@ -44,6 +44,19 @@ const deleteVideoClipItem = async (id) => {
   if (!deleted) throw createHttpError(404, 'Không tìm thấy video');
 };
 
+/** PATCH body: { status: 'active' | 'inactive' } — ẩn khỏi thư viện video công khai khi inactive */
+const updateVideoClipItem = async (id, payload) => {
+  const { status } = payload || {};
+  if (status !== 'active' && status !== 'inactive') {
+    throw createHttpError(400, 'Trạng thái phải là active hoặc inactive');
+  }
+  const doc = await VideoClipItem.findById(id);
+  if (!doc) throw createHttpError(404, 'Không tìm thấy video');
+  doc.status = status;
+  await doc.save();
+  return doc;
+};
+
 const listPublicVideoClips = async () => VideoClipItem.find({ status: 'active' })
   .sort({ createdAt: -1 })
   .select('title thumbnailUrl videoUrl createdAt');
@@ -51,6 +64,7 @@ const listPublicVideoClips = async () => VideoClipItem.find({ status: 'active' }
 module.exports = {
   listAdminVideoClips,
   createVideoClipItem,
+  updateVideoClipItem,
   deleteVideoClipItem,
   listPublicVideoClips,
 };
