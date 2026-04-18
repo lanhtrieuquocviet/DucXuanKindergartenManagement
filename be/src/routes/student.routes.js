@@ -16,6 +16,9 @@ const {
   upsertAttendance,
   checkoutAttendance,
   getAttendances,
+  requestCheckout,
+  getPendingCheckout,
+  parentConfirmCheckout,
 } = require('../controller/attendanceController');
 const contactBookCtrl = require('../controller/contactBookController');
 
@@ -214,6 +217,9 @@ router.post('/with-parent/import-excel', authenticate, authorizePermissions('MAN
  */
 router.post('/attendance', authenticate, authorizePermissions('MANAGE_ATTENDANCE'), upsertAttendance);
 router.get('/attendance', authenticate, getAttendances);
+router.post('/attendance/checkout/request', authenticate, authorizePermissions('CHECKOUT_STUDENT'), requestCheckout);
+router.post('/attendance/checkout/parent-confirm', authenticate, parentConfirmCheckout);
+router.get('/attendance/checkout/pending/:studentId', authenticate, getPendingCheckout);
 
 /**
  * @openapi

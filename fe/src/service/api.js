@@ -535,6 +535,9 @@ export const ENDPOINTS = {
     DELETE: (studentId) => `/students/${studentId}`,
     ATTENDANCE_CHECKIN: "/students/attendance",
     ATTENDANCE_CHECKOUT: "/students/attendance/checkout",
+    ATTENDANCE_CHECKOUT_REQUEST: "/students/attendance/checkout/request",
+    ATTENDANCE_CHECKOUT_PARENT_CONFIRM: "/students/attendance/checkout/parent-confirm",
+    ATTENDANCE_CHECKOUT_PENDING: (studentId) => `/students/attendance/checkout/pending/${studentId}`,
     ATTENDANCE_LIST: "/students/attendance",
   },
   // Cloudinary
@@ -565,12 +568,6 @@ export const ENDPOINTS = {
     UNREAD_COUNT: '/notifications/unread-count',
     MARK_READ: (id) => `/notifications/${id}/read`,
     MARK_ALL_READ: '/notifications/read-all',
-  },
-  // OTP
-  OTP: {
-    SEND: "/otp/send",
-    VERIFY: "/otp/verify",
-    PENDING: (studentId) => `/otp/pending/${studentId}`,
   },
   //Pickup
   PICKUP: {

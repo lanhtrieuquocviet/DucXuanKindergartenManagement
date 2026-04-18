@@ -19,6 +19,7 @@ import {
   Close as CloseIcon,
   ZoomIn as ZoomInIcon,
   Search as SearchIcon,
+  EventBusy as EventBusyIcon,
 } from '@mui/icons-material';
 import { defaultRecord } from './attendanceUtils';
 
@@ -423,6 +424,7 @@ function AttendanceTable({
   onAbsent,
   selectedClassName,
   classId,
+  isWeekend,
 }) {
   const [lightbox, setLightbox] = useState(null); // { src, name }
   const [searchText, setSearchText] = useState('');
@@ -491,13 +493,28 @@ function AttendanceTable({
         />
       </Box>
 
+      {/* Weekend notice */}
+      {isWeekend && (
+        <Box sx={{ display: 'flex', justifyContent: 'center', alignItems: 'center', py: 6 }}>
+          <Stack alignItems="center" spacing={1.5}>
+            <Avatar sx={{ width: 56, height: 56, bgcolor: '#fef9c3' }}>
+              <EventBusyIcon sx={{ fontSize: 30, color: '#ca8a04' }} />
+            </Avatar>
+            <Typography variant="subtitle1" fontWeight={700}>Ngày nghỉ cuối tuần</Typography>
+            <Typography variant="body2" color="text.secondary" textAlign="center" maxWidth={320}>
+              Thứ 7 và chủ nhật học sinh không đi học. 
+            </Typography>
+          </Stack>
+        </Box>
+      )}
+
       {/* Summary bar */}
-      {!loadingStudents && (students || []).length > 0 && (
+      {!isWeekend && !loadingStudents && (students || []).length > 0 && (
         <SummaryBar students={students} attendanceByStudent={attendanceByStudent} />
       )}
 
       {/* Search + Filter bar */}
-      {!loadingStudents && (students || []).length > 0 && (
+      {!isWeekend && !loadingStudents && (students || []).length > 0 && (
         <Box sx={{ px: { xs: 2, md: 3 }, py: 1.5, borderBottom: '1px solid', borderColor: 'divider', display: 'flex', flexDirection: 'column', gap: 1.25 }}>
           <TextField
             size="small"
@@ -539,12 +556,12 @@ function AttendanceTable({
       )}
 
       {/* Error */}
-      {studentsError && (
+      {!isWeekend && studentsError && (
         <Alert severity="error" sx={{ mx: 3, mt: 2, borderRadius: 2 }}>{studentsError}</Alert>
       )}
 
       {/* Content */}
-      {loadingStudents ? (
+      {!isWeekend && (loadingStudents ? (
         <Box sx={{ p: 3, display: 'flex', flexDirection: 'column', gap: 1.5 }}>
           {[1, 2, 3, 4, 5].map((i) => <Skeleton key={i} variant="rounded" height={isMobile ? 90 : 52} />)}
         </Box>
@@ -749,7 +766,7 @@ function AttendanceTable({
             </TableBody>
           </Table>
         </TableContainer>
-      )}
+      ))}
     </Paper>
     </>
   );

@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState, Component } from 'react';
 import { useLocation, useNavigate, useParams } from 'react-router-dom';
-import { Snackbar, Alert, Box, Typography, Avatar, Paper, Button } from '@mui/material';
-import { EventBusy as EventBusyIcon } from '@mui/icons-material';
+import { Snackbar, Alert, Box, Typography, Avatar, Paper, Button, ToggleButton, ToggleButtonGroup } from '@mui/material';
+import { EventBusy as EventBusyIcon, ViewList as DayViewIcon, CalendarViewWeek as WeekViewIcon } from '@mui/icons-material';
 import { useAuth } from '../../context/AuthContext';
 import RoleLayout from '../../layouts/RoleLayout';
 import { get, post, ENDPOINTS } from '../../service/api';
@@ -55,6 +55,13 @@ import {
 import AttendanceTable from './attendance/AttendanceTable';
 import AttendanceDetailModal from './attendance/AttendanceDetailModal';
 import AbsentModal from './attendance/AbsentModal';
+import WeeklyAttendanceView from './attendance/WeeklyAttendanceView';
+
+const isWeekendDate = (dateStr) => {
+  const d = new Date(dateStr + 'T00:00:00');
+  const day = d.getDay();
+  return day === 0 || day === 6;
+};
 
 function TeacherAttendance() {
   const navigate = useNavigate();
@@ -62,6 +69,9 @@ function TeacherAttendance() {
   const { classId } = useParams();
   const { user, logout, isInitializing, hasPermission, hasRole } = useAuth();
   const todayISO = getLocalISODate();
+
+  // ── State: chế độ xem ──
+  const [viewMode, setViewMode] = useState('day'); // 'day' | 'week'
 
   // ── State: lớp & học sinh ──
   const [classes, setClasses] = useState([]);
@@ -130,11 +140,6 @@ function TeacherAttendance() {
     setTimeout(() => setSuccessToast({ visible: false, message: '' }), 3000);
   };
 
-  // ── State: Firebase OTP ──
-  const [confirmationResult, setConfirmationResult] = useState(null);
-  const recaptchaVerifierRef = useRef(null);
-  const [otpTimeLeft, setOtpTimeLeft] = useState(0);
-  const [otpExpired, setOtpExpired] = useState(false);
 
   // ── Effects ──
 
@@ -278,28 +283,6 @@ function TeacherAttendance() {
     });
   }, [classId, selectedDate, students]);
 
-  // Đếm ngược OTP
-  useEffect(() => {
-    if (!detailForm.otpSent || otpExpired) return;
-    const interval = setInterval(() => {
-      setOtpTimeLeft((prev) => {
-        if (prev <= 1) {
-          setOtpExpired(true);
-          clearInterval(interval);
-          return 0;
-        }
-        return prev - 1;
-      });
-    }, 1000);
-    return () => clearInterval(interval);
-  }, [detailForm.otpSent, otpExpired]);
-
-  // Bắt đầu đếm ngược khi gửi OTP
-  useEffect(() => {
-    if (detailForm.otpSent && !otpExpired) {
-      setOtpTimeLeft(60);
-    }
-  }, [detailForm.otpSent]);
 
   // ── Menu layout ──
   const menuItems = useMemo(
@@ -402,12 +385,6 @@ function TeacherAttendance() {
     setSelectedDate(value);
   }, [todayISO]);
 
-  const resetOtpState = useCallback(() => {
-    setConfirmationResult(null);
-    setOtpExpired(false);
-    setOtpTimeLeft(0);
-    setDetailForm((prev) => ({ ...prev, otpSent: false, otpCode: '' }));
-  }, []);
 
   // ── Detail modal ──
   // overrides: dữ liệu từ AI scan (checkinImageName, checkoutImageName, timeIn, timeOut, checkedInByAI, checkedOutByAI)
@@ -421,14 +398,9 @@ function TeacherAttendance() {
     const hasOverrides = Object.keys(overrides).length > 0;
 
     if (draft && !hasOverrides) {
-      // Có draft và không có override từ AI: khôi phục form đã nhập, chỉ reset OTP
       setDetailForm({
         ...draft,
-        otpSent: false,
-        otpCode: '',
-        sendOtpSchoolAccount: false,
-        sendOtpViaSms: false,
-        selectedParentForOtp: '',
+        parentConfirmSent: draft.parentConfirmed ? true : false,
       });
     } else {
       // Không có draft hoặc có override từ AI: khởi tạo form (override được ưu tiên)
@@ -471,25 +443,20 @@ function TeacherAttendance() {
         checkoutNote: rec.checkoutNote || '',
         checkoutBelongingsNote: rec.checkoutBelongingsNote || '',
         hasCheckoutBelongings: !!(rec.checkoutBelongingsNote),
-        sendOtpSchoolAccount: false,
-        sendOtpViaSms: false,
-        selectedParentForOtp: '',
-        otpCode: '',
-        otpSent: false,
+        parentConfirmSent: false,
+        parentConfirmed: false,
       });
     }
 
     setDetailMode(mode);
     setIsDetailOpen(true);
-    resetOtpState();
-  }, [selectedDate, draftForms, attendanceByStudent, resetOtpState]);
+  }, [selectedDate, draftForms, attendanceByStudent]);
 
   const closeDetail = () => {
-    // Lưu draft khi đóng modal (không lưu OTP vì hết hạn)
     if (detailStudentId) {
       const draftKey = `${detailStudentId}__${detailMode}__${detailOpenedDate}`;
-      const { otpSent, otpCode, sendOtpSchoolAccount, sendOtpViaSms, selectedParentForOtp, ...formWithoutOtp } = detailForm;
-      setDraftForms((prev) => ({ ...prev, [draftKey]: formWithoutOtp }));
+      const { parentConfirmSent, ...formWithoutConfirmSent } = detailForm;
+      setDraftForms((prev) => ({ ...prev, [draftKey]: formWithoutConfirmSent }));
     }
     setIsDetailOpen(false);
     setSubmitError(null);
@@ -589,27 +556,6 @@ function TeacherAttendance() {
       };
 
       if (detailMode === 'checkout') {
-        const isReceiverFromList = !!detailForm.receiverPickupPersonId && detailForm.receiverPickupPersonId !== 'KHAC';
-        const isTeacherConfirmed = !!detailForm.teacherConfirmedCheckout;
-        if (!isReceiverFromList && !isTeacherConfirmed) {
-          // Người ngoài danh sách, không có xác nhận giáo viên → bắt buộc OTP
-          if (!detailForm.otpSent) throw new Error('Vui lòng gửi mã OTP trước khi lưu.');
-          if (!detailForm.otpCode) throw new Error('Vui lòng nhập mã OTP.');
-          const isSchoolOtpCO = detailForm.sendOtpSchoolAccount && !detailForm.sendOtpViaSms;
-          if (isSchoolOtpCO) {
-            try {
-              const verifyRes = await post(ENDPOINTS.OTP.VERIFY, { studentId: detailStudentId, otpCode: detailForm.otpCode });
-              if (!verifyRes.data?.verified) throw new Error('OTP không chính xác.');
-            } catch (err) {
-              throw new Error(err.message || 'Mã OTP không chính xác hoặc đã hết hạn.');
-            }
-          } else {
-            if (!confirmationResult) throw new Error('Vui lòng gửi mã OTP trước khi lưu.');
-            try { await confirmationResult.confirm(detailForm.otpCode); }
-            catch { throw new Error('Mã OTP không chính xác hoặc đã hết hạn.'); }
-          }
-        }
-
         const timeOutHHmm = detailForm.timeOut || nowHHmm();
         const isoOut = buildDateTimeISO(selectedDate, timeOutHHmm);
         const receiverOtherInfoFinal = detailForm.receiverType === 'Khác'
@@ -632,8 +578,7 @@ function TeacherAttendance() {
           teacherConfirmedCheckout: detailForm.teacherConfirmedCheckout || false,
           checkoutConfirmMethod:
             detailForm.teacherConfirmedCheckout ? 'teacher'
-            : detailForm.sendOtpSchoolAccount && !detailForm.sendOtpViaSms ? 'school_otp'
-            : detailForm.sendOtpViaSms ? 'sms_otp'
+            : detailForm.parentConfirmed ? 'parent_confirm'
             : '',
         });
 
@@ -840,6 +785,29 @@ function TeacherAttendance() {
       )}
 
       {classId && (
+        <Box sx={{ mb: 2, display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: 1.5 }}>
+          <ToggleButtonGroup
+            value={viewMode}
+            exclusive
+            onChange={(_, v) => v && setViewMode(v)}
+            size="small"
+            sx={{ '& .MuiToggleButton-root': { textTransform: 'none', fontWeight: 600, fontSize: 13, px: 2 } }}
+          >
+            <ToggleButton value="day">
+              <DayViewIcon sx={{ fontSize: 16, mr: 0.75 }} /> Theo ngày
+            </ToggleButton>
+            <ToggleButton value="week">
+              <WeekViewIcon sx={{ fontSize: 16, mr: 0.75 }} /> Thống kê tuần
+            </ToggleButton>
+          </ToggleButtonGroup>
+        </Box>
+      )}
+
+      {classId && viewMode === 'week' && (
+        <WeeklyAttendanceView classId={classId} students={students} />
+      )}
+
+      {classId && viewMode === 'day' && !isWeekendDate(selectedDate) && (
         <div className="mb-4 flex flex-wrap justify-end gap-2">
           {/* Nút Điểm danh đến */}
           <button
@@ -1010,7 +978,7 @@ function TeacherAttendance() {
         </div>
       )}
 
-      {classId && (
+      {classId && viewMode === 'day' && (
         <AttendanceTable
           students={students}
           attendanceByStudent={attendanceByStudent}
@@ -1025,6 +993,7 @@ function TeacherAttendance() {
           onAbsent={handleAbsent}
           selectedClassName={selectedClassName}
           classId={classId}
+          isWeekend={isWeekendDate(selectedDate)}
         />
       )}
 
@@ -1041,17 +1010,9 @@ function TeacherAttendance() {
         setSubmitError={setSubmitError}
         studentsError={studentsError}
         approvedPickupPersons={approvedPickupPersons}
-        confirmationResult={confirmationResult}
-        setConfirmationResult={setConfirmationResult}
-        recaptchaVerifierRef={recaptchaVerifierRef}
-        otpTimeLeft={otpTimeLeft}
-        setOtpTimeLeft={setOtpTimeLeft}
-        otpExpired={otpExpired}
-        setOtpExpired={setOtpExpired}
         attendanceByStudent={attendanceByStudent}
         onClose={closeDetail}
         onSave={handleSaveDetail}
-onResetOtp={resetOtpState}
       />
 
       <AbsentModal

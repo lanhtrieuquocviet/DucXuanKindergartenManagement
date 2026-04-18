@@ -1,11 +1,7 @@
 // Modal chi tiết điểm danh: hỗ trợ 3 chế độ view / checkin / checkout
-import { signInWithPhoneNumber, RecaptchaVerifier } from 'firebase/auth';
-import { auth } from '../../../config/firebase';
-import { post, postFormData, ENDPOINTS } from '../../../service/api';
+import { post, get, postFormData, ENDPOINTS } from '../../../service/api';
 import CameraCapture from '../../../components/CameraCapture';
 import {
-  formatPhoneForFirebase,
-  sanitizeSingleLineText,
   sanitizeMultiLineText,
   sanitizePersonName,
   MAX_NOTE_LEN,
@@ -14,13 +10,13 @@ import {
   MAX_PERSON_PHONE_LEN,
   PHONE_REGEX,
 } from './attendanceUtils';
-import { useState } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import {
   Dialog, DialogContent, DialogActions, DialogTitle,
   Box, Grid, Typography, Button, TextField, Select,
   FormControl, InputLabel, MenuItem, Alert, IconButton,
   Chip, FormControlLabel, Checkbox, Paper,
-  RadioGroup, Radio, Stack, Avatar, Divider,
+  Stack, Avatar, Divider,
   useMediaQuery,
 } from '@mui/material';
 import {
@@ -35,11 +31,12 @@ import {
   CheckCircle as CheckCircleIcon,
   AccessTime as TimeIcon,
   Person as PersonIcon,
-  Timer as TimerIcon,
   SmartToy as SmartToyIcon,
   Backpack as BackpackIcon,
   CameraAlt as CameraAltIcon,
   WarningAmber as WarningAmberIcon,
+  HourglassEmpty as HourglassIcon,
+  ContactPhone as ContactPhoneIcon,
 } from '@mui/icons-material';
 
 // Helper hiển thị ảnh preview
@@ -64,30 +61,30 @@ const renderImagePreview = (imageValue, altText) => {
   );
 };
 
-// ── OTP Section ──
-function OtpSection({ radioName, detailForm, setDetailForm, student, approvedPickupPersons = [], onSendOtp, otpTimeLeft, otpExpired, onResetOtp }) {
-  const countdownStr = `${Math.floor(otpTimeLeft / 60)}:${String(otpTimeLeft % 60).padStart(2, '0')}`;
-  const otpSelected = detailForm.sendOtpSchoolAccount || detailForm.sendOtpViaSms;
+// ── Parent Confirm Section ──
+function ParentConfirmSection({ detailForm, setDetailForm, student, approvedPickupPersons = [], onSendToParent, confirmCountdown, sending }) {
   const teacherConfirmed = !!detailForm.teacherConfirmedCheckout;
+  const sent = !!detailForm.parentConfirmSent;
+  const confirmed = !!detailForm.parentConfirmed;
+  const timedOut = sent && !confirmed && confirmCountdown <= 0;
 
   const handleToggleTeacherConfirm = () => {
     setDetailForm((prev) => ({
       ...prev,
       teacherConfirmedCheckout: !prev.teacherConfirmedCheckout,
-      // reset OTP fields khi chuyển mode
-      sendOtpSchoolAccount: false,
-      sendOtpViaSms: false,
-      otpSent: false,
-      otpCode: '',
+      ...(prev.parentConfirmed ? {} : { parentConfirmSent: false }),
     }));
   };
+
+  const countdownMin = Math.floor(confirmCountdown / 60);
+  const countdownSec = String(confirmCountdown % 60).padStart(2, '0');
 
   return (
     <Box sx={{ mt: 2 }}>
       <Divider sx={{ mb: 2 }}>
         <Chip
           icon={<PhoneIcon sx={{ fontSize: '14px !important' }} />}
-          label="Xác thực OTP"
+          label="Xác nhận phụ huynh"
           size="small"
           color="primary"
           variant="outlined"
@@ -95,7 +92,7 @@ function OtpSection({ radioName, detailForm, setDetailForm, student, approvedPic
         />
       </Divider>
 
-      {/* Toggle bỏ qua OTP */}
+      {/* Toggle giáo viên tự xác nhận */}
       <Paper
         variant="outlined"
         onClick={handleToggleTeacherConfirm}
@@ -119,7 +116,7 @@ function OtpSection({ radioName, detailForm, setDetailForm, student, approvedPic
           label={
             <Box>
               <Typography variant="body2" fontWeight={700} color={teacherConfirmed ? 'warning.dark' : 'text.secondary'}>
-                Giáo viên xác nhận trực tiếp (bỏ qua OTP)
+                Giáo viên xác nhận trực tiếp (bỏ qua xác nhận PH)
               </Typography>
               <Typography variant="caption" color="text.secondary">
                 Phụ huynh đã thông báo trước hoặc giáo viên tin tưởng người đón
@@ -131,10 +128,7 @@ function OtpSection({ radioName, detailForm, setDetailForm, student, approvedPic
       </Paper>
 
       {teacherConfirmed ? (
-        <Paper
-          variant="outlined"
-          sx={{ p: 1.5, borderRadius: 2, borderColor: 'warning.300', bgcolor: '#fffbeb' }}
-        >
+        <Paper variant="outlined" sx={{ p: 1.5, borderRadius: 2, borderColor: 'warning.300', bgcolor: '#fffbeb' }}>
           <Typography variant="caption" color="warning.dark" fontWeight={600} sx={{ display: 'flex', alignItems: 'center', gap: 0.5 }}>
             <WarningAmberIcon sx={{ fontSize: 14 }} />
             Giáo viên chịu trách nhiệm xác nhận danh tính người đón. Hành động này được ghi lại trong hệ thống.
@@ -142,118 +136,96 @@ function OtpSection({ radioName, detailForm, setDetailForm, student, approvedPic
         </Paper>
       ) : (
         <Paper variant="outlined" sx={{ p: 2, borderRadius: 2, bgcolor: 'grey.50' }}>
-          <Typography variant="caption" fontWeight={700} color="text.secondary" sx={{ display: 'block', mb: 1.25 }}>
-            Chọn phương thức gửi OTP
-          </Typography>
-          <FormControl component="fieldset" size="small">
-            <RadioGroup
-              row
-              name={radioName}
-              value={
-                detailForm.sendOtpSchoolAccount ? 'school'
-                : detailForm.sendOtpViaSms ? 'sms'
-                : ''
-              }
-              onChange={(e) => {
-                const val = e.target.value;
-                setDetailForm((prev) => ({
-                  ...prev,
-                  sendOtpSchoolAccount: val === 'school',
-                  sendOtpViaSms: val === 'sms',
-                }));
-              }}
-            >
-              <FormControlLabel value="school" control={<Radio size="small" />} label={<Typography variant="body2">Tài khoản trường</Typography>} />
-              <FormControlLabel value="sms" control={<Radio size="small" />} label={<Typography variant="body2">Gửi qua SMS</Typography>} />
-            </RadioGroup>
-          </FormControl>
-
-          {otpSelected && (
-            <Box sx={{ mt: 1.5 }}>
-              {detailForm.sendOtpViaSms && (
-                <FormControl fullWidth size="small" sx={{ mb: 1.5 }}>
-                  <InputLabel>Phụ huynh nhận SMS</InputLabel>
-                  <Select
-                    value={detailForm.selectedParentForOtp || ''}
-                    label="Phụ huynh nhận SMS"
-                    onChange={(e) => setDetailForm((prev) => ({ ...prev, selectedParentForOtp: e.target.value }))}
-                  >
-                    <MenuItem value="" disabled>-- Chọn --</MenuItem>
-                    {approvedPickupPersons.length > 0
-                      ? approvedPickupPersons.map((p) => (
-                          <MenuItem key={p._id} value={p.phone}>
-                            {p.fullName} – {p.phone}
-                          </MenuItem>
-                        ))
-                      : student?.parentId?.phone && (
-                          <MenuItem value={student.parentId.phone}>
-                            {student.parentId.fullName || 'Phụ huynh'} – {student.parentId.phone}
-                          </MenuItem>
-                        )
-                    }
-                  </Select>
-                </FormControl>
-              )}
-
+          {/* Trạng thái đã xác nhận */}
+          {confirmed ? (
+            <Box sx={{ bgcolor: '#f0fdf4', borderRadius: 2, p: 1.5, border: '1px solid #86efac', display: 'flex', alignItems: 'center', gap: 1 }}>
+              <CheckCircleIcon sx={{ color: 'success.main', fontSize: 22 }} />
+              <Box>
+                <Typography variant="body2" fontWeight={700} color="success.main">Phụ huynh đã xác nhận</Typography>
+                <Typography variant="caption" color="text.secondary">Có thể lưu điểm danh về ngay bây giờ</Typography>
+              </Box>
+            </Box>
+          ) : sent && !timedOut ? (
+            /* Đang chờ PH xác nhận */
+            <Box>
+              <Box sx={{ bgcolor: '#eff6ff', borderRadius: 2, p: 1.5, border: '1px solid #93c5fd', display: 'flex', alignItems: 'center', gap: 1, mb: 1.5 }}>
+                <HourglassIcon sx={{ color: 'primary.main', fontSize: 20 }} />
+                <Box sx={{ flex: 1 }}>
+                  <Typography variant="body2" fontWeight={700} color="primary.main">Đang chờ phụ huynh xác nhận...</Typography>
+                  <Typography variant="caption" color="text.secondary">Thông tin đã được gửi tới phụ huynh</Typography>
+                </Box>
+                <Chip
+                  label={`${countdownMin}:${countdownSec}`}
+                  size="small"
+                  color="primary"
+                  sx={{ fontWeight: 700, fontSize: 12, height: 22 }}
+                />
+              </Box>
+              <Button
+                fullWidth
+                size="small"
+                variant="outlined"
+                startIcon={<SendIcon sx={{ fontSize: 14 }} />}
+                onClick={onSendToParent}
+                disabled={sending}
+                sx={{ borderRadius: 2, textTransform: 'none', fontSize: 12 }}
+              >
+                Gửi lại
+              </Button>
+            </Box>
+          ) : timedOut ? (
+            /* Hết 2 phút, hiện thông tin liên hệ */
+            <Box>
+              <Box sx={{ bgcolor: '#fff7ed', borderRadius: 2, p: 1.5, border: '1px solid #fed7aa', mb: 1.5 }}>
+                <Typography variant="caption" fontWeight={700} color="warning.main" sx={{ display: 'flex', alignItems: 'center', gap: 0.5, mb: 1 }}>
+                  <ContactPhoneIcon sx={{ fontSize: 14 }} />Phụ huynh chưa xác nhận – Thông tin liên hệ
+                </Typography>
+                {student?.parentId && (
+                  <Typography variant="body2" sx={{ mb: 0.5 }}>
+                    👨‍👩‍👧 {student.parentId.fullName || 'Phụ huynh'}: <strong>{student.parentId.phone || '—'}</strong>
+                  </Typography>
+                )}
+                {approvedPickupPersons.length > 0 && (
+                  <>
+                    <Typography variant="caption" color="text.secondary" sx={{ display: 'block', mb: 0.5 }}>Người đưa đón đã đăng ký:</Typography>
+                    {approvedPickupPersons.map((p) => (
+                      <Typography key={p._id} variant="body2" sx={{ mb: 0.25 }}>
+                        {p.fullName} ({p.relation}): <strong>{p.phone}</strong>
+                      </Typography>
+                    ))}
+                  </>
+                )}
+              </Box>
+              <Button
+                fullWidth
+                size="small"
+                variant="outlined"
+                startIcon={<SendIcon sx={{ fontSize: 14 }} />}
+                onClick={onSendToParent}
+                disabled={sending}
+                sx={{ borderRadius: 2, textTransform: 'none', fontSize: 12 }}
+              >
+                Gửi lại cho phụ huynh
+              </Button>
+            </Box>
+          ) : (
+            /* Chưa gửi */
+            <Box>
+              <Typography variant="caption" color="text.secondary" sx={{ display: 'block', mb: 1.25 }}>
+                Gửi thông tin người đón và ảnh cho phụ huynh xác nhận qua ứng dụng.
+                Nếu sau 2 phút chưa xác nhận, bạn sẽ thấy thông tin liên hệ để gọi điện.
+              </Typography>
               <Button
                 fullWidth
                 variant="contained"
                 color="primary"
-                startIcon={detailForm.otpSent && !otpExpired ? <TimerIcon /> : <SendIcon />}
-                onClick={onSendOtp}
-                disabled={detailForm.otpSent && !otpExpired}
-                sx={{ borderRadius: 2, textTransform: 'none', fontWeight: 700, mb: 1.5, boxShadow: 'none' }}
+                startIcon={<SendIcon />}
+                onClick={onSendToParent}
+                disabled={sending}
+                sx={{ borderRadius: 2, textTransform: 'none', fontWeight: 700, boxShadow: 'none' }}
               >
-                {detailForm.otpSent && !otpExpired ? `OTP đã gửi – còn ${countdownStr}` : 'Gửi mã OTP'}
+                {sending ? 'Đang gửi...' : 'Gửi thông tin cho phụ huynh'}
               </Button>
-
-              {detailForm.otpSent && (
-                <Paper
-                  variant="outlined"
-                  sx={{
-                    p: 2, borderRadius: 2,
-                    bgcolor: otpExpired ? '#fff5f5' : '#eff6ff',
-                    borderColor: otpExpired ? '#fca5a5' : '#93c5fd',
-                  }}
-                >
-                  <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', mb: 1.25 }}>
-                    <Typography variant="caption" fontWeight={700}>Nhập mã xác thực</Typography>
-                    <Chip
-                      label={otpExpired ? '⏰ Hết hạn' : `⏱ ${countdownStr}`}
-                      size="small"
-                      color={otpExpired ? 'error' : 'primary'}
-                      sx={{ fontWeight: 700, height: 20, fontSize: 11 }}
-                    />
-                  </Box>
-                  <TextField
-                    fullWidth
-                    size="small"
-                    placeholder="Nhập 6 chữ số..."
-                    value={detailForm.otpCode || ''}
-                    disabled={otpExpired}
-                    slotProps={{
-                      htmlInput: { maxLength: 6, style: { fontSize: 20, letterSpacing: 8, textAlign: 'center', fontWeight: 700 } },
-                    }}
-                    onChange={(e) => setDetailForm((prev) => ({ ...prev, otpCode: e.target.value.slice(0, 6) }))}
-                  />
-                  {otpExpired && (
-                    <Box sx={{ mt: 1.5 }}>
-                      {student?.parentId?.phone && (
-                        <Typography variant="caption" color="error.main" sx={{ display: 'flex', alignItems: 'center', gap: 0.5, mb: 1 }}>
-                          <PhoneIcon sx={{ fontSize: 13 }} />{student.parentId.fullName || 'Phụ huynh'}: {student.parentId.phone}
-                        </Typography>
-                      )}
-                      <Button
-                        fullWidth size="small" variant="contained" color="error"
-                        onClick={onResetOtp}
-                        sx={{ borderRadius: 2, textTransform: 'none', fontWeight: 700, boxShadow: 'none' }}
-                      >
-                        Gửi lại mã OTP
-                      </Button>
-                    </Box>
-                  )}
-                </Paper>
-              )}
             </Box>
           )}
         </Paper>
@@ -329,19 +301,15 @@ function AttendanceDetailModal({
   setSubmitError,
   studentsError,
   approvedPickupPersons,
-  confirmationResult,
-  setConfirmationResult,
-  recaptchaVerifierRef,
-  otpTimeLeft,
-  setOtpTimeLeft,
-  otpExpired,
-  setOtpExpired,
   attendanceByStudent,
   onClose,
   onSave,
-  onResetOtp,
 }) {
   const [confirmDialog, setConfirmDialog] = useState(null); // { field, label }
+  const [sending, setSending] = useState(false);
+  const [confirmCountdown, setConfirmCountdown] = useState(0);
+  const pollRef = useRef(null);
+  const countdownRef = useRef(null);
 
   const isMobileScreen = useMediaQuery('(max-width:599px)');
   const isPastDate = todayISO ? selectedDate < todayISO : false;
@@ -358,13 +326,78 @@ function AttendanceDetailModal({
         !!detailForm.receiverName?.trim() &&
         !!detailForm.receiverPhone?.trim() &&
         PHONE_REGEX.test(detailForm.receiverPhone?.trim()) &&
-        !!detailForm.receiverOtherImageName
+        !!detailForm.receiverOtherImageName &&
+        (!!detailForm.parentConfirmed || !!detailForm.teacherConfirmedCheckout)
       )
     );
 
   const canSubmitCheckin = mode === 'checkin'
     ? !!detailForm.checkinImageName && !!detailForm.checkinConfirmed
     : true;
+
+  // Polling: khi đã gửi và chưa được PH xác nhận → kiểm tra mỗi 3s
+  useEffect(() => {
+    if (!detailForm.parentConfirmSent || detailForm.parentConfirmed || !studentId) return;
+    const fetchStatus = async () => {
+      try {
+        const res = await get(ENDPOINTS.STUDENTS.ATTENDANCE_CHECKOUT_PENDING(studentId));
+        if (res.data?.checkoutStatus === 'confirmed') {
+          setDetailForm((prev) => ({ ...prev, parentConfirmed: true }));
+        }
+      } catch {}
+    };
+    fetchStatus();
+    pollRef.current = setInterval(fetchStatus, 3000);
+    return () => clearInterval(pollRef.current);
+  }, [detailForm.parentConfirmSent, detailForm.parentConfirmed, studentId]);
+
+  // Countdown 120s kể từ khi gửi
+  useEffect(() => {
+    if (!detailForm.parentConfirmSent || detailForm.parentConfirmed) {
+      clearInterval(countdownRef.current);
+      return;
+    }
+    setConfirmCountdown(120);
+    countdownRef.current = setInterval(() => {
+      setConfirmCountdown((prev) => {
+        if (prev <= 1) { clearInterval(countdownRef.current); return 0; }
+        return prev - 1;
+      });
+    }, 1000);
+    return () => clearInterval(countdownRef.current);
+  }, [detailForm.parentConfirmSent]);
+
+  // Cleanup khi modal đóng
+  useEffect(() => {
+    if (!isOpen) {
+      clearInterval(pollRef.current);
+      clearInterval(countdownRef.current);
+    }
+  }, [isOpen]);
+
+  const handleSendToParent = async () => {
+    setSubmitError(null);
+    if (!detailForm.receiverName?.trim()) { setSubmitError('Vui lòng nhập tên người đón trước khi gửi.'); return; }
+    if (!detailForm.receiverPhone?.trim() || !PHONE_REGEX.test(detailForm.receiverPhone.trim())) { setSubmitError('Vui lòng nhập số điện thoại hợp lệ trước khi gửi.'); return; }
+    if (!detailForm.receiverOtherImageName) { setSubmitError('Vui lòng chụp ảnh người đón trước khi gửi.'); return; }
+    if (!detailForm.checkoutImageName) { setSubmitError('Vui lòng chụp ảnh đón trẻ trước khi gửi.'); return; }
+    setSending(true);
+    try {
+      const receiverOtherInfoFinal = `${detailForm.receiverName?.trim() || ''} - ${detailForm.receiverPhone?.trim() || ''}`;
+      await post(ENDPOINTS.STUDENTS.ATTENDANCE_CHECKOUT_REQUEST, {
+        studentId,
+        receiverType: detailForm.receiverType || 'Khác',
+        receiverOtherInfo: receiverOtherInfoFinal,
+        receiverOtherImageName: detailForm.receiverOtherImageName || '',
+        checkoutImageName: detailForm.checkoutImageName || '',
+      });
+      setDetailForm((prev) => ({ ...prev, parentConfirmSent: true, parentConfirmed: false }));
+    } catch (err) {
+      setSubmitError(err.message || 'Lỗi khi gửi thông tin cho phụ huynh');
+    } finally {
+      setSending(false);
+    }
+  };
 
   const uploadAttendanceImage = async (file, fieldName) => {
     if (!file) return;
@@ -394,61 +427,6 @@ function AttendanceDetailModal({
   const handleCameraCapture = (fieldName) => async (file) => {
     setSubmitError(null);
     await uploadAttendanceImage(file, fieldName);
-  };
-
-  const handleSendOtp = async () => {
-    setSubmitError(null);
-    try {
-      if (detailForm.sendOtpSchoolAccount && !detailForm.sendOtpViaSms) {
-        if (detailForm.receiverType === 'Khác') {
-          if (!detailForm.receiverName?.trim()) {
-            setSubmitError('Vui lòng nhập tên người đón trước khi gửi OTP.');
-            return;
-          }
-          if (!detailForm.receiverPhone?.trim()) {
-            setSubmitError('Vui lòng nhập số điện thoại người đón trước khi gửi OTP.');
-            return;
-          }
-          if (!PHONE_REGEX.test(detailForm.receiverPhone.trim())) {
-            setSubmitError('Số điện thoại người đón không hợp lệ (7–15 ký tự số).');
-            return;
-          }
-        }
-        const extraPerson = (detailForm.receiverName || detailForm.receiverPhone)
-          ? { fullName: detailForm.receiverName || '', phone: detailForm.receiverPhone || '', imageUrl: detailForm.receiverOtherImageName || '' }
-          : null;
-        await post(ENDPOINTS.OTP.SEND, { studentId, method: 'school', extraPerson });
-        setDetailForm((prev) => ({ ...prev, otpSent: true, otpCode: '' }));
-        setOtpTimeLeft(60);
-        setOtpExpired(false);
-      } else {
-        const phone = detailForm.sendOtpViaSms
-          ? detailForm.selectedParentForOtp
-          : student?.parentId?.phone;
-        if (!phone) { setSubmitError('Vui lòng chọn phụ huynh nhận SMS.'); return; }
-        const phoneE164 = formatPhoneForFirebase(phone);
-
-        // Xóa verifier cũ và tạo DOM element mới (truyền element trực tiếp, không dùng ID string để tránh Firebase cache)
-        if (recaptchaVerifierRef.current) {
-          try { recaptchaVerifierRef.current.clear(); } catch { /* ignore */ }
-          recaptchaVerifierRef.current = null;
-        }
-        document.querySelectorAll('.recaptcha-otp-anchor').forEach((el) => el.remove());
-        const freshEl = document.createElement('div');
-        freshEl.className = 'recaptcha-otp-anchor';
-        document.body.appendChild(freshEl);
-
-        recaptchaVerifierRef.current = new RecaptchaVerifier(auth, freshEl, { size: 'invisible' });
-
-        const result = await signInWithPhoneNumber(auth, phoneE164, recaptchaVerifierRef.current);
-        setConfirmationResult(result);
-        setDetailForm((prev) => ({ ...prev, otpSent: true, otpCode: '' }));
-        setOtpTimeLeft(60);
-        setOtpExpired(false);
-      }
-    } catch (err) {
-      setSubmitError(err.message || 'Lỗi khi gửi OTP');
-    }
   };
 
   const MODE_CONFIG = {
@@ -943,16 +921,14 @@ function AttendanceDetailModal({
                 </Paper>
               )}
               {detailForm.receiverPickupPersonId === 'KHAC' && (
-                <OtpSection
-                  radioName="otpMethodCheckout"
+                <ParentConfirmSection
                   detailForm={detailForm}
                   setDetailForm={setDetailForm}
                   student={student}
                   approvedPickupPersons={approvedPickupPersons}
-                  onSendOtp={handleSendOtp}
-                  otpTimeLeft={otpTimeLeft}
-                  otpExpired={otpExpired}
-                  onResetOtp={onResetOtp}
+                  onSendToParent={handleSendToParent}
+                  confirmCountdown={confirmCountdown}
+                  sending={sending}
                 />
               )}
 
@@ -1216,7 +1192,7 @@ function AttendanceDetailModal({
                   startIcon={<SaveIcon />}
                   sx={{ borderRadius: 2, textTransform: 'none', fontWeight: 700, flex: { xs: 2, sm: 'unset' } }}
                 >
-                  Lưu điểm danh về
+                  Xác nhận đón trẻ
                 </Button>
               ) : mode === 'checkin' ? (
                 <Button
