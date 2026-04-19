@@ -13,6 +13,7 @@ const assetCrudCtrl = require('../controller/assetController');
 const purchaseCtrl = require('../controller/purchaseRequestController');
 const allocationCtrl  = require('../controller/assetAllocationController');
 const incidentCtrl    = require('../controller/assetIncidentController');
+const roomAssetCtrl   = require('../controller/roomAssetController');
 const {
   getAttendanceOverview,
   getClassAttendanceDetail,
@@ -2464,11 +2465,21 @@ router.patch('/asset-minutes/:id/approve', authenticate, authorizePermissions('M
 router.patch('/asset-minutes/:id/reject', authenticate, authorizePermissions('MANAGE_ASSET'), assetCtrl.rejectMinutes);
 
 // ============================================
+// Room Assets (Tài sản theo phòng học)
+// ============================================
+router.get('/room-assets',                  authenticate, authorizePermissions('MANAGE_ASSET'), roomAssetCtrl.listRooms);
+router.get('/room-assets/:roomId',          authenticate, authorizePermissions('MANAGE_ASSET'), roomAssetCtrl.listRoomAssets);
+router.post('/room-assets/:roomId',         authenticate, authorizePermissions('MANAGE_ASSET'), roomAssetCtrl.addAssetToRoom);
+router.put('/room-assets/:roomId/:id',      authenticate, authorizePermissions('MANAGE_ASSET'), roomAssetCtrl.updateRoomAsset);
+router.delete('/room-assets/:roomId/:id',   authenticate, authorizePermissions('MANAGE_ASSET'), roomAssetCtrl.removeAssetFromRoom);
+
+// ============================================
 // Assets CRUD (Danh sách tài sản)
 // ============================================
 router.get('/assets', authenticate, authorizePermissions('MANAGE_ASSET'), assetCrudCtrl.listAssets);
 router.post('/assets', authenticate, authorizePermissions('MANAGE_ASSET'), assetCrudCtrl.createAsset);
 router.post('/assets/bulk', authenticate, authorizePermissions('MANAGE_ASSET'), assetCrudCtrl.bulkCreateAssets);
+router.post('/assets/bulk-warehouse', authenticate, authorizePermissions('MANAGE_ASSET'), assetCrudCtrl.bulkCreateWarehouseAssets);
 router.get('/assets/:id', authenticate, authorizePermissions('MANAGE_ASSET'), assetCrudCtrl.getAsset);
 router.put('/assets/:id', authenticate, authorizePermissions('MANAGE_ASSET'), assetCrudCtrl.updateAsset);
 router.delete('/assets/:id', authenticate, authorizePermissions('MANAGE_ASSET'), assetCrudCtrl.deleteAsset);
@@ -2526,6 +2537,8 @@ router.patch('/parents/:userId/toggle-headparent', authenticate, authorizeRoles(
       await User.findByIdAndUpdate(user._id, { $pull: { roles: headParentRole._id } });
       return res.json({ status: 'success', message: 'Đã bỏ vai trò hội trưởng phụ huynh', isHeadParent: false });
     } else {
+      // Xóa HeadParent khỏi tất cả phụ huynh khác trước (chỉ được 1 hội trưởng)
+      await User.updateMany({ roles: headParentRole._id }, { $pull: { roles: headParentRole._id } });
       await User.findByIdAndUpdate(user._id, { $addToSet: { roles: headParentRole._id } });
       return res.json({ status: 'success', message: 'Đã đặt làm hội trưởng phụ huynh', isHeadParent: true });
     }

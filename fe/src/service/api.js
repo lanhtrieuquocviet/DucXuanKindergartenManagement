@@ -382,9 +382,14 @@ export const ENDPOINTS = {
     ASSET_MINUTES_EXPORT_WORD: (id) => `/school-admin/asset-minutes/${id}/export-word`,
     ASSET_MINUTES_APPROVE: (id) => `/school-admin/asset-minutes/${id}/approve`,
     ASSET_MINUTES_REJECT: (id) => `/school-admin/asset-minutes/${id}/reject`,
+    // Room Assets (Tài sản theo phòng học)
+    ROOM_ASSETS: "/school-admin/room-assets",
+    ROOM_ASSETS_BY_ROOM: (roomId) => `/school-admin/room-assets/${roomId}`,
+    ROOM_ASSET_ITEM: (roomId, id) => `/school-admin/room-assets/${roomId}/${id}`,
     // Asset CRUD
     ASSETS: "/school-admin/assets",
     ASSETS_BULK: "/school-admin/assets/bulk",
+    ASSETS_BULK_WAREHOUSE: "/school-admin/assets/bulk-warehouse",
     // Asset Allocations (Biên bản bàn giao tài sản)
     ASSET_ALLOCATIONS: "/school-admin/asset-allocations",
     ASSET_ALLOCATIONS_CLASSES: "/school-admin/asset-allocations/classes",

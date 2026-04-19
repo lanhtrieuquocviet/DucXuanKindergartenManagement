@@ -35,6 +35,7 @@ import {
   Article as ArticleIcon,
   ReportProblem as ReportProblemIcon,
   AssignmentTurnedIn as AssignmentTurnedInIcon,
+  MeetingRoom as MeetingRoomIcon,
 } from '@mui/icons-material';
 import { CurrencyIcon } from 'lucide-react';
 
@@ -99,6 +100,7 @@ export const KEY_ICONS = {
   'leave-requests':       <ArticleIcon fontSize="small" />,
   'asset-inspection':     <ContentPasteSearchIcon fontSize="small" />,
   'class-assets':         <InventoryIcon fontSize="small" />,
+  'room-assets':          <MeetingRoomIcon fontSize="small" />,
   'asset-allocation':     <AccountTreeIcon fontSize="small" />,
   staff:                  <GroupIcon fontSize="small" />,
   kiemke:                 <GradingIcon fontSize="small" />,
