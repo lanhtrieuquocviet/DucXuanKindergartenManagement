@@ -1,6 +1,6 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
-import { createMenu } from "../service/menu.api";
+import { createMenu, getMenuAcademicYearCurrent } from "../service/menu.api";
 import { toast } from "react-toastify";
 import {
   Avatar,
@@ -48,23 +48,75 @@ function isMonthYearInPast(y, m) {
 
 function CreateMenu() {
   const navigate = useNavigate();
-  const currentYear = new Date().getFullYear();
+  const fallbackYear = new Date().getFullYear();
 
   const [month, setMonth] = useState("");
-  const [year, setYear] = useState(String(currentYear));
+  const [year, setYear] = useState(String(fallbackYear));
+  const [startDate, setStartDate] = useState("");
+  const [endDate, setEndDate] = useState("");
+  const [academicYear, setAcademicYear] = useState(null);
   const [loading, setLoading] = useState(false);
   const [errors, setErrors] = useState({});
 
+  const getAcademicYearBounds = () => {
+    if (!academicYear?.startDate || !academicYear?.endDate) {
+      return { minYear: fallbackYear, maxYear: fallbackYear + 5 };
+    }
+    const minYear = new Date(academicYear.startDate).getFullYear();
+    const maxYear = new Date(academicYear.endDate).getFullYear();
+    return { minYear, maxYear: Math.max(minYear, maxYear) };
+  };
+
+  useEffect(() => {
+    const fetchAcademicYear = async () => {
+      try {
+        const res = await getMenuAcademicYearCurrent();
+        const ay = res?.data || null;
+        setAcademicYear(ay);
+      } catch {
+        setAcademicYear(null);
+      }
+    };
+    fetchAcademicYear();
+  }, []);
+
+  useEffect(() => {
+    const y = Number(year);
+    const m = Number(month);
+    if (Number.isNaN(y) || Number.isNaN(m) || !y || !m) return;
+    const pad = (n) => String(n).padStart(2, "0");
+    const nextMonth = m === 12 ? 1 : m + 1;
+    const nextYear = m === 12 ? y + 1 : y;
+    setStartDate(`${y}-${pad(m)}-01`);
+    setEndDate(`${nextYear}-${pad(nextMonth)}-01`);
+    setErrors((p) => ({ ...p, startDate: "", endDate: "" }));
+  }, [month, year]);
+
+  useEffect(() => {
+    if (!academicYear || !month) return;
+    const start = new Date(academicYear.startDate);
+    const end = new Date(academicYear.endDate);
+    const startYear = start.getFullYear();
+    const endYear = end.getFullYear();
+    const startMonth = start.getMonth() + 1;
+    const m = Number(month);
+    const mappedYear = startYear === endYear
+      ? startYear
+      : (m >= startMonth ? startYear : endYear);
+    setYear(String(mappedYear));
+  }, [academicYear, month]);
+
   const validate = () => {
     const newErrors = {};
+    const { minYear, maxYear } = getAcademicYearBounds();
     if (!month) newErrors.month = "Vui lòng chọn tháng";
     const y = year === "" ? NaN : Number(year);
     if (!year || String(year).trim() === "") newErrors.year = "Vui lòng nhập năm";
     else if (Number.isNaN(y)) newErrors.year = "Năm không hợp lệ";
-    else if (y < currentYear)
-      newErrors.year = `Năm phải lớn hơn hoặc bằng ${currentYear}`;
-    else if (y > currentYear + 5)
-      newErrors.year = `Năm không được vượt quá ${currentYear + 5}`;
+    else if (y < minYear)
+      newErrors.year = `Năm phải lớn hơn hoặc bằng ${minYear}`;
+    else if (y > maxYear)
+      newErrors.year = `Năm không được vượt quá ${maxYear}`;
 
     const m = month === "" ? NaN : Number(month);
     if (!newErrors.month && !newErrors.year && !Number.isNaN(y) && !Number.isNaN(m)) {
@@ -72,6 +124,12 @@ function CreateMenu() {
         newErrors.period =
           "Chỉ được tạo thực đơn cho tháng hiện tại hoặc trong tương lai, không được chọn tháng đã qua.";
       }
+    }
+
+    if (!startDate) newErrors.startDate = "Vui lòng chọn ngày bắt đầu áp dụng";
+    if (!endDate) newErrors.endDate = "Vui lòng chọn ngày kết thúc áp dụng";
+    if (startDate && endDate && endDate <= startDate) {
+      newErrors.endDate = "Ngày kết thúc phải sau ngày bắt đầu";
     }
 
     setErrors(newErrors);
@@ -87,7 +145,12 @@ function CreateMenu() {
     }
     try {
       setLoading(true);
-      await createMenu({ month: Number(month), year: Number(year) });
+      await createMenu({
+        month: Number(month),
+        year: Number(year),
+        startDate,
+        endDate,
+      });
       toast.success("Tạo thực đơn thành công");
       navigate("/kitchen/menus");
     } catch (error) {
@@ -177,16 +240,56 @@ function CreateMenu() {
                 type="number"
                 value={year}
                 onChange={(e) => {
+                  if (academicYear) return;
                   setYear(e.target.value);
                   setErrors((p) => ({ ...p, year: "", period: "" }));
                 }}
-                inputProps={{ min: currentYear, max: currentYear + 5 }}
+                inputProps={{
+                  min: getAcademicYearBounds().minYear,
+                  max: getAcademicYearBounds().maxYear,
+                }}
+                disabled={Boolean(academicYear)}
                 error={Boolean(errors.year || errors.period)}
                 helperText={
                   errors.year ||
                   errors.period ||
-                  `Năm học từ ${currentYear} đến ${currentYear + 5}`
+                  (academicYear?.yearName
+                    ? `Theo năm học hiện hành: ${academicYear.yearName}`
+                    : `Năm học từ ${fallbackYear} đến ${fallbackYear + 5}`)
                 }
+                InputProps={{ sx: { borderRadius: 2 } }}
+              />
+
+              <TextField
+                fullWidth
+                size="small"
+                label="Bắt đầu áp dụng"
+                type="date"
+                value={startDate}
+                onChange={(e) => {
+                  setStartDate(e.target.value);
+                  setErrors((p) => ({ ...p, startDate: "", endDate: "" }));
+                }}
+                error={Boolean(errors.startDate)}
+                helperText={errors.startDate || ""}
+                InputLabelProps={{ shrink: true }}
+                InputProps={{ sx: { borderRadius: 2 } }}
+              />
+
+              <TextField
+                fullWidth
+                size="small"
+                label="Kết thúc áp dụng"
+                type="date"
+                value={endDate}
+                onChange={(e) => {
+                  setEndDate(e.target.value);
+                  setErrors((p) => ({ ...p, endDate: "" }));
+                }}
+                inputProps={{ min: startDate || undefined }}
+                error={Boolean(errors.endDate)}
+                helperText={errors.endDate || ""}
+                InputLabelProps={{ shrink: true }}
                 InputProps={{ sx: { borderRadius: 2 } }}
               />
 

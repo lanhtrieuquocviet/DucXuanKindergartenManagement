@@ -17,18 +17,51 @@ const menuSchema = new mongoose.Schema(
       ref: "User",
     },
 
-  status: {
-  type: String,
-  enum: [
-    "draft",
-    "pending",
-    "approved",
-    "active",
-    "completed",
-    "rejected"
-  ],
-  default: "draft"
-  },
+    /** Trạng thái: active ~ dang_ap_dung, completed ~ lich_su */
+    status: {
+      type: String,
+      enum: [
+        "draft",
+        "pending",
+        "approved",
+        "active",
+        "completed",
+        "rejected"
+      ],
+      default: "draft"
+    },
+
+    /** Cờ cho biết đây có phải thực đơn hiện hành hay không */
+    isCurrent: {
+      type: Boolean,
+      default: false,
+    },
+
+    /** Phiên bản thực đơn (v1, v2, ...) */
+    version: {
+      type: Number,
+      default: 1,
+      min: 1,
+    },
+
+    /** Lý do thay đổi phiên bản */
+    changeReason: {
+      type: String,
+      default: "",
+    },
+
+    /** Menu cha dùng để đối soát khi clone phiên bản */
+    parentMenuId: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: "Menus",
+      default: null,
+    },
+
+    /** Thời điểm thay đổi phiên bản để FE highlight ngày chỉnh sửa */
+    changedAt: {
+      type: Date,
+      default: null,
+    },
 
     rejectReason: {
       type: String,
@@ -49,6 +82,18 @@ const menuSchema = new mongoose.Schema(
 
     /** Thời điểm bấm "Áp dụng" (chuyển sang đang áp dụng) */
     appliedAt: {
+      type: Date,
+      default: null,
+    },
+
+    /** Thời điểm dự kiến bắt đầu tự động áp dụng */
+    scheduledStartAt: {
+      type: Date,
+      default: null,
+    },
+
+    /** Thời điểm dự kiến tự động kết thúc */
+    scheduledEndAt: {
       type: Date,
       default: null,
     },
@@ -83,6 +128,28 @@ const menuSchema = new mongoose.Schema(
           },
           presets: { type: [String], default: [] },
           detail: { type: String, default: "" },
+        },
+      ],
+      default: [],
+    },
+
+    /** Snapshot lịch sử khi cần lưu bản cũ (vd: đang áp dụng -> yêu cầu chỉnh sửa) */
+    historySnapshots: {
+      type: [
+        {
+          reason: {
+            type: String,
+            enum: ["request_edit_active"],
+            required: true,
+          },
+          capturedAt: { type: Date, default: Date.now },
+          capturedBy: {
+            type: mongoose.Schema.Types.ObjectId,
+            ref: "User",
+            default: null,
+          },
+          menuSnapshot: { type: mongoose.Schema.Types.Mixed, default: {} },
+          dailyMenus: { type: [mongoose.Schema.Types.Mixed], default: [] },
         },
       ],
       default: [],

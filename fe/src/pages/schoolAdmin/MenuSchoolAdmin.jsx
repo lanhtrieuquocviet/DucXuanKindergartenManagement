@@ -367,6 +367,27 @@ function MenuSchoolAdmin() {
                             Kết thúc: {new Date(menu.endedAt).toLocaleString("vi-VN")}
                           </Typography>
                         )}
+                        {menu.status === "completed" && menu.changeReason && (
+                          <Box
+                            sx={{
+                              mt: 0.75,
+                              p: 1,
+                              borderRadius: 1.5,
+                              border: "1px solid #fde68a",
+                              bgcolor: "#fffbeb",
+                            }}
+                          >
+                            <Typography variant="caption" color="warning.dark" display="block" fontWeight={700}>
+                              Ngày thay đổi:{" "}
+                              {menu.changedAt
+                                ? new Date(menu.changedAt).toLocaleString("vi-VN")
+                                : "Không rõ"}
+                            </Typography>
+                            <Typography variant="caption" color="text.secondary" display="block">
+                              Lý do: {menu.changeReason}
+                            </Typography>
+                          </Box>
+                        )}
                         {menu.status === "rejected" && (() => {
                           const last = lastHistoryEntry(menu);
                           const ctx =

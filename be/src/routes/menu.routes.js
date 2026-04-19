@@ -99,6 +99,12 @@ router.get("/public/:id", menuController.getPublicMenuDetail);
 router.get("/", authenticate, menuController.getMenus);
 router.post("/", authenticate, authorizePermissions("MANAGE_MENU"), menuController.createMenu);
 router.get("/nutrition-plan", authenticate, menuController.getNutritionPlanSetting);
+router.get(
+  "/academic-year/current",
+  authenticate,
+  authorizeAnyPermission("MANAGE_MENU", "APPROVE_MENU"),
+  menuController.getCurrentAcademicYearForMenu
+);
 router.put(
   "/nutrition-plan",
   authenticate,

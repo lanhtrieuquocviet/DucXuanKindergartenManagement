@@ -22,6 +22,10 @@ export const getNutritionPlanSetting = () => {
   return api.get(ENDPOINTS.KITCHEN.NUTRITION_PLAN);
 };
 
+export const getMenuAcademicYearCurrent = () => {
+  return api.get(`${ENDPOINTS.KITCHEN.MENUS}/academic-year/current`);
+};
+
 export const listDistrictNutritionPlans = () => {
   return api.get(ENDPOINTS.KITCHEN.DISTRICT_NUTRITION_PLANS);
 };
