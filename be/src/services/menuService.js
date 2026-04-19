@@ -1,6 +1,7 @@
 const Menu = require("../models/Menu");
 const NutritionPlanSetting = require("../models/NutritionPlanSetting");
 const DistrictNutritionPlan = require("../models/DistrictNutritionPlan");
+const AcademicYear = require("../models/AcademicYear");
 const districtNutritionPlanService = require("./districtNutritionPlanService");
 
 const mongoose = require("mongoose");
@@ -26,6 +27,12 @@ function buildRejectReasonText(presets, detail) {
   return lines.join("\n");
 }
 
+function buildChangeReasonText(presets, detail) {
+  const text = buildRejectReasonText(presets, detail).trim();
+  if (text) return text;
+  return "Yêu cầu chỉnh sửa thực đơn đang áp dụng";
+}
+
 function pushMenuHistory(menu, entry) {
   if (!Array.isArray(menu.statusHistory)) menu.statusHistory = [];
   menu.statusHistory.push({
@@ -35,6 +42,156 @@ function pushMenuHistory(menu, entry) {
     presets: entry.presets || [],
     detail: entry.detail != null ? String(entry.detail) : "",
   });
+}
+
+function toPlainObject(doc) {
+  if (!doc) return null;
+  if (typeof doc.toObject === "function") return doc.toObject();
+  return { ...doc };
+}
+
+function mapDailyMenuOverrideByDay(overrides) {
+  if (!Array.isArray(overrides)) return {};
+  const map = {};
+  for (const item of overrides) {
+    const weekType = String(item?.weekType || "").trim();
+    const dayOfWeek = String(item?.dayOfWeek || "").trim();
+    if (!weekType || !dayOfWeek) continue;
+    map[`${weekType}_${dayOfWeek}`] = item;
+  }
+  return map;
+}
+
+function toValidDate(value) {
+  if (value == null || value === "") return null;
+  const d = new Date(value);
+  if (Number.isNaN(d.getTime())) return null;
+  return d;
+}
+
+function parseDateTimeParts(dateStr, timeStr) {
+  const date = String(dateStr || "").trim();
+  if (!date) return null;
+  const time = String(timeStr || "").trim() || "00:00";
+  return toValidDate(`${date}T${time}:00`);
+}
+
+function getNextMonthFirstDay(year, month) {
+  return new Date(year, month, 1, 0, 29, 59, 999);
+}
+
+function buildMenuScheduleFromBody(payload) {
+  const month = Number(payload?.month);
+  const year = Number(payload?.year);
+  const startAt =
+    toValidDate(payload?.scheduledStartAt) ||
+    parseDateTimeParts(payload?.startDate, payload?.startTime) ||
+    new Date(year, month - 1, 1, 0, 30, 0, 0);
+  const endAt =
+    toValidDate(payload?.scheduledEndAt) ||
+    parseDateTimeParts(payload?.endDate, payload?.endTime) ||
+    getNextMonthFirstDay(year, month);
+
+  if (!startAt || !endAt) return null;
+  if (endAt <= startAt) return null;
+  return { startAt, endAt };
+}
+
+async function resolveQueryToArray(query, sortSpec = null) {
+  if (!query) return [];
+  let q = query;
+  if (sortSpec && typeof q.sort === "function") {
+    q = q.sort(sortSpec);
+  }
+  const rows = await q;
+  if (!Array.isArray(rows)) return [];
+  if (!sortSpec || typeof query.sort === "function") return rows;
+  const keys = Object.keys(sortSpec);
+  return rows.slice().sort((a, b) => {
+    for (const key of keys) {
+      const dir = Number(sortSpec[key]) >= 0 ? 1 : -1;
+      const av = a?.[key];
+      const bv = b?.[key];
+      if (av === bv) continue;
+      return av > bv ? dir : -dir;
+    }
+    return 0;
+  });
+}
+
+async function autoSyncMenuLifecycle(actorId = null) {
+  try {
+    const now = new Date();
+
+    const expiringActiveMenus = await resolveQueryToArray(
+      Menu.find({
+        status: "active",
+        scheduledEndAt: { $ne: null, $lte: now },
+      })
+    );
+    for (const menu of expiringActiveMenus) {
+      menu.status = "completed";
+      menu.isCurrent = false;
+      menu.endedAt = now;
+      pushMenuHistory(menu, {
+        type: "ended",
+        actorId,
+        detail: "Tự động kết thúc theo thời gian đã cài đặt",
+      });
+      await menu.save();
+    }
+
+    const dueApprovedMenus = await resolveQueryToArray(
+      Menu.find({
+        status: "approved",
+        scheduledStartAt: { $ne: null, $lte: now },
+      }),
+      { scheduledStartAt: 1, _id: 1 }
+    );
+
+    for (const dueMenu of dueApprovedMenus) {
+      const activeMenus = await resolveQueryToArray(
+        Menu.find({
+          status: "active",
+          _id: { $ne: dueMenu._id },
+        })
+      );
+      for (const active of activeMenus) {
+        active.status = "completed";
+        active.isCurrent = false;
+        active.endedAt = now;
+        pushMenuHistory(active, {
+          type: "ended",
+          actorId,
+          detail: "Tự động kết thúc do áp dụng thực đơn đã tới lịch",
+        });
+        await active.save();
+      }
+
+      dueMenu.status = "active";
+      dueMenu.isCurrent = true;
+      dueMenu.appliedAt = dueMenu.appliedAt || now;
+      pushMenuHistory(dueMenu, {
+        type: "applied",
+        actorId,
+        detail: "Tự động áp dụng theo thời gian đã cài đặt",
+      });
+
+      if (dueMenu.scheduledEndAt && dueMenu.scheduledEndAt <= now) {
+        dueMenu.status = "completed";
+        dueMenu.isCurrent = false;
+        dueMenu.endedAt = now;
+        pushMenuHistory(dueMenu, {
+          type: "ended",
+          actorId,
+          detail: "Tự động kết thúc do quá thời gian áp dụng",
+        });
+      }
+      await dueMenu.save();
+    }
+  } catch (error) {
+    console.error("autoSyncMenuLifecycle error:", error?.message || error);
+  }
 }
 
 const DEFAULT_NUTRITION_PLAN = [
@@ -101,10 +258,26 @@ exports.createMenu = async (req, res) => {
       });
     }
 
+    const schedule = buildMenuScheduleFromBody(req.body);
+    if (!schedule) {
+      return res.status(400).json({
+        success: false,
+        message:
+          "Thời gian bắt đầu/kết thúc không hợp lệ (end phải sau start).",
+      });
+    }
+
     const menu = new Menu({
       month,
       year,
       createdBy: req.user?._id,
+      isCurrent: false,
+      version: 1,
+      changeReason: "",
+      parentMenuId: null,
+      changedAt: null,
+      scheduledStartAt: schedule.startAt,
+      scheduledEndAt: schedule.endAt,
     });
 
     await menu.save();
@@ -139,6 +312,7 @@ exports.createMenu = async (req, res) => {
 // Public: trả về thực đơn đã duyệt (không cần auth)
 exports.getPublicMenus = async (req, res) => {
   try {
+    await autoSyncMenuLifecycle();
     const filter = { status: { $in: ["approved", "active", "completed"] } };
     if (req.query.month) filter.month = Number(req.query.month);
     if (req.query.year)  filter.year  = Number(req.query.year);
@@ -156,6 +330,7 @@ exports.getPublicMenus = async (req, res) => {
 // Lấy danh sách thực đơn theo role
 exports.getMenus = async (req, res) => {
   try {
+    await autoSyncMenuLifecycle();
     const user = req.user;
 
     // Lấy role
@@ -209,6 +384,7 @@ exports.getMenus = async (req, res) => {
 // Public: chi tiết menu (không cần auth, chỉ menu đã duyệt)
 exports.getPublicMenuDetail = async (req, res) => {
   try {
+    await autoSyncMenuLifecycle();
     const { id } = req.params;
     if (!mongoose.Types.ObjectId.isValid(id)) {
       return res.status(400).json({ message: "ID không hợp lệ" });
@@ -242,6 +418,7 @@ exports.getPublicMenuDetail = async (req, res) => {
 
 exports.getMenuDetail = async (req, res) => {
   try {
+    await autoSyncMenuLifecycle();
     const { id } = req.params;
 
     if (!mongoose.Types.ObjectId.isValid(id)) {
@@ -521,27 +698,137 @@ exports.requestEditFromActiveMenu = async (req, res) => {
       });
     }
 
-    menu.status = "rejected";
+    const now = new Date();
+    const changeReason = buildChangeReasonText(presets, detail);
+
+    const dailyMenuQuery = DailyMenu.find({ menuId: menu._id });
+    const dailyMenusRaw =
+      dailyMenuQuery && typeof dailyMenuQuery.lean === "function"
+        ? await dailyMenuQuery.lean()
+        : await dailyMenuQuery;
+    const dailyMenus = Array.isArray(dailyMenusRaw) ? dailyMenusRaw : [];
+
+    // B1 + B2: chuyển menu đang áp dụng sang lịch sử và lưu đầy đủ lý do
+    if (!Array.isArray(menu.historySnapshots)) menu.historySnapshots = [];
+    menu.historySnapshots.push({
+      reason: "request_edit_active",
+      capturedAt: now,
+      capturedBy: req.user?._id || null,
+      menuSnapshot: {
+        month: menu.month,
+        year: menu.year,
+        status: menu.status,
+        isCurrent: menu.isCurrent,
+        version: menu.version || 1,
+        changeReason: menu.changeReason || "",
+        parentMenuId: menu.parentMenuId || null,
+        changedAt: menu.changedAt || null,
+        scheduledStartAt: menu.scheduledStartAt || null,
+        scheduledEndAt: menu.scheduledEndAt || null,
+        appliedAt: menu.appliedAt || null,
+        endedAt: menu.endedAt || null,
+        nutrition: menu.nutrition || {},
+        nutritionPlan: Array.isArray(menu.nutritionPlan) ? menu.nutritionPlan : [],
+      },
+      dailyMenus,
+    });
+
+    menu.status = "completed";
+    menu.isCurrent = false;
     menu.rejectPresets = presets;
     menu.rejectDetail = detail;
-    menu.rejectReason = buildRejectReasonText(presets, detail);
-    menu.appliedAt = null;
+    menu.rejectReason = changeReason;
+    menu.changeReason = changeReason;
+    menu.changedAt = now;
+    menu.endedAt = now;
+
+    pushMenuHistory(menu, {
+      type: "ended",
+      actorId: req.user?._id,
+      detail: "Chuyển sang lịch sử do yêu cầu chỉnh sửa",
+    });
 
     pushMenuHistory(menu, {
       type: "request_edit_active",
       actorId: req.user?._id,
       presets,
-      detail,
+      detail: `Ngày thay đổi: ${now.toISOString()} | ${detail || "Không có chi tiết bổ sung"}`,
     });
 
     await menu.save();
 
-    const populated = await Menu.findById(menu._id).populate("createdBy", "fullName email");
+    // B3: clone menu mới gửi lại cho KitchenStaff chỉnh sửa
+    const source = toPlainObject(menu);
+    const clonedMenu = new Menu({
+      month: source.month,
+      year: source.year,
+      createdBy: source.createdBy || req.user?._id || null,
+      status: "rejected",
+      isCurrent: false,
+      version: Number(source.version || 1) + 1,
+      changeReason,
+      parentMenuId: source._id,
+      changedAt: now,
+      rejectReason: changeReason,
+      rejectPresets: presets,
+      rejectDetail: detail,
+      appliedAt: null,
+      endedAt: null,
+      scheduledStartAt: source.scheduledStartAt || null,
+      scheduledEndAt: source.scheduledEndAt || null,
+      nutrition: source.nutrition || {},
+      nutritionPlan: Array.isArray(source.nutritionPlan) ? source.nutritionPlan : [],
+      statusHistory: [
+        {
+          type: "request_edit_active",
+          at: now,
+          actorId: req.user?._id || null,
+          presets,
+          detail: `Tạo phiên bản sửa từ menu ${source._id}. Ngày thay đổi: ${now.toISOString()}`,
+        },
+      ],
+      historySnapshots: [],
+    });
+    await clonedMenu.save();
+
+    const overrideMap = mapDailyMenuOverrideByDay(req.body?.dailyMenuOverrides);
+    const dailyMenuClones = dailyMenus.map((day) => {
+      const key = `${day.weekType}_${day.dayOfWeek}`;
+      const ov = overrideMap[key] || {};
+      return {
+        menuId: clonedMenu._id,
+        weekType: day.weekType,
+        dayOfWeek: day.dayOfWeek,
+        lunchFoods: Array.isArray(ov.lunchFoods) ? ov.lunchFoods : (day.lunchFoods || []),
+        afternoonFoods: Array.isArray(ov.afternoonFoods) ? ov.afternoonFoods : (day.afternoonFoods || []),
+        lunchMealSlots: Array.isArray(ov.lunchMealSlots) ? ov.lunchMealSlots : (day.lunchMealSlots || []),
+        afternoonMealSlots: Array.isArray(ov.afternoonMealSlots) ? ov.afternoonMealSlots : (day.afternoonMealSlots || []),
+        totalCalories: ov.totalCalories != null ? Number(ov.totalCalories) : (day.totalCalories || 0),
+        totalProtein: ov.totalProtein != null ? Number(ov.totalProtein) : (day.totalProtein || 0),
+        totalFat: ov.totalFat != null ? Number(ov.totalFat) : (day.totalFat || 0),
+        totalCarb: ov.totalCarb != null ? Number(ov.totalCarb) : (day.totalCarb || 0),
+        proteinPercentage: ov.proteinPercentage != null ? Number(ov.proteinPercentage) : (day.proteinPercentage || 0),
+        fatPercentage: ov.fatPercentage != null ? Number(ov.fatPercentage) : (day.fatPercentage || 0),
+        carbPercentage: ov.carbPercentage != null ? Number(ov.carbPercentage) : (day.carbPercentage || 0),
+        nutritionDetails: ov.nutritionDetails || day.nutritionDetails || {
+          kcalFromProtein: 0,
+          kcalFromFat: 0,
+          kcalFromCarb: 0,
+          calculatedTotalKcal: 0,
+        },
+      };
+    });
+    if (dailyMenuClones.length > 0) {
+      await DailyMenu.insertMany(dailyMenuClones);
+    }
+
+    const populated = await Menu.findById(clonedMenu._id).populate("createdBy", "fullName email");
 
     return res.json({
       success: true,
-      message: "Đã gửi yêu cầu chỉnh sửa cho bộ phận bếp",
+      message: "Đã lưu menu cũ vào lịch sử và gửi phiên bản mới cho KitchenStaff chỉnh sửa",
       data: populated,
+      archivedMenuId: menu._id,
     });
   } catch (error) {
     return res.status(500).json({ success: false, message: error.message });
@@ -551,6 +838,7 @@ exports.requestEditFromActiveMenu = async (req, res) => {
 /** Áp dụng thực đơn đã duyệt (trở thành đang dùng; thực đơn đang áp dụng trước đó chuyển sang lịch sử) */
 exports.applyMenu = async (req, res) => {
   try {
+    await autoSyncMenuLifecycle(req.user?._id || null);
     const menu = await Menu.findById(req.params.id);
 
     if (!menu) {
@@ -572,6 +860,7 @@ exports.applyMenu = async (req, res) => {
     const previouslyActive = await Menu.find({ status: "active" });
     for (const prev of previouslyActive) {
       prev.status = "completed";
+      prev.isCurrent = false;
       prev.endedAt = now;
       pushMenuHistory(prev, {
         type: "ended",
@@ -582,6 +871,8 @@ exports.applyMenu = async (req, res) => {
     }
 
     menu.status = "active";
+    menu.isCurrent = true;
+    menu.version = Math.max(Number(menu.version || 1), 1);
     menu.appliedAt = now;
 
     pushMenuHistory(menu, {
@@ -624,6 +915,7 @@ exports.endMenu = async (req, res) => {
 
     const endedAt = new Date();
     menu.status = "completed";
+    menu.isCurrent = false;
     menu.endedAt = endedAt;
 
     pushMenuHistory(menu, {
@@ -671,6 +963,20 @@ exports.getNutritionPlanSetting = async (req, res) => {
     });
   } catch (error) {
     return res.status(500).json({ message: error.message });
+  }
+};
+
+exports.getCurrentAcademicYearForMenu = async (req, res) => {
+  try {
+    const year = await AcademicYear.findOne({ status: "active" })
+      .sort({ startDate: -1 })
+      .lean();
+    return res.json({
+      success: true,
+      data: year || null,
+    });
+  } catch (error) {
+    return res.status(500).json({ success: false, message: error.message });
   }
 };
 
