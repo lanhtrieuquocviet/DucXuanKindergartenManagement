@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { toast } from 'react-toastify';
 import {
@@ -13,9 +13,10 @@ import EditIcon from '@mui/icons-material/Edit';
 import MeetingRoomIcon from '@mui/icons-material/MeetingRoom';
 import SearchIcon from '@mui/icons-material/Search';
 import InventoryIcon from '@mui/icons-material/Inventory';
+import UploadFileIcon from '@mui/icons-material/UploadFile';
 import RoleLayout from '../../layouts/RoleLayout';
 import { useAuth } from '../../context/AuthContext';
-import { del, get, post, put, ENDPOINTS } from '../../service/api';
+import { del, get, post, postFormData, put, ENDPOINTS } from '../../service/api';
 import { createSchoolAdminMenuSelect } from './schoolAdminMenuConfig';
 import { useSchoolAdminMenu } from './useSchoolAdminMenu';
 
@@ -27,6 +28,10 @@ const ROOM_STATUS_LABEL = {
 
 const emptyRoomForm = () => ({ roomName: '', zone: 'A', floor: 1, capacity: 0, status: 'available', note: '' });
 const emptyAssetForm = () => ({ assetId: '', quantity: 1, notes: '' });
+
+function normalizeText(v) {
+  return String(v || '').toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '').replace(/\s+/g, ' ').trim();
+}
 
 function ConfirmDialog({ open, title, message, onConfirm, onCancel, loading }) {
   return (
@@ -86,6 +91,11 @@ export default function ManageRoomAssets() {
   const [savingAsset, setSavingAsset] = useState(false);
   const [deleteAssetTarget, setDeleteAssetTarget] = useState(null);
   const [deletingAsset, setDeletingAsset] = useState(false);
+  const [importOpen, setImportOpen] = useState(false);
+  const [importing, setImporting] = useState(false);
+  const [importRows, setImportRows] = useState([]);
+  const [importSkipped, setImportSkipped] = useState([]);
+  const wordInputRef = useRef(null);
 
   // ── Load phòng ───────────────────────────────────────────────────────────────
   const loadRooms = async () => {
@@ -243,6 +253,93 @@ export default function ManageRoomAssets() {
   const usedAssetIds = new Set(items.map((i) => i.assetId?._id).filter(Boolean));
   const availableAssets = assetCatalog.filter((a) => !usedAssetIds.has(a._id));
 
+  const buildImportPlan = (rows) => {
+    const planned = new Map();
+    const skipped = [];
+
+    rows.forEach((r, idx) => {
+      const qty = Math.max(0, Number(r.quantity) || 0);
+      if (qty <= 0) return;
+      const name = String(r.name || '').trim();
+      const code = String(r.assetCode || '').trim();
+      if (!name && !code) {
+        skipped.push(`Dòng ${idx + 1}: thiếu mã hoặc tên tài sản.`);
+        return;
+      }
+      const key = `${normalizeText(code)}::${normalizeText(name)}`;
+      if (!planned.has(key)) {
+        planned.set(key, {
+          assetCode: code,
+          name,
+          unit: String(r.unit || 'Cái').trim() || 'Cái',
+          quantity: 0,
+        });
+      }
+      planned.get(key).quantity += qty;
+    });
+
+    return { rows: [...planned.values()], skipped };
+  };
+
+  const handleWordImport = async (e) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    e.target.value = '';
+    if (!selectedRoom?._id) return toast.warn('Vui lòng chọn phòng trước khi import.');
+
+    try {
+      const fd = new FormData();
+      fd.append('file', file);
+      const res = await postFormData(ENDPOINTS.SCHOOL_ADMIN.ASSET_ALLOCATIONS_PARSE_WORD, fd);
+      const assets = res?.data?.assets || [];
+      const extras = res?.data?.extraAssets || [];
+      const parsed = [...assets, ...extras].map((a) => ({
+        assetCode: a.assetCode || '',
+        name: a.name || '',
+        unit: a.unit || 'Cái',
+        quantity: Number(a.quantity) || 0,
+      }));
+
+      if (!parsed.length) return toast.warn('Không tìm thấy dữ liệu tài sản trong file.');
+      const plan = buildImportPlan(parsed);
+      if (!plan.rows.length && plan.skipped.length) {
+        plan.skipped.slice(0, 3).forEach((m) => toast.warn(m));
+        return;
+      }
+      setImportRows(plan.rows);
+      setImportSkipped(plan.skipped);
+      setImportOpen(true);
+    } catch (err) {
+      toast.error(`Không thể đọc file Word: ${err?.message || ''}`);
+    }
+  };
+
+  const confirmImport = async () => {
+    if (!selectedRoom?._id || importRows.length === 0) return;
+    setImporting(true);
+    try {
+      const res = await post(ENDPOINTS.SCHOOL_ADMIN.ROOM_ASSETS_IMPORT(selectedRoom._id), {
+        rows: importRows,
+      });
+      const { created = 0, updated = 0, skipped = 0, errors = [] } = res?.data || {};
+      await loadRoomAssets(selectedRoom);
+      await loadRooms();
+      setImportOpen(false);
+      setImportRows([]);
+      const skippedCount = importSkipped.length + skipped;
+      toast.success(
+        `Đã nhập phòng "${selectedRoom.roomName}": thêm mới ${created}, cộng dồn ${updated}${skippedCount ? `, bỏ qua ${skippedCount}` : ''}.`
+      );
+      if (errors.length) {
+        errors.slice(0, 6).forEach((msg) => toast.warn(msg, { autoClose: 6500 }));
+      }
+    } catch (err) {
+      toast.error(err?.message || 'Lỗi khi import vào phòng.');
+    } finally {
+      setImporting(false);
+    }
+  };
+
   return (
     <RoleLayout
       title="Quản lý tài sản theo phòng học"
@@ -338,9 +435,21 @@ export default function ManageRoomAssets() {
                       {selectedRoom.capacity > 0 && <Typography variant="caption" color="text.secondary">• Sức chứa: {selectedRoom.capacity}</Typography>}
                     </Stack>
                   </Box>
-                  <Button variant="contained" startIcon={<AddIcon />} onClick={openAddAsset} size="small">
-                    Thêm tài sản
-                  </Button>
+                  <Stack direction="row" spacing={1}>
+                    <Button variant="outlined" startIcon={<UploadFileIcon />} onClick={() => wordInputRef.current?.click()} size="small">
+                      Import Word
+                    </Button>
+                    <input
+                      ref={wordInputRef}
+                      type="file"
+                      accept=".doc,.docx,application/msword,application/vnd.openxmlformats-officedocument.wordprocessingml.document"
+                      style={{ display: 'none' }}
+                      onChange={handleWordImport}
+                    />
+                    <Button variant="contained" startIcon={<AddIcon />} onClick={openAddAsset} size="small">
+                      Thêm tài sản
+                    </Button>
+                  </Stack>
                 </Stack>
               </Box>
 
@@ -490,6 +599,58 @@ export default function ManageRoomAssets() {
         onCancel={() => setDeleteAssetTarget(null)}
         loading={deletingAsset}
       />
+
+      <Dialog open={importOpen} onClose={() => !importing && setImportOpen(false)} maxWidth="md" fullWidth>
+        <DialogTitle>
+          Xem trước import vào phòng "{selectedRoom?.roomName}" — {importRows.length} mục hợp lệ
+        </DialogTitle>
+        <DialogContent dividers>
+          {importRows.length === 0 ? (
+            <Typography variant="body2" color="text.secondary">Không có mục nào hợp lệ để import.</Typography>
+          ) : (
+            <Table size="small">
+              <TableHead>
+                <TableRow>
+                  <TableCell width={50}>#</TableCell>
+                  <TableCell width={120}>Mã TS</TableCell>
+                  <TableCell>Tên tài sản</TableCell>
+                  <TableCell width={80} align="center">ĐVT</TableCell>
+                  <TableCell width={100} align="center">Số lượng</TableCell>
+                </TableRow>
+              </TableHead>
+              <TableBody>
+                {importRows.map((r, idx) => (
+                  <TableRow key={`${r.assetCode}-${r.name}-${idx}`}>
+                    <TableCell>{idx + 1}</TableCell>
+                    <TableCell>{r.assetCode}</TableCell>
+                    <TableCell>{r.name}</TableCell>
+                    <TableCell align="center">{r.unit}</TableCell>
+                    <TableCell align="center">{r.quantity}</TableCell>
+                  </TableRow>
+                ))}
+              </TableBody>
+            </Table>
+          )}
+          {importSkipped.length > 0 && (
+            <Box mt={2}>
+              <Typography variant="subtitle2" color="warning.main" gutterBottom>
+                Mục bị bỏ qua: {importSkipped.length}
+              </Typography>
+              <List dense sx={{ maxHeight: 140, overflowY: 'auto', border: '1px solid', borderColor: 'divider', borderRadius: 1 }}>
+                {importSkipped.slice(0, 30).map((m, idx) => (
+                  <ListItemText key={`${m}-${idx}`} primaryTypographyProps={{ variant: 'caption', color: 'text.secondary', sx: { px: 1.5, py: 0.3 } }} primary={m} />
+                ))}
+              </List>
+            </Box>
+          )}
+        </DialogContent>
+        <DialogActions>
+          <Button onClick={() => setImportOpen(false)} disabled={importing}>Hủy</Button>
+          <Button variant="contained" onClick={confirmImport} disabled={importing || importRows.length === 0} startIcon={importing ? <CircularProgress size={16} /> : <UploadFileIcon />}>
+            {importing ? 'Đang import...' : `Import ${importRows.length} mục`}
+          </Button>
+        </DialogActions>
+      </Dialog>
     </RoleLayout>
   );
 }

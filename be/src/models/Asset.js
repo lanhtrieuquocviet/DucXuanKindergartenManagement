@@ -41,9 +41,13 @@ const assetSchema = new mongoose.Schema(
     },
     condition: {
       type: String,
-      enum: ['Tốt', 'Hỏng', 'Cần sửa chữa'],
-      default: 'Tốt',
+      // Keep old values for backward compatibility; new values are preferred.
+      enum: ['Còn tốt', 'Đã hỏng', 'Tốt', 'Hỏng', 'Cần sửa chữa'],
+      default: 'Còn tốt',
     },
+    // Chỉ dùng cho type='asset' (tài sản kho)
+    goodQuantity:   { type: Number, min: 0, default: null },
+    brokenQuantity: { type: Number, min: 0, default: null },
     unit:     { type: String, trim: true, default: 'Cái' },  // ĐVT – dùng cho mục 7
     seats1:   { type: Number, min: 0, default: null },  // Trong đó: 1 chỗ ngồi (phần 2)
     seats2:   { type: Number, min: 0, default: null },  // Trong đó: 2 chỗ ngồi (phần 2)

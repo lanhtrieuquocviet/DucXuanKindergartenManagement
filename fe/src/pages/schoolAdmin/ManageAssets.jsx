@@ -47,7 +47,7 @@ import UploadFileIcon from '@mui/icons-material/UploadFile';
 import mammoth from 'mammoth';
 import RoleLayout from '../../layouts/RoleLayout';
 import { useAuth } from '../../context/AuthContext';
-import { del, get, patch, post, put, ENDPOINTS } from '../../service/api';
+import { del, get, patch, post, postFormData, put, ENDPOINTS } from '../../service/api';
 import { createSchoolAdminMenuSelect } from './schoolAdminMenuConfig';
 import { useSchoolAdminMenu } from './useSchoolAdminMenu';
 
@@ -1894,8 +1894,23 @@ function InlineSelectCell({ a, field, options, align = 'center', ie, setIe, onSa
 }
 
 // ─── Assets Tab (CRUD Tài sản) ────────────────────────────────────────────────
-const CONDITION_OPTIONS = ['Tốt', 'Hỏng', 'Cần sửa chữa'];
-const CONDITION_COLOR = { 'Tốt': 'success', 'Hỏng': 'error', 'Cần sửa chữa': 'warning' };
+const CONDITION_OPTIONS = ['Còn tốt', 'Đã hỏng'];
+const CONDITION_COLOR = {
+  'Còn tốt': 'success',
+  'Đã hỏng': 'error',
+  // Backward compatibility for existing data
+  'Tốt': 'success',
+  'Hỏng': 'error',
+  'Cần sửa chữa': 'error',
+};
+
+function normalizeCondition(value) {
+  const raw = String(value || '').trim().toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '');
+  if (!raw) return 'Còn tốt';
+  if (raw.includes('da hong') || raw === 'hong' || raw.includes('can sua chua')) return 'Đã hỏng';
+  if (raw.includes('con tot') || raw === 'tot') return 'Còn tốt';
+  return 'Còn tốt';
+}
 const CATEGORY_OPTIONS = [
   'Phòng nuôi dưỡng, chăm sóc, giáo dục trẻ em',
   'Số bàn, ghế ngồi',
@@ -1944,7 +1959,7 @@ const UNIT_OPTIONS = ['Cái', 'Bộ', 'Loại', 'Chiếc', 'm²', 'Phòng', 'Bà
 const emptyAsset = () => ({
   assetCode: '', name: '', category: 'Phòng nuôi dưỡng, chăm sóc, giáo dục trẻ em', room: '',
   requiredQuantity: 0, quantity: 1, area: '', constructionType: 'Không áp dụng',
-  unit: 'Cái', condition: 'Tốt', notes: '',
+  unit: 'Cái', condition: 'Còn tốt', notes: '',
   seats1: null, seats2: null, seats4: null,
 });
 
@@ -1984,7 +1999,7 @@ function AssetsTab() {
     setLoading(true);
     try {
       const res = await get(ENDPOINTS.SCHOOL_ADMIN.ASSETS + '?type=csvc');
-      setAssets(res?.data?.assets || []);
+      setAssets((res?.data?.assets || []).map((a) => ({ ...a, condition: normalizeCondition(a.condition) })));
     } catch (err) {
       toast.error(err?.message || 'Không tải được danh sách tài sản.');
     } finally {
@@ -2000,7 +2015,8 @@ function AssetsTab() {
     const asset = assets.find(a => a._id === id);
     if (!asset) return;
     const STRING_FIELDS = new Set(['name', 'assetCode', 'unit', 'condition', 'constructionType', 'notes', 'room']);
-    const parsed = STRING_FIELDS.has(field) ? value : (value === '' || value == null ? null : Number(value));
+    const parsedRaw = STRING_FIELDS.has(field) ? value : (value === '' || value == null ? null : Number(value));
+    const parsed = field === 'condition' ? normalizeCondition(parsedRaw) : parsedRaw;
     if (asset[field] === parsed) { setInlineEdit(null); return; }
     setInlineSaving(true);
     try {
@@ -2028,7 +2044,7 @@ function AssetsTab() {
         area: asset.area ?? '',
         constructionType: asset.constructionType || 'Không áp dụng',
         unit: asset.unit || 'Cái',
-        condition: asset.condition,
+        condition: normalizeCondition(asset.condition),
         notes: asset.notes || '',
         seats1: asset.seats1 ?? null,
         seats2: asset.seats2 ?? null,
@@ -2060,7 +2076,7 @@ function AssetsTab() {
     }
     setSaving(true);
     try {
-      const payload = { ...form, area: form.area !== '' ? Number(form.area) : null };
+      const payload = { ...form, condition: normalizeCondition(form.condition), area: form.area !== '' ? Number(form.area) : null };
       if (editId) {
         await put(ENDPOINTS.SCHOOL_ADMIN.ASSET_DETAIL(editId), payload);
         toast.success('Cập nhật tài sản thành công.');
@@ -2218,7 +2234,7 @@ function AssetsTab() {
               unit: dvt || 'm²',
               area: null,
               constructionType: 'Không áp dụng',
-              condition: 'Tốt',
+              condition: 'Còn tốt',
               notes: '',
             };
           } else if (currentFmt === 'banGhe') {
@@ -2232,7 +2248,7 @@ function AssetsTab() {
               quantity: toNum(row[2]),
               area: null,
               constructionType: 'Không áp dụng',
-              condition: 'Tốt',
+              condition: 'Còn tốt',
               notes: '',
               seats1: row[3] !== '' && row[3] != null ? toNum(row[3]) : null,
               seats2: row[4] !== '' && row[4] != null ? toNum(row[4]) : null,
@@ -2258,7 +2274,7 @@ function AssetsTab() {
               unit: dvt || 'Cái',
               area: null,
               constructionType: 'Không áp dụng',
-              condition: 'Tốt',
+              condition: 'Còn tốt',
               notes: '',
             };
           } else {
@@ -2285,7 +2301,7 @@ function AssetsTab() {
               quantity,
               area,
               constructionType,
-              condition: 'Tốt',
+              condition: 'Còn tốt',
               notes: '',
             };
           }
@@ -3681,6 +3697,7 @@ function AssetsTab() {
 
 // ─── Warehouse Assets Tab ─────────────────────────────────────────────────────
 const WAREHOUSE_CATEGORIES = ['Đồ dùng', 'Thiết bị dạy học, đồ chơi và học liệu', 'Sách, tài liệu, băng đĩa', 'Thiết bị ngoài thông tư'];
+const WAREHOUSE_PAGE_SIZE = 10;
 
 function getCells(row) {
   return Array.from(row.querySelectorAll('td, th')).map(c => c.textContent.replace(/\s+/g, ' ').trim());
@@ -3745,8 +3762,85 @@ function parseWordDoc(html) {
 
   return items;
 }
+
+function normalizeWarehouseCategory(rawCategory, isExtra = false) {
+  if (isExtra) return 'Thiết bị ngoài thông tư';
+  const normalized = String(rawCategory || '').toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '');
+  if (/^i\b|do dung/.test(normalized) || normalized.includes('do dung')) return 'Đồ dùng';
+  if (/^ii\b|day hoc|do choi|hoc lieu/.test(normalized) || normalized.includes('day hoc') || normalized.includes('do choi') || normalized.includes('hoc lieu')) return 'Thiết bị dạy học, đồ chơi và học liệu';
+  if (/^iii\b|sach|tai lieu|bang dia/.test(normalized) || normalized.includes('sach') || normalized.includes('tai lieu') || normalized.includes('bang dia')) return 'Sách, tài liệu, băng đĩa';
+  if (/ngoai thong tu/.test(normalized)) return 'Thiết bị ngoài thông tư';
+  return 'Đồ dùng';
+}
+
+function inferWarehouseCategoryFromCode(assetCode) {
+  const code = String(assetCode || '').trim().toUpperCase();
+  if (!code) return '';
+  if (code.startsWith('TBNT')) return 'Thiết bị ngoài thông tư';
+  if (/^MN?561\d+/.test(code) || /^561\d+/.test(code)) return 'Đồ dùng';
+  if (/^MN?562\d+/.test(code) || /^562\d+/.test(code)) return 'Thiết bị dạy học, đồ chơi và học liệu';
+  if (/^MN?563\d+/.test(code) || /^563\d+/.test(code)) return 'Sách, tài liệu, băng đĩa';
+  return '';
+}
+
+function mapImportedRowsToWarehouse(assets = [], extraAssets = []) {
+  const rows = [];
+  assets.forEach((item) => {
+    const name = String(item?.name || '').trim();
+    if (!name) return;
+    const assetCode = String(item?.assetCode || '').trim();
+    const normalizedCategory = normalizeWarehouseCategory(item?.category);
+    const inferredCategory = inferWarehouseCategoryFromCode(assetCode);
+    const finalCategory = (
+      !String(item?.category || '').trim()
+      || (normalizedCategory === 'Đồ dùng' && inferredCategory && inferredCategory !== 'Đồ dùng')
+      || inferredCategory === 'Thiết bị ngoài thông tư'
+    ) ? (inferredCategory || normalizedCategory) : normalizedCategory;
+    rows.push({
+      assetCode,
+      name,
+      category: finalCategory,
+      unit: String(item?.unit || '').trim() || 'Cái',
+      quantity: Number(item?.quantity) || 0,
+      goodQuantity: Number(item?.quantity) || 0,
+      brokenQuantity: 0,
+      condition: 'Còn tốt',
+      notes: String(item?.notes || '').trim(),
+    });
+  });
+  extraAssets.forEach((item) => {
+    const name = String(item?.name || '').trim();
+    if (!name) return;
+    rows.push({
+      assetCode: String(item?.assetCode || '').trim(),
+      name,
+      category: normalizeWarehouseCategory(item?.category, true),
+      unit: String(item?.unit || '').trim() || 'Cái',
+      quantity: Number(item?.quantity) || 0,
+      goodQuantity: Number(item?.quantity) || 0,
+      brokenQuantity: 0,
+      condition: 'Còn tốt',
+      notes: String(item?.notes || '').trim(),
+    });
+  });
+  return rows;
+}
 const WAREHOUSE_CATEGORY_PREFIX = { 'Đồ dùng': 'I', 'Thiết bị dạy học, đồ chơi và học liệu': 'II', 'Sách, tài liệu, băng đĩa': 'III', 'Thiết bị ngoài thông tư': 'IV' };
-const emptyWarehouseAsset = () => ({ assetCode: '', name: '', category: 'Đồ dùng', unit: 'Cái', quantity: 0, condition: 'Tốt', notes: '' });
+const emptyWarehouseAsset = () => ({ assetCode: '', name: '', category: 'Đồ dùng', unit: 'Cái', quantity: 0, goodQuantity: 0, brokenQuantity: 0, condition: 'Còn tốt' });
+
+function deriveWarehouseQuantities(asset) {
+  const total = Number(asset?.quantity) || 0;
+  const hasGood = asset?.goodQuantity !== undefined && asset?.goodQuantity !== null;
+  const hasBroken = asset?.brokenQuantity !== undefined && asset?.brokenQuantity !== null;
+  if (hasGood || hasBroken) {
+    const good = Math.max(0, Number(asset?.goodQuantity) || 0);
+    const broken = Math.max(0, Number(asset?.brokenQuantity) || 0);
+    return { good, broken, total: good + broken };
+  }
+  const condition = normalizeCondition(asset?.condition);
+  if (condition === 'Đã hỏng') return { good: 0, broken: total, total };
+  return { good: total, broken: 0, total };
+}
 
 function WarehouseAssetsTab() {
   const [loading, setLoading] = useState(true);
@@ -3756,31 +3850,62 @@ function WarehouseAssetsTab() {
   const [form, setForm] = useState(emptyWarehouseAsset());
   const [editId, setEditId] = useState(null);
   const [saving, setSaving] = useState(false);
-  const [deleteTarget, setDeleteTarget] = useState(null);
-  const [deleting, setDeleting] = useState(false);
+  const [deletingId, setDeletingId] = useState('');
+  const [selected, setSelected] = useState(new Set());
+  const [bulkDeleteOpen, setBulkDeleteOpen] = useState(false);
+  const [bulkDeleting, setBulkDeleting] = useState(false);
   const [importOpen, setImportOpen] = useState(false);
   const [importItems, setImportItems] = useState([]);
   const [importing, setImporting] = useState(false);
+  const [categoryPage, setCategoryPage] = useState({});
   const fileInputRef = useRef(null);
 
   const load = async () => {
     setLoading(true);
     try {
       const res = await get(ENDPOINTS.SCHOOL_ADMIN.ASSETS + '?type=asset');
-      setAssets(res?.data?.assets || []);
+      setAssets((res?.data?.assets || []).map((a) => {
+        const q = deriveWarehouseQuantities(a);
+        return { ...a, quantity: q.total, goodQuantity: q.good, brokenQuantity: q.broken, condition: normalizeCondition(a.condition) };
+      }));
     } catch (err) {
       toast.error(err?.message || 'Không tải được danh sách tài sản.');
     } finally { setLoading(false); }
   };
 
   useEffect(() => { load(); }, []);
+  useEffect(() => {
+    setSelected((prev) => {
+      if (!prev.size) return prev;
+      const validIds = new Set(assets.map((a) => String(a._id)));
+      const next = new Set([...prev].filter((id) => validIds.has(String(id))));
+      return next;
+    });
+  }, [assets]);
+  useEffect(() => { setCategoryPage({}); }, [search]);
 
   const handleSave = async () => {
     if (!form.assetCode.trim()) return toast.warn('Mã tài sản không được để trống.');
     if (!form.name.trim()) return toast.warn('Tên tài sản không được để trống.');
+    if (!form.unit?.trim()) return toast.warn('Đơn vị tính không được để trống.');
+    const goodQuantity = Number(form.goodQuantity);
+    const brokenQuantity = Number(form.brokenQuantity);
+    if (Number.isNaN(goodQuantity) || goodQuantity < 0) return toast.warn('Số lượng còn tốt không hợp lệ.');
+    if (Number.isNaN(brokenQuantity) || brokenQuantity < 0) return toast.warn('Số lượng đã hỏng không hợp lệ.');
+    const quantity = goodQuantity + brokenQuantity;
     setSaving(true);
     try {
-      const payload = { ...form, type: 'asset' };
+      const payload = {
+        type: 'asset',
+        assetCode: form.assetCode.trim(),
+        name: form.name.trim(),
+        category: form.category,
+        unit: form.unit.trim(),
+        quantity,
+        goodQuantity,
+        brokenQuantity,
+        condition: brokenQuantity > 0 ? 'Đã hỏng' : 'Còn tốt',
+      };
       if (editId) {
         await put(ENDPOINTS.SCHOOL_ADMIN.ASSET_DETAIL(editId), payload);
         setAssets(prev => prev.map(a => a._id === editId ? { ...a, ...payload } : a));
@@ -3796,16 +3921,72 @@ function WarehouseAssetsTab() {
     } finally { setSaving(false); }
   };
 
-  const handleDelete = async () => {
-    setDeleting(true);
+  const handleQuickDelete = async (asset) => {
+    if (!asset?._id) return;
+    setDeletingId(asset._id);
     try {
-      await del(ENDPOINTS.SCHOOL_ADMIN.ASSET_DETAIL(deleteTarget._id));
-      setAssets(prev => prev.filter(a => a._id !== deleteTarget._id));
-      toast.success('Đã xóa.');
-      setDeleteTarget(null);
+      await del(ENDPOINTS.SCHOOL_ADMIN.ASSET_DETAIL(asset._id));
+      setAssets(prev => prev.filter(a => a._id !== asset._id));
+      toast.success(`Đã xóa "${asset.name}".`);
     } catch (err) {
       toast.error(err?.message || 'Lỗi khi xóa.');
-    } finally { setDeleting(false); }
+    } finally { setDeletingId(''); }
+  };
+
+  const toggleSelect = (id) => {
+    setSelected((prev) => {
+      const next = new Set(prev);
+      if (next.has(id)) next.delete(id);
+      else next.add(id);
+      return next;
+    });
+  };
+
+  const toggleSelectCategory = (rows) => {
+    const ids = rows.map((r) => r._id);
+    setSelected((prev) => {
+      const next = new Set(prev);
+      const allSelected = ids.every((id) => next.has(id));
+      ids.forEach((id) => {
+        if (allSelected) next.delete(id);
+        else next.add(id);
+      });
+      return next;
+    });
+  };
+
+  const handleBulkDelete = async () => {
+    if (selected.size === 0) return;
+    setBulkDeleting(true);
+    try {
+      const selectedIds = [...selected];
+      const selectedMap = new Map(assets.map((a) => [String(a._id), a]));
+      const results = await Promise.allSettled(
+        selectedIds.map((id) => del(ENDPOINTS.SCHOOL_ADMIN.ASSET_DETAIL(id)))
+      );
+      let deletedCount = 0;
+      const failedNames = [];
+      results.forEach((r, idx) => {
+        const id = String(selectedIds[idx]);
+        if (r.status === 'fulfilled') deletedCount++;
+        else failedNames.push(selectedMap.get(id)?.name || id);
+      });
+
+      if (deletedCount > 0) {
+        const deletedIds = selectedIds.filter((_, idx) => results[idx].status === 'fulfilled');
+        setAssets((prev) => prev.filter((a) => !deletedIds.includes(String(a._id))));
+      }
+      setSelected(new Set());
+      setBulkDeleteOpen(false);
+      if (failedNames.length === 0) toast.success(`Đã xóa ${deletedCount} mục.`);
+      else {
+        toast.warn(`Đã xóa ${deletedCount} mục, lỗi ${failedNames.length} mục.`);
+      }
+    } catch (err) {
+      toast.error(err?.message || 'Lỗi khi xóa hàng loạt.');
+    } finally {
+      setBulkDeleting(false);
+    }
   };
 
   const handleFileSelect = async (e) => {
@@ -3813,9 +3994,20 @@ function WarehouseAssetsTab() {
     if (!file) return;
     e.target.value = '';
     try {
-      const arrayBuffer = await file.arrayBuffer();
-      const result = await mammoth.convertToHtml({ arrayBuffer });
-      const parsed = parseWordDoc(result.value);
+      const ext = (file.name.split('.').pop() || '').toLowerCase();
+      let parsed = [];
+
+      if (ext === 'doc') {
+        const formData = new FormData();
+        formData.append('file', file);
+        const res = await postFormData(ENDPOINTS.SCHOOL_ADMIN.ASSET_ALLOCATIONS_PARSE_WORD, formData);
+        parsed = mapImportedRowsToWarehouse(res?.data?.assets || [], res?.data?.extraAssets || []);
+      } else {
+        const arrayBuffer = await file.arrayBuffer();
+        const result = await mammoth.convertToHtml({ arrayBuffer });
+        parsed = parseWordDoc(result.value);
+      }
+
       if (parsed.length === 0) return toast.warn('Không tìm thấy dữ liệu tài sản trong file.');
       setImportItems(parsed);
       setImportOpen(true);
@@ -3828,8 +4020,10 @@ function WarehouseAssetsTab() {
     setImporting(true);
     try {
       const res = await post(ENDPOINTS.SCHOOL_ADMIN.ASSETS_BULK_WAREHOUSE, { assets: importItems });
-      const { created, skipped, errors } = res.data;
-      toast.success(`Đã nhập ${created} tài sản${skipped > 0 ? `, bỏ qua ${skipped}` : ''}.`);
+      const { created, updated, skipped, errors } = res.data;
+      toast.success(
+        `Đã nhập mới ${created} tài sản${updated > 0 ? `, cộng dồn ${updated}` : ''}${skipped > 0 ? `, bỏ qua ${skipped}` : ''}.`
+      );
       if (errors?.length) errors.slice(0, 5).forEach(e => toast.warn(e, { autoClose: 6000 }));
       setImportOpen(false);
       setImportItems([]);
@@ -3857,17 +4051,34 @@ function WarehouseAssetsTab() {
       ) : (
         grouped.map(({ cat, rows }) => (
           <Box key={cat} mb={3}>
+            {(() => {
+              const currentPage = categoryPage[cat] || 0;
+              const maxPage = Math.max(0, Math.ceil(rows.length / WAREHOUSE_PAGE_SIZE) - 1);
+              const safePage = Math.min(currentPage, maxPage);
+              const pagedRows = rows.slice(safePage * WAREHOUSE_PAGE_SIZE, (safePage + 1) * WAREHOUSE_PAGE_SIZE);
+              return (
+                <>
             <Box sx={{ backgroundColor: '#e8f0fe', borderLeft: '4px solid #1a56db', px: 1.5, py: 0.75, borderRadius: '4px 4px 0 0', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-              <Typography fontWeight={700} fontSize="0.85rem" color="#1a56db">
-                {WAREHOUSE_CATEGORY_PREFIX[cat]}. {cat}
-                <Typography component="span" fontWeight={400} color="text.secondary" ml={1} fontSize="0.75rem">({rows.length} mục)</Typography>
-              </Typography>
+              <Stack direction="row" alignItems="center" spacing={1}>
+                <Checkbox
+                  size="small"
+                  disabled={rows.length === 0}
+                  checked={rows.length > 0 && rows.every((r) => selected.has(r._id))}
+                  indeterminate={rows.some((r) => selected.has(r._id)) && !rows.every((r) => selected.has(r._id))}
+                  onChange={() => toggleSelectCategory(rows)}
+                />
+                <Typography fontWeight={700} fontSize="0.85rem" color="#1a56db">
+                  {WAREHOUSE_CATEGORY_PREFIX[cat]}. {cat}
+                  <Typography component="span" fontWeight={400} color="text.secondary" ml={1} fontSize="0.75rem">({rows.length} mục)</Typography>
+                </Typography>
+              </Stack>
               <Button size="small" startIcon={<AddIcon />} onClick={() => { setForm({ ...emptyWarehouseAsset(), category: cat }); setEditId(null); setOpenModal(true); }}>Thêm</Button>
             </Box>
             <TableContainer sx={{ border: '1px solid #c7d7f8', borderTop: 'none', borderRadius: '0 0 4px 4px' }}>
               <Table size="small" stickyHeader>
                 <TableHead>
                   <TableRow>
+                    <TableCell sx={{ fontWeight: 700, backgroundColor: '#f0f4f8', width: 44 }} />
                     <TableCell sx={{ fontWeight: 700, backgroundColor: '#f0f4f8', width: 50 }}>#</TableCell>
                     <TableCell sx={{ fontWeight: 700, backgroundColor: '#f0f4f8', width: 110 }}>Mã TS</TableCell>
                     <TableCell sx={{ fontWeight: 700, backgroundColor: '#f0f4f8' }}>Tên tài sản</TableCell>
@@ -3875,27 +4086,42 @@ function WarehouseAssetsTab() {
                     <TableCell sx={{ fontWeight: 700, backgroundColor: '#f0f4f8' }} align="center">Tổng kho</TableCell>
                     <TableCell sx={{ fontWeight: 700, backgroundColor: '#f0f4f8' }} align="center">Đã phân bổ</TableCell>
                     <TableCell sx={{ fontWeight: 700, backgroundColor: '#f0f4f8' }} align="center">Còn lại</TableCell>
-                    <TableCell sx={{ fontWeight: 700, backgroundColor: '#f0f4f8' }} align="center">Tình trạng</TableCell>
+                    <TableCell sx={{ fontWeight: 700, backgroundColor: '#f0f4f8' }} align="center">Còn tốt</TableCell>
+                    <TableCell sx={{ fontWeight: 700, backgroundColor: '#f0f4f8' }} align="center">Đã hỏng</TableCell>
                     <TableCell sx={{ fontWeight: 700, backgroundColor: '#f0f4f8' }} align="center">Thao tác</TableCell>
                   </TableRow>
                 </TableHead>
                 <TableBody>
                   {rows.length === 0 ? (
-                    <TableRow><TableCell colSpan={9} align="center" sx={{ py: 2, color: 'text.secondary', fontSize: '0.8rem' }}>Chưa có dữ liệu — nhấn <strong>Thêm</strong> để bắt đầu</TableCell></TableRow>
-                  ) : rows.map((a, idx) => (
+                    <TableRow><TableCell colSpan={11} align="center" sx={{ py: 2, color: 'text.secondary', fontSize: '0.8rem' }}>Chưa có dữ liệu — nhấn <strong>Thêm</strong> để bắt đầu</TableCell></TableRow>
+                  ) : pagedRows.map((a, idx) => (
                     <TableRow key={a._id} hover>
-                      <TableCell>{idx + 1}</TableCell>
+                      <TableCell padding="checkbox">
+                        <Checkbox
+                          size="small"
+                          checked={selected.has(a._id)}
+                          onChange={() => toggleSelect(a._id)}
+                        />
+                      </TableCell>
+                      <TableCell>{safePage * WAREHOUSE_PAGE_SIZE + idx + 1}</TableCell>
                       <TableCell><Typography variant="caption" sx={{ fontFamily: 'monospace', bgcolor: 'grey.100', px: 0.5, borderRadius: 0.5 }}>{a.assetCode}</Typography></TableCell>
                       <TableCell>{a.name}</TableCell>
                       <TableCell align="center">{a.unit}</TableCell>
                       <TableCell align="center" sx={{ fontWeight: 600 }}>{a.quantity}</TableCell>
                       <TableCell align="center" sx={{ color: 'info.main', fontWeight: 500 }}>{a.allocatedQty ?? 0}</TableCell>
                       <TableCell align="center" sx={{ fontWeight: 700, color: (a.remainingQty ?? a.quantity ?? 0) > 0 ? 'success.main' : 'error.main' }}>{a.remainingQty ?? a.quantity ?? 0}</TableCell>
-                      <TableCell align="center"><Chip label={a.condition || 'Tốt'} color={CONDITION_COLOR[a.condition] || 'default'} size="small" /></TableCell>
+                      <TableCell align="center" sx={{ color: 'success.main', fontWeight: 700 }}>{deriveWarehouseQuantities(a).good}</TableCell>
+                      <TableCell align="center" sx={{ color: 'error.main', fontWeight: 700 }}>{deriveWarehouseQuantities(a).broken}</TableCell>
                       <TableCell align="center">
                         <Stack direction="row" justifyContent="center" spacing={0.5}>
-                          <Tooltip title="Sửa"><IconButton size="small" onClick={() => { setForm({ assetCode: a.assetCode, name: a.name, category: a.category, unit: a.unit, quantity: a.quantity, condition: a.condition, notes: a.notes || '' }); setEditId(a._id); setOpenModal(true); }}><EditIcon fontSize="small" /></IconButton></Tooltip>
-                          <Tooltip title="Xóa"><IconButton size="small" color="error" onClick={() => setDeleteTarget(a)}><DeleteIcon fontSize="small" /></IconButton></Tooltip>
+                          <Tooltip title="Sửa"><IconButton size="small" onClick={() => { const q = deriveWarehouseQuantities(a); setForm({ assetCode: a.assetCode, name: a.name, category: a.category, unit: a.unit, quantity: q.total, goodQuantity: q.good, brokenQuantity: q.broken, condition: q.broken > 0 ? 'Đã hỏng' : 'Còn tốt' }); setEditId(a._id); setOpenModal(true); }}><EditIcon fontSize="small" /></IconButton></Tooltip>
+                          <Tooltip title="Xóa lẻ">
+                            <span>
+                              <IconButton size="small" color="error" onClick={() => handleQuickDelete(a)} disabled={deletingId === a._id}>
+                                {deletingId === a._id ? <CircularProgress size={14} color="inherit" /> : <DeleteIcon fontSize="small" />}
+                              </IconButton>
+                            </span>
+                          </Tooltip>
                         </Stack>
                       </TableCell>
                     </TableRow>
@@ -3903,6 +4129,22 @@ function WarehouseAssetsTab() {
                 </TableBody>
               </Table>
             </TableContainer>
+            {rows.length > WAREHOUSE_PAGE_SIZE && (
+              <TablePagination
+                component="div"
+                count={rows.length}
+                rowsPerPage={WAREHOUSE_PAGE_SIZE}
+                rowsPerPageOptions={[WAREHOUSE_PAGE_SIZE]}
+                page={safePage}
+                onPageChange={(_, newPage) => setCategoryPage((prev) => ({ ...prev, [cat]: newPage }))}
+                labelRowsPerPage="Hiển thị"
+                labelDisplayedRows={({ from, to, count }) => `${from}-${to} / ${count}`}
+                sx={{ border: '1px solid #c7d7f8', borderTop: 'none', borderRadius: '0 0 4px 4px', '.MuiTablePagination-toolbar': { minHeight: 42 } }}
+              />
+            )}
+                </>
+              );
+            })()}
           </Box>
         ))
       )}
@@ -3921,27 +4163,15 @@ function WarehouseAssetsTab() {
               {WAREHOUSE_CATEGORIES.map(c => <MenuItem key={c} value={c}>{c}</MenuItem>)}
             </TextField>
             <Stack direction="row" spacing={2}>
-              <TextField label="Số lượng kho" type="number" value={form.quantity} onChange={e => setForm(f => ({ ...f, quantity: Number(e.target.value) }))} inputProps={{ min: 0 }} fullWidth size="small" />
-              <TextField select label="Tình trạng" value={form.condition} onChange={e => setForm(f => ({ ...f, condition: e.target.value }))} fullWidth size="small">
-                {CONDITION_OPTIONS.map(c => <MenuItem key={c} value={c}>{c}</MenuItem>)}
-              </TextField>
+              <TextField label="SL còn tốt" type="number" value={form.goodQuantity} onChange={e => setForm(f => ({ ...f, goodQuantity: Number(e.target.value) }))} inputProps={{ min: 0 }} fullWidth size="small" />
+              <TextField label="SL đã hỏng" type="number" value={form.brokenQuantity} onChange={e => setForm(f => ({ ...f, brokenQuantity: Number(e.target.value) }))} inputProps={{ min: 0 }} fullWidth size="small" />
             </Stack>
-            <TextField label="Ghi chú" value={form.notes} onChange={e => setForm(f => ({ ...f, notes: e.target.value }))} fullWidth multiline rows={2} size="small" />
+            <TextField label="Tổng kho" value={(Number(form.goodQuantity) || 0) + (Number(form.brokenQuantity) || 0)} fullWidth size="small" InputProps={{ readOnly: true }} />
           </Stack>
         </DialogContent>
         <DialogActions>
           <Button onClick={() => { setOpenModal(false); setForm(emptyWarehouseAsset()); setEditId(null); }} disabled={saving}>Hủy</Button>
           <Button variant="contained" onClick={handleSave} disabled={saving}>{saving ? <CircularProgress size={18} /> : editId ? 'Lưu' : 'Thêm'}</Button>
-        </DialogActions>
-      </Dialog>
-
-      {/* Confirm xóa */}
-      <Dialog open={!!deleteTarget} onClose={() => setDeleteTarget(null)} maxWidth="xs" fullWidth>
-        <DialogTitle>Xóa tài sản</DialogTitle>
-        <DialogContent><Typography variant="body2">Xóa &quot;{deleteTarget?.name}&quot;? Hành động này không thể hoàn tác.</Typography></DialogContent>
-        <DialogActions>
-          <Button onClick={() => setDeleteTarget(null)} disabled={deleting}>Hủy</Button>
-          <Button onClick={handleDelete} color="error" variant="contained" disabled={deleting}>{deleting ? <CircularProgress size={18} /> : 'Xóa'}</Button>
         </DialogActions>
       </Dialog>
 
@@ -3992,6 +4222,63 @@ function WarehouseAssetsTab() {
           <Button onClick={() => { setImportOpen(false); setImportItems([]); }} disabled={importing}>Hủy</Button>
           <Button variant="contained" onClick={handleImport} disabled={importing} startIcon={importing ? <CircularProgress size={16} /> : <UploadFileIcon />}>
             {importing ? 'Đang nhập...' : `Nhập ${importItems.length} tài sản`}
+          </Button>
+        </DialogActions>
+      </Dialog>
+
+      {selected.size > 0 && (
+        <Box sx={{
+          position: 'fixed',
+          bottom: 24,
+          left: '50%',
+          transform: 'translateX(-50%)',
+          zIndex: 1300,
+          backgroundColor: '#1e293b',
+          color: '#fff',
+          borderRadius: 3,
+          px: 3,
+          py: 1.2,
+          display: 'flex',
+          alignItems: 'center',
+          gap: 2,
+          boxShadow: '0 4px 24px rgba(0,0,0,0.25)',
+          whiteSpace: 'nowrap',
+        }}>
+          <Typography variant="body2" sx={{ color: '#94a3b8', fontWeight: 500 }}>
+            Đã chọn <strong style={{ color: '#fff' }}>{selected.size}</strong> mục
+          </Typography>
+          <Button
+            size="small"
+            variant="text"
+            sx={{ color: '#94a3b8', textTransform: 'none', minWidth: 0 }}
+            onClick={() => setSelected(new Set())}
+          >
+            Bỏ chọn
+          </Button>
+          <Button
+            size="small"
+            variant="contained"
+            color="error"
+            startIcon={<DeleteIcon fontSize="small" />}
+            sx={{ textTransform: 'none', borderRadius: 2 }}
+            onClick={() => setBulkDeleteOpen(true)}
+          >
+            Xóa {selected.size} mục
+          </Button>
+        </Box>
+      )}
+
+      <Dialog open={bulkDeleteOpen} onClose={() => !bulkDeleting && setBulkDeleteOpen(false)} maxWidth="xs" fullWidth>
+        <DialogTitle>Xóa nhiều mục</DialogTitle>
+        <DialogContent>
+          <Typography variant="body2">
+            Bạn có chắc muốn xóa {selected.size} mục đã chọn? Hành động này không thể hoàn tác.
+          </Typography>
+        </DialogContent>
+        <DialogActions>
+          <Button onClick={() => setBulkDeleteOpen(false)} disabled={bulkDeleting}>Hủy</Button>
+          <Button variant="contained" color="error" onClick={handleBulkDelete} disabled={bulkDeleting}>
+            {bulkDeleting ? <CircularProgress size={18} /> : `Xóa ${selected.size} mục`}
           </Button>
         </DialogActions>
       </Dialog>
