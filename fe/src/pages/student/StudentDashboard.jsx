@@ -239,6 +239,7 @@ export default function StudentDashboard() {
   const studentName = studentInfo?.fullName || 'Học sinh';
   const className = studentInfo?.classId?.className || 'Chưa xếp lớp';
   const parentDisplayName = user?.fullName || user?.username || 'Phụ huynh';
+  const isHeadParent = (user?.roles || []).some(r => (r.roleName || r) === 'HeadParent');
   const checkInText =
     attendanceToday?.timeString?.checkIn ||
     formatHHmm(attendanceToday?.time?.checkIn) ||
@@ -276,9 +277,18 @@ export default function StudentDashboard() {
               <Typography sx={{ color: 'rgba(255,255,255,0.8)', fontSize: { xs: '0.64rem', sm: '0.72rem' }, fontWeight: 500 }}>
                 Trường mầm non Đức Xuân
               </Typography>
-              <Typography sx={{ color: 'white', fontSize: { xs: '0.88rem', sm: '1rem' }, fontWeight: 700, lineHeight: 1.2 }}>
-                👋 Xin chào, {parentDisplayName}
-              </Typography>
+              <Stack direction="row" alignItems="center" spacing={1} flexWrap="wrap">
+                <Typography sx={{ color: 'white', fontSize: { xs: '0.88rem', sm: '1rem' }, fontWeight: 700, lineHeight: 1.2 }}>
+                  👋 Xin chào, {parentDisplayName}
+                </Typography>
+                {isHeadParent && (
+                  <Chip
+                    label="Hội trưởng Phụ Huynh"
+                    size="small"
+                    sx={{ bgcolor: '#f59e0b', color: 'white', fontWeight: 700, fontSize: 10, height: 20 }}
+                  />
+                )}
+              </Stack>
             </Box>
           </Stack>
           <Stack direction="row" spacing={0.5}>

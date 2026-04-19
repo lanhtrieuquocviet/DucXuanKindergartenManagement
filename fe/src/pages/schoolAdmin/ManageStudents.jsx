@@ -56,6 +56,7 @@ import {
   CheckCircle as ResolveIcon,
   UploadFile as UploadFileIcon,
   FileDownload as FileDownloadIcon,
+  Star as StarIcon,
 } from '@mui/icons-material';
 
 const GENDER_OPTIONS = [
@@ -805,7 +806,14 @@ function ManageStudents() {
                         : <Typography variant="caption" color="text.disabled">—</Typography>}
                     </TableCell>
                     {/* <TableCell>{row.classId?.className || '—'}</TableCell> */}
-                    <TableCell sx={{ minWidth: 160 }}>{parentName}</TableCell>
+                    <TableCell sx={{ minWidth: 160 }}>
+                      <Stack direction="row" alignItems="center" spacing={0.75} flexWrap="wrap">
+                        {(row.parentId?.roles || []).some(r => (r.roleName || r) === 'HeadParent') && (
+                          <Chip icon={<StarIcon sx={{ fontSize: '12px !important' }} />} label="Hội trưởng" color="warning" size="small" sx={{ fontWeight: 700, height: 20, fontSize: '0.68rem', px: 0.25 }} />
+                        )}
+                        <span>{parentName}</span>
+                      </Stack>
+                    </TableCell>
                     <TableCell sx={{ whiteSpace: 'nowrap', minWidth: 120 }}>{formatPhoneDisplay(parentPhone)}</TableCell>
                     <TableCell align="right">
                       <Button size="small" startIcon={<VisibilityIcon />} onClick={() => handleOpenDetail(row)} sx={{ mr: 0.5 }}>

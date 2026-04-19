@@ -35,6 +35,7 @@ import {
   Article as ArticleIcon,
   ReportProblem as ReportProblemIcon,
   AssignmentTurnedIn as AssignmentTurnedInIcon,
+  MeetingRoom as MeetingRoomIcon,
 } from '@mui/icons-material';
 import { CurrencyIcon } from 'lucide-react';
 
@@ -99,6 +100,7 @@ export const KEY_ICONS = {
   'leave-requests':       <ArticleIcon fontSize="small" />,
   'asset-inspection':     <ContentPasteSearchIcon fontSize="small" />,
   'class-assets':         <InventoryIcon fontSize="small" />,
+  'room-assets':          <MeetingRoomIcon fontSize="small" />,
   'asset-allocation':     <AccountTreeIcon fontSize="small" />,
   staff:                  <GroupIcon fontSize="small" />,
   kiemke:                 <GradingIcon fontSize="small" />,
@@ -109,7 +111,7 @@ export const KEY_ICONS = {
 /* ── Sidebar content (kết hợp các shared components) ── */
 function SidebarContent({
   menuItems, activeKey, onMenuSelect, onLogout, onViewProfile,
-  userName, userAvatar, collapsed, onToggleCollapse,
+  userName, userAvatar, userRole, collapsed, onToggleCollapse,
 }) {
   return (
     <Box sx={{ display: 'flex', flexDirection: 'column', height: '100%', bgcolor: 'background.paper', overflowX: 'hidden' }}>
@@ -126,6 +128,7 @@ function SidebarContent({
         collapsed={collapsed}
         userName={userName}
         userAvatar={userAvatar}
+        userRole={userRole}
         onViewProfile={onViewProfile}
         onLogout={onLogout}
       />
@@ -142,6 +145,7 @@ function RoleLayout({
   onLogout,
   userName,
   userAvatar,
+  userRole,
   onViewProfile,
   onMenuSelect,
   children,
@@ -166,7 +170,7 @@ function RoleLayout({
     onMenuSelect: handleMenuSelect,
     onLogout: () => { setMobileOpen(false); if (onLogout) onLogout(); },
     onViewProfile: onViewProfile ? () => { setMobileOpen(false); onViewProfile(); } : null,
-    userName, userAvatar,
+    userName, userAvatar, userRole,
     collapsed: isMobile ? false : collapsed,
     onToggleCollapse: () => setCollapsed((p) => !p),
   };

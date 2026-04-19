@@ -2,12 +2,12 @@ import { useEffect, useState, useCallback } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import { useAuth } from '../../context/AuthContext';
 import RoleLayout from '../../layouts/RoleLayout';
-import { get, del, ENDPOINTS } from '../../service/api';
+import { get, del, patch, ENDPOINTS } from '../../service/api';
 import { createSchoolAdminMenuSelect } from './schoolAdminMenuConfig';
 import { useSchoolAdminMenu } from './useSchoolAdminMenu';
 import { toast } from 'react-toastify';
 import {
-  Box, Paper, Typography, Avatar, Chip, Skeleton, Alert, Stack,
+  Box, Paper, Typography, Avatar, Chip, Skeleton, Alert, Stack, Button,
   Divider, Tabs, Tab, Grid, TextField, CircularProgress,
   MenuItem, Select, LinearProgress, IconButton, Tooltip,
 } from '@mui/material';
@@ -28,6 +28,8 @@ import {
   Restaurant as MenuIcon,
   EditNote as NoteTabIcon,
   Delete as DeleteIcon,
+  Star as StarIcon,
+  StarBorder as StarBorderIcon,
 } from '@mui/icons-material';
 
 // ── helpers ─────────────────────────────────────────────────────
@@ -61,6 +63,24 @@ function InfoRow({ icon, label, value }) {
 
 // ── TabHoSo ──────────────────────────────────────────────────────
 function TabHoSo({ student }) {
+  const parentRoles = (student.parentId?.roles || []).map(r => r.roleName || r);
+  const [isHeadParent, setIsHeadParent] = useState(parentRoles.includes('HeadParent'));
+  const [toggling, setToggling] = useState(false);
+
+  const handleToggleHeadParent = async () => {
+    if (!student.parentId?._id) return;
+    setToggling(true);
+    try {
+      const res = await patch(`/school-admin/parents/${student.parentId._id}/toggle-headparent`);
+      setIsHeadParent(res.isHeadParent);
+      toast.success(res.message || 'Cập nhật thành công');
+    } catch (e) {
+      toast.error(e?.message || 'Cập nhật thất bại');
+    } finally {
+      setToggling(false);
+    }
+  };
+
   return (
     <Paper elevation={0} sx={{ borderRadius: 3, border: '1px solid', borderColor: 'divider', p: 3 }}>
       <Stack direction="row" alignItems="center" spacing={1} mb={2.5}>
@@ -73,7 +93,32 @@ function TabHoSo({ student }) {
         <Grid size={{ xs: 6 }}><InfoRow label="Giới tính" value={genderLabel(student.gender)} /></Grid>
         <Grid size={{ xs: 6 }}><InfoRow label="Lớp" value={student.classId?.className || '—'} /></Grid>
         <Grid size={{ xs: 12 }}><InfoRow label="Địa chỉ" value={student.address} icon={<HomeIcon sx={{ fontSize: 14 }} />} /></Grid>
-        <Grid size={{ xs: 6 }}><InfoRow label="Phụ huynh" value={student.parentId?.fullName} icon={<PeopleIcon sx={{ fontSize: 14 }} />} /></Grid>
+        {/* Phụ huynh + badge HeadParent */}
+        <Grid size={{ xs: 12 }}>
+          <Typography variant="caption" color="text.secondary" sx={{ display: 'block', mb: 0.25 }}>Phụ huynh</Typography>
+          <Stack direction="row" alignItems="center" spacing={1} flexWrap="wrap">
+            <PeopleIcon sx={{ fontSize: 14, color: 'text.secondary' }} />
+            <Typography variant="body2" fontWeight={600}>{student.parentId?.fullName || '—'}</Typography>
+            {isHeadParent && (
+              <Chip icon={<StarIcon sx={{ fontSize: 14 }} />} label="Hội trưởng PH" color="warning" size="small" sx={{ fontWeight: 700, height: 22 }} />
+            )}
+            {student.parentId?._id && (
+              <Tooltip title={isHeadParent ? 'Bỏ vai trò hội trưởng phụ huynh' : 'Đặt làm hội trưởng phụ huynh'}>
+                <Button
+                  size="small"
+                  variant={isHeadParent ? 'outlined' : 'contained'}
+                  color="warning"
+                  startIcon={toggling ? <CircularProgress size={12} /> : (isHeadParent ? <StarBorderIcon /> : <StarIcon />)}
+                  onClick={handleToggleHeadParent}
+                  disabled={toggling}
+                  sx={{ textTransform: 'none', fontWeight: 600, fontSize: 12, height: 26, px: 1.25 }}
+                >
+                  {isHeadParent ? 'Bỏ hội trưởng' : 'Đặt hội trưởng'}
+                </Button>
+              </Tooltip>
+            )}
+          </Stack>
+        </Grid>
         <Grid size={{ xs: 6 }}><InfoRow label="SĐT" value={student.parentId?.phone || student.parentPhone} icon={<PhoneIcon sx={{ fontSize: 14 }} />} /></Grid>
         {student.parentId?.email && (
           <Grid size={{ xs: 12 }}><InfoRow label="Email phụ huynh" value={student.parentId.email} /></Grid>

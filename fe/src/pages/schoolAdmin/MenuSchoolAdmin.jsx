@@ -35,12 +35,13 @@ import {
 } from "@mui/icons-material";
 
 const STATUS_CONFIG = {
-  approved: { label: "Đã duyệt",     color: "success" },
-  pending:  { label: "Chờ duyệt",    color: "warning" },
-  draft:    { label: "Nháp",         color: "default" },
-  rejected: { label: "Bị từ chối",   color: "error"   },
-  active:   { label: "Đang áp dụng", color: "info"    },
-  completed:{ label: "Đã kết thúc",  color: "secondary"},
+  approved:           { label: "Đã duyệt",     color: "success"   },
+  pending:            { label: "Chờ duyệt",    color: "warning"   },
+  pending_headparent: { label: "Chờ HT PH",    color: "info"      },
+  draft:              { label: "Nháp",         color: "default"   },
+  rejected:           { label: "Bị từ chối",   color: "error"     },
+  active:             { label: "Đang áp dụng", color: "info"      },
+  completed:          { label: "Đã kết thúc",  color: "secondary" },
 };
 
 const TABS = [
@@ -400,6 +401,16 @@ function MenuSchoolAdmin() {
                             </Typography>
                           );
                         })()}
+                        {menu.headParentReview?.comment && (
+                          <Box mt={0.75} px={1.5} py={0.75} sx={{ bgcolor: "info.50", border: "1px solid", borderColor: "info.200", borderRadius: 1 }}>
+                            <Typography variant="caption" color="info.dark" fontWeight={700}>
+                              Ý kiến hội trưởng PH:
+                            </Typography>
+                            <Typography variant="body2" color="text.secondary" mt={0.25}>
+                              {menu.headParentReview.comment}
+                            </Typography>
+                          </Box>
+                        )}
                       </Box>
 
                       {/* Actions */}

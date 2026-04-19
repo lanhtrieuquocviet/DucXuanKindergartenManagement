@@ -1,5 +1,5 @@
 import {
-  Box, Avatar, Typography, IconButton,
+  Box, Avatar, Typography, IconButton, Chip,
   ListItemButton, ListItemIcon, ListItemText, Tooltip,
 } from '@mui/material';
 import { Logout as LogoutIcon } from '@mui/icons-material';
@@ -18,7 +18,7 @@ function getUserInitials(userName) {
  * @param {function} onViewProfile  - callback xem hồ sơ (null = ẩn liên kết)
  * @param {function} onLogout       - callback đăng xuất
  */
-export default function SidebarUserSection({ collapsed, userName, userAvatar, onViewProfile, onLogout }) {
+export default function SidebarUserSection({ collapsed, userName, userAvatar, userRole, onViewProfile, onLogout }) {
   const initials = getUserInitials(userName);
 
   return (
@@ -68,7 +68,10 @@ export default function SidebarUserSection({ collapsed, userName, userAvatar, on
             </Avatar>
             <Box sx={{ flex: 1, minWidth: 0 }}>
               <Typography variant="body2" fontWeight={700} noWrap>{userName || 'Người dùng'}</Typography>
-              <Typography variant="caption" color="primary.main" sx={{ fontSize: 11, opacity: 0.7 }}>Xem hồ sơ →</Typography>
+              {userRole
+                ? <Chip label={userRole} size="small" color="warning" sx={{ fontSize: 10, height: 18, mt: 0.25 }} />
+                : <Typography variant="caption" color="primary.main" sx={{ fontSize: 11, opacity: 0.7 }}>Xem hồ sơ →</Typography>
+              }
             </Box>
           </Box>
           <ListItemButton

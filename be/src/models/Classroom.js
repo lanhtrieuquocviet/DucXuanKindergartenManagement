@@ -9,8 +9,13 @@ const classroomSchema = new mongoose.Schema({
   },
   floor: {
     type: Number,
-    required: true,
     min: 1,
+    default: 1,
+  },
+  zone: {
+    type: String,
+    enum: ['A', 'B'],
+    default: 'A',
   },
   capacity: {
     type: Number,

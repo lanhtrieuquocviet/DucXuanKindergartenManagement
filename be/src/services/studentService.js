@@ -587,7 +587,7 @@ const getStudentDetail = async (req, res) => {
 
     const student = await Student.findById(studentId)
       .populate('classId', 'className')
-      .populate('parentId', 'fullName email username avatar')
+      .populate('parentId', 'fullName email username avatar phone')
       .populate('parentProfileId', 'fullName email phone');
 
     if (!student) {
@@ -600,6 +600,15 @@ const getStudentDetail = async (req, res) => {
 
     // Không trả embedding (biometric) về client — chỉ trả flag + thời điểm đăng ký
     const obj = student.toObject();
+
+    // Lấy roles của phụ huynh riêng để đảm bảo luôn cập nhật
+    if (obj.parentId?._id) {
+      const parentUser = await User.findById(obj.parentId._id)
+        .populate('roles', 'roleName')
+        .select('roles')
+        .lean();
+      obj.parentId.roles = parentUser?.roles || [];
+    }
     obj.hasFaceEmbedding = Array.isArray(obj.faceEmbedding) && obj.faceEmbedding.length > 0;
     obj.faceImageUrls = Array.isArray(obj.faceImageUrls) ? obj.faceImageUrls.filter(Boolean) : [];
     obj.angleCount = Array.isArray(obj.faceEmbeddings) ? obj.faceEmbeddings.length : (obj.hasFaceEmbedding ? 1 : 0);
