@@ -109,7 +109,7 @@ export const KEY_ICONS = {
 /* ── Sidebar content (kết hợp các shared components) ── */
 function SidebarContent({
   menuItems, activeKey, onMenuSelect, onLogout, onViewProfile,
-  userName, userAvatar, collapsed, onToggleCollapse,
+  userName, userAvatar, userRole, collapsed, onToggleCollapse,
 }) {
   return (
     <Box sx={{ display: 'flex', flexDirection: 'column', height: '100%', bgcolor: 'background.paper', overflowX: 'hidden' }}>
@@ -126,6 +126,7 @@ function SidebarContent({
         collapsed={collapsed}
         userName={userName}
         userAvatar={userAvatar}
+        userRole={userRole}
         onViewProfile={onViewProfile}
         onLogout={onLogout}
       />
@@ -142,6 +143,7 @@ function RoleLayout({
   onLogout,
   userName,
   userAvatar,
+  userRole,
   onViewProfile,
   onMenuSelect,
   children,
@@ -166,7 +168,7 @@ function RoleLayout({
     onMenuSelect: handleMenuSelect,
     onLogout: () => { setMobileOpen(false); if (onLogout) onLogout(); },
     onViewProfile: onViewProfile ? () => { setMobileOpen(false); onViewProfile(); } : null,
-    userName, userAvatar,
+    userName, userAvatar, userRole,
     collapsed: isMobile ? false : collapsed,
     onToggleCollapse: () => setCollapsed((p) => !p),
   };

@@ -56,6 +56,7 @@ const ROLE_RELEVANT_GROUPS = {
   KitchenStaff:   ['Bếp & Thực phẩm', 'Báo cáo'],
   InventoryStaff: ['Tài sản & Mua sắm'],
   MedicalStaff:   ['Y tế'],
+  HeadParent:     ['Bếp & Thực phẩm'],
   SchoolAdmin:    null,
 };
 

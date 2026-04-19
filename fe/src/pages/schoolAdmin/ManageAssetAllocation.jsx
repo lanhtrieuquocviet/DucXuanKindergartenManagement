@@ -458,6 +458,7 @@ export default function ManageAssetAllocation() {
 
   const [importing, setImporting]           = useState(false);
   const excelInputRef                       = useRef(null);
+  const wordInputRef                        = useRef(null);
 
   // ── Load data ──────────────────────────────────────────────────────────────
   const loadAllocations = async () => {
@@ -622,6 +623,25 @@ export default function ManageAssetAllocation() {
       URL.revokeObjectURL(url);
     } catch {
       toast.error('Lỗi tải mẫu Excel.');
+    }
+  };
+
+  // ── Import Word ────────────────────────────────────────────────────────────
+  const handleWordImport = async (e) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    e.target.value = '';
+
+    setImporting(true);
+    try {
+      const formData = new FormData();
+      formData.append('file', file);
+      const res = await postFormData(ENDPOINTS.SCHOOL_ADMIN.ASSET_ALLOCATIONS_PARSE_WORD, formData);
+      applyImportResult(res);
+    } catch (err) {
+      toast.error('Lỗi đọc file Word: ' + (err.message || ''));
+    } finally {
+      setImporting(false);
     }
   };
 
@@ -995,6 +1015,19 @@ export default function ManageAssetAllocation() {
                     onClick={downloadTemplate}
                   >
                     Tải mẫu Excel
+                  </Button>
+                </Tooltip>
+                <input ref={wordInputRef} type="file" accept=".doc,.docx" style={{ display: 'none' }} onChange={handleWordImport} />
+                <Tooltip title="Import từ file Word (.doc/.docx)">
+                  <Button
+                    size="small"
+                    variant="contained"
+                    color="secondary"
+                    startIcon={importing ? <CircularProgress size={14} /> : <UploadFileIcon />}
+                    onClick={() => wordInputRef.current?.click()}
+                    disabled={importing}
+                  >
+                    {importing ? 'Đang đọc...' : 'Word'}
                   </Button>
                 </Tooltip>
                 <input ref={excelInputRef} type="file" accept=".xlsx" style={{ display: 'none' }} onChange={handleExcelImport} />

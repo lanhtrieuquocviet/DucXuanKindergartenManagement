@@ -2502,4 +2502,37 @@ router.patch('/purchase-requests/:id/reject', authenticate, authorizePermissions
 router.get('/asset-incidents',          authenticate, authorizePermissions('MANAGE_ASSET'), incidentCtrl.listAllIncidents);
 router.patch('/asset-incidents/:id',    authenticate, authorizePermissions('MANAGE_ASSET'), incidentCtrl.updateIncidentStatus);
 
+// PATCH /school-admin/parents/:userId/toggle-headparent — gán hoặc bỏ role HeadParent cho phụ huynh
+router.patch('/parents/:userId/toggle-headparent', authenticate, authorizeRoles('SchoolAdmin'), async (req, res) => {
+  try {
+    const [user, headParentRole] = await Promise.all([
+      User.findById(req.params.userId).populate('roles', 'roleName').lean(),
+      Role.findOne({ roleName: 'HeadParent' }).lean(),
+    ]);
+
+    if (!user) return res.status(404).json({ status: 'error', message: 'Không tìm thấy người dùng' });
+
+    const roleNames = (user.roles || []).map(r => r.roleName);
+    if (!roleNames.includes('Parent')) {
+      return res.status(400).json({ status: 'error', message: 'Người dùng này không phải phụ huynh' });
+    }
+    if (!headParentRole) {
+      return res.status(500).json({ status: 'error', message: 'Role HeadParent chưa được khởi tạo, vui lòng restart server' });
+    }
+
+    const isHeadParent = roleNames.includes('HeadParent');
+
+    if (isHeadParent) {
+      await User.findByIdAndUpdate(user._id, { $pull: { roles: headParentRole._id } });
+      return res.json({ status: 'success', message: 'Đã bỏ vai trò hội trưởng phụ huynh', isHeadParent: false });
+    } else {
+      await User.findByIdAndUpdate(user._id, { $addToSet: { roles: headParentRole._id } });
+      return res.json({ status: 'success', message: 'Đã đặt làm hội trưởng phụ huynh', isHeadParent: true });
+    }
+  } catch (error) {
+    console.error('toggleHeadParent error:', error);
+    return res.status(500).json({ status: 'error', message: 'Lỗi khi cập nhật vai trò' });
+  }
+});
+
 module.exports = router;

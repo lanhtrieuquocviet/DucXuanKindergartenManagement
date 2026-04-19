@@ -21,6 +21,7 @@ const menuSchema = new mongoose.Schema(
   type: String,
   enum: [
     "draft",
+    "pending_headparent",
     "pending",
     "approved",
     "active",
@@ -29,6 +30,13 @@ const menuSchema = new mongoose.Schema(
   ],
   default: "draft"
   },
+
+    /** Ý kiến / xét duyệt của Hội trưởng phụ huynh */
+    headParentReview: {
+      reviewedBy: { type: mongoose.Schema.Types.ObjectId, ref: 'User', default: null },
+      reviewedAt: { type: Date, default: null },
+      comment:    { type: String, default: '' },
+    },
 
     rejectReason: {
       type: String,
@@ -67,6 +75,7 @@ const menuSchema = new mongoose.Schema(
             type: String,
             enum: [
               "submitted",
+              "headparent_reviewed",
               "approved",
               "rejected_pending",
               "request_edit_active",

@@ -168,9 +168,14 @@ exports.getMenus = async (req, res) => {
       filter = {};
     }
 
-    // Ban giám hiệu: không thấy draft
+    // Ban giám hiệu: không thấy draft, không thấy pending_headparent
     if (roleName === "SchoolAdmin") {
-      filter = { status: { $ne: "draft" } };
+      filter = { status: { $nin: ["draft", "pending_headparent"] } };
+    }
+
+    // Hội trưởng phụ huynh: thấy pending_headparent + active + completed
+    if (roleName === "HeadParent") {
+      filter = { status: { $in: ["pending_headparent", "pending", "approved", "active", "completed"] } };
     }
 
     // Học sinh: chỉ thực đơn đang áp dụng hoặc đã kết thúc (không hiện chỉ mới duyệt)
@@ -375,10 +380,11 @@ exports.submitMenu = async (req, res) => {
       });
     }
 
-    menu.status = "pending";
+    menu.status = "pending_headparent";
     menu.rejectReason = "";
     menu.rejectPresets = [];
     menu.rejectDetail = "";
+    menu.headParentReview = { reviewedBy: null, reviewedAt: null, comment: '' };
 
     pushMenuHistory(menu, {
       type: "submitted",
@@ -390,6 +396,48 @@ exports.submitMenu = async (req, res) => {
     res.json({
       success: true,
       message: "Đã gửi thực đơn để duyệt",
+      data: menu,
+    });
+  } catch (error) {
+    res.status(500).json({ message: error.message });
+  }
+};
+
+// Hội trưởng phụ huynh xem xét – chuyển tiếp lên ban giám hiệu (có hoặc không có ý kiến)
+exports.headParentReviewMenu = async (req, res) => {
+  try {
+    const menu = await Menu.findById(req.params.id);
+    if (!menu) return res.status(404).json({ message: 'Menu không tồn tại' });
+
+    if (menu.status !== 'pending_headparent') {
+      return res.status(400).json({
+        success: false,
+        message: 'Thực đơn không ở trạng thái chờ hội trưởng phụ huynh xem xét',
+      });
+    }
+
+    const comment = String(req.body.comment || '').trim();
+
+    menu.headParentReview = {
+      reviewedBy: req.user?._id,
+      reviewedAt: new Date(),
+      comment,
+    };
+    menu.status = 'pending';
+
+    pushMenuHistory(menu, {
+      type: 'headparent_reviewed',
+      actorId: req.user?._id,
+      detail: comment,
+    });
+
+    await menu.save();
+
+    res.json({
+      success: true,
+      message: comment
+        ? 'Đã gửi ý kiến và chuyển thực đơn lên ban giám hiệu'
+        : 'Đã chuyển thực đơn lên ban giám hiệu để duyệt',
       data: menu,
     });
   } catch (error) {

@@ -134,7 +134,8 @@ import StudentHealthManagement from './pages/medicalStaff/StudentHealthManagemen
 import StudentHealthHistory from './pages/medicalStaff/StudentHealthHistory';
 import HealthIncidentPage from './pages/medicalStaff/HealthIncidentPage';
 import StudentDetailPage from './pages/schoolAdmin/StudentDetailPage';
-
+import MenuHeadParent from './pages/headParent/MenuHeadParent';
+import MenuDetailHeadParent from './pages/headParent/MenuDetailHeadParent';
 
 function AppContent() {
   return (
@@ -1008,6 +1009,10 @@ function App() {
               </ProtectedRoute>
             }
           />
+
+          {/* HeadParent */}
+          <Route path="/head-parent/menus" element={<ProtectedRoute><MenuHeadParent /></ProtectedRoute>} />
+          <Route path="/head-parent/menus/:id" element={<ProtectedRoute><MenuDetailHeadParent /></ProtectedRoute>} />
 
           <Route
             path="/contact"
