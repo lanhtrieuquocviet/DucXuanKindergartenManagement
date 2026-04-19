@@ -1,5 +1,7 @@
 const ImageLibraryItem = require('../models/ImageLibraryItem');
 
+const escapeRegex = (s) => String(s).replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+
 const normalizeItem = (item) => {
   const imageUrls = Array.isArray(item.imageUrls) ? item.imageUrls.filter(Boolean) : [];
   if (imageUrls.length > 0) return { ...item, imageUrls, imageUrl: imageUrls[0] };
@@ -9,11 +11,61 @@ const normalizeItem = (item) => {
 
 const listAdminImageLibrary = async (req, res) => {
   try {
-    const items = await ImageLibraryItem.find({})
+    const { search } = req.query || {};
+    const q = String(search || '').trim();
+    let filter = {};
+    if (q) {
+      const escaped = escapeRegex(q);
+      filter = {
+        $or: [
+          { title: { $regex: escaped, $options: 'i' } },
+          {
+            $expr: {
+              $regexMatch: {
+                input: {
+                  $concat: [
+                    { $dateToString: { format: '%d/%m/%Y', date: '$createdAt', timezone: 'Asia/Ho_Chi_Minh' } },
+                    ' ',
+                    { $dateToString: { format: '%Y-%m-%d', date: '$createdAt', timezone: 'Asia/Ho_Chi_Minh' } },
+                  ],
+                },
+                regex: escaped,
+                options: 'i',
+              },
+            },
+          },
+        ],
+      };
+    }
+
+    const pageRaw = parseInt(req.query?.page, 10);
+    const limitRaw = parseInt(req.query?.limit, 10);
+    const pageNum = Number.isFinite(pageRaw) && pageRaw > 0 ? pageRaw : 1;
+    const limitNum = Math.min(50, Math.max(1, Number.isFinite(limitRaw) && limitRaw > 0 ? limitRaw : 12));
+
+    const total = await ImageLibraryItem.countDocuments(filter);
+    const totalPages = Math.ceil(total / limitNum) || 1;
+    const safePage = Math.min(pageNum, totalPages);
+    const skip = (safePage - 1) * limitNum;
+
+    const items = await ImageLibraryItem.find(filter)
       .sort({ createdAt: -1 })
+      .skip(skip)
+      .limit(limitNum)
       .populate('createdBy', 'fullName username');
     const normalized = items.map((doc) => normalizeItem(doc.toObject()));
-    return res.status(200).json({ status: 'success', data: normalized });
+    return res.status(200).json({
+      status: 'success',
+      data: {
+        items: normalized,
+        pagination: {
+          page: safePage,
+          limit: limitNum,
+          total,
+          totalPages,
+        },
+      },
+    });
   } catch (error) {
     return res.status(500).json({ status: 'error', message: error.message || 'Lỗi tải thư viện ảnh' });
   }
