@@ -252,7 +252,7 @@ const getStudents = async (req, res) => {
 
     const students = await Student.find(filter)
       .populate('classId', 'className gradeId academicYearId')
-      .populate('parentId', 'fullName email username avatar phone')
+      .populate({ path: 'parentId', select: 'fullName email username avatar phone roles', populate: { path: 'roles', select: 'roleName' } })
       .populate('parentProfileId', 'fullName email phone')
       .populate('academicYearId', 'yearName');
 
@@ -555,7 +555,7 @@ const getStudentDetail = async (req, res) => {
 
     const student = await Student.findById(studentId)
       .populate('classId', 'className')
-      .populate('parentId', 'fullName email username avatar')
+      .populate({ path: 'parentId', select: 'fullName email username avatar phone roles', populate: { path: 'roles', select: 'roleName' } })
       .populate('parentProfileId', 'fullName email phone');
 
     if (!student) {

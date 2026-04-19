@@ -13,6 +13,7 @@ const assetCrudCtrl = require('../controller/assetController');
 const purchaseCtrl = require('../controller/purchaseRequestController');
 const allocationCtrl  = require('../controller/assetAllocationController');
 const incidentCtrl    = require('../controller/assetIncidentController');
+const roomAssetCtrl   = require('../controller/roomAssetController');
 const {
   getAttendanceOverview,
   getClassAttendanceDetail,
@@ -2464,11 +2465,21 @@ router.patch('/asset-minutes/:id/approve', authenticate, authorizePermissions('M
 router.patch('/asset-minutes/:id/reject', authenticate, authorizePermissions('MANAGE_ASSET'), assetCtrl.rejectMinutes);
 
 // ============================================
+// Room Assets (Tài sản theo phòng học)
+// ============================================
+router.get('/room-assets',                  authenticate, authorizePermissions('MANAGE_ASSET'), roomAssetCtrl.listRooms);
+router.get('/room-assets/:roomId',          authenticate, authorizePermissions('MANAGE_ASSET'), roomAssetCtrl.listRoomAssets);
+router.post('/room-assets/:roomId',         authenticate, authorizePermissions('MANAGE_ASSET'), roomAssetCtrl.addAssetToRoom);
+router.put('/room-assets/:roomId/:id',      authenticate, authorizePermissions('MANAGE_ASSET'), roomAssetCtrl.updateRoomAsset);
+router.delete('/room-assets/:roomId/:id',   authenticate, authorizePermissions('MANAGE_ASSET'), roomAssetCtrl.removeAssetFromRoom);
+
+// ============================================
 // Assets CRUD (Danh sách tài sản)
 // ============================================
 router.get('/assets', authenticate, authorizePermissions('MANAGE_ASSET'), assetCrudCtrl.listAssets);
 router.post('/assets', authenticate, authorizePermissions('MANAGE_ASSET'), assetCrudCtrl.createAsset);
 router.post('/assets/bulk', authenticate, authorizePermissions('MANAGE_ASSET'), assetCrudCtrl.bulkCreateAssets);
+router.post('/assets/bulk-warehouse', authenticate, authorizePermissions('MANAGE_ASSET'), assetCrudCtrl.bulkCreateWarehouseAssets);
 router.get('/assets/:id', authenticate, authorizePermissions('MANAGE_ASSET'), assetCrudCtrl.getAsset);
 router.put('/assets/:id', authenticate, authorizePermissions('MANAGE_ASSET'), assetCrudCtrl.updateAsset);
 router.delete('/assets/:id', authenticate, authorizePermissions('MANAGE_ASSET'), assetCrudCtrl.deleteAsset);
@@ -2501,5 +2512,40 @@ router.patch('/purchase-requests/:id/reject', authenticate, authorizePermissions
 // ============================================
 router.get('/asset-incidents',          authenticate, authorizePermissions('MANAGE_ASSET'), incidentCtrl.listAllIncidents);
 router.patch('/asset-incidents/:id',    authenticate, authorizePermissions('MANAGE_ASSET'), incidentCtrl.updateIncidentStatus);
+
+// PATCH /school-admin/parents/:userId/toggle-headparent — gán hoặc bỏ role HeadParent cho phụ huynh
+router.patch('/parents/:userId/toggle-headparent', authenticate, authorizeRoles('SchoolAdmin'), async (req, res) => {
+  try {
+    const [user, headParentRole] = await Promise.all([
+      User.findById(req.params.userId).populate('roles', 'roleName').lean(),
+      Role.findOne({ roleName: 'HeadParent' }).lean(),
+    ]);
+
+    if (!user) return res.status(404).json({ status: 'error', message: 'Không tìm thấy người dùng' });
+
+    const roleNames = (user.roles || []).map(r => r.roleName);
+    if (!roleNames.includes('Parent')) {
+      return res.status(400).json({ status: 'error', message: 'Người dùng này không phải phụ huynh' });
+    }
+    if (!headParentRole) {
+      return res.status(500).json({ status: 'error', message: 'Role HeadParent chưa được khởi tạo, vui lòng restart server' });
+    }
+
+    const isHeadParent = roleNames.includes('HeadParent');
+
+    if (isHeadParent) {
+      await User.findByIdAndUpdate(user._id, { $pull: { roles: headParentRole._id } });
+      return res.json({ status: 'success', message: 'Đã bỏ vai trò hội trưởng phụ huynh', isHeadParent: false });
+    } else {
+      // Xóa HeadParent khỏi tất cả phụ huynh khác trước (chỉ được 1 hội trưởng)
+      await User.updateMany({ roles: headParentRole._id }, { $pull: { roles: headParentRole._id } });
+      await User.findByIdAndUpdate(user._id, { $addToSet: { roles: headParentRole._id } });
+      return res.json({ status: 'success', message: 'Đã đặt làm hội trưởng phụ huynh', isHeadParent: true });
+    }
+  } catch (error) {
+    console.error('toggleHeadParent error:', error);
+    return res.status(500).json({ status: 'error', message: 'Lỗi khi cập nhật vai trò' });
+  }
+});
 
 module.exports = router;

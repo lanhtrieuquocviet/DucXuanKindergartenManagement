@@ -30,22 +30,24 @@ import {
 } from "@mui/icons-material";
 
 const STATUS_CONFIG = {
-  approved: { label: "Đã duyệt", color: "success" },
-  pending: { label: "Chờ duyệt", color: "warning" },
-  draft: { label: "Nháp", color: "default" },
-  rejected: { label: "Từ chối", color: "error" },
-  active: { label: "Đang áp dụng", color: "info" },
-  completed: { label: "Lịch sử", color: "secondary" },
+  approved:           { label: "Đã duyệt",                  color: "success" },
+  pending:            { label: "Chờ BGH duyệt",              color: "warning" },
+  pending_headparent: { label: "Chờ hội trưởng PH xem xét", color: "info"    },
+  draft:              { label: "Nháp",                       color: "default" },
+  rejected:           { label: "Từ chối",                    color: "error"   },
+  active:             { label: "Đang áp dụng",               color: "info"    },
+  completed:          { label: "Lịch sử",                    color: "secondary"},
 };
 
 const TABS = [
-  { value: "all", label: "Tất cả" },
-  { value: "draft", label: "Nháp" },
-  { value: "pending", label: "Chờ duyệt" },
-  { value: "rejected", label: "Yêu cầu sửa" },
-  { value: "approved", label: "Đã duyệt" },
-  { value: "active", label: "Đang áp dụng" },
-  { value: "completed", label: "Lịch sử" },
+  { value: "all",                label: "Tất cả"                 },
+  { value: "draft",              label: "Nháp"                   },
+  { value: "pending_headparent", label: "Chờ hội trưởng PH"      },
+  { value: "pending",            label: "Chờ BGH duyệt"          },
+  { value: "rejected",           label: "Yêu cầu sửa"            },
+  { value: "approved",           label: "Đã duyệt"               },
+  { value: "active",             label: "Đang áp dụng"           },
+  { value: "completed",          label: "Lịch sử"                },
 ];
 
 /** Lịch sử: chỉ các thực đơn đã kết thúc áp dụng */

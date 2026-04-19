@@ -35,12 +35,13 @@ import {
 import { ArrowBack as BackIcon } from "@mui/icons-material";
 
 const HISTORY_EVENT_LABELS = {
-  submitted: "Gửi duyệt",
-  approved: "Đã duyệt",
-  rejected_pending: "Từ chối duyệt",
-  request_edit_active: "Yêu cầu chỉnh sửa (từ thực đơn đang áp dụng)",
-  applied: "Áp dụng thực đơn",
-  ended: "Kết thúc áp dụng",
+  submitted:            "Gửi duyệt (bếp gửi)",
+  headparent_reviewed:  "Hội trưởng PH xem xét",
+  approved:             "Ban giám hiệu duyệt",
+  rejected_pending:     "Ban giám hiệu từ chối",
+  request_edit_active:  "Yêu cầu chỉnh sửa (từ thực đơn đang áp dụng)",
+  applied:              "Áp dụng thực đơn",
+  ended:                "Kết thúc áp dụng",
 };
 
 const days = ["mon", "tue", "wed", "thu", "fri"];
@@ -372,9 +373,20 @@ const MenuDetailSchoolAdmin = () => {
         <Typography variant="h5" fontWeight={800} color="#312eae">
           Thực đơn Tháng {menu.month}/{menu.year}
         </Typography>
-        <Typography variant="body2" color="text.secondary" sx={{ mt: 0.5, mb: 3 }}>
+        <Typography variant="body2" color="text.secondary" sx={{ mt: 0.5, mb: menu.headParentReview?.comment ? 1.5 : 3 }}>
           Tạo bởi: <strong>{menu.createdBy?.fullName || menu.createdBy?.email || "—"}</strong>
         </Typography>
+
+        {menu.headParentReview?.comment && (
+          <Box mb={3} px={2} py={1.5} sx={{ bgcolor: "info.50", border: "1px solid", borderColor: "info.200", borderRadius: 2 }}>
+            <Typography variant="caption" color="info.dark" fontWeight={700}>
+              Ý kiến hội trưởng phụ huynh:
+            </Typography>
+            <Typography variant="body2" color="text.secondary" mt={0.5}>
+              {menu.headParentReview.comment}
+            </Typography>
+          </Box>
+        )}
 
         {Array.isArray(menu.statusHistory) && menu.statusHistory.length > 0 && (
           <Card elevation={0} sx={{ mb: 3, borderRadius: 2, border: "1px solid", borderColor: "divider" }}>

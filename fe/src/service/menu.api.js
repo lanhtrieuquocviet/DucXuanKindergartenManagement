@@ -121,6 +121,11 @@ export const endMenu = (id) => {
   return api.patch(`${ENDPOINTS.KITCHEN.MENUS}/${id}/end`, {});
 };
 
+// Hội trưởng phụ huynh xem xét thực đơn — body: { comment?: string }
+export const headParentReviewMenu = (id, body = {}) => {
+  return api.put(`${ENDPOINTS.KITCHEN.MENUS}/${id}/headparent-review`, body);
+};
+
 // update daily menu (thêm món vào ngày)
 export const updateDailyMenu = (id, data) => {
   return api.put(`/daily-menus/${id}`, data);

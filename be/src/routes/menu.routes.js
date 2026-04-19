@@ -320,4 +320,12 @@ router.patch(
   menuController.endMenu
 );
 
+// Hội trưởng phụ huynh xem xét thực đơn (có hoặc không có ý kiến) → chuyển lên ban giám hiệu
+router.put(
+  "/:id/headparent-review",
+  authenticate,
+  authorizePermissions("REVIEW_MENU"),
+  menuController.headParentReviewMenu
+);
+
 module.exports = router;

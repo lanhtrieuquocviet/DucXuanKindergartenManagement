@@ -4,9 +4,16 @@ const assetSchema = new mongoose.Schema(
   {
     assetCode:        { type: String, required: true, trim: true, unique: true },
     name:             { type: String, required: true, trim: true },
+    // 'csvc' = cơ sở vật chất (báo cáo thông tư), 'asset' = tài sản kho (phân bổ phòng/lớp)
+    type: {
+      type: String,
+      enum: ['csvc', 'asset'],
+      default: 'csvc',
+    },
     category: {
       type: String,
       enum: [
+        // CSVC — theo thông tư
         'Phòng nuôi dưỡng, chăm sóc, giáo dục trẻ em',
         'Số bàn, ghế ngồi',
         'Khối phòng phục vụ học tập',
@@ -15,6 +22,11 @@ const assetSchema = new mongoose.Schema(
         'Khối phòng hành chính quản trị',
         'Diện tích đất',
         'Thiết bị dạy học và CNTT',
+        // Tài sản kho — phân bổ phòng/lớp
+        'Đồ dùng',
+        'Thiết bị dạy học, đồ chơi và học liệu',
+        'Sách, tài liệu, băng đĩa',
+        'Thiết bị ngoài thông tư',
       ],
       default: 'Phòng nuôi dưỡng, chăm sóc, giáo dục trẻ em',
     },
