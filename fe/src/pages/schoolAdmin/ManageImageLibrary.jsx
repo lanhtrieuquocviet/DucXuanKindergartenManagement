@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useCallback, useLayoutEffect, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { toast } from 'react-toastify';
 import { useAuth } from '../../context/AuthContext';
@@ -27,10 +27,15 @@ import {
   Switch,
   FormControlLabel,
   CircularProgress,
+  InputAdornment,
+  IconButton,
+  TablePagination,
 } from '@mui/material';
 import AddPhotoAlternateIcon from '@mui/icons-material/AddPhotoAlternate';
 import DeleteIcon from '@mui/icons-material/Delete';
 import VisibilityIcon from '@mui/icons-material/Visibility';
+import SearchIcon from '@mui/icons-material/Search';
+import ClearIcon from '@mui/icons-material/Clear';
 
 export default function ManageImageLibrary() {
   const navigate = useNavigate();
@@ -47,6 +52,22 @@ export default function ManageImageLibrary() {
   const [confirmDelete, setConfirmDelete] = useState(null);
   const [form, setForm] = useState({ title: '', files: [] });
   const [statusUpdatingId, setStatusUpdatingId] = useState(null);
+  const [search, setSearch] = useState('');
+  const [debouncedSearch, setDebouncedSearch] = useState('');
+  const [page, setPage] = useState(0);
+  const [rowsPerPage, setRowsPerPage] = useState(12);
+  const [total, setTotal] = useState(0);
+  const [listLoading, setListLoading] = useState(false);
+  const loadSeqRef = useRef(0);
+
+  useEffect(() => {
+    const t = setTimeout(() => setDebouncedSearch(search.trim()), 400);
+    return () => clearTimeout(t);
+  }, [search]);
+
+  useLayoutEffect(() => {
+    setPage(0);
+  }, [debouncedSearch, rowsPerPage]);
 
   useEffect(() => {
     if (isInitializing) return;
@@ -58,20 +79,39 @@ export default function ManageImageLibrary() {
     if (!roles.includes('SchoolAdmin')) navigate('/', { replace: true });
   }, [navigate, user, isInitializing]);
 
-  const loadImages = async () => {
+  const loadImages = useCallback(async () => {
+    const seq = ++loadSeqRef.current;
+    const requestedApiPage = page + 1;
     try {
-      const resp = await get(ENDPOINTS.SCHOOL_ADMIN.IMAGE_LIBRARY);
-      if (resp.status === 'success') {
-        setImages(resp.data || []);
+      setListLoading(true);
+      const qs = new URLSearchParams();
+      if (debouncedSearch) qs.set('search', debouncedSearch);
+      qs.set('page', String(requestedApiPage));
+      qs.set('limit', String(rowsPerPage));
+      const resp = await get(`${ENDPOINTS.SCHOOL_ADMIN.IMAGE_LIBRARY}?${qs.toString()}`);
+      if (seq !== loadSeqRef.current) return;
+      if (resp.status === 'success' && resp.data?.items) {
+        setImages(resp.data.items);
+        const p = resp.data.pagination;
+        setTotal(typeof p?.total === 'number' ? p.total : 0);
+        if (p && typeof p.page === 'number' && p.page >= 1 && p.page !== requestedApiPage) {
+          setPage(Math.max(0, p.page - 1));
+        }
       }
     } catch (err) {
-      setError(err.message || 'Lỗi tải danh sách ảnh');
+      if (seq === loadSeqRef.current) {
+        setError(err.message || 'Lỗi tải danh sách ảnh');
+      }
+    } finally {
+      if (seq === loadSeqRef.current) {
+        setListLoading(false);
+      }
     }
-  };
+  }, [debouncedSearch, page, rowsPerPage]);
 
   useEffect(() => {
     loadImages();
-  }, []);
+  }, [loadImages]);
 
   const handleAddImage = async () => {
     if (!form.title.trim()) {
@@ -141,6 +181,13 @@ export default function ManageImageLibrary() {
 
   const handleMenuSelect = createSchoolAdminMenuSelect(navigate);
   const userName = user?.fullName || user?.username || 'School Admin';
+  const hasSearch = !!search.trim();
+
+  const clearSearch = () => {
+    setSearch('');
+    setDebouncedSearch('');
+    setPage(0);
+  };
 
   return (
     <RoleLayout
@@ -182,23 +229,63 @@ export default function ManageImageLibrary() {
       </Paper>
 
       <Paper elevation={1} sx={{ p: 3, borderRadius: 2 }}>
-        <Stack direction="row" justifyContent="space-between" alignItems="center" sx={{ mb: 2 }}>
+        <Stack direction="row" justifyContent="space-between" alignItems="center" sx={{ mb: 2 }} flexWrap="wrap" gap={1}>
           <Typography variant="subtitle1" fontWeight={700}>
-            Danh sách ảnh ({images.length})
+            Danh sách ảnh ({total})
           </Typography>
           <Button variant="contained" startIcon={<AddPhotoAlternateIcon />} onClick={() => setDialogOpen(true)}>
             Thêm ảnh mới
           </Button>
         </Stack>
 
-        <Box
-          sx={{
-            display: 'grid',
-            gridTemplateColumns: { xs: '1fr', sm: 'repeat(2, 1fr)', lg: 'repeat(3, 1fr)' },
-            gap: 2,
-          }}
-        >
-          {images.map((item) => {
+        <Stack direction="row" spacing={1} alignItems="center" sx={{ mb: 2 }}>
+          <TextField
+            size="small"
+            fullWidth
+            label="Tìm theo tiêu đề hoặc ngày tạo"
+            placeholder="VD: hội thảo, 19/04/2026, 2026-04-19"
+            value={search}
+            onChange={(e) => setSearch(e.target.value)}
+            InputProps={{
+              startAdornment: (
+                <InputAdornment position="start">
+                  <SearchIcon fontSize="small" color="action" />
+                </InputAdornment>
+              ),
+            }}
+          />
+          {hasSearch && (
+            <IconButton aria-label="Xóa tìm kiếm" onClick={clearSearch} color="inherit" sx={{ flexShrink: 0 }}>
+              <ClearIcon />
+            </IconButton>
+          )}
+        </Stack>
+
+        <Box sx={{ position: 'relative', minHeight: listLoading ? 200 : undefined }}>
+          {listLoading && (
+            <Box
+              sx={{
+                position: 'absolute',
+                inset: 0,
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                bgcolor: 'rgba(255,255,255,0.6)',
+                zIndex: 1,
+                borderRadius: 1,
+              }}
+            >
+              <CircularProgress size={36} />
+            </Box>
+          )}
+          <Box
+            sx={{
+              display: 'grid',
+              gridTemplateColumns: { xs: '1fr', sm: 'repeat(2, 1fr)', lg: 'repeat(3, 1fr)' },
+              gap: 2,
+            }}
+          >
+            {images.map((item) => {
             const isPublic = item.status !== 'inactive';
             const busy = statusUpdatingId === item._id;
             return (
@@ -269,11 +356,29 @@ export default function ManageImageLibrary() {
               </Card>
             );
           })}
+          </Box>
         </Box>
 
-        {images.length === 0 && (
+        {total > 0 && (
+          <TablePagination
+            component="div"
+            count={total}
+            page={page}
+            onPageChange={(_, newPage) => setPage(newPage)}
+            rowsPerPage={rowsPerPage}
+            rowsPerPageOptions={[9, 12, 24, 48]}
+            onRowsPerPageChange={(e) => setRowsPerPage(parseInt(e.target.value, 10))}
+            labelRowsPerPage="Mục mỗi trang"
+            labelDisplayedRows={({ from, to, count }) => `${from}–${to} / ${count !== -1 ? count : `nhiều hơn ${to}`}`}
+            sx={{ borderTop: 1, borderColor: 'divider', mt: 2, '.MuiTablePagination-toolbar': { flexWrap: 'wrap', gap: 1 } }}
+          />
+        )}
+
+        {!listLoading && images.length === 0 && (
           <Typography variant="body2" color="text.secondary" sx={{ textAlign: 'center', py: 4 }}>
-            Chưa có ảnh nào. Nhấn "Thêm ảnh mới" để bắt đầu.
+            {debouncedSearch
+              ? 'Không có ảnh nào khớp từ khóa tìm kiếm.'
+              : 'Chưa có ảnh nào. Nhấn "Thêm ảnh mới" để bắt đầu.'}
           </Typography>
         )}
       </Paper>
