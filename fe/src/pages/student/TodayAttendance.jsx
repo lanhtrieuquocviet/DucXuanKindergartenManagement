@@ -152,7 +152,7 @@ export default function TodayAttendance() {
   const checkoutConfirmMethod = attendance?.checkoutConfirmMethod || '';
   const isOtherReceiver = receiverName === 'Khác';
 
-  const isAbsent   = attendance?.status === 'absent';
+  const isAbsent   = attendance?.status === 'absent' || attendance?.status === 'leave';
   const hasCheckIn  = Boolean(checkInTime || attendance?.status === 'present');
   const hasCheckOut = Boolean(checkOutTime);
 

@@ -251,7 +251,9 @@ export default function StudentDashboard() {
 
   const attendanceStatus = (() => {
     if (!attendanceToday) return { label: 'Chưa điểm danh', color: 'default' };
-    if (attendanceToday.status === 'absent') return { label: 'Vắng mặt', color: 'error' };
+    if (attendanceToday.status === 'absent' || attendanceToday.status === 'leave') {
+      return { label: 'Vắng mặt', color: 'error' };
+    }
     if (attendanceToday.time?.checkOut) return { label: 'Đã về nhà', color: 'info' };
     if (attendanceToday.time?.checkIn || attendanceToday.status === 'present') return { label: 'Đã đến trường', color: 'success' };
     return { label: 'Chưa điểm danh', color: 'default' };
