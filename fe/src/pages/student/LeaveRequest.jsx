@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import { useAuth } from '../../context/AuthContext';
-import { get, post, ENDPOINTS } from '../../service/api';
+import { del, get, post, put, ENDPOINTS } from '../../service/api';
 import { toast } from 'react-toastify';
 import {
   Box, Paper, Typography, Stack, IconButton, TextField, Button,
@@ -21,6 +21,7 @@ const STATUS_MAP = {
   pending:  { label: 'Chờ duyệt', color: 'warning',  icon: <HourglassEmpty sx={{ fontSize: 14 }} /> },
   approved: { label: 'Đã duyệt',  color: 'success',  icon: <CheckCircle    sx={{ fontSize: 14 }} /> },
   rejected: { label: 'Từ chối',   color: 'error',    icon: <Cancel         sx={{ fontSize: 14 }} /> },
+  cancelled: { label: 'Đã hủy',   color: 'default',  icon: <Cancel         sx={{ fontSize: 14 }} /> },
 };
 
 const toYmd = (date) => {
@@ -55,7 +56,10 @@ export default function LeaveRequest() {
   const [requests, setRequests]       = useState([]);
   const [loading, setLoading]         = useState(false);
   const [submitting, setSubmitting]   = useState(false);
+  const [processingId, setProcessingId] = useState('');
   const [openDialog, setOpenDialog]   = useState(false);
+  const [confirmAction, setConfirmAction] = useState({ open: false, type: '', requestId: '' });
+  const [editingRequestId, setEditingRequestId] = useState('');
   const [form, setForm] = useState({
     studentId: searchParams.get('studentId') || '',
     leaveType: 'short',
@@ -98,8 +102,73 @@ export default function LeaveRequest() {
   }, [isInitializing, user]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const openCreate = () => {
+    setEditingRequestId('');
     setForm(prev => ({ ...prev, leaveType: 'short', startDate: '', endDate: '', reason: '' }));
     setOpenDialog(true);
+  };
+
+  const openEdit = (request) => {
+    const start = request.startDate?.split('T')[0] || '';
+    const end = request.endDate?.split('T')[0] || '';
+    setEditingRequestId(request._id);
+    setForm({
+      studentId: request.student?._id || '',
+      leaveType: isSingleDayRange(start, end) ? 'short' : 'long',
+      startDate: start,
+      endDate: end,
+      reason: request.reason || '',
+    });
+    setOpenDialog(true);
+  };
+
+  const handleCancelRequest = async (requestId) => {
+    setProcessingId(requestId);
+    try {
+      await post(ENDPOINTS.LEAVE.CANCEL(requestId), {});
+      toast.success('Đã hủy đơn');
+      fetchData();
+    } catch (e) {
+      toast.error(e.data?.message || e.message || 'Hủy đơn thất bại');
+    } finally {
+      setProcessingId('');
+    }
+  };
+
+  const handleDeleteRequest = async (requestId) => {
+    setProcessingId(requestId);
+    try {
+      await del(ENDPOINTS.LEAVE.DELETE(requestId));
+      toast.success('Đã xóa đơn');
+      fetchData();
+    } catch (e) {
+      toast.error(e.data?.message || e.message || 'Xóa đơn thất bại');
+    } finally {
+      setProcessingId('');
+    }
+  };
+
+  const openConfirmDialog = (type, requestId) => {
+    setConfirmAction({ open: true, type, requestId });
+  };
+
+  const closeConfirmDialog = () => {
+    if (processingId) return;
+    setConfirmAction({ open: false, type: '', requestId: '' });
+  };
+
+  const confirmActionTitle = confirmAction.type === 'delete' ? 'Xác nhận xóa đơn' : 'Xác nhận hủy đơn';
+  const confirmActionMessage = confirmAction.type === 'delete'
+    ? 'Bạn có chắc muốn xóa đơn đã hủy này không? Thao tác này không thể hoàn tác.'
+    : 'Bạn có chắc muốn hủy đơn này không? Sau khi hủy, bạn có thể cập nhật hoặc xóa đơn.';
+
+  const onConfirmAction = async () => {
+    if (!confirmAction.requestId) return;
+    if (confirmAction.type === 'delete') {
+      await handleDeleteRequest(confirmAction.requestId);
+    } else {
+      await handleCancelRequest(confirmAction.requestId);
+    }
+    setConfirmAction({ open: false, type: '', requestId: '' });
   };
 
   const onSubmit = async (e) => {
@@ -119,17 +188,24 @@ export default function LeaveRequest() {
     }
     setSubmitting(true);
     try {
-      await post(ENDPOINTS.LEAVE.CREATE, {
+      const payload = {
         studentId: form.studentId,
         startDate: form.startDate,
         endDate: submitEndDate,
         reason: form.reason.trim(),
-      });
-      toast.success('Đã gửi đơn xin nghỉ thành công');
+      };
+      if (editingRequestId) {
+        await put(ENDPOINTS.LEAVE.UPDATE(editingRequestId), payload);
+        toast.success('Đã cập nhật và gửi lại đơn');
+      } else {
+        await post(ENDPOINTS.LEAVE.CREATE, payload);
+        toast.success('Đã gửi đơn xin nghỉ thành công');
+      }
       setOpenDialog(false);
+      setEditingRequestId('');
       fetchData();
     } catch (e2) {
-      toast.error(e2.data?.message || e2.message || 'Gửi đơn thất bại');
+      toast.error(e2.data?.message || e2.message || (editingRequestId ? 'Cập nhật đơn thất bại' : 'Gửi đơn thất bại'));
     } finally {
       setSubmitting(false);
     }
@@ -207,15 +283,33 @@ export default function LeaveRequest() {
               return (
                 <Paper key={r._id} elevation={0} sx={{
                   borderRadius: 3, border: '1.5px solid',
-                  borderColor: r.status === 'approved' ? '#bbf7d0' : r.status === 'rejected' ? '#fecaca' : '#e5e7eb',
+                  borderColor: r.status === 'approved'
+                    ? '#bbf7d0'
+                    : r.status === 'rejected'
+                      ? '#fecaca'
+                      : r.status === 'cancelled'
+                        ? '#d1d5db'
+                        : '#e5e7eb',
                   overflow: 'hidden',
                 }}>
                   {/* Header strip */}
                   <Stack direction="row" alignItems="center" spacing={1.5} px={2} py={1.25}
                     sx={{
-                      bgcolor: r.status === 'approved' ? '#f0fdf4' : r.status === 'rejected' ? '#fef2f2' : '#fafafa',
+                      bgcolor: r.status === 'approved'
+                        ? '#f0fdf4'
+                        : r.status === 'rejected'
+                          ? '#fef2f2'
+                          : r.status === 'cancelled'
+                            ? '#f9fafb'
+                            : '#fafafa',
                       borderBottom: '1px solid',
-                      borderColor: r.status === 'approved' ? '#d1fae5' : r.status === 'rejected' ? '#fecaca' : '#f3f4f6',
+                      borderColor: r.status === 'approved'
+                        ? '#d1fae5'
+                        : r.status === 'rejected'
+                          ? '#fecaca'
+                          : r.status === 'cancelled'
+                            ? '#e5e7eb'
+                            : '#f3f4f6',
                     }}>
                     <Avatar sx={{
                       width: 32, height: 32, fontSize: '0.82rem', fontWeight: 700, flexShrink: 0,
@@ -261,6 +355,43 @@ export default function LeaveRequest() {
                         </Typography>
                       </Box>
                     )}
+                    {r.status === 'cancelled' && (
+                      <Stack direction="row" spacing={1} mt={1.5}>
+                        <Button
+                          size="small"
+                          variant="outlined"
+                          disabled={processingId === r._id}
+                          onClick={() => openEdit(r)}
+                          sx={{ textTransform: 'none', borderRadius: 2, fontWeight: 600 }}
+                        >
+                          Cập nhật
+                        </Button>
+                        <Button
+                          size="small"
+                          color="error"
+                          variant="outlined"
+                          disabled={processingId === r._id}
+                          onClick={() => openConfirmDialog('delete', r._id)}
+                          sx={{ textTransform: 'none', borderRadius: 2, fontWeight: 600 }}
+                        >
+                          {processingId === r._id ? 'Đang xử lý...' : 'Xóa'}
+                        </Button>
+                      </Stack>
+                    )}
+                    {r.status !== 'approved' && r.status !== 'cancelled' && (
+                      <Box mt={1.5}>
+                        <Button
+                          size="small"
+                          color="warning"
+                          variant="outlined"
+                          disabled={processingId === r._id}
+                          onClick={() => openConfirmDialog('cancel', r._id)}
+                          sx={{ textTransform: 'none', borderRadius: 2, fontWeight: 600 }}
+                        >
+                          {processingId === r._id ? 'Đang xử lý...' : 'Hủy đơn'}
+                        </Button>
+                      </Box>
+                    )}
                   </Box>
                 </Paper>
               );
@@ -290,7 +421,7 @@ export default function LeaveRequest() {
               <Box>
                 <Typography color="white" fontWeight={700} fontSize="1rem">Tạo đơn xin nghỉ</Typography>
                 <Typography sx={{ color: 'rgba(255,255,255,0.75)', fontSize: '0.72rem' }}>
-                  Điền đầy đủ thông tin bên dưới
+                  {editingRequestId ? 'Cập nhật và gửi lại đơn đã hủy' : 'Điền đầy đủ thông tin bên dưới'}
                 </Typography>
               </Box>
             </Stack>
@@ -464,7 +595,43 @@ export default function LeaveRequest() {
             disabled={submitting}
             sx={{ flex: 1, borderRadius: 2, textTransform: 'none', fontWeight: 700, bgcolor: PRIMARY, '&:hover': { bgcolor: PRIMARY_DARK } }}
           >
-            {submitting ? <CircularProgress size={18} sx={{ color: 'white' }} /> : 'Gửi đơn'}
+            {submitting ? <CircularProgress size={18} sx={{ color: 'white' }} /> : (editingRequestId ? 'Cập nhật đơn' : 'Gửi đơn')}
+          </Button>
+        </DialogActions>
+      </Dialog>
+
+      <Dialog
+        open={confirmAction.open}
+        onClose={closeConfirmDialog}
+        maxWidth="xs"
+        fullWidth
+        PaperProps={{ sx: { borderRadius: 3, mx: 2 } }}
+      >
+        <DialogContent sx={{ px: 2.5, pt: 2.5, pb: 1.5 }}>
+          <Typography fontWeight={700} fontSize="1rem" mb={1}>
+            {confirmActionTitle}
+          </Typography>
+          <Typography fontSize="0.9rem" color="text.secondary">
+            {confirmActionMessage}
+          </Typography>
+        </DialogContent>
+        <DialogActions sx={{ px: 2.5, pb: 2.5, gap: 1 }}>
+          <Button
+            onClick={closeConfirmDialog}
+            variant="outlined"
+            disabled={!!processingId}
+            sx={{ flex: 1, borderRadius: 2, textTransform: 'none', borderColor: '#d1d5db', color: '#6b7280', fontWeight: 600 }}
+          >
+            Đóng
+          </Button>
+          <Button
+            onClick={onConfirmAction}
+            variant="contained"
+            disabled={!!processingId}
+            color={confirmAction.type === 'delete' ? 'error' : 'warning'}
+            sx={{ flex: 1, borderRadius: 2, textTransform: 'none', fontWeight: 700 }}
+          >
+            {processingId ? <CircularProgress size={18} sx={{ color: 'white' }} /> : 'Xác nhận'}
           </Button>
         </DialogActions>
       </Dialog>

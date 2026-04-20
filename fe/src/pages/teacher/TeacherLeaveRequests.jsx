@@ -16,16 +16,18 @@ import {
   BlockOutlined as RejectedIcon,
 } from '@mui/icons-material';
 
-const STATUS_OPTIONS = ['pending', 'approved', 'rejected'];
+const STATUS_OPTIONS = ['pending', 'approved', 'rejected', 'cancelled'];
 const STATUS_LABEL = {
   pending: { label: 'Chờ duyệt', color: 'warning' },
   approved: { label: 'Đã duyệt', color: 'success' },
   rejected: { label: 'Từ chối', color: 'error' },
+  cancelled: { label: 'Phụ huynh hủy', color: 'default' },
 };
 const STATUS_ICON = {
   pending: <PendingIcon sx={{ fontSize: 14 }} />,
   approved: <ApprovedIcon sx={{ fontSize: 14 }} />,
   rejected: <RejectedIcon sx={{ fontSize: 14 }} />,
+  cancelled: <RejectedIcon sx={{ fontSize: 14 }} />,
 };
 
 const toYmd = (date) => {

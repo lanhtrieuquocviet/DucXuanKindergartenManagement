@@ -22,6 +22,34 @@ function eachDateInclusive(from, to) {
   return dates;
 }
 
+function normalizeDateRange(startDate, endDate) {
+  const from = startOfDay(startDate);
+  const to = startOfDay(endDate);
+  if (Number.isNaN(from.getTime()) || Number.isNaN(to.getTime())) {
+    return null;
+  }
+  return { from, to };
+}
+
+async function ensureNoOverlap({ studentId, from, to, excludeRequestId = null }) {
+  const query = {
+    student: studentId,
+    status: { $in: ['pending', 'approved'] },
+    startDate: { $lte: to },
+    endDate: { $gte: from },
+  };
+  if (excludeRequestId) query._id = { $ne: excludeRequestId };
+
+  const overlapped = await LeaveRequest.findOne(query).lean();
+  if (overlapped) {
+    return {
+      success: false,
+      message: 'Khoảng thời gian này đã có đơn xin nghỉ chờ duyệt hoặc đã duyệt',
+    };
+  }
+  return { success: true };
+}
+
 exports.createLeaveRequest = async (req, res) => {
   try {
     const { studentId, startDate, endDate, reason } = req.body;
@@ -34,23 +62,18 @@ exports.createLeaveRequest = async (req, res) => {
       return res.status(403).json({ success: false, message: 'Học sinh không thuộc quyền quản lý của bạn' });
     }
 
-    const from = startOfDay(startDate);
-    const to = startOfDay(endDate);
+    const range = normalizeDateRange(startDate, endDate);
+    if (!range) {
+      return res.status(400).json({ success: false, message: 'Ngày không hợp lệ' });
+    }
+    const { from, to } = range;
     if (from > to) {
       return res.status(400).json({ success: false, message: 'Ngày bắt đầu phải nhỏ hơn hoặc bằng ngày kết thúc' });
     }
 
-    const overlapped = await LeaveRequest.findOne({
-      student: student._id,
-      status: { $in: ['pending', 'approved'] },
-      startDate: { $lte: to },
-      endDate: { $gte: from },
-    }).lean();
-    if (overlapped) {
-      return res.status(400).json({
-        success: false,
-        message: 'Khoảng thời gian này đã có đơn xin nghỉ chờ duyệt hoặc đã duyệt',
-      });
+    const overlapCheck = await ensureNoOverlap({ studentId: student._id, from, to });
+    if (!overlapCheck.success) {
+      return res.status(400).json(overlapCheck);
     }
 
     const request = await LeaveRequest.create({
@@ -82,6 +105,100 @@ exports.createLeaveRequest = async (req, res) => {
     return res.status(201).json({ success: true, message: 'Đã gửi đơn xin nghỉ', data: request });
   } catch (error) {
     return res.status(500).json({ success: false, message: 'Lỗi khi tạo đơn xin nghỉ', error: error.message });
+  }
+};
+
+exports.cancelLeaveRequest = async (req, res) => {
+  try {
+    const { id } = req.params;
+    const request = await LeaveRequest.findOne({ _id: id, parent: req.user._id });
+    if (!request) {
+      return res.status(404).json({ success: false, message: 'Không tìm thấy đơn' });
+    }
+    if (request.status === 'approved') {
+      return res.status(400).json({ success: false, message: 'Không thể hủy đơn đã được duyệt' });
+    }
+    if (request.status === 'cancelled') {
+      return res.status(400).json({ success: false, message: 'Đơn đã ở trạng thái hủy' });
+    }
+
+    request.status = 'cancelled';
+    request.processedBy = null;
+    request.processedAt = null;
+    request.rejectedReason = '';
+    await request.save();
+
+    return res.json({ success: true, message: 'Đã hủy đơn xin nghỉ', data: request });
+  } catch (error) {
+    return res.status(500).json({ success: false, message: 'Lỗi khi hủy đơn xin nghỉ', error: error.message });
+  }
+};
+
+exports.updateMyLeaveRequest = async (req, res) => {
+  try {
+    const { id } = req.params;
+    const { startDate, endDate, reason } = req.body;
+    if (!startDate || !endDate || !reason?.trim()) {
+      return res.status(400).json({ success: false, message: 'Thiếu thông tin bắt buộc' });
+    }
+
+    const request = await LeaveRequest.findOne({ _id: id, parent: req.user._id });
+    if (!request) {
+      return res.status(404).json({ success: false, message: 'Không tìm thấy đơn' });
+    }
+    if (request.status !== 'cancelled') {
+      return res.status(400).json({ success: false, message: 'Chỉ được cập nhật đơn đã hủy' });
+    }
+
+    const range = normalizeDateRange(startDate, endDate);
+    if (!range) {
+      return res.status(400).json({ success: false, message: 'Ngày không hợp lệ' });
+    }
+    const { from, to } = range;
+    if (from > to) {
+      return res.status(400).json({ success: false, message: 'Ngày bắt đầu phải nhỏ hơn hoặc bằng ngày kết thúc' });
+    }
+
+    const overlapCheck = await ensureNoOverlap({
+      studentId: request.student,
+      from,
+      to,
+      excludeRequestId: request._id,
+    });
+    if (!overlapCheck.success) {
+      return res.status(400).json(overlapCheck);
+    }
+
+    request.startDate = from;
+    request.endDate = to;
+    request.reason = reason.trim();
+    request.status = 'pending';
+    request.processedBy = null;
+    request.processedAt = null;
+    request.rejectedReason = '';
+    await request.save();
+
+    return res.json({ success: true, message: 'Đã cập nhật và gửi lại đơn xin nghỉ', data: request });
+  } catch (error) {
+    return res.status(500).json({ success: false, message: 'Lỗi khi cập nhật đơn xin nghỉ', error: error.message });
+  }
+};
+
+exports.deleteMyLeaveRequest = async (req, res) => {
+  try {
+    const { id } = req.params;
+    const request = await LeaveRequest.findOne({ _id: id, parent: req.user._id }).lean();
+    if (!request) {
+      return res.status(404).json({ success: false, message: 'Không tìm thấy đơn' });
+    }
+    if (request.status !== 'cancelled') {
+      return res.status(400).json({ success: false, message: 'Chỉ được xóa đơn đã hủy' });
+    }
+
+    await LeaveRequest.deleteOne({ _id: id });
+    return res.json({ success: true, message: 'Đã xóa đơn xin nghỉ' });
+  } catch (error) {
+    return res.status(500).json({ success: false, message: 'Lỗi khi xóa đơn xin nghỉ', error: error.message });
   }
 };
 
@@ -151,8 +268,9 @@ exports.updateLeaveRequestStatus = async (req, res) => {
                 studentId: request.student,
                 classId: request.classId,
                 date: d,
-                status: 'leave',
+                status: 'absent',
                 note: request.reason,
+                absentReason: request.reason,
                 isTakeOff: true,
               },
             },

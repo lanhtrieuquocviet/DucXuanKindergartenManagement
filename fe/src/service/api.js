@@ -586,6 +586,9 @@ export const ENDPOINTS = {
   },
   LEAVE: {
     CREATE: '/leave/requests',
+    UPDATE: (id) => `/leave/requests/${id}`,
+    DELETE: (id) => `/leave/requests/${id}`,
+    CANCEL: (id) => `/leave/requests/${id}/cancel`,
     MY_REQUESTS: '/leave/my-requests',
     REQUESTS: '/leave/requests',
     UPDATE_STATUS: '/leave/requests/status',
