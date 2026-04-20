@@ -46,6 +46,12 @@ const nextDayYmd = (ymd) => {
 };
 
 const isSingleDayRange = (start, end) => !!start && !!end && nextDayYmd(start) === end;
+const toLocalYmd = (value) => {
+  if (!value) return '';
+  const d = new Date(value);
+  if (Number.isNaN(d.getTime())) return '';
+  return toYmd(d);
+};
 
 export default function LeaveRequest() {
   const navigate = useNavigate();
@@ -108,8 +114,8 @@ export default function LeaveRequest() {
   };
 
   const openEdit = (request) => {
-    const start = request.startDate?.split('T')[0] || '';
-    const end = request.endDate?.split('T')[0] || '';
+    const start = toLocalYmd(request.startDate);
+    const end = toLocalYmd(request.endDate);
     setEditingRequestId(request._id);
     setForm({
       studentId: request.student?._id || '',
@@ -275,8 +281,8 @@ export default function LeaveRequest() {
           <Stack spacing={1.5}>
             {requests.map((r) => {
               const status = STATUS_MAP[r.status] || { label: r.status, color: 'default' };
-              const rawStart = r.startDate?.split('T')[0];
-              const rawEnd = r.endDate?.split('T')[0];
+              const rawStart = toLocalYmd(r.startDate);
+              const rawEnd = toLocalYmd(r.endDate);
               const from = formatDdMmYyyy(rawStart);
               const to = formatDdMmYyyy(rawEnd);
               const dateText = isSingleDayRange(rawStart, rawEnd) ? from : `${from} → ${to}`;
