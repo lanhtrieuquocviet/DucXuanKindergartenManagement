@@ -1894,8 +1894,8 @@ function InlineSelectCell({ a, field, options, align = 'center', ie, setIe, onSa
 }
 
 // ─── Assets Tab (CRUD Tài sản) ────────────────────────────────────────────────
-const CONDITION_OPTIONS = ['Tốt', 'Hỏng', 'Cần sửa chữa'];
-const CONDITION_COLOR = { 'Tốt': 'success', 'Hỏng': 'error', 'Cần sửa chữa': 'warning' };
+const CONDITION_OPTIONS = ['Còn tốt', 'Không sử dụng được'];
+const CONDITION_COLOR = { 'Còn tốt': 'success', 'Không sử dụng được': 'error' };
 const CATEGORY_OPTIONS = [
   'Phòng nuôi dưỡng, chăm sóc, giáo dục trẻ em',
   'Số bàn, ghế ngồi',
@@ -1944,7 +1944,7 @@ const UNIT_OPTIONS = ['Cái', 'Bộ', 'Loại', 'Chiếc', 'm²', 'Phòng', 'Bà
 const emptyAsset = () => ({
   assetCode: '', name: '', category: 'Phòng nuôi dưỡng, chăm sóc, giáo dục trẻ em', room: '',
   requiredQuantity: 0, quantity: 1, area: '', constructionType: 'Không áp dụng',
-  unit: 'Cái', condition: 'Tốt', notes: '',
+  unit: 'Cái', condition: 'Còn tốt', notes: '',
   seats1: null, seats2: null, seats4: null,
 });
 
@@ -2218,7 +2218,7 @@ function AssetsTab() {
               unit: dvt || 'm²',
               area: null,
               constructionType: 'Không áp dụng',
-              condition: 'Tốt',
+              condition: 'Còn tốt',
               notes: '',
             };
           } else if (currentFmt === 'banGhe') {
@@ -2232,7 +2232,7 @@ function AssetsTab() {
               quantity: toNum(row[2]),
               area: null,
               constructionType: 'Không áp dụng',
-              condition: 'Tốt',
+              condition: 'Còn tốt',
               notes: '',
               seats1: row[3] !== '' && row[3] != null ? toNum(row[3]) : null,
               seats2: row[4] !== '' && row[4] != null ? toNum(row[4]) : null,
@@ -2258,7 +2258,7 @@ function AssetsTab() {
               unit: dvt || 'Cái',
               area: null,
               constructionType: 'Không áp dụng',
-              condition: 'Tốt',
+              condition: 'Còn tốt',
               notes: '',
             };
           } else {
@@ -2285,7 +2285,7 @@ function AssetsTab() {
               quantity,
               area,
               constructionType,
-              condition: 'Tốt',
+              condition: 'Còn tốt',
               notes: '',
             };
           }
@@ -3719,7 +3719,7 @@ function parseWordDoc(html) {
           category: currentCategory,
           unit: cells[3] || 'Cái',
           quantity: parseInt(cells[4]) || 0,
-          condition: 'Tốt',
+          condition: 'Còn tốt',
           notes: cells[6] || '',
         });
       });
@@ -3736,7 +3736,7 @@ function parseWordDoc(html) {
           category: 'Thiết bị ngoài thông tư',
           unit: cells[2] || 'Cái',
           quantity: parseInt(cells[3]) || 0,
-          condition: 'Tốt',
+          condition: 'Còn tốt',
           notes: cells[5] || '',
         });
       });
@@ -3746,7 +3746,7 @@ function parseWordDoc(html) {
   return items;
 }
 const WAREHOUSE_CATEGORY_PREFIX = { 'Đồ dùng': 'I', 'Thiết bị dạy học, đồ chơi và học liệu': 'II', 'Sách, tài liệu, băng đĩa': 'III', 'Thiết bị ngoài thông tư': 'IV' };
-const emptyWarehouseAsset = () => ({ assetCode: '', name: '', category: 'Đồ dùng', unit: 'Cái', quantity: 0, condition: 'Tốt', notes: '' });
+const emptyWarehouseAsset = () => ({ assetCode: '', name: '', category: 'Đồ dùng', unit: 'Cái', quantity: 0, brokenQuantity: 0, notes: '' });
 
 function WarehouseAssetsTab() {
   const [loading, setLoading] = useState(true);
@@ -3875,7 +3875,8 @@ function WarehouseAssetsTab() {
                     <TableCell sx={{ fontWeight: 700, backgroundColor: '#f0f4f8' }} align="center">Tổng kho</TableCell>
                     <TableCell sx={{ fontWeight: 700, backgroundColor: '#f0f4f8' }} align="center">Đã phân bổ</TableCell>
                     <TableCell sx={{ fontWeight: 700, backgroundColor: '#f0f4f8' }} align="center">Còn lại</TableCell>
-                    <TableCell sx={{ fontWeight: 700, backgroundColor: '#f0f4f8' }} align="center">Tình trạng</TableCell>
+                    <TableCell sx={{ fontWeight: 700, backgroundColor: '#f0f4f8', color: 'success.main' }} align="center">Còn tốt</TableCell>
+                    <TableCell sx={{ fontWeight: 700, backgroundColor: '#f0f4f8', color: 'error.main' }} align="center">Không dùng được</TableCell>
                     <TableCell sx={{ fontWeight: 700, backgroundColor: '#f0f4f8' }} align="center">Thao tác</TableCell>
                   </TableRow>
                 </TableHead>
@@ -3891,10 +3892,11 @@ function WarehouseAssetsTab() {
                       <TableCell align="center" sx={{ fontWeight: 600 }}>{a.quantity}</TableCell>
                       <TableCell align="center" sx={{ color: 'info.main', fontWeight: 500 }}>{a.allocatedQty ?? 0}</TableCell>
                       <TableCell align="center" sx={{ fontWeight: 700, color: (a.remainingQty ?? a.quantity ?? 0) > 0 ? 'success.main' : 'error.main' }}>{a.remainingQty ?? a.quantity ?? 0}</TableCell>
-                      <TableCell align="center"><Chip label={a.condition || 'Tốt'} color={CONDITION_COLOR[a.condition] || 'default'} size="small" /></TableCell>
+                      <TableCell align="center" sx={{ fontWeight: 700, color: 'success.main' }}>{a.goodQty ?? Math.max(0, (a.quantity || 0) - (a.brokenQuantity || 0))}</TableCell>
+                      <TableCell align="center" sx={{ fontWeight: 700, color: (a.brokenQuantity || 0) > 0 ? 'error.main' : 'text.disabled' }}>{a.brokenQuantity || 0}</TableCell>
                       <TableCell align="center">
                         <Stack direction="row" justifyContent="center" spacing={0.5}>
-                          <Tooltip title="Sửa"><IconButton size="small" onClick={() => { setForm({ assetCode: a.assetCode, name: a.name, category: a.category, unit: a.unit, quantity: a.quantity, condition: a.condition, notes: a.notes || '' }); setEditId(a._id); setOpenModal(true); }}><EditIcon fontSize="small" /></IconButton></Tooltip>
+                          <Tooltip title="Sửa"><IconButton size="small" onClick={() => { setForm({ assetCode: a.assetCode, name: a.name, category: a.category, unit: a.unit, quantity: a.quantity, brokenQuantity: a.brokenQuantity || 0, condition: a.condition, notes: a.notes || '' }); setEditId(a._id); setOpenModal(true); }}><EditIcon fontSize="small" /></IconButton></Tooltip>
                           <Tooltip title="Xóa"><IconButton size="small" color="error" onClick={() => setDeleteTarget(a)}><DeleteIcon fontSize="small" /></IconButton></Tooltip>
                         </Stack>
                       </TableCell>
@@ -3921,10 +3923,16 @@ function WarehouseAssetsTab() {
               {WAREHOUSE_CATEGORIES.map(c => <MenuItem key={c} value={c}>{c}</MenuItem>)}
             </TextField>
             <Stack direction="row" spacing={2}>
-              <TextField label="Số lượng kho" type="number" value={form.quantity} onChange={e => setForm(f => ({ ...f, quantity: Number(e.target.value) }))} inputProps={{ min: 0 }} fullWidth size="small" />
-              <TextField select label="Tình trạng" value={form.condition} onChange={e => setForm(f => ({ ...f, condition: e.target.value }))} fullWidth size="small">
-                {CONDITION_OPTIONS.map(c => <MenuItem key={c} value={c}>{c}</MenuItem>)}
-              </TextField>
+              <TextField label="Tổng số lượng kho" type="number" value={form.quantity} onChange={e => setForm(f => ({ ...f, quantity: Number(e.target.value) }))} inputProps={{ min: 0 }} fullWidth size="small" />
+              <TextField
+                label="Không sử dụng được"
+                type="number"
+                value={form.brokenQuantity ?? 0}
+                onChange={e => setForm(f => ({ ...f, brokenQuantity: Math.min(Number(e.target.value), f.quantity) }))}
+                inputProps={{ min: 0, max: form.quantity }}
+                fullWidth size="small"
+                helperText={`Còn tốt: ${Math.max(0, (form.quantity || 0) - (form.brokenQuantity || 0))}`}
+              />
             </Stack>
             <TextField label="Ghi chú" value={form.notes} onChange={e => setForm(f => ({ ...f, notes: e.target.value }))} fullWidth multiline rows={2} size="small" />
           </Stack>

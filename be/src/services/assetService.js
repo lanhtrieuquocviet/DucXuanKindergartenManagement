@@ -24,8 +24,10 @@ exports.listAssets = async (req, res) => {
 
     const result = assets.map((asset) => {
       const a = asset.toObject();
-      a.allocatedQty = allocMap[a._id.toString()] || 0;
-      a.remainingQty = Math.max(0, (a.quantity || 0) - a.allocatedQty);
+      a.allocatedQty  = allocMap[a._id.toString()] || 0;
+      a.remainingQty  = Math.max(0, (a.quantity || 0) - a.allocatedQty);
+      a.brokenQty     = a.brokenQuantity || 0;
+      a.goodQty       = Math.max(0, (a.quantity || 0) - a.brokenQty);
       return a;
     });
 
@@ -64,7 +66,7 @@ exports.createAsset = async (req, res) => {
       quantity:         quantity ?? 1,
       area:             area != null && area !== '' ? Number(area) : null,
       constructionType: constructionType || 'Không áp dụng',
-      condition:        condition || 'Tốt',
+      condition:        condition || 'Còn tốt',
       notes:            notes?.trim() || '',
       createdBy:        req.user._id,
     });
@@ -91,6 +93,7 @@ exports.updateAsset = async (req, res) => {
     if (room !== undefined)             asset.room             = room.trim();
     if (requiredQuantity !== undefined) asset.requiredQuantity = requiredQuantity;
     if (quantity !== undefined)         asset.quantity         = quantity;
+    if (brokenQuantity !== undefined)   asset.brokenQuantity   = Math.min(Number(brokenQuantity), asset.quantity);
     if (area !== undefined)             asset.area             = area !== '' && area != null ? Number(area) : null;
     if (constructionType !== undefined) asset.constructionType = constructionType;
     if (condition !== undefined)        asset.condition        = condition;
@@ -136,7 +139,7 @@ exports.bulkCreateAssets = async (req, res) => {
         }
         const VALID_CATEGORIES = ['Phòng nuôi dưỡng, chăm sóc, giáo dục trẻ em','Số bàn, ghế ngồi','Khối phòng phục vụ học tập','Phòng tổ chức ăn, nghỉ','Công trình công cộng và khối phòng phục vụ khác','Khối phòng hành chính quản trị','Diện tích đất','Thiết bị dạy học và CNTT'];
         const VALID_CONSTRUCTION = ['Kiên cố', 'Bán kiên cố', 'Tạm', 'Không áp dụng'];
-        const VALID_CONDITION = ['Tốt', 'Hỏng', 'Cần sửa chữa'];
+        const VALID_CONDITION = ['Còn tốt', 'Không sử dụng được'];
         await Asset.create({
           assetCode:        assetCode.trim(),
           name:             name.trim(),
@@ -146,7 +149,7 @@ exports.bulkCreateAssets = async (req, res) => {
           quantity:         quantity != null && quantity !== '' ? Number(quantity) : 0,
           area:             area != null && area !== '' ? Number(area) : null,
           constructionType: VALID_CONSTRUCTION.includes(constructionType) ? constructionType : 'Không áp dụng',
-          condition:        VALID_CONDITION.includes(condition) ? condition : 'Tốt',
+          condition:        VALID_CONDITION.includes(condition) ? condition : 'Còn tốt',
           unit:             unit?.trim() || 'Cái',
           notes:            notes?.trim() || '',
           createdBy:        req.user._id,
@@ -170,7 +173,7 @@ exports.bulkCreateWarehouseAssets = async (req, res) => {
       return res.status(400).json({ status: 'error', message: 'Danh sách tài sản không hợp lệ.' });
 
     const VALID_CATEGORIES = ['Đồ dùng', 'Thiết bị dạy học, đồ chơi và học liệu', 'Sách, tài liệu, băng đĩa', 'Thiết bị ngoài thông tư'];
-    const VALID_CONDITION = ['Tốt', 'Hỏng', 'Cần sửa chữa'];
+    const VALID_CONDITION = ['Còn tốt', 'Không sử dụng được'];
 
     const results = { created: 0, skipped: 0, errors: [] };
     let nttCounter = await Asset.countDocuments({ type: 'asset', category: 'Thiết bị ngoài thông tư' });
@@ -204,7 +207,7 @@ exports.bulkCreateWarehouseAssets = async (req, res) => {
           type: 'asset',
           category: VALID_CATEGORIES.includes(category) ? category : 'Đồ dùng',
           quantity: Number(quantity) || 0,
-          condition: VALID_CONDITION.includes(condition) ? condition : 'Tốt',
+          condition: VALID_CONDITION.includes(condition) ? condition : 'Còn tốt',
           unit: unit?.trim() || 'Cái',
           notes: notes?.trim() || '',
           createdBy: req.user._id,

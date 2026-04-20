@@ -87,6 +87,10 @@ export default function ManageRoomAssets() {
   const [deleteAssetTarget, setDeleteAssetTarget] = useState(null);
   const [deletingAsset, setDeletingAsset] = useState(false);
 
+  // ── Tìm kiếm & lọc tài sản trong phòng ─────────────────────────────────────
+  const [itemSearch, setItemSearch] = useState('');
+  const [itemCategory, setItemCategory] = useState('');
+
   // ── Load phòng ───────────────────────────────────────────────────────────────
   const loadRooms = async () => {
     setLoadingRooms(true);
@@ -166,6 +170,8 @@ export default function ManageRoomAssets() {
   const loadRoomAssets = async (room) => {
     setSelectedRoom(room);
     setItems([]);
+    setItemSearch('');
+    setItemCategory('');
     setLoadingItems(true);
     try {
       const res = await get(ENDPOINTS.SCHOOL_ADMIN.ROOM_ASSETS_BY_ROOM(room._id));
@@ -187,7 +193,8 @@ export default function ManageRoomAssets() {
 
   const handleSaveAsset = async () => {
     if (!assetForm.assetId) return toast.warn('Vui lòng chọn loại tài sản.');
-    if (assetForm.quantity < 0) return toast.warn('Số lượng không hợp lệ.');
+    if (assetForm.quantity < 1) return toast.warn('Số lượng phải lớn hơn 0.');
+    if (maxQuantity != null && assetForm.quantity > maxQuantity) return toast.warn(`Số lượng vượt quá tồn kho. Tối đa: ${maxQuantity}.`);
     setSavingAsset(true);
     try {
       if (editAsset) {
@@ -240,8 +247,24 @@ export default function ManageRoomAssets() {
     r.roomName.toLowerCase().includes(roomSearch.toLowerCase())
   );
 
-  const usedAssetIds = new Set(items.map((i) => i.assetId?._id).filter(Boolean));
-  const availableAssets = assetCatalog.filter((a) => !usedAssetIds.has(a._id));
+  const categoryOptions = [...new Set(items.map((i) => i.assetId?.category).filter(Boolean))].sort();
+  const filteredItems = items.filter((i) => {
+    const q = itemSearch.toLowerCase();
+    const matchSearch = !q ||
+      i.assetId?.name?.toLowerCase().includes(q) ||
+      i.assetId?.assetCode?.toLowerCase().includes(q);
+    const matchCategory = !itemCategory || i.assetId?.category === itemCategory;
+    return matchSearch && matchCategory;
+  });
+
+  const inRoomIds = new Set(items.map((i) => i.assetId?._id).filter(Boolean));
+  const notInRoom = assetCatalog.filter((a) => !inRoomIds.has(a._id));
+  const availableAssets = notInRoom.filter((a) => (a.remainingQty ?? 0) > 0);
+  const selectedCatalogAsset = availableAssets.find((a) => a._id === assetForm.assetId);
+  const editCatalogAsset = editAsset ? assetCatalog.find((a) => a._id === (editAsset.assetId?._id || editAsset.assetId)) : null;
+  const maxQuantity = editAsset
+    ? (editAsset.quantity + (editCatalogAsset?.remainingQty ?? 0))
+    : (selectedCatalogAsset?.remainingQty ?? undefined);
 
   return (
     <RoleLayout
@@ -344,6 +367,33 @@ export default function ManageRoomAssets() {
                 </Stack>
               </Box>
 
+              {/* Thanh tìm kiếm & lọc */}
+              <Box sx={{ px: 2, py: 1, borderBottom: '1px solid', borderColor: 'divider' }}>
+                <Stack direction="row" spacing={1.5} alignItems="center">
+                  <TextField
+                    size="small" placeholder="Tìm theo tên hoặc mã tài sản..."
+                    value={itemSearch} onChange={(e) => setItemSearch(e.target.value)}
+                    sx={{ flex: 1 }}
+                    InputProps={{ startAdornment: <InputAdornment position="start"><SearchIcon fontSize="small" /></InputAdornment> }}
+                  />
+                  <TextField
+                    select size="small" label="Loại" value={itemCategory}
+                    onChange={(e) => setItemCategory(e.target.value)}
+                    sx={{ minWidth: 200 }}
+                  >
+                    <MenuItem value="">Tất cả loại</MenuItem>
+                    {categoryOptions.map((cat) => (
+                      <MenuItem key={cat} value={cat}>{cat}</MenuItem>
+                    ))}
+                  </TextField>
+                  {(itemSearch || itemCategory) && (
+                    <Button size="small" onClick={() => { setItemSearch(''); setItemCategory(''); }}>
+                      Xóa lọc
+                    </Button>
+                  )}
+                </Stack>
+              </Box>
+
               {/* Bảng tài sản */}
               {loadingItems ? (
                 <Box sx={{ display: 'flex', justifyContent: 'center', p: 4 }}><CircularProgress size={28} /></Box>
@@ -370,7 +420,14 @@ export default function ManageRoomAssets() {
                           </TableCell>
                         </TableRow>
                       )}
-                      {items.map((item, idx) => (
+                      {items.length > 0 && filteredItems.length === 0 && (
+                        <TableRow>
+                          <TableCell colSpan={8} align="center" sx={{ py: 4, color: 'text.secondary' }}>
+                            Không tìm thấy tài sản nào phù hợp.
+                          </TableCell>
+                        </TableRow>
+                      )}
+                      {filteredItems.map((item, idx) => (
                         <TableRow key={item._id} hover>
                           <TableCell>{idx + 1}</TableCell>
                           <TableCell>
@@ -403,8 +460,14 @@ export default function ManageRoomAssets() {
               {items.length > 0 && (
                 <Box sx={{ p: 1.5, borderTop: '1px solid', borderColor: 'divider', bgcolor: 'grey.50' }}>
                   <Stack direction="row" spacing={3}>
-                    <Typography variant="caption" color="text.secondary">Tổng loại: <strong>{items.length}</strong></Typography>
-                    <Typography variant="caption" color="text.secondary">Tổng số lượng: <strong>{items.reduce((s, i) => s + i.quantity, 0)}</strong></Typography>
+                    <Typography variant="caption" color="text.secondary">
+                      Tổng loại: <strong>{filteredItems.length}</strong>
+                      {(itemSearch || itemCategory) && <span style={{ color: '#888' }}> / {items.length}</span>}
+                    </Typography>
+                    <Typography variant="caption" color="text.secondary">
+                      Tổng số lượng: <strong>{filteredItems.reduce((s, i) => s + i.quantity, 0)}</strong>
+                      {(itemSearch || itemCategory) && <span style={{ color: '#888' }}> / {items.reduce((s, i) => s + i.quantity, 0)}</span>}
+                    </Typography>
                   </Stack>
                 </Box>
               )}
@@ -449,17 +512,25 @@ export default function ManageRoomAssets() {
         <DialogContent>
           <Stack spacing={2} sx={{ mt: 1 }}>
             {!editAsset ? (
-              <TextField select label="Loại tài sản" value={assetForm.assetId} onChange={(e) => setAssetForm((f) => ({ ...f, assetId: e.target.value }))} fullWidth required size="small"
-                helperText={availableAssets.length === 0 ? 'Tất cả tài sản trong catalog đã được thêm.' : ''}>
+              <TextField select label="Loại tài sản" value={assetForm.assetId} onChange={(e) => setAssetForm((f) => ({ ...f, assetId: e.target.value, quantity: 1 }))} fullWidth required size="small"
+                helperText={
+                  availableAssets.length === 0
+                    ? (notInRoom.length === 0 ? 'Tất cả tài sản đã được thêm vào phòng này.' : 'Các tài sản còn lại đã hết số lượng trong kho.')
+                    : ''
+                }>
                 {availableAssets.length === 0 && <MenuItem disabled value="">Không còn tài sản nào</MenuItem>}
                 {availableAssets.map((a) => (
-                  <MenuItem key={a._id} value={a._id}>[{a.assetCode}] {a.name} — {a.unit}</MenuItem>
+                  <MenuItem key={a._id} value={a._id}>[{a.assetCode}] {a.name} — {a.unit} (còn lại: {a.remainingQty})</MenuItem>
                 ))}
               </TextField>
             ) : (
               <TextField label="Tài sản" value={`[${editAsset.assetId?.assetCode}] ${editAsset.assetId?.name}`} fullWidth size="small" disabled />
             )}
-            <TextField label="Số lượng" type="number" value={assetForm.quantity} onChange={(e) => setAssetForm((f) => ({ ...f, quantity: Number(e.target.value) }))} inputProps={{ min: 0 }} fullWidth required size="small" />
+            <TextField label="Số lượng" type="number" value={assetForm.quantity}
+              onChange={(e) => setAssetForm((f) => ({ ...f, quantity: Number(e.target.value) }))}
+              inputProps={{ min: 1, max: maxQuantity }}
+              helperText={maxQuantity != null ? `Tối đa: ${maxQuantity}` : ''}
+              fullWidth required size="small" />
             <TextField label="Ghi chú (tuỳ chọn)" value={assetForm.notes} onChange={(e) => setAssetForm((f) => ({ ...f, notes: e.target.value }))} fullWidth multiline rows={2} size="small" />
           </Stack>
         </DialogContent>

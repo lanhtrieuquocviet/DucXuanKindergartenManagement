@@ -39,11 +39,7 @@ const assetSchema = new mongoose.Schema(
       enum: ['Kiên cố', 'Bán kiên cố', 'Tạm', 'Không áp dụng'],
       default: 'Không áp dụng',
     },
-    condition: {
-      type: String,
-      enum: ['Tốt', 'Hỏng', 'Cần sửa chữa'],
-      default: 'Tốt',
-    },
+    brokenQuantity: { type: Number, min: 0, default: 0 }, // Số lượng không sử dụng được
     unit:     { type: String, trim: true, default: 'Cái' },  // ĐVT – dùng cho mục 7
     seats1:   { type: Number, min: 0, default: null },  // Trong đó: 1 chỗ ngồi (phần 2)
     seats2:   { type: Number, min: 0, default: null },  // Trong đó: 2 chỗ ngồi (phần 2)

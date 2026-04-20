@@ -28,7 +28,10 @@ function getWeekDates(weekOffset = 0) {
   return Array.from({ length: 5 }, (_, i) => {
     const d = new Date(monday);
     d.setDate(monday.getDate() + i);
-    return d.toISOString().slice(0, 10);
+    const yyyy = d.getFullYear();
+    const mm = String(d.getMonth() + 1).padStart(2, '0');
+    const dd = String(d.getDate()).padStart(2, '0');
+    return `${yyyy}-${mm}-${dd}`;
   });
 }
 
@@ -77,7 +80,8 @@ export default function WeeklyAttendanceView({ classId, students = [] }) {
   const [search, setSearch] = useState('');
 
   const weekDates = getWeekDates(weekOffset);
-  const today = new Date().toISOString().slice(0, 10);
+  const _t = new Date();
+  const today = `${_t.getFullYear()}-${String(_t.getMonth() + 1).padStart(2, '0')}-${String(_t.getDate()).padStart(2, '0')}`;
 
   const fetchWeek = useCallback(async () => {
     if (!classId) return;
@@ -96,7 +100,8 @@ export default function WeeklyAttendanceView({ classId, students = [] }) {
         const sid = r.studentId?._id?.toString() || r.studentId?.toString();
         if (!sid) return;
         if (!map[sid]) map[sid] = {};
-        const dateKey = new Date(r.date).toISOString().slice(0, 10);
+        const _rd = new Date(r.date);
+        const dateKey = `${_rd.getFullYear()}-${String(_rd.getMonth() + 1).padStart(2, '0')}-${String(_rd.getDate()).padStart(2, '0')}`;
         // Map server status to display status
         let displayStatus;
         if (r.status === 'absent' || r.status === 'leave') {
