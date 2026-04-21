@@ -91,7 +91,7 @@ function getTeacherMenuItems(hasPermission, hasRole) {
     { key: 'pickup-approval', label: 'Đơn đăng ký đưa đón', permission: 'MANAGE_PICKUP' },
     { key: 'leave-requests', label: 'Danh sách đơn xin nghỉ', permission: 'MANAGE_ATTENDANCE' },
     { key: 'contact-book', label: 'Sổ liên lạc' },
-    { key: 'purchase-request', label: 'Cơ sở vật chất', permission: 'MANAGE_PURCHASE_REQUEST' },
+    { key: 'asset-incidents-teacher', label: 'Báo cáo sự cố CSVC', permission: 'MANAGE_PURCHASE_REQUEST' },
     { key: 'class-assets', label: 'Tài sản lớp', permission: 'MANAGE_ASSET' },
     { key: 'asset-inspection', label: 'Kiểm kê tài sản', role: 'InventoryStaff' },
   ];
@@ -140,7 +140,7 @@ export default function ContactBook() {
     if (path.startsWith('/teacher/attendance')) return 'attendance';
     if (path.startsWith('/teacher/pickup-approval')) return 'pickup-approval';
     if (path.startsWith('/teacher/leave-requests')) return 'leave-requests';
-    if (path.startsWith('/teacher/purchase-request')) return 'purchase-request';
+    if (path.startsWith('/teacher/asset-incidents')) return 'asset-incidents-teacher';
     if (path.startsWith('/teacher/class-assets')) return 'class-assets';
     if (path.startsWith('/teacher/asset-inspection')) return 'asset-inspection';
     return 'classes';
@@ -155,7 +155,7 @@ export default function ContactBook() {
       attendance: '/teacher/attendance',
       'pickup-approval': '/teacher/pickup-approval',
       'leave-requests': '/teacher/leave-requests',
-      'purchase-request': '/teacher/purchase-request',
+      'asset-incidents-teacher': '/teacher/asset-incidents',
       'class-assets': '/teacher/class-assets',
       'asset-inspection': '/teacher/asset-inspection',
     };

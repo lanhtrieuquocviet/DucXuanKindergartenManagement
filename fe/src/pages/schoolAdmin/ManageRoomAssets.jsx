@@ -1,11 +1,11 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { toast } from 'react-toastify';
 import {
   Box, Button, Chip, CircularProgress, Dialog, DialogActions, DialogContent,
   DialogTitle, IconButton, InputAdornment, List, ListItemButton,
   ListItemText, MenuItem, Paper, Stack, Table, TableBody, TableCell,
-  TableContainer, TableHead, TableRow, TextField, Tooltip, Typography,
+  TableContainer, TableHead, TablePagination, TableRow, TextField, Tooltip, Typography,
 } from '@mui/material';
 import AddIcon from '@mui/icons-material/Add';
 import DeleteIcon from '@mui/icons-material/Delete';
@@ -14,9 +14,10 @@ import GroupsIcon from '@mui/icons-material/Groups';
 import MeetingRoomIcon from '@mui/icons-material/MeetingRoom';
 import SearchIcon from '@mui/icons-material/Search';
 import InventoryIcon from '@mui/icons-material/Inventory';
+import UploadFileIcon from '@mui/icons-material/UploadFile';
 import RoleLayout from '../../layouts/RoleLayout';
 import { useAuth } from '../../context/AuthContext';
-import { del, get, post, put, ENDPOINTS } from '../../service/api';
+import { del, get, post, postFormData, put, ENDPOINTS } from '../../service/api';
 import { createSchoolAdminMenuSelect } from './schoolAdminMenuConfig';
 import { useSchoolAdminMenu } from './useSchoolAdminMenu';
 
@@ -28,6 +29,13 @@ const ROOM_STATUS_LABEL = {
 
 const emptyRoomForm = () => ({ roomName: '', zone: 'A', floor: 1, capacity: 0, status: 'available', note: '' });
 const emptyAssetForm = () => ({ assetId: '', quantity: 1, notes: '' });
+const toCanonical = (value = '') => String(value)
+  .normalize('NFD')
+  .replace(/[\u0300-\u036f]/g, '')
+  .toLowerCase()
+  .replace(/[^a-z0-9]+/g, ' ')
+  .trim()
+  .replace(/\s+/g, ' ');
 
 function ConfirmDialog({ open, title, message, onConfirm, onCancel, loading }) {
   return (
@@ -79,6 +87,7 @@ export default function ManageRoomAssets() {
 
   // ── Catalog tài sản ─────────────────────────────────────────────────────────
   const [assetCatalog, setAssetCatalog] = useState([]);
+  const [processingIncidents, setProcessingIncidents] = useState([]);
 
   // Dialog thêm / sửa tài sản trong phòng
   const [assetDialogOpen, setAssetDialogOpen] = useState(false);
@@ -87,10 +96,16 @@ export default function ManageRoomAssets() {
   const [savingAsset, setSavingAsset] = useState(false);
   const [deleteAssetTarget, setDeleteAssetTarget] = useState(null);
   const [deletingAsset, setDeletingAsset] = useState(false);
+  const [importingWord, setImportingWord] = useState(false);
+  const [importPreviewOpen, setImportPreviewOpen] = useState(false);
+  const [importPreviewItems, setImportPreviewItems] = useState([]);
+  const wordInputRef = useRef(null);
 
   // ── Tìm kiếm & lọc tài sản trong phòng ─────────────────────────────────────
   const [itemSearch, setItemSearch] = useState('');
   const [itemCategory, setItemCategory] = useState('');
+  const [page, setPage] = useState(0);
+  const [rowsPerPage, setRowsPerPage] = useState(10);
 
   // ── Dialog gán lớp cho phòng ─────────────────────────────────────────────────
   const [assignClassDialogOpen, setAssignClassDialogOpen] = useState(false);
@@ -115,11 +130,26 @@ export default function ManageRoomAssets() {
   const loadCatalog = async () => {
     try {
       const res = await get(ENDPOINTS.SCHOOL_ADMIN.ASSETS + '?type=asset');
-      if (res.status === 'success') setAssetCatalog(res.data.assets || []);
+      if (res.status === 'success') {
+        const assets = res.data.assets || [];
+        setAssetCatalog(assets);
+        return assets;
+      }
     } catch { /* silent */ }
+    return [];
   };
 
-  useEffect(() => { loadRooms(); loadCatalog(); }, []);
+  const loadProcessingIncidents = async () => {
+    try {
+      const res = await get(ENDPOINTS.SCHOOL_ADMIN.ASSET_INCIDENTS);
+      const incidents = res?.data?.incidents || [];
+      setProcessingIncidents(incidents.filter((incident) => incident.status === 'processing'));
+    } catch {
+      setProcessingIncidents([]);
+    }
+  };
+
+  useEffect(() => { loadRooms(); loadCatalog(); loadProcessingIncidents(); }, []);
 
   // ── CRUD Phòng ───────────────────────────────────────────────────────────────
   const openAddRoom = () => { setEditRoom(null); setRoomForm(emptyRoomForm()); setRoomDialogOpen(true); };
@@ -181,9 +211,13 @@ export default function ManageRoomAssets() {
     setItems([]);
     setItemSearch('');
     setItemCategory('');
+    setPage(0);
     setLoadingItems(true);
     try {
-      const res = await get(ENDPOINTS.SCHOOL_ADMIN.ROOM_ASSETS_BY_ROOM(room._id));
+      const [res] = await Promise.all([
+        get(ENDPOINTS.SCHOOL_ADMIN.ROOM_ASSETS_BY_ROOM(room._id)),
+        loadProcessingIncidents(),
+      ]);
       if (res.status === 'success') setItems(res.data.items || []);
     } catch {
       toast.error('Không thể tải tài sản của phòng.');
@@ -252,28 +286,284 @@ export default function ManageRoomAssets() {
     }
   };
 
-  const filteredRooms = rooms.filter((r) =>
-    r.roomName.toLowerCase().includes(roomSearch.toLowerCase())
+  const applyWordImport = async (warehouseItems) => {
+    const latestCatalog = await loadCatalog();
+
+    let roomCreated = 0;
+    let roomUpdated = 0;
+    let roomSkipped = 0;
+    let roomUnchanged = 0;
+    let roomMissingInWarehouse = 0;
+    if (selectedRoom?._id) {
+      const roomRes = await get(ENDPOINTS.SCHOOL_ADMIN.ROOM_ASSETS_BY_ROOM(selectedRoom._id));
+      const roomItems = roomRes?.data?.items || [];
+      const roomByAssetId = new Map(roomItems.map((it) => [it.assetId?._id, it]));
+      const byCodeName = new Map();
+      const byCategoryName = new Map();
+      latestCatalog.forEach((a) => {
+        const canonicalName = toCanonical(a.name);
+        if (!canonicalName) return;
+        if (a.assetCode) byCodeName.set(`${a.assetCode}::${canonicalName}`, a);
+        byCategoryName.set(`${a.category || ''}::${canonicalName}`, a);
+      });
+
+      const tasks = [];
+      for (const row of warehouseItems) {
+        const qty = Number(row.quantity) || 0;
+        if (qty <= 0) continue;
+        const canonicalName = toCanonical(row.name);
+        if (!canonicalName) continue;
+        const code = (row.assetCode || '').trim();
+        const match = code
+          ? byCodeName.get(`${code}::${canonicalName}`)
+          : byCategoryName.get(`${row.category || ''}::${canonicalName}`);
+        if (!match?._id) {
+          roomSkipped++;
+          roomMissingInWarehouse++;
+          continue;
+        }
+        const existed = roomByAssetId.get(match._id);
+        if (existed?._id) {
+          const nextNotes = existed.notes || row.notes || '';
+          if (Number(existed.quantity) === qty && String(existed.notes || '') === String(nextNotes)) {
+            roomUnchanged++;
+            continue;
+          }
+          tasks.push(async () => {
+            await put(
+              ENDPOINTS.SCHOOL_ADMIN.ROOM_ASSET_ITEM(selectedRoom._id, existed._id),
+              { quantity: qty, notes: nextNotes }
+            );
+            roomUpdated++;
+          });
+        } else {
+          tasks.push(async () => {
+            await post(ENDPOINTS.SCHOOL_ADMIN.ROOM_ASSETS_BY_ROOM(selectedRoom._id), {
+              assetId: match._id,
+              quantity: qty,
+              notes: row.notes || '',
+            });
+            roomCreated++;
+          });
+        }
+      }
+
+      const concurrency = 8;
+      let cursor = 0;
+      const workers = Array.from({ length: Math.min(concurrency, tasks.length) }, async () => {
+        while (cursor < tasks.length) {
+          const i = cursor++;
+          try {
+            await tasks[i]();
+          } catch {
+            roomSkipped++;
+          }
+        }
+      });
+      await Promise.all(workers);
+      await loadRoomAssets(selectedRoom);
+      await loadRooms();
+    }
+
+    if (selectedRoom?._id) {
+      toast.success(`Đã import vào phòng "${selectedRoom.roomName}": thêm ${roomCreated}, cập nhật ${roomUpdated}${roomUnchanged ? `, giữ nguyên ${roomUnchanged}` : ''}${roomSkipped ? `, bỏ qua ${roomSkipped}` : ''}.`);
+      if (roomMissingInWarehouse) {
+        toast.warn(`${roomMissingInWarehouse} tài sản trong file chưa có ở kho tổng nên chưa thể phân bổ vào phòng.`);
+      }
+    } else {
+      toast.warn('Chưa chọn phòng. Vui lòng chọn phòng trước khi import.');
+    }
+  };
+
+  const handleWordImport = async (e) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    e.target.value = '';
+    const lowerName = file.name.toLowerCase();
+    if (!lowerName.endsWith('.doc') && !lowerName.endsWith('.docx')) {
+      toast.warn('Vui lòng chọn file Word (.doc hoặc .docx).');
+      return;
+    }
+    setImportingWord(true);
+    try {
+      const formData = new FormData();
+      formData.append('file', file);
+      const parsedRes = await postFormData(ENDPOINTS.SCHOOL_ADMIN.ASSET_ALLOCATIONS_PARSE_WORD, formData);
+      const parsedAssets = parsedRes?.data?.assets || [];
+      const parsedExtraAssets = parsedRes?.data?.extraAssets || [];
+      const warehouseItems = [...parsedAssets, ...parsedExtraAssets]
+        .filter((a) => a?.name?.trim())
+        .map((a) => ({
+          assetCode: a.assetCode || '',
+          name: a.name,
+          category: a.category || 'Thiết bị ngoài thông tư',
+          unit: a.unit || 'Cái',
+          quantity: Number(a.quantity) || 0,
+          condition: 'Còn tốt',
+          notes: a.notes || '',
+        }));
+
+      if (!warehouseItems.length) {
+        toast.warn('Không tìm thấy dữ liệu tài sản trong file Word.');
+        return;
+      }
+      setImportPreviewItems(warehouseItems);
+      setImportPreviewOpen(true);
+    } catch (err) {
+      toast.error(err?.message || 'Không thể đọc file Word. Hãy thử dùng file .docx.');
+    } finally {
+      setImportingWord(false);
+    }
+  };
+
+  const handleConfirmImportPreview = async () => {
+    if (!importPreviewItems.length) return;
+    setImportingWord(true);
+    try {
+      await applyWordImport(importPreviewItems);
+      setImportPreviewOpen(false);
+      setImportPreviewItems([]);
+    } catch (err) {
+      toast.error(err?.message || 'Không thể import file Word.');
+    } finally {
+      setImportingWord(false);
+    }
+  };
+
+  const filteredRooms = useMemo(() => {
+    const q = roomSearch.toLowerCase();
+    return rooms.filter((r) => r.roomName.toLowerCase().includes(q));
+  }, [rooms, roomSearch]);
+
+  const categoryOptions = useMemo(
+    () => [...new Set(items.map((i) => i.assetId?.category).filter(Boolean))].sort(),
+    [items]
   );
 
-  const categoryOptions = [...new Set(items.map((i) => i.assetId?.category).filter(Boolean))].sort();
-  const filteredItems = items.filter((i) => {
+  const filteredItems = useMemo(() => {
     const q = itemSearch.toLowerCase();
-    const matchSearch = !q ||
-      i.assetId?.name?.toLowerCase().includes(q) ||
-      i.assetId?.assetCode?.toLowerCase().includes(q);
-    const matchCategory = !itemCategory || i.assetId?.category === itemCategory;
-    return matchSearch && matchCategory;
-  });
+    return items.filter((i) => {
+      const matchSearch = !q
+        || i.assetId?.name?.toLowerCase().includes(q)
+        || i.assetId?.assetCode?.toLowerCase().includes(q);
+      const matchCategory = !itemCategory || i.assetId?.category === itemCategory;
+      return matchSearch && matchCategory;
+    });
+  }, [items, itemSearch, itemCategory]);
+  const pagedItems = useMemo(
+    () => filteredItems.slice(page * rowsPerPage, page * rowsPerPage + rowsPerPage),
+    [filteredItems, page, rowsPerPage]
+  );
 
-  const inRoomIds = new Set(items.map((i) => i.assetId?._id).filter(Boolean));
-  const notInRoom = assetCatalog.filter((a) => !inRoomIds.has(a._id));
-  const availableAssets = notInRoom.filter((a) => (a.remainingQty ?? 0) > 0);
-  const selectedCatalogAsset = availableAssets.find((a) => a._id === assetForm.assetId);
-  const editCatalogAsset = editAsset ? assetCatalog.find((a) => a._id === (editAsset.assetId?._id || editAsset.assetId)) : null;
+  const inRoomIds = useMemo(
+    () => new Set(items.map((i) => i.assetId?._id).filter(Boolean)),
+    [items]
+  );
+
+  const notInRoom = useMemo(
+    () => assetCatalog.filter((a) => !inRoomIds.has(a._id)),
+    [assetCatalog, inRoomIds]
+  );
+
+  const availableAssets = useMemo(
+    () => notInRoom.filter((a) => (a.remainingQty ?? 0) > 0),
+    [notInRoom]
+  );
+
+  const selectedCatalogAsset = useMemo(
+    () => availableAssets.find((a) => a._id === assetForm.assetId),
+    [availableAssets, assetForm.assetId]
+  );
+
+  const editCatalogAsset = useMemo(
+    () => (editAsset ? assetCatalog.find((a) => a._id === (editAsset.assetId?._id || editAsset.assetId)) : null),
+    [assetCatalog, editAsset]
+  );
+
+  const filteredQtyTotal = useMemo(
+    () => filteredItems.reduce((s, i) => s + i.quantity, 0),
+    [filteredItems]
+  );
+
+  const allQtyTotal = useMemo(
+    () => items.reduce((s, i) => s + i.quantity, 0),
+    [items]
+  );
   const maxQuantity = editAsset
     ? (editAsset.quantity + (editCatalogAsset?.remainingQty ?? 0))
     : (selectedCatalogAsset?.remainingQty ?? undefined);
+
+  const processingIncidentCountMap = useMemo(() => {
+    const counter = new Map();
+    processingIncidents.forEach((incident) => {
+      const classIdValue = typeof incident.classId === 'object'
+        ? (incident.classId?._id || '')
+        : (incident.classId || '');
+      const classIdKey = String(classIdValue || '').trim();
+      const classNameKey = toCanonical(incident.className || '');
+      const codeKey = toCanonical(incident.assetCode || '');
+      const nameKey = toCanonical(incident.assetName || '');
+      const classScopes = [];
+      if (classIdKey) classScopes.push(`id::${classIdKey}`);
+      if (classNameKey) classScopes.push(`name::${classNameKey}`);
+      if (!classScopes.length) return;
+      classScopes.forEach((scopeKey) => {
+        if (codeKey) {
+          const key = `${scopeKey}::code::${codeKey}`;
+          counter.set(key, (counter.get(key) || 0) + 1);
+        }
+        if (nameKey) {
+          const key = `${scopeKey}::name::${nameKey}`;
+          counter.set(key, (counter.get(key) || 0) + 1);
+        }
+      });
+    });
+    return counter;
+  }, [processingIncidents]);
+
+  const selectedClassScopeKeys = useMemo(
+    () => {
+      const keys = [];
+      const classIdKey = String(selectedRoom?.occupiedByClassId || '').trim();
+      const classNameKey = toCanonical(selectedRoom?.occupiedByClass || '');
+      if (classIdKey) keys.push(`id::${classIdKey}`);
+      if (classNameKey) keys.push(`name::${classNameKey}`);
+      return keys;
+    },
+    [selectedRoom?.occupiedByClassId, selectedRoom?.occupiedByClass]
+  );
+
+  const getRoomAssetBrokenCount = (item) => {
+    if (!selectedClassScopeKeys.length) return 0;
+    const codeKey = toCanonical(item?.assetId?.assetCode || '');
+    const nameKey = toCanonical(item?.assetId?.name || '');
+    let brokenCount = 0;
+    selectedClassScopeKeys.forEach((scopeKey) => {
+      const byCode = codeKey ? (processingIncidentCountMap.get(`${scopeKey}::code::${codeKey}`) || 0) : 0;
+      const byName = nameKey ? (processingIncidentCountMap.get(`${scopeKey}::name::${nameKey}`) || 0) : 0;
+      brokenCount = Math.max(brokenCount, byCode || byName);
+    });
+    if (!brokenCount) return 0;
+    return Math.min(Number(item?.quantity) || 0, brokenCount);
+  };
+
+  useEffect(() => {
+    const onFocus = () => {
+      loadProcessingIncidents();
+      if (selectedRoom?._id) loadRoomAssets(selectedRoom);
+    };
+    window.addEventListener('focus', onFocus);
+    return () => window.removeEventListener('focus', onFocus);
+  }, [selectedRoom?._id]);
+
+  useEffect(() => {
+    setPage(0);
+  }, [itemSearch, itemCategory, selectedRoom?._id]);
+
+  useEffect(() => {
+    const maxPage = Math.max(0, Math.ceil(filteredItems.length / rowsPerPage) - 1);
+    if (page > maxPage) setPage(maxPage);
+  }, [filteredItems.length, page, rowsPerPage]);
 
   return (
     <RoleLayout
@@ -391,6 +681,22 @@ export default function ManageRoomAssets() {
                     </Stack>
                   </Box>
                   <Stack direction="row" spacing={1}>
+                    <input
+                      ref={wordInputRef}
+                      type="file"
+                      accept=".doc,.docx,application/vnd.openxmlformats-officedocument.wordprocessingml.document"
+                      style={{ display: 'none' }}
+                      onChange={handleWordImport}
+                    />
+                    <Button
+                      variant="outlined"
+                      startIcon={importingWord ? <CircularProgress size={14} /> : <UploadFileIcon />}
+                      onClick={() => wordInputRef.current?.click()}
+                      size="small"
+                      disabled={importingWord}
+                    >
+                      {importingWord ? 'Đang import...' : 'Import Word'}
+                    </Button>
                     <Button variant="contained" startIcon={<AddIcon />} onClick={openAddAsset} size="small">
                       Thêm tài sản
                     </Button>
@@ -439,6 +745,8 @@ export default function ManageRoomAssets() {
                         <TableCell>Loại</TableCell>
                         <TableCell width={70} align="center">ĐVT</TableCell>
                         <TableCell width={90} align="center">Số lượng</TableCell>
+                        <TableCell width={90} align="center" sx={{ color: 'success.main' }}>Còn tốt</TableCell>
+                        <TableCell width={120} align="center" sx={{ color: 'error.main' }}>Không dùng được</TableCell>
                         <TableCell>Ghi chú</TableCell>
                         <TableCell width={100} align="center">Thao tác</TableCell>
                       </TableRow>
@@ -446,21 +754,21 @@ export default function ManageRoomAssets() {
                     <TableBody>
                       {items.length === 0 && (
                         <TableRow>
-                          <TableCell colSpan={8} align="center" sx={{ py: 4, color: 'text.secondary' }}>
+                          <TableCell colSpan={10} align="center" sx={{ py: 4, color: 'text.secondary' }}>
                             Phòng này chưa có tài sản. Nhấn &quot;Thêm tài sản&quot; để bắt đầu.
                           </TableCell>
                         </TableRow>
                       )}
                       {items.length > 0 && filteredItems.length === 0 && (
                         <TableRow>
-                          <TableCell colSpan={8} align="center" sx={{ py: 4, color: 'text.secondary' }}>
+                          <TableCell colSpan={10} align="center" sx={{ py: 4, color: 'text.secondary' }}>
                             Không tìm thấy tài sản nào phù hợp.
                           </TableCell>
                         </TableRow>
                       )}
-                      {filteredItems.map((item, idx) => (
+                      {pagedItems.map((item, idx) => (
                         <TableRow key={item._id} hover>
-                          <TableCell>{idx + 1}</TableCell>
+                          <TableCell>{page * rowsPerPage + idx + 1}</TableCell>
                           <TableCell>
                             <Typography variant="caption" sx={{ fontFamily: 'monospace', bgcolor: 'grey.100', px: 0.5, borderRadius: 0.5 }}>
                               {item.assetId?.assetCode || '—'}
@@ -470,6 +778,19 @@ export default function ManageRoomAssets() {
                           <TableCell><Typography variant="caption" color="text.secondary">{item.assetId?.category}</Typography></TableCell>
                           <TableCell align="center">{item.assetId?.unit || 'Cái'}</TableCell>
                           <TableCell align="center"><Typography fontWeight={600}>{item.quantity}</Typography></TableCell>
+                          <TableCell align="center">
+                            <Typography fontWeight={700} color="success.main">
+                              {Math.max(0, (Number(item.quantity) || 0) - getRoomAssetBrokenCount(item))}
+                            </Typography>
+                          </TableCell>
+                          <TableCell align="center">
+                            <Typography
+                              fontWeight={700}
+                              color={getRoomAssetBrokenCount(item) > 0 ? 'error.main' : 'text.disabled'}
+                            >
+                              {getRoomAssetBrokenCount(item)}
+                            </Typography>
+                          </TableCell>
                           <TableCell><Typography variant="caption" color="text.secondary">{item.notes || '—'}</Typography></TableCell>
                           <TableCell align="center">
                             <Stack direction="row" justifyContent="center" spacing={0.5}>
@@ -496,10 +817,23 @@ export default function ManageRoomAssets() {
                       {(itemSearch || itemCategory) && <span style={{ color: '#888' }}> / {items.length}</span>}
                     </Typography>
                     <Typography variant="caption" color="text.secondary">
-                      Tổng số lượng: <strong>{filteredItems.reduce((s, i) => s + i.quantity, 0)}</strong>
-                      {(itemSearch || itemCategory) && <span style={{ color: '#888' }}> / {items.reduce((s, i) => s + i.quantity, 0)}</span>}
+                      Tổng số lượng: <strong>{filteredQtyTotal}</strong>
+                      {(itemSearch || itemCategory) && <span style={{ color: '#888' }}> / {allQtyTotal}</span>}
                     </Typography>
                   </Stack>
+                  <TablePagination
+                    component="div"
+                    count={filteredItems.length}
+                    page={page}
+                    onPageChange={(_, newPage) => setPage(newPage)}
+                    rowsPerPage={rowsPerPage}
+                    onRowsPerPageChange={(e) => {
+                      setRowsPerPage(parseInt(e.target.value, 10));
+                      setPage(0);
+                    }}
+                    rowsPerPageOptions={[5, 10, 20, 50]}
+                    labelRowsPerPage="Số dòng/trang"
+                  />
                 </Box>
               )}
             </>
@@ -565,6 +899,56 @@ export default function ManageRoomAssets() {
           <Button onClick={() => setAssetDialogOpen(false)} disabled={savingAsset}>Hủy</Button>
           <Button variant="contained" onClick={handleSaveAsset} disabled={savingAsset}>
             {savingAsset ? <CircularProgress size={18} /> : editAsset ? 'Lưu' : 'Thêm'}
+          </Button>
+        </DialogActions>
+      </Dialog>
+
+      <Dialog
+        open={importPreviewOpen}
+        onClose={() => { if (!importingWord) { setImportPreviewOpen(false); setImportPreviewItems([]); } }}
+        maxWidth="md"
+        fullWidth
+      >
+        <DialogTitle>Xem trước dữ liệu import — {importPreviewItems.length} tài sản</DialogTitle>
+        <DialogContent dividers sx={{ p: 0 }}>
+          <Table size="small" stickyHeader>
+            <TableHead>
+              <TableRow>
+                <TableCell width={50}>#</TableCell>
+                <TableCell width={120}>Mã TS</TableCell>
+                <TableCell>Tên tài sản</TableCell>
+                <TableCell width={190}>Loại</TableCell>
+                <TableCell width={70} align="center">ĐVT</TableCell>
+                <TableCell width={80} align="center">SL</TableCell>
+              </TableRow>
+            </TableHead>
+            <TableBody>
+              {importPreviewItems.map((a, idx) => (
+                <TableRow key={`${a.assetCode || 'nomal'}-${idx}`} hover>
+                  <TableCell>{idx + 1}</TableCell>
+                  <TableCell>
+                    <Typography variant="caption" sx={{ fontFamily: 'monospace', bgcolor: 'grey.100', px: 0.5, borderRadius: 0.5 }}>
+                      {a.assetCode || '(tự động)'}
+                    </Typography>
+                  </TableCell>
+                  <TableCell>{a.name}</TableCell>
+                  <TableCell>{a.category}</TableCell>
+                  <TableCell align="center">{a.unit}</TableCell>
+                  <TableCell align="center">{a.quantity}</TableCell>
+                </TableRow>
+              ))}
+            </TableBody>
+          </Table>
+        </DialogContent>
+        <DialogActions>
+          <Button onClick={() => { setImportPreviewOpen(false); setImportPreviewItems([]); }} disabled={importingWord}>Hủy</Button>
+          <Button
+            variant="contained"
+            onClick={handleConfirmImportPreview}
+            disabled={importingWord}
+            startIcon={importingWord ? <CircularProgress size={16} /> : <UploadFileIcon />}
+          >
+            {importingWord ? 'Đang nhập...' : `Nhập ${importPreviewItems.length} tài sản`}
           </Button>
         </DialogActions>
       </Dialog>

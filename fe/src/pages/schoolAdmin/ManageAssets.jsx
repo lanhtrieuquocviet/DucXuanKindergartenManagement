@@ -1,4 +1,4 @@
-import { Fragment, useEffect, useRef, useState } from 'react';
+import { Fragment, useEffect, useMemo, useRef, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { toast } from 'react-toastify';
 import {
@@ -44,10 +44,9 @@ import ExpandLessIcon from '@mui/icons-material/ExpandLess';
 import ExpandMoreIcon from '@mui/icons-material/ExpandMore';
 import FileDownloadIcon from '@mui/icons-material/FileDownload';
 import UploadFileIcon from '@mui/icons-material/UploadFile';
-import mammoth from 'mammoth';
 import RoleLayout from '../../layouts/RoleLayout';
 import { useAuth } from '../../context/AuthContext';
-import { del, get, patch, post, put, ENDPOINTS } from '../../service/api';
+import { del, get, patch, post, postFormData, put, ENDPOINTS } from '../../service/api';
 import { createSchoolAdminMenuSelect } from './schoolAdminMenuConfig';
 import { useSchoolAdminMenu } from './useSchoolAdminMenu';
 
@@ -3178,14 +3177,13 @@ function AssetsTab() {
                             <TableCell sx={{ fontWeight: 700, backgroundColor: '#f0f4f8' }} align="center">Tổng kho</TableCell>
                             <TableCell sx={{ fontWeight: 700, backgroundColor: '#f0f4f8' }} align="center">Đã phân bổ</TableCell>
                             <TableCell sx={{ fontWeight: 700, backgroundColor: '#f0f4f8' }} align="center">Còn lại</TableCell>
-                            <TableCell sx={{ fontWeight: 700, backgroundColor: '#f0f4f8' }} align="center">Tình trạng</TableCell>
                             <TableCell sx={{ fontWeight: 700, backgroundColor: '#f0f4f8' }} align="center">Xóa</TableCell>
                           </TableRow>
                         </TableHead>
                         <TableBody>
                           {rows.length === 0 ? (
                             <TableRow>
-                              <TableCell colSpan={8} align="center" sx={{ py: 2, color: 'text.secondary', fontSize: '0.8rem' }}>
+                              <TableCell colSpan={7} align="center" sx={{ py: 2, color: 'text.secondary', fontSize: '0.8rem' }}>
                                 Chưa có dữ liệu — nhấn <strong>+</strong> để thêm
                               </TableCell>
                             </TableRow>
@@ -3199,8 +3197,6 @@ function AssetsTab() {
                               <InlineCell a={a} field="quantity" align="center" ie={inlineEdit} setIe={setInlineEdit} onSave={handleInlineSave} sx={{ fontWeight: 600 }} />
                               <TableCell align="center" sx={{ color: 'info.main', fontWeight: 500 }}>{a.allocatedQty ?? 0}</TableCell>
                               <TableCell align="center" sx={{ fontWeight: 700, color: (a.remainingQty ?? a.quantity ?? 0) > 0 ? 'success.main' : 'error.main' }}>{a.remainingQty ?? a.quantity ?? 0}</TableCell>
-                              <InlineSelectCell a={a} field="condition" options={CONDITION_OPTIONS} ie={inlineEdit} setIe={setInlineEdit} onSave={handleInlineSave}
-                                renderValue={v => <Chip label={v} color={CONDITION_COLOR[v] || 'default'} size="small" />} />
                               <TableCell align="center">
                                 <IconButton size="small" color="error" onClick={() => setDeleteTarget(a)}><DeleteIcon fontSize="small" /></IconButton>
                               </TableCell>
@@ -3248,7 +3244,6 @@ function AssetsTab() {
                             </TableCell>
                             <TableCell rowSpan={2} align="center" sx={{ ...hSx2, verticalAlign: 'middle' }}>Đã phân bổ</TableCell>
                             <TableCell rowSpan={2} align="center" sx={{ ...hSx2, verticalAlign: 'middle' }}>Còn lại</TableCell>
-                            <TableCell rowSpan={2} align="center" sx={{ ...hSx2, verticalAlign: 'middle' }}>Tình trạng</TableCell>
                             <TableCell rowSpan={2} align="center" sx={{ ...hSx2, verticalAlign: 'middle' }}>Xóa</TableCell>
                           </TableRow>
                           <TableRow>
@@ -3262,7 +3257,7 @@ function AssetsTab() {
                         <TableBody>
                           {rows.length === 0 ? (
                             <TableRow>
-                              <TableCell colSpan={10} align="center" sx={{ py: 2, color: 'text.secondary', fontSize: '0.8rem' }}>
+                              <TableCell colSpan={9} align="center" sx={{ py: 2, color: 'text.secondary', fontSize: '0.8rem' }}>
                                 Chưa có dữ liệu — nhấn <strong>+</strong> để thêm
                               </TableCell>
                             </TableRow>
@@ -3280,8 +3275,6 @@ function AssetsTab() {
                               <InlineCell a={a} field="seats4" align="center" ie={inlineEdit} setIe={setInlineEdit} onSave={handleInlineSave} />
                               <TableCell align="center" sx={{ color: 'info.main', fontWeight: 500 }}>{a.allocatedQty ?? 0}</TableCell>
                               <TableCell align="center" sx={{ fontWeight: 700, color: (a.remainingQty ?? a.quantity ?? 0) > 0 ? 'success.main' : 'error.main' }}>{a.remainingQty ?? a.quantity ?? 0}</TableCell>
-                              <InlineSelectCell a={a} field="condition" options={CONDITION_OPTIONS} ie={inlineEdit} setIe={setInlineEdit} onSave={handleInlineSave}
-                                renderValue={v => <Chip label={v} color={CONDITION_COLOR[v] || 'default'} size="small" />} />
                               <TableCell align="center">
                                 <IconButton size="small" color="error" onClick={() => setDeleteTarget(a)}><DeleteIcon fontSize="small" /></IconButton>
                               </TableCell>
@@ -3325,14 +3318,13 @@ function AssetsTab() {
                             <TableCell sx={hSx} align="center">Thực tế</TableCell>
                             {!isMobile && <TableCell sx={hSx} align="center">Diện tích (m²)</TableCell>}
                             {!isMobile && <TableCell sx={hSx} align="center">Loại CT</TableCell>}
-                            <TableCell sx={hSx} align="center">Tình trạng</TableCell>
                             <TableCell sx={hSx} align="center">Xóa</TableCell>
                           </TableRow>
                         </TableHead>
                         <TableBody>
                           {rows.length === 0 ? (
                             <TableRow>
-                              <TableCell colSpan={8} align="center" sx={{ py: 2, color: 'text.secondary', fontSize: '0.8rem' }}>
+                              <TableCell colSpan={7} align="center" sx={{ py: 2, color: 'text.secondary', fontSize: '0.8rem' }}>
                                 Chưa có dữ liệu — nhấn <strong>+</strong> để thêm
                               </TableCell>
                             </TableRow>
@@ -3352,8 +3344,6 @@ function AssetsTab() {
                                     ? <Chip label={v} size="small" variant="outlined" color="info" />
                                     : '—'} />
                               )}
-                              <InlineSelectCell a={a} field="condition" options={CONDITION_OPTIONS} ie={inlineEdit} setIe={setInlineEdit} onSave={handleInlineSave}
-                                renderValue={v => <Chip label={v} color={CONDITION_COLOR[v] || 'default'} size="small" />} />
                               <TableCell align="center">
                                 <IconButton size="small" color="error" onClick={() => setDeleteTarget(a)}><DeleteIcon fontSize="small" /></IconButton>
                               </TableCell>
@@ -3681,70 +3671,6 @@ function AssetsTab() {
 
 // ─── Warehouse Assets Tab ─────────────────────────────────────────────────────
 const WAREHOUSE_CATEGORIES = ['Đồ dùng', 'Thiết bị dạy học, đồ chơi và học liệu', 'Sách, tài liệu, băng đĩa', 'Thiết bị ngoài thông tư'];
-
-function getCells(row) {
-  return Array.from(row.querySelectorAll('td, th')).map(c => c.textContent.replace(/\s+/g, ' ').trim());
-}
-
-function parseWordDoc(html) {
-  const parser = new DOMParser();
-  const doc = parser.parseFromString(html, 'text/html');
-  const tables = doc.querySelectorAll('table');
-  const items = [];
-
-  const CATEGORY_MAP = { 'I': 'Đồ dùng', 'II': 'Thiết bị dạy học, đồ chơi và học liệu', 'III': 'Sách, tài liệu, băng đĩa' };
-
-  tables.forEach(table => {
-    const rows = Array.from(table.querySelectorAll('tr'));
-    const hasRomanHeader = rows.some(row => {
-      const cells = getCells(row);
-      return ['I', 'II', 'III'].includes(cells[0]);
-    });
-    const tableText = table.textContent.toUpperCase();
-    const isNgoaiThongTu = tableText.includes('NGOÀI THÔNG TƯ') && !hasRomanHeader;
-
-    if (hasRomanHeader) {
-      let currentCategory = null;
-      rows.forEach(row => {
-        const cells = getCells(row);
-        if (cells.length < 3) return;
-        const first = cells[0];
-        if (CATEGORY_MAP[first]) { currentCategory = CATEGORY_MAP[first]; return; }
-        if (first === 'TT' || (first === '1' && cells[1] === '2')) return;
-        const rowNum = parseInt(first);
-        if (isNaN(rowNum) || rowNum < 1 || !currentCategory || !cells[2]) return;
-        items.push({
-          assetCode: cells[1] || '',
-          name: cells[2],
-          category: currentCategory,
-          unit: cells[3] || 'Cái',
-          quantity: parseInt(cells[4]) || 0,
-          condition: 'Còn tốt',
-          notes: cells[6] || '',
-        });
-      });
-    } else if (isNgoaiThongTu) {
-      rows.forEach(row => {
-        const cells = getCells(row);
-        const rowNum = parseInt(cells[0]);
-        if (isNaN(rowNum) || rowNum <= 1) return;
-        const name = cells[1];
-        if (!name || isNaN(parseInt(cells[3])) && cells[3] !== '' && cells[3] !== '0') return;
-        items.push({
-          assetCode: '',
-          name,
-          category: 'Thiết bị ngoài thông tư',
-          unit: cells[2] || 'Cái',
-          quantity: parseInt(cells[3]) || 0,
-          condition: 'Còn tốt',
-          notes: cells[5] || '',
-        });
-      });
-    }
-  });
-
-  return items;
-}
 const WAREHOUSE_CATEGORY_PREFIX = { 'Đồ dùng': 'I', 'Thiết bị dạy học, đồ chơi và học liệu': 'II', 'Sách, tài liệu, băng đĩa': 'III', 'Thiết bị ngoài thông tư': 'IV' };
 const emptyWarehouseAsset = () => ({ assetCode: '', name: '', category: 'Đồ dùng', unit: 'Cái', quantity: 0, brokenQuantity: 0, notes: '' });
 
@@ -3758,9 +3684,14 @@ function WarehouseAssetsTab() {
   const [saving, setSaving] = useState(false);
   const [deleteTarget, setDeleteTarget] = useState(null);
   const [deleting, setDeleting] = useState(false);
+  const [selected, setSelected] = useState(new Set());
+  const [bulkDeleteOpen, setBulkDeleteOpen] = useState(false);
+  const [bulkDeleting, setBulkDeleting] = useState(false);
   const [importOpen, setImportOpen] = useState(false);
   const [importItems, setImportItems] = useState([]);
   const [importing, setImporting] = useState(false);
+  const [rowsPerPage, setRowsPerPage] = useState(10);
+  const [pageByCategory, setPageByCategory] = useState({});
   const fileInputRef = useRef(null);
 
   const load = async () => {
@@ -3808,19 +3739,75 @@ function WarehouseAssetsTab() {
     } finally { setDeleting(false); }
   };
 
+  const toggleSelect = (id) => {
+    setSelected((prev) => {
+      const next = new Set(prev);
+      if (next.has(id)) next.delete(id);
+      else next.add(id);
+      return next;
+    });
+  };
+
+  const toggleSelectCategoryRows = (rows) => {
+    if (!rows.length) return;
+    const allSelected = rows.every((a) => selected.has(a._id));
+    setSelected((prev) => {
+      const next = new Set(prev);
+      rows.forEach((a) => {
+        if (allSelected) next.delete(a._id);
+        else next.add(a._id);
+      });
+      return next;
+    });
+  };
+
+  const handleBulkDelete = async () => {
+    if (!selected.size) return;
+    setBulkDeleting(true);
+    try {
+      await Promise.all([...selected].map((id) => del(ENDPOINTS.SCHOOL_ADMIN.ASSET_DETAIL(id))));
+      toast.success(`Đã xóa ${selected.size} tài sản.`);
+      setSelected(new Set());
+      setBulkDeleteOpen(false);
+      load();
+    } catch (err) {
+      toast.error(err?.message || 'Lỗi khi xóa hàng loạt.');
+    } finally {
+      setBulkDeleting(false);
+    }
+  };
+
   const handleFileSelect = async (e) => {
     const file = e.target.files?.[0];
     if (!file) return;
     e.target.value = '';
     try {
-      const arrayBuffer = await file.arrayBuffer();
-      const result = await mammoth.convertToHtml({ arrayBuffer });
-      const parsed = parseWordDoc(result.value);
+      const lowerName = file.name.toLowerCase();
+      if (!lowerName.endsWith('.doc') && !lowerName.endsWith('.docx')) {
+        toast.warn('Vui lòng chọn file Word (.doc hoặc .docx).');
+        return;
+      }
+      const formData = new FormData();
+      formData.append('file', file);
+      const parsedRes = await postFormData(ENDPOINTS.SCHOOL_ADMIN.ASSET_ALLOCATIONS_PARSE_WORD, formData);
+      const parsedAssets = parsedRes?.data?.assets || [];
+      const parsedExtraAssets = parsedRes?.data?.extraAssets || [];
+      const parsed = [...parsedAssets, ...parsedExtraAssets]
+        .filter((a) => a?.name?.trim())
+        .map((a) => ({
+          assetCode: a.assetCode || '',
+          name: a.name,
+          category: a.category || 'Thiết bị ngoài thông tư',
+          unit: a.unit || 'Cái',
+          quantity: Number(a.quantity) || 0,
+          condition: 'Còn tốt',
+          notes: a.notes || '',
+        }));
       if (parsed.length === 0) return toast.warn('Không tìm thấy dữ liệu tài sản trong file.');
       setImportItems(parsed);
       setImportOpen(true);
     } catch (err) {
-      toast.error('Không thể đọc file Word: ' + err.message);
+      toast.error(err?.message || 'Không thể đọc file Word. Hãy thử dùng file .docx.');
     }
   };
 
@@ -3828,8 +3815,10 @@ function WarehouseAssetsTab() {
     setImporting(true);
     try {
       const res = await post(ENDPOINTS.SCHOOL_ADMIN.ASSETS_BULK_WAREHOUSE, { assets: importItems });
-      const { created, skipped, errors } = res.data;
-      toast.success(`Đã nhập ${created} tài sản${skipped > 0 ? `, bỏ qua ${skipped}` : ''}.`);
+      const { created = 0, merged = 0, skipped = 0, errors = [] } = res.data || {};
+      toast.success(
+        `Đã xử lý: tạo mới ${created}, cộng dồn ${merged}${skipped > 0 ? `, bỏ qua ${skipped}` : ''}.`
+      );
       if (errors?.length) errors.slice(0, 5).forEach(e => toast.warn(e, { autoClose: 6000 }));
       setImportOpen(false);
       setImportItems([]);
@@ -3839,8 +3828,21 @@ function WarehouseAssetsTab() {
     } finally { setImporting(false); }
   };
 
-  const filtered = assets.filter(a => a.name?.toLowerCase().includes(search.toLowerCase()) || a.assetCode?.toLowerCase().includes(search.toLowerCase()));
-  const grouped = WAREHOUSE_CATEGORIES.map(cat => ({ cat, rows: filtered.filter(a => a.category === cat) }));
+  const filtered = useMemo(
+    () => assets.filter((a) => a.name?.toLowerCase().includes(search.toLowerCase()) || a.assetCode?.toLowerCase().includes(search.toLowerCase())),
+    [assets, search]
+  );
+  const grouped = useMemo(
+    () => WAREHOUSE_CATEGORIES.map((cat) => ({ cat, rows: filtered.filter((a) => a.category === cat) })),
+    [filtered]
+  );
+
+  useEffect(() => {
+    setPageByCategory({});
+  }, [search, rowsPerPage]);
+  useEffect(() => {
+    setSelected(new Set());
+  }, [search]);
 
   return (
     <Box>
@@ -3855,7 +3857,12 @@ function WarehouseAssetsTab() {
       {loading ? (
         <Box sx={{ display: 'flex', justifyContent: 'center', p: 4 }}><CircularProgress /></Box>
       ) : (
-        grouped.map(({ cat, rows }) => (
+        grouped.map(({ cat, rows }) => {
+          const page = pageByCategory[cat] || 0;
+          const maxPage = Math.max(0, Math.ceil(rows.length / rowsPerPage) - 1);
+          const currentPage = Math.min(page, maxPage);
+          const pagedRows = rows.slice(currentPage * rowsPerPage, currentPage * rowsPerPage + rowsPerPage);
+          return (
           <Box key={cat} mb={3}>
             <Box sx={{ backgroundColor: '#e8f0fe', borderLeft: '4px solid #1a56db', px: 1.5, py: 0.75, borderRadius: '4px 4px 0 0', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
               <Typography fontWeight={700} fontSize="0.85rem" color="#1a56db">
@@ -3868,6 +3875,14 @@ function WarehouseAssetsTab() {
               <Table size="small" stickyHeader>
                 <TableHead>
                   <TableRow>
+                      <TableCell sx={{ width: 36, bgcolor: '#f0f4f8' }}>
+                        <Checkbox
+                          size="small"
+                          checked={rows.length > 0 && rows.every((a) => selected.has(a._id))}
+                          indeterminate={rows.some((a) => selected.has(a._id)) && !rows.every((a) => selected.has(a._id))}
+                          onChange={() => toggleSelectCategoryRows(rows)}
+                        />
+                      </TableCell>
                     <TableCell sx={{ fontWeight: 700, backgroundColor: '#f0f4f8', width: 50 }}>#</TableCell>
                     <TableCell sx={{ fontWeight: 700, backgroundColor: '#f0f4f8', width: 110 }}>Mã TS</TableCell>
                     <TableCell sx={{ fontWeight: 700, backgroundColor: '#f0f4f8' }}>Tên tài sản</TableCell>
@@ -3882,10 +3897,13 @@ function WarehouseAssetsTab() {
                 </TableHead>
                 <TableBody>
                   {rows.length === 0 ? (
-                    <TableRow><TableCell colSpan={9} align="center" sx={{ py: 2, color: 'text.secondary', fontSize: '0.8rem' }}>Chưa có dữ liệu — nhấn <strong>Thêm</strong> để bắt đầu</TableCell></TableRow>
-                  ) : rows.map((a, idx) => (
-                    <TableRow key={a._id} hover>
-                      <TableCell>{idx + 1}</TableCell>
+                    <TableRow><TableCell colSpan={11} align="center" sx={{ py: 2, color: 'text.secondary', fontSize: '0.8rem' }}>Chưa có dữ liệu — nhấn <strong>Thêm</strong> để bắt đầu</TableCell></TableRow>
+                  ) : pagedRows.map((a, idx) => (
+                    <TableRow key={a._id} hover selected={selected.has(a._id)}>
+                      <TableCell padding="checkbox">
+                        <Checkbox size="small" checked={selected.has(a._id)} onChange={() => toggleSelect(a._id)} />
+                      </TableCell>
+                      <TableCell>{currentPage * rowsPerPage + idx + 1}</TableCell>
                       <TableCell><Typography variant="caption" sx={{ fontFamily: 'monospace', bgcolor: 'grey.100', px: 0.5, borderRadius: 0.5 }}>{a.assetCode}</Typography></TableCell>
                       <TableCell>{a.name}</TableCell>
                       <TableCell align="center">{a.unit}</TableCell>
@@ -3905,8 +3923,24 @@ function WarehouseAssetsTab() {
                 </TableBody>
               </Table>
             </TableContainer>
+            {rows.length > 0 && (
+              <TablePagination
+                component="div"
+                count={rows.length}
+                page={currentPage}
+                onPageChange={(_, newPage) => setPageByCategory((prev) => ({ ...prev, [cat]: newPage }))}
+                rowsPerPage={rowsPerPage}
+                onRowsPerPageChange={(e) => {
+                  setRowsPerPage(parseInt(e.target.value, 10));
+                  setPageByCategory((prev) => ({ ...prev, [cat]: 0 }));
+                }}
+                rowsPerPageOptions={[5, 10, 20, 50]}
+                labelRowsPerPage="Số dòng/trang"
+              />
+            )}
           </Box>
-        ))
+        );
+        })
       )}
 
       {/* Dialog thêm/sửa */}
@@ -3950,6 +3984,21 @@ function WarehouseAssetsTab() {
         <DialogActions>
           <Button onClick={() => setDeleteTarget(null)} disabled={deleting}>Hủy</Button>
           <Button onClick={handleDelete} color="error" variant="contained" disabled={deleting}>{deleting ? <CircularProgress size={18} /> : 'Xóa'}</Button>
+        </DialogActions>
+      </Dialog>
+
+      <Dialog open={bulkDeleteOpen} onClose={() => !bulkDeleting && setBulkDeleteOpen(false)} maxWidth="xs" fullWidth>
+        <DialogTitle>Xác nhận xóa hàng loạt</DialogTitle>
+        <DialogContent>
+          <Typography variant="body2">
+            Bạn có chắc muốn xóa <strong>{selected.size}</strong> tài sản đã chọn? Hành động này không thể hoàn tác.
+          </Typography>
+        </DialogContent>
+        <DialogActions>
+          <Button onClick={() => setBulkDeleteOpen(false)} disabled={bulkDeleting}>Hủy</Button>
+          <Button variant="contained" color="error" onClick={handleBulkDelete} disabled={bulkDeleting}>
+            {bulkDeleting ? 'Đang xóa...' : `Xóa ${selected.size} mục`}
+          </Button>
         </DialogActions>
       </Dialog>
 
@@ -4003,6 +4052,42 @@ function WarehouseAssetsTab() {
           </Button>
         </DialogActions>
       </Dialog>
+
+      {selected.size > 0 && (
+        <Box sx={{
+          position: 'fixed', bottom: 24, left: '50%', transform: 'translateX(-50%)',
+          zIndex: 1300,
+          backgroundColor: '#1e293b',
+          color: '#fff',
+          borderRadius: 3,
+          px: 3, py: 1.2,
+          display: 'flex', alignItems: 'center', gap: 2,
+          boxShadow: '0 4px 24px rgba(0,0,0,0.25)',
+          whiteSpace: 'nowrap',
+        }}>
+          <Typography variant="body2" sx={{ color: '#94a3b8', fontWeight: 500 }}>
+            Đã chọn <strong style={{ color: '#fff' }}>{selected.size}</strong> mục
+          </Typography>
+          <Button
+            size="small"
+            variant="text"
+            sx={{ color: '#94a3b8', textTransform: 'none', minWidth: 0 }}
+            onClick={() => setSelected(new Set())}
+          >
+            Bỏ chọn
+          </Button>
+          <Button
+            size="small"
+            variant="contained"
+            color="error"
+            startIcon={<DeleteIcon fontSize="small" />}
+            onClick={() => setBulkDeleteOpen(true)}
+            sx={{ textTransform: 'none', borderRadius: 2 }}
+          >
+            Xóa {selected.size} mục
+          </Button>
+        </Box>
+      )}
     </Box>
   );
 }
@@ -4041,6 +4126,9 @@ export default function ManageAssets() {
           <Tab label="Cơ sở vật chất (Báo cáo)" sx={{ textTransform: 'none', fontWeight: 600 }} />
           <Tab label="Tài sản kho (Phân bổ phòng/lớp)" sx={{ textTransform: 'none', fontWeight: 600 }} />
         </Tabs>
+        <Typography variant="caption" color="text.secondary" sx={{ display: 'block', mb: 1.5 }}>
+          Chú thích viết tắt: TT = Thứ tự, TS = Tài sản, Mã TS = Mã tài sản, ĐVT = Đơn vị tính, SL = Số lượng, SC = Sức chứa.
+        </Typography>
         {mainTab === 0 && <AssetsTab />}
         {mainTab === 1 && <WarehouseAssetsTab />}
       </Paper>

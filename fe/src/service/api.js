@@ -409,9 +409,8 @@ export const ENDPOINTS = {
     ASSET_ALLOCATION_DETAIL: (id) => `/school-admin/asset-allocations/${id}`,
     ASSET_ALLOCATION_EXPORT_WORD: (id) => `/school-admin/asset-allocations/${id}/export-word`,
     ASSET_ALLOCATION_TRANSFER: (id) => `/school-admin/asset-allocations/${id}/transfer`,
-    PURCHASE_REQUESTS: "/school-admin/purchase-requests",
-    PURCHASE_REQUEST_APPROVE: (id) => `/school-admin/purchase-requests/${id}/approve`,
-    PURCHASE_REQUEST_REJECT: (id) => `/school-admin/purchase-requests/${id}/reject`,
+    ASSET_INCIDENTS: "/school-admin/asset-incidents",
+    ASSET_INCIDENT_DETAIL: (id) => `/school-admin/asset-incidents/${id}`,
     ASSET_DETAIL: (id) => `/school-admin/assets/${id}`,
   },
   // Contact (public)
@@ -440,8 +439,8 @@ export const ENDPOINTS = {
     ATTENDANCE_BY_CLASS_DATE: (classId, date) =>
       `/teacher/attendances/class/${classId}/date/${date}`,
     MY_CLASSES: "/teacher/my-classes",
-    PURCHASE_REQUESTS: "/teacher/purchase-requests",
-    PURCHASE_REQUEST_DETAIL: (id) => `/teacher/purchase-requests/${id}`,
+    ASSET_INCIDENTS: "/teacher/asset-incidents",
+    ASSET_INCIDENT_DETAIL: (id) => `/teacher/asset-incidents/${id}`,
     MY_ASSET_ALLOCATION: "/teacher/asset-allocations",
     ASSET_ALLOCATION_CONFIRM: (id) => `/teacher/asset-allocations/${id}/confirm`,
     // Danh sách học sinh

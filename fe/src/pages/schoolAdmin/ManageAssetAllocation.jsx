@@ -61,6 +61,7 @@ const STATUS_INFO = {
 };
 
 const TARGET_USER_OPTIONS = ['Trẻ', 'Giáo viên', 'Dùng chung'];
+const normalizeLabel = (value = '') => String(value).trim().toLowerCase();
 
 function formatDate(d) {
   if (!d) return '';
@@ -437,6 +438,7 @@ export default function ManageAssetAllocation() {
   const [currentAcYear, setCurrentAcYear] = useState('');
   const [loading, setLoading]           = useState(false);
   const [saving, setSaving]             = useState(false);
+  const [blockedClassIds, setBlockedClassIds] = useState(new Set());
 
   // Filters
   const [filterStatus, setFilterStatus] = useState('');
@@ -518,10 +520,32 @@ export default function ManageAssetAllocation() {
     }
   };
 
+  const loadBlockedClasses = async () => {
+    try {
+      const [activeRes, pendingRes] = await Promise.all([
+        get(`${ENDPOINTS.SCHOOL_ADMIN.ASSET_ALLOCATIONS}?status=active`),
+        get(`${ENDPOINTS.SCHOOL_ADMIN.ASSET_ALLOCATIONS}?status=pending_confirmation`),
+      ]);
+      const blockedIds = new Set();
+      const allAllocs = [
+        ...(activeRes?.data?.allocations || []),
+        ...(pendingRes?.data?.allocations || []),
+      ];
+      for (const alloc of allAllocs) {
+        const classId = alloc.classId?._id || alloc.classId;
+        if (classId) blockedIds.add(String(classId));
+      }
+      setBlockedClassIds(blockedIds);
+    } catch {
+      setBlockedClassIds(new Set());
+    }
+  };
+
   useEffect(() => {
     loadClasses();
     loadTeachers();
     loadCurrentAcademicYear();
+    loadBlockedClasses();
   }, []);
   useEffect(() => { loadAllocations(); }, [filterStatus, filterClass]);
 
@@ -571,6 +595,7 @@ export default function ManageAssetAllocation() {
       }
       setFormOpen(false);
       loadAllocations();
+      loadBlockedClasses();
     } catch (err) {
       toast.error(err.message || 'Lỗi lưu biên bản.');
     } finally {
@@ -585,6 +610,7 @@ export default function ManageAssetAllocation() {
       toast.success('Xóa biên bản thành công.');
       setDeleteTarget(null);
       loadAllocations();
+      loadBlockedClasses();
     } catch (err) {
       toast.error(err.message || 'Lỗi xóa biên bản.');
     } finally {
@@ -677,7 +703,7 @@ export default function ManageAssetAllocation() {
   };
 
   const handleTransfer = async () => {
-    if (!transferForm.toClassName && !transferForm.toClassId) {
+    if (!transferForm.toClassId) {
       toast.error('Vui lòng chọn lớp nhận.');
       return;
     }
@@ -687,6 +713,7 @@ export default function ManageAssetAllocation() {
       toast.success('Chuyển giao tài sản thành công.');
       setTransferOpen(false);
       loadAllocations();
+      loadBlockedClasses();
     } catch (err) {
       toast.error(err.message || 'Lỗi chuyển giao.');
     } finally {
@@ -816,6 +843,30 @@ export default function ManageAssetAllocation() {
       assets:      [...prev.assets, { ...row, category: '' }],
     }));
   }, []);
+
+  const availableClassOptions = editTarget
+    ? classes
+    : classes.filter((c) => !blockedClassIds.has(String(c._id)));
+
+  const transferHistoryRows = (() => {
+    const rows = historyTarget?.transferHistory || [];
+    return rows
+      .map((h, idx) => ({ ...h, _idx: idx }))
+      .filter((h) => {
+        const fromClass = normalizeLabel(h.fromClassName);
+        const toClass = normalizeLabel(h.toClassName);
+        if (!fromClass && !toClass) return false;
+        if (fromClass && toClass && fromClass === toClass) return false;
+        return true;
+      })
+      .sort((a, b) => {
+        const aTime = a.transferDate ? new Date(a.transferDate).getTime() : 0;
+        const bTime = b.transferDate ? new Date(b.transferDate).getTime() : 0;
+        if (aTime !== bTime) return bTime - aTime;
+        return b._idx - a._idx;
+      });
+  })();
+  const transferClassOptions = classes.filter((c) => String(c._id) !== String(transferTarget?.classId?._id || transferTarget?.classId || ''));
 
   // ── Render ─────────────────────────────────────────────────────────────────
   return (
@@ -1019,9 +1070,9 @@ export default function ManageAssetAllocation() {
             {/* Row 1: Lớp + Năm học */}
             <Stack direction="row" gap={2} flexWrap="wrap">
               <Autocomplete
-                options={classes}
+                options={availableClassOptions}
                 getOptionLabel={(o) => (typeof o === 'string' ? o : o.className)}
-                value={classes.find((c) => c._id === form.classId) || null}
+                value={availableClassOptions.find((c) => c._id === form.classId) || null}
                 onChange={(_, v) => {
                   const teacherNames = v?.teachers?.join(', ') || '';
                   setForm({
@@ -1031,7 +1082,14 @@ export default function ManageAssetAllocation() {
                     teacherName: teacherNames,
                   });
                 }}
-                renderInput={(params) => <TextField {...params} label="Lớp học" size="small" />}
+                renderInput={(params) => (
+                  <TextField
+                    {...params}
+                    label="Lớp học"
+                    size="small"
+                    helperText={!editTarget ? 'Ẩn các lớp đã có biên bản đang hoạt động/chờ xác nhận' : ''}
+                  />
+                )}
                 sx={{ flex: 1, minWidth: 200 }}
                 freeSolo={false}
               />
@@ -1297,18 +1355,27 @@ export default function ManageAssetAllocation() {
               Đang chuyển từ lớp: <strong>{transferTarget?.className || '—'}</strong> (GV: {transferTarget?.teacherName || '—'})
             </Typography>
             <Autocomplete
-              options={classes}
+              options={transferClassOptions}
               getOptionLabel={(o) => (typeof o === 'string' ? o : o.className)}
-              value={classes.find((c) => c._id === transferForm.toClassId) || null}
-              onChange={(_, v) => setTransferForm({ ...transferForm, toClassId: v?._id || '', toClassName: v?.className || '' })}
+              value={transferClassOptions.find((c) => c._id === transferForm.toClassId) || null}
+              onChange={(_, v) => {
+                const teacherNames = v?.teachers?.join(', ') || '';
+                setTransferForm({
+                  ...transferForm,
+                  toClassId: v?._id || '',
+                  toClassName: v?.className || '',
+                  toTeacherName: teacherNames,
+                });
+              }}
               renderInput={(params) => <TextField {...params} label="Lớp nhận *" size="small" />}
               freeSolo={false}
             />
             <TextField
-              label="Tên lớp nhận (nếu nhập tay)"
+              label="Tên lớp nhận"
               size="small"
               value={transferForm.toClassName}
-              onChange={(e) => setTransferForm({ ...transferForm, toClassName: e.target.value })}
+              InputProps={{ readOnly: true }}
+              helperText="Tự động lấy từ lớp đã chọn"
             />
             <TextField
               label="Giáo viên nhận"
@@ -1346,13 +1413,14 @@ export default function ManageAssetAllocation() {
       <Dialog open={!!historyTarget} onClose={() => setHistoryTarget(null)} maxWidth="md" fullWidth fullScreen={isMobile}>
         <DialogTitle>Lịch sử chuyển giao — {historyTarget?.documentCode}</DialogTitle>
         <DialogContent dividers>
-          {!historyTarget?.transferHistory?.length ? (
+          {!transferHistoryRows.length ? (
             <Typography color="text.secondary">Chưa có lịch sử chuyển giao.</Typography>
           ) : (
             <Box sx={{ overflowX: 'auto' }}>
               <Table size="small" sx={{ minWidth: 500 }}>
                 <TableHead>
                   <TableRow sx={{ bgcolor: 'grey.100' }}>
+                    <TableCell sx={{ whiteSpace: 'nowrap' }}>#</TableCell>
                     <TableCell sx={{ whiteSpace: 'nowrap' }}>Ngày chuyển</TableCell>
                     <TableCell sx={{ whiteSpace: 'nowrap' }}>Từ lớp</TableCell>
                     <TableCell sx={{ whiteSpace: 'nowrap' }}>Sang lớp</TableCell>
@@ -1362,8 +1430,9 @@ export default function ManageAssetAllocation() {
                   </TableRow>
                 </TableHead>
                 <TableBody>
-                  {historyTarget.transferHistory.map((h, i) => (
-                    <TableRow key={i}>
+                  {transferHistoryRows.map((h, i) => (
+                    <TableRow key={h._idx}>
+                      <TableCell>{i + 1}</TableCell>
                       <TableCell sx={{ whiteSpace: 'nowrap' }}>{formatDate(h.transferDate)}</TableCell>
                       <TableCell sx={{ whiteSpace: 'nowrap' }}>{h.fromClassName || '—'}</TableCell>
                       <TableCell sx={{ whiteSpace: 'nowrap' }}>{h.toClassName || '—'}</TableCell>

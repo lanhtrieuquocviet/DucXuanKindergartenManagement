@@ -62,6 +62,7 @@ export const SCHOOL_ADMIN_MENU_ITEMS = [
       { key: 'asset-allocation', label: 'Phân bổ cơ sở vật chất', permission: 'MANAGE_ASSET' },
       { key: 'purchase-requests', label: 'Yêu cầu mua sắm', permission: 'MANAGE_PURCHASE_REQUEST' },
       { key: 'kiemke', label: 'Kiểm kê tài sản', permission: 'MANAGE_ASSET' },
+      { key: 'asset-incidents', label: 'Xử lý sự cố cơ sở vật chất', permission: 'MANAGE_ASSET' },
     ],
   },
   {
@@ -79,7 +80,7 @@ export const SCHOOL_ADMIN_MENU_ITEMS = [
       { key: 'video-library', label: 'Quản lý video-clip', permission: 'MANAGE_IMAGE_LIBRARY' },
     ],
   },
-  
+
 ];
 
 /**
@@ -151,8 +152,8 @@ export const createSchoolAdminMenuSelect = (navigate) => (key) => {
     'assets-list': '/school-admin/assets',
     'room-assets': '/school-admin/room-assets',
     'asset-allocation': '/school-admin/asset-allocation',
-    'purchase-requests': '/school-admin/purchase-requests',
     'asset-incidents': '/school-admin/asset-incidents',
+    'purchase-requests': '/school-admin/purchase-requests',
     kiemke: '/school-admin/committee',
     attendance: '/school-admin/attendance/overview',
     'attendance-overview': '/school-admin/attendance/overview',

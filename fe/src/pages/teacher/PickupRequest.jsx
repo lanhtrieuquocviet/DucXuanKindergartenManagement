@@ -149,7 +149,7 @@ function PickupRequest() {
     { key: "pickup-approval",  label: "Đơn đăng ký đưa đón" },
     { key: "leave-requests",   label: "Danh sách đơn xin nghỉ" },
     { key: "contact-book",     label: "Sổ liên lạc" },
-    { key: "purchase-request", label: "Cơ sở vật chất" },
+    { key: "asset-incidents-teacher", label: "Báo cáo sự cố CSVC" },
     { key: "class-assets",     label: "Tài sản lớp" },
     ...(hasRole("InventoryStaff") ? [{ key: "asset-inspection", label: "Kiểm kê tài sản" }] : []),
   ], [hasPermission, hasRole]);
@@ -159,7 +159,7 @@ function PickupRequest() {
     if (path.startsWith("/teacher/contact-book"))    return "contact-book";
     if (path.startsWith("/teacher/attendance"))      return "attendance";
     if (path.startsWith("/teacher/pickup-approval")) return "pickup-approval";
-    if (path.startsWith("/teacher/purchase-request")) return "purchase-request";
+    if (path.startsWith("/teacher/asset-incidents")) return "asset-incidents-teacher";
     if (path.startsWith("/teacher/class-assets"))    return "class-assets";
     if (path.startsWith("/teacher/asset-inspection")) return "asset-inspection";
     return "classes";
@@ -173,7 +173,7 @@ function PickupRequest() {
       attendance: "/teacher/attendance",
       "pickup-approval": "/teacher/pickup-approval",
       "leave-requests": "/teacher/leave-requests",
-      "purchase-request": "/teacher/purchase-request",
+      "asset-incidents-teacher": "/teacher/asset-incidents",
       "class-assets": "/teacher/class-assets",
       "asset-inspection": "/teacher/asset-inspection",
     };

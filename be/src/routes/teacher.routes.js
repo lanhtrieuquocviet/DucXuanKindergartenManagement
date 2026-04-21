@@ -11,6 +11,7 @@ const Teacher = require('../models/Teacher');
 const Classes = require('../models/Classes');
 const Student = require('../models/Student');
 const Attendances = require('../models/Attendances');
+const AcademicYear = require('../models/AcademicYear');
 
 const router = express.Router();
 
@@ -31,15 +32,59 @@ const router = express.Router();
  */
 router.get('/dashboard', authenticate, authorizeRoles('Teacher', 'HeadTeacher'), async (req, res) => {
   try {
+    const currentYear = await AcademicYear.findOne({ status: 'active' }).sort({ startDate: -1 }).select('_id');
     const teacherProfile = await Teacher.findOne({ userId: req.user._id });
+    const classFilter = { teacherIds: teacherProfile?._id };
+    if (currentYear?._id) classFilter.academicYearId = currentYear._id;
     const classes = teacherProfile
-      ? await Classes.find({ teacherIds: teacherProfile._id }).select('_id className')
+      ? await Classes.find(classFilter).select('_id className')
       : [];
     const classIds = classes.map((c) => c._id);
 
-    const totalStudents = classIds.length
-      ? await Student.countDocuments({ classId: { $in: classIds }, status: 'active' })
-      : 0;
+    const activeStudents = classIds.length
+      ? await Student.find({
+        classId: { $in: classIds },
+        status: 'active',
+        ...(currentYear?._id ? { academicYearId: currentYear._id } : {}),
+      }).select('_id')
+      : [];
+    const studentIds = activeStudents.map((s) => s._id);
+    const totalStudents = studentIds.length;
+
+    const countAttendanceByRange = async (startDate, endDate) => {
+      if (!classIds.length || !studentIds.length) {
+        return { present: 0, absent: 0, leave: 0, total: 0 };
+      }
+
+      // Deduplicate by student/day and keep latest status when data has legacy duplicates.
+      const grouped = await Attendances.aggregate([
+        {
+          $match: {
+            classId: { $in: classIds },
+            studentId: { $in: studentIds },
+            date: { $gte: startDate, $lte: endDate },
+          },
+        },
+        { $sort: { updatedAt: -1 } },
+        {
+          $group: {
+            _id: '$studentId',
+            status: { $first: '$status' },
+          },
+        },
+      ]);
+
+      const present = grouped.filter((r) => r.status === 'present').length;
+      const absent = grouped.filter((r) => r.status === 'absent').length;
+      const leave = grouped.filter((r) => r.status === 'leave').length;
+
+      return {
+        present,
+        absent,
+        leave,
+        total: grouped.length,
+      };
+    };
 
     // Week range (Mon–Fri of current week, Vietnam time)
     const now = new Date();
@@ -59,25 +104,21 @@ router.get('/dashboard', authenticate, authorizeRoles('Teacher', 'HeadTeacher'),
       d.setDate(monday.getDate() + i);
       const dEnd = new Date(d);
       dEnd.setHours(23, 59, 59, 999);
-      const records = classIds.length
-        ? await Attendances.find({ classId: { $in: classIds }, date: { $gte: d, $lte: dEnd } }).select('status')
-        : [];
+      const daily = await countAttendanceByRange(d, dEnd);
       weeklyAttendance.push({
         date: d.toISOString().slice(0, 10),
         dayName: DAY_NAMES[d.getDay()],
-        present: records.filter((r) => r.status === 'present').length,
-        absent: records.filter((r) => r.status === 'absent').length,
-        leave: records.filter((r) => r.status === 'leave').length,
-        total: records.length,
+        present: daily.present,
+        absent: daily.absent,
+        leave: daily.leave,
+        total: daily.total,
       });
     }
 
     // Today stats
     const todayStart = new Date(); todayStart.setHours(0, 0, 0, 0);
     const todayEnd = new Date(); todayEnd.setHours(23, 59, 59, 999);
-    const todayRecords = classIds.length
-      ? await Attendances.find({ classId: { $in: classIds }, date: { $gte: todayStart, $lte: todayEnd } }).select('status classId')
-      : [];
+    const todayStats = await countAttendanceByRange(todayStart, todayEnd);
 
     return res.status(200).json({
       status: 'success',
@@ -85,10 +126,10 @@ router.get('/dashboard', authenticate, authorizeRoles('Teacher', 'HeadTeacher'),
         classes: classes.map((c) => ({ _id: c._id, className: c.className })),
         totalStudents,
         todayAttendance: {
-          present: todayRecords.filter((r) => r.status === 'present').length,
-          absent: todayRecords.filter((r) => r.status === 'absent').length,
-          leave: todayRecords.filter((r) => r.status === 'leave').length,
-          total: todayRecords.length,
+          present: todayStats.present,
+          absent: todayStats.absent,
+          leave: todayStats.leave,
+          total: todayStats.total,
         },
         weeklyAttendance,
       },
@@ -409,5 +450,7 @@ router.get('/asset-allocations/active', authenticate, authorizePermissions('MANA
 router.get('/asset-incidents',     authenticate, authorizePermissions('MANAGE_ASSET'), incidentCtrl.listMyIncidents);
 router.post('/asset-incidents',    authenticate, authorizePermissions('MANAGE_ASSET'), incidentCtrl.createIncident);
 router.get('/asset-incidents/:id', authenticate, authorizePermissions('MANAGE_ASSET'), incidentCtrl.getIncident);
+router.put('/asset-incidents/:id', authenticate, authorizePermissions('MANAGE_ASSET'), incidentCtrl.updateIncident);
+router.delete('/asset-incidents/:id', authenticate, authorizePermissions('MANAGE_ASSET'), incidentCtrl.deleteIncident);
 
 module.exports = router;
