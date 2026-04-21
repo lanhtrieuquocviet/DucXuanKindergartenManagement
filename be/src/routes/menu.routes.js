@@ -99,6 +99,12 @@ router.get("/public/:id", menuController.getPublicMenuDetail);
 router.get("/", authenticate, menuController.getMenus);
 router.post("/", authenticate, authorizePermissions("MANAGE_MENU"), menuController.createMenu);
 router.get("/nutrition-plan", authenticate, menuController.getNutritionPlanSetting);
+router.get(
+  "/academic-year/current",
+  authenticate,
+  authorizeAnyPermission("MANAGE_MENU", "APPROVE_MENU"),
+  menuController.getCurrentAcademicYearForMenu
+);
 router.put(
   "/nutrition-plan",
   authenticate,
@@ -312,6 +318,14 @@ router.patch(
   authenticate,
   authorizePermissions("APPROVE_MENU"),
   menuController.endMenu
+);
+
+// Hội trưởng phụ huynh xem xét thực đơn (có hoặc không có ý kiến) → chuyển lên ban giám hiệu
+router.put(
+  "/:id/headparent-review",
+  authenticate,
+  authorizePermissions("REVIEW_MENU"),
+  menuController.headParentReviewMenu
 );
 
 module.exports = router;

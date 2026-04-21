@@ -45,6 +45,7 @@ import ArrowBackIcon from '@mui/icons-material/ArrowBack';
 import DragIndicatorIcon from '@mui/icons-material/DragIndicator';
 import InfoOutlinedIcon from '@mui/icons-material/InfoOutlined';
 import DownloadIcon from '@mui/icons-material/Download';
+import MeetingRoomIcon from '@mui/icons-material/MeetingRoom';
 import RoleLayout from '../../layouts/RoleLayout';
 import { useAuth } from '../../context/AuthContext';
 import { del, get, patch, post, postFormData, put, ENDPOINTS } from '../../service/api';
@@ -112,6 +113,8 @@ const emptyForm = () => ({
   assets:             [emptySeparator(), emptyAssetRow()],
   extraAssets:        [],
   notes:              '',
+  pickedRoomId:       null,
+  pickedRoomName:     '',
 });
 
 const emptyTransferForm = () => ({
@@ -458,6 +461,16 @@ export default function ManageAssetAllocation() {
 
   const [importing, setImporting]           = useState(false);
   const excelInputRef                       = useRef(null);
+  const wordInputRef                        = useRef(null);
+
+  // ── Nhập từ phòng học ──────────────────────────────────────────────────────
+  const [roomPickerOpen, setRoomPickerOpen] = useState(false);
+  const [roomList, setRoomList]             = useState([]);
+  const [loadingRooms, setLoadingRooms]     = useState(false);
+  const [pickedRoom, setPickedRoom]         = useState(null);
+  const [loadingRoomAssets, setLoadingRoomAssets] = useState(false);
+  // roomId → { className } của phòng đã có biên bản bàn giao active/pending
+  const [assignedRoomIds, setAssignedRoomIds] = useState({});
 
   // ── Load data ──────────────────────────────────────────────────────────────
   const loadAllocations = async () => {
@@ -579,6 +592,83 @@ export default function ManageAssetAllocation() {
     }
   };
 
+  // ── Nhập từ phòng học ──────────────────────────────────────────────────────
+  const openRoomPicker = async () => {
+    setPickedRoom(null);
+    setRoomPickerOpen(true);
+    setLoadingRooms(true);
+    try {
+      // Load phòng + biên bản active + biên bản pending song song
+      const [roomRes, activeRes, pendingRes] = await Promise.all([
+        get(ENDPOINTS.SCHOOL_ADMIN.ROOM_ASSETS),
+        get(`${ENDPOINTS.SCHOOL_ADMIN.ASSET_ALLOCATIONS}?status=active`),
+        get(`${ENDPOINTS.SCHOOL_ADMIN.ASSET_ALLOCATIONS}?status=pending_confirmation`),
+      ]);
+      if (roomRes.status === 'success') setRoomList(roomRes.data.classrooms || []);
+
+      // Xây dựng map roomId → className cho các phòng đã có biên bản
+      // Dùng sourceRoomId (biên bản mới) hoặc classId.roomId (fallback cho biên bản cũ)
+      const occupied = {};
+      const allAllocs = [
+        ...(activeRes?.data?.allocations || []),
+        ...(pendingRes?.data?.allocations || []),
+      ];
+      for (const alloc of allAllocs) {
+        const roomId =
+          alloc.sourceRoomId?._id || alloc.sourceRoomId ||
+          alloc.classId?.roomId?._id || alloc.classId?.roomId;
+        if (roomId) {
+          occupied[String(roomId)] = { className: alloc.className || '?' };
+        }
+      }
+      setAssignedRoomIds(occupied);
+    } catch {
+      toast.error('Không thể tải danh sách phòng.');
+    } finally {
+      setLoadingRooms(false);
+    }
+  };
+
+  const handleImportFromRoom = async () => {
+    if (!pickedRoom) return toast.warn('Vui lòng chọn phòng.');
+    setLoadingRoomAssets(true);
+    try {
+      const res = await get(ENDPOINTS.SCHOOL_ADMIN.ROOM_ASSETS_BY_ROOM(pickedRoom._id));
+      if (res.status !== 'success') return;
+      const items = res.data.items || [];
+      if (items.length === 0) { toast.warn('Phòng này chưa có tài sản nào.'); return; }
+
+      // Nhóm theo category rồi chuyển sang flat format
+      const grouped = {};
+      for (const item of items) {
+        const cat = item.assetId?.category || '';
+        if (!grouped[cat]) grouped[cat] = [];
+        grouped[cat].push({
+          _key: nextKey(),
+          category: cat,
+          assetCode: item.assetId?.assetCode || '',
+          name: item.assetId?.name || '',
+          unit: item.assetId?.unit || 'Cái',
+          quantity: item.quantity,
+          targetUser: 'Trẻ',
+          notes: item.notes || '',
+        });
+      }
+      const flat = [];
+      for (const [cat, rows] of Object.entries(grouped)) {
+        flat.push(emptySeparator(cat));
+        flat.push(...rows);
+      }
+      setForm((f) => ({ ...f, assets: flat, pickedRoomId: pickedRoom._id, pickedRoomName: pickedRoom.roomName }));
+      toast.success(`Đã nhập ${items.length} loại tài sản từ phòng "${pickedRoom.roomName}".`);
+      setRoomPickerOpen(false);
+    } catch {
+      toast.error('Không thể tải tài sản của phòng.');
+    } finally {
+      setLoadingRoomAssets(false);
+    }
+  };
+
   // ── Transfer ───────────────────────────────────────────────────────────────
   const openTransfer = (alloc) => {
     setTransferTarget(alloc);
@@ -622,6 +712,25 @@ export default function ManageAssetAllocation() {
       URL.revokeObjectURL(url);
     } catch {
       toast.error('Lỗi tải mẫu Excel.');
+    }
+  };
+
+  // ── Import Word ────────────────────────────────────────────────────────────
+  const handleWordImport = async (e) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    e.target.value = '';
+
+    setImporting(true);
+    try {
+      const formData = new FormData();
+      formData.append('file', file);
+      const res = await postFormData(ENDPOINTS.SCHOOL_ADMIN.ASSET_ALLOCATIONS_PARSE_WORD, formData);
+      applyImportResult(res);
+    } catch (err) {
+      toast.error('Lỗi đọc file Word: ' + (err.message || ''));
+    } finally {
+      setImporting(false);
     }
   };
 
@@ -767,12 +876,38 @@ export default function ManageAssetAllocation() {
                 </TableRow>
               </TableHead>
               <TableBody>
-                {allocations.map((alloc) => {
+                {(() => {
+                  const grouped = {};
+                  for (const alloc of allocations) {
+                    const key = alloc.classId?.gradeId?._id ? String(alloc.classId.gradeId._id) : '__none__';
+                    const gradeName = alloc.classId?.gradeId?.gradeName || 'Chưa phân khối';
+                    if (!grouped[key]) grouped[key] = { gradeName, items: [] };
+                    grouped[key].items.push(alloc);
+                  }
+                  const groups = Object.values(grouped).sort((a, b) => a.gradeName.localeCompare(b.gradeName, 'vi'));
+                  return groups.flatMap((group, gi) => [
+                    <TableRow key={`gh-${gi}`}>
+                      <TableCell colSpan={9} sx={{
+                        py: 0.75, pl: 2.5, fontWeight: 700, fontSize: 13,
+                        bgcolor: '#dbeafe', color: '#1d4ed8',
+                        borderTop: gi > 0 ? '2px solid #93c5fd' : 'none',
+                      }}>
+                        {group.gradeName} — {group.items.length} biên bản
+                      </TableCell>
+                    </TableRow>,
+                    ...group.items.map((alloc) => {
                   const si = STATUS_INFO[alloc.status] || STATUS_INFO.active;
                   return (
                     <TableRow key={alloc._id} hover>
                       <TableCell sx={{ fontFamily: 'monospace', whiteSpace: 'nowrap' }}>{alloc.documentCode}</TableCell>
-                      <TableCell sx={{ whiteSpace: 'nowrap' }}>{alloc.className || '—'}</TableCell>
+                      <TableCell sx={{ whiteSpace: 'nowrap' }}>
+                        {alloc.className || '—'}
+                        {alloc.sourceRoomId && (
+                          <Typography variant="caption" display="block" color="text.secondary">
+                            Phòng: {alloc.sourceRoomId?.roomName || alloc.sourceRoomName || '—'}
+                          </Typography>
+                        )}
+                      </TableCell>
                       <TableCell sx={{ whiteSpace: 'nowrap' }}>{alloc.handoverByName || '—'}</TableCell>
                       <TableCell sx={{ whiteSpace: 'nowrap' }}>{alloc.teacherName || '—'}</TableCell>
                       <TableCell sx={{ whiteSpace: 'nowrap' }}>{formatDate(alloc.handoverDate)}</TableCell>
@@ -817,11 +952,18 @@ export default function ManageAssetAllocation() {
                               </Tooltip>
                             </>
                           )}
+                          <Tooltip title="Xóa biên bản">
+                            <IconButton size="small" color="error" onClick={() => setDeleteTarget(alloc)}>
+                              <DeleteIcon fontSize="small" />
+                            </IconButton>
+                          </Tooltip>
                         </Stack>
                       </TableCell>
                     </TableRow>
                   );
-                })}
+                    })
+                  ]);
+                })()}
               </TableBody>
             </Table>
           </Paper>
@@ -965,6 +1107,17 @@ export default function ManageAssetAllocation() {
             <Stack direction="row" alignItems="center" justifyContent="space-between" flexWrap="wrap" gap={1}>
               <Typography variant="subtitle2" fontWeight="bold">Danh sách tài sản bàn giao (theo thông tư)</Typography>
               <Stack direction="row" gap={1} alignItems="center" flexWrap="wrap">
+                <Tooltip title="Tự động điền danh sách tài sản từ phòng học đã cài đặt">
+                  <Button
+                    size="small"
+                    variant="contained"
+                    color="warning"
+                    startIcon={<MeetingRoomIcon />}
+                    onClick={openRoomPicker}
+                  >
+                    Nhập từ phòng
+                  </Button>
+                </Tooltip>
                 <Tooltip title="Tải file Excel mẫu đúng định dạng (2 sheet: Theo thông tư / Ngoài thông tư)">
                   <Button
                     size="small"
@@ -974,6 +1127,19 @@ export default function ManageAssetAllocation() {
                     onClick={downloadTemplate}
                   >
                     Tải mẫu Excel
+                  </Button>
+                </Tooltip>
+                <input ref={wordInputRef} type="file" accept=".doc,.docx" style={{ display: 'none' }} onChange={handleWordImport} />
+                <Tooltip title="Import từ file Word (.doc/.docx)">
+                  <Button
+                    size="small"
+                    variant="contained"
+                    color="secondary"
+                    startIcon={importing ? <CircularProgress size={14} /> : <UploadFileIcon />}
+                    onClick={() => wordInputRef.current?.click()}
+                    disabled={importing}
+                  >
+                    {importing ? 'Đang đọc...' : 'Word'}
                   </Button>
                 </Tooltip>
                 <input ref={excelInputRef} type="file" accept=".xlsx" style={{ display: 'none' }} onChange={handleExcelImport} />
@@ -1051,6 +1217,76 @@ export default function ManageAssetAllocation() {
 
       {/* ── View Document ───────────────────────────────────────────────────── */}
       {viewTarget && <AllocationDocument allocation={viewTarget} onClose={() => setViewTarget(null)} />}
+
+      {/* ── Room Picker Dialog ──────────────────────────────────────────────── */}
+      <Dialog open={roomPickerOpen} onClose={() => setRoomPickerOpen(false)} maxWidth="xs" fullWidth>
+        <DialogTitle>Nhập tài sản từ phòng học</DialogTitle>
+        <DialogContent>
+          <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
+            Chọn phòng để tự động điền danh sách tài sản vào biên bản.
+          </Typography>
+          {loadingRooms ? (
+            <Box sx={{ display: 'flex', justifyContent: 'center', py: 3 }}><CircularProgress size={28} /></Box>
+          ) : (
+            <Stack spacing={1}>
+              {roomList.length === 0 && (
+                <Typography variant="body2" color="text.secondary">Chưa có phòng nào. Vui lòng thêm phòng ở mục "Quản lý tài sản theo phòng học".</Typography>
+              )}
+              {roomList.map((room) => {
+                const isAssigned = !!assignedRoomIds[String(room._id)];
+                const assignedTo = assignedRoomIds[String(room._id)]?.className;
+                return (
+                  <Box
+                    key={room._id}
+                    onClick={() => !isAssigned && setPickedRoom(room)}
+                    sx={{
+                      p: 1.5, border: '2px solid', borderRadius: 1,
+                      cursor: isAssigned ? 'not-allowed' : 'pointer',
+                      borderColor: isAssigned
+                        ? 'warning.main'
+                        : pickedRoom?._id === room._id ? 'primary.main' : 'divider',
+                      bgcolor: isAssigned
+                        ? 'warning.50'
+                        : pickedRoom?._id === room._id ? 'primary.50' : 'transparent',
+                      opacity: isAssigned ? 0.7 : 1,
+                      '&:hover': !isAssigned ? { borderColor: 'primary.main', bgcolor: 'action.hover' } : {},
+                    }}
+                  >
+                    <Stack direction="row" justifyContent="space-between" alignItems="center">
+                      <Box>
+                        <Typography variant="body2" fontWeight={600}>{room.roomName}</Typography>
+                        {room.zone && <Typography variant="caption" color="text.secondary">Khu {room.zone}</Typography>}
+                      </Box>
+                      <Stack alignItems="flex-end" spacing={0.25}>
+                        {isAssigned ? (
+                          <Chip
+                            label={`Đã bàn giao: ${assignedTo}`}
+                            color="warning"
+                            size="small"
+                            sx={{ fontSize: 10, height: 20 }}
+                          />
+                        ) : (
+                          <Typography variant="caption" color="text.secondary">{room.totalTypes || 0} loại tài sản</Typography>
+                        )}
+                      </Stack>
+                    </Stack>
+                  </Box>
+                );
+              })}
+            </Stack>
+          )}
+        </DialogContent>
+        <DialogActions>
+          <Button onClick={() => setRoomPickerOpen(false)}>Hủy</Button>
+          <Button
+            variant="contained"
+            onClick={handleImportFromRoom}
+            disabled={!pickedRoom || loadingRoomAssets}
+          >
+            {loadingRoomAssets ? <CircularProgress size={18} /> : 'Nhập tài sản'}
+          </Button>
+        </DialogActions>
+      </Dialog>
 
       {/* ── Transfer Dialog ─────────────────────────────────────────────────── */}
       <Dialog open={transferOpen} onClose={() => setTransferOpen(false)} maxWidth="sm" fullWidth fullScreen={isMobile}>

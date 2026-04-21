@@ -37,6 +37,12 @@ const getLocalISODate = () => {
   return new Date(d.getTime() - tzOffset).toISOString().slice(0, 10);
 };
 
+const isWeekendDate = (dateStr) => {
+  if (!dateStr) return false;
+  const d = new Date(dateStr + 'T00:00:00');
+  return d.getDay() === 0 || d.getDay() === 6;
+};
+
 const formatDate = (dateStr) => {
   if (!dateStr) return '';
   const d = new Date(dateStr);
@@ -327,6 +333,12 @@ function AttendanceOverview() {
           />
         </Stack>
       </Paper>
+
+      {isWeekendDate(selectedDate) && (
+        <Alert severity="info" sx={{ mb: 2, borderRadius: 2 }}>
+          Ngày <strong>{selectedDate}</strong> là thứ 7 hoặc chủ nhật — học sinh không đi học, sẽ không có dữ liệu điểm danh.
+        </Alert>
+      )}
 
       {/* Stats */}
       <Stack direction="row" flexWrap="wrap" gap={2} sx={{ mb: 2 }}>

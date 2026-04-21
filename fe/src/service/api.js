@@ -391,9 +391,14 @@ export const ENDPOINTS = {
     ASSET_MINUTES_EXPORT_WORD: (id) => `/school-admin/asset-minutes/${id}/export-word`,
     ASSET_MINUTES_APPROVE: (id) => `/school-admin/asset-minutes/${id}/approve`,
     ASSET_MINUTES_REJECT: (id) => `/school-admin/asset-minutes/${id}/reject`,
+    // Room Assets (Tài sản theo phòng học)
+    ROOM_ASSETS: "/school-admin/room-assets",
+    ROOM_ASSETS_BY_ROOM: (roomId) => `/school-admin/room-assets/${roomId}`,
+    ROOM_ASSET_ITEM: (roomId, id) => `/school-admin/room-assets/${roomId}/${id}`,
     // Asset CRUD
     ASSETS: "/school-admin/assets",
     ASSETS_BULK: "/school-admin/assets/bulk",
+    ASSETS_BULK_WAREHOUSE: "/school-admin/assets/bulk-warehouse",
     // Asset Allocations (Biên bản bàn giao tài sản)
     ASSET_ALLOCATIONS: "/school-admin/asset-allocations",
     ASSET_ALLOCATIONS_CLASSES: "/school-admin/asset-allocations/classes",
@@ -544,6 +549,9 @@ export const ENDPOINTS = {
     DELETE: (studentId) => `/students/${studentId}`,
     ATTENDANCE_CHECKIN: "/students/attendance",
     ATTENDANCE_CHECKOUT: "/students/attendance/checkout",
+    ATTENDANCE_CHECKOUT_REQUEST: "/students/attendance/checkout/request",
+    ATTENDANCE_CHECKOUT_PARENT_CONFIRM: "/students/attendance/checkout/parent-confirm",
+    ATTENDANCE_CHECKOUT_PENDING: (studentId) => `/students/attendance/checkout/pending/${studentId}`,
     ATTENDANCE_LIST: "/students/attendance",
   },
   // Cloudinary
@@ -575,12 +583,6 @@ export const ENDPOINTS = {
     MARK_READ: (id) => `/notifications/${id}/read`,
     MARK_ALL_READ: '/notifications/read-all',
   },
-  // OTP
-  OTP: {
-    SEND: "/otp/send",
-    VERIFY: "/otp/verify",
-    PENDING: (studentId) => `/otp/pending/${studentId}`,
-  },
   //Pickup
   PICKUP: {
     CREATE: "/pickup/requests",
@@ -593,6 +595,9 @@ export const ENDPOINTS = {
   },
   LEAVE: {
     CREATE: '/leave/requests',
+    UPDATE: (id) => `/leave/requests/${id}`,
+    DELETE: (id) => `/leave/requests/${id}`,
+    CANCEL: (id) => `/leave/requests/${id}/cancel`,
     MY_REQUESTS: '/leave/my-requests',
     REQUESTS: '/leave/requests',
     UPDATE_STATUS: '/leave/requests/status',

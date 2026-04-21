@@ -85,7 +85,7 @@ require('./src/models/LeaveRequest');
 (async () => {
   try {
     const Role = require('./src/models/Role');
-    const defaultRoles = ['SystemAdmin', 'SchoolAdmin', 'HeadTeacher', 'Teacher', 'Parent', 'KitchenStaff'];
+    const defaultRoles = ['SystemAdmin', 'SchoolAdmin', 'HeadTeacher', 'Teacher', 'Parent', 'KitchenStaff', 'MedicalStaff', 'InventoryStaff', 'HeadParent'];
     for (const roleName of defaultRoles) {
       await Role.findOneAndUpdate(
         { roleName },
@@ -219,6 +219,8 @@ require('./src/models/LeaveRequest');
       { code: 'MANAGE_MENU', description: 'Tạo, sửa và gửi duyệt thực đơn hàng ngày cho học sinh', group: 'Bếp & Thực phẩm' },
       { code: 'MANAGE_MEAL_PHOTO', description: 'Tải lên ảnh bữa ăn thực tế và quản lý mẫu thực phẩm kiểm tra', group: 'Bếp & Thực phẩm' },
       { code: 'APPROVE_MENU', description: 'Xem xét và duyệt thực đơn, ảnh bữa ăn do bếp gửi lên', group: 'Bếp & Thực phẩm' },
+      // Bếp & Thực phẩm (HeadParent)
+      { code: 'REVIEW_MENU', description: 'Xem xét và cho ý kiến thực đơn trước khi chuyển lên ban giám hiệu duyệt', group: 'Bếp & Thực phẩm' },
       // Tài sản & Mua sắm
       { code: 'MANAGE_ASSET', description: 'Quản lý danh mục tài sản, biên bản bàn giao, phân bổ và sự cố hư hỏng', group: 'Tài sản & Mua sắm' },
       { code: 'MANAGE_PURCHASE_REQUEST', description: 'Tạo, theo dõi và xét duyệt đề xuất mua sắm thiết bị, vật tư', group: 'Tài sản & Mua sắm' },
@@ -273,6 +275,9 @@ require('./src/models/LeaveRequest');
       InventoryStaff: [
         'MANAGE_INSPECTION',
       ],
+      HeadParent: [
+        'REVIEW_MENU',
+      ],
     };
 
     for (const [roleName, codes] of Object.entries(roleDefaults)) {
@@ -293,6 +298,7 @@ require('./src/models/LeaveRequest');
     // HeadTeacher kế thừa toàn bộ quyền của Teacher, chỉ thêm MANAGE_TEACHER_REPORT
     const parentConfig = [
       { child: 'HeadTeacher', parent: 'Teacher' },
+      { child: 'HeadParent', parent: 'Parent' },
     ];
     for (const { child, parent } of parentConfig) {
       const childRole = await Role.findOne({ roleName: child });

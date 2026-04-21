@@ -68,6 +68,12 @@ const upsertAttendance = async (req, res) => {
       return res.status(400).json({ status: 'error', message: 'Không thể điểm danh cho ngày trong tương lai' });
     }
 
+    // Không cho phép điểm danh vào thứ 7, chủ nhật
+    const dayOfWeek = attendanceDate.getDay();
+    if (dayOfWeek === 0 || dayOfWeek === 6) {
+      return res.status(400).json({ status: 'error', message: 'Không thể điểm danh vào thứ 7 và chủ nhật' });
+    }
+
     // Validate status enum
     const VALID_STATUSES = ['present', 'absent', 'leave'];
     if (status && !VALID_STATUSES.includes(status)) {
@@ -214,13 +220,19 @@ const checkoutAttendance = async (req, res) => {
       return res.status(400).json({ status: 'error', message: 'Không thể điểm danh về cho ngày trong tương lai' });
     }
 
+    // Không cho phép điểm danh vào thứ 7, chủ nhật
+    const dayOfWeekCheckout = attendanceDate.getDay();
+    if (dayOfWeekCheckout === 0 || dayOfWeekCheckout === 6) {
+      return res.status(400).json({ status: 'error', message: 'Không thể điểm danh về vào thứ 7 và chủ nhật' });
+    }
+
     // Validate định dạng giờ check-out nếu client cung cấp tường minh
     if (timeString?.checkOut && !/^\d{2}:\d{2}$/.test(timeString.checkOut)) {
       return res.status(400).json({ status: 'error', message: 'Giờ điểm danh về phải theo định dạng HH:mm' });
     }
 
     // Validate checkoutConfirmMethod
-    const VALID_CONFIRM_METHODS = ['teacher', 'school_otp', 'sms_otp', ''];
+    const VALID_CONFIRM_METHODS = ['teacher', 'parent_confirm', ''];
     if (checkoutConfirmMethod !== undefined && !VALID_CONFIRM_METHODS.includes(checkoutConfirmMethod || '')) {
       return res.status(400).json({ status: 'error', message: 'Phương thức xác nhận không hợp lệ' });
     }
@@ -267,6 +279,7 @@ const checkoutAttendance = async (req, res) => {
       status: status || 'present',
       'time.checkOut': checkOutTime,
       'timeString.checkOut': checkOutTimeString,
+      checkoutStatus: '',
       ...(Array.isArray(checkoutBelongings) && { checkoutBelongings }),
       ...(typeof checkedOutByAI === 'boolean' && { checkedOutByAI }),
       ...(typeof teacherConfirmedCheckout === 'boolean' && { teacherConfirmedCheckout }),
@@ -936,6 +949,153 @@ const getAttendanceExportData = async (req, res) => {
   }
 };
 
+/**
+ * Giáo viên gửi thông tin người đón cho phụ huynh xác nhận (người ngoài danh sách)
+ * POST /api/students/attendance/checkout/request
+ * body: { studentId, date?, receiverType, receiverOtherInfo, receiverOtherImageName, checkoutImageName }
+ */
+const requestCheckout = async (req, res) => {
+  try {
+    const { studentId, date, receiverType, receiverOtherInfo, receiverOtherImageName, checkoutImageName } = req.body;
+
+    if (!studentId) {
+      return res.status(400).json({ status: 'error', message: 'Vui lòng cung cấp studentId' });
+    }
+
+    const attendanceDate = date ? new Date(date) : new Date();
+    attendanceDate.setHours(0, 0, 0, 0);
+
+    const existingAttendance = await Attendances.findOne({ studentId, date: attendanceDate });
+    if (!existingAttendance || !existingAttendance.timeString?.checkIn) {
+      return res.status(400).json({ status: 'error', message: 'Học sinh chưa điểm danh đến' });
+    }
+    if (existingAttendance.time?.checkOut) {
+      return res.status(400).json({ status: 'error', message: 'Học sinh đã điểm danh về rồi' });
+    }
+
+    const attendance = await Attendances.findOneAndUpdate(
+      { studentId, date: attendanceDate },
+      {
+        $set: {
+          checkoutStatus: 'pending',
+          pendingCheckoutData: {
+            receiverType: receiverType || '',
+            receiverOtherInfo: receiverOtherInfo || '',
+            receiverOtherImageName: receiverOtherImageName || '',
+            checkoutImageName: checkoutImageName || '',
+            sentAt: new Date(),
+          },
+        },
+      },
+      { new: true },
+    )
+      .populate('studentId', 'fullName classId parentId')
+      .populate('classId', 'className');
+
+    const parentId = attendance?.studentId?.parentId;
+    const studentName = attendance?.studentId?.fullName || studentId;
+    const className = attendance?.classId?.className || '';
+
+    if (parentId) {
+      await createNotification({
+        title: 'Yêu cầu xác nhận đón trẻ',
+        body: `Có người đến đón ${studentName}${className ? ` - Lớp ${className}` : ''}. Vui lòng xác nhận trong ứng dụng.`,
+        type: 'checkout_pending',
+        targetRole: 'Parent',
+        targetUserId: parentId,
+        extra: { studentId, attendanceId: attendance._id },
+      });
+    }
+
+    return res.status(200).json({ status: 'success', message: 'Đã gửi thông tin cho phụ huynh', data: { checkoutStatus: 'pending' } });
+  } catch (error) {
+    console.error('Error in requestCheckout:', error);
+    return res.status(500).json({ status: 'error', message: 'Lỗi khi gửi thông tin', error: error.message });
+  }
+};
+
+/**
+ * Lấy trạng thái pending checkout (GV polling / PH xem thông tin để xác nhận)
+ * GET /api/students/attendance/checkout/pending/:studentId
+ */
+const getPendingCheckout = async (req, res) => {
+  try {
+    const { studentId } = req.params;
+
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+
+    const attendance = await Attendances.findOne({ studentId, date: today })
+      .populate('studentId', 'fullName classId parentId')
+      .populate('classId', 'className')
+      .lean();
+
+    if (!attendance || !['pending', 'confirmed'].includes(attendance.checkoutStatus) || attendance.time?.checkOut) {
+      return res.status(200).json({ status: 'success', data: null });
+    }
+
+    return res.status(200).json({
+      status: 'success',
+      data: {
+        checkoutStatus: attendance.checkoutStatus,
+        pendingCheckoutData: attendance.pendingCheckoutData,
+        student: {
+          fullName: attendance.studentId?.fullName,
+          className: attendance.classId?.className,
+        },
+      },
+    });
+  } catch (error) {
+    console.error('Error in getPendingCheckout:', error);
+    return res.status(500).json({ status: 'error', message: 'Lỗi khi lấy trạng thái', error: error.message });
+  }
+};
+
+/**
+ * Phụ huynh xác nhận đón trẻ
+ * POST /api/students/attendance/checkout/parent-confirm
+ * body: { studentId, date? }
+ */
+const parentConfirmCheckout = async (req, res) => {
+  try {
+    const { studentId, date } = req.body;
+    const parentUserId = req.user?._id || req.user?.id;
+
+    if (!studentId) {
+      return res.status(400).json({ status: 'error', message: 'Vui lòng cung cấp studentId' });
+    }
+
+    const student = await Students.findById(studentId).lean();
+    if (!student) {
+      return res.status(404).json({ status: 'error', message: 'Không tìm thấy học sinh' });
+    }
+    if (student.parentId?.toString() !== parentUserId?.toString()) {
+      return res.status(403).json({ status: 'error', message: 'Không có quyền xác nhận cho học sinh này' });
+    }
+
+    const attendanceDate = date ? new Date(date) : new Date();
+    attendanceDate.setHours(0, 0, 0, 0);
+
+    const attendance = await Attendances.findOne({ studentId, date: attendanceDate });
+    if (!attendance) {
+      return res.status(404).json({ status: 'error', message: 'Không tìm thấy điểm danh' });
+    }
+    if (attendance.checkoutStatus !== 'pending') {
+      return res.status(400).json({ status: 'error', message: 'Không có yêu cầu xác nhận nào' });
+    }
+
+    await Attendances.updateOne(
+      { studentId, date: attendanceDate },
+      { $set: { checkoutStatus: 'confirmed' } },
+    );
+
+    return res.status(200).json({ status: 'success', message: 'Đã xác nhận đón trẻ thành công' });
+  } catch (error) {
+    console.error('Error in parentConfirmCheckout:', error);
+    return res.status(500).json({ status: 'error', message: 'Lỗi khi xác nhận', error: error.message });
+  }
+};
+
 module.exports = {
   upsertAttendance,
   checkoutAttendance,
@@ -945,5 +1105,8 @@ module.exports = {
   getStudentAttendanceDetail,
   getStudentAttendanceHistory,
   getAttendanceExportData,
+  requestCheckout,
+  getPendingCheckout,
+  parentConfirmCheckout,
 };
 

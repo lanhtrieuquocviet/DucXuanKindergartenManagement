@@ -91,6 +91,7 @@ export default function TodayAttendance() {
   const today = useMemo(() => new Date(), []);
   const todayLabel = today.toLocaleDateString('vi-VN', { weekday: 'long', day: '2-digit', month: '2-digit', year: 'numeric' });
   const todayQuery = `${today.getFullYear()}-${String(today.getMonth()+1).padStart(2,'0')}-${String(today.getDate()).padStart(2,'0')}`;
+  const isWeekend = today.getDay() === 0 || today.getDay() === 6;
 
   useEffect(() => {
     if (isInitializing) return;
@@ -151,7 +152,7 @@ export default function TodayAttendance() {
   const checkoutConfirmMethod = attendance?.checkoutConfirmMethod || '';
   const isOtherReceiver = receiverName === 'Khác';
 
-  const isAbsent   = attendance?.status === 'absent';
+  const isAbsent   = attendance?.status === 'absent' || attendance?.status === 'leave';
   const hasCheckIn  = Boolean(checkInTime || attendance?.status === 'present');
   const hasCheckOut = Boolean(checkOutTime);
 
@@ -221,7 +222,19 @@ export default function TodayAttendance() {
           </Paper>
         )}
 
-        {loading ? (
+        {isWeekend ? (
+          <Paper elevation={0} sx={{ textAlign: 'center', p: 5, borderRadius: 3, border: '1px solid #bbf7d0' }}>
+            <Stack alignItems="center" spacing={1.5}>
+              <Avatar sx={{ width: 56, height: 56, bgcolor: '#fef9c3' }}>
+                <CalendarMonth sx={{ fontSize: 28, color: '#ca8a04' }} />
+              </Avatar>
+              <Typography fontWeight={700} fontSize="1rem">Ngày nghỉ cuối tuần</Typography>
+              <Typography fontSize="0.85rem" color="text.secondary">
+                Thứ 7 và chủ nhật học sinh không đi học. Thông tin điểm danh sẽ hiển thị vào ngày học.
+              </Typography>
+            </Stack>
+          </Paper>
+        ) : loading ? (
           <Stack alignItems="center" py={8}><CircularProgress sx={{ color: PRIMARY }} /></Stack>
         ) : (
           <>
@@ -336,16 +349,10 @@ export default function TodayAttendance() {
                       sx={{ fontWeight: 700, bgcolor: '#fffbeb', color: '#b45309', border: '1px solid #fde68a' }}
                     />
                   )}
-                  {isOtherReceiver && checkoutConfirmMethod === 'school_otp' && (
+                  {isOtherReceiver && checkoutConfirmMethod === 'parent_confirm' && (
                     <Chip icon={<VerifiedUserIcon sx={{ fontSize: '14px !important' }} />}
                       label="Phụ huynh xác nhận" size="small"
                       sx={{ fontWeight: 700, bgcolor: '#f0fdf4', color: '#15803d', border: '1px solid #86efac' }}
-                    />
-                  )}
-                  {isOtherReceiver && checkoutConfirmMethod === 'sms_otp' && (
-                    <Chip icon={<PersonOffIcon sx={{ fontSize: '14px !important' }} />}
-                      label="Xác thực OTP (SMS)" size="small"
-                      sx={{ fontWeight: 700, bgcolor: '#fff7ed', color: '#c2410c', border: '1px solid #fed7aa' }}
                     />
                   )}
                 </Stack>

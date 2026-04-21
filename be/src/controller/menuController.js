@@ -12,8 +12,10 @@ const rejectMenu = async (req, res, next) => service.rejectMenu(req, res, next);
 const requestEditFromActiveMenu = async (req, res, next) => service.requestEditFromActiveMenu(req, res, next);
 const applyMenu = async (req, res, next) => service.applyMenu(req, res, next);
 const endMenu = async (req, res, next) => service.endMenu(req, res, next);
+const headParentReviewMenu = async (req, res, next) => service.headParentReviewMenu(req, res, next);
 const getNutritionPlanSetting = async (req, res, next) => service.getNutritionPlanSetting(req, res, next);
 const updateNutritionPlanSetting = async (req, res, next) => service.updateNutritionPlanSetting(req, res, next);
+const getCurrentAcademicYearForMenu = async (req, res, next) => service.getCurrentAcademicYearForMenu(req, res, next);
 
 module.exports = {
   createMenu,
@@ -28,6 +30,8 @@ module.exports = {
   requestEditFromActiveMenu,
   applyMenu,
   endMenu,
+  headParentReviewMenu,
   getNutritionPlanSetting,
   updateNutritionPlanSetting,
+  getCurrentAcademicYearForMenu,
 };

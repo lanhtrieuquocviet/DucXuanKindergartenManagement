@@ -58,6 +58,7 @@ export const SCHOOL_ADMIN_MENU_ITEMS = [
     permission: 'MANAGE_ASSET',
     children: [
       { key: 'assets-list', label: 'Danh sách cơ sở vật chất', permission: 'MANAGE_ASSET' },
+      { key: 'room-assets', label: 'Quản lý tài sản theo phòng học', permission: 'MANAGE_ASSET' },
       { key: 'asset-allocation', label: 'Phân bổ cơ sở vật chất', permission: 'MANAGE_ASSET' },
       { key: 'purchase-requests', label: 'Yêu cầu mua sắm', permission: 'MANAGE_PURCHASE_REQUEST' },
       { key: 'kiemke', label: 'Kiểm kê tài sản', permission: 'MANAGE_ASSET' },
@@ -148,6 +149,7 @@ export const createSchoolAdminMenuSelect = (navigate) => (key) => {
     'banner-management': '/school-admin/banners',
     assets: '/school-admin/assets',
     'assets-list': '/school-admin/assets',
+    'room-assets': '/school-admin/room-assets',
     'asset-allocation': '/school-admin/asset-allocation',
     'purchase-requests': '/school-admin/purchase-requests',
     'asset-incidents': '/school-admin/asset-incidents',

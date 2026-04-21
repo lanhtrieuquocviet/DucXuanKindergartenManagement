@@ -45,12 +45,19 @@ const makeMenu = (o = {}) => ({
   month: 6,
   year: 2026,
   status: 'draft',
+  isCurrent: false,
+  version: 1,
+  changeReason: '',
+  parentMenuId: null,
+  changedAt: null,
   statusHistory: [],
   rejectReason: '',
   rejectPresets: [],
   rejectDetail: '',
   appliedAt: null,
   endedAt: null,
+  scheduledStartAt: null,
+  scheduledEndAt: null,
   toObject: function () { return { ...this }; },
   save: jest.fn().mockResolvedValue(undefined),
   ...o,
@@ -520,12 +527,37 @@ describe('requestEditFromActiveMenu', () => {
   beforeEach(() => jest.clearAllMocks());
 
   test('UTC001 [N] Yêu cầu chỉnh sửa thực đơn đang áp dụng → 200', async () => {
-    const m = makeMenu({ status: 'active' });
+    const m = makeMenu({ status: 'active', isCurrent: true, version: 1 });
+    const cloned = makeMenu({
+      _id: 'newmenu',
+      status: 'rejected',
+      isCurrent: false,
+      version: 2,
+      parentMenuId: m._id,
+      changeReason: '• Chưa cân đối dinh dưỡng / chưa đạt chuẩn',
+    });
+    Menu.mockImplementation(() => cloned);
     Menu.findById = jest.fn()
       .mockResolvedValueOnce(m)
-      .mockReturnValue({ populate: jest.fn().mockResolvedValue(m) });
+      .mockReturnValue({ populate: jest.fn().mockResolvedValue(cloned) });
+    DailyMenu.find = jest.fn().mockResolvedValue([
+      {
+        weekType: 'odd',
+        dayOfWeek: 'mon',
+        lunchFoods: [],
+        afternoonFoods: [],
+      },
+    ]);
+    DailyMenu.insertMany = jest.fn().mockResolvedValue([]);
     const res = mockRes();
     await requestEditFromActiveMenu(mockReq({ presets: ['nutrition'] }, { id: VALID_OID }), res);
+    expect(m.status).toBe('completed');
+    expect(m.isCurrent).toBe(false);
+    expect(cloned.status).toBe('rejected');
+    expect(cloned.isCurrent).toBe(false);
+    expect(cloned.version).toBe(2);
+    expect(cloned.parentMenuId).toBe(m._id);
+    expect(DailyMenu.insertMany).toHaveBeenCalled();
     expect(res.json).toHaveBeenCalledWith(expect.objectContaining({ success: true }));
   });
 
@@ -569,7 +601,12 @@ describe('applyMenu', () => {
     Menu.findById = jest.fn()
       .mockResolvedValueOnce(approved)
       .mockReturnValue({ populate: jest.fn().mockResolvedValue(approved) });
-    Menu.find = jest.fn().mockResolvedValue([]);
+    Menu.find = jest.fn().mockImplementation((filter) => {
+      if (filter?.status === 'active' && filter?.scheduledEndAt) return Promise.resolve([]);
+      if (filter?.status === 'approved' && filter?.scheduledStartAt) return Promise.resolve([]);
+      if (filter?.status === 'active') return Promise.resolve([]);
+      return Promise.resolve([]);
+    });
     const res = mockRes();
     await applyMenu(mockReq({}, { id: VALID_OID }), res);
     expect(res.json).toHaveBeenCalledWith(expect.objectContaining({ success: true }));
@@ -581,7 +618,12 @@ describe('applyMenu', () => {
     Menu.findById = jest.fn()
       .mockResolvedValueOnce(approved)
       .mockReturnValue({ populate: jest.fn().mockResolvedValue(approved) });
-    Menu.find = jest.fn().mockResolvedValue([oldActive]);
+    Menu.find = jest.fn().mockImplementation((filter) => {
+      if (filter?.status === 'active' && filter?.scheduledEndAt) return Promise.resolve([]);
+      if (filter?.status === 'approved' && filter?.scheduledStartAt) return Promise.resolve([]);
+      if (filter?.status === 'active') return Promise.resolve([oldActive]);
+      return Promise.resolve([]);
+    });
     const res = mockRes();
     await applyMenu(mockReq({}, { id: VALID_OID }), res);
     expect(oldActive.save).toHaveBeenCalled();

@@ -1,5 +1,6 @@
 const AssetAllocation = require('../models/AssetAllocation');
 const Classes         = require('../models/Classes');
+const AcademicYear    = require('../models/AcademicYear');
 const mammoth         = require('mammoth');
 const WordExtractor   = require('word-extractor');
 const {
@@ -7,25 +8,25 @@ const {
   TextRun, AlignmentType, WidthType, BorderStyle,
   VerticalAlign, HeadingLevel,
 } = require('docx');
-let JSDOM = null;
-try {
-  ({ JSDOM } = require('jsdom'));
-} catch (_) {
-  JSDOM = null;
-}
 
 // ─── List all allocations ──────────────────────────────────────────────────
 exports.listAllocations = async (req, res) => {
   try {
-    const { status, classId } = req.query;
+    const { status, classId, gradeId } = req.query;
     const filter = {};
     if (status) filter.status = status;
-    if (classId) filter.classId = classId;
+    if (classId) {
+      filter.classId = classId;
+    } else if (gradeId) {
+      const gradeClasses = await Classes.find({ gradeId }, '_id').lean();
+      filter.classId = { $in: gradeClasses.map((c) => c._id) };
+    }
 
     const allocations = await AssetAllocation.find(filter)
-      .populate('classId', 'className')
+      .populate({ path: 'classId', select: 'className gradeId roomId', populate: { path: 'gradeId', select: 'gradeName' } })
       .populate('createdBy', 'fullName username')
       .populate('confirmedBy', 'fullName username')
+      .populate('sourceRoomId', 'roomName')
       .sort({ createdAt: -1 });
     return res.json({ status: 'success', data: { allocations } });
   } catch (err) {
@@ -64,6 +65,8 @@ exports.createAllocation = async (req, res) => {
       assets,
       extraAssets,
       notes,
+      pickedRoomId,
+      pickedRoomName,
     } = req.body;
 
     if (!assets || !Array.isArray(assets) || assets.length === 0)
@@ -77,6 +80,27 @@ exports.createAllocation = async (req, res) => {
           status: 'error',
           message: `Lớp này đã có biên bản bàn giao đang hoạt động (${existing.documentCode}). Không thể tạo thêm.`,
         });
+    }
+
+    // Kiểm tra phòng đã được dùng trong biên bản khác chưa
+    if (pickedRoomId) {
+      // Check 1: biên bản mới có lưu sourceRoomId
+      const roomUsed = await AssetAllocation.findOne({ sourceRoomId: pickedRoomId, status: { $in: ['active', 'pending_confirmation'] } });
+      if (roomUsed)
+        return res.status(409).json({
+          status: 'error',
+          message: `Phòng này đã được nhập trong biên bản (${roomUsed.documentCode}). Không thể nhập lại.`,
+        });
+      // Check 2: fallback cho biên bản cũ (lớp đã gán phòng này)
+      const classWithRoom = await Classes.findOne({ roomId: pickedRoomId });
+      if (classWithRoom) {
+        const oldAlloc = await AssetAllocation.findOne({ classId: classWithRoom._id, status: { $in: ['active', 'pending_confirmation'] } });
+        if (oldAlloc)
+          return res.status(409).json({
+            status: 'error',
+            message: `Phòng này đã gán cho lớp "${classWithRoom.className}" (biên bản ${oldAlloc.documentCode}). Không thể nhập lại.`,
+          });
+      }
     }
 
     // Resolve className from classId if not provided
@@ -99,12 +123,25 @@ exports.createAllocation = async (req, res) => {
       extraAssets:        Array.isArray(extraAssets) ? extraAssets : [],
       notes:              notes || '',
       status:             'pending_confirmation',
+      sourceRoomId:       pickedRoomId  || null,
+      sourceRoomName:     pickedRoomName || '',
       confirmedAt:        null,
       transferHistory:    [],
       createdBy:          req.user._id,
     });
 
     await allocation.save();
+
+    // Tự động gán phòng cho lớp (backend) — chắc chắn luôn chạy
+    if (pickedRoomId && classId) {
+      try {
+        await Classes.findByIdAndUpdate(classId, { roomId: pickedRoomId });
+      } catch (assignErr) {
+        console.error('[createAllocation] Auto assign room failed:', assignErr);
+        // Không throw — biên bản đã lưu, chỉ warn
+      }
+    }
+
     return res.status(201).json({ status: 'success', data: { allocation } });
   } catch (err) {
     return res.status(500).json({ status: 'error', message: err.message });
@@ -583,66 +620,104 @@ function textToFakeHtml(text) {
 }
 
 // ─── Strategy 3: Parse HTML tables (cho .docx và fallback .doc) ───────────
-// Trả về { assets, extraAssets } dựa vào tiêu đề bảng hoặc text trước bảng.
-function parseAssetsFromHtml(html) {
-  if (!JSDOM) {
-    const plainText = String(html || '')
-      .replace(/<\/(p|div|tr|li|h[1-6])>/gi, '\n')
-      .replace(/<br\s*\/?>/gi, '\n')
-      .replace(/<[^>]*>/g, ' ')
-      .replace(/&nbsp;/gi, ' ')
-      .replace(/\s+\n/g, '\n')
-      .replace(/\n\s+/g, '\n')
-      .trim();
-    return parseAssetsFromText(plainText);
+// Dùng regex thay JSDOM để tránh khởi tạo full browser DOM (chậm ~50-100ms).
+
+function htmlCellText(inner) {
+  return inner
+    .replace(/<br\s*\/?>/gi, ' ')
+    .replace(/<[^>]+>/g, '')
+    .replace(/&nbsp;/gi, ' ').replace(/&amp;/gi, '&')
+    .replace(/&lt;/gi, '<').replace(/&gt;/gi, '>')
+    .replace(/\s+/g, ' ').trim();
+}
+
+function extractHtmlTables(html) {
+  const results = [];
+  const lc = html.toLowerCase();
+  let pos = 0;
+
+  while (true) {
+    const tStart = lc.indexOf('<table', pos);
+    if (tStart === -1) break;
+
+    // Lấy text trước bảng (dùng thay cho previousElementSibling)
+    const prevText = htmlCellText(html.slice(pos, tStart)).slice(-120);
+
+    // Tìm </table> khớp (xử lý lồng bảng)
+    let depth = 0, i = tStart, tEnd = -1;
+    while (i < lc.length) {
+      if (lc.startsWith('<table', i))       { depth++; i += 6; }
+      else if (lc.startsWith('</table', i)) { depth--; if (depth === 0) { tEnd = lc.indexOf('>', i) + 1; break; } i += 8; }
+      else i++;
+    }
+    if (tEnd === -1) break;
+
+    const tableHtml = html.slice(tStart, tEnd);
+    const rows = [];
+    const lcTable = tableHtml.toLowerCase();
+    let rPos = 0;
+
+    while (true) {
+      const rStart = lcTable.indexOf('<tr', rPos);
+      if (rStart === -1) break;
+      const rEnd = lcTable.indexOf('</tr>', rStart);
+      if (rEnd === -1) break;
+
+      const rowHtml = tableHtml.slice(rStart, rEnd + 5);
+      const cells = [];
+      const lcRow = rowHtml.toLowerCase();
+      let cPos = 0;
+
+      while (true) {
+        const tdPos = lcRow.indexOf('<td', cPos);
+        const thPos = lcRow.indexOf('<th', cPos);
+        if (tdPos === -1 && thPos === -1) break;
+        const cStart = (tdPos === -1) ? thPos : (thPos === -1) ? tdPos : Math.min(tdPos, thPos);
+        const tag = cStart === thPos ? '</th>' : '</td>';
+        const openEnd = lcRow.indexOf('>', cStart);
+        const cEnd    = lcRow.indexOf(tag, cStart);
+        if (openEnd === -1 || cEnd === -1) { cPos = cStart + 3; continue; }
+        cells.push(htmlCellText(rowHtml.slice(openEnd + 1, cEnd)));
+        cPos = cEnd + tag.length;
+      }
+
+      if (cells.length > 0) rows.push(cells);
+      rPos = rEnd + 5;
+    }
+
+    if (rows.length > 0) results.push({ rows, prevText });
+    pos = tEnd;
   }
 
-  const { window } = new JSDOM(html);
-  const doc         = window.document;
-  const tables      = Array.from(doc.querySelectorAll('table'));
+  return results;
+}
+
+function parseAssetsFromHtml(html) {
+  const tables      = extractHtmlTables(html);
   const assets      = [];
   const extraAssets = [];
-
-  // "thiết bị khác" bỏ vì dễ false-positive trong tên thiết bị
   const EXTRA_MARKER = /ngoài thông tư|khác ngoài/i;
 
-  for (const table of tables) {
-    const rows = Array.from(table.querySelectorAll('tr'));
+  for (const { rows, prevText } of tables) {
     if (rows.length < 2) continue;
 
     // ── Xác định bảng thuộc section nào ────────────────────────────────
-    // PP1: Trong 3 hàng đầu có ô merged (≤3 cell) chứa EXTRA_MARKER
     let isExtraTable = false;
     for (let i = 0; i < Math.min(rows.length, 3); i++) {
-      const rc = Array.from(rows[i].querySelectorAll('td, th'));
-      if (rc.length <= 3 && EXTRA_MARKER.test(rc.map(c => c.textContent.trim()).join(' '))) {
-        isExtraTable = true;
-        break;
-      }
+      if (rows[i].length <= 3 && EXTRA_MARKER.test(rows[i].join(' '))) { isExtraTable = true; break; }
     }
-    // PP2: prevElementSibling là đoạn ngắn (<80 ký tự) chứa EXTRA_MARKER
-    if (!isExtraTable) {
-      const prevEl = table.previousElementSibling;
-      const pt = prevEl?.textContent?.trim() || '';
-      if (pt.length > 0 && pt.length < 80 && EXTRA_MARKER.test(pt)) isExtraTable = true;
-    }
+    if (!isExtraTable && prevText.length > 0 && prevText.length < 80 && EXTRA_MARKER.test(prevText))
+      isExtraTable = true;
     let targetList = isExtraTable ? extraAssets : assets;
 
     // ── Tìm header row ──────────────────────────────────────────────────
-    // Header hợp lệ: phải có ≥3 ô RIÊNG BIỆT + có cả tên-kw VÀ đo-lường-kw
-    let headerIdx = -1;
-    let colMap    = {};
-    let hasTT     = false;
+    let headerIdx = -1, colMap = {}, hasTT = false;
 
     for (let i = 0; i < Math.min(rows.length, 6); i++) {
-      const cells = Array.from(rows[i].querySelectorAll('td, th'))
-        .map((c) => c.textContent.trim().toLowerCase().replace(/\s+/g, ' '));
-
-      const hasNameKw  = cells.some(c => /(tên|thiết bị|dụng cụ|đồ chơi)/.test(c));
-      const hasMeasKw  = cells.some(c => /đvt|đơn vị|số lượng|\bsl\b|\bsố\b|mã/.test(c));
-      const isHeader   = hasNameKw && hasMeasKw && cells.length >= 3;
-
-      if (isHeader) {
+      const cells = rows[i].map(c => c.toLowerCase().replace(/\s+/g, ' '));
+      if (cells.some(c => /(tên|thiết bị|dụng cụ|đồ chơi)/.test(c)) &&
+          cells.some(c => /đvt|đơn vị|số lượng|\bsl\b|\bsố\b|mã/.test(c)) &&
+          cells.length >= 3) {
         headerIdx = i;
         cells.forEach((text, idx) => {
           if (/^(tt|stt)$/.test(text))                                                  { colMap.tt = idx; hasTT = true; }
@@ -656,99 +731,74 @@ function parseAssetsFromHtml(html) {
         break;
       }
     }
-
     if (headerIdx === -1 || colMap.name == null) continue;
 
     // ── Kiểm tra sub-header row (Bộ/Cái hoặc Trẻ/GV dưới "Số lượng") ──
     let dataStart = headerIdx + 1;
     if (dataStart < rows.length) {
-      const subCells = Array.from(rows[dataStart].querySelectorAll('td, th'))
-        .map((c) => c.textContent.trim().toLowerCase());
+      const subCells  = rows[dataStart].map(c => c.toLowerCase());
       const subJoined = subCells.join(' ');
-      const isSubHeader = /\bbộ\b|\bcái\b|\btrẻ\b.*\bgiáo\b|\bgiáo\b.*\btrẻ\b/.test(subJoined);
-
-      if (isSubHeader) {
-        // Đếm số sub-column xuất hiện từ vị trí cột quantity trở đi
-        const qtyPos  = colMap.quantity ?? 4;
-        const subCount = subCells.slice(qtyPos).filter((t) => t.trim()).length;
-        const extra   = Math.max(0, subCount - 1); // số cột dư do split
+      if (/\bbộ\b|\bcái\b|\btrẻ\b.*\bgiáo\b|\bgiáo\b.*\btrẻ\b/.test(subJoined)) {
+        const qtyPos   = colMap.quantity ?? 4;
+        const subCount = subCells.slice(qtyPos).filter(t => t.trim()).length;
+        const extra    = Math.max(0, subCount - 1);
         if (extra > 0) {
           if (colMap.targetUser != null) colMap.targetUser += extra;
           if (colMap.notes      != null) colMap.notes      += extra;
-          // Giữ cột quantity đầu tiên, thêm quantity2 là cột cuối sub-group
           colMap.quantity2 = qtyPos + subCount - 1;
         }
-        dataStart++; // bỏ qua hàng sub-header
+        dataStart++;
       }
     }
 
     // ── Parse data rows ─────────────────────────────────────────────────
-    const getText = (cells, idx) =>
-      idx != null && cells[idx] ? cells[idx].textContent.trim() : '';
-
-    const ROMAN_RE = /^(I{1,3}|IV|VI{0,3}|IX|X{1,3})$/i;
+    const getCell   = (row, idx) => (idx != null && row[idx]) ? row[idx] : '';
+    const ROMAN_RE  = /^(I{1,3}|IV|VI{0,3}|IX|X{1,3})$/i;
     let currentCategory = '';
 
     for (let i = dataStart; i < rows.length; i++) {
-      const cells = Array.from(rows[i].querySelectorAll('td, th'));
-      if (cells.length < 2) continue;
+      const row = rows[i];
+      if (row.length < 2) continue;
 
-      // Hàng phân tách section "ngoài thông tư" nằm trong cùng bảng
-      const fullRowText = cells.map(c => c.textContent.trim()).join(' ');
-      if (EXTRA_MARKER.test(fullRowText)) {
-        targetList = extraAssets;
-        currentCategory = '';
-        continue;
-      }
+      const fullRowText = row.join(' ');
+      if (EXTRA_MARKER.test(fullRowText)) { targetList = extraAssets; currentCategory = ''; continue; }
 
-      const ttText = getText(cells, colMap.tt ?? 0);
-
-      // Hàng tiêu đề danh mục: cột TT là chữ số La Mã (I, II, III...)
+      const ttText = getCell(row, colMap.tt ?? 0);
       if (ROMAN_RE.test(ttText)) {
-        // Lấy tên danh mục từ các ô còn lại
-        const categoryName = cells
-          .slice(1).map(c => c.textContent.trim()).filter(Boolean).join(' ').trim();
-        currentCategory = `${ttText}. ${categoryName}`;
+        currentCategory = `${ttText}. ${row.slice(1).filter(Boolean).join(' ').trim()}`;
         continue;
       }
-
-      // Bỏ hàng không có số TT hợp lệ
       if (hasTT && (!ttText || !/^\d+$/.test(ttText))) continue;
 
-      const name = getText(cells, colMap.name);
+      const name = getCell(row, colMap.name);
       if (!name) continue;
 
-      // Số lượng: lấy giá trị đầu tiên khác 0 trong các sub-column
-      let quantity = 1;
-      const q1 = parseInt(getText(cells, colMap.quantity).replace(/[^0-9]/g, '')) || 0;
+      const q1 = parseInt(getCell(row, colMap.quantity).replace(/[^0-9]/g, '')) || 0;
       const q2 = colMap.quantity2 != null
-        ? parseInt(getText(cells, colMap.quantity2).replace(/[^0-9]/g, '')) || 0
-        : 0;
-      quantity = q1 || q2 || 1;
+        ? parseInt(getCell(row, colMap.quantity2).replace(/[^0-9]/g, '')) || 0 : 0;
+      const quantity = q1 || q2 || 1;
 
-      // Đối tượng SD: thử từ colMap trước, nếu không khớp thì quét toàn hàng
-      let targetUser = 'Trẻ';
-      const rawTarget = getText(cells, colMap.targetUser).toLowerCase();
+      let targetUser  = 'Trẻ';
+      const rawTarget = getCell(row, colMap.targetUser).toLowerCase();
       if      (/gi[áa]o vi[eê]n|gv/.test(rawTarget))      targetUser = 'Giáo viên';
       else if (/d[uù]ng chung|chung/.test(rawTarget))      targetUser = 'Dùng chung';
       else if (/tr[eẻ]/.test(rawTarget))                   targetUser = 'Trẻ';
       else {
-        // Quét tất cả cell trong hàng
-        for (const cell of cells) {
-          const t = cell.textContent.trim().toLowerCase();
-          if (/gi[áa]o vi[eê]n/.test(t))       { targetUser = 'Giáo viên'; break; }
-          if (/d[uù]ng chung/.test(t))          { targetUser = 'Dùng chung'; break; }
+        for (const cell of row) {
+          const t = cell.toLowerCase();
+          if (/gi[áa]o vi[eê]n/.test(t)) { targetUser = 'Giáo viên'; break; }
+          if (/d[uù]ng chung/.test(t))   { targetUser = 'Dùng chung'; break; }
         }
       }
 
       targetList.push({
-        category:   currentCategory,
-        assetCode:  getText(cells, colMap.assetCode),
+        category:  currentCategory,
+        assetCode: getCell(row, colMap.assetCode),
         name,
-        unit:       getText(cells, colMap.unit) || 'Cái',
+        unit:      getCell(row, colMap.unit) || 'Cái',
         quantity,
         targetUser,
-        notes:      getText(cells, colMap.notes),
+        notes:     getCell(row, colMap.notes),
       });
     }
   }
@@ -1023,17 +1073,24 @@ exports.generateExcelTemplate = async (req, res) => {
 // ─── Get list of classes with teachers (helper for frontend dropdown) ─────
 exports.listClasses = async (req, res) => {
   try {
-    const classes = await Classes.find({}, 'className _id teacherIds')
+    // Chỉ lấy lớp thuộc năm học hiện tại để tránh trùng lặp tên lớp qua các năm
+    const currentYear = await AcademicYear.findOne({ status: 'active' }).select('_id').lean();
+    const filter = currentYear ? { academicYearId: currentYear._id } : {};
+
+    const classes = await Classes.find(filter, 'className _id teacherIds gradeId')
       .populate({
         path: 'teacherIds',
         select: 'userId',
         populate: { path: 'userId', select: 'fullName' },
       })
+      .populate('gradeId', 'gradeName')
       .sort({ className: 1 });
 
     const result = classes.map((cls) => ({
       _id: cls._id,
       className: cls.className,
+      gradeId: cls.gradeId?._id || null,
+      gradeName: cls.gradeId?.gradeName || '',
       teachers: (cls.teacherIds || [])
         .map((t) => t?.userId?.fullName || '')
         .filter(Boolean),

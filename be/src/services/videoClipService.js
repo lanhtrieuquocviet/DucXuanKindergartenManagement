@@ -1,5 +1,7 @@
 const VideoClipItem = require('../models/VideoClipItem');
 
+const escapeRegex = (s) => String(s).replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+
 const isValidHttpUrl = (str) => {
   try {
     const u = new URL(str);
@@ -15,9 +17,60 @@ const createHttpError = (statusCode, message) => {
   return err;
 };
 
-const listAdminVideoClips = async () => VideoClipItem.find({})
-  .sort({ createdAt: -1 })
-  .populate('createdBy', 'fullName username');
+const listAdminVideoClips = async (query = {}) => {
+  const { search } = query;
+  const q = String(search || '').trim();
+  let filter = {};
+  if (q) {
+    const escaped = escapeRegex(q);
+    filter = {
+      $or: [
+        { title: { $regex: escaped, $options: 'i' } },
+        {
+          $expr: {
+            $regexMatch: {
+              input: {
+                $concat: [
+                  { $dateToString: { format: '%d/%m/%Y', date: '$createdAt', timezone: 'Asia/Ho_Chi_Minh' } },
+                  ' ',
+                  { $dateToString: { format: '%Y-%m-%d', date: '$createdAt', timezone: 'Asia/Ho_Chi_Minh' } },
+                ],
+              },
+              regex: escaped,
+              options: 'i',
+            },
+          },
+        },
+      ],
+    };
+  }
+
+  const pageRaw = parseInt(query.page, 10);
+  const limitRaw = parseInt(query.limit, 10);
+  const pageNum = Number.isFinite(pageRaw) && pageRaw > 0 ? pageRaw : 1;
+  const limitNum = Math.min(50, Math.max(1, Number.isFinite(limitRaw) && limitRaw > 0 ? limitRaw : 12));
+
+  const total = await VideoClipItem.countDocuments(filter);
+  const totalPages = Math.ceil(total / limitNum) || 1;
+  const safePage = Math.min(pageNum, totalPages);
+  const skip = (safePage - 1) * limitNum;
+
+  const items = await VideoClipItem.find(filter)
+    .sort({ createdAt: -1 })
+    .skip(skip)
+    .limit(limitNum)
+    .populate('createdBy', 'fullName username');
+
+  return {
+    items,
+    pagination: {
+      page: safePage,
+      limit: limitNum,
+      total,
+      totalPages,
+    },
+  };
+};
 
 const createVideoClipItem = async (payload, user) => {
   const title = String(payload?.title || '').trim();

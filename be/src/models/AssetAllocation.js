@@ -70,6 +70,10 @@ const assetAllocationSchema = new mongoose.Schema(
     // Ghi chú chung
     notes: { type: String, trim: true, default: '' },
 
+    // Phòng học đã nhập tài sản từ đó (nếu có)
+    sourceRoomId: { type: mongoose.Schema.Types.ObjectId, ref: 'Classroom', default: null },
+    sourceRoomName: { type: String, trim: true, default: '' },
+
     // Lịch sử chuyển giao
     transferHistory: [transferHistorySchema],
 

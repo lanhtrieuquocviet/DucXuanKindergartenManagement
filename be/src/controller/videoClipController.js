@@ -2,8 +2,8 @@ const videoClipService = require('../services/videoClipService');
 
 const listAdminVideoClips = async (req, res) => {
   try {
-    const items = await videoClipService.listAdminVideoClips();
-    return res.status(200).json({ status: 'success', data: items });
+    const result = await videoClipService.listAdminVideoClips(req.query || {});
+    return res.status(200).json({ status: 'success', data: result });
   } catch (error) {
     return res.status(error.statusCode || 500).json({ status: 'error', message: error.message || 'Lỗi tải danh sách video' });
   }

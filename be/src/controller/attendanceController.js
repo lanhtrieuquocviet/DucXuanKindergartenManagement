@@ -8,6 +8,9 @@ const getClassAttendanceDetail = async (req, res, next) => service.getClassAtten
 const getStudentAttendanceDetail = async (req, res, next) => service.getStudentAttendanceDetail(req, res, next);
 const getStudentAttendanceHistory = async (req, res, next) => service.getStudentAttendanceHistory(req, res, next);
 const getAttendanceExportData = async (req, res, next) => service.getAttendanceExportData(req, res, next);
+const requestCheckout = async (req, res, next) => service.requestCheckout(req, res, next);
+const getPendingCheckout = async (req, res, next) => service.getPendingCheckout(req, res, next);
+const parentConfirmCheckout = async (req, res, next) => service.parentConfirmCheckout(req, res, next);
 
 module.exports = {
   upsertAttendance,
@@ -18,4 +21,7 @@ module.exports = {
   getStudentAttendanceDetail,
   getStudentAttendanceHistory,
   getAttendanceExportData,
+  requestCheckout,
+  getPendingCheckout,
+  parentConfirmCheckout,
 };

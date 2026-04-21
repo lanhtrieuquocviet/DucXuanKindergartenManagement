@@ -398,14 +398,11 @@ const updateClass = async (req, res) => {
       return res.status(400).json({ status: 'error', message: teacherError });
     }
 
-    // Validate phòng học — chỉ phòng available, mỗi phòng chỉ dùng cho 1 lớp trong năm học
+    // Validate phòng học — mỗi phòng chỉ dùng cho 1 lớp trong năm học
     if (roomId) {
       const room = await Classroom.findById(roomId).lean();
       if (!room) {
         return res.status(400).json({ status: 'error', message: 'Không tìm thấy phòng học' });
-      }
-      if (room.status !== 'available') {
-        return res.status(400).json({ status: 'error', message: `Phòng "${room.roomName}" không khả dụng (trạng thái: ${room.status === 'in_use' ? 'đang sử dụng' : 'bảo trì'})` });
       }
       const roomOccupied = await Classes.findOne({
         roomId,
@@ -420,12 +417,31 @@ const updateClass = async (req, res) => {
       }
     }
 
+    const prevRoomId = cls.roomId ? cls.roomId.toString() : null;
+
     cls.className = newClassName;
     if (gradeId) cls.gradeId = gradeId;
     cls.teacherIds = tIds;
     if (maxStudents !== undefined) cls.maxStudents = Number(maxStudents) || 0;
     if (roomId !== undefined) cls.roomId = roomId || null;
     await cls.save();
+
+    // Sync Classroom.status khi roomId thay đổi
+    if (roomId !== undefined) {
+      const newRoomId = roomId ? roomId.toString() : null;
+      if (newRoomId !== prevRoomId) {
+        if (newRoomId) {
+          await Classroom.findByIdAndUpdate(newRoomId, { status: 'in_use' });
+        }
+        if (prevRoomId) {
+          // Kiểm tra phòng cũ có lớp nào khác sử dụng không
+          const stillOccupied = await Classes.findOne({ roomId: prevRoomId, _id: { $ne: classId } }).lean();
+          if (!stillOccupied) {
+            await Classroom.findByIdAndUpdate(prevRoomId, { status: 'available' });
+          }
+        }
+      }
+    }
 
     const populated = await Classes.findById(classId)
       .populate('gradeId', 'gradeName')

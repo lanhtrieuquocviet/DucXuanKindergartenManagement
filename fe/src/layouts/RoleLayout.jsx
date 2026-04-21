@@ -8,8 +8,8 @@ import {
   Article as BlogIcon,
   CalendarMonth as CalendarIcon,
   CameraAlt as CameraAltIcon,
-  Class as ClassIcon,
   ChecklistRtl as ChecklistIcon,
+  Class as ClassIcon,
   Close as CloseIcon,
   ContentPasteSearch as ContentPasteSearchIcon,
   Dashboard as DashboardIcon,
@@ -33,7 +33,7 @@ import {
   School as SchoolIcon,
   Shield as ShieldIcon,
   ShoppingCart as ShoppingCartIcon,
-  VideoLibrary as VideoLibraryIcon,
+  VideoLibrary as VideoLibraryIcon
 } from '@mui/icons-material';
 import { Box, Drawer, IconButton, useMediaQuery, useTheme } from '@mui/material';
 import { CurrencyIcon } from 'lucide-react';
@@ -114,7 +114,7 @@ export const KEY_ICONS = {
 /* ── Sidebar content (kết hợp các shared components) ── */
 function SidebarContent({
   menuItems, activeKey, onMenuSelect, onLogout, onViewProfile,
-  userName, userAvatar, collapsed, onToggleCollapse,
+  userName, userAvatar, userRole, collapsed, onToggleCollapse,
 }) {
   return (
     <Box sx={{ display: 'flex', flexDirection: 'column', height: '100%', bgcolor: 'background.paper', overflowX: 'hidden' }}>
@@ -131,6 +131,7 @@ function SidebarContent({
         collapsed={collapsed}
         userName={userName}
         userAvatar={userAvatar}
+        userRole={userRole}
         onViewProfile={onViewProfile}
         onLogout={onLogout}
       />
@@ -147,6 +148,7 @@ function RoleLayout({
   onLogout,
   userName,
   userAvatar,
+  userRole,
   onViewProfile,
   onMenuSelect,
   children,
@@ -171,7 +173,7 @@ function RoleLayout({
     onMenuSelect: handleMenuSelect,
     onLogout: () => { setMobileOpen(false); if (onLogout) onLogout(); },
     onViewProfile: onViewProfile ? () => { setMobileOpen(false); onViewProfile(); } : null,
-    userName, userAvatar,
+    userName, userAvatar, userRole,
     collapsed: isMobile ? false : collapsed,
     onToggleCollapse: () => setCollapsed((p) => !p),
   };
@@ -210,12 +212,12 @@ function RoleLayout({
       </Drawer>
 
       {/* ── Main ── */}
-      <Box 
-        sx={{ 
-          flex: 1, 
-          display: 'flex', 
-          flexDirection: 'column', 
-          minWidth: 0, 
+      <Box
+        sx={{
+          flex: 1,
+          display: 'flex',
+          flexDirection: 'column',
+          minWidth: 0,
           minHeight: '100vh',
           transition: 'all 0.22s ease',
           width: isMobile ? '100%' : { md: `calc(100% - ${drawerWidth}px)` },

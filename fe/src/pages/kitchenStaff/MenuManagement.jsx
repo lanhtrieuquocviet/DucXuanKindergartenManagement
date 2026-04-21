@@ -30,26 +30,29 @@ import {
 } from "@mui/icons-material";
 
 const STATUS_CONFIG = {
-  approved: { label: "Đã duyệt", color: "success" },
-  pending: { label: "Chờ duyệt", color: "warning" },
-  draft: { label: "Nháp", color: "default" },
-  rejected: { label: "Từ chối", color: "error" },
-  active: { label: "Đang áp dụng", color: "info" },
-  completed: { label: "Lịch sử", color: "secondary" },
+  approved:           { label: "Đã duyệt",                  color: "success" },
+  pending:            { label: "Chờ BGH duyệt",              color: "warning" },
+  pending_headparent: { label: "Chờ hội trưởng PH xem xét", color: "info"    },
+  draft:              { label: "Nháp",                       color: "default" },
+  rejected:           { label: "Từ chối",                    color: "error"   },
+  active:             { label: "Đang áp dụng",               color: "info"    },
+  completed:          { label: "Lịch sử",                    color: "secondary"},
 };
 
 const TABS = [
-  { value: "all", label: "Tất cả" },
-  { value: "draft", label: "Nháp" },
-  { value: "pending", label: "Chờ duyệt" },
-  { value: "approved", label: "Đã duyệt" },
-  { value: "active", label: "Đang áp dụng" },
-  { value: "completed", label: "Lịch sử" },
+  { value: "all",                label: "Tất cả"                 },
+  { value: "draft",              label: "Nháp"                   },
+  { value: "pending_headparent", label: "Chờ hội trưởng PH"      },
+  { value: "pending",            label: "Chờ BGH duyệt"          },
+  { value: "rejected",           label: "Yêu cầu sửa"            },
+  { value: "approved",           label: "Đã duyệt"               },
+  { value: "active",             label: "Đang áp dụng"           },
+  { value: "completed",          label: "Lịch sử"                },
 ];
 
-/** Lịch sử: đã kết thúc + bị trả về / từ chối (chip vẫn đỏ "Từ chối") */
+/** Lịch sử: chỉ các thực đơn đã kết thúc áp dụng */
 function isHistoryListStatus(menu) {
-  return menu.status === "completed" || menu.status === "rejected";
+  return menu.status === "completed";
 }
 
 const MONTH_NAMES = [
@@ -126,6 +129,7 @@ function MenuManagement() {
   }), [menus]);
 
   const pendingCount = menus.filter((m) => m.status === "pending").length;
+  const rejectedCount = menus.filter((m) => m.status === "rejected").length;
   const activeCount = menus.filter((m) => m.status === "active").length;
   const historyCount = menus.filter(isHistoryListStatus).length;
 
@@ -189,6 +193,8 @@ function MenuManagement() {
             let badge = null;
             if (t.value === "pending" && pendingCount > 0) {
               badge = <Chip label={pendingCount} size="small" color="warning" sx={{ height: 18, fontSize: 10, fontWeight: 700 }} />;
+            } else if (t.value === "rejected" && rejectedCount > 0) {
+              badge = <Chip label={rejectedCount} size="small" color="error" sx={{ height: 18, fontSize: 10, fontWeight: 700 }} />;
             } else if (t.value === "active" && activeCount > 0) {
               badge = <Chip label={activeCount} size="small" color="info" sx={{ height: 18, fontSize: 10, fontWeight: 700 }} />;
             } else if (t.value === "completed" && historyCount > 0) {

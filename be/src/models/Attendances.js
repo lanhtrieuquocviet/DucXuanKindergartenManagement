@@ -134,20 +134,34 @@ const attendanceSchema = new mongoose.Schema(
       type: Boolean,
       default: false,
     },
-    // Giáo viên xác nhận trực tiếp khi đón trẻ (bỏ qua OTP)
+    // Giáo viên xác nhận trực tiếp khi đón trẻ (bỏ qua xác nhận PH)
     teacherConfirmedCheckout: {
       type: Boolean,
       default: false,
     },
-    // Phương thức xác nhận checkout: 'teacher' | 'school_otp' | 'sms_otp' | ''
+    // Phương thức xác nhận checkout: 'teacher' | 'parent_confirm' | ''
     checkoutConfirmMethod: {
       type: String,
       trim: true,
       default: '',
       enum: {
-        values: ['teacher', 'school_otp', 'sms_otp', ''],
+        values: ['teacher', 'parent_confirm', ''],
         message: 'Phương thức xác nhận không hợp lệ: {VALUE}',
       },
+    },
+    // Trạng thái xác nhận của phụ huynh: '' | 'pending' | 'confirmed'
+    checkoutStatus: {
+      type: String,
+      enum: ['', 'pending', 'confirmed'],
+      default: '',
+    },
+    // Dữ liệu tạm khi GV gửi thông tin chờ PH xác nhận
+    pendingCheckoutData: {
+      receiverType: { type: String, default: '' },
+      receiverOtherInfo: { type: String, default: '' },
+      receiverOtherImageName: { type: String, default: '' },
+      checkoutImageName: { type: String, default: '' },
+      sentAt: { type: Date, default: null },
     },
     // Lý do vắng mặt (nếu status = 'absent')
     absentReason: {

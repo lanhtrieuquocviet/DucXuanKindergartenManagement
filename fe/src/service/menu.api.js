@@ -22,6 +22,10 @@ export const getNutritionPlanSetting = () => {
   return api.get(ENDPOINTS.KITCHEN.NUTRITION_PLAN);
 };
 
+export const getMenuAcademicYearCurrent = () => {
+  return api.get(`${ENDPOINTS.KITCHEN.MENUS}/academic-year/current`);
+};
+
 export const listDistrictNutritionPlans = () => {
   return api.get(ENDPOINTS.KITCHEN.DISTRICT_NUTRITION_PLANS);
 };
@@ -115,6 +119,11 @@ export const applyMenu = (id) => {
 
 export const endMenu = (id) => {
   return api.patch(`${ENDPOINTS.KITCHEN.MENUS}/${id}/end`, {});
+};
+
+// Hội trưởng phụ huynh xem xét thực đơn — body: { comment?: string }
+export const headParentReviewMenu = (id, body = {}) => {
+  return api.put(`${ENDPOINTS.KITCHEN.MENUS}/${id}/headparent-review`, body);
 };
 
 // update daily menu (thêm món vào ngày)

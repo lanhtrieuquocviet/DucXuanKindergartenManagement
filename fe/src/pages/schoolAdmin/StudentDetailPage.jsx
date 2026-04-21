@@ -1,37 +1,39 @@
-import { useEffect, useState, useCallback, useMemo } from 'react';
+import {
+  Assessment as AssessmentIcon,
+  ArrowBack as BackIcon,
+  CalendarMonth as CalendarIcon,
+  Celebration as CelebrationIcon,
+  MonitorHeart as HealthIcon,
+  LocalHospital as HospitalIcon,
+  EditNote as NoteTabIcon,
+  People as PeopleIcon,
+  Person as PersonIcon,
+  School as SchoolIcon,
+  Timeline as TimelineIcon
+} from '@mui/icons-material';
+import {
+  Alert,
+  Avatar,
+  Box,
+  Chip,
+  CircularProgress,
+  Divider,
+  Grid,
+  Paper,
+  Skeleton,
+  Stack,
+  Tab,
+  Tabs,
+  Typography
+} from '@mui/material';
+import { useEffect, useState } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
+import { toast } from 'react-toastify';
 import { useAuth } from '../../context/AuthContext';
 import RoleLayout from '../../layouts/RoleLayout';
-import { get, del, ENDPOINTS } from '../../service/api';
+import { ENDPOINTS, get, patch } from '../../service/api';
 import { createSchoolAdminMenuSelect } from './schoolAdminMenuConfig';
 import { useSchoolAdminMenu } from './useSchoolAdminMenu';
-import { toast } from 'react-toastify';
-import {
-  Box, Paper, Typography, Avatar, Chip, Skeleton, Alert, Stack,
-  Divider, Tabs, Tab, Grid, TextField, CircularProgress,
-  MenuItem, Select, LinearProgress, IconButton, Tooltip,
-} from '@mui/material';
-import {
-  ArrowBack as BackIcon,
-  Person as PersonIcon,
-  Phone as PhoneIcon,
-  Cake as CakeIcon,
-  Home as HomeIcon,
-  People as PeopleIcon,
-  MonitorHeart as HealthIcon,
-  CalendarMonth as CalendarIcon,
-  CheckCircle as PresentIcon,
-  Cancel as AbsentIcon,
-  EventBusy as LeaveIcon,
-  Restaurant as MenuIcon,
-  EditNote as NoteTabIcon,
-  Delete as DeleteIcon,
-  School as SchoolIcon,
-  Timeline as TimelineIcon,
-  Celebration as CelebrationIcon,
-  LocalHospital as HospitalIcon,
-  Assessment as AssessmentIcon,
-} from '@mui/icons-material';
 
 // ── helpers ─────────────────────────────────────────────────────
 function calcAge(dob) {
@@ -63,16 +65,16 @@ const TimelineItem = ({ event }) => {
   return (
     <Box sx={{ position: 'relative', pl: 6, pb: 4, '&:last-child': { pb: 0 } }}>
       {/* Vertical Line */}
-      <Box sx={{ 
-        position: 'absolute', left: 24, top: 40, bottom: 0, width: 2, 
+      <Box sx={{
+        position: 'absolute', left: 24, top: 40, bottom: 0, width: 2,
         bgcolor: '#f1f5f9', zIndex: 0,
         display: 'block', content: '""'
       }} />
-      
+
       {/* Icon Node */}
-      <Box sx={{ 
-        position: 'absolute', left: 8, top: 0, width: 34, height: 34, 
-        borderRadius: '50%', bgcolor: cfg.bg, color: cfg.color, 
+      <Box sx={{
+        position: 'absolute', left: 8, top: 0, width: 34, height: 34,
+        borderRadius: '50%', bgcolor: cfg.bg, color: cfg.color,
         display: 'flex', alignItems: 'center', justifyContent: 'center',
         border: '4px solid white', boxShadow: '0 2px 4px rgba(0,0,0,0.05)',
         zIndex: 1
@@ -181,6 +183,24 @@ function TabTimeline({ student, studentId }) {
 
 // ── TabHoSo ──────────────────────────────────────────────────────
 function TabHoSo({ student }) {
+  const parentRoles = (student.parentId?.roles || []).map(r => r.roleName || r);
+  const [isHeadParent, setIsHeadParent] = useState(parentRoles.includes('HeadParent'));
+  const [toggling, setToggling] = useState(false);
+
+  const handleToggleHeadParent = async () => {
+    if (!student.parentId?._id) return;
+    setToggling(true);
+    try {
+      const res = await patch(`/school-admin/parents/${student.parentId._id}/toggle-headparent`);
+      setIsHeadParent(res.isHeadParent);
+      toast.success(res.message || 'Cập nhật thành công');
+    } catch (e) {
+      toast.error(e?.message || 'Cập nhật thất bại');
+    } finally {
+      setToggling(false);
+    }
+  };
+
   return (
     <Grid container spacing={3}>
       <Grid item xs={12} md={6}>
@@ -304,7 +324,7 @@ export default function StudentDetailPage() {
         ) : student ? (
           <Box>
             {/* Header Card */}
-            <Paper elevation={0} sx={{ 
+            <Paper elevation={0} sx={{
               p: 3, mb: 3, borderRadius: 5, border: '1px solid', borderColor: 'divider',
               background: 'linear-gradient(135deg, #6366f1 0%, #4f46e5 100%)', color: 'white',
               boxShadow: '0 10px 15px -3px rgba(79, 70, 229, 0.2)'

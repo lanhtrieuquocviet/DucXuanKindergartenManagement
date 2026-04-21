@@ -128,6 +128,7 @@ import TimetableActivitiesPage from './pages/schoolAdmin/TimetableActivitiesPage
 import FaceAttendancePage from './pages/schoolAdmin/FaceAttendancePage';
 import ManageAssets from './pages/schoolAdmin/ManageAssets';
 import ManageAssetAllocation from './pages/schoolAdmin/ManageAssetAllocation';
+import ManageRoomAssets from './pages/schoolAdmin/ManageRoomAssets';
 import ManageCommittee from './pages/schoolAdmin/ManageCommittee';
 import ManageMinutes from './pages/schoolAdmin/ManageMinutes';
 import ProtectedRoute from './components/ProtectedRoute';
@@ -136,7 +137,8 @@ import StudentHealthManagement from './pages/medicalStaff/StudentHealthManagemen
 import StudentHealthHistory from './pages/medicalStaff/StudentHealthHistory';
 import HealthIncidentPage from './pages/medicalStaff/HealthIncidentPage';
 import StudentDetailPage from './pages/schoolAdmin/StudentDetailPage';
-
+import MenuHeadParent from './pages/headParent/MenuHeadParent';
+import MenuDetailHeadParent from './pages/headParent/MenuDetailHeadParent';
 
 function AppContent() {
   return (
@@ -876,6 +878,16 @@ function App() {
             }
           />
           <Route
+            path="/school-admin/room-assets"
+            element={
+              <ProtectedRoute>
+                <SchoolAdminProvider>
+                  <ManageRoomAssets />
+                </SchoolAdminProvider>
+              </ProtectedRoute>
+            }
+          />
+          <Route
             path="/school-admin/asset-allocation"
             element={
               <ProtectedRoute>
@@ -1032,6 +1044,10 @@ function App() {
               </ProtectedRoute>
             }
           />
+
+          {/* HeadParent */}
+          <Route path="/head-parent/menus" element={<ProtectedRoute><MenuHeadParent /></ProtectedRoute>} />
+          <Route path="/head-parent/menus/:id" element={<ProtectedRoute><MenuDetailHeadParent /></ProtectedRoute>} />
 
           <Route
             path="/contact"
