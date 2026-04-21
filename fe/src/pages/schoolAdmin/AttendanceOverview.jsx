@@ -64,6 +64,8 @@ function AttendanceOverview() {
   const [selectedStatus, setSelectedStatus] = useState('all');
   const [searchTerm, setSearchTerm] = useState('');
   const [data, setData] = useState(null);
+  const [academicYears, setAcademicYears] = useState([]);
+  const [selectedYearId, setSelectedYearId] = useState('');
 
   useEffect(() => {
     if (isInitializing) return;
@@ -79,14 +81,33 @@ function AttendanceOverview() {
       return;
     }
 
+    const fetchYears = async () => {
+      try {
+        const res = await get(ENDPOINTS.SCHOOL_ADMIN.ACADEMIC_YEARS.LIST);
+        if (res.data) {
+          setAcademicYears(res.data);
+          const current = res.data.find(y => y.status === 'active');
+          if (current) setSelectedYearId(current._id);
+        }
+      } catch (err) {
+        console.error('Error fetching academic years:', err);
+      }
+    };
+
+    fetchYears();
+  }, [isInitializing, user]); // eslint-disable-line
+
+  useEffect(() => {
+    if (!user || isInitializing) return;
     fetchData();
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [navigate, user, isInitializing, selectedDate, selectedGrade, selectedClass, selectedStatus]);
+  }, [selectedDate, selectedGrade, selectedClass, selectedStatus, selectedYearId]);
 
   const fetchData = async () => {
     try {
       const params = {
         date: selectedDate,
+        ...(selectedYearId && { academicYearId: selectedYearId }),
         ...(selectedGrade !== 'all' && { gradeId: selectedGrade }),
         ...(selectedClass !== 'all' && { classId: selectedClass }),
         ...(selectedStatus !== 'all' && { status: selectedStatus }),
@@ -267,8 +288,31 @@ function AttendanceOverview() {
             value={selectedDate}
             onChange={(e) => setSelectedDate(e.target.value)}
             InputLabelProps={{ shrink: true }}
-            sx={{ minWidth: 160 }}
+            sx={{ minWidth: 150 }}
           />
+
+          <FormControl size="small" sx={{ minWidth: 150 }}>
+            <InputLabel>Năm học</InputLabel>
+            <Select
+              value={selectedYearId}
+              label="Năm học"
+              onChange={(e) => {
+                setSelectedYearId(e.target.value);
+                setSelectedClass('all');
+                setSelectedGrade('all');
+              }}
+              renderValue={(selected) => {
+                const y = academicYears.find(ay => String(ay._id) === String(selected));
+                return y ? y.yearName : 'Chọn năm';
+              }}
+            >
+              {academicYears.map((y) => (
+                <MenuItem key={y._id} value={y._id}>
+                  {y.yearName} {y.status === 'active' && <Chip label="Hiện tại" size="small" color="primary" sx={{ ml: 1, height: 20 }} />}
+                </MenuItem>
+              ))}
+            </Select>
+          </FormControl>
 
           <FormControl size="small" sx={{ minWidth: 160 }}>
             <InputLabel>Khối</InputLabel>

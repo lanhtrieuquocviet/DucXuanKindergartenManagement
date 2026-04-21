@@ -33,11 +33,14 @@ export const TeacherProvider = ({
   }, [onSuccess]);
 
   // Get dashboard data
-  const getDashboard = useCallback(async () => {
+  const getDashboard = useCallback(async (academicYearId) => {
     try {
       setLoading(true);
       setError(null);
-      const response = await get(ENDPOINTS.TEACHER.DASHBOARD);
+      const url = academicYearId 
+        ? `${ENDPOINTS.TEACHER.DASHBOARD}?academicYearId=${academicYearId}`
+        : ENDPOINTS.TEACHER.DASHBOARD;
+      const response = await get(url);
       return response;
     } catch (err) {
       const errorMessage = err.message || 'Không tải được dữ liệu teacher';

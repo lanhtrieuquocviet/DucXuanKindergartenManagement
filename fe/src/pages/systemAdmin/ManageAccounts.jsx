@@ -1,48 +1,46 @@
-import { useEffect, useState } from 'react';
-import { useNavigate } from 'react-router-dom';
-import { useAuth } from '../../context/AuthContext';
-import { useSystemAdmin } from '../../context/SystemAdminContext';
-import RoleLayout from '../../layouts/RoleLayout';
-import ConfirmDialog from '../../components/ConfirmDialog';
 import {
-  Box,
-  Paper,
-  Typography,
-  Button,
+  Add as AddIcon,
+  Delete as DeleteIcon,
+  Edit as EditIcon,
+  Search as SearchIcon
+} from '@mui/icons-material';
+import {
   Alert,
-  Dialog,
-  DialogTitle,
-  DialogContent,
-  DialogActions,
-  TextField,
-  Chip,
-  IconButton,
+  Box,
+  Button,
   Checkbox,
-  Stack,
+  Chip,
   CircularProgress,
+  Dialog,
+  DialogActions,
+  DialogContent,
+  DialogTitle,
+  FormControl,
+  IconButton,
+  InputLabel,
+  MenuItem,
+  Paper,
+  Select,
+  Stack,
   Table,
   TableBody,
   TableCell,
   TableContainer,
   TableHead,
-  TableRow,
-  FormControl,
-  InputLabel,
-  Select,
-  MenuItem,
-  FormHelperText,
-  useMediaQuery,
-  useTheme,
   TablePagination,
+  TableRow,
+  TextField,
+  Typography,
+  useMediaQuery,
+  useTheme
 } from '@mui/material';
-import {
-  Add as AddIcon,
-  Edit as EditIcon,
-  Delete as DeleteIcon,
-  ManageAccounts as ManageAccountsIcon,
-  Search as SearchIcon,
-} from '@mui/icons-material';
 import InputAdornment from '@mui/material/InputAdornment';
+import { useEffect, useState } from 'react';
+import { useNavigate } from 'react-router-dom';
+import ConfirmDialog from '../../components/ConfirmDialog';
+import { useAuth } from '../../context/AuthContext';
+import { useSystemAdmin } from '../../context/SystemAdminContext';
+import RoleLayout from '../../layouts/RoleLayout';
 
 function ManageAccounts() {
   const theme = useTheme();
@@ -308,13 +306,13 @@ function ManageAccounts() {
 
   const filteredUsers = accountSearch.trim()
     ? users.filter((u) => {
-        const q = accountSearch.trim().toLowerCase();
-        return (
-          (u.username || '').toLowerCase().includes(q) ||
-          (u.fullName || '').toLowerCase().includes(q) ||
-          (u.email || '').toLowerCase().includes(q)
-        );
-      })
+      const q = accountSearch.trim().toLowerCase();
+      return (
+        (u.username || '').toLowerCase().includes(q) ||
+        (u.fullName || '').toLowerCase().includes(q) ||
+        (u.email || '').toLowerCase().includes(q)
+      );
+    })
     : users;
 
   const paginatedUsers = filteredUsers.slice(

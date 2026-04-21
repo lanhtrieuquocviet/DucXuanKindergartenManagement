@@ -1,23 +1,36 @@
+import {
+  Cancel as AbsentIcon,
+  ArrowForward as ArrowIcon,
+  HowToReg as AttendIcon,
+  BarChart as ChartIcon,
+  CheckCircle as CheckCircleIcon,
+  EventBusy as LeaveIcon,
+  People as PeopleIcon,
+  DirectionsCar as PickupIcon,
+  School as SchoolIcon,
+} from '@mui/icons-material';
+import {
+  Alert,
+  Avatar,
+  Box,
+  Button,
+  Chip,
+  Divider,
+  FormControl,
+  Grid,
+  MenuItem,
+  Paper,
+  Select,
+  Skeleton,
+  Tooltip,
+  Typography
+} from '@mui/material';
 import { useEffect, useMemo, useState } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
 import { useAuth } from '../../context/AuthContext';
 import { useTeacher } from '../../context/TeacherContext';
 import RoleLayout from '../../layouts/RoleLayout';
-import {
-  Box, Grid, Paper, Typography, Chip, Skeleton, Alert,
-  Divider, Button, Avatar, Tooltip,
-} from '@mui/material';
-import {
-  School as SchoolIcon,
-  People as PeopleIcon,
-  CheckCircle as CheckCircleIcon,
-  Cancel as AbsentIcon,
-  EventBusy as LeaveIcon,
-  ArrowForward as ArrowIcon,
-  HowToReg as AttendIcon,
-  DirectionsCar as PickupIcon,
-  BarChart as ChartIcon,
-} from '@mui/icons-material';
+import { ENDPOINTS, get } from '../../service/api';
 
 function StatCard({ label, value, sub, icon, gradient, accentColor, loading }) {
   return (
@@ -176,33 +189,57 @@ function TeacherDashboard() {
   const [data, setData] = useState(null);
   const navigate = useNavigate();
   const location = useLocation();
-  const { user, logout, isInitializing } = useAuth();
-  const { getDashboard, loading, error } = useTeacher();
+  const { user, logout, isInitializing: isAuthInitializing } = useAuth();
+  const { getDashboard, loading: isTeacherLoading, error } = useTeacher();
+
+  const [isInitializing, setIsInitializing] = useState(true);
+  const [academicYears, setAcademicYears] = useState([]);
+  const [selectedYearId, setSelectedYearId] = useState('');
+
+  const isLoading = isInitializing || isTeacherLoading;
 
   useEffect(() => {
-    if (isInitializing) return;
+    const fetchYears = async () => {
+      try {
+        const response = await get(ENDPOINTS.SCHOOL_ADMIN.ACADEMIC_YEARS.LIST);
+        if (response.status === 'success') {
+          setAcademicYears(response.data);
+          const current = response.data.find(y => y.status === 'active');
+          if (current) setSelectedYearId(current._id);
+        }
+      } catch (err) {
+        console.error('Lỗi lấy danh sách năm học:', err);
+      }
+    };
+    fetchYears();
+  }, []);
+
+  useEffect(() => {
+    if (isAuthInitializing) return;
     if (!user) { navigate('/login', { replace: true }); return; }
     const userRoles = user?.roles?.map((r) => r.roleName || r) || [];
     if (!userRoles.includes('Teacher') && !userRoles.includes('HeadTeacher')) { navigate('/', { replace: true }); return; }
+
     const fetchData = async () => {
-      try { setData(await getDashboard()); } catch (_) {}
+      try { setData(await getDashboard(selectedYearId)); } catch (_) { }
+      finally { setIsInitializing(false); }
     };
     fetchData();
-  }, [navigate, user, getDashboard, isInitializing]);
+  }, [navigate, user, getDashboard, isAuthInitializing, selectedYearId]);
 
   const { hasPermission, hasRole } = useAuth();
 
   const ALL_TEACHER_MENU = [
-    { key: 'classes',          label: 'Lớp phụ trách' },
-    { key: 'students',         label: 'Danh sách học sinh' },
-    { key: 'evaluation',       label: 'Đánh giá học sinh' },
-    { key: 'attendance',       label: 'Điểm danh',              permission: 'MANAGE_ATTENDANCE' },
-    { key: 'pickup-approval',  label: 'Đơn đăng ký đưa đón',    permission: 'MANAGE_PICKUP' },
-    { key: 'leave-requests',   label: 'Danh sách đơn xin nghỉ', permission: 'MANAGE_ATTENDANCE' },
-    { key: 'contact-book',     label: 'Sổ liên lạc' },
+    { key: 'classes', label: 'Lớp phụ trách' },
+    { key: 'students', label: 'Danh sách học sinh' },
+    { key: 'evaluation', label: 'Đánh giá học sinh' },
+    { key: 'attendance', label: 'Điểm danh', permission: 'MANAGE_ATTENDANCE' },
+    { key: 'pickup-approval', label: 'Đơn đăng ký đưa đón', permission: 'MANAGE_PICKUP' },
+    { key: 'leave-requests', label: 'Danh sách đơn xin nghỉ', permission: 'MANAGE_ATTENDANCE' },
+    { key: 'contact-book', label: 'Sổ liên lạc' },
     { key: 'asset-incidents-teacher', label: 'Báo cáo sự cố CSVC', permission: 'MANAGE_PURCHASE_REQUEST' },
-    { key: 'class-assets',     label: 'Tài sản lớp',            permission: 'MANAGE_ASSET' },
-    { key: 'asset-inspection', label: 'Kiểm kê tài sản',        role: 'InventoryStaff' },
+    { key: 'class-assets', label: 'Tài sản lớp', permission: 'MANAGE_ASSET' },
+    { key: 'asset-inspection', label: 'Kiểm kê tài sản', role: 'InventoryStaff' },
   ];
 
   const menuItems = useMemo(() => {
@@ -215,18 +252,18 @@ function TeacherDashboard() {
       items.push({ key: 'manage-asset-incidents', label: 'Điều phối xử lý sự cố' });
     }
     return items;
-  // eslint-disable-next-line react-hooks/exhaustive-deps
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [hasPermission, hasRole]);
 
   const activeKey = useMemo(() => {
     const path = location.pathname || '';
-    if (path.startsWith('/teacher/contact-book'))   return 'contact-book';
-    if (path.startsWith('/teacher/evaluation'))     return 'evaluation';
-    if (path.startsWith('/teacher/attendance'))     return 'attendance';
+    if (path.startsWith('/teacher/contact-book')) return 'contact-book';
+    if (path.startsWith('/teacher/evaluation')) return 'evaluation';
+    if (path.startsWith('/teacher/attendance')) return 'attendance';
     if (path.startsWith('/teacher/pickup-approval')) return 'pickup-approval';
     if (path.startsWith('/teacher/leave-requests')) return 'leave-requests';
     if (path.startsWith('/teacher/asset-incidents')) return 'asset-incidents-teacher';
-    if (path.startsWith('/teacher/class-assets'))   return 'class-assets';
+    if (path.startsWith('/teacher/class-assets')) return 'class-assets';
     if (path.startsWith('/teacher/asset-inspection')) return 'asset-inspection';
     if (path.startsWith('/teacher/manage-asset-incidents')) return 'manage-asset-incidents';
     return 'classes';
@@ -264,7 +301,9 @@ function TeacherDashboard() {
       key: 'classes',
       label: 'Lớp phụ trách',
       value: classes.length,
-      sub: classes.length > 0 ? classes.map((c) => c.className).join(' · ') : 'Chưa phân lớp',
+      sub: classes.length > 0 
+        ? `${classes.map((c) => c.className).join(' · ')} (${dashData?.yearName || '—'})` 
+        : 'Chưa phân lớp',
       icon: <SchoolIcon sx={{ fontSize: 26, color: 'white' }} />,
       gradient: 'linear-gradient(135deg, #6366f1 0%, #8b5cf6 100%)',
       accentColor: '#6366f1',
@@ -273,7 +312,7 @@ function TeacherDashboard() {
       key: 'students',
       label: 'Sĩ số học sinh',
       value: totalStudents,
-      sub: 'Tổng số bé đang phụ trách',
+      sub: `Sĩ số học sinh năm học ${dashData?.yearName || '—'}`,
       icon: <PeopleIcon sx={{ fontSize: 26, color: 'white' }} />,
       gradient: 'linear-gradient(135deg, #0ea5e9 0%, #06b6d4 100%)',
       accentColor: '#0ea5e9',
@@ -342,7 +381,37 @@ function TeacherDashboard() {
               </Typography>
             </Box>
           </Box>
-          <Box sx={{ display: 'flex', gap: 1.5, flexWrap: 'wrap' }}>
+          <Box sx={{ display: 'flex', gap: 1.5, flexWrap: 'wrap', alignItems: 'center' }}>
+            <FormControl size="small" sx={{ minWidth: 160 }}>
+              <Select
+                value={selectedYearId}
+                onChange={(e) => setSelectedYearId(e.target.value)}
+                displayEmpty
+                sx={{
+                  color: 'white',
+                  bgcolor: 'rgba(255,255,255,0.12)',
+                  borderRadius: 2,
+                  '.MuiOutlinedInput-notchedOutline': { borderColor: 'rgba(255,255,255,0.3)' },
+                  '&:hover .MuiOutlinedInput-notchedOutline': { borderColor: 'rgba(255,255,255,0.5)' },
+                  '&.Mui-focused .MuiOutlinedInput-notchedOutline': { borderColor: 'rgba(255,255,255,0.6)' },
+                  '.MuiSelect-icon': { color: 'white' },
+                  fontSize: '0.875rem',
+                  fontWeight: 600
+                }}
+                renderValue={(selected) => {
+                  if (!selected) return 'Chọn năm học';
+                  const year = academicYears.find(y => String(y._id) === String(selected));
+                  return year ? year.yearName : 'Chọn năm học';
+                }}
+              >
+                {academicYears.map((year) => (
+                  <MenuItem key={year._id} value={year._id}>
+                    {year.yearName} {year.status === 'active' && <Chip label="Hiện tại" size="small" color="primary" sx={{ ml: 1, height: 20 }} />}
+                  </MenuItem>
+                ))}
+              </Select>
+            </FormControl>
+
             {hasPermission('MANAGE_ATTENDANCE') && (
               <Button
                 variant="contained"
@@ -385,7 +454,7 @@ function TeacherDashboard() {
       <Grid container spacing={2.5} sx={{ mb: 3 }}>
         {statCards.map((card) => (
           <Grid key={card.key} size={{ xs: 12, sm: 6, md: 4 }}>
-            <StatCard {...card} loading={loading} />
+            <StatCard {...card} loading={isLoading} />
           </Grid>
         ))}
       </Grid>
@@ -393,7 +462,7 @@ function TeacherDashboard() {
       {/* Weekly chart + Today breakdown */}
       <Grid container spacing={2.5} sx={{ mb: 2.5 }}>
         <Grid size={{ xs: 12, md: 8 }}>
-          <WeeklyAttendanceChart data={weeklyAtt} loading={loading} />
+          <WeeklyAttendanceChart data={weeklyAtt} loading={isLoading} />
         </Grid>
 
         {/* Today detail */}
@@ -405,7 +474,7 @@ function TeacherDashboard() {
               <Chip label={new Date().toLocaleDateString('vi-VN', { day: '2-digit', month: '2-digit' })} size="small" color="primary" variant="outlined" sx={{ ml: 'auto', height: 22, fontSize: 11 }} />
             </Box>
             <Box sx={{ p: 2 }}>
-              {loading ? (
+              {isLoading ? (
                 <Box sx={{ display: 'flex', flexDirection: 'column', gap: 1.5 }}>
                   {[1, 2, 3].map((i) => <Skeleton key={i} variant="rounded" height={44} />)}
                 </Box>

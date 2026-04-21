@@ -60,7 +60,6 @@ export const SCHOOL_ADMIN_MENU_ITEMS = [
       { key: 'assets-list', label: 'Danh sách cơ sở vật chất', permission: 'MANAGE_ASSET' },
       { key: 'room-assets', label: 'Quản lý tài sản theo phòng học', permission: 'MANAGE_ASSET' },
       { key: 'asset-allocation', label: 'Phân bổ cơ sở vật chất', permission: 'MANAGE_ASSET' },
-      { key: 'purchase-requests', label: 'Yêu cầu mua sắm', permission: 'MANAGE_PURCHASE_REQUEST' },
       { key: 'kiemke', label: 'Kiểm kê tài sản', permission: 'MANAGE_ASSET' },
       { key: 'asset-incidents', label: 'Xử lý sự cố cơ sở vật chất', permission: 'MANAGE_ASSET' },
     ],

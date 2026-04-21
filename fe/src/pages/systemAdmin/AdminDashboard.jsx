@@ -1,25 +1,24 @@
+import ArticleIcon from '@mui/icons-material/Article';
+import BarChartIcon from '@mui/icons-material/BarChart';
+import ManageAccountsIcon from '@mui/icons-material/ManageAccounts';
+import NotificationsIcon from '@mui/icons-material/Notifications';
+import PeopleIcon from '@mui/icons-material/People';
+import SecurityIcon from '@mui/icons-material/Security';
+import ShieldIcon from '@mui/icons-material/Shield';
+import {
+  Alert,
+  Box,
+  Button,
+  Chip,
+  Grid,
+  Paper,
+  Typography
+} from '@mui/material';
 import { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../../context/AuthContext';
 import { useSystemAdmin } from '../../context/SystemAdminContext';
 import RoleLayout from '../../layouts/RoleLayout';
-import {
-  Box,
-  Grid,
-  Paper,
-  Typography,
-  Alert,
-  Skeleton,
-  Chip,
-  Button,
-} from '@mui/material';
-import SecurityIcon from '@mui/icons-material/Security';
-import PeopleIcon from '@mui/icons-material/People';
-import NotificationsIcon from '@mui/icons-material/Notifications';
-import ManageAccountsIcon from '@mui/icons-material/ManageAccounts';
-import ShieldIcon from '@mui/icons-material/Shield';
-import BarChartIcon from '@mui/icons-material/BarChart';
-import ArticleIcon from '@mui/icons-material/Article';
 
 function SystemAdminDashboard() {
   const [data, setData] = useState(null);

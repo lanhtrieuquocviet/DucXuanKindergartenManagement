@@ -13,13 +13,13 @@ import { useEffect, useMemo, useRef, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { toast } from 'react-toastify';
 import { useAuth } from '../../context/AuthContext';
+import RoleLayout from '../../layouts/RoleLayout';
 import { del, ENDPOINTS, get, post, postFormData, put } from '../../service/api';
 
 const STATUS_LABEL = {
   pending: { label: 'Chờ tiếp nhận', color: 'warning' },
   processing: { label: 'Đang xử lý', color: 'info' },
   fixed: { label: 'Đã khắc phục', color: 'success' },
-  rejected: { label: 'Từ chối', color: 'error' },
 };
 
 const INCIDENT_TYPE_OPTIONS = [

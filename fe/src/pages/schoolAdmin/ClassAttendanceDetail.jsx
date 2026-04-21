@@ -93,28 +93,32 @@ function ClassAttendanceDetail() {
   const [classInfo, setClassInfo] = useState(null);
   const [students, setStudents] = useState([]);
   const [classes, setClasses] = useState([]);
+  const [academicYears, setAcademicYears] = useState([]);
+  const [selectedYearId, setSelectedYearId] = useState('');
 
   const currentClassId = classId || classInfo?._id;
 
   useEffect(() => {
     if (isInitializing) return;
+    if (!user) { navigate('/login', { replace: true }); return; }
 
-    if (!user) {
-      navigate('/login', { replace: true });
-      return;
-    }
+    const fetchYears = async () => {
+      try {
+        const res = await get(ENDPOINTS.SCHOOL_ADMIN.ACADEMIC_YEARS.LIST);
+        if (res.data) setAcademicYears(res.data);
+      } catch (err) {
+        console.error('Error fetching years:', err);
+      }
+    };
+    fetchYears();
+  }, [isInitializing, user]); // eslint-disable-line
 
-    const userRoles = user?.roles?.map((r) => r.roleName || r) || [];
-    if (!userRoles.includes('SchoolAdmin')) {
-      navigate('/', { replace: true });
-      return;
-    }
-
+  useEffect(() => {
+    if (isInitializing || !user) return;
     if (classId) {
       fetchData();
     }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [navigate, user, isInitializing, classId, selectedDate]);
+  }, [classId, selectedDate]); // eslint-disable-line
 
   const fetchData = async () => {
     try {
@@ -125,6 +129,9 @@ function ClassAttendanceDetail() {
         setClassInfo(response.data.classInfo);
         setStudents(response.data.students || []);
         setClasses(response.data.classes || []);
+        if (response.data.classInfo?.academicYearId && !selectedYearId) {
+          setSelectedYearId(response.data.classInfo.academicYearId);
+        }
       }
     } catch (err) {
       console.error('Error fetching class attendance detail:', err);
@@ -230,7 +237,7 @@ function ClassAttendanceDetail() {
       {/* Bộ lọc và tìm kiếm */}
       <Paper elevation={1} sx={{ p: 2, mb: 2, borderRadius: 2 }}>
         <Grid container spacing={2} alignItems="flex-end">
-          <Grid item xs={12} md={3}>
+          <Grid item xs={12} md={2}>
             <TextField
               label="Ngày"
               type="date"
@@ -242,7 +249,37 @@ function ClassAttendanceDetail() {
             />
           </Grid>
 
-          <Grid item xs={12} md={3}>
+          <Grid item xs={12} md={2}>
+            <FormControl size="small" fullWidth>
+              <InputLabel>Năm học</InputLabel>
+              <Select
+                value={selectedYearId}
+                label="Năm học"
+                onChange={async (e) => {
+                  const yId = e.target.value;
+                  setSelectedYearId(yId);
+                  // Khi đổi năm học, ta cần lấy danh sách lớp của năm đó để người dùng chọn lớp mới
+                  try {
+                    const res = await get(`${ENDPOINTS.SCHOOL_ADMIN.ACADEMIC_YEARS.CLASSES(yId)}`);
+                    if (res.data) {
+                      setClasses(res.data);
+                      // Nếu lớp hiện tại không thuộc năm mới, có thể reset hoặc để yên (nhưng dropdown sẽ không highlight được)
+                    }
+                  } catch (err) {
+                    console.error('Error fetching classes for year:', err);
+                  }
+                }}
+              >
+                {academicYears.map((y) => (
+                  <MenuItem key={y._id} value={y._id}>
+                    {y.yearName} {y.status === 'active' && <Chip label="Hiện tại" size="small" color="primary" sx={{ ml: 1, height: 20 }} />}
+                  </MenuItem>
+                ))}
+              </Select>
+            </FormControl>
+          </Grid>
+
+          <Grid item xs={12} md={2.5}>
             <FormControl size="small" fullWidth>
               <InputLabel>Lớp</InputLabel>
               <Select
@@ -259,7 +296,7 @@ function ClassAttendanceDetail() {
             </FormControl>
           </Grid>
 
-          <Grid item xs={12} md={3}>
+          <Grid item xs={12} md={2.5}>
             <FormControl size="small" fullWidth>
               <InputLabel>Trạng thái</InputLabel>
               <Select

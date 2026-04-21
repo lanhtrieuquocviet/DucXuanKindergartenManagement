@@ -170,6 +170,27 @@ const attendanceSchema = new mongoose.Schema(
       default: '',
       maxlength: [100, 'Lý do vắng mặt tối đa 100 ký tự'],
     },
+    // --- BPM Workflow Integration ---
+    bpmWorkflowId: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: 'BPMWorkflow',
+      index: true,
+    },
+    currentBpmNode: {
+      type: String, // Lưu ID của Node hiện tại trong React Flow (ví dụ: 'node-1')
+      default: 'start',
+    },
+    bpmStatus: {
+      type: String,
+      enum: ['in_progress', 'completed', 'error', 'waiting_task'],
+      default: 'in_progress',
+    },
+    // Dữ liệu runtime lưu trữ kết quả của các node trước đó
+    bpmRuntimeData: {
+      type: Map,
+      of: mongoose.Schema.Types.Mixed,
+      default: {},
+    },
     createdAt: {
       type: Date,
       default: Date.now,

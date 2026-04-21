@@ -15,7 +15,12 @@ const bpmWorkflowSchema = new mongoose.Schema(
       type: String,
       enum: ['attendance', 'food_sample', 'purchase', 'leave', 'general'],
       default: 'general',
-      required: true, // Bắt buộc phải chọn module
+      required: true,
+    },
+    type: {
+      type: String,
+      enum: ['checkin', 'checkout', 'general'],
+      default: 'general',
     },
     status: {
       type: String,

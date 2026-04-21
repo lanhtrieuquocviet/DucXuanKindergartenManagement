@@ -140,39 +140,39 @@ function ManageStudents() {
     setLoading(true);
     setError(null);
     try {
-      const yearPromise = requestedYearId
-        ? get(`${ENDPOINTS.SCHOOL_ADMIN.ACADEMIC_YEARS.HISTORY}?yearId=${requestedYearId}`).catch(() => null)
-        : get(ENDPOINTS.SCHOOL_ADMIN.ACADEMIC_YEARS.CURRENT).catch(() => null);
-
-      const [classesRes, yearRes, allYearsRes] = await Promise.all([
+      const [classesRes, currentYearRes, allYearsRes] = await Promise.all([
         getClasses(),
-        yearPromise,
+        get(ENDPOINTS.SCHOOL_ADMIN.ACADEMIC_YEARS.CURRENT).catch(() => null),
         get(ENDPOINTS.SCHOOL_ADMIN.ACADEMIC_YEARS.HISTORY + '?all=true'),
       ]);
 
-      if (yearRes?.status === 'success') {
-        if (requestedYearId) {
-          const yearRow = Array.isArray(yearRes.data) ? yearRes.data[0] : null;
-          setViewAcademicYear(yearRow || null);
-        } else {
-          setViewAcademicYear(yearRes.data || null);
-          setActiveAcademicYear(yearRes.data || null);
-        }
+      // 1. Luôn lấy năm học ACTIVE hiện tại của hệ thống để gán khi thêm học sinh mới
+      const activeAY = currentYearRes?.status === 'success' ? currentYearRes.data : null;
+      setActiveAcademicYear(activeAY);
+
+      // 2. Xác định năm học đang XEM (VIEW) - có thể là năm cũ hoặc năm active
+      if (requestedYearId) {
+        // Nếu URL có yearId, tìm trong danh sách history hoặc fetch riêng
+        const viewRes = await get(`${ENDPOINTS.SCHOOL_ADMIN.ACADEMIC_YEARS.HISTORY}?yearId=${requestedYearId}`).catch(() => null);
+        const yearRow = viewRes?.status === 'success' ? (Array.isArray(viewRes.data) ? viewRes.data[0] : viewRes.data) : null;
+        setViewAcademicYear(yearRow || null);
       } else {
-        setViewAcademicYear(null);
+        // Nếu không có yearId trong URL, mặc định view năm active
+        setViewAcademicYear(activeAY);
       }
+
+      // Xóa bỏ logic cũ gây nhầm lẫn
 
       if (allYearsRes?.status === 'success') {
         const historyYears = Array.isArray(allYearsRes.data) ? allYearsRes.data : [];
-        const currentYear = yearRes?.status === 'success' && !Array.isArray(yearRes.data) && yearRes.data ? [yearRes.data] : [];
-        const allYears = [...currentYear, ...historyYears];
+        // Gộp năm active vào danh sách dropdown nếu nó chưa có trong history
+        const allYears = activeAY ? [activeAY, ...historyYears] : historyYears;
         const uniqueYears = Array.from(new Map(allYears.map(y => [String(y._id), y])).values());
         setAcademicYears(uniqueYears);
       }
 
       let currentFilterId = yearFilter;
       if (!currentFilterId || currentFilterId === 'active') {
-        const activeAY = yearRes?.status === 'success' ? (Array.isArray(yearRes.data) ? yearRes.data[0] : yearRes.data) : null;
         if (activeAY?._id) {
           currentFilterId = activeAY._id;
           setYearFilter(activeAY._id);

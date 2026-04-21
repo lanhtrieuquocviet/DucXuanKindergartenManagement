@@ -22,6 +22,7 @@ import {
   School as SchoolIcon,
   EditNote as RequestIcon,
   History as HistoryIcon,
+  Info as InfoIcon,
 } from '@mui/icons-material';
 
 const PAGE_SIZE = 20;
@@ -80,6 +81,9 @@ export default function TeacherStudents() {
   const [classFilter, setClassFilter] = useState('');
   const [page, setPage]         = useState(0);
 
+  const [academicYears, setAcademicYears] = useState([]);
+  const [selectedYearId, setSelectedYearId] = useState('');
+
   // Change request dialog — tạo mới
   const [reqDialog, setReqDialog]   = useState(null); // student object
   const [reqTitle, setReqTitle]     = useState('');
@@ -100,7 +104,28 @@ export default function TeacherStudents() {
   useEffect(() => {
     if (isInitializing) return;
     if (!user) { navigate('/login', { replace: true }); return; }
-    fetchStudents();
+
+    const fetchYears = async () => {
+      try {
+        const res = await get(ENDPOINTS.SCHOOL_ADMIN.ACADEMIC_YEARS.LIST);
+        if (res.data) {
+          setAcademicYears(res.data);
+          const current = res.data.find(y => y.status === 'active');
+          if (current) {
+            setSelectedYearId(current._id);
+            fetchStudents(classFilter, current._id);
+          } else {
+            fetchStudents(classFilter, '');
+          }
+        } else {
+          fetchStudents(classFilter, '');
+        }
+      } catch (err) {
+        fetchStudents(classFilter, '');
+      }
+    };
+
+    fetchYears();
   }, [isInitializing, user]); // eslint-disable-line
 
   const openReqDialog = (student) => { setReqDialog(student); setReqTitle(''); setReqContent(''); };
@@ -177,12 +202,13 @@ export default function TeacherStudents() {
 
   const closeEvalDialog = () => { setEvalDialog(null); };
 
-  const fetchStudents = async (cId = classFilter) => {
+  const fetchStudents = async (cId = classFilter, yId = selectedYearId) => {
     setLoading(true);
     setError('');
     try {
-      const params = cId ? `?classId=${cId}` : '';
-      const res = await get(`${ENDPOINTS.TEACHER.MY_STUDENTS}${params}`);
+      let query = `?academicYearId=${yId}`;
+      if (cId) query += `&classId=${cId}`;
+      const res = await get(`${ENDPOINTS.TEACHER.MY_STUDENTS}${query}`);
       setStudents(res.data || []);
       if (res.classes) setClasses(res.classes);
     } catch (err) {
@@ -259,7 +285,7 @@ export default function TeacherStudents() {
             <Box>
               <Typography variant="h6" fontWeight={700} color="white">Danh sách học sinh</Typography>
               <Typography variant="caption" sx={{ color: 'rgba(255,255,255,0.8)' }}>
-                {totalClasses} lớp · {totalStudents} học sinh
+                {academicYears.find(y => String(y._id) === String(selectedYearId))?.yearName || '—'} · {totalClasses} lớp · {totalStudents} học sinh
               </Typography>
             </Box>
           </Stack>
@@ -277,7 +303,34 @@ export default function TeacherStudents() {
             sx={{ minWidth: 240 }}
             InputProps={{ startAdornment: <InputAdornment position="start"><SearchIcon fontSize="small" sx={{ color: 'text.disabled' }} /></InputAdornment> }}
           />
-          <FormControl size="small" sx={{ minWidth: 180 }}>
+
+          <FormControl size="small" sx={{ minWidth: 160 }}>
+            <InputLabel id="year-select-label">Năm học</InputLabel>
+            <Select
+              labelId="year-select-label"
+              label="Năm học"
+              value={selectedYearId}
+              onChange={(e) => {
+                const yId = e.target.value;
+                setSelectedYearId(yId);
+                setPage(0);
+                setClassFilter(''); // Reset class filter when year changes
+                fetchStudents('', yId);
+              }}
+              renderValue={(selected) => {
+                const y = academicYears.find(ay => String(ay._id) === String(selected));
+                return y ? y.yearName : 'Chọn năm học';
+              }}
+            >
+              {academicYears.map((y) => (
+                <MenuItem key={y._id} value={y._id}>
+                  {y.yearName} {y.status === 'active' && <Chip label="Hiện tại" size="small" color="primary" sx={{ ml: 1, height: 20 }} />}
+                </MenuItem>
+              ))}
+            </Select>
+          </FormControl>
+
+          <FormControl size="small" sx={{ minWidth: 160 }}>
             <InputLabel>Lọc theo lớp</InputLabel>
             <Select
               label="Lọc theo lớp"
@@ -286,7 +339,7 @@ export default function TeacherStudents() {
                 const cId = e.target.value;
                 setClassFilter(cId);
                 setPage(0);
-                fetchStudents(cId);
+                fetchStudents(cId, selectedYearId);
               }}
             >
               <MenuItem value="">Tất cả lớp</MenuItem>
@@ -314,7 +367,7 @@ export default function TeacherStudents() {
                   icon={<SchoolIcon style={{ color }} />}
                   label={`${c.className} · ${count} hs`}
                   size="small"
-                  onClick={() => { setClassFilter(c._id); setPage(0); fetchStudents(c._id); }}
+                  onClick={() => { setClassFilter(c._id); setPage(0); fetchStudents(c._id, selectedYearId); }}
                   sx={{ bgcolor: '#f8fafc', border: `1px solid ${color}30`, fontWeight: 600, fontSize: '0.72rem', cursor: 'pointer' }}
                 />
               );

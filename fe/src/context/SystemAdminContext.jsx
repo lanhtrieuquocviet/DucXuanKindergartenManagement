@@ -466,6 +466,36 @@ export const SystemAdminProvider = ({
     }
   }, []);
 
+  const getBPMNodeDefinitions = useCallback(async () => {
+    try {
+      setLoading(true);
+      setError(null);
+      const response = await get(ENDPOINTS.SYSTEM_ADMIN.BPM_NODES);
+      return response.data || [];
+    } catch (err) {
+      const errorMessage = err.data?.message || err.message || 'Không lấy được danh mục Node BPM';
+      setError(errorMessage);
+      throw new Error(errorMessage);
+    } finally {
+      setLoading(false);
+    }
+  }, []);
+
+  const deleteBPMWorkflow = useCallback(async (id) => {
+    try {
+      setLoading(true);
+      setError(null);
+      await deleteRequest(ENDPOINTS.SYSTEM_ADMIN.DELETE_BPM_WORKFLOW(id));
+      return true;
+    } catch (err) {
+      const errorMessage = err.data?.message || err.message || 'Không thể xóa quy trình';
+      setError(errorMessage);
+      throw new Error(errorMessage);
+    } finally {
+      setLoading(false);
+    }
+  }, []);
+
   const value = {
     loading,
     error,
@@ -487,7 +517,9 @@ export const SystemAdminProvider = ({
     getSystemLogs,
     getBPMWorkflows,
     saveBPMWorkflow,
+    deleteBPMWorkflow,
     getBPMHealth,
+    getBPMNodeDefinitions,
     generateBPMFromDocx,
     postFormData,
     setError,

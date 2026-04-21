@@ -1550,7 +1550,7 @@ router.get('/academic-years/history', authenticate, authorizePermissions('MANAGE
  *       201:
  *         description: Tạo năm học thành công
  */
-router.get('/academic-years', authenticate, authorizeAnyPermission('MANAGE_ACADEMIC_YEAR', 'MANAGE_MENU', 'APPROVE_MENU'), academicYearController.listAcademicYears);
+router.get('/academic-years', authenticate, academicYearController.listAcademicYears);
 router.post('/academic-years', authenticate, authorizePermissions('MANAGE_ACADEMIC_YEAR'), academicYearController.createAcademicYear);
 
 /**

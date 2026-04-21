@@ -26,10 +26,27 @@ function nowVN() {
 /** GET /teacher/students — tất cả học sinh trong các lớp giáo viên phụ trách */
 exports.getMyStudents = async (req, res) => {
   try {
+    const { academicYearId } = req.query;
     const teacher = await Teacher.findOne({ userId: req.user._id }).lean();
     if (!teacher) return res.json({ status: 'success', data: [], classes: [] });
 
-    const classes = await Classes.find({ teacherIds: teacher._id })
+    let yearId = null;
+    if (academicYearId && /^[0-9a-fA-F]{24}$/.test(academicYearId)) {
+      yearId = academicYearId;
+    } else {
+      const activeYear = await AcademicYear.findOne({ status: 'active' }).sort({ startDate: -1 }).select('_id');
+      if (activeYear) {
+        yearId = activeYear._id;
+      } else {
+        const latestYear = await AcademicYear.findOne().sort({ startDate: -1 }).select('_id');
+        yearId = latestYear?._id;
+      }
+    }
+
+    const classFilter = { teacherIds: teacher._id };
+    if (yearId) classFilter.academicYearId = yearId;
+
+    const classes = await Classes.find(classFilter)
       .populate('gradeId', 'gradeName')
       .populate('academicYearId', 'yearName')
       .sort({ className: 1 })
@@ -80,12 +97,29 @@ exports.getMyStudents = async (req, res) => {
 /** GET /teacher/contact-book — danh sách lớp giáo viên phụ trách */
 exports.getMyClasses = async (req, res) => {
   try {
+    const { academicYearId } = req.query;
     const teacher = await Teacher.findOne({ userId: req.user._id }).lean();
     if (!teacher) {
       return res.json({ status: 'success', data: [] });
     }
 
-    const classes = await Classes.find({ teacherIds: teacher._id })
+    let yearId = null;
+    if (academicYearId && /^[0-9a-fA-F]{24}$/.test(academicYearId)) {
+      yearId = academicYearId;
+    } else {
+      const activeYear = await AcademicYear.findOne({ status: 'active' }).sort({ startDate: -1 }).select('_id');
+      if (activeYear) {
+        yearId = activeYear._id;
+      } else {
+        const latestYear = await AcademicYear.findOne().sort({ startDate: -1 }).select('_id');
+        yearId = latestYear?._id;
+      }
+    }
+
+    const classFilter = { teacherIds: teacher._id };
+    if (yearId) classFilter.academicYearId = yearId;
+
+    const classes = await Classes.find(classFilter)
       .populate('gradeId', 'gradeName')
       .populate('academicYearId', 'yearName')
       .lean();

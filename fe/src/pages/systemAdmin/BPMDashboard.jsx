@@ -3,38 +3,23 @@ import CloudUploadIcon from '@mui/icons-material/CloudUpload';
 import GetAppIcon from '@mui/icons-material/GetApp';
 import HealthAndSafetyIcon from '@mui/icons-material/HealthAndSafety';
 import SaveIcon from '@mui/icons-material/Save';
+import DeleteIcon from '@mui/icons-material/DeleteOutline';
+import AccountTreeIcon from '@mui/icons-material/AccountTree';
+import CancelIcon from '@mui/icons-material/Cancel';
+import TimeIcon from '@mui/icons-material/AccessTime';
 import {
-  Box,
-  Button,
-  Chip,
-  CircularProgress,
-  Divider,
-  FormControl,
-  Grid,
-  InputLabel,
-  MenuItem as MuiMenuItem,
-  Paper,
-  Select,
-  Stack,
-  Table,
-  TableBody,
-  TableCell,
-  TableContainer,
-  TableHead,
-  TableRow,
-  TextField,
-  Typography
+  Box, Button, Chip, Divider, FormControl, Grid, IconButton,
+  InputLabel, MenuItem, Paper, Select, Stack, Table, TableBody,
+  TableCell, TableContainer, TableHead, TableRow, TextField,
+  Typography, Tooltip, Alert,
 } from '@mui/material';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { toast } from 'react-toastify';
 import ReactFlow, {
-  Background,
-  Controls,
-  MiniMap,
-  addEdge,
-  useNodesState,
-  useEdgesState
+  Background, Controls, MiniMap, addEdge,
+  useEdgesState, useNodesState, ReactFlowProvider,
+  useReactFlow, Handle, Position,
 } from 'reactflow';
 import 'reactflow/dist/style.css';
 import { useAuth } from '../../context/AuthContext';
@@ -43,442 +28,511 @@ import RoleLayout from '../../layouts/RoleLayout';
 import { API_BASE_URL, ENDPOINTS } from '../../service/api';
 import { SCHOOL_ADMIN_MENU_ITEMS, createSchoolAdminMenuSelect } from '../schoolAdmin/schoolAdminMenuConfig';
 
-// Các node mẫu ban đầu
-const initialNodes = [
-  { id: '1', position: { x: 0, y: 0 }, data: { label: 'Bắt đầu quy trình' }, type: 'input' },
+// ─── CSS tuỳ chỉnh React Flow ─────────────────────────────────
+const rfStyle = `
+  .react-flow__node { border:none!important; background:transparent!important; padding:0!important; box-shadow:none!important; }
+  .react-flow__handle { width:8px!important; height:8px!important; background:#475569!important; border:2px solid white!important; }
+`;
+
+// ─── Màu theo category ────────────────────────────────────────
+const CAT_COLOR = {
+  system: '#3b82f6', ai: '#8b5cf6', logic: '#f59e0b',
+  audit:  '#ef4444', action: '#10b981', Other: '#6b7280',
+};
+
+// ─── Custom Node Component ────────────────────────────────────
+const BPMNode = ({ id, data, selected }) => {
+  const { setNodes } = useReactFlow();
+  const bg = data.color || '#fff';
+  return (
+    <Box sx={{
+      position: 'relative', px: 2.5, py: 1.5, borderRadius: 2,
+      border: selected ? '2px solid #3b82f6' : '1.5px solid #cbd5e1',
+      bgcolor: bg, minWidth: 140, textAlign: 'center',
+      boxShadow: selected ? 4 : 1, transition: 'all .15s',
+    }}>
+      <IconButton size="small" onClick={e => { e.stopPropagation(); setNodes(n => n.filter(x => x.id !== id)); }}
+        sx={{ position:'absolute', top:-10, right:-10, p:0, bgcolor:'#fff', color:'#ef4444', '&:hover':{ bgcolor:'#fef2f2' }, zIndex:10 }}>
+        <CancelIcon sx={{ fontSize:18 }} />
+      </IconButton>
+      <Handle type="target" position={Position.Left} />
+      <Typography variant="caption" fontWeight={700} sx={{ color:'#1e293b', lineHeight:1.3, display:'block' }}>
+        {data.label}
+      </Typography>
+      <Handle type="source" position={Position.Right} />
+    </Box>
+  );
+};
+
+const NODE_TYPES_MAP = Object.fromEntries([
+  'input','output','ai_student','ai_parent','condition_time','condition_deliverer',
+  'condition_absence','notify_checkin','notify_checkout','notify_absence',
+  'save_record','teacher_verify','audit_full_class','audit_photo_proof',
+  'audit_medication','audit_parent_auth','audit_anomaly','audit_service_status','default',
+].map(t => [t, BPMNode]));
+
+const MODULES = [
+  { value:'attendance', label:'Điểm danh' },
+  { value:'food_sample', label:'Mẫu thực phẩm' },
+  { value:'leave', label:'Nghỉ học' },
+  { value:'purchase', label:'Mua sắm' },
 ];
 
-const initialEdges = [];
-
-export default function BPMDashboard() {
+// ─── Main Content ─────────────────────────────────────────────
+const BPMDashboardContent = () => {
   const { user, logout } = useAuth();
   const navigate = useNavigate();
-  const { getBPMWorkflows, saveBPMWorkflow, getBPMHealth, generateBPMFromDocx, loading } = useSystemAdmin();
-  const fileInputRef = useRef(null);
-  const hasLoadedInitialRef = useRef(false); // Flag để tránh reset editor khi auto-refresh 30s
+  const { getBPMWorkflows, saveBPMWorkflow, deleteBPMWorkflow,
+          getBPMHealth, generateBPMFromDocx, getBPMNodeDefinitions, loading } = useSystemAdmin();
+  const { project, deleteElements } = useReactFlow();
+  const wrapperRef  = useRef(null);
+  const fileRef     = useRef(null);
+  const initialised = useRef(false);
 
-  // Xác định menu dựa trên role
-  const userRoles = user?.roles?.map(r => r.roleName || r) || [];
+  const [nodes, setNodes, onNodesChange] = useNodesState([]);
+  const [edges, setEdges, onEdgesChange] = useEdgesState([]);
+  const [health, setHealth]           = useState(null);
+  const [workflows, setWorkflows]     = useState([]);
+  const [nodeDefs, setNodeDefs]       = useState([]);
+  const [current, setCurrent]         = useState(null);
+  const [wfName, setWfName]           = useState('Quy trình mới');
+  const [wfModule, setWfModule]       = useState('attendance');
+  const [wfType, setWfType]           = useState('checkin');
+
+  // Menu
+  const userRoles   = user?.roles?.map(r => r.roleName || r) || [];
   const isSchoolAdmin = userRoles.includes('SchoolAdmin');
+  const menuItems   = useMemo(() => isSchoolAdmin ? SCHOOL_ADMIN_MENU_ITEMS : [
+    { key:'bpm', label:'Quản lý quy trình (BPM)' },
+    { key:'system-logs', label:'Nhật ký hệ thống' },
+  ], [isSchoolAdmin]);
+  const handleMenu  = key => isSchoolAdmin
+    ? createSchoolAdminMenuSelect(navigate)(key)
+    : ({ 'system-logs': '/system-admin/system-logs', bpm: '/system-admin/bpm' })[key] && navigate(({ 'system-logs': '/system-admin/system-logs', bpm: '/system-admin/bpm' })[key]);
 
-  const menuItems = useMemo(() => {
-    if (isSchoolAdmin) return SCHOOL_ADMIN_MENU_ITEMS;
-    return [
-      { key: 'overview', label: 'Tổng quan hệ thống' },
-      { key: 'accounts', label: 'Quản lý tài khoản' },
-      { key: 'bpm', label: 'Quản lý quy trình (BPM)' },
-      { key: 'system-logs', label: 'Nhật ký hệ thống' },
-    ];
-  }, [isSchoolAdmin]);
-
-  const handleMenuSelect = (key) => {
-    if (isSchoolAdmin) {
-      createSchoolAdminMenuSelect(navigate)(key);
-    } else {
-      const routes = {
-        overview: '/system-admin',
-        accounts: '/system-admin/manage-accounts',
-        bpm: '/system-admin/bpm',
-        'system-logs': '/system-admin/system-logs',
-      };
-      if (routes[key]) navigate(routes[key]);
-    }
-  };
-  const [nodes, setNodes, onNodesChange] = useNodesState(initialNodes);
-  const [edges, setEdges, onEdgesChange] = useEdgesState(initialEdges);
-  const [health, setHealth] = useState(null);
-  const [savedWorkflows, setSavedWorkflows] = useState([]); // Khai báo danh sách quy trình đã lưu
-  const [currentWorkflowId, setCurrentWorkflowId] = useState(null);
-  const [workflowName, setWorkflowName] = useState('Quy trình mới');
-  const [selectedModule, setSelectedModule] = useState('general');
-
-  // Danh mục Module mẫu
-  const modules = [
-    { value: 'attendance', label: 'Quản lý Điểm danh' },
-    { value: 'food_sample', label: 'Quản lý Mẫu thực phẩm' },
-    { value: 'purchase', label: 'Quản lý Mua sắm' },
-    { value: 'leave', label: 'Quản lý Nghỉ học' },
-    { value: 'general', label: 'Quy trình Chung' }
-  ];
-
-  // Load dữ liệu ban đầu
-  const loadData = useCallback(async (isFirstLoad = false) => {
+  // Load data
+  const loadData = useCallback(async (first = false) => {
     try {
       const h = await getBPMHealth();
       setHealth(h);
-
-      const w = await getBPMWorkflows();
-      setSavedWorkflows(w || []); // Cập nhật danh sách quy trình để nạp vào table
-
-      // Chỉ nạp dữ liệu vào editor ở lần đầu tiên truy cập hoặc khi được yêu cầu (tránh ghi đè khi đang sửa)
-      if (isFirstLoad && w && w.length > 0 && !hasLoadedInitialRef.current) {
-        setNodes(w[0].nodes || initialNodes);
-        setEdges(w[0].edges || initialEdges);
-        setWorkflowName(w[0].name);
-        setSelectedModule(w[0].module || 'general');
-        setCurrentWorkflowId(w[0]._id || w[0].id);
-        hasLoadedInitialRef.current = true;
+      const [wfs, nds] = await Promise.all([getBPMWorkflows(), getBPMNodeDefinitions()]);
+      setWorkflows(wfs || []);
+      setNodeDefs(nds || []);
+      if (first && wfs?.length && !initialised.current) {
+        const active = wfs.find(f => f.status === 'active') || wfs[0];
+        loadWorkflow(active);
+        initialised.current = true;
       }
-    } catch (err) {
-      console.error(err);
-    }
-  }, [getBPMHealth, getBPMWorkflows, setNodes, setEdges]);
+    } catch (e) { console.error(e); }
+  }, [getBPMHealth, getBPMWorkflows, getBPMNodeDefinitions]);
 
   useEffect(() => {
-    // Gọi nạp dữ liệu lần đầu tiên (có setup editor)
+    const style = document.createElement('style');
+    style.innerHTML = rfStyle;
+    document.head.appendChild(style);
     loadData(true);
-    
-    // Setup interval tự động làm mới danh sách (không setup editor)
-    const interval = setInterval(() => {
-      loadData(false);
-    }, 30000);
-    
-    return () => clearInterval(interval);
+    const t = setInterval(() => loadData(false), 30000);
+    return () => { document.head.removeChild(style); clearInterval(t); };
   }, [loadData]);
 
-  // Xử lý kết nối giữa các Node
-  const onConnect = useCallback(
-    (params) => setEdges((eds) => addEdge(params, eds)),
-    [setEdges]
-  );
-
-  // Nạp quy trình từ thư viện
-  const handleSelectSavedWorkflow = (workflowId) => {
-    const workflow = savedWorkflows.find(w => (w._id === workflowId || w.id === workflowId));
-    if (workflow) {
-      setNodes(workflow.nodes || initialNodes);
-      setEdges(workflow.edges || initialEdges);
-      setWorkflowName(workflow.name);
-      setSelectedModule(workflow.module || 'general');
-      setCurrentWorkflowId(workflow._id || workflow.id);
-      toast.info(`Đã nạp quy trình: ${workflow.name}`);
-      
-      // Cuộn lên canvas editor
-      window.scrollTo({ top: 0, behavior: 'smooth' });
-    }
+  const loadWorkflow = (wf) => {
+    setNodes(wf.nodes || []);
+    setEdges(wf.edges || []);
+    setCurrent(wf);
+    setWfName(wf.name || '');
+    setWfModule(wf.module || 'attendance');
+    setWfType(wf.type || 'checkin');
   };
 
-  // Thêm Node mới
-  const addNewNode = () => {
-    const id = `${nodes.length + 1}`;
-    const newNode = {
-      id,
-      data: { label: `Bước ${id}` },
-      position: { x: Math.random() * 400, y: Math.random() * 400 },
-    };
-    setNodes((nds) => nds.concat(newNode));
+  const onConnect     = useCallback(p => setEdges(eds => addEdge({ ...p, animated:true }, eds)), [setEdges]);
+  const onDragStart   = (e, type, label) => {
+    e.dataTransfer.setData('rf/type', type);
+    e.dataTransfer.setData('rf/label', label);
+    e.dataTransfer.effectAllowed = 'move';
   };
+  const onDrop        = useCallback(e => {
+    e.preventDefault();
+    const type  = e.dataTransfer.getData('rf/type');
+    const label = e.dataTransfer.getData('rf/label');
+    if (!type) return;
+    const bounds = wrapperRef.current.getBoundingClientRect();
+    const pos    = project({ x: e.clientX - bounds.left, y: e.clientY - bounds.top });
+    const color  = nodeDefs.find(n => n.type === type)?.color || '#fff';
+    setNodes(nds => nds.concat({ id:`${type}_${Date.now()}`, type, position:pos, data:{ label, color } }));
+  }, [project, setNodes, nodeDefs]);
+  const onDragOver    = useCallback(e => { e.preventDefault(); e.dataTransfer.dropEffect = 'move'; }, []);
 
-  // Xử lý khi chọn module từ dropdown
-  const handleModuleChange = (newModule) => {
-    setSelectedModule(newModule);
-    
-    // Tìm danh sách quy trình đang 'active' của module mới chọn
-    const activeWorkflows = savedWorkflows.filter(w => w.module === newModule && w.status === 'active');
-    
-    if (activeWorkflows.length === 1) {
-      // Nếu chỉ có đúng 1 cái active, tự động nạp
-      const workflow = activeWorkflows[0];
-      setNodes(workflow.nodes || initialNodes);
-      setEdges(workflow.edges || initialEdges);
-      setWorkflowName(workflow.name);
-      setCurrentWorkflowId(workflow._id || workflow.id);
-      toast.info(`Đã nạp quy trình đang chạy của ${modules.find(m => m.value === newModule)?.label}`);
-    } else if (activeWorkflows.length > 1) {
-      // Nếu có nhiều hơn 1, để người dùng tự chọn từ thư viện bên dưới
-      toast.info(`${modules.find(m => m.value === newModule)?.label} có ${activeWorkflows.length} quy trình đang chạy. Vui lòng chọn bên dưới.`);
-    } else {
-      // Nếu chưa có quy trình active cho module này, cho phép tạo mới
-      setNodes(initialNodes);
-      setEdges(initialEdges);
-      setWorkflowName(`Quy trình ${modules.find(m => m.value === newModule)?.label || ''}`);
-      setCurrentWorkflowId(null);
-    }
-  };
-
-  // Lưu Workflow
   const handleSave = async () => {
     try {
-      const response = await saveBPMWorkflow({
-        id: currentWorkflowId,
-        name: workflowName,
-        module: selectedModule,
-        status: 'active', // Mặc định khi lưu từ dashboard là kích hoạt luôn
-        nodes,
-        edges,
-      });
-      
-      if (response && response.data) {
-        setCurrentWorkflowId(response.data._id || response.data.id);
-      }
-      
-      toast.success('Đã lưu quy trình BPM thành công');
+      const res = await saveBPMWorkflow({ id: current?._id || current?.id, name:wfName, module:wfModule, type:wfType, status:'active', nodes, edges });
+      if (res?.data) setCurrent(res.data);
+      toast.success('Đã lưu quy trình thành công');
       loadData();
-    } catch (err) {
-      toast.error('Lỗi khi lưu quy trình');
-    }
+    } catch { toast.error('Lỗi khi lưu quy trình'); }
   };
 
-  // Xử lý upload file Word
+  const handleDelete = async () => {
+    if (!current) return toast.warning('Chưa chọn quy trình');
+    if (!window.confirm(`Xóa vĩnh viễn "${current.name}"?`)) return;
+    await deleteBPMWorkflow(current._id || current.id);
+    setNodes([]); setEdges([]); setCurrent(null);
+    toast.success('Đã xóa'); loadData();
+  };
+
   const handleDocxUpload = async (e) => {
-    const file = e.target.files[0];
-    if (!file) return;
-
-    const toastId = toast.loading('Đang phân tích văn bản từ file Word...');
+    const file = e.target.files[0]; if (!file) return;
+    const tid = toast.loading('Đang phân tích file Word...');
     try {
-      const result = await generateBPMFromDocx(file);
-      if (result) {
-        setNodes(result.nodes);
-        setEdges(result.edges);
-        setWorkflowName(result.name);
-        toast.update(toastId, { 
-          render: `Tự động nhận diện xong: ${result.nodes.length} bước quy trình!`, 
-          type: 'success', 
-          isLoading: false,
-          autoClose: 3000 
-        });
-        loadData(); // Tải lại nhật ký để thấy log vừa sinh
-      }
+      const r = await generateBPMFromDocx(file);
+      if (r) { setNodes(r.nodes); setEdges(r.edges); setWfName(r.name); }
+      toast.update(tid, { render:`Xong: ${r?.nodes?.length} bước`, type:'success', isLoading:false, autoClose:3000 });
     } catch (err) {
-      toast.update(toastId, { 
-        render: err.message || 'Lỗi khi xử lý file', 
-        type: 'error', 
-        isLoading: false,
-        autoClose: 3000 
-      });
-    } finally {
-      e.target.value = null;
-    }
+      toast.update(tid, { render: err.message || 'Lỗi', type:'error', isLoading:false, autoClose:3000 });
+    } finally { e.target.value = null; }
   };
+
+  const groupedDefs = useMemo(() => nodeDefs.reduce((acc, n) => {
+    const cat = n.category || 'Other';
+    if (!acc[cat]) acc[cat] = [];
+    acc[cat].push(n);
+    return acc;
+  }, {}), [nodeDefs]);
+
+  const dbOk = health?.database === 'healthy';
 
   return (
-    <RoleLayout
-      title="Quản trị BPM & Monitoring"
-      menuItems={menuItems}
-      activeKey="bpm"
-      onMenuSelect={handleMenuSelect}
-      onLogout={() => { logout(); navigate('/login'); }}
-      userName={user?.fullName}
-    >
-      <Stack spacing={3}>
-        {/* TOP: Health Monitoring Widget */}
-        <Paper sx={{ p: 2, borderRadius: 2, border: '1px solid #e0e0e0', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-          <Stack direction="row" spacing={2} alignItems="center">
-            <HealthAndSafetyIcon color="primary" />
-            <Typography variant="h6" fontWeight={700}>Trạng thái Hệ thống</Typography>
-          </Stack>
-          <Stack direction="row" spacing={3}>
-            <Box textAlign="center">
-              <Typography variant="caption" color="text.secondary">Database</Typography>
-              <Chip
-                label={health?.database === 'healthy' ? 'Kết nối tốt' : 'Mất kết nối'}
-                color={health?.database === 'healthy' ? 'success' : 'error'}
-                size="small"
-              />
-            </Box>
-            <Box textAlign="center">
-              <Typography variant="caption" color="text.secondary">Server Uptime</Typography>
-              <Typography variant="body2" fontWeight={600}>{(health?.uptime / 60).toFixed(2)} phút</Typography>
-            </Box>
-          </Stack>
-        </Paper>
+    <RoleLayout title="Quản trị BPM" menuItems={menuItems} activeKey="bpm"
+      onMenuSelect={handleMenu} onLogout={() => { logout(); navigate('/login'); }}
+      userName={user?.fullName}>
+      <Stack spacing={2}>
 
-        {/* MIDDLE: React Flow Canvas */}
-        <Paper shadow="md" sx={{ height: 600, borderRadius: 2, position: 'relative', border: '1px solid #ddd', overflow: 'hidden' }}>
-          {/* CONTROL BAR */}
-          <Box sx={{
-            p: 1.5,
-            bgcolor: '#f8f9fa',
-            borderBottom: '1px solid #ddd',
-            display: 'flex',
-            gap: 2,
-            alignItems: 'center',
-            zIndex: 10,
-            position: 'absolute',
-            width: '100%'
-          }}>
-            <TextField
-              label="Tên quy trình"
-              size="small"
-              value={workflowName}
-              onChange={(e) => setWorkflowName(e.target.value)}
-              sx={{ bgcolor: 'white', width: 250 }}
-            />
-            <FormControl size="small" sx={{ width: 200, bgcolor: 'white' }}>
-              <InputLabel>Module áp dụng</InputLabel>
-              <Select
-                value={selectedModule}
-                label="Module áp dụng"
-                onChange={(e) => handleModuleChange(e.target.value)}
-              >
-                {modules.map((m) => (
-                  <MuiMenuItem key={m.value} value={m.value}>{m.label}</MuiMenuItem>
-                ))}
-              </Select>
-            </FormControl>
-            <input
-              type="file"
-              accept=".docx"
-              style={{ display: 'none' }}
-              ref={fileInputRef}
-              onChange={handleDocxUpload}
-            />
-            <Button
-              variant="outlined"
-              size="small"
-              color="info"
-              startIcon={<GetAppIcon />}
-              onClick={() => window.open(`${API_BASE_URL}${ENDPOINTS.SYSTEM_ADMIN.DOWNLOAD_BPM_TEMPLATE}`, '_blank')}
-            >
-              Tải File Mẫu (.docx)
-            </Button>
-            <Button
-              variant="outlined"
-              size="small"
-              startIcon={<CloudUploadIcon />}
-              onClick={() => fileInputRef.current.click()}
-              disabled={loading}
-            >
-              Nhập từ Word (.docx)
-            </Button>
-            <Button variant="contained" size="small" startIcon={<AddIcon />} onClick={addNewNode}>Thêm bước</Button>
-            <Button variant="contained" color="success" size="small" startIcon={<SaveIcon />} onClick={handleSave} disabled={loading}>
-              {loading ? 'Đang lưu...' : 'Lưu quy trình'}
-            </Button>
-          </Box>
-          <Box sx={{ pt: 8, height: '100%' }}>
-            <ReactFlow
-              nodes={nodes}
-              edges={edges}
-              onNodesChange={onNodesChange}
-              onEdgesChange={onEdgesChange}
-              onConnect={onConnect}
-              fitView
-            >
-              <Background />
-              <Controls />
-              <MiniMap />
-            </ReactFlow>
-          </Box>
-        </Paper>
-
-        {/* Workflow Library */}
-        <Grid container spacing={3}>
-          <Grid item xs={12}>
-            <Paper sx={{ borderRadius: 3, overflow: 'hidden', border: '1px solid', borderColor: 'divider' }}>
-              <Box sx={{ px: 3, py: 2, borderBottom: '1px solid', borderColor: 'divider', bgcolor: 'grey.50' }}>
-                <Typography variant="subtitle1" fontWeight={700}>Thư viện Quy trình BPM</Typography>
+        {/* ── ZONE 1: Premium Header & Toolbar ── */}
+        <Box sx={{ mb: 3 }}>
+          {/* Top Bar: System Status & Quick Info */}
+          <Stack direction="row" justifyContent="space-between" alignItems="center" sx={{ mb: 2, px: 0.5 }}>
+            <Stack direction="row" spacing={2} alignItems="center">
+              <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                <Box sx={{ width: 10, height: 10, borderRadius: '50%', bgcolor: dbOk ? '#10b981' : '#ef4444', boxShadow: `0 0 8px ${dbOk ? '#10b981' : '#ef4444'}` }} />
+                <Typography variant="caption" fontWeight={700} sx={{ color: '#475569', letterSpacing: 0.5 }}>
+                  DATABASE: {dbOk ? 'CONNECTED' : 'DISCONNECTED'}
+                </Typography>
               </Box>
-              <TableContainer sx={{ maxHeight: 450 }}>
-                <Table size="medium" stickyHeader sx={{ minWidth: 800 }}>
-                  <TableHead>
-                    <TableRow 
-                      sx={{ 
-                        '& th': { 
-                          bgcolor: 'white', 
-                          fontWeight: 700,
-                          fontSize: '0.85rem',
-                          color: 'text.secondary',
-                          borderBottom: '2px solid',
-                          borderColor: 'divider',
-                          py: 2
-                        } 
+              <Divider orientation="vertical" flexItem sx={{ height: 16, my: 'auto' }} />
+              <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5 }}>
+                <TimeIcon sx={{ fontSize: 14, color: '#64748b' }} />
+                <Typography variant="caption" sx={{ color: '#64748b' }}>
+                  Uptime: <strong>{(health?.uptime / 60).toFixed(1)}</strong> min
+                </Typography>
+              </Box>
+            </Stack>
+
+            <Typography variant="h5" fontWeight={900} sx={{
+              background: 'linear-gradient(135deg, #1e293b 0%, #334155 100%)',
+              WebkitBackgroundClip: 'text',
+              WebkitTextFillColor: 'transparent',
+              letterSpacing: -0.5,
+              display: { xs: 'none', sm: 'block' }
+            }}>
+              BPM Engine <span style={{ fontWeight: 400, color: '#94a3b8', fontSize: '1rem' }}>v2.0</span>
+            </Typography>
+          </Stack>
+
+          {/* Action Bar: Workflow Configuration */}
+          <Paper elevation={0} sx={{
+            p: 2.5,
+            borderRadius: 4,
+            border: '1px solid #e2e8f0',
+            bgcolor: '#fff',
+            boxShadow: '0 4px 20px rgba(0,0,0,0.03)',
+            position: 'relative',
+            overflow: 'hidden'
+          }}>
+            {/* Trang trí nhẹ nhàng */}
+            <Box sx={{ position: 'absolute', top: 0, left: 0, width: '4px', height: '100%', bgcolor: '#6366f1' }} />
+
+            <Grid container spacing={2.5} alignItems="flex-end">
+              {/* Selector quy trình */}
+              <Grid item xs={12} md={4}>
+                <Typography variant="caption" fontWeight={800} color="primary" sx={{ display: 'block', mb: 0.5, ml: 0.5 }}>
+                  QUY TRÌNH HIỆN TẠI
+                </Typography>
+                <FormControl fullWidth size="small">
+                  <Select
+                    value={current?._id || ''}
+                    onChange={e => { const f = workflows.find(w => w._id === e.target.value); if (f) loadWorkflow(f); }}
+                    displayEmpty
+                    sx={{
+                      borderRadius: 2.5,
+                      bgcolor: '#f8fafc',
+                      '& .MuiOutlinedInput-notchedOutline': { borderColor: '#e2e8f0' },
+                      '&:hover .MuiOutlinedInput-notchedOutline': { borderColor: '#cbd5e1' },
+                    }}
+                  >
+                    <MenuItem value="" disabled>--- Chọn quy trình đã lưu ---</MenuItem>
+                    {workflows.map(f => (
+                      <MenuItem key={f._id} value={f._id}>
+                        <Stack direction="row" spacing={1} alignItems="center">
+                          <Chip
+                            label={f.status === 'active' ? 'Active' : f.status}
+                            size="small"
+                            sx={{
+                              height: 16,
+                              fontSize: 9,
+                              fontWeight: 800,
+                              bgcolor: f.status === 'active' ? '#dcfce7' : '#f1f5f9',
+                              color: f.status === 'active' ? '#16a34a' : '#64748b',
+                              border: 'none'
+                            }}
+                          />
+                          <Typography variant="body2" fontWeight={600}>{f.name}</Typography>
+                        </Stack>
+                      </MenuItem>
+                    ))}
+                  </Select>
+                </FormControl>
+              </Grid>
+
+              {/* Tên quy trình */}
+              <Grid item xs={12} md={3}>
+                <Typography variant="caption" fontWeight={800} color="text.secondary" sx={{ display: 'block', mb: 0.5, ml: 0.5 }}>
+                  TÊN HIỂN THỊ
+                </Typography>
+                <TextField
+                  fullWidth
+                  size="small"
+                  placeholder="Nhập tên quy trình..."
+                  value={wfName}
+                  onChange={e => setWfName(e.target.value)}
+                  sx={{
+                    '& .MuiOutlinedInput-root': { borderRadius: 2.5, bgcolor: '#fff' }
+                  }}
+                />
+              </Grid>
+
+              {/* Phân loại */}
+              <Grid item xs={6} md={1.5}>
+                <Typography variant="caption" fontWeight={800} color="text.secondary" sx={{ display: 'block', mb: 0.5, ml: 0.5 }}>
+                  MODULE
+                </Typography>
+                <FormControl fullWidth size="small">
+                  <Select
+                    value={wfModule}
+                    onChange={e => setWfModule(e.target.value)}
+                    sx={{ borderRadius: 2.5 }}
+                  >
+                    {MODULES.map(m => <MenuItem key={m.value} value={m.value}>{m.label}</MenuItem>)}
+                  </Select>
+                </FormControl>
+              </Grid>
+
+              <Grid item xs={6} md={1.5}>
+                <Typography variant="caption" fontWeight={800} color="text.secondary" sx={{ display: 'block', mb: 0.5, ml: 0.5 }}>
+                  LOẠI
+                </Typography>
+                <FormControl fullWidth size="small" disabled={wfModule !== 'attendance'}>
+                  <Select
+                    value={wfType}
+                    onChange={e => setWfType(e.target.value)}
+                    sx={{ borderRadius: 2.5 }}
+                  >
+                    <MenuItem value="checkin">Đón trẻ</MenuItem>
+                    <MenuItem value="checkout">Trả trẻ</MenuItem>
+                  </Select>
+                </FormControl>
+              </Grid>
+
+              {/* Actions */}
+              <Grid item xs={12} md={2}>
+                <Stack direction="row" spacing={1}>
+                  <Button
+                    fullWidth
+                    variant="contained"
+                    onClick={handleSave}
+                    disabled={loading}
+                    sx={{
+                      borderRadius: 2.5,
+                      bgcolor: '#6366f1',
+                      boxShadow: '0 4px 12px rgba(99, 102, 241, 0.3)',
+                      textTransform: 'none',
+                      fontWeight: 700,
+                      py: 1,
+                      '&:hover': { bgcolor: '#4f46e5' }
+                    }}
+                  >
+                    Lưu lại
+                  </Button>
+                  <Tooltip title="Xóa quy trình này">
+                    <IconButton
+                      onClick={handleDelete}
+                      disabled={!current}
+                      sx={{
+                        borderRadius: 2.5,
+                        bgcolor: '#fef2f2',
+                        color: '#ef4444',
+                        border: '1px solid #fee2e2',
+                        '&:hover': { bgcolor: '#fee2e2' }
                       }}
                     >
-                      <TableCell sx={{ pl: 3 }}>Tên quy trình</TableCell>
-                      <TableCell>Bộ phận áp dụng</TableCell>
-                      <TableCell>Trạng thái</TableCell>
-                      <TableCell>Người tạo</TableCell>
-                      <TableCell align="right" sx={{ pr: 3 }}>Thao tác</TableCell>
-                    </TableRow>
-                  </TableHead>
-                  <TableBody>
-                    {savedWorkflows.map((w) => (
-                      <TableRow key={w._id} hover sx={{ '&:last-child td': { borderBottom: 0 } }}>
-                        <TableCell sx={{ pl: 3 }}>
-                          <Typography variant="body2" fontWeight={700} color="primary.main">
-                            {w.name}
-                          </Typography>
-                        </TableCell>
-                        <TableCell>
-                          <Chip 
-                            label={modules.find(m => m.value === w.module)?.label || 'Chung'} 
-                            variant="outlined" 
-                            size="small"
-                            sx={{ fontWeight: 600, bgcolor: 'rgba(0,0,0,0.02)' }}
-                          />
-                        </TableCell>
-                        <TableCell>
-                          <Chip 
-                            label={w.status === 'active' ? 'Đang chạy' : 'Lưu trữ'} 
-                            color={w.status === 'active' ? 'success' : 'default'}
-                            variant={w.status === 'active' ? 'filled' : 'outlined'}
-                            size="small"
-                            sx={{ fontWeight: 700, minWidth: 80, fontSize: '0.7rem' }}
-                          />
-                        </TableCell>
-                        <TableCell>
-                          <Typography variant="body2" color="text.secondary">
-                            {w.createdBy?.fullName || 'Hệ thống'}
-                          </Typography>
-                        </TableCell>
-                        <TableCell align="right" sx={{ pr: 3 }}>
-                          <Stack direction="row" spacing={1} justifyContent="flex-end">
-                            <Button 
-                              size="small" 
-                              variant="outlined" 
-                              onClick={() => handleSelectSavedWorkflow(w._id)}
-                              sx={{ borderRadius: 1.5 }}
-                            >
-                              Nạp
-                            </Button>
-                            {w.status !== 'active' ? (
-                              <Button 
-                                size="small" 
-                                variant="contained"
-                                color="success" 
-                                onClick={async () => {
-                                  await saveBPMWorkflow({ ...w, id: w._id, status: 'active' });
-                                  loadData();
-                                  toast.success(`Đã kích hoạt quy trình: ${w.name}`);
-                                }}
-                                sx={{ borderRadius: 1.5 }}
-                              >
-                                Kích hoạt
-                              </Button>
-                            ) : (
-                              <Button 
-                                size="small" 
-                                variant="outlined"
-                                color="warning" 
-                                onClick={async () => {
-                                  await saveBPMWorkflow({ ...w, id: w._id, status: 'archived' });
-                                  loadData();
-                                  toast.info(`Đã chuyển quy trình ${w.name} vào kho lưu trữ`);
-                                }}
-                                sx={{ borderRadius: 1.5 }}
-                              >
-                                Lưu trữ
-                              </Button>
-                            )}
-                          </Stack>
-                        </TableCell>
-                      </TableRow>
+                      <DeleteIcon fontSize="small" />
+                    </IconButton>
+                  </Tooltip>
+                </Stack>
+              </Grid>
+            </Grid>
+          </Paper>
+        </Box>
+
+        {/* ── ZONE 2: Canvas Editor ── */}
+        <Paper elevation={0} sx={{ borderRadius:2.5, border:'1px solid #e2e8f0', overflow:'hidden', height:580 }}>
+          {/* Sub-toolbar */}
+          <Box sx={{ px:2, py:1, borderBottom:'1px solid #e2e8f0', bgcolor:'#fff', display:'flex', gap:1, flexWrap:'wrap', alignItems:'center' }}>
+            <Typography variant="caption" fontWeight={700} color="text.secondary" sx={{ mr:1 }}>
+              <AccountTreeIcon sx={{ fontSize:14, mr:0.5, verticalAlign:'middle' }} />CANVAS
+            </Typography>
+            <Tooltip title="Tải file mẫu .docx">
+              <Button size="small" variant="outlined" color="info" startIcon={<GetAppIcon />}
+                onClick={() => window.open(`${API_BASE_URL}${ENDPOINTS.SYSTEM_ADMIN.DOWNLOAD_BPM_TEMPLATE}`,'_blank')}>
+                File mẫu
+              </Button>
+            </Tooltip>
+            <input type="file" accept=".docx" style={{ display:'none' }} ref={fileRef} onChange={handleDocxUpload} />
+            <Button size="small" variant="outlined" startIcon={<CloudUploadIcon />}
+              onClick={() => fileRef.current.click()} disabled={loading}>
+              Nhập Word
+            </Button>
+            <Button size="small" variant="outlined" color="warning"
+              onClick={() => { const sel = nodes.filter(n=>n.selected); const sEdg = edges.filter(e=>e.selected);
+                if (!sel.length && !sEdg.length) return toast.warn('Chọn node cần xóa');
+                deleteElements({ nodes:sel, edges:sEdg }); }}>
+              Xóa chọn
+            </Button>
+            <Button size="small" variant="outlined" color="error"
+              onClick={() => { if (window.confirm('Xóa sạch canvas?')) { setNodes([]); setEdges([]); } }}>
+              Xóa bảng
+            </Button>
+            <Button size="small" variant="contained" startIcon={<AddIcon />}
+              onClick={() => setNodes(n => n.concat({ id:`step_${Date.now()}`, data:{ label:'Bước mới' }, position:{ x:200, y:200 } }))}>
+              Thêm bước
+            </Button>
+          </Box>
+
+          {/* Editor split pane */}
+          <Box sx={{ display:'flex', height:'calc(100% - 49px)' }}>
+            {/* Node Library Sidebar */}
+            <Box sx={{ width:200, borderRight:'1px solid #e2e8f0', overflowY:'auto', bgcolor:'#fafafa', p:1.5 }}>
+              <Typography variant="caption" fontWeight={700} color="text.secondary" sx={{ display:'block', mb:1 }}>
+                THƯ VIỆN NODE
+              </Typography>
+              <Stack spacing={0.5}>
+                {Object.entries(groupedDefs).map(([cat, items]) => (
+                  <Box key={cat}>
+                    <Typography variant="caption" sx={{ color: CAT_COLOR[cat] || '#6b7280', fontWeight:700, fontSize:10, textTransform:'uppercase', letterSpacing:.5 }}>
+                      {cat}
+                    </Typography>
+                    {items.map(node => (
+                      <Paper key={node.type} draggable onDragStart={e => onDragStart(e, node.type, node.label)}
+                        elevation={0}
+                        sx={{ p:'6px 10px', mb:0.5, cursor:'grab', bgcolor: node.color || '#f8f9fa',
+                          border:'1px solid #e2e8f0', borderLeft:`3px solid ${CAT_COLOR[node.category] || '#ddd'}`,
+                          borderRadius:1.5, fontSize:'0.72rem', fontWeight:600, color:'#334155',
+                          '&:hover':{ boxShadow:2, borderLeftColor: CAT_COLOR[node.category] || '#3b82f6' } }}>
+                        {node.label}
+                      </Paper>
                     ))}
-                    {savedWorkflows.length === 0 && (
-                      <TableRow>
-                        <TableCell colSpan={5} align="center" sx={{ py: 4, color: 'text.disabled' }}>
-                          Chưa có quy trình nào trong thư viện.
-                        </TableCell>
-                      </TableRow>
-                    )}
-                  </TableBody>
-                </Table>
-              </TableContainer>
-            </Paper>
-          </Grid>
-        </Grid>
+                  </Box>
+                ))}
+              </Stack>
+            </Box>
+
+            {/* React Flow Canvas */}
+            <Box ref={wrapperRef} sx={{ flex:1 }} onDrop={onDrop} onDragOver={onDragOver}>
+              <ReactFlow nodes={nodes} edges={edges} onNodesChange={onNodesChange}
+                onEdgesChange={onEdgesChange} onConnect={onConnect} nodeTypes={NODE_TYPES_MAP} fitView>
+                <Background variant="dots" gap={16} size={1} color="#e2e8f0" />
+                <Controls />
+                <MiniMap zoomable pannable nodeColor={n => nodeDefs.find(d=>d.type===n.type)?.color || '#e2e8f0'}
+                  style={{ borderRadius:8, border:'1px solid #e2e8f0' }} />
+              </ReactFlow>
+            </Box>
+          </Box>
+        </Paper>
+
+        {/* ── ZONE 3: Workflow Library Table ── */}
+        <Paper elevation={0} sx={{ borderRadius:2.5, border:'1px solid #e2e8f0', overflow:'hidden' }}>
+          <Box sx={{ px:3, py:1.75, borderBottom:'1px solid #e2e8f0', bgcolor:'#f8fafc',
+            display:'flex', alignItems:'center', justifyContent:'space-between' }}>
+            <Typography variant="subtitle2" fontWeight={700}>
+              📋 Thư viện Quy trình ({workflows.length})
+            </Typography>
+          </Box>
+          <TableContainer sx={{ maxHeight:300 }}>
+            <Table size="small" stickyHeader>
+              <TableHead>
+                <TableRow sx={{ '& th':{ bgcolor:'#f8fafc', fontWeight:700, fontSize:'0.78rem', color:'#64748b', py:1.5 } }}>
+                  <TableCell sx={{ pl:3 }}>Tên quy trình</TableCell>
+                  <TableCell>Module / Loại</TableCell>
+                  <TableCell>Trạng thái</TableCell>
+                  <TableCell>Người tạo</TableCell>
+                  <TableCell align="right" sx={{ pr:3 }}>Thao tác</TableCell>
+                </TableRow>
+              </TableHead>
+              <TableBody>
+                {workflows.length === 0 && (
+                  <TableRow><TableCell colSpan={5} align="center" sx={{ py:4, color:'#94a3b8' }}>
+                    Chưa có quy trình nào
+                  </TableCell></TableRow>
+                )}
+                {workflows.map(w => (
+                  <TableRow key={w._id} hover sx={{ '&:last-child td':{ border:0 },
+                    bgcolor: current?._id === w._id ? '#eff6ff' : undefined }}>
+                    <TableCell sx={{ pl:3 }}>
+                      <Typography variant="body2" fontWeight={700} color="primary.main">{w.name}</Typography>
+                      <Typography variant="caption" color="text.secondary">{w.nodes?.length || 0} bước · {w.edges?.length || 0} kết nối</Typography>
+                    </TableCell>
+                    <TableCell>
+                      <Stack direction="row" spacing={0.5}>
+                        <Chip label={MODULES.find(m=>m.value===w.module)?.label || w.module} size="small" variant="outlined" sx={{ fontSize:10 }} />
+                        {w.type && <Chip label={w.type} size="small" sx={{ fontSize:10, bgcolor:'#f1f5f9' }} />}
+                      </Stack>
+                    </TableCell>
+                    <TableCell>
+                      <Chip label={w.status === 'active' ? '🟢 Đang chạy' : w.status === 'archived' ? '📦 Lưu trữ' : '📝 Nháp'}
+                        size="small" color={w.status === 'active' ? 'success' : 'default'}
+                        variant={w.status === 'active' ? 'filled' : 'outlined'}
+                        sx={{ fontWeight:700, fontSize:'0.68rem' }} />
+                    </TableCell>
+                    <TableCell>
+                      <Typography variant="caption" color="text.secondary">{w.createdBy?.fullName || 'Hệ thống'}</Typography>
+                    </TableCell>
+                    <TableCell align="right" sx={{ pr:2 }}>
+                      <Stack direction="row" spacing={0.75} justifyContent="flex-end">
+                        <Button size="small" variant={current?._id === w._id ? 'contained' : 'outlined'}
+                          onClick={() => loadWorkflow(w)} sx={{ fontSize:11 }}>
+                          {current?._id === w._id ? 'Đang xem' : 'Nạp'}
+                        </Button>
+                        {w.status !== 'active' ? (
+                          <Button size="small" variant="contained" color="success"
+                            onClick={async () => { await saveBPMWorkflow({...w, id:w._id, status:'active'}); loadData(); toast.success(`Kích hoạt: ${w.name}`); }}
+                            sx={{ fontSize:11 }}>Kích hoạt</Button>
+                        ) : (
+                          <Button size="small" variant="outlined" color="warning"
+                            onClick={async () => { await saveBPMWorkflow({...w, id:w._id, status:'archived'}); loadData(); toast.info(`Lưu trữ: ${w.name}`); }}
+                            sx={{ fontSize:11 }}>Lưu trữ</Button>
+                        )}
+                      </Stack>
+                    </TableCell>
+                  </TableRow>
+                ))}
+              </TableBody>
+            </Table>
+          </TableContainer>
+        </Paper>
+
       </Stack>
     </RoleLayout>
   );
+};
+
+export default function BPMDashboard() {
+  return <ReactFlowProvider><BPMDashboardContent /></ReactFlowProvider>;
 }

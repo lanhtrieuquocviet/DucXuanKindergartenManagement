@@ -9,6 +9,7 @@ import {
   Delete as DeleteIcon,
   ContentCopy as CloneIcon,
   Warning as WarningIcon,
+  AutoFixHigh as AutoIcon,
 } from '@mui/icons-material';
 
 export default function StepClassSetup({
@@ -66,6 +67,33 @@ export default function StepClassSetup({
     setCloned(true);
   };
 
+  const handleAutoAssign = () => {
+    // 1. Lấy danh sách teacherId đã gán
+    const assignedIds = new Set(classes.flatMap(c => (c.teacherIds || []).map(String)));
+    // 2. Lấy danh sách giáo viên còn trống
+    const availableTeachers = teacherOptions
+      .filter(t => !assignedIds.has(String(t._id)))
+      .map(t => String(t._id));
+
+    if (availableTeachers.length === 0) {
+      return; // Không còn giáo viên trống
+    }
+
+    let teacherIdx = 0;
+    const nextClasses = classes.map(c => {
+      // Nếu lớp đã có giáo viên, giữ nguyên
+      if (c.teacherIds && c.teacherIds.length > 0) return c;
+      // Nếu hết giáo viên để gán, giữ nguyên
+      if (teacherIdx >= availableTeachers.length) return c;
+
+      const assigned = [availableTeachers[teacherIdx]];
+      teacherIdx++;
+      return { ...c, teacherIds: assigned };
+    });
+
+    onChange(nextClasses);
+  };
+
   return (
     <Stack spacing={3}>
       <Stack direction="row" justifyContent="space-between" alignItems="flex-start" flexWrap="wrap" gap={1}>
@@ -77,15 +105,27 @@ export default function StepClassSetup({
             Mỗi lớp <strong>bắt buộc</strong> phải có ít nhất 1 giáo viên. Giáo viên không được trùng giữa các lớp.
           </Typography>
         </Box>
-        {cloneClasses?.length > 0 && !cloned && (
-          <Button
-            variant="outlined" size="small" startIcon={<CloneIcon />}
-            onClick={handleClone}
-            sx={{ borderRadius: 2, textTransform: 'none', fontWeight: 600, borderColor: '#6366f1', color: '#6366f1' }}
-          >
-            Nhân bản từ năm cũ ({cloneClasses.length} lớp)
-          </Button>
-        )}
+        <Stack direction="row" spacing={1}>
+          {cloneClasses?.length > 0 && !cloned && (
+            <Button
+              variant="outlined" size="small" startIcon={<CloneIcon />}
+              onClick={handleClone}
+              sx={{ borderRadius: 2, textTransform: 'none', fontWeight: 600, borderColor: '#6366f1', color: '#6366f1' }}
+            >
+              Nhân bản từ năm cũ ({cloneClasses.length} lớp)
+            </Button>
+          )}
+
+          {classes.length > 0 && assignedTeacherIds.size < teacherOptions.length && (
+            <Button
+              variant="contained" size="small" startIcon={<AutoIcon />}
+              onClick={handleAutoAssign}
+              sx={{ borderRadius: 2, textTransform: 'none', fontWeight: 600, bgcolor: '#6366f1', '&:hover': { bgcolor: '#4f46e5' } }}
+            >
+              Tự động phân công giáo viên
+            </Button>
+          )}
+        </Stack>
       </Stack>
 
       {cloned && (

@@ -8,6 +8,11 @@ import { SCHOOL_ADMIN_MENU_ITEMS, filterMenuByPermissions } from './schoolAdminM
  *
  * @returns {Array} filtered menu items
  */
+
+
+
+
+
 export function useSchoolAdminMenu() {
   const { hasPermission } = useAuth();
   return useMemo(

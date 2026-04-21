@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useMemo, useRef, useState, Component } from 'react';
 import { useLocation, useNavigate, useParams } from 'react-router-dom';
-import { Snackbar, Alert, Box, Typography, Avatar, Paper, Button, ToggleButton, ToggleButtonGroup } from '@mui/material';
+import { Snackbar, Alert, Box, Typography, Avatar, Paper, Button, ToggleButton, ToggleButtonGroup, Stack, Chip, Tooltip, FormControl, InputLabel, Select, MenuItem } from '@mui/material';
 import { EventBusy as EventBusyIcon, ViewList as DayViewIcon, CalendarViewWeek as WeekViewIcon } from '@mui/icons-material';
 import { useAuth } from '../../context/AuthContext';
 import RoleLayout from '../../layouts/RoleLayout';
@@ -134,6 +134,8 @@ function TeacherAttendance() {
   // ── State: Toast thành công ──
   const [successToast, setSuccessToast] = useState({ visible: false, message: '' });
   const [warningToast] = useState({ visible: false, message: '' });
+  const [academicYears, setAcademicYears] = useState([]);
+  const [selectedYearId, setSelectedYearId] = useState('');
 
   const showSuccessToast = (message) => {
     setSuccessToast({ visible: true, message });
@@ -156,13 +158,29 @@ function TeacherAttendance() {
     }
   }, [navigate, user, isInitializing]);
 
-  // Load danh sách lớp khi user sẵn sàng
+  // Load danh sách năm học
   useEffect(() => {
-    if (isInitializing) return;
-    if (!user?._id) return;
+    const fetchYears = async () => {
+      try {
+        const res = await get(ENDPOINTS.SCHOOL_ADMIN.ACADEMIC_YEARS.LIST);
+        if (res.data) {
+          setAcademicYears(res.data);
+          const current = res.data.find(y => y.status === 'active');
+          if (current) setSelectedYearId(current._id);
+        }
+      } catch (err) {
+        console.error('Error fetching academic years:', err);
+      }
+    };
+    fetchYears();
+  }, []);
+
+  // Load danh sách lớp khi user hoặc năm học thay đổi
+  useEffect(() => {
+    if (isInitializing || !user?._id) return;
     fetchMyClasses();
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [isInitializing, user?._id]);
+  }, [isInitializing, user?._id, selectedYearId]);
 
   // Reset khi đổi classId
   useEffect(() => {
@@ -331,19 +349,28 @@ function TeacherAttendance() {
   // ── API calls ──
   const fetchMyClasses = async () => {
     try {
-      const res = await get(ENDPOINTS.CLASSES.LIST);
-      const all = res.data || [];
-      const myUserId = user?._id;
-      const mine = all.filter((c) => (c.teacherIds || []).some((t) => {
-        const uid = t?.userId?._id || t?.userId || t?._id || t;
-        return uid?.toString() === myUserId?.toString();
-      }));
+      const url = selectedYearId 
+        ? `${ENDPOINTS.TEACHER.CONTACT_BOOK_CLASSES}?academicYearId=${selectedYearId}`
+        : ENDPOINTS.TEACHER.CONTACT_BOOK_CLASSES;
+      const res = await get(url);
+      const mine = res.data || [];
       setClasses(mine);
-      if (mine.length >= 1 && !classId) {
-        navigate(`/teacher/attendance/${mine[0]._id || mine[0].id}`, { replace: true });
+      
+      // Nếu có classId trong URL nhưng không nằm trong danh sách lớp của năm này,
+      // hoặc không có classId, hãy chọn lớp đầu tiên
+      if (mine.length > 0) {
+        const currentClassInMine = mine.find(c => (c._id || c.id) === classId);
+        if (!classId || !currentClassInMine) {
+          navigate(`/teacher/attendance/${mine[0]._id || mine[0].id}${location.search}`, { replace: true });
+        }
+      } else {
+        // Không có lớp nào
+        if (classId) {
+          navigate('/teacher/attendance', { replace: true });
+        }
       }
-    } catch {
-      // ignore
+    } catch (err) {
+      console.error('Error fetching classes:', err);
     }
   };
 
@@ -786,20 +813,43 @@ function TeacherAttendance() {
 
       {classId && (
         <Box sx={{ mb: 2, display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: 1.5 }}>
-          <ToggleButtonGroup
-            value={viewMode}
-            exclusive
-            onChange={(_, v) => v && setViewMode(v)}
-            size="small"
-            sx={{ '& .MuiToggleButton-root': { textTransform: 'none', fontWeight: 600, fontSize: 13, px: 2 } }}
-          >
-            <ToggleButton value="day">
-              <DayViewIcon sx={{ fontSize: 16, mr: 0.75 }} /> Theo ngày
-            </ToggleButton>
-            <ToggleButton value="week">
-              <WeekViewIcon sx={{ fontSize: 16, mr: 0.75 }} /> Thống kê tuần
-            </ToggleButton>
-          </ToggleButtonGroup>
+          <Stack direction="row" spacing={1.5} alignItems="center">
+            <ToggleButtonGroup
+              value={viewMode}
+              exclusive
+              onChange={(_, v) => v && setViewMode(v)}
+              size="small"
+              sx={{ '& .MuiToggleButton-root': { textTransform: 'none', fontWeight: 600, fontSize: 13, px: 2 } }}
+            >
+              <ToggleButton value="day">
+                <DayViewIcon sx={{ fontSize: 16, mr: 0.75 }} /> Theo ngày
+              </ToggleButton>
+              <ToggleButton value="week">
+                <WeekViewIcon sx={{ fontSize: 16, mr: 0.75 }} /> Thống kê tuần
+              </ToggleButton>
+            </ToggleButtonGroup>
+
+            <FormControl size="small" sx={{ minWidth: 160 }}>
+              <Select
+                value={selectedYearId}
+                onChange={(e) => setSelectedYearId(e.target.value)}
+                displayEmpty
+                sx={{ 
+                  height: 36, 
+                  fontSize: 13, 
+                  fontWeight: 600,
+                  bgcolor: 'white',
+                  '& .MuiSelect-select': { py: 0.5 }
+                }}
+              >
+                {academicYears.map((y) => (
+                  <MenuItem key={y._id} value={y._id} sx={{ fontSize: 13 }}>
+                    Năm học: {y.yearName} {y.status === 'active' && '(Hiện tại)'}
+                  </MenuItem>
+                ))}
+              </Select>
+            </FormControl>
+          </Stack>
         </Box>
       )}
 

@@ -104,20 +104,25 @@ const AddStudentDialog = ({
           Thông tin học sinh
         </Typography>
         <Stack spacing={1.5}>
-          <Box sx={{ p: 1.5, bgcolor: '#e0f2fe', borderRadius: 1.5, display: 'flex', alignItems: 'center', gap: 1 }}>
-            <Typography variant="caption" color="#0284c7" fontWeight={600}>
-              Năm học sẽ được gán:
+          <Box sx={{ p: 1.5, bgcolor: '#f0f9ff', borderRadius: 1.5, border: '1px solid', borderColor: '#bae6fd' }}>
+            <Stack direction="row" alignItems="center" spacing={1} mb={0.5}>
+              <Typography variant="caption" color="#0369a1" fontWeight={700}>
+                NIÊN KHÓA HỆ THỐNG:
+              </Typography>
+              <Chip
+                label={activeAcademicYear?.yearName || 'Chưa có năm học đang hoạt động'}
+                size="small"
+                sx={{
+                  bgcolor: activeAcademicYear ? '#0284c7' : '#9e9e9e',
+                  color: '#fff',
+                  fontWeight: 800,
+                  fontSize: '0.7rem',
+                }}
+              />
+            </Stack>
+            <Typography variant="caption" color="text.secondary" sx={{ display: 'block', fontStyle: 'italic' }}>
+              * Học sinh mới sẽ được hệ thống <strong>tự động gán</strong> vào niên khóa đang hoạt động này.
             </Typography>
-            <Chip
-              label={activeAcademicYear?.yearName || 'Chưa có năm học đang hoạt động'}
-              size="small"
-              sx={{
-                bgcolor: activeAcademicYear ? '#0284c7' : '#9e9e9e',
-                color: '#fff',
-                fontWeight: 700,
-                fontSize: '0.75rem',
-              }}
-            />
           </Box>
           <TextField
             size="small"

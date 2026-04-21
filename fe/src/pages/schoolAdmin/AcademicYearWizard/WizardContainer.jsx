@@ -40,35 +40,36 @@ export default function AcademicYearWizard({ open, onClose, onSuccess }) {
   const [importedStudents, setImportedStudents] = useState([]); // Học sinh mới từ file Excel
   const [placements, setPlacements] = useState([]);
 
+  const loadWizardData = useCallback(async () => {
+    try {
+      const [cloneResp, teacherResp] = await Promise.all([
+        get(ENDPOINTS.SCHOOL_ADMIN.ACADEMIC_YEARS.WIZARD_CLONE_DATA),
+        get(ENDPOINTS.SCHOOL_ADMIN.TEACHERS),
+      ]);
+      if (cloneResp?.status === 'success') {
+        setStaticBlocks(cloneResp.data.staticBlocks || []);
+        setCloneClasses(cloneResp.data.cloneClasses || []);
+        setCarryOverStudents(cloneResp.data.carryOverStudents || []);
+      }
+      if (teacherResp?.status === 'success' || Array.isArray(teacherResp?.data)) {
+        const teachers = Array.isArray(teacherResp.data) ? teacherResp.data : [];
+        setTeacherOptions(teachers.map(t => ({
+          _id: t._id || t.teacherId,
+          fullName: t.userId?.fullName || t.fullName || '',
+        })));
+      }
+    } catch (e) {
+      console.error('Wizard load error:', e);
+      toast.error('Không thể tải dữ liệu khởi tạo Wizard');
+    }
+  }, []);
+
   // Fetch dữ liệu khi mở Wizard
   useEffect(() => {
     if (!open) return;
     resetWizard();
-    const load = async () => {
-      try {
-        const [cloneResp, teacherResp] = await Promise.all([
-          get(ENDPOINTS.SCHOOL_ADMIN.ACADEMIC_YEARS.WIZARD_CLONE_DATA),
-          get(ENDPOINTS.SCHOOL_ADMIN.TEACHERS),
-        ]);
-        if (cloneResp?.status === 'success') {
-          setStaticBlocks(cloneResp.data.staticBlocks || []);
-          setCloneClasses(cloneResp.data.cloneClasses || []);
-          setCarryOverStudents(cloneResp.data.carryOverStudents || []);
-        }
-        if (teacherResp?.status === 'success' || Array.isArray(teacherResp?.data)) {
-          const teachers = Array.isArray(teacherResp.data) ? teacherResp.data : [];
-          setTeacherOptions(teachers.map(t => ({
-            _id: t._id || t.teacherId,
-            fullName: t.userId?.fullName || t.fullName || '',
-          })));
-        }
-      } catch (e) {
-        console.error('Wizard load error:', e);
-        toast.error('Không thể tải dữ liệu khởi tạo Wizard');
-      }
-    };
-    load();
-  }, [open]);
+    loadWizardData();
+  }, [open, loadWizardData]);
 
   const resetWizard = () => {
     setActiveStep(0);
@@ -239,6 +240,7 @@ export default function AcademicYearWizard({ open, onClose, onSuccess }) {
       selectedBlockIds={selectedBlockIds}
       onChange={setSelectedBlockIds}
       errors={errors}
+      onRefresh={loadWizardData}
     />,
     <StepClassSetup
       key="step3"

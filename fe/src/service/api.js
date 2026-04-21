@@ -284,11 +284,13 @@ export const ENDPOINTS = {
     PERMISSION_DETAIL: (id) => `/system-admin/permissions/${id}`,
     SYSTEM_LOGS: '/system-admin/system-logs',
     BPM_WORKFLOWS: '/bpm/workflows',
+    DELETE_BPM_WORKFLOW: (id) => `/bpm/workflows/${id}`,
     SAVE_BPM_WORKFLOW: '/bpm/workflows',
     BPM_HEALTH: '/bpm/health',
     BPM_LOGS: '/bpm/logs',
     GENERATE_BPM_FROM_DOCX: '/bpm/generate-from-docx',
     DOWNLOAD_BPM_TEMPLATE: '/bpm/download-template',
+    BPM_NODES: '/bpm/nodes',
   },
   // School Admin
   SCHOOL_ADMIN: {

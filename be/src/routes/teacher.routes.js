@@ -1,4 +1,5 @@
 const express = require('express');
+const mongoose = require('mongoose');
 const { authenticate, authorizeRoles, authorizePermissions } = require('../middleware/auth');
 const assetCtrl = require('../controller/assetInspectionController');
 const purchaseCtrl = require('../controller/purchaseRequestController');
@@ -32,10 +33,42 @@ const router = express.Router();
  */
 router.get('/dashboard', authenticate, authorizeRoles('Teacher', 'HeadTeacher'), async (req, res) => {
   try {
-    const currentYear = await AcademicYear.findOne({ status: 'active' }).sort({ startDate: -1 }).select('_id');
+    const { academicYearId } = req.query;
+    let yearId = null;
+    let yearName = '—';
+    let fallbackUsed = false;
+
+    if (academicYearId && mongoose.Types.ObjectId.isValid(academicYearId)) {
+      yearId = new mongoose.Types.ObjectId(academicYearId);
+      const chosenYear = await AcademicYear.findById(yearId).select('yearName');
+      yearName = chosenYear?.yearName || '—';
+    } else {
+      // Tìm năm học đang active
+      const activeYear = await AcademicYear.findOne({ status: 'active' }).sort({ startDate: -1 }).select('_id yearName');
+      if (activeYear) {
+        yearId = activeYear._id;
+        yearName = activeYear.yearName;
+      } else {
+        // Nếu không có năm nào active, lấy năm mới nhất (theo startDate)
+        const latestYear = await AcademicYear.findOne().sort({ startDate: -1 }).select('_id yearName');
+        if (latestYear) {
+          yearId = latestYear._id;
+          yearName = latestYear.yearName;
+          fallbackUsed = true;
+        }
+      }
+    }
+
     const teacherProfile = await Teacher.findOne({ userId: req.user._id });
-    const classFilter = { teacherIds: teacherProfile?._id };
-    if (currentYear?._id) classFilter.academicYearId = currentYear._id;
+    if (!teacherProfile) {
+      return res.status(404).json({ status: 'error', message: 'Không tìm thấy hồ sơ giáo viên' });
+    }
+
+    const classFilter = { teacherIds: teacherProfile._id };
+    if (yearId) {
+      classFilter.academicYearId = yearId;
+    }
+    
     const classes = teacherProfile
       ? await Classes.find(classFilter).select('_id className')
       : [];
@@ -45,7 +78,7 @@ router.get('/dashboard', authenticate, authorizeRoles('Teacher', 'HeadTeacher'),
       ? await Student.find({
         classId: { $in: classIds },
         status: 'active',
-        ...(currentYear?._id ? { academicYearId: currentYear._id } : {}),
+        ...(yearId ? { academicYearId: yearId } : {}),
       }).select('_id')
       : [];
     const studentIds = activeStudents.map((s) => s._id);
@@ -123,6 +156,12 @@ router.get('/dashboard', authenticate, authorizeRoles('Teacher', 'HeadTeacher'),
     return res.status(200).json({
       status: 'success',
       data: {
+        yearName: yearName,
+        debugInfo: {
+          identifiedYearId: yearId,
+          fallbackUsed,
+          queryAcademicYearId: academicYearId
+        },
         classes: classes.map((c) => ({ _id: c._id, className: c.className })),
         totalStudents,
         todayAttendance: {

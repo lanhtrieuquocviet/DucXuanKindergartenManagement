@@ -5,6 +5,8 @@ const Students = require('../models/Student');
 const { createSystemLog } = require('../utils/systemLog');
 const { createNotification } = require('../controller/notification.controller');
 const AcademicYear = require('../models/AcademicYear');
+const BPMExecutionService = require('./bpmExecution.service');
+const BPMWorkflow = require('../models/BPMWorkflow');
 
 /**
  * Tạo / cập nhật điểm danh (check-in) cho 1 học sinh trong 1 ngày
@@ -112,9 +114,25 @@ const upsertAttendance = async (req, res) => {
       ...(typeof checkedInByAI === 'boolean' && { checkedInByAI }),
     };
 
+    // --- TÌM QUY TRÌNH BPM ĐANG HOẠT ĐỘNG ---
+    const activeWorkflow = await BPMWorkflow.findOne({ 
+      module: 'attendance', 
+      type: 'checkin', 
+      status: 'active' 
+    }).select('_id nodes').lean();
+
+    const bpmInitialData = activeWorkflow ? {
+      bpmWorkflowId: activeWorkflow._id,
+      currentBpmNode: activeWorkflow.nodes[0]?.id,
+      bpmStatus: 'in_progress'
+    } : {};
+
     const attendance = await Attendances.findOneAndUpdate(
       { studentId, date: attendanceDate },
-      { $set: payload },
+      { 
+        $set: payload,
+        $setOnInsert: bpmInitialData 
+      },
       {
         new: true,
         upsert: true,
@@ -123,6 +141,52 @@ const upsertAttendance = async (req, res) => {
     )
       .populate('studentId', 'fullName classId parentId')
       .populate('classId', 'className');
+
+    // --- KÍCH HOẠT BPM EXECUTION ENGINE (Đón trẻ) ---
+    let bpmResult = null;
+    if (attendance && attendance.bpmWorkflowId && attendance.bpmStatus !== 'completed') {
+      try {
+        // Thu thập context đầy đủ cho các Node kiểm tra
+        const bpmContext = {
+          ...req.body,
+          photoUrl: checkinImageName || delivererOtherImageName,
+          // Kiểm tra yêu cầu thuốc trong ngày
+          hasMedicationRequest: !!(attendance.note?.toLowerCase().includes('thuốc') || note?.toLowerCase().includes('thuốc')),
+          medicationConfirmed: !!checkedInByAI, 
+          // Thông tin người đưa đón
+          isAuthorizedDeliverer: ['father', 'mother', 'grandfather', 'grandmother'].includes(delivererType),
+          // Dữ liệu cho Audit
+          aiConfidence: checkedInByAI ? 0.98 : 0,
+          actorId: req.user?._id || 'system_ai',
+          processedAt: new Date()
+        };
+
+        bpmResult = await BPMExecutionService.executeNext(attendance._id, bpmContext, req);
+
+        // --- XỬ LÝ LỖI / CẢNH BÁO TỪ BPM ---
+        if (bpmResult && !bpmResult.success) {
+          // 1. Ghi log lỗi nghiệp vụ
+          await createSystemLog({
+            req,
+            action: 'BPM_ALERT',
+            detail: `Cảnh báo quy trình [${attendance.studentId?.fullName}]: ${bpmResult.error || bpmResult.message}`,
+            level: 'warning'
+          });
+
+          // 2. Gửi thông báo cho giáo viên chủ nhiệm
+          await createNotification({
+            title: '⚠️ Cảnh báo quy trình điểm danh',
+            body: `Học sinh ${attendance.studentId?.fullName} gặp vấn đề: ${bpmResult.message || 'Cần kiểm tra thủ công'}.`,
+            type: 'bpm_alert',
+            targetRole: 'Teacher',
+            targetUserId: attendance.classId?.teacherId || req.user?._id,
+            extra: { attendanceId: attendance._id, error: bpmResult.error }
+          });
+        }
+      } catch (bpmErr) {
+        console.error('BPM Checkin Execution Error:', bpmErr.message);
+      }
+    }
 
     const studentName = attendance?.studentId?.fullName || studentId;
     const className = attendance?.classId?.className || classId || '';
@@ -158,7 +222,8 @@ const upsertAttendance = async (req, res) => {
 
     return res.status(200).json({
       status: 'success',
-      message: 'Lưu điểm danh thành công',
+      message: bpmResult?.message || 'Lưu điểm danh thành công',
+      bpmStatus: bpmResult?.status || attendance.bpmStatus,
       data: attendance,
     });
   } catch (error) {
@@ -290,17 +355,69 @@ const checkoutAttendance = async (req, res) => {
       update.classId = classId;
     }
 
+    // --- TÌM QUY TRÌNH CHECK-OUT BPM ---
+    const checkoutWorkflow = await BPMWorkflow.findOne({ 
+      module: 'attendance', 
+      type: 'checkout', 
+      status: 'active' 
+    }).select('_id nodes').lean();
+
+    const bpmCheckoutData = checkoutWorkflow ? {
+      bpmWorkflowId: checkoutWorkflow._id,
+      currentBpmNode: checkoutWorkflow.nodes[0]?.id,
+      bpmStatus: 'in_progress'
+    } : {};
+
     const attendance = await Attendances.findOneAndUpdate(
       { studentId, date: attendanceDate },
-      { $set: update },
-      {
-        new: true,
-        upsert: false,
-        runValidators: true,
+      { 
+        $set: update,
+        ...(!existingAttendance.bpmWorkflowId || existingAttendance.bpmStatus === 'completed' ? { $set: { ...update, ...bpmCheckoutData } } : {})
       },
+      { new: true }
     )
       .populate('studentId', 'fullName classId parentId')
       .populate('classId', 'className');
+
+    // --- KÍCH HOẠT BPM EXECUTION ENGINE (Trả trẻ) ---
+    let bpmResult = null;
+    if (attendance && attendance.bpmWorkflowId && attendance.bpmStatus !== 'completed') {
+      try {
+        const bpmContext = {
+          ...req.body,
+          photoUrl: checkoutImageName || receiverOtherImageName,
+          // Kiểm tra ủy quyền người đón
+          isAuthorizedDeliverer: ['father', 'mother', 'grandfather', 'grandmother'].includes(receiverType),
+          parentSigned: !!teacherConfirmedCheckout || (checkoutConfirmMethod === 'parent_confirm'),
+          aiConfidence: checkedOutByAI ? 0.96 : 0,
+          actorId: req.user?._id || 'system_ai',
+          processedAt: new Date()
+        };
+
+        bpmResult = await BPMExecutionService.executeNext(attendance._id, bpmContext, req);
+
+        // --- XỬ LÝ LỖI / CẢNH BÁO TỪ BPM (Check-out) ---
+        if (bpmResult && !bpmResult.success) {
+          await createSystemLog({
+            req,
+            action: 'BPM_CHECKOUT_ALERT',
+            detail: `Cảnh báo trả trẻ [${attendance.studentId?.fullName}]: ${bpmResult.error || bpmResult.message}`,
+            level: 'error'
+          });
+
+          await createNotification({
+            title: '🚨 Cảnh báo Trả trẻ',
+            body: `Quy trình trả trẻ cho ${attendance.studentId?.fullName} không hợp lệ: ${bpmResult.message}`,
+            type: 'bpm_checkout_alert',
+            targetRole: 'Teacher',
+            targetUserId: attendance.classId?.teacherId || req.user?._id,
+            extra: { attendanceId: attendance._id }
+          });
+        }
+      } catch (bpmErr) {
+        console.error('BPM Checkout Execution Error:', bpmErr.message);
+      }
+    }
 
     const studentName = attendance?.studentId?.fullName || studentId;
     const className = attendance?.classId?.className || classId || '';
@@ -635,8 +752,9 @@ const getClassAttendanceDetail = async (req, res) => {
       };
     });
 
-    // Lấy danh sách tất cả lớp để hiển thị trong dropdown
-    const allClasses = await Classes.find()
+    // Lấy danh sách tất cả lớp trong CÙNG NĂM HỌC để hiển thị trong dropdown
+    const yearId = classInfo.academicYearId;
+    const allClasses = await Classes.find({ academicYearId: yearId })
       .populate('gradeId', 'gradeName')
       .sort({ className: 1 })
       .lean();
@@ -649,6 +767,7 @@ const getClassAttendanceDetail = async (req, res) => {
           _id: classInfo._id,
           className: classInfo.className,
           gradeName: classInfo.gradeId?.gradeName || '',
+          academicYearId: classInfo.academicYearId,
         },
         students: studentsWithAttendance,
         classes: allClasses.map((cls) => ({
