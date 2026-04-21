@@ -256,32 +256,34 @@ const getStudents = async (req, res) => {
       .populate('parentProfileId', 'fullName email phone')
       .populate('academicYearId', 'yearName');
 
-    // Thêm thông tin đánh giá học tập từ enrollment
+    // Tối ưu: Lấy thông tin đánh giá học tập từ enrollment bằng 1 query duy nhất ($in)
     const Enrollment = require('../models/Enrollment');
-    const studentsWithEvaluation = await Promise.all(
-      students.map(async (student) => {
-        const enrollment = await Enrollment.findOne({
-          studentId: student._id,
-          academicYearId: student.classId?.academicYearId,
-          gradeId: student.classId?.gradeId
-        }).select('academicEvaluation evaluationNote').lean();
+    const studentIds = students.map(s => s._id);
+    const enrollments = await Enrollment.find({
+      studentId: { $in: studentIds }
+    }).select('studentId academicEvaluation evaluationNote').lean();
 
-        const obj = student.toObject();
-        obj.hasFaceEmbedding = Array.isArray(obj.faceEmbedding) && obj.faceEmbedding.length > 0;
-        obj.faceImageUrls = Array.isArray(obj.faceImageUrls) ? obj.faceImageUrls.filter(Boolean) : [];
-        obj.angleCount = Array.isArray(obj.faceEmbeddings) ? obj.faceEmbeddings.length : (obj.hasFaceEmbedding ? 1 : 0);
-        delete obj.faceEmbedding;
-        delete obj.faceEmbeddings;
+    const enrollmentMap = {};
+    enrollments.forEach(e => {
+      enrollmentMap[e.studentId.toString()] = e;
+    });
 
-        // Thêm thông tin đánh giá
-        obj.evaluation = enrollment ? {
-          academicEvaluation: enrollment.academicEvaluation,
-          evaluationNote: enrollment.evaluationNote
-        } : null;
+    const studentsWithEvaluation = students.map((student) => {
+      const enrollment = enrollmentMap[student._id.toString()];
+      const obj = student.toObject();
+      obj.hasFaceEmbedding = Array.isArray(obj.faceEmbedding) && obj.faceEmbedding.length > 0;
+      obj.faceImageUrls = Array.isArray(obj.faceImageUrls) ? obj.faceImageUrls.filter(Boolean) : [];
+      obj.angleCount = Array.isArray(obj.faceEmbeddings) ? obj.faceEmbeddings.length : (obj.hasFaceEmbedding ? 1 : 0);
+      delete obj.faceEmbedding;
+      delete obj.faceEmbeddings;
 
-        return obj;
-      })
-    );
+      obj.evaluation = enrollment ? {
+        academicEvaluation: enrollment.academicEvaluation,
+        evaluationNote: enrollment.evaluationNote
+      } : null;
+
+      return obj;
+    });
 
     return res.status(200).json({
       status: 'success',

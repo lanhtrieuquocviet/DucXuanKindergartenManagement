@@ -247,6 +247,7 @@ export const del = async (endpoint, options = {}) => {
 // ============================================
 
 export const ENDPOINTS = {
+  HOME_DATA: "/home/data",
   // Authentication
   AUTH: {
     LOGIN: "/auth/login",
@@ -540,11 +541,11 @@ export const ENDPOINTS = {
     ADMIN_NOTE_DELETE: (studentId, noteId) => `/school-admin/students/${studentId}/notes/${noteId}`,
     ADMIN_TODAY_MENU: '/school-admin/students/contact-book/today-menu',
     // Sổ liên lạc phụ huynh/học sinh
-    CONTACT_BOOK_MY:         '/students/contact-book/my',
-    CONTACT_BOOK_HEALTH:     '/students/contact-book/health',
+    CONTACT_BOOK_MY: '/students/contact-book/my',
+    CONTACT_BOOK_HEALTH: '/students/contact-book/health',
     CONTACT_BOOK_ATTENDANCE: '/students/contact-book/attendance',
     CONTACT_BOOK_TODAY_MENU: '/students/contact-book/today-menu',
-    CONTACT_BOOK_NOTES:      '/students/contact-book/notes',
+    CONTACT_BOOK_NOTES: '/students/contact-book/notes',
     UPDATE: (studentId) => `/students/${studentId}`,
     DELETE: (studentId) => `/students/${studentId}`,
     ATTENDANCE_CHECKIN: "/students/attendance",

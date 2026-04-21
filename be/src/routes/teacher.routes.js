@@ -106,18 +106,219 @@ router.get('/students/:studentId/evaluation', authenticate, authorizeRoles('Teac
 router.put('/students/:studentId/evaluation', authenticate, authorizeRoles('Teacher'), contactBookCtrl.updateStudentEvaluation);
 
 // ── Sổ liên lạc điện tử ──
+
+/**
+ * @openapi
+ * /api/teacher/contact-book:
+ *   get:
+ *     summary: Lấy danh sách lớp giáo viên phụ trách (Sổ liên lạc)
+ *     tags: [Teacher - ContactBook]
+ *     security:
+ *       - bearerAuth: []
+ *     responses:
+ *       200:
+ *         description: Danh sách lớp
+ */
 router.get('/contact-book', authenticate, authorizeRoles('Teacher'), contactBookCtrl.getMyClasses);
+
+/**
+ * @openapi
+ * /api/teacher/contact-book/today-menu:
+ *   get:
+ *     summary: Xem thực đơn hôm nay (dành cho giáo viên)
+ *     tags: [Teacher - ContactBook]
+ *     security:
+ *       - bearerAuth: []
+ *     responses:
+ *       200:
+ *         description: Thông tin thực đơn
+ */
 router.get('/contact-book/today-menu', authenticate, authorizeRoles('Teacher'), contactBookCtrl.getTodayMenu);
+
+/**
+ * @openapi
+ * /api/teacher/contact-book/{classId}/students:
+ *   get:
+ *     summary: Danh sách học sinh trong lớp (Sổ liên lạc)
+ *     tags: [Teacher - ContactBook]
+ *     security:
+ *       - bearerAuth: []
+ *     parameters:
+ *       - in: path
+ *         name: classId
+ *         required: true
+ *         schema:
+ *           type: string
+ *     responses:
+ *       200:
+ *         description: Danh sách học sinh
+ */
 router.get('/contact-book/:classId/students', authenticate, authorizeRoles('Teacher'), contactBookCtrl.getStudentsInClass);
-router.get('/contact-book/:classId/students/:studentId/attendance', authenticate, authorizeRoles('Teacher'), contactBookCtrl.getStudentAttendance);
-router.get('/contact-book/:classId/students/:studentId/health-history', authenticate, authorizeRoles('Teacher'), contactBookCtrl.getStudentHealthHistory);
-router.get('/contact-book/:classId/students/:studentId/health', authenticate, authorizeRoles('Teacher'), contactBookCtrl.getStudentHealth);
+
+/**
+ * @openapi
+ * /api/teacher/contact-book/{classId}/students/{studentId}/notes:
+ *   get:
+ *     summary: Lấy danh sách ghi chú của giáo viên về học sinh
+ *     tags: [Teacher - ContactBook]
+ *     security:
+ *       - bearerAuth: []
+ *     parameters:
+ *       - in: path
+ *         name: classId
+ *         required: true
+ *         schema:
+ *           type: string
+ *       - in: path
+ *         name: studentId
+ *         required: true
+ *         schema:
+ *           type: string
+ *       - in: query
+ *         name: academicYearId
+ *         schema:
+ *           type: string
+ *         description: Lọc theo năm học
+ *     responses:
+ *       200:
+ *         description: Danh sách ghi chú
+ *   post:
+ *     summary: Tạo ghi chú mới cho học sinh
+ *     tags: [Teacher - ContactBook]
+ *     security:
+ *       - bearerAuth: []
+ *     parameters:
+ *       - in: path
+ *         name: classId
+ *         required: true
+ *         schema:
+ *           type: string
+ *       - in: path
+ *         name: studentId
+ *         required: true
+ *         schema:
+ *           type: string
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             required:
+ *               - content
+ *             properties:
+ *               content:
+ *                 type: string
+ *               noteType:
+ *                 type: string
+ *                 enum: [daily, weekly, monthly, general]
+ *                 default: daily
+ *               images:
+ *                 type: array
+ *                 items:
+ *                   type: string
+ *               academicYearId:
+ *                 type: string
+ *                 description: ID năm học. Nếu để trống sẽ tự lấy năm hiện tại.
+ *     responses:
+ *       201:
+ *         description: Tạo ghi chú thành công
+ */
 router.get('/contact-book/:classId/students/:studentId/notes', authenticate, authorizeRoles('Teacher'), contactBookCtrl.getNotes);
 router.post('/contact-book/:classId/students/:studentId/notes', authenticate, authorizeRoles('Teacher'), contactBookCtrl.createNote);
 router.delete('/contact-book/:classId/students/:studentId/notes/:noteId', authenticate, authorizeRoles('Teacher'), contactBookCtrl.deleteNote);
 
 // ── Asset Inspection (Teacher creates/edits own minutes) ──
+
+/**
+ * @openapi
+ * /api/teacher/asset-committees:
+ *   get:
+ *     summary: Danh sách ban kiểm kê tài sản
+ *     tags:
+ *       - Teacher - Inspection
+ *     security:
+ *       - bearerAuth: []
+ *     parameters:
+ *       - in: query
+ *         name: academicYearId
+ *         schema:
+ *           type: string
+ *         description: Lọc theo năm học (ObjectId). Response có yearName của ban kiểm kê.
+ *     responses:
+ *       200:
+ *         description: Danh sách ban kiểm kê kèm thông tin năm học
+ */
 router.get('/asset-committees', authenticate, authorizePermissions('MANAGE_INSPECTION'), assetCtrl.listCommittees);
+
+/**
+ * @openapi
+ * /api/teacher/asset-minutes:
+ *   get:
+ *     summary: Danh sách biên bản kiểm kê của tôi
+ *     tags:
+ *       - Teacher - Inspection
+ *     security:
+ *       - bearerAuth: []
+ *     parameters:
+ *       - in: query
+ *         name: academicYearId
+ *         schema:
+ *           type: string
+ *         description: Lọc theo năm học (ObjectId). Chỉ trả biên bản do người dùng hiện tại tạo.
+ *     responses:
+ *       200:
+ *         description: Danh sách biên bản kiểm kê kèm thông tin năm học
+ *   post:
+ *     summary: Tạo biên bản kiểm kê mới
+ *     tags:
+ *       - Teacher - Inspection
+ *     security:
+ *       - bearerAuth: []
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             required:
+ *               - inspectionDate
+ *             properties:
+ *               academicYearId:
+ *                 type: string
+ *                 description: ID năm học. Bỏ trống → tự động gán năm học đang active.
+ *               className:
+ *                 type: string
+ *               scope:
+ *                 type: string
+ *               location:
+ *                 type: string
+ *               inspectionDate:
+ *                 type: string
+ *                 format: date
+ *                 description: Ngày kiểm kê (bắt buộc)
+ *               inspectionTime:
+ *                 type: string
+ *               endTime:
+ *                 type: string
+ *               reason:
+ *                 type: string
+ *               inspectionMethod:
+ *                 type: string
+ *               committeeId:
+ *                 type: string
+ *               assets:
+ *                 type: array
+ *                 items:
+ *                   type: object
+ *               conclusion:
+ *                 type: string
+ *     responses:
+ *       201:
+ *         description: Tạo biên bản thành công
+ *       400:
+ *         description: Thiếu inspectionDate
+ */
 router.get('/asset-minutes', authenticate, authorizePermissions('MANAGE_INSPECTION'), assetCtrl.listMyMinutes);
 router.post('/asset-minutes', authenticate, authorizePermissions('MANAGE_INSPECTION'), assetCtrl.createMinutes);
 router.get('/asset-minutes/:id', authenticate, authorizePermissions('MANAGE_INSPECTION'), assetCtrl.getMinutes);
@@ -125,6 +326,72 @@ router.put('/asset-minutes/:id', authenticate, authorizePermissions('MANAGE_INSP
 router.get('/asset-minutes/:id/export-word', authenticate, authorizePermissions('MANAGE_INSPECTION'), assetCtrl.exportMinutesWord);
 
 // ── Purchase Requests (Yêu cầu mua sắm) ──
+
+/**
+ * @openapi
+ * /api/teacher/purchase-requests:
+ *   get:
+ *     summary: Danh sách yêu cầu mua sắm của tôi
+ *     tags:
+ *       - Teacher - Purchase
+ *     security:
+ *       - bearerAuth: []
+ *     parameters:
+ *       - in: query
+ *         name: academicYearId
+ *         schema:
+ *           type: string
+ *         description: Lọc theo năm học (ObjectId). Response có yearName.
+ *     responses:
+ *       200:
+ *         description: Danh sách yêu cầu mua sắm
+ *   post:
+ *     summary: Tạo yêu cầu mua sắm mới
+ *     tags:
+ *       - Teacher - Purchase
+ *     security:
+ *       - bearerAuth: []
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             required:
+ *               - assetName
+ *               - classId
+ *             properties:
+ *               assetName:
+ *                 type: string
+ *                 description: Tên tài sản cần mua (bắt buộc)
+ *               classId:
+ *                 type: string
+ *                 description: ID lớp học (bắt buộc, phải là lớp giáo viên phụ trách)
+ *               academicYearId:
+ *                 type: string
+ *                 description: ID năm học. Bỏ trống → tự động gán năm học đang active.
+ *               quantity:
+ *                 type: number
+ *                 default: 1
+ *               unit:
+ *                 type: string
+ *                 default: Cái
+ *               estimatedCost:
+ *                 type: number
+ *               reason:
+ *                 type: string
+ *               notes:
+ *                 type: string
+ *               status:
+ *                 type: string
+ *                 enum: [draft, pending]
+ *                 description: Gửi ngay (pending) hoặc lưu nháp (draft)
+ *     responses:
+ *       201:
+ *         description: Tạo yêu cầu thành công, academicYearId được gán tự động
+ *       403:
+ *         description: Giáo viên không phụ trách lớp được chọn
+ */
 router.get('/my-classes', authenticate, authorizePermissions('MANAGE_PURCHASE_REQUEST'), purchaseCtrl.getMyClasses);
 router.get('/purchase-requests', authenticate, authorizePermissions('MANAGE_PURCHASE_REQUEST'), purchaseCtrl.listMyRequests);
 router.post('/purchase-requests', authenticate, authorizePermissions('MANAGE_PURCHASE_REQUEST'), purchaseCtrl.createRequest);

@@ -1037,11 +1037,6 @@ const getSystemLogs = async (req, res) => {
     const threeDaysAgo = new Date(now);
     threeDaysAgo.setDate(now.getDate() - 3);
 
-    // Xóa các log cũ hơn 3 ngày mỗi lần truy vấn
-    await SystemLog.deleteMany({
-      createdAt: { $lt: threeDaysAgo },
-    });
-
     const { startDate, endDate, action, actor } = req.query;
 
     let start = threeDaysAgo;

@@ -13,11 +13,17 @@ const {
 
 /**
  * @openapi
+ * tags:
+ *   name: Pickup
+ *   description: Quản lý đăng ký đưa đón trẻ
+ */
+
+/**
+ * @openapi
  * /api/pickup/requests:
  *   post:
  *     summary: Tạo đăng ký đón trẻ mới (Phụ huynh)
- *     tags:
- *       - Pickup
+ *     tags: [Pickup]
  *     security:
  *       - bearerAuth: []
  *     requestBody:
@@ -49,40 +55,62 @@ const {
  *                 example: "2024-09-20"
  *               note:
  *                 type: string
+ *               academicYearId:
+ *                 type: string
+ *                 description: ID năm học. Nếu để trống sẽ tự động lấy năm học hiện tại.
  *     responses:
  *       201:
  *         description: Tạo đăng ký thành công
  *       400:
  *         description: Dữ liệu không hợp lệ
  *   get:
- *     summary: Giáo viên xem danh sách đăng ký đón trẻ chờ duyệt
- *     tags:
- *       - Pickup
+ *     summary: Danh sách đăng ký đón trẻ (Giáo viên/Admin)
+ *     tags: [Pickup]
  *     security:
  *       - bearerAuth: []
+ *     parameters:
+ *       - in: query
+ *         name: academicYearId
+ *         schema:
+ *           type: string
+ *         description: Lọc theo năm học
+ *       - in: query
+ *         name: status
+ *         schema:
+ *           type: string
+ *           enum: [pending, approved, rejected]
  *     responses:
  *       200:
  *         description: Danh sách đăng ký đón trẻ
- *       403:
- *         description: Không có quyền Teacher
  */
 router.post("/requests", authenticate, createPickupRequest);
 router.get("/requests", authenticate, authorizePermissions("MANAGE_PICKUP"), getPickupRequests);
 
-// 2. Phụ huynh xem danh sách đăng ký của mình
-router.get(
-  "/my-requests",
-  authenticate,
-  getMyPickupRequests
-);
+/**
+ * @openapi
+ * /api/pickup/my-requests:
+ *   get:
+ *     summary: Phụ huynh xem danh sách đăng ký của mình
+ *     tags: [Pickup]
+ *     security:
+ *       - bearerAuth: []
+ *     parameters:
+ *       - in: query
+ *         name: academicYearId
+ *         schema:
+ *           type: string
+ *     responses:
+ *       200:
+ *         description: Danh sách đăng ký của phụ huynh
+ */
+router.get("/my-requests", authenticate, getMyPickupRequests);
 
 /**
  * @openapi
  * /api/pickup/requests/student/{studentId}:
  *   get:
- *     summary: Giáo viên xem người đón đã được duyệt của học sinh
- *     tags:
- *       - Pickup
+ *     summary: Xem người đón đã được duyệt của học sinh
+ *     tags: [Pickup]
  *     security:
  *       - bearerAuth: []
  *     parameters:
@@ -95,8 +123,6 @@ router.get(
  *     responses:
  *       200:
  *         description: Danh sách người đón đã duyệt
- *       403:
- *         description: Không có quyền Teacher
  */
 router.get("/requests/student/:studentId", authenticate, authorizePermissions("MANAGE_PICKUP"), getApprovedPickupPersonsByStudent);
 
@@ -104,9 +130,8 @@ router.get("/requests/student/:studentId", authenticate, authorizePermissions("M
  * @openapi
  * /api/pickup/requests/status:
  *   post:
- *     summary: Giáo viên duyệt hoặc từ chối đăng ký đón trẻ
- *     tags:
- *       - Pickup
+ *     summary: Duyệt hoặc từ chối đăng ký đón trẻ (Giáo viên)
+ *     tags: [Pickup]
  *     security:
  *       - bearerAuth: []
  *     requestBody:
@@ -130,21 +155,57 @@ router.get("/requests/student/:studentId", authenticate, authorizePermissions("M
  *     responses:
  *       200:
  *         description: Cập nhật trạng thái thành công
- *       403:
- *         description: Không có quyền Teacher
  */
 router.post("/requests/status", authenticate, authorizePermissions("MANAGE_PICKUP"), updatePickupRequestStatus);
 
-// 4. Giáo viên duyệt hoặc từ chối
-router.post(
-  "/requests/status",
-  authenticate,
-  authorizeRoles("Teacher"),
-  updatePickupRequestStatus
-);
-// Update requests by parent
+/**
+ * @openapi
+ * /api/pickup/requests/{id}:
+ *   put:
+ *     summary: Cập nhật đăng ký đón (Phụ huynh)
+ *     tags: [Pickup]
+ *     security:
+ *       - bearerAuth: []
+ *     parameters:
+ *       - in: path
+ *         name: id
+ *         required: true
+ *         schema:
+ *           type: string
+ *     requestBody:
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             properties:
+ *               pickupPersonName:
+ *                 type: string
+ *               pickupPersonPhone:
+ *                 type: string
+ *               pickupPersonRelation:
+ *                 type: string
+ *               pickupDate:
+ *                 type: string
+ *                 format: date
+ *     responses:
+ *       200:
+ *         description: Cập nhật thành công
+ *   delete:
+ *     summary: Xóa đăng ký đón (Phụ huynh)
+ *     tags: [Pickup]
+ *     security:
+ *       - bearerAuth: []
+ *     parameters:
+ *       - in: path
+ *         name: id
+ *         required: true
+ *         schema:
+ *           type: string
+ *     responses:
+ *       200:
+ *         description: Xóa thành công
+ */
 router.put("/requests/:id", authenticate, updateMyPickupRequest);
-// Delete requests by parent
 router.delete("/requests/:id", authenticate, deleteMyPickupRequest);
 
 module.exports = router;

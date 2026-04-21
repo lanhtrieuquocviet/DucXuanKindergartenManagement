@@ -7,6 +7,7 @@ const purchaseRequestSchema = new mongoose.Schema(
     quantity: { type: Number, required: true, min: 1, default: 1 },
     unit: { type: String, trim: true, default: 'Cái' },
     classId: { type: mongoose.Schema.Types.ObjectId, ref: 'Classes', required: true },
+    academicYearId: { type: mongoose.Schema.Types.ObjectId, ref: 'AcademicYears', default: null, index: true },
     estimatedCost: { type: Number, default: 0 },
     reason: { type: String, trim: true, default: '' },
     notes: { type: String, trim: true, default: '' },

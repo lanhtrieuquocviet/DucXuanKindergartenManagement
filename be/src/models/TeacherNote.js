@@ -16,6 +16,12 @@ const teacherNoteSchema = new mongoose.Schema({
     ref: 'Teacher',
     required: true,
   },
+  academicYearId: {
+    type: mongoose.Schema.Types.ObjectId,
+    ref: 'AcademicYears',
+    default: null,
+    index: true,
+  },
   content: {
     type: String,
     required: true,

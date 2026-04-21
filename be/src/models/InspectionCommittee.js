@@ -16,6 +16,7 @@ const inspectionCommitteeSchema = new mongoose.Schema(
     name: { type: String, required: true, trim: true },
     foundedDate: { type: Date, required: true },
     decisionNumber: { type: String, required: true, trim: true },
+    academicYearId: { type: mongoose.Schema.Types.ObjectId, ref: 'AcademicYears', default: null, index: true },
     members: [memberSchema],
     status: { type: String, enum: ['active', 'ended'], default: 'active' },
     endedAt: { type: Date },

@@ -8,6 +8,7 @@ const Menu = require('../models/Menu');
 const DailyMenu = require('../models/DailyMenu');
 const TeacherNote = require('../models/TeacherNote');
 const StudentChangeRequest = require('../models/StudentChangeRequest');
+const AcademicYear = require('../models/AcademicYear');
 
 // Tính số tuần ISO (1-based) từ ngày, để xác định tuần lẻ/chẵn
 function getISOWeek(date) {
@@ -349,10 +350,14 @@ exports.createNote = async (req, res) => {
       return res.status(400).json({ status: 'error', message: 'Nội dung ghi chú không được để trống.' });
     }
 
+    // Auto-detect năm học active
+    const activeYear = await AcademicYear.findOne({ status: 'active' }).select('_id').lean();
+
     const note = await TeacherNote.create({
       studentId,
       classId,
       teacherId: teacher._id,
+      academicYearId: activeYear?._id || null,
       content: content.trim(),
       images: Array.isArray(images) ? images : [],
     });

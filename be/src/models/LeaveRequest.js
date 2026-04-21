@@ -20,6 +20,12 @@ const leaveRequestSchema = new mongoose.Schema(
       required: true,
       index: true,
     },
+    academicYearId: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: 'AcademicYears',
+      default: null,
+      index: true,
+    },
     startDate: {
       type: Date,
       required: true,

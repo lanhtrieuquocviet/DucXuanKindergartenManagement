@@ -1,6 +1,7 @@
 const PurchaseRequest = require('../models/PurchaseRequest');
 const Teacher = require('../models/Teacher');
 const Classes = require('../models/Classes');
+const AcademicYear = require('../models/AcademicYear');
 
 // Helper: get teacher record and assigned classes for current user
 async function getTeacherAndClasses(userId) {
@@ -25,9 +26,14 @@ exports.getMyClasses = async (req, res) => {
 // Teacher: list my purchase requests
 exports.listMyRequests = async (req, res) => {
   try {
-    const requests = await PurchaseRequest.find({ createdBy: req.user._id })
+    const { academicYearId } = req.query;
+    const filter = { createdBy: req.user._id };
+    if (academicYearId) filter.academicYearId = academicYearId;
+
+    const requests = await PurchaseRequest.find(filter)
       .populate('classId', 'className')
       .populate('createdBy', 'fullName username')
+      .populate('academicYearId', 'yearName')
       .sort({ createdAt: -1 });
     return res.json({ status: 'success', data: { requests } });
   } catch (err) {
@@ -50,11 +56,16 @@ exports.createRequest = async (req, res) => {
     if (!isAssigned) {
       return res.status(403).json({ status: 'error', message: 'Bạn không được phân công dạy lớp này.' });
     }
+
+    // Auto-detect năm học active
+    const activeYear = await AcademicYear.findOne({ status: 'active' }).select('_id').lean();
+
     const request = await PurchaseRequest.create({
       assetName,
       quantity: quantity || 1,
       unit: unit || 'Cái',
       classId,
+      academicYearId: activeYear?._id || null,
       estimatedCost: estimatedCost || 0,
       reason: reason || '',
       notes: notes || '',
@@ -146,10 +157,15 @@ exports.deleteRequest = async (req, res) => {
 // SchoolAdmin: list all requests
 exports.listAllRequests = async (req, res) => {
   try {
-    const requests = await PurchaseRequest.find()
+    const { academicYearId } = req.query;
+    const filter = {};
+    if (academicYearId) filter.academicYearId = academicYearId;
+
+    const requests = await PurchaseRequest.find(filter)
       .populate({ path: 'classId', select: 'className gradeId', populate: { path: 'gradeId', select: 'gradeName' } })
       .populate('createdBy', 'fullName username')
       .populate('reviewedBy', 'fullName username')
+      .populate('academicYearId', 'yearName')
       .sort({ createdAt: -1 });
     return res.json({ status: 'success', data: { requests } });
   } catch (err) {

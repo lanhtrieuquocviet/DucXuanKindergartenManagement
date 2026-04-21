@@ -2,6 +2,7 @@ const InspectionCommittee = require('../models/InspectionCommittee');
 const InspectionMinutes = require('../models/InspectionMinutes');
 const User = require('../models/User');
 const Role = require('../models/Role');
+const AcademicYear = require('../models/AcademicYear');
 
 // Đồng bộ role InventoryStaff — một giáo viên chỉ thuộc 1 ban tại một thời điểm
 async function syncInventoryStaffRole(addUserIds = [], removeUserIds = []) {
@@ -25,8 +26,13 @@ const {
 
 exports.listCommittees = async (req, res) => {
   try {
-    const committees = await InspectionCommittee.find()
+    const { academicYearId } = req.query;
+    const filter = {};
+    if (academicYearId) filter.academicYearId = academicYearId;
+
+    const committees = await InspectionCommittee.find(filter)
       .populate('createdBy', 'fullName username')
+      .populate('academicYearId', 'yearName')
       .sort({ createdAt: -1 });
     return res.json({ status: 'success', data: { committees } });
   } catch (err) {
@@ -46,7 +52,7 @@ exports.getCommittee = async (req, res) => {
 
 exports.createCommittee = async (req, res) => {
   try {
-    const { name, foundedDate, decisionNumber, members } = req.body;
+    const { name, foundedDate, decisionNumber, members, academicYearId } = req.body;
     if (!name || !foundedDate || !decisionNumber) {
       return res.status(400).json({ status: 'error', message: 'Vui lòng điền đầy đủ thông tin.' });
     }
@@ -60,8 +66,17 @@ exports.createCommittee = async (req, res) => {
         return res.status(409).json({ status: 'error', message: 'Một hoặc nhiều thành viên đã thuộc ban kiểm kê đang hoạt động.' });
       }
     }
+
+    // Resolve academicYearId
+    let resolvedYearId = academicYearId || null;
+    if (!resolvedYearId) {
+      const activeYear = await AcademicYear.findOne({ status: 'active' }).select('_id').lean();
+      if (activeYear) resolvedYearId = activeYear._id;
+    }
+
     const committee = await InspectionCommittee.create({
       name, foundedDate, decisionNumber,
+      academicYearId: resolvedYearId,
       members: members || [],
       createdBy: req.user._id,
     });
@@ -143,9 +158,14 @@ exports.endCommittee = async (req, res) => {
 // Teacher: only their own minutes
 exports.listMyMinutes = async (req, res) => {
   try {
-    const minutes = await InspectionMinutes.find({ createdBy: req.user._id })
+    const { academicYearId } = req.query;
+    const filter = { createdBy: req.user._id };
+    if (academicYearId) filter.academicYearId = academicYearId;
+
+    const minutes = await InspectionMinutes.find(filter)
       .populate('createdBy', 'fullName username')
       .populate('committeeId', 'name members')
+      .populate('academicYearId', 'yearName')
       .sort({ createdAt: -1 });
     return res.json({ status: 'success', data: { minutes } });
   } catch (err) {
@@ -155,9 +175,14 @@ exports.listMyMinutes = async (req, res) => {
 
 exports.listMinutes = async (req, res) => {
   try {
-    const minutes = await InspectionMinutes.find()
+    const { academicYearId } = req.query;
+    const filter = {};
+    if (academicYearId) filter.academicYearId = academicYearId;
+
+    const minutes = await InspectionMinutes.find(filter)
       .populate('createdBy', 'fullName username')
       .populate('committeeId', 'name')
+      .populate('academicYearId', 'yearName')
       .sort({ createdAt: -1 });
     return res.json({ status: 'success', data: { minutes } });
   } catch (err) {
@@ -179,10 +204,18 @@ exports.getMinutes = async (req, res) => {
 
 exports.createMinutes = async (req, res) => {
   try {
-    const { className, scope, location, inspectionDate, inspectionTime, endTime, reason, inspectionMethod, committeeId, assets, extraAssets, conclusion } = req.body;
+    const { className, scope, location, inspectionDate, inspectionTime, endTime, reason, inspectionMethod, committeeId, assets, extraAssets, conclusion, academicYearId } = req.body;
     if (!inspectionDate) {
       return res.status(400).json({ status: 'error', message: 'Vui lòng chọn ngày kiểm kê.' });
     }
+
+    // Resolve academicYearId
+    let resolvedYearId = academicYearId || null;
+    if (!resolvedYearId) {
+      const activeYear = await AcademicYear.findOne({ status: 'active' }).select('_id').lean();
+      if (activeYear) resolvedYearId = activeYear._id;
+    }
+
     const minutes = await InspectionMinutes.create({
       className: className || '',
       scope: scope || '',
@@ -193,6 +226,7 @@ exports.createMinutes = async (req, res) => {
       reason: reason || '',
       inspectionMethod: inspectionMethod || '',
       committeeId: committeeId || null,
+      academicYearId: resolvedYearId,
       assets: assets || [],
       extraAssets: extraAssets || [],
       conclusion: conclusion || '',

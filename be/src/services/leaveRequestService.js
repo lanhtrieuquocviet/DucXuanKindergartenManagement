@@ -3,6 +3,7 @@ const Student = require('../models/Student');
 const Classes = require('../models/Classes');
 const Teacher = require('../models/Teacher');
 const Attendance = require('../models/Attendances');
+const AcademicYear = require('../models/AcademicYear');
 const { createNotification } = require('../controller/notification.controller');
 
 function startOfDay(input) {
@@ -76,10 +77,14 @@ exports.createLeaveRequest = async (req, res) => {
       return res.status(400).json(overlapCheck);
     }
 
+    // Auto-detect năm học active
+    const activeYear = await AcademicYear.findOne({ status: 'active' }).select('_id').lean();
+
     const request = await LeaveRequest.create({
       student: student._id,
       classId: student.classId,
       parent: req.user._id,
+      academicYearId: activeYear?._id || null,
       startDate: from,
       endDate: to,
       reason: reason.trim(),
@@ -204,8 +209,13 @@ exports.deleteMyLeaveRequest = async (req, res) => {
 
 exports.getMyLeaveRequests = async (req, res) => {
   try {
-    const requests = await LeaveRequest.find({ parent: req.user._id })
+    const { academicYearId } = req.query;
+    const filter = { parent: req.user._id };
+    if (academicYearId) filter.academicYearId = academicYearId;
+
+    const requests = await LeaveRequest.find(filter)
       .populate('student', 'fullName classId')
+      .populate('academicYearId', 'yearName')
       .sort({ createdAt: -1 });
     return res.json({ success: true, data: requests });
   } catch (error) {
@@ -215,17 +225,19 @@ exports.getMyLeaveRequests = async (req, res) => {
 
 exports.getTeacherLeaveRequests = async (req, res) => {
   try {
-    const { status } = req.query;
+    const { status, academicYearId } = req.query;
     const teacher = await Teacher.findOne({ userId: req.user._id }).lean();
     const classDocs = await Classes.find({ teacherIds: teacher?._id }).select('_id');
     const classIds = classDocs.map((item) => item._id);
 
     const filter = { classId: { $in: classIds } };
     if (status && status !== 'all') filter.status = status;
+    if (academicYearId) filter.academicYearId = academicYearId;
 
     const requests = await LeaveRequest.find(filter)
       .populate('student', 'fullName classId')
       .populate('parent', 'fullName phone')
+      .populate('academicYearId', 'yearName')
       .sort({ createdAt: -1 });
 
     return res.json({ success: true, data: requests });

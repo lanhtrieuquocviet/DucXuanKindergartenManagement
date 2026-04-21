@@ -429,6 +429,10 @@ app.use('/api-docs', swaggerUi.serve, swaggerUi.setup(swaggerSpec));
 // Routes xác thực (đăng nhập)
 app.use('/api/auth', authRoutes);
 
+// Home data (aggregated public data)
+const homeRoutes = require('./src/routes/home.routes');
+app.use('/api/home', homeRoutes);
+
 // SystemAdmin routes
 app.use('/api/system-admin', systemAdminRoutes);
 app.use('/api/bpm', bpmRoutes);

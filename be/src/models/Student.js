@@ -113,6 +113,10 @@ studentSchema.virtual('faceImageUrl').get(function () {
   return (Array.isArray(this.faceImageUrls) && this.faceImageUrls[0]) ? this.faceImageUrls[0] : '';
 });
 
+studentSchema.index({ classId: 1, status: 1 });
+studentSchema.index({ academicYearId: 1, status: 1 });
+studentSchema.index({ fullName: 1 });
+
 const Student = mongoose.model('Students', studentSchema);
 
 module.exports = Student;

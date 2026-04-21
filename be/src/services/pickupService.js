@@ -3,6 +3,7 @@ const Student = require("../models/Student"); // Students
 const Classes = require("../models/Classes"); // Classes
 const Teacher = require("../models/Teacher"); // Teachers
 const mongoose = require("mongoose");
+const AcademicYear = require("../models/AcademicYear");
 // 1. Tạo đăng ký mới (phụ huynh)
 exports.createPickupRequest = async (req, res) => {
   try {
@@ -80,10 +81,15 @@ exports.createPickupRequest = async (req, res) => {
     }
 
     console.log("Creating PickupRequest...");
+
+    // Auto-detect năm học active
+    const activeYear = await AcademicYear.findOne({ status: 'active' }).select('_id').lean();
+
     const pickupRequest = new PickupRequest({
       student: studentObjectId,
       classId: student.classId,
       parent: userObjectId,
+      academicYearId: activeYear?._id || null,
       fullName,
       relation,
       phone,

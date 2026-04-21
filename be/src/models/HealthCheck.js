@@ -7,6 +7,12 @@ const healthCheckSchema = new mongoose.Schema(
       ref: "Student",
       required: true,
     },
+    academicYearId: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: "AcademicYears",
+      default: null,
+      index: true,
+    },
     checkDate: {
       type: Date,
       default: Date.now,
@@ -95,5 +101,7 @@ const healthCheckSchema = new mongoose.Schema(
 // Index for fast queries
 healthCheckSchema.index({ studentId: 1, checkDate: -1 });
 healthCheckSchema.index({ recordedBy: 1 });
+healthCheckSchema.index({ academicYearId: 1, checkDate: -1 });
+healthCheckSchema.index({ academicYearId: 1, studentId: 1 });
 
 module.exports = mongoose.model("HealthCheck", healthCheckSchema);

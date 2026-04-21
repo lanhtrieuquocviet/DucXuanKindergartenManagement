@@ -12,6 +12,12 @@ const healthIncidentSchema = new mongoose.Schema(
       ref: 'Classes',
       default: null,
     },
+    academicYearId: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: 'AcademicYears',
+      default: null,
+      index: true,
+    },
     date: {
       type: Date,
       required: [true, 'Vui lòng chọn ngày'],
@@ -59,5 +65,7 @@ const healthIncidentSchema = new mongoose.Schema(
 healthIncidentSchema.index({ date: -1 });
 healthIncidentSchema.index({ studentId: 1, date: -1 });
 healthIncidentSchema.index({ classId: 1, date: -1 });
+healthIncidentSchema.index({ academicYearId: 1, date: -1 });
+healthIncidentSchema.index({ academicYearId: 1, classId: 1 });
 
 module.exports = mongoose.model('HealthIncident', healthIncidentSchema);

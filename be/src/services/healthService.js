@@ -1,13 +1,14 @@
 const HealthCheck = require("../models/HealthCheck");
 const Student = require("../models/Student");
 const User = require("../models/User");
+const AcademicYear = require("../models/AcademicYear");
 
 /**
  * Get all health check records
  */
 exports.getHealthCheckRecords = async (req, res) => {
   try {
-    const { studentId, status } = req.query;
+    const { studentId, status, academicYearId } = req.query;
     let query = {};
 
     if (studentId) {
@@ -16,10 +17,14 @@ exports.getHealthCheckRecords = async (req, res) => {
     if (status) {
       query.generalStatus = status;
     }
+    if (academicYearId) {
+      query.academicYearId = academicYearId;
+    }
 
     const records = await HealthCheck.find(query)
       .populate("studentId", "name email")
       .populate("recordedBy", "fullName")
+      .populate("academicYearId", "yearName")
       .sort({ checkDate: -1 })
       .limit(100);
 
@@ -43,7 +48,8 @@ exports.getHealthCheckById = async (req, res) => {
 
     const record = await HealthCheck.findById(id)
       .populate("studentId")
-      .populate("recordedBy", "fullName");
+      .populate("recordedBy", "fullName")
+      .populate("academicYearId", "yearName");
 
     if (!record) {
       return res.status(404).json({ success: false, message: "Record not found" });
@@ -62,6 +68,7 @@ exports.getHealthCheckById = async (req, res) => {
 exports.getStudentHealthHistory = async (req, res) => {
   try {
     const { studentId } = req.params;
+    const { academicYearId } = req.query;
 
     // Verify student exists
     const student = await Student.findById(studentId);
@@ -69,8 +76,14 @@ exports.getStudentHealthHistory = async (req, res) => {
       return res.status(404).json({ success: false, message: "Student not found" });
     }
 
-    const records = await HealthCheck.find({ studentId })
+    const query = { studentId };
+    if (academicYearId) {
+      query.academicYearId = academicYearId;
+    }
+
+    const records = await HealthCheck.find(query)
       .populate("recordedBy", "fullName")
+      .populate("academicYearId", "yearName")
       .sort({ checkDate: -1 });
 
     // Calculate health trends
@@ -105,6 +118,7 @@ exports.createHealthCheck = async (req, res) => {
   try {
     const {
       studentId,
+      academicYearId,
       height,
       weight,
       temperature,
@@ -132,8 +146,16 @@ exports.createHealthCheck = async (req, res) => {
       return res.status(404).json({ success: false, message: "Student not found" });
     }
 
+    // Resolve academicYearId: dùng truyền vào hoặc tự detect năm học đang active
+    let resolvedAcademicYearId = academicYearId || null;
+    if (!resolvedAcademicYearId) {
+      const activeYear = await AcademicYear.findOne({ status: "active" }).select("_id").lean();
+      if (activeYear) resolvedAcademicYearId = activeYear._id;
+    }
+
     const healthCheck = new HealthCheck({
       studentId,
+      academicYearId: resolvedAcademicYearId,
       height,
       weight,
       temperature,
@@ -227,7 +249,7 @@ exports.deleteHealthCheck = async (req, res) => {
  */
 exports.getHealthStatistics = async (req, res) => {
   try {
-    const { startDate, endDate } = req.query;
+    const { startDate, endDate, academicYearId } = req.query;
 
     let query = {};
     if (startDate && endDate) {
@@ -235,6 +257,9 @@ exports.getHealthStatistics = async (req, res) => {
         $gte: new Date(startDate),
         $lte: new Date(endDate),
       };
+    }
+    if (academicYearId) {
+      query.academicYearId = academicYearId;
     }
 
     const totalRecords = await HealthCheck.countDocuments(query);
@@ -282,7 +307,7 @@ exports.getHealthStatistics = async (req, res) => {
  */
 exports.exportHealthRecords = async (req, res) => {
   try {
-    const { startDate, endDate, status } = req.query;
+    const { startDate, endDate, status, academicYearId } = req.query;
 
     let query = {};
     if (startDate && endDate) {
@@ -294,15 +319,20 @@ exports.exportHealthRecords = async (req, res) => {
     if (status) {
       query.generalStatus = status;
     }
+    if (academicYearId) {
+      query.academicYearId = academicYearId;
+    }
 
     const records = await HealthCheck.find(query)
       .populate("studentId", "name email")
       .populate("recordedBy", "fullName")
+      .populate("academicYearId", "yearName")
       .sort({ checkDate: -1 });
 
     // Format for CSV export
     const headers = [
       "Student Name",
+      "Academic Year",
       "Check Date",
       "Height (cm)",
       "Weight (kg)",
@@ -316,6 +346,7 @@ exports.exportHealthRecords = async (req, res) => {
 
     const data = records.map((r) => [
       r.studentId?.name || "N/A",
+      r.academicYearId?.yearName || "N/A",
       new Date(r.checkDate).toLocaleDateString("vi-VN"),
       r.height || "-",
       r.weight || "-",

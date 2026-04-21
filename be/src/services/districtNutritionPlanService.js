@@ -322,6 +322,11 @@ exports.updateDistrictNutritionPlan = async (req, res) => {
     plan.archivedAt = now.toDate();
     await plan.save();
 
+    const academicYear = await AcademicYear.findOne({
+      startDate: { $lte: now.toDate() },
+      endDate: { $gte: now.toDate() }
+    }).lean();
+
     const created = await DistrictNutritionPlan.create({
       items,
       startDate,
@@ -331,6 +336,7 @@ exports.updateDistrictNutritionPlan = async (req, res) => {
       regulationFile,
       status: "active",
       createdBy: req.user?._id || null,
+      academicYearId: academicYear?._id || null,
     });
 
     const populated = await DistrictNutritionPlan.findById(created._id)
@@ -425,10 +431,16 @@ exports.updateScheduledDistrictPlan = async (req, res) => {
     }
 
     const oldName = plan.regulationFile?.storedName;
+    const academicYear = await AcademicYear.findOne({
+      startDate: { $lte: startAt.toDate() },
+      endDate: { $gte: startAt.toDate() }
+    }).lean();
+
     plan.startDate = startDate;
     plan.startTime = "00:30";
     plan.startAt = startAt.toDate();
     plan.items = items;
+    plan.academicYearId = academicYear?._id || null;
     if (req.file) {
       await ensureUploadDir();
       plan.regulationFile = {

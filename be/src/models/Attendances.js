@@ -187,6 +187,8 @@ const attendanceSchema = new mongoose.Schema(
 
 // 1 học sinh chỉ nên có 1 bản ghi điểm danh cho 1 ngày
 attendanceSchema.index({ studentId: 1, date: 1 }, { unique: true });
+attendanceSchema.index({ classId: 1, date: 1 });
+attendanceSchema.index({ academicYearId: 1, date: 1 });
 
 const Attendances = mongoose.model('Attendances', attendanceSchema);
 

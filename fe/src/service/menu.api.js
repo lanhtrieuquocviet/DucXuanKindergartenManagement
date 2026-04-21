@@ -26,8 +26,13 @@ export const getMenuAcademicYearCurrent = () => {
   return api.get(`${ENDPOINTS.KITCHEN.MENUS}/academic-year/current`);
 };
 
-export const listDistrictNutritionPlans = () => {
-  return api.get(ENDPOINTS.KITCHEN.DISTRICT_NUTRITION_PLANS);
+export const listDistrictNutritionPlans = (params = {}) => {
+  const q = new URLSearchParams(params).toString();
+  return api.get(`${ENDPOINTS.KITCHEN.DISTRICT_NUTRITION_PLANS}${q ? `?${q}` : ""}`);
+};
+
+export const getAcademicYears = () => {
+  return api.get("/school-admin/academic-years");
 };
 
 export const getDistrictNutritionPlanDetail = (id) => {

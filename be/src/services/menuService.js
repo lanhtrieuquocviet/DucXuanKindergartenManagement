@@ -6,7 +6,7 @@ const districtNutritionPlanService = require("./districtNutritionPlanService");
 
 const mongoose = require("mongoose");
 const DailyMenu = require("../models/DailyMenu");
-const AcademicYear = require("../models/AcademicYear");
+
 
 const REJECT_PRESET_LABELS = {
   nutrition: "Chưa cân đối dinh dưỡng / chưa đạt chuẩn",

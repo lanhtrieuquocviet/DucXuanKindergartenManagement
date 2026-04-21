@@ -455,7 +455,7 @@ const getAttendanceOverview = async (req, res) => {
     const attendanceFilter = {
       date: { $gte: attendanceDate, $lte: endOfDay },
     };
-    if (classId) {
+    if (classId && classId !== 'all') {
       attendanceFilter.classId = classId;
     }
 
@@ -471,43 +471,49 @@ const getAttendanceOverview = async (req, res) => {
       attendanceByClass[cId].push(att);
     });
 
+    // Tối ưu: Đếm số học sinh của TẤT CẢ các lớp trong classFilter trong 1 query
+    const studentCounts = await Students.aggregate([
+      { $match: { classId: { $in: classes.map(c => c._id) }, status: 'active' } },
+      { $group: { _id: '$classId', count: { $sum: 1 } } }
+    ]);
+    
+    const studentCountMap = {};
+    studentCounts.forEach(sc => {
+      studentCountMap[sc._id.toString()] = sc.count;
+    });
+
     // Tính toán thống kê cho mỗi lớp
-    const classStats = await Promise.all(
-      classes.map(async (cls) => {
-        const clsId = cls._id.toString();
-        const classAttendances = attendanceByClass[clsId] || [];
+    const classStats = classes.map((cls) => {
+      const clsId = cls._id.toString();
+      const classAttendances = attendanceByClass[clsId] || [];
 
-        // Đếm số học sinh trong lớp
-        const totalStudents = await Students.countDocuments({
-          classId: cls._id,
-          status: 'active',
-        });
+      // Đếm số học sinh trong lớp (lấy từ map đã aggregate)
+      const totalStudents = studentCountMap[clsId] || 0;
 
-        // Tính toán thống kê
-        const present = classAttendances.filter(
-          (att) => att.status === 'present'
-        ).length;
-        const absent = classAttendances.filter(
-          (att) => att.status === 'absent'
-        ).length;
-        const notCheckedOut = classAttendances.filter(
-          (att) =>
-            att.status === 'present' &&
-            att.time?.checkIn &&
-            !att.time?.checkOut
-        ).length;
+      // Tính toán thống kê
+      const present = classAttendances.filter(
+        (att) => att.status === 'present'
+      ).length;
+      const absent = classAttendances.filter(
+        (att) => att.status === 'absent'
+      ).length;
+      const notCheckedOut = classAttendances.filter(
+        (att) =>
+          att.status === 'present' &&
+          att.time?.checkIn &&
+          !att.time?.checkOut
+      ).length;
 
-        return {
-          _id: cls._id,
-          className: cls.className,
-          gradeName: cls.gradeId?.gradeName || '',
-          totalStudents,
-          present,
-          absent,
-          notCheckedOut,
-        };
-      })
-    );
+      return {
+        _id: cls._id,
+        className: cls.className,
+        gradeName: cls.gradeId?.gradeName || '',
+        totalStudents,
+        present,
+        absent,
+        notCheckedOut,
+      };
+    });
 
     // Lọc theo trạng thái nếu có
     let filteredStats = classStats;

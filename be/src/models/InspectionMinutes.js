@@ -26,6 +26,7 @@ const inspectionMinutesSchema = new mongoose.Schema(
     inspectionMethod: { type: String, trim: true, default: '' }, // IV - Hình thức
     createdBy: { type: mongoose.Schema.Types.ObjectId, ref: 'User', required: true },
     committeeId: { type: mongoose.Schema.Types.ObjectId, ref: 'InspectionCommittee', default: null },
+    academicYearId: { type: mongoose.Schema.Types.ObjectId, ref: 'AcademicYears', default: null, index: true },
     assets: [assetRowSchema],
     extraAssets: [assetRowSchema],
     conclusion: { type: String, trim: true, default: '' },

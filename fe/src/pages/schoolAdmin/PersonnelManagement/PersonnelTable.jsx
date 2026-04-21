@@ -22,12 +22,20 @@ import {
 } from '@mui/icons-material';
 
 const ROLE_COLORS = {
-  SchoolAdmin: { bg: '#eef2ff', text: '#4338ca', border: '#c7d2fe', label: 'Admin' },
+  SystemAdmin: { bg: '#fef2f2', text: '#991b1b', border: '#fecaca', label: 'Quản trị hệ thống' },
+  SchoolAdmin: { bg: '#eef2ff', text: '#4338ca', border: '#c7d2fe', label: 'Quản trị trường' },
+  Admin: { bg: '#eef2ff', text: '#4338ca', border: '#c7d2fe', label: 'Quản trị viên' },
   Teacher: { bg: '#f0fdf4', text: '#15803d', border: '#bbf7d0', label: 'Giáo viên' },
   Leader: { bg: '#fff7ed', text: '#c2410c', border: '#fed7aa', label: 'Tổ trưởng' },
+  HeadTeacher: { bg: '#fff7ed', text: '#c2410c', border: '#fed7aa', label: 'Tổ trưởng' },
   Staff: { bg: '#f8fafc', text: '#475569', border: '#e2e8f0', label: 'Nhân viên' },
-  Kitchen: { bg: '#fff1f2', text: '#be123c', border: '#fecdd3', label: 'Bếp' },
-  Medical: { bg: '#f0f9ff', text: '#0369a1', border: '#bae6fd', label: 'Y tế' },
+  Kitchen: { bg: '#fff1f2', text: '#be123c', border: '#fecdd3', label: 'Nhân viên bếp' },
+  KitchenStaff: { bg: '#fff1f2', text: '#be123c', border: '#fecdd3', label: 'Nhân viên bếp' },
+  Medical: { bg: '#f0f9ff', text: '#0369a1', border: '#bae6fd', label: 'Nhân viên y tế' },
+  MedicalStaff: { bg: '#f0f9ff', text: '#0369a1', border: '#bae6fd', label: 'Nhân viên y tế' },
+  Parent: { bg: '#fdf4ff', text: '#86198f', border: '#f5d0fe', label: 'Phụ huynh' },
+  HeadParent: { bg: '#fdf2f8', text: '#be185d', border: '#fbcfe8', label: 'Trưởng phụ huynh' },
+  InventoryStaff: { bg: '#f0fdfa', text: '#0d9488', border: '#99f6e4', label: 'Nhân viên kho' },
 };
 
 const PersonnelTable = memo(({
@@ -114,7 +122,7 @@ const PersonnelTable = memo(({
               </TableCell>
               <TableCell>
                 <Chip
-                  label={item.status?.toLowerCase() === 'active' ? 'Active' : 'Locked'}
+                  label={item.status?.toLowerCase() === 'active' ? 'Đang hoạt động' : 'Đã khóa'}
                   size="small"
                   sx={{ 
                     height: 18, fontSize: '0.6rem', fontWeight: 800,

@@ -60,7 +60,9 @@ const blogSchema = new mongoose.Schema(
   }
 );
 
+blogSchema.index({ category: 1, status: 1, createdAt: -1 });
+blogSchema.index({ status: 1, createdAt: -1 });
+
 const Blog = mongoose.model('Blog', blogSchema);
 
 module.exports = Blog;
-

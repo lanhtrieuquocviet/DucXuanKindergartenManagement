@@ -12,8 +12,9 @@ import {
   updateScheduledDistrictNutritionPlan,
   applyScheduledDistrictNutritionPlanNow,
   deleteScheduledDistrictNutritionPlan,
-  getDistrictNutritionPlanDetail,
   downloadDistrictRegulationFile,
+  getAcademicYears,
+  getDistrictNutritionPlanDetail,
 } from "../../service/menu.api";
 import {
   Box,
@@ -113,7 +114,8 @@ export default function DistrictNutritionPlanSchoolAdmin() {
   const [activePlans, setActivePlans] = useState([]);
   const [upcomingPlans, setUpcomingPlans] = useState([]);
   const [historyPlans, setHistoryPlans] = useState([]);
-  const [historyYear, setHistoryYear] = useState("all");
+  const [academicYears, setAcademicYears] = useState([]);
+  const [selectedYearId, setSelectedYearId] = useState("");
 
   const [createOpen, setCreateOpen] = useState(false);
   const [createSaving, setCreateSaving] = useState(false);
@@ -148,21 +150,12 @@ export default function DistrictNutritionPlanSchoolAdmin() {
     !!editFile
   );
 
-  const historyYears = Array.from(
-    new Set(
-      historyPlans.map((p) => (p.endDate || "").slice(0, 4)).filter(Boolean)
-    )
-  ).sort((a, b) => Number(b) - Number(a));
+  const filteredHistory = historyPlans;
 
-  const filteredHistory =
-    historyYear === "all"
-      ? historyPlans
-      : historyPlans.filter((p) => (p.endDate || "").startsWith(String(historyYear)));
-
-  const load = useCallback(async () => {
+  const load = useCallback(async (yearId) => {
     try {
       setLoading(true);
-      const res = await listDistrictNutritionPlans();
+      const res = await listDistrictNutritionPlans(yearId && yearId !== "all" ? { academicYearId: yearId } : {});
       const data = res?.data;
       setActivePlans(Array.isArray(data?.active) ? data.active : []);
       setUpcomingPlans(Array.isArray(data?.upcoming) ? data.upcoming : []);
@@ -175,8 +168,33 @@ export default function DistrictNutritionPlanSchoolAdmin() {
   }, []);
 
   useEffect(() => {
-    load();
+    const fetchInitial = async () => {
+      try {
+        const yearsRes = await getAcademicYears();
+        const years = yearsRes?.data || [];
+        setAcademicYears(years);
+        // Default to active year if exists, else "all"
+        const active = years.find(y => y.status === 'active');
+        if (active) {
+          setSelectedYearId(active._id);
+          load(active._id);
+        } else {
+          setSelectedYearId("all");
+          load("all");
+        }
+      } catch {
+        setSelectedYearId("all");
+        load("all");
+      }
+    };
+    fetchInitial();
   }, [load]);
+
+  const handleYearChange = (e) => {
+    const yId = e.target.value;
+    setSelectedYearId(yId);
+    load(yId);
+  };
 
   useEffect(() => {
     if (active) {
@@ -284,7 +302,7 @@ export default function DistrictNutritionPlanSchoolAdmin() {
       window.dispatchEvent(new Event("nutrition_plan_updated"));
       toast.success("Đã tạo kế hoạch mới");
       setCreateOpen(false);
-      await load();
+      await load(selectedYearId);
       setMainTab(0);
     } catch (e) {
       toast.error(e?.message || e?.data?.message || "Tạo kế hoạch thất bại");
@@ -312,7 +330,7 @@ export default function DistrictNutritionPlanSchoolAdmin() {
       window.dispatchEvent(new Event("nutrition_plan_updated"));
       toast.success("Đã cập nhật kế hoạch; phiên bản trước đã lưu vào lịch sử");
       setEditFile(null);
-      await load();
+      await load(selectedYearId);
     } catch (e) {
       toast.error(e?.message || e?.data?.message || "Cập nhật thất bại");
     } finally {
@@ -338,7 +356,7 @@ export default function DistrictNutritionPlanSchoolAdmin() {
       setUpcomingEditOpen(false);
       setUpcomingEditingId(null);
       setUpcomingEditFile(null);
-      await load();
+      await load(selectedYearId);
     } catch (e) {
       toast.error(e?.message || e?.data?.message || "Cập nhật kế hoạch sắp tới thất bại");
     } finally {
@@ -351,7 +369,7 @@ export default function DistrictNutritionPlanSchoolAdmin() {
     try {
       await applyScheduledDistrictNutritionPlanNow(planId);
       toast.success("Đã áp dụng kế hoạch ngay");
-      await load();
+      await load(selectedYearId);
       setMainTab(0);
     } catch (e) {
       toast.error(e?.message || e?.data?.message || "Áp dụng ngay thất bại");
@@ -364,7 +382,7 @@ export default function DistrictNutritionPlanSchoolAdmin() {
     try {
       await deleteScheduledDistrictNutritionPlan(planId);
       toast.success("Đã xóa kế hoạch sắp tới");
-      await load();
+      await load(selectedYearId);
     } catch (e) {
       toast.error(e?.message || e?.data?.message || "Xóa kế hoạch thất bại");
     }
@@ -444,7 +462,6 @@ export default function DistrictNutritionPlanSchoolAdmin() {
           </TableHead>
           <TableBody>
             {rows.map((item, idx) => {
-              const lockName = idx < lockNameFirstRows;
               return (
               <TableRow key={item.id}>
                 <TableCell>
@@ -474,7 +491,6 @@ export default function DistrictNutritionPlanSchoolAdmin() {
           </TableBody>
         </Table>
       </TableContainer>
-      
     </Box>
   );
 
@@ -512,6 +528,28 @@ export default function DistrictNutritionPlanSchoolAdmin() {
             Thiết lập chỉ tiêu, ngày bắt đầu và tệp quy định của sở. Mỗi lần tạo mới hoặc cập nhật kế hoạch đang áp dụng, phiên bản trước được lưu vào lịch sử (ngày kết thúc phiên bản đó là ngày cập nhật, theo múi giờ Việt Nam).
           </Typography>
         </Paper>
+      </Stack>
+
+      <Stack direction={{ xs: "column", sm: "row" }} spacing={2} alignItems={{ sm: "center" }} mb={2}>
+        <FormControl size="small" sx={{ minWidth: 240 }}>
+          <InputLabel>Năm học</InputLabel>
+            <Select
+              label="Năm học"
+              value={selectedYearId}
+              onChange={(e) => {
+                setSelectedYearId(e.target.value);
+                load(e.target.value);
+              }}
+            >
+              <MenuItem value="all">Tất cả năm học</MenuItem>
+              {academicYears.map((y) => (
+                <MenuItem key={y._id} value={y._id}>
+                  {y.yearName}
+                </MenuItem>
+              ))}
+            </Select>
+        </FormControl>
+        <Box sx={{ flex: 1 }} />
       </Stack>
 
       <Tabs
@@ -667,23 +705,7 @@ export default function DistrictNutritionPlanSchoolAdmin() {
         </Box>
       ) : (
         <Box>
-          <Stack direction={{ xs: "column", sm: "row" }} spacing={2} alignItems={{ sm: "center" }} mb={2}>
-            <FormControl size="small" sx={{ minWidth: 200 }}>
-              <InputLabel>Lọc theo năm</InputLabel>
-              <Select
-                label="Lọc theo năm"
-                value={historyYear}
-                onChange={(e) => setHistoryYear(e.target.value)}
-              >
-                <MenuItem value="all">Tất cả</MenuItem>
-                {historyYears.map((y) => (
-                  <MenuItem key={y} value={y}>
-                    {y}
-                  </MenuItem>
-                ))}
-              </Select>
-            </FormControl>
-          </Stack>
+          <Box mb={2} />
 
           {filteredHistory.length === 0 ? (
             <Typography color="text.secondary" textAlign="center" py={4}>

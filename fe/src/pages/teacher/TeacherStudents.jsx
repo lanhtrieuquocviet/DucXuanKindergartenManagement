@@ -51,6 +51,7 @@ function getTeacherMenuItems(hasPermission, hasRole) {
   const ALL_TEACHER_MENU = [
     { key: 'classes', label: 'Lớp phụ trách' },
     { key: 'students', label: 'Danh sách học sinh' },
+    { key: 'evaluation', label: 'Đánh giá học sinh' },
     { key: 'attendance', label: 'Điểm danh', permission: 'MANAGE_ATTENDANCE' },
     { key: 'pickup-approval', label: 'Đơn đăng ký đưa đón', permission: 'MANAGE_PICKUP' },
     { key: 'leave-requests', label: 'Danh sách đơn xin nghỉ', permission: 'MANAGE_ATTENDANCE' },
@@ -210,6 +211,7 @@ export default function TeacherStudents() {
   const activeKey = useMemo(() => {
     const path = location.pathname || '';
     if (path === '/teacher/students') return 'students';
+    if (path.startsWith('/teacher/evaluation')) return 'evaluation';
     if (path.startsWith('/teacher/leave-requests')) return 'leave-requests';
     if (path.startsWith('/teacher/contact-book')) return 'contact-book';
     if (path.startsWith('/teacher/attendance')) return 'attendance';
@@ -220,6 +222,7 @@ export default function TeacherStudents() {
     const MAP = {
       classes: '/teacher',
       students: '/teacher/students',
+      evaluation: '/teacher/evaluation',
       'contact-book': '/teacher/contact-book',
       attendance: '/teacher/attendance',
       'pickup-approval': '/teacher/pickup-approval',

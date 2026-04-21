@@ -558,11 +558,73 @@ router.delete('/students/health-record/:id', authenticate, authorizeAnyPermissio
 // HEALTH INCIDENTS — ghi nhận bất thường theo ngày
 // ══════════════════════════════════════════════════════════════
 
+/**
+ * @openapi
+ * /api/school-admin/health-incidents:
+ *   get:
+ *     summary: Danh sách sự cố sức khỏe (Admin)
+ *     tags: [SchoolAdmin - HealthIncidents]
+ *     security:
+ *       - bearerAuth: []
+ *     parameters:
+ *       - in: query
+ *         name: date
+ *         schema:
+ *           type: string
+ *           format: date
+ *         description: Lọc theo ngày
+ *       - in: query
+ *         name: classId
+ *         schema:
+ *           type: string
+ *       - in: query
+ *         name: academicYearId
+ *         schema:
+ *           type: string
+ *         description: Lọc theo năm học
+ *     responses:
+ *       200:
+ *         description: Danh sách sự cố
+ *   post:
+ *     summary: Tạo bản ghi sự cố sức khỏe (Admin)
+ *     tags: [SchoolAdmin - HealthIncidents]
+ *     security:
+ *       - bearerAuth: []
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             required:
+ *               - studentId
+ *               - symptoms
+ *             properties:
+ *               studentId:
+ *                 type: string
+ *               date:
+ *                 type: string
+ *                 format: date
+ *               symptoms:
+ *                 type: string
+ *               description:
+ *                 type: string
+ *               severity:
+ *                 type: string
+ *                 enum: [mild, moderate, severe]
+ *               status:
+ *                 type: string
+ *                 enum: [monitoring, resolved, referred]
+ *     responses:
+ *       201:
+ *         description: Tạo thành công
+ */
+
 // GET /school-admin/health-incidents?date=YYYY-MM-DD&classId=xxx
 router.get('/health-incidents', authenticate, authorizeAnyPermission('MANAGE_STUDENT', 'MANAGE_HEALTH'), async (req, res) => {
   try {
     const HealthIncident = require('../models/HealthIncident');
-    const { date, classId } = req.query;
+    const { date, classId, academicYearId } = req.query;
 
     const filter = {};
     if (date) {
@@ -572,11 +634,13 @@ router.get('/health-incidents', authenticate, authorizeAnyPermission('MANAGE_STU
       filter.date = { $gte: start, $lte: end };
     }
     if (classId) filter.classId = classId;
+    if (academicYearId) filter.academicYearId = academicYearId;
 
     const incidents = await HealthIncident.find(filter)
       .populate('studentId', 'fullName avatar')
       .populate('classId', 'className')
       .populate('recordedBy', 'fullName username')
+      .populate('academicYearId', 'yearName')
       .sort({ date: -1, createdAt: -1 })
       .lean();
 
@@ -591,6 +655,7 @@ router.post('/health-incidents', authenticate, authorizeAnyPermission('MANAGE_ST
   try {
     const HealthIncident = require('../models/HealthIncident');
     const Student = require('../models/Student');
+    const AcademicYear = require('../models/AcademicYear');
     const { studentId, date, symptoms, description, severity, status } = req.body;
 
     if (!studentId) return res.status(400).json({ status: 'error', message: 'Vui lòng chọn học sinh' });
@@ -599,9 +664,13 @@ router.post('/health-incidents', authenticate, authorizeAnyPermission('MANAGE_ST
     const student = await Student.findById(studentId).select('classId').lean();
     if (!student) return res.status(404).json({ status: 'error', message: 'Không tìm thấy học sinh' });
 
+    // Auto-detect năm học active
+    const activeYear = await AcademicYear.findOne({ status: 'active' }).select('_id').lean();
+
     const incident = await HealthIncident.create({
       studentId,
       classId: student.classId || null,
+      academicYearId: activeYear?._id || null,
       date: date ? new Date(date) : new Date(),
       symptoms: symptoms.trim(),
       description: (description || '').trim(),
@@ -614,6 +683,7 @@ router.post('/health-incidents', authenticate, authorizeAnyPermission('MANAGE_ST
       .populate('studentId', 'fullName avatar')
       .populate('classId', 'className')
       .populate('recordedBy', 'fullName username')
+      .populate('academicYearId', 'yearName')
       .lean();
 
     return res.status(201).json({ status: 'success', message: 'Đã ghi nhận bất thường', data: populated });
@@ -1480,7 +1550,7 @@ router.get('/academic-years/history', authenticate, authorizePermissions('MANAGE
  *       201:
  *         description: Tạo năm học thành công
  */
-router.get('/academic-years', authenticate, authorizePermissions('MANAGE_ACADEMIC_YEAR'), academicYearController.listAcademicYears);
+router.get('/academic-years', authenticate, authorizeAnyPermission('MANAGE_ACADEMIC_YEAR', 'MANAGE_MENU', 'APPROVE_MENU'), academicYearController.listAcademicYears);
 router.post('/academic-years', authenticate, authorizePermissions('MANAGE_ACADEMIC_YEAR'), academicYearController.createAcademicYear);
 
 /**
@@ -2506,6 +2576,70 @@ router.get('/staff', authenticate, authorizePermissions('MANAGE_ASSET'), async (
 
 // Asset Inspection - Committees (Ban kiểm kê)
 // ============================================
+
+/**
+ * @openapi
+ * /api/school-admin/asset-committees:
+ *   get:
+ *     summary: Danh sách ban kiểm kê tài sản (Admin)
+ *     tags:
+ *       - SchoolAdmin - Asset Inspection
+ *     security:
+ *       - bearerAuth: []
+ *     parameters:
+ *       - in: query
+ *         name: academicYearId
+ *         schema:
+ *           type: string
+ *         description: Lọc theo năm học (ObjectId). Response có academicYearId.yearName.
+ *     responses:
+ *       200:
+ *         description: Danh sách ban kiểm kê
+ *   post:
+ *     summary: Tạo ban kiểm kê mới
+ *     tags:
+ *       - SchoolAdmin - Asset Inspection
+ *     security:
+ *       - bearerAuth: []
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             required:
+ *               - name
+ *               - foundedDate
+ *               - decisionNumber
+ *             properties:
+ *               name:
+ *                 type: string
+ *                 description: Tên ban kiểm kê
+ *               foundedDate:
+ *                 type: string
+ *                 format: date
+ *               decisionNumber:
+ *                 type: string
+ *                 description: Số quyết định thành lập
+ *               academicYearId:
+ *                 type: string
+ *                 description: ID năm học. Bỏ trống → tự động gán năm học đang active.
+ *               members:
+ *                 type: array
+ *                 description: Danh sách thành viên
+ *                 items:
+ *                   type: object
+ *                   properties:
+ *                     userId:
+ *                       type: string
+ *                     role:
+ *                       type: string
+ *     responses:
+ *       201:
+ *         description: Tạo ban kiểm kê thành công, academicYearId được gán tự động
+ *       409:
+ *         description: Thành viên đã thuộc ban kiểm kê đang hoạt động
+ */
 router.get('/asset-committees', authenticate, authorizePermissions('MANAGE_ASSET'), assetCtrl.listCommittees);
 router.post('/asset-committees', authenticate, authorizePermissions('MANAGE_ASSET'), assetCtrl.createCommittee);
 router.get('/asset-committees/:id', authenticate, authorizePermissions('MANAGE_ASSET'), assetCtrl.getCommittee);
@@ -2516,6 +2650,67 @@ router.patch('/asset-committees/:id/end', authenticate, authorizePermissions('MA
 // ============================================
 // Asset Inspection - Minutes (Biên bản kiểm kê)
 // ============================================
+
+/**
+ * @openapi
+ * /api/school-admin/asset-minutes:
+ *   get:
+ *     summary: Danh sách biên bản kiểm kê (Admin — xem toàn bộ)
+ *     tags:
+ *       - SchoolAdmin - Asset Inspection
+ *     security:
+ *       - bearerAuth: []
+ *     parameters:
+ *       - in: query
+ *         name: academicYearId
+ *         schema:
+ *           type: string
+ *         description: Lọc theo năm học (ObjectId). Response có yearName.
+ *     responses:
+ *       200:
+ *         description: Danh sách biên bản kiểm kê
+ *   post:
+ *     summary: Tạo biên bản kiểm kê mới (Admin)
+ *     tags:
+ *       - SchoolAdmin - Asset Inspection
+ *     security:
+ *       - bearerAuth: []
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             required:
+ *               - inspectionDate
+ *             properties:
+ *               academicYearId:
+ *                 type: string
+ *                 description: ID năm học. Bỏ trống → tự động gán năm học active.
+ *               inspectionDate:
+ *                 type: string
+ *                 format: date
+ *                 description: Ngày kiểm kê (bắt buộc)
+ *               committeeId:
+ *                 type: string
+ *               className:
+ *                 type: string
+ *               scope:
+ *                 type: string
+ *               location:
+ *                 type: string
+ *               assets:
+ *                 type: array
+ *                 items:
+ *                   type: object
+ *               conclusion:
+ *                 type: string
+ *     responses:
+ *       201:
+ *         description: Tạo biên bản thành công
+ *       400:
+ *         description: Thiếu inspectionDate
+ */
 router.get('/asset-minutes', authenticate, authorizePermissions('MANAGE_ASSET'), assetCtrl.listMinutes);
 router.post('/asset-minutes', authenticate, authorizePermissions('MANAGE_ASSET'), assetCtrl.createMinutes);
 router.get('/asset-minutes/:id/export-word', authenticate, authorizePermissions('MANAGE_ASSET'), assetCtrl.exportMinutesWord);
@@ -2564,6 +2759,25 @@ router.patch('/asset-allocations/:id/transfer', authenticate, authorizePermissio
 // ============================================
 // Purchase Requests (Yêu cầu mua sắm)
 // ============================================
+
+/**
+ * @openapi
+ * /api/school-admin/purchase-requests:
+ *   get:
+ *     summary: Danh sách toàn bộ yêu cầu mua sắm (Admin)
+ *     tags: [SchoolAdmin - Purchase]
+ *     security:
+ *       - bearerAuth: []
+ *     parameters:
+ *       - in: query
+ *         name: academicYearId
+ *         schema:
+ *           type: string
+ *         description: Lọc theo năm học
+ *     responses:
+ *       200:
+ *         description: Danh sách yêu cầu
+ */
 router.get('/purchase-requests', authenticate, authorizePermissions('MANAGE_PURCHASE_REQUEST'), purchaseCtrl.listAllRequests);
 router.patch('/purchase-requests/:id/approve', authenticate, authorizePermissions('MANAGE_PURCHASE_REQUEST'), purchaseCtrl.approveRequest);
 router.patch('/purchase-requests/:id/reject', authenticate, authorizePermissions('MANAGE_PURCHASE_REQUEST'), purchaseCtrl.rejectRequest);

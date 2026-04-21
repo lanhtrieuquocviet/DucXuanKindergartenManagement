@@ -1,148 +1,158 @@
+import { lazy, Suspense } from 'react';
 import { BrowserRouter as Router, Route, Routes } from 'react-router-dom';
 import './App.css';
-import MainLayout from './layouts/MainLayout';
-import HomePage from './pages/Homepage';
-import About from './pages/About';
-import Login from './pages/Login';
-import ForgotPassword from './pages/ForgotPassword';
-import SystemAdminDashboard from './pages/systemAdmin/AdminDashboard';
-import ManageAccounts from './pages/systemAdmin/ManageAccounts';
-import ManageRoles from './pages/systemAdmin/ManageRoles';
-import ManagePermissions from './pages/systemAdmin/ManagePermissions';
-import SystemLogs from './pages/systemAdmin/SystemLogs';
-import BPMDashboard from './pages/systemAdmin/BPMDashboard';
-import TeacherDashboard from './pages/teacher/TeacherDashboard';
-import TeacherAttendance from './pages/teacher/TeacherAttendance';
-import ContactBook from './pages/teacher/ContactBook';
-import ContactBookDetail from './pages/teacher/ContactBookDetail';
-import TeacherStudents from './pages/teacher/TeacherStudents';
-import StudentDashboard from './pages/student/StudentDashboard';
-import StudentContactBook from './pages/student/StudentContactBook';
-import PickupRegistration from './pages/student/PickupRegistration';
-import LeaveRequest from './pages/student/LeaveRequest';
-import TodayAttendance from './pages/student/TodayAttendance';
-import AttendanceReport from './pages/student/AttendanceReport';
-import SchoolAdminDashboard from './pages/schoolAdmin/SchoolAdminDashboard';
-import SchoolNurseDashboard from './pages/schoolNurse/SchoolNurseDashboard';
-import HealthCheckList from './pages/schoolNurse/HealthCheckList';
-import HealthCheckForm from './pages/schoolNurse/HealthCheckForm';
-import FollowUpManagement from './pages/schoolNurse/FollowUpManagement';
-import HealthReports from './pages/schoolNurse/HealthReports';
-import ClassList from './pages/schoolAdmin/ClassList';
-import ManageGradeCatalog from './pages/schoolAdmin/ManageGradeCatalog';
-import ManageStaticBlockCatalog from './pages/schoolAdmin/ManageStaticBlockCatalog';
-import StudentInClass from './pages/schoolAdmin/StudentInClass';
-import ManageStudents from './pages/schoolAdmin/ManageStudents';
-import StudentHealthReport from './pages/schoolAdmin/StudentHealthReport';
-import ManageTeachers from './pages/schoolAdmin/ManageTeachers';
-import ManageStaff from './pages/schoolAdmin/ManageStaff';
-import ManagePersonnel from './pages/schoolAdmin/ManagePersonnel';
-import ContactList from './pages/schoolAdmin/ContactList';
-import QaList from './pages/schoolAdmin/QaList';
-import AttendanceOverview from './pages/schoolAdmin/AttendanceOverview';
-import ClassAttendanceDetail from './pages/schoolAdmin/ClassAttendanceDetail';
-import StudentAttendanceDetail from './pages/schoolAdmin/StudentAttendanceDetail';
-import StudentAttendanceHistory from './pages/schoolAdmin/StudentAttendanceHistory';
-import ExportAttendanceReport from './pages/schoolAdmin/ExportAttendanceReport';
-import ManageBlogs from './pages/schoolAdmin/ManageBlogs';
-import ManageBlogCategories from './pages/schoolAdmin/ManageBlogCategories';
-import ManageDocuments from './pages/schoolAdmin/ManageDocuments';
-import ManageFiles from './pages/schoolAdmin/ManageFiles';
-import ManageImageLibrary from './pages/schoolAdmin/ManageImageLibrary';
-import ManageVideoLibrary from './pages/schoolAdmin/ManageVideoLibrary';
-import BlogDetail from './pages/schoolAdmin/BlogDetail';
-import DocumentDetail from './pages/schoolAdmin/DocumentDetail';
-import Contact from './pages/Contact';
-import Profile from './pages/Profile';
 import { AuthProvider } from './context/AuthContext';
 import { SystemAdminProvider } from './context/SystemAdminContext';
 import { SchoolAdminProvider } from './context/SchoolAdminContext';
 import { SchoolNurseProvider } from './context/SchoolNurseContext';
 import { TeacherProvider } from './context/TeacherContext';
+import MainLayout from './layouts/MainLayout';
 import SimpleLayout from './layouts/SimpleLayout';
-import QnAPage from './pages/QuesAndAn/QnAPage';
-import PublicInfoPage from './pages/PublicInformation/PublicInfoPage';
-import IntroductionSchool from './pages/Introduce/IntroductionSchool';
-import TeacherTeam from './pages/Introduce/TeacherTeam';
-import Facilities from './pages/Introduce/Facilities';
-import StudySchedule from './pages/Introduce/StudySchedule';
-import BoardOfDirectors from './pages/Introduce/BoardOfDirectors';
-import AdministrativeOffice from './pages/Introduce/AdministrativeOffice';
-import ParentsCouncil from './pages/Introduce/ParentsCouncil';
-import ProfessionalGroup from './pages/Introduce/ProfessionalGroup';
-import NewsPage from './pages/News/NewsPage';
-import NewsDetail from './pages/News/NewsDetail';
-import SearchResults from './pages/SearchResults';
-import LegalDocuments from './pages/Document/LegalDocuments';
-import DepartmentDocuments from './pages/Document/DepartmentDocuments';
-import PublicDocumentDetail from './pages/Document/DocumentDetail';
-import WeeklyMenu from './pages/Library/WeeklyMenu';
-import WeeklyProgram from './pages/Library/WeeklyProgram';
-import PhotoGallery from './pages/Library/PhotoGallery';
-import VideoGallery from './pages/Library/VideoGallery';
-import DocumentLibrary from './pages/Library/DocumentLibrary';
-import Schedule from './pages/Library/Schedule';
-import LessonPlan from './pages/Library/LessonPlan';
-import ExperienceSharing from './pages/Library/ExperienceSharing';
-import ThingsToKnow from './pages/Library/ThingsToKnow';
-import PoetryMusic from './pages/Library/PoetryMusic';
-import RelaxPage from './pages/Library/RelaxPage';
-import PublicInformationDetail from './pages/PublicInformation/PublicInformationDetail';
-import PublicInfoDetail from './pages/PublicInformation/PublicInfoDetail';
-import ManagePublicInfo from './pages/schoolAdmin/ManagePublicInfo';
-import ManageBanners from './pages/schoolAdmin/ManageBanners';
-import ManagePurchaseRequests from './pages/schoolAdmin/ManagePurchaseRequests';
-import PickupRequest from './pages/teacher/PickupRequest';
-import TeacherAssetInspection from './pages/teacher/TeacherAssetInspection';
-import TeacherPurchaseRequest from './pages/teacher/TeacherPurchaseRequest';
-import TeacherClassAssets from './pages/teacher/TeacherClassAssets';
-import HeadTeacherPurchaseRequests from './pages/teacher/HeadTeacherPurchaseRequests';
-import TeacherLeaveRequests from './pages/teacher/TeacherLeaveRequests';
-import KitchenLayout from './pages/kitchenStaff/KitchenLayout';
-import KitchenDashboard from './pages/kitchenStaff/KitchenDashboard';
-import MenuManagement from './pages/kitchenStaff/MenuManagement';
-import MenuDetail from './pages/kitchenStaff/MenuDetails';
-import CreateMenu from './components/CreateMenu';
-import FoodManagement from './pages/kitchenStaff/FoodManagemet';
-import IngredientManagement from './pages/kitchenStaff/IngredientManagement';
-import MealManagement from './pages/kitchenStaff/MealManagement';
-import MealHeadcount from './pages/kitchenStaff/MealHeadcount';
-import UploadSampleFood from './pages/kitchenStaff/UploadSampleFood';
-import MenuReport from './pages/kitchenStaff/MenuReport';
-import DistrictNutritionKitchen from './pages/kitchenStaff/DistrictNutritionKitchen';
-import MenuSchoolAdmin from './pages/schoolAdmin/MenuSchoolAdmin';
-import MenuDetailSchoolAdmin from './pages/schoolAdmin/MenuDetailSchoolAdmin';
-import MenuStudent from './pages/student/MenuStudent';
-import MenuDetailStudent from './pages/student/MenuDetailStudent';
-import MealPhotosStudent from './pages/student/MealPhotosStudent';
-import ManageAcademicYears from './pages/schoolAdmin/ManageAcademicYears';
-import AcademicYearDetail from './pages/schoolAdmin/AcademicYearDetail';
-import AcademicYearReport from './pages/schoolAdmin/AcademicYearReport';
-import MealManagementSchoolAdmin from './pages/schoolAdmin/MealManagementSchoolAdmin';
-import DistrictNutritionPlanSchoolAdmin from './pages/schoolAdmin/DistrictNutritionPlanSchoolAdmin';
-import AcademicYearPlan from './pages/schoolAdmin/AcademicYearPlan';
-import AcademicEventSetup from './pages/schoolAdmin/AcademicEventSetup';
-import CurriculumPage from './pages/schoolAdmin/CurriculumPage';
-import ClassListOverview from './pages/schoolAdmin/ClassListOverview';
-import TimetableActivitiesPage from './pages/schoolAdmin/TimetableActivitiesPage';
-import FaceAttendancePage from './pages/schoolAdmin/FaceAttendancePage';
-import ManageAssets from './pages/schoolAdmin/ManageAssets';
-import ManageAssetAllocation from './pages/schoolAdmin/ManageAssetAllocation';
-import ManageRoomAssets from './pages/schoolAdmin/ManageRoomAssets';
-import ManageCommittee from './pages/schoolAdmin/ManageCommittee';
-import ManageMinutes from './pages/schoolAdmin/ManageMinutes';
 import ProtectedRoute from './components/ProtectedRoute';
-import MedicalStaffDashboard from './pages/medicalStaff/MedicalStaffDashboard';
-import StudentHealthManagement from './pages/medicalStaff/StudentHealthManagement';
-import StudentHealthHistory from './pages/medicalStaff/StudentHealthHistory';
-import HealthIncidentPage from './pages/medicalStaff/HealthIncidentPage';
-import StudentDetailPage from './pages/schoolAdmin/StudentDetailPage';
-import MenuHeadParent from './pages/headParent/MenuHeadParent';
-import MenuDetailHeadParent from './pages/headParent/MenuDetailHeadParent';
+import KitchenLayout from './pages/kitchenStaff/KitchenLayout';
+
+// Lazy load components
+const HomePage = lazy(() => import('./pages/Homepage'));
+const About = lazy(() => import('./pages/About'));
+const Login = lazy(() => import('./pages/Login'));
+const ForgotPassword = lazy(() => import('./pages/ForgotPassword'));
+const SystemAdminDashboard = lazy(() => import('./pages/systemAdmin/AdminDashboard'));
+const ManageAccounts = lazy(() => import('./pages/systemAdmin/ManageAccounts'));
+const ManageRoles = lazy(() => import('./pages/systemAdmin/ManageRoles'));
+const ManagePermissions = lazy(() => import('./pages/systemAdmin/ManagePermissions'));
+const SystemLogs = lazy(() => import('./pages/systemAdmin/SystemLogs'));
+const BPMDashboard = lazy(() => import('./pages/systemAdmin/BPMDashboard'));
+const TeacherDashboard = lazy(() => import('./pages/teacher/TeacherDashboard'));
+const TeacherAttendance = lazy(() => import('./pages/teacher/TeacherAttendance'));
+const ContactBook = lazy(() => import('./pages/teacher/ContactBook'));
+const ContactBookDetail = lazy(() => import('./pages/teacher/ContactBookDetail'));
+const TeacherStudents = lazy(() => import('./pages/teacher/TeacherStudents'));
+const TeacherEvaluation = lazy(() => import('./pages/teacher/TeacherEvaluation'));
+const StudentDashboard = lazy(() => import('./pages/student/StudentDashboard'));
+const StudentContactBook = lazy(() => import('./pages/student/StudentContactBook'));
+const PickupRegistration = lazy(() => import('./pages/student/PickupRegistration'));
+const LeaveRequest = lazy(() => import('./pages/student/LeaveRequest'));
+const TodayAttendance = lazy(() => import('./pages/student/TodayAttendance'));
+const AttendanceReport = lazy(() => import('./pages/student/AttendanceReport'));
+const SchoolAdminDashboard = lazy(() => import('./pages/schoolAdmin/SchoolAdminDashboard'));
+const SchoolNurseDashboard = lazy(() => import('./pages/schoolNurse/SchoolNurseDashboard'));
+const HealthCheckList = lazy(() => import('./pages/schoolNurse/HealthCheckList'));
+const HealthCheckForm = lazy(() => import('./pages/schoolNurse/HealthCheckForm'));
+const FollowUpManagement = lazy(() => import('./pages/schoolNurse/FollowUpManagement'));
+const HealthReports = lazy(() => import('./pages/schoolNurse/HealthReports'));
+const ClassList = lazy(() => import('./pages/schoolAdmin/ClassList'));
+const ManageGradeCatalog = lazy(() => import('./pages/schoolAdmin/ManageGradeCatalog'));
+const ManageStaticBlockCatalog = lazy(() => import('./pages/schoolAdmin/ManageStaticBlockCatalog'));
+const StudentInClass = lazy(() => import('./pages/schoolAdmin/StudentInClass'));
+const ManageStudents = lazy(() => import('./pages/schoolAdmin/ManageStudents'));
+const StudentHealthReport = lazy(() => import('./pages/schoolAdmin/StudentHealthReport'));
+const ManageTeachers = lazy(() => import('./pages/schoolAdmin/ManageTeachers'));
+const ManageStaff = lazy(() => import('./pages/schoolAdmin/ManageStaff'));
+const ManagePersonnel = lazy(() => import('./pages/schoolAdmin/ManagePersonnel'));
+const ContactList = lazy(() => import('./pages/schoolAdmin/ContactList'));
+const QaList = lazy(() => import('./pages/schoolAdmin/QaList'));
+const AttendanceOverview = lazy(() => import('./pages/schoolAdmin/AttendanceOverview'));
+const ClassAttendanceDetail = lazy(() => import('./pages/schoolAdmin/ClassAttendanceDetail'));
+const StudentAttendanceDetail = lazy(() => import('./pages/schoolAdmin/StudentAttendanceDetail'));
+const StudentAttendanceHistory = lazy(() => import('./pages/schoolAdmin/StudentAttendanceHistory'));
+const ExportAttendanceReport = lazy(() => import('./pages/schoolAdmin/ExportAttendanceReport'));
+const ManageBlogs = lazy(() => import('./pages/schoolAdmin/ManageBlogs'));
+const ManageBlogCategories = lazy(() => import('./pages/schoolAdmin/ManageBlogCategories'));
+const ManageDocuments = lazy(() => import('./pages/schoolAdmin/ManageDocuments'));
+const ManageFiles = lazy(() => import('./pages/schoolAdmin/ManageFiles'));
+const ManageImageLibrary = lazy(() => import('./pages/schoolAdmin/ManageImageLibrary'));
+const ManageVideoLibrary = lazy(() => import('./pages/schoolAdmin/ManageVideoLibrary'));
+const BlogDetail = lazy(() => import('./pages/schoolAdmin/BlogDetail'));
+const DocumentDetail = lazy(() => import('./pages/schoolAdmin/DocumentDetail'));
+const Contact = lazy(() => import('./pages/Contact'));
+const Profile = lazy(() => import('./pages/Profile'));
+const QnAPage = lazy(() => import('./pages/QuesAndAn/QnAPage'));
+const PublicInfoPage = lazy(() => import('./pages/PublicInformation/PublicInfoPage'));
+const IntroductionSchool = lazy(() => import('./pages/Introduce/IntroductionSchool'));
+const TeacherTeam = lazy(() => import('./pages/Introduce/TeacherTeam'));
+const Facilities = lazy(() => import('./pages/Introduce/Facilities'));
+const StudySchedule = lazy(() => import('./pages/Introduce/StudySchedule'));
+const BoardOfDirectors = lazy(() => import('./pages/Introduce/BoardOfDirectors'));
+const AdministrativeOffice = lazy(() => import('./pages/Introduce/AdministrativeOffice'));
+const ParentsCouncil = lazy(() => import('./pages/Introduce/ParentsCouncil'));
+const ProfessionalGroup = lazy(() => import('./pages/Introduce/ProfessionalGroup'));
+const NewsPage = lazy(() => import('./pages/News/NewsPage'));
+const NewsDetail = lazy(() => import('./pages/News/NewsDetail'));
+const SearchResults = lazy(() => import('./pages/SearchResults'));
+const LegalDocuments = lazy(() => import('./pages/Document/LegalDocuments'));
+const DepartmentDocuments = lazy(() => import('./pages/Document/DepartmentDocuments'));
+const PublicDocumentDetail = lazy(() => import('./pages/Document/DocumentDetail'));
+const WeeklyMenu = lazy(() => import('./pages/Library/WeeklyMenu'));
+const WeeklyProgram = lazy(() => import('./pages/Library/WeeklyProgram'));
+const PhotoGallery = lazy(() => import('./pages/Library/PhotoGallery'));
+const VideoGallery = lazy(() => import('./pages/Library/VideoGallery'));
+const DocumentLibrary = lazy(() => import('./pages/Library/DocumentLibrary'));
+const Schedule = lazy(() => import('./pages/Library/Schedule'));
+const LessonPlan = lazy(() => import('./pages/Library/LessonPlan'));
+const ExperienceSharing = lazy(() => import('./pages/Library/ExperienceSharing'));
+const ThingsToKnow = lazy(() => import('./pages/Library/ThingsToKnow'));
+const PoetryMusic = lazy(() => import('./pages/Library/PoetryMusic'));
+const RelaxPage = lazy(() => import('./pages/Library/RelaxPage'));
+const PublicInformationDetail = lazy(() => import('./pages/PublicInformation/PublicInformationDetail'));
+const PublicInfoDetail = lazy(() => import('./pages/PublicInformation/PublicInfoDetail'));
+const ManagePublicInfo = lazy(() => import('./pages/schoolAdmin/ManagePublicInfo'));
+const ManageBanners = lazy(() => import('./pages/schoolAdmin/ManageBanners'));
+const ManagePurchaseRequests = lazy(() => import('./pages/schoolAdmin/ManagePurchaseRequests'));
+const PickupRequest = lazy(() => import('./pages/teacher/PickupRequest'));
+const TeacherAssetInspection = lazy(() => import('./pages/teacher/TeacherAssetInspection'));
+const TeacherPurchaseRequest = lazy(() => import('./pages/teacher/TeacherPurchaseRequest'));
+const TeacherClassAssets = lazy(() => import('./pages/teacher/TeacherClassAssets'));
+const HeadTeacherPurchaseRequests = lazy(() => import('./pages/teacher/HeadTeacherPurchaseRequests'));
+const TeacherLeaveRequests = lazy(() => import('./pages/teacher/TeacherLeaveRequests'));
+const KitchenDashboard = lazy(() => import('./pages/kitchenStaff/KitchenDashboard'));
+const MenuManagement = lazy(() => import('./pages/kitchenStaff/MenuManagement'));
+const MenuDetail = lazy(() => import('./pages/kitchenStaff/MenuDetails'));
+const CreateMenu = lazy(() => import('./components/CreateMenu'));
+const FoodManagement = lazy(() => import('./pages/kitchenStaff/FoodManagemet'));
+const IngredientManagement = lazy(() => import('./pages/kitchenStaff/IngredientManagement'));
+const MealManagement = lazy(() => import('./pages/kitchenStaff/MealManagement'));
+const MealHeadcount = lazy(() => import('./pages/kitchenStaff/MealHeadcount'));
+const UploadSampleFood = lazy(() => import('./pages/kitchenStaff/UploadSampleFood'));
+const MenuReport = lazy(() => import('./pages/kitchenStaff/MenuReport'));
+const DistrictNutritionKitchen = lazy(() => import('./pages/kitchenStaff/DistrictNutritionKitchen'));
+const MenuSchoolAdmin = lazy(() => import('./pages/schoolAdmin/MenuSchoolAdmin'));
+const MenuDetailSchoolAdmin = lazy(() => import('./pages/schoolAdmin/MenuDetailSchoolAdmin'));
+const MenuStudent = lazy(() => import('./pages/student/MenuStudent'));
+const MenuDetailStudent = lazy(() => import('./pages/student/MenuDetailStudent'));
+const MealPhotosStudent = lazy(() => import('./pages/student/MealPhotosStudent'));
+const ManageAcademicYears = lazy(() => import('./pages/schoolAdmin/ManageAcademicYears'));
+const AcademicYearDetail = lazy(() => import('./pages/schoolAdmin/AcademicYearDetail'));
+const AcademicYearReport = lazy(() => import('./pages/schoolAdmin/AcademicYearReport'));
+const MealManagementSchoolAdmin = lazy(() => import('./pages/schoolAdmin/MealManagementSchoolAdmin'));
+const DistrictNutritionPlanSchoolAdmin = lazy(() => import('./pages/schoolAdmin/DistrictNutritionPlanSchoolAdmin'));
+const AcademicYearPlan = lazy(() => import('./pages/schoolAdmin/AcademicYearPlan'));
+const AcademicEventSetup = lazy(() => import('./pages/schoolAdmin/AcademicEventSetup'));
+const CurriculumPage = lazy(() => import('./pages/schoolAdmin/CurriculumPage'));
+const ClassListOverview = lazy(() => import('./pages/schoolAdmin/ClassListOverview'));
+const TimetableActivitiesPage = lazy(() => import('./pages/schoolAdmin/TimetableActivitiesPage'));
+const FaceAttendancePage = lazy(() => import('./pages/schoolAdmin/FaceAttendancePage'));
+const ManageAssets = lazy(() => import('./pages/schoolAdmin/ManageAssets'));
+const ManageAssetAllocation = lazy(() => import('./pages/schoolAdmin/ManageAssetAllocation'));
+const ManageRoomAssets = lazy(() => import('./pages/schoolAdmin/ManageRoomAssets'));
+const ManageCommittee = lazy(() => import('./pages/schoolAdmin/ManageCommittee'));
+const ManageMinutes = lazy(() => import('./pages/schoolAdmin/ManageMinutes'));
+const MedicalStaffDashboard = lazy(() => import('./pages/medicalStaff/MedicalStaffDashboard'));
+const StudentHealthManagement = lazy(() => import('./pages/medicalStaff/StudentHealthManagement'));
+const StudentHealthHistory = lazy(() => import('./pages/medicalStaff/StudentHealthHistory'));
+const HealthIncidentPage = lazy(() => import('./pages/medicalStaff/HealthIncidentPage'));
+const StudentDetailPage = lazy(() => import('./pages/schoolAdmin/StudentDetailPage'));
+const MenuHeadParent = lazy(() => import('./pages/headParent/MenuHeadParent'));
+const MenuDetailHeadParent = lazy(() => import('./pages/headParent/MenuDetailHeadParent'));
+
+const LoadingFallback = () => (
+  <div className="flex h-screen w-full items-center justify-center bg-white/50 backdrop-blur-sm">
+    <div className="h-12 w-12 animate-spin rounded-full border-4 border-amber-500 border-t-transparent"></div>
+  </div>
+);
 
 function AppContent() {
   return (
-    <>
+    <Suspense fallback={<LoadingFallback />}>
       <Routes>
         <Route path="/" element={<HomePage />} />
         <Route path="/about" element={<About />} />
@@ -211,7 +221,7 @@ function AppContent() {
         {/* 404 route phải ở cuối cùng */}
         <Route path="*" element={<div>404 Not Found</div>} />
       </Routes>
-    </>
+    </Suspense>
   );
 }
 
@@ -219,16 +229,17 @@ function App() {
   return (
     <Router>
       <AuthProvider>
-        <Routes>
-          {/* Trang login / forgot-password KHÔNG dùng MainLayout */}
-          <Route
-            path="/*"
-            element={
-              <MainLayout>
-                <AppContent />
-              </MainLayout>
-            }
-          />
+        <Suspense fallback={<LoadingFallback />}>
+          <Routes>
+            {/* Trang login / forgot-password KHÔNG dùng MainLayout */}
+            <Route
+              path="/*"
+              element={
+                <MainLayout>
+                  <AppContent />
+                </MainLayout>
+              }
+            />
           <Route path="/login" element={<Login />} />
           <Route path="/forgot-password" element={<ForgotPassword />} />
           <Route
@@ -327,6 +338,16 @@ function App() {
               <ProtectedRoute>
                 <TeacherProvider>
                   <TeacherStudents />
+                </TeacherProvider>
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/teacher/evaluation"
+            element={
+              <ProtectedRoute>
+                <TeacherProvider>
+                  <TeacherEvaluation />
                 </TeacherProvider>
               </ProtectedRoute>
             }
@@ -1067,6 +1088,7 @@ function App() {
             }
           />
         </Routes>
+      </Suspense>
       </AuthProvider>
     </Router>
   );

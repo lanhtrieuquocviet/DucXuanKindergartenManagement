@@ -46,4 +46,8 @@ const SystemLogSchema = new mongoose.Schema(
   { timestamps: true }
 );
 
+SystemLogSchema.index({ createdAt: -1 });
+SystemLogSchema.index({ actorName: 1 });
+SystemLogSchema.index({ action: 1 });
+
 module.exports = mongoose.model('SystemLog', SystemLogSchema);

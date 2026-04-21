@@ -4,7 +4,7 @@ import { get, ENDPOINTS } from "../service/api";
 import LeftNav from "./LeftNav";
 import RightNav from "./RightNav";
 
-const CLOSE_DELAY = 300; // 30 tích tắc
+const CLOSE_DELAY = 500; // Tăng lên 500ms để dễ dùng hơn
 
 function Header() {
     const timerRef = useRef(null);
@@ -250,12 +250,14 @@ function Header() {
                                                 {item.label}
                                                 <span className="text-gray-400 ml-2">▶</span>
                                             </div>
-                                            <div className="absolute top-0 left-full ml-1 hidden group-hover:block bg-white rounded-xl shadow-xl min-w-[140px] z-50">
-                                                {years.map((y) => (
-                                                    <a key={y} href={`/public-information/${item.slug}/${y}`}>
-                                                        <div className="px-4 py-3 hover:bg-green-100">Năm {y}</div>
-                                                    </a>
-                                                ))}
+                                            <div className="absolute top-0 left-full -ml-1 pl-1 hidden group-hover:block z-50">
+                                                <div className="bg-white rounded-xl shadow-xl min-w-[140px] border border-gray-50 py-1">
+                                                    {years.map((y) => (
+                                                        <a key={y} href={`/public-information/${item.slug}/${y}`}>
+                                                            <div className="px-4 py-3 hover:bg-green-100">Năm {y}</div>
+                                                        </a>
+                                                    ))}
+                                                </div>
                                             </div>
                                         </div>
                                     ))}
@@ -280,38 +282,42 @@ function Header() {
                                             Cơ cấu tổ chức
                                             <span className="text-gray-400">▶</span>
                                         </div>
-                                        <div className="absolute top-0 left-full ml-1 hidden group-hover:block bg-white rounded-xl shadow-xl min-w-[300px] z-50">
-                                            {(organizationGroups.length > 0 ? organizationGroups : [
-                                                { key: 'boardOfDirectors', label: 'Ban giám hiệu', route: '/board-of-directors', members: [] },
-                                                { key: 'professionalGroup', label: 'Tổ Chuyên môn', route: '/professional-group', members: [] },
-                                                { key: 'administrativeGroup', label: 'Tổ Hành chính - Văn phòng', route: '/administrative-staff', members: [] },
-                                                { key: 'parentCouncil', label: 'Hội Thường trực PHHS', route: '/parent-council', members: [] },
-                                            ]).map((group, idx, arr) => (
-                                                <div key={group.key} className={`relative group/item ${idx === 0 ? 'rounded-t-xl' : ''} ${idx === arr.length - 1 ? 'rounded-b-xl' : ''}`}>
-                                                    <a href={group.route}>
-                                                        <div className={`px-4 py-3 hover:bg-green-100 flex justify-between cursor-pointer ${idx === 0 ? 'rounded-t-xl' : ''} ${idx === arr.length - 1 ? 'rounded-b-xl' : ''}`}>
-                                                            <span>{group.label}</span>
-                                                            <span className="text-gray-400">▶</span>
-                                                        </div>
-                                                    </a>
-                                                    <div className="absolute top-0 left-full ml-1 hidden group-hover/item:block bg-white rounded-xl shadow-xl min-w-[260px] z-50">
-                                                        {group.members.length > 0 ? (
-                                                            group.members.map((member, memberIdx) => (
-                                                                <div
-                                                                    key={`${group.key}-${member}-${memberIdx}`}
-                                                                    className={`px-4 py-2.5 hover:bg-green-100 text-sm ${memberIdx === 0 ? 'rounded-t-xl' : ''} ${memberIdx === group.members.length - 1 ? 'rounded-b-xl' : ''}`}
-                                                                >
-                                                                    {member.fullName || '—'}
-                                                                </div>
-                                                            ))
-                                                        ) : (
-                                                            <div className="px-4 py-2.5 text-sm text-gray-500 rounded-xl">
-                                                                Chưa cập nhật nhân sự
+                                        <div className="absolute top-0 left-full -ml-1 pl-1 hidden group-hover:block z-50">
+                                            <div className="bg-white rounded-xl shadow-xl min-w-[300px] border border-gray-50 py-1">
+                                                {(organizationGroups.length > 0 ? organizationGroups : [
+                                                    { key: 'boardOfDirectors', label: 'Ban giám hiệu', route: '/board-of-directors', members: [] },
+                                                    { key: 'professionalGroup', label: 'Tổ Chuyên môn', route: '/professional-group', members: [] },
+                                                    { key: 'administrativeGroup', label: 'Tổ Hành chính - Văn phòng', route: '/administrative-staff', members: [] },
+                                                    { key: 'parentCouncil', label: 'Hội Thường trực PHHS', route: '/parent-council', members: [] },
+                                                ]).map((group, idx, arr) => (
+                                                    <div key={group.key} className={`relative group/item ${idx === 0 ? 'rounded-t-xl' : ''} ${idx === arr.length - 1 ? 'rounded-b-xl' : ''}`}>
+                                                        <a href={group.route}>
+                                                            <div className={`px-4 py-3 hover:bg-green-100 flex justify-between cursor-pointer ${idx === 0 ? 'rounded-t-xl' : ''} ${idx === arr.length - 1 ? 'rounded-b-xl' : ''}`}>
+                                                                <span>{group.label}</span>
+                                                                <span className="text-gray-400">▶</span>
                                                             </div>
-                                                        )}
+                                                        </a>
+                                                        <div className="absolute top-0 left-full -ml-1 pl-1 hidden group-hover/item:block z-50">
+                                                            <div className="bg-white rounded-xl shadow-xl min-w-[260px] border border-gray-50 py-1">
+                                                                {group.members.length > 0 ? (
+                                                                    group.members.map((member, memberIdx) => (
+                                                                        <div
+                                                                            key={`${group.key}-${member}-${memberIdx}`}
+                                                                            className={`px-4 py-2.5 hover:bg-green-100 text-sm ${memberIdx === 0 ? 'rounded-t-xl' : ''} ${memberIdx === group.members.length - 1 ? 'rounded-b-xl' : ''}`}
+                                                                        >
+                                                                            {member.fullName || '—'}
+                                                                        </div>
+                                                                    ))
+                                                                ) : (
+                                                                    <div className="px-4 py-2.5 text-sm text-gray-500 rounded-xl">
+                                                                        Chưa cập nhật nhân sự
+                                                                    </div>
+                                                                )}
+                                                            </div>
+                                                        </div>
                                                     </div>
-                                                </div>
-                                            ))}
+                                                ))}
+                                            </div>
                                         </div>
                                     </div>
                                 </div>

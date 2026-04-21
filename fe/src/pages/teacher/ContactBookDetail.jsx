@@ -2,7 +2,7 @@ import { useEffect, useMemo, useState, useCallback, useRef } from 'react';
 import { useLocation, useNavigate, useParams } from 'react-router-dom';
 import { useAuth } from '../../context/AuthContext';
 import RoleLayout from '../../layouts/RoleLayout';
-import { get, post, del, postFormData, ENDPOINTS } from '../../service/api';
+import { get, post, put, del, postFormData, ENDPOINTS } from '../../service/api';
 import { toast } from 'react-toastify';
 import {
   Box, Paper, Typography, Avatar, Chip, Skeleton, Alert, Stack,
@@ -11,6 +11,7 @@ import {
   MenuItem, Select, LinearProgress, IconButton, Button, Tooltip,
   Dialog, DialogTitle, DialogContent, DialogActions,
   Table, TableHead, TableBody, TableRow, TableCell, TableContainer,
+  Radio, FormControlLabel, FormControl,
 } from '@mui/material';
 import {
   ArrowBack as BackIcon,
@@ -33,6 +34,7 @@ import {
   AddPhotoAlternate as AddPhotoIcon,
   Close as CloseIcon,
   Send as SendIcon,
+  Grading as GradingIcon,
 } from '@mui/icons-material';
 
 // ── helpers ──────────────────────────────────────────────────
@@ -63,6 +65,7 @@ function getTeacherMenuItems(hasPermission, hasRole) {
   const ALL_TEACHER_MENU = [
     { key: 'classes', label: 'Lớp phụ trách' },
     { key: 'students', label: 'Danh sách học sinh' },
+    { key: 'evaluation', label: 'Đánh giá học sinh' },
     { key: 'attendance', label: 'Điểm danh', permission: 'MANAGE_ATTENDANCE' },
     { key: 'pickup-approval', label: 'Đơn đăng ký đưa đón', permission: 'MANAGE_PICKUP' },
     { key: 'leave-requests', label: 'Danh sách đơn xin nghỉ', permission: 'MANAGE_ATTENDANCE' },
@@ -832,6 +835,101 @@ function TabGhiChu({ classId, studentId }) {
   );
 }
 
+function TabDanhGia({ studentId }) {
+  const [loading, setLoading] = useState(true);
+  const [saving, setSaving] = useState(false);
+  const [evalData, setEvalData] = useState({ academicEvaluation: null, evaluationNote: '' });
+
+  const fetchEval = useCallback(async () => {
+    setLoading(true);
+    try {
+      const res = await get(ENDPOINTS.TEACHER.STUDENT_EVALUATION(studentId));
+      if (res.data?.evaluation) {
+        setEvalData({
+          academicEvaluation: res.data.evaluation.academicEvaluation,
+          evaluationNote: res.data.evaluation.evaluationNote || ''
+        });
+      } else {
+        setEvalData({ academicEvaluation: null, evaluationNote: '' });
+      }
+    } catch (_) {
+      // ignore
+    } finally {
+      setLoading(false);
+    }
+  }, [studentId]);
+
+  useEffect(() => {
+    fetchEval();
+  }, [fetchEval]);
+
+  const handleSave = async () => {
+    if (!evalData.academicEvaluation) {
+      toast.error('Vui lòng chọn kết quả đánh giá');
+      return;
+    }
+    setSaving(true);
+    try {
+      await put(ENDPOINTS.TEACHER.STUDENT_EVALUATION(studentId), {
+        academicEvaluation: evalData.academicEvaluation,
+        evaluationNote: evalData.evaluationNote.trim(),
+      });
+      toast.success('Đã lưu đánh giá học tập');
+    } catch (err) {
+      toast.error(err.data?.message || err.message || 'Lưu thất bại');
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  if (loading) return <Skeleton variant="rounded" height={200} sx={{ borderRadius: 3 }} />;
+
+  return (
+    <Box>
+      <Typography variant="subtitle2" fontWeight={700} gutterBottom sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+        <GradingIcon sx={{ fontSize: 20, color: '#0891b2' }} />
+        Đánh giá học tập tổng quan
+      </Typography>
+      <Paper elevation={0} sx={{ p: 2.5, borderRadius: 3, border: '1px solid', borderColor: 'divider', bgcolor: '#f8fafc', mt: 2 }}>
+        <Stack spacing={3}>
+          <FormControl component="fieldset">
+            <Typography variant="body2" fontWeight={600} gutterBottom>Kết quả đánh giá *</Typography>
+            <Stack direction="row" spacing={4}>
+              <FormControlLabel
+                control={<Radio checked={evalData.academicEvaluation === 'đạt'} onChange={() => setEvalData(p => ({ ...p, academicEvaluation: 'đạt' }))} color="success" />}
+                label={<Typography variant="body2" fontWeight={600} color="success.main">Đạt yêu cầu</Typography>}
+              />
+              <FormControlLabel
+                control={<Radio checked={evalData.academicEvaluation === 'chưa đạt'} onChange={() => setEvalData(p => ({ ...p, academicEvaluation: 'chưa đạt' }))} color="error" />}
+                label={<Typography variant="body2" fontWeight={600} color="error.main">Chưa đạt yêu cầu</Typography>}
+              />
+            </Stack>
+          </FormControl>
+
+          <TextField
+            label="Ghi chú & Nhận xét" fullWidth multiline minRows={4}
+            value={evalData.evaluationNote} onChange={e => setEvalData(p => ({ ...p, evaluationNote: e.target.value }))}
+            placeholder="Nhập nhận xét chi tiết về quá trình học tập và rèn luyện của bé..."
+            sx={{ '& .MuiOutlinedInput-root': { bgcolor: 'white', borderRadius: 2 } }}
+          />
+
+          <Box sx={{ display: 'flex', justifyContent: 'flex-end' }}>
+            <Button
+              variant="contained" onClick={handleSave} disabled={saving}
+              sx={{ bgcolor: '#0891b2', '&:hover': { bgcolor: '#0e7490' }, borderRadius: 2, px: 4, py: 1, fontWeight: 700, textTransform: 'none' }}
+            >
+              {saving ? 'Đang lưu...' : 'Lưu đánh giá'}
+            </Button>
+          </Box>
+        </Stack>
+      </Paper>
+      <Typography variant="caption" color="text.secondary" sx={{ display: 'block', mt: 2, fontStyle: 'italic' }}>
+        * Kết quả đánh giá này sẽ được hiển thị trong sổ liên lạc của phụ huynh.
+      </Typography>
+    </Box>
+  );
+}
+
 // ── Main component ────────────────────────────────────────────
 export default function ContactBookDetail() {
   const { classId } = useParams();
@@ -899,6 +997,7 @@ export default function ContactBookDetail() {
   const activeKey = useMemo(() => {
     const path = location.pathname || '';
     if (path.startsWith('/teacher/contact-book')) return 'contact-book';
+    if (path.startsWith('/teacher/evaluation')) return 'evaluation';
     return 'classes';
   }, [location.pathname]);
 
@@ -906,6 +1005,7 @@ export default function ContactBookDetail() {
     const MAP = {
       classes: '/teacher',
       students: '/teacher/students',
+      evaluation: '/teacher/evaluation',
       'contact-book': '/teacher/contact-book',
       attendance: '/teacher/attendance',
       'pickup-approval': '/teacher/pickup-approval',
@@ -929,6 +1029,7 @@ export default function ContactBookDetail() {
   const TABS = [
     { label: 'Điểm danh', icon: <CalendarIcon fontSize="small" /> },
     { label: 'Hồ sơ',     icon: <PersonIcon fontSize="small" /> },
+    { label: 'Đánh giá',  icon: <GradingIcon fontSize="small" /> },
     { label: 'Sức khỏe',  icon: <HealthIcon fontSize="small" /> },
     { label: 'Thực đơn',  icon: <MenuIcon fontSize="small" /> },
     { label: 'Ghi chú',   icon: <NoteTabIcon fontSize="small" /> },
@@ -1139,12 +1240,15 @@ export default function ContactBookDetail() {
                     <TabHoSo student={selected} />
                   )}
                   {tab === 2 && (
-                    <TabSucKhoe records={healthRecords} healthLoading={healthLoading} />
+                    <TabDanhGia studentId={selected._id} />
                   )}
                   {tab === 3 && (
-                    <TabThucDon />
+                    <TabSucKhoe records={healthRecords} healthLoading={healthLoading} />
                   )}
                   {tab === 4 && (
+                    <TabThucDon />
+                  )}
+                  {tab === 5 && (
                     <TabGhiChu classId={classId} studentId={selected._id} />
                   )}
                 </Box>

@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
+import { Skeleton } from '@mui/material';
 import { get, ENDPOINTS } from '../service/api';
 
 const WHY_CHOOSE_ITEMS = [
@@ -38,118 +39,41 @@ function Homepage() {
   const [galleryPhotos, setGalleryPhotos] = useState([]);
 
   useEffect(() => {
-    const loadFeatured = async () => {
+    const loadAllData = async () => {
       setLoading(true);
       setError(null);
+      
       try {
-        const resp = await get('/blogs/categories');
-        const cats = resp.data || resp;
-        const posts = [];
+        const resp = await get(ENDPOINTS.HOME_DATA, { includeAuth: false });
+        const { banners: bannerList, featuredBlogs, gallery, organizationStructure, timetable: timetableData } = resp.data;
 
-        for (const c of cats) {
-          try {
-            const r2 = await get(`/blogs/published?category=${c._id}&limit=1`);
-            const items = r2.data?.items || [];
-            if (items.length > 0) {
-              const b = items[0];
-              posts.push({
-                id: b._id,
-                title: b.title || b.code || 'Bài viết mới',
-                content: stripHtml(b.description),
-                image: b.images?.[0] || null,
-                category: c.name,
-                createdAt: b.createdAt || null,
-              });
-            }
-          } catch {
-            // ignore
-          }
-        }
-        setFeatured(posts);
-      } catch (err) {
-        setError(err.message || 'Không tải được tin nổi bật');
-      } finally {
-        setLoading(false);
-      }
-    };
-    loadFeatured();
-  }, []);
+        // Process Banners
+        setBanners(bannerList.map(item => item?.imageUrl).filter(Boolean));
 
-  useEffect(() => {
-    const loadGallery = async () => {
-      try {
-        const resp = await get(ENDPOINTS.IMAGE_LIBRARY.LIST, { includeAuth: false });
-        const list = resp?.data || [];
-        const normalized = list
-          .filter((item) => (item?.imageUrls?.length || 0) > 0 || item?.imageUrl)
-          .map((item) => ({
+        // Process Gallery
+        setGalleryPhotos(gallery
+          .map(item => ({
             title: item.title || 'Ảnh thư viện',
             img: item.imageUrls?.[0] || item.imageUrl,
             id: item._id || item.imageUrl,
-          }));
-        setGalleryPhotos(normalized.slice(0, 6));
-      } catch {
-        setGalleryPhotos([]);
-      }
-    };
-    loadGallery();
-  }, []);
+          }))
+        );
 
-  useEffect(() => {
-    const loadBanners = async () => {
-      try {
-        const resp = await get(ENDPOINTS.BANNERS.HOMEPAGE, { includeAuth: false });
-        const list = resp?.data?.banners || [];
-        const urls = list.map((item) => item?.imageUrl).filter(Boolean);
-        setBanners(urls);
-      } catch {
-        setBanners([]);
-      }
-    };
-    loadBanners();
-  }, []);
-
-  useEffect(() => {
-    const loadTimetablePrograms = async () => {
-      try {
-        const res = await get(ENDPOINTS.TIMETABLE_PUBLIC(), { includeAuth: false });
-        const activities = Array.isArray(res?.data) ? res.data : [];
-        const mapped = activities
-          .filter((item) => (item?.content || '').trim())
-          .slice(0, 6)
+        // Process Timetable
+        setTimetablePrograms(timetableData.data
           .map((item, index) => ({
             id: item._id || `${item.startLabel || 'slot'}-${index}`,
             title: item.content,
             time: item.startLabel && item.endLabel ? `${item.startLabel} - ${item.endLabel}` : 'Theo thời gian biểu',
-            season: item.appliesToSeason === 'summer'
-              ? 'Mùa hè'
-              : item.appliesToSeason === 'winter'
-                ? 'Mùa đông'
-                : 'Quanh năm',
-          }));
-        setTimetablePrograms(mapped);
-        setEffectiveSeason(res?.effectiveSeason || null);
-      } catch {
-        setTimetablePrograms([]);
-        setEffectiveSeason(null);
-      }
-    };
-    loadTimetablePrograms();
-  }, []);
+            season: item.appliesToSeason === 'summer' ? 'Mùa hè' : item.appliesToSeason === 'winter' ? 'Mùa đông' : 'Quanh năm',
+          }))
+        );
+        setEffectiveSeason(timetableData.effectiveSeason);
 
-  useEffect(() => {
-    const loadOrganizationTeachers = async () => {
-      try {
-        const resp = await get(ENDPOINTS.PUBLIC_INFO.ORGANIZATION_STRUCTURE, { includeAuth: false });
-        const data = resp?.data || {};
-        const fromProfessionalGroup = Array.isArray(data?.professionalGroup?.members)
-          ? data.professionalGroup.members
-          : [];
-        const fromDirectors = Array.isArray(data?.boardOfDirectors?.members)
-          ? data.boardOfDirectors.members
-          : [];
-
-        const merged = [...fromDirectors, ...fromProfessionalGroup]
+        // Process Teachers
+        const fromProfessionalGroup = Array.isArray(organizationStructure?.professionalGroup?.members) ? organizationStructure.professionalGroup.members : [];
+        const fromDirectors = Array.isArray(organizationStructure?.boardOfDirectors?.members) ? organizationStructure.boardOfDirectors.members : [];
+        setTeacherTeam([...fromDirectors, ...fromProfessionalGroup]
           .map((member, index) => {
             const item = typeof member === 'string' ? { fullName: member } : member;
             return {
@@ -160,15 +84,28 @@ function Homepage() {
               avatar: item.avatar || DEFAULT_TEACHER_AVATAR,
             };
           })
-          .filter((item) => item.name !== 'Chưa cập nhật')
-          .slice(0, 4);
+          .filter(item => item.name !== 'Chưa cập nhật')
+          .slice(0, 4)
+        );
 
-        setTeacherTeam(merged);
-      } catch {
-        setTeacherTeam([]);
+        // Process Blogs
+        setFeatured(featuredBlogs.map(b => ({
+          id: b._id,
+          title: b.title || b.code || 'Bài viết mới',
+          content: stripHtml(b.description),
+          image: b.images?.[0] || null,
+          category: b.categoryName,
+          createdAt: b.createdAt || null,
+        })));
+
+      } catch (err) {
+        setError(err.message || 'Không tải được dữ liệu trang chủ');
+      } finally {
+        setLoading(false);
       }
     };
-    loadOrganizationTeachers();
+
+    loadAllData();
   }, []);
 
   useEffect(() => {
@@ -193,7 +130,9 @@ function Homepage() {
     <div className="mx-auto max-w-7xl px-4 pb-12 sm:px-6">
       <section className="relative mt-5 min-h-[440px] overflow-hidden rounded-3xl">
         <div className="absolute inset-0">
-          {banners.length > 0 ? (
+          {loading ? (
+            <Skeleton variant="rectangular" width="100%" height="100%" animation="wave" />
+          ) : banners.length > 0 ? (
             <img
               src={banners[currentBanner]}
               alt="Trường mầm non Đức Xuân"
@@ -203,7 +142,7 @@ function Homepage() {
             <div className="grid h-full w-full place-items-center bg-slate-200 text-slate-600">Chưa có banner hiển thị</div>
           )}
           <div className="absolute inset-0 bg-gradient-to-r from-black/75 via-black/35 to-black/10" />
-          {banners.length > 1 && (
+          {!loading && banners.length > 1 && (
             <>
               <button
                 type="button"
@@ -249,13 +188,18 @@ function Homepage() {
           <Link to="/photo-gallery" className="mt-5 inline-flex rounded-full bg-emerald-700 px-5 py-2.5 text-sm font-bold text-white transition hover:bg-emerald-800">Đọc thêm</Link>
         </div>
         <div className="grid gap-3 sm:grid-cols-3">
-          {introPhotos.length > 0 ? (
+          {loading ? (
+            [1, 2, 3].map((i) => (
+              <Skeleton key={i} variant="rectangular" height={192} className="rounded-xl" />
+            ))
+          ) : introPhotos.length > 0 ? (
             introPhotos.map((item, idx) => (
               <img
                 key={item.id || idx}
                 src={item.img}
                 alt={item.title || `Hình ảnh hoạt động ${idx + 1}`}
                 className="h-40 w-full rounded-xl object-cover sm:h-48"
+                loading="lazy"
               />
             ))
           ) : (
@@ -282,7 +226,11 @@ function Homepage() {
           <Link to="/schedule" className="text-sm font-bold text-emerald-700 hover:underline">Xem tất cả</Link>
         </div>
         <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-3">
-          {timetablePrograms.map((program) => (
+          {loading ? (
+            [1, 2, 3].map((i) => (
+              <Skeleton key={i} variant="rectangular" height={140} className="rounded-2xl" />
+            ))
+          ) : timetablePrograms.map((program) => (
             <article key={program.id} className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm transition hover:shadow-md">
               <h3 className="mb-2 font-bold text-emerald-900">{program.title}</h3>
               <p className="text-sm text-slate-600">Khung giờ hoạt động: {program.time}</p>
@@ -292,7 +240,7 @@ function Homepage() {
               </span>
             </article>
           ))}
-          {timetablePrograms.length === 0 && (
+          {timetablePrograms.length === 0 && !loading && (
             <article className="rounded-2xl border border-slate-200 bg-white p-5 text-slate-600 shadow-sm">
               <h3 className="mb-2 font-bold text-emerald-900">Chưa có dữ liệu thời gian biểu</h3>
               <p>Nhà trường sẽ cập nhật chương trình học ngay khi thời khóa biểu được thiết lập.</p>
@@ -315,7 +263,11 @@ function Homepage() {
         </div>
 
         <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
-          {teacherTeam.map((teacher, index) => (
+          {loading ? (
+            [1, 2, 3, 4].map((i) => (
+              <Skeleton key={i} variant="rectangular" height={320} className="rounded-2xl" />
+            ))
+          ) : teacherTeam.map((teacher, index) => (
             <article
               key={teacher.id || `${teacher.name}-${index}`}
               className="group overflow-hidden rounded-2xl border border-emerald-100 bg-white p-3 shadow-sm transition duration-300 hover:-translate-y-1 hover:shadow-lg"
@@ -325,6 +277,7 @@ function Homepage() {
                   src={teacher.avatar || DEFAULT_TEACHER_AVATAR}
                   alt={teacher.name}
                   className="h-full w-full object-cover transition duration-500 group-hover:scale-105"
+                  loading="lazy"
                 />
                 <span className="absolute left-2 top-2 rounded-full bg-emerald-800/90 px-2.5 py-1 text-[11px] font-semibold text-white backdrop-blur">
                   {teacher.role || 'Giáo viên'}
@@ -336,7 +289,7 @@ function Homepage() {
               </p>
             </article>
           ))}
-          {teacherTeam.length === 0 && (
+          {teacherTeam.length === 0 && !loading && (
             <article className="rounded-2xl border border-slate-200 bg-white p-5 text-slate-600 shadow-sm sm:col-span-2 xl:col-span-4">
               <h3 className="mb-2 font-bold text-emerald-900">Chưa có thông tin giáo viên</h3>
               <p>Nhà trường sẽ cập nhật hồ sơ đội ngũ giáo viên trong thời gian sớm nhất.</p>
@@ -363,15 +316,23 @@ function Homepage() {
           <h2 className="text-2xl font-bold text-emerald-900 sm:text-3xl">Tin tức - Sự kiện</h2>
           <Link to="/school-news" className="text-sm font-bold text-emerald-700 hover:underline">Xem thêm</Link>
         </div>
-        {loading && <p className="py-3 text-slate-600">Đang tải dữ liệu tin tức...</p>}
-        {error && <p className="py-3 text-red-600">{error}</p>}
+        {loading && (
+          <div className="grid gap-4 lg:grid-cols-[1.4fr_1fr]">
+            <Skeleton variant="rectangular" height={340} className="rounded-2xl" />
+            <div className="grid gap-3">
+              <Skeleton variant="rectangular" height={100} className="rounded-2xl" />
+              <Skeleton variant="rectangular" height={100} className="rounded-2xl" />
+              <Skeleton variant="rectangular" height={100} className="rounded-2xl" />
+            </div>
+          </div>
+        )}
         {!loading && !error && featured.length === 0 && <p className="py-3 text-slate-600">Chưa có bài viết.</p>}
         {!loading && !error && featured.length > 0 && (
           <div className="grid gap-4 lg:grid-cols-[1.4fr_1fr]">
             {mainBlog && (
               <article className="overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm transition hover:shadow-md" onClick={() => navigate(`/news/${mainBlog.id}`)}>
                 {mainBlog.image ? (
-                  <img src={mainBlog.image} alt={mainBlog.title} className="h-60 w-full object-cover" />
+                  <img src={mainBlog.image} alt={mainBlog.title} className="h-60 w-full object-cover" loading="lazy" />
                 ) : (
                   <div className="grid h-60 place-items-center bg-slate-100 text-slate-500">Không có ảnh</div>
                 )}

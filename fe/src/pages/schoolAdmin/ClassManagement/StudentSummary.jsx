@@ -1,4 +1,5 @@
 import { useState, useMemo, useEffect, memo } from 'react';
+import { useNavigate } from 'react-router-dom';
 import {
   Box,
   Paper,
@@ -27,6 +28,7 @@ import {
 } from '@mui/icons-material';
 
 const StudentSummary = memo(({ students, activeAcademicYear, loading, onRefresh }) => {
+  const navigate = useNavigate();
   const [search, setSearch] = useState('');
   const [debouncedSearch, setDebouncedSearch] = useState('');
 
@@ -195,7 +197,10 @@ const StudentSummary = memo(({ students, activeAcademicYear, loading, onRefresh 
                   filtered.map((s, idx) => (
                     <TableRow key={s._id} hover>
                       <TableCell sx={{ color: 'text.secondary', fontWeight: 600 }}>{idx + 1}</TableCell>
-                      <TableCell>
+                      <TableCell 
+                        onClick={() => navigate(`/school-admin/students/${s._id}/detail`)}
+                        sx={{ cursor: 'pointer', '&:hover': { '& .MuiTypography-root': { color: 'primary.main' } } }}
+                      >
                         <Stack direction="row" alignItems="center" spacing={1.5}>
                           <Avatar src={s.avatar} sx={{ width: 32, height: 32, fontSize: '0.85rem', bgcolor: '#2563eb' }}>
                             {s.fullName?.charAt(0)}

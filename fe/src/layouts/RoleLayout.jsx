@@ -63,6 +63,7 @@ export const KEY_ICONS = {
   'static-blocks': <LayersIcon fontSize="small" />,
   teachers: <PersonIcon fontSize="small" />,
   students: <PeopleIcon fontSize="small" />,
+  evaluation: <GradingIcon fontSize="small" />,
   assets: <InventoryIcon fontSize="small" />,
   reports: <AssessmentIcon fontSize="small" />,
   attendance: <ChecklistIcon fontSize="small" />,

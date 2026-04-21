@@ -15,6 +15,12 @@ const pickupRequestSchema = new mongoose.Schema(
       required: true,
       index: true,
     },
+    academicYearId: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: "AcademicYears",
+      default: null,
+      index: true,
+    },
 
     // Phụ huynh đăng ký (người tạo request)
     parent: {
