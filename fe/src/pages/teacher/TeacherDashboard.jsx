@@ -71,6 +71,15 @@ const BAR_COLORS = {
   leave: '#f59e0b',
 };
 
+const toLocalISODate = (dateValue = new Date()) => {
+  const date = dateValue instanceof Date ? dateValue : new Date(dateValue);
+  if (Number.isNaN(date.getTime())) return '';
+  const yyyy = date.getFullYear();
+  const mm = String(date.getMonth() + 1).padStart(2, '0');
+  const dd = String(date.getDate()).padStart(2, '0');
+  return `${yyyy}-${mm}-${dd}`;
+};
+
 function WeeklyAttendanceChart({ data, loading }) {
   const maxVal = data ? Math.max(...data.map((d) => d.total), 1) : 1;
 
@@ -101,7 +110,7 @@ function WeeklyAttendanceChart({ data, loading }) {
         ) : (
           <Box sx={{ display: 'flex', gap: 1, alignItems: 'flex-end', height: 160 }}>
             {data.map((day) => {
-              const isToday = day.date === new Date().toISOString().slice(0, 10);
+              const isToday = toLocalISODate(day.date) === toLocalISODate();
               const segments = [
                 { key: 'present', val: day.present },
                 { key: 'absent', val: day.absent },
@@ -190,7 +199,7 @@ function TeacherDashboard() {
     { key: 'pickup-approval',  label: 'Đơn đăng ký đưa đón',    permission: 'MANAGE_PICKUP' },
     { key: 'leave-requests',   label: 'Danh sách đơn xin nghỉ', permission: 'MANAGE_ATTENDANCE' },
     { key: 'contact-book',     label: 'Sổ liên lạc' },
-    { key: 'purchase-request', label: 'Cơ sở vật chất',         permission: 'MANAGE_PURCHASE_REQUEST' },
+    { key: 'asset-incidents-teacher', label: 'Báo cáo sự cố CSVC', permission: 'MANAGE_PURCHASE_REQUEST' },
     { key: 'class-assets',     label: 'Tài sản lớp',            permission: 'MANAGE_ASSET' },
     { key: 'asset-inspection', label: 'Kiểm kê tài sản',        role: 'InventoryStaff' },
   ];
@@ -202,7 +211,7 @@ function TeacherDashboard() {
       return true;
     });
     if (hasPermission('MANAGE_TEACHER_REPORT')) {
-      items.push({ key: 'manage-purchase-requests', label: 'Duyệt báo cáo giáo viên' });
+      items.push({ key: 'manage-asset-incidents', label: 'Điều phối xử lý sự cố' });
     }
     return items;
   // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -214,10 +223,10 @@ function TeacherDashboard() {
     if (path.startsWith('/teacher/attendance'))     return 'attendance';
     if (path.startsWith('/teacher/pickup-approval')) return 'pickup-approval';
     if (path.startsWith('/teacher/leave-requests')) return 'leave-requests';
-    if (path.startsWith('/teacher/purchase-request')) return 'purchase-request';
+    if (path.startsWith('/teacher/asset-incidents')) return 'asset-incidents-teacher';
     if (path.startsWith('/teacher/class-assets'))   return 'class-assets';
     if (path.startsWith('/teacher/asset-inspection')) return 'asset-inspection';
-    if (path.startsWith('/teacher/manage-purchase-requests')) return 'manage-purchase-requests';
+    if (path.startsWith('/teacher/manage-asset-incidents')) return 'manage-asset-incidents';
     return 'classes';
   }, [location.pathname]);
 
@@ -231,7 +240,8 @@ function TeacherDashboard() {
       attendance: '/teacher/attendance',
       'pickup-approval': '/teacher/pickup-approval',
       'leave-requests': '/teacher/leave-requests',
-      'purchase-request': '/teacher/purchase-request',
+      'asset-incidents-teacher': '/teacher/asset-incidents',
+      'manage-asset-incidents': '/teacher/manage-asset-incidents',
       'class-assets': '/teacher/class-assets',
       'asset-inspection': '/teacher/asset-inspection',
     };

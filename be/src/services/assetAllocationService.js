@@ -202,13 +202,40 @@ exports.transferAllocation = async (req, res) => {
       return res.status(400).json({ status: 'error', message: 'Tài sản đã được thu hồi, không thể chuyển.' });
     if (allocation.status === 'pending_confirmation')
       return res.status(400).json({ status: 'error', message: 'Biên bản chưa được giáo viên xác nhận, không thể chuyển lớp.' });
-
-    // Resolve target class name
-    let resolvedToClassName = toClassName || '';
-    if (toClassId && !resolvedToClassName) {
-      const cls = await Classes.findById(toClassId);
-      if (cls) resolvedToClassName = cls.className;
+    if (!toClassId)
+      return res.status(400).json({ status: 'error', message: 'Vui lòng chọn lớp nhận từ danh sách.' });
+    const fromClassId = allocation.classId?._id || allocation.classId;
+    if (fromClassId && String(fromClassId) === String(toClassId)) {
+      return res.status(400).json({ status: 'error', message: 'Không thể chuyển giao về chính lớp hiện tại.' });
     }
+
+    const targetClass = await Classes.findById(toClassId).lean();
+    if (!targetClass) {
+      return res.status(404).json({ status: 'error', message: 'Không tìm thấy lớp nhận.' });
+    }
+    const currentClass = fromClassId ? await Classes.findById(fromClassId).select('roomId').lean() : null;
+    if (
+      currentClass?.roomId && targetClass?.roomId &&
+      String(currentClass.roomId) === String(targetClass.roomId)
+    ) {
+      return res.status(400).json({ status: 'error', message: 'Không thể chuyển giao giữa 2 lớp đang dùng cùng một phòng.' });
+    }
+
+    const existsAtTargetClass = await AssetAllocation.findOne({
+      _id: { $ne: allocation._id },
+      classId: toClassId,
+      status: { $in: ['active', 'pending_confirmation'] },
+    }).lean();
+    if (existsAtTargetClass) {
+      return res.status(409).json({
+        status: 'error',
+        message: `Lớp nhận đã có biên bản đang hiệu lực (${existsAtTargetClass.documentCode}).`,
+      });
+    }
+
+    // Resolve target class name (ưu tiên class trong DB)
+    const resolvedToClassName = targetClass.className || toClassName || '';
+    const sourceRoomId = allocation.sourceRoomId ? String(allocation.sourceRoomId) : null;
 
     // Record transfer history
     allocation.transferHistory.push({
@@ -222,12 +249,31 @@ exports.transferAllocation = async (req, res) => {
     });
 
     // Update current holder
-    allocation.classId      = toClassId || allocation.classId;
+    allocation.classId      = toClassId;
     allocation.className    = resolvedToClassName;
     allocation.teacherName  = toTeacherName || '';
-    allocation.status       = 'transferred';
+    allocation.status       = 'pending_confirmation';
+    allocation.confirmedAt  = null;
+    allocation.confirmedBy  = null;
 
     await allocation.save();
+
+    // Đồng bộ lớp đang sử dụng phòng theo biên bản sau khi chuyển giao
+    if (sourceRoomId) {
+      // Bỏ gán phòng ở lớp cũ (nếu lớp cũ đang trỏ đúng phòng nguồn)
+      if (fromClassId) {
+        await Classes.updateOne(
+          { _id: fromClassId, roomId: sourceRoomId },
+          { $set: { roomId: null } }
+        );
+      }
+      // Gán phòng nguồn cho lớp nhận
+      await Classes.updateOne(
+        { _id: toClassId },
+        { $set: { roomId: sourceRoomId } }
+      );
+    }
+
     return res.json({ status: 'success', data: { allocation } });
   } catch (err) {
     return res.status(500).json({ status: 'error', message: err.message });
