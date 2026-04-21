@@ -8,8 +8,8 @@ import { SchoolNurseProvider } from './context/SchoolNurseContext';
 import { TeacherProvider } from './context/TeacherContext';
 import MainLayout from './layouts/MainLayout';
 import SimpleLayout from './layouts/SimpleLayout';
-import ProtectedRoute from './components/ProtectedRoute';
 import KitchenLayout from './pages/kitchenStaff/KitchenLayout';
+import ProtectedRoute from './components/ProtectedRoute';
 
 // Lazy load components
 const HomePage = lazy(() => import('./pages/Homepage'));
@@ -100,9 +100,9 @@ const ManageBanners = lazy(() => import('./pages/schoolAdmin/ManageBanners'));
 const ManagePurchaseRequests = lazy(() => import('./pages/schoolAdmin/ManagePurchaseRequests'));
 const PickupRequest = lazy(() => import('./pages/teacher/PickupRequest'));
 const TeacherAssetInspection = lazy(() => import('./pages/teacher/TeacherAssetInspection'));
-const TeacherPurchaseRequest = lazy(() => import('./pages/teacher/TeacherPurchaseRequest'));
 const TeacherClassAssets = lazy(() => import('./pages/teacher/TeacherClassAssets'));
-const HeadTeacherPurchaseRequests = lazy(() => import('./pages/teacher/HeadTeacherPurchaseRequests'));
+const TeacherAssetIncidents = lazy(() => import('./pages/teacher/TeacherAssetIncidents'));
+const HeadTeacherAssetIncidents = lazy(() => import('./pages/teacher/HeadTeacherAssetIncidents'));
 const TeacherLeaveRequests = lazy(() => import('./pages/teacher/TeacherLeaveRequests'));
 const KitchenDashboard = lazy(() => import('./pages/kitchenStaff/KitchenDashboard'));
 const MenuManagement = lazy(() => import('./pages/kitchenStaff/MenuManagement'));
@@ -133,6 +133,7 @@ const TimetableActivitiesPage = lazy(() => import('./pages/schoolAdmin/Timetable
 const FaceAttendancePage = lazy(() => import('./pages/schoolAdmin/FaceAttendancePage'));
 const ManageAssets = lazy(() => import('./pages/schoolAdmin/ManageAssets'));
 const ManageAssetAllocation = lazy(() => import('./pages/schoolAdmin/ManageAssetAllocation'));
+const ManageAssetIncidents = lazy(() => import('./pages/schoolAdmin/ManageAssetIncidents'));
 const ManageRoomAssets = lazy(() => import('./pages/schoolAdmin/ManageRoomAssets'));
 const ManageCommittee = lazy(() => import('./pages/schoolAdmin/ManageCommittee'));
 const ManageMinutes = lazy(() => import('./pages/schoolAdmin/ManageMinutes'));
@@ -403,11 +404,11 @@ function App() {
             }
           />
           <Route
-            path="/teacher/purchase-request"
+            path="/teacher/asset-incidents"
             element={
               <ProtectedRoute>
                 <TeacherProvider>
-                  <TeacherPurchaseRequest />
+                  <TeacherAssetIncidents />
                 </TeacherProvider>
               </ProtectedRoute>
             }
@@ -423,11 +424,11 @@ function App() {
             }
           />
           <Route
-            path="/teacher/manage-purchase-requests"
+            path="/teacher/manage-asset-incidents"
             element={
               <ProtectedRoute>
                 <TeacherProvider>
-                  <HeadTeacherPurchaseRequests />
+                  <HeadTeacherAssetIncidents />
                 </TeacherProvider>
               </ProtectedRoute>
             }
@@ -919,11 +920,11 @@ function App() {
             }
           />
           <Route
-            path="/school-admin/purchase-requests"
+            path="/school-admin/asset-incidents"
             element={
               <ProtectedRoute>
                 <SchoolAdminProvider>
-                  <ManagePurchaseRequests />
+                  <ManageAssetIncidents />
                 </SchoolAdminProvider>
               </ProtectedRoute>
             }

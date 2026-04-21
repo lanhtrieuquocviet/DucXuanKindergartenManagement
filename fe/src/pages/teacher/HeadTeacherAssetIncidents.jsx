@@ -5,7 +5,7 @@ import { ShoppingCart as ShoppingCartIcon } from '@mui/icons-material';
 import RoleLayout from '../../layouts/RoleLayout';
 import { useAuth } from '../../context/AuthContext';
 
-function HeadTeacherPurchaseRequests() {
+function HeadTeacherAssetIncidents() {
   const navigate = useNavigate();
   const { user, logout, isInitializing } = useAuth();
 
@@ -23,9 +23,9 @@ function HeadTeacherPurchaseRequests() {
       attendance:                 '/teacher/attendance',
       'pickup-approval':          '/teacher/pickup-approval',
       'leave-requests':           '/teacher/leave-requests',
-      'purchase-request':         '/teacher/purchase-request',
+      'asset-incidents-teacher':  '/teacher/asset-incidents',
       'class-assets':             '/teacher/class-assets',
-      'manage-purchase-requests': '/teacher/manage-purchase-requests',
+      'manage-asset-incidents': '/teacher/manage-asset-incidents',
     };
     navigate(routes[key] || '/teacher');
   };
@@ -38,17 +38,17 @@ function HeadTeacherPurchaseRequests() {
     { key: 'attendance',                 label: 'Điểm danh' },
     { key: 'pickup-approval',            label: 'Đơn đưa đón' },
     { key: 'leave-requests',             label: 'Danh sách đơn xin nghỉ' },
-    { key: 'purchase-request',           label: 'Cơ sở vật chất' },
+    { key: 'asset-incidents-teacher',    label: 'Báo cáo sự cố CSVC' },
     { key: 'class-assets',               label: 'Tài sản lớp' },
-    { key: 'manage-purchase-requests',   label: 'Duyệt báo cáo giáo viên' },
+    { key: 'manage-asset-incidents',     label: 'Điều phối xử lý sự cố' },
   ];
 
   return (
     <RoleLayout
-      title="Duyệt đề xuất mua sắm"
-      description="Xem và duyệt đề xuất mua sắm từ các giáo viên trong tổ."
+      title="Điều phối xử lý sự cố"
+      description="Theo dõi báo cáo sự cố của giáo viên và điều phối xử lý trước khi chuyển BGH."
       menuItems={menuItems}
-      activeKey="manage-purchase-requests"
+      activeKey="manage-asset-incidents"
       onLogout={() => { logout(); navigate('/login', { replace: true }); }}
       userName={userName}
       userAvatar={user?.avatar}
@@ -67,27 +67,27 @@ function HeadTeacherPurchaseRequests() {
         <ShoppingCartIcon sx={{ color: 'white', fontSize: 36 }} />
         <Box>
           <Typography variant="h5" fontWeight={700} color="white">
-            Duyệt đề xuất mua sắm
+            Điều phối xử lý sự cố
           </Typography>
           <Typography variant="body2" sx={{ color: 'rgba(255,255,255,0.8)', mt: 0.5 }}>
-            Quản lý và duyệt đề xuất từ giáo viên trong tổ, chuyển lên ban giám hiệu
+            Theo dõi báo cáo sự cố và điều phối xử lý trước khi chuyển lên ban giám hiệu
           </Typography>
         </Box>
       </Paper>
 
-      {/* TODO: Implement danh sách đề xuất từ giáo viên */}
+      {/* TODO: Implement danh sách báo cáo sự cố từ giáo viên */}
       <Stack alignItems="center" justifyContent="center" sx={{ py: 10 }} spacing={2}>
         <ShoppingCartIcon sx={{ fontSize: 64, color: 'text.disabled' }} />
         <Typography variant="h6" color="text.secondary" fontWeight={600}>
           Chức năng đang phát triển
         </Typography>
         <Typography variant="body2" color="text.disabled" textAlign="center">
-          Tại đây tổ trưởng sẽ xem và duyệt đề xuất mua sắm từ các giáo viên,
-          sau đó chuyển lên ban giám hiệu.
+          Tại đây tổ trưởng sẽ theo dõi báo cáo sự cố từ các giáo viên,
+          điều phối xử lý và chuyển lên ban giám hiệu.
         </Typography>
       </Stack>
     </RoleLayout>
   );
 }
 
-export default HeadTeacherPurchaseRequests;
+export default HeadTeacherAssetIncidents;

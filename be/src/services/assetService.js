@@ -174,44 +174,95 @@ exports.bulkCreateWarehouseAssets = async (req, res) => {
 
     const VALID_CATEGORIES = ['Đồ dùng', 'Thiết bị dạy học, đồ chơi và học liệu', 'Sách, tài liệu, băng đĩa', 'Thiết bị ngoài thông tư'];
     const VALID_CONDITION = ['Còn tốt', 'Không sử dụng được'];
+    const toCanonical = (value = '') => String(value)
+      .normalize('NFD')
+      .replace(/[\u0300-\u036f]/g, '')
+      .toLowerCase()
+      .replace(/[^a-z0-9]+/g, ' ')
+      .trim()
+      .replace(/\s+/g, ' ');
 
-    const results = { created: 0, skipped: 0, errors: [] };
+    const results = { created: 0, merged: 0, skipped: 0, errors: [] };
     let nttCounter = await Asset.countDocuments({ type: 'asset', category: 'Thiết bị ngoài thông tư' });
+    const existingAssets = await Asset.find({ type: 'asset' });
+    const byCodeAndName = new Map();
+    const byCategoryAndName = new Map();
+
+    for (const asset of existingAssets) {
+      const canonicalName = toCanonical(asset.name);
+      if (!canonicalName) continue;
+      if (asset.assetCode) byCodeAndName.set(`${asset.assetCode}::${canonicalName}`, asset);
+      byCategoryAndName.set(`${asset.category || ''}::${canonicalName}`, asset);
+    }
 
     for (const item of assets) {
       try {
         const { name, category, quantity, condition, unit, notes } = item;
         let { assetCode } = item;
+        const normalizedName = String(name || '').trim();
+        const normalizedCode = String(assetCode || '').trim();
+        const canonicalName = toCanonical(normalizedName);
+        const resolvedCategory = VALID_CATEGORIES.includes(category) ? category : 'Đồ dùng';
+        const importQty = Number(quantity) || 0;
 
-        if (!name?.trim()) {
+        if (!canonicalName) {
           results.skipped++;
           results.errors.push('Thiếu tên tài sản');
           continue;
         }
 
-        if (!assetCode?.trim()) {
-          nttCounter++;
-          assetCode = `TBNT${String(nttCounter).padStart(3, '0')}`;
+        let existing = null;
+        if (normalizedCode) {
+          existing = byCodeAndName.get(`${normalizedCode}::${canonicalName}`) || null;
+        } else {
+          existing = byCategoryAndName.get(`${resolvedCategory}::${canonicalName}`) || null;
         }
 
-        const existing = await Asset.findOne({ assetCode: assetCode.trim() });
         if (existing) {
-          results.skipped++;
-          results.errors.push(`Mã "${assetCode}" đã tồn tại, bỏ qua.`);
+          existing.quantity = (existing.quantity || 0) + importQty;
+          if (condition && VALID_CONDITION.includes(condition)) {
+            existing.condition = condition;
+          }
+          if (unit?.trim()) {
+            existing.unit = unit.trim();
+          }
+          if (notes?.trim()) {
+            existing.notes = existing.notes
+              ? `${existing.notes}\n${notes.trim()}`
+              : notes.trim();
+          }
+          await existing.save();
+          results.merged++;
           continue;
         }
 
-        await Asset.create({
+        if (!normalizedCode) {
+          nttCounter++;
+          assetCode = `TBNT${String(nttCounter).padStart(3, '0')}`;
+        } else {
+          assetCode = normalizedCode;
+        }
+
+        const duplicateCode = await Asset.findOne({ type: 'asset', assetCode: assetCode.trim() });
+        if (duplicateCode) {
+          results.skipped++;
+          results.errors.push(`Mã "${assetCode}" đã tồn tại nhưng không trùng tên để cộng dồn.`);
+          continue;
+        }
+
+        const createdAsset = await Asset.create({
           assetCode: assetCode.trim(),
-          name: name.trim(),
+          name: normalizedName,
           type: 'asset',
-          category: VALID_CATEGORIES.includes(category) ? category : 'Đồ dùng',
-          quantity: Number(quantity) || 0,
+          category: resolvedCategory,
+          quantity: importQty,
           condition: VALID_CONDITION.includes(condition) ? condition : 'Còn tốt',
           unit: unit?.trim() || 'Cái',
           notes: notes?.trim() || '',
           createdBy: req.user._id,
         });
+        byCodeAndName.set(`${createdAsset.assetCode}::${canonicalName}`, createdAsset);
+        byCategoryAndName.set(`${createdAsset.category || ''}::${canonicalName}`, createdAsset);
         results.created++;
       } catch (err) {
         results.skipped++;
