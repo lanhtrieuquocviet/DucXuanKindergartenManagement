@@ -1,5 +1,6 @@
 const AssetAllocation = require('../models/AssetAllocation');
 const Classes         = require('../models/Classes');
+const AcademicYear    = require('../models/AcademicYear');
 const mammoth         = require('mammoth');
 const WordExtractor   = require('word-extractor');
 const {
@@ -22,9 +23,10 @@ exports.listAllocations = async (req, res) => {
     }
 
     const allocations = await AssetAllocation.find(filter)
-      .populate({ path: 'classId', select: 'className gradeId', populate: { path: 'gradeId', select: 'gradeName' } })
+      .populate({ path: 'classId', select: 'className gradeId roomId', populate: { path: 'gradeId', select: 'gradeName' } })
       .populate('createdBy', 'fullName username')
       .populate('confirmedBy', 'fullName username')
+      .populate('sourceRoomId', 'roomName')
       .sort({ createdAt: -1 });
     return res.json({ status: 'success', data: { allocations } });
   } catch (err) {
@@ -63,6 +65,8 @@ exports.createAllocation = async (req, res) => {
       assets,
       extraAssets,
       notes,
+      pickedRoomId,
+      pickedRoomName,
     } = req.body;
 
     if (!assets || !Array.isArray(assets) || assets.length === 0)
@@ -76,6 +80,27 @@ exports.createAllocation = async (req, res) => {
           status: 'error',
           message: `Lớp này đã có biên bản bàn giao đang hoạt động (${existing.documentCode}). Không thể tạo thêm.`,
         });
+    }
+
+    // Kiểm tra phòng đã được dùng trong biên bản khác chưa
+    if (pickedRoomId) {
+      // Check 1: biên bản mới có lưu sourceRoomId
+      const roomUsed = await AssetAllocation.findOne({ sourceRoomId: pickedRoomId, status: { $in: ['active', 'pending_confirmation'] } });
+      if (roomUsed)
+        return res.status(409).json({
+          status: 'error',
+          message: `Phòng này đã được nhập trong biên bản (${roomUsed.documentCode}). Không thể nhập lại.`,
+        });
+      // Check 2: fallback cho biên bản cũ (lớp đã gán phòng này)
+      const classWithRoom = await Classes.findOne({ roomId: pickedRoomId });
+      if (classWithRoom) {
+        const oldAlloc = await AssetAllocation.findOne({ classId: classWithRoom._id, status: { $in: ['active', 'pending_confirmation'] } });
+        if (oldAlloc)
+          return res.status(409).json({
+            status: 'error',
+            message: `Phòng này đã gán cho lớp "${classWithRoom.className}" (biên bản ${oldAlloc.documentCode}). Không thể nhập lại.`,
+          });
+      }
     }
 
     // Resolve className from classId if not provided
@@ -98,12 +123,25 @@ exports.createAllocation = async (req, res) => {
       extraAssets:        Array.isArray(extraAssets) ? extraAssets : [],
       notes:              notes || '',
       status:             'pending_confirmation',
+      sourceRoomId:       pickedRoomId  || null,
+      sourceRoomName:     pickedRoomName || '',
       confirmedAt:        null,
       transferHistory:    [],
       createdBy:          req.user._id,
     });
 
     await allocation.save();
+
+    // Tự động gán phòng cho lớp (backend) — chắc chắn luôn chạy
+    if (pickedRoomId && classId) {
+      try {
+        await Classes.findByIdAndUpdate(classId, { roomId: pickedRoomId });
+      } catch (assignErr) {
+        console.error('[createAllocation] Auto assign room failed:', assignErr);
+        // Không throw — biên bản đã lưu, chỉ warn
+      }
+    }
+
     return res.status(201).json({ status: 'success', data: { allocation } });
   } catch (err) {
     return res.status(500).json({ status: 'error', message: err.message });
@@ -1035,7 +1073,11 @@ exports.generateExcelTemplate = async (req, res) => {
 // ─── Get list of classes with teachers (helper for frontend dropdown) ─────
 exports.listClasses = async (req, res) => {
   try {
-    const classes = await Classes.find({}, 'className _id teacherIds gradeId')
+    // Chỉ lấy lớp thuộc năm học hiện tại để tránh trùng lặp tên lớp qua các năm
+    const currentYear = await AcademicYear.findOne({ status: 'active' }).select('_id').lean();
+    const filter = currentYear ? { academicYearId: currentYear._id } : {};
+
+    const classes = await Classes.find(filter, 'className _id teacherIds gradeId')
       .populate({
         path: 'teacherIds',
         select: 'userId',

@@ -10,6 +10,7 @@ import {
 import AddIcon from '@mui/icons-material/Add';
 import DeleteIcon from '@mui/icons-material/Delete';
 import EditIcon from '@mui/icons-material/Edit';
+import GroupsIcon from '@mui/icons-material/Groups';
 import MeetingRoomIcon from '@mui/icons-material/MeetingRoom';
 import SearchIcon from '@mui/icons-material/Search';
 import InventoryIcon from '@mui/icons-material/Inventory';
@@ -91,6 +92,13 @@ export default function ManageRoomAssets() {
   const [itemSearch, setItemSearch] = useState('');
   const [itemCategory, setItemCategory] = useState('');
 
+  // ── Dialog gán lớp cho phòng ─────────────────────────────────────────────────
+  const [assignClassDialogOpen, setAssignClassDialogOpen] = useState(false);
+  const [classList, setClassList] = useState([]);
+  const [selectedClassId, setSelectedClassId] = useState('');
+  const [loadingClasses, setLoadingClasses] = useState(false);
+  const [savingAssignClass, setSavingAssignClass] = useState(false);
+
   // ── Load phòng ───────────────────────────────────────────────────────────────
   const loadRooms = async () => {
     setLoadingRooms(true);
@@ -165,6 +173,7 @@ export default function ManageRoomAssets() {
       setDeletingRoom(false);
     }
   };
+
 
   // ── Load tài sản trong phòng ─────────────────────────────────────────────────
   const loadRoomAssets = async (room) => {
@@ -320,7 +329,17 @@ export default function ManageRoomAssets() {
                       <Stack direction="row" spacing={0.5} alignItems="center" flexWrap="wrap">
                         <Chip label={ROOM_STATUS_LABEL[room.status]?.label || room.status} color={ROOM_STATUS_LABEL[room.status]?.color || 'default'} size="small" sx={{ fontSize: 10, height: 18 }} />
                         {room.zone && <Typography variant="caption" color="text.secondary">Khu {room.zone}</Typography>}
+                        {room.floor && <Typography variant="caption" color="text.secondary">• Tầng {room.floor}</Typography>}
+                        {room.capacity > 0 && <Typography variant="caption" color="text.secondary">• SC: {room.capacity}</Typography>}
                         <Typography variant="caption" color="text.secondary">• {room.totalTypes || 0} loại</Typography>
+                        {room.occupiedByClass && (
+                          <Chip
+                            label={`Lớp: ${room.occupiedByClass}`}
+                            color="info"
+                            size="small"
+                            sx={{ fontSize: 10, height: 18 }}
+                          />
+                        )}
                       </Stack>
                     }
                   />
@@ -359,11 +378,23 @@ export default function ManageRoomAssets() {
                       {selectedRoom.zone && <Typography variant="caption" color="text.secondary">Khu {selectedRoom.zone}</Typography>}
                       {selectedRoom.floor && <Typography variant="caption" color="text.secondary">• Tầng {selectedRoom.floor}</Typography>}
                       {selectedRoom.capacity > 0 && <Typography variant="caption" color="text.secondary">• Sức chứa: {selectedRoom.capacity}</Typography>}
+                      {selectedRoom.occupiedByClass ? (
+                        <Chip
+                          label={`Đang dùng bởi: Lớp ${selectedRoom.occupiedByClass}`}
+                          color="info"
+                          size="small"
+                          variant="outlined"
+                        />
+                      ) : (
+                        <Typography variant="caption" color="text.secondary" sx={{ fontStyle: 'italic' }}>• Chưa có lớp sử dụng</Typography>
+                      )}
                     </Stack>
                   </Box>
-                  <Button variant="contained" startIcon={<AddIcon />} onClick={openAddAsset} size="small">
-                    Thêm tài sản
-                  </Button>
+                  <Stack direction="row" spacing={1}>
+                    <Button variant="contained" startIcon={<AddIcon />} onClick={openAddAsset} size="small">
+                      Thêm tài sản
+                    </Button>
+                  </Stack>
                 </Stack>
               </Box>
 
@@ -482,14 +513,10 @@ export default function ManageRoomAssets() {
         <DialogContent>
           <Stack spacing={2} sx={{ mt: 1 }}>
             <TextField label="Tên phòng" value={roomForm.roomName} onChange={(e) => setRoomForm((f) => ({ ...f, roomName: e.target.value }))} fullWidth required size="small" />
-            <Stack direction="row" spacing={2}>
-              <TextField select label="Khu" value={roomForm.zone} onChange={(e) => setRoomForm((f) => ({ ...f, zone: e.target.value }))} fullWidth size="small">
-                <MenuItem value="A">Khu A</MenuItem>
-                <MenuItem value="B">Khu B</MenuItem>
-              </TextField>
-              <TextField label="Tầng" type="number" value={roomForm.floor} onChange={(e) => setRoomForm((f) => ({ ...f, floor: Number(e.target.value) }))} inputProps={{ min: 1 }} fullWidth size="small" />
-              <TextField label="Sức chứa" type="number" value={roomForm.capacity} onChange={(e) => setRoomForm((f) => ({ ...f, capacity: Number(e.target.value) }))} inputProps={{ min: 0 }} fullWidth size="small" />
-            </Stack>
+            <TextField select label="Khu" value={roomForm.zone} onChange={(e) => setRoomForm((f) => ({ ...f, zone: e.target.value }))} fullWidth size="small">
+              <MenuItem value="A">Khu A</MenuItem>
+              <MenuItem value="B">Khu B</MenuItem>
+            </TextField>
             <TextField select label="Trạng thái" value={roomForm.status} onChange={(e) => setRoomForm((f) => ({ ...f, status: e.target.value }))} fullWidth size="small">
               <MenuItem value="available">Trống</MenuItem>
               <MenuItem value="in_use">Đang dùng</MenuItem>
@@ -541,6 +568,7 @@ export default function ManageRoomAssets() {
           </Button>
         </DialogActions>
       </Dialog>
+
 
       {/* ════ Confirm xóa phòng ════ */}
       <ConfirmDialog

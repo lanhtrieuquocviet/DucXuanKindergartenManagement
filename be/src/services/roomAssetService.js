@@ -5,6 +5,7 @@ const Asset = require('../models/Asset');
 // GET /room-assets — danh sách tất cả phòng kèm số lượng tài sản
 exports.listRooms = async (req, res) => {
   try {
+    const Classes = require('../models/Classes');
     const classrooms = await Classroom.find().sort({ roomName: 1 }).lean();
 
     const counts = await RoomAsset.aggregate([
@@ -13,9 +14,28 @@ exports.listRooms = async (req, res) => {
     const countMap = {};
     counts.forEach((c) => { countMap[c._id.toString()] = c; });
 
+    // Lấy danh sách lớp đang dùng phòng nào (roomId != null)
+    const classesWithRoom = await Classes.find({ roomId: { $ne: null } })
+      .select('roomId className')
+      .lean();
+    const classMap = {};
+    const classIdMap = {};
+    for (const cls of classesWithRoom) {
+      if (cls.roomId) {
+        classMap[cls.roomId.toString()] = cls.className;
+        classIdMap[cls.roomId.toString()] = cls._id.toString();
+      }
+    }
+
     const data = classrooms.map((room) => {
       const stat = countMap[room._id.toString()] || { totalTypes: 0, totalQuantity: 0 };
-      return { ...room, totalTypes: stat.totalTypes, totalQuantity: stat.totalQuantity };
+      return {
+        ...room,
+        totalTypes: stat.totalTypes,
+        totalQuantity: stat.totalQuantity,
+        occupiedByClass: classMap[room._id.toString()] || null,
+        occupiedByClassId: classIdMap[room._id.toString()] || null,
+      };
     });
 
     return res.json({ status: 'success', data: { classrooms: data } });

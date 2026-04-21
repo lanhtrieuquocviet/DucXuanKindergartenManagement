@@ -113,6 +113,8 @@ const emptyForm = () => ({
   assets:             [emptySeparator(), emptyAssetRow()],
   extraAssets:        [],
   notes:              '',
+  pickedRoomId:       null,
+  pickedRoomName:     '',
 });
 
 const emptyTransferForm = () => ({
@@ -467,6 +469,8 @@ export default function ManageAssetAllocation() {
   const [loadingRooms, setLoadingRooms]     = useState(false);
   const [pickedRoom, setPickedRoom]         = useState(null);
   const [loadingRoomAssets, setLoadingRoomAssets] = useState(false);
+  // roomId → { className } của phòng đã có biên bản bàn giao active/pending
+  const [assignedRoomIds, setAssignedRoomIds] = useState({});
 
   // ── Load data ──────────────────────────────────────────────────────────────
   const loadAllocations = async () => {
@@ -594,8 +598,30 @@ export default function ManageAssetAllocation() {
     setRoomPickerOpen(true);
     setLoadingRooms(true);
     try {
-      const res = await get(ENDPOINTS.SCHOOL_ADMIN.ROOM_ASSETS);
-      if (res.status === 'success') setRoomList(res.data.classrooms || []);
+      // Load phòng + biên bản active + biên bản pending song song
+      const [roomRes, activeRes, pendingRes] = await Promise.all([
+        get(ENDPOINTS.SCHOOL_ADMIN.ROOM_ASSETS),
+        get(`${ENDPOINTS.SCHOOL_ADMIN.ASSET_ALLOCATIONS}?status=active`),
+        get(`${ENDPOINTS.SCHOOL_ADMIN.ASSET_ALLOCATIONS}?status=pending_confirmation`),
+      ]);
+      if (roomRes.status === 'success') setRoomList(roomRes.data.classrooms || []);
+
+      // Xây dựng map roomId → className cho các phòng đã có biên bản
+      // Dùng sourceRoomId (biên bản mới) hoặc classId.roomId (fallback cho biên bản cũ)
+      const occupied = {};
+      const allAllocs = [
+        ...(activeRes?.data?.allocations || []),
+        ...(pendingRes?.data?.allocations || []),
+      ];
+      for (const alloc of allAllocs) {
+        const roomId =
+          alloc.sourceRoomId?._id || alloc.sourceRoomId ||
+          alloc.classId?.roomId?._id || alloc.classId?.roomId;
+        if (roomId) {
+          occupied[String(roomId)] = { className: alloc.className || '?' };
+        }
+      }
+      setAssignedRoomIds(occupied);
     } catch {
       toast.error('Không thể tải danh sách phòng.');
     } finally {
@@ -633,7 +659,7 @@ export default function ManageAssetAllocation() {
         flat.push(emptySeparator(cat));
         flat.push(...rows);
       }
-      setForm((f) => ({ ...f, assets: flat }));
+      setForm((f) => ({ ...f, assets: flat, pickedRoomId: pickedRoom._id, pickedRoomName: pickedRoom.roomName }));
       toast.success(`Đã nhập ${items.length} loại tài sản từ phòng "${pickedRoom.roomName}".`);
       setRoomPickerOpen(false);
     } catch {
@@ -874,7 +900,14 @@ export default function ManageAssetAllocation() {
                   return (
                     <TableRow key={alloc._id} hover>
                       <TableCell sx={{ fontFamily: 'monospace', whiteSpace: 'nowrap' }}>{alloc.documentCode}</TableCell>
-                      <TableCell sx={{ whiteSpace: 'nowrap' }}>{alloc.className || '—'}</TableCell>
+                      <TableCell sx={{ whiteSpace: 'nowrap' }}>
+                        {alloc.className || '—'}
+                        {alloc.sourceRoomId && (
+                          <Typography variant="caption" display="block" color="text.secondary">
+                            Phòng: {alloc.sourceRoomId?.roomName || alloc.sourceRoomName || '—'}
+                          </Typography>
+                        )}
+                      </TableCell>
                       <TableCell sx={{ whiteSpace: 'nowrap' }}>{alloc.handoverByName || '—'}</TableCell>
                       <TableCell sx={{ whiteSpace: 'nowrap' }}>{alloc.teacherName || '—'}</TableCell>
                       <TableCell sx={{ whiteSpace: 'nowrap' }}>{formatDate(alloc.handoverDate)}</TableCell>
@@ -919,6 +952,11 @@ export default function ManageAssetAllocation() {
                               </Tooltip>
                             </>
                           )}
+                          <Tooltip title="Xóa biên bản">
+                            <IconButton size="small" color="error" onClick={() => setDeleteTarget(alloc)}>
+                              <DeleteIcon fontSize="small" />
+                            </IconButton>
+                          </Tooltip>
                         </Stack>
                       </TableCell>
                     </TableRow>
@@ -1194,26 +1232,47 @@ export default function ManageAssetAllocation() {
               {roomList.length === 0 && (
                 <Typography variant="body2" color="text.secondary">Chưa có phòng nào. Vui lòng thêm phòng ở mục "Quản lý tài sản theo phòng học".</Typography>
               )}
-              {roomList.map((room) => (
-                <Box
-                  key={room._id}
-                  onClick={() => setPickedRoom(room)}
-                  sx={{
-                    p: 1.5, border: '2px solid', borderRadius: 1, cursor: 'pointer',
-                    borderColor: pickedRoom?._id === room._id ? 'primary.main' : 'divider',
-                    bgcolor: pickedRoom?._id === room._id ? 'primary.50' : 'transparent',
-                    '&:hover': { borderColor: 'primary.main', bgcolor: 'action.hover' },
-                  }}
-                >
-                  <Stack direction="row" justifyContent="space-between" alignItems="center">
-                    <Box>
-                      <Typography variant="body2" fontWeight={600}>{room.roomName}</Typography>
-                      {room.zone && <Typography variant="caption" color="text.secondary">Khu {room.zone}</Typography>}
-                    </Box>
-                    <Typography variant="caption" color="text.secondary">{room.totalTypes || 0} loại tài sản</Typography>
-                  </Stack>
-                </Box>
-              ))}
+              {roomList.map((room) => {
+                const isAssigned = !!assignedRoomIds[String(room._id)];
+                const assignedTo = assignedRoomIds[String(room._id)]?.className;
+                return (
+                  <Box
+                    key={room._id}
+                    onClick={() => !isAssigned && setPickedRoom(room)}
+                    sx={{
+                      p: 1.5, border: '2px solid', borderRadius: 1,
+                      cursor: isAssigned ? 'not-allowed' : 'pointer',
+                      borderColor: isAssigned
+                        ? 'warning.main'
+                        : pickedRoom?._id === room._id ? 'primary.main' : 'divider',
+                      bgcolor: isAssigned
+                        ? 'warning.50'
+                        : pickedRoom?._id === room._id ? 'primary.50' : 'transparent',
+                      opacity: isAssigned ? 0.7 : 1,
+                      '&:hover': !isAssigned ? { borderColor: 'primary.main', bgcolor: 'action.hover' } : {},
+                    }}
+                  >
+                    <Stack direction="row" justifyContent="space-between" alignItems="center">
+                      <Box>
+                        <Typography variant="body2" fontWeight={600}>{room.roomName}</Typography>
+                        {room.zone && <Typography variant="caption" color="text.secondary">Khu {room.zone}</Typography>}
+                      </Box>
+                      <Stack alignItems="flex-end" spacing={0.25}>
+                        {isAssigned ? (
+                          <Chip
+                            label={`Đã bàn giao: ${assignedTo}`}
+                            color="warning"
+                            size="small"
+                            sx={{ fontSize: 10, height: 20 }}
+                          />
+                        ) : (
+                          <Typography variant="caption" color="text.secondary">{room.totalTypes || 0} loại tài sản</Typography>
+                        )}
+                      </Stack>
+                    </Stack>
+                  </Box>
+                );
+              })}
             </Stack>
           )}
         </DialogContent>
