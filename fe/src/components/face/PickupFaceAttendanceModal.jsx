@@ -1,55 +1,36 @@
 /**
  * PickupFaceAttendanceModal.jsx
  *
- * Modal điểm danh về bằng nhận diện khuôn mặt học sinh.
+ * Modal quét khuôn mặt điểm danh về cho giáo viên.
+ *
+ * Khi nhận diện được học sinh, gọi onStudentRecognized() để mở form
+ * checkout chi tiết — không nhập thông tin tại đây.
+ * Ảnh checkout được chụp tự động từ thời điểm AI quét và truyền sang form.
  *
  * Luồng:
  *  1. Camera phát hiện khuôn mặt học sinh liên tục
  *  2. Khi detect được → chụp frame → upload ảnh → gửi embedding + classId lên server
- *  3. Server match → tự động ghi checkout cho học sinh đó
- *  4. Hiển thị ảnh hồ sơ + ảnh vừa chụp để đối chiếu
- *  5. Cho phép nhập ghi chú, tích đồ mang về, chọn người đón (tối đa 2 phút)
- *  6. Cooldown 4 giây trước khi detect lại
+ *  3. Server match → gọi onStudentRecognized với ảnh và thời gian
+ *  4. Cooldown 4 giây trước khi detect lại
  */
 
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { toast } from 'react-toastify';
+import { User, Camera, Check, AlertTriangle, XCircle, ClipboardList } from 'lucide-react';
 import FaceCamera from './FaceCamera';
 import {
   matchStudentFaceForCheckout,
   uploadAttendanceImage,
-  saveCheckoutAttendance,
-  getApprovedPickupPersons,
 } from '../../service/faceAttendance.api';
 
 const COOLDOWN_MS = 4000;
-const WAIT_MS = 120000; // 2 phút
 
-const CHECKOUT_ITEMS = ['Ba lô', 'Hộp cơm', 'Bình nước', 'Thuốc', 'Áo đổi'];
-
-export default function PickupFaceAttendanceModal({ open, onClose, classId, className, onCheckoutSuccess }) {
+export default function PickupFaceAttendanceModal({ open, onClose, classId, className, onStudentRecognized }) {
   const [matchResult, setMatchResult] = useState(null);
   const [isProcessing, setIsProcessing] = useState(false);
-  const [isSaving, setIsSaving] = useState(false);
   const [checkedOutToday, setCheckedOutToday] = useState([]);
 
-  const [pickupPersons, setPickupPersons] = useState([]);
-  const [selectedReceiver, setSelectedReceiver] = useState(null);
-  const [delivererSaved, setDelivererSaved] = useState(false);
-
-  // Ghi chú & đồ mang về
-  const [note, setNote] = useState('');
-  const [checkoutBelongings, setCheckoutBelongings] = useState([]);
-  const [checkoutOtherChecked, setCheckoutOtherChecked] = useState(false);
-  const [checkoutOtherText, setCheckoutOtherText] = useState('');
-
-  // Đếm ngược
-  const [delivererCountdown, setDelivererCountdown] = useState(0);
-
   const cooldownRef = useRef(false);
-  const waitingForDelivererRef = useRef(false);
-  const delivererTimeoutRef = useRef(null);
-  const countdownIntervalRef = useRef(null);
   const cameraRef = useRef(null);
 
   // Reset khi đóng modal
@@ -57,131 +38,26 @@ export default function PickupFaceAttendanceModal({ open, onClose, classId, clas
     if (!open) {
       setMatchResult(null);
       setCheckedOutToday([]);
-      setPickupPersons([]);
-      setSelectedReceiver(null);
-      setDelivererSaved(false);
-      setNote('');
-      setCheckoutBelongings([]);
-      setCheckoutOtherChecked(false);
-      setCheckoutOtherText('');
-      setDelivererCountdown(0);
-      setIsSaving(false);
+      setIsProcessing(false);
       cooldownRef.current = false;
-      waitingForDelivererRef.current = false;
-      if (delivererTimeoutRef.current) clearTimeout(delivererTimeoutRef.current);
-      if (countdownIntervalRef.current) clearInterval(countdownIntervalRef.current);
     }
   }, [open]);
 
-  // ── Bắt đầu đếm ngược 2 phút ─────────────────────────────────────────────
-  const startWait = useCallback(() => {
-    waitingForDelivererRef.current = true;
-    setDelivererCountdown(120);
-
-    if (countdownIntervalRef.current) clearInterval(countdownIntervalRef.current);
-    countdownIntervalRef.current = setInterval(() => {
-      setDelivererCountdown((prev) => {
-        if (prev <= 1) {
-          clearInterval(countdownIntervalRef.current);
-          return 0;
-        }
-        return prev - 1;
-      });
-    }, 1000);
-
-    if (delivererTimeoutRef.current) clearTimeout(delivererTimeoutRef.current);
-    delivererTimeoutRef.current = setTimeout(() => {
-      // Hết giờ mà chưa ấn Lưu → reset form, KHÔNG lưu điểm danh về
-      waitingForDelivererRef.current = false;
-      if (countdownIntervalRef.current) clearInterval(countdownIntervalRef.current);
-      setDelivererCountdown(0);
-      setMatchResult(null);
-      setPickupPersons([]);
-      setSelectedReceiver(null);
-      setNote('');
-      setCheckoutBelongings([]);
-      setCheckoutOtherChecked(false);
-      setCheckoutOtherText('');
-      toast.warn('Hết thời gian — điểm danh về chưa được lưu. Hãy quét lại.');
-    }, WAIT_MS);
-  }, []);
-
-  // ── Lưu điểm danh về khi giáo viên ấn nút "Lưu & Tiếp tục" ─────────────
-  const handleSaveAll = useCallback(async () => {
-    if (!matchResult?.student?._id || isSaving) return;
-
-    const studentId = matchResult.student._id;
-
-    // Ngăn lưu trùng trong cùng phiên
-    if (checkedOutToday.includes(studentId)) {
-      toast.warn('Học sinh này đã được lưu điểm danh về trong phiên này');
-      return;
-    }
-
-    const detectedAt = matchResult.timestamp || new Date();
-    const timeStr =
-      matchResult.previewTime?.checkOut ||
-      `${detectedAt.getHours().toString().padStart(2, '0')}:${detectedAt.getMinutes().toString().padStart(2, '0')}`;
-    const today = detectedAt.toISOString().split('T')[0];
-
-    const receiverType = selectedReceiver
-      ? `${selectedReceiver.fullName} (${selectedReceiver.relation})`
-      : '';
-    const receiverOtherInfo = selectedReceiver?.phone || '';
-    const finalCheckoutBelongings = [
-      ...checkoutBelongings,
-      ...(checkoutOtherChecked && checkoutOtherText.trim() ? [checkoutOtherText.trim()] : []),
-    ];
-
-    setIsSaving(true);
-    try {
-      await saveCheckoutAttendance({
-        studentId,
-        classId,
-        date: today,
-        note,
-        receiverType,
-        receiverOtherInfo,
-        checkoutBelongings: finalCheckoutBelongings,
-        checkoutImageName: matchResult.checkoutImageUrl || '',
-        checkedOutByAI: true,
-        time: { checkOut: detectedAt.toISOString() },
-        timeString: { checkOut: timeStr },
-      });
-
-      setCheckedOutToday((prev) => [...prev, studentId]);
-      setDelivererSaved(true);
-      toast.success('Đã lưu điểm danh về thành công');
-      onCheckoutSuccess?.();
-
-      // Dừng countdown, sẵn sàng quét học sinh tiếp theo
-      waitingForDelivererRef.current = false;
-      if (countdownIntervalRef.current) clearInterval(countdownIntervalRef.current);
-      if (delivererTimeoutRef.current) clearTimeout(delivererTimeoutRef.current);
-      setDelivererCountdown(0);
-    } catch {
-      toast.error('Không lưu được điểm danh về. Vui lòng thử lại.');
-    } finally {
-      setIsSaving(false);
-    }
-  }, [
-    matchResult, isSaving, checkedOutToday, selectedReceiver, note,
-    checkoutBelongings, checkoutOtherChecked, checkoutOtherText,
-    classId, onCheckoutSuccess,
-  ]);
-
-  // ── Callback nhận embedding từ FaceCamera ─────────────────────────────────
+  // Callback nhận embedding từ FaceCamera
   const handleDetected = useCallback(
     async (embedding) => {
-      if (waitingForDelivererRef.current || cooldownRef.current || isProcessing || !classId) return;
+      if (cooldownRef.current || isProcessing || !classId) return;
 
       cooldownRef.current = true;
       setIsProcessing(true);
 
       const capturedFrame = cameraRef.current?.captureFrame() || null;
+      const now = new Date();
+      const timeStr = `${now.getHours().toString().padStart(2, '0')}:${now.getMinutes().toString().padStart(2, '0')}`;
 
       try {
-        const today = new Date().toISOString().split('T')[0];
+        const tzOffset = now.getTimezoneOffset() * 60000;
+        const today = new Date(now.getTime() - tzOffset).toISOString().slice(0, 10);
 
         let checkoutImageUrl = '';
         if (capturedFrame) {
@@ -190,31 +66,15 @@ export default function PickupFaceAttendanceModal({ open, onClose, classId, clas
 
         const result = await matchStudentFaceForCheckout(embedding, classId, today, checkoutImageUrl);
 
-        // Lưu checkoutImageUrl vào result để dùng khi ấn Lưu
-        setMatchResult({ ...result, capturedFrame, timestamp: new Date(), checkoutImageUrl });
+        setMatchResult({ ...result, capturedFrame, checkoutImageUrl, timestamp: now });
 
         if (result.status === 'success') {
           const studentId = result.student?._id;
           if (studentId && !checkedOutToday.includes(studentId)) {
-            setDelivererSaved(false);
-            setSelectedReceiver(null);
-            setNote('');
-            setCheckoutBelongings([]);
-            setCheckoutOtherChecked(false);
-            setCheckoutOtherText('');
-
-            // Bắt đầu đếm ngược 2 phút để giáo viên nhập thông tin và ấn Lưu
-            startWait();
-
-            getApprovedPickupPersons(studentId)
-              .then((res) => {
-                setPickupPersons(res?.data || []);
-              })
-              .catch(() => {
-                setPickupPersons([]);
-              });
-
-            toast.info(`Nhận diện: ${result.student.fullName} — Hãy ấn Lưu để xác nhận điểm danh về`);
+            setCheckedOutToday((prev) => [...prev, studentId]);
+            toast.success(`Nhận diện: ${result.student.fullName} — đang mở form điểm danh về`);
+            // Chuyển sang form checkout chi tiết với ảnh đã chụp
+            onStudentRecognized?.({ studentId, checkoutImageUrl, timeStr, student: result.student });
           }
         } else if (result.status === 'already_checked_out') {
           toast.info(result.message);
@@ -235,7 +95,7 @@ export default function PickupFaceAttendanceModal({ open, onClose, classId, clas
         setTimeout(() => { cooldownRef.current = false; }, COOLDOWN_MS);
       }
     },
-    [isProcessing, classId, checkedOutToday, startWait, onCheckoutSuccess]
+    [isProcessing, classId, checkedOutToday, onStudentRecognized]
   );
 
   if (!open) return null;
@@ -276,7 +136,7 @@ export default function PickupFaceAttendanceModal({ open, onClose, classId, clas
                 </div>
               )}
 
-              {/* Thống kê – hiện dưới camera trên mobile */}
+              {/* Thống kê — mobile */}
               <div className="mt-3 border rounded-xl p-3 bg-gray-50 md:hidden">
                 <p className="text-xs text-gray-500 font-semibold mb-0.5">Phiên điểm danh về này</p>
                 <p className="text-2xl font-bold text-emerald-600">{checkedOutToday.length}</p>
@@ -291,146 +151,44 @@ export default function PickupFaceAttendanceModal({ open, onClose, classId, clas
 
                 {!matchResult && (
                   <div className="text-center text-gray-400 py-4 sm:py-6">
-                    <span className="text-3xl sm:text-4xl">🧒</span>
+                    <User size={40} className="mx-auto text-gray-300" />
                     <p className="text-sm mt-2">Đưa khuôn mặt học sinh vào camera</p>
                   </div>
                 )}
 
                 {matchResult?.status === 'success' && (
-                  <div className="flex flex-col gap-2">
-                    {/* Ảnh đối chiếu + tên */}
-                    <div className="flex flex-col gap-2 p-2.5 sm:p-3 bg-emerald-50 rounded-lg border border-emerald-200">
-                      <div className="flex gap-2 sm:gap-3">
-                        <div className="flex flex-col items-center gap-1 flex-1">
-                          <div className="w-full h-16 sm:h-24 rounded-lg overflow-hidden bg-gray-200 border-2 border-emerald-300">
-                            {matchResult.student?.avatar ? (
-                              <img src={matchResult.student.avatar} alt="Ảnh hồ sơ" className="w-full h-full object-cover" />
-                            ) : (
-                              <div className="w-full h-full flex items-center justify-center text-2xl sm:text-3xl">🧒</div>
-                            )}
-                          </div>
-                          <p className="text-xs text-gray-500">Hồ sơ</p>
+                  <div className="p-2.5 sm:p-3 bg-emerald-50 rounded-lg border border-emerald-200">
+                    <div className="flex gap-2 sm:gap-3 mb-2">
+                      <div className="flex flex-col items-center gap-1 flex-1">
+                        <div className="w-full h-16 sm:h-24 rounded-lg overflow-hidden bg-gray-200 border-2 border-emerald-300">
+                          {matchResult.student?.avatar ? (
+                            <img src={matchResult.student.avatar} alt="Ảnh hồ sơ" className="w-full h-full object-cover" />
+                          ) : (
+                            <div className="w-full h-full flex items-center justify-center">
+                              <User size={32} className="text-gray-400" />
+                            </div>
+                          )}
                         </div>
-                        <div className="flex flex-col items-center gap-1 flex-1">
-                          <div className="w-full h-16 sm:h-24 rounded-lg overflow-hidden bg-gray-200 border-2 border-blue-300">
-                            {matchResult.capturedFrame ? (
-                              <img src={matchResult.capturedFrame} alt="Ảnh vừa chụp" className="w-full h-full object-cover" />
-                            ) : (
-                              <div className="w-full h-full flex items-center justify-center text-2xl sm:text-3xl">📷</div>
-                            )}
-                          </div>
-                          <p className="text-xs text-gray-500">Vừa chụp</p>
+                        <p className="text-xs text-gray-500">Hồ sơ</p>
+                      </div>
+                      <div className="flex flex-col items-center gap-1 flex-1">
+                        <div className="w-full h-16 sm:h-24 rounded-lg overflow-hidden bg-gray-200 border-2 border-blue-300">
+                          {matchResult.capturedFrame ? (
+                            <img src={matchResult.capturedFrame} alt="Ảnh vừa chụp" className="w-full h-full object-cover" />
+                          ) : (
+                            <div className="w-full h-full flex items-center justify-center">
+                              <Camera size={32} className="text-gray-400" />
+                            </div>
+                          )}
                         </div>
-                      </div>
-                      <div>
-                        <p className="font-bold text-emerald-700 text-sm sm:text-base">{matchResult.student?.fullName}</p>
-                        <p className="text-xs text-emerald-600">✓ Nhận diện thành công — hãy ấn Lưu để xác nhận</p>
-                        <p className="text-xs text-gray-400">{matchResult.previewTime?.checkOut}</p>
+                        <p className="text-xs text-gray-500">Vừa chụp</p>
                       </div>
                     </div>
-
-                    {/* Ghi chú */}
-                    <div className="border border-gray-200 rounded-lg p-2.5">
-                      <p className="text-xs font-semibold text-gray-600 mb-1">Ghi chú</p>
-                      <textarea
-                        value={note}
-                        onChange={(e) => setNote(e.target.value)}
-                        placeholder="Nhập ghi chú (nếu có)..."
-                        rows={2}
-                        className="w-full text-sm border border-gray-200 rounded p-1.5 resize-none focus:outline-none focus:ring-1 focus:ring-emerald-300"
-                      />
-                    </div>
-
-                    {/* Đồ mang về */}
-                    <div className="border border-gray-200 rounded-lg p-2.5">
-                      <p className="text-xs font-semibold text-gray-600 mb-1.5">Đồ mang về</p>
-                      <div className="grid grid-cols-2 gap-x-2 gap-y-1.5">
-                        {CHECKOUT_ITEMS.map((item) => (
-                          <label key={item} className="flex items-center gap-1.5 cursor-pointer">
-                            <input
-                              type="checkbox"
-                              checked={checkoutBelongings.includes(item)}
-                              onChange={(e) =>
-                                setCheckoutBelongings((prev) =>
-                                  e.target.checked ? [...prev, item] : prev.filter((i) => i !== item)
-                                )
-                              }
-                              className="w-4 h-4 accent-emerald-600 flex-shrink-0"
-                            />
-                            <span className="text-xs text-gray-600 leading-tight">{item}</span>
-                          </label>
-                        ))}
-                        <label className="flex items-center gap-1.5 cursor-pointer col-span-2">
-                          <input
-                            type="checkbox"
-                            checked={checkoutOtherChecked}
-                            onChange={(e) => {
-                              setCheckoutOtherChecked(e.target.checked);
-                              if (!e.target.checked) setCheckoutOtherText('');
-                            }}
-                            className="w-4 h-4 accent-emerald-600 flex-shrink-0"
-                          />
-                          <span className="text-xs text-gray-600 leading-tight">Khác</span>
-                        </label>
-                        {checkoutOtherChecked && (
-                          <input
-                            type="text"
-                            value={checkoutOtherText}
-                            onChange={(e) => setCheckoutOtherText(e.target.value)}
-                            placeholder="Nhập đồ mang về..."
-                            className="col-span-2 text-xs border border-gray-200 rounded p-1.5 focus:outline-none focus:ring-1 focus:ring-emerald-300"
-                          />
-                        )}
-                      </div>
-                    </div>
-
-                    {/* Người đón */}
-                    {matchResult.status === 'success' && (
-                      <div className="border border-emerald-100 rounded-lg p-2.5 bg-emerald-50">
-                        <p className="text-xs font-semibold text-emerald-700 mb-1.5">👤 Người đón hôm nay</p>
-                        {delivererSaved ? (
-                          <p className="text-xs text-green-600 font-medium">✓ Đã lưu</p>
-                        ) : pickupPersons.length > 0 ? (
-                          <div className="flex flex-wrap gap-1.5">
-                            {pickupPersons.map((p) => (
-                              <button
-                                key={p._id}
-                                onClick={() =>
-                                  setSelectedReceiver(selectedReceiver?._id === p._id ? null : p)
-                                }
-                                className={`px-2.5 py-1.5 border rounded-full text-xs transition-colors ${
-                                  selectedReceiver?._id === p._id
-                                    ? 'bg-emerald-600 text-white border-emerald-600'
-                                    : 'bg-white border-emerald-200 text-emerald-700 active:bg-emerald-100'
-                                }`}
-                              >
-                                {p.fullName} · {p.relation}
-                              </button>
-                            ))}
-                          </div>
-                        ) : (
-                          <p className="text-xs text-gray-400">Chưa có người đón đã duyệt</p>
-                        )}
-                      </div>
-                    )}
-
-                    {/* Đếm ngược + nút Lưu */}
-                    {matchResult.status === 'success' && !delivererSaved && (
-                      <div className="flex items-center gap-2 pt-1">
-                        {delivererCountdown > 0 && (
-                          <span className="text-xs text-orange-500 font-semibold tabular-nums whitespace-nowrap">
-                            {Math.floor(delivererCountdown / 60)}:{String(delivererCountdown % 60).padStart(2, '0')}
-                          </span>
-                        )}
-                        <button
-                          onClick={handleSaveAll}
-                          disabled={isSaving}
-                          className="flex-1 py-2 bg-emerald-600 active:bg-emerald-700 text-white rounded-lg text-sm font-medium transition-colors disabled:opacity-60"
-                        >
-                          {isSaving ? 'Đang lưu...' : 'Lưu & Tiếp tục'}
-                        </button>
-                      </div>
-                    )}
+                    <p className="font-bold text-emerald-700 text-sm sm:text-base">{matchResult.student?.fullName}</p>
+                    <p className="text-xs text-emerald-600 mt-0.5 flex items-center gap-1">
+                      <Check size={12} />
+                      Nhận diện thành công — đang mở form điểm danh về...
+                    </p>
                   </div>
                 )}
 
@@ -443,14 +201,14 @@ export default function PickupFaceAttendanceModal({ open, onClose, classId, clas
 
                 {matchResult?.status === 'not_checked_in' && (
                   <div className="p-3 bg-orange-50 rounded-lg border border-orange-200">
-                    <p className="text-sm font-semibold text-orange-700">⚠ {matchResult.student?.fullName}</p>
+                    <p className="text-sm font-semibold text-orange-700 flex items-center gap-1"><AlertTriangle size={14} /> {matchResult.student?.fullName}</p>
                     <p className="text-xs text-orange-600 mt-1">{matchResult.message}</p>
                   </div>
                 )}
 
                 {matchResult?.status === 'no_match' && (
                   <div className="text-center py-4">
-                    <span className="text-3xl">❌</span>
+                    <XCircle size={32} className="mx-auto text-red-400" />
                     <p className="text-sm text-red-600 font-medium mt-2">Không nhận diện được khuôn mặt</p>
                     <p className="text-xs text-gray-400 mt-1">Học sinh chưa đăng ký khuôn mặt hoặc ảnh không rõ</p>
                   </div>
@@ -458,13 +216,11 @@ export default function PickupFaceAttendanceModal({ open, onClose, classId, clas
 
                 {matchResult?.status === 'ambiguous' && (
                   <div className="text-center py-4">
-                    <span className="text-3xl">⚠️</span>
+                    <AlertTriangle size={32} className="mx-auto text-orange-400" />
                     <p className="text-sm text-orange-600 font-medium mt-2">Khuôn mặt không rõ ràng</p>
                     {matchResult.candidates?.length > 0 ? (
                       <div className="mt-2 text-left">
-                        <p className="text-xs text-gray-500 mb-1 text-center">
-                          Giống các học sinh sau:
-                        </p>
+                        <p className="text-xs text-gray-500 mb-1 text-center">Giống các học sinh sau:</p>
                         <ul className="text-xs text-orange-700 space-y-0.5">
                           {matchResult.candidates.map((c, i) => (
                             <li key={i} className="flex justify-between px-2 py-0.5 bg-orange-50 rounded">
@@ -479,8 +235,7 @@ export default function PickupFaceAttendanceModal({ open, onClose, classId, clas
                       </div>
                     ) : (
                       <p className="text-xs text-gray-400 mt-1">
-                        Khuôn mặt giống nhiều học sinh — không thể xác định chính xác.
-                        Hãy đăng ký thêm góc mặt khác nhau.
+                        Khuôn mặt giống nhiều học sinh. Hãy đăng ký thêm góc mặt.
                       </p>
                     )}
                   </div>
@@ -488,13 +243,13 @@ export default function PickupFaceAttendanceModal({ open, onClose, classId, clas
 
                 {matchResult?.status === 'no_data' && (
                   <div className="text-center py-4 text-gray-400">
-                    <span className="text-3xl">📋</span>
+                    <ClipboardList size={32} className="mx-auto text-gray-300" />
                     <p className="text-sm mt-2">{matchResult.message}</p>
                   </div>
                 )}
               </div>
 
-              {/* Thống kê – chỉ hiện trên desktop */}
+              {/* Thống kê — desktop */}
               <div className="border rounded-xl p-3 sm:p-4 bg-gray-50 hidden md:block">
                 <h3 className="font-semibold text-gray-600 mb-1 text-sm">Phiên điểm danh về này</h3>
                 <p className="text-2xl font-bold text-emerald-600">{checkedOutToday.length}</p>

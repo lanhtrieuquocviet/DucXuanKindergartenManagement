@@ -7,6 +7,7 @@
 
 import { useState, useEffect } from 'react';
 import { toast } from 'react-toastify';
+import { Check } from 'lucide-react';
 import { get, ENDPOINTS } from '../../service/api';
 import { deleteFaceEmbedding, deleteFaceAngle } from '../../service/faceAttendance.api';
 import FaceRegisterModal from './FaceRegisterModal';
@@ -123,7 +124,7 @@ function FaceDetailDialog({ student, onClose, onUpdate, onDeleted }) {
               </div>
               <div>
                 <p className="text-base font-bold text-gray-800">{student.fullName}</p>
-                <p className="text-xs text-green-600 font-medium">✓ Đã đăng ký khuôn mặt AI</p>
+                <p className="text-xs text-green-600 font-medium flex items-center gap-1"><Check size={12} /> Đã đăng ký khuôn mặt AI</p>
                 <p className="text-xs text-gray-400 mt-0.5">{regDate}</p>
               </div>
             </div>
@@ -385,7 +386,7 @@ export default function FaceRegisterClassModal({ open, onClose, classId, classNa
                 className="text-sm font-bold"
                 style={{ color: pct === 100 ? '#059669' : '#7c3aed' }}
               >
-                {pct}%{pct === 100 ? ' ✓' : ''}
+                {pct}%{pct === 100 ? <Check size={13} className="inline ml-1" /> : ''}
               </span>
             </div>
             <div className="w-full bg-gray-100 rounded-full h-2 overflow-hidden">

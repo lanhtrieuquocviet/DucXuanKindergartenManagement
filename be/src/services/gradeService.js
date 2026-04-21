@@ -2,7 +2,24 @@ const Grade = require('../models/Grade');
 const Classes = require('../models/Classes');
 const Student = require('../models/Student');
 const Teacher = require('../models/Teacher');
+const StaticBlock = require('../models/StaticBlock');
 const AcademicYear = require('../models/AcademicYear');
+
+function normalizeAgeLabel(minAge, maxAge) {
+  const min = Number(minAge);
+  const max = Number(maxAge);
+
+  if (Number.isFinite(min) && Number.isFinite(max) && min > 0 && max > 0) {
+    return `${min} - ${max}`;
+  }
+  if (Number.isFinite(min) && min > 0) {
+    return `${min}+`;
+  }
+  if (Number.isFinite(max) && max > 0) {
+    return `0 - ${max}`;
+  }
+  return '';
+}
 
 /**
  * GET /api/grades
@@ -10,12 +27,20 @@ const AcademicYear = require('../models/AcademicYear');
  */
 const listGrades = async (req, res) => {
   try {
-    const grades = await Grade.find().sort({ gradeName: 1 })
+    await Grade.updateMany({ ageRange: { $exists: true } }, { $unset: { ageRange: '' } });
+
+    const currentAcademicYear = await AcademicYear.findOne({ status: 'active' }).sort({ startDate: -1 }).lean();
+    if (!currentAcademicYear) {
+      return res.status(200).json({ status: 'success', data: [] });
+    }
+
+    const grades = await Grade.find({ academicYearId: currentAcademicYear._id }).sort({ gradeName: 1 })
       .populate({ path: 'headTeacherId', populate: { path: 'userId', select: 'fullName' } })
+      .populate('staticBlockId')
       .lean();
 
     // Lấy tất cả lớp học để tính số lớp và giáo viên theo khối
-    const allClasses = await Classes.find()
+    const allClasses = await Classes.find({ academicYearId: currentAcademicYear._id })
       .select('gradeId teacherIds')
       .populate({ path: 'teacherIds', populate: { path: 'userId', select: 'fullName' } })
       .lean();
@@ -43,6 +68,11 @@ const listGrades = async (req, res) => {
 
     const data = grades.map(g => ({
       ...g,
+      academicYear: {
+        _id: currentAcademicYear._id,
+        yearName: currentAcademicYear.yearName,
+      },
+      ageLabel: normalizeAgeLabel(g.minAge, g.maxAge),
       totalStudents: gradeStats[g._id.toString()]?.totalStudents || 0,
       teacherNames: gradeStats[g._id.toString()]
         ? [...gradeStats[g._id.toString()].teacherNames]
@@ -65,39 +95,47 @@ const listGrades = async (req, res) => {
  */
 const createGrade = async (req, res) => {
   try {
-    const { gradeName, description, maxClasses, minAge, maxAge, ageRange, headTeacherId } = req.body;
+    const { headTeacherId, staticBlockId } = req.body;
 
-    if (!gradeName || !String(gradeName).trim()) {
-      return res.status(400).json({ status: 'error', message: 'Tên khối lớp không được để trống' });
+    if (!staticBlockId) {
+      return res.status(400).json({ status: 'error', message: 'Danh mục khối là bắt buộc' });
     }
 
-    const trimmed = String(gradeName).trim();
-    if (trimmed.length > 10) {
-      return res.status(400).json({ status: 'error', message: 'Tên khối lớp không được quá 10 ký tự' });
+    const activeAcademicYear = await AcademicYear.findOne({ status: 'active' }).sort({ startDate: -1 }).lean();
+    if (!activeAcademicYear) {
+      return res.status(400).json({ status: 'error', message: 'Chưa có năm học đang hoạt động để khởi tạo khối' });
     }
 
-    const desc = typeof description === 'string' ? description.trim() : '';
-    if (desc.length > 50) {
-      return res.status(400).json({ status: 'error', message: 'Mô tả không được quá 50 ký tự' });
+    const selectedStaticBlock = await StaticBlock.findById(staticBlockId).lean();
+    if (!selectedStaticBlock) {
+      return res.status(400).json({ status: 'error', message: 'Danh mục khối không tồn tại' });
     }
 
-    let maxCls = 10;
-    if (maxClasses !== undefined) {
-      maxCls = Number(maxClasses);
-      if (!Number.isInteger(maxCls) || maxCls < 1 || maxCls > 10) {
-        return res.status(400).json({ status: 'error', message: 'Số lớp tối đa phải từ 1 đến 10' });
-      }
+    const existingByBlock = await Grade.findOne({
+      staticBlockId,
+      academicYearId: activeAcademicYear._id,
+    }).lean();
+
+    if (existingByBlock) {
+      return res.status(400).json({
+        status: 'error',
+        message: `Danh mục khối "${selectedStaticBlock.name}" đã được tạo trong năm học hiện tại`,
+      });
     }
 
-    const existing = await Grade.findOne({ gradeName: trimmed });
-    if (existing) {
-      return res.status(400).json({ status: 'error', message: 'Tên khối lớp đã tồn tại' });
+    if (!Number.isInteger(Number(selectedStaticBlock.maxClasses)) || Number(selectedStaticBlock.maxClasses) < 1 || Number(selectedStaticBlock.maxClasses) > 10) {
+      return res.status(400).json({
+        status: 'error',
+        message: 'Số lớp tối đa trong danh mục khối phải nằm trong khoảng từ 1 đến 10 để khởi tạo grade',
+      });
     }
 
-    // Kiểm tra tổ trưởng: 1 giáo viên không được làm tổ trưởng 2 khối trong cùng năm học
     let headTeacherVal = null;
     if (headTeacherId) {
-      const conflict = await Grade.findOne({ headTeacherId, _id: { $ne: null } }).lean();
+      const conflict = await Grade.findOne({
+        headTeacherId,
+        academicYearId: activeAcademicYear._id,
+      }).lean();
       if (conflict) {
         return res.status(400).json({
           status: 'error',
@@ -107,21 +145,30 @@ const createGrade = async (req, res) => {
       headTeacherVal = headTeacherId;
     }
 
-    const minAgeVal = minAge !== undefined ? Number(minAge) : 0;
-    const maxAgeVal = maxAge !== undefined ? Number(maxAge) : 0;
-    const ageRangeVal = typeof ageRange === 'string' ? ageRange.trim() : '';
-
     const grade = await Grade.create({
-      gradeName: trimmed, description: desc, maxClasses: maxCls,
-      minAge: minAgeVal, maxAge: maxAgeVal, ageRange: ageRangeVal,
+      gradeName: selectedStaticBlock.name,
+      description: selectedStaticBlock.description || '',
+      maxClasses: selectedStaticBlock.maxClasses,
+      minAge: selectedStaticBlock.minAge,
+      maxAge: selectedStaticBlock.maxAge,
       headTeacherId: headTeacherVal,
+      staticBlockId,
+      academicYearId: activeAcademicYear._id,
     });
+
+    await Grade.updateOne({ _id: grade._id }, { $unset: { ageRange: '' } });
 
     if (headTeacherVal) {
       await Teacher.findByIdAndUpdate(headTeacherVal, { isLeader: true });
     }
 
-    return res.status(201).json({ status: 'success', message: 'Tạo khối lớp thành công', data: grade });
+    // Populate staticBlock in response
+    const populatedGrade = await Grade.findById(grade._id)
+      .populate('staticBlockId')
+      .populate('academicYearId')
+      .populate('headTeacherId');
+
+    return res.status(201).json({ status: 'success', message: 'Tạo khối lớp thành công', data: populatedGrade });
   } catch (error) {
     console.error('createGrade error:', error);
     return res.status(500).json({ status: 'error', message: 'Lỗi khi tạo khối lớp' });
@@ -135,28 +182,28 @@ const createGrade = async (req, res) => {
 const updateGrade = async (req, res) => {
   try {
     const { id } = req.params;
-    const { gradeName, description, maxClasses, minAge, maxAge, ageRange, headTeacherId } = req.body;
+    const { maxClasses, headTeacherId } = req.body;
 
     const grade = await Grade.findById(id);
     if (!grade) {
       return res.status(404).json({ status: 'error', message: 'Không tìm thấy khối lớp' });
     }
 
-    if (!gradeName || !String(gradeName).trim()) {
-      return res.status(400).json({ status: 'error', message: 'Tên khối lớp không được để trống' });
-    }
+    const immutableFieldChanged = [
+      ['gradeName', String(req.body?.gradeName || '').trim(), String(grade.gradeName || '').trim()],
+      ['description', String(req.body?.description || '').trim(), String(grade.description || '').trim()],
+      ['minAge', req.body?.minAge ?? grade.minAge, grade.minAge],
+      ['maxAge', req.body?.maxAge ?? grade.maxAge, grade.maxAge],
+    ].some(([field, incoming, current]) => {
+      if (!(field in (req.body || {}))) return false;
+      return String(incoming) !== String(current);
+    });
 
-    const trimmed = String(gradeName).trim();
-    if (trimmed.length > 10) {
-      return res.status(400).json({ status: 'error', message: 'Tên khối lớp không được quá 10 ký tự' });
-    }
-
-    if (description !== undefined) {
-      const desc = typeof description === 'string' ? description.trim() : '';
-      if (desc.length > 50) {
-        return res.status(400).json({ status: 'error', message: 'Mô tả không được quá 50 ký tự' });
-      }
-      grade.description = desc;
+    if (immutableFieldChanged) {
+      return res.status(400).json({
+        status: 'error',
+        message: 'Chỉ được phép chỉnh sửa tổ trưởng khối và số lớp tối đa',
+      });
     }
 
     if (maxClasses !== undefined) {
@@ -175,25 +222,16 @@ const updateGrade = async (req, res) => {
       grade.maxClasses = maxCls;
     }
 
-    if (trimmed !== grade.gradeName) {
-      const existing = await Grade.findOne({ gradeName: trimmed });
-      if (existing) {
-        return res.status(400).json({ status: 'error', message: 'Tên khối lớp đã tồn tại' });
-      }
-    }
-
-    grade.gradeName = trimmed;
-    if (minAge !== undefined) grade.minAge = Number(minAge) || 0;
-    if (maxAge !== undefined) grade.maxAge = Number(maxAge) || 0;
-    if (ageRange !== undefined) grade.ageRange = typeof ageRange === 'string' ? ageRange.trim() : '';
-
-    // Kiểm tra tổ trưởng: 1 giáo viên không được làm tổ trưởng 2 khối trong cùng năm học
     if (headTeacherId !== undefined) {
       const oldHeadTeacherId = grade.headTeacherId ? grade.headTeacherId.toString() : null;
       const newHeadTeacherId = headTeacherId || null;
 
       if (newHeadTeacherId) {
-        const conflict = await Grade.findOne({ headTeacherId: newHeadTeacherId, _id: { $ne: id } }).lean();
+        const conflict = await Grade.findOne({
+          headTeacherId: newHeadTeacherId,
+          academicYearId: grade.academicYearId,
+          _id: { $ne: id },
+        }).lean();
         if (conflict) {
           return res.status(400).json({
             status: 'error',
@@ -217,7 +255,9 @@ const updateGrade = async (req, res) => {
       grade.headTeacherId = newHeadTeacherId;
     }
 
+    grade.set('ageRange', undefined, { strict: false });
     await grade.save();
+    await Grade.updateOne({ _id: grade._id }, { $unset: { ageRange: '' } });
 
     return res.status(200).json({ status: 'success', message: 'Cập nhật khối lớp thành công', data: grade });
   } catch (error) {

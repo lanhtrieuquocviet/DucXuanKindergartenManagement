@@ -10,6 +10,7 @@ import {
 import {
   ArrowBack, School, CalendarMonth,
   Login as LoginIcon, Logout as LogoutIcon, Image as ImageIcon, SmartToy,
+  VerifiedUser as VerifiedUserIcon, PersonOff as PersonOffIcon,
 } from '@mui/icons-material';
 
 const PRIMARY = '#059669';
@@ -135,6 +136,7 @@ export default function TodayAttendance() {
   const checkinBelongings = attendance?.checkinBelongings || [];
   const checkedInByAI = attendance?.checkedInByAI || false;
   const absentReason  = attendance?.absentReason || '';
+  const isOtherDeliverer = delivererName === 'Khác';
 
   // Check-out data
   const checkOutTime  = attendance?.timeString?.checkOut || '';
@@ -146,6 +148,8 @@ export default function TodayAttendance() {
   const checkoutBelongings = attendance?.checkoutBelongings || [];
   const checkoutBelongingsNote = attendance?.checkoutBelongingsNote || '';
   const checkedOutByAI = attendance?.checkedOutByAI || false;
+  const checkoutConfirmMethod = attendance?.checkoutConfirmMethod || '';
+  const isOtherReceiver = receiverName === 'Khác';
 
   const isAbsent   = attendance?.status === 'absent';
   const hasCheckIn  = Boolean(checkInTime || attendance?.status === 'present');
@@ -234,7 +238,7 @@ export default function TodayAttendance() {
 
               <Box px={2} py={2}>
                 {/* Status chips */}
-                <Stack direction="row" spacing={1} alignItems="center" mb={2}>
+                <Stack direction="row" spacing={1} alignItems="center" flexWrap="wrap" gap={0.75} mb={2}>
                   <Chip
                     label={isAbsent ? 'Vắng mặt' : hasCheckIn ? 'Có mặt' : 'Chưa điểm danh'}
                     color={isAbsent ? 'error' : hasCheckIn ? 'success' : 'default'}
@@ -244,6 +248,12 @@ export default function TodayAttendance() {
                     <Chip icon={<SmartToy sx={{ fontSize: '14px !important' }} />}
                       label="Nhận diện AI" size="small"
                       sx={{ fontWeight: 700, bgcolor: '#f3e8ff', color: '#7c3aed', border: '1px solid #e9d5ff' }}
+                    />
+                  )}
+                  {isOtherDeliverer && hasCheckIn && (
+                    <Chip icon={<PersonOffIcon sx={{ fontSize: '14px !important' }} />}
+                      label="Người đưa: Khác ngoài danh sách" size="small"
+                      sx={{ fontWeight: 700, bgcolor: '#fffbeb', color: '#b45309', border: '1px solid #fde68a' }}
                     />
                   )}
                 </Stack>
@@ -263,11 +273,11 @@ export default function TodayAttendance() {
 
                 {/* Info grid */}
                 <Grid container spacing={2} mb={2}>
-                  <Grid size={{ xs: 6 }}>
+                  <Grid size={{ xs: 12, sm: 6 }}>
                     <InfoItem label="Người đưa" value={delivererName} />
                   </Grid>
-                  <Grid size={{ xs: 6 }}>
-                    <InfoItem label="SĐT người đưa" value={delivererPhone} />
+                  <Grid size={{ xs: 12, sm: 6 }}>
+                    <InfoItem label="Thông tin người đưa" value={delivererPhone} />
                   </Grid>
                   <Grid size={{ xs: 12 }}>
                     <InfoItem label="Ghi chú" value={note} />
@@ -286,12 +296,12 @@ export default function TodayAttendance() {
                 <Divider sx={{ mb: 2 }} />
                 <Grid container spacing={1.5}>
                   {delivererImg && (
-                    <Grid size={{ xs: checkinImg ? 6 : 12 }}>
+                    <Grid size={{ xs: 12, sm: checkinImg ? 6 : 12 }}>
                       <PhotoCard label="Ảnh người đưa" src={delivererImg} color={PRIMARY} />
                     </Grid>
                   )}
-                  <Grid size={{ xs: delivererImg ? 6 : 12 }}>
-                    <PhotoCard label="Ảnh xác nhận check-in" src={checkinImg} color={PRIMARY} />
+                  <Grid size={{ xs: 12, sm: delivererImg ? 6 : 12 }}>
+                    <PhotoCard label="Ảnh check-in" src={checkinImg} color={PRIMARY} />
                   </Grid>
                 </Grid>
               </Box>
@@ -308,7 +318,7 @@ export default function TodayAttendance() {
 
               <Box px={2} py={2}>
                 {/* Status chips */}
-                <Stack direction="row" spacing={1} alignItems="center" mb={2}>
+                <Stack direction="row" spacing={1} alignItems="center" flexWrap="wrap" gap={0.75} mb={2}>
                   <Chip
                     label={hasCheckOut ? 'Đã đón' : 'Chưa đón'}
                     color={hasCheckOut ? 'info' : 'default'}
@@ -318,6 +328,24 @@ export default function TodayAttendance() {
                     <Chip icon={<SmartToy sx={{ fontSize: '14px !important' }} />}
                       label="Nhận diện AI" size="small"
                       sx={{ fontWeight: 700, bgcolor: '#f3e8ff', color: '#7c3aed', border: '1px solid #e9d5ff' }}
+                    />
+                  )}
+                  {isOtherReceiver && checkoutConfirmMethod === 'teacher' && (
+                    <Chip icon={<VerifiedUserIcon sx={{ fontSize: '14px !important' }} />}
+                      label="Giáo viên xác nhận trực tiếp" size="small"
+                      sx={{ fontWeight: 700, bgcolor: '#fffbeb', color: '#b45309', border: '1px solid #fde68a' }}
+                    />
+                  )}
+                  {isOtherReceiver && checkoutConfirmMethod === 'school_otp' && (
+                    <Chip icon={<VerifiedUserIcon sx={{ fontSize: '14px !important' }} />}
+                      label="Phụ huynh xác nhận" size="small"
+                      sx={{ fontWeight: 700, bgcolor: '#f0fdf4', color: '#15803d', border: '1px solid #86efac' }}
+                    />
+                  )}
+                  {isOtherReceiver && checkoutConfirmMethod === 'sms_otp' && (
+                    <Chip icon={<PersonOffIcon sx={{ fontSize: '14px !important' }} />}
+                      label="Xác thực OTP (SMS)" size="small"
+                      sx={{ fontWeight: 700, bgcolor: '#fff7ed', color: '#c2410c', border: '1px solid #fed7aa' }}
                     />
                   )}
                 </Stack>
@@ -337,11 +365,11 @@ export default function TodayAttendance() {
 
                 {/* Info grid */}
                 <Grid container spacing={2} mb={2}>
-                  <Grid size={{ xs: 6 }}>
+                  <Grid size={{ xs: 12, sm: 6 }}>
                     <InfoItem label="Người đón" value={receiverName} />
                   </Grid>
-                  <Grid size={{ xs: 6 }}>
-                    <InfoItem label="SĐT người đón" value={receiverPhone} />
+                  <Grid size={{ xs: 12, sm: 6 }}>
+                    <InfoItem label="Thông tin người đón" value={receiverPhone} />
                   </Grid>
                   <Grid size={{ xs: 12 }}>
                     <InfoItem label="Ghi chú" value={checkoutBelongingsNote} />
@@ -355,12 +383,12 @@ export default function TodayAttendance() {
                 <Divider sx={{ mb: 2 }} />
                 <Grid container spacing={1.5}>
                   {receiverImg && (
-                    <Grid size={{ xs: checkoutImg ? 6 : 12 }}>
+                    <Grid size={{ xs: 12, sm: checkoutImg ? 6 : 12 }}>
                       <PhotoCard label="Ảnh người đón" src={receiverImg} color="#2563eb" />
                     </Grid>
                   )}
-                  <Grid size={{ xs: receiverImg ? 6 : 12 }}>
-                    <PhotoCard label="Ảnh xác nhận check-out" src={checkoutImg} color="#2563eb" />
+                  <Grid size={{ xs: 12, sm: receiverImg ? 6 : 12 }}>
+                    <PhotoCard label="Ảnh check-out" src={checkoutImg} color="#2563eb" />
                   </Grid>
                 </Grid>
               </Box>

@@ -1,11 +1,12 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import RoleLayout from '../../layouts/RoleLayout';
 import { useAuth } from '../../context/AuthContext';
 import { toast } from 'react-toastify';
-import { get, post, patch, ENDPOINTS } from '../../service/api';
+import { get, patch, ENDPOINTS } from '../../service/api';
 import { createSchoolAdminMenuSelect } from './schoolAdminMenuConfig';
 import { useSchoolAdminMenu } from './useSchoolAdminMenu';
+import AcademicYearWizard from './AcademicYearWizard/WizardContainer';
 import {
   Box,
   Paper,
@@ -23,7 +24,6 @@ import {
   DialogContent,
   DialogActions,
   Checkbox,
-  FormControlLabel,
   Avatar,
   Table,
   TableHead,
@@ -39,6 +39,7 @@ import {
   Search as SearchIcon,
   CheckBox as CheckBoxIcon,
   CheckBoxOutlineBlank as CheckBoxBlankIcon,
+  Warning as WarningIcon,
 } from '@mui/icons-material';
 
 function formatDate(dateString) {
@@ -48,6 +49,29 @@ function formatDate(dateString) {
   return d.toLocaleDateString('vi-VN');
 }
 
+function normalizeGradeLabel(name) {
+  return String(name || '')
+    .replace(/\u2013|\u2014/g, '-')
+    .toLowerCase();
+}
+
+function hasGraduationAgeBandFromNumbers(minAge, maxAge) {
+  const min = Number(minAge);
+  const max = Number(maxAge);
+  if (!Number.isFinite(min) || !Number.isFinite(max)) return false;
+  return min >= 5 && max >= 6;
+}
+
+/**
+ * Khối năm cuối (được tick tốt nghiệp): ưu tiên cờ từ API theo min/max tuổi Grade;
+ * không phụ thuộc tên "Khối chồi" / "Khối lá". Fallback: tên khối có chuỗi 5-6 (dữ liệu cũ).
+ */
+function isFinishRowSelectable(s) {
+  if (typeof s.canChooseGraduation === 'boolean') return s.canChooseGraduation;
+  if (hasGraduationAgeBandFromNumbers(s.gradeMinAge, s.gradeMaxAge)) return true;
+  return normalizeGradeLabel(s.gradeName).includes('5-6');
+}
+
 function ManageAcademicYears() {
   const [currentYear, setCurrentYear] = useState(null);
   const [years, setYears] = useState([]);
@@ -55,23 +79,17 @@ function ManageAcademicYears() {
   const [history, setHistory] = useState([]);
   const [historyLoading, setHistoryLoading] = useState(false);
 
-  // --- Tạo năm học mới ---
-  const [openCreate, setOpenCreate] = useState(false);
-  const [createForm, setCreateForm] = useState({
-    name: '', startDate: '', endDate: '', termCount: 2,
-    term1StartDate: '', term1EndDate: '',
-    term2StartDate: '', term2EndDate: '',
-    description: '',
-  });
-  const [createErrors, setCreateErrors] = useState({});
 
-  // --- Kết thúc năm học + chọn học sinh chuyển tiếp ---
+
+  // --- Kết thúc năm học: tick = tốt nghiệp (chỉ khối năm cuối theo tuổi cấu hình); API selectedStudentIds = id tốt nghiệp ---
   const [openFinish, setOpenFinish] = useState(false);
   const [finishStudents, setFinishStudents] = useState([]);
   const [finishLoading, setFinishLoading] = useState(false);
-  const [selectedStudentIds, setSelectedStudentIds] = useState(new Set());
-  // Lưu lại khi đã confirm kết thúc, dùng khi tạo năm mới
-  const [carryOverStudentIds, setCarryOverStudentIds] = useState([]);
+  const [graduateMarkedIds, setGraduateMarkedIds] = useState(new Set());
+  const [finishGradeFilter, setFinishGradeFilter] = useState('');
+  const [finishClassFilter, setFinishClassFilter] = useState('');
+  // --- Wizard tạo năm học mới ---
+  const [openWizard, setOpenWizard] = useState(false);
 
   const navigate = useNavigate();
   const { user, logout } = useAuth();
@@ -113,13 +131,25 @@ function ManageAcademicYears() {
     setOpenFinish(true);
     setFinishLoading(true);
     setFinishStudents([]);
-    setSelectedStudentIds(new Set());
+    setFinishGradeFilter('');
+    setFinishClassFilter('');
+    setGraduateMarkedIds(new Set());
     try {
       const resp = await get(ENDPOINTS.SCHOOL_ADMIN.ACADEMIC_YEARS.STUDENTS(currentYear._id));
       if (resp?.status === 'success' && Array.isArray(resp.data)) {
         setFinishStudents(resp.data);
-        // Mặc định chọn tất cả
-        setSelectedStudentIds(new Set(resp.data.map((s) => s._id)));
+        
+        // --- LOGIC HỢP LÝ: Tự động đề xuất dựa trên đánh giá ---
+        const autoGraduateIds = new Set();
+        resp.data.forEach(s => {
+          if (isFinishRowSelectable(s)) {
+            // Nếu là khối năm cuối và đã Đạt -> Tự động đánh dấu tốt nghiệp
+            if (s.evaluation?.academicEvaluation === 'đạt') {
+              autoGraduateIds.add(s._id);
+            }
+          }
+        });
+        setGraduateMarkedIds(autoGraduateIds);
       }
     } catch (err) {
       console.error('Error loading students for finish:', err);
@@ -128,8 +158,10 @@ function ManageAcademicYears() {
     }
   };
 
-  const handleToggleStudent = (id) => {
-    setSelectedStudentIds((prev) => {
+  const handleToggleGraduateMark = (id) => {
+    const row = finishStudents.find((s) => String(s._id) === String(id));
+    if (!row || !isFinishRowSelectable(row)) return;
+    setGraduateMarkedIds((prev) => {
       const next = new Set(prev);
       if (next.has(id)) next.delete(id);
       else next.add(id);
@@ -137,116 +169,51 @@ function ManageAcademicYears() {
     });
   };
 
-  const handleToggleAll = () => {
-    if (selectedStudentIds.size === finishStudents.length) {
-      setSelectedStudentIds(new Set());
-    } else {
-      setSelectedStudentIds(new Set(finishStudents.map((s) => s._id)));
-    }
+  const handleToggleAllGraduateMarks = () => {
+    const visibleSelectable = filteredFinishStudents.filter(isFinishRowSelectable);
+    const ids = visibleSelectable.map((s) => s._id);
+    setGraduateMarkedIds((prev) => {
+      const allVisibleMarked = ids.length > 0 && ids.every((id) => prev.has(id));
+      const next = new Set(prev);
+      if (allVisibleMarked) {
+        ids.forEach((id) => next.delete(id));
+      } else {
+        ids.forEach((id) => next.add(id));
+      }
+      return next;
+    });
   };
 
   const handleConfirmFinish = async () => {
     if (!currentYear) return;
+
+    // Kiểm tra xem còn học sinh chưa đánh giá không
+    const unEvaluatedCount = finishStudents.filter(s => !s.evaluation?.academicEvaluation).length;
+    if (unEvaluatedCount > 0) {
+      if (!window.confirm(`Còn ${unEvaluatedCount} học sinh chưa có kết quả đánh giá cuối năm. Bạn có chắc chắn muốn kết thúc năm học không?`)) {
+        return;
+      }
+    }
+
     try {
-      const resp = await patch(ENDPOINTS.SCHOOL_ADMIN.ACADEMIC_YEARS.FINISH(currentYear._id), {});
+      const graduateIds = finishStudents
+        .filter((s) => isFinishRowSelectable(s) && graduateMarkedIds.has(s._id))
+        .map((s) => String(s._id));
+
+      const resp = await patch(ENDPOINTS.SCHOOL_ADMIN.ACADEMIC_YEARS.FINISH(currentYear._id), {
+        selectedStudentIds: graduateIds
+      });
       if (resp?.status === 'success') {
         const updated = resp.data;
         setCurrentYear(updated);
         setYears((prev) => prev.map((y) => (y._id === updated._id ? updated : y)));
-        const ids = Array.from(selectedStudentIds);
-        setCarryOverStudentIds(ids);
         setOpenFinish(false);
-        toast.success(
-          `Đã kết thúc năm học. ${ids.length} học sinh sẽ được chuyển tiếp sang năm học mới.`,
-        );
+        toast.success(`Đã kết thúc năm học thành công.`);
       }
     } catch (error) {
       console.error('Error finishing academic year:', error);
       toast.error('Không thể kết thúc năm học');
     }
-  };
-
-  // ============ Create year dialog ============
-  const handleOpenCreate = () => {
-    if (!canCreateNewYear) return;
-    setCreateForm({
-      name: '', startDate: '', endDate: '', termCount: 2,
-      term1StartDate: '', term1EndDate: '',
-      term2StartDate: '', term2EndDate: '',
-      description: '',
-    });
-    setCreateErrors({});
-    setOpenCreate(true);
-  };
-
-  const handleSubmitCreate = () => {
-    if (!canCreateNewYear) return;
-    const errors = {};
-    if (!createForm.name.trim())          errors.name = 'Vui lòng nhập tên năm học';
-    if (!createForm.startDate)            errors.startDate = 'Vui lòng chọn ngày bắt đầu';
-    if (!createForm.endDate)              errors.endDate = 'Vui lòng chọn ngày kết thúc';
-    if (!createForm.term1StartDate)       errors.term1StartDate = 'Vui lòng chọn ngày bắt đầu kỳ 1';
-    if (!createForm.term1EndDate)         errors.term1EndDate = 'Vui lòng chọn ngày kết thúc kỳ 1';
-    if (!createForm.term2StartDate)       errors.term2StartDate = 'Vui lòng chọn ngày bắt đầu kỳ 2';
-    if (!createForm.term2EndDate)         errors.term2EndDate = 'Vui lòng chọn ngày kết thúc kỳ 2';
-    if (!createForm.description.trim())   errors.description = 'Vui lòng nhập mô tả / mục tiêu năm học';
-
-    if (createForm.startDate && createForm.endDate) {
-      if (new Date(createForm.startDate) >= new Date(createForm.endDate))
-        errors.endDate = 'Ngày kết thúc phải sau ngày bắt đầu';
-    }
-    if (createForm.term1StartDate && createForm.term1EndDate) {
-      if (new Date(createForm.term1StartDate) >= new Date(createForm.term1EndDate))
-        errors.term1EndDate = 'Ngày kết thúc kỳ 1 phải sau ngày bắt đầu kỳ 1';
-    }
-    if (createForm.term2StartDate && createForm.term2EndDate) {
-      if (new Date(createForm.term2StartDate) >= new Date(createForm.term2EndDate))
-        errors.term2EndDate = 'Ngày kết thúc kỳ 2 phải sau ngày bắt đầu kỳ 2';
-    }
-    if (createForm.term1EndDate && createForm.term2StartDate) {
-      if (new Date(createForm.term1EndDate) > new Date(createForm.term2StartDate))
-        errors.term2StartDate = 'Kỳ 2 không thể bắt đầu trước khi kết thúc kỳ 1';
-    }
-
-    setCreateErrors(errors);
-    if (Object.keys(errors).length > 0) return;
-
-    const payload = {
-      yearName: createForm.name.trim(),
-      startDate: createForm.startDate,
-      endDate: createForm.endDate,
-      termCount: 2,
-      term1StartDate: createForm.term1StartDate,
-      term1EndDate: createForm.term1EndDate,
-      term2StartDate: createForm.term2StartDate,
-      term2EndDate: createForm.term2EndDate,
-      description: createForm.description.trim(),
-      carryOverStudentIds,
-    };
-
-    post(ENDPOINTS.SCHOOL_ADMIN.ACADEMIC_YEARS.CREATE, payload)
-      .then((resp) => {
-        if (resp?.status === 'success') {
-          const newYear = resp.data;
-          setCurrentYear(newYear);
-          setYears((prev) => [newYear, ...prev]);
-          setCarryOverStudentIds([]);
-          setOpenCreate(false);
-          const count = resp.carryOverCount ?? carryOverStudentIds.length;
-          toast.success(
-            count > 0
-              ? `Tạo năm học mới thành công. Đã chuyển tiếp ${count} học sinh.`
-              : 'Tạo năm học mới thành công.',
-          );
-        }
-      })
-      .catch((error) => {
-        console.error('Error creating academic year:', error);
-        setCreateErrors((prev) => ({
-          ...prev,
-          api: error.message || 'Không thể tạo năm học mới',
-        }));
-      });
   };
 
   const handleSearchHistory = async () => {
@@ -268,8 +235,54 @@ function ManageAcademicYears() {
     }
   };
 
-  const allSelected = finishStudents.length > 0 && selectedStudentIds.size === finishStudents.length;
-  const someSelected = selectedStudentIds.size > 0 && !allSelected;
+  const filteredFinishStudents = useMemo(() => {
+    const g = finishGradeFilter.trim();
+    const c = finishClassFilter.trim();
+    return finishStudents.filter((s) => {
+      const gn = (s.gradeName || '').trim();
+      const cn = (s.className || '').trim();
+      if (g && gn !== g) return false;
+      if (c && cn !== c) return false;
+      return true;
+    });
+  }, [finishStudents, finishGradeFilter, finishClassFilter]);
+
+  const finishGradeOptions = useMemo(() => {
+    const set = new Set(finishStudents.map((s) => (s.gradeName || '').trim()).filter(Boolean));
+    return Array.from(set).sort((a, b) => a.localeCompare(b, 'vi'));
+  }, [finishStudents]);
+
+  const finishClassOptions = useMemo(() => {
+    const pool = finishGradeFilter.trim()
+      ? finishStudents.filter((s) => (s.gradeName || '').trim() === finishGradeFilter.trim())
+      : finishStudents;
+    const set = new Set(pool.map((s) => (s.className || '').trim()).filter(Boolean));
+    return Array.from(set).sort((a, b) => a.localeCompare(b, 'vi'));
+  }, [finishStudents, finishGradeFilter]);
+
+  const visibleSelectableFinish = useMemo(
+    () => filteredFinishStudents.filter(isFinishRowSelectable),
+    [filteredFinishStudents],
+  );
+
+  const allSelected =
+    visibleSelectableFinish.length > 0 &&
+    visibleSelectableFinish.every((s) => graduateMarkedIds.has(s._id));
+  const someSelected =
+    visibleSelectableFinish.some((s) => graduateMarkedIds.has(s._id)) && !allSelected;
+
+  const finishSelectableTotal = useMemo(
+    () => finishStudents.filter(isFinishRowSelectable).length,
+    [finishStudents],
+  );
+  const graduateTickCount = useMemo(
+    () =>
+      finishStudents.reduce(
+        (n, s) => n + (isFinishRowSelectable(s) && graduateMarkedIds.has(s._id) ? 1 : 0),
+        0,
+      ),
+    [finishStudents, graduateMarkedIds],
+  );
 
   return (
     <RoleLayout
@@ -314,7 +327,7 @@ function ManageAcademicYears() {
                 '&:hover': { bgcolor: '#e5e7ff' },
               }}
               disabled={!canCreateNewYear}
-              onClick={handleOpenCreate}
+              onClick={() => setOpenWizard(true)}
             >
               Tạo năm học mới
             </Button>
@@ -337,14 +350,7 @@ function ManageAcademicYears() {
                   ? `Bắt đầu: ${formatDate(currentYear.startDate)} – Kết thúc: ${formatDate(currentYear.endDate)}`
                   : 'Chưa thiết lập thời gian năm học'}
               </Typography>
-              {carryOverStudentIds.length > 0 && (
-                <Chip
-                  size="small"
-                  label={`${carryOverStudentIds.length} học sinh sẽ được chuyển tiếp`}
-                  color="info"
-                  sx={{ mt: 1, fontWeight: 600 }}
-                />
-              )}
+  
             </Box>
           </Stack>
           <Stack direction="row" spacing={1.5} alignItems="center">
@@ -434,10 +440,11 @@ function ManageAcademicYears() {
         <Dialog open={openFinish} onClose={() => setOpenFinish(false)} maxWidth="md" fullWidth>
           <DialogTitle sx={{ pb: 1.5, background: 'linear-gradient(135deg, #dc2626 0%, #b91c1c 100%)', color: 'white' }}>
             <Typography variant="subtitle1" fontWeight={700}>
-              Kết thúc năm học — Chọn học sinh chuyển tiếp
+              Kết thúc năm học — Xử lý học sinh theo khối lớp
             </Typography>
             <Typography variant="body2" sx={{ opacity: 0.9, mt: 0.25 }}>
-              Chọn những học sinh sẽ được tự động thêm vào năm học tiếp theo khi tạo mới.
+              • Hệ thống tự động đề xuất <strong>Tốt nghiệp</strong> cho trẻ khối năm cuối có kết quả <strong>Đạt</strong>.<br/>
+              • Trẻ <strong>Chưa đạt</strong> hoặc <strong>Chưa đánh giá</strong> sẽ mặc định <strong>Học tiếp</strong> (ở lại lớp hoặc chuyển khối tùy cấu hình).
             </Typography>
           </DialogTitle>
           <DialogContent dividers sx={{ p: 0 }}>
@@ -450,180 +457,210 @@ function ManageAcademicYears() {
                 <Typography color="text.secondary">Không có học sinh nào trong năm học này.</Typography>
               </Box>
             ) : (
-              <Table size="small" stickyHeader>
+              <>
+                <Stack
+                  direction={{ xs: 'column', sm: 'row' }}
+                  spacing={2}
+                  alignItems={{ xs: 'stretch', sm: 'center' }}
+                  sx={{ px: 2, py: 1.5, bgcolor: 'grey.50', borderBottom: 1, borderColor: 'divider' }}
+                >
+                  <Typography variant="body2" color="text.secondary" sx={{ display: { xs: 'none', sm: 'block' }, flexShrink: 0 }}>
+                    Lọc danh sách xét duyệt:
+                  </Typography>
+                  <FormControl size="small" sx={{ minWidth: { xs: '100%', sm: 200 } }}>
+                    <InputLabel>Khối</InputLabel>
+                    <Select
+                      label="Khối"
+                      value={finishGradeFilter}
+                      onChange={(e) => {
+                        setFinishGradeFilter(e.target.value);
+                        setFinishClassFilter('');
+                      }}
+                    >
+                      <MenuItem value="">
+                        <em>Tất cả khối</em>
+                      </MenuItem>
+                      {finishGradeOptions.map((name) => (
+                        <MenuItem key={name} value={name}>
+                          {name}
+                        </MenuItem>
+                      ))}
+                    </Select>
+                  </FormControl>
+                  <FormControl size="small" sx={{ minWidth: { xs: '100%', sm: 200 } }}>
+                    <InputLabel>Lớp</InputLabel>
+                    <Select
+                      label="Lớp"
+                      value={finishClassFilter}
+                      onChange={(e) => setFinishClassFilter(e.target.value)}
+                      disabled={finishClassOptions.length === 0}
+                    >
+                      <MenuItem value="">
+                        <em>Tất cả lớp{finishGradeFilter.trim() ? ' (theo khối đã chọn)' : ''}</em>
+                      </MenuItem>
+                      {finishClassOptions.map((name) => (
+                        <MenuItem key={name} value={name}>
+                          {name}
+                        </MenuItem>
+                      ))}
+                    </Select>
+                  </FormControl>
+                </Stack>
+                {filteredFinishStudents.length === 0 ? (
+                  <Box sx={{ py: 6, textAlign: 'center', px: 2 }}>
+                    <Typography color="text.secondary">
+                      Không có học sinh nào khớp bộ lọc khối / lớp. Hãy đổi bộ lọc hoặc chọn &quot;Tất cả&quot; để xem lại danh sách.
+                    </Typography>
+                  </Box>
+                ) : (
+                <Table size="small" stickyHeader>
                 <TableHead>
                   <TableRow>
                     <TableCell padding="checkbox" sx={{ bgcolor: '#f9fafb' }}>
                       <Checkbox
                         checked={allSelected}
                         indeterminate={someSelected}
-                        onChange={handleToggleAll}
+                        onChange={handleToggleAllGraduateMarks}
                         icon={<CheckBoxBlankIcon />}
                         checkedIcon={<CheckBoxIcon />}
                       />
                     </TableCell>
                     <TableCell sx={{ bgcolor: '#f9fafb', fontWeight: 700 }}>Học sinh</TableCell>
                     <TableCell sx={{ bgcolor: '#f9fafb', fontWeight: 700 }}>Lớp</TableCell>
-                    <TableCell sx={{ bgcolor: '#f9fafb', fontWeight: 700 }}>Ngày sinh</TableCell>
-                    <TableCell sx={{ bgcolor: '#f9fafb', fontWeight: 700 }}>Trạng thái</TableCell>
+                    <TableCell sx={{ bgcolor: '#f9fafb', fontWeight: 700 }}>Kết quả Đánh giá</TableCell>
+                    <TableCell sx={{ bgcolor: '#f9fafb', fontWeight: 700 }}>Xử lý Cuối năm</TableCell>
                   </TableRow>
                 </TableHead>
                 <TableBody>
-                  {finishStudents.map((s) => (
+                  {filteredFinishStudents.map((s) => (
                     <TableRow
                       key={s._id}
                       hover
-                      selected={selectedStudentIds.has(s._id)}
-                      onClick={() => handleToggleStudent(s._id)}
-                      sx={{ cursor: 'pointer' }}
+                      selected={isFinishRowSelectable(s) && graduateMarkedIds.has(s._id)}
+                      sx={{
+                        cursor: isFinishRowSelectable(s) ? 'pointer' : 'default',
+                        bgcolor: s.needsSpecialAttention ? '#fffbeb' : 'inherit',
+                      }}
                     >
                       <TableCell padding="checkbox">
-                        <Checkbox checked={selectedStudentIds.has(s._id)} onChange={() => handleToggleStudent(s._id)} onClick={(e) => e.stopPropagation()} />
+                        {isFinishRowSelectable(s) ? (
+                            <Checkbox
+                              checked={graduateMarkedIds.has(s._id)}
+                              onChange={() => handleToggleGraduateMark(s._id)}
+                              onClick={(e) => e.stopPropagation()}
+                            />
+                          ) : (
+                            <Box sx={{ width: 24, height: 24 }} />
+                          )}
                       </TableCell>
-                      <TableCell>
+                      <TableCell onClick={() => isFinishRowSelectable(s) && handleToggleGraduateMark(s._id)}>
                         <Stack direction="row" alignItems="center" spacing={1.5}>
-                          <Avatar src={s.avatar} sx={{ width: 32, height: 32, fontSize: 13 }}>
+                          <Avatar src={s.avatar} sx={{ width: 32, height: 32, fontSize: 13, cursor: 'pointer' }} onClick={(e) => { e.stopPropagation(); navigate(`/school-admin/students/${s._id}/detail`); }}>
                             {s.fullName?.[0]}
                           </Avatar>
-                          <Typography variant="body2" fontWeight={600}>{s.fullName}</Typography>
+                          <Box>
+                            <Typography variant="body2" fontWeight={600} 
+                              sx={{ cursor: 'pointer', '&:hover': { color: 'primary.main', textDecoration: 'underline' } }}
+                              onClick={(e) => { e.stopPropagation(); navigate(`/school-admin/students/${s._id}/detail`); }}
+                            >
+                              {s.fullName}
+                            </Typography>
+                            {s.needsSpecialAttention && (
+                              <Typography variant="caption" color="warning.main" sx={{ display: 'block' }}>
+                                <WarningIcon sx={{ fontSize: 12, mr: 0.25, verticalAlign: 'middle' }} />
+                                Cần chú ý đặc biệt
+                              </Typography>
+                            )}
+                          </Box>
                         </Stack>
                       </TableCell>
                       <TableCell><Typography variant="body2">{s.className || '—'}</Typography></TableCell>
-                      <TableCell><Typography variant="body2">{s.dateOfBirth ? new Date(s.dateOfBirth).toLocaleDateString('vi-VN') : '—'}</Typography></TableCell>
                       <TableCell>
-                        <Chip size="small" label={s.status === 'active' ? 'Đang học' : 'Nghỉ học'} color={s.status === 'active' ? 'success' : 'default'} />
+                        {s.evaluation?.academicEvaluation ? (
+                          <Chip
+                            size="small"
+                            label={s.evaluation.academicEvaluation === 'đạt' ? 'Đạt (Đủ điều kiện)' : 'Chưa đạt'}
+                            color={s.evaluation.academicEvaluation === 'đạt' ? 'success' : 'error'}
+                            variant="outlined"
+                            sx={{ fontWeight: 700 }}
+                          />
+                        ) : (
+                          <Stack direction="row" spacing={0.5} alignItems="center">
+                            <WarningIcon sx={{ fontSize: 14, color: '#f59e0b' }} />
+                            <Typography variant="caption" color="#b45309" fontWeight={600}>Chưa đánh giá</Typography>
+                          </Stack>
+                        )}
+                      </TableCell>
+                      <TableCell>
+                        {(() => {
+                          if (!isFinishRowSelectable(s)) {
+                            return (
+                              <Chip label="Lên lớp (Tự động)" size="small" sx={{ bgcolor: '#eef2ff', color: '#4f46e5', fontWeight: 700 }} />
+                            );
+                          }
+                          const isGrad = graduateMarkedIds.has(s._id);
+                          const evalStatus = s.evaluation?.academicEvaluation;
+                          
+                          if (isGrad) return <Chip label="Tốt nghiệp" color="error" size="small" sx={{ fontWeight: 700 }} />;
+                          
+                          return (
+                            <Chip 
+                              label={evalStatus === 'chưa đạt' ? 'Ở lại lớp' : 'Học tiếp'} 
+                              size="small" 
+                              variant="outlined"
+                              sx={{ fontWeight: 700, borderColor: evalStatus === 'chưa đạt' ? '#ef4444' : '#4f46e5', color: evalStatus === 'chưa đạt' ? '#ef4444' : '#4f46e5' }} 
+                            />
+                          );
+                        })()}
                       </TableCell>
                     </TableRow>
                   ))}
                 </TableBody>
               </Table>
+                )}
+              </>
             )}
           </DialogContent>
-          <DialogActions sx={{ px: 3, py: 2, justifyContent: 'space-between' }}>
+          <DialogActions sx={{ px: 3, py: 2, justifyContent: 'space-between', flexWrap: 'wrap', gap: 1 }}>
+            <Box>
             <Typography variant="body2" color="text.secondary">
-              Đã chọn <strong>{selectedStudentIds.size}</strong> / {finishStudents.length} học sinh
+              Khối <strong>năm cuối</strong>: <strong>{graduateTickCount}</strong> em tốt nghiệp · <strong>{finishSelectableTotal - graduateTickCount}</strong> em học tiếp/ở lại lớp
             </Typography>
+            {finishStudents.some(s => !s.evaluation?.academicEvaluation) && (
+              <Typography variant="caption" color="error.main" fontWeight={700} display="block">
+                ⚠️ Cảnh báo: Còn học sinh chưa được đánh giá định kỳ cuối năm.
+              </Typography>
+            )}
+            </Box>
             <Stack direction="row" spacing={1.5}>
               <Button onClick={() => setOpenFinish(false)} sx={{ textTransform: 'none' }}>Hủy</Button>
               <Button
                 variant="contained"
                 color="error"
                 onClick={handleConfirmFinish}
-                sx={{ textTransform: 'none', fontWeight: 700 }}
+                sx={{ textTransform: 'none', fontWeight: 700, px: 4 }}
               >
                 Xác nhận kết thúc năm học
               </Button>
             </Stack>
           </DialogActions>
         </Dialog>
-
-        {/* ======== Dialog: Tạo năm học mới ======== */}
-        <Dialog open={openCreate} onClose={() => setOpenCreate(false)} maxWidth="sm" fullWidth>
-          <DialogTitle sx={{ pb: 2, background: 'linear-gradient(135deg, #6366f1 0%, #8b5cf6 100%)', color: 'white' }}>
-            <Stack direction="row" alignItems="center" spacing={1.5}>
-              <Box sx={{ width: 32, height: 32, borderRadius: '50%', bgcolor: 'rgba(255,255,255,0.15)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-                <AddIcon fontSize="small" />
-              </Box>
-              <Box>
-                <Typography variant="subtitle1" fontWeight={700}>Tạo năm học mới</Typography>
-                {carryOverStudentIds.length > 0 && (
-                  <Typography variant="caption" sx={{ opacity: 0.9 }}>
-                    {carryOverStudentIds.length} học sinh sẽ được chuyển tiếp tự động
-                  </Typography>
-                )}
-              </Box>
-            </Stack>
-          </DialogTitle>
-          <DialogContent sx={{ pt: 3, pb: 2 }} dividers>
-            <Stack spacing={3}>
-              <Box>
-                <Typography variant="subtitle2" color="primary" fontWeight={700} gutterBottom>Thông tin năm học</Typography>
-                <TextField label="Tên năm học *" placeholder="Ví dụ: 2025 – 2026" fullWidth size="small"
-                  value={createForm.name} onChange={(e) => setCreateForm((p) => ({ ...p, name: e.target.value }))}
-                  error={!!createErrors.name} helperText={createErrors.name} />
-              </Box>
-
-              <Box>
-                <Typography variant="subtitle2" color="primary" fontWeight={700} gutterBottom>Thời gian &amp; Cấu trúc kỳ</Typography>
-                <Stack direction={{ xs: 'column', sm: 'row' }} spacing={2}>
-                  <TextField label="Ngày bắt đầu *" type="date" InputLabelProps={{ shrink: true }} fullWidth size="small"
-                    value={createForm.startDate} onChange={(e) => setCreateForm((p) => ({ ...p, startDate: e.target.value }))}
-                    error={!!createErrors.startDate} helperText={createErrors.startDate} />
-                  <TextField label="Ngày kết thúc *" type="date" InputLabelProps={{ shrink: true }} fullWidth size="small"
-                    value={createForm.endDate} onChange={(e) => setCreateForm((p) => ({ ...p, endDate: e.target.value }))}
-                    error={!!createErrors.endDate} helperText={createErrors.endDate} />
-                </Stack>
-
-                <FormControl size="small" sx={{ mt: 2, minWidth: 200 }}>
-                  <InputLabel>Số lượng kỳ/học kỳ *</InputLabel>
-                  <Select label="Số lượng kỳ/học kỳ *" value={createForm.termCount} disabled>
-                    <MenuItem value={2}>2 kỳ</MenuItem>
-                  </Select>
-                </FormControl>
-
-                <Box sx={{ mt: 2 }}>
-                  <Typography variant="subtitle2" color="primary" fontWeight={700} gutterBottom>Chi tiết thời gian từng kỳ học</Typography>
-                  <Stack spacing={2}>
-                    <Paper elevation={0} sx={{ p: 2, borderRadius: 2, border: '1px solid', borderColor: 'divider' }}>
-                      <Typography variant="subtitle2" fontWeight={700} mb={1}>Kỳ 1</Typography>
-                      <Stack direction={{ xs: 'column', sm: 'row' }} spacing={2}>
-                        <TextField label="Ngày bắt đầu kỳ 1 *" type="date" InputLabelProps={{ shrink: true }} fullWidth size="small"
-                          value={createForm.term1StartDate} onChange={(e) => setCreateForm((p) => ({ ...p, term1StartDate: e.target.value }))}
-                          error={!!createErrors.term1StartDate} helperText={createErrors.term1StartDate} />
-                        <TextField label="Ngày kết thúc kỳ 1 *" type="date" InputLabelProps={{ shrink: true }} fullWidth size="small"
-                          value={createForm.term1EndDate} onChange={(e) => setCreateForm((p) => ({ ...p, term1EndDate: e.target.value }))}
-                          error={!!createErrors.term1EndDate} helperText={createErrors.term1EndDate} />
-                      </Stack>
-                    </Paper>
-                    <Paper elevation={0} sx={{ p: 2, borderRadius: 2, border: '1px solid', borderColor: 'divider' }}>
-                      <Typography variant="subtitle2" fontWeight={700} mb={1}>Kỳ 2</Typography>
-                      <Stack direction={{ xs: 'column', sm: 'row' }} spacing={2}>
-                        <TextField label="Ngày bắt đầu kỳ 2 *" type="date" InputLabelProps={{ shrink: true }} fullWidth size="small"
-                          value={createForm.term2StartDate} onChange={(e) => setCreateForm((p) => ({ ...p, term2StartDate: e.target.value }))}
-                          error={!!createErrors.term2StartDate} helperText={createErrors.term2StartDate} />
-                        <TextField label="Ngày kết thúc kỳ 2 *" type="date" InputLabelProps={{ shrink: true }} fullWidth size="small"
-                          value={createForm.term2EndDate} onChange={(e) => setCreateForm((p) => ({ ...p, term2EndDate: e.target.value }))}
-                          error={!!createErrors.term2EndDate} helperText={createErrors.term2EndDate} />
-                      </Stack>
-                    </Paper>
-                  </Stack>
-                </Box>
-              </Box>
-
-              <Box>
-                <Typography variant="subtitle2" color="primary" fontWeight={700} gutterBottom>Kế hoạch tổng thể</Typography>
-                <TextField
-                  label="Mô tả ngắn gọn / Mục tiêu năm học"
-                  placeholder="Ví dụ: Tập trung phát triển kỹ năng mềm..."
-                  fullWidth size="small" multiline minRows={3}
-                  value={createForm.description} onChange={(e) => setCreateForm((p) => ({ ...p, description: e.target.value }))}
-                  error={!!createErrors.description} helperText={createErrors.description} />
-              </Box>
-
-              {carryOverStudentIds.length > 0 && (
-                <Paper elevation={0} sx={{ p: 2, borderRadius: 2, bgcolor: '#eff6ff', border: '1px solid #bfdbfe' }}>
-                  <Typography variant="body2" color="primary" fontWeight={700}>
-                    ✓ {carryOverStudentIds.length} học sinh được chuyển tiếp từ năm học cũ sẽ tự động được thêm vào năm học mới này.
-                  </Typography>
-                </Paper>
-              )}
-
-              {createErrors.api && (
-                <Typography variant="body2" color="error">{createErrors.api}</Typography>
-              )}
-            </Stack>
-          </DialogContent>
-          <DialogActions sx={{ px: 3, py: 2 }}>
-            <Button onClick={() => setOpenCreate(false)} sx={{ textTransform: 'none', borderRadius: 2, bgcolor: '#f3f4f6', color: '#6b7280', '&:hover': { bgcolor: '#e5e7eb' } }}>
-              Hủy
-            </Button>
-            <Button variant="contained" onClick={handleSubmitCreate} disabled={!canCreateNewYear}
-              sx={{ bgcolor: '#6366f1', '&:hover': { bgcolor: '#4f46e5' } }}>
-              Tạo năm học
-            </Button>
-          </DialogActions>
-        </Dialog>
       </Stack>
+
+
+      {/* ======== Wizard: Thiết lập năm học mới ======== */}
+      <AcademicYearWizard
+        open={openWizard}
+        onClose={() => setOpenWizard(false)}
+        onSuccess={() => {
+          get(ENDPOINTS.SCHOOL_ADMIN.ACADEMIC_YEARS.LIST).then(resp => {
+            if (resp?.status === 'success') setYears(Array.isArray(resp.data) ? resp.data : []);
+          });
+          get(ENDPOINTS.SCHOOL_ADMIN.ACADEMIC_YEARS.CURRENT).then(resp => {
+            if (resp?.status === 'success') setCurrentYear(resp.data || null);
+          });
+        }}
+      />
     </RoleLayout>
   );
 }

@@ -82,7 +82,7 @@ function Login() {
       } else if (roles.includes("SchoolNurse")) {
         navigate("/school-nurse", { replace: true });
       } else if (roles.includes("MedicalStaff")) {
-        navigate("/medical-staff/health", { replace: true });
+        navigate("/medical-staff", { replace: true });
       } else if (
         roles.includes("Parent") ||
         roles.includes("StudentParent") ||

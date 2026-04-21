@@ -23,12 +23,16 @@ const districtNutritionPlanSchema = new mongoose.Schema(
     items: { type: [nutritionPlanItemSchema], default: [] },
     /** YYYY-MM-DD theo ngày làm việc VN */
     startDate: { type: String, required: true, trim: true },
+    /** HH:mm theo múi giờ VN; mốc tự động mặc định 00:30 */
+    startTime: { type: String, default: "00:30", trim: true },
+    /** Thời điểm áp dụng thực tế */
+    startAt: { type: Date, default: null },
     /** Ghi nhận khi kết thúc kế hoạch hoặc dữ liệu cũ; kế hoạch đang áp dụng có thể null */
     endDate: { type: String, default: null, trim: true },
     regulationFile: { type: regulationFileSchema, default: null },
     status: {
       type: String,
-      enum: ["active", "archived"],
+      enum: ["scheduled", "active", "archived"],
       default: "active",
     },
     archivedAt: { type: Date, default: null },
@@ -36,6 +40,11 @@ const districtNutritionPlanSchema = new mongoose.Schema(
       type: mongoose.Schema.Types.ObjectId,
       ref: "User",
       default: null,
+    },
+    academicYearId: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: "AcademicYears",
+      index: true,
     },
   },
   {

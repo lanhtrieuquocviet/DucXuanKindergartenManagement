@@ -10,6 +10,7 @@
 
 import { useRef, useState, useEffect } from 'react';
 import { toast } from 'react-toastify';
+import { Camera, Check, X, AlertTriangle, ScanFace, Plus, Save, CheckCircle } from 'lucide-react';
 import * as faceapi from '@vladmandic/face-api';
 import { useFaceApi } from '../../hooks/useFaceApi';
 import { registerFaceEmbedding, uploadAttendanceImage } from '../../service/faceAttendance.api';
@@ -174,11 +175,15 @@ export default function FaceRegisterModal({ open, onClose, student, onSuccess })
 
   const handleClose = () => {
     stopCamera();
+    const hadNewAngles = savedAngles > (student?.angleCount || 0);
     setPreviewSrc(null);
     setDetectionResult(null);
     setPendingEmbedding(null);
     setConflictInfo(null);
     setSavedAngles(student?.angleCount || 0);
+    if (hadNewAngles) {
+      onSuccess?.();
+    }
     onClose();
   };
 
@@ -280,9 +285,10 @@ export default function FaceRegisterModal({ open, onClose, student, onSuccess })
               />
               <button
                 onClick={captureFrame}
-                className="absolute bottom-3 left-1/2 -translate-x-1/2 px-6 py-2 bg-white text-gray-800 rounded-full font-medium text-sm shadow-lg hover:bg-gray-100"
+                className="absolute bottom-3 left-1/2 -translate-x-1/2 px-6 py-2 bg-white text-gray-800 rounded-full font-medium text-sm shadow-lg hover:bg-gray-100 flex items-center gap-1.5"
               >
-                📸 Chụp ảnh
+                <Camera size={15} />
+                Chụp ảnh
               </button>
             </div>
           )}
@@ -295,10 +301,10 @@ export default function FaceRegisterModal({ open, onClose, student, onSuccess })
               detectionResult === 'low_quality' ? 'bg-yellow-50 text-yellow-800 border border-yellow-300' :
               'bg-orange-50 text-orange-700 border border-orange-200'
             }`}>
-              {detectionResult === 'ok' && '✓ Phát hiện đúng 1 khuôn mặt — sẵn sàng lưu'}
-              {detectionResult === 'no_face' && '✗ Không phát hiện khuôn mặt — thử chụp lại'}
-              {detectionResult === 'multi' && '⚠ Phát hiện nhiều khuôn mặt — thử chụp lại'}
-              {detectionResult === 'low_quality' && '⚠ Khuôn mặt quá nhỏ hoặc không rõ — lại gần camera hơn và chụp lại'}
+              {detectionResult === 'ok' && <span className="flex items-center gap-1.5"><Check size={14} /> Phát hiện đúng 1 khuôn mặt — sẵn sàng lưu</span>}
+              {detectionResult === 'no_face' && <span className="flex items-center gap-1.5"><X size={14} /> Không phát hiện khuôn mặt — thử chụp lại</span>}
+              {detectionResult === 'multi' && <span className="flex items-center gap-1.5"><AlertTriangle size={14} /> Phát hiện nhiều khuôn mặt — thử chụp lại</span>}
+              {detectionResult === 'low_quality' && <span className="flex items-center gap-1.5"><AlertTriangle size={14} /> Khuôn mặt quá nhỏ hoặc không rõ — lại gần camera hơn và chụp lại</span>}
             </div>
           )}
 
@@ -319,7 +325,7 @@ export default function FaceRegisterModal({ open, onClose, student, onSuccess })
                 disabled={detecting || !isReady}
                 className="px-4 py-2 bg-indigo-100 text-indigo-700 rounded-lg text-sm font-medium hover:bg-indigo-200 disabled:opacity-50"
               >
-                {detecting ? 'Đang phân tích...' : '🔍 Phân tích khuôn mặt'}
+                {detecting ? 'Đang phân tích...' : <span className="flex items-center gap-1.5"><ScanFace size={15} /> Phân tích khuôn mặt</span>}
               </button>
             )}
             {detectionResult === 'ok' && (
@@ -330,7 +336,7 @@ export default function FaceRegisterModal({ open, onClose, student, onSuccess })
                     disabled={saving}
                     className="px-4 py-2 bg-indigo-100 text-indigo-700 rounded-lg text-sm font-medium hover:bg-indigo-200 disabled:opacity-50"
                   >
-                    {saving ? 'Đang lưu...' : `➕ Thêm góc (${savedAngles + 1}/${MAX_ANGLES})`}
+                    {saving ? 'Đang lưu...' : <span className="flex items-center gap-1.5"><Plus size={15} /> Thêm góc ({savedAngles + 1}/{MAX_ANGLES})</span>}
                   </button>
                 )}
                 <button
@@ -338,7 +344,10 @@ export default function FaceRegisterModal({ open, onClose, student, onSuccess })
                   disabled={saving}
                   className="px-4 py-2 bg-indigo-600 text-white rounded-lg text-sm font-medium hover:bg-indigo-700 disabled:opacity-50"
                 >
-                  {saving ? 'Đang lưu...' : savedAngles === 0 ? '💾 Lưu khuôn mặt' : '✅ Hoàn tất'}
+                  {saving ? 'Đang lưu...' : savedAngles === 0
+                    ? <span className="flex items-center gap-1.5"><Save size={15} /> Lưu khuôn mặt</span>
+                    : <span className="flex items-center gap-1.5"><CheckCircle size={15} /> Hoàn tất</span>
+                  }
                 </button>
               </>
             )}

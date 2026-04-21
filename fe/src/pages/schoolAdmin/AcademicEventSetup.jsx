@@ -74,6 +74,41 @@ function buildMonthBuckets(startDate, endDate) {
   return result;
 }
 
+function getDialogDateBounds(currentYear, monthKey) {
+  if (!currentYear?.startDate || !currentYear?.endDate || !monthKey) {
+    return { minDate: '', maxDate: '' };
+  }
+
+  const [yearText, monthText] = String(monthKey).split('-');
+  const year = Number(yearText);
+  const monthIndex = Number(monthText) - 1;
+  if (Number.isNaN(year) || Number.isNaN(monthIndex) || monthIndex < 0 || monthIndex > 11) {
+    return { minDate: '', maxDate: '' };
+  }
+
+  const monthStart = new Date(year, monthIndex, 1);
+  const monthEnd = new Date(year, monthIndex + 1, 0);
+  const academicStart = new Date(currentYear.startDate);
+  const academicEnd = new Date(currentYear.endDate);
+
+  if (
+    Number.isNaN(monthStart.getTime()) ||
+    Number.isNaN(monthEnd.getTime()) ||
+    Number.isNaN(academicStart.getTime()) ||
+    Number.isNaN(academicEnd.getTime())
+  ) {
+    return { minDate: '', maxDate: '' };
+  }
+
+  const effectiveStart = academicStart > monthStart ? academicStart : monthStart;
+  const effectiveEnd = academicEnd < monthEnd ? academicEnd : monthEnd;
+
+  return {
+    minDate: toInputDate(effectiveStart),
+    maxDate: toInputDate(effectiveEnd),
+  };
+}
+
 export default function AcademicEventSetup() {
   const navigate = useNavigate();
   const { user, logout, isInitializing } = useAuth();
@@ -115,7 +150,7 @@ export default function AcademicEventSetup() {
       try {
         setLoading(true);
         const resp = await get(ENDPOINTS.SCHOOL_ADMIN.ACADEMIC_YEARS.CURRENT);
-        if (resp?.status === 'success' && resp.data) {
+        if (resp?.status === 'success' && resp.data?._id) {
           const y = resp.data;
           const normalized = {
             ...y,
@@ -176,6 +211,11 @@ export default function AcademicEventSetup() {
     if (!currentYear?.startDate || !currentYear?.endDate) return [];
     return buildMonthBuckets(currentYear.startDate, currentYear.endDate);
   }, [currentYear]);
+
+  const dialogDateBounds = useMemo(
+    () => getDialogDateBounds(currentYear, dialog.monthKey),
+    [currentYear, dialog.monthKey],
+  );
 
   const openAddDialog = (monthKey) => {
     setDialog({
@@ -240,6 +280,20 @@ export default function AcademicEventSetup() {
     }
     if (effectiveEndDate < dialog.startDate) {
       toast.error('Ngày kết thúc phải lớn hơn hoặc bằng ngày bắt đầu');
+      return;
+    }
+    if (
+      dialogDateBounds.minDate &&
+      (dialog.startDate < dialogDateBounds.minDate || effectiveEndDate < dialogDateBounds.minDate)
+    ) {
+      toast.error('Ngày sự kiện phải nằm trong khoảng thời gian của năm học');
+      return;
+    }
+    if (
+      dialogDateBounds.maxDate &&
+      (dialog.startDate > dialogDateBounds.maxDate || effectiveEndDate > dialogDateBounds.maxDate)
+    ) {
+      toast.error('Ngày sự kiện phải nằm trong khoảng thời gian của năm học');
       return;
     }
     if (!dialog.blockKey) { toast.error('Vui lòng chọn khối lớp'); return; }
@@ -323,6 +377,7 @@ export default function AcademicEventSetup() {
 
   const handleMenuSelect = createSchoolAdminMenuSelect(navigate);
   const userName = user?.fullName || user?.username || 'School Admin';
+  const hasCurrentYear = Boolean(currentYear?._id);
 
   return (
     <RoleLayout
@@ -340,12 +395,30 @@ export default function AcademicEventSetup() {
       userAvatar={user?.avatar}
     >
       <Typography variant="h4" fontWeight={800} sx={{ color: '#4f46e5', mb: 1 }}>
-        Thiết lập sự kiện năm học {currentYear?.yearName || ''}
+        {hasCurrentYear ? `Thiết lập sự kiện năm học ${currentYear?.yearName || ''}` : 'Thiết lập sự kiện năm học'}
       </Typography>
       <Typography variant="body1" sx={{ mb: 3 }}>
         Nhập danh sách sự kiện nổi bật theo từng tháng. Bạn có thể thêm, xóa từng sự kiện.
       </Typography>
 
+      {!loading && !hasCurrentYear && (
+        <Paper
+          sx={{
+            p: 3,
+            borderRadius: 3,
+            border: '1px dashed',
+            borderColor: '#a5b4fc',
+            bgcolor: '#eef2ff',
+          }}
+        >
+          <Typography variant="h6" fontWeight={700} sx={{ color: '#4338ca' }}>
+            Vui lòng hãy tạo năm học mới.
+          </Typography>
+        </Paper>
+      )}
+
+      {!loading && hasCurrentYear && (
+        <>
       <Paper sx={{ p: 3, borderRadius: 3, mb: 3 }}>
         <Typography variant="h5" fontWeight={800} sx={{ color: '#4f46e5', mb: 2 }}>
           1. Thông tin cơ bản năm học
@@ -449,6 +522,8 @@ export default function AcademicEventSetup() {
         </Box>
 
       </Paper>
+        </>
+      )}
 
       <Dialog
         open={dialog.open}
@@ -491,6 +566,13 @@ export default function AcademicEventSetup() {
             fullWidth
             InputLabelProps={{ shrink: true }}
             value={dialog.startDate}
+            inputProps={{
+              min: dialogDateBounds.minDate || undefined,
+              max:
+                dialog.durationType === EVENT_TYPE_SINGLE
+                  ? dialogDateBounds.maxDate || undefined
+                  : dialog.endDate || dialogDateBounds.maxDate || undefined,
+            }}
             onChange={(e) => {
               const nextStart = e.target.value;
               setDialog((prev) => ({
@@ -508,6 +590,10 @@ export default function AcademicEventSetup() {
               fullWidth
               InputLabelProps={{ shrink: true }}
               value={dialog.endDate}
+              inputProps={{
+                min: dialog.startDate || dialogDateBounds.minDate || undefined,
+                max: dialogDateBounds.maxDate || undefined,
+              }}
               onChange={(e) => setDialog((prev) => ({ ...prev, endDate: e.target.value }))}
             />
           )}

@@ -8,6 +8,7 @@ import {
   Article as BlogIcon,
   CalendarMonth as CalendarIcon,
   CameraAlt as CameraAltIcon,
+  Class as ClassIcon,
   ChecklistRtl as ChecklistIcon,
   Close as CloseIcon,
   ContentPasteSearch as ContentPasteSearchIcon,
@@ -18,6 +19,7 @@ import {
   Group as GroupIcon,
   Home as HomeIcon,
   Inventory as InventoryIcon,
+  Layers as LayersIcon,
   MenuBook as MenuBookIcon,
   Notifications as NotifIcon,
   People as PeopleIcon,
@@ -56,7 +58,9 @@ export const KEY_ICONS = {
   'academic-curriculum': <CurrencyIcon fontSize="small" />,
   'academic-schedule': <CalendarIcon fontSize="small" />,
   'academic-report': <BarChartIcon fontSize="small" />,
-  classes: <SchoolIcon fontSize="small" />,
+  'classes-management': <SchoolIcon fontSize="small" />,
+  classes: <ClassIcon fontSize="small" />,
+  'static-blocks': <LayersIcon fontSize="small" />,
   teachers: <PersonIcon fontSize="small" />,
   students: <PeopleIcon fontSize="small" />,
   assets: <InventoryIcon fontSize="small" />,
@@ -64,6 +68,7 @@ export const KEY_ICONS = {
   attendance: <ChecklistIcon fontSize="small" />,
   'face-attendance': <CameraAltIcon fontSize="small" />,
   'pickup-approval': <HomeIcon fontSize="small" />,
+  'contact-book': <MenuBookIcon fontSize="small" />,
   schedule: <CalendarIcon fontSize="small" />,
   messages: <NotifIcon fontSize="small" />,
   'class-list': <SchoolIcon fontSize="small" />,
@@ -98,6 +103,8 @@ export const KEY_ICONS = {
   'asset-inspection': <ContentPasteSearchIcon fontSize="small" />,
   'class-assets': <InventoryIcon fontSize="small" />,
   'asset-allocation': <AccountTreeIcon fontSize="small" />,
+  'personnel-management': <GroupIcon fontSize="small" />,
+  personnel: <GroupIcon fontSize="small" />,
   staff: <GroupIcon fontSize="small" />,
   kiemke: <GradingIcon fontSize="small" />,
   committee: <GroupIcon fontSize="small" />,
@@ -203,7 +210,17 @@ function RoleLayout({
       </Drawer>
 
       {/* ── Main ── */}
-      <Box sx={{ flex: 1, display: 'flex', flexDirection: 'column', minWidth: 0, minHeight: '100vh' }}>
+      <Box 
+        sx={{ 
+          flex: 1, 
+          display: 'flex', 
+          flexDirection: 'column', 
+          minWidth: 0, 
+          minHeight: '100vh',
+          transition: 'all 0.22s ease',
+          width: isMobile ? '100%' : { md: `calc(100% - ${drawerWidth}px)` },
+        }}
+      >
         <DashboardAppBar
           isMobile={isMobile}
           onOpenMobile={() => setMobileOpen(true)}

@@ -9,6 +9,9 @@ import {
   listDistrictNutritionPlans,
   createDistrictNutritionPlan,
   updateDistrictNutritionPlan,
+  updateScheduledDistrictNutritionPlan,
+  applyScheduledDistrictNutritionPlanNow,
+  deleteScheduledDistrictNutritionPlan,
   getDistrictNutritionPlanDetail,
   downloadDistrictRegulationFile,
 } from "../../service/menu.api";
@@ -108,34 +111,39 @@ export default function DistrictNutritionPlanSchoolAdmin() {
   const [loading, setLoading] = useState(true);
   const [mainTab, setMainTab] = useState(0);
   const [activePlans, setActivePlans] = useState([]);
+  const [upcomingPlans, setUpcomingPlans] = useState([]);
   const [historyPlans, setHistoryPlans] = useState([]);
   const [historyYear, setHistoryYear] = useState("all");
 
   const [createOpen, setCreateOpen] = useState(false);
   const [createSaving, setCreateSaving] = useState(false);
   const [createStart, setCreateStart] = useState("");
-  const [createEnd, setCreateEnd] = useState("");
   const [createFile, setCreateFile] = useState(null);
   const [createRows, setCreateRows] = useState(() => DEFAULT_ROWS.map((r) => ({ ...r })));
   const [createNewRow, setCreateNewRow] = useState({ name: "", min: "", max: "" });
 
   const [editRows, setEditRows] = useState([]);
   const [editStart, setEditStart] = useState("");
-  const [editEnd, setEditEnd] = useState("");
   const [editFile, setEditFile] = useState(null);
   const [editSaving, setEditSaving] = useState(false);
+  const [upcomingEditOpen, setUpcomingEditOpen] = useState(false);
+  const [upcomingEditSaving, setUpcomingEditSaving] = useState(false);
+  const [upcomingEditingId, setUpcomingEditingId] = useState(null);
+  const [upcomingEditStart, setUpcomingEditStart] = useState("");
+  const [upcomingEditFile, setUpcomingEditFile] = useState(null);
+  const [upcomingEditRows, setUpcomingEditRows] = useState(() => DEFAULT_ROWS.map((r) => ({ ...r })));
   const [viewPlan, setViewPlan] = useState(null);
   const [viewLoading, setViewLoading] = useState(false);
   const [editNewRow, setEditNewRow] = useState({ name: "", min: "", max: "" });
 
   const createFileInputRef = useRef(null);
   const editFileInputRef = useRef(null);
+  const upcomingEditFileInputRef = useRef(null);
 
   const active = activePlans[0] || null;
   const originalEditRows = active ? itemsToRows(active.items) : [];
   const hasEditChanges = !!active && (
     editStart !== (active.startDate || "") ||
-    editEnd !== (active.endDate || "") ||
     !isSameMetrics(editRows, originalEditRows) ||
     !!editFile
   );
@@ -157,6 +165,7 @@ export default function DistrictNutritionPlanSchoolAdmin() {
       const res = await listDistrictNutritionPlans();
       const data = res?.data;
       setActivePlans(Array.isArray(data?.active) ? data.active : []);
+      setUpcomingPlans(Array.isArray(data?.upcoming) ? data.upcoming : []);
       setHistoryPlans(Array.isArray(data?.history) ? data.history : []);
     } catch {
       toast.error("Không thể tải kế hoạch dinh dưỡng theo sở");
@@ -173,20 +182,28 @@ export default function DistrictNutritionPlanSchoolAdmin() {
     if (active) {
       setEditRows(itemsToRows(active.items));
       setEditStart(active.startDate || "");
-      setEditEnd(active.endDate || "");
       setEditFile(null);
       setEditNewRow({ name: "", min: "", max: "" });
     }
-  }, [active?._id, active?.startDate, active?.endDate]);
+  }, [active?._id, active?.startDate]);
 
   const openCreate = () => {
     setCreateRows(DEFAULT_ROWS.map((r) => ({ ...r, id: r.id })));
     setCreateNewRow({ name: "", min: "", max: "" });
     setCreateStart("");
-    setCreateEnd("");
     setCreateFile(null);
     if (createFileInputRef.current) createFileInputRef.current.value = "";
     setCreateOpen(true);
+  };
+
+  const openUpcomingEdit = (plan) => {
+    if (!plan?._id) return;
+    setUpcomingEditingId(plan._id);
+    setUpcomingEditStart(plan.startDate || "");
+    setUpcomingEditRows(itemsToRows(plan.items));
+    setUpcomingEditFile(null);
+    if (upcomingEditFileInputRef.current) upcomingEditFileInputRef.current.value = "";
+    setUpcomingEditOpen(true);
   };
 
   const handleCreateRowChange = (id, field, value) => {
@@ -205,6 +222,20 @@ export default function DistrictNutritionPlanSchoolAdmin() {
 
   const handleEditRowChange = (id, field, value) => {
     setEditRows((prev) =>
+      prev.map((row) => {
+        const rowIdx = prev.findIndex((r) => r.id === id);
+        if (row.id !== id) return row;
+        if (rowIdx >= 0 && rowIdx < 4 && field === "name") return row;
+        if (field === "name") return { ...row, name: value };
+        const n = Number(value);
+        if (Number.isNaN(n)) return row;
+        return { ...row, [field]: n };
+      })
+    );
+  };
+
+  const handleUpcomingEditRowChange = (id, field, value) => {
+    setUpcomingEditRows((prev) =>
       prev.map((row) => {
         const rowIdx = prev.findIndex((r) => r.id === id);
         if (row.id !== id) return row;
@@ -236,12 +267,8 @@ export default function DistrictNutritionPlanSchoolAdmin() {
       toast.error("Vui lòng chọn ngày bắt đầu áp dụng");
       return;
     }
-    if (!createEnd) {
-      toast.error("Vui lòng chọn ngày kết thúc áp dụng");
-      return;
-    }
-    if (createEnd <= createStart) {
-      toast.error("Ngày kết thúc phải lớn hơn ngày bắt đầu");
+    if (!createFile) {
+      toast.error("Vui lòng tải lên tệp Word quy định sở");
       return;
     }
     if (!validateRows(createRows)) return;
@@ -250,9 +277,8 @@ export default function DistrictNutritionPlanSchoolAdmin() {
       setCreateSaving(true);
       const fd = new FormData();
       fd.append("startDate", createStart);
-      fd.append("endDate", createEnd);
       fd.append("items", JSON.stringify(rowsToPayload(createRows)));
-      if (createFile) fd.append("regulationFile", createFile);
+      fd.append("regulationFile", createFile);
       await createDistrictNutritionPlan(fd);
       localStorage.setItem("nutrition_plan_updated_at", String(Date.now()));
       window.dispatchEvent(new Event("nutrition_plan_updated"));
@@ -273,21 +299,12 @@ export default function DistrictNutritionPlanSchoolAdmin() {
       toast.error("Vui lòng chọn ngày bắt đầu áp dụng");
       return;
     }
-    if (!editEnd) {
-      toast.error("Vui lòng chọn ngày kết thúc áp dụng");
-      return;
-    }
-    if (editEnd <= editStart) {
-      toast.error("Ngày kết thúc phải lớn hơn ngày bắt đầu");
-      return;
-    }
     if (!validateRows(editRows)) return;
 
     try {
       setEditSaving(true);
       const fd = new FormData();
       fd.append("startDate", editStart);
-      fd.append("endDate", editEnd);
       fd.append("items", JSON.stringify(rowsToPayload(editRows)));
       if (editFile) fd.append("regulationFile", editFile);
       await updateDistrictNutritionPlan(active._id, fd);
@@ -300,6 +317,56 @@ export default function DistrictNutritionPlanSchoolAdmin() {
       toast.error(e?.message || e?.data?.message || "Cập nhật thất bại");
     } finally {
       setEditSaving(false);
+    }
+  };
+
+  const handleUpcomingEditSave = async () => {
+    if (!upcomingEditingId) return;
+    if (!upcomingEditStart) {
+      toast.error("Vui lòng chọn ngày bắt đầu áp dụng");
+      return;
+    }
+    if (!validateRows(upcomingEditRows)) return;
+    try {
+      setUpcomingEditSaving(true);
+      const fd = new FormData();
+      fd.append("startDate", upcomingEditStart);
+      fd.append("items", JSON.stringify(rowsToPayload(upcomingEditRows)));
+      if (upcomingEditFile) fd.append("regulationFile", upcomingEditFile);
+      await updateScheduledDistrictNutritionPlan(upcomingEditingId, fd);
+      toast.success("Đã cập nhật kế hoạch sắp tới");
+      setUpcomingEditOpen(false);
+      setUpcomingEditingId(null);
+      setUpcomingEditFile(null);
+      await load();
+    } catch (e) {
+      toast.error(e?.message || e?.data?.message || "Cập nhật kế hoạch sắp tới thất bại");
+    } finally {
+      setUpcomingEditSaving(false);
+    }
+  };
+
+  const handleApplyUpcomingNow = async (planId) => {
+    if (!planId) return;
+    try {
+      await applyScheduledDistrictNutritionPlanNow(planId);
+      toast.success("Đã áp dụng kế hoạch ngay");
+      await load();
+      setMainTab(0);
+    } catch (e) {
+      toast.error(e?.message || e?.data?.message || "Áp dụng ngay thất bại");
+    }
+  };
+
+  const handleDeleteUpcoming = async (planId) => {
+    if (!planId) return;
+    if (!window.confirm("Bạn có chắc muốn xóa kế hoạch sắp tới này?")) return;
+    try {
+      await deleteScheduledDistrictNutritionPlan(planId);
+      toast.success("Đã xóa kế hoạch sắp tới");
+      await load();
+    } catch (e) {
+      toast.error(e?.message || e?.data?.message || "Xóa kế hoạch thất bại");
     }
   };
 
@@ -456,6 +523,10 @@ export default function DistrictNutritionPlanSchoolAdmin() {
           label={`Đang áp dụng (${activePlans.length})`}
           sx={{ textTransform: "none", fontWeight: 600 }}
         />
+        <Tab
+          label={`Kế hoạch sắp tới (${upcomingPlans.length})`}
+          sx={{ textTransform: "none", fontWeight: 600 }}
+        />
         <Tab label={`Lịch sử (${historyPlans.length})`} sx={{ textTransform: "none", fontWeight: 600 }} />
       </Tabs>
 
@@ -471,11 +542,8 @@ export default function DistrictNutritionPlanSchoolAdmin() {
               sx={{ p: 4, borderRadius: 2, border: "1px dashed", borderColor: "divider", textAlign: "center" }}
             >
               <Typography color="text.secondary" mb={2}>
-                Chưa có kế hoạch đang áp dụng. Tạo kế hoạch mới để bếp và hệ thống dùng chỉ tiêu theo sở.
+                Chưa có kế hoạch đang áp dụng.
               </Typography>
-              <Button variant="contained" startIcon={<AddIcon />} onClick={openCreate} sx={{ textTransform: "none" }}>
-                Tạo kế hoạch mới
-              </Button>
             </Paper>
           ) : (
             <Paper elevation={0} sx={{ p: 3, borderRadius: 2, border: "1px solid", borderColor: "divider" }}>
@@ -488,17 +556,6 @@ export default function DistrictNutritionPlanSchoolAdmin() {
                 InputLabelProps={{ shrink: true }}
                 value={editStart}
                 onChange={(e) => setEditStart(e.target.value)}
-              />
-              <TextField
-                label="Ngày kết thúc áp dụng"
-                type="date"
-                size="small"
-                fullWidth
-                sx={{ mb: 2, maxWidth: { sm: 360 } }}
-                InputLabelProps={{ shrink: true }}
-                value={editEnd}
-                inputProps={{ min: editStart || todayVNString() }}
-                onChange={(e) => setEditEnd(e.target.value)}
               />
 
               <Typography variant="caption" color="text.secondary" display="block" sx={{ mb: 1 }}>
@@ -560,6 +617,52 @@ export default function DistrictNutritionPlanSchoolAdmin() {
                 </Button>
               </Stack>
             </Paper>
+          )}
+        </Box>
+      ) : mainTab === 1 ? (
+        <Box>
+          <Stack direction="row" justifyContent="flex-end" mb={2}>
+            <Button variant="contained" startIcon={<AddIcon />} onClick={openCreate} sx={{ textTransform: "none" }}>
+              Tạo kế hoạch sắp tới
+            </Button>
+          </Stack>
+          {upcomingPlans.length === 0 ? (
+            <Typography color="text.secondary" textAlign="center" py={4}>
+              Chưa có kế hoạch sắp tới.
+            </Typography>
+          ) : (
+            <TableContainer component={Paper} variant="outlined">
+              <Table size="small">
+                <TableHead>
+                  <TableRow sx={{ bgcolor: "#dbeafe" }}>
+                    <TableCell>Ngày bắt đầu</TableCell>
+                    <TableCell>File quy định</TableCell>
+                    <TableCell align="center">Hành động</TableCell>
+                  </TableRow>
+                </TableHead>
+                <TableBody>
+                  {upcomingPlans.map((p) => (
+                    <TableRow key={p._id}>
+                      <TableCell>{formatDMY(p.startDate)}</TableCell>
+                      <TableCell>{p.regulationFile?.originalName || "—"}</TableCell>
+                      <TableCell align="center">
+                        <Stack direction="row" spacing={1} justifyContent="center" flexWrap="wrap">
+                          <Button size="small" variant="contained" onClick={() => handleApplyUpcomingNow(p._id)} sx={{ textTransform: "none" }}>
+                            Áp dụng ngay
+                          </Button>
+                          <Button size="small" variant="outlined" color="info" onClick={() => openUpcomingEdit(p)} sx={{ textTransform: "none" }}>
+                            Chỉnh sửa
+                          </Button>
+                          <Button size="small" variant="outlined" color="error" onClick={() => handleDeleteUpcoming(p._id)} sx={{ textTransform: "none" }}>
+                            Xóa
+                          </Button>
+                        </Stack>
+                      </TableCell>
+                    </TableRow>
+                  ))}
+                </TableBody>
+              </Table>
+            </TableContainer>
           )}
         </Box>
       ) : (
@@ -651,16 +754,6 @@ export default function DistrictNutritionPlanSchoolAdmin() {
               value={createStart}
               onChange={(e) => setCreateStart(e.target.value)}
             />
-            <TextField
-              label="Ngày kết thúc áp dụng"
-              type="date"
-              size="small"
-              fullWidth
-              InputLabelProps={{ shrink: true }}
-              value={createEnd}
-              inputProps={{ min: createStart || todayVNString() }}
-              onChange={(e) => setCreateEnd(e.target.value)}
-            />
             <Typography variant="caption" color="text.secondary" display="block">
               Chỉ một tệp Word — chọn tệp khác sẽ thay thế tệp vừa chọn.
             </Typography>
@@ -699,6 +792,59 @@ export default function DistrictNutritionPlanSchoolAdmin() {
           </Button>
           <Button variant="contained" onClick={handleCreateSubmit} disabled={createSaving}>
             {createSaving ? "Đang tạo…" : "Tạo kế hoạch"}
+          </Button>
+        </DialogActions>
+      </Dialog>
+
+      <Dialog open={upcomingEditOpen} onClose={() => !upcomingEditSaving && setUpcomingEditOpen(false)} maxWidth="md" fullWidth>
+        <DialogTitle fontWeight={700}>Chỉnh sửa kế hoạch sắp tới</DialogTitle>
+        <DialogContent dividers>
+          <Stack spacing={2} sx={{ pt: 1 }}>
+            <TextField
+              label="Ngày bắt đầu áp dụng"
+              type="date"
+              size="small"
+              fullWidth
+              InputLabelProps={{ shrink: true }}
+              value={upcomingEditStart}
+              onChange={(e) => setUpcomingEditStart(e.target.value)}
+            />
+            <Button variant="outlined" component="label" startIcon={<UploadFileIcon />} sx={{ textTransform: "none", alignSelf: "flex-start" }}>
+              {upcomingEditFile ? "Thay tệp khác" : "Chọn tệp Word (quy định sở)"}
+              <input
+                ref={upcomingEditFileInputRef}
+                type="file"
+                hidden
+                accept=".doc,.docx,application/msword,application/vnd.openxmlformats-officedocument.wordprocessingml.document"
+                onChange={(e) => {
+                  const f = e.target.files?.[0];
+                  if (f) setUpcomingEditFile(f);
+                  e.target.value = "";
+                }}
+              />
+            </Button>
+            {upcomingEditFile && (
+              <Typography variant="body2" color="primary">
+                Tệp đính kèm: {upcomingEditFile.name}
+              </Typography>
+            )}
+
+            {renderMetricsTable(
+              upcomingEditRows,
+              editNewRow,
+              setEditNewRow,
+              handleUpcomingEditRowChange,
+              addEditRow,
+              4
+            )}
+          </Stack>
+        </DialogContent>
+        <DialogActions sx={{ px: 3, pb: 2 }}>
+          <Button onClick={() => setUpcomingEditOpen(false)} disabled={upcomingEditSaving}>
+            Hủy
+          </Button>
+          <Button variant="contained" onClick={handleUpcomingEditSave} disabled={upcomingEditSaving}>
+            {upcomingEditSaving ? "Đang cập nhật…" : "Cập nhật"}
           </Button>
         </DialogActions>
       </Dialog>

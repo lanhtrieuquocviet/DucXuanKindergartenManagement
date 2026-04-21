@@ -4,6 +4,7 @@ const Classes = require('../models/Classes');
 const Students = require('../models/Student');
 const { createSystemLog } = require('../utils/systemLog');
 const { createNotification } = require('../controller/notification.controller');
+const AcademicYear = require('../models/AcademicYear');
 
 /**
  * Tạo / cập nhật điểm danh (check-in) cho 1 học sinh trong 1 ngày
@@ -37,9 +38,54 @@ const upsertAttendance = async (req, res) => {
       });
     }
 
+    // Validate date hợp lệ
     const attendanceDate = new Date(date);
+    if (isNaN(attendanceDate.getTime())) {
+      return res.status(400).json({ status: 'error', message: 'Ngày điểm danh không hợp lệ' });
+    }
+
+    // Lấy academicYearId
+    let foundAcademicYearId = null;
+    if (classId) {
+      const cls = await Classes.findById(classId).select('academicYearId').lean();
+      if (cls) foundAcademicYearId = cls.academicYearId;
+    }
+    if (!foundAcademicYearId) {
+      const ay = await AcademicYear.findOne({
+        startDate: { $lte: attendanceDate },
+        endDate: { $gte: attendanceDate }
+      }).select('_id').lean();
+      if (ay) foundAcademicYearId = ay._id;
+    }
+
     // Chuẩn hoá về đầu ngày để đảm bảo 1 học sinh chỉ có 1 bản ghi / ngày
     attendanceDate.setHours(0, 0, 0, 0);
+
+    // Không cho phép điểm danh ngày tương lai
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+    if (attendanceDate > today) {
+      return res.status(400).json({ status: 'error', message: 'Không thể điểm danh cho ngày trong tương lai' });
+    }
+
+    // Validate status enum
+    const VALID_STATUSES = ['present', 'absent', 'leave'];
+    if (status && !VALID_STATUSES.includes(status)) {
+      return res.status(400).json({
+        status: 'error',
+        message: `Trạng thái không hợp lệ. Chỉ chấp nhận: ${VALID_STATUSES.join(', ')}`,
+      });
+    }
+
+    // Bắt buộc có lý do khi vắng mặt
+    if (status === 'absent' && !absentReason?.trim()) {
+      return res.status(400).json({ status: 'error', message: 'Vui lòng cung cấp lý do vắng mặt' });
+    }
+
+    // Validate định dạng giờ check-in nếu được cung cấp
+    if (timeString?.checkIn && !/^\d{2}:\d{2}$/.test(timeString.checkIn)) {
+      return res.status(400).json({ status: 'error', message: 'Giờ điểm danh đến phải theo định dạng HH:mm' });
+    }
 
     const payload = {
       studentId,
@@ -52,15 +98,10 @@ const upsertAttendance = async (req, res) => {
       delivererOtherInfo,
       delivererOtherImageName,
       absentReason,
-      time: {
-        checkIn: time && time.checkIn ? new Date(time.checkIn) : null,
-        checkOut: time && time.checkOut ? new Date(time.checkOut) : null,
-      },
-      timeString: {
-        checkIn: timeString && timeString.checkIn ? timeString.checkIn : '',
-        checkOut: timeString && timeString.checkOut ? timeString.checkOut : '',
-      },
+      'time.checkIn': time && time.checkIn ? new Date(time.checkIn) : null,
+      'timeString.checkIn': timeString && timeString.checkIn ? timeString.checkIn : '',
       isTakeOff: !!isTakeOff,
+      academicYearId: foundAcademicYearId,
       ...(Array.isArray(checkinBelongings) && { checkinBelongings }),
       ...(typeof checkedInByAI === 'boolean' && { checkedInByAI }),
     };
@@ -144,6 +185,8 @@ const checkoutAttendance = async (req, res) => {
       checkoutBelongingsNote,
       checkoutBelongings,
       checkedOutByAI,
+      teacherConfirmedCheckout,
+      checkoutConfirmMethod,
       time,
       timeString,
       status,
@@ -159,7 +202,28 @@ const checkoutAttendance = async (req, res) => {
 
     const now = new Date();
     const attendanceDate = date ? new Date(date) : new Date(now);
+    if (isNaN(attendanceDate.getTime())) {
+      return res.status(400).json({ status: 'error', message: 'Ngày điểm danh không hợp lệ' });
+    }
     attendanceDate.setHours(0, 0, 0, 0);
+
+    // Không cho phép điểm danh về cho ngày tương lai
+    const todayForCheckout = new Date();
+    todayForCheckout.setHours(0, 0, 0, 0);
+    if (attendanceDate > todayForCheckout) {
+      return res.status(400).json({ status: 'error', message: 'Không thể điểm danh về cho ngày trong tương lai' });
+    }
+
+    // Validate định dạng giờ check-out nếu client cung cấp tường minh
+    if (timeString?.checkOut && !/^\d{2}:\d{2}$/.test(timeString.checkOut)) {
+      return res.status(400).json({ status: 'error', message: 'Giờ điểm danh về phải theo định dạng HH:mm' });
+    }
+
+    // Validate checkoutConfirmMethod
+    const VALID_CONFIRM_METHODS = ['teacher', 'school_otp', 'sms_otp', ''];
+    if (checkoutConfirmMethod !== undefined && !VALID_CONFIRM_METHODS.includes(checkoutConfirmMethod || '')) {
+      return res.status(400).json({ status: 'error', message: 'Phương thức xác nhận không hợp lệ' });
+    }
 
     // Kiểm tra học sinh đã điểm danh đến trước khi cho phép điểm danh về
     const existingAttendance = await Attendances.findOne({ studentId, date: attendanceDate });
@@ -167,6 +231,12 @@ const checkoutAttendance = async (req, res) => {
       return res.status(400).json({
         status: 'error',
         message: 'Học sinh chưa điểm danh đến, không thể điểm danh về',
+      });
+    }
+    if (existingAttendance.time?.checkOut) {
+      return res.status(400).json({
+        status: 'error',
+        message: 'Học sinh đã điểm danh về rồi',
       });
     }
 
@@ -177,6 +247,14 @@ const checkoutAttendance = async (req, res) => {
         .getMinutes()
         .toString()
         .padStart(2, '0')}`;
+
+    // Giờ về không thể trước giờ đến
+    if (existingAttendance.time?.checkIn && checkOutTime < existingAttendance.time.checkIn) {
+      return res.status(400).json({
+        status: 'error',
+        message: `Giờ về (${checkOutTimeString}) không thể trước giờ đến (${existingAttendance.timeString?.checkIn || ''})`,
+      });
+    }
 
     const update = {
       note,
@@ -191,6 +269,8 @@ const checkoutAttendance = async (req, res) => {
       'timeString.checkOut': checkOutTimeString,
       ...(Array.isArray(checkoutBelongings) && { checkoutBelongings }),
       ...(typeof checkedOutByAI === 'boolean' && { checkedOutByAI }),
+      ...(typeof teacherConfirmedCheckout === 'boolean' && { teacherConfirmedCheckout }),
+      ...(checkoutConfirmMethod !== undefined && { checkoutConfirmMethod: checkoutConfirmMethod || '' }),
     };
 
     if (classId) {
@@ -264,6 +344,10 @@ const getAttendances = async (req, res) => {
       filter.classId = classId;
     }
 
+    if (req.query.academicYearId) {
+      filter.academicYearId = req.query.academicYearId;
+    }
+
     if (date) {
       const d = new Date(date);
       const startOfDay = new Date(d);
@@ -313,7 +397,7 @@ const getAttendances = async (req, res) => {
  */
 const getAttendanceOverview = async (req, res) => {
   try {
-    const { date, gradeId, classId, status } = req.query;
+    const { date, gradeId, classId, status, academicYearId } = req.query;
 
     // Xử lý ngày
     const attendanceDate = date ? new Date(date) : new Date();
@@ -321,8 +405,18 @@ const getAttendanceOverview = async (req, res) => {
     const endOfDay = new Date(attendanceDate);
     endOfDay.setHours(23, 59, 59, 999);
 
+    // Lấy năm học để filter (mặc định lấy năm học active)
+    let yearId = academicYearId;
+    if (!yearId) {
+      const activeYear = await AcademicYear.findOne({ status: 'active' }).sort({ startDate: -1 }).lean();
+      if (activeYear) yearId = activeYear._id;
+    }
+
     // Lấy danh sách lớp với filter
     const classFilter = {};
+    if (yearId) {
+      classFilter.academicYearId = yearId;
+    }
     if (gradeId && gradeId !== 'all') {
       // Nếu gradeId là ObjectId hợp lệ thì dùng, không thì tìm theo gradeName
       if (mongoose.Types.ObjectId.isValid(gradeId)) {
@@ -651,7 +745,7 @@ const isLate = (checkInTime) => {
       hours = d.getHours();
       minutes = d.getMinutes();
     }
-    return hours > 7 || (hours === 7 && minutes > 30);
+    return hours > 8 || (hours === 8 && minutes > 30);
   } catch (e) {
     // eslint-disable-next-line no-console
     console.error('Error in isLate helper:', e);

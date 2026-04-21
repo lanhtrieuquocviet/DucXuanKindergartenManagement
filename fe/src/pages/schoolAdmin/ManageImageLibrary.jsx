@@ -4,7 +4,7 @@ import { toast } from 'react-toastify';
 import { useAuth } from '../../context/AuthContext';
 import RoleLayout from '../../layouts/RoleLayout';
 import ConfirmDialog from '../../components/ConfirmDialog';
-import { get, post, del, postFormData, ENDPOINTS } from '../../service/api';
+import { get, post, patch, del, postFormData, ENDPOINTS } from '../../service/api';
 import { createSchoolAdminMenuSelect } from './schoolAdminMenuConfig';
 import { useSchoolAdminMenu } from './useSchoolAdminMenu';
 import {
@@ -23,6 +23,10 @@ import {
   DialogContent,
   DialogActions,
   TextField,
+  Chip,
+  Switch,
+  FormControlLabel,
+  CircularProgress,
 } from '@mui/material';
 import AddPhotoAlternateIcon from '@mui/icons-material/AddPhotoAlternate';
 import DeleteIcon from '@mui/icons-material/Delete';
@@ -42,6 +46,7 @@ export default function ManageImageLibrary() {
   const [previewIndex, setPreviewIndex] = useState(0);
   const [confirmDelete, setConfirmDelete] = useState(null);
   const [form, setForm] = useState({ title: '', files: [] });
+  const [statusUpdatingId, setStatusUpdatingId] = useState(null);
 
   useEffect(() => {
     if (isInitializing) return;
@@ -106,6 +111,22 @@ export default function ManageImageLibrary() {
     }
   };
 
+  const handleTogglePublic = async (item, nextActive) => {
+    const id = item._id;
+    setStatusUpdatingId(id);
+    try {
+      await patch(ENDPOINTS.SCHOOL_ADMIN.IMAGE_LIBRARY_DETAIL(id), {
+        status: nextActive ? 'active' : 'inactive',
+      });
+      toast.success(nextActive ? 'Đã bật hiển thị trên thư viện ảnh công khai' : 'Đã ẩn khỏi thư viện ảnh công khai');
+      await loadImages();
+    } catch (err) {
+      toast.error(err.data?.message || err.message || 'Không cập nhật được trạng thái');
+    } finally {
+      setStatusUpdatingId(null);
+    }
+  };
+
   const handleDelete = async () => {
     if (!confirmDelete) return;
     try {
@@ -156,7 +177,7 @@ export default function ManageImageLibrary() {
           Quản lý ảnh
         </Typography>
         <Typography variant="body2" sx={{ color: 'rgba(255,255,255,0.9)', mt: 0.5 }}>
-          Quản lý thư viện ảnh hiển thị trong hệ thống.
+          Bật/tắt hiển thị từng album trên trang Thư viện ảnh công khai.
         </Typography>
       </Paper>
 
@@ -177,44 +198,77 @@ export default function ManageImageLibrary() {
             gap: 2,
           }}
         >
-          {images.map((item) => (
-            <Card key={item._id} variant="outlined" sx={{ borderRadius: 2 }}>
-              <CardMedia
-                component="img"
-                height="180"
-                image={item.imageUrls?.[0] || item.imageUrl}
-                alt={item.title}
-                sx={{ objectFit: 'cover' }}
-              />
-              <CardContent>
-                <Typography variant="subtitle2" fontWeight={600}>
-                  {item.title}
-                </Typography>
-                <Typography variant="caption" color="text.secondary">
-                  {new Date(item.createdAt).toLocaleDateString('vi-VN')}
-                </Typography>
-                <Typography variant="caption" color="text.secondary" display="block">
-                  {item.imageUrls?.length || 1} ảnh
-                </Typography>
-              </CardContent>
-              <CardActions sx={{ justifyContent: 'flex-end' }}>
-                <Button
-                  size="small"
-                  startIcon={<VisibilityIcon />}
-                  onClick={() => {
-                    setPreviewImage(item);
-                    setPreviewIndex(0);
-                    setPreviewOpen(true);
-                  }}
-                >
-                  Xem
-                </Button>
-                <Button size="small" color="error" startIcon={<DeleteIcon />} onClick={() => setConfirmDelete(item)}>
-                  Xóa
-                </Button>
-              </CardActions>
-            </Card>
-          ))}
+          {images.map((item) => {
+            const isPublic = item.status !== 'inactive';
+            const busy = statusUpdatingId === item._id;
+            return (
+              <Card key={item._id} variant="outlined" sx={{ borderRadius: 2, opacity: isPublic ? 1 : 0.92 }}>
+                <CardMedia
+                  component="img"
+                  height="180"
+                  image={item.imageUrls?.[0] || item.imageUrl}
+                  alt={item.title}
+                  sx={{ objectFit: 'cover' }}
+                />
+                <CardContent>
+                  <Stack direction="row" alignItems="center" justifyContent="space-between" gap={1} sx={{ mb: 0.5 }}>
+                    <Typography variant="subtitle2" fontWeight={600} sx={{ flex: 1 }}>
+                      {item.title}
+                    </Typography>
+                    <Chip
+                      size="small"
+                      label={isPublic ? 'Đang hiển thị' : 'Đã ẩn'}
+                      color={isPublic ? 'success' : 'default'}
+                      variant={isPublic ? 'filled' : 'outlined'}
+                      sx={{ fontWeight: 600, fontSize: '0.7rem' }}
+                    />
+                  </Stack>
+                  <Typography variant="caption" color="text.secondary">
+                    {new Date(item.createdAt).toLocaleDateString('vi-VN')}
+                  </Typography>
+                  <Typography variant="caption" color="text.secondary" display="block">
+                    {item.imageUrls?.length || 1} ảnh
+                  </Typography>
+                  <FormControlLabel
+                    sx={{ mt: 1, ml: 0, alignItems: 'center' }}
+                    control={
+                      busy ? (
+                        <CircularProgress size={22} sx={{ mx: 1 }} />
+                      ) : (
+                        <Switch
+                          size="small"
+                          checked={isPublic}
+                          onChange={(_, checked) => handleTogglePublic(item, checked)}
+                          color="primary"
+                        />
+                      )
+                    }
+                    label={
+                      <Typography variant="caption" color="text.secondary">
+                        Hiển thị trên thư viện ảnh (công khai)
+                      </Typography>
+                    }
+                  />
+                </CardContent>
+                <CardActions sx={{ justifyContent: 'flex-end', flexWrap: 'wrap', gap: 0.5 }}>
+                  <Button
+                    size="small"
+                    startIcon={<VisibilityIcon />}
+                    onClick={() => {
+                      setPreviewImage(item);
+                      setPreviewIndex(0);
+                      setPreviewOpen(true);
+                    }}
+                  >
+                    Xem
+                  </Button>
+                  <Button size="small" color="error" startIcon={<DeleteIcon />} onClick={() => setConfirmDelete(item)}>
+                    Xóa
+                  </Button>
+                </CardActions>
+              </Card>
+            );
+          })}
         </Box>
 
         {images.length === 0 && (

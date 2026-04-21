@@ -1,3 +1,4 @@
+const mongoose = require('mongoose');
 const Classes = require('../models/Classes');
 const Student = require('../models/Student');
 const Grade = require('../models/Grade');
@@ -5,6 +6,21 @@ const AcademicYear = require('../models/AcademicYear');
 const User = require('../models/User');
 const Teacher = require('../models/Teacher');
 const Classroom = require('../models/Classroom');
+const Enrollment = require('../models/Enrollment');
+
+/** Tối đa số năm học khác nhau mà một học sinh được học cùng một khối (gradeId) */
+const MAX_DISTINCT_ACADEMIC_YEARS_PER_GRADE = 2;
+
+function calculateAgeOnDate(dateOfBirth, atDate = new Date()) {
+  const dob = new Date(dateOfBirth);
+  if (Number.isNaN(dob.getTime())) return null;
+  let age = atDate.getFullYear() - dob.getFullYear();
+  const monthDiff = atDate.getMonth() - dob.getMonth();
+  if (monthDiff < 0 || (monthDiff === 0 && atDate.getDate() < dob.getDate())) {
+    age -= 1;
+  }
+  return age;
+}
 
 /**
  * Validate teacher assignment rules:
@@ -143,7 +159,7 @@ const getStudentInClass = async (req, res) => {
     }
 
     // Lấy danh sách học sinh trong lớp
-    const students = await Student.find({ classId })
+    const students = await Student.find({ classId, status: 'active' })
       .populate('parentId', 'username email fullName avatar phone')
       .lean();
 
@@ -432,7 +448,7 @@ const updateClass = async (req, res) => {
 const addStudentsToClass = async (req, res) => {
   try {
     const { classId } = req.params;
-    const { studentIds } = req.body;
+    const { studentIds, healthNote } = req.body;
 
     if (!Array.isArray(studentIds) || studentIds.length === 0) {
       return res.status(400).json({ status: 'error', message: 'Vui lòng chọn ít nhất 1 học sinh' });
@@ -441,6 +457,23 @@ const addStudentsToClass = async (req, res) => {
     const cls = await Classes.findById(classId).lean();
     if (!cls) {
       return res.status(404).json({ status: 'error', message: 'Không tìm thấy lớp học' });
+    }
+
+    const grade = await Grade.findById(cls.gradeId).populate('staticBlockId').lean();
+    if (!grade || !grade.staticBlockId) {
+      return res.status(400).json({
+        status: 'error',
+        message: 'Lớp chưa gắn khối hoặc danh mục khối, không thể thêm học sinh',
+      });
+    }
+
+    const minAge = Number(grade.staticBlockId.minAge);
+    const maxAge = Number(grade.staticBlockId.maxAge);
+    if (!Number.isFinite(minAge) || !Number.isFinite(maxAge)) {
+      return res.status(400).json({
+        status: 'error',
+        message: 'Danh mục khối chưa cấu hình độ tuổi hợp lệ',
+      });
     }
 
     // Kiểm tra sĩ số tối đa
@@ -456,6 +489,7 @@ const addStudentsToClass = async (req, res) => {
     const alreadyAssigned = await Student.find({
       _id: { $in: studentIds },
       classId: { $ne: null, $exists: true },
+      status: 'active',
     }).select('fullName classId').lean();
 
     if (alreadyAssigned.length > 0) {
@@ -466,17 +500,158 @@ const addStudentsToClass = async (req, res) => {
       });
     }
 
+    const students = await Student.find({ _id: { $in: studentIds }, status: 'active' })
+      .select('_id fullName dateOfBirth')
+      .lean();
+
+    if (students.length !== studentIds.length) {
+      return res.status(400).json({
+        status: 'error',
+        message: 'Có học sinh không tồn tại trong danh sách đã chọn',
+      });
+    }
+
+    if (!cls.gradeId || !cls.academicYearId) {
+      return res.status(400).json({
+        status: 'error',
+        message: 'Lớp chưa gắn khối hoặc năm học, không thể ghi nhận enrollment',
+      });
+    }
+
+    const targetGradeId = new mongoose.Types.ObjectId(cls.gradeId);
+    const targetAcademicYearId = new mongoose.Types.ObjectId(cls.academicYearId);
+    const targetYearStr = String(cls.academicYearId);
+
+    const studentIdsAsString = studentIds.map((id) => String(id));
+    const studentObjectIds = students.map((s) => s._id);
+
+    const enrollmentStats = await Enrollment.aggregate([
+      { $match: { studentId: { $in: studentObjectIds } } },
+      { $group: { _id: '$studentId', count: { $sum: 1 } } },
+    ]);
+    const enrollmentCountMap = {};
+    enrollmentStats.forEach((item) => {
+      enrollmentCountMap[String(item._id)] = Number(item.count || 0);
+    });
+
+    // Đếm các năm học khác nhau đã có enrollment cùng gradeId (bản ghi cũ dùng lookup lớp nếu chưa có gradeId/year trên Enrollment)
+    const gradeYearAgg = await Enrollment.aggregate([
+      { $match: { studentId: { $in: studentObjectIds } } },
+      {
+        $lookup: {
+          from: 'Classes',
+          let: { cid: '$classId' },
+          pipeline: [
+            { $match: { $expr: { $eq: ['$_id', '$$cid'] } } },
+            { $project: { gradeId: 1, academicYearId: 1 } },
+          ],
+          as: 'classDoc',
+        },
+      },
+      { $unwind: { path: '$classDoc', preserveNullAndEmptyArrays: true } },
+      {
+        $addFields: {
+          resolvedGradeId: { $ifNull: ['$gradeId', '$classDoc.gradeId'] },
+          resolvedYearId: { $ifNull: ['$academicYearId', '$classDoc.academicYearId'] },
+        },
+      },
+      {
+        $match: {
+          resolvedGradeId: targetGradeId,
+          resolvedYearId: { $ne: null },
+        },
+      },
+      {
+        $group: {
+          _id: { sid: '$studentId', y: '$resolvedYearId' },
+        },
+      },
+      {
+        $group: {
+          _id: '$_id.sid',
+          yearIds: { $addToSet: '$_id.y' },
+        },
+      },
+    ]);
+
+    const distinctYearsByStudent = {};
+    gradeYearAgg.forEach((row) => {
+      distinctYearsByStudent[String(row._id)] = (row.yearIds || []).map((y) => String(y));
+    });
+
+    const gradeRepeatViolations = [];
+    for (const sid of studentIdsAsString) {
+      const years = distinctYearsByStudent[sid] || [];
+      const yearSet = new Set(years);
+      if (yearSet.has(targetYearStr)) {
+        continue;
+      }
+      if (yearSet.size >= MAX_DISTINCT_ACADEMIC_YEARS_PER_GRADE) {
+        const student = students.find((s) => String(s._id) === sid);
+        gradeRepeatViolations.push(
+          student?.fullName || sid,
+        );
+      }
+    }
+
+    if (gradeRepeatViolations.length > 0) {
+      return res.status(400).json({
+        status: 'error',
+        message: `Học sinh đã học khối này đủ ${MAX_DISTINCT_ACADEMIC_YEARS_PER_GRADE} năm học khác nhau, không thể xếp lớp thêm: ${gradeRepeatViolations.join(', ')}`,
+      });
+    }
+
+    // Get ages of students being added
+    const invalidStudents = [];
+
+    for (const studentId of studentIdsAsString) {
+      const student = students.find((s) => String(s._id) === studentId);
+      if (!student) continue;
+      const age = calculateAgeOnDate(student.dateOfBirth);
+      if (age === null || age < 0) {
+        invalidStudents.push(`${student.fullName} (ngày sinh không hợp lệ)`);
+        continue;
+      }
+
+      const isRepeater = (enrollmentCountMap[studentId] || 0) > 0;
+      const maxAllowedAge = maxAge + 2;
+      const inRange = age >= minAge && age <= maxAllowedAge;
+      if (!inRange) {
+        invalidStudents.push(
+          `${student.fullName} (${age} tuổi, yêu cầu ${minAge}-${maxAllowedAge} tuổi${isRepeater ? ' (học lại)' : ''})`,
+        );
+      }
+    }
+
+    if (invalidStudents.length > 0) {
+      return res.status(400).json({
+        status: 'error',
+        message: `Không thể thêm học sinh do không đạt điều kiện độ tuổi: ${invalidStudents.join('; ')}`,
+      });
+    }
+
     await Student.updateMany(
       { _id: { $in: studentIds } },
-      { $set: { classId } }
+      { $set: { classId } },
     );
+
+    const normalizedHealthNote = typeof healthNote === 'string' ? healthNote.trim() : '';
+    const enrollmentDocs = studentIdsAsString.map((studentId) => ({
+      studentId,
+      classId,
+      gradeId: cls.gradeId,
+      academicYearId: cls.academicYearId,
+      enrollmentDate: new Date(),
+      healthNote: normalizedHealthNote,
+    }));
+    await Enrollment.insertMany(enrollmentDocs);
 
     const updatedCount = await Student.countDocuments({ classId });
 
     return res.status(200).json({
       status: 'success',
       message: `Đã thêm ${studentIds.length} học sinh vào lớp thành công`,
-      data: { added: studentIds.length, total: updatedCount },
+      data: { added: studentIds.length, total: updatedCount, enrollmentsCreated: studentIds.length },
     });
   } catch (error) {
     console.error('Error in addStudentsToClass:', error);

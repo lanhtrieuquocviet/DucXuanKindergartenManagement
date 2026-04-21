@@ -30,7 +30,14 @@ function SchoolAdminDashboard() {
     teacherTotal: 0,
     attendanceRows: [],
     questionTodayTotal: 0,
+    academicYearName: '',
   });
+  const todayKey = useMemo(() => {
+    const yyyy = now.getFullYear();
+    const mm = String(now.getMonth() + 1).padStart(2, '0');
+    const dd = String(now.getDate()).padStart(2, '0');
+    return `${yyyy}-${mm}-${dd}`;
+  }, [now]);
 
   useEffect(() => {
     if (isInitializing) return;
@@ -60,12 +67,18 @@ function SchoolAdminDashboard() {
         const dd = String(today.getDate()).padStart(2, '0');
         const todayStr = `${yyyy}-${mm}-${dd}`;
 
-        const [studentsRes, classesRes, teachersRes, attendanceRes, questionsRes] = await Promise.all([
-          get(ENDPOINTS.STUDENTS.LIST),
-          get(ENDPOINTS.CLASSES.LIST),
+        // 1. Fetch current academic year first
+        const yearRes = await get(ENDPOINTS.SCHOOL_ADMIN.ACADEMIC_YEARS.CURRENT).catch(() => null);
+        const activeYear = yearRes?.status === 'success' ? yearRes.data : null;
+        const activeYearId = activeYear?._id || '';
+
+        // 2. Fetch stats with academicYearId filter
+        const [studentsRes, classesRes, teachersRes, attendanceRes, contactsRes] = await Promise.all([
+          get(`${ENDPOINTS.STUDENTS.LIST}${activeYearId ? `?academicYearId=${activeYearId}` : ''}`),
+          get(`${ENDPOINTS.CLASSES.LIST}${activeYearId ? `?academicYearId=${activeYearId}` : ''}`),
           get(ENDPOINTS.SCHOOL_ADMIN.TEACHERS),
           get(`${ENDPOINTS.SCHOOL_ADMIN.ATTENDANCE_OVERVIEW}?date=${todayStr}`),
-          get(ENDPOINTS.SCHOOL_ADMIN.QA_QUESTIONS),
+          get(ENDPOINTS.SCHOOL_ADMIN.CONTACTS),
         ]);
 
         const studentTotal = Number(studentsRes?.total ?? studentsRes?.data?.length ?? 0);
@@ -106,7 +119,9 @@ function SchoolAdminDashboard() {
           };
         });
 
-        const questionRows = Array.isArray(questionsRes?.data) ? questionsRes.data : [];
+        const questionRows = Array.isArray(contactsRes?.data?.contacts)
+          ? contactsRes.data.contacts
+          : [];
         const questionTodayTotal = questionRows.filter((q) => {
           const created = q?.createdAt ? new Date(q.createdAt) : null;
           if (!created || Number.isNaN(created.getTime())) return false;
@@ -126,6 +141,7 @@ function SchoolAdminDashboard() {
           teacherTotal,
           attendanceRows,
           questionTodayTotal,
+          academicYearName: activeYear?.yearName || '',
         });
       } catch (error) {
         // eslint-disable-next-line no-console
@@ -134,7 +150,7 @@ function SchoolAdminDashboard() {
     };
 
     fetchDashboardStats();
-  }, [isInitializing, user]);
+  }, [isInitializing, user, todayKey]);
 
   const userName = user?.fullName || user?.username || 'School Admin';
 
@@ -150,24 +166,23 @@ function SchoolAdminDashboard() {
       second: '2-digit',
     }).format(now);
   }, [now]);
-
   const statCards = [
     {
       label: 'Tổng học sinh',
       value: String(stats.studentTotal),
-      note: 'Tổng số học sinh toàn trường',
+      note: stats.academicYearName ? `Năm học: ${stats.academicYearName}` : 'Tổng số học sinh',
       icon: <GroupsIcon sx={{ fontSize: 34, color: '#3730a3' }} />,
     },
     {
       label: 'Tỷ lệ có mặt hôm nay',
       value: `${stats.attendanceRate}%`,
-      note: `${stats.attendanceMarked}/${stats.studentTotal} em đã được điểm danh`,
+      note: `${stats.attendanceMarked}/${stats.studentTotal} em đã điểm danh`,
       icon: <CheckCircleIcon sx={{ fontSize: 34, color: '#059669' }} />,
     },
     {
       label: 'Tổng số lớp học',
       value: String(stats.classTotal),
-      note: 'Số lớp học toàn trường',
+      note: stats.academicYearName ? `Năm học: ${stats.academicYearName}` : 'Số lớp học',
       icon: <LaptopMacIcon sx={{ fontSize: 34, color: '#d97706' }} />,
     },
     {
@@ -231,7 +246,7 @@ function SchoolAdminDashboard() {
       >
         <Box>
           <Typography variant="h5" fontWeight={800} sx={{ color: '#312eae', mb: 2 }}>
-            Tổng quan chuyên cần &amp; điểm danh (toàn trường)
+            Chuyên cần &amp; điểm danh {stats.academicYearName ? `(${stats.academicYearName})` : ''}
           </Typography>
           <Paper elevation={0} sx={{ p: 2.5, borderRadius: 2, border: '1px solid', borderColor: '#e5e7eb' }}>
             <Stack spacing={2}>

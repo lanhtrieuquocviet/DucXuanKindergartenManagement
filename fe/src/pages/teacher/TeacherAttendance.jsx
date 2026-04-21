@@ -193,6 +193,8 @@ function TeacherAttendance() {
       status = 'absent';
     } else if (serverRec.status === 'present') {
       status = serverRec.timeString?.checkOut ? 'checked_out' : 'checked_in';
+    } else if (serverRec.status === 'leave') {
+      status = 'absent';
     } else {
       status = 'checked_in';
     }
@@ -307,7 +309,7 @@ function TeacherAttendance() {
       { key: 'attendance', label: 'Điểm danh' },
       { key: 'pickup-approval', label: 'Đơn đăng ký đưa đón' },
       { key: 'leave-requests', label: 'Danh sách đơn xin nghỉ' },
-      { key: 'schedule', label: 'Lịch dạy & hoạt động' },
+      { key: 'contact-book', label: 'Sổ liên lạc' },
       { key: 'purchase-request', label: 'Cơ sở vật chất' },
       { key: 'class-assets', label: 'Tài sản lớp' },
       ...(hasRole('InventoryStaff') ? [{ key: 'asset-inspection', label: 'Kiểm kê tài sản' }] : []),
@@ -408,16 +410,18 @@ function TeacherAttendance() {
   }, []);
 
   // ── Detail modal ──
-  const openDetail = useCallback((studentId, mode = 'view') => {
+  // overrides: dữ liệu từ AI scan (checkinImageName, checkoutImageName, timeIn, timeOut, checkedInByAI, checkedOutByAI)
+  const openDetail = useCallback((studentId, mode = 'view', overrides = {}) => {
     setSubmitError(null);
     setDetailStudentId(studentId);
     setDetailOpenedDate(selectedDate);
 
     const draftKey = `${studentId}__${mode}__${selectedDate}`;
     const draft = draftForms[draftKey];
+    const hasOverrides = Object.keys(overrides).length > 0;
 
-    if (draft) {
-      // Có draft: khôi phục form đã nhập, chỉ reset OTP vì OTP hết hạn
+    if (draft && !hasOverrides) {
+      // Có draft và không có override từ AI: khôi phục form đã nhập, chỉ reset OTP
       setDetailForm({
         ...draft,
         otpSent: false,
@@ -427,7 +431,7 @@ function TeacherAttendance() {
         selectedParentForOtp: '',
       });
     } else {
-      // Không có draft: khởi tạo form từ bản ghi hiện tại
+      // Không có draft hoặc có override từ AI: khởi tạo form (override được ưu tiên)
       const rec = attendanceByStudent?.[studentId] || defaultRecord();
       setDetailForm({
         status:
@@ -437,12 +441,14 @@ function TeacherAttendance() {
             ? 'checked_out'
             : rec.status || 'empty',
         timeIn:
-          mode === 'checkin' && (!rec.timeIn || rec.status === 'empty' || rec.status === 'absent')
+          overrides.timeIn ||
+          (mode === 'checkin' && (!rec.timeIn || rec.status === 'empty' || rec.status === 'absent')
             ? nowHHmm()
-            : rec.timeIn || '',
+            : rec.timeIn || ''),
         timeOut:
-          mode === 'checkout' && !rec.timeOut ? nowHHmm() : rec.timeOut || '',
-        checkinImageName: rec.checkinImageName || '',
+          overrides.timeOut ||
+          (mode === 'checkout' && !rec.timeOut ? nowHHmm() : rec.timeOut || ''),
+        checkinImageName: overrides.checkinImageName || rec.checkinImageName || '',
         delivererType: rec.delivererType || '',
         delivererPickupPersonId: rec.delivererPickupPersonId || '',
         delivererOtherInfo: rec.delivererOtherInfo || '',
@@ -453,9 +459,9 @@ function TeacherAttendance() {
         belongingsNote: rec.belongingsNote || '',
         note: rec.note || '',
         absentReason: rec.absentReason || '',
-        checkedInByAI: rec.checkedInByAI || false,
-        checkedOutByAI: rec.checkedOutByAI || false,
-        checkoutImageName: rec.checkoutImageName || '',
+        checkedInByAI: overrides.checkedInByAI !== undefined ? overrides.checkedInByAI : rec.checkedInByAI || false,
+        checkedOutByAI: overrides.checkedOutByAI !== undefined ? overrides.checkedOutByAI : rec.checkedOutByAI || false,
+        checkoutImageName: overrides.checkoutImageName || rec.checkoutImageName || '',
         receiverType: rec.receiverType || '',
         receiverPickupPersonId: rec.receiverPickupPersonId || '',
         receiverOtherInfo: rec.receiverOtherInfo || '',
@@ -500,6 +506,25 @@ function TeacherAttendance() {
     setIsAbsentOpen(true);
   }, []);
 
+  // Callbacks từ AI scan: đóng modal quét và mở form chi tiết với ảnh đã chụp
+  const handleAICheckinRecognized = useCallback(({ studentId, checkinImageUrl, timeStr }) => {
+    setIsFaceModalOpen(false);
+    openDetail(studentId, 'checkin', {
+      checkinImageName: checkinImageUrl,
+      timeIn: timeStr,
+      checkedInByAI: true,
+    });
+  }, [openDetail]);
+
+  const handleAICheckoutRecognized = useCallback(({ studentId, checkoutImageUrl, timeStr }) => {
+    setIsPickupFaceModalOpen(false);
+    openDetail(studentId, 'checkout', {
+      checkoutImageName: checkoutImageUrl,
+      timeOut: timeStr,
+      checkedOutByAI: true,
+    });
+  }, [openDetail]);
+
   // Đóng modal sau khi lưu thành công — xóa draft thay vì lưu
   const closeDetailAndClearDraft = () => {
     if (detailStudentId) {
@@ -528,7 +553,7 @@ function TeacherAttendance() {
       if (!dName) return 'Vui lòng nhập tên người đưa.';
       if (dName.length > MAX_PERSON_NAME_LEN) return `Tên người đưa tối đa ${MAX_PERSON_NAME_LEN} ký tự.`;
       if (!dPhone) return 'Vui lòng nhập số điện thoại người đưa.';
-      if (!PHONE_REGEX.test(dPhone)) return 'Số điện thoại người đưa không hợp lệ (7–15 chữ số).';
+      if (!PHONE_REGEX.test(dPhone)) return 'Số điện thoại người đưa không hợp lệ (10–11 chữ số).';
     }
 
     if (detailForm.receiverType === 'Khác') {
@@ -537,7 +562,7 @@ function TeacherAttendance() {
       if (!rName) return 'Vui lòng nhập tên người đón.';
       if (rName.length > MAX_PERSON_NAME_LEN) return `Tên người đón tối đa ${MAX_PERSON_NAME_LEN} ký tự.`;
       if (!rPhone) return 'Vui lòng nhập số điện thoại người đón.';
-      if (!PHONE_REGEX.test(rPhone)) return 'Số điện thoại người đón không hợp lệ (7–15 chữ số).';
+      if (!PHONE_REGEX.test(rPhone)) return 'Số điện thoại người đón không hợp lệ (10–11 chữ số).';
     }
 
     if (detailForm.hasBelongings && !belongingsNote) return 'Vui lòng nhập ghi chú đồ mang theo.';
@@ -603,6 +628,13 @@ function TeacherAttendance() {
           timeString: { checkOut: timeOutHHmm },
           status: 'present',
           isTakeOff: false,
+          checkedOutByAI: detailForm.checkedOutByAI || false,
+          teacherConfirmedCheckout: detailForm.teacherConfirmedCheckout || false,
+          checkoutConfirmMethod:
+            detailForm.teacherConfirmedCheckout ? 'teacher'
+            : detailForm.sendOtpSchoolAccount && !detailForm.sendOtpViaSms ? 'school_otp'
+            : detailForm.sendOtpViaSms ? 'sms_otp'
+            : '',
         });
 
         updateRecord(detailStudentId, {
@@ -616,6 +648,7 @@ function TeacherAttendance() {
           receiverType: detailForm.receiverType,
           receiverOtherInfo: receiverOtherInfoFinal,
           receiverOtherImageName: detailForm.receiverOtherImageName,
+          checkedOutByAI: detailForm.checkedOutByAI || false,
         });
 
         const studentNameOut = students.find((s) => s._id === detailStudentId)?.fullName || 'Học sinh';
@@ -628,6 +661,11 @@ function TeacherAttendance() {
           ? buildPersonOtherInfo(detailForm.delivererName, detailForm.delivererPhone)
           : detailForm.delivererOtherInfo || '';
 
+        const checkinBelongingsArray =
+          detailForm.hasBelongings && detailForm.belongingsNote?.trim()
+            ? detailForm.belongingsNote.split(',').map((s) => s.trim()).filter(Boolean)
+            : [];
+
         await post(ENDPOINTS.STUDENTS.ATTENDANCE_CHECKIN, {
           ...basePayload,
           checkinImageName: detailForm.checkinImageName || '',
@@ -638,6 +676,8 @@ function TeacherAttendance() {
           timeString: { checkIn: timeInHHmm },
           status: 'present',
           isTakeOff: false,
+          checkedInByAI: detailForm.checkedInByAI || false,
+          checkinBelongings: checkinBelongingsArray,
         });
 
         updateRecord(detailStudentId, {
@@ -651,13 +691,28 @@ function TeacherAttendance() {
           checkinImageName: detailForm.checkinImageName,
           hasBelongings: detailForm.hasBelongings,
           belongingsNote: detailForm.belongingsNote,
+          checkedInByAI: detailForm.checkedInByAI || false,
         });
 
         const studentName = students.find((s) => s._id === detailStudentId)?.fullName || 'Học sinh';
         showSuccessToast(`Điểm danh thành công cho ${studentName}!`);
         closeDetailAndClearDraft();
       } else {
-        // view mode: chỉ lưu local
+        // view mode: lưu ghi chú lên server nếu học sinh đã có bản ghi điểm danh
+        const currentRec = attendanceByStudent?.[detailStudentId];
+        if (currentRec && currentRec.status !== 'empty') {
+          const serverStatus =
+            currentRec.status === 'checked_in' || currentRec.status === 'checked_out'
+              ? 'present'
+              : currentRec.status;
+          await post(ENDPOINTS.STUDENTS.ATTENDANCE_CHECKIN, {
+            studentId: detailStudentId,
+            classId,
+            date: selectedDate,
+            status: serverStatus,
+            note: basePayload.note,
+          });
+        }
         updateRecord(detailStudentId, {
           ...(attendanceByStudent?.[detailStudentId] || defaultRecord()),
           ...detailForm,
@@ -1043,7 +1098,7 @@ onResetOtp={resetOtpState}
             setIsFaceModalOpen(false);
             loadAttendance();
           }}
-          onCheckinSuccess={loadAttendance}
+          onStudentRecognized={handleAICheckinRecognized}
           classId={classId}
           className={selectedClassName}
         />
@@ -1058,10 +1113,13 @@ onResetOtp={resetOtpState}
 
       <PickupFaceAttendanceModal
         open={isPickupFaceModalOpen}
-        onClose={() => setIsPickupFaceModalOpen(false)}
+        onClose={() => {
+          setIsPickupFaceModalOpen(false);
+          loadAttendance();
+        }}
         classId={classId}
         className={selectedClassName}
-        onCheckoutSuccess={loadAttendance}
+        onStudentRecognized={handleAICheckoutRecognized}
       />
     </RoleLayout>
   );

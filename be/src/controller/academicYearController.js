@@ -8,6 +8,8 @@ const finishAcademicYear = async (req, res, next) => service.finishAcademicYear(
 const getAcademicYearHistory = async (req, res, next) => service.getAcademicYearHistory(req, res, next);
 const getClassesByAcademicYear = async (req, res, next) => service.getClassesByAcademicYear(req, res, next);
 const getStudentsByAcademicYear = async (req, res, next) => service.getStudentsByAcademicYear(req, res, next);
+const setupNewAcademicYearWizard = async (req, res, next) => service.setupNewAcademicYearWizard(req, res, next);
+const getWizardCloneData = async (req, res, next) => service.getWizardCloneData(req, res, next);
 
 module.exports = {
   getCurrentAcademicYear,
@@ -18,4 +20,7 @@ module.exports = {
   getAcademicYearHistory,
   getClassesByAcademicYear,
   getStudentsByAcademicYear,
+  setupNewAcademicYearWizard,
+  getWizardCloneData,
 };
+

@@ -23,7 +23,7 @@ import {
   Typography,
 } from '@mui/material';
 import CloseIcon from '@mui/icons-material/Close';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useSearchParams } from 'react-router-dom';
 import { toast } from 'react-toastify';
 import { useAuth } from '../../context/AuthContext';
 import RoleLayout from '../../layouts/RoleLayout';
@@ -79,6 +79,8 @@ function buildWeeks(count, currentWeeks = []) {
 
 export default function AcademicYearPlan() {
   const navigate = useNavigate();
+  const [searchParams] = useSearchParams();
+  const yearIdFromQuery = searchParams.get('yearId');
   const { user, logout } = useAuth();
   const menuItems = useSchoolAdminMenu();
 
@@ -116,26 +118,39 @@ export default function AcademicYearPlan() {
   const handleMenuSelect = createSchoolAdminMenuSelect(navigate);
 
   useEffect(() => {
-    const loadCurrentYear = async () => {
+    const loadYear = async () => {
       try {
         setLoadingYear(true);
-        const resp = await get(ENDPOINTS.SCHOOL_ADMIN.ACADEMIC_YEARS.CURRENT);
-        if (resp?.status === 'success' && resp.data) {
-          setCurrentYear(resp.data);
+        if (yearIdFromQuery) {
+          const params = new URLSearchParams();
+          params.set('yearId', yearIdFromQuery);
+          const resp = await get(
+            `${ENDPOINTS.SCHOOL_ADMIN.ACADEMIC_YEARS.HISTORY}?${params.toString()}`,
+          );
+          if (resp?.status === 'success' && Array.isArray(resp.data) && resp.data[0]) {
+            setCurrentYear(resp.data[0]);
+          } else {
+            setCurrentYear(null);
+          }
         } else {
-          setCurrentYear(null);
+          const resp = await get(ENDPOINTS.SCHOOL_ADMIN.ACADEMIC_YEARS.CURRENT);
+          if (resp?.status === 'success' && resp.data) {
+            setCurrentYear(resp.data);
+          } else {
+            setCurrentYear(null);
+          }
         }
       } catch (error) {
         // eslint-disable-next-line no-console
-        console.error('Error loading current academic year:', error);
+        console.error('Error loading academic year:', error);
         setCurrentYear(null);
       } finally {
         setLoadingYear(false);
       }
     };
 
-    loadCurrentYear();
-  }, []);
+    loadYear();
+  }, [yearIdFromQuery]);
 
   useEffect(() => {
     const loadBlocksByYear = async () => {
@@ -456,8 +471,8 @@ export default function AcademicYearPlan() {
     <RoleLayout
       title={
         currentYear
-          ? `Danh sách chủ đề theo khối năm học ${currentYear.yearName}`
-          : 'Danh sách chủ đề theo khối năm học'
+          ? `Danh sách chủ đề theo khối lớp năm học ${currentYear.yearName}`
+          : 'Danh sách chủ đề theo khối lớp năm học'
       }
       description="Quản lý danh sách chủ đề theo từng khối lớp và chi tiết hoạt động theo tuần."
       menuItems={menuItems}
@@ -470,9 +485,30 @@ export default function AcademicYearPlan() {
     >
       <Stack spacing={3}>
         <Typography variant="overline" color="text.secondary">
-          MamNon DX &gt; Ban Giám Hiệu &gt; Quản lý Năm học &gt; Danh sách chủ đề theo khối năm học
+          MamNon DX &gt; Ban Giám Hiệu &gt; Quản lý Năm học &gt; Danh sách chủ đề theo khối lớp năm học
         </Typography>
 
+        {!loadingYear && !currentYear && (
+          <Paper
+            elevation={0}
+            sx={{
+              p: 3,
+              borderRadius: 2,
+              border: '1px dashed',
+              borderColor: '#a5b4fc',
+              bgcolor: '#eef2ff',
+            }}
+          >
+            <Typography variant="h6" fontWeight={700} sx={{ color: '#4338ca' }}>
+              {yearIdFromQuery
+                ? 'Không tìm thấy năm học tương ứng với liên kết này.'
+                : 'Vui lòng hãy tạo năm học mới.'}
+            </Typography>
+          </Paper>
+        )}
+
+        {!!currentYear && (
+          <>
         <Paper
           elevation={0}
           sx={{
@@ -523,11 +559,6 @@ export default function AcademicYearPlan() {
               Đang tải thông tin năm học...
             </Typography>
           )}
-          {!loadingYear && !currentYear && (
-            <Typography variant="body2" color="error" mt={1.5}>
-              Chưa có năm học đang hoạt động. Vui lòng tạo năm học trước.
-            </Typography>
-          )}
         </Paper>
 
         <Paper
@@ -547,7 +578,7 @@ export default function AcademicYearPlan() {
             color="#1f3b5b"
             sx={{ mb: 2.5 }}
           >
-            DANH SÁCH CHỦ ĐỀ THEO KHỐI NĂM HỌC {currentYear?.yearName || '2025-2026'}
+            DANH SÁCH CHỦ ĐỀ THEO KHỐI LỚP NĂM HỌC {currentYear?.yearName || '2025-2026'}
           </Typography>
 
           <Tabs
@@ -582,7 +613,7 @@ export default function AcademicYearPlan() {
             color="#1f3b5b"
             sx={{ mb: 2 }}
           >
-            Khối {blocks.find((b) => b.key === activeBlock)?.label || ''}
+            Khối lớp {blocks.find((b) => b.key === activeBlock)?.label || ''}
           </Typography>
 
           <Button
@@ -696,6 +727,8 @@ export default function AcademicYearPlan() {
             </Button>
           </Box> */}
         </Paper>
+          </>
+        )}
       </Stack>
 
       <Dialog

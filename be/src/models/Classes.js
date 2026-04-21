@@ -5,7 +5,7 @@ const classesSchema = new mongoose.Schema({
     type: String,
     required: true,
     trim: true,
-    unique: true
+    unique: false
   },
   capacity: {
     type: Number,
@@ -44,6 +44,8 @@ const classesSchema = new mongoose.Schema({
   timestamps: true,
   collection: 'Classes'
 });
+
+classesSchema.index({ className: 1, academicYearId: 1 }, { unique: true });
 
 const Classes = mongoose.model('Classes', classesSchema);
 

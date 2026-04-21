@@ -29,11 +29,14 @@ import HealthCheckForm from './pages/schoolNurse/HealthCheckForm';
 import FollowUpManagement from './pages/schoolNurse/FollowUpManagement';
 import HealthReports from './pages/schoolNurse/HealthReports';
 import ClassList from './pages/schoolAdmin/ClassList';
+import ManageGradeCatalog from './pages/schoolAdmin/ManageGradeCatalog';
+import ManageStaticBlockCatalog from './pages/schoolAdmin/ManageStaticBlockCatalog';
 import StudentInClass from './pages/schoolAdmin/StudentInClass';
 import ManageStudents from './pages/schoolAdmin/ManageStudents';
 import StudentHealthReport from './pages/schoolAdmin/StudentHealthReport';
 import ManageTeachers from './pages/schoolAdmin/ManageTeachers';
 import ManageStaff from './pages/schoolAdmin/ManageStaff';
+import ManagePersonnel from './pages/schoolAdmin/ManagePersonnel';
 import ContactList from './pages/schoolAdmin/ContactList';
 import QaList from './pages/schoolAdmin/QaList';
 import AttendanceOverview from './pages/schoolAdmin/AttendanceOverview';
@@ -128,6 +131,7 @@ import ManageAssetAllocation from './pages/schoolAdmin/ManageAssetAllocation';
 import ManageCommittee from './pages/schoolAdmin/ManageCommittee';
 import ManageMinutes from './pages/schoolAdmin/ManageMinutes';
 import ProtectedRoute from './components/ProtectedRoute';
+import MedicalStaffDashboard from './pages/medicalStaff/MedicalStaffDashboard';
 import StudentHealthManagement from './pages/medicalStaff/StudentHealthManagement';
 import StudentHealthHistory from './pages/medicalStaff/StudentHealthHistory';
 import HealthIncidentPage from './pages/medicalStaff/HealthIncidentPage';
@@ -486,6 +490,26 @@ function App() {
             }
           />
           <Route
+            path="/school-admin/grades"
+            element={
+              <ProtectedRoute>
+                <SchoolAdminProvider>
+                  <ManageGradeCatalog />
+                </SchoolAdminProvider>
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/school-admin/static-blocks"
+            element={
+              <ProtectedRoute>
+                <SchoolAdminProvider>
+                  <ManageStaticBlockCatalog />
+                </SchoolAdminProvider>
+              </ProtectedRoute>
+            }
+          />
+          <Route
             path="/school-admin/classes/:classId/students"
             element={
               <ProtectedRoute>
@@ -522,10 +546,22 @@ function App() {
             }
           />
           <Route
+            path="/school-admin/personnel"
+            element={
+              <ProtectedRoute>
+                <SchoolAdminProvider>
+                  <ManagePersonnel />
+                </SchoolAdminProvider>
+              </ProtectedRoute>
+            }
+          />
+          <Route
             path="/school-admin/teachers"
             element={
               <ProtectedRoute>
-                <ManageTeachers />
+                <SchoolAdminProvider>
+                  <ManagePersonnel />
+                </SchoolAdminProvider>
               </ProtectedRoute>
             }
           />
@@ -534,7 +570,7 @@ function App() {
             element={
               <ProtectedRoute>
                 <SchoolAdminProvider>
-                  <ManageStaff />
+                  <ManagePersonnel />
                 </SchoolAdminProvider>
               </ProtectedRoute>
             }
@@ -964,6 +1000,14 @@ function App() {
           />
 
           {/* Medical Staff Routes */}
+          <Route
+            path="/medical-staff"
+            element={
+              <ProtectedRoute>
+                <MedicalStaffDashboard />
+              </ProtectedRoute>
+            }
+          />
           <Route
             path="/medical-staff/health"
             element={

@@ -1,620 +1,335 @@
 import { useEffect, useMemo, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import {
-  Autocomplete,
-  Avatar,
+  Alert,
   Box,
   Paper,
   Typography,
   Button,
-  Stack,
   CircularProgress,
-  Table,
-  TableBody,
-  TableCell,
-  TableContainer,
-  TableHead,
-  TableRow,
   Dialog,
   DialogTitle,
   DialogContent,
   DialogActions,
-  DialogContentText,
-  TextField,
-  Select,
-  MenuItem,
-  FormControl,
-  InputLabel,
-  IconButton,
-  Tooltip,
 } from '@mui/material';
-import EditIcon from '@mui/icons-material/Edit';
-import DeleteIcon from '@mui/icons-material/Delete';
 import { toast } from 'react-toastify';
 import RoleLayout from '../../layouts/RoleLayout';
 import { useAuth } from '../../context/AuthContext';
-import { get, post, put, del, postFormData, ENDPOINTS } from '../../service/api';
+import { get, post, put, del, ENDPOINTS } from '../../service/api';
 import { createSchoolAdminMenuSelect } from './schoolAdminMenuConfig';
 import { useSchoolAdminMenu } from './useSchoolAdminMenu';
 
+// Sub-components
+import StaffFilter from './StaffManagement/StaffFilter';
+import StaffTable from './StaffManagement/StaffTable';
+import AddStaffDialog from './StaffManagement/AddStaffDialog';
+import EditStaffDialog from './StaffManagement/EditStaffDialog';
+
 const ROLE_TO_POSITION = {
-  SchoolAdmin: 'BGH',
-  Teacher: 'Giáo viên',
-  KitchenStaff: 'Nhân viên nhà bếp',
-  MedicalStaff: 'Nhân viên y tế',
-  HeadTeacher: 'Tổ trưởng tổ chuyên môn',
+  schooladmin: 'Ban Giám Hiệu',
+  teacher: 'Giáo viên',
+  kitchenstaff: 'Nhân viên nhà bếp',
+  medicalstaff: 'Nhân viên y tế',
+  headteacher: 'Tổ trưởng chuyên môn',
 };
 
+const ALLOWED_STAFF_ROLES = new Set([
+  'schooladmin',
+  'teacher',
+  'kitchenstaff',
+  'medicalstaff',
+  'headteacher',
+]);
+
 const POSITION_OPTIONS = [
-  'BGH',
+  'Ban Giám Hiệu',
   'Giáo viên',
   'Nhân viên văn phòng',
   'Nhân viên y tế',
   'Nhân viên nhà bếp',
-  'Tổ trưởng tổ chuyên môn',
+  'Tổ trưởng chuyên môn',
 ];
 
-const KNOWN_POSITIONS = new Set(Object.values(ROLE_TO_POSITION));
-
 const EMPTY_FORM = {
+  username: '',
+  fullName: '',
+  email: '',
+  password: '',
+  confirmPassword: '',
   position: '',
   customPosition: '',
+  phone: '',
   status: 'active',
   userId: null,
 };
 
+const splitRoleNames = (roleNames) =>
+  String(roleNames || '')
+    .split(',')
+    .map((role) => role.trim())
+    .filter(Boolean);
+
+const normalizeRoleName = (roleName) =>
+  String(roleName || '')
+    .toLowerCase()
+    .replace(/[\s_-]/g, '');
+
 const getPositionFromRoleNames = (roleNames) => {
-  if (!roleNames) return '';
-  const roles = String(roleNames).split(',').map((role) => role.trim());
+  const roles = splitRoleNames(roleNames);
   for (const role of roles) {
-    if (ROLE_TO_POSITION[role]) {
-      return ROLE_TO_POSITION[role];
+    const normalizedRole = normalizeRoleName(role);
+    if (ALLOWED_STAFF_ROLES.has(normalizedRole) && ROLE_TO_POSITION[normalizedRole]) {
+      return ROLE_TO_POSITION[normalizedRole];
     }
   }
-  return '';
+  return null;
 };
 
-const resolvePositionLabel = (item) => {
-  if (item.position) return item.position;
-  return getPositionFromRoleNames(item.roleNames) || 'Nhân viên văn phòng';
-};
-
-const DEFAULT_STAFF_AVATAR_3X4 = `data:image/svg+xml;charset=UTF-8,${encodeURIComponent(
-  `<svg xmlns="http://www.w3.org/2000/svg" width="120" height="160" viewBox="0 0 120 160">
-    <defs>
-      <linearGradient id="g" x1="0" y1="0" x2="1" y2="1">
-        <stop offset="0%" stop-color="#e2e8f0"/>
-        <stop offset="100%" stop-color="#cbd5e1"/>
-      </linearGradient>
-    </defs>
-    <rect width="120" height="160" fill="url(#g)"/>
-    <circle cx="60" cy="58" r="24" fill="#94a3b8"/>
-    <rect x="28" y="90" width="64" height="44" rx="22" fill="#94a3b8"/>
-    <text x="60" y="151" text-anchor="middle" font-size="14" font-family="Arial, sans-serif" fill="#475569">3x4</text>
-  </svg>`
-)}`;
-
-export default function ManageStaff() {
+export default function ManageStaff({ isEmbedded = false }) {
   const navigate = useNavigate();
-  const { user, logout, isInitializing, hasRole } = useAuth();
+  const { user, hasRole, isInitializing } = useAuth();
   const menuItems = useSchoolAdminMenu();
 
   const [staff, setStaff] = useState([]);
-  const [users, setUsers] = useState([]);
   const [loading, setLoading] = useState(true);
-  const [error, setError] = useState('');
-  const [refreshing, setRefreshing] = useState(false);
-  const [searchName, setSearchName] = useState('');
-  const [filterPosition, setFilterPosition] = useState('');
+  const [error, setError] = useState(null);
+  const [search, setSearch] = useState('');
 
-  const [dialogOpen, setDialogOpen] = useState(false);
-  const [dialogMode, setDialogMode] = useState('create');
-  const [form, setForm] = useState(EMPTY_FORM);
-  const [formErrors, setFormErrors] = useState({});
-  const [saveLoading, setSaveLoading] = useState(false);
-  const [selectedStaffId, setSelectedStaffId] = useState(null);
-  const [deleteDialog, setDeleteDialog] = useState({ open: false, item: null });
-  const [avatarFile, setAvatarFile] = useState(null);
-  const [avatarPreview, setAvatarPreview] = useState('');
+  const [openAdd, setOpenAdd] = useState(false);
+  const [formAdd, setFormAdd] = useState(EMPTY_FORM);
+  const [addLoading, setAddLoading] = useState(false);
+  const [addError, setAddError] = useState(null);
+
+  const [openEdit, setOpenEdit] = useState(false);
+  const [formEdit, setFormEdit] = useState(EMPTY_FORM);
+  const [editLoading, setEditLoading] = useState(false);
+  const [editError, setEditError] = useState(null);
+
+  const [deleteTarget, setDeleteTarget] = useState(null);
+  const [deleteLoading, setDeleteLoading] = useState(false);
 
   useEffect(() => {
+    if (isEmbedded) {
+      fetchStaff();
+      return;
+    }
     if (isInitializing) return;
     if (!user) {
       navigate('/login', { replace: true });
       return;
     }
-    if (!hasRole('SchoolAdmin')) {
+    if (!hasRole('SchoolAdmin') && !hasRole('SystemAdmin')) {
       navigate('/', { replace: true });
       return;
     }
+    fetchStaff();
+  }, [user, isInitializing, isEmbedded]); // eslint-disable-line
 
-    loadStaff();
-    loadUsers();
-  }, [isInitializing, navigate, user, hasRole]);
-
-  const loadStaff = async () => {
-    setLoading(true);
-    setError('');
+  const fetchStaff = async () => {
     try {
-      const response = await get(ENDPOINTS.SCHOOL_ADMIN.STAFF_MEMBERS);
-      const staffMembers = response.data || [];
-      setStaff(staffMembers);
+      setLoading(true);
+      const res = await get(ENDPOINTS.SCHOOL_ADMIN.STAFF);
+      const items = (res.data || []).map((s) => ({
+        ...s,
+        position: s.position || getPositionFromRoleNames(s.roleNames) || 'Nhân viên',
+      }));
+      setStaff(items);
+      setError(null);
     } catch (err) {
-      const msg = err?.data?.message || err?.message || 'Lỗi khi tải danh sách nhân sự';
-      setError(msg);
-      toast.error(msg);
+      setError(err.data?.message || err.message || 'Lỗi khi tải danh sách nhân viên');
     } finally {
       setLoading(false);
     }
   };
 
-  const loadUsers = async () => {
-    try {
-      const response = await get(ENDPOINTS.SCHOOL_ADMIN.STAFF_USERS);
-      const allUsers = response.data || [];
-      setUsers(allUsers.filter((item) => {
-        const roles = String(item.roleNames || '').split(',').map((role) => role.trim());
-        return !roles.includes('SystemAdmin');
-      }));
-    } catch (err) {
-      console.error('loadUsers error', err);
-    }
-  };
-
-  const handleRefresh = async () => {
-    setRefreshing(true);
-    await Promise.all([loadStaff(), loadUsers()]);
-    setRefreshing(false);
-  };
-
-  const handleOpenDialog = (mode = 'create', staffItem = null) => {
-    setDialogMode(mode);
-    setFormErrors({});
-    setAvatarFile(null);
-    setAvatarPreview('');
-
-    if (mode === 'edit' && staffItem) {
-      setSelectedStaffId(staffItem._id);
-      const existingPosition = resolvePositionLabel(staffItem);
-      const isKnownPosition = POSITION_OPTIONS.includes(existingPosition);
-      setForm({
-        position: isKnownPosition ? existingPosition : 'other',
-        customPosition: isKnownPosition ? '' : existingPosition,
-        status: staffItem.status || 'active',
-        userId: staffItem.user?._id || null,
-      });
-      setAvatarPreview(staffItem.avatar || staffItem.user?.avatar || '');
-    } else {
-      setSelectedStaffId(null);
-      setForm(EMPTY_FORM);
-    }
-
-    setDialogOpen(true);
-  };
-
-  const validateForm = () => {
-    const errors = {};
-    if (!form.position.trim()) errors.position = 'Chức vụ bắt buộc';
-    if (form.position === 'other' && !form.customPosition.trim()) {
-      errors.customPosition = 'Vui lòng nhập chức vụ khác';
-    }
-    return errors;
-  };
-
-  const handleAvatarSelect = async (e) => {
-    const file = e.target.files?.[0];
-    if (!file) return;
-    if (!/^image\/(jpeg|jpg|png|gif|webp)$/i.test(file.type)) {
-      toast.error('Chỉ chấp nhận file ảnh (JPEG, PNG, GIF, WebP).');
+  const handleAdd = async () => {
+    if (formAdd.password !== formAdd.confirmPassword) {
+      setAddError('Mật khẩu xác nhận không khớp');
       return;
     }
-    setAvatarFile(file);
-    setAvatarPreview(URL.createObjectURL(file));
-  };
-
-  const handleSave = async () => {
-    const errors = validateForm();
-    if (Object.keys(errors).length > 0) {
-      setFormErrors(errors);
-      return;
-    }
-
-    setSaveLoading(true);
     try {
-      const payload = {
-        position: form.position === 'other' ? form.customPosition.trim() : form.position.trim(),
-        status: form.status,
-      };
-
-      // Upload avatar nếu có file mới
-      if (avatarFile && dialogMode === 'edit') {
-        const formData = new FormData();
-        formData.append('avatar', avatarFile);
-        const uploadResponse = await postFormData(ENDPOINTS.CLOUDINARY.UPLOAD_AVATAR, formData);
-        if (uploadResponse.data?.url) {
-          payload.avatar = uploadResponse.data.url;
-        }
-      }
-
-      if (dialogMode === 'create') {
-        payload.userId = form.userId;
-        await post(ENDPOINTS.SCHOOL_ADMIN.STAFF_MEMBERS, payload);
-        toast.success('Thêm nhân sự thành công');
-      } else {
-        // Update user via school-admin endpoint
-        const userUpdatePayload = { status: form.status };
-        if (payload.avatar) {
-          userUpdatePayload.avatar = payload.avatar;
-        }
-        await put(`/school-admin/users/${form.userId}`, userUpdatePayload);
-        toast.success('Cập nhật nhân sự thành công');
-      }
-
-      await handleRefresh();
-      setDialogOpen(false);
+      setAddLoading(true);
+      setAddError(null);
+      const payload = { ...formAdd };
+      if (payload.position === 'Other') payload.position = payload.customPosition;
+      await post(ENDPOINTS.SCHOOL_ADMIN.STAFF, payload);
+      setOpenAdd(false);
+      toast.success('Thêm nhân viên thành công');
+      fetchStaff();
     } catch (err) {
-      toast.error(err?.data?.message || err?.message || 'Lỗi khi lưu nhân sự');
+      setAddError(err.data?.message || err.message || 'Lỗi khi thêm nhân viên');
     } finally {
-      setSaveLoading(false);
+      setAddLoading(false);
     }
   };
 
-  const handleRequestDelete = (item) => {
-    setDeleteDialog({ open: true, item });
+  const handleOpenEdit = (item) => {
+    const isOther = item.position && !POSITION_OPTIONS.includes(item.position);
+    setFormEdit({
+      ...EMPTY_FORM,
+      userId: item._id,
+      fullName: item.fullName || '',
+      email: item.email || '',
+      phone: item.phone || '',
+      position: isOther ? 'Other' : (item.position || ''),
+      customPosition: isOther ? item.position : '',
+      status: item.status || 'active',
+    });
+    setEditError(null);
+    setOpenEdit(true);
+  };
+
+  const handleEdit = async () => {
+    try {
+      setEditLoading(true);
+      setEditError(null);
+      const payload = { ...formEdit };
+      if (payload.position === 'Other') payload.position = payload.customPosition;
+      await put(ENDPOINTS.SCHOOL_ADMIN.STAFF_UPDATE(formEdit.userId), payload);
+      setOpenEdit(false);
+      toast.success('Cập nhật thành công');
+      fetchStaff();
+    } catch (err) {
+      setEditError(err.data?.message || err.message || 'Lỗi khi cập nhật');
+    } finally {
+      setEditLoading(false);
+    }
   };
 
   const handleDelete = async () => {
-    const item = deleteDialog.item;
-    if (!item?._id) return;
     try {
-      setSaveLoading(true);
-      await del(ENDPOINTS.SCHOOL_ADMIN.STAFF_MEMBER(item._id));
-      await loadStaff();
-      toast.success('Xóa nhân sự thành công');
-      setDeleteDialog({ open: false, item: null });
+      setDeleteLoading(true);
+      await del(ENDPOINTS.SCHOOL_ADMIN.STAFF_DELETE(deleteTarget._id));
+      setDeleteTarget(null);
+      toast.success('Đã xóa nhân viên');
+      fetchStaff();
     } catch (err) {
-      toast.error(err?.data?.message || err?.message || 'Lỗi khi xóa nhân sự');
+      toast.error(err.data?.message || err.message || 'Xóa thất bại');
     } finally {
-      setSaveLoading(false);
+      setDeleteLoading(false);
     }
   };
 
-  const availableUsers = useMemo(() => {
-    if (dialogMode === 'edit') return [];
-    return users;
-  }, [users, dialogMode]);
-
-  const getDisplayPosition = (item) => resolvePositionLabel(item);
-
-  const userById = useMemo(() => {
-    const map = new Map();
-    users.forEach((u) => {
-      if (u?._id) map.set(u._id, u);
-    });
-    return map;
-  }, [users]);
-
-  const getStaffEmail = (item) => {
-    return item?.user?.email || item?.email || '—';
-  };
-
-  const filteredStaff = useMemo(() => {
-    const searchTerm = searchName.trim().toLowerCase();
-    return staff.filter((item) => {
-      const fullName = String(item.user?.fullName || item.fullName || '').toLowerCase();
-      const position = String(resolvePositionLabel(item));
-      const matchesName = !searchTerm || fullName.includes(searchTerm);
-      const matchesPosition =
-        !filterPosition ||
-        (filterPosition === 'Khác'
-          ? !POSITION_OPTIONS.includes(position)
-          : position === filterPosition);
-      return matchesName && matchesPosition;
-    });
-  }, [staff, searchName, filterPosition]);
+  const filtered = useMemo(() => {
+    const s = search.toLowerCase();
+    return staff.filter(
+      (item) =>
+        (item.fullName || '').toLowerCase().includes(s) ||
+        (item.phone || '').includes(s) ||
+        (item.email || '').toLowerCase().includes(s)
+    );
+  }, [staff, search]);
 
   const handleMenuSelect = createSchoolAdminMenuSelect(navigate);
-  const userName = user?.fullName || user?.username || 'School Admin';
+
+  const content = (
+    <Box sx={{ p: isEmbedded ? 0 : { xs: 1, md: 2 }, maxWidth: 1200, mx: 'auto' }}>
+        <StaffFilter
+          search={search}
+          setSearch={setSearch}
+          onAddStaff={() => {
+            setFormAdd(EMPTY_FORM);
+            setAddError(null);
+            setOpenAdd(true);
+          }}
+          totalCount={filtered.length}
+        />
+
+        {error && (
+          <Alert severity="error" sx={{ mb: 2 }}>
+            {error}
+          </Alert>
+        )}
+
+        <Paper variant="outlined" sx={{ borderRadius: 2, overflow: 'hidden', border: '1px solid #e2e8f0' }}>
+          {loading ? (
+            <Box sx={{ py: 10, textAlign: 'center' }}>
+              <CircularProgress size={32} />
+              <Typography variant="body2" color="text.secondary" sx={{ mt: 2 }}>
+                Đang tải danh sách...
+              </Typography>
+            </Box>
+          ) : filtered.length === 0 ? (
+            <Box sx={{ py: 10, textAlign: 'center' }}>
+              <Typography color="text.secondary">
+                {search ? 'Không tìm thấy kết quả phù hợp' : 'Chưa có nhân viên nào trong danh sách'}
+              </Typography>
+            </Box>
+          ) : (
+            <StaffTable staff={filtered} onEdit={handleOpenEdit} onDelete={setDeleteTarget} />
+          )}
+        </Paper>
+      </Box>
+  );
+
+  const dialogs = (
+    <>
+      <AddStaffDialog
+        open={openAdd}
+        onClose={() => setOpenAdd(false)}
+        form={formAdd}
+        setForm={setFormAdd}
+        loading={addLoading}
+        error={addError}
+        setError={setAddError}
+        onSubmit={handleAdd}
+        POSITION_OPTIONS={POSITION_OPTIONS}
+      />
+
+      <EditStaffDialog
+        open={openEdit}
+        onClose={() => setOpenEdit(false)}
+        form={formEdit}
+        setForm={setFormEdit}
+        loading={editLoading}
+        error={editError}
+        setError={setEditError}
+        onSubmit={handleEdit}
+        POSITION_OPTIONS={POSITION_OPTIONS}
+      />
+
+      {/* Delete Confirm */}
+      <Dialog open={!!deleteTarget} onClose={() => !deleteLoading && setDeleteTarget(null)}>
+        <DialogTitle>Xác nhận xóa</DialogTitle>
+        <DialogContent>
+          <Typography>
+            Bạn có chắc muốn xóa nhân viên <strong>{deleteTarget?.fullName}</strong>? Hành động này không thể hoàn tác.
+          </Typography>
+        </DialogContent>
+        <DialogActions sx={{ p: 2 }}>
+          <Button onClick={() => setDeleteTarget(null)} disabled={deleteLoading}>
+            Hủy
+          </Button>
+          <Button variant="contained" color="error" onClick={handleDelete} disabled={deleteLoading}>
+            {deleteLoading ? <CircularProgress size={18} color="inherit" /> : 'Xác nhận xóa'}
+          </Button>
+        </DialogActions>
+      </Dialog>
+    </>
+  );
+
+  if (isEmbedded) {
+    return (
+      <>
+        {content}
+        {dialogs}
+      </>
+    );
+  }
 
   return (
     <RoleLayout
-      title="Quản lý nhân sự"
-      description="Quản lý mã nhân viên, chức vụ và trạng thái nhân sự trường."
       menuItems={menuItems}
       activeKey="staff"
-      onLogout={() => {
-        logout();
-        navigate('/login', { replace: true });
-      }}
-      userName={userName}
-      userAvatar={user?.avatar}
-      onViewProfile={() => navigate('/profile')}
       onMenuSelect={handleMenuSelect}
+      onLogout={() => {}}
+      onViewProfile={() => navigate('/profile')}
+      userName={user?.fullName || user?.username || 'Admin'}
+      userRole="SchoolAdmin"
+      pageTitle="Nhân viên"
     >
-      <Paper
-        elevation={0}
-        sx={{
-          background: 'linear-gradient(135deg, #0ea5e9 0%, #0284c7 100%)',
-          borderRadius: 3,
-          px: 4,
-          py: 3,
-          mb: 3,
-        }}
-      >
-        <Stack direction={{ xs: 'column', sm: 'row' }} justifyContent="space-between" alignItems={{ xs: 'stretch', sm: 'center' }}>
-          <Box>
-            <Typography variant="h5" fontWeight={700} color="white">
-              Quản lý nhân sự
-            </Typography>
-            <Typography variant="body2" sx={{ color: 'rgba(255,255,255,0.85)', mt: 0.5 }}>
-            </Typography>
-          </Box>
-          <Stack direction="row" spacing={1} alignItems="center" sx={{ mt: { xs: 2, sm: 0 } }}>
-            <Button variant="outlined" color="inherit" onClick={handleRefresh} disabled={refreshing} sx={{ textTransform: 'none' }}>
-              {refreshing ? 'Làm mới...' : 'Làm mới'}
-            </Button>
-          </Stack>
-        </Stack>
-      </Paper>
-
-      <Paper elevation={2} sx={{ borderRadius: 3, overflow: 'hidden' }}>
-        {loading ? (
-          <Box sx={{ p: 6, display: 'flex', justifyContent: 'center', alignItems: 'center', gap: 2 }}>
-            <CircularProgress size={24} />
-            <Typography variant="body2" color="text.secondary">
-              Đang tải...
-            </Typography>
-          </Box>
-        ) : error ? (
-          <Box sx={{ p: 4 }}>
-            <Alert severity="error">{error}</Alert>
-          </Box>
-        ) : staff.length === 0 ? (
-          <Box sx={{ p: 4 }}>
-            <Typography variant="body1" color="text.secondary">
-              Không có nhân sự để hiển thị.
-            </Typography>
-          </Box>
-        ) : (
-          <Box sx={{ p: 3 }}>
-            <Stack direction={{ xs: 'column', sm: 'row' }} spacing={2} alignItems="center" sx={{ mb: 2 }}>
-              <TextField
-                size="small"
-                label="Tìm theo tên"
-                value={searchName}
-                onChange={(e) => setSearchName(e.target.value)}
-                sx={{ minWidth: 240 }}
-              />
-
-              <FormControl size="small" sx={{ minWidth: 220 }}>
-                <InputLabel id="staff-filter-position-label">Chức vụ</InputLabel>
-                <Select
-                  labelId="staff-filter-position-label"
-                  label="Chức vụ"
-                  value={filterPosition}
-                  onChange={(e) => setFilterPosition(e.target.value)}
-                >
-                  <MenuItem value="">Tất cả</MenuItem>
-                  <MenuItem value="BGH">BGH</MenuItem>
-                  <MenuItem value="Giáo viên">Giáo viên</MenuItem>
-                  <MenuItem value="Nhân viên văn phòng">Nhân viên văn phòng</MenuItem>
-                  <MenuItem value="Nhân viên y tế">Nhân viên y tế</MenuItem>
-                  <MenuItem value="Nhân viên bếp">Nhân viên bếp</MenuItem>
-                  <MenuItem value="Khác">Khác</MenuItem>
-                </Select>
-              </FormControl>
-            </Stack>
-
-            {filteredStaff.length === 0 ? (
-              <Box sx={{ p: 4 }}>
-                <Typography variant="body1" color="text.secondary">
-                  Không có nhân sự phù hợp với điều kiện tìm kiếm.
-                </Typography>
-              </Box>
-            ) : (
-              <TableContainer sx={{ overflowX: 'auto' }}>
-                <Table size="small" sx={{ minWidth: 920 }}>
-                  <TableHead>
-                    <TableRow>
-                      <TableCell>Mã NV</TableCell>
-                      <TableCell>Hình ảnh</TableCell>
-                      <TableCell>Họ và tên</TableCell>
-                      <TableCell sx={{ minWidth: 220 }}>Email</TableCell>
-                      <TableCell>Chức vụ</TableCell>
-                      <TableCell sx={{ display: { xs: 'none', md: 'table-cell' } }}>Số điện thoại</TableCell>
-                      <TableCell sx={{ display: { xs: 'none', sm: 'table-cell' } }}>Trạng thái</TableCell>
-                      <TableCell align="right">Hành động</TableCell>
-                    </TableRow>
-                  </TableHead>
-                  <TableBody>
-                    {filteredStaff.map((item) => (
-                      <TableRow key={item._id} hover>
-                        <TableCell>{item.employeeId || '—'}</TableCell>
-                        <TableCell>
-                          <Avatar
-                            variant="rounded"
-                            src={item.avatar || item.user?.avatar || DEFAULT_STAFF_AVATAR_3X4}
-                            alt={item.user?.fullName || item.fullName || 'Ảnh nhân sự'}
-                            sx={{
-                              width: 48,
-                              height: 64,
-                              borderRadius: 1.5,
-                              border: '1px solid',
-                              borderColor: 'divider',
-                              bgcolor: '#e2e8f0',
-                              '& .MuiAvatar-img': { objectFit: 'cover' },
-                            }}
-                          />
-                        </TableCell>
-                        <TableCell sx={{ whiteSpace: 'nowrap' }}>{item.user?.fullName || item.fullName || '—'}</TableCell>
-                        <TableCell sx={{ whiteSpace: 'nowrap' }}>{getStaffEmail(item)}</TableCell>
-                        <TableCell>{resolvePositionLabel(item) || '—'}</TableCell>
-                        <TableCell sx={{ display: { xs: 'none', md: 'table-cell' } }}>{item.user?.phone || item.phone || '—'}</TableCell>
-                        <TableCell sx={{ display: { xs: 'none', sm: 'table-cell' } }}>
-                          {item.status === 'active' ? 'Hoạt động' : 'Không hoạt động'}
-                        </TableCell>
-                        <TableCell align="right">
-                          <Tooltip title="Chỉnh sửa">
-                            <IconButton size="small" onClick={() => handleOpenDialog('edit', item)}>
-                              <EditIcon fontSize="small" />
-                            </IconButton>
-                          </Tooltip>
-                          <Tooltip title="Xóa nhân sự">
-                            <IconButton size="small" color="error" onClick={() => handleRequestDelete(item)}>
-                              <DeleteIcon fontSize="small" />
-                            </IconButton>
-                          </Tooltip>
-                        </TableCell>
-                      </TableRow>
-                    ))}
-                  </TableBody>
-                </Table>
-              </TableContainer>
-            )}
-          </Box>
-        )}
-      </Paper>
-
-      <Dialog open={dialogOpen} onClose={() => setDialogOpen(false)} maxWidth="sm" fullWidth>
-        <DialogTitle>{dialogMode === 'create' ? 'Thêm nhân sự mới' : 'Chỉnh sửa nhân sự'}</DialogTitle>
-        <DialogContent dividers>
-          <Stack spacing={2} sx={{ mt: 1 }}>
-            {dialogMode === 'create' && (
-              <Autocomplete
-                options={availableUsers}
-                getOptionLabel={(option) => {
-                  const title = option.fullName || option.username || 'Người dùng';
-                  const meta = option.roleNames || option.phone || option.email || option.username;
-                  return `${title} • ${meta}`;
-                }}
-                value={availableUsers.find((u) => u._id === form.userId) || null}
-                onChange={(_, value) => {
-                  setForm((prev) => ({
-                    ...prev,
-                    userId: value ? value._id : null,
-                    position: value ? getPositionFromRoleNames(value.roleNames) || prev.position : '',
-                    customPosition: '',
-                  }));
-                }}
-                renderInput={(params) => (
-                  <TextField
-                    {...params}
-                    label="Chọn người dùng"
-                    error={!!formErrors.userId}
-                    helperText={formErrors.userId}
-                    size="small"
-                  />
-                )}
-                fullWidth
-              />
-            )}
-            
-            {dialogMode === 'edit' && (
-              <Box>
-                <Typography variant="subtitle2" fontSize={12} fontWeight={600} sx={{ mb: 1 }}>Ảnh đại diện</Typography>
-                <Box sx={{ display: 'flex', gap: 2, alignItems: 'flex-start' }}>
-                  <Avatar
-                    variant="rounded"
-                    src={avatarPreview}
-                    alt="Avatar"
-                    sx={{
-                      width: 80,
-                      height: 107,
-                      borderRadius: 1.5,
-                      border: '1px solid',
-                      borderColor: 'divider',
-                      bgcolor: '#e2e8f0',
-                      '& .MuiAvatar-img': { objectFit: 'cover' },
-                    }}
-                  />
-                  <Button
-                    variant="outlined"
-                    size="small"
-                    component="label"
-                    sx={{ textTransform: 'none' }}
-                  >
-                    Chọn ảnh
-                    <input type="file" accept="image/*" hidden onChange={handleAvatarSelect} />
-                  </Button>
-                </Box>
-              </Box>
-            )}
-
-            <FormControl fullWidth size="small" error={!!formErrors.position}>
-              <InputLabel id="staff-position-label">Chức vụ</InputLabel>
-              <Select
-                labelId="staff-position-label"
-                label="Chức vụ"
-                value={form.position}
-                onChange={(e) => setForm((prev) => ({ ...prev, position: e.target.value }))}
-              >
-                <MenuItem value="BGH">BGH</MenuItem>
-                <MenuItem value="Giáo viên">Giáo viên</MenuItem>
-                <MenuItem value="Nhân viên văn phòng">Nhân viên văn phòng</MenuItem>
-                <MenuItem value="Nhân viên y tế">Nhân viên y tế</MenuItem>
-                <MenuItem value="Nhân viên bếp">Nhân viên bếp</MenuItem>
-                <MenuItem value="other">Khác</MenuItem>
-              </Select>
-              {formErrors.position && <Typography variant="caption" color="error">{formErrors.position}</Typography>}
-            </FormControl>
-            {form.position === 'other' && (
-              <TextField
-                label="Chức vụ khác"
-                size="small"
-                value={form.customPosition}
-                onChange={(e) => setForm((prev) => ({ ...prev, customPosition: e.target.value }))}
-                error={!!formErrors.customPosition}
-                helperText={formErrors.customPosition}
-                fullWidth
-              />
-            )}
-
-            <FormControl fullWidth size="small">
-              <InputLabel id="staff-status-label">Trạng thái</InputLabel>
-              <Select
-                labelId="staff-status-label"
-                label="Trạng thái"
-                value={form.status}
-                onChange={(e) => setForm((prev) => ({ ...prev, status: e.target.value }))}
-              >
-                <MenuItem value="active">Hoạt động</MenuItem>
-                <MenuItem value="inactive">Không hoạt động</MenuItem>
-              </Select>
-            </FormControl>
-          </Stack>
-        </DialogContent>
-        <DialogActions sx={{ px: 3, py: 2 }}>
-          <Button onClick={() => setDialogOpen(false)} disabled={saveLoading}>
-            Hủy
-          </Button>
-          <Button variant="contained" onClick={handleSave} disabled={saveLoading}>
-            {saveLoading ? 'Đang lưu...' : dialogMode === 'create' ? 'Lưu' : 'Cập nhật'}
-          </Button>
-        </DialogActions>
-      </Dialog>
-
-      <Dialog
-        open={deleteDialog.open}
-        onClose={() => setDeleteDialog({ open: false, item: null })}
-        maxWidth="xs"
-        fullWidth
-      >
-        <DialogTitle>Xác nhận xóa nhân sự</DialogTitle>
-        <DialogContent>
-          <DialogContentText>
-            Bạn có chắc chắn muốn xóa nhân sự{' '}
-            <strong>{deleteDialog.item?.user?.fullName || deleteDialog.item?.employeeId || 'này'}</strong>?
-          </DialogContentText>
-        </DialogContent>
-        <DialogActions sx={{ px: 3, pb: 2 }}>
-          <Button onClick={() => setDeleteDialog({ open: false, item: null })} disabled={saveLoading}>
-            Hủy
-          </Button>
-          <Button variant="contained" color="error" onClick={handleDelete} disabled={saveLoading}>
-            {saveLoading ? 'Đang xóa...' : 'Xóa'}
-          </Button>
-        </DialogActions>
-      </Dialog>
+      {content}
+      {dialogs}
     </RoleLayout>
   );
 }

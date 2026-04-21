@@ -18,9 +18,21 @@ export const SCHOOL_ADMIN_MENU_ITEMS = [
       { key: 'academic-report', label: 'Báo cáo & thống kê', permission: 'VIEW_REPORT' },
     ],
   },
-  { key: 'classes', label: 'Quản lý khối & lớp học', permission: 'MANAGE_CLASS' },
-  { key: 'staff', label: 'Quản lý nhân sự', permission: 'MANAGE_ASSET' },
-  { key: 'students', label: 'Học sinh', permission: 'MANAGE_STUDENT' },
+  {
+    key: 'classes-management',
+    label: 'Quản lý khối & lớp học',
+    permission: 'MANAGE_CLASS',
+    children: [
+      { key: 'classes', label: 'Danh sách khối & lớp', permission: 'MANAGE_CLASS' },
+      { key: 'students', label: 'Danh sách học sinh', permission: 'MANAGE_STUDENT' },
+      { key: 'static-blocks', label: 'Cài đặt loại Khối', permission: 'MANAGE_STATIC_BLOCK' },
+    ],
+  },
+  {
+    key: 'personnel',
+    label: 'Quản lý nhân sự',
+    permission: 'MANAGE_TEACHER',
+  },
   {
     key: 'attendance',
     label: 'Quản lý điểm danh',
@@ -40,7 +52,6 @@ export const SCHOOL_ADMIN_MENU_ITEMS = [
       { key: 'district-nutrition-plan', label: 'Kế hoạch dinh dưỡng theo sở', permission: 'APPROVE_MENU' },
     ],
   },
-  { key: 'teachers', label: 'Giáo viên', permission: 'MANAGE_TEACHER' },
   {
     key: 'assets',
     label: 'Quản lý cơ sở vật chất',
@@ -49,9 +60,9 @@ export const SCHOOL_ADMIN_MENU_ITEMS = [
       { key: 'assets-list', label: 'Danh sách cơ sở vật chất', permission: 'MANAGE_ASSET' },
       { key: 'asset-allocation', label: 'Phân bổ cơ sở vật chất', permission: 'MANAGE_ASSET' },
       { key: 'purchase-requests', label: 'Yêu cầu mua sắm', permission: 'MANAGE_PURCHASE_REQUEST' },
+      { key: 'kiemke', label: 'Kiểm kê tài sản', permission: 'MANAGE_ASSET' },
     ],
   },
-  { key: 'kiemke', label: 'Quản lý kiểm kê tài sản', permission: 'MANAGE_ASSET' },
   {
     key: 'public-info',
     label: 'Quản lý cổng thông tin',
@@ -114,11 +125,14 @@ export const createSchoolAdminMenuSelect = (navigate) => (key) => {
     'academic-students': '/school-admin/class-list',
     'academic-report': '/school-admin/academic-report',
     classes: '/school-admin/classes',
+    'static-blocks': '/school-admin/static-blocks',
     menu: '/school-admin/menus',
     'meal-management': '/school-admin/meal-management',
     'district-nutrition-plan': '/school-admin/district-nutrition-plan',
-    teachers: '/school-admin/teachers',
-    staff: '/school-admin/staff',
+    personnel: '/school-admin/personnel',
+    'personnel-management': '/school-admin/personnel',
+    teachers: '/school-admin/personnel',
+    staff: '/school-admin/personnel',
     students: '/school-admin/students',
     contacts: '/school-admin/contacts',
     'contacts-list': '/school-admin/contacts',
@@ -143,5 +157,9 @@ export const createSchoolAdminMenuSelect = (navigate) => (key) => {
     'face-attendance': '/school-admin/face-attendance',
     bpm: '/system-admin/bpm',
   };
-  if (routes[key]) navigate(routes[key], { preventScrollReset: true });
+  if (routes[key]) {
+    navigate(routes[key]);
+  }
 };
+
+

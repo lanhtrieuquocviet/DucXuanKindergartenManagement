@@ -134,7 +134,7 @@ router.delete(
  *           - "no_match": không nhận diện được
  *           - "no_data": lớp chưa có embedding nào
  */
-router.post('/match', authenticate, matchFaceEmbedding);
+router.post('/match', authenticate, authorizePermissions('MANAGE_ATTENDANCE'), matchFaceEmbedding);
 
 /**
  * @openapi
@@ -159,7 +159,7 @@ router.post('/match', authenticate, matchFaceEmbedding);
  *       200:
  *         description: Danh sách embeddings
  */
-router.get('/embeddings', authenticate, getClassEmbeddings);
+router.get('/embeddings', authenticate, authorizePermissions('MANAGE_ATTENDANCE'), getClassEmbeddings);
 
 /**
  * @openapi
@@ -203,14 +203,14 @@ router.get('/embeddings', authenticate, getClassEmbeddings);
  *       200:
  *         description: Sync hoàn tất (kèm báo cáo tạo mới / bỏ qua / lỗi)
  */
-router.post('/sync', authenticate, syncOfflineAttendance);
+router.post('/sync', authenticate, authorizePermissions('MANAGE_ATTENDANCE'), syncOfflineAttendance);
 
 // ── Người đưa/đón ─────────────────────────────────────────────────────────────
 // Đăng ký embedding khuôn mặt cho người đưa/đón đã duyệt
 router.post('/pickup/register', authenticate, authorizePermissions('REGISTER_FACE'), registerPickupFaceEmbedding);
 
 // So sánh khuôn mặt với danh sách người đưa/đón của học sinh
-router.post('/pickup/match', authenticate, matchPickupFace);
+router.post('/pickup/match', authenticate, authorizePermissions('CHECKOUT_STUDENT'), matchPickupFace);
 
 // Quét mặt người đến đón → tự động ghi điểm danh về cho học sinh trong lớp
 router.post('/pickup/checkout', authenticate, authorizePermissions('CHECKOUT_STUDENT'), matchPickupFaceForCheckout);

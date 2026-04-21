@@ -35,7 +35,7 @@ const isLate = (t) => {
     let h, m;
     if (typeof t === 'string' && /^\d{2}:\d{2}$/.test(t)) { [h, m] = t.split(':').map(Number); }
     else { const d = new Date(t); if (isNaN(d)) return false; h = d.getHours(); m = d.getMinutes(); }
-    return h > 7 || (h === 7 && m > 30);
+    return h > 8 || (h === 8 && m > 30);
   } catch { return false; }
 };
 
@@ -372,7 +372,7 @@ export default function AttendanceReport() {
                                 <InfoItem label="Người đưa" value={att.delivererType} />
                               </Grid>
                               <Grid item xs={6}>
-                                <InfoItem label="SĐT người đưa" value={att.delivererOtherInfo} />
+                                <InfoItem label="Thông tin người đưa" value={att.delivererOtherInfo} />
                               </Grid>
                               <Grid item xs={12}>
                                 <InfoItem label="Ghi chú" value={att.note} />

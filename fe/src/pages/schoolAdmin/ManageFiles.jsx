@@ -41,18 +41,36 @@ import PictureAsPdfIcon from '@mui/icons-material/PictureAsPdf';
 import DescriptionIcon from '@mui/icons-material/Description';
 import UploadFileIcon from '@mui/icons-material/UploadFile';
 
+const getFileIcon = (type) => {
+  if (type === 'pdf') return <PictureAsPdfIcon sx={{ fontSize: 16, color: '#dc2626' }} />;
+  if (type === 'word') return <DescriptionIcon sx={{ fontSize: 16, color: '#2563eb' }} />;
+  return <DescriptionIcon sx={{ fontSize: 16, color: '#64748b' }} />;
+};
+
+/** PDF/Word trên Cloudinary (raw) mở trực tiếp thường lỗi hoặc tab trống; gview ổn định hơn. Không dùng fl_inline trên raw — Cloudinary trả 400. */
+const googleDocsViewerUrl = (fileUrl) =>
+  `https://docs.google.com/gview?url=${encodeURIComponent(fileUrl)}&embedded=1`;
+
+const isPdfAttachment = (item) =>
+  item?.attachmentType === 'pdf' || /\.pdf(\?|#|$)/i.test(item?.attachmentUrl || '');
+
+const isWordAttachment = (item) =>
+  item?.attachmentType === 'word' || /\.docx?(\?|#|$)/i.test(item?.attachmentUrl || '');
+
+const getPreviewUrl = (item) => {
+  if (!item?.attachmentUrl) return '#';
+  if (isWordAttachment(item) || isPdfAttachment(item)) {
+    return googleDocsViewerUrl(item.attachmentUrl);
+  }
+  return item.attachmentUrl;
+};
+
 const STATUS_OPTIONS = [
   { value: '', label: 'Tất cả trạng thái' },
   { value: 'draft', label: 'Nháp' },
   { value: 'published', label: 'Đã xuất bản' },
   { value: 'inactive', label: 'Ngưng hiển thị' },
 ];
-
-const getFileIcon = (type) => {
-  if (type === 'pdf') return <PictureAsPdfIcon sx={{ fontSize: 16, color: '#dc2626' }} />;
-  if (type === 'word') return <DescriptionIcon sx={{ fontSize: 16, color: '#2563eb' }} />;
-  return <DescriptionIcon sx={{ fontSize: 16, color: '#64748b' }} />;
-};
 
 export default function ManageFiles() {
   const location = useLocation();
@@ -226,13 +244,13 @@ export default function ManageFiles() {
         title: titleFromFileName || `Tài liệu ${new Date().toLocaleDateString('vi-VN')}`,
         description: `Import từ Quản lý file (${importCategory})`,
         category: importCategory,
-        status: 'published',
+        status: 'draft',
         academicYearId: currentYear?._id,
         attachmentUrl: uploadResp.data.url,
         attachmentType: uploadResp.data.type || null,
       });
 
-      toast.success(`Import file "${importFile.name}" thành công`);
+      toast.success(`Đã import "${importFile.name}" — thành công`);
       handleCloseImportDialog();
       await loadFiles();
     } catch (err) {
@@ -397,7 +415,7 @@ export default function ManageFiles() {
                           <TableCell>
                             <Stack direction="row" alignItems="center" spacing={0.75}>
                               {getFileIcon(item.attachmentType)}
-                              <Link href={item.attachmentUrl} target="_blank" rel="noopener noreferrer" underline="hover">
+                              <Link href={getPreviewUrl(item)} target="_blank" rel="noopener noreferrer" underline="hover">
                                 Xem file
                               </Link>
                             </Stack>
@@ -409,7 +427,7 @@ export default function ManageFiles() {
                               <IconButton
                                 size="small"
                                 component={Link}
-                                href={item.attachmentUrl}
+                                href={getPreviewUrl(item)}
                                 target="_blank"
                                 rel="noopener noreferrer"
                                 sx={{ color: '#0284c7' }}

@@ -1,4 +1,5 @@
 import { useState, useEffect } from "react";
+import api from "../../service/api";
 import {
   getMenus,
   approveMenu,
@@ -132,22 +133,36 @@ function MenuSchoolAdmin() {
   const { user, logout } = useAuth();
   const menuItems = useSchoolAdminMenu();
 
+  const [activeYear, setActiveYear]   = useState(null);
+
   useEffect(() => {
-    fetchMenus();
+    fetchInitialData();
   }, []);
 
-  const fetchMenus = async () => {
+  const fetchInitialData = async () => {
     try {
       setLoading(true);
-      const res = await getMenus({ limit: 500 });
+      // 1. Fetch current academic year
+      const yearRes = await api.get("/school-admin/academic-years/current").catch(() => null);
+      const activeAY = yearRes?.status === "success" ? yearRes.data : null;
+      setActiveYear(activeAY);
+
+      // 2. Fetch menus with year filter
+      const params = { limit: 500 };
+      if (activeAY?._id) {
+        params.academicYearId = activeAY._id;
+      }
+      const res = await getMenus(params);
       const list = Array.isArray(res?.data) ? res.data : [];
       setMenus(list);
     } catch {
-      toast.error("Không thể tải danh sách thực đơn");
+      toast.error("Không thể tải dữ liệu");
     } finally {
       setLoading(false);
     }
   };
+
+  const fetchMenus = () => fetchInitialData();
 
   const handleApprove = async () => {
     try {
@@ -254,10 +269,10 @@ function MenuSchoolAdmin() {
       <Stack direction="row" alignItems="center" justifyContent="space-between" mb={3} flexWrap="wrap" gap={2}>
         <Box>
           <Typography variant="h5" fontWeight={800} color="#312eae">
-            Quản lý Thực đơn
+            Quản lý Thực đơn {activeYear ? `— ${activeYear.yearName}` : ""}
           </Typography>
           <Typography variant="body2" color="text.secondary" mt={0.5}>
-            Xem xét và phê duyệt thực đơn do y tế / giáo viên gửi lên
+            Xem xét và phê duyệt thực đơn của năm học {activeYear?.yearName || "hiện tại"}
           </Typography>
         </Box>
         {pendingCount > 0 && (

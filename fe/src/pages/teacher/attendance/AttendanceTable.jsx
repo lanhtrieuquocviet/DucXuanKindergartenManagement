@@ -96,9 +96,9 @@ const SummaryBar = memo(function SummaryBar({ students, attendanceByStudent }) {
 const FILTER_OPTIONS = [
   { key: 'all',         label: 'Tất cả',             color: 'default' },
   { key: 'empty',       label: 'Chưa điểm danh',     color: 'default' },
-  { key: 'checked_in',  label: 'Đã điểm danh đến',   color: 'success' },
+  { key: 'present',     label: 'Có mặt',              color: 'success' },
   { key: 'not_left',    label: 'Chưa điểm danh về',  color: 'warning' },
-  { key: 'present',     label: 'Có mặt',              color: 'info'    },
+  { key: 'checked_out', label: 'Đã điểm danh về',    color: 'info'    },
   { key: 'absent',      label: 'Vắng mặt',            color: 'error'   },
 ];
 
@@ -383,7 +383,7 @@ function StudentCard({ s, idx, rec, chipProps, isPastDate, onCheckin, onCheckout
             startIcon={<CheckOutIcon sx={{ fontSize: '12px !important' }} />}
             sx={{ textTransform: 'none', fontSize: 11, fontWeight: 700, borderRadius: 1.5, px: 1.25, py: 0.4, minWidth: 0, boxShadow: 'none' }}
           >
-            Đã về
+            Điểm danh về
           </Button>
         )}
         <Button
@@ -439,11 +439,11 @@ function AttendanceTable({
         if (!matchName) return false;
         if (filterStatus === 'all') return true;
         const st = attendanceByStudent?.[s._id]?.status || 'empty';
-        if (filterStatus === 'empty')      return st === 'empty';
-        if (filterStatus === 'checked_in') return st === 'checked_in';
-        if (filterStatus === 'not_left')   return st === 'checked_in';
-        if (filterStatus === 'present')    return st === 'checked_in' || st === 'checked_out';
-        if (filterStatus === 'absent')     return st === 'absent';
+        if (filterStatus === 'empty')       return st === 'empty';
+        if (filterStatus === 'present')     return st === 'checked_in' || st === 'checked_out';
+        if (filterStatus === 'not_left')    return st === 'checked_in';
+        if (filterStatus === 'checked_out') return st === 'checked_out';
+        if (filterStatus === 'absent')      return st === 'absent';
         return true;
       })
       .sort((a, b) => {

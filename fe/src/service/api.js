@@ -332,6 +332,8 @@ export const ENDPOINTS = {
       HISTORY: "/school-admin/academic-years/history",
       CLASSES: (yearId) => `/school-admin/academic-years/${yearId}/classes`,
       STUDENTS: (yearId) => `/school-admin/academic-years/${yearId}/students`,
+      WIZARD_SETUP: "/school-admin/academic-years/wizard-setup",
+      WIZARD_CLONE_DATA: "/school-admin/academic-years/wizard-clone-data",
     },
     ACADEMIC_PLAN: {
       LIST_TOPICS: (yearId, gradeId) => {
@@ -439,11 +441,14 @@ export const ENDPOINTS = {
     // Danh sách học sinh
     MY_STUDENTS: '/teacher/students',
     CHANGE_REQUESTS: (studentId) => `/teacher/students/${studentId}/change-requests`,
+    // Đánh giá học tập
+    STUDENT_EVALUATION: (studentId) => `/teacher/students/${studentId}/evaluation`,
     // Sổ liên lạc
     CONTACT_BOOK_CLASSES: '/teacher/contact-book',
     CONTACT_BOOK_STUDENTS: (classId) => `/teacher/contact-book/${classId}/students`,
     CONTACT_BOOK_ATTENDANCE: (classId, studentId) => `/teacher/contact-book/${classId}/students/${studentId}/attendance`,
     CONTACT_BOOK_HEALTH: (classId, studentId) => `/teacher/contact-book/${classId}/students/${studentId}/health`,
+    CONTACT_BOOK_HEALTH_HISTORY: (classId, studentId) => `/teacher/contact-book/${classId}/students/${studentId}/health-history`,
     CONTACT_BOOK_NOTES: (classId, studentId) => `/teacher/contact-book/${classId}/students/${studentId}/notes`,
     CONTACT_BOOK_NOTE_DELETE: (classId, studentId, noteId) => `/teacher/contact-book/${classId}/students/${studentId}/notes/${noteId}`,
     CONTACT_BOOK_TODAY_MENU: '/teacher/contact-book/today-menu',
@@ -467,6 +472,13 @@ export const ENDPOINTS = {
     CREATE: "/grades",
     UPDATE: (id) => `/grades/${id}`,
     DELETE: (id) => `/grades/${id}`,
+  },
+  // Static Blocks management (SchoolAdmin)
+  STATIC_BLOCKS: {
+    LIST: "/school-admin/static-blocks",
+    CREATE: "/school-admin/static-blocks",
+    UPDATE: (id) => `/school-admin/static-blocks/${id}`,
+    DELETE: (id) => `/school-admin/static-blocks/${id}`,
   },
   // Blogs (public)
   BLOGS: {
@@ -542,6 +554,8 @@ export const ENDPOINTS = {
     UPLOAD_BLOG_FILE: "/cloudinary/upload-blog-file",
     UPLOAD_KITCHEN_IMAGE: "/cloudinary/upload-kitchen-image",
     UPLOAD_PURCHASE_IMAGE: "/cloudinary/upload-purchase-image",
+    // Ảnh điểm danh lưu server local (không đẩy lên Cloudinary - bảo vệ dữ liệu trẻ em)
+    UPLOAD_ATTENDANCE_FILE: "/cloudinary/upload-attendance-file",
   },
   // Meal Photos (Kitchen Staff)
   MEAL_PHOTOS: {

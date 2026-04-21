@@ -5,6 +5,7 @@ const districtNutritionPlanService = require("./districtNutritionPlanService");
 
 const mongoose = require("mongoose");
 const DailyMenu = require("../models/DailyMenu");
+const AcademicYear = require("../models/AcademicYear");
 
 const REJECT_PRESET_LABELS = {
   nutrition: "Chưa cân đối dinh dưỡng / chưa đạt chuẩn",
@@ -101,10 +102,17 @@ exports.createMenu = async (req, res) => {
       });
     }
 
+    const menuDate = new Date(year, month - 1, 15);
+    const academicYear = await AcademicYear.findOne({
+      startDate: { $lte: menuDate },
+      endDate: { $gte: menuDate }
+    }).lean();
+
     const menu = new Menu({
       month,
       year,
       createdBy: req.user?._id,
+      academicYearId: academicYear?._id || null,
     });
 
     await menu.save();
@@ -178,12 +186,17 @@ exports.getMenus = async (req, res) => {
       filter = { status: { $in: ["active", "completed"] } };
     }
 
+    if (req.query.academicYearId) {
+      filter.academicYearId = req.query.academicYearId;
+    }
+
     const page = Math.max(Number(req.query.page) || 1, 1);
     const limit = Math.max(Number(req.query.limit) || 20, 1);
 
     const total = await Menu.countDocuments(filter);
     const menus = await Menu.find(filter)
       .populate("createdBy", "fullName email")
+      .populate("academicYearId", "yearName")
       .sort({ createdAt: -1 })
       .skip((page - 1) * limit)
       .limit(limit);

@@ -120,7 +120,7 @@ function StudentAttendanceDetail() {
   const checkOutImage = attendance?.checkoutImageName || null;
   const receiverImage = attendance?.receiverOtherImageName || null;
 
-  const attendanceDate = date || (attendance?.date ? formatDate(attendance.date) : formatDate(new Date()));
+  const attendanceDate = (date ? formatDate(date) : null) || (attendance?.date ? formatDate(attendance.date) : formatDate(new Date()));
 
   // Reusable image placeholder box
   const ImageBox = ({ imageName, alt, label }) => (

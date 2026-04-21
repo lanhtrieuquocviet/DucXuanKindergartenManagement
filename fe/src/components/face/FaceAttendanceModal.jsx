@@ -1,28 +1,25 @@
 /**
  * FaceAttendanceModal.jsx
  *
- * Modal điểm danh bằng nhận diện khuôn mặt cho giáo viên.
+ * Modal quét khuôn mặt điểm danh đến cho giáo viên.
+ *
+ * Khi nhận diện được học sinh, gọi onStudentRecognized() để mở form
+ * checkin chi tiết — không nhập thông tin tại đây.
+ * Ảnh checkin được chụp tự động từ thời điểm AI quét và truyền sang form.
  *
  * Chế độ hoạt động:
- *  - ONLINE: gửi embedding lên server → server match → tự động check-in
- *  - OFFLINE: so sánh embedding locally với data đã tải → lưu IndexedDB → sync sau
- *
- * Luồng UI:
- *  1. Mở modal → tải model AI + tải embeddings lớp về local
- *  2. Bật camera → phát hiện khuôn mặt liên tục
- *  3. Khi detect được → gọi match (online hoặc offline)
- *  4. Hiển thị kết quả: tên học sinh + avatar + thông báo
- *  5. Cho phép nhập ghi chú, tích đồ mang đến/về, chọn người đưa (tối đa 2 phút)
- *  6. Cooldown 3 giây trước khi detect lại (tránh điểm danh 2 lần liên tiếp)
+ *  - ONLINE: gửi embedding lên server → server match
+ *  - OFFLINE: so sánh embedding locally với data đã tải
  */
 
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { toast } from 'react-toastify';
+import { User, Camera, Check, AlertTriangle, Circle } from 'lucide-react';
 import FaceCamera from './FaceCamera';
-import { matchFaceEmbedding, getClassEmbeddings, uploadAttendanceImage, saveCheckinAttendance, getApprovedPickupPersons } from '../../service/faceAttendance.api';
+import { matchFaceEmbedding, getClassEmbeddings, uploadAttendanceImage } from '../../service/faceAttendance.api';
 import { useOfflineSync } from '../../hooks/useOfflineSync';
 
-// Cosine similarity (dùng khi offline - giống backend)
+// Cosine similarity (dùng khi offline — giống backend)
 function cosineSimilarity(a, b) {
   let dot = 0, normA = 0, normB = 0;
   for (let i = 0; i < a.length; i++) {
@@ -34,60 +31,32 @@ function cosineSimilarity(a, b) {
   return dot / (Math.sqrt(normA) * Math.sqrt(normB));
 }
 
-const MATCH_THRESHOLD = 0.87;
+const MATCH_THRESHOLD = 0.92;
 const MIN_MARGIN = 0.04;
 const COOLDOWN_MS = 3000;
-const DELIVERER_WAIT_MS = 120000; // 2 phút
 
-const CHECKIN_ITEMS = ['Ba lô', 'Hộp cơm', 'Bình nước', 'Thuốc', 'Áo đổi'];
+export default function FaceAttendanceModal({ open, onClose, classId, className, onStudentRecognized }) {
+  const { isOnline } = useOfflineSync();
 
-export default function FaceAttendanceModal({ open, onClose, classId, className, onCheckinSuccess }) {
-  const { isOnline, pendingCount, isSyncing, saveOfflineRecord, syncNow } = useOfflineSync();
-
-  // Trạng thái nhận diện
   const [matchResult, setMatchResult] = useState(null);
   const [isProcessing, setIsProcessing] = useState(false);
-  const [isSaving, setIsSaving] = useState(false);
   const [checkedInToday, setCheckedInToday] = useState([]);
 
   // Embeddings local (cho offline)
   const [localEmbeddings, setLocalEmbeddings] = useState([]);
   const [loadingEmbeddings, setLoadingEmbeddings] = useState(false);
 
-  // Cooldown: ngừng detect tạm thời sau khi nhận diện
   const cooldownRef = useRef(false);
-
-  // Tạm dừng detect khi đang chờ người dùng nhập thông tin
-  const waitingForDelivererRef = useRef(false);
-  const delivererTimeoutRef = useRef(null);
-  const countdownIntervalRef = useRef(null);
-
-  // Ref tới FaceCamera để gọi captureFrame()
   const cameraRef = useRef(null);
 
-  // Người đưa
-  const [pickupPersons, setPickupPersons] = useState([]);
-  const [selectedDeliverer, setSelectedDeliverer] = useState(null);
-  const [delivererSaved, setDelivererSaved] = useState(false);
-
-  // Ghi chú & đồ mang đến
-  const [note, setNote] = useState('');
-  const [checkinBelongings, setCheckinBelongings] = useState([]);
-  const [checkinOtherChecked, setCheckinOtherChecked] = useState(false);
-  const [checkinOtherText, setCheckinOtherText] = useState('');
-
-  // Đếm ngược
-  const [delivererCountdown, setDelivererCountdown] = useState(0);
-
-  // Reset checkedInToday khi classId thay đổi (tránh nhầm lớp trong offline mode)
+  // Reset checkedInToday khi classId thay đổi
   useEffect(() => {
     setCheckedInToday([]);
   }, [classId]);
 
-  // ── Tải embeddings về local khi modal mở ─────────────────────────────────
+  // Tải embeddings về local khi modal mở
   useEffect(() => {
     if (!open || !classId) return;
-
     setLoadingEmbeddings(true);
     getClassEmbeddings(classId)
       .then((res) => {
@@ -107,23 +76,12 @@ export default function FaceAttendanceModal({ open, onClose, classId, className,
     if (!open) {
       setMatchResult(null);
       setCheckedInToday([]);
-      setPickupPersons([]);
-      setSelectedDeliverer(null);
-      setDelivererSaved(false);
-      setNote('');
-      setCheckinBelongings([]);
-      setCheckinOtherChecked(false);
-      setCheckinOtherText('');
-      setDelivererCountdown(0);
-      setIsSaving(false);
+      setIsProcessing(false);
       cooldownRef.current = false;
-      waitingForDelivererRef.current = false;
-      if (delivererTimeoutRef.current) clearTimeout(delivererTimeoutRef.current);
-      if (countdownIntervalRef.current) clearInterval(countdownIntervalRef.current);
     }
   }, [open]);
 
-  // ── Xử lý offline match — chỉ nhận diện, KHÔNG lưu (lưu khi ấn nút Lưu) ──
+  // Offline match — chỉ nhận diện, không lưu
   const matchOffline = useCallback(
     (embedding) => {
       if (localEmbeddings.length === 0) return null;
@@ -154,13 +112,9 @@ export default function FaceAttendanceModal({ open, onClose, classId, className,
       const studentId = bestMatch.studentId || bestMatch._id;
 
       if (checkedInToday.includes(studentId)) {
-        return {
-          status: 'already_checked_in',
-          student: { ...bestMatch, _id: studentId },
-        };
+        return { status: 'already_checked_in', student: { ...bestMatch, _id: studentId } };
       }
 
-      // Chỉ trả kết quả, lưu thực sự khi giáo viên ấn "Lưu & Tiếp tục"
       return {
         status: 'success',
         student: { ...bestMatch, _id: studentId },
@@ -171,131 +125,25 @@ export default function FaceAttendanceModal({ open, onClose, classId, className,
     [localEmbeddings, checkedInToday]
   );
 
-  // ── Bắt đầu thời gian chờ 2 phút + đếm ngược ─────────────────────────────
-  const startDelivererWait = useCallback(() => {
-    waitingForDelivererRef.current = true;
-    setDelivererCountdown(120);
-
-    if (countdownIntervalRef.current) clearInterval(countdownIntervalRef.current);
-    countdownIntervalRef.current = setInterval(() => {
-      setDelivererCountdown((prev) => {
-        if (prev <= 1) {
-          clearInterval(countdownIntervalRef.current);
-          return 0;
-        }
-        return prev - 1;
-      });
-    }, 1000);
-
-    if (delivererTimeoutRef.current) clearTimeout(delivererTimeoutRef.current);
-    delivererTimeoutRef.current = setTimeout(() => {
-      // Hết giờ mà chưa ấn Lưu → reset form, KHÔNG lưu điểm danh
-      waitingForDelivererRef.current = false;
-      if (countdownIntervalRef.current) clearInterval(countdownIntervalRef.current);
-      setDelivererCountdown(0);
-      setMatchResult(null);
-      setPickupPersons([]);
-      setSelectedDeliverer(null);
-      setNote('');
-      setCheckinBelongings([]);
-      setCheckinOtherChecked(false);
-      setCheckinOtherText('');
-      toast.warn('Hết thời gian — điểm danh chưa được lưu. Hãy quét lại.');
-    }, DELIVERER_WAIT_MS);
-  }, []);
-
-  // ── Lưu điểm danh khi giáo viên ấn nút "Lưu & Tiếp tục" ─────────────────
-  const handleSaveAll = useCallback(async () => {
-    if (!matchResult?.student?._id || isSaving) return;
-
-    const studentId = matchResult.student._id;
-
-    // Ngăn lưu trùng trong cùng phiên
-    if (checkedInToday.includes(studentId)) {
-      toast.warn('Học sinh này đã được lưu điểm danh trong phiên này');
-      return;
-    }
-
-    const detectedAt = matchResult.timestamp || new Date();
-    const timeStr =
-      matchResult.previewTime?.checkIn ||
-      `${detectedAt.getHours().toString().padStart(2, '0')}:${detectedAt.getMinutes().toString().padStart(2, '0')}`;
-    const today = detectedAt.toISOString().split('T')[0];
-
-    const delivererType = selectedDeliverer
-      ? `${selectedDeliverer.fullName} (${selectedDeliverer.relation})`
-      : '';
-    const delivererOtherInfo = selectedDeliverer?.phone || '';
-    const finalCheckinBelongings = [
-      ...checkinBelongings,
-      ...(checkinOtherChecked && checkinOtherText.trim() ? [checkinOtherText.trim()] : []),
-    ];
-
-    setIsSaving(true);
-    try {
-      if (isOnline) {
-        await saveCheckinAttendance({
-          studentId,
-          classId: matchResult.student.classId,
-          date: today,
-          status: 'present',
-          note,
-          delivererType,
-          delivererOtherInfo,
-          checkinBelongings: finalCheckinBelongings,
-          checkinImageName: matchResult.checkinImageUrl || '',
-          checkedInByAI: true,
-          time: { checkIn: detectedAt.toISOString() },
-          timeString: { checkIn: timeStr },
-        });
-      } else {
-        // Offline: lưu vào IndexedDB để sync sau
-        await saveOfflineRecord({
-          studentId,
-          classId: matchResult.student.classId,
-          date: today,
-          checkInTime: detectedAt.toISOString(),
-          checkInTimeString: timeStr,
-        });
-      }
-
-      setCheckedInToday((prev) => [...prev, studentId]);
-      setDelivererSaved(true);
-      toast.success('Đã lưu điểm danh thành công');
-      onCheckinSuccess?.();
-
-      // Dừng countdown, sẵn sàng quét học sinh tiếp theo
-      waitingForDelivererRef.current = false;
-      if (countdownIntervalRef.current) clearInterval(countdownIntervalRef.current);
-      if (delivererTimeoutRef.current) clearTimeout(delivererTimeoutRef.current);
-      setDelivererCountdown(0);
-    } catch {
-      toast.error('Không lưu được điểm danh. Vui lòng thử lại.');
-    } finally {
-      setIsSaving(false);
-    }
-  }, [
-    matchResult, isSaving, checkedInToday, selectedDeliverer, note,
-    checkinBelongings, checkinOtherChecked, checkinOtherText,
-    isOnline, saveOfflineRecord, onCheckinSuccess,
-  ]);
-
-  // ── Callback nhận embedding từ FaceCamera ─────────────────────────────────
+  // Callback nhận embedding từ FaceCamera
   const handleDetected = useCallback(
     async (embedding) => {
-      if (waitingForDelivererRef.current || cooldownRef.current || isProcessing || !classId) return;
+      if (cooldownRef.current || isProcessing || !classId) return;
 
       cooldownRef.current = true;
       setIsProcessing(true);
 
       const capturedFrame = cameraRef.current?.captureFrame() || null;
+      const now = new Date();
+      const timeStr = `${now.getHours().toString().padStart(2, '0')}:${now.getMinutes().toString().padStart(2, '0')}`;
 
       try {
         let result;
         let checkinImageUrl = '';
 
         if (isOnline) {
-          const today = new Date().toISOString().split('T')[0];
+          const tzOffset = now.getTimezoneOffset() * 60000;
+          const today = new Date(now.getTime() - tzOffset).toISOString().slice(0, 10);
           if (capturedFrame) {
             try {
               checkinImageUrl = await uploadAttendanceImage(capturedFrame);
@@ -305,35 +153,19 @@ export default function FaceAttendanceModal({ open, onClose, classId, className,
           }
           result = await matchFaceEmbedding(embedding, classId, today, checkinImageUrl);
         } else {
-          result = await matchOffline(embedding);
-          if (!result) {
-            result = { status: 'no_match', matched: false };
-          }
+          result = matchOffline(embedding);
+          if (!result) result = { status: 'no_match', matched: false };
         }
 
-        // Lưu checkinImageUrl vào result để dùng khi ấn Lưu
-        setMatchResult({ ...result, isOnline, timestamp: new Date(), capturedFrame, checkinImageUrl });
+        setMatchResult({ ...result, capturedFrame, checkinImageUrl, timestamp: now });
 
         if (result.status === 'success' && result.student?._id) {
-          setDelivererSaved(false);
-          setSelectedDeliverer(null);
-          setNote('');
-          setCheckinBelongings([]);
-          setCheckinOtherChecked(false);
-          setCheckinOtherText('');
-
-          // Bắt đầu đếm ngược 2 phút để giáo viên nhập thông tin và ấn Lưu
-          startDelivererWait();
-
-          getApprovedPickupPersons(result.student._id)
-            .then((res) => {
-              setPickupPersons(res?.data || []);
-            })
-            .catch(() => {
-              setPickupPersons([]);
-            });
-
-          toast.info(`Nhận diện: ${result.student.fullName} — Hãy ấn Lưu để xác nhận điểm danh`);
+          const studentId = result.student._id;
+          // Đánh dấu đã xử lý để tránh quét trùng trong cùng phiên
+          setCheckedInToday((prev) => [...prev, studentId]);
+          toast.success(`Nhận diện: ${result.student.fullName} — đang mở form điểm danh`);
+          // Chuyển sang form checkin chi tiết với ảnh đã chụp
+          onStudentRecognized?.({ studentId, checkinImageUrl, timeStr, student: result.student });
         } else if (result.status === 'already_checked_in') {
           toast.info(`${result.student?.fullName || 'Học sinh'} đã điểm danh rồi`);
         } else if (result.status === 'no_match') {
@@ -351,20 +183,18 @@ export default function FaceAttendanceModal({ open, onClose, classId, className,
         }, COOLDOWN_MS);
       }
     },
-    [isProcessing, isOnline, classId, matchOffline, startDelivererWait]
+    [isProcessing, isOnline, classId, matchOffline, onStudentRecognized]
   );
 
   if (!open) return null;
 
-  // ── Render ─────────────────────────────────────────────────────────────────
   return (
     <div className="fixed inset-0 z-[1400] flex items-start sm:items-center justify-center bg-black/60 p-2 sm:p-4">
-      {/* Modal: chiều cao tối đa 100dvh trừ margin, có scroll nội dung */}
       <div
         className="bg-white rounded-2xl shadow-2xl w-full max-w-2xl flex flex-col overflow-hidden"
         style={{ maxHeight: 'calc(100dvh - 1rem)' }}
       >
-        {/* Header – cố định trên cùng */}
+        {/* Header */}
         <div className="flex items-center justify-between px-4 sm:px-6 py-3 sm:py-4 border-b bg-blue-600 flex-shrink-0">
           <div>
             <h2 className="text-base sm:text-xl font-bold text-white">Điểm danh khuôn mặt</h2>
@@ -372,11 +202,12 @@ export default function FaceAttendanceModal({ open, onClose, classId, className,
           </div>
           <div className="flex items-center gap-2 sm:gap-3">
             <span
-              className={`text-xs font-semibold px-2 py-0.5 rounded-full ${
+              className={`text-xs font-semibold px-2 py-0.5 rounded-full flex items-center gap-1 ${
                 isOnline ? 'bg-green-400 text-white' : 'bg-orange-400 text-white'
               }`}
             >
-              {isOnline ? '● Online' : '● Offline'}
+              <Circle size={8} className="fill-current" />
+              {isOnline ? 'Online' : 'Offline'}
             </span>
             <button
               onClick={onClose}
@@ -387,7 +218,7 @@ export default function FaceAttendanceModal({ open, onClose, classId, className,
           </div>
         </div>
 
-        {/* Body – cuộn được */}
+        {/* Body */}
         <div className="flex-1 overflow-y-auto min-h-0">
           <div className="p-3 sm:p-6 grid grid-cols-1 md:grid-cols-2 gap-4 sm:gap-6">
 
@@ -399,7 +230,6 @@ export default function FaceAttendanceModal({ open, onClose, classId, className,
                   <span className="text-gray-500 text-sm">Đang tải dữ liệu lớp...</span>
                 </div>
               ) : (
-                /* Giới hạn chiều cao camera trên mobile để còn chỗ cho form bên dưới */
                 <div className="max-h-56 sm:max-h-none overflow-hidden rounded-xl">
                   <FaceCamera
                     ref={cameraRef}
@@ -416,26 +246,17 @@ export default function FaceAttendanceModal({ open, onClose, classId, className,
                 </div>
               )}
 
-              {/* Thống kê session – đặt dưới camera trên mobile, ẩn ở desktop (hiện bên phải) */}
+              {/* Thống kê session — mobile */}
               <div className="mt-3 border rounded-xl p-3 md:hidden">
-                <div className="flex items-center gap-4">
-                  <div className="text-center">
-                    <div className="text-2xl font-bold text-blue-600">{checkedInToday.length}</div>
-                    <div className="text-xs text-gray-500">Đã điểm danh</div>
-                  </div>
-                  {!isOnline && pendingCount > 0 && (
-                    <div className="text-center">
-                      <div className="text-2xl font-bold text-orange-500">{pendingCount}</div>
-                      <div className="text-xs text-gray-500">Chờ sync</div>
-                    </div>
-                  )}
+                <div className="text-center">
+                  <div className="text-2xl font-bold text-blue-600">{checkedInToday.length}</div>
+                  <div className="text-xs text-gray-500">Đã nhận diện</div>
                 </div>
               </div>
             </div>
 
-            {/* Cột phải: Kết quả + Thống kê */}
+            {/* Cột phải: Kết quả nhận diện */}
             <div className="flex flex-col gap-3 sm:gap-4">
-              {/* Kết quả nhận diện */}
               <div className="border rounded-xl p-3 sm:p-4">
                 <h3 className="font-semibold text-gray-700 mb-2 sm:mb-3 text-sm sm:text-base">
                   Kết quả nhận diện
@@ -443,150 +264,44 @@ export default function FaceAttendanceModal({ open, onClose, classId, className,
 
                 {!matchResult && (
                   <div className="text-center text-gray-400 py-4 sm:py-6">
-                    <span className="text-3xl sm:text-4xl">👤</span>
+                    <User size={40} className="mx-auto text-gray-300" />
                     <p className="text-sm mt-2">Đưa khuôn mặt vào camera</p>
                   </div>
                 )}
 
                 {matchResult?.status === 'success' && (
-                  <div className="flex flex-col gap-2">
-                    {/* Ảnh đối chiếu + tên */}
-                    <div className="flex flex-col gap-2 p-2.5 sm:p-3 bg-green-50 rounded-lg border border-green-200">
-                      <div className="flex gap-2 sm:gap-3">
-                        <div className="flex flex-col items-center gap-1 flex-1">
-                          <div className="w-full h-16 sm:h-20 rounded-lg overflow-hidden bg-gray-200 border-2 border-green-300">
-                            {matchResult.student?.avatar ? (
-                              <img src={matchResult.student.avatar} alt="Ảnh hồ sơ" className="w-full h-full object-cover" />
-                            ) : (
-                              <div className="w-full h-full flex items-center justify-center text-2xl sm:text-3xl">👦</div>
-                            )}
-                          </div>
-                          <p className="text-xs text-gray-500">Hồ sơ</p>
+                  <div className="p-2.5 sm:p-3 bg-green-50 rounded-lg border border-green-200">
+                    <div className="flex gap-2 sm:gap-3 mb-2">
+                      <div className="flex flex-col items-center gap-1 flex-1">
+                        <div className="w-full h-16 sm:h-20 rounded-lg overflow-hidden bg-gray-200 border-2 border-green-300">
+                          {matchResult.student?.avatar ? (
+                            <img src={matchResult.student.avatar} alt="Ảnh hồ sơ" className="w-full h-full object-cover" />
+                          ) : (
+                            <div className="w-full h-full flex items-center justify-center">
+                              <User size={32} className="text-gray-400" />
+                            </div>
+                          )}
                         </div>
-                        <div className="flex flex-col items-center gap-1 flex-1">
-                          <div className="w-full h-16 sm:h-20 rounded-lg overflow-hidden bg-gray-200 border-2 border-blue-300">
-                            {matchResult.capturedFrame ? (
-                              <img src={matchResult.capturedFrame} alt="Ảnh vừa chụp" className="w-full h-full object-cover" />
-                            ) : (
-                              <div className="w-full h-full flex items-center justify-center text-2xl sm:text-3xl">📷</div>
-                            )}
-                          </div>
-                          <p className="text-xs text-gray-500">Vừa chụp</p>
+                        <p className="text-xs text-gray-500">Hồ sơ</p>
+                      </div>
+                      <div className="flex flex-col items-center gap-1 flex-1">
+                        <div className="w-full h-16 sm:h-20 rounded-lg overflow-hidden bg-gray-200 border-2 border-blue-300">
+                          {matchResult.capturedFrame ? (
+                            <img src={matchResult.capturedFrame} alt="Ảnh vừa chụp" className="w-full h-full object-cover" />
+                          ) : (
+                            <div className="w-full h-full flex items-center justify-center">
+                              <Camera size={32} className="text-gray-400" />
+                            </div>
+                          )}
                         </div>
-                      </div>
-                      <div>
-                        <p className="font-bold text-green-700 text-sm sm:text-base">{matchResult.student?.fullName}</p>
-                        <p className="text-xs text-green-600">
-                          ✓ Nhận diện thành công — hãy ấn Lưu để xác nhận{!matchResult.isOnline && ' (offline)'}
-                        </p>
-                        <p className="text-xs text-gray-400">
-                          {matchResult.timestamp?.toLocaleTimeString('vi-VN')}
-                        </p>
+                        <p className="text-xs text-gray-500">Vừa chụp</p>
                       </div>
                     </div>
-
-                    {/* Ghi chú */}
-                    <div className="border border-gray-200 rounded-lg p-2.5">
-                      <p className="text-xs font-semibold text-gray-600 mb-1">Ghi chú</p>
-                      <textarea
-                        value={note}
-                        onChange={(e) => setNote(e.target.value)}
-                        placeholder="Nhập ghi chú (nếu có)..."
-                        rows={2}
-                        className="w-full text-sm border border-gray-200 rounded p-1.5 resize-none focus:outline-none focus:ring-1 focus:ring-blue-300"
-                      />
-                    </div>
-
-                    {/* Đồ mang đến */}
-                    <div className="border border-gray-200 rounded-lg p-2.5">
-                      <p className="text-xs font-semibold text-gray-600 mb-1.5">Đồ mang đến</p>
-                      <div className="grid grid-cols-2 gap-x-2 gap-y-1.5">
-                        {CHECKIN_ITEMS.map((item) => (
-                          <label key={item} className="flex items-center gap-1.5 cursor-pointer">
-                            <input
-                              type="checkbox"
-                              checked={checkinBelongings.includes(item)}
-                              onChange={(e) =>
-                                setCheckinBelongings((prev) =>
-                                  e.target.checked ? [...prev, item] : prev.filter((i) => i !== item)
-                                )
-                              }
-                              className="w-4 h-4 accent-blue-600 flex-shrink-0"
-                            />
-                            <span className="text-xs text-gray-600 leading-tight">{item}</span>
-                          </label>
-                        ))}
-                        <label className="flex items-center gap-1.5 cursor-pointer col-span-2">
-                          <input
-                            type="checkbox"
-                            checked={checkinOtherChecked}
-                            onChange={(e) => {
-                              setCheckinOtherChecked(e.target.checked);
-                              if (!e.target.checked) setCheckinOtherText('');
-                            }}
-                            className="w-4 h-4 accent-blue-600 flex-shrink-0"
-                          />
-                          <span className="text-xs text-gray-600 leading-tight">Khác</span>
-                        </label>
-                        {checkinOtherChecked && (
-                          <input
-                            type="text"
-                            value={checkinOtherText}
-                            onChange={(e) => setCheckinOtherText(e.target.value)}
-                            placeholder="Nhập đồ mang đến..."
-                            className="col-span-2 text-xs border border-gray-200 rounded p-1.5 focus:outline-none focus:ring-1 focus:ring-blue-300"
-                          />
-                        )}
-                      </div>
-                    </div>
-
-                    {/* Người đưa */}
-                    {matchResult.status === 'success' && (
-                      <div className="border border-blue-100 rounded-lg p-2.5 bg-blue-50">
-                        <p className="text-xs font-semibold text-blue-700 mb-1.5">👤 Người đưa hôm nay</p>
-                        {delivererSaved ? (
-                          <p className="text-xs text-green-600 font-medium">✓ Đã lưu</p>
-                        ) : pickupPersons.length > 0 ? (
-                          <div className="flex flex-wrap gap-1.5">
-                            {pickupPersons.map((p) => (
-                              <button
-                                key={p._id}
-                                onClick={() =>
-                                  setSelectedDeliverer(selectedDeliverer?._id === p._id ? null : p)
-                                }
-                                className={`px-2.5 py-1.5 border rounded-full text-xs transition-colors ${
-                                  selectedDeliverer?._id === p._id
-                                    ? 'bg-blue-600 text-white border-blue-600'
-                                    : 'bg-white border-blue-200 text-blue-700 active:bg-blue-100'
-                                }`}
-                              >
-                                {p.fullName} · {p.relation}
-                              </button>
-                            ))}
-                          </div>
-                        ) : (
-                          <p className="text-xs text-gray-400">Chưa có người đón đã duyệt</p>
-                        )}
-                      </div>
-                    )}
-
-                    {/* Đếm ngược + nút Lưu */}
-                    {matchResult.status === 'success' && !delivererSaved && (
-                      <div className="flex items-center gap-2 pt-1">
-                        {delivererCountdown > 0 && (
-                          <span className="text-xs text-orange-500 font-semibold tabular-nums whitespace-nowrap">
-                            {Math.floor(delivererCountdown / 60)}:{String(delivererCountdown % 60).padStart(2, '0')}
-                          </span>
-                        )}
-                        <button
-                          onClick={handleSaveAll}
-                          disabled={isSaving}
-                          className="flex-1 py-2 bg-blue-600 active:bg-blue-700 text-white rounded-lg text-sm font-medium transition-colors disabled:opacity-60"
-                        >
-                          {isSaving ? 'Đang lưu...' : 'Lưu & Tiếp tục'}
-                        </button>
-                      </div>
-                    )}
+                    <p className="font-bold text-green-700 text-sm sm:text-base">{matchResult.student?.fullName}</p>
+                    <p className="text-xs text-green-600 mt-0.5 flex items-center gap-1">
+                      <Check size={12} />
+                      Nhận diện thành công — đang mở form điểm danh...
+                    </p>
                   </div>
                 )}
 
@@ -610,7 +325,7 @@ export default function FaceAttendanceModal({ open, onClose, classId, className,
 
                 {matchResult?.status === 'ambiguous' && (
                   <div className="p-3 bg-orange-50 rounded-lg border border-orange-200 text-center">
-                    <p className="text-2xl mb-1">⚠️</p>
+                    <AlertTriangle size={22} className="mx-auto mb-1 text-orange-500" />
                     <p className="text-orange-700 font-medium text-sm">Khuôn mặt không rõ ràng</p>
                     {matchResult.candidates?.length > 0 ? (
                       <div className="mt-1 text-left">
@@ -631,8 +346,7 @@ export default function FaceAttendanceModal({ open, onClose, classId, className,
                       </div>
                     ) : (
                       <p className="text-xs text-orange-500 mt-1">
-                        Giống nhiều học sinh, không thể xác định chính xác.
-                        Hãy đăng ký thêm góc mặt.
+                        Giống nhiều học sinh. Hãy đăng ký thêm góc mặt.
                       </p>
                     )}
                   </div>
@@ -647,44 +361,25 @@ export default function FaceAttendanceModal({ open, onClose, classId, className,
                 )}
               </div>
 
-              {/* Thống kê session – chỉ hiện trên desktop (mobile đã hiện dưới camera) */}
+              {/* Thống kê session — desktop */}
               <div className="border rounded-xl p-3 sm:p-4 hidden md:block">
                 <h3 className="font-semibold text-gray-700 mb-2 text-sm sm:text-base">Phiên điểm danh này</h3>
-                <div className="flex items-center gap-4">
-                  <div className="text-center">
-                    <div className="text-3xl font-bold text-blue-600">{checkedInToday.length}</div>
-                    <div className="text-xs text-gray-500">Đã điểm danh</div>
-                  </div>
-                  {!isOnline && pendingCount > 0 && (
-                    <div className="text-center">
-                      <div className="text-3xl font-bold text-orange-500">{pendingCount}</div>
-                      <div className="text-xs text-gray-500">Chờ sync</div>
-                    </div>
-                  )}
+                <div className="text-center">
+                  <div className="text-3xl font-bold text-blue-600">{checkedInToday.length}</div>
+                  <div className="text-xs text-gray-500">Đã nhận diện</div>
                 </div>
               </div>
 
-              {isOnline && pendingCount > 0 && (
-                <button
-                  onClick={syncNow}
-                  disabled={isSyncing}
-                  className="w-full py-2 bg-orange-500 active:bg-orange-600 text-white rounded-lg text-sm font-medium disabled:opacity-50"
-                >
-                  {isSyncing ? 'Đang sync...' : `Sync ${pendingCount} bản ghi offline`}
-                </button>
-              )}
-
               {!isOnline && (
                 <div className="bg-orange-50 border border-orange-200 rounded-lg p-3 text-xs text-orange-700">
-                  <strong>Chế độ offline:</strong> Dữ liệu được lưu trên thiết bị và sẽ tự động
-                  đồng bộ khi có mạng.
+                  <strong>Chế độ offline:</strong> Nhận diện cục bộ. Lưu điểm danh sẽ yêu cầu kết nối mạng.
                 </div>
               )}
             </div>
           </div>
         </div>
 
-        {/* Footer – cố định dưới cùng */}
+        {/* Footer */}
         <div className="px-4 sm:px-6 py-3 border-t bg-gray-50 flex justify-between items-center flex-shrink-0">
           <span className="text-xs text-gray-400">
             Đã tải {localEmbeddings.length} khuôn mặt

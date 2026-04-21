@@ -7,10 +7,12 @@ import {
   formatPhoneForFirebase,
   sanitizeSingleLineText,
   sanitizeMultiLineText,
+  sanitizePersonName,
   MAX_NOTE_LEN,
   MAX_BELONGINGS_NOTE_LEN,
   MAX_PERSON_NAME_LEN,
   MAX_PERSON_PHONE_LEN,
+  PHONE_REGEX,
 } from './attendanceUtils';
 import { useState } from 'react';
 import {
@@ -355,6 +357,7 @@ function AttendanceDetailModal({
       : (
         !!detailForm.receiverName?.trim() &&
         !!detailForm.receiverPhone?.trim() &&
+        PHONE_REGEX.test(detailForm.receiverPhone?.trim()) &&
         !!detailForm.receiverOtherImageName
       )
     );
@@ -369,8 +372,8 @@ function AttendanceDetailModal({
       throw new Error('Chỉ chấp nhận file ảnh (JPEG, PNG, GIF, WebP).');
     }
     const formData = new FormData();
-    formData.append('avatar', file);
-    const response = await postFormData(ENDPOINTS.CLOUDINARY.UPLOAD_AVATAR, formData);
+    formData.append('image', file);
+    const response = await postFormData(ENDPOINTS.CLOUDINARY.UPLOAD_ATTENDANCE_FILE, formData);
     const url = response?.data?.url;
     if (!url) throw new Error('Không nhận được đường dẫn ảnh từ server.');
     setDetailForm((prev) => ({ ...prev, [fieldName]: url }));
@@ -404,6 +407,10 @@ function AttendanceDetailModal({
           }
           if (!detailForm.receiverPhone?.trim()) {
             setSubmitError('Vui lòng nhập số điện thoại người đón trước khi gửi OTP.');
+            return;
+          }
+          if (!PHONE_REGEX.test(detailForm.receiverPhone.trim())) {
+            setSubmitError('Số điện thoại người đón không hợp lệ (7–15 ký tự số).');
             return;
           }
         }
@@ -866,7 +873,7 @@ function AttendanceDetailModal({
                             value={detailForm.receiverName}
                             slotProps={{ htmlInput: { maxLength: MAX_PERSON_NAME_LEN } }}
                             onChange={(e) => setDetailForm((prev) => ({
-                              ...prev, receiverName: sanitizeSingleLineText(e.target.value, MAX_PERSON_NAME_LEN),
+                              ...prev, receiverName: sanitizePersonName(e.target.value, MAX_PERSON_NAME_LEN),
                             }))}
                           />
                         </Grid>
@@ -875,9 +882,15 @@ function AttendanceDetailModal({
                             fullWidth size="small" label="Số điện thoại *"
                             placeholder="VD: 0912345678"
                             value={detailForm.receiverPhone}
-                            slotProps={{ htmlInput: { maxLength: MAX_PERSON_PHONE_LEN } }}
+                            slotProps={{ htmlInput: { maxLength: MAX_PERSON_PHONE_LEN, inputMode: 'numeric' } }}
+                            error={!!detailForm.receiverPhone && !PHONE_REGEX.test(detailForm.receiverPhone)}
+                            helperText={
+                              detailForm.receiverPhone && !PHONE_REGEX.test(detailForm.receiverPhone)
+                                ? 'SĐT phải có 10–11 chữ số'
+                                : undefined
+                            }
                             onChange={(e) => setDetailForm((prev) => ({
-                              ...prev, receiverPhone: e.target.value.replace(/[^0-9+\-\s()]/g, '').slice(0, MAX_PERSON_PHONE_LEN),
+                              ...prev, receiverPhone: e.target.value.replace(/\D/g, '').slice(0, MAX_PERSON_PHONE_LEN),
                             }))}
                           />
                         </Grid>
@@ -1069,7 +1082,7 @@ function AttendanceDetailModal({
                           value={detailForm.delivererName}
                           slotProps={{ htmlInput: { maxLength: MAX_PERSON_NAME_LEN } }}
                           onChange={(e) => setDetailForm((prev) => ({
-                            ...prev, delivererName: sanitizeSingleLineText(e.target.value, MAX_PERSON_NAME_LEN),
+                            ...prev, delivererName: sanitizePersonName(e.target.value, MAX_PERSON_NAME_LEN),
                           }))}
                         />
                       </Grid>
@@ -1078,9 +1091,15 @@ function AttendanceDetailModal({
                           fullWidth size="small" label="Số điện thoại"
                           placeholder="VD: 0912345678"
                           value={detailForm.delivererPhone}
-                          slotProps={{ htmlInput: { maxLength: MAX_PERSON_PHONE_LEN } }}
+                          slotProps={{ htmlInput: { maxLength: MAX_PERSON_PHONE_LEN, inputMode: 'numeric' } }}
+                          error={!!detailForm.delivererPhone && !PHONE_REGEX.test(detailForm.delivererPhone)}
+                          helperText={
+                            detailForm.delivererPhone && !PHONE_REGEX.test(detailForm.delivererPhone)
+                              ? 'SĐT phải có 10–11 chữ số'
+                              : undefined
+                          }
                           onChange={(e) => setDetailForm((prev) => ({
-                            ...prev, delivererPhone: e.target.value.replace(/[^0-9+\-\s()]/g, '').slice(0, MAX_PERSON_PHONE_LEN),
+                            ...prev, delivererPhone: e.target.value.replace(/\D/g, '').slice(0, MAX_PERSON_PHONE_LEN),
                           }))}
                         />
                       </Grid>

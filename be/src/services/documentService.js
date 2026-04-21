@@ -1,6 +1,42 @@
 const Document = require('../models/Document');
 const AcademicYear = require('../models/AcademicYear');
 
+const DOCUMENT_STATUSES = ['draft', 'published', 'inactive'];
+const EDITABLE_DOCUMENT_STATUS = 'draft';
+const PUBLISHABLE_DOCUMENT_STATUS = 'draft';
+const ALLOWED_ATTACHMENT_TYPES = ['pdf', 'word'];
+
+const isValidObjectId = (value) => /^[0-9a-fA-F]{24}$/.test(String(value));
+
+const ensureDocumentIsDraft = (document, actionLabel) => {
+  if (document.status !== EDITABLE_DOCUMENT_STATUS) {
+    return `${actionLabel} chỉ áp dụng cho tài liệu ở trạng thái Draft`;
+  }
+
+  return null;
+};
+
+const resolveAcademicYearRef = async (academicYearId) => {
+  if (academicYearId === undefined) {
+    return { shouldUpdate: false, value: undefined };
+  }
+
+  if (academicYearId === null || String(academicYearId).trim() === '') {
+    return { shouldUpdate: true, value: null };
+  }
+
+  if (!isValidObjectId(academicYearId)) {
+    throw new Error('academicYearId không hợp lệ');
+  }
+
+  const exists = await AcademicYear.findById(academicYearId).select('_id').lean();
+  if (!exists) {
+    throw new Error('Không tìm thấy năm học');
+  }
+
+  return { shouldUpdate: true, value: exists._id };
+};
+
 const validateDocumentPayload = (body, isCreate = true) => {
   const errors = [];
 
@@ -15,14 +51,14 @@ const validateDocumentPayload = (body, isCreate = true) => {
     errors.push('Nội dung quá dài');
   }
 
-  if (body.status && !['draft', 'published', 'inactive'].includes(body.status)) {
+  if (body.status && !DOCUMENT_STATUSES.includes(body.status)) {
     errors.push('Trạng thái không hợp lệ');
   }
 
   if (body.attachmentUrl && typeof body.attachmentUrl !== 'string') {
     errors.push('URL tệp đính kèm không hợp lệ');
   }
-  if (body.attachmentType && !['pdf', 'word'].includes(body.attachmentType)) {
+  if (body.attachmentType && !ALLOWED_ATTACHMENT_TYPES.includes(body.attachmentType)) {
     errors.push('Loại tệp đính kèm không hợp lệ');
   }
 
@@ -47,7 +83,7 @@ const listDocuments = async (req, res) => {
 
     const filter = {};
     if (yearId) {
-      if (!/^[0-9a-fA-F]{24}$/.test(String(yearId))) {
+      if (!isValidObjectId(yearId)) {
         return res.status(400).json({ status: 'error', message: 'yearId không hợp lệ' });
       }
       filter.academicYear = yearId;
@@ -149,24 +185,22 @@ const createDocument = async (req, res) => {
     }
 
     const userId = user._id || user.id;
-    let academicYearRef = null;
-    if (academicYearId !== undefined && academicYearId !== null && String(academicYearId).trim() !== '') {
-      if (!/^[0-9a-fA-F]{24}$/.test(String(academicYearId))) {
-        return res.status(400).json({ status: 'error', message: 'academicYearId không hợp lệ' });
-      }
-      const exists = await AcademicYear.findById(academicYearId).select('_id').lean();
-      if (!exists) {
-        return res.status(400).json({ status: 'error', message: 'Không tìm thấy năm học' });
-      }
-      academicYearRef = exists._id;
-    }
-
     const errors = validateDocumentPayload(req.body, true);
     if (errors.length > 0) {
       return res.status(400).json({
         status: 'error',
         message: errors.join(', '),
       });
+    }
+
+    let academicYearRef = null;
+    try {
+      const academicYearResolution = await resolveAcademicYearRef(academicYearId);
+      if (academicYearResolution.shouldUpdate) {
+        academicYearRef = academicYearResolution.value;
+      }
+    } catch (error) {
+      return res.status(400).json({ status: 'error', message: error.message });
     }
 
     const newDocument = await Document.create({
@@ -204,7 +238,15 @@ const createDocument = async (req, res) => {
 const updateDocument = async (req, res) => {
   try {
     const { id } = req.params;
-    const { title, description, status, attachmentUrl, attachmentType, category } = req.body;
+    const {
+      title,
+      description,
+      status,
+      attachmentUrl,
+      attachmentType,
+      category,
+      academicYearId,
+    } = req.body;
 
     const errors = validateDocumentPayload(req.body, false);
     if (errors.length > 0) {
@@ -222,14 +264,31 @@ const updateDocument = async (req, res) => {
       });
     }
 
+    const draftOnlyError = ensureDocumentIsDraft(document, 'Cập nhật');
+    if (draftOnlyError) {
+      return res.status(400).json({
+        status: 'error',
+        message: draftOnlyError,
+      });
+    }
+
+    let academicYearResolution;
+    try {
+      academicYearResolution = await resolveAcademicYearRef(academicYearId);
+    } catch (error) {
+      return res.status(400).json({ status: 'error', message: error.message });
+    }
+
     if (title !== undefined) document.title = String(title).trim();
     if (typeof description === 'string') document.description = description.trim();
     if (status !== undefined) document.status = status;
     if (attachmentUrl !== undefined) document.attachmentUrl = attachmentUrl || null;
     if (attachmentType !== undefined) document.attachmentType = attachmentType || null;
     if (category !== undefined) document.category = category || null;
+    if (academicYearResolution?.shouldUpdate) document.academicYear = academicYearResolution.value;
 
     await document.save();
+    await document.populate('academicYear', 'yearName startDate endDate status');
     await document.populate('author', 'username fullName email');
 
     return res.status(200).json({
@@ -254,7 +313,7 @@ const deleteDocument = async (req, res) => {
   try {
     const { id } = req.params;
 
-    const document = await Document.findByIdAndDelete(id);
+    const document = await Document.findById(id);
 
     if (!document) {
       return res.status(404).json({
@@ -262,6 +321,16 @@ const deleteDocument = async (req, res) => {
         message: 'Không tìm thấy tài liệu',
       });
     }
+
+    const draftOnlyError = ensureDocumentIsDraft(document, 'Xóa');
+    if (draftOnlyError) {
+      return res.status(400).json({
+        status: 'error',
+        message: draftOnlyError,
+      });
+    }
+
+    await document.deleteOne();
 
     return res.status(200).json({
       status: 'success',
@@ -272,6 +341,48 @@ const deleteDocument = async (req, res) => {
     return res.status(500).json({
       status: 'error',
       message: 'Lỗi xóa tài liệu',
+    });
+  }
+};
+
+/**
+ * PATCH /api/school-admin/documents/:id/publish
+ * Publish a draft document
+ */
+const publishDocument = async (req, res) => {
+  try {
+    const { id } = req.params;
+
+    const document = await Document.findById(id);
+    if (!document) {
+      return res.status(404).json({
+        status: 'error',
+        message: 'Không tìm thấy tài liệu',
+      });
+    }
+
+    if (document.status !== PUBLISHABLE_DOCUMENT_STATUS) {
+      return res.status(400).json({
+        status: 'error',
+        message: 'Chỉ có thể xuất bản tài liệu ở trạng thái Draft',
+      });
+    }
+
+    document.status = 'published';
+    await document.save();
+    await document.populate('academicYear', 'yearName startDate endDate status');
+    await document.populate('author', 'username fullName email');
+
+    return res.status(200).json({
+      status: 'success',
+      message: 'Xuất bản tài liệu thành công',
+      data: document,
+    });
+  } catch (error) {
+    console.error('publishDocument error:', error);
+    return res.status(500).json({
+      status: 'error',
+      message: error.message || 'Lỗi xuất bản tài liệu',
     });
   }
 };
@@ -354,6 +465,7 @@ module.exports = {
   createDocument,
   updateDocument,
   deleteDocument,
+  publishDocument,
   getPublishedDocuments,
   getPublishedDocumentById,
 };
