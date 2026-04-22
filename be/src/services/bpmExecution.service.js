@@ -36,7 +36,16 @@ class BPMExecutionService {
         return { success: true, status: 'completed' };
       }
 
-      // 1. Thực thi ACTION
+      // 1. Log bắt đầu thực thi node
+      if (req) {
+        await createSystemLog({
+          req,
+          action: 'BPM_NODE_START',
+          detail: `[${workflow.name}] Bắt đầu thực thi bước: ${currentNode.data?.label || currentNode.type} (ID: ${currentNodeId})`
+        });
+      }
+
+      // 2. Thực thi ACTION
       const actionResult = await this.runNodeAction(currentNode, record, inputData, req, workflow.name);
 
       // 2. Quyết định hướng đi tiếp theo
@@ -99,10 +108,13 @@ class BPMExecutionService {
    */
   static async logBpmStep(req, flowName, fromNode, toNode, detail, studentName = '') {
     if (!req) return;
+    const fromLabel = fromNode.data?.label || fromNode.type;
+    const toLabel = toNode?.data?.label || toNode?.type || 'Kết thúc';
+    
     await createSystemLog({
       req,
       action: 'BPM_STEP_TRACE',
-      detail: `[${flowName}] ${studentName ? `Học sinh: ${studentName} | ` : ''}Bước: ${fromNode.data?.label || fromNode.type} -> ${toNode.data?.label || toNode.type} | Chi tiết: ${detail}`
+      detail: `[${flowName}] ${studentName ? `HS: ${studentName} | ` : ''}${fromLabel} -> ${toLabel} | KQ: ${detail}`
     });
   }
 
@@ -144,6 +156,10 @@ class BPMExecutionService {
       case 'teacher_verify':
         record.bpmRuntimeData.set('teacherVerified', true);
         actionDetail = 'Giáo viên đã xác nhận thủ công tại hiện trường';
+        break;
+
+      default:
+        actionDetail = `Node hành động loại [${node.type}] chưa được định nghĩa logic xử lý đặc thù.`;
         break;
     }
 
@@ -201,7 +217,7 @@ class BPMExecutionService {
         return { success: true, message: 'Các dịch vụ ngoại vi hoạt động bình thường' };
 
       default:
-        return { success: true };
+        return { success: true, message: `Kiểm tra mặc định: Chấp nhận loại node [${node.type}]` };
     }
   }
 

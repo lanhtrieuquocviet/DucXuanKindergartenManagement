@@ -378,10 +378,10 @@ const getRoles = async (req, res) => {
       })),
       inheritedPermissions: role.parent
         ? (role.parent.permissions || []).map((p) => ({
-            code: p.code,
-            description: p.description,
-            group: p.group || '',
-          }))
+          code: p.code,
+          description: p.description,
+          group: p.group || '',
+        }))
         : [],
     }));
 
@@ -1033,35 +1033,30 @@ const getSystemLogs = async (req, res) => {
     const limit = Math.min(Math.max(parseInt(req.query.limit, 10) || 20, 1), 100);
     const skip = (page - 1) * limit;
 
-    const now = new Date();
-    const threeDaysAgo = new Date(now);
-    threeDaysAgo.setDate(now.getDate() - 3);
-
     const { startDate, endDate, action, actor } = req.query;
 
-    let start = threeDaysAgo;
-    let end = now;
+    const filter = {};
 
-    if (startDate) {
-      const parsedStart = new Date(startDate);
-      if (!Number.isNaN(parsedStart.getTime())) {
-        start = parsedStart < threeDaysAgo ? threeDaysAgo : parsedStart;
+    if (startDate || endDate) {
+      filter.createdAt = {};
+      if (startDate) {
+        const parsedStart = new Date(startDate);
+        if (!Number.isNaN(parsedStart.getTime())) {
+          const start = new Date(parsedStart);
+          start.setHours(0, 0, 0, 0);
+          filter.createdAt.$gte = start;
+        }
+      }
+
+      if (endDate) {
+        const parsedEnd = new Date(endDate);
+        if (!Number.isNaN(parsedEnd.getTime())) {
+          const end = new Date(parsedEnd);
+          end.setHours(23, 59, 59, 999);
+          filter.createdAt.$lte = end;
+        }
       }
     }
-
-    if (endDate) {
-      const parsedEnd = new Date(endDate);
-      if (!Number.isNaN(parsedEnd.getTime())) {
-        end = parsedEnd;
-      }
-    }
-
-    const filter = {
-      createdAt: {
-        $gte: start,
-        $lte: end,
-      },
-    };
 
     if (action && String(action).trim() !== '') {
       filter.action = {
