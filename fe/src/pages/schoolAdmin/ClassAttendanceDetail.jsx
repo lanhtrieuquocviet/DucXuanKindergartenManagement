@@ -58,6 +58,24 @@ const formatTime = (timeStr) => {
   }
 };
 
+const isLate = (value) => {
+  if (!value) return false;
+  try {
+    let h; let m;
+    if (typeof value === 'string' && /^\d{2}:\d{2}$/.test(value)) {
+      [h, m] = value.split(':').map(Number);
+    } else {
+      const d = new Date(value);
+      if (isNaN(d.getTime())) return false;
+      h = d.getHours();
+      m = d.getMinutes();
+    }
+    return h > 8 || (h === 8 && m > 0);
+  } catch {
+    return false;
+  }
+};
+
 const getStatusInfo = (attendance) => {
   if (!attendance) {
     return { text: 'Chưa điểm danh', color: 'default' };
@@ -66,6 +84,9 @@ const getStatusInfo = (attendance) => {
     return { text: 'Nghỉ học', color: 'error' };
   }
   if (attendance.status === 'present') {
+    if (attendance.arrivalStatus === 'late' || isLate(attendance.timeString?.checkIn || attendance.time?.checkIn)) {
+      return { text: 'Đi học muộn', color: 'warning' };
+    }
     if (attendance.time?.checkIn && !attendance.time?.checkOut) {
       return { text: 'Chưa check-out', color: 'warning' };
     }

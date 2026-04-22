@@ -12,6 +12,14 @@ const Attendances = require('../models/Attendances');
 const PickupRequest = require('../models/PickupRequest');
 const { createNotification } = require('../controller/notification.controller');
 
+const LATE_HOUR_CUTOFF = 8;
+const LATE_MINUTE_CUTOFF = 0;
+const isLateCheckInByHHmm = (value) => {
+  if (!value || !/^\d{2}:\d{2}$/.test(value)) return false;
+  const [hours, minutes] = value.split(':').map(Number);
+  return hours > LATE_HOUR_CUTOFF || (hours === LATE_HOUR_CUTOFF && minutes > LATE_MINUTE_CUTOFF);
+};
+
 // ─── Hàm toán học ─────────────────────────────────────────────────────────────
 
 /**
@@ -311,6 +319,7 @@ const matchFaceEmbedding = async (req, res) => {
         classId: bestMatch.classId,
         date: attendanceDate,
         status: 'present',
+        arrivalStatus: isLateCheckInByHHmm(checkInTimeString) ? 'late' : 'on_time',
         time: { checkIn: checkInTime, checkOut: null },
         timeString: { checkIn: checkInTimeString, checkOut: '' },
         checkinImageName: checkinImageUrl,
@@ -478,6 +487,7 @@ const syncOfflineAttendance = async (req, res) => {
           classId,
           date: attendanceDate,
           status: 'present',
+          arrivalStatus: isLateCheckInByHHmm(timeStr) ? 'late' : 'on_time',
           time: { checkIn: now, checkOut: null },
           timeString: { checkIn: timeStr, checkOut: '' },
         });

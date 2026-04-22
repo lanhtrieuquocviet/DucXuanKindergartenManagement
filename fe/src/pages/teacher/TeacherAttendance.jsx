@@ -62,6 +62,23 @@ const isWeekendDate = (dateStr) => {
   const day = d.getDay();
   return day === 0 || day === 6;
 };
+const isLateByTime = (value) => {
+  if (!value) return false;
+  try {
+    let h; let m;
+    if (typeof value === 'string' && /^\d{2}:\d{2}$/.test(value)) {
+      [h, m] = value.split(':').map(Number);
+    } else {
+      const d = new Date(value);
+      if (isNaN(d.getTime())) return false;
+      h = d.getHours();
+      m = d.getMinutes();
+    }
+    return h > 8 || (h === 8 && m > 0);
+  } catch {
+    return false;
+  }
+};
 
 function TeacherAttendance() {
   const navigate = useNavigate();
@@ -197,7 +214,13 @@ function TeacherAttendance() {
     if (serverRec.status === 'absent') {
       status = 'absent';
     } else if (serverRec.status === 'present') {
-      status = serverRec.timeString?.checkOut ? 'checked_out' : 'checked_in';
+      const isLate = serverRec.arrivalStatus === 'late'
+        || (serverRec.arrivalStatus !== 'on_time' && isLateByTime(serverRec.timeString?.checkIn || serverRec.time?.checkIn));
+      if (serverRec.timeString?.checkOut) {
+        status = isLate ? 'late_checked_out' : 'checked_out';
+      } else {
+        status = isLate ? 'late_checked_in' : 'checked_in';
+      }
     } else if (serverRec.status === 'leave') {
       status = 'absent';
     } else {
@@ -226,6 +249,7 @@ function TeacherAttendance() {
       hasCheckoutBelongings: !!(serverRec.checkoutBelongings?.length || serverRec.checkoutBelongingsNote),
       note: serverRec.note || '',
       absentReason: serverRec.absentReason || '',
+      arrivalStatus: serverRec.arrivalStatus || '',
       checkedInByAI: serverRec.checkedInByAI || false,
       checkedOutByAI: serverRec.checkedOutByAI || false,
     };
@@ -584,7 +608,9 @@ function TeacherAttendance() {
 
         updateRecord(detailStudentId, {
           ...(attendanceByStudent?.[detailStudentId] || defaultRecord()),
-          status: 'checked_out',
+          status: (attendanceByStudent?.[detailStudentId]?.status === 'late_checked_in')
+            ? 'late_checked_out'
+            : 'checked_out',
           timeOut: timeOutHHmm,
           timeIn: detailForm.timeIn || '',
           checkoutNote: detailForm.checkoutNote?.trim() || '',
@@ -601,6 +627,11 @@ function TeacherAttendance() {
         closeDetailAndClearDraft();
       } else if (detailMode === 'checkin') {
         const timeInHHmm = detailForm.timeIn || nowHHmm();
+        const isLateArrival = (() => {
+          if (!/^\d{2}:\d{2}$/.test(timeInHHmm)) return false;
+          const [h, m] = timeInHHmm.split(':').map(Number);
+          return h > 8 || (h === 8 && m > 0);
+        })();
         const isoIn = buildDateTimeISO(selectedDate, timeInHHmm);
         const delivererOtherInfoFinal = detailForm.delivererType === 'Khác'
           ? buildPersonOtherInfo(detailForm.delivererName, detailForm.delivererPhone)
@@ -627,7 +658,7 @@ function TeacherAttendance() {
 
         updateRecord(detailStudentId, {
           ...(attendanceByStudent?.[detailStudentId] || defaultRecord()),
-          status: 'checked_in',
+          status: isLateArrival ? 'late_checked_in' : 'checked_in',
           timeIn: timeInHHmm,
           note: basePayload.note,
           delivererType: detailForm.delivererType,
@@ -647,7 +678,10 @@ function TeacherAttendance() {
         const currentRec = attendanceByStudent?.[detailStudentId];
         if (currentRec && currentRec.status !== 'empty') {
           const serverStatus =
-            currentRec.status === 'checked_in' || currentRec.status === 'checked_out'
+            currentRec.status === 'checked_in'
+              || currentRec.status === 'checked_out'
+              || currentRec.status === 'late_checked_in'
+              || currentRec.status === 'late_checked_out'
               ? 'present'
               : currentRec.status;
           await post(ENDPOINTS.STUDENTS.ATTENDANCE_CHECKIN, {

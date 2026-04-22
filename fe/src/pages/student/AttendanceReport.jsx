@@ -35,15 +35,16 @@ const isLate = (t) => {
     let h, m;
     if (typeof t === 'string' && /^\d{2}:\d{2}$/.test(t)) { [h, m] = t.split(':').map(Number); }
     else { const d = new Date(t); if (isNaN(d)) return false; h = d.getHours(); m = d.getMinutes(); }
-    return h > 8 || (h === 8 && m > 30);
+    return h > 8 || (h === 8 && m > 0);
   } catch { return false; }
 };
 
 const getStatus = (att) => {
   if (!att || att.status === 'absent') return { label: 'Nghỉ học', color: 'error' };
   if (att.status === 'present') {
+    if (att.arrivalStatus === 'late') return { label: 'Đi học muộn', color: 'warning' };
     const t = att?.timeString?.checkIn || att?.time?.checkIn;
-    if (isLate(t)) return { label: 'Đi trễ', color: 'warning' };
+    if (isLate(t)) return { label: 'Đi học muộn', color: 'warning' };
     return { label: 'Có mặt', color: 'success' };
   }
   return { label: '—', color: 'default' };
@@ -175,7 +176,12 @@ export default function AttendanceReport() {
     total:   attendances.length,
     present: attendances.filter(a => a.status === 'present').length,
     absent:  attendances.filter(a => a.status === 'absent').length,
-    late:    attendances.filter(a => a.status === 'present' && isLate(a?.timeString?.checkIn || a?.time?.checkIn)).length,
+    late:    attendances.filter((a) => {
+      if (a.status !== 'present') return false;
+      if (a.arrivalStatus === 'late') return true;
+      if (a.arrivalStatus === 'on_time') return false;
+      return isLate(a?.timeString?.checkIn || a?.time?.checkIn);
+    }).length,
   }), [attendances]);
 
   const currentYear = new Date().getFullYear();

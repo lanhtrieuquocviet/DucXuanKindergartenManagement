@@ -6,6 +6,40 @@ const { createSystemLog } = require('../utils/systemLog');
 const { createNotification } = require('../controller/notification.controller');
 const AcademicYear = require('../models/AcademicYear');
 
+const VN_TIMEZONE = 'Asia/Ho_Chi_Minh';
+const LATE_HOUR_CUTOFF = 8;
+const LATE_MINUTE_CUTOFF = 0;
+
+const extractHourMinute = (input) => {
+  if (!input) return null;
+  if (typeof input === 'string' && /^\d{2}:\d{2}$/.test(input)) {
+    const [hours, minutes] = input.split(':').map(Number);
+    return { hours, minutes };
+  }
+  const d = new Date(input);
+  if (Number.isNaN(d.getTime())) return null;
+  try {
+    const parts = new Intl.DateTimeFormat('en-GB', {
+      timeZone: VN_TIMEZONE,
+      hour: '2-digit',
+      minute: '2-digit',
+      hour12: false,
+    }).formatToParts(d);
+    const hours = Number(parts.find((p) => p.type === 'hour')?.value);
+    const minutes = Number(parts.find((p) => p.type === 'minute')?.value);
+    if (!Number.isFinite(hours) || !Number.isFinite(minutes)) return null;
+    return { hours, minutes };
+  } catch {
+    return { hours: d.getHours(), minutes: d.getMinutes() };
+  }
+};
+
+const isLateCheckIn = (checkInTime) => {
+  const hm = extractHourMinute(checkInTime);
+  if (!hm) return false;
+  return hm.hours > LATE_HOUR_CUTOFF || (hm.hours === LATE_HOUR_CUTOFF && hm.minutes > LATE_MINUTE_CUTOFF);
+};
+
 /**
  * Tạo / cập nhật điểm danh (check-in) cho 1 học sinh trong 1 ngày
  * POST /api/students/attendance
@@ -93,6 +127,12 @@ const upsertAttendance = async (req, res) => {
       return res.status(400).json({ status: 'error', message: 'Giờ điểm danh đến phải theo định dạng HH:mm' });
     }
 
+    const hasCheckInTimeInput = Boolean(time?.checkIn || timeString?.checkIn);
+    const computedArrivalStatus =
+      status === 'present' && hasCheckInTimeInput
+        ? (isLateCheckIn(timeString?.checkIn || time?.checkIn) ? 'late' : 'on_time')
+        : '';
+
     const payload = {
       studentId,
       classId,
@@ -104,13 +144,21 @@ const upsertAttendance = async (req, res) => {
       delivererOtherInfo,
       delivererOtherImageName,
       absentReason,
-      'time.checkIn': time && time.checkIn ? new Date(time.checkIn) : null,
-      'timeString.checkIn': timeString && timeString.checkIn ? timeString.checkIn : '',
       isTakeOff: !!isTakeOff,
       academicYearId: foundAcademicYearId,
       ...(Array.isArray(checkinBelongings) && { checkinBelongings }),
       ...(typeof checkedInByAI === 'boolean' && { checkedInByAI }),
     };
+
+    if (status === 'present' && hasCheckInTimeInput) {
+      payload.arrivalStatus = computedArrivalStatus;
+      payload['time.checkIn'] = time?.checkIn ? new Date(time.checkIn) : null;
+      payload['timeString.checkIn'] = timeString?.checkIn || '';
+    } else if (status === 'absent' || status === 'leave') {
+      payload.arrivalStatus = '';
+      payload['time.checkIn'] = null;
+      payload['timeString.checkIn'] = '';
+    }
 
     const attendance = await Attendances.findOneAndUpdate(
       { studentId, date: attendanceDate },
@@ -622,6 +670,7 @@ const getClassAttendanceDetail = async (req, res) => {
           ? {
               _id: attendance._id,
               status: attendance.status,
+              arrivalStatus: attendance.arrivalStatus || '',
               time: attendance.time,
               timeString: attendance.timeString,
               note: attendance.note,
@@ -722,6 +771,7 @@ const getStudentAttendanceDetail = async (req, res) => {
           ? {
               _id: attendance._id,
               status: attendance.status,
+              arrivalStatus: attendance.arrivalStatus || '',
               time: attendance.time,
               timeString: attendance.timeString,
               note: attendance.note,
@@ -750,21 +800,10 @@ const getStudentAttendanceDetail = async (req, res) => {
   }
 };
 
-// Helper: kiểm tra đi trễ (sau 7:30 sáng)
+// Helper: kiểm tra đi trễ (sau 08:00 sáng, giờ Việt Nam)
 const isLate = (checkInTime) => {
-  if (!checkInTime) return false;
   try {
-    let hours;
-    let minutes;
-    if (typeof checkInTime === 'string' && /^\d{2}:\d{2}$/.test(checkInTime)) {
-      [hours, minutes] = checkInTime.split(':').map(Number);
-    } else {
-      const d = new Date(checkInTime);
-      if (Number.isNaN(d.getTime())) return false;
-      hours = d.getHours();
-      minutes = d.getMinutes();
-    }
-    return hours > 8 || (hours === 8 && minutes > 30);
+    return isLateCheckIn(checkInTime);
   } catch (e) {
     // eslint-disable-next-line no-console
     console.error('Error in isLate helper:', e);
@@ -831,6 +870,8 @@ const getStudentAttendanceHistory = async (req, res) => {
     const absent = attendances.filter((att) => att.status === 'absent').length;
     const late = attendances.filter((att) => {
       if (att.status !== 'present') return false;
+      if (att.arrivalStatus === 'late') return true;
+      if (att.arrivalStatus === 'on_time') return false;
       const checkInTime = att?.timeString?.checkIn || att?.time?.checkIn;
       return isLate(checkInTime);
     }).length;
@@ -839,6 +880,7 @@ const getStudentAttendanceHistory = async (req, res) => {
       _id: att._id,
       date: att.date,
       status: att.status,
+      arrivalStatus: att.arrivalStatus || '',
       time: att.time,
       timeString: att.timeString,
       note: att.note,

@@ -67,7 +67,7 @@ const isLate = (checkInTime) => {
       hours = d.getHours();
       minutes = d.getMinutes();
     }
-    return hours > 8 || (hours === 8 && minutes > 30);
+    return hours > 8 || (hours === 8 && minutes > 0);
   } catch {
     return false;
   }
@@ -78,9 +78,12 @@ const getStatusText = (attendance) => {
     return { text: 'Nghỉ học', color: 'error.main' };
   }
   if (attendance.status === 'present') {
+    if (attendance.arrivalStatus === 'late') {
+      return { text: 'Đi học muộn', color: 'warning.main' };
+    }
     const checkInTime = attendance?.timeString?.checkIn || attendance?.time?.checkIn;
     if (isLate(checkInTime)) {
-      return { text: 'Đi trễ', color: 'warning.main' };
+      return { text: 'Đi học muộn', color: 'warning.main' };
     }
     return { text: 'Có mặt', color: 'success.main' };
   }
@@ -152,6 +155,8 @@ function StudentAttendanceHistory() {
     const absent = attendances.filter((att) => att.status === 'absent').length;
     const late = attendances.filter((att) => {
       if (att.status !== 'present') return false;
+      if (att.arrivalStatus === 'late') return true;
+      if (att.arrivalStatus === 'on_time') return false;
       const checkInTime = att?.timeString?.checkIn || att?.time?.checkIn;
       return isLate(checkInTime);
     }).length;
