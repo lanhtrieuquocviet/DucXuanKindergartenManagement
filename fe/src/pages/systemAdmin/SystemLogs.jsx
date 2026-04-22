@@ -204,7 +204,7 @@ function SystemLogs() {
               Nhật ký hệ thống
             </Typography>
             <Typography variant="caption" sx={{ color: 'rgba(255,255,255,0.65)' }}>
-              Theo dõi thao tác người dùng trong hệ thống (giới hạn trong 3 ngày gần nhất).
+              Theo dõi toàn bộ lịch sử thao tác người dùng trong hệ thống.
             </Typography>
           </Box>
         </Stack>

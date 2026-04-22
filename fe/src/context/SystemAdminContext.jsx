@@ -379,15 +379,25 @@ export const SystemAdminProvider = ({
     }
   }, []);
 
-  // Get system logs
-  // Get system logs for BPM
-  const getSystemLogs = useCallback(async () => {
+  // Get system logs with pagination and filters
+  const getSystemLogs = useCallback(async (params = {}) => {
     try {
       setLoading(true);
       setError(null);
-      const response = await get(ENDPOINTS.SYSTEM_ADMIN.BPM_LOGS);
-      // API BPM logs trả về mảng trực tiếp
-      return response.data || [];
+      // Chuyển params thành query string
+      const query = new URLSearchParams();
+      Object.entries(params).forEach(([key, value]) => {
+        if (value !== undefined && value !== null && value !== '') {
+          query.append(key, value);
+        }
+      });
+
+      const queryString = query.toString();
+      const endpoint = `${ENDPOINTS.SYSTEM_ADMIN.SYSTEM_LOGS}${queryString ? `?${queryString}` : ''}`;
+      
+      const response = await get(endpoint);
+      // Backend trả về { status: 'success', data: [...], pagination: {...} }
+      return response;
     } catch (err) {
       const errorMessage = err.data?.message || err.message || 'Không lấy được nhật ký hệ thống';
       setError(errorMessage);
