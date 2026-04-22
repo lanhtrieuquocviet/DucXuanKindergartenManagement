@@ -9,6 +9,7 @@ import {
   Person as PersonIcon,
   Logout as LogoutIcon,
 } from '@mui/icons-material';
+import logoDucXuan from '../../assets/logo/ducxuan-logo.png';
 import NotificationBell from './NotificationBell';
 
 function getUserInitials(userName) {
@@ -62,9 +63,15 @@ export default function DashboardAppBar({
     >
       <Toolbar sx={{ gap: 1.5, minHeight: { xs: 56, sm: 64 }, px: { xs: 2, md: 3 } }}>
         {isMobile && (
-          <IconButton edge="start" onClick={onOpenMobile} sx={{ color: 'text.secondary', mr: 0.5 }}>
-            <MenuIcon />
-          </IconButton>
+          <>
+            <IconButton edge="start" onClick={onOpenMobile} sx={{ color: 'text.secondary', mr: 0.5 }}>
+              <MenuIcon />
+            </IconButton>
+            <Avatar
+              src={logoDucXuan}
+              sx={{ width: 32, height: 32, mr: 1 }}
+            />
+          </>
         )}
 
         {/* Title + icon */}

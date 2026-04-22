@@ -118,6 +118,7 @@ function ManagePermissions() {
     const routes = {
       overview: '/system-admin', accounts: '/system-admin/manage-accounts',
       roles: '/system-admin/manage-roles', permissions: '/system-admin/manage-permissions',
+      bpm: '/system-admin/bpm',
       'system-logs': '/system-admin/system-logs',
     };
     navigate(routes[key] || '/system-admin');
@@ -128,6 +129,7 @@ function ManagePermissions() {
     { key: 'accounts', label: 'Quản lý người dùng' },
     { key: 'roles', label: 'Quản lý vai trò' },
     { key: 'permissions', label: 'Quản lý phân quyền' },
+    { key: 'bpm', label: 'Quản lý quy trình (BPM)' },
     { key: 'system-logs', label: 'Nhật ký hệ thống' },
   ];
 

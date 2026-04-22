@@ -103,12 +103,30 @@ const BPMDashboardContent = () => {
   const userRoles   = user?.roles?.map(r => r.roleName || r) || [];
   const isSchoolAdmin = userRoles.includes('SchoolAdmin');
   const menuItems   = useMemo(() => isSchoolAdmin ? SCHOOL_ADMIN_MENU_ITEMS : [
-    { key:'bpm', label:'Quản lý quy trình (BPM)' },
-    { key:'system-logs', label:'Nhật ký hệ thống' },
+    { key: 'overview', label: 'Tổng quan hệ thống' },
+    { key: 'accounts', label: 'Quản lý người dùng' },
+    { key: 'roles', label: 'Quản lý vai trò' },
+    { key: 'permissions', label: 'Quản lý phân quyền' },
+    { key: 'bpm', label: 'Quản lý quy trình (BPM)' },
+    { key: 'system-logs', label: 'Nhật ký hệ thống' },
   ], [isSchoolAdmin]);
   const handleMenu  = key => isSchoolAdmin
     ? createSchoolAdminMenuSelect(navigate)(key)
-    : ({ 'system-logs': '/system-admin/system-logs', bpm: '/system-admin/bpm' })[key] && navigate(({ 'system-logs': '/system-admin/system-logs', bpm: '/system-admin/bpm' })[key]);
+    : ({
+      overview: '/system-admin',
+      accounts: '/system-admin/manage-accounts',
+      roles: '/system-admin/manage-roles',
+      permissions: '/system-admin/manage-permissions',
+      bpm: '/system-admin/bpm',
+      'system-logs': '/system-admin/system-logs',
+    })[key] && navigate(({
+      overview: '/system-admin',
+      accounts: '/system-admin/manage-accounts',
+      roles: '/system-admin/manage-roles',
+      permissions: '/system-admin/manage-permissions',
+      bpm: '/system-admin/bpm',
+      'system-logs': '/system-admin/system-logs',
+    })[key]);
 
   // Load data
   const loadData = useCallback(async (first = false) => {

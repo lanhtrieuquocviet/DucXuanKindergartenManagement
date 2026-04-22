@@ -108,6 +108,7 @@ export const KEY_ICONS = {
   kiemke: <GradingIcon fontSize="small" />,
   committee: <GroupIcon fontSize="small" />,
   minutes: <ArticleIcon fontSize="small" />,
+  bpm: <AccountTreeIcon fontSize="small" />,
 };
 
 /* ── Sidebar content (kết hợp các shared components) ── */

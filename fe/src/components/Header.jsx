@@ -3,6 +3,7 @@ import { useNavigate } from "react-router-dom";
 import { get, ENDPOINTS } from "../service/api";
 import LeftNav from "./LeftNav";
 import RightNav from "./RightNav";
+import logoDucXuan from "../assets/logo/ducxuan-logo.png";
 
 const CLOSE_DELAY = 500; // Tăng lên 500ms để dễ dùng hơn
 
@@ -138,7 +139,7 @@ function Header() {
                     {/* Logo */}
                     <div className="flex items-center gap-2.5 shrink-0">
                         <img
-                            src="https://i.pinimg.com/736x/be/c5/3c/bec53c7b30f46d9ad2cecdb48c5e1e1f.jpg"
+                            src={logoDucXuan}
                             alt="Logo trường"
                             className="w-12 h-12 rounded-full border-2 border-white object-cover shadow"
                         />
