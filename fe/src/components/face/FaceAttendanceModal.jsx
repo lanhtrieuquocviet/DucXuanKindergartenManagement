@@ -31,8 +31,8 @@ function cosineSimilarity(a, b) {
   return dot / (Math.sqrt(normA) * Math.sqrt(normB));
 }
 
-const MATCH_THRESHOLD = 0.92;
-const MIN_MARGIN = 0.04;
+const MATCH_THRESHOLD = 0.94;
+const MIN_MARGIN = 0.05;
 const COOLDOWN_MS = 3000;
 
 export default function FaceAttendanceModal({ open, onClose, classId, className, onStudentRecognized }) {
@@ -105,7 +105,7 @@ export default function FaceAttendanceModal({ open, onClose, classId, className,
       }
 
       if (bestSim < MATCH_THRESHOLD) return null;
-      if (secondBestSim > 0.83 && (bestSim - secondBestSim) < MIN_MARGIN) return null;
+      if (secondBestSim > 0.85 && (bestSim - secondBestSim) < MIN_MARGIN) return null;
 
       const now = new Date();
       const timeStr = `${now.getHours().toString().padStart(2, '0')}:${now.getMinutes().toString().padStart(2, '0')}`;

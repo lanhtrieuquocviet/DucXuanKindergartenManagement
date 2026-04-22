@@ -11,7 +11,7 @@ import {
   Box, Button, Chip, Divider, FormControl, Grid, IconButton,
   InputLabel, MenuItem, Paper, Select, Stack, Table, TableBody,
   TableCell, TableContainer, TableHead, TableRow, TextField,
-  Typography, Tooltip, Alert,
+  Typography, Tooltip, Alert, useTheme, useMediaQuery
 } from '@mui/material';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
@@ -68,7 +68,7 @@ const NODE_TYPES_MAP = Object.fromEntries([
   'input','output','ai_student','ai_parent','condition_time','condition_deliverer',
   'condition_absence','notify_checkin','notify_checkout','notify_absence',
   'save_record','teacher_verify','audit_full_class','audit_photo_proof',
-  'audit_medication','audit_parent_auth','audit_anomaly','audit_service_status','default',
+  'audit_medication','audit_belongings','audit_parent_auth','audit_anomaly','audit_service_status','default',
 ].map(t => [t, BPMNode]));
 
 const MODULES = [
@@ -98,6 +98,8 @@ const BPMDashboardContent = () => {
   const [wfName, setWfName]           = useState('Quy trình mới');
   const [wfModule, setWfModule]       = useState('attendance');
   const [wfType, setWfType]           = useState('checkin');
+  const theme = useTheme();
+  const isMobile = useMediaQuery(theme.breakpoints.down('md'));
 
   // Menu
   const userRoles   = user?.roles?.map(r => r.roleName || r) || [];
@@ -179,6 +181,15 @@ const BPMDashboardContent = () => {
     setNodes(nds => nds.concat({ id:`${type}_${Date.now()}`, type, position:pos, data:{ label, color } }));
   }, [project, setNodes, nodeDefs]);
   const onDragOver    = useCallback(e => { e.preventDefault(); e.dataTransfer.dropEffect = 'move'; }, []);
+
+  const handleNodeClick = (type, label) => {
+    const color = nodeDefs.find(n => n.type === type)?.color || '#fff';
+    const id = `${type}_${Date.now()}`;
+    // Lấy tọa độ trung tâm hoặc vị trí mặc định
+    const pos = { x: 150, y: 150 };
+    setNodes(nds => nds.concat({ id, type, position: pos, data: { label, color } }));
+    toast.info(`Đã thêm bước: ${label}`);
+  };
 
   const handleSave = async () => {
     try {
@@ -435,41 +446,66 @@ const BPMDashboardContent = () => {
           </Box>
 
           {/* Editor split pane */}
-          <Box sx={{ display:'flex', height:'calc(100% - 49px)' }}>
+          <Box sx={{ display:'flex', flexDirection: isMobile ? 'column' : 'row', height:'calc(100% - 49px)' }}>
             {/* Node Library Sidebar */}
-            <Box sx={{ width:200, borderRight:'1px solid #e2e8f0', overflowY:'auto', bgcolor:'#fafafa', p:1.5 }}>
+            <Box sx={{
+              width: isMobile ? '100%' : 200,
+              height: isMobile ? '160px' : '100%',
+              borderRight: isMobile ? 'none' : '1px solid #e2e8f0',
+              borderBottom: isMobile ? '1px solid #e2e8f0' : 'none',
+              overflowY: 'auto',
+              bgcolor: '#fafafa',
+              p: 1.5
+            }}>
               <Typography variant="caption" fontWeight={700} color="text.secondary" sx={{ display:'block', mb:1 }}>
-                THƯ VIỆN NODE
+                THƯ VIỆN NODE {isMobile && '(Chạm để thêm)'}
               </Typography>
-              <Stack spacing={0.5}>
+              <Stack direction={isMobile ? 'row' : 'column'} spacing={isMobile ? 1.5 : 0.5} sx={{ display: isMobile ? 'flex' : 'block' }}>
                 {Object.entries(groupedDefs).map(([cat, items]) => (
-                  <Box key={cat}>
-                    <Typography variant="caption" sx={{ color: CAT_COLOR[cat] || '#6b7280', fontWeight:700, fontSize:10, textTransform:'uppercase', letterSpacing:.5 }}>
+                  <Box key={cat} sx={{ minWidth: isMobile ? 140 : 'auto' }}>
+                    <Typography variant="caption" sx={{ color: CAT_COLOR[cat] || '#6b7280', fontWeight:700, fontSize:10, textTransform:'uppercase', letterSpacing:.5, display: 'block' }}>
                       {cat}
                     </Typography>
-                    {items.map(node => (
-                      <Paper key={node.type} draggable onDragStart={e => onDragStart(e, node.type, node.label)}
-                        elevation={0}
-                        sx={{ p:'6px 10px', mb:0.5, cursor:'grab', bgcolor: node.color || '#f8f9fa',
-                          border:'1px solid #e2e8f0', borderLeft:`3px solid ${CAT_COLOR[node.category] || '#ddd'}`,
-                          borderRadius:1.5, fontSize:'0.72rem', fontWeight:600, color:'#334155',
-                          '&:hover':{ boxShadow:2, borderLeftColor: CAT_COLOR[node.category] || '#3b82f6' } }}>
-                        {node.label}
-                      </Paper>
-                    ))}
+                    <Stack spacing={0.5} mt={0.5}>
+                      {items.map(node => (
+                        <Paper key={node.type} draggable onDragStart={e => onDragStart(e, node.type, node.label)}
+                          onClick={() => handleNodeClick(node.type, node.label)}
+                          elevation={0}
+                          sx={{ p:'6px 10px', mb:0.5, cursor:'pointer', bgcolor: node.color || '#f8f9fa',
+                            border:'1px solid #e2e8f0', borderLeft:`3px solid ${CAT_COLOR[node.category] || '#ddd'}`,
+                            borderRadius:1.5, fontSize:'0.72rem', fontWeight:600, color:'#334155',
+                            userSelect: 'none',
+                            transition: 'all 0.1s',
+                            '&:hover':{ boxShadow:2, bgcolor: '#fff', borderLeftColor: CAT_COLOR[node.category] || '#3b82f6' },
+                            '&:active': { transform: 'scale(0.96)' } }}>
+                          {node.label}
+                        </Paper>
+                      ))}
+                    </Stack>
                   </Box>
                 ))}
               </Stack>
             </Box>
 
             {/* React Flow Canvas */}
-            <Box ref={wrapperRef} sx={{ flex:1 }} onDrop={onDrop} onDragOver={onDragOver}>
-              <ReactFlow nodes={nodes} edges={edges} onNodesChange={onNodesChange}
-                onEdgesChange={onEdgesChange} onConnect={onConnect} nodeTypes={NODE_TYPES_MAP} fitView>
+            <Box ref={wrapperRef} sx={{ flex:1, position: 'relative' }} onDrop={onDrop} onDragOver={onDragOver}>
+              <ReactFlow
+                nodes={nodes}
+                edges={edges}
+                onNodesChange={onNodesChange}
+                onEdgesChange={onEdgesChange}
+                onConnect={onConnect}
+                nodeTypes={NODE_TYPES_MAP}
+                fitView
+                panOnScroll={!isMobile}
+                zoomOnPinch={true}
+                panOnDrag={true}
+                touchZoom={true}
+              >
                 <Background variant="dots" gap={16} size={1} color="#e2e8f0" />
-                <Controls />
+                <Controls showInteractive={false} />
                 <MiniMap zoomable pannable nodeColor={n => nodeDefs.find(d=>d.type===n.type)?.color || '#e2e8f0'}
-                  style={{ borderRadius:8, border:'1px solid #e2e8f0' }} />
+                  style={{ borderRadius:8, border:'1px solid #e2e8f0', display: isMobile ? 'none' : 'block' }} />
               </ReactFlow>
             </Box>
           </Box>

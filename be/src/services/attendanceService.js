@@ -158,6 +158,9 @@ const upsertAttendance = async (req, res) => {
           // Dữ liệu cho Audit
           aiConfidence: checkedInByAI ? 0.98 : 0,
           actorId: req.user?._id || 'system_ai',
+          actorUsername: req.user?.username || 'system',
+          actorRole: req.user?.roleName || '', // Giả sử roleName được gắn vào req.user
+          isAuditAccount: !!(req.user?.username?.includes('audit')),
           processedAt: new Date()
         };
 
@@ -391,6 +394,9 @@ const checkoutAttendance = async (req, res) => {
           parentSigned: !!teacherConfirmedCheckout || (checkoutConfirmMethod === 'parent_confirm'),
           aiConfidence: checkedOutByAI ? 0.96 : 0,
           actorId: req.user?._id || 'system_ai',
+          actorUsername: req.user?.username || 'system',
+          actorRole: req.user?.roleName || '',
+          isAuditAccount: !!(req.user?.username?.includes('audit')),
           processedAt: new Date()
         };
 

@@ -37,13 +37,12 @@ function cosineSimilarity(vecA, vecB) {
 }
 
 // Ngưỡng nhận diện: similarity >= THRESHOLD thì coi là MATCH
-// Tăng lên 0.92 vì model face-api hay nhầm người châu Á (false positive cao)
-const MATCH_THRESHOLD = 0.92;
+// Tăng lên 0.94 để giảm thiểu nhận diện sai (False Positive), đặc biệt với trẻ nhỏ
+const MATCH_THRESHOLD = 0.94;
 
 // Khoảng cách tối thiểu giữa kết quả tốt nhất và thứ 2
-// Nếu 2 khuôn mặt giống nhau (margin < MIN_MARGIN), từ chối để tránh nhầm
-// Tăng lên 0.04 để đồng bộ với frontend offline và tránh nhầm anh chị em có khuôn mặt tương tự
-const MIN_MARGIN = 0.04;
+// Tăng lên 0.05 để đảm bảo sự khác biệt rõ rệt giữa các khuôn mặt gần giống nhau
+const MIN_MARGIN = 0.05;
 
 /**
  * Lấy tất cả embeddings của một học sinh (hỗ trợ nhiều góc mặt)
@@ -251,14 +250,16 @@ const matchFaceEmbedding = async (req, res) => {
 
     // Kiểm tra margin: kết quả tốt nhất phải rõ ràng hơn kết quả thứ 2
     // Tránh nhầm khi 2 học sinh có khuôn mặt giống nhau (đặc biệt anh chị em ruột)
-    // Ngưỡng 0.83 thay vì 0.78 để tránh báo "ambiguous" sai khi lớp có nhiều học sinh
     const margin = bestSimilarity - secondBestSimilarity;
-    if (secondBestSimilarity > 0.83 && margin < MIN_MARGIN) {
+    
+    // Nếu kết quả thứ 2 cũng khá cao (>0.85) nhưng khoảng cách (margin) quá hẹp -> Ambiguous
+    if (secondBestSimilarity > 0.85 && margin < MIN_MARGIN) {
       return res.status(200).json({
         status: 'ambiguous',
         message: 'Khuôn mặt quá giống nhau giữa các học sinh, không thể xác định chính xác',
         matched: false,
         bestSimilarity: bestSimilarity.toFixed(4),
+        secondBestSimilarity: secondBestSimilarity.toFixed(4),
         margin: margin.toFixed(4),
       });
     }

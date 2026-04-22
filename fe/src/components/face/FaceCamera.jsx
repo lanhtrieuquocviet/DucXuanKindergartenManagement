@@ -77,11 +77,11 @@ const FaceCamera = forwardRef(function FaceCamera({ onDetected, onError, isActiv
           drawDetection(detection, video, canvas);
 
           // Lọc chất lượng khuôn mặt trước khi gửi embedding:
-          // 1. score < 0.75 → detection không đủ tin cậy (khuôn mặt mờ/bị che)
-          // 2. face box < 80px → khuôn mặt quá nhỏ/xa, embedding bị nhiễu
+          // 1. score < 0.85 → detection không đủ tin cậy (khuôn mặt mờ/bị che/nghiêng quá nhiều)
+          // 2. face box < 110px → khuôn mặt quá nhỏ/xa, embedding bị nhiễu do độ phân giải thấp
           const score = detection.detection.score;
           const boxWidth = detection.detection.box.width;
-          if (score < 0.75 || boxWidth < 80) {
+          if (score < 0.85 || boxWidth < 110) {
             setFaceStatus('no_face');
             return;
           }

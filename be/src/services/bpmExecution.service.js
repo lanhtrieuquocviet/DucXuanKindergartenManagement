@@ -184,6 +184,19 @@ class BPMExecutionService {
         const okMed = !context.hasMedicationRequest || context.medicationConfirmed === true;
         return { success: okMed, message: okMed ? 'Không có vấn đề về thuốc' : 'Chưa xác nhận uống thuốc' };
 
+      case 'audit_belongings':
+        const hasData = !!(context.hasBelongings || (Array.isArray(context.checkinBelongings) && context.checkinBelongings.length > 0));
+        // Cho phép pass nếu có dữ liệu hoặc được xác nhận bởi tài khoản có quyền Audit (tk audit)
+        const isAuditor = context.isAuditAccount === true || context.actorRole === 'Auditor' || context.actorUsername?.includes('audit');
+        
+        if (hasData) {
+          return { success: true, message: 'Đã kiểm tra: Có thông tin đồ mang theo' };
+        } else if (isAuditor) {
+          return { success: true, message: 'Bỏ qua kiểm tra: Được xác nhận bởi tài khoản Audit' };
+        } else {
+          return { success: false, message: 'Cảnh báo: Học sinh chưa được kê khai đồ mang theo' };
+        }
+
       case 'audit_service_status':
         return { success: true, message: 'Các dịch vụ ngoại vi hoạt động bình thường' };
 
