@@ -16,6 +16,21 @@ import {
 const PRIMARY = '#059669';
 const PRIMARY_DARK = '#047857';
 const BG = '#f0fdf4';
+const isLate = (t) => {
+  if (!t) return false;
+  try {
+    let h; let m;
+    if (typeof t === 'string' && /^\d{2}:\d{2}$/.test(t)) {
+      [h, m] = t.split(':').map(Number);
+    } else {
+      const d = new Date(t);
+      if (isNaN(d)) return false;
+      h = d.getHours();
+      m = d.getMinutes();
+    }
+    return h > 8 || (h === 8 && m > 0);
+  } catch { return false; }
+};
 
 // ── Helpers ────────────────────────────────────────────────────────────────────
 
@@ -155,6 +170,8 @@ export default function TodayAttendance() {
   const isAbsent   = attendance?.status === 'absent' || attendance?.status === 'leave';
   const hasCheckIn  = Boolean(checkInTime || attendance?.status === 'present');
   const hasCheckOut = Boolean(checkOutTime);
+  const isLateArrival = attendance?.arrivalStatus === 'late'
+    || (attendance?.arrivalStatus !== 'on_time' && isLate(checkInTime || attendance?.time?.checkIn));
 
   return (
     <Box sx={{ minHeight: '100vh', bgcolor: BG }}>
@@ -253,8 +270,8 @@ export default function TodayAttendance() {
                 {/* Status chips */}
                 <Stack direction="row" spacing={1} alignItems="center" flexWrap="wrap" gap={0.75} mb={2}>
                   <Chip
-                    label={isAbsent ? 'Vắng mặt' : hasCheckIn ? 'Có mặt' : 'Chưa điểm danh'}
-                    color={isAbsent ? 'error' : hasCheckIn ? 'success' : 'default'}
+                    label={isAbsent ? 'Vắng mặt' : hasCheckIn ? (isLateArrival ? 'Đi học muộn' : 'Có mặt') : 'Chưa điểm danh'}
+                    color={isAbsent ? 'error' : hasCheckIn ? (isLateArrival ? 'warning' : 'success') : 'default'}
                     size="small" sx={{ fontWeight: 700 }}
                   />
                   {checkedInByAI && (

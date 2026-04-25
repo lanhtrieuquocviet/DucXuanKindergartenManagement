@@ -40,17 +40,52 @@ function Homepage() {
 
   useEffect(() => {
     const loadAllData = async () => {
-      setLoading(true);
+      // 1. Try to load from cache first for instant UI
+      const cachedData = sessionStorage.getItem('homepage_data');
+      if (cachedData) {
+        try {
+          const parsed = JSON.parse(cachedData);
+          processAndSetData(parsed);
+          setLoading(false); // Stop showing skeletons if we have cached data
+        } catch (e) {
+          console.error('Error parsing cached homepage data', e);
+        }
+      }
+
+      // 2. Fetch fresh data
       setError(null);
-      
       try {
         const resp = await get(ENDPOINTS.HOME_DATA, { includeAuth: false });
-        const { banners: bannerList, featuredBlogs, gallery, organizationStructure, timetable: timetableData } = resp.data;
+        processAndSetData(resp.data);
+        
+        // Update cache
+        sessionStorage.setItem('homepage_data', JSON.stringify(resp.data));
+      } catch (err) {
+        if (!sessionStorage.getItem('homepage_data')) {
+          setError(err.message || 'Không tải được dữ liệu trang chủ');
+        }
+      } finally {
+        setLoading(false);
+      }
+    };
 
-        // Process Banners
-        setBanners(bannerList.map(item => item?.imageUrl).filter(Boolean));
+    const processAndSetData = (data) => {
+      const { banners: bannerList, featuredBlogs, gallery, organizationStructure, timetable: timetableData } = data;
 
-        // Process Gallery
+      // Process Banners
+      if (bannerList) {
+        const processedBanners = bannerList.map(item => item?.imageUrl).filter(Boolean);
+        setBanners(processedBanners);
+        
+        // Preload first banner image
+        if (processedBanners.length > 0) {
+          const img = new Image();
+          img.src = processedBanners[0];
+        }
+      }
+
+      // Process Gallery
+      if (gallery) {
         setGalleryPhotos(gallery
           .map(item => ({
             title: item.title || 'Ảnh thư viện',
@@ -58,8 +93,10 @@ function Homepage() {
             id: item._id || item.imageUrl,
           }))
         );
+      }
 
-        // Process Timetable
+      // Process Timetable
+      if (timetableData?.data) {
         setTimetablePrograms(timetableData.data
           .map((item, index) => ({
             id: item._id || `${item.startLabel || 'slot'}-${index}`,
@@ -69,8 +106,10 @@ function Homepage() {
           }))
         );
         setEffectiveSeason(timetableData.effectiveSeason);
+      }
 
-        // Process Teachers
+      // Process Teachers
+      if (organizationStructure) {
         const fromProfessionalGroup = Array.isArray(organizationStructure?.professionalGroup?.members) ? organizationStructure.professionalGroup.members : [];
         const fromDirectors = Array.isArray(organizationStructure?.boardOfDirectors?.members) ? organizationStructure.boardOfDirectors.members : [];
         setTeacherTeam([...fromDirectors, ...fromProfessionalGroup]
@@ -87,8 +126,10 @@ function Homepage() {
           .filter(item => item.name !== 'Chưa cập nhật')
           .slice(0, 4)
         );
+      }
 
-        // Process Blogs
+      // Process Blogs
+      if (featuredBlogs) {
         setFeatured(featuredBlogs.map(b => ({
           id: b._id,
           title: b.title || b.code || 'Bài viết mới',
@@ -97,11 +138,6 @@ function Homepage() {
           category: b.categoryName,
           createdAt: b.createdAt || null,
         })));
-
-      } catch (err) {
-        setError(err.message || 'Không tải được dữ liệu trang chủ');
-      } finally {
-        setLoading(false);
       }
     };
 

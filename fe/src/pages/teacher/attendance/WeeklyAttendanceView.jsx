@@ -16,6 +16,23 @@ import {
 import { get, ENDPOINTS } from '../../../service/api';
 
 const DAY_LABELS = ['T2', 'T3', 'T4', 'T5', 'T6'];
+const isLateByTime = (value) => {
+  if (!value) return false;
+  try {
+    let h; let m;
+    if (typeof value === 'string' && /^\d{2}:\d{2}$/.test(value)) {
+      [h, m] = value.split(':').map(Number);
+    } else {
+      const d = new Date(value);
+      if (isNaN(d.getTime())) return false;
+      h = d.getHours();
+      m = d.getMinutes();
+    }
+    return h > 8 || (h === 8 && m > 0);
+  } catch {
+    return false;
+  }
+};
 
 function getWeekDates(weekOffset = 0) {
   const now = new Date();
@@ -38,7 +55,9 @@ function getWeekDates(weekOffset = 0) {
 const STATUS_CONFIG = {
   present:   { icon: <PresentIcon  sx={{ fontSize: 20, color: '#10b981' }} />, label: 'Có mặt',        bg: '#f0fdf4' },
   checked_in: { icon: <PresentIcon sx={{ fontSize: 20, color: '#10b981' }} />, label: 'Đã đến',         bg: '#f0fdf4' },
+  late_checked_in: { icon: <LeaveIcon sx={{ fontSize: 20, color: '#f59e0b' }} />, label: 'Đi học muộn', bg: '#fffbeb' },
   checked_out:{ icon: <CheckOutIcon sx={{ fontSize: 20, color: '#0ea5e9' }} />, label: 'Đã về',         bg: '#f0f9ff' },
+  late_checked_out:{ icon: <LeaveIcon sx={{ fontSize: 20, color: '#f59e0b' }} />, label: 'Đi học muộn', bg: '#fffbeb' },
   absent:    { icon: <AbsentIcon   sx={{ fontSize: 20, color: '#ef4444' }} />, label: 'Vắng mặt',       bg: '#fef2f2' },
   leave:     { icon: <LeaveIcon    sx={{ fontSize: 20, color: '#f59e0b' }} />, label: 'Nghỉ phép',      bg: '#fffbeb' },
   empty:     { icon: <EmptyIcon    sx={{ fontSize: 20, color: '#d1d5db' }} />, label: 'Chưa điểm danh', bg: 'transparent' },
@@ -107,7 +126,13 @@ export default function WeeklyAttendanceView({ classId, students = [] }) {
         if (r.status === 'absent' || r.status === 'leave') {
           displayStatus = r.status;
         } else if (r.status === 'present') {
-          displayStatus = r.timeString?.checkOut ? 'checked_out' : 'checked_in';
+          const isLate = r.arrivalStatus === 'late'
+            || (r.arrivalStatus !== 'on_time' && isLateByTime(r.timeString?.checkIn || r.time?.checkIn));
+          if (r.timeString?.checkOut) {
+            displayStatus = isLate ? 'late_checked_out' : 'checked_out';
+          } else {
+            displayStatus = isLate ? 'late_checked_in' : 'checked_in';
+          }
         } else {
           displayStatus = 'empty';
         }
@@ -139,7 +164,7 @@ export default function WeeklyAttendanceView({ classId, students = [] }) {
     students.forEach((s) => {
       const r = attendanceMap[s._id]?.[date];
       if (!r) { empty++; return; }
-      if (r.status === 'checked_in' || r.status === 'checked_out') present++;
+      if (r.status === 'checked_in' || r.status === 'checked_out' || r.status === 'late_checked_in' || r.status === 'late_checked_out') present++;
       else if (r.status === 'absent') absent++;
       else if (r.status === 'leave') leave++;
       else empty++;
@@ -321,6 +346,7 @@ export default function WeeklyAttendanceView({ classId, students = [] }) {
       <Box sx={{ px: 2.5, py: 1.5, borderTop: '1px solid', borderColor: 'divider', display: 'flex', gap: 2, flexWrap: 'wrap' }}>
         {[
           ['checked_in', 'Đã đến'],
+          ['late_checked_in', 'Đi học muộn'],
           ['checked_out', 'Đã về'],
           ['absent', 'Vắng'],
           ['leave', 'Nghỉ phép'],

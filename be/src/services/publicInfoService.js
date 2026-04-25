@@ -202,9 +202,25 @@ const getPublishedPublicInfoById = async (req, res) => {
   }
 };
 
+// Simple in-memory cache for organization structure
+let orgCache = {
+  data: null,
+  expiry: 0
+};
+const ORG_CACHE_DURATION = 10 * 60 * 1000; // 10 minutes
+
 /** GET /api/public-info/organization-structure (public) */
 const getOrganizationStructure = async (req, res) => {
   try {
+    const now = Date.now();
+    if (orgCache.data && now < orgCache.expiry) {
+      return res.status(200).json({
+        status: 'success',
+        data: orgCache.data,
+        fromCache: true
+      });
+    }
+
     const staffs = await Staff.find({ status: 'active' })
       .populate('userId', 'fullName email phone avatar status')
       .sort({ employeeId: 1 })
@@ -263,6 +279,12 @@ const getOrganizationStructure = async (req, res) => {
         return true;
       });
     });
+
+    // Update cache
+    orgCache = {
+      data: groups,
+      expiry: now + ORG_CACHE_DURATION
+    };
 
     return res.status(200).json({
       status: 'success',

@@ -347,7 +347,7 @@ describe('getStudentAttendanceHistory', () => {
     });
     const records = [
       makeAttendance({ status: 'present', timeString: { checkIn: '07:00', checkOut: '17:00' } }),  // đúng giờ
-      makeAttendance({ status: 'present', timeString: { checkIn: '07:45', checkOut: '17:00' } }),  // đi trễ
+      makeAttendance({ status: 'present', timeString: { checkIn: '08:15', checkOut: '17:00' } }),  // đi trễ
       makeAttendance({ status: 'absent', timeString: { checkIn: '', checkOut: '' } }),
     ];
     Attendances.find = jest.fn().mockReturnValue({

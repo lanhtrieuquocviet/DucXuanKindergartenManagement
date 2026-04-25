@@ -37,20 +37,18 @@ function Login() {
   const handleSubmit = async (e) => {
     e.preventDefault();
     const loginId = (form.loginId || '').trim();
-    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
     const phoneRegex = /^[0-9]{9,11}$/;
     const usernameRegex = /^[A-Za-z0-9]+$/;
 
     let hasError = false;
     if (!loginId) {
-      setLoginIdError('Vui lòng nhập email hoặc số điện thoại.');
+      setLoginIdError('Vui lòng nhập tài khoản hoặc số điện thoại.');
       hasError = true;
     } else if (
-      !emailRegex.test(loginId.toLowerCase()) &&
       !phoneRegex.test(loginId.replace(/\D/g, '')) &&
       !usernameRegex.test(loginId)
     ) {
-      setLoginIdError('Vui lòng nhập đúng định dạng email, số điện thoại hoặc tài khoản.');
+      setLoginIdError('Vui lòng nhập đúng định dạng tài khoản hoặc số điện thoại.');
       hasError = true;
     }
     if (!form.password) {
@@ -138,7 +136,7 @@ function Login() {
                   htmlFor="loginId"
                   className="block text-sm font-medium text-sky-900"
                 >
-                  Email hoặc số điện thoại
+                  Tài khoản hoặc số điện thoại
                 </label>
                 <input
                   id="loginId"
@@ -151,7 +149,7 @@ function Login() {
                       ? 'border-red-400 bg-red-50/40 focus:border-red-400 focus:ring-red-200'
                       : 'border-sky-100 bg-sky-50/60 focus:border-sky-400 focus:ring-sky-200'
                   }`}
-                  placeholder="vd: admin hoặc phuhuynh@gmail.com hoặc 0987654321"
+                  placeholder="vd: admin hoặc 0987654321"
                 />
                 {loginIdError && (
                   <p className="mt-1 text-xs text-red-600">{loginIdError}</p>

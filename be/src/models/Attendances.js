@@ -29,6 +29,12 @@ const attendanceSchema = new mongoose.Schema(
       default: 'present',
       required: true,
     },
+    arrivalStatus: {
+      type: String,
+      enum: ['on_time', 'late', ''],
+      default: '',
+      index: true,
+    },
     note: {
       type: String,
       trim: true,

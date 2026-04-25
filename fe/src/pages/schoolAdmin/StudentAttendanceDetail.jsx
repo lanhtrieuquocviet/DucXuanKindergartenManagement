@@ -47,6 +47,24 @@ const formatTime = (timeStr) => {
   }
 };
 
+const isLate = (value) => {
+  if (!value) return false;
+  try {
+    let h; let m;
+    if (typeof value === 'string' && /^\d{2}:\d{2}$/.test(value)) {
+      [h, m] = value.split(':').map(Number);
+    } else {
+      const d = new Date(value);
+      if (isNaN(d.getTime())) return false;
+      h = d.getHours();
+      m = d.getMinutes();
+    }
+    return h > 8 || (h === 8 && m > 0);
+  } catch {
+    return false;
+  }
+};
+
 function StudentAttendanceDetail() {
   const navigate = useNavigate();
   const { studentId } = useParams();
@@ -121,6 +139,7 @@ function StudentAttendanceDetail() {
   const receiverImage = attendance?.receiverOtherImageName || null;
 
   const attendanceDate = (date ? formatDate(date) : null) || (attendance?.date ? formatDate(attendance.date) : formatDate(new Date()));
+  const lateArrival = attendance?.arrivalStatus === 'late' || isLate(checkInTime || attendance?.time?.checkIn);
 
   // Reusable image placeholder box
   const ImageBox = ({ imageName, alt, label }) => (
@@ -269,11 +288,15 @@ function StudentAttendanceDetail() {
 
               <Box mb={2}>
                 <Chip
-                  label={`Trạng thái: ${attendance.status === 'present' ? 'Có mặt' : attendance.status === 'absent' ? 'Nghỉ học' : '—'}`}
+                  label={`Trạng thái: ${attendance.status === 'present' ? (lateArrival ? 'Đi học muộn' : 'Có mặt') : attendance.status === 'absent' ? 'Nghỉ học' : '—'}`}
                   size="small"
                   sx={{
-                    bgcolor: '#dcfce7',
-                    color: '#15803d',
+                    bgcolor: attendance.status === 'present'
+                      ? (lateArrival ? '#fffbeb' : '#dcfce7')
+                      : '#fee2e2',
+                    color: attendance.status === 'present'
+                      ? (lateArrival ? '#b45309' : '#15803d')
+                      : '#b91c1c',
                     fontWeight: 500,
                     fontSize: '13px',
                   }}

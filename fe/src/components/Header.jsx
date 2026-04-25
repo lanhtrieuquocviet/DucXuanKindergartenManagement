@@ -94,6 +94,16 @@ function Header() {
 
     useEffect(() => {
         const loadOrganization = async () => {
+            // Try to load from cache first
+            const cachedOrg = sessionStorage.getItem('org_structure');
+            if (cachedOrg) {
+                try {
+                    setOrganizationGroups(JSON.parse(cachedOrg));
+                } catch (e) {
+                    console.error('Error parsing cached org data', e);
+                }
+            }
+
             try {
                 const resp = await get(ENDPOINTS.PUBLIC_INFO.ORGANIZATION_STRUCTURE, { includeAuth: false });
                 const data = resp?.data || {};
@@ -109,9 +119,13 @@ function Header() {
                         : [],
                 }));
                 setOrganizationGroups(groups);
+                // Update cache
+                sessionStorage.setItem('org_structure', JSON.stringify(groups));
             } catch (err) {
                 console.error('Failed to load organization structure', err);
-                setOrganizationGroups([]);
+                if (!sessionStorage.getItem('org_structure')) {
+                    setOrganizationGroups([]);
+                }
             }
         };
         loadOrganization();

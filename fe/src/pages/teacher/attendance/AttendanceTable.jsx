@@ -26,7 +26,9 @@ import { defaultRecord } from './attendanceUtils';
 const STATUS_CHIP = {
   empty:            { label: 'Chưa điểm danh', color: 'default',  dotColor: '#9ca3af' },
   checked_in:       { label: 'Đã đến',          color: 'success',  dotColor: '#10b981' },
+  late_checked_in:  { label: 'Đi học muộn',     color: 'warning',  dotColor: '#f59e0b' },
   checked_out:      { label: 'Đã về',            color: 'info',     dotColor: '#0ea5e9' },
+  late_checked_out: { label: 'Đi học muộn',     color: 'warning',  dotColor: '#f59e0b' },
   absent:           { label: 'Vắng mặt',         color: 'error',    dotColor: '#ef4444' },
 };
 
@@ -34,15 +36,15 @@ function getChipProps(status) {
   return STATUS_CHIP[status] || { label: status || 'Không rõ', color: 'default', dotColor: '#9ca3af' };
 }
 
-const STATUS_SORT_ORDER = { empty: 0, checked_in: 1, absent: 2, checked_out: 3 };
+const STATUS_SORT_ORDER = { empty: 0, checked_in: 1, late_checked_in: 1, absent: 2, checked_out: 3, late_checked_out: 3 };
 
 const SummaryBar = memo(function SummaryBar({ students, attendanceByStudent }) {
   const counts = useMemo(() => {
     const c = { present: 0, out: 0, absent: 0, empty: 0 };
     (students || []).forEach((s) => {
       const st = attendanceByStudent?.[s._id]?.status || 'empty';
-      if (st === 'checked_in') c.present++;
-      else if (st === 'checked_out') c.out++;
+      if (st === 'checked_in' || st === 'late_checked_in') c.present++;
+      else if (st === 'checked_out' || st === 'late_checked_out') c.out++;
       else if (st === 'absent') c.absent++;
       else c.empty++;
     });
@@ -98,6 +100,7 @@ const FILTER_OPTIONS = [
   { key: 'all',         label: 'Tất cả',             color: 'default' },
   { key: 'empty',       label: 'Chưa điểm danh',     color: 'default' },
   { key: 'present',     label: 'Có mặt',              color: 'success' },
+  { key: 'late',        label: 'Đi học muộn',         color: 'warning' },
   { key: 'not_left',    label: 'Chưa điểm danh về',  color: 'warning' },
   { key: 'checked_out', label: 'Đã điểm danh về',    color: 'info'    },
   { key: 'absent',      label: 'Vắng mặt',            color: 'error'   },
@@ -314,10 +317,10 @@ function StudentAvatar({ student, chipProps, size = 48, onLightbox }) {
 // ── Mobile card cho từng học sinh ──
 function StudentCard({ s, idx, rec, chipProps, isPastDate, onCheckin, onCheckout, onViewDetail, onAbsent, onLightbox }) {
   const canCheckIn  = rec.status === 'empty' || rec.status === 'absent';
-  const canCheckOut = rec.status === 'checked_in';
+  const canCheckOut = rec.status === 'checked_in' || rec.status === 'late_checked_in';
   const canAbsent   = rec.status === 'empty' || rec.status === 'absent';
   const isAbsent    = rec.status === 'absent';
-  const isDone      = rec.status === 'checked_out';
+  const isDone      = rec.status === 'checked_out' || rec.status === 'late_checked_out';
 
   return (
     <Box
@@ -442,9 +445,10 @@ function AttendanceTable({
         if (filterStatus === 'all') return true;
         const st = attendanceByStudent?.[s._id]?.status || 'empty';
         if (filterStatus === 'empty')       return st === 'empty';
-        if (filterStatus === 'present')     return st === 'checked_in' || st === 'checked_out';
-        if (filterStatus === 'not_left')    return st === 'checked_in';
-        if (filterStatus === 'checked_out') return st === 'checked_out';
+        if (filterStatus === 'present')     return st === 'checked_in' || st === 'late_checked_in' || st === 'checked_out' || st === 'late_checked_out';
+        if (filterStatus === 'late')        return st === 'late_checked_in' || st === 'late_checked_out';
+        if (filterStatus === 'not_left')    return st === 'checked_in' || st === 'late_checked_in';
+        if (filterStatus === 'checked_out') return st === 'checked_out' || st === 'late_checked_out';
         if (filterStatus === 'absent')      return st === 'absent';
         return true;
       })
@@ -638,10 +642,10 @@ function AttendanceTable({
                 const rec = attendanceByStudent?.[s._id] || defaultRecord();
                 const chipProps = getChipProps(rec.status);
                 const canCheckIn  = rec.status === 'empty' || rec.status === 'absent';
-                const canCheckOut = rec.status === 'checked_in';
+                const canCheckOut = rec.status === 'checked_in' || rec.status === 'late_checked_in';
                 const canAbsent   = rec.status === 'empty' || rec.status === 'absent';
                 const isAbsent    = rec.status === 'absent';
-                const isDone      = rec.status === 'checked_out';
+                const isDone      = rec.status === 'checked_out' || rec.status === 'late_checked_out';
 
                 return (
                   <TableRow
