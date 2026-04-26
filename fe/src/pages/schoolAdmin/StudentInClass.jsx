@@ -19,6 +19,11 @@ import {
   Avatar,
   Divider,
   Grid,
+  TextField,
+  Dialog,
+  DialogTitle,
+  DialogContent,
+  DialogActions,
 } from '@mui/material';
 import {
   WbSunny as WbSunnyIcon,
