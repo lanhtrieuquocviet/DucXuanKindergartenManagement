@@ -1,5 +1,6 @@
 import {
   Alert,
+  Avatar,
   Box,
   Button,
   CircularProgress,
@@ -17,6 +18,7 @@ import {
   Typography,
 } from '@mui/material';
 import { useState } from 'react';
+import { Person as PersonIcon } from '@mui/icons-material';
 
 function AccountDialog({
   open,
@@ -68,6 +70,23 @@ function AccountDialog({
 
       <Box component="form" onSubmit={onSave}>
         <DialogContent sx={{ px: 4, pb: 4 }}>
+          {/* Avatar Preview */}
+          <Box sx={{ display: 'flex', justifyContent: 'center', mb: 3 }}>
+            <Avatar
+              src={userForm.avatarUrl}
+              sx={{
+                width: 80,
+                height: 80,
+                bgcolor: 'rgba(99,102,241,0.05)',
+                color: 'primary.main',
+                boxShadow: '0 8px 16px rgba(37, 99, 235, 0.15)',
+                border: '3px solid rgba(99,102,241,0.2)',
+              }}
+            >
+              <PersonIcon sx={{ fontSize: 48 }} />
+            </Avatar>
+          </Box>
+
           {saveErrorMessage && (
             <Alert severity="error" sx={{ mb: 3, borderRadius: 2 }}>
               {saveErrorMessage}

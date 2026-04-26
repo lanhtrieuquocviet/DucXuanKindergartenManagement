@@ -1,4 +1,4 @@
-import { Alert } from '@mui/material';
+import { Alert, Box } from '@mui/material';
 import { useEffect, useMemo, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import ConfirmDialog from '../../components/ConfirmDialog';

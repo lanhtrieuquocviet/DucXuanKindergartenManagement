@@ -18,7 +18,21 @@ const listAcademicYears = async (req, res) => {
   try {
     await autoFinishExpiredAcademicYears();
     const years = await AcademicYear.find().sort({ startDate: -1 }).lean();
-    return res.status(200).json({ status: 'success', data: years || [] });
+    
+    const data = await Promise.all(years.map(async (year) => {
+      const classCount = await Classes.countDocuments({ academicYearId: year._id });
+      const studentCount = await Student.countDocuments({ 
+        classId: { $in: await Classes.find({ academicYearId: year._id }).distinct('_id') },
+        status: 'active'
+      });
+      return {
+        ...year,
+        classCount,
+        totalStudents: studentCount
+      };
+    }));
+
+    return res.status(200).json({ status: 'success', data: data || [] });
   } catch (error) {
     return res.status(500).json({ status: 'error', message: 'Lỗi khi lấy danh sách năm học' });
   }
@@ -65,9 +79,21 @@ const getAcademicYearHistory = async (req, res) => {
     if (yearId) filter._id = yearId;
 
     const years = await AcademicYear.find(filter).sort({ startDate: -1 }).lean();
-    // Logic tính toán classCount, studentCount... (đã được tối ưu từ file gốc)
-    // ... (Giữ nguyên logic aggregate để đảm bảo hiệu năng)
-    return res.status(200).json({ status: 'success', data: years });
+    
+    const data = await Promise.all(years.map(async (year) => {
+      const classCount = await Classes.countDocuments({ academicYearId: year._id });
+      const studentCount = await Student.countDocuments({ 
+        classId: { $in: await Classes.find({ academicYearId: year._id }).distinct('_id') },
+        status: 'active'
+      });
+      return {
+        ...year,
+        classCount,
+        totalStudents: studentCount
+      };
+    }));
+
+    return res.status(200).json({ status: 'success', data });
   } catch (error) {
     return res.status(500).json({ status: 'error', message: 'Lỗi khi lấy lịch sử năm học' });
   }

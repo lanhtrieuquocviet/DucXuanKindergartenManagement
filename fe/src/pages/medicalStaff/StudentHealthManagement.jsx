@@ -209,6 +209,12 @@ export default function StudentHealthManagement() {
   const [rows, setRows]         = useState([]);
   const [classes, setClasses]   = useState([]);
   const [academicYear, setAcademicYear] = useState('');
+  
+  const isReadOnly = useMemo(() => {
+    // SchoolAdmin only has view access to medical records
+    return hasRole('SchoolAdmin') && !hasRole('MedicalStaff') && !hasRole('SystemAdmin');
+  }, [hasRole]);
+
   const [loading, setLoading]   = useState(true);
   const [error, setError]       = useState(null);
   const [search, setSearch]     = useState('');
@@ -430,7 +436,9 @@ export default function StudentHealthManagement() {
             <Box sx={{ flex: 1 }} />
             <Stack direction="row" spacing={1}>
               <Button size="small" variant="outlined" color="inherit" onClick={handleDownloadTemplate}>Tải mẫu</Button>
-              <Button size="small" variant="outlined" startIcon={<ImportIcon />} onClick={() => { setImportOpen(true); setImportResult(null); setImportRows([]); setImportFile(''); }}>Import Excel</Button>
+              {!isReadOnly && (
+                <Button size="small" variant="outlined" startIcon={<ImportIcon />} onClick={() => { setImportOpen(true); setImportResult(null); setImportRows([]); setImportFile(''); }}>Import Excel</Button>
+              )}
               <Button size="small" variant="contained" startIcon={<ExportIcon />} onClick={handleExport} sx={{ bgcolor: '#0891b2', '&:hover': { bgcolor: '#0e7490' } }}>Xuất báo cáo</Button>
             </Stack>
           </Stack>
@@ -523,29 +531,33 @@ export default function StudentHealthManagement() {
                             {r.checkDate ? new Date(r.checkDate).toLocaleDateString('vi-VN') : '—'}
                           </TableCell>
                           <TableCell align="right" sx={{ whiteSpace: 'nowrap' }} onClick={e => e.stopPropagation()}>
-                            <Tooltip title={r.healthId ? 'Sửa hồ sơ đang hiển thị' : 'Tạo hồ sơ sức khỏe'}>
-                              <IconButton
-                                size="small"
-                                onClick={e => {
-                                  e.stopPropagation();
-                                  setHealthDialog({
-                                    open: true,
-                                    student: r,
-                                    prefill: r.healthId ? r : null,
-                                    editHealthId: r.healthId || null,
-                                  });
-                                }}
-                                sx={{ color: r.healthId ? '#2563eb' : '#16a34a' }}
-                              >
-                                {r.healthId ? <EditIcon fontSize="small" /> : <AddIcon fontSize="small" />}
-                              </IconButton>
-                            </Tooltip>
-                            {r.healthId && (
-                              <Tooltip title="Xóa hồ sơ mới nhất">
-                                <IconButton size="small" onClick={e => { e.stopPropagation(); setDeleteTarget({ healthId: r.healthId, studentName: r.fullName }); }} sx={{ color: 'error.main' }}>
-                                  <DeleteIcon fontSize="small" />
-                                </IconButton>
-                              </Tooltip>
+                            {!isReadOnly && (
+                              <>
+                                <Tooltip title={r.healthId ? 'Sửa hồ sơ đang hiển thị' : 'Tạo hồ sơ sức khỏe'}>
+                                  <IconButton
+                                    size="small"
+                                    onClick={e => {
+                                      e.stopPropagation();
+                                      setHealthDialog({
+                                        open: true,
+                                        student: r,
+                                        prefill: r.healthId ? r : null,
+                                        editHealthId: r.healthId || null,
+                                      });
+                                    }}
+                                    sx={{ color: r.healthId ? '#2563eb' : '#16a34a' }}
+                                  >
+                                    {r.healthId ? <EditIcon fontSize="small" /> : <AddIcon fontSize="small" />}
+                                  </IconButton>
+                                </Tooltip>
+                                {r.healthId && (
+                                  <Tooltip title="Xóa hồ sơ mới nhất">
+                                    <IconButton size="small" onClick={e => { e.stopPropagation(); setDeleteTarget({ healthId: r.healthId, studentName: r.fullName }); }} sx={{ color: 'error.main' }}>
+                                      <DeleteIcon fontSize="small" />
+                                    </IconButton>
+                                  </Tooltip>
+                                )}
+                              </>
                             )}
                           </TableCell>
                         </TableRow>

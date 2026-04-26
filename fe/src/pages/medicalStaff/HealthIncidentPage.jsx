@@ -77,6 +77,10 @@ export default function HealthIncidentPage() {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
 
+  const isReadOnly = useMemo(() => {
+    return hasRole('SchoolAdmin') && !hasRole('MedicalStaff') && !hasRole('SystemAdmin');
+  }, [hasRole]);
+
   // Students list cho autocomplete
   const [students, setStudents] = useState([]);
   const [classes, setClasses] = useState([]);
@@ -270,14 +274,16 @@ export default function HealthIncidentPage() {
               </Select>
             </FormControl>
 
-            <Button
-              variant="contained"
-              startIcon={<AddIcon />}
-              onClick={() => setCreateOpen(true)}
-              sx={{ bgcolor: '#dc2626', '&:hover': { bgcolor: '#b91c1c' }, fontWeight: 700, whiteSpace: 'nowrap' }}
-            >
-              Ghi nhận bất thường
-            </Button>
+            {!isReadOnly && (
+              <Button
+                variant="contained"
+                startIcon={<AddIcon />}
+                onClick={() => setCreateOpen(true)}
+                sx={{ bgcolor: '#dc2626', '&:hover': { bgcolor: '#b91c1c' }, fontWeight: 700, whiteSpace: 'nowrap' }}
+              >
+                Ghi nhận bất thường
+              </Button>
+            )}
           </Stack>
         </Paper>
 

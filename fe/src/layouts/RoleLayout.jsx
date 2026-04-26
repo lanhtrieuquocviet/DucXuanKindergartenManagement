@@ -146,13 +146,21 @@ export const KEY_ICONS = {
   'permission-management': <ShieldIcon fontSize="small" />,
   'system-logs': <BarChartIcon fontSize="small" />,
   system_logs: <BarChartIcon fontSize="small" />,
+  logs: <BarChartIcon fontSize="small" />,
   bpm: <AccountTreeIcon fontSize="small" />,
   bpm_workflows: <AccountTreeIcon fontSize="small" />,
   manage_accounts: <PersonIcon fontSize="small" />,
+  accounts: <PersonIcon fontSize="small" />,
   manage_permissions: <ShieldIcon fontSize="small" />,
+  permissions: <ShieldIcon fontSize="small" />,
   manage_roles: <RolesIcon fontSize="small" />,
+  roles: <RolesIcon fontSize="small" />,
   system_dashboard: <DashboardIcon fontSize="small" />,
+  dashboard: <DashboardIcon fontSize="small" />,
   job_positions: <BadgeIcon fontSize="small" />,
+  'job-positions': <BadgeIcon fontSize="small" />,
+  'academic-plan': <AssignmentIcon fontSize="small" />,
+  'academic-events': <EventNoteIcon fontSize="small" />,
 
   // Dynamic Groups from DB
   'group-Học vụ': <CalendarIcon fontSize="small" />,
@@ -323,10 +331,10 @@ function RoleLayout({
           title={title}
           description={description}
           activeIcon={activeIcon}
-          userName={userName}
-          userAvatar={userAvatar}
+          userName={displayUserName}
+          userAvatar={displayUserAvatar}
           onViewProfile={onViewProfile}
-          onLogout={onLogout}
+          onLogout={handleLogout}
         />
 
         {/* Page content */}

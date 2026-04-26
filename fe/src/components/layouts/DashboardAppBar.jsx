@@ -89,10 +89,20 @@ export default function DashboardAppBar({
         )}
 
         {/* Title + icon */}
-        <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.25, flex: 1, minWidth: 0 }}>
+        <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5, flex: 1, minWidth: 0 }}>
           {activeIcon && (
-            <Avatar sx={{ width: 34, height: 34, bgcolor: 'rgba(99,102,241,0.1)', display: { xs: 'none', sm: 'flex' }, flexShrink: 0 }}>
-              <Box sx={{ color: 'primary.main', display: 'flex' }}>{activeIcon}</Box>
+            <Avatar 
+              sx={{ 
+                width: 40, 
+                height: 40, 
+                background: 'linear-gradient(135deg, rgba(99,102,241,0.15) 0%, rgba(124,58,237,0.1) 100%)',
+                display: { xs: 'none', sm: 'flex' }, 
+                flexShrink: 0,
+                border: '1.5px solid rgba(99,102,241,0.2)',
+                boxShadow: '0 4px 12px rgba(99,102,241,0.1)'
+              }}
+            >
+              <Box sx={{ color: 'primary.main', display: 'flex', transform: 'scale(1.1)' }}>{activeIcon}</Box>
             </Avatar>
           )}
           <Box sx={{ minWidth: 0 }}>
@@ -135,12 +145,17 @@ export default function DashboardAppBar({
                 transition: 'all 0.15s',
               }}
             >
-              <Avatar src={userAvatar} sx={{ width: 28, height: 28, fontSize: 12, bgcolor: 'primary.main', boxShadow: '0 2px 4px rgba(99,102,241,0.25)' }}>
-                {initials}
+              <Avatar src={userAvatar} sx={{ width: 28, height: 28, fontSize: 12, bgcolor: 'rgba(99,102,241,0.1)', color: 'primary.main', border: '1px solid rgba(99,102,241,0.2)' }}>
+                <PersonIcon sx={{ fontSize: 16 }} />
               </Avatar>
-              <Typography variant="body2" fontWeight={600} noWrap sx={{ maxWidth: 130 }}>
-                {userName}
-              </Typography>
+              <Box sx={{ display: 'flex', flexDirection: 'column', minWidth: 0 }}>
+                <Typography variant="body2" fontWeight={700} noWrap sx={{ maxWidth: 130, lineHeight: 1.2 }}>
+                  {userName}
+                </Typography>
+                <Typography variant="caption" color="primary.main" fontWeight={600} sx={{ fontSize: 10, lineHeight: 1 }}>
+                  {roles[0]}
+                </Typography>
+              </Box>
               <ArrowDownIcon sx={{ color: 'text.disabled', fontSize: 16 }} />
             </Box>
 
@@ -169,12 +184,19 @@ export default function DashboardAppBar({
               }}
             >
               <Box sx={{ px: 2, py: 1.75, display: 'flex', alignItems: 'center', gap: 1.5, bgcolor: 'grey.50' }}>
-                <Avatar src={userAvatar} sx={{ width: 38, height: 38, bgcolor: 'primary.main', fontWeight: 700, boxShadow: '0 2px 6px rgba(99,102,241,0.3)' }}>
-                  {initials}
+                <Avatar src={userAvatar} sx={{ width: 38, height: 38, bgcolor: 'rgba(99,102,241,0.1)', color: 'primary.main', fontWeight: 700, border: '1.5px solid rgba(99,102,241,0.2)' }}>
+                  <PersonIcon sx={{ fontSize: 24 }} />
                 </Avatar>
                 <Box sx={{ minWidth: 0 }}>
                   <Typography variant="body2" fontWeight={700} noWrap>{userName}</Typography>
-                  <Typography variant="caption" color="text.disabled" sx={{ fontSize: 11 }}>{loginStatus}</Typography>
+                  {user?.email && (
+                    <Typography variant="caption" color="text.secondary" display="block" noWrap sx={{ fontSize: 11 }}>
+                      {user.email}
+                    </Typography>
+                  )}
+                  <Typography variant="caption" color="primary.main" fontWeight={600} sx={{ fontSize: 10, textTransform: 'uppercase', mt: 0.5, display: 'block' }}>
+                    {roles.join(', ')}
+                  </Typography>
                 </Box>
               </Box>
 

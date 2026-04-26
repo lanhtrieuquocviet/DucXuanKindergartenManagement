@@ -395,6 +395,7 @@ const ManageAcademicYears = () => {
                   <TableCell sx={{ fontWeight: 800 }}>Tên năm học</TableCell>
                   <TableCell sx={{ fontWeight: 800 }}>Thời gian</TableCell>
                   <TableCell sx={{ fontWeight: 800 }}>Sĩ số</TableCell>
+                  <TableCell sx={{ fontWeight: 800 }}>Số lớp</TableCell>
                   <TableCell sx={{ fontWeight: 800 }}>Trạng thái</TableCell>
                   <TableCell sx={{ fontWeight: 800 }} align="right">Thao tác</TableCell>
                 </TableRow>
@@ -408,6 +409,7 @@ const ManageAcademicYears = () => {
                     </TableCell>
                     <TableCell><Typography variant="body2" fontWeight={600}>{formatDate(year.startDate)} - {formatDate(year.endDate)}</Typography></TableCell>
                     <TableCell><Chip label={`${year.totalStudents || 0} học sinh`} size="small" sx={{ fontWeight: 700, bgcolor: '#f1f5f9' }} /></TableCell>
+                    <TableCell><Chip label={`${year.classCount || 0} lớp`} size="small" sx={{ fontWeight: 700, bgcolor: '#f1f5f9' }} /></TableCell>
                     <TableCell>
                       <Chip 
                         label={

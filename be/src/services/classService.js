@@ -97,19 +97,24 @@ async function validateTeacherAssignment(teacherIds, academicYearId, className, 
  */
 const getClassList = async (req, res) => {
   try {
-    const activeYear = await AcademicYear.findOne({ status: 'active' }).sort({ startDate: -1 }).lean();
+    const { academicYearId } = req.query;
+    let targetYearId = academicYearId;
 
-    if (!activeYear) {
-      return res.status(200).json({
-        status: 'success',
-        message: 'Chưa có năm học đang hoạt động',
-        data: [],
-        total: 0,
-        academicYear: null,
-      });
+    if (!targetYearId) {
+      const activeYear = await AcademicYear.findOne({ status: 'active' }).sort({ startDate: -1 }).lean();
+      if (!activeYear) {
+        return res.status(200).json({
+          status: 'success',
+          message: 'Chưa có năm học đang hoạt động',
+          data: [],
+          total: 0,
+          academicYear: null,
+        });
+      }
+      targetYearId = activeYear._id;
     }
 
-    const filter = { academicYearId: activeYear._id };
+    const filter = { academicYearId: targetYearId };
 
     const classes = await Classes.find(filter)
       .populate('gradeId', 'gradeName description')
@@ -120,11 +125,10 @@ const getClassList = async (req, res) => {
     return res.status(200).json({
       status: 'success',
       message: classes.length === 0
-        ? 'Không có lớp học nào trong năm học hiện tại'
+        ? 'Không có lớp học nào'
         : 'Lấy danh sách lớp học thành công',
       data: classes || [],
       total: classes.length,
-      academicYear: activeYear || null,
     });
   } catch (error) {
     console.error('Error in getClassList:', error);

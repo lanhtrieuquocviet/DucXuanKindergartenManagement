@@ -1,4 +1,6 @@
 import {
+  Avatar,
+  Box,
   Chip,
   IconButton,
   Stack,
@@ -14,6 +16,7 @@ import {
 import {
   Delete as DeleteIcon,
   Edit as EditIcon,
+  Person as PersonIcon,
 } from '@mui/icons-material';
 
 function AccountTable({
@@ -50,6 +53,16 @@ function AccountTable({
     ));
   };
 
+  const getUserInitials = (name) => {
+    if (!name) return '?';
+    return name
+      .split(' ')
+      .map((n) => n[0])
+      .slice(-2)
+      .join('')
+      .toUpperCase();
+  };
+
   return (
     <>
       <TableContainer sx={{ overflowX: 'auto', maxWidth: '100%' }}>
@@ -64,17 +77,7 @@ function AccountTable({
                   whiteSpace: 'nowrap',
                 }}
               >
-                Tài khoản
-              </TableCell>
-              <TableCell
-                sx={{
-                  fontWeight: 700,
-                  fontSize: { xs: 12, sm: 13 },
-                  px: { xs: 1.5, sm: 2 },
-                  whiteSpace: 'nowrap',
-                }}
-              >
-                Họ và tên
+                Tài khoản & Họ tên
               </TableCell>
               <TableCell
                 sx={{
@@ -123,7 +126,7 @@ function AccountTable({
             {users.length === 0 ? (
               <TableRow>
                 <TableCell
-                  colSpan={6}
+                  colSpan={5}
                   align="center"
                   sx={{ py: 5, color: 'text.secondary' }}
                 >
@@ -135,29 +138,38 @@ function AccountTable({
                 const userId = account._id || account.id;
                 return (
                   <TableRow key={userId} hover sx={{ '&:last-child td': { border: 0 } }}>
-                    <TableCell
-                      sx={{ px: { xs: 1.5, sm: 2 }, maxWidth: { xs: 100, sm: 'none' } }}
-                    >
-                      <Typography
-                        variant="body2"
-                        fontWeight={600}
-                        noWrap
-                        title={account.username}
-                      >
-                        {account.username}
-                      </Typography>
-                    </TableCell>
-                    <TableCell
-                      sx={{ px: { xs: 1.5, sm: 2 }, maxWidth: { xs: 100, sm: 'none' } }}
-                    >
-                      <Typography
-                        variant="body2"
-                        color={account.fullName ? 'text.primary' : 'text.disabled'}
-                        noWrap
-                        title={account.fullName || 'Chưa cập nhật'}
-                      >
-                        {account.fullName || 'Chưa cập nhật'}
-                      </Typography>
+                    <TableCell sx={{ px: { xs: 1.5, sm: 2 } }}>
+                      <Stack direction="row" spacing={1.5} alignItems="center">
+                        <Avatar 
+                          src={account.avatarUrl} 
+                          sx={{ 
+                            width: 36, 
+                            height: 36, 
+                            bgcolor: 'rgba(99,102,241,0.1)',
+                            color: 'primary.main',
+                            border: '1px solid rgba(99,102,241,0.2)',
+                          }}
+                        >
+                          <PersonIcon sx={{ fontSize: 20 }} />
+                        </Avatar>
+                        <Box sx={{ minWidth: 0 }}>
+                          <Typography
+                            variant="body2"
+                            fontWeight={600}
+                            noWrap
+                          >
+                            {account.username}
+                          </Typography>
+                          <Typography
+                            variant="caption"
+                            color="text.secondary"
+                            display="block"
+                            noWrap
+                          >
+                            {account.fullName || 'Chưa cập nhật tên'}
+                          </Typography>
+                        </Box>
+                      </Stack>
                     </TableCell>
                     <TableCell
                       sx={{

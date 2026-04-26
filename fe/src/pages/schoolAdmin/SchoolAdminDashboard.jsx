@@ -72,7 +72,7 @@ function SchoolAdminDashboard() {
           get(`${ENDPOINTS.STUDENTS.LIST}${activeYearId ? `?academicYearId=${activeYearId}` : ''}`),
           get(`${ENDPOINTS.CLASSES.LIST}${activeYearId ? `?academicYearId=${activeYearId}` : ''}`),
           get(ENDPOINTS.SCHOOL_ADMIN.TEACHERS),
-          get(`${ENDPOINTS.SCHOOL_ADMIN.ATTENDANCE_OVERVIEW}?date=${todayStr}`),
+          get(`${ENDPOINTS.SCHOOL_ADMIN.ATTENDANCE_OVERVIEW}?date=${todayStr}${activeYearId ? `&academicYearId=${activeYearId}` : ''}`),
           get(ENDPOINTS.SCHOOL_ADMIN.CONTACTS),
         ]);
 

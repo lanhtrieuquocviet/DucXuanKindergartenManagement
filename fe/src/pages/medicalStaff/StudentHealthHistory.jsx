@@ -193,6 +193,11 @@ export default function StudentHealthHistory() {
   const [error, setError] = useState(null);
 
   const [formOpen, setFormOpen] = useState(false);
+  
+  const isReadOnly = useMemo(() => {
+    return hasRole('SchoolAdmin') && !hasRole('MedicalStaff') && !hasRole('SystemAdmin');
+  }, [hasRole]);
+
   const [deleteTarget, setDeleteTarget] = useState(null);
   const [deleting, setDeleting] = useState(false);
 
@@ -298,13 +303,15 @@ export default function StudentHealthHistory() {
           >
             Xuất Excel
           </Button>
-          <Button
-            size="small" variant="contained" startIcon={<AddIcon />}
-            onClick={() => setFormOpen(true)}
-            sx={{ bgcolor: '#0891b2', '&:hover': { bgcolor: '#0e7490' } }}
-          >
-            Ghi nhận lần khám mới
-          </Button>
+          {!isReadOnly && (
+            <Button
+              size="small" variant="contained" startIcon={<AddIcon />}
+              onClick={() => setFormOpen(true)}
+              sx={{ bgcolor: '#0891b2', '&:hover': { bgcolor: '#0e7490' } }}
+            >
+              Ghi nhận lần khám mới
+            </Button>
+          )}
         </Stack>
 
         {/* Student info header */}
@@ -526,13 +533,15 @@ export default function StudentHealthHistory() {
                         </TableCell>
 
                         <TableCell align="right">
-                          <Tooltip title="Xóa bản ghi này">
-                            <IconButton size="small"
-                              onClick={() => setDeleteTarget(r)}
-                              sx={{ color: 'error.light', '&:hover': { color: 'error.main' } }}>
-                              <DeleteIcon fontSize="small" />
-                            </IconButton>
-                          </Tooltip>
+                          {!isReadOnly && (
+                            <Tooltip title="Xóa bản ghi này">
+                              <IconButton size="small"
+                                onClick={() => setDeleteTarget(r)}
+                                sx={{ color: 'error.light', '&:hover': { color: 'error.main' } }}>
+                                <DeleteIcon fontSize="small" />
+                              </IconButton>
+                            </Tooltip>
+                          )}
                         </TableCell>
                       </TableRow>
                     );
