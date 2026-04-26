@@ -293,7 +293,7 @@ const ManageAcademicYears = () => {
                     '&:hover': { border: '2px solid #7c3aed', bgcolor: 'rgba(139, 92, 246, 0.05)' }
                   }}
                 >
-                  Thiết lập nhanh (1-Click)
+                  Thiết lập nhanh năm học mới
                 </Button>
               )}
               {currentYear && (
@@ -324,7 +324,7 @@ const ManageAcademicYears = () => {
                   onClick={() => setOpenWizard(true)}
                   sx={{ borderRadius: 2, textTransform: 'none', fontWeight: 700, px: 3, boxShadow: '0 4px 12px rgba(99, 102, 241, 0.2)' }}
                 >
-                  Từng bước (Wizard)
+                  Tạo năm học mới
                 </Button>
               )}
             </Box>
