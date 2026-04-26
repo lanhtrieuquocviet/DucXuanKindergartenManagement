@@ -58,6 +58,7 @@ const enrollmentSchema = new mongoose.Schema(
   }
 );
 
+enrollmentSchema.index({ studentId: 1, academicYearId: 1 }, { unique: true });
 enrollmentSchema.index({ studentId: 1, gradeId: 1, academicYearId: 1 });
 
 const Enrollment = mongoose.model('Enrollments', enrollmentSchema);

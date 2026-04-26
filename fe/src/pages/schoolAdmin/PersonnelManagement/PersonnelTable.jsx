@@ -20,22 +20,23 @@ import {
   Edit as EditIcon,
   DeleteOutline as DeleteIcon,
 } from '@mui/icons-material';
+import { getRoleDisplayName } from '../../systemAdmin/utils/permissionUtils';
 
 const ROLE_COLORS = {
-  SystemAdmin: { bg: '#fef2f2', text: '#991b1b', border: '#fecaca', label: 'Quản trị hệ thống' },
-  SchoolAdmin: { bg: '#eef2ff', text: '#4338ca', border: '#c7d2fe', label: 'Quản trị trường' },
-  Admin: { bg: '#eef2ff', text: '#4338ca', border: '#c7d2fe', label: 'Quản trị viên' },
-  Teacher: { bg: '#f0fdf4', text: '#15803d', border: '#bbf7d0', label: 'Giáo viên' },
-  Leader: { bg: '#fff7ed', text: '#c2410c', border: '#fed7aa', label: 'Tổ trưởng' },
-  HeadTeacher: { bg: '#fff7ed', text: '#c2410c', border: '#fed7aa', label: 'Tổ trưởng' },
-  Staff: { bg: '#f8fafc', text: '#475569', border: '#e2e8f0', label: 'Nhân viên' },
-  Kitchen: { bg: '#fff1f2', text: '#be123c', border: '#fecdd3', label: 'Nhân viên bếp' },
-  KitchenStaff: { bg: '#fff1f2', text: '#be123c', border: '#fecdd3', label: 'Nhân viên bếp' },
-  Medical: { bg: '#f0f9ff', text: '#0369a1', border: '#bae6fd', label: 'Nhân viên y tế' },
-  MedicalStaff: { bg: '#f0f9ff', text: '#0369a1', border: '#bae6fd', label: 'Nhân viên y tế' },
-  Parent: { bg: '#fdf4ff', text: '#86198f', border: '#f5d0fe', label: 'Phụ huynh' },
-  HeadParent: { bg: '#fdf2f8', text: '#be185d', border: '#fbcfe8', label: 'Trưởng phụ huynh' },
-  InventoryStaff: { bg: '#f0fdfa', text: '#0d9488', border: '#99f6e4', label: 'Nhân viên kho' },
+  SystemAdmin: { bg: '#fef2f2', text: '#991b1b', border: '#fecaca' },
+  SchoolAdmin: { bg: '#eef2ff', text: '#4338ca', border: '#c7d2fe' },
+  Admin: { bg: '#eef2ff', text: '#4338ca', border: '#c7d2fe' },
+  Teacher: { bg: '#f0fdf4', text: '#15803d', border: '#bbf7d0' },
+  Leader: { bg: '#fff7ed', text: '#c2410c', border: '#fed7aa' },
+  HeadTeacher: { bg: '#fff7ed', text: '#c2410c', border: '#fed7aa' },
+  Staff: { bg: '#f8fafc', text: '#475569', border: '#e2e8f0' },
+  Kitchen: { bg: '#fff1f2', text: '#be123c', border: '#fecdd3' },
+  KitchenStaff: { bg: '#fff1f2', text: '#be123c', border: '#fecdd3' },
+  Medical: { bg: '#f0f9ff', text: '#0369a1', border: '#bae6fd' },
+  MedicalStaff: { bg: '#f0f9ff', text: '#0369a1', border: '#bae6fd' },
+  Parent: { bg: '#fdf4ff', text: '#86198f', border: '#f5d0fe' },
+  HeadParent: { bg: '#fdf2f8', text: '#be185d', border: '#fbcfe8' },
+  InventoryStaff: { bg: '#f0fdfa', text: '#0d9488', border: '#99f6e4' },
 };
 
 const PersonnelTable = memo(({
@@ -43,24 +44,13 @@ const PersonnelTable = memo(({
   onEdit,
   onDelete,
 }) => {
-  const calculateSeniority = (hireDate) => {
-    if (!hireDate) return null;
-    const hire = new Date(hireDate);
-    const now = new Date();
-    const diff = now - hire;
-    const years = Math.floor(diff / (1000 * 60 * 60 * 24 * 365.25));
-    if (years < 1) return 'Mới';
-    return `${years}n`;
-  };
-
   return (
     <TableContainer>
       <Table size="small">
         <TableHead sx={{ bgcolor: '#f8fafc' }}>
           <TableRow>
-            <TableCell sx={{ fontWeight: 800, py: 1.5, whiteSpace: 'nowrap' }}>Thành viên & ID</TableCell>
+            <TableCell sx={{ fontWeight: 800, py: 1.5, whiteSpace: 'nowrap' }}>Thành viên</TableCell>
             <TableCell sx={{ fontWeight: 800, whiteSpace: 'nowrap' }}>Chức vụ & Vai trò</TableCell>
-            <TableCell sx={{ fontWeight: 800, whiteSpace: 'nowrap' }}>Trình độ & Thâm niên</TableCell>
             <TableCell sx={{ fontWeight: 800, whiteSpace: 'nowrap' }}>Liên hệ</TableCell>
             <TableCell sx={{ fontWeight: 800, whiteSpace: 'nowrap' }}>Trạng thái</TableCell>
             <TableCell align="right" sx={{ fontWeight: 800, whiteSpace: 'nowrap' }}>Thao tác</TableCell>
@@ -77,11 +67,8 @@ const PersonnelTable = memo(({
                   >
                     {item.fullName?.charAt(0)?.toUpperCase() || <PersonIcon sx={{ fontSize: 16 }} />}
                   </Avatar>
-                  <Typography variant="body2" fontWeight={600} noWrap sx={{ maxWidth: 200, display: 'flex', gap: 0.5, alignItems: 'center' }}>
+                  <Typography variant="body2" fontWeight={600} noWrap sx={{ maxWidth: 200 }}>
                     {item.fullName}
-                    <Typography component="span" variant="caption" color="text.disabled" sx={{ fontFamily: 'monospace' }}>
-                      ({item.username})
-                    </Typography>
                   </Typography>
                 </Stack>
               </TableCell>
@@ -90,29 +77,33 @@ const PersonnelTable = memo(({
                   <Typography variant="body2" fontWeight={600} color="primary.main" sx={{ whiteSpace: 'nowrap' }}>
                     {item.position || 'NV'}
                   </Typography>
-                  <Divider orientation="vertical" flexItem sx={{ height: 12, my: 'auto' }} />
-                  <Stack direction="row" spacing={0.5}>
-                    {(item.roleNames || '').split(',').slice(0, 2).map((r) => {
-                      const role = r.trim();
-                      const config = ROLE_COLORS[role] || { bg: '#f1f5f9', text: '#475569', border: '#e2e8f0', label: role };
-                      return (
-                        <Chip
-                          key={role}
-                          label={config.label}
-                          size="small"
-                          sx={{ height: 16, fontSize: '0.6rem', fontWeight: 700, bgcolor: config.bg, color: config.text, border: '1px solid', borderColor: config.border }}
-                        />
-                      );
-                    })}
-                  </Stack>
-                </Stack>
-              </TableCell>
-              <TableCell>
-                <Stack direction="row" alignItems="center" spacing={1}>
-                  <Typography variant="body2" noWrap sx={{ maxWidth: 100 }}>{item.degree || '—'}</Typography>
-                  {item.hireDate && (
-                    <Chip label={calculateSeniority(item.hireDate)} size="small" variant="outlined" sx={{ height: 16, fontSize: '0.6rem', fontWeight: 600, color: 'text.secondary' }} />
-                  )}
+                  
+                  {(() => {
+                    const roles = (item.roleNames || '').split(',')
+                      .map(r => r.trim())
+                      .filter(r => r !== '');
+                    
+                    if (roles.length === 0) return null;
+
+                    return (
+                      <>
+                        <Divider orientation="vertical" flexItem sx={{ height: 12, my: 'auto' }} />
+                        <Stack direction="row" spacing={0.5}>
+                          {roles.slice(0, 2).map((role) => {
+                            const config = ROLE_COLORS[role] || { bg: '#f1f5f9', text: '#475569', border: '#e2e8f0' };
+                            return (
+                              <Chip
+                                key={role}
+                                label={getRoleDisplayName(role)}
+                                size="small"
+                                sx={{ height: 16, fontSize: '0.6rem', fontWeight: 700, bgcolor: config.bg, color: config.text, border: '1px solid', borderColor: config.border }}
+                              />
+                            );
+                          })}
+                        </Stack>
+                      </>
+                    );
+                  })()}
                 </Stack>
               </TableCell>
               <TableCell>

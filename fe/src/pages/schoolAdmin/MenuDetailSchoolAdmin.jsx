@@ -2,9 +2,6 @@ import { useEffect, useState, useMemo } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import { getMenuDetail, getNutritionPlanSetting } from "../../service/menu.api";
 import { toast } from "react-toastify";
-import RoleLayout from "../../layouts/RoleLayout";
-import { createSchoolAdminMenuSelect } from "./schoolAdminMenuConfig";
-import { useSchoolAdminMenu } from "./useSchoolAdminMenu";
 import { useAuth } from "../../context/AuthContext";
 import { labelForRejectPreset } from "../../constants/menuRejectPresets";
 import {
@@ -254,8 +251,7 @@ function SchoolAdminWeekTable({ title, weekData, nutritionRanges }) {
 const MenuDetailSchoolAdmin = () => {
   const { id } = useParams();
   const navigate = useNavigate();
-  const { user, logout } = useAuth();
-  const menuItems = useSchoolAdminMenu();
+  const { user } = useAuth();
 
   const [menu, setMenu] = useState(null);
   const [loading, setLoading] = useState(false);
@@ -316,47 +312,21 @@ const MenuDetailSchoolAdmin = () => {
     }
   };
 
-  const handleMenuSelect = createSchoolAdminMenuSelect(navigate);
+  // const handleMenuSelect = createSchoolAdminMenuSelect(navigate);
   const st = menu?.status && STATUS_CHIP[menu.status] ? STATUS_CHIP[menu.status] : STATUS_CHIP.draft;
 
   if (loading) {
     return (
-      <RoleLayout
-        title="Chi tiết thực đơn"
-        description="Xem chi tiết thực đơn của trường"
-        menuItems={menuItems}
-        activeKey="menu"
-        userName={user?.fullName || user?.username}
-        userAvatar={user?.avatar}
-        onMenuSelect={handleMenuSelect}
-        onLogout={() => {
-          logout();
-          navigate("/login");
-        }}
-        onViewProfile={() => navigate("/profile")}
-      >
+      <Box>
         <Typography sx={{ p: 3 }}>Đang tải dữ liệu...</Typography>
-      </RoleLayout>
+      </Box>
     );
   }
   if (!menu) return null;
 
   return (
-    <RoleLayout
-      title="Chi tiết thực đơn"
-      description="Xem chi tiết thực đơn của trường"
-      menuItems={menuItems}
-      activeKey="menu"
-      userName={user?.fullName || user?.username}
-      userAvatar={user?.avatar}
-      onMenuSelect={handleMenuSelect}
-      onLogout={() => {
-        logout();
-        navigate("/login");
-      }}
-      onViewProfile={() => navigate("/profile")}
-    >
-      <Box sx={{ p: { xs: 2, md: 3 }, maxWidth: 1200, mx: "auto" }}>
+    <Box>
+      <Box sx={{ maxWidth: 1200, mx: "auto" }}>
         <Button
           startIcon={<BackIcon />}
           onClick={() => navigate(-1)}
@@ -542,7 +512,7 @@ const MenuDetailSchoolAdmin = () => {
         <SchoolAdminWeekTable title="Tuần lẻ" weekData={menu.weeks?.odd} nutritionRanges={nutritionRanges} />
         <SchoolAdminWeekTable title="Tuần chẵn" weekData={menu.weeks?.even} nutritionRanges={nutritionRanges} />
       </Box>
-    </RoleLayout>
+    </Box>
   );
 };
 

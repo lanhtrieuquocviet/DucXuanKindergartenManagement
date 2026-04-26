@@ -2,12 +2,9 @@ import { useEffect, useMemo, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { toast } from 'react-toastify';
 import { useAuth } from '../../context/AuthContext';
-import RoleLayout from '../../layouts/RoleLayout';
 import ConfirmDialog from '../../components/ConfirmDialog';
 import RichTextEditor from '../../components/RichTextEditor';
 import { get, post, put, del, postFormData, ENDPOINTS } from '../../service/api';
-import { createSchoolAdminMenuSelect } from './schoolAdminMenuConfig';
-import { useSchoolAdminMenu } from './useSchoolAdminMenu';
 import {
   Box,
   Paper,
@@ -253,8 +250,7 @@ function DocumentFormModal({ open, onClose, initialData, onSubmit, loading }) {
 
 export default function ManageDocuments() {
   const navigate = useNavigate();
-  const { user, logout, isInitializing } = useAuth();
-  const menuItems = useSchoolAdminMenu();
+  const { user, isInitializing } = useAuth();
 
   const [documents, setDocuments] = useState([]);
   const [loading, setLoading] = useState(false);
@@ -388,11 +384,9 @@ export default function ManageDocuments() {
     await loadDocuments({ page: newPage });
   };
 
-  const handleMenuSelect = createSchoolAdminMenuSelect(navigate);
+  // const handleMenuSelect = createSchoolAdminMenuSelect(navigate);
 
   const userName = user?.fullName || user?.username || 'School Admin';
-  const handleLogout = () => { logout(); navigate('/login', { replace: true }); };
-  const handleViewProfile = () => navigate('/profile');
 
   const getStatusChip = (status) => {
     if (status === 'published') return <Chip label="Đã xuất bản" color="success" size="small" />;
@@ -402,17 +396,7 @@ export default function ManageDocuments() {
   };
 
   return (
-    <RoleLayout
-      title="Quản lý tài liệu"
-      description="Tạo, chỉnh sửa, xóa và quản lý tài liệu của trường."
-      menuItems={menuItems}
-      activeKey="documents"
-      onLogout={handleLogout}
-      onViewProfile={handleViewProfile}
-      onMenuSelect={handleMenuSelect}
-      userName={userName}
-      userAvatar={user?.avatar}
-    >
+    <Box>
       {/* Page header */}
       <Paper
         elevation={0}
@@ -703,6 +687,6 @@ export default function ManageDocuments() {
         onCancel={() => setConfirmDelete(null)}
         loading={submitting}
       />
-    </RoleLayout>
+    </Box>
   );
 }

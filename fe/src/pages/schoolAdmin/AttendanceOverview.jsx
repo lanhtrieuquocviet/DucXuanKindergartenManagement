@@ -2,7 +2,6 @@ import { useEffect, useState, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../../context/AuthContext';
 import { useSchoolAdmin } from '../../context/SchoolAdminContext';
-import RoleLayout from '../../layouts/RoleLayout';
 import {
   Box,
   Paper,
@@ -28,8 +27,6 @@ import {
 import SearchIcon from '@mui/icons-material/Search';
 import AssessmentIcon from '@mui/icons-material/Assessment';
 import { get, ENDPOINTS } from '../../service/api';
-import { createSchoolAdminMenuSelect } from './schoolAdminMenuConfig';
-import { useSchoolAdminMenu } from './useSchoolAdminMenu';
 
 const getLocalISODate = () => {
   const d = new Date();
@@ -54,9 +51,8 @@ const formatDate = (dateStr) => {
 
 function AttendanceOverview() {
   const navigate = useNavigate();
-  const { user, logout, isInitializing } = useAuth();
+  const { user, isInitializing } = useAuth();
   const { getAttendanceOverview, loading, error } = useSchoolAdmin();
-  const menuItems = useSchoolAdminMenu();
 
   const [selectedDate, setSelectedDate] = useState(getLocalISODate);
   const [selectedGrade, setSelectedGrade] = useState('all');
@@ -119,10 +115,6 @@ function AttendanceOverview() {
       setData({ data: { classes: [] } });
     }
   };
-
-  const handleMenuSelect = createSchoolAdminMenuSelect(navigate);
-
-  const userName = user?.fullName || user?.username || 'School Admin';
 
   const stats = useMemo(() => {
     const currentData = data || { data: { classes: [] } };
@@ -224,21 +216,7 @@ function AttendanceOverview() {
   ];
 
   return (
-    <RoleLayout
-      title="Điểm danh các lớp (Hôm nay)"
-      description="Xem tổng quan điểm danh của tất cả các lớp trong trường."
-      menuItems={menuItems}
-      activeKey="attendance-overview"
-      onLogout={() => {
-        logout();
-        navigate('/login', { replace: true });
-      }}
-      userName={userName}
-      userAvatar={user?.avatar}
-      onViewProfile={() => navigate('/profile')}
-      onMenuSelect={handleMenuSelect}
-    >
-      {/* Page header */}
+    <Box>
       <Paper
         elevation={0}
         sx={{
@@ -278,7 +256,6 @@ function AttendanceOverview() {
         </Alert>
       )}
 
-      {/* Filters */}
       <Paper sx={{ mb: 2, p: 2 }}>
         <Stack direction="row" flexWrap="wrap" gap={2} alignItems="flex-end">
           <TextField
@@ -384,7 +361,6 @@ function AttendanceOverview() {
         </Alert>
       )}
 
-      {/* Stats */}
       <Stack direction="row" flexWrap="wrap" gap={2} sx={{ mb: 2 }}>
         {statCards.map((card) => (
           <Paper
@@ -408,7 +384,6 @@ function AttendanceOverview() {
         ))}
       </Stack>
 
-      {/* Attendance Table */}
       <Paper sx={{ overflow: 'hidden' }}>
         {loading ? (
           <Box sx={{ p: 6, textAlign: 'center' }}>
@@ -491,7 +466,7 @@ function AttendanceOverview() {
           </TableContainer>
         )}
       </Paper>
-    </RoleLayout>
+    </Box>
   );
 }
 

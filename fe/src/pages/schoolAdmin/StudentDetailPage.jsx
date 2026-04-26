@@ -30,7 +30,6 @@ import { useEffect, useState } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import { toast } from 'react-toastify';
 import { useAuth } from '../../context/AuthContext';
-import RoleLayout from '../../layouts/RoleLayout';
 import { ENDPOINTS, get, patch } from '../../service/api';
 import { createSchoolAdminMenuSelect } from './schoolAdminMenuConfig';
 import { useSchoolAdminMenu } from './useSchoolAdminMenu';
@@ -117,9 +116,10 @@ function TabTimeline({ student, studentId }) {
     const load = async () => {
       setLoading(true);
       try {
-        const [healthRes, notesRes] = await Promise.all([
+        const [healthRes, notesRes, evalRes] = await Promise.all([
           get(ENDPOINTS.STUDENTS.ADMIN_HEALTH_LATEST(studentId)).catch(() => ({})),
           get(ENDPOINTS.STUDENTS.ADMIN_NOTES(studentId)).catch(() => ({ data: [] })),
+          get(ENDPOINTS.STUDENTS.ADMIN_EVALUATIONS(studentId)).catch(() => ({ data: [] })),
         ]);
 
         const timeline = [];
@@ -156,6 +156,20 @@ function TabTimeline({ student, studentId }) {
             title: 'Nhận xét từ giáo viên',
             content: n.content
           });
+        });
+
+        // Add Academic Evaluations
+        (evalRes.data || []).forEach(e => {
+          if (e.academicEvaluation || e.evaluationNote) {
+            timeline.push({
+              id: e._id,
+              type: 'assessment',
+              date: e.updatedAt || e.createdAt,
+              title: `Đánh giá định kỳ - ${e.academicYearId?.yearName || 'Năm học'}`,
+              content: e.evaluationNote || (e.academicEvaluation ? `Kết quả: ${e.academicEvaluation.toUpperCase()}` : 'Chưa có nhận xét chi tiết.'),
+              metadata: e.academicEvaluation ? { 'Kết quả': e.academicEvaluation } : null
+            });
+          }
         });
 
         // Sort by date descending
@@ -278,13 +292,60 @@ function TabSucKhoe({ studentId }) {
   );
 }
 
+// ── TabDanhGia ───────────────────────────────────────────────────
+function TabDanhGia({ studentId }) {
+  const [evals, setEvals] = useState([]);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    if (!studentId) return;
+    setLoading(true);
+    get(ENDPOINTS.STUDENTS.ADMIN_EVALUATIONS(studentId))
+      .then(res => setEvals(res.data || []))
+      .catch(() => setEvals([]))
+      .finally(() => setLoading(false));
+  }, [studentId]);
+
+  if (loading) return <Box sx={{ p: 4, textAlign: 'center' }}><CircularProgress /></Box>;
+  if (evals.length === 0) return <Typography sx={{ p: 4, textAlign: 'center', color: 'text.secondary' }}>Chưa có đánh giá học tập nào.</Typography>;
+
+  return (
+    <Stack spacing={2} sx={{ maxWidth: 800, mx: 'auto' }}>
+      {evals.map(e => (
+        <Paper key={e._id} elevation={0} sx={{ borderRadius: 4, border: '1px solid', borderColor: 'divider', p: 3, bgcolor: '#fff' }}>
+          <Stack direction="row" justifyContent="space-between" alignItems="flex-start" mb={2}>
+            <Box>
+              <Typography variant="subtitle1" fontWeight={800} color="primary.main">{e.academicYearId?.yearName || 'Năm học'}</Typography>
+              <Typography variant="caption" color="text.secondary">{e.gradeId?.gradeName || ''} · {e.classId?.className || ''}</Typography>
+            </Box>
+            {e.academicEvaluation && (
+              <Chip 
+                label={e.academicEvaluation.toUpperCase()} 
+                color={e.academicEvaluation === 'đạt' ? 'success' : 'warning'} 
+                size="small" 
+                sx={{ fontWeight: 800, borderRadius: 1.5 }}
+              />
+            )}
+          </Stack>
+          <Typography variant="body2" sx={{ lineHeight: 1.7, color: 'text.primary', bgcolor: '#f8fafc', p: 2, borderRadius: 3 }}>
+            {e.evaluationNote || 'Chưa có nhận xét chi tiết.'}
+          </Typography>
+          <Typography variant="caption" color="text.disabled" sx={{ display: 'block', mt: 1.5, textAlign: 'right' }}>
+            Cập nhật: {fmtDate(e.updatedAt || e.createdAt)}
+          </Typography>
+        </Paper>
+      ))}
+    </Stack>
+  );
+}
+
 // ── Main StudentDetailPage ───────────────────────────────────────
 export default function StudentDetailPage() {
   const { studentId } = useParams();
   const navigate = useNavigate();
-  const { user, hasRole, logout, isInitializing } = useAuth();
+  const { user, isInitializing } = useAuth();
   const menuItems = useSchoolAdminMenu();
-  const handleMenuSelect = createSchoolAdminMenuSelect(navigate);
+  const handleMenuSelect = (item) => createSchoolAdminMenuSelect(navigate)(item);
 
   const [student, setStudent] = useState(null);
   const [loading, setLoading] = useState(true);
@@ -302,17 +363,11 @@ export default function StudentDetailPage() {
     { label: 'Sổ liên lạc (Timeline)', icon: <TimelineIcon /> },
     { label: 'Thông tin hồ sơ', icon: <PersonIcon /> },
     { label: 'Y tế & Sức khỏe', icon: <HealthIcon /> },
+    { label: 'Đánh giá học tập', icon: <AssessmentIcon /> },
   ];
 
   return (
-    <RoleLayout
-      title="Sổ liên lạc điện tử"
-      menuItems={menuItems}
-      activeKey="students"
-      onLogout={() => { logout(); navigate('/login'); }}
-      onMenuSelect={handleMenuSelect}
-      userName={user?.fullName}
-    >
+    <Box>
       <Box sx={{ maxWidth: 1000, mx: 'auto' }}>
         <Stack direction="row" alignItems="center" spacing={1} mb={3} sx={{ cursor: 'pointer', color: 'text.secondary', '&:hover': { color: 'primary.main' } }} onClick={() => navigate('/school-admin/students')}>
           <BackIcon fontSize="small" />
@@ -356,10 +411,11 @@ export default function StudentDetailPage() {
               {tab === 0 && <TabTimeline student={student} studentId={studentId} />}
               {tab === 1 && <TabHoSo student={student} />}
               {tab === 2 && <TabSucKhoe studentId={studentId} />}
+              {tab === 3 && <TabDanhGia studentId={studentId} />}
             </Box>
           </Box>
         ) : <Alert severity="error">Không tìm thấy thông tin học sinh.</Alert>}
       </Box>
-    </RoleLayout>
+    </Box>
   );
 }

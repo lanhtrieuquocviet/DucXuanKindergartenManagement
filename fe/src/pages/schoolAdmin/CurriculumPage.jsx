@@ -22,10 +22,7 @@ import {
   Close as CloseIcon,
 } from '@mui/icons-material';
 import { useAuth } from '../../context/AuthContext';
-import RoleLayout from '../../layouts/RoleLayout';
 import { get, post, patch, del, ENDPOINTS } from '../../service/api';
-import { createSchoolAdminMenuSelect } from './schoolAdminMenuConfig';
-import { useSchoolAdminMenu } from './useSchoolAdminMenu';
 import { toast } from 'react-toastify';
 
 
@@ -182,7 +179,6 @@ function CurriculumTopicCard({ topic, onEdit, onDelete }) {
 export default function CurriculumPage() {
   const navigate = useNavigate();
   const { user, logout } = useAuth();
-  const menuItems = useSchoolAdminMenu();
 
   const [academicYear, setAcademicYear] = useState(null);
   const [loadingYear, setLoadingYear] = useState(true);
@@ -225,8 +221,6 @@ export default function CurriculumPage() {
     logout();
     navigate('/login', { replace: true });
   };
-
-  const handleMenuSelect = createSchoolAdminMenuSelect(navigate);
 
   useEffect(() => {
     const fetchCurrentYear = async () => {
@@ -353,17 +347,7 @@ export default function CurriculumPage() {
   const userName = user?.fullName || user?.username || 'School Admin';
 
   return (
-    <RoleLayout
-      title={`Chương trình giáo dục - ${yearName}`}
-      description="Quản lý các chủ đề và mục tiêu giáo dục theo tháng. Bạn có thể thêm, sửa, xóa tự do."
-      menuItems={menuItems}
-      activeKey="academic-curriculum"
-      onLogout={handleLogout}
-      onViewProfile={() => navigate('/profile')}
-      onMenuSelect={handleMenuSelect}
-      userName={userName}
-      userAvatar={user?.avatar}
-    >
+    <Box>
       <Stack spacing={3}>
         <Typography variant="overline" color="text.secondary" sx={{ letterSpacing: 1 }}>
           {breadcrumb}
@@ -560,6 +544,6 @@ export default function CurriculumPage() {
           </Button>
         </DialogActions>
       </Dialog>
-    </RoleLayout>
+    </Box>
   );
 }

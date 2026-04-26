@@ -94,6 +94,17 @@ const upsertAttendance = async (req, res) => {
       if (ay) foundAcademicYearId = ay._id;
     }
 
+    // --- BỔ SUNG: Kiểm tra "Khóa sổ" (Hard Archive) ---
+    if (foundAcademicYearId) {
+      const ay = await AcademicYear.findById(foundAcademicYearId).select('status').lean();
+      if (ay && ay.status === 'inactive') {
+        return res.status(403).json({
+          status: 'error',
+          message: 'Không thể điểm danh cho năm học đã kết thúc (Hard Archive).',
+        });
+      }
+    }
+
     // Chuẩn hoá về đầu ngày để đảm bảo 1 học sinh chỉ có 1 bản ghi / ngày
     attendanceDate.setHours(0, 0, 0, 0);
 
@@ -360,6 +371,18 @@ const checkoutAttendance = async (req, res) => {
         message: 'Học sinh chưa điểm danh đến, không thể điểm danh về',
       });
     }
+
+    // --- BỔ SUNG: Kiểm tra "Khóa sổ" (Hard Archive) ---
+    if (existingAttendance.academicYearId) {
+      const ay = await AcademicYear.findById(existingAttendance.academicYearId).select('status').lean();
+      if (ay && ay.status === 'inactive') {
+        return res.status(403).json({
+          status: 'error',
+          message: 'Không thể điểm danh về cho năm học đã kết thúc (Hard Archive).',
+        });
+      }
+    }
+
     if (existingAttendance.time?.checkOut) {
       return res.status(400).json({
         status: 'error',

@@ -34,6 +34,7 @@ export default function AcademicYearWizard({ open, onClose, onSuccess }) {
   const [classes, setClasses] = useState([]);
   const [teacherOptions, setTeacherOptions] = useState([]);
   const [cloneClasses, setCloneClasses] = useState([]);
+  const [teacherHistory, setTeacherHistory] = useState({}); // { teacherId: { className: count } }
 
   // --- Step 4: Học sinh ---
   const [carryOverStudents, setCarryOverStudents] = useState([]);
@@ -50,6 +51,7 @@ export default function AcademicYearWizard({ open, onClose, onSuccess }) {
         setStaticBlocks(cloneResp.data.staticBlocks || []);
         setCloneClasses(cloneResp.data.cloneClasses || []);
         setCarryOverStudents(cloneResp.data.carryOverStudents || []);
+        setTeacherHistory(cloneResp.data.teacherHistory || {});
       }
       if (teacherResp?.status === 'success' || Array.isArray(teacherResp?.data)) {
         const teachers = Array.isArray(teacherResp.data) ? teacherResp.data : [];
@@ -150,8 +152,23 @@ export default function AcademicYearWizard({ open, onClose, onSuccess }) {
       classes.forEach(c => {
         if (!c.className.trim())
           errs[`class_${c.tempId}_name`] = 'Tên lớp không được để trống';
-        if (!c.teacherIds || c.teacherIds.length === 0)
+        
+        const tIds = c.teacherIds || [];
+        if (tIds.length === 0) {
           errs[`class_${c.tempId}_teacher`] = 'Chưa có giáo viên';
+        } else if (tIds.length < 2) {
+          errs[`class_${c.tempId}_teacher`] = 'Mỗi lớp phải có đúng 2 giáo viên (hiện mới có 1)';
+        } else if (tIds.length > 2) {
+          errs[`class_${c.tempId}_teacher`] = 'Mỗi lớp chỉ được phép có tối đa 2 giáo viên';
+        }
+
+        // Kiểm tra quy tắc 2 năm
+        tIds.forEach(tid => {
+          const count = teacherHistory[String(tid)]?.[c.className] || 0;
+          if (count >= 2) {
+            errs[`class_${c.tempId}_teacher`] = `Giáo viên ${teacherOptions.find(t => String(t._id) === String(tid))?.fullName} đã dạy lớp ${c.className} 2 năm liên tiếp, vui lòng đổi lớp khác.`;
+          }
+        });
       });
       // Kiểm tra giáo viên trùng
       const allTeachers = classes.flatMap(c => c.teacherIds || []);
@@ -167,8 +184,57 @@ export default function AcademicYearWizard({ open, onClose, onSuccess }) {
     return Object.keys(errs).length === 0;
   };
 
-  const handleNext = () => {
+  const [suggestions, setSuggestions] = useState([]);
+  const [loadingSuggestions, setLoadingSuggestions] = useState(false);
+
+  const fetchSuggestions = async () => {
+    setLoadingSuggestions(true);
+    try {
+      // Tìm năm học hiện tại để làm nguồn
+      const currentYearResp = await get(ENDPOINTS.SCHOOL_ADMIN.ACADEMIC_YEARS.CURRENT);
+      const sourceYearId = currentYearResp?.data?._id;
+
+      if (!sourceYearId) {
+        setSuggestions([]);
+        return;
+      }
+
+      const payload = {
+        sourceYearId,
+        nextYearClasses: classes.map(c => ({
+          tempId: c.tempId,
+          className: c.className,
+          gradeName: selectedBlocks.find(b => b.tempId === c.gradeTempId)?.gradeName,
+          minAge: selectedBlocks.find(b => b.tempId === c.gradeTempId)?.minAge,
+          maxAge: selectedBlocks.find(b => b.tempId === c.gradeTempId)?.maxAge,
+        })),
+        importedStudents: importedStudents.map(s => ({
+          tempId: s.tempId,
+          fullName: s.fullName,
+          dateOfBirth: s.dateOfBirth
+        }))
+      };
+
+      const resp = await post(ENDPOINTS.SCHOOL_ADMIN.ACADEMIC_YEARS.WIZARD_SUGGESTIONS, payload);
+      if (resp?.status === 'success') {
+        setSuggestions(resp.data || []);
+      }
+    } catch (error) {
+      console.error('Fetch suggestions error:', error);
+      toast.warning('Không thể tự động tính toán gợi ý xếp lớp');
+    } finally {
+      setLoadingSuggestions(false);
+    }
+  };
+
+  const handleNext = async () => {
     if (!validateStep(activeStep)) return;
+    
+    // Nếu chuẩn bị sang bước 4 (index 3), hãy fetch gợi ý
+    if (activeStep === 2) {
+      await fetchSuggestions();
+    }
+
     setErrors({});
     setActiveStep(s => s + 1);
   };
@@ -250,6 +316,7 @@ export default function AcademicYearWizard({ open, onClose, onSuccess }) {
       selectedBlocks={selectedBlocks}
       cloneClasses={cloneClasses}
       teacherOptions={teacherOptions}
+      teacherHistory={teacherHistory}
     />,
     <StepStudentAssignment
       key="step4"
@@ -261,6 +328,8 @@ export default function AcademicYearWizard({ open, onClose, onSuccess }) {
       placements={placements}
       onChange={setPlacements}
       errors={errors}
+      suggestions={suggestions}
+      loadingSuggestions={loadingSuggestions}
     />,
   ];
 

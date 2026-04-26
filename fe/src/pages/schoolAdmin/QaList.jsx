@@ -3,7 +3,6 @@ import { useNavigate } from 'react-router-dom';
 import { toast } from 'react-toastify';
 import { useAuth } from '../../context/AuthContext';
 import { useSchoolAdmin } from '../../context/SchoolAdminContext';
-import RoleLayout from '../../layouts/RoleLayout';
 import {
   Box,
   Paper,
@@ -27,8 +26,6 @@ import {
   Send as SendIcon,
   QuestionAnswer as QaIcon,
 } from '@mui/icons-material';
-import { createSchoolAdminMenuSelect } from './schoolAdminMenuConfig';
-import { useSchoolAdminMenu } from './useSchoolAdminMenu';
 
 function QaList() {
   const [questionsData, setQuestionsData] = useState(null);
@@ -41,8 +38,7 @@ function QaList() {
   const [page, setPage] = useState(1);
   const [pagination, setPagination] = useState(null);
   const navigate = useNavigate();
-  const { user, logout, isInitializing } = useAuth();
-  const menuItems = useSchoolAdminMenu();
+  const { user, isInitializing } = useAuth();
   const {
     getQaQuestions,
     updateQuestion,
@@ -172,25 +168,11 @@ function QaList() {
       toast.error(err.message || 'Cập nhật câu trả lời thất bại.');
     }
   };
-
-  const handleMenuSelect = createSchoolAdminMenuSelect(navigate);
-
-  const userName = user?.fullName || user?.username || 'School Admin';
   const questions = questionsData?.data?.questions || [];
   const formatDate = (d) => (d ? new Date(d).toLocaleString('vi-VN') : '-');
 
   return (
-    <RoleLayout
-      title="Quản lý câu hỏi"
-      description="Xem, xóa và trả lời câu hỏi từ mục Hỏi đáp."
-      menuItems={menuItems}
-      activeKey="qa"
-      onLogout={() => { logout(); navigate('/login', { replace: true }); }}
-      userName={userName}
-      userAvatar={user?.avatar}
-      onViewProfile={() => navigate('/profile')}
-      onMenuSelect={handleMenuSelect}
-    >
+    <Box>
       {/* Header gradient */}
       <Paper
         elevation={0}
@@ -446,7 +428,7 @@ function QaList() {
           </Button>
         </DialogActions>
       </Dialog>
-    </RoleLayout>
+    </Box>
   );
 }
 

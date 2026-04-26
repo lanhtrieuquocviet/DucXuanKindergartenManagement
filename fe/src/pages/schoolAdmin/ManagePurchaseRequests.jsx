@@ -14,11 +14,8 @@ import {
   ImageSearch as ImageIcon,
   FilterList as FilterIcon,
 } from '@mui/icons-material';
-import RoleLayout from '../../layouts/RoleLayout';
 import { useAuth } from '../../context/AuthContext';
 import { get, patch, ENDPOINTS } from '../../service/api';
-import { createSchoolAdminMenuSelect } from './schoolAdminMenuConfig';
-import { useSchoolAdminMenu } from './useSchoolAdminMenu';
 
 const STATUS_LABEL = {
   pending: { label: 'Chờ tiếp nhận', color: 'warning' },
@@ -152,8 +149,7 @@ function DetailDialog({ open, incident, onClose, onSaveStatus, saving }) {
 
 export default function ManageAssetIncidents() {
   const navigate = useNavigate();
-  const { user, logout } = useAuth();
-  const menuItems = useSchoolAdminMenu();
+  const { user } = useAuth();
 
   const [loading, setLoading] = useState(true);
   const [incidents, setIncidents] = useState([]);
@@ -201,20 +197,9 @@ export default function ManageAssetIncidents() {
     : incidents.filter((r) => r.status === filterStatus);
 
   const countByStatus = (s) => incidents.filter((r) => r.status === s).length;
-  const userName = user?.fullName || user?.username || 'SchoolAdmin';
 
   return (
-    <RoleLayout
-      title="Xử lý sự cố cơ sở vật chất"
-      description="Tiếp nhận, theo dõi và cập nhật sự cố tài sản do giáo viên báo cáo lên Ban Giám Hiệu."
-      menuItems={menuItems}
-      activeKey="asset-incidents"
-      onLogout={() => { logout(); navigate('/login', { replace: true }); }}
-      userName={userName}
-      userAvatar={user?.avatar}
-      onViewProfile={() => navigate('/profile')}
-      onMenuSelect={createSchoolAdminMenuSelect(navigate)}
-    >
+    <Box>
       <Box sx={{ display: 'flex', gap: 2, mb: 3, flexWrap: 'wrap' }}>
         {[
           { label: 'Chờ tiếp nhận', status: 'pending', color: '#f59e0b', bg: '#fef3c7', icon: <PendingIcon fontSize="small" /> },
@@ -378,6 +363,6 @@ export default function ManageAssetIncidents() {
         onSaveStatus={handleSaveStatus}
         saving={actioning}
       />
-    </RoleLayout>
+    </Box>
   );
 }

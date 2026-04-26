@@ -14,17 +14,15 @@ import {
 } from '@mui/material';
 import { toast } from 'react-toastify';
 
-import RoleLayout from '../../layouts/RoleLayout';
 import { useAuth } from '../../context/AuthContext';
 import { get, post, put, del, ENDPOINTS } from '../../service/api';
-import { createSchoolAdminMenuSelect } from './schoolAdminMenuConfig';
-import { useSchoolAdminMenu } from './useSchoolAdminMenu';
 
 // Sub-components
 import PersonnelFilter from './PersonnelManagement/PersonnelFilter';
 import PersonnelTable from './PersonnelManagement/PersonnelTable';
-import AddStaffDialog from './StaffManagement/AddStaffDialog'; // We can reuse and adapt
+import AddStaffDialog from './StaffManagement/AddStaffDialog';
 import EditStaffDialog from './StaffManagement/EditStaffDialog';
+import SuccessAccountDialog from '../../components/SuccessAccountDialog';
 
 const ROLE_OPTIONS = [
   { value: 'SchoolAdmin', label: 'Quản trị viên' },
@@ -32,15 +30,6 @@ const ROLE_OPTIONS = [
   { value: 'KitchenStaff', label: 'Nhân viên bếp' },
   { value: 'MedicalStaff', label: 'Nhân viên y tế' },
   { value: 'HeadTeacher', label: 'Tổ trưởng' },
-];
-
-const POSITION_OPTIONS = [
-  'Ban Giám Hiệu',
-  'Giáo viên',
-  'Nhân viên văn phòng',
-  'Nhân viên y tế',
-  'Nhân viên nhà bếp',
-  'Tổ trưởng chuyên môn',
 ];
 
 const EMPTY_FORM = {
@@ -53,13 +42,17 @@ const EMPTY_FORM = {
   customPosition: '',
   phone: '',
   status: 'active',
-  roleName: 'Teacher', // Default role for new users
+  roleName: null, 
 };
 
 export default function ManagePersonnel() {
   const navigate = useNavigate();
-  const { user, hasRole, isInitializing } = useAuth();
-  const menuItems = useSchoolAdminMenu();
+  
+  // State cho Success Popup
+  const [successData, setSuccessData] = useState(null);
+  const [showSuccessDialog, setShowSuccessDialog] = useState(false);
+
+  const { user, isInitializing } = useAuth();
 
   const [personnel, setPersonnel] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -67,6 +60,11 @@ export default function ManagePersonnel() {
   const [search, setSearch] = useState('');
   const [debouncedSearch, setDebouncedSearch] = useState('');
   const [roleFilter, setRoleFilter] = useState('');
+
+  // Job positions from DB
+  const [jobPositions, setJobPositions] = useState([]);
+  const [positionMap, setPositionMap] = useState({});
+  const [positionsLoading, setPositionsLoading] = useState(true);
 
   // Debounce search term
   useEffect(() => {
@@ -89,31 +87,56 @@ export default function ManagePersonnel() {
   const [deleteTarget, setDeleteTarget] = useState(null);
   const [deleteLoading, setDeleteLoading] = useState(false);
 
-  useEffect(() => {
-    if (isInitializing) return;
-    if (!user) {
-      navigate('/login', { replace: true });
-      return;
-    }
-    fetchPersonnel();
-  }, [user, isInitializing]); // eslint-disable-line
+  const fetchJobPositions = async () => {
+    try {
+      setPositionsLoading(true);
+      const res = await get(ENDPOINTS.SYSTEM_ADMIN.JOB_POSITIONS);
+      const data = res.data || [];
+      setJobPositions(data.map(p => p.title));
+      
+      const pMap = {};
+      data.forEach(p => {
+        pMap[p.title] = p.roleName;
+      });
+      setPositionMap(pMap);
 
-  const handleMenuSelect = createSchoolAdminMenuSelect(navigate);
+      // Set default position for form if it's currently empty
+      if (data.length > 0) {
+        const teacherPos = data.find(p => p.roleName === 'Teacher') || data[0];
+        setFormAdd(prev => ({
+          ...prev,
+          position: teacherPos.title,
+          roleName: teacherPos.roleName
+        }));
+      }
+    } catch (err) {
+      console.error('Lỗi khi tải danh mục chức vụ:', err);
+    } finally {
+      setPositionsLoading(false);
+    }
+  };
 
   const fetchPersonnel = async () => {
     try {
       setLoading(true);
-      // We can pass filters to the backend if the list is huge, 
-      // but for now, the aggregation returns all staff for the school.
+      setError(null);
       const res = await get(ENDPOINTS.SCHOOL_ADMIN.STAFF_USERS);
       setPersonnel(res.data || []);
-      setError(null);
     } catch (err) {
       setError(err.data?.message || err.message || 'Lỗi khi tải danh sách nhân sự');
     } finally {
       setLoading(false);
     }
   };
+
+  useEffect(() => {
+    if (!user) {
+      navigate('/login', { replace: true });
+      return;
+    }
+    fetchJobPositions();
+    fetchPersonnel();
+  }, [user, isInitializing]); // eslint-disable-line
 
   const handleAdd = async () => {
     if (formAdd.password !== formAdd.confirmPassword) {
@@ -123,10 +146,24 @@ export default function ManagePersonnel() {
     try {
       setAddLoading(true);
       setAddError(null);
-      await post('/school-admin/users', formAdd);
+      const res = await post('/school-admin/users', formAdd);
+      
+      setFormAdd(EMPTY_FORM);
       setOpenAdd(false);
-      toast.success('Thêm nhân sự thành công');
       fetchPersonnel();
+
+      // Nếu có mật khẩu tự sinh (tài khoản mới) thì hiện Popup
+      if (res.data?.generatedPassword) {
+        setSuccessData({
+          username: res.data.username,
+          generatedPassword: res.data.generatedPassword,
+          fullName: res.data.fullName,
+          phone: res.data.phone || res.data.username,
+        });
+        setShowSuccessDialog(true);
+      } else {
+        toast.success('Thêm nhân sự thành công');
+      }
     } catch (err) {
       setAddError(err.data?.message || err.message || 'Lỗi khi thêm nhân sự');
     } finally {
@@ -180,13 +217,18 @@ export default function ManagePersonnel() {
   };
 
   const filtered = useMemo(() => {
-    const s = debouncedSearch.toLowerCase();
+    const s = debouncedSearch.trim().toLowerCase();
     return personnel.filter((item) => {
-      const matchSearch =
-        (item.fullName || '').toLowerCase().includes(s) ||
-        (item.phone || '').includes(s) ||
-        (item.email || '').toLowerCase().includes(s) ||
-        (item.username || '').toLowerCase().includes(s);
+      const fullName = (item.fullName || '').toLowerCase();
+      const phone = (item.phone || '').toLowerCase();
+      const email = (item.email || '').toLowerCase();
+      const username = (item.username || '').toLowerCase();
+      
+      const matchSearch = !s || 
+        fullName.includes(s) ||
+        phone.includes(s) ||
+        email.includes(s) ||
+        username.includes(s);
       
       const matchRole = !roleFilter || (item.roleNames || '').includes(roleFilter);
       
@@ -195,16 +237,7 @@ export default function ManagePersonnel() {
   }, [personnel, debouncedSearch, roleFilter]);
 
   return (
-    <RoleLayout
-      menuItems={menuItems}
-      activeKey="personnel"
-      onMenuSelect={handleMenuSelect}
-      onLogout={() => {}}
-      onViewProfile={() => navigate('/profile')}
-      userName={user?.fullName || user?.username || 'Admin'}
-      userRole="SchoolAdmin"
-      pageTitle="Quản lý nhân sự"
-    >
+    <Box>
       <Box sx={{ p: { xs: 1, md: 1 }, maxWidth: 1200, mx: 'auto' }}>
         <PersonnelFilter
           search={search}
@@ -212,7 +245,15 @@ export default function ManagePersonnel() {
           roleFilter={roleFilter}
           setRoleFilter={setRoleFilter}
           onAdd={() => {
-            setFormAdd(EMPTY_FORM);
+            // Tìm chức vụ mặc định (ưu tiên Giáo viên hoặc cái đầu tiên có Role)
+            const defaultPos = jobPositions.find(p => positionMap[p] === 'Teacher') || jobPositions[0] || '';
+            const defaultRole = positionMap[defaultPos] || null;
+            
+            setFormAdd({
+              ...EMPTY_FORM,
+              position: defaultPos,
+              roleName: defaultRole
+            });
             setAddError(null);
             setOpenAdd(true);
           }}
@@ -270,7 +311,8 @@ export default function ManagePersonnel() {
         error={addError}
         setError={setAddError}
         onSubmit={handleAdd}
-        POSITION_OPTIONS={POSITION_OPTIONS}
+        POSITION_OPTIONS={jobPositions}
+        POSITION_MAP={positionMap}
       />
 
       <EditStaffDialog
@@ -282,7 +324,8 @@ export default function ManagePersonnel() {
         error={editError}
         setError={setEditError}
         onSubmit={handleEdit}
-        POSITION_OPTIONS={POSITION_OPTIONS}
+        POSITION_OPTIONS={jobPositions}
+        POSITION_MAP={positionMap}
       />
 
       {/* Delete Confirm */}
@@ -309,6 +352,12 @@ export default function ManagePersonnel() {
           </Button>
         </DialogActions>
       </Dialog>
-    </RoleLayout>
+      <SuccessAccountDialog 
+        open={showSuccessDialog} 
+        onClose={() => setShowSuccessDialog(false)} 
+        data={successData} 
+        roleName="Giáo viên/Nhân viên"
+      />
+    </Box>
   );
 }

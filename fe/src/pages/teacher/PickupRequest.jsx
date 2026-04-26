@@ -1,7 +1,6 @@
 import { useEffect, useMemo, useState } from "react";
 import { useLocation, useNavigate } from "react-router-dom";
 import { useAuth } from "../../context/AuthContext";
-import RoleLayout from "../../layouts/RoleLayout";
 import { get, post, ENDPOINTS } from "../../service/api";
 import ConfirmDialog from "../../components/ConfirmDialog";
 import {
@@ -296,17 +295,7 @@ function PickupRequest() {
   const isMobile = useMediaQuery(theme.breakpoints.down("sm"));
 
   return (
-    <RoleLayout
-      title="Phê duyệt người đưa đón"
-      description="Xem và xử lý các đăng ký người đưa đón từ phụ huynh."
-      menuItems={menuItems}
-      activeKey={activeKey}
-      onLogout={() => navigate("/login", { replace: true })}
-      userName={userName}
-      userAvatar={user?.avatar}
-      onViewProfile={() => navigate("/profile")}
-      onMenuSelect={handleMenuSelect}
-    >
+    <Box>
       {/* Chưa được phân công lớp */}
       {myClasses !== null && myClasses.length === 0 && (
         <Box sx={{ display: 'flex', justifyContent: 'center', alignItems: 'center', minHeight: 320 }}>
@@ -690,7 +679,7 @@ function PickupRequest() {
         </Box>
       </Dialog>
       </>}
-    </RoleLayout>
+    </Box>
   );
 }
 

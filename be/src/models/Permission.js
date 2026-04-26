@@ -18,6 +18,18 @@ const permissionSchema = new mongoose.Schema({
     trim: true,
     default: '',
   },
+  path: {
+    type: String,
+    trim: true,
+  },
+  menuKey: {
+    type: String,
+    trim: true,
+  },
+  order: {
+    type: Number,
+    default: 0,
+  }
 }, {
   timestamps: true,
   collection: 'Permission' // Tên collection trong MongoDB

@@ -21,11 +21,8 @@ import AddIcon from '@mui/icons-material/Add';
 import DeleteIcon from '@mui/icons-material/Delete';
 import UploadIcon from '@mui/icons-material/Upload';
 import EditIcon from '@mui/icons-material/Edit';
-import RoleLayout from '../../layouts/RoleLayout';
 import { useAuth } from '../../context/AuthContext';
 import { del, get, post, patch, put, postFormData, ENDPOINTS } from '../../service/api';
-import { createSchoolAdminMenuSelect } from './schoolAdminMenuConfig';
-import { useSchoolAdminMenu } from './useSchoolAdminMenu';
 
 const createBanner = (index = 0) => ({
   imageUrl: '',
@@ -36,8 +33,7 @@ const createBanner = (index = 0) => ({
 
 export default function ManageBanners() {
   const navigate = useNavigate();
-  const { user, logout, isInitializing } = useAuth();
-  const menuItems = useSchoolAdminMenu();
+  const { user, isInitializing } = useAuth();
   const [loading, setLoading] = useState(true);
   const [uploadingIndex, setUploadingIndex] = useState(-1);
   const [banners, setBanners] = useState([createBanner(0)]);
@@ -299,23 +295,10 @@ export default function ManageBanners() {
     }
   };
 
-  const handleMenuSelect = createSchoolAdminMenuSelect(navigate);
+  // const handleMenuSelect = createSchoolAdminMenuSelect(navigate);
 
   return (
-    <RoleLayout
-      title="Quản lý banner"
-      description="Kiểm soát banner hiển thị trên trang chủ."
-      menuItems={menuItems}
-      activeKey="banner-management"
-      onLogout={() => {
-        logout();
-        navigate('/login', { replace: true });
-      }}
-      userName={user?.fullName || user?.username || 'School Admin'}
-      userAvatar={user?.avatar}
-      onViewProfile={() => navigate('/profile')}
-      onMenuSelect={handleMenuSelect}
-    >
+    <Box>
       <Paper
         elevation={0}
         sx={{
@@ -645,6 +628,6 @@ export default function ManageBanners() {
           </Button>
         </DialogActions>
       </Dialog>
-    </RoleLayout>
+    </Box>
   );
 }

@@ -1,10 +1,7 @@
 import { useEffect, useState, useMemo } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
-import RoleLayout from '../../layouts/RoleLayout';
 import { useAuth } from '../../context/AuthContext';
 import { get, post, put, del, ENDPOINTS } from '../../service/api';
-import { createSchoolAdminMenuSelect } from './schoolAdminMenuConfig';
-import { useSchoolAdminMenu } from './useSchoolAdminMenu';
 import {
   Box,
   Paper,
@@ -41,7 +38,6 @@ export default function ClassList() {
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
   const { user, logout, isInitializing } = useAuth();
-  const menuItems = useSchoolAdminMenu();
 
   // Data State
   const [classes, setClasses] = useState([]);
@@ -268,18 +264,8 @@ export default function ClassList() {
   }, [classes, selectedGrade, classSearchTerm]);
 
   // ── Render ─────────────────────────────────────────────────────────────────
-  const handleMenuSelect = createSchoolAdminMenuSelect(navigate);
-
   return (
-    <RoleLayout
-      menuItems={menuItems}
-      activeKey="classes"
-      onMenuSelect={handleMenuSelect}
-      onLogout={() => { logout(); navigate('/login'); }}
-      onViewProfile={() => navigate('/profile')}
-      userName={user?.fullName || user?.username}
-      userRole="SchoolAdmin"
-    >
+    <Box>
       <Box sx={{ maxWidth: 1400, mx: 'auto' }}>
         <Paper
           elevation={0}
@@ -528,6 +514,6 @@ export default function ClassList() {
           </Button>
         </DialogActions>
       </Dialog>
-    </RoleLayout>
+    </Box>
   );
 }

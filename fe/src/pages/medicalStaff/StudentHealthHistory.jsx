@@ -279,20 +279,7 @@ export default function StudentHealthHistory() {
   const handleLogout = () => { logout(); navigate('/login', { replace: true }); };
 
   return (
-    <RoleLayout
-      menuItems={MENU_ITEMS}
-      activeKey="health"
-      onMenuSelect={k => {
-        if (k === 'overview') navigate('/medical-staff');
-        else if (k === 'health') navigate('/medical-staff/health');
-        else if (k === 'incidents') navigate('/medical-staff/incidents');
-      }}
-      onLogout={handleLogout}
-      onViewProfile={() => navigate('/profile')}
-      userName={user?.fullName || user?.username || 'Nhân viên y tế'}
-      userRole="MedicalStaff"
-      pageTitle="Lịch sử khám sức khỏe"
-    >
+    <>
       <Box sx={{ p: { xs: 2, md: 3 }, maxWidth: 1200, mx: 'auto' }}>
 
         {/* Top bar */}
@@ -583,6 +570,6 @@ export default function StudentHealthHistory() {
           </Button>
         </DialogActions>
       </Dialog>
-    </RoleLayout>
+    </>
   );
 }

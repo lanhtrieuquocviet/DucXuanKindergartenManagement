@@ -60,21 +60,6 @@ function SchoolNurseDashboard() {
     }
   };
 
-  const menuItems = [
-    { key: "overview", label: "📊 Tổng Quan Sức Khỏe" },
-    { key: "health-list", label: "📋 Danh Sách Khám" },
-    { key: "health-create", label: "➕ Tạo Khám Mới" },
-    { key: "health-reports", label: "📈 Báo Cáo" },
-    { key: "follow-up", label: "📞 Cần Theo Dõi" },
-  ];
-
-  const handleMenuSelect = (key) => {
-    if (key === "overview") return;
-    if (key === "health-list") navigate("/school-nurse/health-list");
-    if (key === "health-create") navigate("/school-nurse/health-create");
-    if (key === "health-reports") navigate("/school-nurse/health-reports");
-    if (key === "follow-up") navigate("/school-nurse/follow-up");
-  };
 
   if (isInitializing) {
     return (
@@ -87,21 +72,7 @@ function SchoolNurseDashboard() {
   const userName = user?.fullName || user?.username || "Điều dưỡng";
 
   return (
-    <RoleLayout
-      title="Bảng điều khiển của Điều Dưỡng"
-      description="Quản lý thông tin khám sức khỏe học sinh"
-      menuItems={menuItems}
-      activeKey="overview"
-      onLogout={() => {
-        logout();
-        navigate("/login", { replace: true });
-      }}
-      userName={userName}
-      userAvatar={user?.avatar}
-      onViewProfile={() => navigate("/profile")}
-      onMenuSelect={handleMenuSelect}
-    >
-      <Box sx={{ p: 3 }}>
+    <Box sx={{ p: 3 }}>
         {error && (
           <Alert severity="error" sx={{ mb: 3 }}>
             {error}
@@ -236,7 +207,6 @@ function SchoolNurseDashboard() {
           </>
         )}
       </Box>
-    </RoleLayout>
   );
 }
 

@@ -1,7 +1,6 @@
 import { useEffect, useMemo, useState, useCallback, useRef } from 'react';
 import { useLocation, useNavigate, useParams } from 'react-router-dom';
 import { useAuth } from '../../context/AuthContext';
-import RoleLayout from '../../layouts/RoleLayout';
 import { get, post, put, del, postFormData, ENDPOINTS } from '../../service/api';
 import { toast } from 'react-toastify';
 import {
@@ -1036,17 +1035,7 @@ export default function ContactBookDetail() {
   ];
 
   return (
-    <RoleLayout
-      title="Sổ liên lạc điện tử"
-      description={classInfo ? `${classInfo.className}${classInfo.gradeName ? ' · ' + classInfo.gradeName : ''}` : ''}
-      menuItems={menuItems}
-      activeKey={activeKey}
-      onLogout={() => { logout(); navigate('/login', { replace: true }); }}
-      userName={userName}
-      userAvatar={user?.avatar}
-      onViewProfile={() => navigate('/profile')}
-      onMenuSelect={handleMenuSelect}
-    >
+    <Box>
       {error && <Alert severity="error" sx={{ mb: 2, borderRadius: 2 }}>{error}</Alert>}
 
       {/* Back + header */}
@@ -1258,6 +1247,6 @@ export default function ContactBookDetail() {
 
         </Grid>
       )}
-    </RoleLayout>
+    </Box>
   );
 }

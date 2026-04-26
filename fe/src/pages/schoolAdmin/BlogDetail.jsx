@@ -2,9 +2,6 @@ import { useEffect, useState } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import { useAuth } from '../../context/AuthContext';
 import { useSchoolAdmin } from '../../context/SchoolAdminContext';
-import RoleLayout from '../../layouts/RoleLayout';
-import { createSchoolAdminMenuSelect } from './schoolAdminMenuConfig';
-import { useSchoolAdminMenu } from './useSchoolAdminMenu';
 import ConfirmDialog from '../../components/ConfirmDialog';
 import 'quill/dist/quill.snow.css';
 import {
@@ -37,7 +34,6 @@ function BlogDetail() {
   const navigate = useNavigate();
   const { user, logout, isInitializing } = useAuth();
   const { getBlogs, deleteBlog, setError } = useSchoolAdmin();
-  const menuItems = useSchoolAdminMenu();
 
   const [blog, setBlog] = useState(null);
   const [loading, setLoading] = useState(true);
@@ -90,8 +86,6 @@ function BlogDetail() {
   const handleEdit = () => navigate(`/school-admin/blogs/${blogId}/edit`);
   const handleBack = () => navigate('/school-admin/blogs', { replace: true });
 
-  const handleMenuSelect = createSchoolAdminMenuSelect(navigate);
-
   const userName = user?.fullName || user?.username || 'School Admin';
   const formatDate = (dateString) => {
     if (!dateString) return '-';
@@ -100,36 +94,17 @@ function BlogDetail() {
 
   if (loading) {
     return (
-      <RoleLayout
-        title="Chi tiết bài viết"
-        menuItems={menuItems}
-        activeKey="blogs"
-        onLogout={() => { logout(); navigate('/login', { replace: true }); }}
-        onViewProfile={() => navigate('/profile')}
-        onMenuSelect={handleMenuSelect}
-        userName={userName}
-        userAvatar={user?.avatar}
-      >
+      <Box>
         <Stack alignItems="center" justifyContent="center" sx={{ height: 384 }} spacing={2}>
           <CircularProgress size={32} />
           <Typography variant="body2" color="text.secondary">Đang tải...</Typography>
         </Stack>
-      </RoleLayout>
+      </Box>
     );
   }
 
   return (
-    <RoleLayout
-      title="Chi tiết bài viết"
-      description={blog?.code || 'Xem thông tin chi tiết bài viết'}
-      menuItems={menuItems}
-      activeKey="blogs"
-      onLogout={() => { logout(); navigate('/login', { replace: true }); }}
-      onViewProfile={() => navigate('/profile')}
-      onMenuSelect={handleMenuSelect}
-      userName={userName}
-      userAvatar={user?.avatar}
-    >
+    <Box>
       {error && (
         <Alert severity="error" sx={{ mb: 2 }}>{error}</Alert>
       )}
@@ -443,7 +418,7 @@ function BlogDetail() {
         onCancel={() => setConfirmDelete(false)}
         loading={deleting}
       />
-    </RoleLayout>
+    </Box>
   );
 }
 

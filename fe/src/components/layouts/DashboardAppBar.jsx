@@ -8,7 +8,10 @@ import {
   KeyboardArrowDown as ArrowDownIcon,
   Person as PersonIcon,
   Logout as LogoutIcon,
+  SwapHoriz as SwapIcon
 } from '@mui/icons-material';
+import { useNavigate } from 'react-router-dom';
+import { useAuth } from '../../context/AuthContext';
 import logoDucXuan from '../../assets/logo/ducxuan-logo.png';
 import NotificationBell from './NotificationBell';
 
@@ -45,6 +48,17 @@ export default function DashboardAppBar({
 }) {
   const [profileAnchor, setProfileAnchor] = useState(null);
   const initials = getUserInitials(userName);
+  
+  const { user } = useAuth();
+  const navigate = useNavigate();
+  
+  const roles = (user?.roles || []).map((r) => r.roleName || r);
+  const isMultiRole = roles.length > 1;
+
+  const handleSwitchRole = (targetRoute) => {
+    setProfileAnchor(null);
+    navigate(targetRoute);
+  };
 
   const todayLabel = new Date().toLocaleDateString('vi-VN', {
     weekday: 'short', day: 'numeric', month: 'numeric',
@@ -165,6 +179,45 @@ export default function DashboardAppBar({
               </Box>
 
               <Divider />
+
+              {isMultiRole && (
+                <Box sx={{ p: 0.75 }}>
+                  <Typography variant="overline" sx={{ px: 1.5, color: 'text.secondary', fontWeight: 600 }}>Chuyển cổng làm việc</Typography>
+                  
+                  {roles.includes('SystemAdmin') && (
+                    <MenuItem onClick={() => handleSwitchRole('/system-admin')} sx={{ gap: 1.5, py: 1, fontSize: 14, borderRadius: 1.5 }}>
+                      <SwapIcon sx={{ fontSize: 18, color: 'text.secondary' }} /> Cổng Quản trị HT
+                    </MenuItem>
+                  )}
+                  {roles.includes('SchoolAdmin') && (
+                    <MenuItem onClick={() => handleSwitchRole('/school-admin')} sx={{ gap: 1.5, py: 1, fontSize: 14, borderRadius: 1.5 }}>
+                      <SwapIcon sx={{ fontSize: 18, color: 'text.secondary' }} /> Cổng Ban giám hiệu
+                    </MenuItem>
+                  )}
+                  {(roles.includes('HeadTeacher') || roles.includes('Teacher')) && (
+                    <MenuItem onClick={() => handleSwitchRole('/teacher')} sx={{ gap: 1.5, py: 1, fontSize: 14, borderRadius: 1.5 }}>
+                      <SwapIcon sx={{ fontSize: 18, color: 'text.secondary' }} /> Cổng Giáo viên
+                    </MenuItem>
+                  )}
+                  {roles.includes('SchoolNurse') && (
+                    <MenuItem onClick={() => handleSwitchRole('/school-nurse')} sx={{ gap: 1.5, py: 1, fontSize: 14, borderRadius: 1.5 }}>
+                      <SwapIcon sx={{ fontSize: 18, color: 'text.secondary' }} /> Cổng Y tế
+                    </MenuItem>
+                  )}
+                  {roles.includes('KitchenStaff') && (
+                    <MenuItem onClick={() => handleSwitchRole('/kitchen')} sx={{ gap: 1.5, py: 1, fontSize: 14, borderRadius: 1.5 }}>
+                      <SwapIcon sx={{ fontSize: 18, color: 'text.secondary' }} /> Cổng Nhà bếp
+                    </MenuItem>
+                  )}
+                  {(roles.includes('Parent') || roles.includes('StudentParent') || roles.includes('Phụ huynh')) && (
+                    <MenuItem onClick={() => handleSwitchRole('/student')} sx={{ gap: 1.5, py: 1, fontSize: 14, borderRadius: 1.5 }}>
+                      <SwapIcon sx={{ fontSize: 18, color: 'text.secondary' }} /> Cổng Phụ huynh
+                    </MenuItem>
+                  )}
+                </Box>
+              )}
+              
+              {isMultiRole && <Divider />}
 
               <Box sx={{ p: 0.75 }}>
                 {onViewProfile && (

@@ -11,7 +11,6 @@ import {
   Tab,
 } from '@mui/material';
 import { useAuth } from '../../context/AuthContext';
-import RoleLayout from '../../layouts/RoleLayout';
 import { get, ENDPOINTS } from '../../service/api';
 import { createSchoolAdminMenuSelect } from './schoolAdminMenuConfig';
 import { useSchoolAdminMenu } from './useSchoolAdminMenu';
@@ -26,7 +25,7 @@ function formatDate(dateString) {
 export default function AcademicYearDetail() {
   const { yearId } = useParams();
   const navigate = useNavigate();
-  const { user, logout } = useAuth();
+  const { user } = useAuth();
   const menuItems = useSchoolAdminMenu();
 
   const [summary, setSummary] = useState(null);
@@ -34,11 +33,6 @@ export default function AcademicYearDetail() {
   const [tab, setTab] = useState(0);
   const [classes, setClasses] = useState([]);
   const [classesLoading, setClassesLoading] = useState(false);
-
-  const handleLogout = () => {
-    logout();
-    navigate('/login', { replace: true });
-  };
 
   const handleMenuSelect = createSchoolAdminMenuSelect(navigate);
 
@@ -92,30 +86,16 @@ export default function AcademicYearDetail() {
     loadClasses();
   }, [yearId, tab]);
 
-  const userName = user?.fullName || user?.username || 'School Admin';
-
   const passRate = 0;
   const reportCount = 0;
   const totalStudents = Number(summary?.studentCount) || 0;
-  // Tạm thời fix cứng theo yêu cầu
   const fixedDevelopedStudents = 262;
-  const fixedNeedSupportStudents = 23;
   const developedRate = totalStudents > 0
     ? Math.round((fixedDevelopedStudents / totalStudents) * 100)
     : 0;
 
   return (
-    <RoleLayout
-      title={summary?.yearName || 'Chi tiết Năm học'}
-      description="Thông tin chi tiết năm học đã kết thúc."
-      menuItems={menuItems}
-      activeKey="academic-year-setup"
-      onLogout={handleLogout}
-      onViewProfile={() => navigate('/profile')}
-      onMenuSelect={handleMenuSelect}
-      userName={userName}
-      userAvatar={user?.avatar}
-    >
+    <Box>
       <Stack spacing={3}>
         <Box>
           <Typography variant="overline" color="text.secondary">
@@ -520,7 +500,7 @@ export default function AcademicYearDetail() {
           )}
         </Paper>
       </Stack>
-    </RoleLayout>
+    </Box>
   );
 }
 

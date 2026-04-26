@@ -38,10 +38,7 @@ import {
 } from '@mui/icons-material';
 import { toast } from 'react-toastify';
 import { useAuth } from '../../context/AuthContext';
-import RoleLayout from '../../layouts/RoleLayout';
 import { get, ENDPOINTS } from '../../service/api';
-import { createSchoolAdminMenuSelect } from './schoolAdminMenuConfig';
-import { useSchoolAdminMenu } from './useSchoolAdminMenu';
 import {
   getMealPhoto,
   getAttendanceSummary,
@@ -874,8 +871,7 @@ function MealPhotosTab({ meals, onPreview, editRequests, onApproveEdit, onReject
 // ─────────────────────────────────────────────
 function MealManagementSchoolAdmin() {
   const navigate = useNavigate();
-  const { user, logout } = useAuth();
-  const menuItems = useSchoolAdminMenu();
+  const { user } = useAuth();
 
   const [selectedDate, setSelectedDate] = useState(getLocalToday());
   const [mealData, setMealData] = useState(null);
@@ -982,7 +978,7 @@ function MealManagementSchoolAdmin() {
   };
 
   // ── Menu ──
-  const handleMenuSelect = createSchoolAdminMenuSelect(navigate);
+  // const handleMenuSelect = createSchoolAdminMenuSelect(navigate);
 
   const userName = user?.fullName || user?.username || 'School Admin';
 
@@ -1021,17 +1017,7 @@ function MealManagementSchoolAdmin() {
   ];
 
   return (
-    <RoleLayout
-      title="Quản lý bữa ăn"
-      description="Kiểm tra ảnh bữa ăn và duyệt mẫu thực phẩm hàng ngày"
-      menuItems={menuItems}
-      activeKey="meal-management"
-      onLogout={() => { logout(); navigate('/login', { replace: true }); }}
-      userName={userName}
-      userAvatar={user?.avatar}
-      onViewProfile={() => navigate('/profile')}
-      onMenuSelect={handleMenuSelect}
-    >
+    <Box>
       {/* ── Date picker ── */}
       <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5, mb: 3 }}>
         <CalIcon sx={{ color: '#6366f1', fontSize: 22 }} />
@@ -1279,7 +1265,7 @@ function MealManagementSchoolAdmin() {
           />
         </Box>
       </Dialog>
-    </RoleLayout>
+    </Box>
   );
 }
 

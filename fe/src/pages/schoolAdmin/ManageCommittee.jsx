@@ -1,16 +1,12 @@
 import { useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Paper, Typography } from '@mui/material';
-import RoleLayout from '../../layouts/RoleLayout';
+import { Box, Paper, Typography } from '@mui/material';
 import { useAuth } from '../../context/AuthContext';
-import { createSchoolAdminMenuSelect } from './schoolAdminMenuConfig';
-import { useSchoolAdminMenu } from './useSchoolAdminMenu';
-import { CommitteeTab } from './ManageAssets';
+import { CommitteeTab } from './AssetManagement/CommitteeTab';
 
 export default function ManageCommittee() {
   const navigate = useNavigate();
-  const { user, logout, isInitializing } = useAuth();
-  const menuItems = useSchoolAdminMenu();
+  const { user, isInitializing } = useAuth();
 
   useEffect(() => {
     if (isInitializing) return;
@@ -19,24 +15,12 @@ export default function ManageCommittee() {
     if (!roles.includes('SchoolAdmin')) navigate('/', { replace: true });
   }, [isInitializing, navigate, user]);
 
-  const handleMenuSelect = createSchoolAdminMenuSelect(navigate);
-
   return (
-    <RoleLayout
-      title="Ban Kiểm Kê"
-      description="Quản lý ban kiểm kê tài sản trường."
-      menuItems={menuItems}
-      activeKey="kiemke"
-      onLogout={() => { logout(); navigate('/login', { replace: true }); }}
-      userName={user?.fullName || user?.username || 'School Admin'}
-      userAvatar={user?.avatar}
-      onViewProfile={() => navigate('/profile')}
-      onMenuSelect={handleMenuSelect}
-    >
+    <Box>
       <Paper elevation={0} sx={{ p: { xs: 1.5, sm: 3 }, borderRadius: 3, backgroundColor: '#f9fafb' }}>
         {/* <Typography variant="h5" fontWeight={700} mb={2}>Ban Kiểm Kê</Typography> */}
         <CommitteeTab />
       </Paper>
-    </RoleLayout>
+    </Box>
   );
 }

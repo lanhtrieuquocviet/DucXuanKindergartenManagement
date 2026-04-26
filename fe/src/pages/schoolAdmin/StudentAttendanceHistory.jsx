@@ -2,9 +2,6 @@ import { useEffect, useState, useMemo } from 'react';
 import { useNavigate, useParams, useSearchParams } from 'react-router-dom';
 import { useAuth } from '../../context/AuthContext';
 import { useSchoolAdmin } from '../../context/SchoolAdminContext';
-import RoleLayout from '../../layouts/RoleLayout';
-import { createSchoolAdminMenuSelect } from './schoolAdminMenuConfig';
-import { useSchoolAdminMenu } from './useSchoolAdminMenu';
 import {
   Box,
   Paper,
@@ -94,9 +91,8 @@ function StudentAttendanceHistory() {
   const navigate = useNavigate();
   const { studentId } = useParams();
   const [searchParams] = useSearchParams();
-  const { user, logout, isInitializing } = useAuth();
+  const { user, isInitializing } = useAuth();
   const { getStudentAttendanceHistory, loading, error } = useSchoolAdmin();
-  const menuItems = useSchoolAdminMenu();
 
   const [studentInfo, setStudentInfo] = useState(null);
   const [attendances, setAttendances] = useState([]);
@@ -142,10 +138,6 @@ function StudentAttendanceHistory() {
     }
   };
 
-  const handleMenuSelect = createSchoolAdminMenuSelect(navigate);
-
-  const userName = user?.fullName || user?.username || 'School Admin';
-
   const stats = useMemo(() => {
     if (statsFromApi) {
       return statsFromApi;
@@ -181,20 +173,7 @@ function StudentAttendanceHistory() {
   ];
 
   return (
-    <RoleLayout
-      title="Màn hình lịch sử thông tin điểm danh của học sinh"
-      description="Từ màn hình chi tiết điểm danh của 1 học sinh, chọn Lịch sử điểm danh → Hiển thị màn hình Lịch sử điểm danh"
-      menuItems={menuItems}
-      activeKey="attendance"
-      onLogout={() => {
-        logout();
-        navigate('/login', { replace: true });
-      }}
-      userName={userName}
-      userAvatar={user?.avatar}
-      onViewProfile={() => navigate('/profile')}
-      onMenuSelect={handleMenuSelect}
-    >
+    <Box>
       {error && (
         <Alert severity="error" sx={{ mb: 2 }}>
           {error}
@@ -381,7 +360,7 @@ function StudentAttendanceHistory() {
           </Button>
         </Box>
       </Box>
-    </RoleLayout>
+    </Box>
   );
 }
 

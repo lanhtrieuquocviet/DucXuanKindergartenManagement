@@ -1,10 +1,7 @@
 import { useState, useEffect, useCallback, useRef } from "react";
 import { useNavigate } from "react-router-dom";
 import { toast } from "react-toastify";
-import RoleLayout from "../../layouts/RoleLayout";
 import { useAuth } from "../../context/AuthContext";
-import { createSchoolAdminMenuSelect } from "./schoolAdminMenuConfig";
-import { useSchoolAdminMenu } from "./useSchoolAdminMenu";
 import {
   listDistrictNutritionPlans,
   createDistrictNutritionPlan,
@@ -104,10 +101,7 @@ function isSameMetrics(aRows, bRows) {
 
 export default function DistrictNutritionPlanSchoolAdmin() {
   const navigate = useNavigate();
-  const { user, logout } = useAuth();
-  const menuItems = useSchoolAdminMenu();
-  const handleMenuSelect = createSchoolAdminMenuSelect(navigate);
-  const userName = user?.fullName || user?.username || "School Admin";
+  const { user } = useAuth();
 
   const [loading, setLoading] = useState(true);
   const [mainTab, setMainTab] = useState(0);
@@ -495,20 +489,7 @@ export default function DistrictNutritionPlanSchoolAdmin() {
   );
 
   return (
-    <RoleLayout
-      title="Kế hoạch dinh dưỡng theo sở"
-      description="Quy định chỉ tiêu dinh dưỡng và tài liệu sở"
-      menuItems={menuItems}
-      activeKey="district-nutrition-plan"
-      onLogout={() => {
-        logout();
-        navigate("/login", { replace: true });
-      }}
-      onViewProfile={() => navigate("/profile")}
-      onMenuSelect={handleMenuSelect}
-      userName={userName}
-      userAvatar={user?.avatar}
-    >
+    <Box>
       <Stack direction={{ xs: "column", sm: "row" }} justifyContent="space-between" mb={2}>
         <Paper
           elevation={0}
@@ -933,6 +914,6 @@ export default function DistrictNutritionPlanSchoolAdmin() {
         </DialogActions>
       </Dialog>
 
-    </RoleLayout>
+    </Box>
   );
 }

@@ -2,12 +2,9 @@ import { useEffect, useMemo, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { toast } from 'react-toastify';
 import { useAuth } from '../../context/AuthContext';
-import RoleLayout from '../../layouts/RoleLayout';
 import ConfirmDialog from '../../components/ConfirmDialog';
 import RichTextEditor from '../../components/RichTextEditor';
 import { get, post, put, del, postFormData, ENDPOINTS } from '../../service/api';
-import { createSchoolAdminMenuSelect } from './schoolAdminMenuConfig';
-import { useSchoolAdminMenu } from './useSchoolAdminMenu';
 import {
   Box,
   Paper,
@@ -253,8 +250,7 @@ function PublicInfoFormModal({ open, onClose, initialData, onSubmit, loading }) 
  
 export default function ManagePublicInfo() {
   const navigate = useNavigate();
-  const { user, logout, isInitializing } = useAuth();
-  const menuItems = useSchoolAdminMenu();
+  const { user, isInitializing } = useAuth();
 
   const [items, setItems] = useState([]);
   const [loading, setLoading] = useState(false);
@@ -342,10 +338,9 @@ export default function ManagePublicInfo() {
     }
   };
 
-  const handleMenuSelect = createSchoolAdminMenuSelect(navigate);
+  // const handleMenuSelect = createSchoolAdminMenuSelect(navigate);
 
   const userName = user?.fullName || user?.username || 'School Admin';
-  const handleLogout = () => { logout(); navigate('/login', { replace: true }); };
 
   const getStatusChip = (status) => {
     if (status === 'published') return <Chip label="Đã xuất bản" size="small" color="success" variant="outlined" sx={{ fontSize: '11px' }} />;
@@ -355,17 +350,7 @@ export default function ManagePublicInfo() {
   };
 
   return (
-    <RoleLayout
-      title="Thông tin công khai"
-      description="Quản lý các thông tin công khai của trường."
-      menuItems={menuItems}
-      activeKey="public-info-list"
-      onLogout={handleLogout}
-      onViewProfile={() => navigate('/profile')}
-      onMenuSelect={handleMenuSelect}
-      userName={userName}
-      userAvatar={user?.avatar}
-    >
+    <Box>
       {error && (
         <Alert severity="error" onClose={() => setError(null)} sx={{ mb: 2 }}>
           {error}
@@ -613,6 +598,6 @@ export default function ManagePublicInfo() {
         onCancel={() => setConfirmDelete(null)}
         loading={submitting}
       />
-    </RoleLayout>
+    </Box>
   );
 }

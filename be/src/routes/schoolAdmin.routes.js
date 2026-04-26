@@ -35,8 +35,31 @@ const curriculumController = require('../controller/curriculumController');
 const academicPlanController = require('../controller/academicPlanController');
 const academicEventController = require('../controller/academicEventController');
 const timetableController = require('../controller/timetableController');
+const generalCategoryController = require('../controller/generalCategoryController');
+const jobPositionController = require('../controller/jobPositionController');
+const assessmentController = require('../controller/assessmentController');
+const facilityController = require('../controller/facilityController');
 
 const router = express.Router();
+
+// ============================================
+// Facility & Asset Management (New System)
+// ============================================
+router.get('/facilities/locations', authenticate, authorizeRoles('SchoolAdmin'), facilityController.listLocations);
+router.post('/facilities/locations', authenticate, authorizeRoles('SchoolAdmin'), facilityController.createLocation);
+
+router.get('/facilities/categories', authenticate, authorizeRoles('SchoolAdmin'), facilityController.listCategories);
+router.get('/facilities/types', authenticate, authorizeRoles('SchoolAdmin'), facilityController.listTypes);
+router.get('/facilities/assets', authenticate, authorizeRoles('SchoolAdmin'), facilityController.listAssets);
+
+router.post('/facilities/handovers', authenticate, authorizeRoles('SchoolAdmin'), facilityController.createHandover);
+router.patch('/facilities/handovers/:id/sign', authenticate, authorizeRoles('SchoolAdmin'), facilityController.signHandover);
+
+router.post('/facilities/inventories', authenticate, authorizeRoles('SchoolAdmin'), facilityController.createInventory);
+router.patch('/facilities/inventories/:id/approve', authenticate, authorizeRoles('SchoolAdmin'), facilityController.approveInventory);
+
+router.post('/facilities/issues', authenticate, authorizeRoles('SchoolAdmin', 'Teacher'), facilityController.reportIssue);
+router.patch('/facilities/issues/:id/update', authenticate, authorizeRoles('SchoolAdmin'), facilityController.updateIssue);
 
 // Multer configuration for PDF files
 const pdfUploadMiddleware = multer({
@@ -1092,6 +1115,19 @@ router.put('/blog-categories/:id', authenticate, authorizePermissions('MANAGE_BL
 router.delete('/blog-categories/:id', authenticate, authorizePermissions('MANAGE_BLOG_CATEGORY'), blogCategoryController.deleteBlogCategory);
 
 // ============================================
+// General Categories & Job Positions
+// ============================================
+router.get('/general-categories', authenticate, generalCategoryController.listCategories);
+router.post('/general-categories', authenticate, authorizeAnyPermission('MANAGE_FACILITY_CATEGORY', 'MANAGE_ASSET_CATEGORY', 'MANAGE_INGREDIENT_CATEGORY'), generalCategoryController.createCategory);
+router.put('/general-categories/:id', authenticate, authorizeAnyPermission('MANAGE_FACILITY_CATEGORY', 'MANAGE_ASSET_CATEGORY', 'MANAGE_INGREDIENT_CATEGORY'), generalCategoryController.updateCategory);
+router.delete('/general-categories/:id', authenticate, authorizeAnyPermission('MANAGE_FACILITY_CATEGORY', 'MANAGE_ASSET_CATEGORY', 'MANAGE_INGREDIENT_CATEGORY'), generalCategoryController.deleteCategory);
+
+router.get('/job-positions', authenticate, jobPositionController.listJobPositions);
+router.post('/job-positions', authenticate, authorizePermissions('MANAGE_STAFF_POSITION'), jobPositionController.createJobPosition);
+router.put('/job-positions/:id', authenticate, authorizePermissions('MANAGE_STAFF_POSITION'), jobPositionController.updateJobPosition);
+router.delete('/job-positions/:id', authenticate, authorizePermissions('MANAGE_STAFF_POSITION'), jobPositionController.deleteJobPosition);
+
+// ============================================
 // Q&A
 // ============================================
 
@@ -1482,7 +1518,7 @@ router.delete('/public-info/:id', authenticate, authorizePermissions('MANAGE_PUB
  *       200:
  *         description: Năm học hiện tại
  */
-router.get('/academic-years/current', authenticate, authorizePermissions('MANAGE_ACADEMIC_YEAR'), academicYearController.getCurrentAcademicYear);
+router.get('/academic-years/current', authenticate, authorizeRoles('SchoolAdmin', 'Teacher', 'HeadTeacher'), academicYearController.getCurrentAcademicYear);
 
 router.patch(
   '/academic-years/current/timetable-season',
@@ -1552,6 +1588,7 @@ router.get('/academic-years/history', authenticate, authorizePermissions('MANAGE
  */
 router.get('/academic-years', authenticate, academicYearController.listAcademicYears);
 router.post('/academic-years', authenticate, authorizePermissions('MANAGE_ACADEMIC_YEAR'), academicYearController.createAcademicYear);
+router.put('/academic-years/:id', authenticate, authorizePermissions('MANAGE_ACADEMIC_YEAR'), academicYearController.updateAcademicYear);
 
 /**
  * @openapi
@@ -1574,25 +1611,57 @@ router.post('/academic-years', authenticate, authorizePermissions('MANAGE_ACADEM
  *         description: Kết thúc năm học thành công
  */
 router.patch('/academic-years/:id/finish', authenticate, authorizePermissions('MANAGE_ACADEMIC_YEAR'), academicYearController.finishAcademicYear);
+router.patch('/academic-years/:id/publish', authenticate, authorizePermissions('MANAGE_ACADEMIC_YEAR'), academicYearController.publishAcademicYear);
 
 // ============================================
 // Academic Year Wizard
 // ============================================
 /**
- * GET /api/school-admin/academic-years/wizard-clone-data
- * Lấy dữ liệu để nhân bản cấu trúc năm học cũ vào Wizard mới:
- * - Danh sách StaticBlock active (để chọn khối)
- * - Tên lớp + sĩ số từ năm học cũ nhất (KHÔNG bao gồm giáo viên)
- * - Danh sách học sinh chuyển tiếp (active, chưa tốt nghiệp)
+ * @openapi
+ * /api/school-admin/academic-years/wizard-clone-data:
+ *   get:
+ *     summary: Lấy dữ liệu để nhân bản cấu trúc năm học cũ vào Wizard mới
+ *     tags:
+ *       - SchoolAdmin - Academic Years
+ *     security:
+ *       - bearerAuth: []
+ *     responses:
+ *       200:
+ *         description: Dữ liệu nhân bản thành công
  */
 router.get('/academic-years/wizard-clone-data', authenticate, authorizePermissions('MANAGE_ACADEMIC_YEAR'), academicYearController.getWizardCloneData);
+router.post('/academic-years/wizard-suggestions', authenticate, authorizePermissions('MANAGE_ACADEMIC_YEAR'), academicYearController.getSmartSuggestions);
 
 /**
- * POST /api/school-admin/academic-years/wizard-setup
- * Thiết lập năm học mới trong 1 Atomic Transaction:
- * Đóng năm cũ → Tạo AcademicYear → Tạo Grade (Snapshot) → Tạo Classes → Điều chuyển Student → Tạo Enrollment
+ * @openapi
+ * /api/school-admin/academic-years/wizard-setup:
+ *   post:
+ *     summary: Thiết lập năm học mới (Wizard Setup)
+ *     tags:
+ *       - SchoolAdmin - Academic Years
+ *     security:
+ *       - bearerAuth: []
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             properties:
+ *               yearInfo:
+ *                 type: object
+ *               grades:
+ *                 type: array
+ *               classes:
+ *                 type: array
+ *               studentPlacements:
+ *                 type: array
+ *     responses:
+ *       201:
+ *         description: Thiết lập năm học mới thành công
  */
 router.post('/academic-years/wizard-setup', authenticate, authorizePermissions('MANAGE_ACADEMIC_YEAR'), academicYearController.setupNewAcademicYearWizard);
+router.post('/academic-years/express-setup', authenticate, authorizePermissions('MANAGE_ACADEMIC_YEAR'), academicYearController.expressSetupNewAcademicYear);
 
 /**
  * @openapi
@@ -2187,171 +2256,182 @@ const resolveOrCreateStaffRole = async (inputRoleName) => {
 
 router.get('/staff-users', authenticate, authorizeRoles('SchoolAdmin'), async (req, res) => {
   try {
-    const users = await User.aggregate([
-      // 1. Join with Roles
+    const staffList = await Staff.aggregate([
+      // 1. Join với User để lấy thông tin tài khoản & Role
+      {
+        $lookup: {
+          from: 'Users',
+          localField: 'userId',
+          foreignField: '_id',
+          as: 'userData'
+        }
+      },
+      { $unwind: { path: '$userData', preserveNullAndEmptyArrays: true } },
+      // 2. Join với Roles thông qua userData
       {
         $lookup: {
           from: 'Roles',
-          localField: 'roles',
+          localField: 'userData.roles',
           foreignField: '_id',
           as: 'rolesData'
         }
       },
-      // 2. Filter out parents and system admins
-      {
-        $match: {
-          'rolesData.roleName': { $nin: ['parent', 'systemadmin'] }
-        }
-      },
-      // 3. Join with Staff details
-      {
-        $lookup: {
-          from: 'Staff',
-          localField: '_id',
-          foreignField: 'userId',
-          as: 'staffInfo'
-        }
-      },
-      // 4. Join with Teacher details
+      // 3. Join với Teachers
       {
         $lookup: {
           from: 'Teachers',
-          localField: '_id',
+          localField: 'userId',
           foreignField: 'userId',
-          as: 'teacherInfo'
+          as: 'teacherData'
         }
       },
-      // 5. Project final fields
+      { $unwind: { path: '$teacherData', preserveNullAndEmptyArrays: true } },
+      // 4. Project
       {
         $project: {
-          fullName: 1,
-          username: 1,
-          email: 1,
-          phone: 1,
-          avatar: 1,
-          status: 1,
+          _id: '$userData._id', // Dùng userId làm ID chính nếu có, nếu không dùng staffId? 
+          staffId: '$_id',
+          fullName: '$fullName',
+          email: '$email',
+          phone: '$phone',
+          position: '$position',
+          employeeId: '$employeeId',
+          status: '$status',
+          username: '$userData.username',
+          avatar: '$userData.avatar',
           roleNames: { $map: { input: '$rolesData', as: 'r', in: '$$r.roleName' } },
-          position: { $arrayElemAt: ['$staffInfo.position', 0] },
-          employeeId: { $arrayElemAt: ['$staffInfo.employeeId', 0] },
-          degree: { $arrayElemAt: ['$teacherInfo.degree', 0] },
-          experienceYears: { $arrayElemAt: ['$teacherInfo.experienceYears', 0] },
-          hireDate: { $arrayElemAt: ['$teacherInfo.hireDate', 0] },
-          employmentType: { $arrayElemAt: ['$teacherInfo.employmentType', 0] },
+          hasAccount: { $cond: [{ $ifNull: ['$userId', false] }, true, false] },
         }
       },
       { $sort: { fullName: 1 } }
     ]);
 
-    const data = users.map(u => ({
-      ...u,
-      roleNames: (u.roleNames || []).join(', '),
-      position: u.position || (u.roleNames.includes('Teacher') ? 'Giáo viên' : 'Nhân viên')
+    const data = staffList.map(s => ({
+      ...s,
+      _id: s._id || s.staffId, // Đảm bảo luôn có ID
+      roleNames: (s.roleNames || []).join(', '),
     }));
 
     return res.status(200).json({ status: 'success', data });
   } catch (error) {
-    console.error('staffUsers aggregation error:', error);
+    console.error('getStaffUsers error:', error);
     return res.status(500).json({ status: 'error', message: 'Lỗi khi lấy danh sách nhân sự' });
   }
 });
 
+const { generateRandomPassword, sendAccountCredentialsEmail } = require('../utils/email');
+
 router.post('/users', authenticate, authorizeRoles('SchoolAdmin'), async (req, res) => {
   try {
-    const { username, password, fullName, email, phone, status, roleName } = req.body;
+    const { username, fullName, email, phone, status, roleName, position, notes } = req.body;
 
-    if (!username?.trim() || !password || !fullName?.trim() || !email?.trim()) {
+    if (!fullName?.trim() || !position?.trim()) {
       return res.status(400).json({
         status: 'error',
-        message: 'Vui lòng nhập đầy đủ: tên tài khoản, mật khẩu, họ tên, email',
+        message: 'Vui lòng nhập đầy đủ: họ tên và chức vụ',
       });
     }
 
-    if (/[\s]/.test(username.trim()) || /[^A-Za-z0-9]/.test(username.trim())) {
-      return res.status(400).json({
-        status: 'error',
-        message: 'Tên tài khoản không được chứa khoảng trắng và ký tự đặc biệt',
+    const employeeId = await generateEmployeeId(position.trim());
+    let userId = null;
+
+    // 1. Nếu có roleName -> Tạo User (Tài khoản hệ thống)
+    if (roleName) {
+      if (!username?.trim() || !email?.trim()) {
+        return res.status(400).json({
+          status: 'error',
+          message: 'Chức vụ này yêu cầu tạo tài khoản: Vui lòng nhập SĐT/Email',
+        });
+      }
+
+      const resolvedRole = await resolveOrCreateStaffRole(roleName);
+      if (!resolvedRole) {
+        return res.status(400).json({ status: 'error', message: 'Vai trò không hợp lệ' });
+      }
+
+      const existingUser = await User.findOne({
+        $or: [
+          { username: username.trim() },
+          { email: email.trim().toLowerCase() },
+        ],
+      }).lean();
+      if (existingUser) {
+        return res.status(400).json({ status: 'error', message: 'Tên tài khoản hoặc email đã tồn tại' });
+      }
+
+      const phoneValue = normalizePhone(phone);
+      if (phoneValue && await isPhoneTaken(phoneValue)) {
+        return res.status(400).json({ status: 'error', message: 'Số điện thoại đã tồn tại trong hệ thống' });
+      }
+
+      // TỰ ĐỘNG GEN MẬT KHẨU
+      const generatedPassword = generateRandomPassword(10);
+      const salt = await bcrypt.genSalt(10);
+      const passwordHash = await bcrypt.hash(generatedPassword, salt);
+
+      const user = await User.create({
+        username: username.trim(),
+        passwordHash,
+        fullName: fullName.trim(),
+        email: email.trim().toLowerCase(),
+        phone: phoneValue,
+        roles: [resolvedRole._id],
+        status: status === 'inactive' ? 'inactive' : 'active',
+        isChangePassword: false, // Bắt buộc đổi mật khẩu lần đầu
+        tempPasswordExpiresAt: new Date(Date.now() + 48 * 60 * 60 * 1000), // Hết hạn sau 48 giờ
       });
-    }
 
-    if (!STAFF_PASSWORD_REGEX.test(password)) {
-      return res.status(400).json({
-        status: 'error',
-        message: 'Mật khẩu phải có chữ hoa, số, ký tự đặc biệt và tối thiểu 6 ký tự',
-      });
-    }
+      userId = user._id;
 
-    const resolvedRole = await resolveOrCreateStaffRole(roleName);
-    if (!resolvedRole) {
-      return res.status(400).json({
-        status: 'error',
-        message: 'Vui lòng chọn hoặc nhập chức vụ',
-      });
-    }
-
-    const existingUser = await User.findOne({
-      $or: [
-        { username: username.trim() },
-        { email: email.trim().toLowerCase() },
-      ],
-    }).lean();
-    if (existingUser) {
-      return res.status(400).json({
-        status: 'error',
-        message: 'Tên tài khoản hoặc email đã tồn tại',
-      });
-    }
-
-    const phoneValue = normalizePhone(phone);
-    if (await isPhoneTaken(phoneValue)) {
-      return res.status(400).json({
-        status: 'error',
-        message: 'Số điện thoại đã tồn tại trong hệ thống',
-      });
-    }
-
-    const salt = await bcrypt.genSalt(10);
-    const passwordHash = await bcrypt.hash(password, salt);
-
-    const user = await User.create({
-      username: username.trim(),
-      passwordHash,
-      fullName: fullName.trim(),
-      email: email.trim().toLowerCase(),
-      phone: phoneValue,
-      roles: [resolvedRole._id],
-      status: status === 'inactive' ? 'inactive' : 'active',
-    });
-
-    if (normalizeRoleName(resolvedRole.roleName) === 'teacher') {
-      await Teacher.findOneAndUpdate(
-        { userId: user._id },
-        { $setOnInsert: { userId: user._id }, $set: { status: user.status } },
-        { upsert: true, new: true }
+      // Gửi email thông báo mật khẩu
+      await sendAccountCredentialsEmail(
+        user.email,
+        user.fullName,
+        user.username,
+        generatedPassword,
+        resolvedRole.roleName
       );
+
+      // Nếu là giáo viên, tạo bản ghi Teacher
+      if (normalizeRoleName(resolvedRole.roleName) === 'teacher') {
+        await Teacher.findOneAndUpdate(
+          { userId: user._id },
+          { $setOnInsert: { userId: user._id }, $set: { status: user.status } },
+          { upsert: true, new: true }
+        );
+      }
     }
+
+    // 2. Tạo bản ghi Staff (Hồ sơ nhân sự) - Luôn luôn tạo
+    const newStaff = await Staff.create({
+      userId,
+      fullName: fullName.trim(),
+      email: email?.trim().toLowerCase() || null,
+      phone: normalizePhone(phone),
+      employeeId,
+      position: position.trim(),
+      status: status === 'inactive' ? 'inactive' : 'active',
+      notes: notes?.trim() || '',
+    });
 
     return res.status(201).json({
       status: 'success',
-      message: 'Tạo tài khoản nhân sự thành công',
+      message: userId ? 'Tạo tài khoản và hồ sơ nhân sự thành công' : 'Đã tạo hồ sơ nhân sự (không có tài khoản)',
       data: {
-        _id: user._id,
-        username: user.username,
-        fullName: user.fullName,
-        email: user.email,
-        phone: user.phone,
-        status: user.status,
-        roleName: resolvedRole.roleName,
+        _id: newStaff._id,
+        userId,
+        fullName: newStaff.fullName,
+        position: newStaff.position,
+        employeeId: newStaff.employeeId,
+        hasAccount: !!userId,
+        // TRẢ VỀ MẬT KHẨU ĐỂ ADMIN COPY GỬI QUA ZALO
+        generatedPassword: userId ? generatedPassword : null,
+        username: userId ? username.trim() : null,
       },
     });
   } catch (error) {
-    if (error.code === 11000) {
-      return res.status(400).json({
-        status: 'error',
-        message: 'Tên tài khoản hoặc email đã tồn tại',
-      });
-    }
-    console.error('createSchoolAdminUser error:', error);
-    return res.status(500).json({ status: 'error', message: 'Lỗi khi tạo tài khoản nhân sự' });
+    console.error('createSchoolAdminPersonnel error:', error);
+    return res.status(500).json({ status: 'error', message: error.message || 'Lỗi khi tạo nhân sự' });
   }
 });
 
@@ -2822,5 +2902,15 @@ router.patch('/parents/:userId/toggle-headparent', authenticate, authorizeRoles(
     return res.status(500).json({ status: 'error', message: 'Lỗi khi cập nhật vai trò' });
   }
 });
+
+// ── Assessment Templates ──
+router.get('/assessment-templates', authenticate, authorizeRoles('SchoolAdmin'), assessmentController.getTemplates);
+router.post('/assessment-templates', authenticate, authorizeRoles('SchoolAdmin'), assessmentController.upsertTemplate);
+
+// ── Staff Positions ──
+router.get('/staff-positions', authenticate, authorizeRoles('SchoolAdmin'), jobPositionController.listJobPositions);
+router.post('/staff-positions', authenticate, authorizeRoles('SchoolAdmin'), jobPositionController.createJobPosition);
+router.put('/staff-positions/:id', authenticate, authorizeRoles('SchoolAdmin'), jobPositionController.updateJobPosition);
+router.delete('/staff-positions/:id', authenticate, authorizeRoles('SchoolAdmin'), jobPositionController.deleteJobPosition);
 
 module.exports = router;

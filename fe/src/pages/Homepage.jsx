@@ -173,6 +173,8 @@ function Homepage() {
               src={banners[currentBanner]}
               alt="Trường mầm non Đức Xuân"
               className="h-full w-full object-cover transition-all duration-500"
+              decoding="async"
+              fetchpriority="high"
             />
           ) : (
             <div className="grid h-full w-full place-items-center bg-slate-200 text-slate-600">Chưa có banner hiển thị</div>
@@ -236,6 +238,7 @@ function Homepage() {
                 alt={item.title || `Hình ảnh hoạt động ${idx + 1}`}
                 className="h-40 w-full rounded-xl object-cover sm:h-48"
                 loading="lazy"
+                decoding="async"
               />
             ))
           ) : (
@@ -314,6 +317,7 @@ function Homepage() {
                   alt={teacher.name}
                   className="h-full w-full object-cover transition duration-500 group-hover:scale-105"
                   loading="lazy"
+                  decoding="async"
                 />
                 <span className="absolute left-2 top-2 rounded-full bg-emerald-800/90 px-2.5 py-1 text-[11px] font-semibold text-white backdrop-blur">
                   {teacher.role || 'Giáo viên'}

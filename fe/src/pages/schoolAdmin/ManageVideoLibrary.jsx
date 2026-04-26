@@ -2,11 +2,8 @@ import { useEffect, useState, useCallback, useLayoutEffect, useRef } from 'react
 import { useNavigate } from 'react-router-dom';
 import { toast } from 'react-toastify';
 import { useAuth } from '../../context/AuthContext';
-import RoleLayout from '../../layouts/RoleLayout';
 import ConfirmDialog from '../../components/ConfirmDialog';
 import { get, post, patch, del, postFormData, ENDPOINTS } from '../../service/api';
-import { createSchoolAdminMenuSelect } from './schoolAdminMenuConfig';
-import { useSchoolAdminMenu } from './useSchoolAdminMenu';
 import {
   Box,
   Paper,
@@ -41,8 +38,7 @@ import ClearIcon from '@mui/icons-material/Clear';
 
 export default function ManageVideoLibrary() {
   const navigate = useNavigate();
-  const { user, logout, isInitializing } = useAuth();
-  const menuItems = useSchoolAdminMenu();
+  const { user, isInitializing } = useAuth();
 
   const [items, setItems] = useState([]);
   const [error, setError] = useState(null);
@@ -203,7 +199,7 @@ export default function ManageVideoLibrary() {
     }
   };
 
-  const handleMenuSelect = createSchoolAdminMenuSelect(navigate);
+  // const handleMenuSelect = createSchoolAdminMenuSelect(navigate);
   const userName = user?.fullName || user?.username || 'School Admin';
   const hasSearch = !!search.trim();
 
@@ -214,20 +210,7 @@ export default function ManageVideoLibrary() {
   };
 
   return (
-    <RoleLayout
-      title="Quản lý video-clip"
-      description="Bật/tắt hiển thị từng clip trên trang Thư viện video công khai."
-      menuItems={menuItems}
-      activeKey="video-library"
-      onLogout={() => {
-        logout();
-        navigate('/login', { replace: true });
-      }}
-      onViewProfile={() => navigate('/profile')}
-      onMenuSelect={handleMenuSelect}
-      userName={userName}
-      userAvatar={user?.avatar}
-    >
+    <Box>
       {error && (
         <Alert severity="error" sx={{ mb: 2 }} onClose={() => setError(null)}>
           {error}
@@ -463,6 +446,6 @@ export default function ManageVideoLibrary() {
         onConfirm={handleDelete}
         onCancel={() => setConfirmDelete(null)}
       />
-    </RoleLayout>
+    </Box>
   );
 }

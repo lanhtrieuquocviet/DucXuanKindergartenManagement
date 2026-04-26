@@ -3,7 +3,6 @@ import { useNavigate } from 'react-router-dom';
 import { toast } from 'react-toastify';
 import { useAuth } from '../../context/AuthContext';
 import { useSchoolAdmin } from '../../context/SchoolAdminContext';
-import RoleLayout from '../../layouts/RoleLayout';
 import ConfirmDialog from '../../components/ConfirmDialog';
 import {
   Box,
@@ -19,8 +18,6 @@ import ReplyIcon from '@mui/icons-material/Reply';
 import SendIcon from '@mui/icons-material/Send';
 import DeleteOutlineIcon from '@mui/icons-material/DeleteOutline';
 import EditIcon from '@mui/icons-material/Edit';
-import { createSchoolAdminMenuSelect } from './schoolAdminMenuConfig';
-import { useSchoolAdminMenu } from './useSchoolAdminMenu';
 
 function ContactList() {
   const [data, setData] = useState(null);
@@ -31,7 +28,6 @@ function ContactList() {
   const [confirmClearId, setConfirmClearId] = useState(null);
   const navigate = useNavigate();
   const { user, logout, isInitializing } = useAuth();
-  const menuItems = useSchoolAdminMenu();
   const {
     getContacts,
     replyContact,
@@ -146,27 +142,12 @@ function ContactList() {
     }
   };
 
-  const handleMenuSelect = createSchoolAdminMenuSelect(navigate);
-
   const userName = user?.fullName || user?.username || 'School Admin';
   const contacts = data?.data?.contacts || [];
   const formatDate = (d) => (d ? new Date(d).toLocaleString('vi-VN') : '-');
 
   return (
-    <RoleLayout
-      title="Quản lý liên hệ"
-      description="Xem và phản hồi các liên hệ từ phụ huynh/khách."
-      menuItems={menuItems}
-      activeKey="contacts-list"
-      onLogout={() => {
-        logout();
-        navigate('/login', { replace: true });
-      }}
-      userName={userName}
-      userAvatar={user?.avatar}
-      onViewProfile={() => navigate('/profile')}
-      onMenuSelect={handleMenuSelect}
-    >
+    <Box>
       {/* Page header */}
       <Paper
         elevation={0}
@@ -418,7 +399,7 @@ function ContactList() {
         onConfirm={() => clearReplyConfirmed(confirmClearId)}
         onCancel={() => setConfirmClearId(null)}
       />
-    </RoleLayout>
+    </Box>
   );
 }
 

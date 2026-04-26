@@ -3,7 +3,7 @@ import { useParams, useNavigate } from 'react-router-dom';
 import { getMenuDetail, headParentReviewMenu } from '../../service/menu.api';
 import { toast } from 'react-toastify';
 import { useAuth } from '../../context/AuthContext';
-import RoleLayout from '../../layouts/RoleLayout';
+
 import {
   Box, Button, Card, CardContent, Chip, Stack, Table, TableBody, TableCell,
   TableContainer, TableHead, TableRow, Typography, alpha, Divider, TextField,
@@ -149,14 +149,7 @@ export default function MenuDetailHeadParent() {
   const week2 = menu?.dailyMenus?.reduce((acc, dm) => { if (dm.week === 2) acc[dm.dayOfWeek] = dm; return acc; }, {});
 
   return (
-    <RoleLayout
-      menuItems={menuItems}
-      activeKey="menus"
-      onMenuSelect={(key) => key === 'menus' && navigate('/head-parent/menus')}
-      user={user}
-      onLogout={logout}
-      title="Hội trưởng phụ huynh"
-    >
+    <>
       <Box>
         <Button
           startIcon={<BackIcon />}
@@ -285,6 +278,6 @@ export default function MenuDetailHeadParent() {
           </Button>
         </DialogActions>
       </Dialog>
-    </RoleLayout>
+    </>
   );
 }

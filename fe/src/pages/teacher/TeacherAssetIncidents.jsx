@@ -13,7 +13,6 @@ import { useEffect, useMemo, useRef, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { toast } from 'react-toastify';
 import { useAuth } from '../../context/AuthContext';
-import RoleLayout from '../../layouts/RoleLayout';
 import { del, ENDPOINTS, get, post, postFormData, put } from '../../service/api';
 
 const STATUS_LABEL = {
@@ -274,17 +273,7 @@ export default function TeacherAssetIncidents() {
   };
 
   return (
-    <RoleLayout
-      title="Báo cáo sự cố cơ sở vật chất"
-      description="Giáo viên báo cáo sự cố tài sản của lớp và theo dõi tiến độ xử lý từ Ban Giám Hiệu."
-      menuItems={menuItems}
-      activeKey="asset-incidents-teacher"
-      onLogout={() => { logout(); navigate('/login', { replace: true }); }}
-      userName={userName}
-      userAvatar={user?.avatar}
-      onViewProfile={() => navigate('/profile')}
-      onMenuSelect={handleMenuSelect}
-    >
+    <Box>
       {/* ── Header ── */}
       <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', mb: 2.5 }}>
         <Typography variant="h6" fontWeight={700}>Danh sách sự cố đã báo cáo</Typography>
@@ -574,6 +563,6 @@ export default function TeacherAssetIncidents() {
         onCancel={() => setDeleteTarget(null)}
         loading={deleting}
       />
-    </RoleLayout>
+    </Box>
   );
 }

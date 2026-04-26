@@ -16,17 +16,18 @@ import {
   DialogContent,
   DialogActions,
   MenuItem,
+  Select,
+  FormControl,
+  InputLabel,
 } from '@mui/material';
 import AddIcon from '@mui/icons-material/Add';
 import EventIcon from '@mui/icons-material/Event';
 import EditIcon from '@mui/icons-material/Edit';
 import DeleteIcon from '@mui/icons-material/Delete';
 import { toast } from 'react-toastify';
-import RoleLayout from '../../layouts/RoleLayout';
 import { useAuth } from '../../context/AuthContext';
 import { get, put, ENDPOINTS } from '../../service/api';
 import { useSchoolAdminMenu } from './useSchoolAdminMenu';
-import { createSchoolAdminMenuSelect } from './schoolAdminMenuConfig';
 
 function toInputDate(dateStr) {
   if (!dateStr) return '';
@@ -111,8 +112,7 @@ function getDialogDateBounds(currentYear, monthKey) {
 
 export default function AcademicEventSetup() {
   const navigate = useNavigate();
-  const { user, logout, isInitializing } = useAuth();
-  const menuItems = useSchoolAdminMenu();
+  const { user, isInitializing } = useAuth();
   const [currentYear, setCurrentYear] = useState(null);
   const [loading, setLoading] = useState(false);
   const [eventsByMonth, setEventsByMonth] = useState({});
@@ -308,7 +308,6 @@ export default function AcademicEventSetup() {
 
     let newItems;
     if (dialog.blockKey === ALL_BLOCKS_KEY) {
-      // Tạo một sự kiện cho từng khối lớp
       const ts = Date.now();
       newItems = blocks.map((b, i) => ({
         id: `${ts}-${i}`,
@@ -375,25 +374,10 @@ export default function AcademicEventSetup() {
     setDeleteDialog({ open: false, monthKey: '', eventId: '', eventName: '' });
   };
 
-  const handleMenuSelect = createSchoolAdminMenuSelect(navigate);
-  const userName = user?.fullName || user?.username || 'School Admin';
   const hasCurrentYear = Boolean(currentYear?._id);
 
   return (
-    <RoleLayout
-      title="Thiết lập sự kiện"
-      description="Nhập danh sách sự kiện nổi bật theo từng tháng."
-      menuItems={menuItems}
-      activeKey="academic-events"
-      onLogout={() => {
-        logout();
-        navigate('/login', { replace: true });
-      }}
-      onViewProfile={() => navigate('/profile')}
-      onMenuSelect={handleMenuSelect}
-      userName={userName}
-      userAvatar={user?.avatar}
-    >
+    <Box>
       <Typography variant="h4" fontWeight={800} sx={{ color: '#4f46e5', mb: 1 }}>
         {hasCurrentYear ? `Thiết lập sự kiện năm học ${currentYear?.yearName || ''}` : 'Thiết lập sự kiện năm học'}
       </Typography>
@@ -644,7 +628,7 @@ export default function AcademicEventSetup() {
           </Button>
         </DialogActions>
       </Dialog>
-    </RoleLayout>
+    </Box>
   );
 }
 

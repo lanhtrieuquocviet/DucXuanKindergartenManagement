@@ -61,8 +61,9 @@ const PersonnelFilter = ({
         <TextField
           size="small"
           placeholder="Tìm tên, email, SĐT..."
-          value={search}
+          value={search || ''}
           onChange={(e) => setSearch(e.target.value)}
+          autoComplete="nope"
           InputProps={{
             startAdornment: (
               <InputAdornment position="start">

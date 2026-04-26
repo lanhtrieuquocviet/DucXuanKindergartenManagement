@@ -3,7 +3,6 @@ import { useNavigate } from 'react-router-dom';
 import { getMenus, headParentReviewMenu } from '../../service/menu.api';
 import { toast } from 'react-toastify';
 import { useAuth } from '../../context/AuthContext';
-import RoleLayout from '../../layouts/RoleLayout';
 import {
   Box, Typography, Paper, Chip, Button, TextField, Dialog,
   DialogTitle, DialogContent, DialogActions, Skeleton, Tabs, Tab,
@@ -120,15 +119,7 @@ export default function MenuHeadParent() {
   const pendingCount = menus.filter((m) => m.status === 'pending_headparent').length;
 
   return (
-    <RoleLayout
-      menuItems={menuItems}
-      activeKey="menus"
-      onMenuSelect={(key) => key === 'menus' && navigate('/head-parent/menus')}
-      user={user}
-      onLogout={logout}
-      title="Hội trưởng phụ huynh"
-      userRole="Hội trưởng PH"
-    >
+    <Box>
       <Box>
         {/* Header */}
         <Stack direction="row" alignItems="center" justifyContent="space-between" mb={3}>
@@ -341,6 +332,6 @@ export default function MenuHeadParent() {
           </Button>
         </DialogActions>
       </Dialog>
-    </RoleLayout>
+    </Box>
   );
 }

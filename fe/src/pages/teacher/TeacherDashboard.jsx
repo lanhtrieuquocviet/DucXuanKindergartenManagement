@@ -29,7 +29,7 @@ import { useEffect, useMemo, useState } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
 import { useAuth } from '../../context/AuthContext';
 import { useTeacher } from '../../context/TeacherContext';
-import RoleLayout from '../../layouts/RoleLayout';
+import { useAppMenu } from '../../hooks/useAppMenu';
 import { ENDPOINTS, get } from '../../service/api';
 
 function StatCard({ label, value, sub, icon, gradient, accentColor, loading }) {
@@ -189,8 +189,9 @@ function TeacherDashboard() {
   const [data, setData] = useState(null);
   const navigate = useNavigate();
   const location = useLocation();
-  const { user, logout, isInitializing: isAuthInitializing } = useAuth();
+  const { user, logout, hasPermission, isInitializing: isAuthInitializing } = useAuth();
   const { getDashboard, loading: isTeacherLoading, error } = useTeacher();
+  const { menuItems, activeKey, handleMenuSelect } = useAppMenu();
 
   const [isInitializing, setIsInitializing] = useState(true);
   const [academicYears, setAcademicYears] = useState([]);
@@ -227,66 +228,7 @@ function TeacherDashboard() {
     fetchData();
   }, [navigate, user, getDashboard, isAuthInitializing, selectedYearId]);
 
-  const { hasPermission, hasRole } = useAuth();
-
-  const ALL_TEACHER_MENU = [
-    { key: 'classes', label: 'Lớp phụ trách' },
-    { key: 'students', label: 'Danh sách học sinh' },
-    { key: 'evaluation', label: 'Đánh giá học sinh' },
-    { key: 'attendance', label: 'Điểm danh', permission: 'MANAGE_ATTENDANCE' },
-    { key: 'pickup-approval', label: 'Đơn đăng ký đưa đón', permission: 'MANAGE_PICKUP' },
-    { key: 'leave-requests', label: 'Danh sách đơn xin nghỉ', permission: 'MANAGE_ATTENDANCE' },
-    { key: 'contact-book', label: 'Sổ liên lạc' },
-    { key: 'asset-incidents-teacher', label: 'Báo cáo sự cố CSVC', permission: 'MANAGE_PURCHASE_REQUEST' },
-    { key: 'class-assets', label: 'Tài sản lớp', permission: 'MANAGE_ASSET' },
-    { key: 'asset-inspection', label: 'Kiểm kê tài sản', role: 'InventoryStaff' },
-  ];
-
-  const menuItems = useMemo(() => {
-    const items = ALL_TEACHER_MENU.filter((item) => {
-      if (item.permission) return hasPermission(item.permission);
-      if (item.role) return hasRole(item.role);
-      return true;
-    });
-    if (hasPermission('MANAGE_TEACHER_REPORT')) {
-      items.push({ key: 'manage-asset-incidents', label: 'Điều phối xử lý sự cố' });
-    }
-    return items;
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [hasPermission, hasRole]);
-
-  const activeKey = useMemo(() => {
-    const path = location.pathname || '';
-    if (path.startsWith('/teacher/contact-book')) return 'contact-book';
-    if (path.startsWith('/teacher/evaluation')) return 'evaluation';
-    if (path.startsWith('/teacher/attendance')) return 'attendance';
-    if (path.startsWith('/teacher/pickup-approval')) return 'pickup-approval';
-    if (path.startsWith('/teacher/leave-requests')) return 'leave-requests';
-    if (path.startsWith('/teacher/asset-incidents')) return 'asset-incidents-teacher';
-    if (path.startsWith('/teacher/class-assets')) return 'class-assets';
-    if (path.startsWith('/teacher/asset-inspection')) return 'asset-inspection';
-    if (path.startsWith('/teacher/manage-asset-incidents')) return 'manage-asset-incidents';
-    return 'classes';
-  }, [location.pathname]);
-
   const userName = user?.fullName || user?.username || 'Teacher';
-
-  const handleMenuSelect = (key) => {
-    const MAP = {
-      classes: '/teacher',
-      students: '/teacher/students',
-      evaluation: '/teacher/evaluation',
-      'contact-book': '/teacher/contact-book',
-      attendance: '/teacher/attendance',
-      'pickup-approval': '/teacher/pickup-approval',
-      'leave-requests': '/teacher/leave-requests',
-      'asset-incidents-teacher': '/teacher/asset-incidents',
-      'manage-asset-incidents': '/teacher/manage-asset-incidents',
-      'class-assets': '/teacher/class-assets',
-      'asset-inspection': '/teacher/asset-inspection',
-    };
-    if (MAP[key]) navigate(MAP[key]);
-  };
 
   const initials = userName.split(' ').map((w) => w[0]).slice(-2).join('').toUpperCase();
 
@@ -331,17 +273,7 @@ function TeacherDashboard() {
   ];
 
   return (
-    <RoleLayout
-      title="Bảng điều khiển"
-      description="Xem nhanh lớp phụ trách, học sinh và hoạt động hôm nay."
-      menuItems={menuItems}
-      activeKey={activeKey}
-      onLogout={() => { logout(); navigate('/login', { replace: true }); }}
-      userName={userName}
-      userAvatar={user?.avatar}
-      onViewProfile={() => navigate('/profile')}
-      onMenuSelect={handleMenuSelect}
-    >
+    <Box>
       {error && <Alert severity="error" sx={{ mb: 3, borderRadius: 2 }}>{error}</Alert>}
 
       {/* Welcome banner */}
@@ -547,7 +479,7 @@ function TeacherDashboard() {
             ))}
         </Box>
       </Paper>
-    </RoleLayout>
+    </Box>
   );
 }
 

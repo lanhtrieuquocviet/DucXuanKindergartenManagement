@@ -1,36 +1,9 @@
-import { useEffect, useMemo, useState } from 'react';
-import { useNavigate } from 'react-router-dom';
-import RoleLayout from '../../layouts/RoleLayout';
-import { useAuth } from '../../context/AuthContext';
-import { toast } from 'react-toastify';
-import { get, patch, ENDPOINTS } from '../../service/api';
-import { createSchoolAdminMenuSelect } from './schoolAdminMenuConfig';
-import { useSchoolAdminMenu } from './useSchoolAdminMenu';
-import AcademicYearWizard from './AcademicYearWizard/WizardContainer';
-import {
-  Box,
-  Paper,
-  Typography,
-  Button,
-  Stack,
-  Chip,
-  TextField,
-  MenuItem,
-  Select,
-  InputLabel,
-  FormControl,
-  Dialog,
-  DialogTitle,
-  DialogContent,
-  DialogActions,
-  Checkbox,
-  Avatar,
-  Table,
-  TableHead,
-  TableBody,
-  TableRow,
-  TableCell,
-  CircularProgress,
+import React, { useState, useEffect, useMemo } from 'react';
+import { 
+  Box, Typography, Button, Stack, Paper, Grid, 
+  Table, TableBody, TableCell, TableContainer, TableHead, TableRow,
+  Chip, TextField, Dialog, DialogTitle, DialogContent, DialogActions,
+  Checkbox, IconButton, Avatar, Fade, FormControl, InputLabel, Select, MenuItem
 } from '@mui/material';
 import {
   CalendarToday as CalendarIcon,
@@ -40,7 +13,14 @@ import {
   CheckBox as CheckBoxIcon,
   CheckBoxOutlineBlank as CheckBoxBlankIcon,
   Warning as WarningIcon,
+  People as PeopleIcon,
+  Edit as EditIcon,
+  AutoFixHigh as MagicIcon,
 } from '@mui/icons-material';
+import { useNavigate } from 'react-router-dom';
+import { get, post, put, patch, ENDPOINTS } from '../../service/api';
+import AcademicYearWizard from './AcademicYearWizard/WizardContainer';
+import { toast } from 'react-toastify';
 
 function formatDate(dateString) {
   if (!dateString) return '';
@@ -49,620 +29,670 @@ function formatDate(dateString) {
   return d.toLocaleDateString('vi-VN');
 }
 
-function normalizeGradeLabel(name) {
-  return String(name || '')
-    .replace(/\u2013|\u2014/g, '-')
-    .toLowerCase();
-}
-
-function hasGraduationAgeBandFromNumbers(minAge, maxAge) {
-  const min = Number(minAge);
-  const max = Number(maxAge);
-  if (!Number.isFinite(min) || !Number.isFinite(max)) return false;
-  return min >= 5 && max >= 6;
-}
-
-/**
- * Khối năm cuối (được tick tốt nghiệp): ưu tiên cờ từ API theo min/max tuổi Grade;
- * không phụ thuộc tên "Khối chồi" / "Khối lá". Fallback: tên khối có chuỗi 5-6 (dữ liệu cũ).
- */
-function isFinishRowSelectable(s) {
-  if (typeof s.canChooseGraduation === 'boolean') return s.canChooseGraduation;
-  if (hasGraduationAgeBandFromNumbers(s.gradeMinAge, s.gradeMaxAge)) return true;
-  return normalizeGradeLabel(s.gradeName).includes('5-6');
-}
-
-function ManageAcademicYears() {
-  const [currentYear, setCurrentYear] = useState(null);
+const ManageAcademicYears = () => {
+  const navigate = useNavigate();
   const [years, setYears] = useState([]);
-  const [archiveYear, setArchiveYear] = useState('');
-  const [history, setHistory] = useState([]);
-  const [historyLoading, setHistoryLoading] = useState(false);
+  const [currentYear, setCurrentYear] = useState(null);
+  const [search, setSearch] = useState('');
+  const [loading, setLoading] = useState(true);
 
-
-
-  // --- Kết thúc năm học: tick = tốt nghiệp (chỉ khối năm cuối theo tuổi cấu hình); API selectedStudentIds = id tốt nghiệp ---
+  // --- Finish Year States ---
   const [openFinish, setOpenFinish] = useState(false);
   const [finishStudents, setFinishStudents] = useState([]);
-  const [finishLoading, setFinishLoading] = useState(false);
   const [graduateMarkedIds, setGraduateMarkedIds] = useState(new Set());
+  const [dropoutMarkedIds, setDropoutMarkedIds] = useState(new Set());
   const [finishGradeFilter, setFinishGradeFilter] = useState('');
   const [finishClassFilter, setFinishClassFilter] = useState('');
-  // --- Wizard tạo năm học mới ---
+  const [showMissingOnly, setShowMissingOnly] = useState(false);
+  
+  // --- Wizard States ---
   const [openWizard, setOpenWizard] = useState(false);
-
-  const navigate = useNavigate();
-  const { user, logout } = useAuth();
-  const menuItems = useSchoolAdminMenu();
-
-  const handleLogout = () => { logout(); navigate('/login', { replace: true }); };
-  const handleViewProfile = () => navigate('/profile');
-  const handleMenuSelect = createSchoolAdminMenuSelect(navigate);
-  const userName = user?.fullName || user?.username || 'School Admin';
-  const canCreateNewYear = !currentYear || currentYear.status !== 'active';
+  const [openEdit, setOpenEdit] = useState(false);
+  const [selectedYear, setSelectedYear] = useState(null);
+  const [editForm, setEditForm] = useState({
+    yearName: '',
+    startDate: '',
+    endDate: '',
+    description: ''
+  });
+  const [openErrorDialog, setOpenErrorDialog] = useState(false);
+  const [finishErrorDetails, setFinishErrorDetails] = useState(null);
+  
+  // --- Express Setup States ---
+  const [openExpress, setOpenExpress] = useState(false);
+  const [expressForm, setExpressForm] = useState({
+    yearName: '',
+    startDate: '',
+    endDate: '',
+    description: 'Thiết lập tự động từ năm học cũ.'
+  });
 
   useEffect(() => {
-    const fetchYears = async () => {
-      try {
-        const [currentResp, listResp] = await Promise.all([
-          get(ENDPOINTS.SCHOOL_ADMIN.ACADEMIC_YEARS.CURRENT),
-          get(ENDPOINTS.SCHOOL_ADMIN.ACADEMIC_YEARS.LIST),
-        ]);
-        if (currentResp?.status === 'success') setCurrentYear(currentResp.data || null);
-        if (listResp?.status === 'success') {
-          const list = Array.isArray(listResp.data) ? listResp.data : [];
-          setYears(list);
-          if (!archiveYear && list.length > 0) {
-            const inactive = list.find((y) => y.status !== 'active');
-            setArchiveYear(inactive?._id || list[0]._id);
-          }
-        }
-      } catch (error) {
-        console.error('Error fetching academic years:', error);
-      }
-    };
-    fetchYears();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
+    fetchData();
   }, []);
 
-  // ============ Finish year dialog ============
-  const handleOpenFinish = async () => {
-    if (!currentYear || currentYear.status !== 'active') return;
-    setOpenFinish(true);
-    setFinishLoading(true);
-    setFinishStudents([]);
-    setFinishGradeFilter('');
-    setFinishClassFilter('');
-    setGraduateMarkedIds(new Set());
+  const fetchData = async () => {
+    setLoading(true);
     try {
-      const resp = await get(ENDPOINTS.SCHOOL_ADMIN.ACADEMIC_YEARS.STUDENTS(currentYear._id));
-      if (resp?.status === 'success' && Array.isArray(resp.data)) {
-        setFinishStudents(resp.data);
-        
-        // --- LOGIC HỢP LÝ: Tự động đề xuất dựa trên đánh giá ---
-        const autoGraduateIds = new Set();
-        resp.data.forEach(s => {
-          if (isFinishRowSelectable(s)) {
-            // Nếu là khối năm cuối và đã Đạt -> Tự động đánh dấu tốt nghiệp
-            if (s.evaluation?.academicEvaluation === 'đạt') {
-              autoGraduateIds.add(s._id);
-            }
-          }
-        });
-        setGraduateMarkedIds(autoGraduateIds);
+      const [listResp, currentResp] = await Promise.all([
+        get(ENDPOINTS.SCHOOL_ADMIN.ACADEMIC_YEARS.LIST),
+        get(ENDPOINTS.SCHOOL_ADMIN.ACADEMIC_YEARS.CURRENT)
+      ]);
+
+      if (listResp?.status === 'success') setYears(Array.isArray(listResp.data) ? listResp.data : []);
+      if (currentResp?.status === 'success') setCurrentYear(currentResp.data || null);
+
+      if (currentResp?.data) {
+        const studentsResp = await get(ENDPOINTS.SCHOOL_ADMIN.STUDENTS.LIST_BY_YEAR(currentResp.data._id));
+        if (studentsResp?.status === 'success') {
+          setFinishStudents(studentsResp.data || []);
+          // Default: mark all eligible seniors for graduation
+          const seniors = (studentsResp.data || []).filter(isFinishRowSelectable);
+          setGraduateMarkedIds(new Set(seniors.map(s => s._id)));
+        }
       }
     } catch (err) {
-      console.error('Error loading students for finish:', err);
+      console.error('Lỗi tải dữ liệu:', err);
     } finally {
-      setFinishLoading(false);
+      setLoading(false);
     }
+  };
+
+  const isFinishRowSelectable = (student) => {
+    if (!currentYear) return false;
+    const canGraduate = student.canChooseGraduation;
+    const isOldEnough = student.age >= 5; 
+    return canGraduate || isOldEnough;
   };
 
   const handleToggleGraduateMark = (id) => {
-    const row = finishStudents.find((s) => String(s._id) === String(id));
-    if (!row || !isFinishRowSelectable(row)) return;
-    setGraduateMarkedIds((prev) => {
+    setGraduateMarkedIds(prev => {
       const next = new Set(prev);
       if (next.has(id)) next.delete(id);
-      else next.add(id);
+      else {
+        next.add(id);
+        setDropoutMarkedIds(dPrev => {
+          const dNext = new Set(dPrev);
+          dNext.delete(id);
+          return dNext;
+        });
+      }
       return next;
     });
   };
 
-  const handleToggleAllGraduateMarks = () => {
-    const visibleSelectable = filteredFinishStudents.filter(isFinishRowSelectable);
-    const ids = visibleSelectable.map((s) => s._id);
-    setGraduateMarkedIds((prev) => {
-      const allVisibleMarked = ids.length > 0 && ids.every((id) => prev.has(id));
+  const handleToggleDropoutMark = (id) => {
+    setDropoutMarkedIds(prev => {
       const next = new Set(prev);
-      if (allVisibleMarked) {
-        ids.forEach((id) => next.delete(id));
-      } else {
-        ids.forEach((id) => next.add(id));
+      if (next.has(id)) next.delete(id);
+      else {
+        next.add(id);
+        setGraduateMarkedIds(gPrev => {
+          const gNext = new Set(gPrev);
+          gNext.delete(id);
+          return gNext;
+        });
       }
       return next;
     });
+  };
+
+  const handleOpenEdit = (year) => {
+    setSelectedYear(year);
+    setEditForm({
+      yearName: year.yearName,
+      startDate: year.startDate ? year.startDate.split('T')[0] : '',
+      endDate: year.endDate ? year.endDate.split('T')[0] : '',
+      description: year.description || ''
+    });
+    setOpenEdit(true);
+  };
+
+  const handleUpdateYear = async () => {
+    if (!editForm.yearName || !editForm.startDate || !editForm.endDate) {
+      toast.error('Vui lòng điền đầy đủ thông tin bắt buộc');
+      return;
+    }
+    setLoading(true);
+    try {
+      const response = await put(ENDPOINTS.SCHOOL_ADMIN.ACADEMIC_YEARS.UPDATE(selectedYear._id), editForm);
+      if (response.status === 'success') {
+        toast.success('Cập nhật năm học thành công');
+        setOpenEdit(false);
+        fetchData();
+      }
+    } catch (error) {
+      toast.error(error.message || 'Lỗi khi cập nhật năm học');
+    } finally {
+      setLoading(false);
+    }
   };
 
   const handleConfirmFinish = async () => {
-    if (!currentYear) return;
-
-    // Kiểm tra xem còn học sinh chưa đánh giá không
-    const unEvaluatedCount = finishStudents.filter(s => !s.evaluation?.academicEvaluation).length;
-    if (unEvaluatedCount > 0) {
-      if (!window.confirm(`Còn ${unEvaluatedCount} học sinh chưa có kết quả đánh giá cuối năm. Bạn có chắc chắn muốn kết thúc năm học không?`)) {
-        return;
-      }
-    }
-
     try {
-      const graduateIds = finishStudents
-        .filter((s) => isFinishRowSelectable(s) && graduateMarkedIds.has(s._id))
-        .map((s) => String(s._id));
-
-      const resp = await patch(ENDPOINTS.SCHOOL_ADMIN.ACADEMIC_YEARS.FINISH(currentYear._id), {
-        selectedStudentIds: graduateIds
+      const resp = await post(ENDPOINTS.SCHOOL_ADMIN.ACADEMIC_YEARS.FINISH(currentYear._id), {
+        graduatedStudentIds: Array.from(graduateMarkedIds),
+        dropoutStudentIds: Array.from(dropoutMarkedIds)
       });
+
       if (resp?.status === 'success') {
-        const updated = resp.data;
-        setCurrentYear(updated);
-        setYears((prev) => prev.map((y) => (y._id === updated._id ? updated : y)));
+        toast.success('Đã kết thúc năm học thành công.');
         setOpenFinish(false);
-        toast.success(`Đã kết thúc năm học thành công.`);
+        fetchData();
+      } else {
+        if (resp?.code === 'MISSING_EVALUATIONS') {
+          setFinishErrorDetails(resp.data);
+          setOpenErrorDialog(true);
+        } else {
+          toast.error(resp?.message || 'Không thể kết thúc năm học. Vui lòng kiểm tra lại.');
+        }
       }
-    } catch (error) {
-      console.error('Error finishing academic year:', error);
-      toast.error('Không thể kết thúc năm học');
+    } catch (err) {
+      toast.error('Lỗi kết nối máy chủ.');
     }
   };
 
-  const handleSearchHistory = async () => {
+  const handlePublishYear = async (yearId) => {
+    if (!window.confirm('Bạn có chắc chắn muốn công bố năm học này? Hệ thống sẽ tự động kích hoạt lớp học và điều chuyển học sinh.')) return;
+    setLoading(true);
     try {
-      setHistoryLoading(true);
-      setHistory([]);
-      let endpoint = ENDPOINTS.SCHOOL_ADMIN.ACADEMIC_YEARS.HISTORY;
-      if (archiveYear) {
-        const params = new URLSearchParams();
-        params.set('yearId', archiveYear);
-        endpoint = `${endpoint}?${params.toString()}`;
+      const resp = await patch(ENDPOINTS.SCHOOL_ADMIN.ACADEMIC_YEARS.PUBLISH(yearId));
+      if (resp?.status === 'success') {
+        toast.success(resp.message || 'Công bố năm học thành công!');
+        fetchData();
+      } else {
+        toast.error(resp?.message || 'Có lỗi xảy ra khi công bố năm học');
       }
-      const resp = await get(endpoint);
-      if (resp?.status === 'success' && Array.isArray(resp.data)) setHistory(resp.data);
     } catch (error) {
-      console.error('Error loading academic year history:', error);
+      toast.error(error.message || 'Lỗi khi kết nối máy chủ');
     } finally {
-      setHistoryLoading(false);
+      setLoading(false);
     }
   };
 
   const filteredFinishStudents = useMemo(() => {
-    const g = finishGradeFilter.trim();
-    const c = finishClassFilter.trim();
-    return finishStudents.filter((s) => {
-      const gn = (s.gradeName || '').trim();
-      const cn = (s.className || '').trim();
-      if (g && gn !== g) return false;
-      if (c && cn !== c) return false;
+    return finishStudents.filter(s => {
+      if (finishGradeFilter && s.gradeName !== finishGradeFilter) return false;
+      if (finishClassFilter && s.className !== finishClassFilter) return false;
+      if (showMissingOnly && s.evaluation?.academicEvaluation) return false;
       return true;
     });
-  }, [finishStudents, finishGradeFilter, finishClassFilter]);
+  }, [finishStudents, finishGradeFilter, finishClassFilter, showMissingOnly]);
 
-  const finishGradeOptions = useMemo(() => {
-    const set = new Set(finishStudents.map((s) => (s.gradeName || '').trim()).filter(Boolean));
-    return Array.from(set).sort((a, b) => a.localeCompare(b, 'vi'));
-  }, [finishStudents]);
+  const graduateTickCount = Array.from(graduateMarkedIds).length;
 
+  const finishGradeOptions = useMemo(() => [...new Set(finishStudents.map(s => s.gradeName).filter(Boolean))], [finishStudents]);
   const finishClassOptions = useMemo(() => {
-    const pool = finishGradeFilter.trim()
-      ? finishStudents.filter((s) => (s.gradeName || '').trim() === finishGradeFilter.trim())
-      : finishStudents;
-    const set = new Set(pool.map((s) => (s.className || '').trim()).filter(Boolean));
-    return Array.from(set).sort((a, b) => a.localeCompare(b, 'vi'));
+    let filtered = finishStudents;
+    if (finishGradeFilter) filtered = filtered.filter(s => s.gradeName === finishGradeFilter);
+    return [...new Set(filtered.map(s => s.className).filter(Boolean))];
   }, [finishStudents, finishGradeFilter]);
 
-  const visibleSelectableFinish = useMemo(
-    () => filteredFinishStudents.filter(isFinishRowSelectable),
-    [filteredFinishStudents],
-  );
-
-  const allSelected =
-    visibleSelectableFinish.length > 0 &&
-    visibleSelectableFinish.every((s) => graduateMarkedIds.has(s._id));
-  const someSelected =
-    visibleSelectableFinish.some((s) => graduateMarkedIds.has(s._id)) && !allSelected;
-
-  const finishSelectableTotal = useMemo(
-    () => finishStudents.filter(isFinishRowSelectable).length,
-    [finishStudents],
-  );
-  const graduateTickCount = useMemo(
-    () =>
-      finishStudents.reduce(
-        (n, s) => n + (isFinishRowSelectable(s) && graduateMarkedIds.has(s._id) ? 1 : 0),
-        0,
-      ),
-    [finishStudents, graduateMarkedIds],
-  );
+  const handleExpressSetup = async () => {
+    if (!expressForm.yearName || !expressForm.startDate || !expressForm.endDate) {
+      toast.error('Vui lòng điền đủ thông tin năm học mới');
+      return;
+    }
+    setLoading(true);
+    try {
+      const resp = await post(ENDPOINTS.SCHOOL_ADMIN.ACADEMIC_YEARS.EXPRESS_SETUP, { yearInfo: expressForm });
+      if (resp?.status === 'success') {
+        toast.success('🎉 Thiết lập nhanh thành công! Hệ thống đã tạo bản nháp năm học mới.');
+        setOpenExpress(false);
+        fetchData();
+      } else {
+        toast.error(resp?.message || 'Có lỗi xảy ra');
+      }
+    } catch (err) {
+      toast.error(err.message || 'Lỗi kết nối');
+    } finally {
+      setLoading(false);
+    }
+  };
 
   return (
-    <RoleLayout
-      title="Thiết lập Năm học"
-      description="Tổng quan năm học đang hoạt động, và tra cứu lịch sử các năm học trước."
-      menuItems={menuItems}
-      activeKey="academic-year-setup"
-      onLogout={handleLogout}
-      onViewProfile={handleViewProfile}
-      onMenuSelect={handleMenuSelect}
-      userName={userName}
-      userAvatar={user?.avatar}
-    >
-      <Stack spacing={3}>
-        {/* Header card */}
-        <Paper
-          elevation={0}
-          sx={{
-            p: 3, borderRadius: 2,
-            background: 'linear-gradient(135deg, #6366f1 0%, #4f46e5 100%)',
-            color: 'white',
-          }}
-        >
-          <Stack direction="row" justifyContent="space-between" alignItems="center" spacing={2}>
-            <Box>
-              <Typography variant="overline" sx={{ opacity: 0.8 }}>
-                MamNon DX &gt; Ban Giám Hiệu &gt; Thiết lập Năm học
-              </Typography>
-              <Typography variant="h6" fontWeight={700} mt={0.5}>
-                {currentYear?.yearName || 'Chưa có năm học đang hoạt động'}
-              </Typography>
-              <Typography variant="body2" sx={{ opacity: 0.9 }} mt={0.5}>
-                Tổng quan năm học đang hoạt động. Bạn có thể thiết lập kế hoạch chi tiết ở các menu bên trái.
-              </Typography>
-            </Box>
-            <Button
-              variant="contained"
-              startIcon={<AddIcon />}
-              sx={{
-                bgcolor: 'white', color: '#4f46e5', fontWeight: 600,
-                textTransform: 'none', borderRadius: 2,
-                '&:hover': { bgcolor: '#e5e7ff' },
-              }}
-              disabled={!canCreateNewYear}
-              onClick={() => setOpenWizard(true)}
-            >
-              Tạo năm học mới
-            </Button>
-          </Stack>
-        </Paper>
-
-        {/* Current year card */}
-        <Paper elevation={1} sx={{ p: 3, borderRadius: 2, display: 'flex', flexDirection: { xs: 'column', md: 'row' }, justifyContent: 'space-between', alignItems: 'center', gap: 2 }}>
-          <Stack direction="row" spacing={2} alignItems="flex-start">
-            <Box sx={{ width: 56, height: 56, borderRadius: 2, background: 'linear-gradient(135deg, #a855f7 0%, #6366f1 100%)', display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'white' }}>
-              <CalendarIcon />
+    <Box>
+      <Stack spacing={4}>
+        <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', flexWrap: 'wrap', gap: 2 }}>
+          <Stack direction="row" spacing={2} alignItems="center">
+            <Box sx={{ p: 1.5, borderRadius: 2.5, bgcolor: 'rgba(99, 102, 241, 0.1)', color: '#6366f1' }}>
+              <CalendarIcon sx={{ fontSize: 32, display: 'block' }} />
             </Box>
             <Box>
-              <Typography variant="subtitle2" color="text.secondary">Năm học hiện tại</Typography>
-              <Typography variant="h6" fontWeight={700} color="text.primary" mt={0.5}>
-                {currentYear?.yearName || 'Chưa có năm học đang hoạt động'}
-              </Typography>
-              <Typography variant="body2" color="text.secondary" mt={0.5}>
-                {currentYear
-                  ? `Bắt đầu: ${formatDate(currentYear.startDate)} – Kết thúc: ${formatDate(currentYear.endDate)}`
-                  : 'Chưa thiết lập thời gian năm học'}
-              </Typography>
-  
+              <Typography variant="h4" fontWeight={900} color="#1e293b">Thiết lập Năm học</Typography>
+              <Typography variant="body1" color="text.secondary">Tổng quan năm học hiện tại và lịch sử các năm học của trường</Typography>
             </Box>
           </Stack>
-          <Stack direction="row" spacing={1.5} alignItems="center">
-            <Chip
-              label={currentYear?.status === 'active' ? 'Đang hoạt động' : 'Đã kết thúc'}
-              color={currentYear?.status === 'active' ? 'success' : 'default'}
-              sx={{ fontWeight: 600 }}
-            />
-            <Button
-              variant="outlined"
-              color="error"
-              sx={{ borderRadius: 2, textTransform: 'none', fontWeight: 600 }}
-              disabled={!currentYear || currentYear.status !== 'active'}
-              onClick={handleOpenFinish}
-            >
-              Kết thúc năm học
-            </Button>
-          </Stack>
-        </Paper>
-
-        {/* Archive section */}
-        <Paper elevation={1} sx={{ p: 3, borderRadius: 2 }}>
-          <Stack direction="row" spacing={1.5} alignItems="center" mb={2}>
-            <ArchiveIcon sx={{ color: '#6b7280' }} />
-            <Box>
-              <Typography variant="subtitle1" fontWeight={700}>Lưu trữ &amp; Lịch sử năm học</Typography>
-              <Typography variant="body2" color="text.secondary">
-                Tra cứu dữ liệu cũ hoặc phân tích xu hướng phát triển qua các năm học.
-              </Typography>
+          
+            <Box sx={{ display: 'flex', gap: 1.5, flexWrap: 'wrap' }}>
+              {/* Nút Thiết lập nhanh: Chỉ hiện nếu chưa có bản nháp nào */}
+              {!years.some(y => y.status === 'draft') && (
+                <Button 
+                  variant="outlined" 
+                  color="secondary" 
+                  startIcon={<MagicIcon />}
+                  onClick={() => {
+                    // Tự động tính toán năm học kế tiếp dựa trên năm gần nhất
+                    const lastYear = years.length > 0 ? years[0] : null;
+                    let nextYearStart = new Date().getFullYear();
+                    if (lastYear && lastYear.startDate) {
+                      nextYearStart = new Date(lastYear.startDate).getFullYear() + 1;
+                    }
+                    
+                    setExpressForm({
+                      yearName: `Năm học ${nextYearStart}-${nextYearStart + 1}`,
+                      startDate: `${nextYearStart}-09-01`,
+                      endDate: `${nextYearStart + 1}-05-31`,
+                      description: 'Thiết lập tự động từ cấu hình năm cũ.'
+                    });
+                    setOpenExpress(true);
+                  }}
+                  sx={{ 
+                    borderRadius: 2, textTransform: 'none', fontWeight: 800, px: 3, 
+                    border: '2px solid #8b5cf6', color: '#8b5cf6',
+                    '&:hover': { border: '2px solid #7c3aed', bgcolor: 'rgba(139, 92, 246, 0.05)' }
+                  }}
+                >
+                  Thiết lập nhanh (1-Click)
+                </Button>
+              )}
+              {currentYear && (
+                <Button
+                  variant="outlined"
+                  startIcon={<EditIcon />}
+                  onClick={() => handleOpenEdit(currentYear)}
+                  sx={{ borderRadius: 2, textTransform: 'none', fontWeight: 700, borderColor: '#6366f1', color: '#6366f1', '&:hover': { borderColor: '#6366f1', bgcolor: 'rgba(99, 102, 241, 0.05)' } }}
+                >
+                  Sửa thông tin
+                </Button>
+              )}
+              {currentYear ? (
+                <Button 
+                  variant="contained" 
+                  color="error" 
+                  startIcon={<ArchiveIcon />}
+                  onClick={() => setOpenFinish(true)}
+                  sx={{ borderRadius: 2, textTransform: 'none', fontWeight: 700, px: 3, boxShadow: '0 4px 12px rgba(239, 68, 68, 0.2)' }}
+                >
+                  Kết thúc năm học
+                </Button>
+              ) : (
+                <Button 
+                  variant="contained" 
+                  color="primary" 
+                  startIcon={<AddIcon />}
+                  onClick={() => setOpenWizard(true)}
+                  sx={{ borderRadius: 2, textTransform: 'none', fontWeight: 700, px: 3, boxShadow: '0 4px 12px rgba(99, 102, 241, 0.2)' }}
+                >
+                  Từng bước (Wizard)
+                </Button>
+              )}
             </Box>
-          </Stack>
-          <Stack direction={{ xs: 'column', sm: 'row' }} spacing={2} alignItems={{ xs: 'stretch', sm: 'center' }}>
-            <FormControl size="small" sx={{ minWidth: 240 }}>
-              <InputLabel>Năm học</InputLabel>
-              <Select label="Năm học" value={archiveYear} onChange={(e) => setArchiveYear(e.target.value)}>
-                {years.filter((y) => y.status !== 'active').map((y) => (
-                  <MenuItem key={y._id} value={y._id}>{y.yearName} (đã kết thúc)</MenuItem>
-                ))}
-              </Select>
-            </FormControl>
-            <Button
-              variant="contained"
-              startIcon={<SearchIcon />}
-              sx={{ bgcolor: '#6366f1', '&:hover': { bgcolor: '#4f46e5' }, borderRadius: 2, textTransform: 'none', fontWeight: 600, px: 3 }}
-              onClick={handleSearchHistory}
-            >
-              Tra cứu
-            </Button>
-          </Stack>
+        </Box>
 
-          {historyLoading && (
-            <Box sx={{ mt: 3, textAlign: 'center' }}>
-              <Typography variant="body2" color="text.secondary">Đang tải kết quả tra cứu...</Typography>
-            </Box>
-          )}
-
-          {!historyLoading && history.length > 0 && (
-            <Box sx={{ mt: 3 }}>
-              <Typography variant="subtitle1" fontWeight={700} mb={2}>Kết quả tìm kiếm</Typography>
-              <Stack direction={{ xs: 'column', md: 'row' }} spacing={2} alignItems="stretch">
-                {history.map((item) => (
-                  <Paper key={item._id} elevation={0} sx={{ flex: 1, borderRadius: 2, border: '1px solid', borderColor: 'divider', p: 2.5, backgroundColor: 'grey.50' }}>
-                    <Typography variant="subtitle1" fontWeight={700}>{item.yearName}</Typography>
-                    <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
-                      Thời gian: {formatDate(item.startDate)} – {formatDate(item.endDate)}
-                    </Typography>
-                    <Stack spacing={1}>
-                      <Stack direction="row" justifyContent="space-between">
-                        <Typography variant="body2" color="text.secondary">Số lớp / Số trẻ</Typography>
-                        <Typography variant="body2" fontWeight={600}>{item.classCount} lớp | {item.studentCount} trẻ</Typography>
+        {currentYear && (
+          <Fade in={true}>
+            <Paper elevation={0} sx={{ 
+              p: 4, 
+              borderRadius: 4, 
+              background: 'linear-gradient(135deg, #6366f1 0%, #4338ca 100%)',
+              color: 'white',
+              position: 'relative',
+              overflow: 'hidden',
+              boxShadow: '0 20px 25px -5px rgba(0, 0, 0, 0.1), 0 10px 10px -5px rgba(0, 0, 0, 0.04)'
+            }}>
+              <Box sx={{ position: 'absolute', right: -20, top: -20, opacity: 0.1, transform: 'rotate(15deg)' }}>
+                <CalendarIcon sx={{ fontSize: 200 }} />
+              </Box>
+              <Grid container spacing={4} alignItems="center">
+                <Grid item xs={12} md={8}>
+                  <Stack spacing={1}>
+                    <Typography variant="overline" sx={{ opacity: 0.8, fontWeight: 700, letterSpacing: 2 }}>NĂM HỌC HIỆN TẠI</Typography>
+                    <Typography variant="h3" fontWeight={900}>{currentYear.yearName}</Typography>
+                    <Stack direction="row" spacing={3} mt={1}>
+                      <Stack direction="row" spacing={1} alignItems="center">
+                        <Box sx={{ p: 0.5, borderRadius: 1, bgcolor: 'rgba(255,255,255,0.2)' }}>
+                          <PeopleIcon sx={{ fontSize: 18 }} />
+                        </Box>
+                        <Typography variant="subtitle2" fontWeight={700}>{currentYear.totalStudents || 0} học sinh</Typography>
+                      </Stack>
+                      <Stack direction="row" spacing={1} alignItems="center">
+                        <Box sx={{ p: 0.5, borderRadius: 1, bgcolor: 'rgba(255,255,255,0.2)' }}>
+                          <CalendarIcon sx={{ fontSize: 18 }} />
+                        </Box>
+                        <Typography variant="subtitle2" fontWeight={700}>{formatDate(currentYear.startDate)} — {formatDate(currentYear.endDate)}</Typography>
                       </Stack>
                     </Stack>
-                    <Box sx={{ mt: 2 }}>
-                      <Button size="small" variant="contained" sx={{ textTransform: 'none', borderRadius: 2, bgcolor: '#e0f2fe', color: '#0369a1', '&:hover': { bgcolor: '#bae6fd' } }}
-                        onClick={() => navigate(`/school-admin/academic-years/${item._id}`)}>
-                        Tra cứu chi tiết năm học
-                      </Button>
-                    </Box>
-                  </Paper>
-                ))}
-              </Stack>
-            </Box>
-          )}
-        </Paper>
-
-        {/* ======== Dialog: Kết thúc năm học ======== */}
-        <Dialog open={openFinish} onClose={() => setOpenFinish(false)} maxWidth="md" fullWidth>
-          <DialogTitle sx={{ pb: 1.5, background: 'linear-gradient(135deg, #dc2626 0%, #b91c1c 100%)', color: 'white' }}>
-            <Typography variant="subtitle1" fontWeight={700}>
-              Kết thúc năm học — Xử lý học sinh theo khối lớp
-            </Typography>
-            <Typography variant="body2" sx={{ opacity: 0.9, mt: 0.25 }}>
-              • Hệ thống tự động đề xuất <strong>Tốt nghiệp</strong> cho trẻ khối năm cuối có kết quả <strong>Đạt</strong>.<br/>
-              • Trẻ <strong>Chưa đạt</strong> hoặc <strong>Chưa đánh giá</strong> sẽ mặc định <strong>Học tiếp</strong> (ở lại lớp hoặc chuyển khối tùy cấu hình).
-            </Typography>
-          </DialogTitle>
-          <DialogContent dividers sx={{ p: 0 }}>
-            {finishLoading ? (
-              <Box sx={{ display: 'flex', justifyContent: 'center', py: 6 }}>
-                <CircularProgress />
-              </Box>
-            ) : finishStudents.length === 0 ? (
-              <Box sx={{ py: 6, textAlign: 'center' }}>
-                <Typography color="text.secondary">Không có học sinh nào trong năm học này.</Typography>
-              </Box>
-            ) : (
-              <>
-                <Stack
-                  direction={{ xs: 'column', sm: 'row' }}
-                  spacing={2}
-                  alignItems={{ xs: 'stretch', sm: 'center' }}
-                  sx={{ px: 2, py: 1.5, bgcolor: 'grey.50', borderBottom: 1, borderColor: 'divider' }}
-                >
-                  <Typography variant="body2" color="text.secondary" sx={{ display: { xs: 'none', sm: 'block' }, flexShrink: 0 }}>
-                    Lọc danh sách xét duyệt:
-                  </Typography>
-                  <FormControl size="small" sx={{ minWidth: { xs: '100%', sm: 200 } }}>
-                    <InputLabel>Khối</InputLabel>
-                    <Select
-                      label="Khối"
-                      value={finishGradeFilter}
-                      onChange={(e) => {
-                        setFinishGradeFilter(e.target.value);
-                        setFinishClassFilter('');
-                      }}
-                    >
-                      <MenuItem value="">
-                        <em>Tất cả khối</em>
-                      </MenuItem>
-                      {finishGradeOptions.map((name) => (
-                        <MenuItem key={name} value={name}>
-                          {name}
-                        </MenuItem>
-                      ))}
-                    </Select>
-                  </FormControl>
-                  <FormControl size="small" sx={{ minWidth: { xs: '100%', sm: 200 } }}>
-                    <InputLabel>Lớp</InputLabel>
-                    <Select
-                      label="Lớp"
-                      value={finishClassFilter}
-                      onChange={(e) => setFinishClassFilter(e.target.value)}
-                      disabled={finishClassOptions.length === 0}
-                    >
-                      <MenuItem value="">
-                        <em>Tất cả lớp{finishGradeFilter.trim() ? ' (theo khối đã chọn)' : ''}</em>
-                      </MenuItem>
-                      {finishClassOptions.map((name) => (
-                        <MenuItem key={name} value={name}>
-                          {name}
-                        </MenuItem>
-                      ))}
-                    </Select>
-                  </FormControl>
-                </Stack>
-                {filteredFinishStudents.length === 0 ? (
-                  <Box sx={{ py: 6, textAlign: 'center', px: 2 }}>
-                    <Typography color="text.secondary">
-                      Không có học sinh nào khớp bộ lọc khối / lớp. Hãy đổi bộ lọc hoặc chọn &quot;Tất cả&quot; để xem lại danh sách.
-                    </Typography>
+                  </Stack>
+                </Grid>
+                <Grid item xs={12} md={4}>
+                  <Box sx={{ bgcolor: 'rgba(255,255,255,0.1)', p: 2.5, borderRadius: 3, backdropFilter: 'blur(10px)', border: '1px solid rgba(255,255,255,0.2)' }}>
+                    <Typography variant="subtitle2" fontWeight={700} gutterBottom>Mục tiêu & Ghi chú</Typography>
+                    <Typography variant="body2" sx={{ opacity: 0.9 }}>{currentYear.description || 'Chưa có mô tả cho năm học này.'}</Typography>
                   </Box>
-                ) : (
-                <Table size="small" stickyHeader>
-                <TableHead>
-                  <TableRow>
-                    <TableCell padding="checkbox" sx={{ bgcolor: '#f9fafb' }}>
-                      <Checkbox
-                        checked={allSelected}
-                        indeterminate={someSelected}
-                        onChange={handleToggleAllGraduateMarks}
-                        icon={<CheckBoxBlankIcon />}
-                        checkedIcon={<CheckBoxIcon />}
+                </Grid>
+              </Grid>
+            </Paper>
+          </Fade>
+        )}
+
+        <Paper elevation={0} sx={{ borderRadius: 4, border: '1px solid #e2e8f0', overflow: 'hidden' }}>
+          <Box sx={{ p: 3, borderBottom: '1px solid #f1f5f9', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+            <Typography variant="h6" fontWeight={800}>Lịch sử các năm học</Typography>
+            <TextField
+              size="small"
+              placeholder="Tìm kiếm năm học..."
+              value={search}
+              onChange={(e) => setSearch(e.target.value)}
+              InputProps={{ startAdornment: <SearchIcon sx={{ color: 'text.secondary', mr: 1, fontSize: 20 }} /> }}
+              sx={{ width: 300 }}
+            />
+          </Box>
+          <TableContainer>
+            <Table>
+              <TableHead>
+                <TableRow sx={{ bgcolor: '#f8fafc' }}>
+                  <TableCell sx={{ fontWeight: 800 }}>Tên năm học</TableCell>
+                  <TableCell sx={{ fontWeight: 800 }}>Thời gian</TableCell>
+                  <TableCell sx={{ fontWeight: 800 }}>Sĩ số</TableCell>
+                  <TableCell sx={{ fontWeight: 800 }}>Trạng thái</TableCell>
+                  <TableCell sx={{ fontWeight: 800 }} align="right">Thao tác</TableCell>
+                </TableRow>
+              </TableHead>
+              <TableBody>
+                {years.filter(y => y.yearName.toLowerCase().includes(search.toLowerCase())).map((year) => (
+                  <TableRow key={year._id} hover>
+                    <TableCell>
+                      <Typography variant="subtitle2" fontWeight={700}>{year.yearName}</Typography>
+                      {year.description && <Typography variant="caption" color="text.secondary" sx={{ display: 'block', maxWidth: 300 }}>{year.description}</Typography>}
+                    </TableCell>
+                    <TableCell><Typography variant="body2" fontWeight={600}>{formatDate(year.startDate)} - {formatDate(year.endDate)}</Typography></TableCell>
+                    <TableCell><Chip label={`${year.totalStudents || 0} học sinh`} size="small" sx={{ fontWeight: 700, bgcolor: '#f1f5f9' }} /></TableCell>
+                    <TableCell>
+                      <Chip 
+                        label={
+                          year.status === 'active' ? 'Đang hoạt động' : 
+                          year.status === 'draft' ? 'Bản nháp' : 'Đã kết thúc'
+                        } 
+                        color={
+                          year.status === 'active' ? 'success' : 
+                          year.status === 'draft' ? 'warning' : 'default'
+                        } 
+                        size="small" 
+                        sx={{ fontWeight: 700 }} 
                       />
                     </TableCell>
-                    <TableCell sx={{ bgcolor: '#f9fafb', fontWeight: 700 }}>Học sinh</TableCell>
-                    <TableCell sx={{ bgcolor: '#f9fafb', fontWeight: 700 }}>Lớp</TableCell>
-                    <TableCell sx={{ bgcolor: '#f9fafb', fontWeight: 700 }}>Kết quả Đánh giá</TableCell>
-                    <TableCell sx={{ bgcolor: '#f9fafb', fontWeight: 700 }}>Xử lý Cuối năm</TableCell>
-                  </TableRow>
-                </TableHead>
-                <TableBody>
-                  {filteredFinishStudents.map((s) => (
-                    <TableRow
-                      key={s._id}
-                      hover
-                      selected={isFinishRowSelectable(s) && graduateMarkedIds.has(s._id)}
-                      sx={{
-                        cursor: isFinishRowSelectable(s) ? 'pointer' : 'default',
-                        bgcolor: s.needsSpecialAttention ? '#fffbeb' : 'inherit',
-                      }}
-                    >
-                      <TableCell padding="checkbox">
-                        {isFinishRowSelectable(s) ? (
-                            <Checkbox
-                              checked={graduateMarkedIds.has(s._id)}
-                              onChange={() => handleToggleGraduateMark(s._id)}
-                              onClick={(e) => e.stopPropagation()}
-                            />
-                          ) : (
-                            <Box sx={{ width: 24, height: 24 }} />
-                          )}
-                      </TableCell>
-                      <TableCell onClick={() => isFinishRowSelectable(s) && handleToggleGraduateMark(s._id)}>
-                        <Stack direction="row" alignItems="center" spacing={1.5}>
-                          <Avatar src={s.avatar} sx={{ width: 32, height: 32, fontSize: 13, cursor: 'pointer' }} onClick={(e) => { e.stopPropagation(); navigate(`/school-admin/students/${s._id}/detail`); }}>
-                            {s.fullName?.[0]}
-                          </Avatar>
-                          <Box>
-                            <Typography variant="body2" fontWeight={600} 
-                              sx={{ cursor: 'pointer', '&:hover': { color: 'primary.main', textDecoration: 'underline' } }}
-                              onClick={(e) => { e.stopPropagation(); navigate(`/school-admin/students/${s._id}/detail`); }}
-                            >
-                              {s.fullName}
-                            </Typography>
-                            {s.needsSpecialAttention && (
-                              <Typography variant="caption" color="warning.main" sx={{ display: 'block' }}>
-                                <WarningIcon sx={{ fontSize: 12, mr: 0.25, verticalAlign: 'middle' }} />
-                                Cần chú ý đặc biệt
-                              </Typography>
-                            )}
-                          </Box>
-                        </Stack>
-                      </TableCell>
-                      <TableCell><Typography variant="body2">{s.className || '—'}</Typography></TableCell>
-                      <TableCell>
-                        {s.evaluation?.academicEvaluation ? (
-                          <Chip
-                            size="small"
-                            label={s.evaluation.academicEvaluation === 'đạt' ? 'Đạt (Đủ điều kiện)' : 'Chưa đạt'}
-                            color={s.evaluation.academicEvaluation === 'đạt' ? 'success' : 'error'}
-                            variant="outlined"
-                            sx={{ fontWeight: 700 }}
-                          />
-                        ) : (
-                          <Stack direction="row" spacing={0.5} alignItems="center">
-                            <WarningIcon sx={{ fontSize: 14, color: '#f59e0b' }} />
-                            <Typography variant="caption" color="#b45309" fontWeight={600}>Chưa đánh giá</Typography>
-                          </Stack>
+                    <TableCell align="right">
+                      <Stack direction="row" spacing={1} justifyContent="flex-end" alignItems="center">
+                        {year.status === 'draft' && (
+                          <Button 
+                            size="small" 
+                            variant="contained" 
+                            color="success"
+                            onClick={() => handlePublishYear(year._id)}
+                            sx={{ textTransform: 'none', fontWeight: 700, borderRadius: 2 }}
+                          >
+                            Công bố
+                          </Button>
                         )}
-                      </TableCell>
-                      <TableCell>
-                        {(() => {
-                          if (!isFinishRowSelectable(s)) {
-                            return (
-                              <Chip label="Lên lớp (Tự động)" size="small" sx={{ bgcolor: '#eef2ff', color: '#4f46e5', fontWeight: 700 }} />
-                            );
-                          }
-                          const isGrad = graduateMarkedIds.has(s._id);
-                          const evalStatus = s.evaluation?.academicEvaluation;
-                          
-                          if (isGrad) return <Chip label="Tốt nghiệp" color="error" size="small" sx={{ fontWeight: 700 }} />;
-                          
-                          return (
-                            <Chip 
-                              label={evalStatus === 'chưa đạt' ? 'Ở lại lớp' : 'Học tiếp'} 
-                              size="small" 
-                              variant="outlined"
-                              sx={{ fontWeight: 700, borderColor: evalStatus === 'chưa đạt' ? '#ef4444' : '#4f46e5', color: evalStatus === 'chưa đạt' ? '#ef4444' : '#4f46e5' }} 
-                            />
-                          );
-                        })()}
-                      </TableCell>
-                    </TableRow>
-                  ))}
-                </TableBody>
-              </Table>
-                )}
-              </>
+                        <IconButton size="small" color="primary" onClick={() => handleOpenEdit(year)} title="Sửa thông tin">
+                          <EditIcon fontSize="small" />
+                        </IconButton>
+                        <Button size="small" variant="outlined" onClick={() => navigate(`/school-admin/academic-years/${year._id}`)} sx={{ textTransform: 'none', fontWeight: 700, borderRadius: 2 }}>Chi tiết</Button>
+                      </Stack>
+                    </TableCell>
+                  </TableRow>
+                ))}
+              </TableBody>
+            </Table>
+          </TableContainer>
+        </Paper>
+
+        <Dialog open={openFinish} onClose={() => !loading && setOpenFinish(false)} maxWidth="lg" fullWidth PaperProps={{ sx: { borderRadius: 4 } }}>
+          <DialogTitle sx={{ px: 3, py: 2.5, borderBottom: '1px solid #f1f5f9' }}>
+            <Stack direction="row" spacing={2} alignItems="center">
+              <Box sx={{ p: 1, borderRadius: 2, bgcolor: '#fff1f2', color: '#e11d48', display: 'flex' }}><ArchiveIcon /></Box>
+              <Box>
+                <Typography variant="h6" fontWeight={800}>Kết thúc năm học {currentYear?.yearName}</Typography>
+                <Typography variant="caption" color="text.secondary">Xác nhận danh sách tốt nghiệp và nghỉ học để lưu trữ dữ liệu năm học cũ.</Typography>
+              </Box>
+            </Stack>
+          </DialogTitle>
+          <DialogContent sx={{ p: 0 }}>
+            <Stack direction="row" spacing={2} sx={{ p: 2, bgcolor: '#f8fafc', borderBottom: '1px solid #f1f5f9' }} alignItems="center">
+              <FormControl size="small" sx={{ minWidth: 150 }}>
+                <InputLabel>Khối lớp</InputLabel>
+                <Select value={finishGradeFilter} label="Khối lớp" onChange={e => setFinishGradeFilter(e.target.value)}>
+                  <MenuItem value=""><em>Tất cả khối</em></MenuItem>
+                  {finishGradeOptions.map(g => <MenuItem key={g} value={g}>{g}</MenuItem>)}
+                </Select>
+              </FormControl>
+              <FormControl size="small" sx={{ minWidth: 150 }}>
+                <InputLabel>Lớp</InputLabel>
+                <Select value={finishClassFilter} label="Lớp" onChange={e => setFinishClassFilter(e.target.value)}>
+                  <MenuItem value=""><em>Tất cả lớp</em></MenuItem>
+                  {finishClassOptions.map(c => <MenuItem key={c} value={c}>{c}</MenuItem>)}
+                </Select>
+              </FormControl>
+              <Box sx={{ ml: 'auto' }}>
+                <Checkbox size="small" checked={showMissingOnly} onChange={e => setShowMissingOnly(e.target.checked)} color="error" />
+                <Typography variant="caption" fontWeight={600} color={showMissingOnly ? "error.main" : "text.secondary"}>Chỉ hiện bé thiếu đánh giá</Typography>
+              </Box>
+            </Stack>
+
+            {filteredFinishStudents.length === 0 ? (
+              <Box sx={{ py: 6, textAlign: 'center' }}><Typography color="text.secondary">Không có dữ liệu phù hợp bộ lọc.</Typography></Box>
+            ) : (
+              <Box sx={{ maxHeight: '60vh', overflowY: 'auto', p: 2 }}>
+                {(() => {
+                  const groups = {};
+                  filteredFinishStudents.forEach(s => {
+                    const className = s.className || 'Chưa phân lớp';
+                    if (!groups[className]) groups[className] = [];
+                    groups[className].push(s);
+                  });
+
+                  return Object.entries(groups).sort((a, b) => a[0].localeCompare(b[0])).map(([className, studentsInClass]) => {
+                    const selectableCount = studentsInClass.filter(isFinishRowSelectable).length;
+                    const graduateMarkedInClass = studentsInClass.filter(s => graduateMarkedIds.has(s._id)).length;
+                    const dropoutMarkedInClass = studentsInClass.filter(s => dropoutMarkedIds.has(s._id)).length;
+
+                    return (
+                      <Paper key={className} elevation={0} sx={{ border: '1px solid #e2e8f0', borderRadius: 4, mb: 3, overflow: 'hidden' }}>
+                        <Box sx={{ px: 3, py: 2, bgcolor: '#f8fafc', borderBottom: '1px solid #f1f5f9', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                          <Stack direction="row" spacing={2} alignItems="center">
+                            <PeopleIcon sx={{ color: '#6366f1' }} />
+                            <Box>
+                              <Typography variant="subtitle1" fontWeight={900}>Lớp {className}</Typography>
+                              <Typography variant="caption" color="text.secondary">{studentsInClass.length} học sinh</Typography>
+                            </Box>
+                          </Stack>
+                          <Stack direction="row" spacing={1}>
+                            {selectableCount > 0 && (
+                              <Button size="small" variant="outlined" color="success" onClick={() => {
+                                const ids = studentsInClass.filter(isFinishRowSelectable).map(s => s._id);
+                                const allMarked = ids.every(id => graduateMarkedIds.has(id));
+                                setGraduateMarkedIds(prev => {
+                                  const next = new Set(prev);
+                                  if (allMarked) ids.forEach(id => next.delete(id));
+                                  else ids.forEach(id => next.add(id));
+                                  return next;
+                                });
+                              }} sx={{ textTransform: 'none', fontWeight: 700 }}>
+                                {graduateMarkedInClass === selectableCount ? 'Bỏ chọn TN' : 'Tốt nghiệp cả lớp'}
+                              </Button>
+                            )}
+                            <Button size="small" variant="outlined" color="inherit" onClick={() => {
+                              const ids = studentsInClass.map(s => s._id);
+                              const allMarked = ids.every(id => dropoutMarkedIds.has(id));
+                              setDropoutMarkedIds(prev => {
+                                const next = new Set(prev);
+                                if (allMarked) ids.forEach(id => next.delete(id));
+                                else ids.forEach(id => next.add(id));
+                                return next;
+                              });
+                            }} sx={{ textTransform: 'none', fontWeight: 700, color: '#64748b' }}>
+                              {dropoutMarkedInClass === studentsInClass.length ? 'Bỏ chọn nghỉ' : 'Nghỉ học cả lớp'}
+                            </Button>
+                          </Stack>
+                        </Box>
+                        <Table size="small">
+                          <TableHead><TableRow sx={{ bgcolor: '#fff' }}><TableCell sx={{ fontWeight: 800 }}>Học sinh</TableCell><TableCell sx={{ fontWeight: 800 }}>Đánh giá</TableCell><TableCell sx={{ fontWeight: 800, textAlign: 'center' }}>Tốt nghiệp</TableCell><TableCell sx={{ fontWeight: 800, textAlign: 'center' }}>Nghỉ học</TableCell></TableRow></TableHead>
+                          <TableBody>
+                            {studentsInClass.map(s => (
+                              <TableRow key={s._id} hover>
+                                <TableCell><Stack direction="row" spacing={1.5} alignItems="center"><Avatar src={s.avatar} sx={{ width: 32, height: 32 }}>{s.fullName?.[0]}</Avatar><Box><Typography variant="body2" fontWeight={700}>{s.fullName}</Typography></Box></Stack></TableCell>
+                                <TableCell>{s.evaluation?.academicEvaluation ? <Chip label={s.evaluation.academicEvaluation.toUpperCase()} size="small" color={s.evaluation.academicEvaluation === 'đạt' ? 'success' : 'error'} sx={{ fontWeight: 800, fontSize: 10 }} /> : <Typography variant="caption" color="error" fontWeight={700}>Chưa đánh giá</Typography>}</TableCell>
+                                <TableCell align="center">{isFinishRowSelectable(s) ? <Checkbox checked={graduateMarkedIds.has(s._id)} onChange={() => handleToggleGraduateMark(s._id)} disabled={dropoutMarkedIds.has(s._id)} color="success" /> : <Chip label="Học tiếp" size="small" variant="outlined" sx={{ fontWeight: 700, fontSize: 10 }} />}</TableCell>
+                                <TableCell align="center"><Checkbox checked={dropoutMarkedIds.has(s._id)} onChange={() => handleToggleDropoutMark(s._id)} color="error" /></TableCell>
+                              </TableRow>
+                            ))}
+                          </TableBody>
+                        </Table>
+                      </Paper>
+                    );
+                  });
+                })()}
+              </Box>
             )}
           </DialogContent>
-          <DialogActions sx={{ px: 3, py: 2, justifyContent: 'space-between', flexWrap: 'wrap', gap: 1 }}>
-            <Box>
-            <Typography variant="body2" color="text.secondary">
-              Khối <strong>năm cuối</strong>: <strong>{graduateTickCount}</strong> em tốt nghiệp · <strong>{finishSelectableTotal - graduateTickCount}</strong> em học tiếp/ở lại lớp
-            </Typography>
-            {finishStudents.some(s => !s.evaluation?.academicEvaluation) && (
-              <Typography variant="caption" color="error.main" fontWeight={700} display="block">
-                ⚠️ Cảnh báo: Còn học sinh chưa được đánh giá định kỳ cuối năm.
-              </Typography>
-            )}
-            </Box>
+          <DialogActions sx={{ px: 3, py: 2, justifyContent: 'space-between' }}>
+            <Typography variant="body2" color="text.secondary">Khối <strong>năm cuối</strong>: <strong>{graduateTickCount}</strong> em tốt nghiệp</Typography>
             <Stack direction="row" spacing={1.5}>
               <Button onClick={() => setOpenFinish(false)} sx={{ textTransform: 'none' }}>Hủy</Button>
-              <Button
-                variant="contained"
-                color="error"
-                onClick={handleConfirmFinish}
-                sx={{ textTransform: 'none', fontWeight: 700, px: 4 }}
-              >
-                Xác nhận kết thúc năm học
-              </Button>
+              <Button variant="contained" color="error" onClick={handleConfirmFinish} sx={{ textTransform: 'none', fontWeight: 700, px: 4 }}>Xác nhận kết thúc năm học</Button>
             </Stack>
           </DialogActions>
         </Dialog>
+
+        <Dialog open={openErrorDialog} onClose={() => setOpenErrorDialog(false)} maxWidth="sm" fullWidth>
+          <DialogTitle sx={{ display: 'flex', alignItems: 'center', gap: 1.5, color: 'error.main' }}>
+            <WarningIcon color="error" />
+            <Typography variant="h6" fontWeight={700}>Chưa thể kết thúc năm học</Typography>
+          </DialogTitle>
+          <DialogContent dividers>
+            <Typography variant="body1" mb={2} fontWeight={600}>{finishErrorDetails?.message}</Typography>
+            <Typography variant="body2" color="text.secondary" mb={3}>Tổng số hồ sơ chưa cập nhật: <strong>{finishErrorDetails?.totalMissing}</strong> học sinh. Vui lòng yêu cầu giáo viên hoàn tất đánh giá định kỳ cuối năm học.</Typography>
+          </DialogContent>
+          <DialogActions sx={{ p: 2.5 }}><Button variant="contained" fullWidth onClick={() => setOpenErrorDialog(false)} sx={{ borderRadius: 2, textTransform: 'none', fontWeight: 700 }}>Tôi đã hiểu</Button></DialogActions>
+        </Dialog>
+
+        <Dialog open={openEdit} onClose={() => !loading && setOpenEdit(false)} maxWidth="xs" fullWidth PaperProps={{ sx: { borderRadius: 4 } }}>
+          <DialogTitle sx={{ borderBottom: '1px solid #f1f5f9', fontWeight: 800 }}>Chỉnh sửa Năm học</DialogTitle>
+          <DialogContent sx={{ mt: 2 }}>
+            <Stack spacing={2.5}>
+              <TextField
+                label="Tên năm học *"
+                fullWidth
+                size="small"
+                value={editForm.yearName}
+                onChange={(e) => setEditForm({ ...editForm, yearName: e.target.value })}
+                placeholder="Ví dụ: 2024-2025"
+              />
+              <Stack direction="row" spacing={2}>
+                <TextField
+                  label="Ngày bắt đầu *"
+                  type="date"
+                  fullWidth
+                  size="small"
+                  InputLabelProps={{ shrink: true }}
+                  value={editForm.startDate}
+                  onChange={(e) => setEditForm({ ...editForm, startDate: e.target.value })}
+                />
+                <TextField
+                  label="Ngày kết thúc *"
+                  type="date"
+                  fullWidth
+                  size="small"
+                  InputLabelProps={{ shrink: true }}
+                  value={editForm.endDate}
+                  onChange={(e) => setEditForm({ ...editForm, endDate: e.target.value })}
+                />
+              </Stack>
+              <TextField
+                label="Mô tả / Ghi chú"
+                fullWidth
+                multiline
+                rows={3}
+                size="small"
+                value={editForm.description}
+                onChange={(e) => setEditForm({ ...editForm, description: e.target.value })}
+              />
+            </Stack>
+          </DialogContent>
+          <DialogActions sx={{ p: 2.5, borderTop: '1px solid #f1f5f9' }}>
+            <Button onClick={() => setOpenEdit(false)} disabled={loading} sx={{ textTransform: 'none', fontWeight: 700 }}>Hủy</Button>
+            <Button 
+              variant="contained" 
+              onClick={handleUpdateYear} 
+              disabled={loading}
+              sx={{ borderRadius: 2, textTransform: 'none', fontWeight: 700, px: 3 }}
+            >
+              {loading ? 'Đang lưu...' : 'Lưu thay đổi'}
+            </Button>
+          </DialogActions>
+        </Dialog>
+
+        <AcademicYearWizard
+          open={openWizard}
+          onClose={() => setOpenWizard(false)}
+          onSuccess={() => { fetchData(); }}
+        />
+
+        {/* Express Setup Dialog */}
+        <Dialog open={openExpress} onClose={() => !loading && setOpenExpress(false)} maxWidth="xs" fullWidth PaperProps={{ sx: { borderRadius: 4 } }}>
+          <DialogTitle sx={{ 
+            background: 'linear-gradient(135deg, #8b5cf6 0%, #6d28d9 100%)', 
+            color: 'white', fontWeight: 800, py: 3 
+          }}>
+            <Stack direction="row" spacing={1.5} alignItems="center">
+              <MagicIcon />
+              <Typography variant="h6" fontWeight={800}>Thiết lập siêu tốc (1-Click)</Typography>
+            </Stack>
+          </DialogTitle>
+          <DialogContent sx={{ mt: 3 }}>
+            <Typography variant="body2" color="text.secondary" mb={3}>
+              Hệ thống sẽ tự động sao chép toàn bộ Khối, Lớp, Giáo viên từ năm cũ và thực hiện <strong>xếp lớp thông minh</strong> cho học sinh. Bản thảo sẽ được tạo ở trạng thái nháp.
+            </Typography>
+            <Stack spacing={2.5}>
+              <TextField
+                label="Tên năm học mới *"
+                fullWidth size="small"
+                value={expressForm.yearName}
+                onChange={(e) => setExpressForm({ ...expressForm, yearName: e.target.value })}
+              />
+              <Stack direction="row" spacing={2}>
+                <TextField
+                  label="Bắt đầu *" type="date" fullWidth size="small" InputLabelProps={{ shrink: true }}
+                  value={expressForm.startDate}
+                  onChange={(e) => setExpressForm({ ...expressForm, startDate: e.target.value })}
+                />
+                <TextField
+                  label="Kết thúc *" type="date" fullWidth size="small" InputLabelProps={{ shrink: true }}
+                  value={expressForm.endDate}
+                  onChange={(e) => setExpressForm({ ...expressForm, endDate: e.target.value })}
+                />
+              </Stack>
+            </Stack>
+          </DialogContent>
+          <DialogActions sx={{ p: 2.5, borderTop: '1px solid #f1f5f9' }}>
+            <Button onClick={() => setOpenExpress(false)} disabled={loading} sx={{ textTransform: 'none' }}>Hủy</Button>
+            <Button 
+              variant="contained" 
+              onClick={handleExpressSetup} 
+              disabled={loading}
+              sx={{ 
+                borderRadius: 2, textTransform: 'none', fontWeight: 700, px: 4,
+                bgcolor: '#8b5cf6', '&:hover': { bgcolor: '#7c3aed' }
+              }}
+            >
+              {loading ? 'Đang xử lý...' : 'Bắt đầu thiết lập ngay'}
+            </Button>
+          </DialogActions>
+        </Dialog>
       </Stack>
-
-
-      {/* ======== Wizard: Thiết lập năm học mới ======== */}
-      <AcademicYearWizard
-        open={openWizard}
-        onClose={() => setOpenWizard(false)}
-        onSuccess={() => {
-          get(ENDPOINTS.SCHOOL_ADMIN.ACADEMIC_YEARS.LIST).then(resp => {
-            if (resp?.status === 'success') setYears(Array.isArray(resp.data) ? resp.data : []);
-          });
-          get(ENDPOINTS.SCHOOL_ADMIN.ACADEMIC_YEARS.CURRENT).then(resp => {
-            if (resp?.status === 'success') setCurrentYear(resp.data || null);
-          });
-        }}
-      />
-    </RoleLayout>
+    </Box>
   );
-}
+};
 
 export default ManageAcademicYears;

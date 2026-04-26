@@ -2,16 +2,13 @@ import { useEffect, useState, useMemo } from 'react';
 import { useNavigate, useParams, useSearchParams } from 'react-router-dom';
 import { useAuth } from '../../context/AuthContext';
 import { useSchoolAdmin } from '../../context/SchoolAdminContext';
-import RoleLayout from '../../layouts/RoleLayout';
-import { createSchoolAdminMenuSelect } from './schoolAdminMenuConfig';
-import { useSchoolAdminMenu } from './useSchoolAdminMenu';
+import { get, ENDPOINTS } from '../../service/api';
 import {
   Box,
   Paper,
   Typography,
   Button,
   Alert,
-  Stack,
   Chip,
   TextField,
   Table,
@@ -26,9 +23,9 @@ import {
   InputLabel,
   Grid,
 } from '@mui/material';
-import ArrowBackIcon from '@mui/icons-material/ArrowBack';
 import SearchIcon from '@mui/icons-material/Search';
 import VisibilityIcon from '@mui/icons-material/Visibility';
+import ArrowBackIcon from '@mui/icons-material/ArrowBack';
 
 const isWeekendDate = (dateStr) => {
   if (!dateStr) return false;
@@ -44,9 +41,7 @@ const getLocalISODate = () => {
 
 const formatTime = (timeStr) => {
   if (!timeStr) return '—';
-  // Nếu là format HH:mm thì trả về luôn
   if (/^\d{2}:\d{2}$/.test(timeStr)) return timeStr;
-  // Nếu là Date object hoặc ISO string thì format
   try {
     const d = new Date(timeStr);
     if (isNaN(d.getTime())) return '—';
@@ -102,9 +97,8 @@ function ClassAttendanceDetail() {
   const navigate = useNavigate();
   const { classId } = useParams();
   const [searchParams] = useSearchParams();
-  const { user, logout, isInitializing } = useAuth();
+  const { user, isInitializing } = useAuth();
   const { getClassAttendanceDetail, loading, error } = useSchoolAdmin();
-  const menuItems = useSchoolAdminMenu();
 
   const [selectedDate, setSelectedDate] = useState(
     searchParams.get('date') || getLocalISODate()
@@ -132,14 +126,14 @@ function ClassAttendanceDetail() {
       }
     };
     fetchYears();
-  }, [isInitializing, user]); // eslint-disable-line
+  }, [isInitializing, user, navigate]);
 
   useEffect(() => {
     if (isInitializing || !user) return;
     if (classId) {
       fetchData();
     }
-  }, [classId, selectedDate]); // eslint-disable-line
+  }, [classId, selectedDate]);
 
   const fetchData = async () => {
     try {
@@ -159,11 +153,6 @@ function ClassAttendanceDetail() {
     }
   };
 
-  const handleMenuSelect = createSchoolAdminMenuSelect(navigate);
-
-  const userName = user?.fullName || user?.username || 'School Admin';
-
-  // Tính toán thống kê
   const stats = useMemo(() => {
     const totalStudents = students.length;
     const present = students.filter(
@@ -190,11 +179,8 @@ function ClassAttendanceDetail() {
     };
   }, [students]);
 
-  // Lọc học sinh
   const filteredStudents = useMemo(() => {
     let filtered = students;
-
-    // Lọc theo trạng thái
     if (selectedStatus !== 'all') {
       filtered = filtered.filter((s) => {
         if (selectedStatus === 'present') {
@@ -217,14 +203,11 @@ function ClassAttendanceDetail() {
         return true;
       });
     }
-
-    // Tìm kiếm theo tên
     if (searchTerm) {
       filtered = filtered.filter((s) =>
         s.fullName?.toLowerCase().includes(searchTerm.toLowerCase())
       );
     }
-
     return filtered;
   }, [students, selectedStatus, searchTerm]);
 
@@ -235,27 +218,13 @@ function ClassAttendanceDetail() {
   };
 
   return (
-    <RoleLayout
-      title={`Điểm danh lớp ${classInfo?.className || ''}`}
-      description="Xem chi tiết điểm danh của từng học sinh trong lớp."
-      menuItems={menuItems}
-      activeKey="attendance"
-      onLogout={() => {
-        logout();
-        navigate('/login', { replace: true });
-      }}
-      userName={userName}
-      userAvatar={user?.avatar}
-      onViewProfile={() => navigate('/profile')}
-      onMenuSelect={handleMenuSelect}
-    >
+    <Box>
       {error && (
         <Alert severity="error" sx={{ mb: 2 }}>
           {error}
         </Alert>
       )}
 
-      {/* Bộ lọc và tìm kiếm */}
       <Paper elevation={1} sx={{ p: 2, mb: 2, borderRadius: 2 }}>
         <Grid container spacing={2} alignItems="flex-end">
           <Grid item xs={12} md={2}>
@@ -490,7 +459,7 @@ function ClassAttendanceDetail() {
           Quay lại Dashboard
         </Button>
       </Box>
-    </RoleLayout>
+    </Box>
   );
 }
 

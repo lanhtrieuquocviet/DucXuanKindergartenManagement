@@ -13,11 +13,8 @@ import {
   DialogActions,
 } from '@mui/material';
 import { toast } from 'react-toastify';
-import RoleLayout from '../../layouts/RoleLayout';
 import { useAuth } from '../../context/AuthContext';
 import { get, post, put, del, ENDPOINTS } from '../../service/api';
-import { createSchoolAdminMenuSelect } from './schoolAdminMenuConfig';
-import { useSchoolAdminMenu } from './useSchoolAdminMenu';
 
 // Sub-components
 import StaffFilter from './StaffManagement/StaffFilter';
@@ -88,7 +85,6 @@ const getPositionFromRoleNames = (roleNames) => {
 export default function ManageStaff({ isEmbedded = false }) {
   const navigate = useNavigate();
   const { user, hasRole, isInitializing } = useAuth();
-  const menuItems = useSchoolAdminMenu();
 
   const [staff, setStaff] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -220,7 +216,7 @@ export default function ManageStaff({ isEmbedded = false }) {
     );
   }, [staff, search]);
 
-  const handleMenuSelect = createSchoolAdminMenuSelect(navigate);
+  // const handleMenuSelect = createSchoolAdminMenuSelect(navigate);
 
   const content = (
     <Box sx={{ p: isEmbedded ? 0 : { xs: 1, md: 2 }, maxWidth: 1200, mx: 'auto' }}>
@@ -308,28 +304,10 @@ export default function ManageStaff({ isEmbedded = false }) {
     </>
   );
 
-  if (isEmbedded) {
-    return (
-      <>
-        {content}
-        {dialogs}
-      </>
-    );
-  }
-
   return (
-    <RoleLayout
-      menuItems={menuItems}
-      activeKey="staff"
-      onMenuSelect={handleMenuSelect}
-      onLogout={() => {}}
-      onViewProfile={() => navigate('/profile')}
-      userName={user?.fullName || user?.username || 'Admin'}
-      userRole="SchoolAdmin"
-      pageTitle="Nhân viên"
-    >
+    <Box>
       {content}
       {dialogs}
-    </RoleLayout>
+    </Box>
   );
 }

@@ -10,6 +10,10 @@ const getClassesByAcademicYear = async (req, res, next) => service.getClassesByA
 const getStudentsByAcademicYear = async (req, res, next) => service.getStudentsByAcademicYear(req, res, next);
 const setupNewAcademicYearWizard = async (req, res, next) => service.setupNewAcademicYearWizard(req, res, next);
 const getWizardCloneData = async (req, res, next) => service.getWizardCloneData(req, res, next);
+const getSmartSuggestions = async (req, res, next) => service.getSmartSuggestions(req, res, next);
+const expressSetupNewAcademicYear = async (req, res, next) => service.expressSetupNewAcademicYear(req, res, next);
+const updateAcademicYear = async (req, res, next) => service.updateAcademicYear(req, res, next);
+const publishAcademicYear = async (req, res, next) => service.publishAcademicYear(req, res, next);
 
 module.exports = {
   getCurrentAcademicYear,
@@ -22,5 +26,9 @@ module.exports = {
   getStudentsByAcademicYear,
   setupNewAcademicYearWizard,
   getWizardCloneData,
+  getSmartSuggestions,
+  expressSetupNewAcademicYear,
+  updateAcademicYear,
+  publishAcademicYear,
 };
 

@@ -2,11 +2,8 @@ import { useEffect, useState } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
 import { toast } from 'react-toastify';
 import { useAuth } from '../../context/AuthContext';
-import RoleLayout from '../../layouts/RoleLayout';
 import ConfirmDialog from '../../components/ConfirmDialog';
 import { get, post, del, postFormData, ENDPOINTS } from '../../service/api';
-import { createSchoolAdminMenuSelect } from './schoolAdminMenuConfig';
-import { useSchoolAdminMenu } from './useSchoolAdminMenu';
 import {
   Box,
   Paper,
@@ -75,8 +72,7 @@ const STATUS_OPTIONS = [
 export default function ManageFiles() {
   const location = useLocation();
   const navigate = useNavigate();
-  const { user, logout, isInitializing } = useAuth();
-  const menuItems = useSchoolAdminMenu();
+  const { user, isInitializing } = useAuth();
 
   const [items, setItems] = useState([]);
   const [loading, setLoading] = useState(false);
@@ -198,7 +194,7 @@ export default function ManageFiles() {
     }
   };
 
-  const handleMenuSelect = createSchoolAdminMenuSelect(navigate);
+  // const handleMenuSelect = createSchoolAdminMenuSelect(navigate);
   const userName = user?.fullName || user?.username || 'School Admin';
 
   const getStatusChip = (status) => {
@@ -267,20 +263,7 @@ export default function ManageFiles() {
   };
 
   return (
-    <RoleLayout
-      title="Quản lý file"
-      description="Quản lý các file đính kèm trong mục tài liệu."
-      menuItems={menuItems}
-      activeKey="files-management"
-      onLogout={() => {
-        logout();
-        navigate('/login', { replace: true });
-      }}
-      onViewProfile={() => navigate('/profile')}
-      onMenuSelect={handleMenuSelect}
-      userName={userName}
-      userAvatar={user?.avatar}
-    >
+    <Box>
       {error && (
         <Alert severity="error" onClose={() => setError(null)} sx={{ mb: 2 }}>
           {error}
@@ -526,6 +509,6 @@ export default function ManageFiles() {
           </Button>
         </DialogActions>
       </Dialog>
-    </RoleLayout>
+    </Box>
   );
 }

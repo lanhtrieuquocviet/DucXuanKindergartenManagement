@@ -25,6 +25,7 @@ const EditStaffDialog = ({
   setError,
   onSubmit,
   POSITION_OPTIONS,
+  POSITION_MAP,
 }) => {
   return (
     <Dialog open={open} onClose={() => !loading && onClose()} maxWidth="sm" fullWidth>
@@ -63,26 +64,15 @@ const EditStaffDialog = ({
             />
           </Stack>
           <FormControl size="small" fullWidth required>
-            <InputLabel>Vai trò hệ thống</InputLabel>
-            <Select
-              value={form.roleName || 'Teacher'}
-              label="Vai trò hệ thống"
-              onChange={(e) => setForm((p) => ({ ...p, roleName: e.target.value }))}
-            >
-              <MenuItem value="SchoolAdmin">Quản trị viên trường</MenuItem>
-              <MenuItem value="Teacher">Giáo viên</MenuItem>
-              <MenuItem value="KitchenStaff">Nhân viên bếp</MenuItem>
-              <MenuItem value="MedicalStaff">Nhân viên y tế</MenuItem>
-              <MenuItem value="HeadTeacher">Tổ trưởng chuyên môn</MenuItem>
-            </Select>
-          </FormControl>
-
-          <FormControl size="small" fullWidth required>
             <InputLabel>Chức vụ / Vị trí</InputLabel>
             <Select
               value={form.position}
               label="Chức vụ / Vị trí"
-              onChange={(e) => setForm((p) => ({ ...p, position: e.target.value }))}
+              onChange={(e) => {
+                const pos = e.target.value;
+                const role = POSITION_MAP[pos] || null;
+                setForm((p) => ({ ...p, position: pos, roleName: role }));
+              }}
             >
               {POSITION_OPTIONS.map((opt) => (
                 <MenuItem key={opt} value={opt}>
@@ -91,6 +81,11 @@ const EditStaffDialog = ({
               ))}
               <MenuItem value="Other">Khác...</MenuItem>
             </Select>
+            {form.position && !POSITION_MAP[form.position] && form.position !== 'Other' && (
+              <Typography variant="caption" color="text.secondary" sx={{ mt: 0.5, ml: 1.5 }}>
+                * Chức vụ này chỉ tạo hồ sơ nhân sự, không có quyền truy cập hệ thống.
+              </Typography>
+            )}
           </FormControl>
           {form.position === 'Other' && (
             <TextField

@@ -17,6 +17,11 @@ function ProtectedRoute({ children }) {
     return <Navigate to="/login" state={{ from: location }} replace />;
   }
 
+  // KIỂM TRA BẮT BUỘC ĐỔI MẬT KHẨU LẦN ĐẦU
+  if (user.isChangePassword === false && location.pathname !== '/profile') {
+    return <Navigate to="/profile?forceChangePassword=1" replace />;
+  }
+
   return children;
 }
 

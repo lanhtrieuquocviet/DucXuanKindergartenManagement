@@ -1,15 +1,11 @@
 import { useEffect, useMemo, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import RoleLayout from '../../layouts/RoleLayout';
 import { useAuth } from '../../context/AuthContext';
 import { del, get, post, put, ENDPOINTS } from '../../service/api';
-import { createSchoolAdminMenuSelect } from './schoolAdminMenuConfig';
-import { useSchoolAdminMenu } from './useSchoolAdminMenu';
 import {
   Alert,
   Box,
   Button,
-  Chip,
   CircularProgress,
   Dialog,
   DialogActions,
@@ -68,8 +64,7 @@ function getAgeLabel(grade) {
 
 function ManageGradeCatalog() {
   const navigate = useNavigate();
-  const { user, hasRole, logout, isInitializing } = useAuth();
-  const menuItems = useSchoolAdminMenu();
+  const { user, hasRole, isInitializing } = useAuth();
 
   const [grades, setGrades] = useState([]);
   const [classes, setClasses] = useState([]);
@@ -288,25 +283,8 @@ function ManageGradeCatalog() {
     );
   }, [grades, searchTerm]);
 
-  const handleLogout = () => {
-    logout();
-    navigate('/login', { replace: true });
-  };
-
-  const handleMenuSelect = createSchoolAdminMenuSelect(navigate);
-
   return (
-    <RoleLayout
-      title="Quản lý danh mục khối"
-      description="Quản lý danh mục khối lớp và cấu hình cơ bản cho từng khối."
-      menuItems={menuItems}
-      activeKey="classes"
-      onLogout={handleLogout}
-      onViewProfile={() => navigate('/profile')}
-      onMenuSelect={handleMenuSelect}
-      userName={user?.fullName || user?.username || 'Admin'}
-      userAvatar={user?.avatar}
-    >
+    <Box>
       {error && (
         <Alert severity="error" sx={{ mb: 2 }} onClose={() => setError(null)}>
           {error}
@@ -708,7 +686,7 @@ function ManageGradeCatalog() {
           </Button>
         </DialogActions>
       </Dialog>
-    </RoleLayout>
+    </Box>
   );
 }
 

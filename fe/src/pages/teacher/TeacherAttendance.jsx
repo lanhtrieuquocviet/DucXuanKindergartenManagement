@@ -3,7 +3,6 @@ import { useLocation, useNavigate, useParams } from 'react-router-dom';
 import { Snackbar, Alert, Box, Typography, Avatar, Paper, Button, ToggleButton, ToggleButtonGroup, Stack, Chip, Tooltip, FormControl, InputLabel, Select, MenuItem } from '@mui/material';
 import { EventBusy as EventBusyIcon, ViewList as DayViewIcon, CalendarViewWeek as WeekViewIcon } from '@mui/icons-material';
 import { useAuth } from '../../context/AuthContext';
-import RoleLayout from '../../layouts/RoleLayout';
 import { get, post, ENDPOINTS } from '../../service/api';
 import FaceAttendanceModal from '../../components/face/FaceAttendanceModal';
 import PickupFaceAttendanceModal from '../../components/face/PickupFaceAttendanceModal';
@@ -818,17 +817,7 @@ function TeacherAttendance() {
   );
 
   return (
-    <RoleLayout
-      title="Điểm danh"
-      description="Danh sách điểm danh theo lớp."
-      menuItems={menuItems}
-      activeKey={activeKey}
-      onLogout={() => { logout(); navigate('/login', { replace: true }); }}
-      userName={userName}
-      userAvatar={user?.avatar}
-      onViewProfile={() => navigate('/profile')}
-      onMenuSelect={handleMenuSelect}
-    >
+    <Box>
       {!classId && !isInitializing && classes.length === 0 && (
         <Box sx={{ display: 'flex', justifyContent: 'center', alignItems: 'center', minHeight: 320 }}>
           <Paper elevation={0} sx={{ textAlign: 'center', p: 5, borderRadius: 3, border: '1px solid', borderColor: 'divider', maxWidth: 420 }}>
@@ -1166,7 +1155,7 @@ function TeacherAttendance() {
         className={selectedClassName}
         onStudentRecognized={handleAICheckoutRecognized}
       />
-    </RoleLayout>
+    </Box>
   );
 }
 

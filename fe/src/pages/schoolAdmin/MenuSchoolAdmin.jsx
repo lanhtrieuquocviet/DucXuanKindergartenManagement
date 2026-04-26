@@ -10,12 +10,9 @@ import {
 } from "../../service/menu.api";
 import { toast } from "react-toastify";
 import { useNavigate } from "react-router-dom";
-import RoleLayout from "../../layouts/RoleLayout";
 import { useAuth } from "../../context/AuthContext";
 import ConfirmDialog from "../../components/ConfirmDialog";
 import { MENU_REJECT_PRESETS } from "../../constants/menuRejectPresets";
-import { createSchoolAdminMenuSelect } from './schoolAdminMenuConfig';
-import { useSchoolAdminMenu } from './useSchoolAdminMenu';
 import {
   Box, Typography, Paper, Chip, Button, TextField, Dialog,
   DialogTitle, DialogContent, DialogActions, Skeleton, Tabs, Tab,
@@ -131,8 +128,7 @@ function MenuSchoolAdmin() {
   const [requestEditPresetSel, setRequestEditPresetSel] = useState({});
 
   const navigate       = useNavigate();
-  const { user, logout } = useAuth();
-  const menuItems = useSchoolAdminMenu();
+  const { user } = useAuth();
 
   const [activeYear, setActiveYear]   = useState(null);
 
@@ -240,7 +236,7 @@ function MenuSchoolAdmin() {
     }
   };
 
-  const handleMenuSelect = createSchoolAdminMenuSelect(navigate);
+  // const handleMenuSelect = createSchoolAdminMenuSelect(navigate);
   const userName = user?.fullName || user?.username || "School Admin";
 
   const filtered =
@@ -255,17 +251,7 @@ function MenuSchoolAdmin() {
   const historyCount = menus.filter(isHistoryListStatus).length;
 
   return (
-    <RoleLayout
-      title="Quản lý Thực đơn"
-      description="Danh sách thực đơn của trường"
-      menuItems={menuItems}
-      activeKey="menu"
-      onLogout={() => { logout(); navigate("/login", { replace: true }); }}
-      onViewProfile={() => navigate("/profile")}
-      onMenuSelect={handleMenuSelect}
-      userName={userName}
-      userAvatar={user?.avatar}
-    >
+    <Box>
       {/* Header */}
       <Stack direction="row" alignItems="center" justifyContent="space-between" mb={3} flexWrap="wrap" gap={2}>
         <Box>
@@ -694,7 +680,7 @@ function MenuSchoolAdmin() {
         onConfirm={handleEndMenu}
         onCancel={() => setConfirmEnd(null)}
       />
-    </RoleLayout>
+    </Box>
   );
 }
 

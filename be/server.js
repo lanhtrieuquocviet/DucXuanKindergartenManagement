@@ -187,51 +187,63 @@ require('./src/models/LeaveRequest');
     // Toàn bộ permissions hệ thống
     const allPermissions = [
       // Nội dung & Truyền thông
-      { code: 'MANAGE_CONTACT', description: 'Xem và phản hồi liên hệ từ phụ huynh gửi qua trang web', group: 'Nội dung & Truyền thông' },
-      { code: 'MANAGE_BANNER', description: 'Thêm, sửa, xóa banner hiển thị trên trang chủ', group: 'Nội dung & Truyền thông' },
-      { code: 'MANAGE_BLOG', description: 'Thêm, sửa, xóa và xuất bản bài viết blog của trường', group: 'Nội dung & Truyền thông' },
-      { code: 'MANAGE_BLOG_CATEGORY', description: 'Thêm, sửa, xóa danh mục phân loại bài viết blog', group: 'Nội dung & Truyền thông' },
-      { code: 'MANAGE_QA', description: 'Xem và trả lời câu hỏi từ phụ huynh trên trang web hỏi đáp', group: 'Nội dung & Truyền thông' },
-      { code: 'MANAGE_DOCUMENT', description: 'Tải lên, sửa và xóa tài liệu nội bộ (công văn, thông báo, biểu mẫu)', group: 'Nội dung & Truyền thông' },
-      { code: 'MANAGE_DOCUMENTS', description: 'Tải lên, sửa và xóa tài liệu nội bộ (công văn, thông báo, biểu mẫu)', group: 'Nội dung & Truyền thông' },
-      { code: 'MANAGE_PUBLIC_INFO', description: 'Cập nhật thông tin giới thiệu trường hiển thị công khai trên web', group: 'Nội dung & Truyền thông' },
-      { code: 'MANAGE_IMAGE_LIBRARY', description: 'Tải lên, sắp xếp và xóa ảnh trong thư viện ảnh của trường', group: 'Nội dung & Truyền thông' },
+      { code: 'MANAGE_CONTACT', description: 'Liên hệ phụ huynh', group: 'Nội dung & Truyền thông', path: '/school-admin/contacts', menuKey: 'contacts', order: 75 },
+      { code: 'MANAGE_BANNER', description: 'Quản lý Banner', group: 'Nội dung & Truyền thông', path: '/school-admin/banners', menuKey: 'banners', order: 73 },
+      { code: 'MANAGE_BLOG', description: 'Quản lý Blog', group: 'Nội dung & Truyền thông', path: '/school-admin/blogs', menuKey: 'blogs', order: 72 },
+      { code: 'MANAGE_BLOG_CATEGORY', description: 'Danh mục blog', group: 'Nội dung & Truyền thông', path: '/school-admin/blog-categories', menuKey: 'blog-categories', order: 72 },
+      { code: 'MANAGE_QA', description: 'Hỏi đáp phụ huynh', group: 'Nội dung & Truyền thông', path: '/school-admin/qa', menuKey: 'qa', order: 76 },
+      { code: 'MANAGE_DOCUMENT', description: 'Tài liệu nội bộ', group: 'Nội dung & Truyền thông', path: '/school-admin/documents', menuKey: 'documents', order: 74 },
+      { code: 'MANAGE_PUBLIC_INFO', description: 'Thông tin trường', group: 'Nội dung & Truyền thông', path: '/school-admin/public-info', menuKey: 'public-info', order: 71 },
+      { code: 'MANAGE_IMAGE_LIBRARY', description: 'Thư viện ảnh', group: 'Nội dung & Truyền thông', path: '/school-admin/image-library', menuKey: 'image-library', order: 77 },
       // Học vụ
-      { code: 'MANAGE_ACADEMIC_YEAR', description: 'Tạo và quản lý năm học, học kỳ trong hệ thống', group: 'Học vụ' },
-      { code: 'MANAGE_CURRICULUM', description: 'Quản lý chủ đề học tập, thời khóa biểu và kế hoạch giảng dạy', group: 'Học vụ' },
-      { code: 'MANAGE_STUDENT', description: 'Thêm, sửa, xóa hồ sơ học sinh và quản lý thông tin phụ huynh', group: 'Học vụ' },
-      { code: 'MANAGE_CLASS', description: 'Thêm, sửa, xóa lớp học và phân công giáo viên chủ nhiệm', group: 'Học vụ' },
-      { code: 'MANAGE_CLASSES', description: 'Thêm, sửa, xóa lớp học và phân công giáo viên chủ nhiệm', group: 'Học vụ' },
-      { code: 'MANAGE_GRADE', description: 'Thêm, sửa, xóa khối lớp (Lá, Chồi, Mầm, ...) trong hệ thống', group: 'Học vụ' },
-      { code: 'MANAGE_GRADES', description: 'Thêm, sửa, xóa khối lớp (Lá, Chồi, Mầm, ...) trong hệ thống', group: 'Học vụ' },
-      { code: 'MANAGE_STATIC_BLOCK', description: 'Thêm, sửa, xóa danh mục khối (Khối Lá, Chồi, Mầm, ...) trong hệ thống', group: 'Học vụ' },
-      { code: 'MANAGE_TEACHER', description: 'Thêm, sửa, xóa hồ sơ giáo viên và nhân viên trường', group: 'Học vụ' },
+      { code: 'MANAGE_ACADEMIC_YEAR', description: 'Quản lý năm học', group: 'Học vụ', path: '/school-admin/academic-years', menuKey: 'academic-years', order: 11 },
+      { code: 'MANAGE_CURRICULUM', description: 'Thời khóa biểu & Kế hoạch', group: 'Học vụ', path: '/school-admin/timetable', menuKey: 'academic-schedule', order: 14 },
+      { code: 'MANAGE_STUDENT', description: 'Danh sách học sinh', group: 'Học vụ', path: '/school-admin/students', menuKey: 'students-admin', order: 16 },
+      { code: 'MANAGE_CLASS', description: 'Danh sách khối & lớp', group: 'Học vụ', path: '/school-admin/classes', menuKey: 'classes-admin', order: 15 },
+      { code: 'MANAGE_GRADE', description: 'Quản lý khối lớp', group: 'Học vụ', path: '/school-admin/grades', menuKey: 'grades', order: 15 },
+      { code: 'MANAGE_STATIC_BLOCK', description: 'Cài đặt loại Khối', group: 'Học vụ', path: '/school-admin/static-blocks', menuKey: 'static-blocks', order: 17 },
+      { code: 'MANAGE_TEACHER', description: 'Danh sách nhân sự', group: 'Học vụ', path: '/school-admin/staff', menuKey: 'personnel-management', order: 51 },
       // Điểm danh
-      { code: 'VIEW_ATTENDANCE', description: 'Xem tổng quan, tra cứu lịch sử và xuất dữ liệu điểm danh theo lớp/học sinh', group: 'Điểm danh' },
-      { code: 'MANAGE_ATTENDANCE', description: 'Thực hiện điểm danh vào buổi sáng (check-in) cho học sinh', group: 'Điểm danh' },
-      { code: 'CHECKOUT_STUDENT', description: 'Thực hiện điểm danh ra về (check-out) cho học sinh cuối ngày', group: 'Điểm danh' },
-      { code: 'REGISTER_FACE', description: 'Đăng ký và cập nhật dữ liệu khuôn mặt nhận diện cho học sinh', group: 'Điểm danh' },
-      { code: 'MANAGE_PICKUP', description: 'Quản lý yêu cầu đón trả học sinh và xác nhận người được phép đón', group: 'Điểm danh' },
+      { code: 'VIEW_ATTENDANCE', description: 'Tổng quan điểm danh', group: 'Điểm danh', path: '/school-admin/attendance/overview', menuKey: 'attendance-overview', order: 21 },
+      { code: 'MANAGE_ATTENDANCE', description: 'Điểm danh lớp', group: 'Điểm danh', path: '/teacher/attendance', menuKey: 'attendance-teacher', order: 22 },
+      { code: 'CHECKOUT_STUDENT', description: 'Điểm danh ra về', group: 'Điểm danh', order: 23 },
+      { code: 'REGISTER_FACE', description: 'Nhận diện khuôn mặt', group: 'Điểm danh', path: '/school-admin/face-attendance', menuKey: 'face-attendance', order: 24 },
+      { code: 'MANAGE_PICKUP', description: 'Quản lý đón trả', group: 'Điểm danh', path: '/teacher/pickup-approval', menuKey: 'pickup-management', order: 25 },
+      // Học sinh & Lớp học (Giáo viên)
+      { code: 'VIEW_TEACHER_DASHBOARD', description: 'Lớp phụ trách', group: 'Học sinh & Lớp học', path: '/teacher', menuKey: 'classes-teacher', order: 31 },
+      { code: 'VIEW_TEACHER_STUDENTS', description: 'Học sinh của lớp', group: 'Học sinh & Lớp học', path: '/teacher/students', menuKey: 'teacher-students', order: 32 },
+      { code: 'MANAGE_TEACHER_EVALUATION', description: 'Đánh giá học sinh', group: 'Học sinh & Lớp học', path: '/teacher/evaluation', menuKey: 'evaluation', order: 33 },
+      { code: 'MANAGE_TEACHER_CONTACT_BOOK', description: 'Sổ liên lạc', group: 'Học sinh & Lớp học', path: '/teacher/contact-book', menuKey: 'contact-book', order: 34 },
+      { code: 'VIEW_CLASS_ASSETS', description: 'Tài sản của lớp', group: 'Học sinh & Lớp học', path: '/teacher/class-assets', menuKey: 'class-assets', order: 35 },
+      { code: 'TEACHER_ASSET_INSPECTION', description: 'Kiểm kê tài sản lớp', group: 'Học sinh & Lớp học', path: '/teacher/asset-inspection', menuKey: 'asset-inspection', order: 36 },
+      { code: 'TEACHER_ASSET_INCIDENTS', description: 'Báo cáo sự cố TS', group: 'Học sinh & Lớp học', path: '/teacher/asset-incidents', menuKey: 'asset-issues', order: 37 },
+      { code: 'TEACHER_LEAVE_REQUEST', description: 'Đăng ký nghỉ phép', group: 'Học sinh & Lớp học', path: '/teacher/leave-requests', menuKey: 'leave-requests', order: 38 },
       // Y tế
-      { code: 'MANAGE_HEALTH', description: 'Ghi nhận, cập nhật và xem hồ sơ y tế, lịch kiểm tra sức khỏe học sinh', group: 'Y tế' },
+      { code: 'MANAGE_HEALTH', description: 'Hồ sơ sức khỏe', group: 'Y tế', path: '/medical-staff/health', menuKey: 'health-records', order: 41 },
       // Bếp & Thực phẩm
-      { code: 'MANAGE_FOOD', description: 'Thêm, sửa, xóa danh mục thực phẩm, nguyên liệu và món ăn', group: 'Bếp & Thực phẩm' },
-      { code: 'MANAGE_MENU', description: 'Tạo, sửa và gửi duyệt thực đơn hàng ngày cho học sinh', group: 'Bếp & Thực phẩm' },
-      { code: 'MANAGE_MEAL_PHOTO', description: 'Tải lên ảnh bữa ăn thực tế và quản lý mẫu thực phẩm kiểm tra', group: 'Bếp & Thực phẩm' },
-      { code: 'APPROVE_MENU', description: 'Xem xét và duyệt thực đơn, ảnh bữa ăn do bếp gửi lên', group: 'Bếp & Thực phẩm' },
+      { code: 'MANAGE_FOOD', description: 'Danh mục món ăn', group: 'Bếp & Thực phẩm', path: '/kitchen/foods', menuKey: 'food-list', order: 61 },
+      { code: 'MANAGE_MENU', description: 'Quản lý thực đơn', group: 'Bếp & Thực phẩm', path: '/kitchen/menus', menuKey: 'menu-kitchen', order: 62 },
+      { code: 'MANAGE_MEAL_PHOTO', description: 'Ảnh bữa ăn thực tế', group: 'Bếp & Thực phẩm', path: '/kitchen/meal-photos', menuKey: 'meal-photos', order: 63 },
+      { code: 'APPROVE_MENU', description: 'Duyệt thực đơn', group: 'Bếp & Thực phẩm', path: '/school-admin/menus', menuKey: 'menu-admin', order: 64 },
       // Bếp & Thực phẩm (HeadParent)
-      { code: 'REVIEW_MENU', description: 'Xem xét và cho ý kiến thực đơn trước khi chuyển lên ban giám hiệu duyệt', group: 'Bếp & Thực phẩm' },
+      { code: 'REVIEW_MENU', description: 'Ý kiến thực đơn (PH)', group: 'Bếp & Thực phẩm', path: '/head-parent/menus', menuKey: 'review-menu', order: 65 },
       // Tài sản & Mua sắm
-      { code: 'MANAGE_ASSET', description: 'Quản lý danh mục tài sản, biên bản bàn giao, phân bổ và sự cố hư hỏng', group: 'Tài sản & Mua sắm' },
-      { code: 'MANAGE_PURCHASE_REQUEST', description: 'Tạo, theo dõi và xét duyệt đề xuất mua sắm thiết bị, vật tư', group: 'Tài sản & Mua sắm' },
-      { code: 'MANAGE_INSPECTION', description: 'Lập và quản lý biên bản kiểm kê, kiểm tra tình trạng tài sản', group: 'Tài sản & Mua sắm' },
-      { code: 'MANAGE_FACILITIES', description: 'Quản lý cơ sở vật chất, phòng học và trang thiết bị trường học', group: 'Tài sản & Mua sắm' },
+      { code: 'MANAGE_ASSET', description: 'Danh mục tài sản', group: 'Tài sản & Mua sắm', path: '/school-admin/facilities', menuKey: 'assets-list', order: 81 },
+      { code: 'MANAGE_INSPECTION', description: 'Kiểm kê tài sản', group: 'Tài sản & Mua sắm', path: '/school-admin/facilities/inventory', menuKey: 'asset-inspection', order: 82 },
+      { code: 'MANAGE_PURCHASE_REQUEST', description: 'Yêu cầu mua sắm', group: 'Tài sản & Mua sắm', path: '/school-admin/purchase-requests', menuKey: 'purchase-requests', order: 83 },
+      { code: 'MANAGE_HANDOVER', description: 'Bàn giao tài sản', group: 'Tài sản & Mua sắm', path: '/school-admin/facilities/handover', menuKey: 'asset-handover', order: 84 },
+      { code: 'MANAGE_ASSET_ISSUES', description: 'Sự cố tài sản', group: 'Tài sản & Mua sắm', path: '/school-admin/facilities/issues', menuKey: 'asset-issues', order: 85 },
+      { code: 'MANAGE_ROOM_ASSETS', description: 'Tài sản theo phòng', group: 'Tài sản & Mua sắm', path: '/school-admin/facilities/room-based', menuKey: 'room-assets', order: 86 },
       // Quản trị hệ thống
-      { code: 'MANAGE_USERS', description: 'Tạo, sửa, vô hiệu hóa tài khoản người dùng trong hệ thống', group: 'Quản trị hệ thống' },
+      { code: 'MANAGE_USERS', description: 'Quản lý tài khoản', group: 'Quản trị hệ thống', path: '/system-admin/manage-accounts', menuKey: 'user-management', order: 92 },
+      { code: 'ACCESS_SYSTEM_ADMIN', description: 'Bảng điều khiển', group: 'Quản trị hệ thống', path: '/system-admin', menuKey: 'system-dashboard', order: 91 },
+      { code: 'ACCESS_KITCHEN', description: 'Giao diện nhà bếp', group: 'Bếp & Thực phẩm', order: 60 },
+      { code: 'ACCESS_MEDICAL', description: 'Giao diện y tế', group: 'Y tế', order: 40 },
+      { code: 'ACCESS_INVENTORY', description: 'Giao diện kho', group: 'Tài sản & Mua sắm', order: 80 },
       // Báo cáo
-      { code: 'VIEW_REPORT', description: 'Xem và xuất báo cáo tuần, tháng, báo cáo mẫu thực phẩm và khẩu phần ăn', group: 'Báo cáo' },
-      { code: 'SUBMIT_REPORT', description: 'Gửi báo cáo giảng dạy, điểm danh lên tổ trưởng để xét duyệt', group: 'Báo cáo' },
-      { code: 'MANAGE_TEACHER_REPORT', description: 'Xem danh sách, duyệt và chuyển tiếp báo cáo giáo viên lên ban giám hiệu', group: 'Báo cáo' },
+      { code: 'VIEW_REPORT', description: 'Báo cáo học vụ', group: 'Báo cáo', path: '/school-admin/academic-report', menuKey: 'academic-report', order: 101 },
+      { code: 'SUBMIT_REPORT', description: 'Gửi báo cáo giáo viên', group: 'Báo cáo', path: '/teacher/reports', menuKey: 'teacher-report', order: 102 },
+      { code: 'MANAGE_TEACHER_REPORT', description: 'Duyệt báo cáo tổ', group: 'Báo cáo', path: '/head-teacher/reports', menuKey: 'head-teacher-report', order: 103 },
     ];
 
     // Upsert tất cả permissions
@@ -239,7 +251,14 @@ require('./src/models/LeaveRequest');
     for (const p of allPermissions) {
       const doc = await Permission.findOneAndUpdate(
         { code: p.code },
-        { code: p.code, description: p.description, group: p.group || '' },
+        { 
+          code: p.code, 
+          description: p.description, 
+          group: p.group || '',
+          path: p.path || '',
+          menuKey: p.menuKey || '',
+          order: p.order || 0
+        },
         { upsert: true, new: true }
       );
       permMap[p.code] = doc._id;
@@ -253,27 +272,32 @@ require('./src/models/LeaveRequest');
         'MANAGE_IMAGE_LIBRARY', 'MANAGE_ACADEMIC_YEAR', 'MANAGE_CURRICULUM',
         'MANAGE_STUDENT', 'MANAGE_CLASS', 'MANAGE_GRADE', 'MANAGE_STATIC_BLOCK', 'MANAGE_TEACHER',
         'APPROVE_MENU', 'VIEW_REPORT', 'MANAGE_HEALTH',
-        'REGISTER_FACE', 'CHECKOUT_STUDENT', 'MANAGE_ATTENDANCE',
-        'MANAGE_PURCHASE_REQUEST', 'MANAGE_ASSET', 'MANAGE_PICKUP',
+        'REGISTER_FACE', 'MANAGE_PURCHASE_REQUEST', 'MANAGE_ASSET',
+        'MANAGE_INSPECTION', 'MANAGE_HANDOVER', 'MANAGE_ASSET_ISSUES', 'MANAGE_ROOM_ASSETS',
       ],
       HeadTeacher: [
         // Tất cả quyền của giáo viên
-        'MANAGE_ATTENDANCE', 'MANAGE_PURCHASE_REQUEST', 'MANAGE_ASSET',
+        'VIEW_TEACHER_DASHBOARD', 'VIEW_TEACHER_STUDENTS', 'MANAGE_TEACHER_EVALUATION', 'MANAGE_TEACHER_CONTACT_BOOK',
+        'MANAGE_ATTENDANCE', 'VIEW_CLASS_ASSETS', 'TEACHER_ASSET_INSPECTION', 'TEACHER_ASSET_INCIDENTS',
         'MANAGE_PICKUP', 'REGISTER_FACE', 'CHECKOUT_STUDENT',
-        'SUBMIT_REPORT',
+        'SUBMIT_REPORT', 'TEACHER_LEAVE_REQUEST',
         // Quyền riêng của tổ trưởng: xem, duyệt và chuyển báo cáo lên ban giám hiệu
         'MANAGE_TEACHER_REPORT',
       ],
       Teacher: [
-        'MANAGE_ATTENDANCE', 'MANAGE_PURCHASE_REQUEST', 'MANAGE_ASSET',
+        'VIEW_TEACHER_DASHBOARD', 'VIEW_TEACHER_STUDENTS', 'MANAGE_TEACHER_EVALUATION', 'MANAGE_TEACHER_CONTACT_BOOK',
+        'MANAGE_ATTENDANCE', 'VIEW_CLASS_ASSETS', 'TEACHER_ASSET_INSPECTION', 'TEACHER_ASSET_INCIDENTS',
         'MANAGE_PICKUP', 'REGISTER_FACE', 'CHECKOUT_STUDENT',
-        'SUBMIT_REPORT',
+        'SUBMIT_REPORT', 'TEACHER_LEAVE_REQUEST',
       ],
       KitchenStaff: [
-        'MANAGE_FOOD', 'MANAGE_MENU', 'MANAGE_MEAL_PHOTO', 'VIEW_REPORT',
+        'MANAGE_FOOD', 'MANAGE_MENU', 'MANAGE_MEAL_PHOTO', 'VIEW_REPORT', 'ACCESS_KITCHEN',
       ],
       InventoryStaff: [
-        'MANAGE_INSPECTION',
+        'MANAGE_INSPECTION', 'ACCESS_INVENTORY',
+      ],
+      MedicalStaff: [
+        'MANAGE_HEALTH', 'ACCESS_MEDICAL',
       ],
       HeadParent: [
         'REVIEW_MENU',
@@ -284,13 +308,9 @@ require('./src/models/LeaveRequest');
       const role = await Role.findOne({ roleName });
       if (!role) continue;
       const ids = codes.map(c => permMap[c]).filter(Boolean);
-      // Chỉ thêm permissions chưa có, không ghi đè cấu hình hiện tại
-      const existing = (role.permissions || []).map(id => id.toString());
-      const toAdd = ids.filter(id => !existing.includes(id.toString()));
-      if (toAdd.length > 0) {
-        await Role.updateOne({ _id: role._id }, { $addToSet: { permissions: { $each: toAdd } } });
-        console.log(`✅ Added ${toAdd.length} permission(s) to role ${roleName}`);
-      }
+      // Ghi đè permissions để đảm bảo khớp chính xác với cấu hình mới (Tránh bị lẫn quyền cũ)
+      await Role.updateOne({ _id: role._id }, { $set: { permissions: ids } });
+      console.log(`✅ Synced ${ids.length} permission(s) for role ${roleName}`);
     }
     console.log('✅ Default permissions seeded and assigned to roles');
 

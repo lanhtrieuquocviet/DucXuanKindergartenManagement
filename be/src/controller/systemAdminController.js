@@ -15,6 +15,7 @@ const updatePermission = async (req, res, next) => service.updatePermission(req,
 const deletePermission = async (req, res, next) => service.deletePermission(req, res, next);
 const updateRolePermissions = async (req, res, next) => service.updateRolePermissions(req, res, next);
 const getSystemLogs = async (req, res, next) => service.getSystemLogs(req, res, next);
+const getDashboardStats = async (req, res, next) => service.getDashboardStats(req, res, next);
 
 module.exports = {
   getUsers,
@@ -32,4 +33,5 @@ module.exports = {
   deletePermission,
   updateRolePermissions,
   getSystemLogs,
+  getDashboardStats,
 };

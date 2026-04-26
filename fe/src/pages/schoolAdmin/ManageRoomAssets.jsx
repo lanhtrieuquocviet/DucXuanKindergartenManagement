@@ -15,11 +15,8 @@ import MeetingRoomIcon from '@mui/icons-material/MeetingRoom';
 import SearchIcon from '@mui/icons-material/Search';
 import InventoryIcon from '@mui/icons-material/Inventory';
 import UploadFileIcon from '@mui/icons-material/UploadFile';
-import RoleLayout from '../../layouts/RoleLayout';
 import { useAuth } from '../../context/AuthContext';
 import { del, get, post, postFormData, put, ENDPOINTS } from '../../service/api';
-import { createSchoolAdminMenuSelect } from './schoolAdminMenuConfig';
-import { useSchoolAdminMenu } from './useSchoolAdminMenu';
 
 const ROOM_STATUS_LABEL = {
   available:   { label: 'Trống',       color: 'success' },
@@ -56,9 +53,7 @@ function ConfirmDialog({ open, title, message, onConfirm, onCancel, loading }) {
 
 export default function ManageRoomAssets() {
   const navigate = useNavigate();
-  const { user, logout, isInitializing } = useAuth();
-  const menuItems = useSchoolAdminMenu();
-  const handleMenuSelect = createSchoolAdminMenuSelect(navigate);
+  const { user, isInitializing } = useAuth();
 
   useEffect(() => {
     if (isInitializing) return;
@@ -67,7 +62,6 @@ export default function ManageRoomAssets() {
     if (!roles.includes('SchoolAdmin')) navigate('/', { replace: true });
   }, [isInitializing, navigate, user]);
 
-  // ── State phòng ─────────────────────────────────────────────────────────────
   const [rooms, setRooms] = useState([]);
   const [roomSearch, setRoomSearch] = useState('');
   const [loadingRooms, setLoadingRooms] = useState(false);
@@ -566,16 +560,7 @@ export default function ManageRoomAssets() {
   }, [filteredItems.length, page, rowsPerPage]);
 
   return (
-    <RoleLayout
-      title="Quản lý tài sản theo phòng học"
-      menuItems={menuItems}
-      activeKey="room-assets"
-      onMenuSelect={handleMenuSelect}
-      onLogout={() => { logout(); navigate('/login', { replace: true }); }}
-      userName={user?.fullName || user?.username || 'School Admin'}
-      userAvatar={user?.avatar}
-      onViewProfile={() => navigate('/profile')}
-    >
+    <Box>
       <Box sx={{ display: 'flex', gap: 2, height: 'calc(100vh - 120px)' }}>
 
         {/* ════ Cột trái: danh sách phòng ════ */}
@@ -973,6 +958,6 @@ export default function ManageRoomAssets() {
         onCancel={() => setDeleteAssetTarget(null)}
         loading={deletingAsset}
       />
-    </RoleLayout>
+    </Box>
   );
 }

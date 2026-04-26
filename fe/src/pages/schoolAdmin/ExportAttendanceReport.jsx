@@ -2,11 +2,8 @@ import { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../../context/AuthContext';
 import { useSchoolAdmin } from '../../context/SchoolAdminContext';
-import RoleLayout from '../../layouts/RoleLayout';
 import ExcelJS from 'exceljs';
 import { get, ENDPOINTS } from '../../service/api';
-import { createSchoolAdminMenuSelect } from './schoolAdminMenuConfig';
-import { useSchoolAdminMenu } from './useSchoolAdminMenu';
 
 import {
   Box,
@@ -37,9 +34,7 @@ const getLocalISODate = () => {
 
 function ExportAttendanceReport() {
   const navigate = useNavigate();
-  const { user, logout, isInitializing } = useAuth();
   const { getClasses, getStudents, loading, error } = useSchoolAdmin();
-  const menuItems = useSchoolAdminMenu();
 
   const [reportType, setReportType] = useState('whole-school'); // whole-school, by-class, by-student
   const [selectedClass, setSelectedClass] = useState('');
@@ -106,7 +101,7 @@ function ExportAttendanceReport() {
     }
   };
 
-  const handleMenuSelect = createSchoolAdminMenuSelect(navigate);
+  // const handleMenuSelect = createSchoolAdminMenuSelect(navigate);
 
   // Lấy toàn bộ dữ liệu điểm danh bằng 1 API call duy nhất
   const fetchAttendanceData = async () => {
@@ -343,20 +338,7 @@ function ExportAttendanceReport() {
   );
 
   return (
-    <RoleLayout
-      title="Xuất báo cáo điểm danh"
-      description="Từ màn hình Overview, chọn Xuất báo cáo điểm danh → Hiển thị màn hình Xuất báo cáo điểm danh"
-      menuItems={menuItems}
-      activeKey="attendance"
-      onLogout={() => {
-        logout();
-        navigate('/login', { replace: true });
-      }}
-      userName={userName}
-      userAvatar={user?.avatar}
-      onViewProfile={() => navigate('/profile')}
-      onMenuSelect={handleMenuSelect}
-    >
+    <Box>
       {error && (
         <Alert severity="error" sx={{ mb: 2 }}>
           {error}
@@ -554,7 +536,7 @@ function ExportAttendanceReport() {
           </Button>
         </Box>
       </Box>
-    </RoleLayout>
+    </Box>
   );
 }
 

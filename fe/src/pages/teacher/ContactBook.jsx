@@ -1,7 +1,6 @@
 import { useEffect, useMemo, useState } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
 import { useAuth } from '../../context/AuthContext';
-import RoleLayout from '../../layouts/RoleLayout';
 import { get, ENDPOINTS } from '../../service/api';
 import {
   Box, Grid, Paper, Typography, Avatar, Chip,
@@ -165,17 +164,7 @@ export default function ContactBook() {
   const userName = user?.fullName || user?.username || 'Teacher';
 
   return (
-    <RoleLayout
-      title="Sổ liên lạc điện tử"
-      description="Theo dõi thông tin học sinh và liên lạc với phụ huynh."
-      menuItems={menuItems}
-      activeKey={activeKey}
-      onLogout={() => { logout(); navigate('/login', { replace: true }); }}
-      userName={userName}
-      userAvatar={user?.avatar}
-      onViewProfile={() => navigate('/profile')}
-      onMenuSelect={handleMenuSelect}
-    >
+    <Box>
       {/* Header banner */}
       <Paper
         elevation={0}
@@ -227,6 +216,6 @@ export default function ContactBook() {
           ))}
         </Grid>
       )}
-    </RoleLayout>
+    </Box>
   );
 }

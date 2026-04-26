@@ -3,11 +3,8 @@ import { useNavigate } from 'react-router-dom';
 import { toast } from 'react-toastify';
 import { useSchoolAdmin } from '../../context/SchoolAdminContext';
 import { useAuth } from '../../context/AuthContext';
-import RoleLayout from '../../layouts/RoleLayout';
 import ConfirmDialog from '../../components/ConfirmDialog';
 import { get, postFormData, ENDPOINTS } from '../../service/api';
-import { createSchoolAdminMenuSelect } from './schoolAdminMenuConfig';
-import { useSchoolAdminMenu } from './useSchoolAdminMenu';
 
 import {
   Box,
@@ -37,14 +34,14 @@ import {
 import AddIcon from '@mui/icons-material/Add';
 import EditIcon from '@mui/icons-material/Edit';
 import DeleteIcon from '@mui/icons-material/Delete';
-import VisibilityIcon from '@mui/icons-material/Visibility';
 import CloseIcon from '@mui/icons-material/Close';
 import CategoryIcon from '@mui/icons-material/Category';
-import NavigateBeforeIcon from '@mui/icons-material/NavigateBefore';
-import NavigateNextIcon from '@mui/icons-material/NavigateNext';
 import SearchIcon from '@mui/icons-material/Search';
+import VisibilityIcon from '@mui/icons-material/Visibility';
 import PictureAsPdfIcon from '@mui/icons-material/PictureAsPdf';
 import DescriptionIcon from '@mui/icons-material/Description';
+import NavigateBeforeIcon from '@mui/icons-material/NavigateBefore';
+import NavigateNextIcon from '@mui/icons-material/NavigateNext';
 
 const STATUS_OPTIONS = [
   { value: '', label: 'Tất cả trạng thái' },
@@ -370,8 +367,7 @@ function ManageBlogs() {
   } = useSchoolAdmin();
 
   const navigate = useNavigate();
-  const { user, logout, isInitializing } = useAuth();
-  const menuItems = useSchoolAdminMenu();
+  const { user, isInitializing } = useAuth();
 
   const [blogs, setBlogs] = useState([]);
   const [categories, setCategories] = useState([]);
@@ -390,6 +386,8 @@ function ManageBlogs() {
   const [submitting, setSubmitting] = useState(false);
   const [confirmDelete, setConfirmDelete] = useState(null);
 
+  const canShowEmptyState = !loading && blogs.length === 0;
+
   // Auth check
   useEffect(() => {
     if (isInitializing) return;
@@ -403,11 +401,6 @@ function ManageBlogs() {
       return;
     }
   }, [navigate, user, isInitializing]);
-
-  const canShowEmptyState = useMemo(
-    () => !loading && blogs.length === 0,
-    [loading, blogs.length]
-  );
 
   const loadData = async (override = {}) => {
     try {
@@ -492,10 +485,7 @@ function ManageBlogs() {
     try {
       setSubmitting(true);
       if (selectedBlog) {
-        const oldCode = selectedBlog.code;
         await updateBlog(selectedBlog._id, form);
-        // after editing we always reset search filter so the updated item
-        // remains visible (code might have changed and not match previous query)
         if (filters.search) {
           setFilters((prev) => ({ ...prev, search: '' }));
           await loadData({ page: 1, search: '' });
@@ -521,19 +511,6 @@ function ManageBlogs() {
     await loadData({ page: newPage });
   };
 
-  const handleMenuSelect = createSchoolAdminMenuSelect(navigate);
-
-  const userName = user?.fullName || user?.username || 'School Admin';
-
-  const handleLogout = () => {
-    logout();
-    navigate('/login', { replace: true });
-  };
-
-  const handleViewProfile = () => {
-    navigate('/profile');
-  };
-
   const statusChip = (status) => {
     if (status === 'published') return <Chip label="Đã xuất bản" size="small" color="success" variant="outlined" sx={{ fontSize: '0.68rem', fontWeight: 600 }} />;
     if (status === 'draft') return <Chip label="Nháp" size="small" color="warning" variant="outlined" sx={{ fontSize: '0.68rem', fontWeight: 600 }} />;
@@ -542,17 +519,7 @@ function ManageBlogs() {
   };
 
   return (
-    <RoleLayout
-      title="Quản lý bài viết (Blog)"
-      description="Tạo, chỉnh sửa, xóa và quản lý các bài viết, tin tức của trường."
-      menuItems={menuItems}
-      activeKey="blogs"
-      onLogout={handleLogout}
-      onViewProfile={handleViewProfile}
-      onMenuSelect={handleMenuSelect}
-      userName={userName}
-      userAvatar={user?.avatar}
-    >
+    <Box>
       {/* Page header */}
       <Paper
         elevation={0}
@@ -851,12 +818,12 @@ function ManageBlogs() {
       <ConfirmDialog
         open={!!confirmDelete}
         title="Xác nhận xóa"
-        message={`Bạn chắc chắn muốn xóa bài viết "${confirmDelete?.title}"?`}
+        message={`Bạn chắc chắn muốn xóa bài viết "${confirmDelete?.code}"?`}
         onConfirm={confirmDeleteAction}
         onCancel={() => setConfirmDelete(null)}
         loading={submitting}
       />
-    </RoleLayout>
+    </Box>
   );
 }
 

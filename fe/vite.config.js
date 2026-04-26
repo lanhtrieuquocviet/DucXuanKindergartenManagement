@@ -11,11 +11,12 @@ export default defineConfig({
     rollupOptions: {
       output: {
         manualChunks: {
-          // Tách face-api.js thành chunk riêng → chỉ tải khi cần
+          // Tách các thư viện nặng thành các chunk riêng biệt
           'face-api': ['@vladmandic/face-api'],
-          // Tách MUI thành chunk riêng
           'mui': ['@mui/material', '@mui/icons-material'],
-          // Tách React
+          'firebase': ['firebase/app', 'firebase/auth', 'firebase/firestore', 'firebase/storage'],
+          'excel-utils': ['xlsx', 'exceljs'],
+          'pdf-utils': ['jspdf', 'jspdf-autotable'],
           'vendor': ['react', 'react-dom', 'react-router-dom'],
         },
       },

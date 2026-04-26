@@ -2,9 +2,6 @@ import { useEffect, useState } from 'react';
 import { useNavigate, useParams, useSearchParams } from 'react-router-dom';
 import { useAuth } from '../../context/AuthContext';
 import { useSchoolAdmin } from '../../context/SchoolAdminContext';
-import RoleLayout from '../../layouts/RoleLayout';
-import { createSchoolAdminMenuSelect } from './schoolAdminMenuConfig';
-import { useSchoolAdminMenu } from './useSchoolAdminMenu';
 import {
   Box,
   Paper,
@@ -19,8 +16,8 @@ import {
 import PersonIcon from '@mui/icons-material/Person';
 import SchoolIcon from '@mui/icons-material/School';
 import CalendarTodayIcon from '@mui/icons-material/CalendarToday';
-import HistoryIcon from '@mui/icons-material/History';
 import ArrowBackIcon from '@mui/icons-material/ArrowBack';
+import HistoryIcon from '@mui/icons-material/History';
 
 const formatDate = (dateStr) => {
   if (!dateStr) return '';
@@ -33,9 +30,7 @@ const formatDate = (dateStr) => {
 
 const formatTime = (timeStr) => {
   if (!timeStr) return '';
-  // Nếu là format HH:mm thì trả về luôn
   if (/^\d{2}:\d{2}$/.test(timeStr)) return timeStr;
-  // Nếu là Date object hoặc ISO string thì format
   try {
     const d = new Date(timeStr);
     if (isNaN(d.getTime())) return '';
@@ -69,14 +64,12 @@ function StudentAttendanceDetail() {
   const navigate = useNavigate();
   const { studentId } = useParams();
   const [searchParams] = useSearchParams();
-  const { user, logout, isInitializing } = useAuth();
+  const { user, isInitializing } = useAuth();
   const { getStudentAttendanceDetail, loading, error } = useSchoolAdmin();
-  const menuItems = useSchoolAdminMenu();
 
   const [studentInfo, setStudentInfo] = useState(null);
   const [attendance, setAttendance] = useState(null);
-  const [classId, setClassId] = useState(null);
-  const [date, setDate] = useState(searchParams.get('date') || '');
+  const [date] = useState(searchParams.get('date') || '');
 
   useEffect(() => {
     if (isInitializing) return;
@@ -106,16 +99,11 @@ function StudentAttendanceDetail() {
       if (response?.data) {
         setStudentInfo(response.data.studentInfo);
         setAttendance(response.data.attendance);
-        setClassId(response.data.studentInfo?.classId);
       }
     } catch (err) {
       console.error('Error fetching student attendance detail:', err);
     }
   };
-
-  const handleMenuSelect = createSchoolAdminMenuSelect(navigate);
-
-  const userName = user?.fullName || user?.username || 'School Admin';
 
   const checkInTime = attendance?.timeString?.checkIn || formatTime(attendance?.time?.checkIn) || '';
   const checkOutTime = attendance?.timeString?.checkOut || formatTime(attendance?.time?.checkOut) || '';
@@ -123,13 +111,9 @@ function StudentAttendanceDetail() {
   const receiver = attendance?.receiverType || '';
   const note = attendance?.note || '';
 
-  // Lấy URL ảnh từ image field hoặc từ cloudinary
   const getImageUrl = (imageName) => {
     if (!imageName) return null;
-    // Nếu đã là URL đầy đủ thì trả về luôn
     if (imageName.startsWith('http')) return imageName;
-    // Nếu là tên file, có thể cần thêm base URL
-    // Tạm thời trả về null nếu không có URL đầy đủ
     return null;
   };
 
@@ -141,7 +125,6 @@ function StudentAttendanceDetail() {
   const attendanceDate = (date ? formatDate(date) : null) || (attendance?.date ? formatDate(attendance.date) : formatDate(new Date()));
   const lateArrival = attendance?.arrivalStatus === 'late' || isLate(checkInTime || attendance?.time?.checkIn);
 
-  // Reusable image placeholder box
   const ImageBox = ({ imageName, alt, label }) => (
     <Box>
       <Typography variant="caption" color="text.secondary" display="block" mb={0.5}>
@@ -192,20 +175,7 @@ function StudentAttendanceDetail() {
   );
 
   return (
-    <RoleLayout
-      title="Chi tiết điểm danh"
-      description="Xem chi tiết điểm danh của học sinh."
-      menuItems={menuItems}
-      activeKey="attendance"
-      onLogout={() => {
-        logout();
-        navigate('/login', { replace: true });
-      }}
-      userName={userName}
-      userAvatar={user?.avatar}
-      onViewProfile={() => navigate('/profile')}
-      onMenuSelect={handleMenuSelect}
-    >
+    <Box>
       {error && (
         <Alert severity="error" sx={{ mb: 2 }}>
           {error}
@@ -213,7 +183,6 @@ function StudentAttendanceDetail() {
       )}
 
       <Box sx={{ maxWidth: 896, mx: 'auto' }}>
-        {/* Nút quay lại */}
         <Button
           startIcon={<ArrowBackIcon />}
           onClick={() => navigate(-1)}
@@ -224,7 +193,6 @@ function StudentAttendanceDetail() {
           Quay lại
         </Button>
 
-        {/* Thông tin học sinh */}
         <Paper
           elevation={0}
           sx={{
@@ -495,7 +463,7 @@ function StudentAttendanceDetail() {
           </Stack>
         )}
       </Box>
-    </RoleLayout>
+    </Box>
   );
 }
 

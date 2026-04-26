@@ -1,19 +1,22 @@
-import { useEffect, useMemo, useState } from 'react';
-import { useNavigate } from 'react-router-dom';
+import {
+  Add as AddIcon,
+  Delete as DeleteIcon,
+  Edit as EditIcon,
+  Print as PrintIcon,
+} from '@mui/icons-material';
 import {
   Box,
-  Paper,
-  Typography,
-  Stack,
   Button,
   Dialog,
-  DialogTitle,
-  DialogContent,
   DialogActions,
+  DialogContent,
+  DialogTitle,
   FormControl,
   InputLabel,
-  Select,
   MenuItem,
+  Paper,
+  Select,
+  Stack,
   Table,
   TableBody,
   TableCell,
@@ -23,19 +26,13 @@ import {
   TextField,
   ToggleButton,
   ToggleButtonGroup,
+  Typography,
 } from '@mui/material';
+import { useEffect, useMemo, useState } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { toast } from 'react-toastify';
-import {
-  Add as AddIcon,
-  Edit as EditIcon,
-  Print as PrintIcon,
-  Delete as DeleteIcon,
-} from '@mui/icons-material';
 import { useAuth } from '../../context/AuthContext';
-import RoleLayout from '../../layouts/RoleLayout';
-import { get, put, patch, del, ENDPOINTS } from '../../service/api';
-import { createSchoolAdminMenuSelect } from './schoolAdminMenuConfig';
-import { useSchoolAdminMenu } from './useSchoolAdminMenu';
+import { del, ENDPOINTS, get, patch, put } from '../../service/api';
 
 const SEASON_OPTIONS = [
   { value: 'summer', label: 'Mùa Hè' },
@@ -128,8 +125,7 @@ function seasonContentLabel(appliesToSeason) {
 
 export default function TimetableActivitiesPage() {
   const navigate = useNavigate();
-  const { user, logout } = useAuth();
-  const menuItems = useSchoolAdminMenu();
+  const { user } = useAuth();
 
   const [academicYear, setAcademicYear] = useState(null);
   const [activities, setActivities] = useState([]);
@@ -148,14 +144,8 @@ export default function TimetableActivitiesPage() {
     startTime: '',
     endTime: '',
     content: '',
+    content: '',
   });
-
-  const handleLogout = () => {
-    logout();
-    navigate('/login', { replace: true });
-  };
-
-  const handleMenuSelect = createSchoolAdminMenuSelect(navigate);
 
   const yearName = academicYear?.yearName || '';
 
@@ -361,17 +351,7 @@ export default function TimetableActivitiesPage() {
   };
 
   return (
-    <RoleLayout
-      title={`Thời gian biểu cả trường ${yearName || '—'}`}
-      description="Thiết lập thời gian biểu hoạt động hằng ngày theo mùa."
-      menuItems={menuItems}
-      activeKey="academic-schedule"
-      onLogout={handleLogout}
-      onViewProfile={() => navigate('/profile')}
-      onMenuSelect={handleMenuSelect}
-      userName={user?.fullName || user?.username || 'School Admin'}
-      userAvatar={user?.avatar}
-    >
+    <Box>
       <Stack spacing={3} sx={{ '@media print': { '& .no-print': { display: 'none' } } }}>
         <Typography variant="overline" color="text.secondary" sx={{ letterSpacing: 1 }} className="no-print">
           MamNon DX → Ban Giám hiệu → Quản lý Năm học → Thời gian biểu cả trường {yearName ? `(${yearName})` : ''}
@@ -621,7 +601,7 @@ export default function TimetableActivitiesPage() {
           </Button>
         </DialogActions>
       </Dialog>
-    </RoleLayout>
+    </Box>
   );
 }
 

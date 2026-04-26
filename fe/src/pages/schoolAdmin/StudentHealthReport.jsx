@@ -3,10 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import * as XLSX from 'xlsx';
 import { toast } from 'react-toastify';
 import { useAuth } from '../../context/AuthContext';
-import RoleLayout from '../../layouts/RoleLayout';
 import { get, post, ENDPOINTS } from '../../service/api';
-import { createSchoolAdminMenuSelect } from './schoolAdminMenuConfig';
-import { useSchoolAdminMenu } from './useSchoolAdminMenu';
 import {
   Box, Paper, Typography, Button, Stack, TextField, Chip,
   Table, TableHead, TableBody, TableRow, TableCell, TableContainer,
@@ -41,8 +38,7 @@ const IMPORT_COLUMNS = ['Tên học sinh', 'Lớp', 'Chiều cao (cm)', 'Cân n�
 
 export default function StudentHealthReport() {
   const navigate = useNavigate();
-  const { user, hasRole, logout, isInitializing } = useAuth();
-  const menuItems = useSchoolAdminMenu();
+  const { user, hasRole, isInitializing } = useAuth();
 
   const [rows, setRows]           = useState([]);
   const [classes, setClasses]     = useState([]);
@@ -185,10 +181,6 @@ export default function StudentHealthReport() {
       setImporting(false);
     }
   };
-
-  const handleMenuSelect = createSchoolAdminMenuSelect(navigate);
-  const handleLogout = () => { logout(); navigate('/login', { replace: true }); };
-
   // Stats
   const stats = useMemo(() => {
     const withHealth = rows.filter(r => r.healthId);
@@ -199,17 +191,7 @@ export default function StudentHealthReport() {
   }, [rows]);
 
   return (
-    <RoleLayout
-      title="Báo cáo sức khỏe học sinh"
-      description="Tổng quan tình hình sức khỏe toàn trường"
-      menuItems={menuItems}
-      activeKey="students"
-      onLogout={handleLogout}
-      onViewProfile={() => navigate('/profile')}
-      onMenuSelect={handleMenuSelect}
-      userName={user?.fullName || user?.username || 'Admin'}
-      userAvatar={user?.avatar}
-    >
+    <Box>
       {/* Header */}
       <Paper elevation={0} sx={{ mb: 3, p: 3, background: 'linear-gradient(135deg, #0891b2 0%, #0e7490 100%)', borderRadius: 2 }}>
         <Stack direction="row" alignItems="center" spacing={1.5}>
@@ -431,6 +413,6 @@ export default function StudentHealthReport() {
           </Button>
         </DialogActions>
       </Dialog>
-    </RoleLayout>
+    </Box>
   );
 }

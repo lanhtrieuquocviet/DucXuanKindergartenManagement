@@ -59,8 +59,7 @@ function Login() {
     try {
       const { user: newUser } = await login(loginId.toLowerCase(), form.password);
       const roles = (newUser.roles || []).map((r) => r.roleName || r);
-      const isParentRole = roles.includes('Parent') || roles.includes('StudentParent');
-      if (isParentRole && newUser?.isChangePassword === false) {
+      if (newUser?.isChangePassword === false) {
         navigate('/profile?forceChangePassword=1', { replace: true });
         return;
       }

@@ -21,10 +21,7 @@ import {
 import { PictureAsPdf as PdfIcon, Edit as EditIcon, Save as SaveIcon } from '@mui/icons-material';
 import { toast } from 'react-toastify';
 import { useAuth } from '../../context/AuthContext';
-import RoleLayout from '../../layouts/RoleLayout';
 import { get, put, ENDPOINTS } from '../../service/api';
-import { createSchoolAdminMenuSelect } from './schoolAdminMenuConfig';
-import { useSchoolAdminMenu } from './useSchoolAdminMenu';
 
 const DAYS = ['Thứ Hai', 'Thứ Ba', 'Thứ Tư', 'Thứ Năm', 'Thứ Sáu', 'Thứ Bảy'];
 const ROWS = [
@@ -50,8 +47,7 @@ function getInitialTimetableForGrade(gradeName) {
 
 export default function TimetablePage() {
   const navigate = useNavigate();
-  const { user, logout } = useAuth();
-  const menuItems = useSchoolAdminMenu();
+  const { user } = useAuth();
   const [academicYear, setAcademicYear] = useState(null);
   const [grades, setGrades] = useState([]);
   const [selectedGradeId, setSelectedGradeId] = useState('');
@@ -192,20 +188,9 @@ export default function TimetablePage() {
   const yearName = academicYear?.yearName || '2025-2026';
   const breadcrumb = `MamNon DX → Ban Giám hiệu → Quản lý Năm học → Thời khóa biểu các khối ${yearName}`;
   const selectedGrade = grades.find((g) => g._id === selectedGradeId);
-  const gradeLabel = selectedGrade ? `Khối ${selectedGrade.gradeName}` : '';
 
   return (
-    <RoleLayout
-      title={`Thời khóa biểu các khối - ${yearName}`}
-      description="Xem thời khóa biểu mẫu theo từng khối lớp. Chọn khối để xem chi tiết."
-      menuItems={menuItems}
-      activeKey="academic-schedule"
-      onLogout={handleLogout}
-      onViewProfile={() => navigate('/profile')}
-      onMenuSelect={handleMenuSelect}
-      userName={user?.fullName || user?.username || 'School Admin'}
-      userAvatar={user?.avatar}
-    >
+    <Box>
       <Stack spacing={3} sx={{ '@media print': { '& .no-print': { display: 'none' } } }}>
         <Typography variant="overline" color="text.secondary" sx={{ letterSpacing: 1 }} className="no-print">
           {breadcrumb}
@@ -400,6 +385,6 @@ export default function TimetablePage() {
           )}
         </Paper>
       </Stack>
-    </RoleLayout>
+    </Box>
   );
 }

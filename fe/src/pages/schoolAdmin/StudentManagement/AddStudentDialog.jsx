@@ -72,9 +72,10 @@ const AddStudentDialog = ({
             placeholder="10–11 chữ số"
             inputProps={{ inputMode: 'numeric', maxLength: 11 }}
           />
-          <Alert severity="info">
-            Tài khoản và mật khẩu tạm sẽ được hệ thống tự sinh và gửi qua email phụ huynh khi tạo tài khoản mới. Nếu số
-            điện thoại đã tồn tại, hệ thống sẽ dùng lại tài khoản cũ.
+          <Alert severity="info" sx={{ py: 0.5, '& .MuiAlert-message': { fontSize: '0.8rem' } }}>
+            <strong>Tài khoản mới:</strong> Hệ thống tự sinh mật khẩu tạm và gửi qua Email. Phụ huynh <strong>bắt buộc phải đổi mật khẩu</strong> ở lần đầu đăng nhập.
+            <br />
+            <strong>Tài khoản cũ:</strong> Nếu Số điện thoại đã tồn tại, hệ thống sẽ gộp học sinh mới vào tài khoản hiện có.
           </Alert>
           <TextField
             size="small"
@@ -107,7 +108,7 @@ const AddStudentDialog = ({
           <Box sx={{ p: 1.5, bgcolor: '#f0f9ff', borderRadius: 1.5, border: '1px solid', borderColor: '#bae6fd' }}>
             <Stack direction="row" alignItems="center" spacing={1} mb={0.5}>
               <Typography variant="caption" color="#0369a1" fontWeight={700}>
-                NIÊN KHÓA HỆ THỐNG:
+                NĂM HỌC HỆ THỐNG:
               </Typography>
               <Chip
                 label={activeAcademicYear?.yearName || 'Chưa có năm học đang hoạt động'}
@@ -121,7 +122,7 @@ const AddStudentDialog = ({
               />
             </Stack>
             <Typography variant="caption" color="text.secondary" sx={{ display: 'block', fontStyle: 'italic' }}>
-              * Học sinh mới sẽ được hệ thống <strong>tự động gán</strong> vào niên khóa đang hoạt động này.
+              * Học sinh mới sẽ được hệ thống <strong>tự động gán</strong> vào năm học đang hoạt động này.
             </Typography>
           </Box>
           <TextField

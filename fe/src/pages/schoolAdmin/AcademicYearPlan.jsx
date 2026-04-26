@@ -26,7 +26,6 @@ import CloseIcon from '@mui/icons-material/Close';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import { toast } from 'react-toastify';
 import { useAuth } from '../../context/AuthContext';
-import RoleLayout from '../../layouts/RoleLayout';
 import { get, post, patch, del, ENDPOINTS } from '../../service/api';
 import { createSchoolAdminMenuSelect } from './schoolAdminMenuConfig';
 import { useSchoolAdminMenu } from './useSchoolAdminMenu';
@@ -115,7 +114,9 @@ export default function AcademicYearPlan() {
     navigate('/login', { replace: true });
   };
 
-  const handleMenuSelect = createSchoolAdminMenuSelect(navigate);
+  const handleMenuSelect = (item) => {
+    if (item.path) navigate(item.path);
+  };
 
   useEffect(() => {
     const loadYear = async () => {
@@ -468,21 +469,7 @@ export default function AcademicYearPlan() {
   const userName = user?.fullName || user?.username || 'School Admin';
 
   return (
-    <RoleLayout
-      title={
-        currentYear
-          ? `Danh sách chủ đề theo khối lớp năm học ${currentYear.yearName}`
-          : 'Danh sách chủ đề theo khối lớp năm học'
-      }
-      description="Quản lý danh sách chủ đề theo từng khối lớp và chi tiết hoạt động theo tuần."
-      menuItems={menuItems}
-      activeKey="academic-plan"
-      onLogout={handleLogout}
-      onViewProfile={() => navigate('/profile')}
-      onMenuSelect={handleMenuSelect}
-      userName={userName}
-      userAvatar={user?.avatar}
-    >
+    <Box>
       <Stack spacing={3}>
         <Typography variant="overline" color="text.secondary">
           MamNon DX &gt; Ban Giám Hiệu &gt; Quản lý Năm học &gt; Danh sách chủ đề theo khối lớp năm học
@@ -1020,7 +1007,7 @@ export default function AcademicYearPlan() {
           </Button>
         </DialogActions>
       </Dialog>
-    </RoleLayout>
+    </Box>
   );
 }
 

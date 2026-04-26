@@ -1,7 +1,6 @@
 import { useEffect, useMemo, useState } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
 import { useAuth } from '../../context/AuthContext';
-import RoleLayout from '../../layouts/RoleLayout';
 import { get, post, put, ENDPOINTS } from '../../service/api';
 import { toast } from 'react-toastify';
 import {
@@ -48,25 +47,6 @@ function calcAge(dob) {
   return years > 0 ? `${years} tuổi` : null;
 }
 
-function getTeacherMenuItems(hasPermission, hasRole) {
-  const ALL_TEACHER_MENU = [
-    { key: 'classes', label: 'Lớp phụ trách' },
-    { key: 'students', label: 'Danh sách học sinh' },
-    { key: 'evaluation', label: 'Đánh giá học sinh' },
-    { key: 'attendance', label: 'Điểm danh', permission: 'MANAGE_ATTENDANCE' },
-    { key: 'pickup-approval', label: 'Đơn đăng ký đưa đón', permission: 'MANAGE_PICKUP' },
-    { key: 'leave-requests', label: 'Danh sách đơn xin nghỉ', permission: 'MANAGE_ATTENDANCE' },
-    { key: 'contact-book', label: 'Sổ liên lạc' },
-    { key: 'asset-incidents-teacher', label: 'Báo cáo sự cố CSVC', permission: 'MANAGE_PURCHASE_REQUEST' },
-    { key: 'class-assets', label: 'Tài sản lớp', permission: 'MANAGE_ASSET' },
-    { key: 'asset-inspection', label: 'Kiểm kê tài sản', role: 'InventoryStaff' },
-  ];
-  return ALL_TEACHER_MENU.filter((item) => {
-    if (item.permission) return hasPermission(item.permission);
-    if (item.role) return hasRole(item.role);
-    return true;
-  });
-}
 
 export default function TeacherStudents() {
   const navigate = useNavigate();
@@ -229,36 +209,6 @@ export default function TeacherStudents() {
 
   const paginated = filtered.slice(page * PAGE_SIZE, (page + 1) * PAGE_SIZE);
 
-  const menuItems = useMemo(
-    () => getTeacherMenuItems(hasPermission, hasRole),
-    [hasPermission, hasRole]
-  );
-
-  const activeKey = useMemo(() => {
-    const path = location.pathname || '';
-    if (path === '/teacher/students') return 'students';
-    if (path.startsWith('/teacher/evaluation')) return 'evaluation';
-    if (path.startsWith('/teacher/leave-requests')) return 'leave-requests';
-    if (path.startsWith('/teacher/contact-book')) return 'contact-book';
-    if (path.startsWith('/teacher/attendance')) return 'attendance';
-    return 'classes';
-  }, [location.pathname]);
-
-  const handleMenuSelect = (key) => {
-    const MAP = {
-      classes: '/teacher',
-      students: '/teacher/students',
-      evaluation: '/teacher/evaluation',
-      'contact-book': '/teacher/contact-book',
-      attendance: '/teacher/attendance',
-      'pickup-approval': '/teacher/pickup-approval',
-      'leave-requests': '/teacher/leave-requests',
-      'asset-incidents-teacher': '/teacher/asset-incidents',
-      'class-assets': '/teacher/class-assets',
-      'asset-inspection': '/teacher/asset-inspection',
-    };
-    if (MAP[key]) navigate(MAP[key]);
-  };
 
   const userName = user?.fullName || user?.username || 'Teacher';
 
@@ -266,17 +216,7 @@ export default function TeacherStudents() {
   const totalClasses = classes.length;
 
   return (
-    <RoleLayout
-      title="Danh sách học sinh"
-      description="Học sinh trong các lớp phụ trách"
-      menuItems={menuItems}
-      activeKey={activeKey}
-      onLogout={() => { logout(); navigate('/login', { replace: true }); }}
-      userName={userName}
-      userAvatar={user?.avatar}
-      onViewProfile={() => navigate('/profile')}
-      onMenuSelect={handleMenuSelect}
-    >
+    <Box>
       {/* Header */}
       <Paper elevation={0} sx={{ mb: 3, p: 3, background: 'linear-gradient(135deg, #6366f1 0%, #8b5cf6 100%)', borderRadius: 2 }}>
         <Stack direction="row" alignItems="center" justifyContent="space-between" flexWrap="wrap" gap={2}>
@@ -724,6 +664,6 @@ export default function TeacherStudents() {
           </Button>
         </DialogActions>
       </Dialog>
-    </RoleLayout>
+    </Box>
   );
 }

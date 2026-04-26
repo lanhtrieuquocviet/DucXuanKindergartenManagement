@@ -11,12 +11,14 @@ import {
   Warning as WarningIcon,
   AutoFixHigh as AutoIcon,
 } from '@mui/icons-material';
+import { toast } from 'react-toastify';
 
 export default function StepClassSetup({
   classes, onChange, errors,
   selectedBlocks,    // [{ _id, name, maxClasses, minAge, maxAge, tempId }]
   cloneClasses,      // Gợi ý nhân bản từ năm cũ (không có teacherIds)
   teacherOptions,    // [{ _id, fullName }]
+  teacherHistory,    // { teacherId: { className: count } }
 }) {
   const [cloned, setCloned] = useState(false);
 
@@ -68,30 +70,50 @@ export default function StepClassSetup({
   };
 
   const handleAutoAssign = () => {
-    // 1. Lấy danh sách teacherId đã gán
+    // 1. Lấy danh sách giáo viên chưa được gán vào bất kỳ lớp nào trong năm mới này
     const assignedIds = new Set(classes.flatMap(c => (c.teacherIds || []).map(String)));
-    // 2. Lấy danh sách giáo viên còn trống
     const availableTeachers = teacherOptions
       .filter(t => !assignedIds.has(String(t._id)))
       .map(t => String(t._id));
 
     if (availableTeachers.length === 0) {
-      return; // Không còn giáo viên trống
+      toast.info('Không còn giáo viên tự do để gán.');
+      return;
     }
 
     let teacherIdx = 0;
     const nextClasses = classes.map(c => {
-      // Nếu lớp đã có giáo viên, giữ nguyên
-      if (c.teacherIds && c.teacherIds.length > 0) return c;
-      // Nếu hết giáo viên để gán, giữ nguyên
-      if (teacherIdx >= availableTeachers.length) return c;
-
-      const assigned = [availableTeachers[teacherIdx]];
-      teacherIdx++;
-      return { ...c, teacherIds: assigned };
+      // Nếu lớp đã đủ 2 giáo viên, giữ nguyên
+      if (c.teacherIds && c.teacherIds.length >= 2) return c;
+      
+      const currentIds = [...(c.teacherIds || [])];
+      const needed = 2 - currentIds.length;
+      
+      const toAssign = [];
+      for (let i = 0; i < needed; i++) {
+        if (teacherIdx < availableTeachers.length) {
+          const tId = availableTeachers[teacherIdx];
+          // Kiểm tra quy tắc 2 năm trước khi gán tự động
+          const historyCount = teacherHistory[tId]?.[c.className] || 0;
+          if (historyCount < 2) {
+            toAssign.push(tId);
+            teacherIdx++;
+          } else {
+            // Nếu giáo viên này vướng quy tắc 2 năm, bỏ qua và tìm người tiếp theo cho lớp này
+            teacherIdx++;
+            i--; // Thử lại lượt này với giáo viên tiếp theo
+          }
+        }
+      }
+      
+      if (toAssign.length > 0) {
+        return { ...c, teacherIds: [...currentIds, ...toAssign] };
+      }
+      return c;
     });
 
     onChange(nextClasses);
+    toast.success('Đã tự động phân công giáo viên (tối đa 2 GV/lớp).');
   };
 
   return (
@@ -207,13 +229,20 @@ export default function StepClassSetup({
                         />
 
                         {/* Chọn giáo viên */}
-                        <FormControl size="small" sx={{ flex: 3 }} error={hasNoTeacher}>
+                        <FormControl size="small" sx={{ flex: 3 }} error={!!errors[`class_${cls.tempId}_teacher`] || hasNoTeacher}>
                           <InputLabel>Giáo viên *</InputLabel>
                           <Select
                             label="Giáo viên *"
                             multiple
                             value={cls.teacherIds || []}
-                            onChange={e => updateClass(cls.tempId, 'teacherIds', e.target.value)}
+                            onChange={e => {
+                              const selected = e.target.value;
+                              if (selected.length > 2) {
+                                toast.warning(`Lớp ${cls.className || idx + 1} chỉ được phép có tối đa 2 giáo viên.`);
+                                return;
+                              }
+                              updateClass(cls.tempId, 'teacherIds', selected);
+                            }}
                             renderValue={selected => (
                               <Stack direction="row" flexWrap="wrap" gap={0.5}>
                                 {selected.map(id => {
@@ -224,26 +253,46 @@ export default function StepClassSetup({
                             )}
                           >
                             {teacherOptions.map(t => {
-                              // Giáo viên đã được gán vào lớp khác thì disable
+                              // 1. Giáo viên đã được gán vào lớp khác trong năm này
                               const isAssignedElsewhere =
                                 assignedTeacherIds.has(String(t._id)) &&
                                 !(cls.teacherIds || []).map(String).includes(String(t._id));
+                              
+                              // 2. Giáo viên đã chọn cho lớp này
+                              const isSelectedForThisClass = (cls.teacherIds || []).map(String).includes(String(t._id));
+
+                              // 3. Quy tắc 2 năm: Một giáo viên chỉ đứng một lớp đấy tối đa 2 năm
+                              const historyCount = teacherHistory[String(t._id)]?.[cls.className] || 0;
+                              const isMaxYearsReached = historyCount >= 2;
+
                               return (
-                                <MenuItem key={t._id} value={String(t._id)} disabled={isAssignedElsewhere}>
+                                <MenuItem 
+                                  key={t._id} 
+                                  value={String(t._id)} 
+                                  disabled={isAssignedElsewhere || (!isSelectedForThisClass && (cls.teacherIds || []).length >= 2) || isMaxYearsReached}
+                                >
                                   <Stack direction="row" spacing={1} alignItems="center">
                                     <span>{t.fullName}</span>
                                     {isAssignedElsewhere && (
                                       <Chip label="Đã có lớp" size="small" color="warning" sx={{ fontSize: 10 }} />
+                                    )}
+                                    {!isSelectedForThisClass && (cls.teacherIds || []).length >= 2 && !isAssignedElsewhere && (
+                                      <Chip label="Đủ 2 GV" size="small" variant="outlined" sx={{ fontSize: 10 }} />
+                                    )}
+                                    {isMaxYearsReached && (
+                                      <Chip label="Đã dạy 2 năm" size="small" color="error" variant="outlined" sx={{ fontSize: 10 }} />
                                     )}
                                   </Stack>
                                 </MenuItem>
                               );
                             })}
                           </Select>
-                          {hasNoTeacher && (
+                          {(errors[`class_${cls.tempId}_teacher`] || hasNoTeacher) && (
                             <Stack direction="row" spacing={0.5} alignItems="center" mt={0.5}>
                               <WarningIcon sx={{ fontSize: 13, color: 'warning.main' }} />
-                              <Typography variant="caption" color="warning.main">Chưa có giáo viên</Typography>
+                              <Typography variant="caption" color="warning.main">
+                                {errors[`class_${cls.tempId}_teacher`] || 'Chưa có giáo viên'}
+                              </Typography>
                             </Stack>
                           )}
                         </FormControl>

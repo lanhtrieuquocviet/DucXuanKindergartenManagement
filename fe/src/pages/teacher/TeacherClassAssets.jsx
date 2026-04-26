@@ -9,7 +9,6 @@ import {
 } from '@mui/material';
 import ExpandMoreIcon from '@mui/icons-material/ExpandMore';
 import ExpandLessIcon from '@mui/icons-material/ExpandLess';
-import RoleLayout from '../../layouts/RoleLayout';
 import { useAuth } from '../../context/AuthContext';
 import CheckCircleIcon from '@mui/icons-material/CheckCircle';
 import { get, patch, ENDPOINTS } from '../../service/api';
@@ -188,13 +187,7 @@ export default function TeacherClassAssets() {
   const totalAssets = (allocation?.assets?.length || 0) + (allocation?.extraAssets?.length || 0);
 
   return (
-    <RoleLayout
-      menuItems={menuItems}
-      activeKey="class-assets"
-      onMenuSelect={handleMenuSelect}
-      onLogout={logout}
-      userName={user?.fullName || user?.username}
-    >
+    <Box>
       <Box sx={{ p: { xs: 2, md: 3 }, maxWidth: 1100, mx: 'auto' }}>
         <Stack direction="row" alignItems="flex-start" justifyContent="space-between" mb={3}>
           <Box>
@@ -320,6 +313,6 @@ export default function TeacherClassAssets() {
         </DialogActions>
       </Dialog>
 
-    </RoleLayout>
+    </Box>
   );
 }

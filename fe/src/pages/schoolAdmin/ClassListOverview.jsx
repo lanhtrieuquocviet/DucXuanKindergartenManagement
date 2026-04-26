@@ -21,10 +21,7 @@ import {
   LocationOn as LocationOnIcon,
 } from '@mui/icons-material';
 import { useAuth } from '../../context/AuthContext';
-import RoleLayout from '../../layouts/RoleLayout';
 import { get, ENDPOINTS } from '../../service/api';
-import { createSchoolAdminMenuSelect } from './schoolAdminMenuConfig';
-import { useSchoolAdminMenu } from './useSchoolAdminMenu';
 
 
 /** Tách giáo viên chủ nhiệm (đầu tiên) và giáo viên phụ (còn lại) từ chuỗi "Cô A, Cô B" */
@@ -38,21 +35,13 @@ function parseTeachers(teacherNames) {
 
 function ClassListOverview() {
   const navigate = useNavigate();
-  const { user, logout } = useAuth();
-  const menuItems = useSchoolAdminMenu();
+  const { user } = useAuth();
   const [academicYear, setAcademicYear] = useState(null);
   const [classes, setClasses] = useState([]);
   const [grades, setGrades] = useState([]);
   const [loading, setLoading] = useState(true);
   const [searchQuery, setSearchQuery] = useState('');
   const [gradeFilter, setGradeFilter] = useState('');
-
-  const handleLogout = () => {
-    logout();
-    navigate('/login', { replace: true });
-  };
-
-  const handleMenuSelect = createSchoolAdminMenuSelect(navigate);
 
   useEffect(() => {
     const load = async () => {
@@ -136,17 +125,7 @@ function ClassListOverview() {
   const userName = user?.fullName || user?.username || 'School Admin';
 
   return (
-    <RoleLayout
-      title={`Danh sách lớp học - ${yearName}`}
-      description="Xem thông tin tổng quan các lớp học đang hoạt động trong năm học hiện tại."
-      menuItems={menuItems}
-      activeKey="academic-students"
-      onLogout={handleLogout}
-      onViewProfile={() => navigate('/profile')}
-      onMenuSelect={handleMenuSelect}
-      userName={userName}
-      userAvatar={user?.avatar}
-    >
+    <Box>
       <Stack spacing={3}>
         <Typography variant="overline" color="text.secondary" sx={{ letterSpacing: 1 }}>
           {breadcrumb}
@@ -342,7 +321,7 @@ function ClassListOverview() {
           </Paper>
         )}
       </Stack>
-    </RoleLayout>
+    </Box>
   );
 }
 

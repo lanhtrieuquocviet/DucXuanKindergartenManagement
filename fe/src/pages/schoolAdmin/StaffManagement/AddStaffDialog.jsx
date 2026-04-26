@@ -4,6 +4,7 @@ import {
   DialogTitle,
   DialogContent,
   DialogActions,
+  Box,
   Button,
   Alert,
   Typography,
@@ -17,11 +18,6 @@ import {
   IconButton,
   CircularProgress,
 } from '@mui/material';
-import {
-  Visibility,
-  VisibilityOff,
-} from '@mui/icons-material';
-
 const AddStaffDialog = ({
   open,
   onClose,
@@ -32,8 +28,8 @@ const AddStaffDialog = ({
   setError,
   onSubmit,
   POSITION_OPTIONS,
+  POSITION_MAP,
 }) => {
-  const [showPassword, setShowPassword] = useState(false);
 
   return (
     <Dialog open={open} onClose={() => !loading && onClose()} maxWidth="sm" fullWidth>
@@ -46,45 +42,18 @@ const AddStaffDialog = ({
         )}
 
         <Typography variant="subtitle2" color="primary" gutterBottom>
-          Thông tin tài khoản
+          Trạng thái tài khoản
         </Typography>
         <Stack spacing={2} mb={3}>
-          <TextField
-            size="small"
-            label="Tên đăng nhập (Username)"
-            fullWidth
-            required
-            value={form.username}
-            onChange={(e) => setForm((p) => ({ ...p, username: e.target.value }))}
-            placeholder="VD: nguyenvan_a"
-          />
-          <TextField
-            size="small"
-            label="Mật khẩu"
-            type={showPassword ? 'text' : 'password'}
-            fullWidth
-            required
-            value={form.password}
-            onChange={(e) => setForm((p) => ({ ...p, password: e.target.value }))}
-            InputProps={{
-              endAdornment: (
-                <InputAdornment position="end">
-                  <IconButton size="small" onClick={() => setShowPassword(!showPassword)}>
-                    {showPassword ? <VisibilityOff fontSize="small" /> : <Visibility fontSize="small" />}
-                  </IconButton>
-                </InputAdornment>
-              ),
-            }}
-          />
-          <TextField
-            size="small"
-            label="Xác nhận mật khẩu"
-            type={showPassword ? 'text' : 'password'}
-            fullWidth
-            required
-            value={form.confirmPassword}
-            onChange={(e) => setForm((p) => ({ ...p, confirmPassword: e.target.value }))}
-          />
+          {form.roleName ? (
+            <Alert severity="success" variant="outlined" sx={{ py: 0.5, '& .MuiAlert-message': { fontSize: '0.8rem' } }}>
+              Chức vụ này <strong>có quyền truy cập hệ thống</strong>. Mật khẩu sẽ được hệ thống <strong>tự động sinh</strong> và gửi qua Email nhân sự. Nhân viên bắt buộc phải đổi mật khẩu ở lần đầu đăng nhập.
+            </Alert>
+          ) : (
+            <Alert severity="info" variant="outlined" sx={{ py: 0.5, '& .MuiAlert-message': { fontSize: '0.8rem' } }}>
+              Chức vụ này <strong>chỉ lưu hồ sơ</strong>, không cấp tài khoản đăng nhập.
+            </Alert>
+          )}
         </Stack>
 
         <Typography variant="subtitle2" color="primary" gutterBottom>
@@ -112,30 +81,26 @@ const AddStaffDialog = ({
               size="small"
               label="Số điện thoại"
               fullWidth
+              required
               value={form.phone}
-              onChange={(e) => setForm((p) => ({ ...p, phone: e.target.value.replace(/\D/g, '') }))}
+              onChange={(e) => {
+                const val = e.target.value.replace(/\D/g, '').slice(0, 10);
+                setForm((p) => ({ ...p, phone: val, username: val }));
+              }}
+              helperText="Dùng làm tài khoản đăng nhập"
+              FormHelperTextProps={{ sx: { color: 'primary.main', fontWeight: 600 } }}
             />
           </Stack>
-          <FormControl size="small" fullWidth required>
-            <InputLabel>Vai trò hệ thống</InputLabel>
-            <Select
-              value={form.roleName || 'Teacher'}
-              label="Vai trò hệ thống"
-              onChange={(e) => setForm((p) => ({ ...p, roleName: e.target.value }))}
-            >
-              <MenuItem value="SchoolAdmin">Quản trị viên trường</MenuItem>
-              <MenuItem value="Teacher">Giáo viên</MenuItem>
-              <MenuItem value="KitchenStaff">Nhân viên bếp</MenuItem>
-              <MenuItem value="MedicalStaff">Nhân viên y tế</MenuItem>
-              <MenuItem value="HeadTeacher">Tổ trưởng chuyên môn</MenuItem>
-            </Select>
-          </FormControl>
           <FormControl size="small" fullWidth required>
             <InputLabel>Chức vụ / Vị trí</InputLabel>
             <Select
               value={form.position}
               label="Chức vụ / Vị trí"
-              onChange={(e) => setForm((p) => ({ ...p, position: e.target.value }))}
+              onChange={(e) => {
+                const pos = e.target.value;
+                const role = POSITION_MAP[pos] || null;
+                setForm((p) => ({ ...p, position: pos, roleName: role }));
+              }}
             >
               {POSITION_OPTIONS.map((opt) => (
                 <MenuItem key={opt} value={opt}>
@@ -144,6 +109,11 @@ const AddStaffDialog = ({
               ))}
               <MenuItem value="Other">Khác...</MenuItem>
             </Select>
+            {form.position && !POSITION_MAP[form.position] && form.position !== 'Other' && (
+              <Typography variant="caption" color="text.secondary" sx={{ mt: 0.5, ml: 1.5 }}>
+                * Chức vụ này chỉ tạo hồ sơ nhân sự, không có quyền truy cập hệ thống.
+              </Typography>
+            )}
           </FormControl>
           {form.position === 'Other' && (
             <TextField

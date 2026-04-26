@@ -1,30 +1,13 @@
-import {
-  PeopleAlt as PeopleAltIcon
-} from '@mui/icons-material';
-import {
-  Alert,
-  Box,
-  Button,
-  CircularProgress,
-  Dialog,
-  DialogActions,
-  DialogContent,
-  DialogTitle,
-  Paper,
-  Stack,
-  Tab,
-  Tabs,
-  Typography,
-} from '@mui/material';
+import { PeopleAlt as PeopleAltIcon } from '@mui/icons-material';
+import { Box, CircularProgress, Paper, Stack, Tab, Tabs, Typography } from '@mui/material';
 import { useEffect, useRef, useState } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
 import { toast } from 'react-toastify';
 import { useAuth } from '../../context/AuthContext';
 import { useSchoolAdmin } from '../../context/SchoolAdminContext';
-import RoleLayout from '../../layouts/RoleLayout';
 import { ENDPOINTS, get, patch, postFormData } from '../../service/api';
-import { createSchoolAdminMenuSelect } from './schoolAdminMenuConfig';
-import { useSchoolAdminMenu } from './useSchoolAdminMenu';
+import SuccessAccountDialog from '../../components/SuccessAccountDialog';
+import ExcelJS from 'exceljs';
 
 // Sub-components
 import AddStudentDialog from './StudentManagement/AddStudentDialog';
@@ -34,6 +17,13 @@ import { handleDownloadTemplate as downloadTemplateHelper } from './StudentManag
 import ImportExcelSection from './StudentManagement/ImportExcelSection';
 import StudentFilter from './StudentManagement/StudentFilter';
 import StudentTable from './StudentManagement/StudentTable';
+
+// Dialogs
+import ImportResultDialog from './StudentManagement/ImportResultDialog';
+import DuplicateConfirmDialog from './StudentManagement/DuplicateConfirmDialog';
+import DeleteConfirmDialog from './StudentManagement/DeleteConfirmDialog';
+import ParentMergeConfirmDialog from './StudentManagement/ParentMergeConfirmDialog';
+import PreviewImportDialog from './StudentManagement/PreviewImportDialog';
 
 const GENDER_OPTIONS = [
   { value: 'male', label: 'Nam' },
@@ -63,8 +53,7 @@ function formatPhoneDisplay(value) {
 function ManageStudents() {
   const location = useLocation();
   const navigate = useNavigate();
-  const { user, hasRole, logout, isInitializing } = useAuth();
-  const menuItems = useSchoolAdminMenu();
+  const { user, hasRole, isInitializing } = useAuth();
   const {
     getAllStudents,
     getClasses,
@@ -85,6 +74,7 @@ function ManageStudents() {
   const [searchTerm, setSearchTerm] = useState('');
   const [classFilter, setClassFilter] = useState('');
   const [yearFilter, setYearFilter] = useState('');
+  const [genderFilter, setGenderFilter] = useState('');
 
   // Pending change requests
   const [pendingMap, setPendingMap] = useState({});
@@ -118,6 +108,13 @@ function ManageStudents() {
   const [openImportResult, setOpenImportResult] = useState(false);
   const importInputRef = useRef(null);
 
+  // States cho Preview & Duplicate
+  const [previewData, setPreviewData] = useState(null);
+  const [openPreview, setOpenPreview] = useState(false);
+  const [duplicateData, setDuplicateData] = useState(null);
+  const [showDuplicateDialog, setShowDuplicateDialog] = useState(false);
+  const [pendingImportFile, setPendingImportFile] = useState(null);
+
   const [formEdit, setFormEdit] = useState({
     fullName: '', dateOfBirth: '', gender: 'male', classId: '', address: '', status: 'active',
     parentFullName: '', parentEmail: '', parentPhone: '',
@@ -126,6 +123,10 @@ function ManageStudents() {
   const [formEditErrors, setFormEditErrors] = useState({});
   const [editError, setEditError] = useState(null);
   const [deleteError, setDeleteError] = useState(null);
+
+  // Success Dialog for single add
+  const [showSuccessDialog, setShowSuccessDialog] = useState(false);
+  const [successData, setSuccessData] = useState(null);
 
   const requestedYearId = new URLSearchParams(location.search).get('yearId') || '';
 
@@ -146,26 +147,19 @@ function ManageStudents() {
         get(ENDPOINTS.SCHOOL_ADMIN.ACADEMIC_YEARS.HISTORY + '?all=true'),
       ]);
 
-      // 1. Luôn lấy năm học ACTIVE hiện tại của hệ thống để gán khi thêm học sinh mới
       const activeAY = currentYearRes?.status === 'success' ? currentYearRes.data : null;
       setActiveAcademicYear(activeAY);
 
-      // 2. Xác định năm học đang XEM (VIEW) - có thể là năm cũ hoặc năm active
       if (requestedYearId) {
-        // Nếu URL có yearId, tìm trong danh sách history hoặc fetch riêng
         const viewRes = await get(`${ENDPOINTS.SCHOOL_ADMIN.ACADEMIC_YEARS.HISTORY}?yearId=${requestedYearId}`).catch(() => null);
         const yearRow = viewRes?.status === 'success' ? (Array.isArray(viewRes.data) ? viewRes.data[0] : viewRes.data) : null;
         setViewAcademicYear(yearRow || null);
       } else {
-        // Nếu không có yearId trong URL, mặc định view năm active
         setViewAcademicYear(activeAY);
       }
 
-      // Xóa bỏ logic cũ gây nhầm lẫn
-
       if (allYearsRes?.status === 'success') {
         const historyYears = Array.isArray(allYearsRes.data) ? allYearsRes.data : [];
-        // Gộp năm active vào danh sách dropdown nếu nó chưa có trong history
         const allYears = activeAY ? [activeAY, ...historyYears] : historyYears;
         const uniqueYears = Array.from(new Map(allYears.map(y => [String(y._id), y])).values());
         setAcademicYears(uniqueYears);
@@ -185,6 +179,7 @@ function ManageStudents() {
       const studentParams = {
         ...(classFilter ? { classId: classFilter } : {}),
         ...(currentFilterId !== 'all' ? { academicYearId: currentFilterId } : {}),
+        ...(genderFilter ? { gender: genderFilter } : {}),
       };
       const studentsRes = await getAllStudents(studentParams);
       setStudents(studentsRes?.data || []);
@@ -208,7 +203,7 @@ function ManageStudents() {
       return;
     }
     fetchData();
-  }, [navigate, user, hasRole, isInitializing, requestedYearId, yearFilter, classFilter]); // eslint-disable-line
+  }, [navigate, user, hasRole, isInitializing, requestedYearId, yearFilter, classFilter, genderFilter]); // eslint-disable-line
 
   const handleOpenAdd = () => {
     setFormAdd({
@@ -279,7 +274,7 @@ function ManageStudents() {
     }
   };
 
-  const handleSubmitAdd = async () => {
+  const handleSubmitAdd = async (forceUpdate = false) => {
     setCtxError(null);
     const errs = {};
     if (!isValidPhone(formAdd.parent.phone)) errs.parentPhone = 'Số điện thoại phải 10–11 chữ số';
@@ -304,38 +299,148 @@ function ManageStudents() {
         student: {
           ...formAdd.student,
           status: 'active',
+          forceUpdate
         },
       };
-      await createStudentWithParent(payload);
+      const res = await createStudentWithParent(payload);
+      
+      if (res?.duplicateDetected) {
+        setDuplicateData([{ rowIndex: 'Thủ công', studentName: formAdd.student.fullName, parentName: formAdd.parent.fullName, phone: formAdd.parent.phone }]);
+        setShowDuplicateDialog(true);
+        return;
+      }
+
       setOpenAdd(false);
       fetchData();
+      
+      if (res?.isNewParent && res?.generatedPassword) {
+        setSuccessData({
+          username: res.parentUser.username,
+          password: res.generatedPassword,
+          fullName: res.parentUser.fullName,
+          phone: res.parentUser.phone
+        });
+        setShowSuccessDialog(true);
+      } else {
+        toast.success('Lưu học sinh thành công');
+      }
     } catch (err) {
       setAddError(err?.message || 'Tạo học sinh thất bại');
     }
   };
 
-  const handleImportExcel = async (e) => {
-    const file = e.target.files?.[0];
+  const downloadImportResults = async (results) => {
+    if (!results || results.length === 0) return;
+    const workbook = new ExcelJS.Workbook();
+    const worksheet = workbook.addWorksheet('KetQuaImport');
+
+    worksheet.columns = [
+      { header: 'Họ tên học sinh', key: 'studentName', width: 25 },
+      { header: 'Họ tên phụ huynh', key: 'parentName', width: 25 },
+      { header: 'Số điện thoại', key: 'phone', width: 15 },
+      { header: 'Tên đăng nhập', key: 'username', width: 20 },
+      { header: 'Mật khẩu tạm', key: 'password', width: 15 },
+      { header: 'Trạng thái', key: 'status', width: 25 },
+    ];
+
+    results.forEach(item => worksheet.addRow(item));
+    worksheet.getRow(1).font = { bold: true };
+    worksheet.getRow(1).fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFE0E0E0' } };
+
+    const buffer = await workbook.xlsx.writeBuffer();
+    const blob = new Blob([buffer], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' });
+    const url = window.URL.createObjectURL(blob);
+    const anchor = document.createElement('a');
+    anchor.href = url;
+    anchor.download = `Ket_qua_import_tai_khoan_${new Date().toLocaleDateString()}.xlsx`;
+    anchor.click();
+    window.URL.revokeObjectURL(url);
+  };
+
+  const handleImportExcel = async (e, allowUnassignedClass = false) => {
+    const file = e?.target?.files?.[0] || pendingImportFile;
     if (!file) return;
+    setPendingImportFile(file);
     setImporting(true);
     try {
       const formData = new FormData();
       formData.append('file', file);
+      formData.append('dryRun', true); // Bước Xem trước
+      formData.append('allowUnassignedClass', allowUnassignedClass);
       const res = await postFormData(ENDPOINTS.STUDENTS.IMPORT_WITH_PARENT_EXCEL, formData);
-      const data = res?.data || {};
-      setImportResult({
-        createdStudents: data.createdStudents || 0,
-        createdParents: data.createdParents || 0,
-        linkedExistingParents: data.linkedExistingParents || 0,
-        errors: Array.isArray(data.errors) ? data.errors : [],
-      });
-      setOpenImportResult(true);
-      fetchData();
+      
+      if (res?.status === 'success') {
+        setPreviewData(res.data.previewData || []);
+        setOpenPreview(true);
+      } else {
+        toast.error(res?.message || 'Không thể đọc dữ liệu file');
+      }
     } catch (err) {
-      toast.error(err?.message || 'Import Excel thất bại');
+      toast.error(err?.message || 'Lỗi khi kiểm tra file Excel');
     } finally {
       setImporting(false);
       if (importInputRef.current) importInputRef.current.value = '';
+    }
+  };
+
+  const confirmImport = async (arg1, arg2) => {
+    let forceUpdate = false;
+    let skipDuplicates = false;
+    let selectedRowIndexes = null;
+    let allowUnassignedClass = false;
+
+    if (typeof arg1 === 'object' && arg1 !== null) {
+      forceUpdate = arg1.forceUpdate ?? false;
+      skipDuplicates = arg1.skipDuplicates ?? false;
+      selectedRowIndexes = arg1.selectedRowIndexes || null;
+      allowUnassignedClass = arg1.allowUnassignedClass ?? false;
+    } else {
+      forceUpdate = arg1 ?? false;
+      skipDuplicates = arg2 ?? false;
+    }
+
+    if (duplicateData?.[0]?.rowIndex === 'Thủ công') {
+      setShowDuplicateDialog(false);
+      if (forceUpdate) handleSubmitAdd(true);
+      return;
+    }
+
+    if (!pendingImportFile) return;
+    setOpenPreview(false); // Đóng preview nếu đang mở
+    setShowDuplicateDialog(false);
+    setImporting(true);
+    try {
+      const formData = new FormData();
+      formData.append('file', pendingImportFile);
+      formData.append('forceUpdate', forceUpdate);
+      formData.append('skipDuplicates', skipDuplicates);
+      formData.append('allowUnassignedClass', allowUnassignedClass);
+      if (selectedRowIndexes) {
+        formData.append('selectedRowIndexes', JSON.stringify(selectedRowIndexes));
+      }
+
+      const res = await postFormData(ENDPOINTS.STUDENTS.IMPORT_WITH_PARENT_EXCEL, formData);
+      
+      if (res?.status === 'warning') {
+        setDuplicateData(res.data.duplicates);
+        setShowDuplicateDialog(true);
+      } else {
+        const data = res?.data || {};
+        setImportResult({
+          createdStudents: data.createdStudents || 0,
+          createdParents: data.createdParents || 0,
+          linkedExistingParents: data.linkedExistingParents || 0,
+          errors: Array.isArray(data.errors) ? data.errors : [],
+          importResults: data.importResults || []
+        });
+        setOpenImportResult(true);
+        fetchData();
+      }
+    } catch (err) {
+      toast.error(err?.message || 'Thao tác thất bại');
+    } finally {
+      setImporting(false);
+      // Giữ pendingImportFile để nếu user cần confirm trùng lặp sau bước này
     }
   };
 
@@ -468,18 +573,10 @@ function ManageStudents() {
     return 'Chưa xếp lớp';
   };
 
-  const handleMenuSelect = createSchoolAdminMenuSelect(navigate);
+  // const handleMenuSelect = createSchoolAdminMenuSelect(navigate);
 
   return (
-    <RoleLayout
-      menuItems={menuItems}
-      activeKey="students"
-      onMenuSelect={handleMenuSelect}
-      onLogout={logout}
-      onViewProfile={() => navigate('/profile')}
-      userName={user?.fullName || user?.username}
-      userRole="SchoolAdmin"
-    >
+    <Box>
       <Box sx={{ mb: 4 }}>
         <Typography variant="h4" fontWeight={800} color="primary" gutterBottom>
           Quản lý học sinh
@@ -515,6 +612,8 @@ function ManageStudents() {
           academicYears={academicYears}
           classFilter={classFilter}
           setClassFilter={setClassFilter}
+          genderFilter={genderFilter}
+          setGenderFilter={setGenderFilter}
           classes={classes}
           onRefresh={fetchData}
           onAddStudent={handleOpenAdd}
@@ -546,6 +645,7 @@ function ManageStudents() {
         )}
       </Paper>
 
+      {/* Main Dialogs */}
       <AddStudentDialog
         open={openAdd}
         onClose={() => setOpenAdd(false)}
@@ -562,7 +662,7 @@ function ManageStudents() {
         addImageInputRef={addImageInputRef}
         onCheckExistingParent={handleCheckExistingParent}
         onAddImageChange={handleAddImageChange}
-        onSubmit={handleSubmitAdd}
+        onSubmit={() => handleSubmitAdd(false)}
         ctxLoading={ctxLoading}
       />
 
@@ -589,72 +689,54 @@ function ManageStudents() {
         resolvingId={resolvingId}
       />
 
-      {/* Delete Confirmation Dialog */}
-      <Dialog open={openDelete} onClose={() => setOpenDelete(false)}>
-        <DialogTitle>Xác nhận xóa học sinh</DialogTitle>
-        <DialogContent>
-          <Typography>
-            Bạn có chắc chắn muốn xóa học sinh <strong>{selectedStudent?.fullName}</strong>?
-            Hành động này không thể hoàn tác.
-          </Typography>
-          {deleteError && <Alert severity="error" sx={{ mt: 2 }}>{deleteError}</Alert>}
-        </DialogContent>
-        <DialogActions>
-          <Button onClick={() => setOpenDelete(false)}>Hủy</Button>
-          <Button onClick={handleConfirmDelete} color="error" variant="contained" disabled={ctxLoading}>
-            {ctxLoading ? <CircularProgress size={24} /> : 'Xóa'}
-          </Button>
-        </DialogActions>
-      </Dialog>
+      {/* Extracted Helper Dialogs */}
+      <DeleteConfirmDialog 
+        open={openDelete}
+        onClose={() => setOpenDelete(false)}
+        studentName={selectedStudent?.fullName}
+        onDelete={handleConfirmDelete}
+        loading={ctxLoading}
+        error={deleteError}
+      />
 
-      {/* Parent Existing Confirm */}
-      <Dialog open={showParentConfirm} onClose={() => setShowParentConfirm(false)}>
-        <DialogTitle>Phụ huynh đã tồn tại</DialogTitle>
-        <DialogContent>
-          <Typography>
-            Số điện thoại <strong>{formAdd.parent.phone}</strong> đã được đăng ký bởi phụ huynh:
-            <br />
-            <strong>{existingParentFound?.fullName}</strong> ({existingParentFound?.email})
-            <br /><br />
-            Bạn có muốn sử dụng lại tài khoản này cho học sinh mới không?
-          </Typography>
-        </DialogContent>
-        <DialogActions>
-          <Button onClick={() => setShowParentConfirm(false)}>Không, nhập số khác</Button>
-          <Button onClick={handleConfirmExistingParent} variant="contained" color="primary">Sử dụng tài khoản này</Button>
-        </DialogActions>
-      </Dialog>
+      <ParentMergeConfirmDialog 
+        open={showParentConfirm}
+        onClose={() => setShowParentConfirm(false)}
+        phone={formAdd.parent.phone}
+        parentName={existingParentFound?.fullName}
+        onConfirm={handleConfirmExistingParent}
+      />
 
-      {/* Import Result Dialog */}
-      <Dialog open={openImportResult} onClose={() => setOpenImportResult(false)} maxWidth="sm" fullWidth>
-        <DialogTitle>Kết quả import Excel</DialogTitle>
-        <DialogContent dividers>
-          <Stack spacing={1}>
-            <Alert severity="success">
-              Tạo học sinh thành công: <strong>{importResult?.createdStudents || 0}</strong>
-            </Alert>
-            <Alert severity="info">
-              Phụ huynh tạo mới: <strong>{importResult?.createdParents || 0}</strong> - Gán phụ huynh đã có: <strong>{importResult?.linkedExistingParents || 0}</strong>
-            </Alert>
-            {(importResult?.errors || []).length > 0 && (
-              <Alert severity="warning">
-                Có {(importResult?.errors || []).length} dòng lỗi:
-                <Box component="ul" sx={{ mt: 1, mb: 0, pl: 2 }}>
-                  {(importResult?.errors || []).slice(0, 8).map((err, i) => (
-                    <li key={i}>
-                      <Typography variant="caption">{err}</Typography>
-                    </li>
-                  ))}
-                </Box>
-              </Alert>
-            )}
-          </Stack>
-        </DialogContent>
-        <DialogActions>
-          <Button onClick={() => setOpenImportResult(false)}>Đóng</Button>
-        </DialogActions>
-      </Dialog>
-    </RoleLayout>
+      <PreviewImportDialog 
+        open={openPreview}
+        onClose={() => { setOpenPreview(false); setPendingImportFile(null); }}
+        data={previewData}
+        onConfirm={(args) => confirmImport(args)}
+        loading={importing}
+        onRevalidate={(allowUnassignedClass) => handleImportExcel(null, allowUnassignedClass)}
+      />
+
+      <ImportResultDialog 
+        open={openImportResult}
+        onClose={() => setOpenImportResult(false)}
+        result={importResult}
+        onDownloadResults={() => downloadImportResults(importResult?.importResults)}
+      />
+
+      <DuplicateConfirmDialog 
+        open={showDuplicateDialog}
+        onClose={() => setShowDuplicateDialog(false)}
+        data={duplicateData}
+        onConfirm={confirmImport}
+      />
+
+      <SuccessAccountDialog 
+        open={showSuccessDialog} 
+        onClose={() => setShowSuccessDialog(false)} 
+        data={successData} 
+        roleName="Phụ huynh"
+      />
+    </Box>
   );
 }
 

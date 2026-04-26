@@ -7,10 +7,8 @@
 import { useEffect, useState, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../../context/AuthContext';
-import RoleLayout from '../../layouts/RoleLayout';
 import { get } from '../../service/api';
-import { createSchoolAdminMenuSelect } from './schoolAdminMenuConfig';
-import { useSchoolAdminMenu } from './useSchoolAdminMenu';
+import { Box } from '@mui/material';
 
 // ── Màu theo mức coverage ────────────────────────────────────────────────────
 function getCoverageStyle(pct) {
@@ -215,9 +213,7 @@ function SummaryCard({ label, value, sub, borderColor }) {
 // ── Main Page ─────────────────────────────────────────────────────────────────
 export default function FaceAttendancePage() {
   const navigate = useNavigate();
-  const { user, logout, hasRole, isInitializing } = useAuth();
-  const menuItems = useSchoolAdminMenu();
-  const handleMenuSelect = createSchoolAdminMenuSelect(navigate);
+  const { user, hasRole, isInitializing } = useAuth();
 
   const [gradeGroups, setGradeGroups] = useState([]); // [{ gradeId, gradeName, ageRange, classes }]
   const [loading, setLoading] = useState(true);
@@ -308,17 +304,7 @@ export default function FaceAttendancePage() {
   const classesUnready = allClasses.filter((c) => c.registered < c.total).length;
 
   return (
-    <RoleLayout
-      title="Trạng thái khuôn mặt AI"
-      description="Theo dõi tỷ lệ đăng ký khuôn mặt để hệ thống điểm danh AI hoạt động hiệu quả."
-      menuItems={menuItems}
-      activeKey="face-attendance"
-      onLogout={() => { logout(); navigate('/login'); }}
-      onViewProfile={() => navigate('/profile')}
-      onMenuSelect={handleMenuSelect}
-      userName={user?.fullName || user?.username || 'Admin'}
-      userAvatar={user?.avatar}
-    >
+    <Box>
       {/* ── Header ── */}
       <div className="bg-gradient-to-r from-violet-600 to-indigo-600 rounded-2xl p-6 mb-6 text-white">
         <div className="flex items-center justify-between flex-wrap gap-3">
@@ -395,6 +381,6 @@ export default function FaceAttendancePage() {
           Nhấn vào tiêu đề khối để thu gọn/mở rộng.
         </div>
       )}
-    </RoleLayout>
+    </Box>
   );
 }

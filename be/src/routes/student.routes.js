@@ -6,6 +6,7 @@ const {
   createStudent,
   createStudentWithParent,
   getStudentDetail,
+  getStudentEvaluations,
   updateStudent,
   deleteStudent,
   checkUsernameAvailability,
@@ -324,6 +325,7 @@ router.post('/attendance/checkout', authenticate, authorizePermissions('CHECKOUT
  *         description: Không có quyền SchoolAdmin
  */
 router.get('/:studentId', authenticate, getStudentDetail);
+router.get('/:studentId/evaluations', authenticate, getStudentEvaluations);
 router.put('/:studentId', authenticate, updateStudent);
 router.delete('/:studentId', authenticate, authorizePermissions('MANAGE_STUDENT'), deleteStudent);
 

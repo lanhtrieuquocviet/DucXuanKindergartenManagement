@@ -134,36 +134,6 @@ function SystemLogs() {
     fetchLogs(1, pagination.limit, reset);
   };
 
-  const menuItems = useMemo(
-    () => [
-      { key: 'overview', label: 'Tổng quan hệ thống' },
-      { key: 'accounts', label: 'Quản lý người dùng' },
-      { key: 'roles', label: 'Quản lý vai trò' },
-      { key: 'permissions', label: 'Quản lý phân quyền' },
-      { key: 'bpm', label: 'Quản lý quy trình (BPM)' },
-      { key: 'system-logs', label: 'Nhật ký hệ thống' },
-      // { key: 'reports', label: 'Báo cáo tổng hợp' },
-    ],
-    []
-  );
-
-  const handleMenuSelect = (key) => {
-    if (key === 'overview') {
-      navigate('/system-admin');
-    } else if (key === 'accounts') {
-      navigate('/system-admin/manage-accounts');
-    } else if (key === 'roles') {
-      navigate('/system-admin/manage-roles');
-    } else if (key === 'permissions') {
-      navigate('/system-admin/manage-permissions');
-    } else if (key === 'bpm') {
-      navigate('/system-admin/bpm');
-    } else if (key === 'system-logs') {
-      navigate('/system-admin/system-logs');
-    } else {
-      navigate('/system-admin');
-    }
-  };
 
   const userName = user?.fullName || user?.username || 'System Admin';
 
@@ -172,20 +142,7 @@ function SystemLogs() {
   };
 
   return (
-    <RoleLayout
-      title="Nhật ký hệ thống"
-      description="Theo dõi các hoạt động quan trọng trong hệ thống."
-      menuItems={menuItems}
-      activeKey="system-logs"
-      onLogout={() => {
-        logout();
-        navigate('/login', { replace: true });
-      }}
-      userName={userName}
-      userAvatar={user?.avatar}
-      onViewProfile={handleViewProfile}
-      onMenuSelect={handleMenuSelect}
-    >
+    <Box>
       {/* Header Paper */}
       <Paper
         elevation={0}
@@ -590,7 +547,7 @@ function SystemLogs() {
           </Button>
         </DialogActions>
       </Dialog>
-    </RoleLayout>
+    </Box>
   );
 }
 

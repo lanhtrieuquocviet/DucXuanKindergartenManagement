@@ -97,14 +97,17 @@ const ROLES_POPULATE = {
  */
 const buildUserResponse = (user) => {
   const roles = (user.roles || []).map((role) => {
-    const ownPerms = (role.permissions || []).map((p) => (p.code ? p.code : p));
-    const parentPerms = role.parent
-      ? (role.parent.permissions || []).map((p) => (p.code ? p.code : p))
-      : [];
+    const ownPerms = (role.permissions || []);
+    const parentPerms = role.parent ? (role.parent.permissions || []) : [];
+    
+    // Flatten permissions and unique by code
+    const allPerms = [...ownPerms, ...parentPerms];
+    const uniquePerms = Array.from(new Map(allPerms.map(p => [p.code, p])).values());
+
     return {
       id: role._id,
       roleName: role.roleName,
-      permissions: [...new Set([...ownPerms, ...parentPerms])],
+      permissions: uniquePerms,
     };
   });
 
@@ -239,7 +242,7 @@ const login = async (req, res) => {
 
     let user = null;
 
-    // Chỉ role phụ huynh được đăng nhập bằng email/số điện thoại.
+    // Cho phép mọi role đăng nhập bằng email/số điện thoại nếu tìm thấy user khớp
     if (isEmailInput || isPhoneInput) {
       if (isEmailInput) {
         user = await User.findOne({
@@ -250,17 +253,6 @@ const login = async (req, res) => {
         if (!user) {
           // hỗ trợ dữ liệu legacy phone lưu trong username
           user = await User.findOne({ username: normalizedPhone }).populate(ROLES_POPULATE);
-        }
-      }
-
-      if (user) {
-        const roleNames = (user.roles || []).map((r) => r.roleName || r);
-        const isParentAccount = roleNames.some(isParentRoleName);
-        if (!isParentAccount) {
-          return res.status(401).json({
-            status: 'error',
-            message: 'Tài khoản này không đăng nhập bằng email/số điện thoại. Vui lòng đăng nhập bằng tài khoản.',
-          });
         }
       }
     }
@@ -287,11 +279,18 @@ const login = async (req, res) => {
     }
 
     const isPasswordValid = await bcrypt.compare(password, user.passwordHash);
-
     if (!isPasswordValid) {
       return res.status(401).json({
         status: 'error',
         message: 'Tài khoản hoặc mật khẩu không đúng',
+      });
+    }
+
+    // KIỂM TRA HẾT HẠN MẬT KHẨU TẠM (48 GIỜ)
+    if (user.isChangePassword === false && user.tempPasswordExpiresAt && new Date() > user.tempPasswordExpiresAt) {
+      return res.status(403).json({
+        status: 'error',
+        message: 'Mật khẩu tạm thời đã hết hạn (sau 48 giờ). Vui lòng liên hệ Admin nhà trường để cấp lại mật khẩu mới.',
       });
     }
 

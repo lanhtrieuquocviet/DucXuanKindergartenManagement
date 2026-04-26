@@ -1,7 +1,6 @@
 import { useEffect, useMemo, useState } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
 import { useAuth } from '../../context/AuthContext';
-import RoleLayout from '../../layouts/RoleLayout';
 import { get, post, ENDPOINTS } from '../../service/api';
 import { toast } from 'react-toastify';
 import {
@@ -216,17 +215,7 @@ export default function TeacherLeaveRequests() {
   };
 
   return (
-    <RoleLayout
-      title="Danh sách đơn xin nghỉ"
-      description="Duyệt hoặc từ chối đơn xin nghỉ của học sinh lớp phụ trách"
-      menuItems={menuItems}
-      activeKey={location.pathname.startsWith('/teacher/leave-requests') ? 'leave-requests' : 'classes'}
-      onLogout={() => { logout(); navigate('/login', { replace: true }); }}
-      userName={user?.fullName || user?.username || 'Teacher'}
-      userAvatar={user?.avatar}
-      onViewProfile={() => navigate('/profile')}
-      onMenuSelect={handleMenuSelect}
-    >
+    <Box>
       <Paper
         elevation={0}
         sx={{
@@ -435,6 +424,6 @@ export default function TeacherLeaveRequests() {
           </Button>
         </DialogActions>
       </Dialog>
-    </RoleLayout>
+    </Box>
   );
 }

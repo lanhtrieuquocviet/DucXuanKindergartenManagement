@@ -16,36 +16,33 @@ const {
   deletePermission,
   updateRolePermissions,
   getSystemLogs,
+  getDashboardStats,
 } = require('../controller/systemAdminController');
 
+const jobPositionController = require('../controller/jobPositionController');
+
 const router = express.Router();
+
+// Job Positions
+router.get('/job-positions', authenticate, jobPositionController.listJobPositions);
+router.post('/job-positions', authenticate, authorizeRoles('SystemAdmin'), jobPositionController.createJobPosition);
+router.put('/job-positions/:id', authenticate, authorizeRoles('SystemAdmin'), jobPositionController.updateJobPosition);
+router.delete('/job-positions/:id', authenticate, authorizeRoles('SystemAdmin'), jobPositionController.deleteJobPosition);
 
 /**
  * @openapi
  * /api/system-admin/dashboard:
  *   get:
- *     summary: Dashboard SystemAdmin
+ *     summary: Dashboard SystemAdmin (Thống kê hệ thống)
  *     tags:
  *       - SystemAdmin
  *     security:
  *       - bearerAuth: []
  *     responses:
  *       200:
- *         description: Thông tin dashboard
- *       401:
- *         description: Chưa xác thực
- *       403:
- *         description: Không có quyền SystemAdmin
+ *         description: Thông tin thống kê chi tiết của hệ thống
  */
-router.get('/dashboard', authenticate, authorizeRoles('SystemAdmin'), (req, res) => {
-  return res.status(200).json({
-    status: 'success',
-    message: 'Trang SystemAdmin dashboard',
-    data: {
-      user: req.user,
-    },
-  });
-});
+router.get('/dashboard', authenticate, authorizeRoles('SystemAdmin'), getDashboardStats);
 
 /**
  * @openapi

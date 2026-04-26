@@ -156,6 +156,7 @@ function Header() {
                             src={logoDucXuan}
                             alt="Logo trường"
                             className="w-12 h-12 rounded-full border-2 border-white object-cover shadow"
+                            decoding="async"
                         />
                         <div className="leading-tight text-white hidden sm:block">
                             <div className="text-[9px] font-semibold uppercase tracking-wide whitespace-nowrap opacity-90">

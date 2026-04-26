@@ -1,7 +1,6 @@
 import { useEffect, useState, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../../context/AuthContext';
-import RoleLayout from '../../layouts/RoleLayout';
 import { get, ENDPOINTS } from '../../service/api';
 import {
   Box, Paper, Typography, Button, Stack, CircularProgress, Alert,
@@ -22,11 +21,6 @@ const STATUS_CONFIG = {
   concerning: { label: 'Đáng lo ngại', color: 'error'  },
 };
 
-const MENU_ITEMS = [
-  { key: 'overview',  label: 'Tổng quan sức khỏe', icon: <DashboardIcon fontSize="small" /> },
-  { key: 'health',    label: 'Quản lý sức khỏe',    icon: <MedicalIcon fontSize="small" /> },
-  { key: 'incidents', label: 'Ghi nhận bất thường', icon: <WarningIcon fontSize="small" /> },
-];
 
 function toDateStr(d) {
   return (d instanceof Date ? d : new Date(d)).toISOString().slice(0, 10);
@@ -95,23 +89,9 @@ export default function MedicalStaffDashboard() {
       .slice(0, 8)
   ), [rows]);
 
-  const onMenuSelect = (k) => {
-    if (k === 'health') navigate('/medical-staff/health');
-    if (k === 'incidents') navigate('/medical-staff/incidents');
-  };
 
   return (
-    <RoleLayout
-      menuItems={MENU_ITEMS}
-      activeKey="overview"
-      onMenuSelect={onMenuSelect}
-      onLogout={handleLogout}
-      onViewProfile={() => navigate('/profile')}
-      userName={user?.fullName || user?.username || 'Nhân viên y tế'}
-      userRole="MedicalStaff"
-      pageTitle="Tổng quan sức khỏe"
-    >
-      <Box sx={{ p: { xs: 2, md: 3 }, maxWidth: 1200, mx: 'auto' }}>
+    <Box sx={{ p: { xs: 2, md: 3 }, maxWidth: 1200, mx: 'auto' }}>
         <Paper elevation={0} sx={{ mb: 3, p: 3, background: 'linear-gradient(135deg, #6366f1 0%, #0891b2 100%)', borderRadius: 2 }}>
           <Stack direction="row" alignItems="center" spacing={1.5}>
             <DashboardIcon sx={{ color: 'white', fontSize: 32 }} />
@@ -248,6 +228,5 @@ export default function MedicalStaffDashboard() {
           </>
         )}
       </Box>
-    </RoleLayout>
   );
 }

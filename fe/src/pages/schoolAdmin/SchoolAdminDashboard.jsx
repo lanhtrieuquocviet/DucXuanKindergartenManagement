@@ -1,8 +1,7 @@
 import { useEffect, useMemo, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../../context/AuthContext';
-import RoleLayout from '../../layouts/RoleLayout';
-import { SCHOOL_ADMIN_MENU_ITEMS, createSchoolAdminMenuSelect, filterMenuByPermissions } from './schoolAdminMenuConfig';
+import { useAppMenu } from '../../hooks/useAppMenu';
 import { Box, Paper, Typography, Stack, Divider, LinearProgress } from '@mui/material';
 import {
   Groups as GroupsIcon,
@@ -15,10 +14,6 @@ import { get, ENDPOINTS } from '../../service/api';
 function SchoolAdminDashboard() {
   const navigate = useNavigate();
   const { user, logout, isInitializing, hasPermission } = useAuth();
-  const menuItems = useMemo(
-    () => filterMenuByPermissions(SCHOOL_ADMIN_MENU_ITEMS, hasPermission),
-    [hasPermission]
-  );
   const [now, setNow] = useState(new Date());
   const [stats, setStats] = useState({
     studentTotal: 0,
@@ -154,7 +149,6 @@ function SchoolAdminDashboard() {
 
   const userName = user?.fullName || user?.username || 'School Admin';
 
-  const handleMenuSelect = createSchoolAdminMenuSelect(navigate);
 
   const dateTimeText = useMemo(() => {
     return new Intl.DateTimeFormat('vi-VN', {
@@ -194,20 +188,7 @@ function SchoolAdminDashboard() {
   ];
 
   return (
-    <RoleLayout
-      title="Bảng điều khiển của Ban giám hiệu"
-      description="Quản lý trường, lớp học, giáo viên và phụ huynh trong phạm vi trường."
-      menuItems={menuItems}
-      activeKey="overview"
-      onLogout={() => {
-        logout();
-        navigate('/login', { replace: true });
-      }}
-      userName={userName}
-      userAvatar={user?.avatar}
-      onViewProfile={() => navigate('/profile')}
-      onMenuSelect={handleMenuSelect}
-    >
+    <Box>
       <Typography variant="h4" fontWeight={800} sx={{ color: '#312eae', mb: 3 }}>
         Dashboard Tổng quan trường - {dateTimeText}
       </Typography>
@@ -294,7 +275,7 @@ function SchoolAdminDashboard() {
           </Paper>
         </Box>
       </Box>
-    </RoleLayout>
+    </Box>
   );
 }
 

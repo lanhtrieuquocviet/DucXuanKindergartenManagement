@@ -529,6 +529,15 @@ exports.updateStudentEvaluation = async (req, res) => {
     const cls = await Classes.findOne({ _id: student.classId._id, teacherIds: teacher._id }).lean();
     if (!cls) return res.status(403).json({ status: 'error', message: 'Bạn không phụ trách lớp của học sinh này.' });
 
+    // --- BỔ SUNG: Kiểm tra "Khóa sổ" (Hard Archive) ---
+    const ay = await AcademicYear.findById(cls.academicYearId).select('status').lean();
+    if (ay && ay.status === 'inactive') {
+      return res.status(403).json({
+        status: 'error',
+        message: 'Không thể cập nhật đánh giá cho năm học đã kết thúc (Hard Archive).',
+      });
+    }
+
     // Cập nhật hoặc tạo enrollment
     const enrollment = await Enrollment.findOneAndUpdate(
       {

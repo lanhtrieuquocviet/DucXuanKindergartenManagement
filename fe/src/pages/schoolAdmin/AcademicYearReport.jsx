@@ -20,7 +20,6 @@ import { useEffect, useMemo, useState } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import { toast } from 'react-toastify';
 import { useAuth } from '../../context/AuthContext';
-import RoleLayout from '../../layouts/RoleLayout';
 import { ENDPOINTS, get } from '../../service/api';
 import { createSchoolAdminMenuSelect } from './schoolAdminMenuConfig';
 import { useSchoolAdminMenu } from './useSchoolAdminMenu';
@@ -108,7 +107,7 @@ export default function AcademicYearReport() {
     navigate('/profile');
   };
 
-  const handleMenuSelect = createSchoolAdminMenuSelect(navigate);
+  const onMenuSelect = (path) => navigate(path);
 
   useEffect(() => {
     let cancelled = false;
@@ -118,7 +117,6 @@ export default function AcademicYearReport() {
         setLoading(true);
         setSummary(null);
 
-        // Ưu tiên lấy tóm tắt qua endpoint "history" (dùng được cho cả năm kết thúc/tra cứu).
         let resolvedYearId = yearId || '';
         if (yearId) {
           const params = new URLSearchParams();
@@ -267,17 +265,7 @@ export default function AcademicYearReport() {
   const userName = user?.fullName || user?.username || 'School Admin';
 
   return (
-    <RoleLayout
-      title={`Báo cáo & Thống kê - Năm học ${yearName}`}
-      description="Tổng hợp dữ liệu và báo cáo qua từng năm học."
-      menuItems={menuItems}
-      activeKey="academic-report"
-      onLogout={handleLogout}
-      onViewProfile={handleViewProfile}
-      onMenuSelect={handleMenuSelect}
-      userName={userName}
-      userAvatar={user?.avatar}
-    >
+    <Box>
       <Stack spacing={3}>
         <Box>
           <Typography variant="overline" color="text.secondary" sx={{ letterSpacing: 1 }}>
@@ -472,6 +460,6 @@ export default function AcademicYearReport() {
           </Table>
         </TableContainer>
       </Stack>
-    </RoleLayout>
+    </Box>
   );
 }

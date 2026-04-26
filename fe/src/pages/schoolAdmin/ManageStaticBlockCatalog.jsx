@@ -1,10 +1,7 @@
 import { useEffect, useMemo, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import RoleLayout from '../../layouts/RoleLayout';
 import { useAuth } from '../../context/AuthContext';
 import { del, get, post, put, ENDPOINTS } from '../../service/api';
-import { createSchoolAdminMenuSelect } from './schoolAdminMenuConfig';
-import { useSchoolAdminMenu } from './useSchoolAdminMenu';
 import {
   Alert,
   Box,
@@ -62,8 +59,7 @@ function getAgeLabel(block) {
 
 function ManageStaticBlockCatalog() {
   const navigate = useNavigate();
-  const { user, hasRole, logout, isInitializing } = useAuth();
-  const menuItems = useSchoolAdminMenu();
+  const { user, hasRole, isInitializing } = useAuth();
 
   const [blocks, setBlocks] = useState([]);
   const [loading, setLoading] = useState(false);
@@ -206,25 +202,8 @@ function ManageStaticBlockCatalog() {
     );
   }, [blocks, searchTerm]);
 
-  const handleLogout = () => {
-    logout();
-    navigate('/login', { replace: true });
-  };
-
-  const handleMenuSelect = createSchoolAdminMenuSelect(navigate);
-
   return (
-    <RoleLayout
-      title="Cấu hình khối"
-      description="Quản lý danh mục khối và cấu hình độ tuổi, số lớp tối đa cho từng khối."
-      menuItems={menuItems}
-      activeKey="static-blocks"
-      onLogout={handleLogout}
-      onViewProfile={() => navigate('/profile')}
-      onMenuSelect={handleMenuSelect}
-      userName={user?.fullName || user?.username || 'Admin'}
-      userAvatar={user?.avatar}
-    >
+    <Box>
       {error && (
         <Alert severity="error" sx={{ mb: 2 }} onClose={() => setError(null)}>
           {error}
@@ -542,7 +521,7 @@ function ManageStaticBlockCatalog() {
           </Button>
         </DialogActions>
       </Dialog>
-    </RoleLayout>
+    </Box>
   );
 }
 

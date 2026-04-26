@@ -176,6 +176,10 @@ export const AuthProvider = ({
   }, [clearAuth]);
 
   const forceLogout = useCallback((payload) => {
+    if (payload?.code === 'PASSWORD_CHANGE_REQUIRED') {
+      window.location.href = '/profile?forceChangePassword=1';
+      return;
+    }
     const message = payload?.message || 'Phiên đăng nhập đã kết thúc. Vui lòng đăng nhập lại.';
     clearAuth(message);
   }, [clearAuth]);
@@ -319,11 +323,15 @@ export const AuthProvider = ({
   // Nếu user chưa có permission nào (DB chưa seed) → trả về true để không ẩn menu.
   const hasPermission = useCallback((code) => {
     if (!user || !user.roles) return false;
-    const allCodes = user.roles.flatMap((role) =>
-      Array.isArray(role.permissions) ? role.permissions : []
-    );
-    if (allCodes.length === 0) return true; // chưa seed → show all
-    return allCodes.includes(code);
+    
+    // Thu thập tất cả các mã code từ các roles
+    const allPermissionCodes = user.roles.flatMap((role) => {
+      if (!Array.isArray(role.permissions)) return [];
+      return role.permissions.map(p => (typeof p === 'object' ? p.code : p));
+    });
+
+    if (allPermissionCodes.length === 0) return false;
+    return allPermissionCodes.includes(code);
   }, [user]);
 
   const value = {

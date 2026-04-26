@@ -69,8 +69,25 @@ const authenticate = async (req, res, next) => {
     if (user.passwordChangedAt && decoded.iat * 1000 < new Date(user.passwordChangedAt).getTime()) {
       return res.status(401).json({
         status: 'error',
-        message: 'Phiên đăng nhập đã bị thu hết do thay đổi mật khẩu. Vui lòng đăng nhập lại.',
+        message: 'Phiên đăng nhập đã bị thu hồi do thay đổi mật khẩu. Vui lòng đăng nhập lại.',
       });
+    }
+
+    // Kiểm tra nếu người dùng chưa đổi mật khẩu lần đầu
+    if (user.isChangePassword === false) {
+      const path = req.originalUrl.split('?')[0];
+      const isAllowed =
+        (path.endsWith('/api/auth/change-password') && req.method === 'POST') ||
+        (path.endsWith('/api/auth/me') && req.method === 'GET') ||
+        (path.endsWith('/api/auth/logout') && req.method === 'POST');
+
+      if (!isAllowed) {
+        return res.status(403).json({
+          status: 'error',
+          code: 'PASSWORD_CHANGE_REQUIRED',
+          message: 'Bạn phải đổi mật khẩu trong lần đăng nhập đầu tiên để tiếp tục sử dụng hệ thống.',
+        });
+      }
     }
 
     const roles = (user.roles || []).map((role) => {

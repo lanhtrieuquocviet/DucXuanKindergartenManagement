@@ -2,7 +2,6 @@ import { useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Box, Paper, Typography, Stack } from '@mui/material';
 import { ShoppingCart as ShoppingCartIcon } from '@mui/icons-material';
-import RoleLayout from '../../layouts/RoleLayout';
 import { useAuth } from '../../context/AuthContext';
 
 function HeadTeacherAssetIncidents() {
@@ -44,17 +43,7 @@ function HeadTeacherAssetIncidents() {
   ];
 
   return (
-    <RoleLayout
-      title="Điều phối xử lý sự cố"
-      description="Theo dõi báo cáo sự cố của giáo viên và điều phối xử lý trước khi chuyển BGH."
-      menuItems={menuItems}
-      activeKey="manage-asset-incidents"
-      onLogout={() => { logout(); navigate('/login', { replace: true }); }}
-      userName={userName}
-      userAvatar={user?.avatar}
-      onViewProfile={() => navigate('/profile')}
-      onMenuSelect={handleMenuSelect}
-    >
+    <Box>
       <Paper
         elevation={0}
         sx={{
@@ -86,7 +75,7 @@ function HeadTeacherAssetIncidents() {
           điều phối xử lý và chuyển lên ban giám hiệu.
         </Typography>
       </Stack>
-    </RoleLayout>
+    </Box>
   );
 }
 

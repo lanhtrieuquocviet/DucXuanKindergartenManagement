@@ -1,11 +1,8 @@
 import { useEffect, useState } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import { useAuth } from '../../context/AuthContext';
-import RoleLayout from '../../layouts/RoleLayout';
 import ConfirmDialog from '../../components/ConfirmDialog';
 import { get, del, ENDPOINTS } from '../../service/api';
-import { createSchoolAdminMenuSelect } from './schoolAdminMenuConfig';
-import { useSchoolAdminMenu } from './useSchoolAdminMenu';
 import 'quill/dist/quill.snow.css';
 
 import {
@@ -32,8 +29,7 @@ const STATUS_DISPLAY = {
 function DocumentDetail() {
   const { documentId } = useParams();
   const navigate = useNavigate();
-  const { user, logout, isInitializing } = useAuth();
-  const menuItems = useSchoolAdminMenu();
+  const { user, isInitializing } = useAuth();
 
   const [document, setDocument] = useState(null);
   const [loading, setLoading] = useState(true);
@@ -83,17 +79,6 @@ function DocumentDetail() {
     navigate('/school-admin/documents');
   };
 
-  const handleMenuSelect = createSchoolAdminMenuSelect(navigate);
-
-  const handleLogout = () => {
-    logout();
-    navigate('/login', { replace: true });
-  };
-
-  const handleViewProfile = () => {
-    navigate('/profile');
-  };
-
   const handleDelete = async () => {
     try {
       setDeleting(true);
@@ -113,38 +98,17 @@ function DocumentDetail() {
 
   if (loading) {
     return (
-      <RoleLayout
-        title="Chi tiết tài liệu"
-        menuItems={menuItems}
-        activeKey="documents"
-        onMenuSelect={handleMenuSelect}
-        onLogout={handleLogout}
-        onViewProfile={handleViewProfile}
-        userName={user?.fullName || user?.username}
-        userAvatar={user?.avatar}
-      >
-        <Box sx={{ display: 'flex', justifyContent: 'center', alignItems: 'center', height: 384 }}>
-          <Stack alignItems="center" spacing={2}>
-            <CircularProgress />
-            <Typography color="text.secondary">Đang tải...</Typography>
-          </Stack>
-        </Box>
-      </RoleLayout>
+      <Box sx={{ display: 'flex', justifyContent: 'center', alignItems: 'center', height: 384 }}>
+        <Stack alignItems="center" spacing={2}>
+          <CircularProgress />
+          <Typography color="text.secondary">Đang tải...</Typography>
+        </Stack>
+      </Box>
     );
   }
 
   return (
-    <RoleLayout
-      title="Chi tiết tài liệu"
-      description={document?.title || 'Xem thông tin chi tiết tài liệu'}
-      menuItems={menuItems}
-      activeKey="documents"
-      onMenuSelect={handleMenuSelect}
-      onLogout={handleLogout}
-      onViewProfile={handleViewProfile}
-      userName={user?.fullName || user?.username}
-      userAvatar={user?.avatar}
-    >
+    <Box>
       {error && (
         <Alert severity="error" sx={{ mb: 2 }}>
           {error}
@@ -340,7 +304,7 @@ function DocumentDetail() {
         onCancel={() => setConfirmDelete(false)}
         loading={deleting}
       />
-    </RoleLayout>
+    </Box>
   );
 }
 

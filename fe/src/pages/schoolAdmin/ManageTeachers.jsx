@@ -1,10 +1,7 @@
 import { useEffect, useState, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
-import RoleLayout from '../../layouts/RoleLayout';
 import { useAuth } from '../../context/AuthContext';
 import { get, post, put, del, ENDPOINTS } from '../../service/api';
-import { createSchoolAdminMenuSelect } from './schoolAdminMenuConfig';
-import { useSchoolAdminMenu } from './useSchoolAdminMenu';
 import {
   Box,
   Paper,
@@ -62,7 +59,6 @@ const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 export default function ManageTeachers({ isEmbedded = false }) {
   const navigate = useNavigate();
   const { user, hasRole, isInitializing } = useAuth();
-  const menuItems = useSchoolAdminMenu();
 
   const [teachers, setTeachers] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -238,7 +234,7 @@ export default function ManageTeachers({ isEmbedded = false }) {
 
   const paginated = filtered.slice(page * PAGE_SIZE, (page + 1) * PAGE_SIZE);
 
-  const handleMenuSelect = createSchoolAdminMenuSelect(navigate);
+  // const handleMenuSelect = createSchoolAdminMenuSelect(navigate);
 
   const content = (
     <Box sx={{ p: isEmbedded ? 0 : { xs: 2, md: 3 }, maxWidth: 1100, mx: 'auto' }}>
@@ -354,18 +350,9 @@ export default function ManageTeachers({ isEmbedded = false }) {
   }
 
   return (
-    <RoleLayout
-      menuItems={menuItems}
-      activeKey="teachers"
-      onMenuSelect={handleMenuSelect}
-      onLogout={() => {}}
-      onViewProfile={() => navigate('/profile')}
-      userName={user?.fullName || user?.username || 'Admin'}
-      userRole="SchoolAdmin"
-      pageTitle="Giáo viên"
-    >
+    <>
       {content}
       {dialogs}
-    </RoleLayout>
+    </>
   );
 }

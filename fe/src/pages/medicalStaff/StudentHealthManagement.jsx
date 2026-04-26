@@ -3,7 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import * as XLSX from 'xlsx';
 import { toast } from 'react-toastify';
 import { useAuth } from '../../context/AuthContext';
-import RoleLayout from '../../layouts/RoleLayout';
+
 import { get, post, put, del, ENDPOINTS } from '../../service/api';
 import {
   Box, Paper, Typography, Button, Stack, TextField, Chip,
@@ -47,11 +47,6 @@ function bmiLabel(bmi) {
 
 const IMPORT_COLUMNS = ['Tên học sinh', 'Lớp', 'Chiều cao (cm)', 'Cân nặng (kg)', 'Tiền sử bệnh', 'Dị ứng', 'Ghi chú'];
 
-const MENU_ITEMS = [
-  { key: 'overview',  label: 'Tổng quan sức khỏe', icon: <DashboardIcon fontSize="small" /> },
-  { key: 'health',    label: 'Quản lý sức khỏe',    icon: <MedicalIcon fontSize="small" /> },
-  { key: 'incidents', label: 'Ghi nhận bất thường', icon: <WarningIcon fontSize="small" /> },
-];
 
 const EMPTY_FORM = {
   height: '', weight: '', temperature: '', heartRate: '',
@@ -372,19 +367,7 @@ export default function StudentHealthManagement() {
   }, [rows]);
 
   return (
-    <RoleLayout
-      menuItems={MENU_ITEMS}
-      activeKey="health"
-      onMenuSelect={k => {
-        if (k === 'overview') navigate('/medical-staff');
-        else if (k === 'incidents') navigate('/medical-staff/incidents');
-      }}
-      onLogout={handleLogout}
-      onViewProfile={() => navigate('/profile')}
-      userName={user?.fullName || user?.username || 'Nhân viên y tế'}
-      userRole="MedicalStaff"
-      pageTitle="Quản lý sức khỏe"
-    >
+    <>
       <Box sx={{ p: { xs: 2, md: 3 }, maxWidth: 1300, mx: 'auto' }}>
         {/* Header */}
         <Paper elevation={0} sx={{ mb: 3, p: 3, background: 'linear-gradient(135deg, #0891b2 0%, #0e7490 100%)', borderRadius: 2 }}>
@@ -644,6 +627,6 @@ export default function StudentHealthManagement() {
           </Button>
         </DialogActions>
       </Dialog>
-    </RoleLayout>
+    </>
   );
 }

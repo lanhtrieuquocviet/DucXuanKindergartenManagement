@@ -1,52 +1,65 @@
-import { useEffect, useState, useMemo, useCallback } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { toast } from 'react-toastify';
 import { useAuth } from '../../context/AuthContext';
-import RoleLayout from '../../layouts/RoleLayout';
-import { get, post, patch, del, ENDPOINTS } from '../../service/api';
+
 import {
-  Box, Paper, Typography, Button, Stack, TextField, Chip,
-  Table, TableHead, TableBody, TableRow, TableCell, TableContainer,
-  CircularProgress, Alert, Avatar, MenuItem, Select, FormControl,
-  InputLabel, IconButton, Tooltip,
-  Dialog, DialogTitle, DialogContent, DialogActions, Autocomplete,
-} from '@mui/material';
-import {
-  HealthAndSafety as SafetyIcon,
-  MedicalServices as MedicalIcon,
   Add as AddIcon,
   Delete as DeleteIcon,
   Edit as EditIcon,
-  ChevronLeft as PrevIcon,
   ChevronRight as NextIcon,
-  Today as TodayIcon,
-  Warning as WarningIcon,
-  CheckCircle as RecoveredIcon,
   Person as PersonIcon,
-  Dashboard as DashboardIcon,
+  ChevronLeft as PrevIcon,
+  HealthAndSafety as SafetyIcon,
+  Today as TodayIcon,
+  Warning as WarningIcon
 } from '@mui/icons-material';
+import {
+  Alert,
+  Autocomplete,
+  Avatar,
+  Box,
+  Button,
+  Chip,
+  CircularProgress,
+  Dialog,
+  DialogActions,
+  DialogContent,
+  DialogTitle,
+  FormControl,
+  IconButton,
+  InputLabel,
+  MenuItem,
+  Paper,
+  Select,
+  Stack,
+  Table,
+  TableBody,
+  TableCell, TableContainer,
+  TableHead,
+  TableRow,
+  TextField,
+  Tooltip,
+  Typography,
+} from '@mui/material';
+import { del, ENDPOINTS, get, patch, post } from '../../service/api';
 
 // ── Constants ─────────────────────────────────────────────────────────────────
 const SEVERITY_CONFIG = {
-  mild:     { label: 'Nhẹ',     color: 'info',    bg: '#e0f2fe', text: '#0369a1' },
-  moderate: { label: 'Vừa',     color: 'warning', bg: '#fef3c7', text: '#d97706' },
-  severe:   { label: 'Nặng',    color: 'error',   bg: '#fee2e2', text: '#dc2626' },
+  mild: { label: 'Nhẹ', color: 'info', bg: '#e0f2fe', text: '#0369a1' },
+  moderate: { label: 'Vừa', color: 'warning', bg: '#fef3c7', text: '#d97706' },
+  severe: { label: 'Nặng', color: 'error', bg: '#fee2e2', text: '#dc2626' },
 };
 
 const STATUS_CONFIG = {
   monitoring: { label: 'Đang theo dõi', color: 'warning' },
-  sent_home:  { label: 'Cho về nhà',    color: 'error'   },
-  recovered:  { label: 'Đã hồi phục',   color: 'success' },
-  referred:   { label: 'Chuyển viện',   color: 'error'   },
+  sent_home: { label: 'Cho về nhà', color: 'error' },
+  recovered: { label: 'Đã hồi phục', color: 'success' },
+  referred: { label: 'Chuyển viện', color: 'error' },
 };
 
 const COMMON_SYMPTOMS = ['Sốt', 'Ho', 'Đau bụng', 'Đau đầu', 'Nôn mửa', 'Tiêu chảy', 'Dị ứng', 'Chấn thương', 'Khó thở', 'Mệt mỏi'];
 
-const MENU_ITEMS = [
-  { key: 'overview',  label: 'Tổng quan sức khỏe', icon: <DashboardIcon fontSize="small" /> },
-  { key: 'health',    label: 'Quản lý sức khỏe', icon: <MedicalIcon fontSize="small" /> },
-  { key: 'incidents', label: 'Ghi nhận bất thường', icon: <WarningIcon fontSize="small" /> },
-];
 
 const toDateStr = (d) => {
   const dt = d instanceof Date ? d : new Date(d);
@@ -55,19 +68,19 @@ const toDateStr = (d) => {
 
 // ── Main page ─────────────────────────────────────────────────────────────────
 export default function HealthIncidentPage() {
-  const navigate   = useNavigate();
+  const navigate = useNavigate();
   const { user, hasRole, hasPermission, logout, isInitializing } = useAuth();
 
   const today = toDateStr(new Date());
   const [selectedDate, setSelectedDate] = useState(today);
-  const [incidents, setIncidents]       = useState([]);
-  const [loading, setLoading]           = useState(false);
-  const [error, setError]               = useState(null);
+  const [incidents, setIncidents] = useState([]);
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState(null);
 
   // Students list cho autocomplete
-  const [students, setStudents]         = useState([]);
-  const [classes, setClasses]           = useState([]);
-  const [classFilter, setClassFilter]   = useState('');
+  const [students, setStudents] = useState([]);
+  const [classes, setClasses] = useState([]);
+  const [classFilter, setClassFilter] = useState('');
 
   // Form state (trong dialog ghi nhận mới)
   const [createOpen, setCreateOpen] = useState(false);
@@ -77,9 +90,9 @@ export default function HealthIncidentPage() {
   const [saving, setSaving] = useState(false);
 
   // Edit / delete
-  const [editTarget, setEditTarget]   = useState(null);
+  const [editTarget, setEditTarget] = useState(null);
   const [deleteTarget, setDeleteTarget] = useState(null);
-  const [deleting, setDeleting]       = useState(false);
+  const [deleting, setDeleting] = useState(false);
 
   useEffect(() => {
     if (isInitializing) return;
@@ -138,12 +151,12 @@ export default function HealthIncidentPage() {
     setSaving(true);
     try {
       await post(ENDPOINTS.STUDENTS.HEALTH_INCIDENTS, {
-        studentId:   form.studentId._id,
-        date:        selectedDate,
-        symptoms:    form.symptoms.trim(),
+        studentId: form.studentId._id,
+        date: selectedDate,
+        symptoms: form.symptoms.trim(),
         description: form.description.trim(),
-        severity:    form.severity,
-        status:      form.status,
+        severity: form.severity,
+        status: form.status,
       });
       toast.success('Đã ghi nhận bất thường');
       setForm({ studentId: null, symptoms: '', description: '', severity: 'mild', status: 'monitoring' });
@@ -162,9 +175,9 @@ export default function HealthIncidentPage() {
     setSaving(true);
     try {
       await patch(ENDPOINTS.STUDENTS.HEALTH_INCIDENT_UPDATE(editTarget._id), {
-        status:      editTarget.status,
+        status: editTarget.status,
         description: editTarget.description,
-        severity:    editTarget.severity,
+        severity: editTarget.severity,
       });
       toast.success('Đã cập nhật');
       setEditTarget(null);
@@ -194,28 +207,16 @@ export default function HealthIncidentPage() {
 
   // ── Stats ─────────────────────────────────────────────────────
   const stats = useMemo(() => ({
-    total:      incidents.length,
-    severe:     incidents.filter(i => i.severity === 'severe').length,
+    total: incidents.length,
+    severe: incidents.filter(i => i.severity === 'severe').length,
     monitoring: incidents.filter(i => i.status === 'monitoring').length,
-    recovered:  incidents.filter(i => i.status === 'recovered').length,
+    recovered: incidents.filter(i => i.status === 'recovered').length,
   }), [incidents]);
 
   const handleLogout = () => { logout(); navigate('/login', { replace: true }); };
 
   return (
-    <RoleLayout
-      menuItems={MENU_ITEMS}
-      activeKey="incidents"
-      onMenuSelect={k => {
-        if (k === 'overview') navigate('/medical-staff');
-        else if (k === 'health') navigate('/medical-staff/health');
-      }}
-      onLogout={handleLogout}
-      onViewProfile={() => navigate('/profile')}
-      userName={user?.fullName || user?.username || 'Nhân viên y tế'}
-      userRole="MedicalStaff"
-      pageTitle="Ghi nhận bất thường"
-    >
+    <>
       <Box sx={{ p: { xs: 2, md: 3 }, width: '100%', maxWidth: 1800, mx: 'auto' }}>
 
         {/* Header */}
@@ -268,16 +269,25 @@ export default function HealthIncidentPage() {
                 {classes.map(c => <MenuItem key={c._id} value={c._id}>{c.className || c.name}</MenuItem>)}
               </Select>
             </FormControl>
+
+            <Button
+              variant="contained"
+              startIcon={<AddIcon />}
+              onClick={() => setCreateOpen(true)}
+              sx={{ bgcolor: '#dc2626', '&:hover': { bgcolor: '#b91c1c' }, fontWeight: 700, whiteSpace: 'nowrap' }}
+            >
+              Ghi nhận bất thường
+            </Button>
           </Stack>
         </Paper>
 
         {/* ── Stat cards ────────────────────────────────────────── */}
         <Stack direction={{ xs: 'column', sm: 'row' }} spacing={1.5} mb={2.5}>
           {[
-            { label: 'Tổng bất thường', val: stats.total,      color: '#dc2626', bg: '#fef2f2' },
-            { label: 'Mức độ nặng',     val: stats.severe,     color: '#b91c1c', bg: '#fee2e2' },
-            { label: 'Đang theo dõi',   val: stats.monitoring, color: '#d97706', bg: '#fef3c7' },
-            { label: 'Đã hồi phục',     val: stats.recovered,  color: '#16a34a', bg: '#dcfce7' },
+            { label: 'Tổng bất thường', val: stats.total, color: '#dc2626', bg: '#fef2f2' },
+            { label: 'Mức độ nặng', val: stats.severe, color: '#b91c1c', bg: '#fee2e2' },
+            { label: 'Đang theo dõi', val: stats.monitoring, color: '#d97706', bg: '#fef3c7' },
+            { label: 'Đã hồi phục', val: stats.recovered, color: '#16a34a', bg: '#dcfce7' },
           ].map(s => (
             <Paper key={s.label} elevation={0} sx={{ flex: 1, px: 2, py: 1.5, borderRadius: 2, bgcolor: s.bg }}>
               <Typography variant="h5" fontWeight={800} color={s.color}>{s.val}</Typography>
@@ -288,126 +298,118 @@ export default function HealthIncidentPage() {
 
         {/* ── Bảng full width ───────────────────────────────── */}
         <Paper elevation={1} sx={{ borderRadius: 2, width: '100%' }}>
-            <Box sx={{ px: 2.5, py: 2, borderBottom: '1px solid', borderColor: 'divider' }}>
-              <Stack direction={{ xs: 'column', sm: 'row' }} alignItems={{ sm: 'center' }} spacing={1.5} justifyContent="space-between">
-                <Stack direction="row" alignItems="center" spacing={1} flexWrap="wrap" useFlexGap>
-                  <WarningIcon sx={{ color: '#dc2626', fontSize: 20 }} />
-                  <Typography variant="subtitle1" fontWeight={700}>
-                    Danh sách bất thường — {new Date(selectedDate).toLocaleDateString('vi-VN')}
-                  </Typography>
-                  {incidents.length > 0 && (
-                    <Chip label={incidents.length} size="small"
-                      sx={{ bgcolor: '#fee2e2', color: '#dc2626', fontWeight: 700, fontSize: '0.72rem' }} />
-                  )}
-                </Stack>
-                <Button
-                  variant="contained"
-                  startIcon={<AddIcon />}
-                  onClick={() => setCreateOpen(true)}
-                  sx={{ bgcolor: '#dc2626', '&:hover': { bgcolor: '#b91c1c' }, fontWeight: 700, whiteSpace: 'nowrap' }}
-                >
-                  Ghi nhận bất thường
-                </Button>
+          <Box sx={{ px: 2.5, py: 2, borderBottom: '1px solid', borderColor: 'divider' }}>
+            <Stack direction={{ xs: 'column', sm: 'row' }} alignItems={{ sm: 'center' }} spacing={1.5} justifyContent="space-between">
+              <Stack direction="row" alignItems="center" spacing={1} flexWrap="wrap" useFlexGap>
+                <WarningIcon sx={{ color: '#dc2626', fontSize: 20 }} />
+                <Typography variant="subtitle1" fontWeight={700}>
+                  Danh sách bất thường — {new Date(selectedDate).toLocaleDateString('vi-VN')}
+                </Typography>
+                {incidents.length > 0 && (
+                  <Chip label={incidents.length} size="small"
+                    sx={{ bgcolor: '#fee2e2', color: '#dc2626', fontWeight: 700, fontSize: '0.72rem' }} />
+                )}
               </Stack>
+            </Stack>
+          </Box>
+
+          {error && (
+            <Alert severity="error" sx={{ m: 2 }} onClose={() => setError(null)}>{error}</Alert>
+          )}
+
+          {loading ? (
+            <Box sx={{ py: 5, textAlign: 'center' }}><CircularProgress size={28} /></Box>
+          ) : incidents.length === 0 ? (
+            <Box sx={{ py: 6, textAlign: 'center', color: 'text.secondary' }}>
+              <SafetyIcon sx={{ fontSize: 48, color: 'grey.300', display: 'block', mx: 'auto', mb: 1 }} />
+              <Typography variant="body2">Không có bất thường nào trong ngày này</Typography>
             </Box>
+          ) : (
+            <TableContainer>
+              <Table size="small">
+                <TableHead sx={{ bgcolor: '#fff5f5' }}>
+                  <TableRow>
+                    {['#', 'Học sinh', 'Lớp', 'Triệu chứng', 'Mức độ', 'Trạng thái', 'Người ghi', 'Mô tả', ''].map(col => (
+                      <TableCell key={col} sx={{
+                        fontWeight: 700, fontSize: '0.7rem', textTransform: 'uppercase',
+                        color: '#dc2626', py: 1.2, whiteSpace: 'nowrap', borderBottom: '2px solid #fecaca',
+                      }}>
+                        {col}
+                      </TableCell>
+                    ))}
+                  </TableRow>
+                </TableHead>
+                <TableBody>
+                  {incidents.map((inc, idx) => {
+                    const sev = SEVERITY_CONFIG[inc.severity];
+                    const sts = STATUS_CONFIG[inc.status];
+                    return (
+                      <TableRow key={inc._id} hover
+                        sx={{ bgcolor: inc.severity === 'severe' ? '#fff5f5' : undefined }}>
+                        <TableCell sx={{ fontSize: '0.75rem', color: 'text.secondary' }}>{idx + 1}</TableCell>
 
-            {error && (
-              <Alert severity="error" sx={{ m: 2 }} onClose={() => setError(null)}>{error}</Alert>
-            )}
-
-            {loading ? (
-              <Box sx={{ py: 5, textAlign: 'center' }}><CircularProgress size={28} /></Box>
-            ) : incidents.length === 0 ? (
-              <Box sx={{ py: 6, textAlign: 'center', color: 'text.secondary' }}>
-                <SafetyIcon sx={{ fontSize: 48, color: 'grey.300', display: 'block', mx: 'auto', mb: 1 }} />
-                <Typography variant="body2">Không có bất thường nào trong ngày này</Typography>
-              </Box>
-            ) : (
-              <TableContainer>
-                <Table size="small">
-                  <TableHead sx={{ bgcolor: '#fff5f5' }}>
-                    <TableRow>
-                      {['#', 'Học sinh', 'Lớp', 'Triệu chứng', 'Mức độ', 'Trạng thái', 'Người ghi', 'Mô tả', ''].map(col => (
-                        <TableCell key={col} sx={{
-                          fontWeight: 700, fontSize: '0.7rem', textTransform: 'uppercase',
-                          color: '#dc2626', py: 1.2, whiteSpace: 'nowrap', borderBottom: '2px solid #fecaca',
-                        }}>
-                          {col}
+                        <TableCell sx={{ whiteSpace: 'nowrap' }}>
+                          <Stack direction="row" alignItems="center" spacing={1}>
+                            <Avatar sx={{ width: 28, height: 28, fontSize: '0.75rem', bgcolor: '#fecaca', color: '#dc2626' }}>
+                              {inc.studentId?.fullName?.[0] || <PersonIcon fontSize="small" />}
+                            </Avatar>
+                            <Typography variant="body2" fontWeight={600} sx={{ fontSize: '0.82rem' }}>
+                              {inc.studentId?.fullName || '—'}
+                            </Typography>
+                          </Stack>
                         </TableCell>
-                      ))}
-                    </TableRow>
-                  </TableHead>
-                  <TableBody>
-                    {incidents.map((inc, idx) => {
-                      const sev = SEVERITY_CONFIG[inc.severity];
-                      const sts = STATUS_CONFIG[inc.status];
-                      return (
-                        <TableRow key={inc._id} hover
-                          sx={{ bgcolor: inc.severity === 'severe' ? '#fff5f5' : undefined }}>
-                          <TableCell sx={{ fontSize: '0.75rem', color: 'text.secondary' }}>{idx + 1}</TableCell>
 
-                          <TableCell sx={{ whiteSpace: 'nowrap' }}>
-                            <Stack direction="row" alignItems="center" spacing={1}>
-                              <Avatar sx={{ width: 28, height: 28, fontSize: '0.75rem', bgcolor: '#fecaca', color: '#dc2626' }}>
-                                {inc.studentId?.fullName?.[0] || <PersonIcon fontSize="small" />}
-                              </Avatar>
-                              <Typography variant="body2" fontWeight={600} sx={{ fontSize: '0.82rem' }}>
-                                {inc.studentId?.fullName || '—'}
-                              </Typography>
-                            </Stack>
-                          </TableCell>
+                        <TableCell sx={{ fontSize: '0.78rem' }}>
+                          {inc.classId?.className || '—'}
+                        </TableCell>
 
-                          <TableCell sx={{ fontSize: '0.78rem' }}>
-                            {inc.classId?.className || '—'}
-                          </TableCell>
+                        <TableCell sx={{ fontWeight: 600, fontSize: '0.82rem', color: '#dc2626' }}>
+                          {inc.symptoms}
+                        </TableCell>
 
-                          <TableCell sx={{ fontWeight: 600, fontSize: '0.82rem', color: '#dc2626' }}>
-                            {inc.symptoms}
-                          </TableCell>
+                        <TableCell>
+                          {sev && (
+                            <Chip label={sev.label} size="small" color={sev.color}
+                              sx={{ fontSize: '0.65rem', height: 18, fontWeight: 600 }} />
+                          )}
+                        </TableCell>
 
-                          <TableCell>
-                            {sev && (
-                              <Chip label={sev.label} size="small" color={sev.color}
-                                sx={{ fontSize: '0.65rem', height: 18, fontWeight: 600 }} />
-                            )}
-                          </TableCell>
+                        <TableCell>
+                          {sts && (
+                            <Chip label={sts.label} size="small" color={sts.color} variant="outlined"
+                              sx={{ fontSize: '0.65rem', height: 18 }} />
+                          )}
+                        </TableCell>
 
-                          <TableCell>
-                            {sts && (
-                              <Chip label={sts.label} size="small" color={sts.color} variant="outlined"
-                                sx={{ fontSize: '0.65rem', height: 18 }} />
-                            )}
-                          </TableCell>
+                        <TableCell sx={{ fontSize: '0.75rem', color: 'text.secondary', whiteSpace: 'nowrap' }}>
+                          {inc.recordedBy?.fullName || inc.recordedBy?.username || '—'}
+                        </TableCell>
 
-                          <TableCell sx={{ fontSize: '0.75rem', color: 'text.secondary', whiteSpace: 'nowrap' }}>
-                            {inc.recordedBy?.fullName || inc.recordedBy?.username || '—'}
-                          </TableCell>
+                        <TableCell sx={{ fontSize: '0.74rem', color: 'text.secondary', maxWidth: 180 }}>
+                          {inc.description || <Typography variant="caption" color="text.disabled">—</Typography>}
+                        </TableCell>
 
-                          <TableCell sx={{ fontSize: '0.74rem', color: 'text.secondary', maxWidth: 180 }}>
-                            {inc.description || <Typography variant="caption" color="text.disabled">—</Typography>}
-                          </TableCell>
-
-                          <TableCell align="right" sx={{ whiteSpace: 'nowrap' }}>
-                            <Tooltip title="Cập nhật trạng thái">
-                              <IconButton size="small" onClick={() => setEditTarget({ ...inc })}
-                                sx={{ color: '#2563eb' }}>
-                                <EditIcon fontSize="small" />
-                              </IconButton>
-                            </Tooltip>
-                            <Tooltip title="Xóa">
-                              <IconButton size="small" onClick={() => setDeleteTarget(inc)}
-                                sx={{ color: 'error.main' }}>
-                                <DeleteIcon fontSize="small" />
-                              </IconButton>
-                            </Tooltip>
-                          </TableCell>
-                        </TableRow>
-                      );
-                    })}
-                  </TableBody>
-                </Table>
-              </TableContainer>
-            )}
+                        <TableCell align="right" sx={{ whiteSpace: 'nowrap' }}>
+                          <Tooltip title="Cập nhật trạng thái">
+                            <IconButton size="small" onClick={() => setEditTarget({ ...inc })}
+                              sx={{ color: '#2563eb' }}>
+                              <EditIcon fontSize="small" />
+                            </IconButton>
+                          </Tooltip>
+                          <Tooltip title="Xóa">
+                            <IconButton size="small" onClick={() => setDeleteTarget(inc)}
+                              sx={{ color: 'error.main' }}>
+                              <DeleteIcon fontSize="small" />
+                            </IconButton>
+                          </Tooltip>
+                        </TableCell>
+                      </TableRow>
+                    );
+                  })}
+                </TableBody>
+              </Table>
+            </TableContainer>
+          )}
         </Paper>
       </Box>
 
@@ -542,6 +544,6 @@ export default function HealthIncidentPage() {
           </Button>
         </DialogActions>
       </Dialog>
-    </RoleLayout>
+    </>
   );
 }

@@ -2,6 +2,7 @@ import { useState, useRef, useEffect } from 'react';
 import {
   Box, Typography, List, ListItemButton,
   ListItemIcon, ListItemText, Chip, Tooltip,
+  Skeleton
 } from '@mui/material';
 import { Circle as DotIcon, ExpandLess, ExpandMore } from '@mui/icons-material';
 
@@ -23,6 +24,7 @@ export default function SidebarNavList({
   collapsed,
   keyIcons = {},
   sectionLabel = 'Menu chính',
+  loading = false,
 }) {
   const getInitialOpenGroups = () => {
     const init = {};
@@ -95,7 +97,15 @@ export default function SidebarNavList({
       )}
 
       <List dense disablePadding sx={{ px: collapsed ? 0.75 : 1 }}>
-        {menuItems.map((item) => {
+        {loading ? (
+          [...Array(6)].map((_, i) => (
+            <Box key={i} sx={{ px: collapsed ? 0 : 1.5, py: 1, display: 'flex', alignItems: 'center', justifyContent: collapsed ? 'center' : 'flex-start' }}>
+              <Skeleton variant="circular" width={24} height={24} sx={{ mr: collapsed ? 0 : 2, flexShrink: 0 }} />
+              {!collapsed && <Skeleton variant="text" width="70%" height={20} />}
+            </Box>
+          ))
+        ) : (
+          menuItems.map((item) => {
           const hasChildren = Array.isArray(item.children) && item.children.length > 0;
           const isChildActive = hasChildren
             ? item.children.some((child) => child.key === activeKey)
@@ -171,27 +181,48 @@ export default function SidebarNavList({
                 <List dense disablePadding sx={{ pl: 4 }}>
                   {item.children.map((child) => {
                     const childIsActive = child.key === activeKey;
-                    const childIcon = child.icon || keyIcons[child.key] || <DotIcon fontSize="small" />;
+                    const childIcon = child.icon || keyIcons[child.key] || <DotIcon sx={{ fontSize: 8 }} />;
                     return (
                       <ListItemButton
                         key={child.key}
                         onClick={() => onMenuSelect(child.key)}
                         sx={{
-                          mb: 0.25, borderRadius: 2, minHeight: 34, px: 1.5,
-                          bgcolor: childIsActive ? 'rgba(99,102,241,0.08)' : 'transparent',
+                          mb: 0.5, 
+                          borderRadius: '0 20px 20px 0', 
+                          minHeight: 40, 
+                          pl: 2,
+                          pr: 2,
+                          position: 'relative',
+                          bgcolor: childIsActive ? 'rgba(99, 102, 241, 0.12)' : 'transparent',
                           color: childIsActive ? 'primary.main' : 'text.secondary',
+                          borderLeft: childIsActive ? '4px solid #6366f1' : '4px solid transparent',
                           '&:hover': {
-                            bgcolor: childIsActive ? 'rgba(99,102,241,0.12)' : 'rgba(0,0,0,0.03)',
+                            bgcolor: childIsActive ? 'rgba(99, 102, 241, 0.18)' : 'rgba(0, 0, 0, 0.04)',
                             color: childIsActive ? 'primary.main' : 'text.primary',
                           },
+                          transition: 'all 0.2s ease',
+                          ml: -4, // Pull back to align with parent edge if needed, adjust based on List pl
                         }}
                       >
-                        <ListItemIcon sx={{ minWidth: 28, color: childIsActive ? 'primary.main' : 'text.disabled' }}>
+                        <ListItemIcon sx={{ 
+                          minWidth: 32, 
+                          color: childIsActive ? 'primary.main' : 'text.disabled',
+                          display: 'flex',
+                          justifyContent: 'center'
+                        }}>
                           {childIcon}
                         </ListItemIcon>
                         <ListItemText
                           primary={child.label}
-                          slotProps={{ primary: { style: { fontSize: 12.5, fontWeight: childIsActive ? 600 : 400 } } }}
+                          slotProps={{ 
+                            primary: { 
+                              style: { 
+                                fontSize: '0.85rem', 
+                                fontWeight: childIsActive ? 700 : 500,
+                                letterSpacing: childIsActive ? '0.01em' : 'normal'
+                              } 
+                            } 
+                          }}
                         />
                       </ListItemButton>
                     );
@@ -200,7 +231,8 @@ export default function SidebarNavList({
               )}
             </Box>
           );
-        })}
+        })
+      )}
       </List>
     </Box>
   );

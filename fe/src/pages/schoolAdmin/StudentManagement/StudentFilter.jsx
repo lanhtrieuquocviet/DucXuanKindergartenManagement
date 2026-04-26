@@ -19,6 +19,8 @@ const StudentFilter = ({
   academicYears,
   classFilter,
   setClassFilter,
+  genderFilter,
+  setGenderFilter,
   classes,
   onRefresh,
   onAddStudent,
@@ -31,15 +33,15 @@ const StudentFilter = ({
       <Typography variant="subtitle2" fontWeight={600}>
         Tổng: {totalCount} học sinh
       </Typography>
-      <Stack direction={{ xs: 'column', sm: 'row' }} spacing={1}>
+      <Stack direction={{ xs: 'column', sm: 'row' }} spacing={1} flexWrap="wrap">
         <TextField
           size="small"
-          placeholder="Tìm theo tên học sinh / mã học sinh / phụ huynh..."
+          placeholder="Tìm tên / mã / PH..."
           value={searchTerm}
           onChange={(e) => setSearchTerm(e.target.value)}
-          sx={{ minWidth: 220 }}
+          sx={{ minWidth: 150 }}
         />
-        <FormControl size="small" sx={{ minWidth: 140 }}>
+        <FormControl size="small" sx={{ minWidth: 120 }}>
           <InputLabel>Năm học</InputLabel>
           <Select
             value={yearFilter}
@@ -54,7 +56,7 @@ const StudentFilter = ({
             ))}
           </Select>
         </FormControl>
-        <FormControl size="small" sx={{ minWidth: 140 }}>
+        <FormControl size="small" sx={{ minWidth: 120 }}>
           <InputLabel>Lớp</InputLabel>
           <Select
             value={classFilter}
@@ -67,6 +69,18 @@ const StudentFilter = ({
                 {c.className || c._id}
               </MenuItem>
             ))}
+          </Select>
+        </FormControl>
+        <FormControl size="small" sx={{ minWidth: 100 }}>
+          <InputLabel>Giới tính</InputLabel>
+          <Select
+            value={genderFilter}
+            label="Giới tính"
+            onChange={(e) => setGenderFilter(e.target.value)}
+          >
+            <MenuItem value="">Tất cả</MenuItem>
+            <MenuItem value="male">Nam</MenuItem>
+            <MenuItem value="female">Nữ</MenuItem>
           </Select>
         </FormControl>
         <Button variant="outlined" startIcon={<RefreshIcon />} onClick={onRefresh} disabled={loading}>

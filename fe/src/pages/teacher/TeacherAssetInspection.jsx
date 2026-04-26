@@ -32,7 +32,6 @@ import AddIcon from '@mui/icons-material/Add';
 import DeleteIcon from '@mui/icons-material/Delete';
 import EditIcon from '@mui/icons-material/Edit';
 import DownloadIcon from '@mui/icons-material/Download';
-import RoleLayout from '../../layouts/RoleLayout';
 import { useAuth } from '../../context/AuthContext';
 import { get, post, put, del, getToken, ENDPOINTS } from '../../service/api';
 
@@ -295,17 +294,7 @@ export default function TeacherAssetInspection() {
   };
 
   return (
-    <RoleLayout
-      title="Kiểm kê Tài sản"
-      description="Tạo và quản lý biên bản kiểm kê tài sản lớp phụ trách."
-      menuItems={menuItems}
-      activeKey="asset-inspection"
-      onLogout={() => { logout(); navigate('/login', { replace: true }); }}
-      userName={user?.fullName || user?.username || 'Giáo viên'}
-      userAvatar={user?.avatar}
-      onViewProfile={() => navigate('/profile')}
-      onMenuSelect={handleMenuSelect}
-    >
+    <Box>
       <Paper elevation={0} sx={{ p: { xs: 1.5, sm: 3 }, borderRadius: 3, backgroundColor: '#f9fafb' }}>
         {/* Header */}
         <Stack direction={{ xs: 'column', sm: 'row' }} justifyContent="space-between" alignItems={{ xs: 'stretch', sm: 'center' }} mb={3} gap={1}>
@@ -799,6 +788,6 @@ export default function TeacherAssetInspection() {
 
       <ConfirmDialog open={!!deleteTarget} title="Xóa biên bản" message="Bạn có chắc chắn muốn xóa biên bản này?"
         onConfirm={handleConfirmDelete} onCancel={() => setDeleteTarget(null)} loading={deleting} />
-    </RoleLayout>
+    </Box>
   );
 }

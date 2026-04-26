@@ -1,7 +1,6 @@
 import { useEffect, useMemo, useState } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
 import { useAuth } from '../../context/AuthContext';
-import RoleLayout from '../../layouts/RoleLayout';
 import { get, put, ENDPOINTS } from '../../service/api';
 import { toast } from 'react-toastify';
 import {
@@ -177,17 +176,7 @@ export default function TeacherEvaluation() {
   const userName = user?.fullName || user?.username || 'Teacher';
 
   return (
-    <RoleLayout
-      title="Đánh giá học sinh"
-      description="Đánh giá kết quả học tập và rèn luyện của học sinh"
-      menuItems={menuItems}
-      activeKey={activeKey}
-      onLogout={() => { logout(); navigate('/login', { replace: true }); }}
-      userName={userName}
-      userAvatar={user?.avatar}
-      onViewProfile={() => navigate('/profile')}
-      onMenuSelect={handleMenuSelect}
-    >
+    <Box>
       <Paper elevation={0} sx={{ mb: 3, p: 3, background: 'linear-gradient(135deg, #0891b2 0%, #06b6d4 100%)', borderRadius: 2 }}>
         <Stack direction="row" alignItems="center" spacing={1.5}>
           <EvaluationIcon sx={{ color: 'white', fontSize: 28 }} />
@@ -364,6 +353,6 @@ export default function TeacherEvaluation() {
           </Button>
         </DialogActions>
       </Dialog>
-    </RoleLayout>
+    </Box>
   );
 }

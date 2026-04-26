@@ -49,9 +49,9 @@ const handleResponse = async (response) => {
 
     if (
       response.status === 401 ||
-      (response.status === 403 && /khóa/i.test(data.message || ''))
+      (response.status === 403 && (data.code === 'PASSWORD_CHANGE_REQUIRED' || /khóa/i.test(data.message || '')))
     ) {
-      triggerAuthFailureHandler({ status: response.status, message: data.message });
+      triggerAuthFailureHandler({ status: response.status, message: data.message, code: data.code });
     }
 
     throw error;
@@ -291,6 +291,10 @@ export const ENDPOINTS = {
     GENERATE_BPM_FROM_DOCX: '/bpm/generate-from-docx',
     DOWNLOAD_BPM_TEMPLATE: '/bpm/download-template',
     BPM_NODES: '/bpm/nodes',
+    JOB_POSITIONS: '/system-admin/job-positions',
+    CREATE_JOB_POSITION: '/system-admin/job-positions',
+    UPDATE_JOB_POSITION: (id) => `/system-admin/job-positions/${id}`,
+    DELETE_JOB_POSITION: (id) => `/system-admin/job-positions/${id}`,
   },
   // School Admin
   SCHOOL_ADMIN: {
@@ -331,13 +335,17 @@ export const ENDPOINTS = {
       CURRENT: "/school-admin/academic-years/current",
       PATCH_CURRENT_TIMETABLE_SEASON: "/school-admin/academic-years/current/timetable-season",
       CREATE: "/school-admin/academic-years",
+      UPDATE: (id) => `/school-admin/academic-years/${id}`,
       FINISH: (id) => `/school-admin/academic-years/${id}/finish`,
+      PUBLISH: (id) => `/school-admin/academic-years/${id}/publish`,
       HISTORY: "/school-admin/academic-years/history",
       CLASSES: (yearId) => `/school-admin/academic-years/${yearId}/classes`,
       STUDENTS: (yearId) => `/school-admin/academic-years/${yearId}/students`,
       WIZARD_SETUP: "/school-admin/academic-years/wizard-setup",
+      EXPRESS_SETUP: "/school-admin/academic-years/express-setup",
       WIZARD_CLONE_DATA: "/school-admin/academic-years/wizard-clone-data",
     },
+    ASSESSMENT_TEMPLATES: "/school-admin/assessment-templates",
     ACADEMIC_PLAN: {
       LIST_TOPICS: (yearId, gradeId) => {
         const q = new URLSearchParams();
@@ -414,6 +422,12 @@ export const ENDPOINTS = {
     ASSET_INCIDENTS: "/school-admin/asset-incidents",
     ASSET_INCIDENT_DETAIL: (id) => `/school-admin/asset-incidents/${id}`,
     ASSET_DETAIL: (id) => `/school-admin/assets/${id}`,
+    JOB_POSITIONS: {
+      LIST: '/school-admin/staff-positions',
+      CREATE: '/school-admin/staff-positions',
+      UPDATE: (id) => `/school-admin/staff-positions/${id}`,
+      DELETE: (id) => `/school-admin/staff-positions/${id}`,
+    },
   },
   // Contact (public)
   CONTACT: {
@@ -450,6 +464,8 @@ export const ENDPOINTS = {
     CHANGE_REQUESTS: (studentId) => `/teacher/students/${studentId}/change-requests`,
     // Đánh giá học tập
     STUDENT_EVALUATION: (studentId) => `/teacher/students/${studentId}/evaluation`,
+    CLASS_ASSESSMENTS: '/teacher/class-assessments',
+    BULK_ASSESSMENTS: '/teacher/bulk-assessments',
     // Sổ liên lạc
     CONTACT_BOOK_CLASSES: '/teacher/contact-book',
     CONTACT_BOOK_STUDENTS: (classId) => `/teacher/contact-book/${classId}/students`,
@@ -516,6 +532,7 @@ export const ENDPOINTS = {
   STUDENTS: {
     LIST: "/students",
     DETAIL: (studentId) => `/students/${studentId}`,
+    ADMIN_EVALUATIONS: (studentId) => `/students/${studentId}/evaluations`,
     CREATE: "/students",
     CREATE_WITH_PARENT: "/students/with-parent",
     IMPORT_WITH_PARENT_EXCEL: "/students/with-parent/import-excel",

@@ -13,6 +13,7 @@ const Classes = require('../models/Classes');
 const Student = require('../models/Student');
 const Attendances = require('../models/Attendances');
 const AcademicYear = require('../models/AcademicYear');
+const assessmentController = require('../controller/assessmentController');
 
 const router = express.Router();
 
@@ -491,5 +492,9 @@ router.post('/asset-incidents',    authenticate, authorizePermissions('MANAGE_AS
 router.get('/asset-incidents/:id', authenticate, authorizePermissions('MANAGE_ASSET'), incidentCtrl.getIncident);
 router.put('/asset-incidents/:id', authenticate, authorizePermissions('MANAGE_ASSET'), incidentCtrl.updateIncident);
 router.delete('/asset-incidents/:id', authenticate, authorizePermissions('MANAGE_ASSET'), incidentCtrl.deleteIncident);
+
+// ── Student Assessment ──
+router.get('/class-assessments', authenticate, authorizeRoles('Teacher', 'HeadTeacher'), assessmentController.getClassAssessments);
+router.post('/bulk-assessments', authenticate, authorizeRoles('Teacher', 'HeadTeacher'), assessmentController.saveBulkAssessments);
 
 module.exports = router;

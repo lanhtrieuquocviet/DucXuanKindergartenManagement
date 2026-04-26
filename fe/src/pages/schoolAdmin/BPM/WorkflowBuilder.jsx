@@ -21,10 +21,7 @@ import {
 } from '@mui/icons-material';
 import { useParams, useNavigate } from 'react-router-dom';
 import { get, put, ENDPOINTS } from '../../../service/api';
-import RoleLayout from '../../../layouts/RoleLayout';
 import { useAuth } from '../../../context/AuthContext';
-import { useSchoolAdminMenu } from '../useSchoolAdminMenu';
-import { createSchoolAdminMenuSelect } from '../schoolAdminMenuConfig';
 import { toast } from 'react-toastify';
 
 // ── Màu & icon theo category ─────────────────────────────────────
@@ -171,8 +168,6 @@ const WorkflowBuilder = () => {
   const theme = useTheme();
   const isMobile = useMediaQuery(theme.breakpoints.down('sm'));
   const { user, logout } = useAuth();
-  const menuItems = useSchoolAdminMenu();
-  const handleMenuSelect = createSchoolAdminMenuSelect(navigate);
 
   const [workflow, setWorkflow] = useState(null);
   const [loading, setLoading]   = useState(true);
@@ -203,14 +198,7 @@ const WorkflowBuilder = () => {
   } : null;
 
   return (
-    <RoleLayout
-      menuItems={menuItems}
-      activeKey="bpm"
-      onMenuSelect={handleMenuSelect}
-      onLogout={logout}
-      userName={user?.fullName || user?.username}
-      userRole="SchoolAdmin"
-    >
+    <Box>
       {/* ── Gradient Header ── */}
       <Box
         sx={{
@@ -355,7 +343,7 @@ const WorkflowBuilder = () => {
           </Stack>
         </Box>
       )}
-    </RoleLayout>
+    </Box>
   );
 };
 

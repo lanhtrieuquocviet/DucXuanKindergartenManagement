@@ -46,11 +46,8 @@ import DragIndicatorIcon from '@mui/icons-material/DragIndicator';
 import InfoOutlinedIcon from '@mui/icons-material/InfoOutlined';
 import DownloadIcon from '@mui/icons-material/Download';
 import MeetingRoomIcon from '@mui/icons-material/MeetingRoom';
-import RoleLayout from '../../layouts/RoleLayout';
 import { useAuth } from '../../context/AuthContext';
 import { del, get, patch, post, postFormData, put, ENDPOINTS } from '../../service/api';
-import { createSchoolAdminMenuSelect } from './schoolAdminMenuConfig';
-import { useSchoolAdminMenu } from './useSchoolAdminMenu';
 
 // ─── Constants ────────────────────────────────────────────────────────────────
 const STATUS_INFO = {
@@ -426,10 +423,9 @@ function AllocationDocument({ allocation, onClose }) {
 // ─── Main Page ────────────────────────────────────────────────────────────────
 export default function ManageAssetAllocation() {
   const navigate = useNavigate();
-  const { user, logout } = useAuth();
+  const { user } = useAuth();
   const theme = useTheme();
   const isMobile = useMediaQuery(theme.breakpoints.down('sm'));
-  const menuItems = useSchoolAdminMenu();
   const userName = user?.fullName || user?.username || 'School Admin';
 
   const [allocations, setAllocations]   = useState([]);
@@ -870,15 +866,7 @@ export default function ManageAssetAllocation() {
 
   // ── Render ─────────────────────────────────────────────────────────────────
   return (
-    <RoleLayout
-      menuItems={menuItems}
-      activeKey="asset-allocation"
-      onLogout={() => { logout(); navigate('/login', { replace: true }); }}
-      userName={userName}
-      userAvatar={user?.avatar}
-      onViewProfile={() => navigate('/profile')}
-      onMenuSelect={createSchoolAdminMenuSelect(navigate)}
-    >
+    <Box>
       <Box sx={{ p: { xs: 1, md: 3 } }}>
         {/* Title */}
         <Stack direction="row" alignItems="center" justifyContent="space-between" mb={2} flexWrap="wrap" gap={1}>
@@ -1460,6 +1448,6 @@ export default function ManageAssetAllocation() {
         onCancel={() => setDeleteTarget(null)}
         loading={deleteLoading}
       />
-    </RoleLayout>
+    </Box>
   );
 }
