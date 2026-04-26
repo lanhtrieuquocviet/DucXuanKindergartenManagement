@@ -70,15 +70,24 @@ export const useAppMenu = () => {
       }));
 
     // 5. Xác định đường dẫn Tổng quan dựa trên role
+    const userRoles = user.roles.map((r) => r.roleName || r) || [];
     let overviewPath = '/';
-    const primaryRole = user.roles[0]?.roleName;
-    if (primaryRole === 'SchoolAdmin') overviewPath = '/school-admin';
-    else if (primaryRole === 'Teacher' || primaryRole === 'HeadTeacher') overviewPath = '/teacher';
-    else if (primaryRole === 'SystemAdmin') overviewPath = '/system-admin';
-    else if (primaryRole === 'KitchenStaff') overviewPath = '/kitchen';
-    else if (primaryRole === 'MedicalStaff') overviewPath = '/medical-staff';
-    else if (primaryRole === 'HeadParent') overviewPath = '/head-parent';
-    else if (primaryRole === 'Student' || primaryRole === 'Parent') overviewPath = '/student';
+    
+    if (userRoles.includes('SystemAdmin')) {
+      overviewPath = '/system-admin';
+    } else if (userRoles.includes('SchoolAdmin')) {
+      overviewPath = '/school-admin';
+    } else if (userRoles.includes('Teacher') || userRoles.includes('HeadTeacher')) {
+      overviewPath = '/teacher';
+    } else if (userRoles.includes('KitchenStaff')) {
+      overviewPath = '/kitchen';
+    } else if (userRoles.includes('MedicalStaff')) {
+      overviewPath = '/medical-staff';
+    } else if (userRoles.includes('HeadParent')) {
+      overviewPath = '/head-parent';
+    } else if (userRoles.includes('Student') || userRoles.includes('Parent')) {
+      overviewPath = '/student';
+    }
 
     return [
       { key: 'overview', label: 'Tổng quan', path: overviewPath },
@@ -90,27 +99,53 @@ export const useAppMenu = () => {
    * Tìm key đang hoạt động dựa trên URL hiện tại.
    */
   const activeKey = useMemo(() => {
-    const path = location.pathname;
+    // Chuẩn hóa path: xóa dấu / ở cuối (trừ khi chỉ có /)
+    const normalize = (p) => (p && p.length > 1 && p.endsWith('/') ? p.slice(0, -1) : p);
+    const currentPath = normalize(location.pathname);
 
-    const findActiveKey = (items) => {
-      // Ưu tiên 1: Khớp chính xác 100% (Exact match)
+    // 1. Tìm khớp chính xác (ưu tiên trước)
+    const findExactMatch = (items) => {
       for (const item of items) {
-        if (item.path === path) return item.key;
+        if (normalize(item.path) === currentPath) return item.key;
         if (item.children) {
-          const childKey = findActiveKey(item.children);
+          const childKey = findExactMatch(item.children);
           if (childKey) return childKey;
         }
-      }
-      
-      // Ưu tiên 2: Khớp theo tiền tố (StartsWith) cho các route sâu hơn
-      // Bỏ qua '/' để tránh nó khớp với tất cả mọi thứ
-      for (const item of items) {
-        if (item.path && item.path !== '/' && path.startsWith(item.path)) return item.key;
       }
       return null;
     };
 
-    return findActiveKey(menuItems) || 'overview';
+    const itemsToSearch = [...menuItems];
+    const overviewItem = itemsToSearch.shift(); // Lấy overview ra
+
+    // Ưu tiên tìm trong các nhóm trước, sau đó mới tìm trong overview
+    const exactMatch = findExactMatch(itemsToSearch) || findExactMatch([overviewItem]);
+    if (exactMatch) return exactMatch;
+
+    // 2. Tìm khớp theo tiền tố (nếu không có khớp chính xác)
+    // Ưu tiên path dài nhất (cụ thể nhất)
+    const findPrefixMatches = (items) => {
+      let matches = [];
+      for (const item of items) {
+        const itemPath = normalize(item.path);
+        if (itemPath && itemPath !== '/' && currentPath.startsWith(itemPath)) {
+          matches.push({ key: item.key, length: itemPath.length });
+        }
+        if (item.children) {
+          matches = matches.concat(findPrefixMatches(item.children));
+        }
+      }
+      return matches;
+    };
+
+    const prefixMatches = findPrefixMatches(menuItems);
+    if (prefixMatches.length > 0) {
+      // Sắp xếp theo chiều dài giảm dần để lấy path cụ thể nhất
+      prefixMatches.sort((a, b) => b.length - a.length);
+      return prefixMatches[0].key;
+    }
+
+    return 'overview';
   }, [location.pathname, menuItems]);
 
   const handleMenuSelect = (key) => {

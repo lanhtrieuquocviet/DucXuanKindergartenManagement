@@ -195,7 +195,15 @@ export default function SidebarNavList({
                           position: 'relative',
                           bgcolor: childIsActive ? 'rgba(99, 102, 241, 0.12)' : 'transparent',
                           color: childIsActive ? 'primary.main' : 'text.secondary',
-                          borderLeft: childIsActive ? '4px solid #6366f1' : '4px solid transparent',
+                          '&::before': childIsActive
+                            ? {
+                                content: '""',
+                                position: 'absolute',
+                                left: 0, top: '15%', bottom: '15%',
+                                width: 3.5, borderRadius: '0 4px 4px 0',
+                                background: 'linear-gradient(180deg, #4f46e5, #7c3aed)',
+                              }
+                            : {},
                           '&:hover': {
                             bgcolor: childIsActive ? 'rgba(99, 102, 241, 0.18)' : 'rgba(0, 0, 0, 0.04)',
                             color: childIsActive ? 'primary.main' : 'text.primary',

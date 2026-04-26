@@ -1,5 +1,6 @@
 import {
   Alert,
+  Box,
   Paper,
   useMediaQuery,
   useTheme
