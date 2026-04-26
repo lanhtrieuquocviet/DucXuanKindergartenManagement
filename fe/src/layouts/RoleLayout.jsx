@@ -145,7 +145,14 @@ export const KEY_ICONS = {
   'role-management': <RolesIcon fontSize="small" />,
   'permission-management': <ShieldIcon fontSize="small" />,
   'system-logs': <BarChartIcon fontSize="small" />,
+  system_logs: <BarChartIcon fontSize="small" />,
   bpm: <AccountTreeIcon fontSize="small" />,
+  bpm_workflows: <AccountTreeIcon fontSize="small" />,
+  manage_accounts: <PersonIcon fontSize="small" />,
+  manage_permissions: <ShieldIcon fontSize="small" />,
+  manage_roles: <RolesIcon fontSize="small" />,
+  system_dashboard: <DashboardIcon fontSize="small" />,
+  job_positions: <BadgeIcon fontSize="small" />,
 
   // Dynamic Groups from DB
   'group-Học vụ': <CalendarIcon fontSize="small" />,
@@ -157,6 +164,8 @@ export const KEY_ICONS = {
   'group-Tài sản & Mua sắm': <InventoryIcon fontSize="small" />,
   'group-Báo cáo': <AssessmentIcon fontSize="small" />,
   'group-Quản trị hệ thống': <SettingsIcon fontSize="small" />,
+  'group-Hệ thống': <SettingsIcon fontSize="small" />,
+  'group-Danh mục': <CategoryIcon fontSize="small" />,
 
   // Teacher specific aliases or keys
   evaluation: <GradingIcon fontSize="small" />,

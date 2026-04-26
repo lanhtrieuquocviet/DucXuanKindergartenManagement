@@ -88,7 +88,7 @@ function PermissionAssignmentPanel({
           }}
         >
           {roles
-            .filter((r) => !['SystemAdmin', 'Parent', 'Student'].includes(r.roleName))
+            .filter((r) => !['Parent', 'Student'].includes(r.roleName))
             .map((role) => {
               const roleId = role.id || role._id;
               const isSelected =
