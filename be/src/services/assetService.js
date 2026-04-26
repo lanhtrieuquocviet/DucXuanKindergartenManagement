@@ -9,7 +9,7 @@ exports.listAssets = async (req, res) => {
     if (req.query.type === 'asset') {
       filter = { type: 'asset' };
     } else if (req.query.type === 'csvc') {
-      filter = { $or: [{ type: 'csvc' }, { type: { $exists: false } }] };
+      filter = { $or: [{ type: 'csvc' }, { type: { $exists: false } }, { type: null }] };
     }
 
     const assets = await Asset.find(filter)

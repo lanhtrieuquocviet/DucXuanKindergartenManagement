@@ -420,10 +420,10 @@ export function AssetsTab() {
             {CATEGORY_OPTIONS.map(o => <MenuItem key={o} value={o}>{o}</MenuItem>)}
           </Select>
         </FormControl>
-        <Button variant="outlined" startIcon={<UploadFileIcon />} onClick={() => importRef.current?.click()} sx={{ textTransform: 'none' }}>Import</Button>
+        <Button variant="outlined" startIcon={<UploadFileIcon />} onClick={() => importRef.current?.click()} sx={{ textTransform: 'none', borderRadius: 2, fontWeight: 700 }}>Nhập Excel</Button>
         <input ref={importRef} hidden type="file" accept=".xlsx,.xls" onChange={handleImportFile} />
-        <Button variant="outlined" startIcon={<DownloadIcon />} onClick={handleDownloadTemplate} sx={{ textTransform: 'none' }}>Mẫu</Button>
-        <Button variant="outlined" startIcon={<FileDownloadIcon />} onClick={handleExportExcel} sx={{ textTransform: 'none' }}>Xuất Excel</Button>
+        <Button variant="outlined" startIcon={<DownloadIcon />} onClick={handleDownloadTemplate} sx={{ textTransform: 'none', borderRadius: 2, fontWeight: 700 }}>Tải mẫu</Button>
+        <Button variant="contained" color="success" startIcon={<FileDownloadIcon />} onClick={handleExportExcel} sx={{ textTransform: 'none', borderRadius: 2, fontWeight: 800 }}>Xuất Báo cáo Excel</Button>
       </Stack>
 
       {loading ? <Box display="flex" justifyContent="center" py={4}><CircularProgress /></Box> : (

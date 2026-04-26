@@ -12,7 +12,8 @@ import {
   AddCircle as AddIcon,
   Delete as RemoveIcon,
   Warehouse as WarehouseIcon,
-  LocationOn as LocationIcon
+  LocationOn as LocationIcon,
+  Warning as WarningIcon
 } from '@mui/icons-material';
 import { useNavigate } from 'react-router-dom';
 import facilityService from '../../../service/facility.api';
@@ -112,47 +113,48 @@ const RoomAssets = () => {
   if (loading) return <Box sx={{ display: 'flex', justifyContent: 'center', p: 5 }}><CircularProgress /></Box>;
 
   return (
-    <Box>
-      <Box sx={{ width: '100%', px: 0, boxSizing: 'border-box' }}>
-        <Grid container spacing={2} justifyContent="flex-start" sx={{ minHeight: 'calc(100vh - 120px)' }}>
-          {/* Left Sidebar: Locations */}
-          <Grid item xs={12} md={3.5} lg={3} xl={2} sx={{ pl: '0 !important' }}>
-            <Paper elevation={0} sx={{ border: '1px solid #e0e0e0', borderRadius: 2, height: '100%', display: 'flex', flexDirection: 'column', bgcolor: 'white' }}>
-              <Box sx={{ p: 2, bgcolor: '#f1f5f9', borderRadius: '8px 8px 0 0', borderBottom: '1px solid #e2e8f0' }}>
-                <Typography variant="subtitle2" fontWeight={800} color="text.secondary" sx={{ textTransform: 'uppercase', letterSpacing: 1 }}>
-                  Danh sách Vị trí
-                </Typography>
-              </Box>
-              <List sx={{ p: 0, flexGrow: 1, overflowY: 'auto', maxHeight: 'calc(100vh - 200px)' }}>
-                {locations.map((loc) => (
-                  <ListItemButton
-                    key={loc._id}
-                    selected={selectedLoc?._id === loc._id}
-                    onClick={() => setSelectedLoc(loc)}
-                    sx={{
-                      py: 1.5,
-                      '&.Mui-selected': { bgcolor: '#eff6ff', color: '#2563eb', borderLeft: '4px solid #2563eb' },
-                      borderBottom: '1px solid #f1f5f9'
-                    }}
-                  >
-                    <ListItemIcon sx={{ minWidth: 36 }}>
-                      {loc.type === 'warehouse' ? <WarehouseIcon fontSize="small" color={selectedLoc?._id === loc._id ? 'primary' : 'inherit'} /> : <RoomIcon fontSize="small" color={selectedLoc?._id === loc._id ? 'primary' : 'inherit'} />}
-                    </ListItemIcon>
-                    <ListItemText 
-                      primary={loc.name} 
-                      secondary={loc.area}
-                      primaryTypographyProps={{ fontWeight: 700, fontSize: '0.875rem' }}
-                      secondaryTypographyProps={{ fontSize: '0.75rem' }}
-                    />
-                  </ListItemButton>
-                ))}
-              </List>
-            </Paper>
-          </Grid>
+    <Box sx={{ m: -2, height: 'calc(100vh - 85px)', overflow: 'hidden' }}>
+      <Grid container sx={{ height: '100%', m: 0, width: '100%' }}>
+        {/* Left Sidebar: Locations */}
+        <Grid item xs={12} md={4} lg={3.5} xl={3} sx={{ height: '100%', borderRight: '1px solid #e2e8f0', bgcolor: 'white' }}>
+          <Box sx={{ height: '100%', display: 'flex', flexDirection: 'column' }}>
+            <Box sx={{ p: 2.5, bgcolor: '#f8fafc', borderBottom: '1px solid #e2e8f0' }}>
+              <Typography variant="h6" fontWeight={900} color="primary" sx={{ textTransform: 'uppercase', letterSpacing: 2 }}>
+                Danh sách Vị trí
+              </Typography>
+            </Box>
+            <List sx={{ p: 0, flexGrow: 1, overflowY: 'auto' }}>
+              {locations.map((loc) => (
+                <ListItemButton
+                  key={loc._id}
+                  selected={selectedLoc?._id === loc._id}
+                  onClick={() => setSelectedLoc(loc)}
+                  sx={{
+                    py: 2,
+                    px: 2.5,
+                    '&.Mui-selected': { bgcolor: '#eff6ff', color: '#2563eb', borderRight: '4px solid #2563eb' },
+                    borderBottom: '1px solid #f1f5f9',
+                    transition: '0.2s'
+                  }}
+                >
+                  <ListItemIcon sx={{ minWidth: 36 }}>
+                    {loc.type === 'warehouse' ? <WarehouseIcon fontSize="small" color={selectedLoc?._id === loc._id ? 'primary' : 'inherit'} /> : <RoomIcon fontSize="small" color={selectedLoc?._id === loc._id ? 'primary' : 'inherit'} />}
+                  </ListItemIcon>
+                  <ListItemText 
+                    primary={loc.name} 
+                    secondary={loc.area}
+                    primaryTypographyProps={{ fontWeight: 800, fontSize: '1.1rem', color: selectedLoc?._id === loc._id ? '#1e40af' : 'inherit' }}
+                    secondaryTypographyProps={{ fontSize: '0.85rem', fontWeight: 600 }}
+                  />
+                </ListItemButton>
+              ))}
+            </List>
+          </Box>
+        </Grid>
 
-          {/* Right Content: Assets in Selected Location */}
-          <Grid item xs={12} md={8.5} lg={9} xl={10}>
-            <Paper elevation={0} sx={{ p: 3, border: '1px solid #e0e0e0', borderRadius: 2, height: '100%', bgcolor: 'white' }}>
+        {/* Right Content: Assets in Selected Location */}
+        <Grid item xs={12} md={8} lg={8.5} xl={9} sx={{ height: '100%', bgcolor: '#f1f5f9', p: 3, overflowY: 'auto' }}>
+          <Paper elevation={0} sx={{ p: 4, borderRadius: 4, minHeight: '100%', bgcolor: 'white', boxShadow: '0 1px 3px 0 rgb(0 0 0 / 0.1)' }}>
               <Stack direction="row" justifyContent="space-between" alignItems="flex-start" sx={{ mb: 4 }}>
                 <Box>
                   <Stack direction="row" spacing={1.5} alignItems="center">
@@ -203,32 +205,58 @@ const RoomAssets = () => {
                     </TableRow>
                   </TableHead>
                   <TableBody>
-                    {roomAssets.length === 0 ? (
-                      <TableRow>
-                        <TableCell colSpan={6} align="center" sx={{ py: 5, color: 'text.secondary' }}>
-                          Phòng này chưa được phân bổ tài sản nào.
-                        </TableCell>
-                      </TableRow>
-                    ) : (
-                      roomAssets.map((asset, idx) => (
-                        <TableRow key={asset._id} hover>
-                          <TableCell>{idx + 1}</TableCell>
-                          <TableCell sx={{ fontFamily: 'monospace' }}>{asset.assetCode}</TableCell>
-                          <TableCell fontWeight={600}>{asset.typeId?.name}</TableCell>
-                          <TableCell>{asset.typeId?.categoryId?.name}</TableCell>
-                          <TableCell>
-                            <Chip 
-                              label={asset.status === 'good' ? 'Bình thường' : 'Cần xử lý'} 
-                              size="small" 
-                              color={asset.status === 'good' ? 'success' : 'error'}
-                              variant="soft"
-                            />
-                          </TableCell>
-                          <TableCell align="center">
-                            <Button size="small" color="error" startIcon={<RemoveIcon />}>Thu hồi</Button>
+                    {locations.find(l => l.type === 'warehouse') ? (
+                      roomAssets.length === 0 ? (
+                        <TableRow>
+                          <TableCell colSpan={6} align="center" sx={{ py: 8 }}>
+                            <Box sx={{ opacity: 0.6 }}>
+                              <RoomIcon sx={{ fontSize: 60, mb: 1, color: 'text.disabled' }} />
+                              <Typography variant="h6" color="text.secondary">Phòng này chưa được phân bổ tài sản nào</Typography>
+                              <Typography variant="body2" color="text.disabled">Bấm nút "Phân bổ tài sản từ kho" ở trên để chia đồ cho phòng này</Typography>
+                            </Box>
                           </TableCell>
                         </TableRow>
-                      ))
+                      ) : (
+                        roomAssets.map((asset, idx) => (
+                          <TableRow key={asset._id} hover>
+                            <TableCell>{idx + 1}</TableCell>
+                            <TableCell sx={{ fontFamily: 'monospace' }}>{asset.assetCode}</TableCell>
+                            <TableCell fontWeight={600}>{asset.typeId?.name}</TableCell>
+                            <TableCell>{asset.typeId?.categoryId?.name}</TableCell>
+                            <TableCell>
+                              <Chip 
+                                label={asset.status === 'good' ? 'Bình thường' : 'Cần xử lý'} 
+                                size="small" 
+                                color={asset.status === 'good' ? 'success' : 'error'}
+                                variant="soft"
+                              />
+                            </TableCell>
+                            <TableCell align="center">
+                              <Button size="small" color="error" startIcon={<RemoveIcon />}>Thu hồi</Button>
+                            </TableCell>
+                          </TableRow>
+                        ))
+                      )
+                    ) : (
+                      <TableRow>
+                        <TableCell colSpan={6} align="center" sx={{ py: 8 }}>
+                          <Paper variant="outlined" sx={{ p: 4, bgcolor: '#fff4e5', borderStyle: 'dashed', borderColor: '#ff9800' }}>
+                            <WarningIcon sx={{ fontSize: 50, color: '#ff9800', mb: 2 }} />
+                            <Typography variant="h6" color="#9c6500" fontWeight={700}>Chưa khai báo Kho tổng!</Typography>
+                            <Typography variant="body2" color="#9c6500" sx={{ mb: 3 }}>
+                              Để phân bổ tài sản, bạn cần khai báo ít nhất một vị trí có loại là "Kho tổng".
+                            </Typography>
+                            <Button 
+                              variant="contained" 
+                              color="warning" 
+                              onClick={() => navigate('/school-admin/facilities/locations')}
+                              sx={{ fontWeight: 700, px: 4 }}
+                            >
+                              Đi đến Danh mục Vị trí ngay
+                            </Button>
+                          </Paper>
+                        </TableCell>
+                      </TableRow>
                     )}
                   </TableBody>
                 </Table>
@@ -278,7 +306,6 @@ const RoomAssets = () => {
             </Button>
           </DialogActions>
         </Dialog>
-      </Box>
     </Box>
   );
 };

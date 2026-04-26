@@ -27,7 +27,7 @@ const AssetReportTab = ({ searchTerm, typeFilter }) => {
     try {
       // Fetch assets and group them by location and area on the client side for now
       // Or we could have a specific endpoint for this grouped report
-      const resp = await get('/api/school-admin/facilities/assets');
+      const resp = await get('/school-admin/facilities/assets');
       if (resp?.status === 'success') {
         const assets = resp.data || [];
         

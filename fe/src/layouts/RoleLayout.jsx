@@ -54,7 +54,7 @@ import {
   EventBusy as EventBusyIcon,
 } from '@mui/icons-material';
 import { Box, Drawer, IconButton, useMediaQuery, useTheme } from '@mui/material';
-import { CurrencyIcon } from 'lucide-react';
+
 import { useState } from 'react';
 import { useAuth } from '../context/AuthContext';
 
@@ -120,7 +120,7 @@ export const KEY_ICONS = {
   'assets-management': <InventoryIcon fontSize="small" />,
   'assets-list': <ListIcon fontSize="small" />,
   'asset-inspection': <ChecklistIcon fontSize="small" />,
-  'purchase-requests': <CurrencyIcon size={18} />,
+
   'asset-handover': <AssignmentIcon fontSize="small" />,
   'asset-issues': <ReportProblemIcon fontSize="small" />,
   'room-assets': <MeetingRoomIcon fontSize="small" />,
@@ -193,7 +193,7 @@ export const KEY_ICONS = {
   MANAGE_HEALTH_INCIDENTS: <ReportProblemIcon fontSize="small" />,
   APPROVE_MENU: <GradingIcon fontSize="small" />,
   MANAGE_ASSET: <InventoryIcon fontSize="small" />,
-  MANAGE_PURCHASE_REQUEST: <CurrencyIcon size={18} />,
+
   MANAGE_INSPECTION: <ChecklistIcon fontSize="small" />,
   VIEW_REPORT: <AssessmentIcon fontSize="small" />,
   MANAGE_STATIC_BLOCK: <LayersIcon fontSize="small" />,
@@ -214,6 +214,11 @@ export const KEY_ICONS = {
   MANAGE_BLOG_CATEGORY: <CategoryIcon fontSize="small" />,
   MANAGE_PUBLIC_INFO: <InfoIcon fontSize="small" />,
   MANAGE_IMAGE_LIBRARY: <PhotoLibraryIcon fontSize="small" />,
+  'inventory-management': <InventoryIcon fontSize="small" />,
+  'video-library': <VideoLibraryIcon fontSize="small" />,
+  'qa': <QaIcon fontSize="small" />,
+  MANAGE_CLASSES: <ClassIcon fontSize="small" />,
+  MANAGE_GRADES: <ClassIcon fontSize="small" />,
   SCHOOL_ADMIN_DISTRICT_NUTRITION: <LibraryIcon fontSize="small" />,
   MANAGE_INGREDIENTS: <RestaurantIcon fontSize="small" />,
   KITCHEN_DISTRICT_NUTRITION: <LibraryIcon fontSize="small" />,

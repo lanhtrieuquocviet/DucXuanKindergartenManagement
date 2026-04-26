@@ -34,6 +34,8 @@ import {
   Schedule as ScheduleIcon,
   Book as BookIcon,
   Assessment as AssessmentIcon,
+  Person as PersonIcon,
+  Favorite as FavoriteIcon,
 } from '@mui/icons-material';
 
 // Sub-components

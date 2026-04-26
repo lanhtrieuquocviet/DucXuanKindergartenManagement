@@ -158,6 +158,7 @@ const FacilityDashboard = lazy(() => import('./pages/schoolAdmin/FacilityManagem
 const FacilityInventory = lazy(() => import('./pages/schoolAdmin/FacilityManagement/FacilityInventory'));
 const FacilityHandover = lazy(() => import('./pages/schoolAdmin/FacilityManagement/FacilityHandover'));
 const FacilityIssues = lazy(() => import('./pages/schoolAdmin/FacilityManagement/FacilityIssues'));
+const ManageLocations = lazy(() => import('./pages/schoolAdmin/FacilityManagement/ManageLocations'));
 const RoomAssets = lazy(() => import('./pages/schoolAdmin/FacilityManagement/RoomAssets'));
 
 
@@ -394,7 +395,8 @@ function App() {
               <Route path="academic-years/:yearId/report" element={<AcademicYearReport />} />
               <Route path="academic-report" element={<AcademicYearReport />} />
               <Route path="face-attendance" element={<FaceAttendancePage />} />
-              <Route path="facilities" element={<FacilityDashboard />} />
+              <Route path="facilities" element={<ManageAssets />} />
+              <Route path="facilities/locations" element={<ManageLocations />} />
               <Route path="facilities/inventory" element={<FacilityInventory />} />
               <Route path="facilities/handover" element={<FacilityHandover />} />
               <Route path="facilities/issues" element={<FacilityIssues />} />

@@ -22,12 +22,12 @@ const WarehouseTab = ({ searchTerm, typeFilter }) => {
     setLoading(true);
     try {
       // Find locations of type 'warehouse' first
-      const locResp = await get('/api/school-admin/facilities/locations');
+      const locResp = await get('/school-admin/facilities/locations');
       const warehouseIds = (locResp.data || [])
         .filter(l => l.type === 'warehouse')
         .map(l => l._id);
 
-      const resp = await get('/api/school-admin/facilities/assets');
+      const resp = await get('/school-admin/facilities/assets');
       if (resp?.status === 'success') {
         const allAssets = resp.data || [];
         const filtered = allAssets.filter(a => 
