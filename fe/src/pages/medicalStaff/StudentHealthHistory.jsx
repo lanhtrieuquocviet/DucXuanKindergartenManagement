@@ -195,7 +195,10 @@ export default function StudentHealthHistory() {
   const [formOpen, setFormOpen] = useState(false);
   
   const isReadOnly = useMemo(() => {
-    return hasRole('SchoolAdmin') && !hasRole('MedicalStaff') && !hasRole('SystemAdmin');
+    // SchoolAdmin and Teacher are read-only unless they also have MedicalStaff or SystemAdmin roles
+    const isRestrictedRole = hasRole('SchoolAdmin') || hasRole('Teacher');
+    const hasOverrideRole = hasRole('MedicalStaff') || hasRole('SystemAdmin');
+    return isRestrictedRole && !hasOverrideRole;
   }, [hasRole]);
 
   const [deleteTarget, setDeleteTarget] = useState(null);

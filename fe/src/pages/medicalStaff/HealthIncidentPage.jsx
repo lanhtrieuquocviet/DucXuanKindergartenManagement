@@ -78,7 +78,10 @@ export default function HealthIncidentPage() {
   const [error, setError] = useState(null);
 
   const isReadOnly = useMemo(() => {
-    return hasRole('SchoolAdmin') && !hasRole('MedicalStaff') && !hasRole('SystemAdmin');
+    // SchoolAdmin and Teacher are read-only unless they also have MedicalStaff or SystemAdmin roles
+    const isRestrictedRole = hasRole('SchoolAdmin') || hasRole('Teacher');
+    const hasOverrideRole = hasRole('MedicalStaff') || hasRole('SystemAdmin');
+    return isRestrictedRole && !hasOverrideRole;
   }, [hasRole]);
 
   // Students list cho autocomplete
@@ -396,18 +399,22 @@ export default function HealthIncidentPage() {
                         </TableCell>
 
                         <TableCell align="right" sx={{ whiteSpace: 'nowrap' }}>
-                          <Tooltip title="Cập nhật trạng thái">
-                            <IconButton size="small" onClick={() => setEditTarget({ ...inc })}
-                              sx={{ color: '#2563eb' }}>
-                              <EditIcon fontSize="small" />
-                            </IconButton>
-                          </Tooltip>
-                          <Tooltip title="Xóa">
-                            <IconButton size="small" onClick={() => setDeleteTarget(inc)}
-                              sx={{ color: 'error.main' }}>
-                              <DeleteIcon fontSize="small" />
-                            </IconButton>
-                          </Tooltip>
+                          {!isReadOnly && (
+                            <>
+                              <Tooltip title="Cập nhật trạng thái">
+                                <IconButton size="small" onClick={() => setEditTarget({ ...inc })}
+                                  sx={{ color: '#2563eb' }}>
+                                  <EditIcon fontSize="small" />
+                                </IconButton>
+                              </Tooltip>
+                              <Tooltip title="Xóa">
+                                <IconButton size="small" onClick={() => setDeleteTarget(inc)}
+                                  sx={{ color: 'error.main' }}>
+                                  <DeleteIcon fontSize="small" />
+                                </IconButton>
+                              </Tooltip>
+                            </>
+                          )}
                         </TableCell>
                       </TableRow>
                     );

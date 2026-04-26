@@ -516,7 +516,27 @@ export default function AcademicYearPlan() {
               size="small"
               InputProps={{ readOnly: true }}
               sx={{
-                width: { xs: '100%', md: 300 },
+                width: { xs: '100%', md: 200 },
+                flexShrink: 0,
+              }}
+            />
+            <TextField
+              label="Từ năm"
+              value={currentYear?.startYear || ''}
+              size="small"
+              InputProps={{ readOnly: true }}
+              sx={{
+                width: { xs: '100%', md: 100 },
+                flexShrink: 0,
+              }}
+            />
+            <TextField
+              label="Đến năm"
+              value={currentYear?.endYear || ''}
+              size="small"
+              InputProps={{ readOnly: true }}
+              sx={{
+                width: { xs: '100%', md: 100 },
                 flexShrink: 0,
               }}
             />

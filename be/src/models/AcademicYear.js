@@ -15,6 +15,14 @@ const academicYearSchema = new mongoose.Schema({
     type: Date,
     required: true,
   },
+  startYear: {
+    type: Number,
+    required: false,
+  },
+  endYear: {
+    type: Number,
+    required: false,
+  },
   termCount: {
     type: Number,
     default: 0,
