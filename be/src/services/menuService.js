@@ -250,6 +250,7 @@ exports.createMenu = async (req, res) => {
       });
     }
 
+    const academicYear = await AcademicYear.findOne({ status: "active" }).sort({ startDate: -1 });
     const existed = await Menu.findOne({ month, year });
 
     if (existed) {
