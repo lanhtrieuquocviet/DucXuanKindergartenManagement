@@ -24,14 +24,6 @@ import AddStaffDialog from './StaffManagement/AddStaffDialog';
 import EditStaffDialog from './StaffManagement/EditStaffDialog';
 import SuccessAccountDialog from '../../components/SuccessAccountDialog';
 
-const ROLE_OPTIONS = [
-  { value: 'SchoolAdmin', label: 'Quản trị viên' },
-  { value: 'Teacher', label: 'Giáo viên' },
-  { value: 'KitchenStaff', label: 'Nhân viên bếp' },
-  { value: 'MedicalStaff', label: 'Nhân viên y tế' },
-  { value: 'HeadTeacher', label: 'Tổ trưởng' },
-];
-
 const EMPTY_FORM = {
   username: '',
   fullName: '',
@@ -65,6 +57,7 @@ export default function ManagePersonnel() {
   const [jobPositions, setJobPositions] = useState([]);
   const [positionMap, setPositionMap] = useState({});
   const [positionsLoading, setPositionsLoading] = useState(true);
+  const [roleOptions, setRoleOptions] = useState([]);
 
   // Debounce search term
   useEffect(() => {
@@ -90,15 +83,25 @@ export default function ManagePersonnel() {
   const fetchJobPositions = async () => {
     try {
       setPositionsLoading(true);
-      const res = await get(ENDPOINTS.SYSTEM_ADMIN.JOB_POSITIONS);
+      const res = await get(ENDPOINTS.SCHOOL_ADMIN.JOB_POSITIONS.LIST);
       const data = res.data || [];
       setJobPositions(data.map(p => p.title));
       
       const pMap = {};
+      const rOpts = new Map();
+      
       data.forEach(p => {
         pMap[p.title] = p.roleName;
+        if (p.roleName) {
+          // Map label cho role dựa trên title chức vụ tiêu biểu
+          if (!rOpts.has(p.roleName)) {
+            rOpts.set(p.roleName, { value: p.roleName, label: p.title });
+          }
+        }
       });
+      
       setPositionMap(pMap);
+      setRoleOptions(Array.from(rOpts.values()));
 
       // Set default position for form if it's currently empty
       if (data.length > 0) {
@@ -258,7 +261,7 @@ export default function ManagePersonnel() {
             setOpenAdd(true);
           }}
           totalCount={filtered.length}
-          ROLE_OPTIONS={ROLE_OPTIONS}
+          ROLE_OPTIONS={roleOptions}
         />
 
         {error && (

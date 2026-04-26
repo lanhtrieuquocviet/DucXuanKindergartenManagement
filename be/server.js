@@ -68,6 +68,7 @@ require('./src/models/Timetable');
 require('./src/models/Notification');
 require('./src/models/Classroom');
 require('./src/models/Teacher');
+require('./src/models/Staff');
 require('./src/models/Enrollment');
 require('./src/models/Ingredient');
 require('./src/models/HealthCheck');
@@ -234,12 +235,13 @@ require('./src/models/LeaveRequest');
       { code: 'MANAGE_HANDOVER', description: 'Bàn giao tài sản', group: 'Tài sản & Mua sắm', path: '/school-admin/facilities/handover', menuKey: 'asset-handover', order: 84 },
       { code: 'MANAGE_ASSET_ISSUES', description: 'Sự cố tài sản', group: 'Tài sản & Mua sắm', path: '/school-admin/facilities/issues', menuKey: 'asset-issues', order: 85 },
       { code: 'MANAGE_ROOM_ASSETS', description: 'Tài sản theo phòng', group: 'Tài sản & Mua sắm', path: '/school-admin/facilities/room-based', menuKey: 'room-assets', order: 86 },
+      { code: 'MANAGE_STAFF_POSITION', description: 'Danh mục chức vụ', group: 'Học vụ', path: '/school-admin/staff-positions', menuKey: 'staff-positions', order: 52 },
       // Quản trị hệ thống
       { code: 'MANAGE_USERS', description: 'Quản lý tài khoản', group: 'Quản trị hệ thống', path: '/system-admin/manage-accounts', menuKey: 'user-management', order: 92 },
       { code: 'ACCESS_SYSTEM_ADMIN', description: 'Bảng điều khiển', group: 'Quản trị hệ thống', path: '/system-admin', menuKey: 'system-dashboard', order: 91 },
       { code: 'ACCESS_KITCHEN', description: 'Giao diện nhà bếp', group: 'Bếp & Thực phẩm', order: 60 },
       { code: 'ACCESS_MEDICAL', description: 'Giao diện y tế', group: 'Y tế', order: 40 },
-      { code: 'ACCESS_INVENTORY', description: 'Giao diện kho', group: 'Tài sản & Mua sắm', order: 80 },
+      { code: 'ACCESS_INVENTORY', description: 'Quản lý kho & CSVC', group: 'Tài sản & Mua sắm', path: '/school-admin/facilities', menuKey: 'inventory-management', order: 80 },
       // Báo cáo
       { code: 'VIEW_REPORT', description: 'Báo cáo học vụ', group: 'Báo cáo', path: '/school-admin/academic-report', menuKey: 'academic-report', order: 101 },
       { code: 'SUBMIT_REPORT', description: 'Gửi báo cáo giáo viên', group: 'Báo cáo', path: '/teacher/reports', menuKey: 'teacher-report', order: 102 },
@@ -251,9 +253,9 @@ require('./src/models/LeaveRequest');
     for (const p of allPermissions) {
       const doc = await Permission.findOneAndUpdate(
         { code: p.code },
-        { 
-          code: p.code, 
-          description: p.description, 
+        {
+          code: p.code,
+          description: p.description,
           group: p.group || '',
           path: p.path || '',
           menuKey: p.menuKey || '',
@@ -274,6 +276,7 @@ require('./src/models/LeaveRequest');
         'APPROVE_MENU', 'VIEW_REPORT', 'MANAGE_HEALTH',
         'REGISTER_FACE', 'MANAGE_PURCHASE_REQUEST', 'MANAGE_ASSET',
         'MANAGE_INSPECTION', 'MANAGE_HANDOVER', 'MANAGE_ASSET_ISSUES', 'MANAGE_ROOM_ASSETS',
+        'MANAGE_STAFF_POSITION', 'ACCESS_INVENTORY',
       ],
       HeadTeacher: [
         // Tất cả quyền của giáo viên
@@ -314,6 +317,10 @@ require('./src/models/LeaveRequest');
     }
     console.log('✅ Default permissions seeded and assigned to roles');
 
+    // Tự động đồng bộ hồ sơ nhân sự (Staff) cho các tài khoản có role nhân sự
+    await syncStaffProfiles();
+    console.log('✅ Staff profiles synchronized');
+
     // Cấu hình kế thừa role (parent)
     // HeadTeacher kế thừa toàn bộ quyền của Teacher, chỉ thêm MANAGE_TEACHER_REPORT
     const parentConfig = [
@@ -335,6 +342,75 @@ require('./src/models/LeaveRequest');
     console.error('Error seeding permissions:', err);
   }
 })();
+
+/**
+ * Tự động đồng bộ hồ sơ nhân sự (Staff) cho các tài khoản có role nhân sự
+ */
+async function syncStaffProfiles() {
+  try {
+    const User = mongoose.model('User');
+    const Role = mongoose.model('Roles');
+    const Staff = mongoose.model('Staff');
+    const JobPosition = mongoose.model('JobPosition');
+
+    // 1. Lấy danh mục chức vụ từ DB để map cho đúng
+    const jobPosDocs = await JobPosition.find().lean();
+    const roleToTitleMap = {};
+    jobPosDocs.forEach(jp => {
+      if (jp.roleName) roleToTitleMap[jp.roleName] = jp.title;
+    });
+
+    const staffRoleNames = [
+      'SystemAdmin', 'SchoolAdmin', 'HeadTeacher', 'Teacher',
+      'KitchenStaff', 'InventoryStaff', 'MedicalStaff'
+    ];
+
+    const roles = await Role.find({ roleName: { $in: staffRoleNames } }).lean();
+    if (roles.length === 0) return;
+
+    const users = await User.find({
+      roles: { $in: roles.map(r => r._id) }
+    }).populate('roles').lean();
+
+    for (const user of users) {
+      const primaryRole = user.roles.find(r => staffRoleNames.includes(r.roleName))?.roleName || 'Staff';
+
+      // Ưu tiên lấy title từ danh mục JobPosition, nếu không có mới dùng fallback
+      let position = roleToTitleMap[primaryRole];
+      if (!position) {
+        if (primaryRole.includes('Admin')) position = 'Ban Giám Hiệu';
+        else if (primaryRole.includes('Teacher')) position = 'Giáo viên';
+        else if (primaryRole === 'KitchenStaff') position = 'Nhân viên nhà bếp';
+        else if (primaryRole === 'MedicalStaff') position = 'Nhân viên y tế';
+        else position = 'Nhân viên';
+      }
+
+      const staff = await Staff.findOne({ userId: user._id });
+
+      if (!staff) {
+        // Tạo mới nếu chưa có
+        await Staff.create({
+          userId: user._id,
+          fullName: user.fullName || user.username,
+          email: user.email,
+          phone: user.phone,
+          employeeId: user.username.toUpperCase(),
+          position: position,
+          status: user.status || 'active',
+          notes: 'Tự động đồng bộ hệ thống'
+        });
+        console.log(`  + Auto-created Staff for: ${user.username} (${position})`);
+      } else if (staff.position !== position) {
+        // Cập nhật lại chức vụ nếu bị sai lệch (do đổi Role hoặc sync lỗi trước đó)
+        staff.position = position;
+        await staff.save();
+        console.log(`  * Updated Position for: ${user.username} -> ${position}`);
+      }
+    }
+  } catch (err) {
+    console.error('Error syncStaffProfiles:', err);
+  }
+}
 
 // Khởi tạo ứng dụng express
 const app = express();

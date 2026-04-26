@@ -2913,4 +2913,11 @@ router.post('/staff-positions', authenticate, authorizeRoles('SchoolAdmin'), job
 router.put('/staff-positions/:id', authenticate, authorizeRoles('SchoolAdmin'), jobPositionController.updateJobPosition);
 router.delete('/staff-positions/:id', authenticate, authorizeRoles('SchoolAdmin'), jobPositionController.deleteJobPosition);
 
+const excelUpload = multer({ storage: multer.memoryStorage() });
+router.post('/staff-positions/import', authenticate, authorizeRoles('SchoolAdmin'), excelUpload.single('file'), jobPositionController.importJobPositions);
+router.post('/staff-positions/sync', authenticate, authorizeRoles('SchoolAdmin'), jobPositionController.syncFromStaffPositions);
+
+const { getRoles } = require('../controller/systemAdminController');
+router.get('/roles', authenticate, authorizeRoles('SchoolAdmin'), getRoles);
+
 module.exports = router;

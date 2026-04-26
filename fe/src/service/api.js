@@ -427,7 +427,10 @@ export const ENDPOINTS = {
       CREATE: '/school-admin/staff-positions',
       UPDATE: (id) => `/school-admin/staff-positions/${id}`,
       DELETE: (id) => `/school-admin/staff-positions/${id}`,
+      IMPORT: '/school-admin/staff-positions/import',
+      SYNC: '/school-admin/staff-positions/sync',
     },
+    ROLES: '/school-admin/roles',
   },
   // Contact (public)
   CONTACT: {

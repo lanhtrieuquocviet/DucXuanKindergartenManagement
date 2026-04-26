@@ -3,7 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import { toast } from 'react-toastify';
 import { useAuth } from '../../../context/AuthContext';
 import ConfirmDialog from '../../../components/ConfirmDialog';
-import { get, post, put, del, ENDPOINTS } from '../../../service/api';
+import { get, post, put, del, postFormData, ENDPOINTS } from '../../../service/api';
 import {
   Box,
   Paper,
@@ -23,13 +23,20 @@ import {
   DialogActions,
   IconButton,
   CircularProgress,
+  MenuItem,
+  FormControl,
+  InputLabel,
+  Select,
 } from '@mui/material';
 import AddIcon from '@mui/icons-material/Add';
 import EditIcon from '@mui/icons-material/Edit';
 import DeleteIcon from '@mui/icons-material/Delete';
 import CloseIcon from '@mui/icons-material/Close';
+import UploadFileIcon from '@mui/icons-material/UploadFile';
+import SyncIcon from '@mui/icons-material/Sync';
 
-function PositionFormModal({ open, onClose, initialData, onSubmit, loading }) {
+
+function PositionFormModal({ open, onClose, initialData, onSubmit, loading, roles = [] }) {
   const [form, setForm] = useState({ title: '', description: '', roleName: '' });
   const [formErrors, setFormErrors] = useState({});
 
@@ -79,6 +86,24 @@ function PositionFormModal({ open, onClose, initialData, onSubmit, loading }) {
               error={!!formErrors.title}
               helperText={formErrors.title || ' '}
             />
+            
+            <FormControl fullWidth size="small">
+              <InputLabel>Vai trò hệ thống</InputLabel>
+              <Select
+                name="roleName"
+                value={form.roleName}
+                onChange={handleChange}
+                label="Vai trò hệ thống"
+              >
+                <MenuItem value=""><em>-- Không liên kết --</em></MenuItem>
+                {roles.map((r) => (
+                  <MenuItem key={r._id} value={r.roleName}>
+                    {r.roleName} {r.description ? `(${r.description})` : ''}
+                  </MenuItem>
+                ))}
+              </Select>
+            </FormControl>
+
             <TextField
               name="description"
               label="Mô tả"
@@ -106,25 +131,30 @@ export default function ManageStaffPositions() {
   const navigate = useNavigate();
   const { user, logout } = useAuth();
   const [positions, setPositions] = useState([]);
+  const [roles, setRoles] = useState([]);
   const [loading, setLoading] = useState(true);
   const [modalOpen, setModalOpen] = useState(false);
   const [selected, setSelected] = useState(null);
   const [submitting, setSubmitting] = useState(false);
   const [confirmDelete, setConfirmDelete] = useState(null);
 
-  const loadPositions = async () => {
+  const loadData = async () => {
     setLoading(true);
     try {
-      const res = await get(ENDPOINTS.SCHOOL_ADMIN.JOB_POSITIONS.LIST);
-      setPositions(res.data || []);
+      const [posRes, roleRes] = await Promise.all([
+        get(ENDPOINTS.SCHOOL_ADMIN.JOB_POSITIONS.LIST),
+        get(ENDPOINTS.SCHOOL_ADMIN.ROLES)
+      ]);
+      setPositions(posRes.data || []);
+      setRoles(roleRes.data || []);
     } catch (err) {
-      toast.error(err.message || 'Lỗi khi tải danh sách');
+      toast.error(err.message || 'Lỗi khi tải dữ liệu');
     } finally {
       setLoading(false);
     }
   };
 
-  useEffect(() => { loadPositions(); }, []);
+  useEffect(() => { loadData(); }, []);
 
   const handleSubmit = async (form) => {
     setSubmitting(true);
@@ -136,7 +166,7 @@ export default function ManageStaffPositions() {
         await post(ENDPOINTS.SCHOOL_ADMIN.JOB_POSITIONS.CREATE, form);
         toast.success('Tạo mới thành công');
       }
-      loadPositions();
+      loadData();
       setModalOpen(false);
     } catch (err) {
       toast.error(err.message || 'Lỗi khi lưu');
@@ -150,10 +180,44 @@ export default function ManageStaffPositions() {
     try {
       await del(ENDPOINTS.SCHOOL_ADMIN.JOB_POSITIONS.DELETE(confirmDelete._id));
       toast.success('Xóa thành công');
-      loadPositions();
+      loadData();
       setConfirmDelete(null);
     } catch (err) {
       toast.error(err.message || 'Lỗi khi xóa');
+    } finally {
+      setSubmitting(false);
+    }
+  };
+
+
+  const handleImportExcel = async (e) => {
+    const file = e.target.files[0];
+    if (!file) return;
+
+    const formData = new FormData();
+    formData.append('file', file);
+
+    setSubmitting(true);
+    try {
+      const res = await postFormData(ENDPOINTS.SCHOOL_ADMIN.JOB_POSITIONS.IMPORT, formData);
+      toast.success(res.message || 'Nhập dữ liệu thành công');
+      loadData();
+    } catch (err) {
+      toast.error(err.message || 'Lỗi khi nhập file');
+    } finally {
+      setSubmitting(false);
+      e.target.value = ''; // Reset input
+    }
+  };
+
+  const handleSyncPositions = async () => {
+    setSubmitting(true);
+    try {
+      const res = await post(ENDPOINTS.SCHOOL_ADMIN.JOB_POSITIONS.SYNC);
+      toast.success(res.message || 'Đồng bộ thành công');
+      loadData();
+    } catch (err) {
+      toast.error(err.message || 'Lỗi khi đồng bộ');
     } finally {
       setSubmitting(false);
     }
@@ -177,15 +241,48 @@ export default function ManageStaffPositions() {
       <Paper elevation={2} sx={{ borderRadius: 3, p: 3 }}>
         <Stack direction="row" alignItems="center" justifyContent="space-between" mb={3}>
           <Typography variant="subtitle1" fontWeight={600}>Danh sách chức vụ</Typography>
-          <Button
-            variant="contained"
-            color="primary"
-            startIcon={<AddIcon />}
-            onClick={() => { setSelected(null); setModalOpen(true); }}
-            sx={{ borderRadius: 2, textTransform: 'none' }}
-          >
-            Tạo chức vụ mới
-          </Button>
+          <Stack direction="row" spacing={1.5}>
+            <Button
+              variant="outlined"
+              color="info"
+              startIcon={<SyncIcon />}
+              onClick={handleSyncPositions}
+              disabled={submitting}
+              sx={{ borderRadius: 2, textTransform: 'none' }}
+            >
+              Đồng bộ từ nhân sự
+            </Button>
+
+            <input
+              type="file"
+              accept=".xlsx, .xls"
+              id="import-excel-positions"
+              style={{ display: 'none' }}
+              onChange={handleImportExcel}
+            />
+            <label htmlFor="import-excel-positions">
+              <Button
+                component="span"
+                variant="outlined"
+                color="primary"
+                startIcon={<UploadFileIcon />}
+                disabled={submitting}
+                sx={{ borderRadius: 2, textTransform: 'none' }}
+              >
+                Nhập Excel
+              </Button>
+            </label>
+
+            <Button
+              variant="contained"
+              color="primary"
+              startIcon={<AddIcon />}
+              onClick={() => { setSelected(null); setModalOpen(true); }}
+              sx={{ borderRadius: 2, textTransform: 'none' }}
+            >
+              Tạo chức vụ mới
+            </Button>
+          </Stack>
         </Stack>
 
         <TableContainer>
@@ -193,18 +290,24 @@ export default function ManageStaffPositions() {
             <TableHead>
               <TableRow sx={{ bgcolor: 'grey.50' }}>
                 <TableCell sx={{ fontWeight: 600 }}>Tên chức vụ</TableCell>
+                <TableCell sx={{ fontWeight: 600 }}>Vai trò hệ thống</TableCell>
                 <TableCell sx={{ fontWeight: 600 }}>Mô tả</TableCell>
                 <TableCell align="right" sx={{ fontWeight: 600 }}>Hành động</TableCell>
               </TableRow>
             </TableHead>
             <TableBody>
               {loading ? (
-                <TableRow><TableCell colSpan={3} align="center" sx={{ py: 4 }}><CircularProgress size={24} /></TableCell></TableRow>
+                <TableRow><TableCell colSpan={4} align="center" sx={{ py: 4 }}><CircularProgress size={24} /></TableCell></TableRow>
               ) : positions.length === 0 ? (
-                <TableRow><TableCell colSpan={3} align="center" sx={{ py: 4 }}>Chưa có dữ liệu.</TableCell></TableRow>
+                <TableRow><TableCell colSpan={4} align="center" sx={{ py: 4 }}>Chưa có dữ liệu.</TableCell></TableRow>
               ) : positions.map((pos) => (
                 <TableRow key={pos._id} hover>
                   <TableCell sx={{ fontWeight: 500 }}>{pos.title}</TableCell>
+                  <TableCell>
+                    <Typography variant="caption" sx={{ bgcolor: 'indigo.50', color: 'indigo.700', px: 1, py: 0.5, borderRadius: 1, fontWeight: 600 }}>
+                      {pos.roleName || 'Chưa liên kết'}
+                    </Typography>
+                  </TableCell>
                   <TableCell>{pos.description || '-'}</TableCell>
                   <TableCell align="right">
                     <Stack direction="row" spacing={1} justifyContent="flex-end">
@@ -227,6 +330,7 @@ export default function ManageStaffPositions() {
         initialData={selected}
         onSubmit={handleSubmit}
         loading={submitting}
+        roles={roles}
       />
 
       <ConfirmDialog

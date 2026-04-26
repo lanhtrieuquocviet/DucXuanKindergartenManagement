@@ -69,8 +69,19 @@ export const useAppMenu = () => {
         children: group.children.sort((a, b) => a.order - b.order),
       }));
 
+    // 5. Xác định đường dẫn Tổng quan dựa trên role
+    let overviewPath = '/';
+    const primaryRole = user.roles[0]?.roleName;
+    if (primaryRole === 'SchoolAdmin') overviewPath = '/school-admin';
+    else if (primaryRole === 'Teacher' || primaryRole === 'HeadTeacher') overviewPath = '/teacher';
+    else if (primaryRole === 'SystemAdmin') overviewPath = '/system-admin';
+    else if (primaryRole === 'KitchenStaff') overviewPath = '/kitchen';
+    else if (primaryRole === 'MedicalStaff') overviewPath = '/medical-staff';
+    else if (primaryRole === 'HeadParent') overviewPath = '/head-parent';
+    else if (primaryRole === 'Student' || primaryRole === 'Parent') overviewPath = '/student';
+
     return [
-      { key: 'overview', label: 'Tổng quan', path: '/' },
+      { key: 'overview', label: 'Tổng quan', path: overviewPath },
       ...sortedGroups,
     ];
   }, [user, isInitializing]);
@@ -82,12 +93,19 @@ export const useAppMenu = () => {
     const path = location.pathname;
 
     const findActiveKey = (items) => {
+      // Ưu tiên 1: Khớp chính xác 100% (Exact match)
       for (const item of items) {
-        if (item.path && path.startsWith(item.path)) return item.key;
+        if (item.path === path) return item.key;
         if (item.children) {
           const childKey = findActiveKey(item.children);
           if (childKey) return childKey;
         }
+      }
+      
+      // Ưu tiên 2: Khớp theo tiền tố (StartsWith) cho các route sâu hơn
+      // Bỏ qua '/' để tránh nó khớp với tất cả mọi thứ
+      for (const item of items) {
+        if (item.path && item.path !== '/' && path.startsWith(item.path)) return item.key;
       }
       return null;
     };
