@@ -14,6 +14,7 @@ const getSmartSuggestions = async (req, res, next) => service.getSmartSuggestion
 const expressSetupNewAcademicYear = async (req, res, next) => service.expressSetupNewAcademicYear(req, res, next);
 const updateAcademicYear = async (req, res, next) => service.updateAcademicYear(req, res, next);
 const publishAcademicYear = async (req, res, next) => service.publishAcademicYear(req, res, next);
+const remindEvaluations = async (req, res, next) => service.remindEvaluations(req, res, next);
 
 module.exports = {
   getCurrentAcademicYear,
@@ -30,5 +31,6 @@ module.exports = {
   expressSetupNewAcademicYear,
   updateAcademicYear,
   publishAcademicYear,
+  remindEvaluations,
 };
 

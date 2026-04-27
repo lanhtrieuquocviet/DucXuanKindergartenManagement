@@ -8,13 +8,13 @@ export const SCHOOL_ADMIN_MENU_ITEMS = [
   { key: 'overview', label: 'Tổng quan trường' },
   {
     key: 'academic-years',
-    label: 'Quản lý năm học',
+    label: 'Học vụ',
     permission: 'MANAGE_ACADEMIC_YEAR',
     children: [
-      { key: 'academic-year-setup', label: 'Thiết lập năm học', permission: 'MANAGE_ACADEMIC_YEAR' },
-      { key: 'academic-plan', label: 'Thiết lập kế hoạch', permission: 'MANAGE_CURRICULUM' },
-      { key: 'academic-events', label: 'Thiết lập sự kiện', permission: 'MANAGE_CURRICULUM' },
-      { key: 'academic-schedule', label: 'Thời gian biểu', permission: 'MANAGE_CURRICULUM' },
+      { key: 'academic-year-setup', label: 'Quản lý năm học', permission: 'MANAGE_ACADEMIC_YEAR' },
+      { key: 'academic-plan', label: 'Quản lý kế hoạch', permission: 'MANAGE_ACADEMIC_YEAR' },
+      { key: 'academic-events', label: 'Quản lý sự kiện', permission: 'MANAGE_ACADEMIC_YEAR' },
+      { key: 'academic-schedule', label: 'Thời gian biểu', permission: 'MANAGE_ACADEMIC_YEAR' },
       { key: 'academic-report', label: 'Báo cáo & thống kê', permission: 'VIEW_REPORT' },
     ],
   },

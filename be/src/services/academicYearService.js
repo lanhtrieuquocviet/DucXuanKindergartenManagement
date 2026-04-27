@@ -27,4 +27,5 @@ module.exports = {
   finishAcademicYear: lifecycleService.finishAcademicYear,
   updateAcademicYear: lifecycleService.updateAcademicYear,
   publishAcademicYear: lifecycleService.publishAcademicYear,
+  remindEvaluations: lifecycleService.remindEvaluations,
 };

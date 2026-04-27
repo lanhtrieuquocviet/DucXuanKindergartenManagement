@@ -56,6 +56,9 @@ const getStudentsByAcademicYear = async (req, res) => {
       return {
         ...s,
         className: cls?.className || '',
+        classId: cls?._id,
+        teacherNames: (cls?.teacherIds || []).map(t => t.userId?.fullName).filter(Boolean),
+        teacherUserIds: (cls?.teacherIds || []).map(t => t.userId?._id).filter(Boolean),
         gradeName: cls?.gradeId?.gradeName || '',
         canChooseGraduation: isGraduationEligibleBand(cls?.gradeId),
         evaluation: enrollment ? {

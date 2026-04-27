@@ -122,6 +122,8 @@ const getClassList = async (req, res) => {
       .populate('academicYearId', 'yearName startDate endDate')
       .populate({ path: 'teacherIds', populate: { path: 'userId', select: 'fullName email phone avatar' } });
 
+    const yearInfo = await AcademicYear.findById(targetYearId).select('yearName startDate endDate status').lean();
+
     return res.status(200).json({
       status: 'success',
       message: classes.length === 0
@@ -129,6 +131,7 @@ const getClassList = async (req, res) => {
         : 'Lấy danh sách lớp học thành công',
       data: classes || [],
       total: classes.length,
+      academicYear: yearInfo,
     });
   } catch (error) {
     console.error('Error in getClassList:', error);

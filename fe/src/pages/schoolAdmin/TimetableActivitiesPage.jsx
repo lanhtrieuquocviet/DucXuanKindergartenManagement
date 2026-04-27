@@ -144,7 +144,6 @@ export default function TimetableActivitiesPage() {
     startTime: '',
     endTime: '',
     content: '',
-    content: '',
   });
 
   const yearName = academicYear?.yearName || '';

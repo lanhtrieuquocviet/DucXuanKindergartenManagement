@@ -3,8 +3,11 @@ const AcademicYear = require('../../models/AcademicYear');
 const Student = require('../../models/Student');
 const Menu = require('../../models/Menu');
 const Grade = require('../../models/Grade');
+const StudentAssessment = require('../../models/StudentAssessment');
+const Teacher = require('../../models/Teacher');
+const Classes = require('../../models/Classes');
 const { autoFinishExpiredAcademicYears, isGraduationEligibleBand, timetableSeasonLabel } = require('./core');
-const { createNotification } = require('../../controller/notification.controller');
+const { createNotification } = require('../../services/notification.service');
 
 /**
  * PATCH /api/school-admin/academic-years/current/timetable-season
@@ -60,6 +63,39 @@ const createAcademicYear = async (req, res) => {
 };
 
 /**
+ * Helper: Kiểm tra học sinh chưa được đánh giá trong năm học (kỳ 2)
+ */
+const validateEvaluations = async (academicYearId) => {
+  const students = await Student.find({ academicYearId, status: 'active' }).populate('classId');
+  const assessments = await StudentAssessment.find({ academicYearId, term: 2 }).select('studentId');
+  const assessedStudentIds = new Set(assessments.map(a => a.studentId.toString()));
+
+  const missingSummary = {}; 
+
+  for (const student of students) {
+    if (!assessedStudentIds.has(student._id.toString())) {
+      const classId = student.classId?._id?.toString() || 'unassigned';
+      if (!missingSummary[classId]) {
+        const cls = student.classId;
+        // Lấy thông tin giáo viên từ Teacher model
+        const teachers = cls ? await Teacher.find({ _id: { $in: cls.teacherIds || [] } }).populate('userId', 'fullName') : [];
+        
+        missingSummary[classId] = {
+          classId: classId,
+          className: cls?.className || 'Chưa xếp lớp',
+          teacherNames: teachers.map(t => t.userId?.fullName).filter(Boolean),
+          teacherUserIds: teachers.map(t => t.userId?._id).filter(Boolean),
+          missingCount: 0
+        };
+      }
+      missingSummary[classId].missingCount++;
+    }
+  }
+
+  return Object.values(missingSummary).filter(s => s.missingCount > 0);
+};
+
+/**
  * PATCH /api/school-admin/academic-years/:id/finish
  */
 const finishAcademicYear = async (req, res) => {
@@ -67,11 +103,25 @@ const finishAcademicYear = async (req, res) => {
   session.startTransaction();
   try {
     const { id } = req.params;
-    const { selectedStudentIds = [], dropoutStudentIds = [] } = req.body;
+    const { selectedStudentIds = [], dropoutStudentIds = [], force = false } = req.body;
 
     const year = await AcademicYear.findById(id).session(session);
     if (!year || year.status === 'inactive') {
         throw new Error('Năm học không tồn tại hoặc đã kết thúc');
+    }
+
+    // Kiểm tra đánh giá nếu không ép buộc (force)
+    if (!force) {
+      const missing = await validateEvaluations(id);
+      if (missing.length > 0) {
+        await session.abortTransaction();
+        return res.status(400).json({
+          status: 'error',
+          code: 'MISSING_EVALUATIONS',
+          message: 'Vẫn còn học sinh chưa được đánh giá kết thúc năm học.',
+          summary: missing
+        });
+      }
     }
 
     // 1. Tìm năm học mới nhất để chuyển tiếp
@@ -217,10 +267,37 @@ const publishAcademicYear = async (req, res) => {
   }
 };
 
+/**
+ * POST /api/school-admin/academic-years/:id/remind-evaluations
+ */
+const remindEvaluations = async (req, res) => {
+  try {
+    const { id } = req.params;
+    const { classes = [] } = req.body;
+
+    for (const cls of classes) {
+      for (const userId of cls.teacherUserIds) {
+        await createNotification({
+          title: 'Nhắc nhở hoàn tất đánh giá',
+          body: `Lớp ${cls.className} vẫn còn ${cls.missingCount} học sinh chưa được đánh giá kỳ 2. Vui lòng hoàn tất trước khi kết thúc năm học.`,
+          type: 'evaluation_reminder',
+          targetUserId: userId,
+        });
+      }
+    }
+
+    return res.status(200).json({ status: 'success', message: 'Đã gửi nhắc nhở đến giáo viên các lớp.' });
+  } catch (error) {
+    console.error('remindEvaluations error:', error);
+    return res.status(500).json({ status: 'error', message: 'Lỗi khi gửi nhắc nhở' });
+  }
+};
+
 module.exports = {
   patchCurrentTimetableSeason,
   createAcademicYear,
   finishAcademicYear,
   updateAcademicYear,
   publishAcademicYear,
+  remindEvaluations,
 };

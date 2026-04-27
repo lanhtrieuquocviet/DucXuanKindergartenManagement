@@ -19,6 +19,11 @@ import {
   Avatar,
   Divider,
   Grid,
+  Dialog,
+  DialogTitle,
+  DialogContent,
+  DialogActions,
+  TextField,
 } from '@mui/material';
 import {
   WbSunny as WbSunnyIcon,
@@ -41,7 +46,6 @@ import {
 // Sub-components
 import StatCard from './ClassManagement/StudentInClass/StatCard';
 import StudentCard from './ClassManagement/StudentInClass/StudentCard';
-import StudentDetailDialog from './ClassManagement/StudentInClass/StudentDetailDialog';
 import AddStudentsToClassDialog from './ClassManagement/StudentInClass/AddStudentsToClassDialog';
 import TabDanhGia from './ClassManagement/StudentInClass/TabDanhGia';
 import { calcAge, attendanceColor } from './ClassManagement/StudentInClass/helpers';
@@ -60,7 +64,6 @@ export default function StudentInClass() {
   const [error, setError] = useState(null);
   const [activeTab, setActiveTab] = useState(0);
   const [searchTerm, setSearchTerm] = useState('');
-  const [selectedStudent, setSelectedStudent] = useState(null);
 
   // Remove student from class
   const [removeConfirm, setRemoveConfirm] = useState(null);
@@ -190,7 +193,6 @@ export default function StudentInClass() {
     try {
       await del(ENDPOINTS.CLASSES.REMOVE_STUDENT(classId, removeConfirm._id));
       setRemoveConfirm(null);
-      if (selectedStudent?._id === removeConfirm._id) setSelectedStudent(null);
       fetchAll();
     } catch (err) {
       setRemoveError(err.data?.message || err.message || 'Lỗi khi xóa học sinh khỏi lớp');
@@ -639,13 +641,13 @@ export default function StudentInClass() {
                   }}
                 >
                   {filteredStudents.map((student) => (
-                    <StudentCard
-                      key={student._id}
-                      student={student}
-                      attendanceStatus={attendanceMap[student._id] || null}
-                      onClick={setSelectedStudent}
-                      onRemove={setRemoveConfirm}
-                    />
+                      <StudentCard
+                        key={student._id}
+                        student={student}
+                        attendanceStatus={attendanceMap[student._id] || null}
+                        onClick={(s) => navigate(`/school-admin/students/${s._id}/detail`)}
+                        onRemove={setRemoveConfirm}
+                      />
                   ))}
                 </Box>
               )}
@@ -773,13 +775,6 @@ export default function StudentInClass() {
       </Paper>
 
       {/* Dialogs */}
-      <StudentDetailDialog
-        open={!!selectedStudent}
-        onClose={() => setSelectedStudent(null)}
-        student={selectedStudent}
-        classDetail={classDetail}
-        attendanceMap={attendanceMap}
-      />
 
       <AddStudentsToClassDialog
         open={addOpen}

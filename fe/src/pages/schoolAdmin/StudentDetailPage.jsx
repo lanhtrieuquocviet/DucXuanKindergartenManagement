@@ -369,9 +369,9 @@ export default function StudentDetailPage() {
   return (
     <Box>
       <Box sx={{ maxWidth: 1000, mx: 'auto' }}>
-        <Stack direction="row" alignItems="center" spacing={1} mb={3} sx={{ cursor: 'pointer', color: 'text.secondary', '&:hover': { color: 'primary.main' } }} onClick={() => navigate('/school-admin/students')}>
+        <Stack direction="row" alignItems="center" spacing={1} mb={3} sx={{ cursor: 'pointer', color: 'text.secondary', '&:hover': { color: 'primary.main' } }} onClick={() => navigate(-1)}>
           <BackIcon fontSize="small" />
-          <Typography variant="body2" fontWeight={600}>Danh sách học sinh</Typography>
+          <Typography variant="body2" fontWeight={600}>Quay lại</Typography>
         </Stack>
 
         {loading ? (

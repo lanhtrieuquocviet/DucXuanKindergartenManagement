@@ -488,10 +488,12 @@ export default function ClassList() {
         setForm={setClassForm}
         errors={classErrors}
         loading={classLoading}
+        fetchingData={loading}
         onSubmit={handleClassSubmit}
         grades={gradeList}
         rooms={rooms}
         academicYear={activeAcademicYear}
+        noActiveYear={!activeAcademicYear && !loading}
         teacherAvailability={teacherAvail}
         teacherAvailLoading={teacherAvailLoading}
         onNavigateToYearSetup={() => navigate('/school-admin/academic-years')}
