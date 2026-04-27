@@ -1,26 +1,39 @@
-import React, { useState, useEffect, useMemo } from 'react';
 import {
-  Box, Typography, Button, Stack, Paper, Grid,
-  Table, TableBody, TableCell, TableContainer, TableHead, TableRow,
-  Chip, TextField, Dialog, DialogTitle, DialogContent, DialogActions,
-  Checkbox, IconButton, Avatar, Fade, FormControl, InputLabel, Select, MenuItem
-} from '@mui/material';
-import {
-  CalendarToday as CalendarIcon,
-  Archive as ArchiveIcon,
   Add as AddIcon,
-  Search as SearchIcon,
-  CheckBox as CheckBoxIcon,
-  CheckBoxOutlineBlank as CheckBoxBlankIcon,
-  Warning as WarningIcon,
-  People as PeopleIcon,
+  Archive as ArchiveIcon,
+  CalendarToday as CalendarIcon,
   Edit as EditIcon,
   AutoFixHigh as MagicIcon,
+  People as PeopleIcon,
+  Search as SearchIcon,
+  Warning as WarningIcon
 } from '@mui/icons-material';
+import {
+  Box,
+  Button,
+  Checkbox,
+  Chip,
+  Dialog,
+  DialogActions,
+  DialogContent,
+  DialogTitle,
+  Fade, FormControl,
+  Grid,
+  IconButton,
+  InputLabel,
+  MenuItem,
+  Paper,
+  Select,
+  Stack,
+  Table, TableBody, TableCell, TableContainer, TableHead, TableRow,
+  TextField,
+  Typography
+} from '@mui/material';
+import { useEffect, useMemo, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { get, post, put, patch, ENDPOINTS } from '../../service/api';
-import AcademicYearWizard from './AcademicYearWizard/WizardContainer';
 import { toast } from 'react-toastify';
+import { ENDPOINTS, get, patch, post, put } from '../../service/api';
+import AcademicYearWizard from './AcademicYearWizard/WizardContainer';
 
 function formatDate(dateString) {
   if (!dateString) return '';
@@ -313,7 +326,7 @@ const ManageAcademicYears = () => {
                   '&:hover': { border: '2px solid #7c3aed', bgcolor: 'rgba(139, 92, 246, 0.05)' }
                 }}
               >
-                Thiết lập nhanh (1-Click)
+                Thiết lập nhanh năm học mới
               </Button>
             )}
             {currentYear && (
@@ -344,7 +357,7 @@ const ManageAcademicYears = () => {
                 onClick={() => setOpenWizard(true)}
                 sx={{ borderRadius: 2, textTransform: 'none', fontWeight: 700, px: 3, boxShadow: '0 4px 12px rgba(99, 102, 241, 0.2)' }}
               >
-                Từng bước (Wizard)
+                Tạo năm học mới
               </Button>
             )}
           </Box>

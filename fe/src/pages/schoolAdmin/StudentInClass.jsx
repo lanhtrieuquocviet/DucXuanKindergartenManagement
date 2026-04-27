@@ -1,54 +1,53 @@
-import { useEffect, useState, useMemo } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import { useAuth } from '../../context/AuthContext';
-import { get, post, del, ENDPOINTS } from '../../service/api';
-import { createSchoolAdminMenuSelect } from './schoolAdminMenuConfig';
+import { del, ENDPOINTS, get, post } from '../../service/api';
 import { useSchoolAdminMenu } from './useSchoolAdminMenu';
 
 import {
-  Box,
-  Paper,
-  Typography,
-  Button,
-  Alert,
-  Stack,
-  Chip,
-  CircularProgress,
-  Tabs,
-  Tab,
-  Avatar,
-  Divider,
-  Grid,
-  Dialog,
-  DialogTitle,
-  DialogContent,
-  DialogActions,
-  TextField,
-} from '@mui/material';
-import {
-  WbSunny as WbSunnyIcon,
   AcUnit as AcUnitIcon,
-  ArrowBack as ArrowBackIcon,
-  Refresh as RefreshIcon,
   Add as AddIcon,
-  School as SchoolIcon,
-  People as PeopleIcon,
+  ArrowBack as ArrowBackIcon,
+  Assessment as AssessmentIcon,
+  Book as BookIcon,
   CalendarToday as CalendarTodayIcon,
   CheckCircle as CheckCircleIcon,
-  MeetingRoom as MeetingRoomIcon,
-  Schedule as ScheduleIcon,
-  Book as BookIcon,
-  Assessment as AssessmentIcon,
-  Person as PersonIcon,
   Favorite as FavoriteIcon,
+  MeetingRoom as MeetingRoomIcon,
+  People as PeopleIcon,
+  Person as PersonIcon,
+  Refresh as RefreshIcon,
+  Schedule as ScheduleIcon,
+  School as SchoolIcon,
+  WbSunny as WbSunnyIcon,
 } from '@mui/icons-material';
+import {
+  Alert,
+  Avatar,
+  Box,
+  Button,
+  Chip,
+  CircularProgress,
+  Dialog,
+  DialogActions,
+  DialogContent,
+  DialogTitle,
+  Divider,
+  Grid,
+  Paper,
+  Stack,
+  Tab,
+  Tabs,
+  TextField,
+  Typography,
+} from '@mui/material';
 
 // Sub-components
+import AddStudentsToClassDialog from './ClassManagement/StudentInClass/AddStudentsToClassDialog';
 import StatCard from './ClassManagement/StudentInClass/StatCard';
 import StudentCard from './ClassManagement/StudentInClass/StudentCard';
-import AddStudentsToClassDialog from './ClassManagement/StudentInClass/AddStudentsToClassDialog';
 import TabDanhGia from './ClassManagement/StudentInClass/TabDanhGia';
-import { calcAge, attendanceColor } from './ClassManagement/StudentInClass/helpers';
+import { calcAge } from './ClassManagement/StudentInClass/helpers';
 
 export default function StudentInClass() {
   const { classId } = useParams();
@@ -521,10 +520,10 @@ export default function StudentInClass() {
                             classDetail.roomId.status === 'available'
                               ? 'Tốt'
                               : classDetail.roomId.status === 'in_use'
-                              ? 'Đang sử dụng'
-                              : classDetail.roomId.status === 'maintenance'
-                              ? 'Bảo trì'
-                              : 'N/A',
+                                ? 'Đang sử dụng'
+                                : classDetail.roomId.status === 'maintenance'
+                                  ? 'Bảo trì'
+                                  : 'N/A',
                         },
                       ].map(({ label, value }) => (
                         <Box key={label}>
@@ -641,13 +640,13 @@ export default function StudentInClass() {
                   }}
                 >
                   {filteredStudents.map((student) => (
-                      <StudentCard
-                        key={student._id}
-                        student={student}
-                        attendanceStatus={attendanceMap[student._id] || null}
-                        onClick={(s) => navigate(`/school-admin/students/${s._id}/detail`)}
-                        onRemove={setRemoveConfirm}
-                      />
+                    <StudentCard
+                      key={student._id}
+                      student={student}
+                      attendanceStatus={attendanceMap[student._id] || null}
+                      onClick={(s) => navigate(`/school-admin/students/${s._id}/detail`)}
+                      onRemove={setRemoveConfirm}
+                    />
                   ))}
                 </Box>
               )}
@@ -762,7 +761,7 @@ export default function StudentInClass() {
               })()}
             </Box>
           )}
-          
+
           {activeTab === 3 && (
             <Box sx={{ maxWidth: 800, mx: 'auto', py: 2 }}>
               <TabDanhGia studentId={null} />

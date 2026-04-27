@@ -278,8 +278,8 @@ const remindEvaluations = async (req, res) => {
     for (const cls of classes) {
       for (const userId of cls.teacherUserIds) {
         await createNotification({
-          title: 'Nhắc nhở hoàn tất đánh giá',
-          body: `Lớp ${cls.className} vẫn còn ${cls.missingCount} học sinh chưa được đánh giá kỳ 2. Vui lòng hoàn tất trước khi kết thúc năm học.`,
+          title: 'Thông báo hoàn tất đánh giá cuối năm',
+          body: `Kính gửi Giáo viên lớp ${cls.className}, hệ thống ghi nhận lớp vẫn còn ${cls.missingCount} học sinh chưa hoàn tất đánh giá Học kỳ 2. Vui lòng cập nhật đầy đủ kết quả để Nhà trường thực hiện tổng kết và kết thúc năm học. Trân trọng!`,
           type: 'evaluation_reminder',
           targetUserId: userId,
         });
