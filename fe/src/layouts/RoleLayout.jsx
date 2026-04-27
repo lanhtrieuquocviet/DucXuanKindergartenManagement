@@ -76,10 +76,14 @@ export const KEY_ICONS = {
   'academic-management': <CalendarIcon fontSize="small" />,
   'teacher-class-group': <ClassIcon fontSize="small" />,
   'academic-years': <CalendarIcon fontSize="small" />,
+  'academic-year-setup': <CalendarIcon fontSize="small" />,
   'academic-plan': <PlanIcon fontSize="small" />,
   'academic-events': <EventNoteIcon fontSize="small" />,
   'academic-schedule': <ScheduleIcon fontSize="small" />,
   'academic-report': <AssessmentIcon fontSize="small" />,
+  'classes-management': <ClassIcon fontSize="small" />,
+  'attendance': <ChecklistIcon fontSize="small" />,
+  'menu-management': <RestaurantIcon fontSize="small" />,
   
   // Classes & Students
   classes: <ClassIcon fontSize="small" />,
@@ -89,6 +93,7 @@ export const KEY_ICONS = {
   'students-admin': <PeopleIcon fontSize="small" />,
   'assessment-templates': <DescriptionIcon fontSize="small" />,
   'static-blocks': <LayersIcon fontSize="small" />,
+  'students': <PeopleIcon fontSize="small" />,
   'blog-categories': <CategoryIcon fontSize="small" />,
   'grades': <ClassIcon fontSize="small" />,
   
@@ -114,25 +119,37 @@ export const KEY_ICONS = {
   'menu-kitchen': <RestaurantIcon fontSize="small" />,
   'meal-photos': <CameraAltIcon fontSize="small" />,
   'food-list': <MealIcon fontSize="small" />,
+  'meal-management': <RestaurantIcon fontSize="small" />,
+  'menu': <MenuBookIcon fontSize="small" />,
+  'ingredient-categories': <CategoryIcon fontSize="small" />,
+  'district-nutrition-plan': <LibraryIcon fontSize="small" />,
   'review-menu': <GradingIcon fontSize="small" />,
   
   // Assets
   'assets-management': <InventoryIcon fontSize="small" />,
+  'assets': <InventoryIcon fontSize="small" />,
   'assets-list': <ListIcon fontSize="small" />,
   'asset-inspection': <ChecklistIcon fontSize="small" />,
 
   'asset-handover': <AssignmentIcon fontSize="small" />,
+  'facility-handover': <AssignmentIcon fontSize="small" />,
   'asset-issues': <ReportProblemIcon fontSize="small" />,
+  'facility-issues': <ReportProblemIcon fontSize="small" />,
+  'facility-inventory': <AssessmentIcon fontSize="small" />,
   'room-assets': <MeetingRoomIcon fontSize="small" />,
   
   // CMS & Public Info
   'cms-management': <PublicIcon fontSize="small" />,
-  'public-info': <InfoIcon fontSize="small" />,
+  'public-info': <PublicIcon fontSize="small" />,
   blogs: <BlogIcon fontSize="small" />,
   banners: <BannerIcon fontSize="small" />,
   documents: <FolderIcon fontSize="small" />,
-  contacts: <ContactIcon fontSize="small" />,
+  'public-info-list': <ListIcon fontSize="small" />,
+  'contacts': <ContactIcon fontSize="small" />,
+  'contacts-list': <ContactIcon fontSize="small" />,
   'image-library': <PhotoLibraryIcon fontSize="small" />,
+  'banner-management': <BannerIcon fontSize="small" />,
+  'files-management': <FolderOpenIcon fontSize="small" />,
   
   // Reports
   'reports-management': <AssessmentIcon fontSize="small" />,

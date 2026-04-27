@@ -99,6 +99,7 @@ const MealManagementSchoolAdmin = lazy(() => import('./pages/schoolAdmin/MealMan
 const DistrictNutritionPlanSchoolAdmin = lazy(() => import('./pages/schoolAdmin/DistrictNutritionPlanSchoolAdmin'));
 const AcademicYearPlan = lazy(() => import('./pages/schoolAdmin/AcademicYearPlan'));
 const AcademicEventSetup = lazy(() => import('./pages/schoolAdmin/AcademicEventSetup'));
+const SchoolAdminLayout = lazy(() => import('./pages/schoolAdmin/SchoolAdminLayout'));
 const CurriculumPage = lazy(() => import('./pages/schoolAdmin/CurriculumPage'));
 const ClassListOverview = lazy(() => import('./pages/schoolAdmin/ClassListOverview'));
 const TimetableActivitiesPage = lazy(() => import('./pages/schoolAdmin/TimetableActivitiesPage'));
@@ -348,9 +349,7 @@ function App() {
               element={
                 <ProtectedRoute>
                   <SchoolAdminProvider>
-                    <RoleLayout title="Quản trị trường học" description="Quản lý toàn diện hoạt động của nhà trường">
-                      <Outlet />
-                    </RoleLayout>
+                    <SchoolAdminLayout />
                   </SchoolAdminProvider>
                 </ProtectedRoute>
               }
