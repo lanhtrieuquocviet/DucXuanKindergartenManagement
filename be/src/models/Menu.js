@@ -127,6 +127,7 @@ const menuSchema = new mongoose.Schema(
             enum: [
               "submitted",
               "headparent_reviewed",
+              "headparent_rejected_approved",
               "approved",
               "rejected_pending",
               "request_edit_active",

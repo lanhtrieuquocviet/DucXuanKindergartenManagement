@@ -565,7 +565,8 @@ exports.submitMenu = async (req, res) => {
       });
     }
 
-    menu.status = "pending_headparent";
+    // KitchenStaff gửi thẳng lên SchoolAdmin duyệt.
+    menu.status = "pending";
     menu.rejectReason = "";
     menu.rejectPresets = [];
     menu.rejectDetail = "";
@@ -588,26 +589,69 @@ exports.submitMenu = async (req, res) => {
   }
 };
 
-// Hội trưởng phụ huynh xem xét – chuyển tiếp lên ban giám hiệu (có hoặc không có ý kiến)
+// Hội trưởng phụ huynh xem xét:
+// - pending_headparent: chuyển tiếp lên ban giám hiệu (pending)
+// - approved: gửi lý do từ chối, trả về bếp chỉnh sửa (rejected)
 exports.headParentReviewMenu = async (req, res) => {
   try {
     const menu = await Menu.findById(req.params.id);
     if (!menu) return res.status(404).json({ message: 'Menu không tồn tại' });
 
-    if (menu.status !== 'pending_headparent') {
+    if (!["pending_headparent", "approved"].includes(menu.status)) {
       return res.status(400).json({
         success: false,
-        message: 'Thực đơn không ở trạng thái chờ hội trưởng phụ huynh xem xét',
+        message: 'Chỉ có thể thao tác khi thực đơn đang chờ hội trưởng phụ huynh hoặc đã duyệt',
       });
     }
 
-    const comment = String(req.body.comment || '').trim();
+    const comment = String(req.body.comment || "").trim();
+    const now = new Date();
 
     menu.headParentReview = {
       reviewedBy: req.user?._id,
-      reviewedAt: new Date(),
+      reviewedAt: now,
       comment,
     };
+
+    if (menu.status === "approved") {
+      const presets = Array.isArray(req.body.presets)
+        ? [...new Set(req.body.presets.map((p) => String(p).trim()).filter(Boolean))]
+        : [];
+      const detail = String(req.body.detail || "").trim();
+
+      if (presets.length === 0 && detail.length < 5) {
+        return res.status(400).json({
+          success: false,
+          message:
+            "Chọn ít nhất một lý do gợi ý hoặc nhập chi tiết từ chối (tối thiểu 5 ký tự)",
+        });
+      }
+
+      const rejectReason = buildRejectReasonText(presets, detail);
+      menu.status = "rejected";
+      menu.rejectPresets = presets;
+      menu.rejectDetail = detail;
+      menu.rejectReason = rejectReason;
+      menu.changeReason = rejectReason;
+      menu.changedAt = now;
+      menu.headParentReview.comment = detail;
+
+      pushMenuHistory(menu, {
+        type: "headparent_rejected_approved",
+        actorId: req.user?._id,
+        presets,
+        detail,
+      });
+
+      await menu.save();
+
+      return res.json({
+        success: true,
+        message: "Đã từ chối thực đơn đã duyệt và gửi lại bếp để chỉnh sửa",
+        data: menu,
+      });
+    }
+
     menu.status = 'pending';
 
     pushMenuHistory(menu, {
@@ -618,7 +662,7 @@ exports.headParentReviewMenu = async (req, res) => {
 
     await menu.save();
 
-    res.json({
+    return res.json({
       success: true,
       message: comment
         ? 'Đã gửi ý kiến và chuyển thực đơn lên ban giám hiệu'
