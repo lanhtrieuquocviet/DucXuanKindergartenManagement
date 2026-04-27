@@ -99,8 +99,8 @@ const FacilityInventory = () => {
         <Paper elevation={0} sx={{ p: 4, borderRadius: 3, border: '1px solid #e2e8f0', bgcolor: 'white', minHeight: 'calc(100vh - 150px)' }}>
           <Stack direction="row" justifyContent="space-between" alignItems="center" sx={{ mb: 4 }}>
             <Box>
-              <Typography variant="h5" fontWeight={900} color="#1e293b">Danh sách Phiếu Kiểm kê</Typography>
-              <Typography variant="body2" color="text.secondary">Quản lý và phê duyệt các đợt kiểm kê tài sản định kỳ</Typography>
+              <Typography variant="h5" fontWeight={900} color="#1e293b">Danh sách Báo cáo cuối năm</Typography>
+              <Typography variant="body2" color="text.secondary">Quản lý và phê duyệt các đợt báo cáo tài sản cuối năm</Typography>
             </Box>
             <Button
               variant="contained"
@@ -187,7 +187,7 @@ const FacilityInventory = () => {
 
       {/* Add Dialog */}
       <Dialog open={openAdd} onClose={() => setOpenAdd(false)} maxWidth="md" fullWidth>
-        <DialogTitle sx={{ fontWeight: 800 }}>Tạo đợt kiểm kê tài sản mới</DialogTitle>
+        <DialogTitle sx={{ fontWeight: 800 }}>Tạo đợt báo cáo mới</DialogTitle>
         <DialogContent dividers>
           <Grid container spacing={3} sx={{ mt: 1 }}>
             <Grid item xs={12}>
@@ -196,7 +196,7 @@ const FacilityInventory = () => {
                 fullWidth
                 value={newInventory.title}
                 onChange={(e) => setNewInventory({ ...newInventory, title: e.target.value })}
-                placeholder="VD: Kiểm kê định kỳ Cuối học kỳ 1 - Năm học 2024"
+                placeholder="VD: Báo cáo kiểm kê Cuối năm học 2024-2025"
               />
             </Grid>
             <Grid item xs={12} md={6}>

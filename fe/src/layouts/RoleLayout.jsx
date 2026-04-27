@@ -126,6 +126,7 @@ export const KEY_ICONS = {
   'review-menu': <GradingIcon fontSize="small" />,
   
   // Assets
+  'facility-locations': <LocationIcon fontSize="small" />,
   'assets-management': <InventoryIcon fontSize="small" />,
   'assets': <InventoryIcon fontSize="small" />,
   'assets-list': <ListIcon fontSize="small" />,

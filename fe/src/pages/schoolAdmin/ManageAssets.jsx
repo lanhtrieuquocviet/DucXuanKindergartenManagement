@@ -53,7 +53,7 @@ export default function ManageAssets() {
           }}
         >
           <Tab icon={<DashboardIcon fontSize="small" />} iconPosition="start" label="Tổng quan" />
-          <Tab icon={<ListIcon fontSize="small" />} iconPosition="start" label="Danh mục tài sản & Báo cáo" />
+          <Tab icon={<ListIcon fontSize="small" />} iconPosition="start" label="Báo cáo cuối năm" />
           <Tab icon={<InventoryIcon fontSize="small" />} iconPosition="start" label="Quản lý Kho (Phân bổ)" />
         </Tabs>
 
@@ -64,10 +64,10 @@ export default function ManageAssets() {
                 <Typography variant="subtitle1" fontWeight={800} mb={2}>Hướng dẫn quy trình nghiệp vụ</Typography>
                 <Stack spacing={2}>
                   {[
-                    { title: '1. Khai báo Vị trí', desc: 'Định nghĩa các phòng học, khu vực và "Kho tổng" để chứa đồ.', link: '/school-admin/facilities/locations', icon: <LocationIcon color="primary" /> },
+                    { title: '1. Danh mục Cơ sở vật chất', desc: 'Định nghĩa các phòng học, khu vực hạ tầng và "Kho tổng" của trường.', link: '/school-admin/facilities/locations', icon: <LocationIcon color="primary" /> },
                     { title: '2. Nhập tài sản', desc: 'Sử dụng file Excel để nhập danh sách tài sản hiện có vào hệ thống.', tab: 1, icon: <ListIcon color="success" /> },
-                    { title: '3. Phân bổ về phòng', desc: 'Chuyển đồ từ "Kho tổng" về từng phòng học cụ thể.', link: '/school-admin/facilities/room-based', icon: <InventoryIcon color="warning" /> },
-                    { title: '4. Kiểm kê & Báo cáo', desc: 'Rà soát tình trạng sử dụng và xuất báo cáo gửi Sở/Phòng GD.', tab: 1, icon: <ArrowIcon color="info" /> }
+                    { title: '3. Phân bổ về phòng (CSVC)', desc: 'Chuyển đồ từ "Kho tổng" về từng phòng học hoặc cơ sở vật chất cụ thể.', link: '/school-admin/facilities/room-based', icon: <InventoryIcon color="warning" /> },
+                    { title: '4. Báo cáo cuối năm', desc: 'Rà soát tình trạng sử dụng và xuất báo cáo gửi Sở/Phòng GD.', tab: 1, icon: <ArrowIcon color="info" /> }
                   ].map((step, i) => (
                     <Paper 
                       key={i} 
@@ -97,7 +97,7 @@ export default function ManageAssets() {
                 <Paper sx={{ p: 3, bgcolor: '#eff6ff', borderRadius: 3, height: '100%' }}>
                   <Typography variant="h6" fontWeight={800} color="#1e40af" mb={1}>Phím tắt nhanh</Typography>
                   <Stack spacing={1.5} mt={2}>
-                    <Button variant="contained" fullWidth onClick={() => navigate('/school-admin/facilities/locations')} sx={{ bgcolor: '#2563eb', borderRadius: 2 }}>Quản lý Danh mục Vị trí</Button>
+                    <Button variant="contained" fullWidth onClick={() => navigate('/school-admin/facilities/locations')} sx={{ bgcolor: '#2563eb', borderRadius: 2 }}>Quản lý Danh mục CSVC</Button>
                     <Button variant="outlined" fullWidth onClick={() => setMainTab(1)} sx={{ borderRadius: 2 }}>Xem Báo cáo Tổng quát</Button>
                     <Button variant="outlined" fullWidth onClick={() => navigate('/school-admin/facilities/room-based')} sx={{ borderRadius: 2 }}>Xem Tài sản theo phòng</Button>
                   </Stack>

@@ -364,7 +364,7 @@ function App() {
               <Route path="assessment-templates" element={<ManageAssessmentTemplates />} />
               <Route path="students/:studentId/detail" element={<StudentDetailPage />} />
               <Route path="staff-positions" element={<ManageStaffPositions />} />
-              <Route path="staff" element={<ManagePersonnel />} />
+              <Route path="personnel" element={<ManagePersonnel />} />
               <Route path="contacts" element={<ContactList />} />
               <Route path="qa" element={<QaList />} />
               <Route path="attendance/overview" element={<AttendanceOverview />} />
