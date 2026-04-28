@@ -72,13 +72,18 @@ const StudentTable = ({
                   {GENDER_OPTIONS.find((g) => g.value === row.gender)?.label || row.gender || '—'}
                 </TableCell>
                 <TableCell sx={{ minWidth: 120 }}>
-                  <Chip
-                    label={getAcademicYearLabel(row)}
-                    size="small"
-                    variant="outlined"
-                    color={row.classId ? 'primary' : 'default'}
-                    sx={{ fontWeight: 600, fontSize: '0.72rem' }}
-                  />
+                  {(() => {
+                    const yearLabel = getAcademicYearLabel(row);
+                    return (
+                      <Chip
+                        label={yearLabel === '—' ? 'Chưa xác định' : yearLabel}
+                        size="small"
+                        variant="outlined"
+                        color={yearLabel === '—' ? 'default' : 'primary'}
+                        sx={{ fontWeight: 600, fontSize: '0.72rem' }}
+                      />
+                    );
+                  })()}
                 </TableCell>
                 <TableCell sx={{ minWidth: 130 }}>
                   {row.classId?.className ? (

@@ -334,8 +334,12 @@ export const AuthProvider = ({
       return role.permissions.map(p => (typeof p === 'object' ? p.code : p));
     });
 
-    // Nếu hệ thống chưa cấu hình quyền chi tiết trong DB -> Cho phép hiển thị (Chế độ Emergency)
-    if (allPermissionCodes.length === 0) return true;
+    // Nếu hệ thống chưa cấu hình quyền chi tiết trong DB -> Cho phép hiển thị cho Admin/Teacher để cấu hình
+    // Với các role khác (Parent, v.v.) thì không tự động cấp.
+    if (allPermissionCodes.length === 0) {
+      const privilegedRoles = ['SystemAdmin', 'SchoolAdmin', 'Teacher', 'HeadTeacher'];
+      return privilegedRoles.some(r => userRoles.includes(r));
+    }
 
     return allPermissionCodes.includes(code);
   }, [user, getUserRoles]);

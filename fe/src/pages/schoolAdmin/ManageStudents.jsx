@@ -570,7 +570,7 @@ function ManageStudents() {
   const getAcademicYearLabel = (student) => {
     if (student.academicYearId?.yearName) return student.academicYearId.yearName;
     if (student.classId?.academicYearId?.yearName) return student.classId.academicYearId.yearName;
-    return 'Chưa xếp lớp';
+    return '—';
   };
 
   // const handleMenuSelect = createSchoolAdminMenuSelect(navigate);

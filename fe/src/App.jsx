@@ -266,7 +266,7 @@ function App() {
             <Route
               path="/system-admin"
               element={
-                <ProtectedRoute>
+                <ProtectedRoute allowedRoles={['SystemAdmin']}>
                   <SystemAdminProvider>
                     <RoleLayout title="Quản trị hệ thống" description="Cấu hình hệ thống, tài khoản và phân quyền">
                       <Outlet />
@@ -289,7 +289,7 @@ function App() {
             <Route
               path="/teacher"
               element={
-                <ProtectedRoute>
+                <ProtectedRoute allowedRoles={['Teacher', 'HeadTeacher']}>
                   <TeacherProvider>
                     <RoleLayout title="Giáo viên" description="Quản lý lớp học và học sinh">
                       <Outlet />
@@ -299,24 +299,24 @@ function App() {
               }
             >
               <Route index element={<TeacherDashboard />} />
-              <Route path="students" element={<TeacherStudents />} />
-              <Route path="evaluation" element={<ClassAssessment />} />
-              <Route path="contact-book" element={<ContactBook />} />
-              <Route path="contact-book/:classId" element={<ContactBookDetail />} />
-              <Route path="attendance" element={<TeacherAttendance />} />
-              <Route path="attendance/:classId" element={<TeacherAttendance />} />
-              <Route path="pickup-approval" element={<PickupRequest />} />
-              <Route path="asset-inspection" element={<TeacherAssetInspection />} />
-              <Route path="asset-incidents" element={<TeacherAssetIncidents />} />
-              <Route path="class-assets" element={<TeacherClassAssets />} />
-              <Route path="manage-asset-incidents" element={<HeadTeacherAssetIncidents />} />
-              <Route path="leave-requests" element={<TeacherLeaveRequests />} />
+              <Route path="students" element={<ProtectedRoute requiredPermission="VIEW_TEACHER_STUDENTS"><TeacherStudents /></ProtectedRoute>} />
+              <Route path="evaluation" element={<ProtectedRoute requiredPermission="MANAGE_TEACHER_EVALUATION"><ClassAssessment /></ProtectedRoute>} />
+              <Route path="contact-book" element={<ProtectedRoute requiredPermission="MANAGE_TEACHER_CONTACT_BOOK"><ContactBook /></ProtectedRoute>} />
+              <Route path="contact-book/:classId" element={<ProtectedRoute requiredPermission="MANAGE_TEACHER_CONTACT_BOOK"><ContactBookDetail /></ProtectedRoute>} />
+              <Route path="attendance" element={<ProtectedRoute requiredPermission="MANAGE_ATTENDANCE"><TeacherAttendance /></ProtectedRoute>} />
+              <Route path="attendance/:classId" element={<ProtectedRoute requiredPermission="MANAGE_ATTENDANCE"><TeacherAttendance /></ProtectedRoute>} />
+              <Route path="pickup-approval" element={<ProtectedRoute requiredPermission="MANAGE_PICKUP"><PickupRequest /></ProtectedRoute>} />
+              <Route path="asset-inspection" element={<ProtectedRoute requiredPermission="MANAGE_ASSET"><TeacherAssetInspection /></ProtectedRoute>} />
+              <Route path="asset-incidents" element={<ProtectedRoute requiredPermission="MANAGE_ASSET"><TeacherAssetIncidents /></ProtectedRoute>} />
+              <Route path="class-assets" element={<ProtectedRoute requiredPermission="MANAGE_ASSET"><TeacherClassAssets /></ProtectedRoute>} />
+              <Route path="manage-asset-incidents" element={<ProtectedRoute requiredPermission="MANAGE_ASSET"><HeadTeacherAssetIncidents /></ProtectedRoute>} />
+              <Route path="leave-requests" element={<ProtectedRoute requiredPermission="MANAGE_ATTENDANCE"><TeacherLeaveRequests /></ProtectedRoute>} />
             </Route>
             {/* Kitchen Staff */}
             <Route
               path="/kitchen"
               element={
-                <ProtectedRoute>
+                <ProtectedRoute allowedRoles={['KitchenStaff']}>
                   <RoleLayout title="Quản lý nhà bếp" description="Hệ thống quản lý thực đơn và dinh dưỡng">
                     <Outlet />
                   </RoleLayout>
@@ -324,19 +324,19 @@ function App() {
               }
             >
               <Route index element={<KitchenDashboard />} />
-              <Route path="menus" element={<MenuManagement />} />
-              <Route path="menus/:id" element={<MenuDetail />} />
-              <Route path="menus/create" element={<CreateMenu />} />
-              <Route path="foods" element={<FoodManagement />} />
-              <Route path="ingredients" element={<IngredientManagement />} />
-              <Route path="district-nutrition" element={<DistrictNutritionKitchen />} />
-              <Route path="meal-management" element={<MealManagement />} />
-              <Route path="meal-photos" element={<MealManagement />} />
-              <Route path="headcount" element={<MealHeadcount />} />
-              <Route path="sample-food" element={<UploadSampleFood />} />
-              <Route path="report" element={<MenuReport />} />
+              <Route path="menus" element={<ProtectedRoute requiredPermission="MANAGE_MENU"><MenuManagement /></ProtectedRoute>} />
+              <Route path="menus/:id" element={<ProtectedRoute requiredPermission="MANAGE_MENU"><MenuDetail /></ProtectedRoute>} />
+              <Route path="menus/create" element={<ProtectedRoute requiredPermission="MANAGE_MENU"><CreateMenu /></ProtectedRoute>} />
+              <Route path="foods" element={<ProtectedRoute requiredPermission="MANAGE_FOOD"><FoodManagement /></ProtectedRoute>} />
+              <Route path="ingredients" element={<ProtectedRoute requiredPermission="MANAGE_INGREDIENTS"><IngredientManagement /></ProtectedRoute>} />
+              <Route path="district-nutrition" element={<ProtectedRoute requiredPermission="KITCHEN_DISTRICT_NUTRITION"><DistrictNutritionKitchen /></ProtectedRoute>} />
+              <Route path="meal-management" element={<ProtectedRoute requiredPermission="MANAGE_MEAL"><MealManagement /></ProtectedRoute>} />
+              <Route path="meal-photos" element={<ProtectedRoute requiredPermission="MANAGE_MEAL"><MealManagement /></ProtectedRoute>} />
+              <Route path="headcount" element={<ProtectedRoute requiredPermission="VIEW_MEAL_COUNT"><MealHeadcount /></ProtectedRoute>} />
+              <Route path="sample-food" element={<ProtectedRoute requiredPermission="MANAGE_SAMPLE_FOOD"><UploadSampleFood /></ProtectedRoute>} />
+              <Route path="report" element={<ProtectedRoute requiredPermission="VIEW_KITCHEN_REPORT"><MenuReport /></ProtectedRoute>} />
             </Route>
-            <Route path="/student" element={<ProtectedRoute><StudentDashboard /></ProtectedRoute>} />
+            <Route path="/student" element={<ProtectedRoute allowedRoles={['Student', 'Parent']}><StudentDashboard /></ProtectedRoute>} />
             <Route path="/student/pickup" element={<ProtectedRoute><PickupRegistration /></ProtectedRoute>} />
             <Route path="/student/leave-request" element={<ProtectedRoute><LeaveRequest /></ProtectedRoute>} />
             <Route path="/student/menus" element={<ProtectedRoute><MenuStudent /></ProtectedRoute>} />
@@ -348,7 +348,7 @@ function App() {
             <Route
               path="/school-admin"
               element={
-                <ProtectedRoute>
+                <ProtectedRoute allowedRoles={['SchoolAdmin']}>
                   <SchoolAdminProvider>
                     <SchoolAdminLayout />
                   </SchoolAdminProvider>
@@ -417,7 +417,7 @@ function App() {
             <Route
               path="/school-nurse"
               element={
-                <ProtectedRoute>
+                <ProtectedRoute allowedRoles={['SchoolNurse']}>
                   <SchoolNurseProvider>
                     <RoleLayout title="Y tế học đường" description="Theo dõi sức khỏe và quản lý y tế học sinh">
                       <Outlet />
@@ -438,7 +438,7 @@ function App() {
             <Route
               path="/medical-staff"
               element={
-                <ProtectedRoute>
+                <ProtectedRoute allowedRoles={['MedicalStaff']}>
                   <RoleLayout title="Nhân viên y tế" description="Ghi nhận và xử lý các vấn đề sức khỏe học đường">
                     <Outlet />
                   </RoleLayout>
@@ -455,7 +455,7 @@ function App() {
             <Route
               path="/head-parent"
               element={
-                <ProtectedRoute>
+                <ProtectedRoute allowedRoles={['HeadParent']}>
                   <RoleLayout title="Hội trưởng phụ huynh" description="Xem xét và cho ý kiến về thực đơn nhà trường">
                     <Outlet />
                   </RoleLayout>

@@ -84,6 +84,13 @@ export default function TeacherStudents() {
   useEffect(() => {
     if (isInitializing) return;
     if (!user) { navigate('/login', { replace: true }); return; }
+    
+    // Page Guard
+    if (!hasPermission('VIEW_TEACHER_STUDENTS')) {
+      toast.error('Bạn không có quyền truy cập trang này');
+      navigate('/teacher', { replace: true });
+      return;
+    }
 
     const fetchYears = async () => {
       try {
@@ -425,16 +432,19 @@ export default function TeacherStudents() {
                         </TableCell>
                         <TableCell align="right">
                           <Stack direction="row" spacing={0.75} justifyContent="flex-end" flexWrap="nowrap">
-                            <Tooltip title="Đánh giá học tập">
-                              <Button
-                                size="small" variant="text"
-                                startIcon={<SchoolIcon sx={{ fontSize: 14 }} />}
-                                onClick={() => openEvalDialog(s)}
-                                sx={{ fontSize: '0.72rem', py: 0.4, px: 1, color: '#0891b2', whiteSpace: 'nowrap' }}
-                              >
-                                Đánh giá
-                              </Button>
-                            </Tooltip>
+                            {hasPermission('MANAGE_TEACHER_EVALUATION') && (
+                              <Tooltip title="Đánh giá học tập">
+                                <Button
+                                  size="small" variant="text"
+                                  startIcon={<SchoolIcon sx={{ fontSize: 14 }} />}
+                                  onClick={() => openEvalDialog(s)}
+                                  sx={{ fontSize: '0.72rem', py: 0.4, px: 1, color: '#0891b2', whiteSpace: 'nowrap' }}
+                                >
+                                  Đánh giá
+                                </Button>
+                              </Tooltip>
+                            )}
+                            
                             <Tooltip title="Lịch sử yêu cầu đã gửi">
                               <Button
                                 size="small" variant="text"
@@ -445,6 +455,7 @@ export default function TeacherStudents() {
                                 Lịch sử
                               </Button>
                             </Tooltip>
+
                             <Tooltip title="Gửi yêu cầu thay đổi thông tin tới Ban Giám hiệu">
                               <Button
                                 size="small" variant="outlined"
@@ -460,7 +471,8 @@ export default function TeacherStudents() {
                                 Gửi yêu cầu
                               </Button>
                             </Tooltip>
-                            {classObj && (
+
+                            {classObj && hasPermission('MANAGE_TEACHER_CONTACT_BOOK') && (
                               <Tooltip title="Xem sổ liên lạc học sinh này">
                                 <Button
                                   size="small" variant="outlined"

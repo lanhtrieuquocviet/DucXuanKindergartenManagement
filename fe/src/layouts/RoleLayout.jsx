@@ -53,6 +53,15 @@ import {
   DirectionsCar as DirectionsCarIcon,
   EventBusy as EventBusyIcon,
   LocationOn as LocationIcon,
+  Timeline as TimelineIcon,
+  HealthAndSafety as HealthIcon,
+  MedicalServices as MedicalIcon,
+  LibraryAdd as LibraryAddIcon,
+  AppRegistration as RegistrationIcon,
+  Analytics as AnalyticsIcon,
+  Feedback as FeedbackIcon,
+  PhotoCamera as PhotoCameraIcon,
+  AdminPanelSettings as AdminIcon,
 } from '@mui/icons-material';
 import { Box, Drawer, IconButton, useMediaQuery, useTheme } from '@mui/material';
 
@@ -73,174 +82,99 @@ export const KEY_ICONS = {
   // Common
   overview: <DashboardIcon fontSize="small" />,
   
-  // Academic & Classes
+  // Groups
+  'system-management': <SettingsIcon fontSize="small" />,
   'academic-management': <CalendarIcon fontSize="small" />,
-  'teacher-class-group': <ClassIcon fontSize="small" />,
+  'attendance-management': <ChecklistIcon fontSize="small" />,
+  'personnel': <BadgeIcon fontSize="small" />,
+  'food-nutrition': <RestaurantIcon fontSize="small" />,
+  'assets-management': <InventoryIcon fontSize="small" />,
+  'cms-management': <PublicIcon fontSize="small" />,
+
+  // System
+  'manage-accounts': <PersonIcon fontSize="small" />,
+  'manage-roles': <RolesIcon fontSize="small" />,
+  'manage-permissions': <ShieldIcon fontSize="small" />,
+  'job-positions': <BadgeIcon fontSize="small" />,
+  'system-logs': <BarChartIcon fontSize="small" />,
+  'bpm': <AccountTreeIcon fontSize="small" />,
+  
+  // Academic & Classes
   'academic-years': <CalendarIcon fontSize="small" />,
-  'academic-year-setup': <CalendarIcon fontSize="small" />,
   'academic-plan': <PlanIcon fontSize="small" />,
   'academic-events': <EventNoteIcon fontSize="small" />,
-  'academic-schedule': <ScheduleIcon fontSize="small" />,
-  'academic-report': <AssessmentIcon fontSize="small" />,
-  'classes-management': <ClassIcon fontSize="small" />,
-  'attendance': <ChecklistIcon fontSize="small" />,
-  'menu-management': <RestaurantIcon fontSize="small" />,
-  
-  // Classes & Students
-  classes: <ClassIcon fontSize="small" />,
-  'classes-admin': <ClassIcon fontSize="small" />,
-  'classes-teacher': <ClassIcon fontSize="small" />,
-  'teacher-students': <PeopleIcon fontSize="small" />,
-  'students-admin': <PeopleIcon fontSize="small" />,
+  'curriculum': <ScheduleIcon fontSize="small" />,
+  'timetable': <ScheduleIcon fontSize="small" />,
+  'grades': <ClassIcon fontSize="small" />,
+  'classes': <ClassIcon fontSize="small" />,
+  'students': <PeopleIcon fontSize="small" />,
   'assessment-templates': <DescriptionIcon fontSize="small" />,
   'static-blocks': <LayersIcon fontSize="small" />,
-  'students': <PeopleIcon fontSize="small" />,
-  'blog-categories': <CategoryIcon fontSize="small" />,
-  'grades': <ClassIcon fontSize="small" />,
-  
-  // Personnel
-  personnel: <BadgeIcon fontSize="small" />,
-  'personnel-management': <PeopleIcon fontSize="small" />,
-  'staff-positions': <BadgeIcon fontSize="small" />,
   
   // Attendance
-  'attendance-management': <ChecklistIcon fontSize="small" />,
   'attendance-overview': <AttendanceIcon fontSize="small" />,
-  'attendance-teacher': <ChecklistIcon fontSize="small" />,
   'face-attendance': <FaceIcon fontSize="small" />,
-  'pickup-management': <DirectionsCarIcon fontSize="small" />,
-  
-  // Health
-  'health-medical': <ShieldIcon fontSize="small" />,
-  'health-records': <ChecklistIcon fontSize="small" />,
-  
-  // Nutrition & Food
-  'food-nutrition': <RestaurantIcon fontSize="small" />,
-  'menu-admin': <MenuBookIcon fontSize="small" />,
-  'menu-kitchen': <RestaurantIcon fontSize="small" />,
-  'meal-photos': <CameraAltIcon fontSize="small" />,
-  'food-list': <MealIcon fontSize="small" />,
-  'meal-management': <RestaurantIcon fontSize="small" />,
-  'menu': <MenuBookIcon fontSize="small" />,
-  'ingredient-categories': <CategoryIcon fontSize="small" />,
-  'district-nutrition-plan': <LibraryIcon fontSize="small" />,
-  'review-menu': <GradingIcon fontSize="small" />,
-  
-  // Assets
-  'facility-locations': <LocationIcon fontSize="small" />,
-  'assets-management': <InventoryIcon fontSize="small" />,
-  'assets': <InventoryIcon fontSize="small" />,
-  'assets-list': <ListIcon fontSize="small" />,
-  'asset-inspection': <ChecklistIcon fontSize="small" />,
-
-  'asset-handover': <AssignmentIcon fontSize="small" />,
-  'facility-handover': <AssignmentIcon fontSize="small" />,
-  'asset-issues': <ReportProblemIcon fontSize="small" />,
-  'facility-issues': <ReportProblemIcon fontSize="small" />,
-  'facility-inventory': <AssessmentIcon fontSize="small" />,
-  'room-assets': <MeetingRoomIcon fontSize="small" />,
-  
-  // CMS & Public Info
-  'cms-management': <PublicIcon fontSize="small" />,
-  'public-info': <PublicIcon fontSize="small" />,
-  blogs: <BlogIcon fontSize="small" />,
-  banners: <BannerIcon fontSize="small" />,
-  documents: <FolderIcon fontSize="small" />,
-  'public-info-list': <ListIcon fontSize="small" />,
-  'contacts': <ContactIcon fontSize="small" />,
-  'contacts-list': <ContactIcon fontSize="small" />,
-  'image-library': <PhotoLibraryIcon fontSize="small" />,
-  'banner-management': <BannerIcon fontSize="small" />,
-  'files-management': <FolderOpenIcon fontSize="small" />,
-  
-  // Reports
-  'reports-management': <AssessmentIcon fontSize="small" />,
-  'teacher-report': <AssignmentTurnedInIcon fontSize="small" />,
-  'head-teacher-report': <GradingIcon fontSize="small" />,
-  
-  // System
-  'system-management': <SettingsIcon fontSize="small" />,
-  'system-dashboard': <DashboardIcon fontSize="small" />,
-  'user-management': <PersonIcon fontSize="small" />,
-  'role-management': <RolesIcon fontSize="small" />,
-  'permission-management': <ShieldIcon fontSize="small" />,
-  'system-logs': <BarChartIcon fontSize="small" />,
-  system_logs: <BarChartIcon fontSize="small" />,
-  logs: <BarChartIcon fontSize="small" />,
-  bpm: <AccountTreeIcon fontSize="small" />,
-  bpm_workflows: <AccountTreeIcon fontSize="small" />,
-  manage_accounts: <PersonIcon fontSize="small" />,
-  accounts: <PersonIcon fontSize="small" />,
-  manage_permissions: <ShieldIcon fontSize="small" />,
-  permissions: <ShieldIcon fontSize="small" />,
-  manage_roles: <RolesIcon fontSize="small" />,
-  roles: <RolesIcon fontSize="small" />,
-  system_dashboard: <DashboardIcon fontSize="small" />,
-  dashboard: <DashboardIcon fontSize="small" />,
-  job_positions: <BadgeIcon fontSize="small" />,
-  'job-positions': <BadgeIcon fontSize="small" />,
-
-  // Dynamic Groups from DB
-  'group-Học vụ': <CalendarIcon fontSize="small" />,
-  'group-Điểm danh': <ChecklistIcon fontSize="small" />,
-  'group-Học sinh & Lớp học': <ClassIcon fontSize="small" />,
-  'group-Y tế': <ShieldIcon fontSize="small" />,
-  'group-Bếp & Thực phẩm': <RestaurantIcon fontSize="small" />,
-  'group-Nội dung & Truyền thông': <PublicIcon fontSize="small" />,
-  'group-Tài sản & Mua sắm': <InventoryIcon fontSize="small" />,
-  'group-Báo cáo': <AssessmentIcon fontSize="small" />,
-  'group-Hệ thống': <SettingsIcon fontSize="small" />,
-  'group-Quản trị hệ thống': <SecurityIcon fontSize="small" />,
-  'group-Danh mục': <CategoryIcon fontSize="small" />,
-
-  // Teacher specific aliases or keys
-  evaluation: <GradingIcon fontSize="small" />,
-  'contact-book': <MenuBookIcon fontSize="small" />,
-  'class-assets': <InventoryIcon fontSize="small" />,
+  'attendance-export': <AssessmentIcon fontSize="small" />,
+  'attendance': <ChecklistIcon fontSize="small" />,
+  'pickup-approval': <DirectionsCarIcon fontSize="small" />,
   'leave-requests': <EventBusyIcon fontSize="small" />,
 
-  // Permission Codes Mapping
-  MANAGE_ACADEMIC_YEAR: <CalendarIcon fontSize="small" />,
-  MANAGE_CURRICULUM: <ScheduleIcon fontSize="small" />,
-  MANAGE_STUDENT: <PeopleIcon fontSize="small" />,
-  MANAGE_CLASS: <ClassIcon fontSize="small" />,
-  MANAGE_GRADE: <ClassIcon fontSize="small" />,
-  MANAGE_TEACHER: <PeopleIcon fontSize="small" />,
-  VIEW_ATTENDANCE: <AttendanceIcon fontSize="small" />,
-  REGISTER_FACE: <FaceIcon fontSize="small" />,
-  MANAGE_HEALTH: <ShieldIcon fontSize="small" />,
-  MANAGE_HEALTH_INCIDENTS: <ReportProblemIcon fontSize="small" />,
-  APPROVE_MENU: <GradingIcon fontSize="small" />,
-  MANAGE_ASSET: <InventoryIcon fontSize="small" />,
-
-  MANAGE_INSPECTION: <ChecklistIcon fontSize="small" />,
-  VIEW_REPORT: <AssessmentIcon fontSize="small" />,
-  MANAGE_STATIC_BLOCK: <LayersIcon fontSize="small" />,
-  ACCESS_INVENTORY: <InventoryIcon fontSize="small" />,
-  MANAGE_HANDOVER: <AssignmentIcon fontSize="small" />,
-  MANAGE_ASSET_ISSUES: <ReportProblemIcon fontSize="small" />,
-  MANAGE_ROOM_ASSETS: <MeetingRoomIcon fontSize="small" />,
-  MANAGE_STAFF_POSITION: <BadgeIcon fontSize="small" />,
-  MANAGE_ACADEMIC_PLAN: <PlanIcon fontSize="small" />,
-  MANAGE_ACADEMIC_EVENTS: <EventNoteIcon fontSize="small" />,
-  MANAGE_VIDEOS: <VideoLibraryIcon fontSize="small" />,
-  MANAGE_DOCUMENTS: <FolderIcon fontSize="small" />,
-  MANAGE_DOCUMENT: <FolderIcon fontSize="small" />,
-  MANAGE_QA: <QaIcon fontSize="small" />,
-  MANAGE_CONTACT: <ContactIcon fontSize="small" />,
-  MANAGE_BANNER: <BannerIcon fontSize="small" />,
-  MANAGE_BLOG: <BlogIcon fontSize="small" />,
-  MANAGE_BLOG_CATEGORY: <CategoryIcon fontSize="small" />,
-  MANAGE_PUBLIC_INFO: <InfoIcon fontSize="small" />,
-  MANAGE_IMAGE_LIBRARY: <PhotoLibraryIcon fontSize="small" />,
-  'inventory-management': <InventoryIcon fontSize="small" />,
+  // Personnel
+  'staff-positions': <BadgeIcon fontSize="small" />,
+  'personnel-management': <PeopleIcon fontSize="small" />,
+  
+  // Food & Nutrition
+  'menu-admin': <MenuBookIcon fontSize="small" />,
+  'menu-kitchen': <RestaurantIcon fontSize="small" />,
+  'food-list': <MealIcon fontSize="small" />,
+  'ingredients': <RestaurantIcon fontSize="small" />,
+  'meal-management': <RestaurantIcon fontSize="small" />,
+  'headcount': <PeopleIcon fontSize="small" />,
+  'sample-food': <CameraAltIcon fontSize="small" />,
+  'district-nutrition-plan': <LibraryIcon fontSize="small" />,
+  'district-nutrition': <LibraryIcon fontSize="small" />,
+  'report': <AssessmentIcon fontSize="small" />,
+  'menu-review': <GradingIcon fontSize="small" />,
+  
+  // Assets
+  'assets': <InventoryIcon fontSize="small" />,
+  'asset-allocation': <AssignmentIcon fontSize="small" />,
+  'asset-incidents': <ReportProblemIcon fontSize="small" />,
+  'room-assets': <MeetingRoomIcon fontSize="small" />,
+  'purchase-requests': <InventoryIcon fontSize="small" />,
+  'committee': <PeopleIcon fontSize="small" />,
+  'minutes': <DescriptionIcon fontSize="small" />,
+  
+  // CMS & Public Info
+  'public-info': <PublicIcon fontSize="small" />,
+  'banners': <BannerIcon fontSize="small" />,
+  'blogs': <BlogIcon fontSize="small" />,
+  'blog-categories': <CategoryIcon fontSize="small" />,
+  'documents': <FolderIcon fontSize="small" />,
+  'image-library': <PhotoLibraryIcon fontSize="small" />,
   'video-library': <VideoLibraryIcon fontSize="small" />,
+  'contacts': <ContactIcon fontSize="small" />,
   'qa': <QaIcon fontSize="small" />,
-  MANAGE_CLASSES: <ClassIcon fontSize="small" />,
-  MANAGE_GRADES: <ClassIcon fontSize="small" />,
-  SCHOOL_ADMIN_DISTRICT_NUTRITION: <LibraryIcon fontSize="small" />,
-  MANAGE_INGREDIENTS: <RestaurantIcon fontSize="small" />,
-  KITCHEN_DISTRICT_NUTRITION: <LibraryIcon fontSize="small" />,
+
+  // Teacher specific
+  'classes-teacher': <ClassIcon fontSize="small" />,
+  'students-teacher': <PeopleIcon fontSize="small" />,
+  'evaluation-teacher': <GradingIcon fontSize="small" />,
+  'contact-book': <MenuBookIcon fontSize="small" />,
+  'class-assets': <InventoryIcon fontSize="small" />,
+  'asset-incidents-teacher': <ReportProblemIcon fontSize="small" />,
+
+  // Medical & Health
+  'health-records': <HealthIcon fontSize="small" />,
+  'health-incidents': <ReportProblemIcon fontSize="small" />,
+  'health-reports': <AnalyticsIcon fontSize="small" />,
+  'health-list': <ListIcon fontSize="small" />,
+  'follow-up': <TimelineIcon fontSize="small" />,
+  'health': <MedicalIcon fontSize="small" />,
+  
+  // Kitchen extra
+  'meal-photos': <PhotoCameraIcon fontSize="small" />,
+  'meal-feedback': <FeedbackIcon fontSize="small" />,
 };
 
 /* ── Sidebar content (kết hợp các shared components) ── */
@@ -337,80 +271,72 @@ function RoleLayout({
     userAvatar: displayUserAvatar, 
     userRole: displayUserRole,
     collapsed: isMobile ? false : collapsed,
-    onToggleCollapse: () => setCollapsed((p) => !p),
+    onToggleCollapse: () => setCollapsed(!collapsed),
     loading: isInitializing,
   };
 
   return (
-    <Box sx={{ display: 'flex', minHeight: '100vh', bgcolor: '#f5f6fa' }}>
-
-      {/* ── Sidebar ── */}
-      <Drawer
-        variant={isMobile ? 'temporary' : 'permanent'}
-        open={isMobile ? mobileOpen : true}
-        onClose={() => setMobileOpen(false)}
-        ModalProps={{ keepMounted: true }}
-        sx={{
-          width: drawerWidth,
-          flexShrink: 0,
-          transition: 'width 0.22s ease',
-          '& .MuiDrawer-paper': {
+    <Box sx={{ display: 'flex', minHeight: '100vh', bgcolor: 'grey.50' }}>
+      {/* Sidebar for Desktop */}
+      {!isMobile && (
+        <Drawer
+          variant="permanent"
+          sx={{
             width: drawerWidth,
-            boxSizing: 'border-box',
-            border: 'none',
-            overflowX: 'hidden',
-            boxShadow: isMobile ? 8 : '1px 0 0 rgba(0,0,0,0.06)',
-            transition: 'width 0.22s ease !important',
-          },
-        }}
-      >
-        {isMobile && (
-          <Box sx={{ position: 'absolute', top: 8, right: 8, zIndex: 10 }}>
-            <IconButton size="small" onClick={() => setMobileOpen(false)}>
-              <CloseIcon fontSize="small" />
-            </IconButton>
-          </Box>
-        )}
-        <SidebarContent {...sharedSidebarProps} />
-      </Drawer>
+            flexShrink: 0,
+            '& .MuiDrawer-paper': {
+              width: drawerWidth,
+              boxSizing: 'border-box',
+              borderRight: '1px solid',
+              borderColor: 'divider',
+              transition: theme.transitions.create('width', {
+                easing: theme.transitions.easing.sharp,
+                duration: theme.transitions.duration.enteringScreen,
+              }),
+            },
+          }}
+        >
+          <SidebarContent {...sharedSidebarProps} />
+        </Drawer>
+      )}
 
-      {/* ── Main ── */}
-      <Box
-        sx={{
-          flex: 1,
-          display: 'flex',
-          flexDirection: 'column',
-          minWidth: 0,
-          minHeight: '100vh',
-          transition: 'all 0.22s ease',
-          width: isMobile ? '100%' : { md: `calc(100% - ${drawerWidth}px)` },
-        }}
-      >
-        <DashboardAppBar
+      {/* Sidebar for Mobile */}
+      {isMobile && (
+        <Drawer
+          variant="temporary"
+          open={mobileOpen}
+          onClose={() => setMobileOpen(false)}
+          sx={{
+            '& .MuiDrawer-paper': {
+              width: DRAWER_FULL,
+              boxSizing: 'border-box',
+            },
+          }}
+        >
+          <SidebarContent {...sharedSidebarProps} />
+        </Drawer>
+      )}
+
+      {/* Main Content Area */}
+      <Box sx={{ flexGrow: 1, display: 'flex', flexDirection: 'column', width: '100%', overflow: 'hidden' }}>
+        <DashboardAppBar 
+          title={activeItem?.label || title}
+          icon={activeIcon}
+          onMenuClick={() => setMobileOpen(true)}
           isMobile={isMobile}
-          onOpenMobile={() => setMobileOpen(true)}
-          title={title}
-          description={description}
-          activeIcon={activeIcon}
-          userName={displayUserName}
-          userAvatar={displayUserAvatar}
-          onViewProfile={onViewProfile}
-          onLogout={handleLogout}
         />
-
-        {/* Page content */}
-        <Box component="main" sx={{ flex: 1, overflow: 'auto', width: '100%' }}>
-          <Box 
-            sx={{ 
-              px: { xs: 2, sm: 3, md: 4 }, 
-              py: { xs: 2.5, md: 3 }, 
-              width: '100%', 
-              maxWidth: 'none',
-              boxSizing: 'border-box'
-            }}
-          >
-            {children}
-          </Box>
+        
+        <Box 
+          component="main" 
+          sx={{ 
+            flexGrow: 1, 
+            p: { xs: 2, md: 3 },
+            width: '100%',
+            overflowY: 'auto',
+            bgcolor: 'transparent'
+          }}
+        >
+          {children}
         </Box>
       </Box>
     </Box>

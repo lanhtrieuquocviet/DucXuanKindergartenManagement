@@ -316,6 +316,10 @@ const ManageAcademicYears = () => {
                     yearName: `Năm học ${nextYearStart}-${nextYearStart + 1}`,
                     startDate: `${nextYearStart}-09-01`,
                     endDate: `${nextYearStart + 1}-05-31`,
+                    term1StartDate: `${nextYearStart}-09-01`,
+                    term1EndDate: `${nextYearStart}-12-31`,
+                    term2StartDate: `${nextYearStart + 1}-01-01`,
+                    term2EndDate: `${nextYearStart + 1}-05-31`,
                     description: 'Thiết lập tự động từ cấu hình năm cũ.'
                   });
                   setOpenExpress(true);

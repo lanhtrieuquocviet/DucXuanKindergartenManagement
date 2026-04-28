@@ -9,6 +9,28 @@ import {
 export default function StepYearInfo({ data, onChange, errors }) {
   const set = (field, value) => onChange({ ...data, [field]: value });
 
+  // Auto-calculate logic
+  const handleYearDateChange = (field, value) => {
+    const newData = { ...data, [field]: value };
+    
+    // Nếu chọn ngày bắt đầu năm học -> Gợi ý ngày bắt đầu Kỳ 1
+    if (field === 'startDate' && value && !data.term1StartDate) {
+      newData.term1StartDate = value;
+      // Gợi ý Kỳ 1 kết thúc vào cuối năm (31/12)
+      const date = new Date(value);
+      newData.term1EndDate = `${date.getFullYear()}-12-31`;
+      // Gợi ý Kỳ 2 bắt đầu vào đầu năm sau (01/01)
+      newData.term2StartDate = `${date.getFullYear() + 1}-01-01`;
+    }
+
+    // Nếu chọn ngày kết thúc năm học -> Gợi ý ngày kết thúc Kỳ 2
+    if (field === 'endDate' && value && !data.term2EndDate) {
+      newData.term2EndDate = value;
+    }
+
+    onChange(newData);
+  };
+
   return (
     <Stack spacing={4}>
       <Box>
@@ -46,7 +68,7 @@ export default function StepYearInfo({ data, onChange, errors }) {
               required
               InputLabelProps={{ shrink: true }} fullWidth size="small"
               value={data.startDate}
-              onChange={e => set('startDate', e.target.value)}
+              onChange={e => handleYearDateChange('startDate', e.target.value)}
               error={!!errors.startDate} helperText={errors.startDate}
             />
             <TextField
@@ -55,7 +77,7 @@ export default function StepYearInfo({ data, onChange, errors }) {
               InputLabelProps={{ shrink: true }} fullWidth size="small"
               value={data.endDate}
               inputProps={{ min: data.startDate || undefined }}
-              onChange={e => set('endDate', e.target.value)}
+              onChange={e => handleYearDateChange('endDate', e.target.value)}
               error={!!errors.endDate} helperText={errors.endDate}
             />
           </Stack>

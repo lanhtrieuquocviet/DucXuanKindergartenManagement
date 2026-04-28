@@ -27,8 +27,6 @@ import { useNavigate, useSearchParams } from 'react-router-dom';
 import { toast } from 'react-toastify';
 import { useAuth } from '../../context/AuthContext';
 import { get, post, patch, del, ENDPOINTS } from '../../service/api';
-import { createSchoolAdminMenuSelect } from './schoolAdminMenuConfig';
-import { useSchoolAdminMenu } from './useSchoolAdminMenu';
 
 function formatDateInput(dateString) {
   if (!dateString) return '';
@@ -81,7 +79,6 @@ export default function AcademicYearPlan() {
   const [searchParams] = useSearchParams();
   const yearIdFromQuery = searchParams.get('yearId');
   const { user, logout } = useAuth();
-  const menuItems = useSchoolAdminMenu();
 
   const [currentYear, setCurrentYear] = useState(null);
   const [loadingYear, setLoadingYear] = useState(false);
@@ -109,14 +106,6 @@ export default function AcademicYearPlan() {
     weeklyDetails: buildWeeks(1),
   });
 
-  const handleLogout = () => {
-    logout();
-    navigate('/login', { replace: true });
-  };
-
-  const handleMenuSelect = (item) => {
-    if (item.path) navigate(item.path);
-  };
 
   useEffect(() => {
     const loadYear = async () => {

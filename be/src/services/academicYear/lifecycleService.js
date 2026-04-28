@@ -253,6 +253,7 @@ const publishAcademicYear = async (req, res) => {
         } else {
           student.status = 'inactive'; 
         }
+        student.classId = null; // Clear classId for non-promoted students
         await student.save({ session });
       }
     }

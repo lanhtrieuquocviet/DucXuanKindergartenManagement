@@ -12,8 +12,6 @@ import {
 } from '@mui/material';
 import { useAuth } from '../../context/AuthContext';
 import { get, ENDPOINTS } from '../../service/api';
-import { createSchoolAdminMenuSelect } from './schoolAdminMenuConfig';
-import { useSchoolAdminMenu } from './useSchoolAdminMenu';
 
 function formatDate(dateString) {
   if (!dateString) return '';
@@ -26,7 +24,6 @@ export default function AcademicYearDetail() {
   const { yearId } = useParams();
   const navigate = useNavigate();
   const { user } = useAuth();
-  const menuItems = useSchoolAdminMenu();
 
   const [summary, setSummary] = useState(null);
   const [loading, setLoading] = useState(false);
@@ -34,7 +31,6 @@ export default function AcademicYearDetail() {
   const [classes, setClasses] = useState([]);
   const [classesLoading, setClassesLoading] = useState(false);
 
-  const handleMenuSelect = createSchoolAdminMenuSelect(navigate);
 
   useEffect(() => {
     const loadSummary = async () => {

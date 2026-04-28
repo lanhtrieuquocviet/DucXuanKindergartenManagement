@@ -27,7 +27,6 @@ import DeleteIcon from '@mui/icons-material/Delete';
 import { toast } from 'react-toastify';
 import { useAuth } from '../../context/AuthContext';
 import { get, put, ENDPOINTS } from '../../service/api';
-import { useSchoolAdminMenu } from './useSchoolAdminMenu';
 
 function toInputDate(dateStr) {
   if (!dateStr) return '';

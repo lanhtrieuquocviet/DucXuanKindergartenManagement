@@ -21,8 +21,6 @@ import { useNavigate, useParams } from 'react-router-dom';
 import { toast } from 'react-toastify';
 import { useAuth } from '../../context/AuthContext';
 import { ENDPOINTS, get } from '../../service/api';
-import { createSchoolAdminMenuSelect } from './schoolAdminMenuConfig';
-import { useSchoolAdminMenu } from './useSchoolAdminMenu';
 
 function formatVnDate(dateStr) {
   if (!dateStr) return '';
@@ -84,7 +82,6 @@ export default function AcademicYearReport() {
   const { yearId } = useParams();
   const navigate = useNavigate();
   const { user, logout } = useAuth();
-  const menuItems = useSchoolAdminMenu();
 
   const [summary, setSummary] = useState(null);
   const [stats, setStats] = useState({
@@ -103,11 +100,6 @@ export default function AcademicYearReport() {
     navigate('/login', { replace: true });
   };
 
-  const handleViewProfile = () => {
-    navigate('/profile');
-  };
-
-  const onMenuSelect = (path) => navigate(path);
 
   useEffect(() => {
     let cancelled = false;

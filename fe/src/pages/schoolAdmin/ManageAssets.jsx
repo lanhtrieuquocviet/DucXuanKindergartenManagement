@@ -1,19 +1,33 @@
-import { useEffect, useState } from 'react';
-import { useNavigate } from 'react-router-dom';
+import {
+  Add as AddIcon,
+  ChevronRight as ArrowIcon,
+  Article as ArticleIcon,
+  Dashboard as DashboardIcon,
+  Delete as DeleteIcon,
+  Download as DownloadIcon,
+  Edit as EditIcon,
+  ExpandLess as ExpandLessIcon,
+  ExpandMore as ExpandMoreIcon,
+  FileDownload as FileDownloadIcon,
+  Inventory as InventoryIcon,
+  List as ListIcon,
+  LocationOn as LocationIcon,
+  UploadFile as UploadFileIcon
+} from '@mui/icons-material';
 import {
   Box,
+  Button,
+  Grid,
   Paper,
+  Stack,
   Tab,
   Tabs,
-  Typography,
-  Grid,
-  Stack,
-  Button
+  Typography
 } from '@mui/material';
+import { useEffect, useRef, useState } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../../context/AuthContext';
-import { del, get, patch, post, postFormData, put, ENDPOINTS } from '../../service/api';
-import { createSchoolAdminMenuSelect } from './schoolAdminMenuConfig';
-import { useSchoolAdminMenu } from './useSchoolAdminMenu';
+import { del, ENDPOINTS, get, patch, post, postFormData, put } from '../../service/api';
 
 // ─── Constants ────────────────────────────────────────────────────────────────
 const STATUS_LABEL = {
@@ -484,89 +498,78 @@ export function CommitteeTab() {
         <DialogTitle>{editId ? 'Chỉnh sửa Ban Kiểm Kê' : 'Tạo Ban Kiểm Kê Mới'}</DialogTitle>
         <DialogContent dividers>
           <Box sx={{ pt: 0.5 }}>
-          <Typography variant="subtitle1" fontWeight={600} mb={2}>
-            {editId ? 'Chỉnh sửa Ban Kiểm Kê' : 'Tạo Ban Kiểm Kê Mới'}
-          </Typography>
-          <Stack direction={{ xs: 'column', sm: 'row' }} spacing={2} mb={2}>
-            <TextField label="Tên Ban Kiểm Kê" fullWidth size="small" required
-              value={form.name}
-              onChange={e => { setForm(p => ({ ...p, name: e.target.value })); setErrors(p => ({ ...p, name: undefined })); }}
-              error={!!errors.name} helperText={errors.name || `${form.name.length}/50`}
-              inputProps={{ maxLength: 50 }} />
-            <TextField label="Ngày thành lập" type="date" size="small" required InputLabelProps={{ shrink: true }}
-              value={formatDateInput(form.foundedDate)}
-              disabled
-              onChange={e => { setForm(p => ({ ...p, foundedDate: e.target.value })); setErrors(p => ({ ...p, foundedDate: undefined })); }}
-              error={!!errors.foundedDate} helperText={errors.foundedDate}
-              inputProps={{ max: new Date().toISOString().slice(0, 10) }}
-              sx={{ minWidth: { xs: '100%', sm: 175 } }} />
-            <TextField label="Số quyết định" size="small" required
-              value={form.decisionNumber}
-              onChange={e => { setForm(p => ({ ...p, decisionNumber: e.target.value })); setErrors(p => ({ ...p, decisionNumber: undefined })); }}
-              error={!!errors.decisionNumber} helperText={errors.decisionNumber || `${form.decisionNumber.length}/50`}
-              inputProps={{ maxLength: 50 }}
-              sx={{ minWidth: { xs: '100%', sm: 165 } }} />
-          </Stack>
-          <Typography variant="body2" fontWeight={600} mb={1}>Thành viên Ban Kiểm Kê</Typography>
+            <Typography variant="subtitle1" fontWeight={600} mb={2}>
+              {editId ? 'Chỉnh sửa Ban Kiểm Kê' : 'Tạo Ban Kiểm Kê Mới'}
+            </Typography>
+            <Stack direction={{ xs: 'column', sm: 'row' }} spacing={2} mb={2}>
+              <TextField label="Tên Ban Kiểm Kê" fullWidth size="small" required
+                value={form.name}
+                onChange={e => { setForm(p => ({ ...p, name: e.target.value })); setErrors(p => ({ ...p, name: undefined })); }}
+                error={!!errors.name} helperText={errors.name || `${form.name.length}/50`}
+                inputProps={{ maxLength: 50 }} />
+              <TextField label="Ngày thành lập" type="date" size="small" required InputLabelProps={{ shrink: true }}
+                value={formatDateInput(form.foundedDate)}
+                disabled
+                onChange={e => { setForm(p => ({ ...p, foundedDate: e.target.value })); setErrors(p => ({ ...p, foundedDate: undefined })); }}
+                error={!!errors.foundedDate} helperText={errors.foundedDate}
+                inputProps={{ max: new Date().toISOString().slice(0, 10) }}
+                sx={{ minWidth: { xs: '100%', sm: 175 } }} />
+              <TextField label="Số quyết định" size="small" required
+                value={form.decisionNumber}
+                onChange={e => { setForm(p => ({ ...p, decisionNumber: e.target.value })); setErrors(p => ({ ...p, decisionNumber: undefined })); }}
+                error={!!errors.decisionNumber} helperText={errors.decisionNumber || `${form.decisionNumber.length}/50`}
+                inputProps={{ maxLength: 50 }}
+                sx={{ minWidth: { xs: '100%', sm: 165 } }} />
+            </Stack>
+            <Typography variant="body2" fontWeight={600} mb={1}>Thành viên Ban Kiểm Kê</Typography>
 
-          {/* Mobile: card per member | Desktop: table */}
-          {isMobile ? (
-            <Stack spacing={1.5} mb={1}>
-              {form.members.map((m, idx) => (
-                <Paper key={idx} variant="outlined" sx={{ p: 1.5, borderRadius: 1.5 }}>
-                  <Stack spacing={1.5}>
-                    <Autocomplete size="small" options={allPersons}
-                      getOptionLabel={p => (typeof p === 'string' ? p : p.fullName || '')}
-                      groupBy={p => (typeof p === 'string' ? '' : p.group)}
-                      getOptionDisabled={p => typeof p !== 'string' && !!p.occupiedCommittee}
-                      renderOption={(props, option) => {
-                        const { key, ...rest } = props;
-                        return (
-                          <li key={key} {...rest}>
-                            <Box sx={{ display: 'flex', flexDirection: 'column', py: 0.25 }}>
-                              <span>{option.fullName}</span>
-                              {option.occupiedCommittee && (
-                                <Typography variant="caption" color="text.secondary">
-                                  Đang ở: {option.occupiedCommittee}
-                                </Typography>
-                              )}
-                            </Box>
-                          </li>
-                        );
-                      }}
-                      value={allPersons.find(p => p.fullName === m.fullName) || null}
-                      onChange={(_, sel) => {
-                        if (!sel) return;
-                        const name = typeof sel === 'string' ? sel : sel.fullName;
-                        const uid = typeof sel === 'string' ? null : (sel.userId || null);
-                        const duplicate = form.members.some((mm, i) => i !== idx && mm.fullName.trim() === name.trim());
-                        if (duplicate) { toast.warning('Thành viên này đã được thêm.'); return; }
-                        setForm(prev => {
-                          const members = [...prev.members];
-                          members[idx] = { ...members[idx], fullName: name, userId: uid };
-                          return { ...prev, members };
-                        });
-                      }}
-                      inputValue={m.fullName}
-                      onInputChange={(_, val, reason) => reason === 'input' && handleMemberChange(idx, 'fullName', val)}
-                      freeSolo
-                      renderInput={params => <TextField {...params} label="Họ và tên" placeholder="Chọn hoặc nhập" />}
-                    />
-                    <FormControl size="small" fullWidth>
-                      <InputLabel>Chức vụ</InputLabel>
-                      <Select label="Chức vụ" value={m.position} onChange={e => handleMemberChange(idx, 'position', e.target.value)}>
-                        <MenuItem value=""><em>— Không có —</em></MenuItem>
-                        <MenuItem value="Trưởng ban">Trưởng ban</MenuItem>
-                        <MenuItem value="Phó trưởng ban">Phó trưởng ban</MenuItem>
-                        <MenuItem value="Thành viên - Thư ký">Thành viên - Thư ký</MenuItem>
-                        <MenuItem value="Ủy viên">Ủy viên</MenuItem>
-                        <MenuItem value="Thành viên">Thành viên</MenuItem>
-                      </Select>
-                    </FormControl>
-                    <Stack direction="row" spacing={1} alignItems="center">
-                      <FormControl size="small" sx={{ flex: 1 }}>
-                        <InputLabel>Nhiệm vụ phân công</InputLabel>
-                        <Select label="Nhiệm vụ phân công" value={m.role} onChange={e => handleMemberChange(idx, 'role', e.target.value)}>
+            {/* Mobile: card per member | Desktop: table */}
+            {isMobile ? (
+              <Stack spacing={1.5} mb={1}>
+                {form.members.map((m, idx) => (
+                  <Paper key={idx} variant="outlined" sx={{ p: 1.5, borderRadius: 1.5 }}>
+                    <Stack spacing={1.5}>
+                      <Autocomplete size="small" options={allPersons}
+                        getOptionLabel={p => (typeof p === 'string' ? p : p.fullName || '')}
+                        groupBy={p => (typeof p === 'string' ? '' : p.group)}
+                        getOptionDisabled={p => typeof p !== 'string' && !!p.occupiedCommittee}
+                        renderOption={(props, option) => {
+                          const { key, ...rest } = props;
+                          return (
+                            <li key={key} {...rest}>
+                              <Box sx={{ display: 'flex', flexDirection: 'column', py: 0.25 }}>
+                                <span>{option.fullName}</span>
+                                {option.occupiedCommittee && (
+                                  <Typography variant="caption" color="text.secondary">
+                                    Đang ở: {option.occupiedCommittee}
+                                  </Typography>
+                                )}
+                              </Box>
+                            </li>
+                          );
+                        }}
+                        value={allPersons.find(p => p.fullName === m.fullName) || null}
+                        onChange={(_, sel) => {
+                          if (!sel) return;
+                          const name = typeof sel === 'string' ? sel : sel.fullName;
+                          const uid = typeof sel === 'string' ? null : (sel.userId || null);
+                          const duplicate = form.members.some((mm, i) => i !== idx && mm.fullName.trim() === name.trim());
+                          if (duplicate) { toast.warning('Thành viên này đã được thêm.'); return; }
+                          setForm(prev => {
+                            const members = [...prev.members];
+                            members[idx] = { ...members[idx], fullName: name, userId: uid };
+                            return { ...prev, members };
+                          });
+                        }}
+                        inputValue={m.fullName}
+                        onInputChange={(_, val, reason) => reason === 'input' && handleMemberChange(idx, 'fullName', val)}
+                        freeSolo
+                        renderInput={params => <TextField {...params} label="Họ và tên" placeholder="Chọn hoặc nhập" />}
+                      />
+                      <FormControl size="small" fullWidth>
+                        <InputLabel>Chức vụ</InputLabel>
+                        <Select label="Chức vụ" value={m.position} onChange={e => handleMemberChange(idx, 'position', e.target.value)}>
+                          <MenuItem value=""><em>— Không có —</em></MenuItem>
                           <MenuItem value="Trưởng ban">Trưởng ban</MenuItem>
                           <MenuItem value="Phó trưởng ban">Phó trưởng ban</MenuItem>
                           <MenuItem value="Thành viên - Thư ký">Thành viên - Thư ký</MenuItem>
@@ -574,76 +577,10 @@ export function CommitteeTab() {
                           <MenuItem value="Thành viên">Thành viên</MenuItem>
                         </Select>
                       </FormControl>
-                      <IconButton size="small" color="error" onClick={() => handleRemoveMember(idx)} disabled={form.members.length <= 1}>
-                        <DeleteIcon fontSize="small" />
-                      </IconButton>
-                    </Stack>
-                    <TextField size="small" fullWidth label="Ghi chú" placeholder="Ghi chú..."
-                      value={m.notes} onChange={e => handleMemberChange(idx, 'notes', e.target.value)}
-                      inputProps={{ maxLength: 200 }} />
-                  </Stack>
-                </Paper>
-              ))}
-            </Stack>
-          ) : (
-            <Box sx={{ overflowX: 'auto', mb: 1 }}>
-              <Table size="small">
-                <TableHead>
-                  <TableRow sx={{ bgcolor: '#f3f4f6' }}>
-                    <TableCell>Họ và tên</TableCell>
-                    <TableCell sx={{ width: 180 }}>Chức vụ</TableCell>
-                    <TableCell sx={{ width: 190 }}>Nhiệm vụ phân công</TableCell>
-                    <TableCell sx={{ width: 200 }}>Ghi chú</TableCell>
-                    <TableCell sx={{ width: 56 }} align="center" />
-                  </TableRow>
-                </TableHead>
-                <TableBody>
-                  {form.members.map((m, idx) => (
-                    <TableRow key={idx}>
-                      <TableCell>
-                        <Autocomplete size="small" options={allPersons}
-                          getOptionLabel={p => (typeof p === 'string' ? p : p.fullName || '')}
-                          groupBy={p => (typeof p === 'string' ? '' : p.group)}
-                          getOptionDisabled={p => typeof p !== 'string' && !!p.occupiedCommittee}
-                          renderOption={(props, option) => {
-                            const { key, ...rest } = props;
-                            return (
-                              <li key={key} {...rest}>
-                                <Box sx={{ display: 'flex', flexDirection: 'column', py: 0.25 }}>
-                                  <span>{option.fullName}</span>
-                                  {option.occupiedCommittee && (
-                                    <Typography variant="caption" color="text.secondary">
-                                      Đang ở: {option.occupiedCommittee}
-                                    </Typography>
-                                  )}
-                                </Box>
-                              </li>
-                            );
-                          }}
-                          value={allPersons.find(p => p.fullName === m.fullName) || null}
-                          onChange={(_, sel) => {
-                            if (!sel) return;
-                            const name = typeof sel === 'string' ? sel : sel.fullName;
-                            const uid = typeof sel === 'string' ? null : (sel.userId || null);
-                            const duplicate = form.members.some((mm, i) => i !== idx && mm.fullName.trim() === name.trim());
-                            if (duplicate) { toast.warning('Thành viên này đã được thêm.'); return; }
-                            setForm(prev => {
-                              const members = [...prev.members];
-                              members[idx] = { ...members[idx], fullName: name, userId: uid };
-                              return { ...prev, members };
-                            });
-                          }}
-                          inputValue={m.fullName}
-                          onInputChange={(_, val, reason) => reason === 'input' && handleMemberChange(idx, 'fullName', val)}
-                          freeSolo
-                          renderInput={params => <TextField {...params} placeholder="Chọn hoặc nhập họ tên" />}
-                          sx={{ minWidth: 180 }}
-                        />
-                      </TableCell>
-                      <TableCell>
-                        <FormControl size="small" fullWidth>
-                          <Select value={m.position} onChange={e => handleMemberChange(idx, 'position', e.target.value)} displayEmpty>
-                            <MenuItem value=""><em style={{ color: '#9ca3af' }}>— Không có —</em></MenuItem>
+                      <Stack direction="row" spacing={1} alignItems="center">
+                        <FormControl size="small" sx={{ flex: 1 }}>
+                          <InputLabel>Nhiệm vụ phân công</InputLabel>
+                          <Select label="Nhiệm vụ phân công" value={m.role} onChange={e => handleMemberChange(idx, 'role', e.target.value)}>
                             <MenuItem value="Trưởng ban">Trưởng ban</MenuItem>
                             <MenuItem value="Phó trưởng ban">Phó trưởng ban</MenuItem>
                             <MenuItem value="Thành viên - Thư ký">Thành viên - Thư ký</MenuItem>
@@ -651,37 +588,114 @@ export function CommitteeTab() {
                             <MenuItem value="Thành viên">Thành viên</MenuItem>
                           </Select>
                         </FormControl>
-                      </TableCell>
-                      <TableCell>
-                        <FormControl size="small" fullWidth>
-                          <Select value={m.role} onChange={e => handleMemberChange(idx, 'role', e.target.value)}>
-                            <MenuItem value="Trưởng ban">Trưởng ban</MenuItem>
-                            <MenuItem value="Phó trưởng ban">Phó trưởng ban</MenuItem>
-                            <MenuItem value="Thành viên - Thư ký">Thành viên - Thư ký</MenuItem>
-                            <MenuItem value="Ủy viên">Ủy viên</MenuItem>
-                            <MenuItem value="Thành viên">Thành viên</MenuItem>
-                          </Select>
-                        </FormControl>
-                      </TableCell>
-                      <TableCell>
-                        <TextField size="small" fullWidth placeholder="Ghi chú..."
-                          value={m.notes} onChange={e => handleMemberChange(idx, 'notes', e.target.value)}
-                          inputProps={{ maxLength: 200 }} />
-                      </TableCell>
-                      <TableCell align="center">
                         <IconButton size="small" color="error" onClick={() => handleRemoveMember(idx)} disabled={form.members.length <= 1}>
                           <DeleteIcon fontSize="small" />
                         </IconButton>
-                      </TableCell>
+                      </Stack>
+                      <TextField size="small" fullWidth label="Ghi chú" placeholder="Ghi chú..."
+                        value={m.notes} onChange={e => handleMemberChange(idx, 'notes', e.target.value)}
+                        inputProps={{ maxLength: 200 }} />
+                    </Stack>
+                  </Paper>
+                ))}
+              </Stack>
+            ) : (
+              <Box sx={{ overflowX: 'auto', mb: 1 }}>
+                <Table size="small">
+                  <TableHead>
+                    <TableRow sx={{ bgcolor: '#f3f4f6' }}>
+                      <TableCell>Họ và tên</TableCell>
+                      <TableCell sx={{ width: 180 }}>Chức vụ</TableCell>
+                      <TableCell sx={{ width: 190 }}>Nhiệm vụ phân công</TableCell>
+                      <TableCell sx={{ width: 200 }}>Ghi chú</TableCell>
+                      <TableCell sx={{ width: 56 }} align="center" />
                     </TableRow>
-                  ))}
-                </TableBody>
-              </Table>
-            </Box>
-          )}
+                  </TableHead>
+                  <TableBody>
+                    {form.members.map((m, idx) => (
+                      <TableRow key={idx}>
+                        <TableCell>
+                          <Autocomplete size="small" options={allPersons}
+                            getOptionLabel={p => (typeof p === 'string' ? p : p.fullName || '')}
+                            groupBy={p => (typeof p === 'string' ? '' : p.group)}
+                            getOptionDisabled={p => typeof p !== 'string' && !!p.occupiedCommittee}
+                            renderOption={(props, option) => {
+                              const { key, ...rest } = props;
+                              return (
+                                <li key={key} {...rest}>
+                                  <Box sx={{ display: 'flex', flexDirection: 'column', py: 0.25 }}>
+                                    <span>{option.fullName}</span>
+                                    {option.occupiedCommittee && (
+                                      <Typography variant="caption" color="text.secondary">
+                                        Đang ở: {option.occupiedCommittee}
+                                      </Typography>
+                                    )}
+                                  </Box>
+                                </li>
+                              );
+                            }}
+                            value={allPersons.find(p => p.fullName === m.fullName) || null}
+                            onChange={(_, sel) => {
+                              if (!sel) return;
+                              const name = typeof sel === 'string' ? sel : sel.fullName;
+                              const uid = typeof sel === 'string' ? null : (sel.userId || null);
+                              const duplicate = form.members.some((mm, i) => i !== idx && mm.fullName.trim() === name.trim());
+                              if (duplicate) { toast.warning('Thành viên này đã được thêm.'); return; }
+                              setForm(prev => {
+                                const members = [...prev.members];
+                                members[idx] = { ...members[idx], fullName: name, userId: uid };
+                                return { ...prev, members };
+                              });
+                            }}
+                            inputValue={m.fullName}
+                            onInputChange={(_, val, reason) => reason === 'input' && handleMemberChange(idx, 'fullName', val)}
+                            freeSolo
+                            renderInput={params => <TextField {...params} placeholder="Chọn hoặc nhập họ tên" />}
+                            sx={{ minWidth: 180 }}
+                          />
+                        </TableCell>
+                        <TableCell>
+                          <FormControl size="small" fullWidth>
+                            <Select value={m.position} onChange={e => handleMemberChange(idx, 'position', e.target.value)} displayEmpty>
+                              <MenuItem value=""><em style={{ color: '#9ca3af' }}>— Không có —</em></MenuItem>
+                              <MenuItem value="Trưởng ban">Trưởng ban</MenuItem>
+                              <MenuItem value="Phó trưởng ban">Phó trưởng ban</MenuItem>
+                              <MenuItem value="Thành viên - Thư ký">Thành viên - Thư ký</MenuItem>
+                              <MenuItem value="Ủy viên">Ủy viên</MenuItem>
+                              <MenuItem value="Thành viên">Thành viên</MenuItem>
+                            </Select>
+                          </FormControl>
+                        </TableCell>
+                        <TableCell>
+                          <FormControl size="small" fullWidth>
+                            <Select value={m.role} onChange={e => handleMemberChange(idx, 'role', e.target.value)}>
+                              <MenuItem value="Trưởng ban">Trưởng ban</MenuItem>
+                              <MenuItem value="Phó trưởng ban">Phó trưởng ban</MenuItem>
+                              <MenuItem value="Thành viên - Thư ký">Thành viên - Thư ký</MenuItem>
+                              <MenuItem value="Ủy viên">Ủy viên</MenuItem>
+                              <MenuItem value="Thành viên">Thành viên</MenuItem>
+                            </Select>
+                          </FormControl>
+                        </TableCell>
+                        <TableCell>
+                          <TextField size="small" fullWidth placeholder="Ghi chú..."
+                            value={m.notes} onChange={e => handleMemberChange(idx, 'notes', e.target.value)}
+                            inputProps={{ maxLength: 200 }} />
+                        </TableCell>
+                        <TableCell align="center">
+                          <IconButton size="small" color="error" onClick={() => handleRemoveMember(idx)} disabled={form.members.length <= 1}>
+                            <DeleteIcon fontSize="small" />
+                          </IconButton>
+                        </TableCell>
+                      </TableRow>
+                    ))}
+                  </TableBody>
+                </Table>
+              </Box>
+            )}
 
-          <Button size="small" onClick={handleAddMember} sx={{ mb: 1, textTransform: 'none' }}>+ Thêm thành viên</Button>
-          {errors.members && <Typography variant="caption" color="error" display="block" mb={1}>{errors.members}</Typography>}
+            <Button size="small" onClick={handleAddMember} sx={{ mb: 1, textTransform: 'none' }}>+ Thêm thành viên</Button>
+            {errors.members && <Typography variant="caption" color="error" display="block" mb={1}>{errors.members}</Typography>}
           </Box>
         </DialogContent>
         <DialogActions sx={{ px: 3, py: 2 }}>
@@ -4022,90 +4036,90 @@ function WarehouseAssetsTab() {
               const pagedRows = rows.slice(safePage * WAREHOUSE_PAGE_SIZE, (safePage + 1) * WAREHOUSE_PAGE_SIZE);
               return (
                 <>
-            <Box sx={{ backgroundColor: '#e8f0fe', borderLeft: '4px solid #1a56db', px: 1.5, py: 0.75, borderRadius: '4px 4px 0 0', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-              <Stack direction="row" alignItems="center" spacing={1}>
-                <Checkbox
-                  size="small"
-                  disabled={rows.length === 0}
-                  checked={rows.length > 0 && rows.every((r) => selected.has(r._id))}
-                  indeterminate={rows.some((r) => selected.has(r._id)) && !rows.every((r) => selected.has(r._id))}
-                  onChange={() => toggleSelectCategory(rows)}
-                />
-                <Typography fontWeight={700} fontSize="0.85rem" color="#1a56db">
-                  {WAREHOUSE_CATEGORY_PREFIX[cat]}. {cat}
-                  <Typography component="span" fontWeight={400} color="text.secondary" ml={1} fontSize="0.75rem">({rows.length} mục)</Typography>
-                </Typography>
-              </Stack>
-              <Button size="small" startIcon={<AddIcon />} onClick={() => { setForm({ ...emptyWarehouseAsset(), category: cat }); setEditId(null); setOpenModal(true); }}>Thêm</Button>
-            </Box>
-            <TableContainer sx={{ border: '1px solid #c7d7f8', borderTop: 'none', borderRadius: '0 0 4px 4px' }}>
-              <Table size="small" stickyHeader>
-                <TableHead>
-                  <TableRow>
-                    <TableCell sx={{ fontWeight: 700, backgroundColor: '#f0f4f8', width: 44 }} />
-                    <TableCell sx={{ fontWeight: 700, backgroundColor: '#f0f4f8', width: 50 }}>#</TableCell>
-                    <TableCell sx={{ fontWeight: 700, backgroundColor: '#f0f4f8', width: 110 }}>Mã TS</TableCell>
-                    <TableCell sx={{ fontWeight: 700, backgroundColor: '#f0f4f8' }}>Tên tài sản</TableCell>
-                    <TableCell sx={{ fontWeight: 700, backgroundColor: '#f0f4f8' }} align="center">ĐVT</TableCell>
-                    <TableCell sx={{ fontWeight: 700, backgroundColor: '#f0f4f8' }} align="center">Tổng kho</TableCell>
-                    <TableCell sx={{ fontWeight: 700, backgroundColor: '#f0f4f8' }} align="center">Đã phân bổ</TableCell>
-                    <TableCell sx={{ fontWeight: 700, backgroundColor: '#f0f4f8' }} align="center">Còn lại</TableCell>
-                    <TableCell sx={{ fontWeight: 700, backgroundColor: '#f0f4f8' }} align="center">Còn tốt</TableCell>
-                    <TableCell sx={{ fontWeight: 700, backgroundColor: '#f0f4f8' }} align="center">Đã hỏng</TableCell>
-                    <TableCell sx={{ fontWeight: 700, backgroundColor: '#f0f4f8' }} align="center">Thao tác</TableCell>
-                  </TableRow>
-                </TableHead>
-                <TableBody>
-                  {rows.length === 0 ? (
-                    <TableRow><TableCell colSpan={11} align="center" sx={{ py: 2, color: 'text.secondary', fontSize: '0.8rem' }}>Chưa có dữ liệu — nhấn <strong>Thêm</strong> để bắt đầu</TableCell></TableRow>
-                  ) : pagedRows.map((a, idx) => (
-                    <TableRow key={a._id} hover>
-                      <TableCell padding="checkbox">
-                        <Checkbox
-                          size="small"
-                          checked={selected.has(a._id)}
-                          onChange={() => toggleSelect(a._id)}
-                        />
-                      </TableCell>
-                      <TableCell>{safePage * WAREHOUSE_PAGE_SIZE + idx + 1}</TableCell>
-                      <TableCell><Typography variant="caption" sx={{ fontFamily: 'monospace', bgcolor: 'grey.100', px: 0.5, borderRadius: 0.5 }}>{a.assetCode}</Typography></TableCell>
-                      <TableCell>{a.name}</TableCell>
-                      <TableCell align="center">{a.unit}</TableCell>
-                      <TableCell align="center" sx={{ fontWeight: 600 }}>{a.quantity}</TableCell>
-                      <TableCell align="center" sx={{ color: 'info.main', fontWeight: 500 }}>{a.allocatedQty ?? 0}</TableCell>
-                      <TableCell align="center" sx={{ fontWeight: 700, color: (a.remainingQty ?? a.quantity ?? 0) > 0 ? 'success.main' : 'error.main' }}>{a.remainingQty ?? a.quantity ?? 0}</TableCell>
-                      <TableCell align="center" sx={{ color: 'success.main', fontWeight: 700 }}>{deriveWarehouseQuantities(a).good}</TableCell>
-                      <TableCell align="center" sx={{ color: 'error.main', fontWeight: 700 }}>{deriveWarehouseQuantities(a).broken}</TableCell>
-                      <TableCell align="center">
-                        <Stack direction="row" justifyContent="center" spacing={0.5}>
-                          <Tooltip title="Sửa"><IconButton size="small" onClick={() => { const q = deriveWarehouseQuantities(a); setForm({ assetCode: a.assetCode, name: a.name, category: a.category, unit: a.unit, quantity: q.total, goodQuantity: q.good, brokenQuantity: q.broken, condition: q.broken > 0 ? 'Đã hỏng' : 'Còn tốt' }); setEditId(a._id); setOpenModal(true); }}><EditIcon fontSize="small" /></IconButton></Tooltip>
-                          <Tooltip title="Xóa lẻ">
-                            <span>
-                              <IconButton size="small" color="error" onClick={() => handleQuickDelete(a)} disabled={deletingId === a._id}>
-                                {deletingId === a._id ? <CircularProgress size={14} color="inherit" /> : <DeleteIcon fontSize="small" />}
-                              </IconButton>
-                            </span>
-                          </Tooltip>
-                        </Stack>
-                      </TableCell>
-                    </TableRow>
-                  ))}
-                </TableBody>
-              </Table>
-            </TableContainer>
-            {rows.length > WAREHOUSE_PAGE_SIZE && (
-              <TablePagination
-                component="div"
-                count={rows.length}
-                rowsPerPage={WAREHOUSE_PAGE_SIZE}
-                rowsPerPageOptions={[WAREHOUSE_PAGE_SIZE]}
-                page={safePage}
-                onPageChange={(_, newPage) => setCategoryPage((prev) => ({ ...prev, [cat]: newPage }))}
-                labelRowsPerPage="Hiển thị"
-                labelDisplayedRows={({ from, to, count }) => `${from}-${to} / ${count}`}
-                sx={{ border: '1px solid #c7d7f8', borderTop: 'none', borderRadius: '0 0 4px 4px', '.MuiTablePagination-toolbar': { minHeight: 42 } }}
-              />
-            )}
+                  <Box sx={{ backgroundColor: '#e8f0fe', borderLeft: '4px solid #1a56db', px: 1.5, py: 0.75, borderRadius: '4px 4px 0 0', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                    <Stack direction="row" alignItems="center" spacing={1}>
+                      <Checkbox
+                        size="small"
+                        disabled={rows.length === 0}
+                        checked={rows.length > 0 && rows.every((r) => selected.has(r._id))}
+                        indeterminate={rows.some((r) => selected.has(r._id)) && !rows.every((r) => selected.has(r._id))}
+                        onChange={() => toggleSelectCategory(rows)}
+                      />
+                      <Typography fontWeight={700} fontSize="0.85rem" color="#1a56db">
+                        {WAREHOUSE_CATEGORY_PREFIX[cat]}. {cat}
+                        <Typography component="span" fontWeight={400} color="text.secondary" ml={1} fontSize="0.75rem">({rows.length} mục)</Typography>
+                      </Typography>
+                    </Stack>
+                    <Button size="small" startIcon={<AddIcon />} onClick={() => { setForm({ ...emptyWarehouseAsset(), category: cat }); setEditId(null); setOpenModal(true); }}>Thêm</Button>
+                  </Box>
+                  <TableContainer sx={{ border: '1px solid #c7d7f8', borderTop: 'none', borderRadius: '0 0 4px 4px' }}>
+                    <Table size="small" stickyHeader>
+                      <TableHead>
+                        <TableRow>
+                          <TableCell sx={{ fontWeight: 700, backgroundColor: '#f0f4f8', width: 44 }} />
+                          <TableCell sx={{ fontWeight: 700, backgroundColor: '#f0f4f8', width: 50 }}>#</TableCell>
+                          <TableCell sx={{ fontWeight: 700, backgroundColor: '#f0f4f8', width: 110 }}>Mã TS</TableCell>
+                          <TableCell sx={{ fontWeight: 700, backgroundColor: '#f0f4f8' }}>Tên tài sản</TableCell>
+                          <TableCell sx={{ fontWeight: 700, backgroundColor: '#f0f4f8' }} align="center">ĐVT</TableCell>
+                          <TableCell sx={{ fontWeight: 700, backgroundColor: '#f0f4f8' }} align="center">Tổng kho</TableCell>
+                          <TableCell sx={{ fontWeight: 700, backgroundColor: '#f0f4f8' }} align="center">Đã phân bổ</TableCell>
+                          <TableCell sx={{ fontWeight: 700, backgroundColor: '#f0f4f8' }} align="center">Còn lại</TableCell>
+                          <TableCell sx={{ fontWeight: 700, backgroundColor: '#f0f4f8' }} align="center">Còn tốt</TableCell>
+                          <TableCell sx={{ fontWeight: 700, backgroundColor: '#f0f4f8' }} align="center">Đã hỏng</TableCell>
+                          <TableCell sx={{ fontWeight: 700, backgroundColor: '#f0f4f8' }} align="center">Thao tác</TableCell>
+                        </TableRow>
+                      </TableHead>
+                      <TableBody>
+                        {rows.length === 0 ? (
+                          <TableRow><TableCell colSpan={11} align="center" sx={{ py: 2, color: 'text.secondary', fontSize: '0.8rem' }}>Chưa có dữ liệu — nhấn <strong>Thêm</strong> để bắt đầu</TableCell></TableRow>
+                        ) : pagedRows.map((a, idx) => (
+                          <TableRow key={a._id} hover>
+                            <TableCell padding="checkbox">
+                              <Checkbox
+                                size="small"
+                                checked={selected.has(a._id)}
+                                onChange={() => toggleSelect(a._id)}
+                              />
+                            </TableCell>
+                            <TableCell>{safePage * WAREHOUSE_PAGE_SIZE + idx + 1}</TableCell>
+                            <TableCell><Typography variant="caption" sx={{ fontFamily: 'monospace', bgcolor: 'grey.100', px: 0.5, borderRadius: 0.5 }}>{a.assetCode}</Typography></TableCell>
+                            <TableCell>{a.name}</TableCell>
+                            <TableCell align="center">{a.unit}</TableCell>
+                            <TableCell align="center" sx={{ fontWeight: 600 }}>{a.quantity}</TableCell>
+                            <TableCell align="center" sx={{ color: 'info.main', fontWeight: 500 }}>{a.allocatedQty ?? 0}</TableCell>
+                            <TableCell align="center" sx={{ fontWeight: 700, color: (a.remainingQty ?? a.quantity ?? 0) > 0 ? 'success.main' : 'error.main' }}>{a.remainingQty ?? a.quantity ?? 0}</TableCell>
+                            <TableCell align="center" sx={{ color: 'success.main', fontWeight: 700 }}>{deriveWarehouseQuantities(a).good}</TableCell>
+                            <TableCell align="center" sx={{ color: 'error.main', fontWeight: 700 }}>{deriveWarehouseQuantities(a).broken}</TableCell>
+                            <TableCell align="center">
+                              <Stack direction="row" justifyContent="center" spacing={0.5}>
+                                <Tooltip title="Sửa"><IconButton size="small" onClick={() => { const q = deriveWarehouseQuantities(a); setForm({ assetCode: a.assetCode, name: a.name, category: a.category, unit: a.unit, quantity: q.total, goodQuantity: q.good, brokenQuantity: q.broken, condition: q.broken > 0 ? 'Đã hỏng' : 'Còn tốt' }); setEditId(a._id); setOpenModal(true); }}><EditIcon fontSize="small" /></IconButton></Tooltip>
+                                <Tooltip title="Xóa lẻ">
+                                  <span>
+                                    <IconButton size="small" color="error" onClick={() => handleQuickDelete(a)} disabled={deletingId === a._id}>
+                                      {deletingId === a._id ? <CircularProgress size={14} color="inherit" /> : <DeleteIcon fontSize="small" />}
+                                    </IconButton>
+                                  </span>
+                                </Tooltip>
+                              </Stack>
+                            </TableCell>
+                          </TableRow>
+                        ))}
+                      </TableBody>
+                    </Table>
+                  </TableContainer>
+                  {rows.length > WAREHOUSE_PAGE_SIZE && (
+                    <TablePagination
+                      component="div"
+                      count={rows.length}
+                      rowsPerPage={WAREHOUSE_PAGE_SIZE}
+                      rowsPerPageOptions={[WAREHOUSE_PAGE_SIZE]}
+                      page={safePage}
+                      onPageChange={(_, newPage) => setCategoryPage((prev) => ({ ...prev, [cat]: newPage }))}
+                      labelRowsPerPage="Hiển thị"
+                      labelDisplayedRows={({ from, to, count }) => `${from}-${to} / ${count}`}
+                      sx={{ border: '1px solid #c7d7f8', borderTop: 'none', borderRadius: '0 0 4px 4px', '.MuiTablePagination-toolbar': { minHeight: 42 } }}
+                    />
+                  )}
                 </>
               );
             })()}
@@ -4273,11 +4287,11 @@ export default function ManageAssets() {
           </Box>
         </Stack>
 
-        <Tabs 
-          value={mainTab} 
-          onChange={(_, v) => setMainTab(v)} 
-          sx={{ 
-            mb: 3, 
+        <Tabs
+          value={mainTab}
+          onChange={(_, v) => setMainTab(v)}
+          sx={{
+            mb: 3,
             '& .MuiTab-root': { textTransform: 'none', fontWeight: 700, minHeight: 48, px: 3 },
             borderBottom: '1px solid #f1f5f9'
           }}
@@ -4299,14 +4313,14 @@ export default function ManageAssets() {
                     { title: '3. Phân bổ về phòng (CSVC)', desc: 'Chuyển đồ từ "Kho tổng" về từng phòng học hoặc cơ sở vật chất cụ thể.', link: '/school-admin/facilities/room-based', icon: <InventoryIcon color="warning" /> },
                     { title: '4. Báo cáo cuối năm', desc: 'Rà soát tình trạng sử dụng và xuất báo cáo gửi Sở/Phòng GD.', tab: 1, icon: <ArrowIcon color="info" /> }
                   ].map((step, i) => (
-                    <Paper 
-                      key={i} 
-                      variant="outlined" 
-                      sx={{ 
-                        p: 2, 
-                        display: 'flex', 
-                        alignItems: 'center', 
-                        gap: 2, 
+                    <Paper
+                      key={i}
+                      variant="outlined"
+                      sx={{
+                        p: 2,
+                        display: 'flex',
+                        alignItems: 'center',
+                        gap: 2,
                         cursor: 'pointer',
                         transition: '0.2s',
                         '&:hover': { bgcolor: '#f8fafc', borderColor: '#2563eb' }

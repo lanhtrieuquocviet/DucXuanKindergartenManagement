@@ -2,7 +2,6 @@ import { useEffect, useMemo, useState } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import { useAuth } from '../../context/AuthContext';
 import { del, ENDPOINTS, get, post } from '../../service/api';
-import { useSchoolAdminMenu } from './useSchoolAdminMenu';
 
 import {
   AcUnit as AcUnitIcon,
@@ -53,7 +52,6 @@ export default function StudentInClass() {
   const { classId } = useParams();
   const navigate = useNavigate();
   const { user, hasRole, isInitializing } = useAuth();
-  const menuItems = useSchoolAdminMenu();
 
   const [classDetail, setClassDetail] = useState(null);
   const [students, setStudents] = useState([]);

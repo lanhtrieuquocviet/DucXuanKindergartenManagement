@@ -31,8 +31,6 @@ import { useNavigate, useParams } from 'react-router-dom';
 import { toast } from 'react-toastify';
 import { useAuth } from '../../context/AuthContext';
 import { ENDPOINTS, get, patch } from '../../service/api';
-import { createSchoolAdminMenuSelect } from './schoolAdminMenuConfig';
-import { useSchoolAdminMenu } from './useSchoolAdminMenu';
 
 // ── helpers ─────────────────────────────────────────────────────
 function calcAge(dob) {
@@ -344,9 +342,6 @@ export default function StudentDetailPage() {
   const { studentId } = useParams();
   const navigate = useNavigate();
   const { user, isInitializing } = useAuth();
-  const menuItems = useSchoolAdminMenu();
-  const handleMenuSelect = (item) => createSchoolAdminMenuSelect(navigate)(item);
-
   const [student, setStudent] = useState(null);
   const [loading, setLoading] = useState(true);
   const [tab, setTab] = useState(0);

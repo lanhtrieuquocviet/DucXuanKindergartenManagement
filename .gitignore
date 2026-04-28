@@ -111,3 +111,5 @@ coverage/
 reports/
 test-results/
 .claude
+graphify_contextAI/
+graphify-out/

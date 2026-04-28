@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { toast } from 'react-toastify';
 import {
@@ -18,8 +18,6 @@ import UploadFileIcon from '@mui/icons-material/UploadFile';
 import RoleLayout from '../../layouts/RoleLayout';
 import { useAuth } from '../../context/AuthContext';
 import { del, get, post, postFormData, put, ENDPOINTS } from '../../service/api';
-import { createSchoolAdminMenuSelect } from './schoolAdminMenuConfig';
-import { useSchoolAdminMenu } from './useSchoolAdminMenu';
 
 const ROOM_STATUS_LABEL = {
   available:   { label: 'Trống',       color: 'success' },
@@ -275,149 +273,6 @@ export default function ManageRoomAssets() {
     }
   };
 
-  const applyWordImport = async (warehouseItems) => {
-    const latestCatalog = await loadCatalog();
-
-    let roomCreated = 0;
-    let roomUpdated = 0;
-    let roomSkipped = 0;
-    let roomUnchanged = 0;
-    let roomMissingInWarehouse = 0;
-    if (selectedRoom?._id) {
-      const roomRes = await get(ENDPOINTS.SCHOOL_ADMIN.ROOM_ASSETS_BY_ROOM(selectedRoom._id));
-      const roomItems = roomRes?.data?.items || [];
-      const roomByAssetId = new Map(roomItems.map((it) => [it.assetId?._id, it]));
-      const byCodeName = new Map();
-      const byCategoryName = new Map();
-      latestCatalog.forEach((a) => {
-        const canonicalName = toCanonical(a.name);
-        if (!canonicalName) return;
-        if (a.assetCode) byCodeName.set(`${a.assetCode}::${canonicalName}`, a);
-        byCategoryName.set(`${a.category || ''}::${canonicalName}`, a);
-      });
-
-      const tasks = [];
-      for (const row of warehouseItems) {
-        const qty = Number(row.quantity) || 0;
-        if (qty <= 0) continue;
-        const canonicalName = toCanonical(row.name);
-        if (!canonicalName) continue;
-        const code = (row.assetCode || '').trim();
-        const match = code
-          ? byCodeName.get(`${code}::${canonicalName}`)
-          : byCategoryName.get(`${row.category || ''}::${canonicalName}`);
-        if (!match?._id) {
-          roomSkipped++;
-          roomMissingInWarehouse++;
-          continue;
-        }
-        const existed = roomByAssetId.get(match._id);
-        if (existed?._id) {
-          const nextNotes = existed.notes || row.notes || '';
-          if (Number(existed.quantity) === qty && String(existed.notes || '') === String(nextNotes)) {
-            roomUnchanged++;
-            continue;
-          }
-          tasks.push(async () => {
-            await put(
-              ENDPOINTS.SCHOOL_ADMIN.ROOM_ASSET_ITEM(selectedRoom._id, existed._id),
-              { quantity: qty, notes: nextNotes }
-            );
-            roomUpdated++;
-          });
-        } else {
-          tasks.push(async () => {
-            await post(ENDPOINTS.SCHOOL_ADMIN.ROOM_ASSETS_BY_ROOM(selectedRoom._id), {
-              assetId: match._id,
-              quantity: qty,
-              notes: row.notes || '',
-            });
-            roomCreated++;
-          });
-        }
-      }
-
-      const concurrency = 8;
-      let cursor = 0;
-      const workers = Array.from({ length: Math.min(concurrency, tasks.length) }, async () => {
-        while (cursor < tasks.length) {
-          const i = cursor++;
-          try {
-            await tasks[i]();
-          } catch {
-            roomSkipped++;
-          }
-        }
-      });
-      await Promise.all(workers);
-      await loadRoomAssets(selectedRoom);
-      await loadRooms();
-    }
-
-    if (selectedRoom?._id) {
-      toast.success(`Đã import vào phòng "${selectedRoom.roomName}": thêm ${roomCreated}, cập nhật ${roomUpdated}${roomUnchanged ? `, giữ nguyên ${roomUnchanged}` : ''}${roomSkipped ? `, bỏ qua ${roomSkipped}` : ''}.`);
-      if (roomMissingInWarehouse) {
-        toast.warn(`${roomMissingInWarehouse} tài sản trong file chưa có ở kho tổng nên chưa thể phân bổ vào phòng.`);
-      }
-    } else {
-      toast.warn('Chưa chọn phòng. Vui lòng chọn phòng trước khi import.');
-    }
-  };
-
-  const handleWordImport = async (e) => {
-    const file = e.target.files?.[0];
-    if (!file) return;
-    e.target.value = '';
-    const lowerName = file.name.toLowerCase();
-    if (!lowerName.endsWith('.doc') && !lowerName.endsWith('.docx')) {
-      toast.warn('Vui lòng chọn file Word (.doc hoặc .docx).');
-      return;
-    }
-    setImportingWord(true);
-    try {
-      const formData = new FormData();
-      formData.append('file', file);
-      const parsedRes = await postFormData(ENDPOINTS.SCHOOL_ADMIN.ASSET_ALLOCATIONS_PARSE_WORD, formData);
-      const parsedAssets = parsedRes?.data?.assets || [];
-      const parsedExtraAssets = parsedRes?.data?.extraAssets || [];
-      const warehouseItems = [...parsedAssets, ...parsedExtraAssets]
-        .filter((a) => a?.name?.trim())
-        .map((a) => ({
-          assetCode: a.assetCode || '',
-          name: a.name,
-          category: a.category || 'Thiết bị ngoài thông tư',
-          unit: a.unit || 'Cái',
-          quantity: Number(a.quantity) || 0,
-          condition: 'Còn tốt',
-          notes: a.notes || '',
-        }));
-
-      if (!warehouseItems.length) {
-        toast.warn('Không tìm thấy dữ liệu tài sản trong file Word.');
-        return;
-      }
-      setImportPreviewItems(warehouseItems);
-      setImportPreviewOpen(true);
-    } catch (err) {
-      toast.error(err?.message || 'Không thể đọc file Word. Hãy thử dùng file .docx.');
-    } finally {
-      setImportingWord(false);
-    }
-  };
-
-  const handleConfirmImportPreview = async () => {
-    if (!importPreviewItems.length) return;
-    setImportingWord(true);
-    try {
-      await applyWordImport(importPreviewItems);
-      setImportPreviewOpen(false);
-      setImportPreviewItems([]);
-    } catch (err) {
-      toast.error(err?.message || 'Không thể import file Word.');
-    } finally {
-      setImportingWord(false);
-    }
-  };
 
   const filteredRooms = useMemo(() => {
     const q = roomSearch.toLowerCase();
@@ -642,7 +497,7 @@ export default function ManageRoomAssets() {
   };
 
   return (
-    <Box>
+    <RoleLayout title="Quản lý CSVC & Tài sản phòng">
       <Box sx={{ display: 'flex', gap: 2, height: 'calc(100vh - 120px)' }}>
 
         {/* ════ Cột trái: danh sách phòng ════ */}
@@ -936,57 +791,6 @@ export default function ManageRoomAssets() {
           </Button>
         </DialogActions>
       </Dialog>
-
-      <Dialog
-        open={importPreviewOpen}
-        onClose={() => { if (!importingWord) { setImportPreviewOpen(false); setImportPreviewItems([]); } }}
-        maxWidth="md"
-        fullWidth
-      >
-        <DialogTitle>Xem trước dữ liệu import — {importPreviewItems.length} tài sản</DialogTitle>
-        <DialogContent dividers sx={{ p: 0 }}>
-          <Table size="small" stickyHeader>
-            <TableHead>
-              <TableRow>
-                <TableCell width={50}>#</TableCell>
-                <TableCell width={120}>Mã TS</TableCell>
-                <TableCell>Tên tài sản</TableCell>
-                <TableCell width={190}>Loại</TableCell>
-                <TableCell width={70} align="center">ĐVT</TableCell>
-                <TableCell width={80} align="center">SL</TableCell>
-              </TableRow>
-            </TableHead>
-            <TableBody>
-              {importPreviewItems.map((a, idx) => (
-                <TableRow key={`${a.assetCode || 'nomal'}-${idx}`} hover>
-                  <TableCell>{idx + 1}</TableCell>
-                  <TableCell>
-                    <Typography variant="caption" sx={{ fontFamily: 'monospace', bgcolor: 'grey.100', px: 0.5, borderRadius: 0.5 }}>
-                      {a.assetCode || '(tự động)'}
-                    </Typography>
-                  </TableCell>
-                  <TableCell>{a.name}</TableCell>
-                  <TableCell>{a.category}</TableCell>
-                  <TableCell align="center">{a.unit}</TableCell>
-                  <TableCell align="center">{a.quantity}</TableCell>
-                </TableRow>
-              ))}
-            </TableBody>
-          </Table>
-        </DialogContent>
-        <DialogActions>
-          <Button onClick={() => { setImportPreviewOpen(false); setImportPreviewItems([]); }} disabled={importingWord}>Hủy</Button>
-          <Button
-            variant="contained"
-            onClick={handleConfirmImportPreview}
-            disabled={importingWord}
-            startIcon={importingWord ? <CircularProgress size={16} /> : <UploadFileIcon />}
-          >
-            {importingWord ? 'Đang nhập...' : `Nhập ${importPreviewItems.length} tài sản`}
-          </Button>
-        </DialogActions>
-      </Dialog>
-
 
       {/* ════ Confirm xóa phòng ════ */}
       <ConfirmDialog
