@@ -555,10 +555,23 @@ function ManageStudents() {
   };
 
   const filteredStudents = students.filter((s) => {
+    // Search filter
     const matchSearch = !searchTerm || (s.fullName || '').toLowerCase().includes(searchTerm.toLowerCase())
       || (s.parentId?.fullName || '').toLowerCase().includes(searchTerm.toLowerCase())
       || (s.studentCode || '').toLowerCase().includes(searchTerm.toLowerCase());
-    return matchSearch;
+    
+    // Year filter
+    const sYearId = s.academicYearId?._id || s.academicYearId || s.classId?.academicYearId?._id || s.classId?.academicYearId;
+    const matchYear = !yearFilter || yearFilter === 'all' || yearFilter === 'active' || String(sYearId) === String(yearFilter);
+    
+    // Class filter
+    const sClassId = s.classId?._id || s.classId;
+    const matchClass = !classFilter || classFilter === 'all' || String(sClassId) === String(classFilter);
+    
+    // Gender filter
+    const matchGender = !genderFilter || genderFilter === 'all' || String(s.gender) === String(genderFilter);
+    
+    return matchSearch && matchYear && matchClass && matchGender;
   });
 
   const formatDate = (d) => {
@@ -568,9 +581,10 @@ function ManageStudents() {
   };
 
   const getAcademicYearLabel = (student) => {
-    if (student.academicYearId?.yearName) return student.academicYearId.yearName;
-    if (student.classId?.academicYearId?.yearName) return student.classId.academicYearId.yearName;
-    return '—';
+    const yearId = student.academicYearId?._id || student.academicYearId || student.classId?.academicYearId?._id || student.classId?.academicYearId;
+    if (!yearId) return '—';
+    const yearObj = academicYears.find(y => String(y._id) === String(yearId));
+    return yearObj?.yearName || student.academicYearId?.yearName || student.classId?.academicYearId?.yearName || '—';
   };
 
   // const handleMenuSelect = createSchoolAdminMenuSelect(navigate);

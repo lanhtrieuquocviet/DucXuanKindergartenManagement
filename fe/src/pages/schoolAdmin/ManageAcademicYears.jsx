@@ -777,6 +777,40 @@ const ManageAcademicYears = () => {
                   onChange={(e) => setExpressForm({ ...expressForm, endDate: e.target.value })}
                 />
               </Stack>
+
+              <Typography variant="subtitle2" fontWeight={800} color="primary" sx={{ mt: 1 }}>Cấu hình Học kỳ</Typography>
+              
+              <Box sx={{ p: 2, bgcolor: '#f5f3ff', borderRadius: 2, border: '1px dashed #c4b5fd' }}>
+                <Typography variant="caption" fontWeight={700} color="#6d28d9" gutterBottom sx={{ display: 'block' }}>HỌC KỲ I</Typography>
+                <Stack direction="row" spacing={2} mt={1}>
+                  <TextField
+                    label="Từ ngày" type="date" fullWidth size="small" InputLabelProps={{ shrink: true }}
+                    value={expressForm.term1StartDate}
+                    onChange={(e) => setExpressForm({ ...expressForm, term1StartDate: e.target.value })}
+                  />
+                  <TextField
+                    label="Đến ngày" type="date" fullWidth size="small" InputLabelProps={{ shrink: true }}
+                    value={expressForm.term1EndDate}
+                    onChange={(e) => setExpressForm({ ...expressForm, term1EndDate: e.target.value })}
+                  />
+                </Stack>
+              </Box>
+
+              <Box sx={{ p: 2, bgcolor: '#fdf2f8', borderRadius: 2, border: '1px dashed #f9a8d4' }}>
+                <Typography variant="caption" fontWeight={700} color="#be185d" gutterBottom sx={{ display: 'block' }}>HỌC KỲ II</Typography>
+                <Stack direction="row" spacing={2} mt={1}>
+                  <TextField
+                    label="Từ ngày" type="date" fullWidth size="small" InputLabelProps={{ shrink: true }}
+                    value={expressForm.term2StartDate}
+                    onChange={(e) => setExpressForm({ ...expressForm, term2StartDate: e.target.value })}
+                  />
+                  <TextField
+                    label="Đến ngày" type="date" fullWidth size="small" InputLabelProps={{ shrink: true }}
+                    value={expressForm.term2EndDate}
+                    onChange={(e) => setExpressForm({ ...expressForm, term2EndDate: e.target.value })}
+                  />
+                </Stack>
+              </Box>
             </Stack>
           </DialogContent>
           <DialogActions sx={{ p: 2.5, borderTop: '1px solid #f1f5f9' }}>

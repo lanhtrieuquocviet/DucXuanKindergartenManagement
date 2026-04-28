@@ -69,22 +69,42 @@ function SchoolAdminDashboard() {
 
         // 2. Fetch stats with academicYearId filter
         const [studentsRes, classesRes, teachersRes, attendanceRes, contactsRes] = await Promise.all([
-          get(`${ENDPOINTS.STUDENTS.LIST}${activeYearId ? `?academicYearId=${activeYearId}` : ''}`),
-          get(`${ENDPOINTS.CLASSES.LIST}${activeYearId ? `?academicYearId=${activeYearId}` : ''}`),
+          get(activeYearId ? ENDPOINTS.SCHOOL_ADMIN.ACADEMIC_YEARS.STUDENTS(activeYearId) : ENDPOINTS.STUDENTS.LIST),
+          get(activeYearId ? ENDPOINTS.SCHOOL_ADMIN.ACADEMIC_YEARS.CLASSES(activeYearId) : ENDPOINTS.CLASSES.LIST),
           get(ENDPOINTS.SCHOOL_ADMIN.TEACHERS),
           get(`${ENDPOINTS.SCHOOL_ADMIN.ATTENDANCE_OVERVIEW}?date=${todayStr}${activeYearId ? `&academicYearId=${activeYearId}` : ''}`),
           get(ENDPOINTS.SCHOOL_ADMIN.CONTACTS),
         ]);
 
-        const studentTotal = Number(studentsRes?.total ?? studentsRes?.data?.length ?? 0);
-        const classTotal = Number(classesRes?.total ?? classesRes?.data?.length ?? 0);
+        // 3. Determine the definitive year ID to filter by
+        const studentYearId = studentsRes?.academicYear?._id || studentsRes?.academicYear || activeYearId;
+        const classYearId = classesRes?.academicYear?._id || classesRes?.academicYear || activeYearId;
+
+        const studentRowsRaw = Array.isArray(studentsRes?.data) ? studentsRes.data : [];
+        const studentRows = studentRowsRaw.filter(s => {
+          const sYearId = s.academicYearId?._id || s.academicYearId || s.classId?.academicYearId?._id || s.classId?.academicYearId;
+          return studentYearId && String(sYearId) === String(studentYearId);
+        });
+        const studentTotal = studentRows.length;
+
+        const classRowsRaw = Array.isArray(classesRes?.data) ? classesRes.data : [];
+        const classRows = classRowsRaw.filter(c => {
+          const cYearId = c.academicYearId?._id || c.academicYearId || c.gradeId?.academicYearId?._id || c.gradeId?.academicYearId;
+          const hasGrade = !!(c.gradeId?._id || c.gradeId);
+          return classYearId && String(cYearId) === String(classYearId) && hasGrade;
+        });
+        const classTotal = classRows.length;
 
         const teacherRows = Array.isArray(teachersRes?.data) ? teachersRes.data : [];
         const teacherTotal = teacherRows.filter((t) => (t?.status || 'active') === 'active').length;
 
-        const attendanceClasses = Array.isArray(attendanceRes?.data?.classes)
+        const attendanceClasses = (Array.isArray(attendanceRes?.data?.classes)
           ? attendanceRes.data.classes
-          : [];
+          : []).filter(c => {
+            const cYearId = c.academicYearId?._id || c.academicYearId || c.gradeId?.academicYearId?._id || c.gradeId?.academicYearId;
+            const hasGrade = !!(c.gradeId?._id || c.gradeId);
+            return classYearId && String(cYearId) === String(classYearId) && hasGrade;
+          });
 
         const checkedRows = attendanceClasses.filter(
           (c) => Number(c?.present || 0) + Number(c?.absent || 0) > 0,
