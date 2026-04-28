@@ -384,6 +384,8 @@ export const ENDPOINTS = {
     STAFF_USERS: "/school-admin/staff-users",
     STAFF_MEMBERS: "/school-admin/staff-members",
     STAFF_MEMBER: (id) => `/school-admin/staff-members/${id}`,
+    STAFF_UPDATE: (id) => `/school-admin/users/${id}`,
+    STAFF_DELETE: (id) => `/school-admin/staff-members/${id}`,
     TEACHERS: "/school-admin/teachers",
     TEACHER_AVAILABILITY: "/school-admin/teachers/availability",
     TEACHER_CHECK_USERNAME: "/school-admin/teachers/check-username",

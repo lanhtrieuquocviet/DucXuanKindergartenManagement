@@ -87,6 +87,8 @@ export default function ManageStaff({ isEmbedded = false }) {
   const { user, hasRole, isInitializing } = useAuth();
 
   const [staff, setStaff] = useState([]);
+  const [positions, setPositions] = useState([]);
+  const [roles, setRoles] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const [search, setSearch] = useState('');
@@ -106,7 +108,7 @@ export default function ManageStaff({ isEmbedded = false }) {
 
   useEffect(() => {
     if (isEmbedded) {
-      fetchStaff();
+      loadData();
       return;
     }
     if (isInitializing) return;
@@ -118,25 +120,35 @@ export default function ManageStaff({ isEmbedded = false }) {
       navigate('/', { replace: true });
       return;
     }
-    fetchStaff();
+    loadData();
   }, [user, isInitializing, isEmbedded]); // eslint-disable-line
 
-  const fetchStaff = async () => {
+  const loadData = async () => {
     try {
       setLoading(true);
-      const res = await get(ENDPOINTS.SCHOOL_ADMIN.STAFF);
-      const items = (res.data || []).map((s) => ({
+      const [staffRes, posRes, roleRes] = await Promise.all([
+        get(ENDPOINTS.SCHOOL_ADMIN.STAFF_USERS),
+        get(ENDPOINTS.SCHOOL_ADMIN.JOB_POSITIONS.LIST),
+        get(ENDPOINTS.SCHOOL_ADMIN.ROLES)
+      ]);
+
+      const items = (staffRes.data || []).map((s) => ({
         ...s,
         position: s.position || getPositionFromRoleNames(s.roleNames) || 'Nhân viên',
       }));
+
       setStaff(items);
+      setPositions(posRes.data || []);
+      setRoles(roleRes.data || []);
       setError(null);
     } catch (err) {
-      setError(err.data?.message || err.message || 'Lỗi khi tải danh sách nhân viên');
+      setError(err.data?.message || err.message || 'Lỗi khi tải dữ liệu');
     } finally {
       setLoading(false);
     }
   };
+
+  const fetchStaff = loadData;
 
   const handleAdd = async () => {
     if (formAdd.password !== formAdd.confirmPassword) {
@@ -160,7 +172,8 @@ export default function ManageStaff({ isEmbedded = false }) {
   };
 
   const handleOpenEdit = (item) => {
-    const isOther = item.position && !POSITION_OPTIONS.includes(item.position);
+    const positionNames = positions.map(p => p.title);
+    const isOther = item.position && !positionNames.includes(item.position);
     setFormEdit({
       ...EMPTY_FORM,
       userId: item._id,
@@ -170,6 +183,7 @@ export default function ManageStaff({ isEmbedded = false }) {
       position: isOther ? 'Other' : (item.position || ''),
       customPosition: isOther ? item.position : '',
       status: item.status || 'active',
+      roleName: (item.roleNames || '').split(',')[0]?.trim() || '',
     });
     setEditError(null);
     setOpenEdit(true);
@@ -195,7 +209,10 @@ export default function ManageStaff({ isEmbedded = false }) {
   const handleDelete = async () => {
     try {
       setDeleteLoading(true);
-      await del(ENDPOINTS.SCHOOL_ADMIN.STAFF_DELETE(deleteTarget._id));
+      // Nếu có staffId thì dùng STAFF_DELETE, nếu không dùng STAFF_MEMBER? 
+      // deleteTarget._id ở fetchStaff (STAFF_USERS) là userId
+      // Chúng ta cần xóa Staff record. STAFF_USERS trả về staffId.
+      await del(ENDPOINTS.SCHOOL_ADMIN.STAFF_DELETE(deleteTarget.staffId || deleteTarget._id));
       setDeleteTarget(null);
       toast.success('Đã xóa nhân viên');
       fetchStaff();
@@ -215,6 +232,12 @@ export default function ManageStaff({ isEmbedded = false }) {
         (item.email || '').toLowerCase().includes(s)
     );
   }, [staff, search]);
+
+  const POSITION_OPTIONS_DYNAMIC = positions.map(p => p.title);
+  const POSITION_MAP_DYNAMIC = positions.reduce((acc, curr) => {
+    acc[curr.title] = curr.roleName;
+    return acc;
+  }, {});
 
   // const handleMenuSelect = createSchoolAdminMenuSelect(navigate);
 
@@ -269,7 +292,8 @@ export default function ManageStaff({ isEmbedded = false }) {
         error={addError}
         setError={setAddError}
         onSubmit={handleAdd}
-        POSITION_OPTIONS={POSITION_OPTIONS}
+        POSITION_OPTIONS={POSITION_OPTIONS_DYNAMIC}
+        POSITION_MAP={POSITION_MAP_DYNAMIC}
       />
 
       <EditStaffDialog
@@ -281,7 +305,8 @@ export default function ManageStaff({ isEmbedded = false }) {
         error={editError}
         setError={setEditError}
         onSubmit={handleEdit}
-        POSITION_OPTIONS={POSITION_OPTIONS}
+        POSITION_OPTIONS={POSITION_OPTIONS_DYNAMIC}
+        POSITION_MAP={POSITION_MAP_DYNAMIC}
       />
 
       {/* Delete Confirm */}
