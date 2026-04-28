@@ -320,9 +320,13 @@ export const AuthProvider = ({
   }, [getUserRoles]);
 
   // Check if user has a specific permission code.
-  // Nếu user chưa có permission nào (DB chưa seed) → trả về true để không ẩn menu.
+  // Nếu user chưa có permission nào (DB chưa seed hoặc sync lỗi) → trả về true để không ẩn menu chuẩn.
   const hasPermission = useCallback((code) => {
     if (!user || !user.roles) return false;
+
+    // Ưu tiên SystemAdmin luôn có quyền
+    const userRoles = getUserRoles();
+    if (userRoles.includes('SystemAdmin')) return true;
     
     // Thu thập tất cả các mã code từ các roles
     const allPermissionCodes = user.roles.flatMap((role) => {
@@ -330,9 +334,11 @@ export const AuthProvider = ({
       return role.permissions.map(p => (typeof p === 'object' ? p.code : p));
     });
 
-    if (allPermissionCodes.length === 0) return false;
+    // Nếu hệ thống chưa cấu hình quyền chi tiết trong DB -> Cho phép hiển thị (Chế độ Emergency)
+    if (allPermissionCodes.length === 0) return true;
+
     return allPermissionCodes.includes(code);
-  }, [user]);
+  }, [user, getUserRoles]);
 
   const value = {
     user,
