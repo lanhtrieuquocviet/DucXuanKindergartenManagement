@@ -103,8 +103,25 @@ export function evaluateNutrition(nutrition = {}, ranges = DEFAULT_NUTRITION_RAN
   return result;
 }
 
-export function evaluateDailyNutrition(dayMenu, ranges = DEFAULT_NUTRITION_RANGES) {
-  const { calories: calRaw, protein, fat, carb } = aggregateDayNutritionSumAll(dayMenu);
+export function evaluateDailyNutrition(dayMenu, ranges = DEFAULT_NUTRITION_RANGES, options = {}) {
+  const { useSnapshotTotals = false } = options;
+  const hasSnapshotTotals =
+    dayMenu &&
+    dayMenu.totalCalories !== undefined &&
+    dayMenu.totalProtein !== undefined &&
+    dayMenu.totalFat !== undefined &&
+    dayMenu.totalCarb !== undefined;
+
+  const snapshot = useSnapshotTotals && hasSnapshotTotals
+    ? {
+        calories: Number(dayMenu.totalCalories) || 0,
+        protein: Number(dayMenu.totalProtein) || 0,
+        fat: Number(dayMenu.totalFat) || 0,
+        carb: Number(dayMenu.totalCarb) || 0,
+      }
+    : aggregateDayNutritionSumAll(dayMenu);
+
+  const { calories: calRaw, protein, fat, carb } = snapshot;
   const calories = Number(calRaw || 0);
 
   const pKcal = protein * 4;

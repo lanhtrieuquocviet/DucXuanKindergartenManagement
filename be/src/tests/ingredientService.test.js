@@ -7,17 +7,23 @@ jest.mock('../models/Ingredient', () => {
   MockIngredient.updateMany = jest.fn();
   MockIngredient.find = jest.fn();
   MockIngredient.findOne = jest.fn();
+  MockIngredient.findById = jest.fn();
   MockIngredient.findByIdAndUpdate = jest.fn();
   MockIngredient.findByIdAndDelete = jest.fn();
   return MockIngredient;
 });
+jest.mock('../models/Food', () => ({
+  find: jest.fn(),
+}));
 
 const Ingredient = require('../models/Ingredient');
+const Food = require('../models/Food');
 const {
   getIngredients,
   createIngredient,
   updateIngredient,
   deleteIngredient,
+  restoreIngredient,
 } = require('../services/ingredientService');
 
 const mockRes = () => {
@@ -26,7 +32,7 @@ const mockRes = () => {
   r.json = jest.fn().mockReturnValue(r);
   return r;
 };
-const mockReq = (body = {}, params = {}) => ({ body, params });
+const mockReq = (body = {}, params = {}, query = {}) => ({ body, params, query });
 
 const makeIngredient = (o = {}) => ({
   _id: 'ing1',
@@ -75,6 +81,17 @@ describe('getIngredients', () => {
     const res = mockRes();
     await getIngredients(mockReq(), res);
     expect(res.status).toHaveBeenCalledWith(500);
+  });
+
+  test('UTC004 [B] filter=deleted → query nguyên liệu đã xóa', async () => {
+    Ingredient.countDocuments = jest.fn().mockResolvedValue(0);
+    Ingredient.find = jest.fn().mockReturnValue({
+      sort: jest.fn().mockResolvedValue([makeIngredient({ isDeleted: true })]),
+    });
+    const res = mockRes();
+    await getIngredients(mockReq({}, {}, { filter: 'deleted' }), res);
+    expect(Ingredient.find).toHaveBeenCalledWith({ isDeleted: true });
+    expect(res.json).toHaveBeenCalledWith(expect.objectContaining({ success: true }));
   });
 });
 
@@ -143,6 +160,16 @@ describe('createIngredient', () => {
     await createIngredient(mockReq(validBody), res);
     expect(res.status).toHaveBeenCalledWith(500);
   });
+
+  test('UTC007 [A] carb là số âm → 400', async () => {
+    Ingredient.findOne = jest.fn().mockResolvedValue(null);
+    const res = mockRes();
+    await createIngredient(mockReq({ ...validBody, carb: -1 }), res);
+    expect(res.status).toHaveBeenCalledWith(400);
+    expect(res.json).toHaveBeenCalledWith(
+      expect.objectContaining({ message: expect.stringContaining('không được là số âm') }),
+    );
+  });
 });
 
 // ════════════════════════════════════════════════
@@ -208,6 +235,16 @@ describe('updateIngredient', () => {
     await updateIngredient(mockReq(validBody, { id: 'ing1' }), res);
     expect(res.status).toHaveBeenCalledWith(500);
   });
+
+  test('UTC007 [A] protein là số âm → 400', async () => {
+    Ingredient.findOne = jest.fn().mockResolvedValue(null);
+    const res = mockRes();
+    await updateIngredient(mockReq({ ...validBody, protein: -2 }, { id: 'ing1' }), res);
+    expect(res.status).toHaveBeenCalledWith(400);
+    expect(res.json).toHaveBeenCalledWith(
+      expect.objectContaining({ message: expect.stringContaining('không được là số âm') }),
+    );
+  });
 });
 
 // ════════════════════════════════════════════════
@@ -217,23 +254,58 @@ describe('deleteIngredient', () => {
   beforeEach(() => jest.clearAllMocks());
 
   test('UTC001 [N] Xóa nguyên liệu thành công → json({ success: true })', async () => {
-    Ingredient.findByIdAndDelete = jest.fn().mockResolvedValue(makeIngredient());
+    Ingredient.findOne = jest.fn().mockResolvedValue(makeIngredient());
+    Food.find = jest.fn().mockReturnValue({
+      select: jest.fn().mockResolvedValue([]),
+    });
+    Ingredient.findByIdAndUpdate = jest.fn().mockResolvedValue(makeIngredient({ isDeleted: true }));
     const res = mockRes();
     await deleteIngredient(mockReq({}, { id: 'ing1' }), res);
     expect(res.json).toHaveBeenCalledWith(expect.objectContaining({ success: true }));
   });
 
   test('UTC002 [A] Nguyên liệu không tồn tại → 404', async () => {
-    Ingredient.findByIdAndDelete = jest.fn().mockResolvedValue(null);
+    Ingredient.findOne = jest.fn().mockResolvedValue(null);
     const res = mockRes();
     await deleteIngredient(mockReq({}, { id: 'notexist' }), res);
     expect(res.status).toHaveBeenCalledWith(404);
   });
 
-  test('UTC003 [A] DB throw exception → 500', async () => {
-    Ingredient.findByIdAndDelete = jest.fn().mockRejectedValue(new Error('DB error'));
+  test('UTC003 [A] Nguyên liệu đang dùng trong món ăn active → 400', async () => {
+    Ingredient.findOne = jest.fn().mockResolvedValue(makeIngredient({ _id: 'ing1', name: 'Gạo' }));
+    Food.find = jest.fn().mockReturnValue({
+      select: jest.fn().mockResolvedValue([
+        { _id: 'food1', name: 'Cơm trắng', ingredients: [{ name: 'Gạo' }] },
+      ]),
+    });
+    const res = mockRes();
+    await deleteIngredient(mockReq({}, { id: 'ing1' }), res);
+    expect(res.status).toHaveBeenCalledWith(400);
+    expect(res.json).toHaveBeenCalledWith(
+      expect.objectContaining({ message: expect.stringContaining('món ăn đang dùng') })
+    );
+  });
+
+  test('UTC004 [A] DB throw exception → 500', async () => {
+    Ingredient.findOne = jest.fn().mockRejectedValue(new Error('DB error'));
     const res = mockRes();
     await deleteIngredient(mockReq({}, { id: 'ing1' }), res);
     expect(res.status).toHaveBeenCalledWith(500);
+  });
+});
+
+// ════════════════════════════════════════════════
+// restoreIngredient
+// ════════════════════════════════════════════════
+describe('restoreIngredient', () => {
+  beforeEach(() => jest.clearAllMocks());
+
+  test('UTC001 [N] Khôi phục nguyên liệu thành công', async () => {
+    const ing = makeIngredient({ isDeleted: true, deletedAt: new Date(), save: jest.fn().mockResolvedValue(undefined) });
+    Ingredient.findById = jest.fn().mockResolvedValue(ing);
+    const res = mockRes();
+    await restoreIngredient(mockReq({}, { id: 'ing1' }), res);
+    expect(ing.save).toHaveBeenCalled();
+    expect(res.json).toHaveBeenCalledWith(expect.objectContaining({ success: true }));
   });
 });

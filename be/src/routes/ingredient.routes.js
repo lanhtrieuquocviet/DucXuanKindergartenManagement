@@ -91,5 +91,6 @@ router.get('/', ingredientController.getIngredients);
 router.post('/', ingredientController.createIngredient);
 router.put('/:id', ingredientController.updateIngredient);
 router.delete('/:id', ingredientController.deleteIngredient);
+router.patch('/:id/restore', ingredientController.restoreIngredient);
 
 module.exports = router;

@@ -5,6 +5,7 @@ const getFoods = async (req, res, next) => service.getFoods(req, res, next);
 const getFoodById = async (req, res, next) => service.getFoodById(req, res, next);
 const updateFood = async (req, res, next) => service.updateFood(req, res, next);
 const deleteFood = async (req, res, next) => service.deleteFood(req, res, next);
+const restoreFood = async (req, res, next) => service.restoreFood(req, res, next);
 
 module.exports = {
   createFood,
@@ -12,4 +13,5 @@ module.exports = {
   getFoodById,
   updateFood,
   deleteFood,
+  restoreFood,
 };

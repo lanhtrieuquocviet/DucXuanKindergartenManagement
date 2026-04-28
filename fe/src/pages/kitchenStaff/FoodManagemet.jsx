@@ -7,6 +7,7 @@ import {
   createIngredient,
   updateFood,
   deleteFood,
+  restoreFood,
 } from "../../service/menu.api";
 import {
   Box,
@@ -57,6 +58,7 @@ import {
   Grain as CarbIcon,
   Restaurant as FoodIcon,
   Clear as ClearIcon,
+  Restore as RestoreIcon,
 } from "@mui/icons-material";
 
 const emptyFood = {
@@ -98,6 +100,19 @@ const NUTRITION_CONFIG = [
     icon: <CarbIcon sx={{ fontSize: 16 }} />,
   },
 ];
+
+const isNegativeOrNaN = (value) => {
+  if (value === "" || value === null || value === undefined) return false;
+  const parsed = Number(value);
+  return Number.isNaN(parsed) || parsed < 0;
+};
+
+const calculateCaloriesFromMacros = (protein, fat, carb) => {
+  const p = Number(protein) || 0;
+  const f = Number(fat) || 0;
+  const c = Number(carb) || 0;
+  return Math.round((p * 4 + f * 9 + c * 4) * 10) / 10;
+};
 
 function NutritionBar({ value, max, color }) {
   const pct = max > 0 ? Math.min((value / max) * 100, 100) : 0;
@@ -153,7 +168,7 @@ function FormField({ config, value, error, onChange, inputProps = {}, disabled =
   );
 }
 
-function FoodCard({ food, maxValues, onView, onEdit, onDelete }) {
+function FoodCard({ food, maxValues, onView, onEdit, onDelete, onRestore, isTrashMode = false }) {
   const nutrients = [
     { key: "calories", label: "Kcal", unit: "kcal", color: "#f97316" },
     { key: "protein", label: "Chất đạm", unit: "g", color: "#6366f1" },
@@ -173,14 +188,26 @@ function FoodCard({ food, maxValues, onView, onEdit, onDelete }) {
               sx={{ color: "#0ea5e9", bgcolor: alpha("#0ea5e9", 0.07), borderRadius: 1.5, "&:hover": { bgcolor: alpha("#0ea5e9", 0.14) } }}>
               <ViewIcon sx={{ fontSize: 16 }} />
             </IconButton>
-            <IconButton size="small" onClick={() => onEdit(food)}
-              sx={{ color: "#4f46e5", bgcolor: alpha("#4f46e5", 0.07), borderRadius: 1.5, "&:hover": { bgcolor: alpha("#4f46e5", 0.14) } }}>
-              <EditIcon sx={{ fontSize: 16 }} />
-            </IconButton>
-            <IconButton size="small" onClick={() => onDelete(food)}
-              sx={{ color: "error.main", bgcolor: alpha("#ef4444", 0.07), borderRadius: 1.5, "&:hover": { bgcolor: alpha("#ef4444", 0.14) } }}>
-              <DeleteIcon sx={{ fontSize: 16 }} />
-            </IconButton>
+            {isTrashMode ? (
+              <IconButton
+                size="small"
+                onClick={() => onRestore(food)}
+                sx={{ color: "success.main", bgcolor: alpha("#16a34a", 0.07), borderRadius: 1.5, "&:hover": { bgcolor: alpha("#16a34a", 0.14) } }}
+              >
+                <RestoreIcon sx={{ fontSize: 16 }} />
+              </IconButton>
+            ) : (
+              <>
+                <IconButton size="small" onClick={() => onEdit(food)}
+                  sx={{ color: "#4f46e5", bgcolor: alpha("#4f46e5", 0.07), borderRadius: 1.5, "&:hover": { bgcolor: alpha("#4f46e5", 0.14) } }}>
+                  <EditIcon sx={{ fontSize: 16 }} />
+                </IconButton>
+                <IconButton size="small" onClick={() => onDelete(food)}
+                  sx={{ color: "error.main", bgcolor: alpha("#ef4444", 0.07), borderRadius: 1.5, "&:hover": { bgcolor: alpha("#ef4444", 0.14) } }}>
+                  <DeleteIcon sx={{ fontSize: 16 }} />
+                </IconButton>
+              </>
+            )}
           </Stack>
         </Stack>
         <Box sx={{ display: "grid", gridTemplateColumns: "repeat(4, 1fr)", gap: 1 }}>
@@ -202,6 +229,7 @@ function FoodManagement() {
   const [foods, setFoods] = useState([]);
   const [loading, setLoading] = useState(false);
   const [search, setSearch] = useState("");
+  const [foodFilter, setFoodFilter] = useState("active");
 
   const [showModal, setShowModal] = useState(false);
   const [detailFood, setDetailFood] = useState(null);
@@ -246,7 +274,7 @@ function FoodManagement() {
   const fetchFoods = async () => {
     try {
       setLoading(true);
-      const res = await getFoods();
+      const res = await getFoods({ filter: foodFilter });
       setFoods(res.data);
     } catch {
       toast.error("Không thể tải danh sách món");
@@ -260,6 +288,10 @@ function FoodManagement() {
     const q = search.toLowerCase();
     return foods.filter((f) => f.name.toLowerCase().includes(q));
   }, [foods, search]);
+
+  useEffect(() => {
+    fetchFoods();
+  }, [foodFilter]);
 
   const maxValues = useMemo(
     () => ({
@@ -293,17 +325,25 @@ function FoodManagement() {
   const handleOpenEdit = (food) => {
     setEditingFood(food);
     const ingredients = Array.isArray(food.ingredients) ? food.ingredients : [];
-    const nutrition = computeNutritionFromIngredients(ingredients);
+    const normalizedIngredients = ingredients.map((it) => {
+      const parsedQty = parseQuantityFormat(it.quantity);
+      const quantity = Number.isNaN(parsedQty.quantity) ? 100 : parsedQty.quantity;
+      const unit = it.unit || parsedQty.unit || "g";
+      return {
+        ...it,
+        quantity,
+        unit,
+        category: it.category || "luong_thuc",
+      };
+    });
+    const nutrition = computeNutritionFromIngredients(normalizedIngredients);
     setForm({
       name: food.name || "",
       calories: nutrition.calories,
       protein: nutrition.protein,
       fat: nutrition.fat,
       carb: nutrition.carb,
-      ingredients: ingredients.map((it) => ({
-        ...it,
-        category: it.category || "luong_thuc",
-      })),
+      ingredients: normalizedIngredients,
     });
     setErrors({});
     setShowCustomRow(false);
@@ -334,15 +374,15 @@ function FoodManagement() {
     if (!combined) return { quantity: 100, unit: "g" };
     
     const combined_str = String(combined).trim();
-    const match = combined_str.match(/^([\d.]+)\s*([a-zA-Z]*)$/);
+    const match = combined_str.match(/^(-?[\d.]+)\s*([a-zA-Z]*)$/);
     
     if (match) {
       return {
-        quantity: Number(match[1]) || 100,
+        quantity: Number(match[1]),
         unit: match[2] || "g"
       };
     }
-    return { quantity: 100, unit: "g" };
+    return { quantity: Number.NaN, unit: "g" };
   };
 
   // Helper: Format quantity + unit together (e.g., {quantity: 100, unit: "g"} -> "100g")
@@ -414,12 +454,23 @@ function FoodManagement() {
     const protein = Number(customIngredient.protein) || 0;
     const fat = Number(customIngredient.fat) || 0;
     const carb = Number(customIngredient.carb) || 0;
-    const caloriesFromMacros = Math.round((protein * 4 + fat * 9 + carb * 4) * 10) / 10;
-    const calories = customIngredient.calories !== "" && customIngredient.calories !== null
-      ? Number(customIngredient.calories)
-      : caloriesFromMacros;
+    const calories = calculateCaloriesFromMacros(protein, fat, carb);
 
     const category = customIngredient.category || "luong_thuc";
+
+    if (isNegativeOrNaN(customIngredient.quantity) || quantity < 0) {
+      toast.error("Số lượng nguyên liệu không được là số âm");
+      return;
+    }
+    if (
+      isNegativeOrNaN(customIngredient.calories) ||
+      isNegativeOrNaN(customIngredient.protein) ||
+      isNegativeOrNaN(customIngredient.fat) ||
+      isNegativeOrNaN(customIngredient.carb)
+    ) {
+      toast.error("Chỉ số dinh dưỡng của nguyên liệu không được là số âm");
+      return;
+    }
 
     const newItem = {
       name,
@@ -470,8 +521,13 @@ function FoodManagement() {
         let cb = Number(item.carb) || 0;
 
         // Nếu có số lượng, tính toán lại dựa trên tỷ lệ
-        if (item.quantity) {
-          const quantity = Number(item.quantity);
+        if (item.quantity !== undefined && item.quantity !== null && item.quantity !== "") {
+          let quantity = Number(item.quantity);
+          if (Number.isNaN(quantity) && typeof item.quantity === "string") {
+            const parsed = parseQuantityFormat(item.quantity);
+            quantity = parsed.quantity;
+          }
+          if (Number.isNaN(quantity) || quantity < 0) quantity = 100;
           // Giả sử unit mặc định là 100g, nên tính toán dựa trên tỷ lệ
           const ratio = quantity / 100;
           c = c * ratio;
@@ -514,6 +570,10 @@ function FoodManagement() {
       // Handle combined quantity+unit field
       if (field === 'quantityWithUnit') {
         const { quantity, unit } = parseQuantityFormat(value);
+        if (Number.isNaN(Number(quantity)) || Number(quantity) < 0) {
+          toast.error("Số lượng nguyên liệu không được là số âm");
+          return prev;
+        }
         const updatedIngredients = prev.ingredients.map((item, i) => {
           if (i !== index) return item;
           return { ...item, quantity, unit };
@@ -528,6 +588,10 @@ function FoodManagement() {
       // Convert numeric fields to number
       let finalValue = value;
       if (["calories", "protein", "fat", "carb"].includes(field)) {
+        if (isNegativeOrNaN(value)) {
+          toast.error("Không được nhập số âm");
+          return prev;
+        }
         finalValue = value === "" ? 0 : Number(value);
       }
 
@@ -551,6 +615,21 @@ function FoodManagement() {
         ...prev,
         ingredients: updatedIngredients,
         ...computeNutritionFromIngredients(updatedIngredients),
+      };
+    });
+  };
+
+  const handleCustomMacroChange = (field, value) => {
+    if (isNegativeOrNaN(value)) {
+      toast.error("Không được nhập số âm");
+      return;
+    }
+
+    setCustomIngredient((prev) => {
+      const next = { ...prev, [field]: value };
+      return {
+        ...next,
+        calories: String(calculateCaloriesFromMacros(next.protein, next.fat, next.carb)),
       };
     });
   };
@@ -591,6 +670,7 @@ function FoodManagement() {
     const isDuplicate = foods.some((f) => {
       // Nếu đang edit, bỏ qua chính nó khi kiểm tra trùng tên
       if (editingFood && f._id === editingFood._id) return false;
+      if (f.isDeleted) return false;
       return f.name.trim().toLowerCase() === form.name.trim().toLowerCase();
     });
 
@@ -650,6 +730,16 @@ function FoodManagement() {
     }
   };
 
+  const handleRestore = async (food) => {
+    try {
+      await restoreFood(food._id);
+      toast.success(`Đã khôi phục món "${food.name}"`);
+      fetchFoods();
+    } catch (error) {
+      toast.error(error?.response?.data?.message || "Khôi phục thất bại");
+    }
+  };
+
   const isFormValid =
     Object.values(errors).every((e) => !e) &&
     Object.values(form).every((v) => String(v).trim() !== "");
@@ -672,27 +762,29 @@ function FoodManagement() {
             Quản lý danh sách món ăn và thông tin dinh dưỡng
           </Typography>
         </Box>
-        <Button
-          variant="contained"
-          startIcon={<AddIcon />}
-          onClick={handleOpenCreate}
-          fullWidth={isMobile}
-          sx={{
-            borderRadius: 2.5,
-            px: 2.5,
-            py: 1,
-            background: "linear-gradient(135deg, #4f46e5 0%, #7c3aed 100%)",
-            boxShadow: "0 4px 14px rgba(99,102,241,0.35)",
-            fontWeight: 700,
-            textTransform: "none",
-            "&:hover": {
-              background: "linear-gradient(135deg, #4338ca 0%, #6d28d9 100%)",
-              boxShadow: "0 6px 20px rgba(99,102,241,0.45)",
-            },
-          }}
-        >
-          Thêm món ăn
-        </Button>
+        {foodFilter !== "deleted" && (
+          <Button
+            variant="contained"
+            startIcon={<AddIcon />}
+            onClick={handleOpenCreate}
+            fullWidth={isMobile}
+            sx={{
+              borderRadius: 2.5,
+              px: 2.5,
+              py: 1,
+              background: "linear-gradient(135deg, #4f46e5 0%, #7c3aed 100%)",
+              boxShadow: "0 4px 14px rgba(99,102,241,0.35)",
+              fontWeight: 700,
+              textTransform: "none",
+              "&:hover": {
+                background: "linear-gradient(135deg, #4338ca 0%, #6d28d9 100%)",
+                boxShadow: "0 6px 20px rgba(99,102,241,0.45)",
+              },
+            }}
+          >
+            Thêm món ăn
+          </Button>
+        )}
       </Stack>
 
       {/* Search */}
@@ -701,6 +793,20 @@ function FoodManagement() {
         sx={{ border: "1px solid", borderColor: "divider", borderRadius: 3, mb: 2.5 }}
       >
         <Box sx={{ p: 2 }}>
+          <Stack direction={{ xs: "column", sm: "row" }} spacing={1} mb={1.5} alignItems={{ xs: "stretch", sm: "center" }}>
+            <Chip
+              label="Đang dùng"
+              color={foodFilter === "active" ? "primary" : "default"}
+              onClick={() => setFoodFilter("active")}
+              variant={foodFilter === "active" ? "filled" : "outlined"}
+            />
+            <Chip
+              label="Đã Xóa"
+              color={foodFilter === "deleted" ? "warning" : "default"}
+              onClick={() => setFoodFilter("deleted")}
+              variant={foodFilter === "deleted" ? "filled" : "outlined"}
+            />
+          </Stack>
           <TextField
             fullWidth
             size="small"
@@ -742,8 +848,13 @@ function FoodManagement() {
                 <Typography color="text.secondary" fontWeight={600} variant="body2">
                   {search ? "Không tìm thấy món ăn phù hợp" : "Chưa có món ăn nào"}
                 </Typography>
-                {!search && (
-                  <Button size="small" startIcon={<AddIcon />} onClick={handleOpenCreate} sx={{ mt: 1, textTransform: "none" }}>
+                {!search && foodFilter !== "deleted" && (
+                  <Button
+                    size="small"
+                    startIcon={<AddIcon />}
+                    onClick={handleOpenCreate}
+                    sx={{ mt: 1, textTransform: "none" }}
+                  >
                     Thêm món đầu tiên
                   </Button>
                 )}
@@ -751,7 +862,16 @@ function FoodManagement() {
             ) : (
               <Stack spacing={1.5}>
                 {filtered.map((food) => (
-                  <FoodCard key={food._id} food={food} maxValues={maxValues} onView={handleOpenDetail} onEdit={handleOpenEdit} onDelete={setDeleteTarget} />
+                  <FoodCard
+                    key={food._id}
+                    food={food}
+                    maxValues={maxValues}
+                    onView={handleOpenDetail}
+                    onEdit={handleOpenEdit}
+                    onDelete={setDeleteTarget}
+                    onRestore={handleRestore}
+                    isTrashMode={foodFilter === "deleted"}
+                  />
                 ))}
               </Stack>
             )}
@@ -793,8 +913,13 @@ function FoodManagement() {
                           <Typography color="text.secondary" fontWeight={600}>
                             {search ? "Không tìm thấy món ăn phù hợp" : "Chưa có món ăn nào"}
                           </Typography>
-                          {!search && (
-                            <Button size="small" startIcon={<AddIcon />} onClick={handleOpenCreate} sx={{ textTransform: "none" }}>
+                          {!search && foodFilter !== "deleted" && (
+                            <Button
+                              size="small"
+                              startIcon={<AddIcon />}
+                              onClick={handleOpenCreate}
+                              sx={{ textTransform: "none" }}
+                            >
                               Thêm món đầu tiên
                             </Button>
                           )}
@@ -826,18 +951,32 @@ function FoodManagement() {
                                 <ViewIcon sx={{ fontSize: 16 }} />
                               </IconButton>
                             </Tooltip>
-                            <Tooltip title="Chỉnh sửa" arrow>
-                              <IconButton size="small" onClick={() => handleOpenEdit(food)}
-                                sx={{ color: "#4f46e5", bgcolor: alpha("#4f46e5", 0.07), "&:hover": { bgcolor: alpha("#4f46e5", 0.14) }, borderRadius: 1.5 }}>
-                                <EditIcon sx={{ fontSize: 16 }} />
-                              </IconButton>
-                            </Tooltip>
-                            <Tooltip title="Xóa" arrow>
-                              <IconButton size="small" onClick={() => setDeleteTarget(food)}
-                                sx={{ color: "error.main", bgcolor: alpha("#ef4444", 0.07), "&:hover": { bgcolor: alpha("#ef4444", 0.14) }, borderRadius: 1.5 }}>
-                                <DeleteIcon sx={{ fontSize: 16 }} />
-                              </IconButton>
-                            </Tooltip>
+                            {foodFilter === "deleted" ? (
+                              <Tooltip title="Khôi phục" arrow>
+                                <IconButton
+                                  size="small"
+                                  onClick={() => handleRestore(food)}
+                                  sx={{ color: "success.main", bgcolor: alpha("#16a34a", 0.07), "&:hover": { bgcolor: alpha("#16a34a", 0.14) }, borderRadius: 1.5 }}
+                                >
+                                  <RestoreIcon sx={{ fontSize: 16 }} />
+                                </IconButton>
+                              </Tooltip>
+                            ) : (
+                              <>
+                                <Tooltip title="Chỉnh sửa" arrow>
+                                  <IconButton size="small" onClick={() => handleOpenEdit(food)}
+                                    sx={{ color: "#4f46e5", bgcolor: alpha("#4f46e5", 0.07), "&:hover": { bgcolor: alpha("#4f46e5", 0.14) }, borderRadius: 1.5 }}>
+                                    <EditIcon sx={{ fontSize: 16 }} />
+                                  </IconButton>
+                                </Tooltip>
+                                <Tooltip title="Xóa" arrow>
+                                  <IconButton size="small" onClick={() => setDeleteTarget(food)}
+                                    sx={{ color: "error.main", bgcolor: alpha("#ef4444", 0.07), "&:hover": { bgcolor: alpha("#ef4444", 0.14) }, borderRadius: 1.5 }}>
+                                    <DeleteIcon sx={{ fontSize: 16 }} />
+                                  </IconButton>
+                                </Tooltip>
+                              </>
+                            )}
                           </Stack>
                         </TableCell>
                       </TableRow>
@@ -1050,7 +1189,7 @@ function FoodManagement() {
                             type="number"
                             value={item.protein ?? 0}
                             onChange={(e) => handleIngredientChange(idx, 'protein', e.target.value)}
-                            inputProps={{ style: { textAlign: 'center', fontSize: '0.875rem' } }}
+                            inputProps={{ min: 0, style: { textAlign: 'center', fontSize: '0.875rem' } }}
                             sx={{ width: '100%' }}
                           />
                         </TableCell>
@@ -1060,7 +1199,7 @@ function FoodManagement() {
                             type="number"
                             value={item.fat ?? 0}
                             onChange={(e) => handleIngredientChange(idx, 'fat', e.target.value)}
-                            inputProps={{ style: { textAlign: 'center', fontSize: '0.875rem' } }}
+                            inputProps={{ min: 0, style: { textAlign: 'center', fontSize: '0.875rem' } }}
                             sx={{ width: '100%' }}
                           />
                         </TableCell>
@@ -1070,7 +1209,7 @@ function FoodManagement() {
                             type="number"
                             value={item.carb ?? 0}
                             onChange={(e) => handleIngredientChange(idx, 'carb', e.target.value)}
-                            inputProps={{ style: { textAlign: 'center', fontSize: '0.875rem' } }}
+                            inputProps={{ min: 0, style: { textAlign: 'center', fontSize: '0.875rem' } }}
                             sx={{ width: '100%' }}
                           />
                         </TableCell>
@@ -1118,7 +1257,7 @@ function FoodManagement() {
                             value={customIngredient.quantity}
                             onChange={(e) => setCustomIngredient((prev) => ({ ...prev, quantity: e.target.value }))}
                             placeholder="100"
-                            inputProps={{ style: { textAlign: 'center', fontSize: '0.875rem' } }}
+                            inputProps={{ min: 0, style: { textAlign: 'center', fontSize: '0.875rem' } }}
                             sx={{ width: '100%' }}
                           />
                         </TableCell>
@@ -1126,10 +1265,10 @@ function FoodManagement() {
                           <TextField
                             size="small"
                             value={customIngredient.calories}
-                            onChange={(e) => setCustomIngredient((prev) => ({ ...prev, calories: e.target.value }))}
                             placeholder="Kcal"
                             type="number"
-                            inputProps={{ style: { textAlign: 'center', fontSize: '0.875rem' } }}
+                            disabled
+                            inputProps={{ min: 0, style: { textAlign: 'center', fontSize: '0.875rem' } }}
                             sx={{ width: '100%' }}
                           />
                         </TableCell>
@@ -1137,10 +1276,10 @@ function FoodManagement() {
                           <TextField
                             size="small"
                             value={customIngredient.protein}
-                            onChange={(e) => setCustomIngredient((prev) => ({ ...prev, protein: e.target.value }))}
+                            onChange={(e) => handleCustomMacroChange("protein", e.target.value)}
                             placeholder="Chất đạm"
                             type="number"
-                            inputProps={{ style: { textAlign: 'center', fontSize: '0.875rem' } }}
+                            inputProps={{ min: 0, style: { textAlign: 'center', fontSize: '0.875rem' } }}
                             sx={{ width: '100%' }}
                           />
                         </TableCell>
@@ -1148,10 +1287,10 @@ function FoodManagement() {
                           <TextField
                             size="small"
                             value={customIngredient.fat}
-                            onChange={(e) => setCustomIngredient((prev) => ({ ...prev, fat: e.target.value }))}
+                            onChange={(e) => handleCustomMacroChange("fat", e.target.value)}
                             placeholder="Chất béo"
                             type="number"
-                            inputProps={{ style: { textAlign: 'center', fontSize: '0.875rem' } }}
+                            inputProps={{ min: 0, style: { textAlign: 'center', fontSize: '0.875rem' } }}
                             sx={{ width: '100%' }}
                           />
                         </TableCell>
@@ -1159,10 +1298,10 @@ function FoodManagement() {
                           <TextField
                             size="small"
                             value={customIngredient.carb}
-                            onChange={(e) => setCustomIngredient((prev) => ({ ...prev, carb: e.target.value }))}
+                            onChange={(e) => handleCustomMacroChange("carb", e.target.value)}
                             placeholder="Tinh bột"
                             type="number"
-                            inputProps={{ style: { textAlign: 'center', fontSize: '0.875rem' } }}
+                            inputProps={{ min: 0, style: { textAlign: 'center', fontSize: '0.875rem' } }}
                             sx={{ width: '100%' }}
                           />
                         </TableCell>

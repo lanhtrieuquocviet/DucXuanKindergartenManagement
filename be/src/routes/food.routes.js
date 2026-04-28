@@ -8,5 +8,6 @@ router.post("/", authenticate, authorizePermissions('MANAGE_FOOD'), foodControll
 router.get("/:id", authenticate, authorizePermissions('MANAGE_FOOD'), foodController.getFoodById);
 router.put("/:id", authenticate, authorizePermissions('MANAGE_FOOD'), foodController.updateFood);
 router.delete("/:id", authenticate, authorizePermissions('MANAGE_FOOD'), foodController.deleteFood);
+router.patch("/:id/restore", authenticate, authorizePermissions('MANAGE_FOOD'), foodController.restoreFood);
 
 module.exports = router;

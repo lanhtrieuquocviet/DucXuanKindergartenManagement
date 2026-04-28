@@ -21,18 +21,31 @@ const ingredientSchema = new mongoose.Schema(
     calories: {
       type: Number,
       default: 0,
+      min: 0,
     },
     protein: {
       type: Number,
       default: 0,
+      min: 0,
     },
     fat: {
       type: Number,
       default: 0,
+      min: 0,
     },
     carb: {
       type: Number,
       default: 0,
+      min: 0,
+    },
+    isDeleted: {
+      type: Boolean,
+      default: false,
+      index: true,
+    },
+    deletedAt: {
+      type: Date,
+      default: null,
     },
   },
   {

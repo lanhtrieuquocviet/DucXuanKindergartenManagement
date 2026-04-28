@@ -8,7 +8,7 @@ const assetSchema = new mongoose.Schema(
     type: {
       type: String,
       enum: ['csvc', 'asset'],
-      default: 'csvc',
+      default: 'csvc',  
     },
     category: {
       type: String,
