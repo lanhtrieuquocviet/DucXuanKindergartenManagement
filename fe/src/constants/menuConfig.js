@@ -93,7 +93,7 @@ export const MENU_CONFIG = {
         { key: 'image-library', label: 'Thư viện ảnh', path: '/school-admin/image-library', permissionCode: 'MANAGE_IMAGE_LIBRARY' },
         { key: 'video-library', label: 'Thư viện video', path: '/school-admin/video-library', permissionCode: 'MANAGE_VIDEOS' },
         { key: 'contacts', label: 'Liên hệ', path: '/school-admin/contacts', permissionCode: 'MANAGE_CONTACT' },
-        { key: 'qa', label: 'Hỏi đáp (Q&A)', path: '/school-admin/qa', permissionCode: 'MANAGE_QA' },
+        // { key: 'qa', label: 'Hỏi đáp (Q&A)', path: '/school-admin/qa', permissionCode: 'MANAGE_QA' },
         { key: 'static-blocks', label: 'Khối nội dung tĩnh', path: '/school-admin/static-blocks', permissionCode: 'MANAGE_STATIC_BLOCK' },
       ]
     }
