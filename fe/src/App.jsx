@@ -331,6 +331,7 @@ function App() {
               <Route path="ingredients" element={<IngredientManagement />} />
               <Route path="district-nutrition" element={<DistrictNutritionKitchen />} />
               <Route path="meal-management" element={<MealManagement />} />
+              <Route path="meal-photos" element={<MealManagement />} />
               <Route path="headcount" element={<MealHeadcount />} />
               <Route path="sample-food" element={<UploadSampleFood />} />
               <Route path="report" element={<MenuReport />} />

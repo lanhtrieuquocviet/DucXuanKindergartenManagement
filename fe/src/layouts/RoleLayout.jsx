@@ -52,6 +52,7 @@ import {
   Close as CloseIcon,
   DirectionsCar as DirectionsCarIcon,
   EventBusy as EventBusyIcon,
+  LocationOn as LocationIcon,
 } from '@mui/icons-material';
 import { Box, Drawer, IconButton, useMediaQuery, useTheme } from '@mui/material';
 
