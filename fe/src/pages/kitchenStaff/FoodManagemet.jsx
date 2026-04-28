@@ -626,6 +626,10 @@ function FoodManagement() {
     }
 
     setCustomIngredient((prev) => {
+      if (isNegativeOrNaN(value) && value !== "") {
+        toast.error("Giá trị dinh dưỡng không được là số âm");
+        return prev;
+      }
       const next = { ...prev, [field]: value };
       return {
         ...next,
@@ -651,6 +655,10 @@ function FoodManagement() {
 
   const handleChange = (e) => {
     const { name, value } = e.target;
+    if (["calories", "protein", "fat", "carb"].includes(name) && isNegativeOrNaN(value) && value !== "") {
+      toast.error("Giá trị dinh dưỡng không được là số âm");
+      return;
+    }
     setForm((prev) => ({ ...prev, [name]: value }));
     validateField(name, value);
   };

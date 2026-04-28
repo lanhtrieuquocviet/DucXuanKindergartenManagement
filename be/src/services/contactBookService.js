@@ -52,34 +52,36 @@ exports.getMyStudents = async (req, res) => {
       .sort({ className: 1 })
       .lean();
 
-    const classIds = classes.map(c => c._id);
-    const filter = { classId: { $in: classIds }, status: 'active' };
-    if (req.query.classId) filter.classId = req.query.classId;
+    const classIds = req.query.classId ? [req.query.classId] : classes.map(c => c._id);
+    
+    // Tìm các enrollment của các lớp này để lấy danh sách học sinh (đảm bảo lịch sử đúng năm học)
+    const enrollments = await Enrollment.find({ classId: { $in: classIds } }).lean();
+    const studentIds = enrollments.map(en => en.studentId);
 
-    const students = await Student.find(filter)
+    // Tìm học sinh dựa trên studentIds từ enrollments
+    const students = await Student.find({ _id: { $in: studentIds } })
       .populate('parentId', 'fullName phone email')
       .populate('classId', 'className gradeId academicYearId')
       .sort({ fullName: 1 })
       .lean();
 
-    // Thêm thông tin đánh giá học tập cho từng học sinh
-    const studentsWithEvaluation = await Promise.all(
-      students.map(async (student) => {
-        const enrollment = await Enrollment.findOne({
-          studentId: student._id,
-          academicYearId: student.classId.academicYearId,
-          gradeId: student.classId.gradeId
-        }).select('academicEvaluation evaluationNote').lean();
+    // Map enrollment data (đánh giá + classId tại năm đó) vào student
+    const enrollmentMap = {};
+    enrollments.forEach(en => { enrollmentMap[String(en.studentId)] = en; });
 
-        return {
-          ...student,
-          evaluation: enrollment ? {
-            academicEvaluation: enrollment.academicEvaluation,
-            evaluationNote: enrollment.evaluationNote
-          } : null
-        };
-      })
-    );
+    // Thêm thông tin đánh giá học tập cho từng học sinh
+    const studentsWithEvaluation = students.map((student) => {
+      const en = enrollmentMap[String(student._id)];
+      return {
+        ...student,
+        // Đảm bảo classId và evaluation phản ánh đúng năm học đang xem
+        classId: en ? { ...student.classId, _id: en.classId } : student.classId,
+        evaluation: en ? {
+          academicEvaluation: en.academicEvaluation,
+          evaluationNote: en.evaluationNote
+        } : null
+      };
+    });
 
     const classesData = classes.map(c => ({
       _id: c._id,

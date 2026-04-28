@@ -12,6 +12,7 @@ import {
 } from '@mui/material';
 import { useAuth } from '../../context/AuthContext';
 import { get, ENDPOINTS } from '../../service/api';
+import { ArrowBack as ArrowBackIcon } from '@mui/icons-material';
 
 function formatDate(dateString) {
   if (!dateString) return '';
@@ -94,16 +95,23 @@ export default function AcademicYearDetail() {
     <Box>
       <Stack spacing={3}>
         <Box>
-          <Typography variant="overline" color="text.secondary">
-            MamNon DX &gt; Ban Giám Hiệu &gt; Quản lý Năm học &gt; Tra cứu &amp; Lưu trữ
-            &gt; Chi tiết: {summary?.yearName || ''}
+          <Button
+            startIcon={<ArrowBackIcon />}
+            onClick={() => navigate(-1)}
+            sx={{ mb: 2, textTransform: 'none', fontWeight: 600, color: 'text.secondary' }}
+          >
+            Quay lại
+          </Button>
+          <Typography variant="overline" color="text.secondary" display="block">
+            Quản lý Năm học &gt; Tra cứu &amp; Lưu trữ &gt; Chi tiết: {summary?.yearName || ''}
           </Typography>
-          <Typography variant="h5" fontWeight={700} mt={1}>
-            {summary?.yearName || 'Năm học'}
+          <Typography variant="h5" fontWeight={700} mt={0.5}>
+            {summary?.yearName || 'Đang tải...'}
           </Typography>
           <Typography variant="body2" color="text.secondary" mt={0.5}>
-            Thông tin chi tiết năm học đã kết thúc. Truy cập các tab bên dưới để xem dữ
-            liệu cụ thể.
+            {summary?.status === 'active' 
+              ? 'Thông tin chi tiết năm học hiện tại.' 
+              : 'Thông tin chi tiết năm học đã kết thúc. Truy cập các tab bên dưới để xem dữ liệu cụ thể.'}
           </Typography>
         </Box>
 

@@ -7,6 +7,7 @@ const getApprovedPickupPersonsByStudent = async (req, res, next) => service.getA
 const updatePickupRequestStatus = async (req, res, next) => service.updatePickupRequestStatus(req, res, next);
 const updateMyPickupRequest = async (req, res, next) => service.updateMyPickupRequest(req, res, next);
 const deleteMyPickupRequest = async (req, res, next) => service.deleteMyPickupRequest(req, res, next);
+const updatePickupRequest = async (req, res, next) => service.updatePickupRequest(req, res, next);
 
 module.exports = {
   createPickupRequest,
@@ -16,4 +17,5 @@ module.exports = {
   updatePickupRequestStatus,
   updateMyPickupRequest,
   deleteMyPickupRequest,
+  updatePickupRequest,
 };

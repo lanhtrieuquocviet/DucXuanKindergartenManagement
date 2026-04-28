@@ -602,6 +602,11 @@ const ManageAcademicYears = () => {
                                   Gửi nhắc nhở
                                 </Button>
                               )}
+                              {currentYear?.evaluationRemindersSentAt && (
+                                <Typography variant="caption" color="success.main" sx={{ display: 'block', textAlign: 'center', mt: 0.5, fontWeight: 700 }}>
+                                  Lần cuối: {new Date(currentYear.evaluationRemindersSentAt).toLocaleString('vi-VN')}
+                                </Typography>
+                              )}
                             </Grid>
                           </Grid>
                         </Box>
