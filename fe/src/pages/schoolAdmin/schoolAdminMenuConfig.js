@@ -9,13 +9,12 @@ export const SCHOOL_ADMIN_MENU_ITEMS = [
   {
     key: 'academic-years',
     label: 'Học vụ',
-    permission: 'MANAGE_ACADEMIC_YEAR',
     children: [
-      { key: 'academic-year-setup', label: 'Quản lý năm học', permission: 'MANAGE_ACADEMIC_YEAR' },
-      { key: 'academic-plan', label: 'Quản lý kế hoạch', permission: 'MANAGE_ACADEMIC_YEAR' },
-      { key: 'academic-events', label: 'Quản lý sự kiện', permission: 'MANAGE_ACADEMIC_YEAR' },
-      { key: 'academic-schedule', label: 'Thời gian biểu', permission: 'MANAGE_ACADEMIC_YEAR' },
-      { key: 'academic-report', label: 'Báo cáo & thống kê', permission: 'VIEW_REPORT' },
+      { key: 'academic-year-setup', label: 'Quản lý năm học', path: '/school-admin/academic-years', permission: 'MANAGE_ACADEMIC_YEAR' },
+      { key: 'academic-plan', label: 'Quản lý kế hoạch', path: '/school-admin/academic-plan', permission: 'MANAGE_CURRICULUM' },
+      { key: 'academic-events', label: 'Quản lý sự kiện', path: '/school-admin/academic-events', permission: 'MANAGE_CURRICULUM' },
+      { key: 'academic-schedule', label: 'Thời gian biểu', path: '/school-admin/timetable', permission: 'MANAGE_CURRICULUM' },
+      { key: 'academic-report', label: 'Báo cáo & thống kê', path: '/school-admin/academic-report', permission: 'VIEW_REPORT' },
     ],
   },
   {
@@ -60,13 +59,14 @@ export const SCHOOL_ADMIN_MENU_ITEMS = [
   },
   {
     key: 'assets',
-    label: 'Quản lý CSVC & Tài sản',
+    label: 'Cơ sở vật chất & Tài sản',
     permission: 'MANAGE_ASSET',
     children: [
+      { key: 'facility-locations', label: 'Danh mục Cơ sở vật chất', permission: 'MANAGE_ASSET' },
       { key: 'assets-list', label: 'Danh mục Loại tài sản', permission: 'MANAGE_ASSET' },
       { key: 'room-assets', label: 'Phân bổ theo phòng/lớp', permission: 'MANAGE_ASSET' },
       { key: 'facility-handover', label: 'Phiếu bàn giao tài sản', permission: 'MANAGE_ASSET' },
-      { key: 'facility-inventory', label: 'Kiểm kê & Báo cáo', permission: 'MANAGE_ASSET' },
+      { key: 'facility-inventory', label: 'Báo cáo cuối năm', permission: 'MANAGE_ASSET' },
       { key: 'facility-issues', label: 'Xử lý sự cố & Hư hỏng', permission: 'MANAGE_ASSET' },
     ],
   },
@@ -154,6 +154,7 @@ export const createSchoolAdminMenuSelect = (navigate) => (key) => {
     'public-info': '/school-admin/public-info',
     'public-info-list': '/school-admin/public-info',
     'banner-management': '/school-admin/banners',
+    'facility-locations': '/school-admin/facilities/locations',
     assets: '/school-admin/facilities',
     'assets-list': '/school-admin/facilities',
     'room-assets': '/school-admin/facilities/room-based',

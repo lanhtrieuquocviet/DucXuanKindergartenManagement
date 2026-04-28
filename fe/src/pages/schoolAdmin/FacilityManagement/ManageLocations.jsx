@@ -136,8 +136,8 @@ const ManageLocations = () => {
     <Box>
       <Stack direction="row" justifyContent="space-between" alignItems="center" sx={{ mb: 3 }}>
         <Box>
-          <Typography variant="h5" fontWeight={800} color="primary">Danh mục Vị trí & Khu vực</Typography>
-          <Typography variant="body2" color="text.secondary">Quản lý danh sách phòng học, kho bãi và khu vực trong trường</Typography>
+          <Typography variant="h5" fontWeight={800} color="primary">Danh mục Cơ sở vật chất (CSVC)</Typography>
+          <Typography variant="body2" color="text.secondary">Quản lý danh sách phòng học, kho bãi và khu vực hạ tầng của nhà trường</Typography>
         </Box>
         <Button 
           variant="contained" 
@@ -145,7 +145,7 @@ const ManageLocations = () => {
           onClick={() => handleOpenDialog()}
           sx={{ borderRadius: 2, px: 3 }}
         >
-          Thêm Vị trí mới
+          Thêm CSVC mới
         </Button>
       </Stack>
 
@@ -166,8 +166,8 @@ const ManageLocations = () => {
         <Table>
           <TableHead sx={{ bgcolor: '#f8fafc' }}>
             <TableRow>
-              <TableCell sx={{ fontWeight: 700 }}>Tên Vị trí</TableCell>
-              <TableCell sx={{ fontWeight: 700 }}>Loại</TableCell>
+              <TableCell sx={{ fontWeight: 700 }}>Tên CSVC (Phòng/Kho)</TableCell>
+              <TableCell sx={{ fontWeight: 700 }}>Loại hình</TableCell>
               <TableCell sx={{ fontWeight: 700 }}>Khu vực</TableCell>
               <TableCell sx={{ fontWeight: 700 }}>Người phụ trách</TableCell>
               <TableCell sx={{ fontWeight: 700 }} align="center">Thao tác</TableCell>
@@ -222,12 +222,12 @@ const ManageLocations = () => {
 
       <Dialog open={openDialog} onClose={() => setOpenDialog(false)} maxWidth="sm" fullWidth>
         <DialogTitle sx={{ fontWeight: 800 }}>
-          {editItem ? 'Cập nhật Vị trí' : 'Thêm Vị trí mới'}
+          {editItem ? 'Cập nhật Cơ sở vật chất' : 'Thêm Cơ sở vật chất mới'}
         </DialogTitle>
         <DialogContent dividers>
           <Stack spacing={3} sx={{ mt: 1 }}>
             <TextField
-              label="Tên Vị trí (VD: Lớp Mầm 1, Kho A...)"
+              label="Tên Cơ sở vật chất (VD: Lớp Mầm 1, Kho A...)"
               fullWidth
               value={form.name}
               onChange={(e) => setForm({ ...form, name: e.target.value })}
@@ -235,10 +235,10 @@ const ManageLocations = () => {
             />
             
             <FormControl fullWidth>
-              <InputLabel>Loại vị trí</InputLabel>
+              <InputLabel>Loại hình CSVC</InputLabel>
               <Select
                 value={form.type}
-                label="Loại vị trí"
+                label="Loại hình CSVC"
                 onChange={(e) => setForm({ ...form, type: e.target.value })}
               >
                 {LOCATION_TYPES.map(t => (

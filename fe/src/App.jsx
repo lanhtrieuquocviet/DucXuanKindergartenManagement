@@ -99,6 +99,7 @@ const MealManagementSchoolAdmin = lazy(() => import('./pages/schoolAdmin/MealMan
 const DistrictNutritionPlanSchoolAdmin = lazy(() => import('./pages/schoolAdmin/DistrictNutritionPlanSchoolAdmin'));
 const AcademicYearPlan = lazy(() => import('./pages/schoolAdmin/AcademicYearPlan'));
 const AcademicEventSetup = lazy(() => import('./pages/schoolAdmin/AcademicEventSetup'));
+const SchoolAdminLayout = lazy(() => import('./pages/schoolAdmin/SchoolAdminLayout'));
 const CurriculumPage = lazy(() => import('./pages/schoolAdmin/CurriculumPage'));
 const ClassListOverview = lazy(() => import('./pages/schoolAdmin/ClassListOverview'));
 const TimetableActivitiesPage = lazy(() => import('./pages/schoolAdmin/TimetableActivitiesPage'));
@@ -330,6 +331,7 @@ function App() {
               <Route path="ingredients" element={<IngredientManagement />} />
               <Route path="district-nutrition" element={<DistrictNutritionKitchen />} />
               <Route path="meal-management" element={<MealManagement />} />
+              <Route path="meal-photos" element={<MealManagement />} />
               <Route path="headcount" element={<MealHeadcount />} />
               <Route path="sample-food" element={<UploadSampleFood />} />
               <Route path="report" element={<MenuReport />} />
@@ -348,9 +350,7 @@ function App() {
               element={
                 <ProtectedRoute>
                   <SchoolAdminProvider>
-                    <RoleLayout title="Quản trị trường học" description="Quản lý toàn diện hoạt động của nhà trường">
-                      <Outlet />
-                    </RoleLayout>
+                    <SchoolAdminLayout />
                   </SchoolAdminProvider>
                 </ProtectedRoute>
               }
@@ -365,7 +365,7 @@ function App() {
               <Route path="assessment-templates" element={<ManageAssessmentTemplates />} />
               <Route path="students/:studentId/detail" element={<StudentDetailPage />} />
               <Route path="staff-positions" element={<ManageStaffPositions />} />
-              <Route path="staff" element={<ManagePersonnel />} />
+              <Route path="personnel" element={<ManagePersonnel />} />
               <Route path="contacts" element={<ContactList />} />
               <Route path="qa" element={<QaList />} />
               <Route path="attendance/overview" element={<AttendanceOverview />} />

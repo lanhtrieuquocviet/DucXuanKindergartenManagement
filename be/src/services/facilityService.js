@@ -2,6 +2,8 @@ const FacilityItem = require('../models/FacilityItem');
 const FacilityHandover = require('../models/FacilityHandover');
 const FacilityInventory = require('../models/FacilityInventory');
 const FacilityIssue = require('../models/FacilityIssue');
+const FacilityType = require('../models/FacilityType');
+const Asset = require('../models/Asset');
 const mongoose = require('mongoose');
 
 const facilityService = {
@@ -86,7 +88,10 @@ const facilityService = {
     const session = await mongoose.startSession();
     session.startTransaction();
     try {
-      const inventory = await FacilityInventory.findById(inventoryId).session(session);
+      const inventory = await FacilityInventory.findById(inventoryId)
+        .populate('locationId')
+        .session(session);
+      
       if (!inventory) throw new Error('Không tìm thấy biên bản kiểm kê');
       if (String(inventory.chairmanId) !== String(chairmanId)) {
         throw new Error('Chỉ Trưởng ban mới có quyền phê duyệt báo cáo kiểm kê');
@@ -96,14 +101,75 @@ const facilityService = {
       inventory.approvedAt = new Date();
       await inventory.save({ session });
 
-      // Cập nhật trạng thái thực tế cho tài sản sau khi kiểm kê
+      // 1. Cập nhật trạng thái thực tế cho từng tài sản sau khi kiểm kê
+      const affectedTypeIds = new Set();
       for (const detail of inventory.details) {
-        await FacilityItem.findByIdAndUpdate(detail.itemId, {
+        const item = await FacilityItem.findByIdAndUpdate(detail.itemId, {
           $set: { 
             status: detail.actualStatus,
             lastInventoryDate: new Date()
           }
-        }, { session });
+        }, { session, new: true });
+        
+        if (item) affectedTypeIds.add(item.typeId.toString());
+      }
+
+      // 2. Cập nhật số lượng vào Báo cáo cuối năm (Asset type='csvc') và Kho (Asset type='asset')
+      const locationName = inventory.locationId?.name;
+
+      for (const typeId of affectedTypeIds) {
+        const type = await FacilityType.findById(typeId).session(session);
+        if (!type) continue;
+
+        // Tính toán số lượng thực tế (tổng toàn trường) cho Báo cáo cuối năm
+        const totalGood = await FacilityItem.countDocuments({ 
+          typeId, 
+          status: 'good' 
+        }).session(session);
+        
+        const totalDamaged = await FacilityItem.countDocuments({ 
+          typeId, 
+          status: 'damaged' 
+        }).session(session);
+
+        // Cập nhật Báo cáo cuối năm (CSVC) - Thường là số liệu tổng hợp toàn trường
+        await Asset.updateMany(
+          { name: type.name, type: 'csvc' },
+          { 
+            $set: { 
+              quantity: totalGood,
+              brokenQuantity: totalDamaged
+            } 
+          },
+          { session }
+        );
+
+        // Tính toán số lượng thực tế tại Vị trí/Kho vừa kiểm kê
+        if (locationName) {
+          const roomGood = await FacilityItem.countDocuments({ 
+            typeId, 
+            currentLocationId: inventory.locationId._id,
+            status: 'good' 
+          }).session(session);
+
+          const roomDamaged = await FacilityItem.countDocuments({ 
+            typeId, 
+            currentLocationId: inventory.locationId._id,
+            status: 'damaged' 
+          }).session(session);
+
+          // Cập nhật số lượng tại Kho/Phòng cụ thể (Asset type='asset')
+          await Asset.updateMany(
+            { name: type.name, type: 'asset', room: locationName },
+            { 
+              $set: { 
+                quantity: roomGood,
+                brokenQuantity: roomDamaged
+              } 
+            },
+            { session }
+          );
+        }
       }
 
       await session.commitTransaction();
