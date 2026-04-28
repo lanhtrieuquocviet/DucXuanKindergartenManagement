@@ -95,6 +95,10 @@ export default function ManageRoomAssets() {
   const [savingAsset, setSavingAsset] = useState(false);
   const [deleteAssetTarget, setDeleteAssetTarget] = useState(null);
   const [deletingAsset, setDeletingAsset] = useState(false);
+  const [itemSearch, setItemSearch] = useState('');
+  const [itemCategory, setItemCategory] = useState('');
+  const [page, setPage] = useState(0);
+  const [rowsPerPage, setRowsPerPage] = useState(10);
   const [importOpen, setImportOpen] = useState(false);
   const [importing, setImporting] = useState(false);
   const [importRows, setImportRows] = useState([]);

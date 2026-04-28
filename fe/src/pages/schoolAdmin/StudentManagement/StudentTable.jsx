@@ -43,6 +43,7 @@ const StudentTable = ({
             <TableCell sx={{ fontWeight: 800, whiteSpace: 'nowrap' }}>Lớp</TableCell>
             <TableCell sx={{ fontWeight: 800, whiteSpace: 'nowrap' }}>Phụ huynh</TableCell>
             <TableCell sx={{ fontWeight: 800, whiteSpace: 'nowrap' }}>SĐT</TableCell>
+            <TableCell sx={{ fontWeight: 800, whiteSpace: 'nowrap' }}>Trạng thái</TableCell>
             <TableCell align="right" sx={{ fontWeight: 800, whiteSpace: 'nowrap' }}>Thao tác</TableCell>
           </TableRow>
         </TableHead>
@@ -102,6 +103,20 @@ const StudentTable = ({
                 </TableCell>
                 <TableCell sx={{ minWidth: 160 }}>{parentName}</TableCell>
                 <TableCell sx={{ whiteSpace: 'nowrap', minWidth: 120 }}>{formatPhoneDisplay(parentPhone)}</TableCell>
+                <TableCell sx={{ whiteSpace: 'nowrap' }}>
+                  <Chip
+                    label={
+                      row.status === 'graduated' ? 'Đã tốt nghiệp' :
+                      row.status === 'inactive' ? 'Nghỉ học' : 'Đang học'
+                    }
+                    size="small"
+                    color={
+                      row.status === 'graduated' ? 'success' :
+                      row.status === 'inactive' ? 'error' : 'primary'
+                    }
+                    sx={{ fontWeight: 700, fontSize: '0.7rem' }}
+                  />
+                </TableCell>
                 <TableCell align="right">
                   <Stack direction="row" justifyContent="flex-end" spacing={0.5}>
                     <Tooltip title="Xem chi tiết">

@@ -409,3 +409,46 @@ exports.deleteMyPickupRequest = async (req, res) => {
     });
   }
 };
+
+// 8. Admin/Giáo viên cập nhật thông tin người đưa đón
+exports.updatePickupRequest = async (req, res) => {
+  try {
+    const { requestId } = req.params;
+    const { fullName, relation, phone, imageUrl } = req.body;
+
+    const request = await PickupRequest.findById(requestId);
+    if (!request) {
+      return res.status(404).json({ success: false, message: "Không tìm thấy đăng ký" });
+    }
+
+    // Kiểm tra quyền (tương tự getApprovedPickupPersonsByStudent)
+    const isSchoolAdmin = (req.user.roles || []).includes("SchoolAdmin");
+    if (!isSchoolAdmin) {
+      const student = await Student.findById(request.student);
+      const myTeacher = await Teacher.findOne({ userId: req.user._id }).lean();
+      const myTeacherId = myTeacher?._id?.toString();
+      const classDoc = await Classes.findById(student?.classId);
+      if (
+        !classDoc || !myTeacherId ||
+        !classDoc.teacherIds.some((id) => id.toString() === myTeacherId)
+      ) {
+        return res.status(403).json({ success: false, message: "Không có quyền cập nhật thông tin này" });
+      }
+    }
+
+    if (fullName) request.fullName = fullName.trim();
+    if (relation) request.relation = relation.trim();
+    if (phone) request.phone = phone.replace(/[^0-9]/g, "");
+    if (imageUrl !== undefined) request.imageUrl = imageUrl;
+
+    await request.save();
+
+    res.json({
+      success: true,
+      message: "Cập nhật thông tin người đưa đón thành công",
+      data: request,
+    });
+  } catch (error) {
+    res.status(500).json({ success: false, message: "Lỗi server", error: error.message });
+  }
+};

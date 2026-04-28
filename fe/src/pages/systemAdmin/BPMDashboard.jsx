@@ -26,7 +26,6 @@ import { useAuth } from '../../context/AuthContext';
 import { useSystemAdmin } from '../../context/SystemAdminContext';
 import RoleLayout from '../../layouts/RoleLayout';
 import { API_BASE_URL, ENDPOINTS } from '../../service/api';
-import { SCHOOL_ADMIN_MENU_ITEMS, createSchoolAdminMenuSelect } from '../schoolAdmin/schoolAdminMenuConfig';
 
 // ─── CSS tuỳ chỉnh React Flow ─────────────────────────────────
 const rfStyle = `

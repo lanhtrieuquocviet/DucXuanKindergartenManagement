@@ -9,6 +9,7 @@ const {
   getApprovedPickupPersonsByStudent,
   updateMyPickupRequest,
   deleteMyPickupRequest,
+  updatePickupRequest,
 } = require("../controller/pickupController");
 
 /**
@@ -206,6 +207,7 @@ router.post("/requests/status", authenticate, authorizePermissions("MANAGE_PICKU
  *         description: Xóa thành công
  */
 router.put("/requests/:id", authenticate, updateMyPickupRequest);
+router.put("/admin/requests/:requestId", authenticate, authorizePermissions("MANAGE_PICKUP"), updatePickupRequest);
 router.delete("/requests/:id", authenticate, deleteMyPickupRequest);
 
 module.exports = router;

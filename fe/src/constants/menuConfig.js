@@ -32,8 +32,8 @@ export const MENU_CONFIG = {
       label: 'Học vụ & Lớp học',
       children: [
         { key: 'academic-years', label: 'Năm học', path: '/school-admin/academic-years', permissionCode: 'MANAGE_ACADEMIC_YEAR' },
-        { key: 'academic-plan', label: 'Kế hoạch học tập', path: '/school-admin/academic-plan', permissionCode: 'MANAGE_ACADEMIC_PLAN' },
-        { key: 'academic-events', label: 'Sự kiện năm học', path: '/school-admin/academic-events', permissionCode: 'MANAGE_ACADEMIC_EVENTS' },
+        { key: 'academic-plan', label: 'Kế hoạch học tập', path: '/school-admin/academic-plan', permissionCode: 'MANAGE_CURRICULUM' },
+        { key: 'academic-events', label: 'Sự kiện năm học', path: '/school-admin/academic-events', permissionCode: 'MANAGE_CURRICULUM' },
         { key: 'curriculum', label: 'Chương trình khung', path: '/school-admin/curriculum', permissionCode: 'MANAGE_CURRICULUM' },
         { key: 'timetable', label: 'Thời khóa biểu', path: '/school-admin/timetable', permissionCode: 'MANAGE_TIMETABLE' },
         { key: 'grades', label: 'Khối lớp', path: '/school-admin/grades', permissionCode: 'MANAGE_GRADE' },
@@ -56,7 +56,7 @@ export const MENU_CONFIG = {
       label: 'Nhân sự',
       children: [
         { key: 'staff-positions', label: 'Vị trí công tác', path: '/school-admin/staff-positions', permissionCode: 'MANAGE_STAFF_POSITION' },
-        { key: 'personnel-management', label: 'Danh sách nhân sự', path: '/school-admin/personnel', permissionCode: 'MANAGE_PERSONNEL' },
+        { key: 'personnel-management', label: 'Danh sách nhân sự', path: '/school-admin/personnel', permissionCode: 'MANAGE_TEACHER' },
       ]
     },
     {
@@ -76,7 +76,7 @@ export const MENU_CONFIG = {
         { key: 'asset-allocation', label: 'Bàn giao tài sản', path: '/school-admin/asset-allocation', permissionCode: 'MANAGE_HANDOVER' },
         { key: 'asset-incidents', label: 'Sự cố & Sửa chữa', path: '/school-admin/asset-incidents', permissionCode: 'MANAGE_ASSET_ISSUES' },
         { key: 'room-assets', label: 'Tài sản theo phòng', path: '/school-admin/room-assets', permissionCode: 'MANAGE_ROOM_ASSETS' },
-        { key: 'purchase-requests', label: 'Đề xuất mua sắm', path: '/school-admin/purchase-requests', permissionCode: 'MANAGE_PURCHASE' },
+        { key: 'purchase-requests', label: 'Đề xuất mua sắm', path: '/school-admin/purchase-requests', permissionCode: 'MANAGE_PURCHASE_REQUEST' },
         { key: 'committee', label: 'Hội đồng kiểm kê', path: '/school-admin/committee', permissionCode: 'MANAGE_COMMITTEE' },
         { key: 'minutes', label: 'Biên bản kiểm kê', path: '/school-admin/minutes', permissionCode: 'MANAGE_MINUTES' },
       ]
@@ -91,7 +91,7 @@ export const MENU_CONFIG = {
         { key: 'blog-categories', label: 'Danh mục tin', path: '/school-admin/blog-categories', permissionCode: 'MANAGE_BLOG_CATEGORY' },
         { key: 'documents', label: 'Văn bản & Hồ sơ', path: '/school-admin/documents', permissionCode: 'MANAGE_DOCUMENT' },
         { key: 'image-library', label: 'Thư viện ảnh', path: '/school-admin/image-library', permissionCode: 'MANAGE_IMAGE_LIBRARY' },
-        { key: 'video-library', label: 'Thư viện video', path: '/school-admin/video-library', permissionCode: 'MANAGE_VIDEOS' },
+        { key: 'video-library', label: 'Thư viện video', path: '/school-admin/video-library', permissionCode: 'MANAGE_IMAGE_LIBRARY' },
         { key: 'contacts', label: 'Liên hệ', path: '/school-admin/contacts', permissionCode: 'MANAGE_CONTACT' },
         // { key: 'qa', label: 'Hỏi đáp (Q&A)', path: '/school-admin/qa', permissionCode: 'MANAGE_QA' },
         { key: 'static-blocks', label: 'Khối nội dung tĩnh', path: '/school-admin/static-blocks', permissionCode: 'MANAGE_STATIC_BLOCK' },
@@ -101,15 +101,33 @@ export const MENU_CONFIG = {
 
   Teacher: [
     { key: 'overview', label: 'Tổng quan', path: '/teacher' },
-    { key: 'classes-teacher', label: 'Lớp phụ trách', path: '/teacher', permissionCode: 'VIEW_TEACHER_DASHBOARD' },
-    { key: 'students-teacher', label: 'Danh sách học sinh', path: '/teacher/students', permissionCode: 'VIEW_TEACHER_STUDENTS' },
-    { key: 'attendance', label: 'Điểm danh', path: '/teacher/attendance', permissionCode: 'MANAGE_ATTENDANCE' },
-    { key: 'leave-requests', label: 'Đơn xin nghỉ', path: '/teacher/leave-requests', permissionCode: 'MANAGE_ATTENDANCE' },
+    {
+      key: 'academic-management-teacher',
+      label: 'Học sinh & Lớp học',
+      children: [
+        { key: 'classes-teacher', label: 'Lớp phụ trách', path: '/teacher', permissionCode: 'VIEW_TEACHER_DASHBOARD' },
+        { key: 'students-teacher', label: 'Danh sách học sinh', path: '/teacher/students', permissionCode: 'VIEW_TEACHER_STUDENTS' },
+      ]
+    },
+    {
+      key: 'attendance-management-teacher',
+      label: 'Điểm danh & Đưa đón',
+      children: [
+        { key: 'attendance', label: 'Điểm danh', path: '/teacher/attendance', permissionCode: 'MANAGE_ATTENDANCE' },
+        { key: 'leave-requests', label: 'Đơn xin nghỉ', path: '/teacher/leave-requests', permissionCode: 'TEACHER_LEAVE_REQUEST' },
+        { key: 'pickup-approval', label: 'Đơn đưa đón', path: '/teacher/pickup-approval', permissionCode: 'MANAGE_PICKUP' },
+      ]
+    },
     { key: 'evaluation-teacher', label: 'Đánh giá học sinh', path: '/teacher/evaluation', permissionCode: 'MANAGE_TEACHER_EVALUATION' },
     { key: 'contact-book', label: 'Sổ liên lạc', path: '/teacher/contact-book', permissionCode: 'MANAGE_TEACHER_CONTACT_BOOK' },
-    { key: 'pickup-approval', label: 'Đơn đưa đón', path: '/teacher/pickup-approval', permissionCode: 'MANAGE_PICKUP' },
-    { key: 'class-assets', label: 'Tài sản lớp', path: '/teacher/class-assets', permissionCode: 'MANAGE_ASSET' },
-    { key: 'asset-incidents-teacher', label: 'Báo cáo sự cố', path: '/teacher/asset-incidents', permissionCode: 'MANAGE_ASSET' },
+    {
+      key: 'assets-management-teacher',
+      label: 'Cơ sở vật chất',
+      children: [
+        { key: 'class-assets', label: 'Tài sản lớp', path: '/teacher/class-assets', permissionCode: 'VIEW_CLASS_ASSETS' },
+        { key: 'asset-incidents-teacher', label: 'Báo cáo sự cố', path: '/teacher/asset-incidents', permissionCode: 'TEACHER_ASSET_INCIDENTS' },
+      ]
+    },
   ],
 
   KitchenStaff: [

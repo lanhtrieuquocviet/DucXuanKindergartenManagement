@@ -8,7 +8,21 @@ const getCurrentAcademicYear = async (req, res) => {
   try {
     await autoFinishExpiredAcademicYears();
     const currentYear = await AcademicYear.findOne({ status: 'active' }).sort({ startDate: -1 }).lean();
-    return res.status(200).json({ status: 'success', data: currentYear || null });
+    if (!currentYear) {
+      return res.status(200).json({ status: 'success', data: null });
+    }
+
+    const classCount = await Classes.countDocuments({ academicYearId: currentYear._id });
+    const studentCount = await Enrollment.countDocuments({ academicYearId: currentYear._id });
+
+    return res.status(200).json({
+      status: 'success',
+      data: {
+        ...currentYear,
+        classCount,
+        studentCount
+      }
+    });
   } catch (error) {
     return res.status(500).json({ status: 'error', message: 'Lỗi khi lấy năm học hiện tại' });
   }
@@ -21,14 +35,11 @@ const listAcademicYears = async (req, res) => {
     
     const data = await Promise.all(years.map(async (year) => {
       const classCount = await Classes.countDocuments({ academicYearId: year._id });
-      const studentCount = await Student.countDocuments({ 
-        classId: { $in: await Classes.find({ academicYearId: year._id }).distinct('_id') },
-        status: 'active'
-      });
+      const studentCount = await Enrollment.countDocuments({ academicYearId: year._id });
       return {
         ...year,
         classCount,
-        totalStudents: studentCount
+        studentCount
       };
     }));
 
@@ -78,21 +89,17 @@ const getAcademicYearHistory = async (req, res) => {
   try {
     await autoFinishExpiredAcademicYears();
     const { yearId } = req.query;
-    const filter = { status: { $ne: 'active' } };
-    if (yearId) filter._id = yearId;
+    const filter = yearId ? { _id: yearId } : { status: { $ne: 'active' } };
 
     const years = await AcademicYear.find(filter).sort({ startDate: -1 }).lean();
     
     const data = await Promise.all(years.map(async (year) => {
       const classCount = await Classes.countDocuments({ academicYearId: year._id });
-      const studentCount = await Student.countDocuments({ 
-        classId: { $in: await Classes.find({ academicYearId: year._id }).distinct('_id') },
-        status: 'active'
-      });
+      const studentCount = await Enrollment.countDocuments({ academicYearId: year._id });
       return {
         ...year,
         classCount,
-        totalStudents: studentCount
+        studentCount
       };
     }));
 

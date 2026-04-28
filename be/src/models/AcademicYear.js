@@ -69,6 +69,11 @@ const academicYearSchema = new mongoose.Schema({
     type: Date,
     default: Date.now,
   },
+  /** Thời điểm gửi nhắc nhở đánh giá cuối năm gần nhất */
+  evaluationRemindersSentAt: {
+    type: Date,
+    default: null,
+  },
 }, {
   timestamps: true,
   collection: 'AcademicYears',

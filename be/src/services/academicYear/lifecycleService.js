@@ -286,6 +286,9 @@ const remindEvaluations = async (req, res) => {
         });
       }
     }
+    
+    // Cập nhật timestamp vào năm học
+    await AcademicYear.findByIdAndUpdate(id, { evaluationRemindersSentAt: new Date() });
 
     return res.status(200).json({ status: 'success', message: 'Đã gửi nhắc nhở đến giáo viên các lớp.' });
   } catch (error) {

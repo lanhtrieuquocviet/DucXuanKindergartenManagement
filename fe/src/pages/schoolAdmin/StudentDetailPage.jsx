@@ -9,7 +9,12 @@ import {
   People as PeopleIcon,
   Person as PersonIcon,
   School as SchoolIcon,
-  Timeline as TimelineIcon
+  Timeline as TimelineIcon,
+  DirectionsCar as PickupIcon,
+  Edit as EditIcon,
+  Save as SaveIcon,
+  Cancel as CancelIcon,
+  PhotoCamera as CameraIcon,
 } from '@mui/icons-material';
 import {
   Alert,
@@ -24,8 +29,12 @@ import {
   Stack,
   Tab,
   Tabs,
-  Typography
+  Typography,
+  TextField,
+  Button,
+  IconButton
 } from '@mui/material';
+import { postFormData } from '../../service/api';
 import { useEffect, useState } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import { toast } from 'react-toastify';
@@ -337,6 +346,145 @@ function TabDanhGia({ studentId }) {
   );
 }
 
+// ── TabPickup ────────────────────────────────────────────────────
+function TabPickup({ studentId }) {
+  const [pickups, setPickups] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [editingId, setEditingId] = useState(null);
+  const [editForm, setEditForm] = useState({});
+  const [uploading, setUploading] = useState(false);
+
+  const fetchPickups = async () => {
+    setLoading(true);
+    try {
+      const res = await get(`/pickup/requests/student/${studentId}`);
+      setPickups(res.data || []);
+    } catch (e) {
+      toast.error('Không tải được danh sách người đưa đón');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  useEffect(() => { fetchPickups(); }, [studentId]);
+
+  const handleStartEdit = (p) => {
+    setEditingId(p._id);
+    setEditForm({ ...p });
+  };
+
+  const handleCancelEdit = () => {
+    setEditingId(null);
+    setEditForm({});
+  };
+
+  const handleSave = async () => {
+    try {
+      await patch(`/pickup/admin/requests/${editingId}`, editForm);
+      toast.success('Cập nhật thành công');
+      setEditingId(null);
+      fetchPickups();
+    } catch (e) {
+      toast.error(e?.message || 'Lỗi khi cập nhật');
+    }
+  };
+
+  const handleImageChange = async (e) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    setUploading(true);
+    try {
+      const formData = new FormData();
+      formData.append('avatar', file);
+      const res = await postFormData(ENDPOINTS.CLOUDINARY.UPLOAD_AVATAR, formData);
+      if (res?.data?.url) {
+        setEditForm(prev => ({ ...prev, imageUrl: res.data.url }));
+      }
+    } catch (err) {
+      toast.error('Tải ảnh thất bại');
+    } finally {
+      setUploading(false);
+    }
+  };
+
+  if (loading) return <Box sx={{ p: 4, textAlign: 'center' }}><CircularProgress /></Box>;
+
+  return (
+    <Box sx={{ maxWidth: 800, mx: 'auto' }}>
+      <Stack direction="row" justifyContent="space-between" alignItems="center" mb={3}>
+        <Typography variant="h6" fontWeight={800}>Người đưa đón đã duyệt</Typography>
+        <Typography variant="caption" color="text.secondary">Tối đa 5 người</Typography>
+      </Stack>
+
+      {pickups.length === 0 ? (
+        <Typography sx={{ py: 8, textAlign: 'center', color: 'text.secondary', bgcolor: '#f8fafc', borderRadius: 4, border: '1px dashed #cbd5e1' }}>
+          Chưa có người đưa đón nào được duyệt cho học sinh này.
+        </Typography>
+      ) : (
+        <Grid container spacing={2}>
+          {pickups.map(p => {
+            const isEditing = editingId === p._id;
+            return (
+              <Grid item xs={12} key={p._id}>
+                <Paper elevation={0} sx={{ p: 2, borderRadius: 4, border: '1px solid', borderColor: isEditing ? 'primary.main' : 'divider', transition: 'all 0.2s' }}>
+                  <Stack direction="row" spacing={2} alignItems="center">
+                    <Box sx={{ position: 'relative' }}>
+                      <Avatar src={isEditing ? editForm.imageUrl : p.imageUrl} variant="rounded" sx={{ width: 80, height: 80, borderRadius: 2 }}>
+                        {p.fullName?.[0]}
+                      </Avatar>
+                      {isEditing && (
+                        <IconButton
+                          component="label"
+                          size="small"
+                          sx={{ position: 'absolute', bottom: -8, right: -8, bgcolor: 'primary.main', color: 'white', '&:hover': { bgcolor: 'primary.dark' } }}
+                        >
+                          <CameraIcon fontSize="small" />
+                          <input type="file" hidden accept="image/*" onChange={handleImageChange} />
+                        </IconButton>
+                      )}
+                    </Box>
+
+                    <Box sx={{ flex: 1 }}>
+                      {isEditing ? (
+                        <Stack spacing={1.5}>
+                          <Stack direction="row" spacing={1}>
+                            <TextField fullWidth size="small" label="Họ tên" value={editForm.fullName || ''} onChange={e => setEditForm({ ...editForm, fullName: e.target.value })} />
+                            <TextField fullWidth size="small" label="Quan hệ" value={editForm.relation || ''} onChange={e => setEditForm({ ...editForm, relation: e.target.value })} />
+                          </Stack>
+                          <TextField fullWidth size="small" label="Số điện thoại" value={editForm.phone || ''} onChange={e => setEditForm({ ...editForm, phone: e.target.value })} />
+                        </Stack>
+                      ) : (
+                        <Box>
+                          <Typography variant="subtitle2" fontWeight={800}>{p.fullName}</Typography>
+                          <Typography variant="body2" color="text.secondary">{p.relation} · {p.phone}</Typography>
+                          {p.faceRegisteredAt && (
+                            <Chip label="Đã có Face ID" size="small" color="success" variant="outlined" sx={{ mt: 1, height: 20, fontSize: '0.65rem', fontWeight: 700 }} />
+                          )}
+                        </Box>
+                      )}
+                    </Box>
+
+                    <Stack spacing={1}>
+                      {isEditing ? (
+                        <>
+                          <IconButton color="primary" onClick={handleSave} disabled={uploading}><SaveIcon /></IconButton>
+                          <IconButton color="error" onClick={handleCancelEdit}><CancelIcon /></IconButton>
+                        </>
+                      ) : (
+                        <IconButton color="info" onClick={() => handleStartEdit(p)}><EditIcon fontSize="small" /></IconButton>
+                      )}
+                    </Stack>
+                  </Stack>
+                </Paper>
+              </Grid>
+            );
+          })}
+        </Grid>
+      )}
+    </Box>
+  );
+}
+
 // ── Main StudentDetailPage ───────────────────────────────────────
 export default function StudentDetailPage() {
   const { studentId } = useParams();
@@ -357,6 +505,7 @@ export default function StudentDetailPage() {
   const TABS = [
     { label: 'Sổ liên lạc (Timeline)', icon: <TimelineIcon /> },
     { label: 'Thông tin hồ sơ', icon: <PersonIcon /> },
+    { label: 'Người đưa đón', icon: <PickupIcon /> },
     { label: 'Y tế & Sức khỏe', icon: <HealthIcon /> },
     { label: 'Đánh giá học tập', icon: <AssessmentIcon /> },
   ];
@@ -405,8 +554,9 @@ export default function StudentDetailPage() {
             <Box sx={{ minHeight: 400 }}>
               {tab === 0 && <TabTimeline student={student} studentId={studentId} />}
               {tab === 1 && <TabHoSo student={student} />}
-              {tab === 2 && <TabSucKhoe studentId={studentId} />}
-              {tab === 3 && <TabDanhGia studentId={studentId} />}
+              {tab === 2 && <TabPickup studentId={studentId} />}
+              {tab === 3 && <TabSucKhoe studentId={studentId} />}
+              {tab === 4 && <TabDanhGia studentId={studentId} />}
             </Box>
           </Box>
         ) : <Alert severity="error">Không tìm thấy thông tin học sinh.</Alert>}
