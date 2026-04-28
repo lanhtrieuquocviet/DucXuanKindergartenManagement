@@ -1,18 +1,20 @@
 import { useEffect, useState } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { getMenuDetail, headParentReviewMenu } from '../../service/menu.api';
+import { MENU_REJECT_PRESETS, labelForRejectPreset } from '../../constants/menuRejectPresets';
 import { toast } from 'react-toastify';
 import { useAuth } from '../../context/AuthContext';
 
 import {
   Box, Button, Card, CardContent, Chip, Stack, Table, TableBody, TableCell,
   TableContainer, TableHead, TableRow, Typography, alpha, Divider, TextField,
-  Dialog, DialogTitle, DialogContent, DialogActions, CircularProgress,
+  Dialog, DialogTitle, DialogContent, DialogActions, CircularProgress, FormGroup, FormControlLabel, Checkbox,
 } from '@mui/material';
 import {
   ArrowBack as BackIcon,
   MenuBook as MenuBookIcon,
   RateReview as ReviewIcon,
+  Cancel as CancelIcon,
   CheckCircle as CheckCircleIcon,
   Person as PersonIcon,
 } from '@mui/icons-material';
@@ -30,6 +32,7 @@ const STATUS_CHIP = {
 const HISTORY_LABELS = {
   submitted:            'Gửi duyệt (bếp gửi)',
   headparent_reviewed:  'Hội trưởng PH xem xét',
+  headparent_rejected_approved: 'Hội trưởng PH từ chối (menu đã duyệt)',
   approved:             'Ban giám hiệu duyệt',
   rejected_pending:     'Ban giám hiệu từ chối',
   request_edit_active:  'Yêu cầu chỉnh sửa',
@@ -109,7 +112,10 @@ export default function MenuDetailHeadParent() {
   const [menu, setMenu]           = useState(null);
   const [loading, setLoading]     = useState(true);
   const [reviewOpen, setReviewOpen] = useState(false);
+  const [reviewMode, setReviewMode] = useState('forward');
   const [comment, setComment]     = useState('');
+  const [rejectDetail, setRejectDetail] = useState('');
+  const [rejectPresetSel, setRejectPresetSel] = useState({});
   const [submitting, setSubmitting] = useState(false);
 
   const menuItems = [
@@ -130,6 +136,28 @@ export default function MenuDetailHeadParent() {
   }, [id]);
 
   const handleReview = async () => {
+    if (reviewMode === 'reject') {
+      const presets = MENU_REJECT_PRESETS.filter((p) => rejectPresetSel[p.id]).map((p) => p.id);
+      const detail = rejectDetail.trim();
+      if (presets.length === 0 && detail.length < 5) {
+        toast.error('Chọn ít nhất một lý do gợi ý hoặc nhập chi tiết tối thiểu 5 ký tự');
+        return;
+      }
+      setSubmitting(true);
+      try {
+        await headParentReviewMenu(id, { presets, detail });
+        toast.success('Đã từ chối thực đơn và gửi lại cho bếp chỉnh sửa');
+        setReviewOpen(false);
+        const res = await getMenuDetail(id);
+        setMenu(res?.data || res);
+      } catch {
+        toast.error('Thao tác thất bại');
+      } finally {
+        setSubmitting(false);
+      }
+      return;
+    }
+
     setSubmitting(true);
     try {
       await headParentReviewMenu(id, { comment });
@@ -187,10 +215,33 @@ export default function MenuDetailHeadParent() {
                         variant="contained"
                         color="warning"
                         startIcon={<ReviewIcon />}
-                        onClick={() => { setComment(''); setReviewOpen(true); }}
+                        onClick={() => {
+                          setComment('');
+                          setRejectDetail('');
+                          setRejectPresetSel({});
+                          setReviewMode('forward');
+                          setReviewOpen(true);
+                        }}
                         sx={{ textTransform: 'none', fontWeight: 700 }}
                       >
                         Xem xét & Chuyển lên BGH
+                      </Button>
+                    )}
+                    {menu.status === 'approved' && (
+                      <Button
+                        variant="contained"
+                        color="error"
+                        startIcon={<CancelIcon />}
+                        onClick={() => {
+                          setComment('');
+                          setRejectDetail('');
+                          setRejectPresetSel({});
+                          setReviewMode('reject');
+                          setReviewOpen(true);
+                        }}
+                        sx={{ textTransform: 'none', fontWeight: 700 }}
+                      >
+                        Từ chối thực đơn
                       </Button>
                     )}
                   </Stack>
@@ -231,6 +282,11 @@ export default function MenuDetailHeadParent() {
                             {h.at ? new Date(h.at).toLocaleString('vi-VN') : ''}
                           </Typography>
                         </Stack>
+                        {Array.isArray(h.presets) && h.presets.length > 0 && (
+                          <Typography variant="caption" color="text.secondary" mt={0.25} display="block">
+                            {(h.presets || []).map((pid) => `• ${labelForRejectPreset(pid)}`).join(' ')}
+                          </Typography>
+                        )}
                         {h.detail && (
                           <Typography variant="caption" color="text.secondary" mt={0.25} display="block">
                             {h.detail}
@@ -254,27 +310,72 @@ export default function MenuDetailHeadParent() {
         <Divider />
         <DialogContent sx={{ pt: 2 }}>
           <Typography variant="body2" color="text.secondary" mb={2}>
-            Bạn có thể chuyển thực đơn lên ban giám hiệu ngay (không ý kiến) hoặc ghi nhận xét để BGH tham khảo khi duyệt.
+            {reviewMode === 'reject'
+              ? 'Nhập lý do từ chối để trả thực đơn đã duyệt về bếp chỉnh sửa và gửi duyệt lại.'
+              : 'Bạn có thể chuyển thực đơn lên ban giám hiệu ngay (không ý kiến) hoặc ghi nhận xét để BGH tham khảo khi duyệt.'}
           </Typography>
-          <TextField
-            label="Ý kiến của hội trưởng phụ huynh (không bắt buộc)"
-            placeholder="Ví dụ: Thực đơn phù hợp, đề nghị bổ sung thêm rau xanh…"
-            multiline rows={4} fullWidth
-            value={comment}
-            onChange={(e) => setComment(e.target.value)}
-            inputProps={{ maxLength: 500 }}
-            helperText={`${comment.length}/500 ký tự`}
-          />
+          {reviewMode === 'reject' ? (
+            <>
+              <Typography variant="subtitle2" fontWeight={700} gutterBottom>
+                Gợi ý lý do (chọn một hoặc nhiều)
+              </Typography>
+              <FormGroup sx={{ mb: 2 }}>
+                {MENU_REJECT_PRESETS.map((p) => (
+                  <FormControlLabel
+                    key={p.id}
+                    control={
+                      <Checkbox
+                        size="small"
+                        checked={!!rejectPresetSel[p.id]}
+                        onChange={() =>
+                          setRejectPresetSel((prev) => ({ ...prev, [p.id]: !prev[p.id] }))
+                        }
+                      />
+                    }
+                    label={<Typography variant="body2">{p.label}</Typography>}
+                  />
+                ))}
+              </FormGroup>
+              <TextField
+                label="Chi tiết lý do từ chối"
+                placeholder="Mô tả cụ thể để bếp chỉnh sửa (bắt buộc nếu không chọn gợi ý nào, tối thiểu 5 ký tự)..."
+                multiline
+                rows={4}
+                fullWidth
+                value={rejectDetail}
+                onChange={(e) => setRejectDetail(e.target.value)}
+                inputProps={{ maxLength: 500 }}
+                helperText={`${rejectDetail.length}/500 ký tự`}
+              />
+            </>
+          ) : (
+            <TextField
+              label="Ý kiến của hội trưởng phụ huynh (không bắt buộc)"
+              placeholder="Ví dụ: Thực đơn phù hợp, đề nghị bổ sung thêm rau xanh…"
+              multiline
+              rows={4}
+              fullWidth
+              value={comment}
+              onChange={(e) => setComment(e.target.value)}
+              inputProps={{ maxLength: 500 }}
+              helperText={`${comment.length}/500 ký tự`}
+            />
+          )}
         </DialogContent>
         <DialogActions sx={{ px: 3, pb: 2, gap: 1 }}>
           <Button variant="outlined" onClick={() => setReviewOpen(false)} disabled={submitting} sx={{ textTransform: 'none', fontWeight: 600 }}>Hủy</Button>
           <Button
-            variant="contained" color="warning"
-            startIcon={<CheckCircleIcon />}
+            variant="contained"
+            color={reviewMode === 'reject' ? 'error' : 'warning'}
+            startIcon={reviewMode === 'reject' ? <CancelIcon /> : <CheckCircleIcon />}
             onClick={handleReview} disabled={submitting}
             sx={{ textTransform: 'none', fontWeight: 600 }}
           >
-            {comment.trim() ? 'Gửi ý kiến và chuyển lên BGH' : 'Chuyển lên ban giám hiệu'}
+            {reviewMode === 'reject'
+              ? 'Xác nhận từ chối'
+              : comment.trim()
+                ? 'Gửi ý kiến và chuyển lên BGH'
+                : 'Chuyển lên ban giám hiệu'}
           </Button>
         </DialogActions>
       </Dialog>

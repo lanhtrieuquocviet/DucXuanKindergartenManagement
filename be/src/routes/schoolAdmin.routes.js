@@ -2804,11 +2804,12 @@ router.patch('/asset-minutes/:id/reject', authenticate, authorizePermissions('MA
 // ============================================
 // Room Assets (Tài sản theo phòng học)
 // ============================================
-router.get('/room-assets', authenticate, authorizePermissions('MANAGE_ASSET'), roomAssetCtrl.listRooms);
-router.get('/room-assets/:roomId', authenticate, authorizePermissions('MANAGE_ASSET'), roomAssetCtrl.listRoomAssets);
-router.post('/room-assets/:roomId', authenticate, authorizePermissions('MANAGE_ASSET'), roomAssetCtrl.addAssetToRoom);
-router.put('/room-assets/:roomId/:id', authenticate, authorizePermissions('MANAGE_ASSET'), roomAssetCtrl.updateRoomAsset);
-router.delete('/room-assets/:roomId/:id', authenticate, authorizePermissions('MANAGE_ASSET'), roomAssetCtrl.removeAssetFromRoom);
+router.get('/room-assets',                  authenticate, authorizePermissions('MANAGE_ASSET'), roomAssetCtrl.listRooms);
+router.get('/room-assets/:roomId',          authenticate, authorizePermissions('MANAGE_ASSET'), roomAssetCtrl.listRoomAssets);
+router.post('/room-assets/:roomId',         authenticate, authorizePermissions('MANAGE_ASSET'), roomAssetCtrl.addAssetToRoom);
+router.post('/room-assets/:roomId/import',  authenticate, authorizePermissions('MANAGE_ASSET'), roomAssetCtrl.bulkImportRoomAssets);
+router.put('/room-assets/:roomId/:id',      authenticate, authorizePermissions('MANAGE_ASSET'), roomAssetCtrl.updateRoomAsset);
+router.delete('/room-assets/:roomId/:id',   authenticate, authorizePermissions('MANAGE_ASSET'), roomAssetCtrl.removeAssetFromRoom);
 
 // ============================================
 // Assets CRUD (Danh sách tài sản)

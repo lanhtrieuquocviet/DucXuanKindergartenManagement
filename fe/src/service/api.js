@@ -406,6 +406,7 @@ export const ENDPOINTS = {
     // Room Assets (Tài sản theo phòng học)
     ROOM_ASSETS: "/school-admin/room-assets",
     ROOM_ASSETS_BY_ROOM: (roomId) => `/school-admin/room-assets/${roomId}`,
+    ROOM_ASSETS_IMPORT: (roomId) => `/school-admin/room-assets/${roomId}/import`,
     ROOM_ASSET_ITEM: (roomId, id) => `/school-admin/room-assets/${roomId}/${id}`,
     // Asset CRUD
     ASSETS: "/school-admin/assets",

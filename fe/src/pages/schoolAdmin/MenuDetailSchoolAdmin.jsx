@@ -34,6 +34,7 @@ import { ArrowBack as BackIcon } from "@mui/icons-material";
 const HISTORY_EVENT_LABELS = {
   submitted:            "Gửi duyệt (bếp gửi)",
   headparent_reviewed:  "Hội trưởng PH xem xét",
+  headparent_rejected_approved: "Hội trưởng PH từ chối (menu đã duyệt)",
   approved:             "Ban giám hiệu duyệt",
   rejected_pending:     "Ban giám hiệu từ chối",
   request_edit_active:  "Yêu cầu chỉnh sửa (từ thực đơn đang áp dụng)",

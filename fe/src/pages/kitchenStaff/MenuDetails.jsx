@@ -818,7 +818,7 @@ function MenuDetail() {
         <DialogTitle sx={{ fontWeight: 700 }}>Xác nhận gửi duyệt</DialogTitle>
         <DialogContent>
           <DialogContentText variant="body2">
-            Bạn có chắc muốn gửi thực đơn lên duyệt?
+            Bạn có chắc muốn gửi thực đơn lên Ban giám hiệu để duyệt?
           </DialogContentText>
         </DialogContent>
         <DialogActions sx={{ pb: 2.5, px: 3 }}>
