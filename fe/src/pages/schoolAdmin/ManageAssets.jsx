@@ -22,7 +22,9 @@ import {
   Stack,
   Tab,
   Tabs,
-  Typography
+  Typography,
+  useTheme,
+  useMediaQuery
 } from '@mui/material';
 import { useEffect, useRef, useState } from 'react';
 import { useNavigate } from 'react-router-dom';

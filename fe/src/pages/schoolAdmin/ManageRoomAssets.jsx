@@ -15,7 +15,6 @@ import MeetingRoomIcon from '@mui/icons-material/MeetingRoom';
 import SearchIcon from '@mui/icons-material/Search';
 import InventoryIcon from '@mui/icons-material/Inventory';
 import UploadFileIcon from '@mui/icons-material/UploadFile';
-import RoleLayout from '../../layouts/RoleLayout';
 import { useAuth } from '../../context/AuthContext';
 import { del, get, post, postFormData, put, ENDPOINTS } from '../../service/api';
 
@@ -501,7 +500,7 @@ export default function ManageRoomAssets() {
   };
 
   return (
-    <RoleLayout title="Quản lý CSVC & Tài sản phòng">
+    <>
       <Box sx={{ display: 'flex', gap: 2, height: 'calc(100vh - 120px)' }}>
 
         {/* ════ Cột trái: danh sách phòng ════ */}
@@ -867,6 +866,6 @@ export default function ManageRoomAssets() {
           </Button>
         </DialogActions>
       </Dialog>
-    </RoleLayout>
+    </>
   );
 }
