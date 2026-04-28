@@ -188,7 +188,16 @@ function FoodTag({ food, canDelete, onDelete, canTune, onTune }) {
   );
 }
 
-function WeekTable({ title, weekData, isEditable, onCellClick, onRemoveFood, nutritionRanges, onFoodTune }) {
+function WeekTable({
+  title,
+  weekData,
+  isEditable,
+  onCellClick,
+  onRemoveFood,
+  nutritionRanges,
+  onFoodTune,
+  useSnapshotTotals = false,
+}) {
   return (
     <Box mb={4}>
       <Stack direction="row" alignItems="center" spacing={1.5} mb={2}>
@@ -245,7 +254,7 @@ function WeekTable({ title, weekData, isEditable, onCellClick, onRemoveFood, nut
                 </TableCell>
                 {days.map((day) => {
                   const dayMenu = weekData?.[day];
-                  const evaluation = evaluateDailyNutrition(dayMenu, nutritionRanges);
+                  const evaluation = evaluateDailyNutrition(dayMenu, nutritionRanges, { useSnapshotTotals });
                   const hasData =
                     (dayMenu?.lunchFoods?.length || 0) > 0 ||
                     (dayMenu?.afternoonFoods?.length || 0) > 0;
@@ -791,6 +800,7 @@ function MenuDetail() {
         onRemoveFood={handleRemoveFood}
         nutritionRanges={nutritionRanges}
         onFoodTune={handleFoodTune}
+        useSnapshotTotals={menu.status === "completed"}
       />
       <WeekTable
         title="Tuần chẵn"
@@ -800,6 +810,7 @@ function MenuDetail() {
         onRemoveFood={handleRemoveFood}
         nutritionRanges={nutritionRanges}
         onFoodTune={handleFoodTune}
+        useSnapshotTotals={menu.status === "completed"}
       />
 
       <FoodSelectorModal open={showFoodModal} selectedFoods={cellFoods} onClose={() => setShowFoodModal(false)} onSave={handleSaveFoods} />

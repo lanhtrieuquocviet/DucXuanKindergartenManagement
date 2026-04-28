@@ -16,21 +16,25 @@ const foodSchema = new mongoose.Schema(
     calories: {
       type: Number,
       default: 0,
+      min: 0,
     },
 
     protein: {
       type: Number,
       default: 0,
+      min: 0,
     },
 
     fat: {
       type: Number,
       default: 0,
+      min: 0,
     },
     //Hàm lượng carbohydrate.
     carb: {
       type: Number,
       default: 0,
+      min: 0,
     },
 
     ingredients: [
@@ -44,16 +48,25 @@ const foodSchema = new mongoose.Schema(
           trim: true,
         },
         quantity: { type: String, default: "" },
-        calories: { type: Number, default: 0 },
-        protein: { type: Number, default: 0 },
-        fat: { type: Number, default: 0 },
-        carb: { type: Number, default: 0 },
+        calories: { type: Number, default: 0, min: 0 },
+        protein: { type: Number, default: 0, min: 0 },
+        fat: { type: Number, default: 0, min: 0 },
+        carb: { type: Number, default: 0, min: 0 },
       },
     ],
 
     createdAt: {
       type: Date,
       default: Date.now,
+    },
+    isDeleted: {
+      type: Boolean,
+      default: false,
+      index: true,
+    },
+    deletedAt: {
+      type: Date,
+      default: null,
     },
   },
   {

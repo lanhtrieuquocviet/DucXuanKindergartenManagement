@@ -139,8 +139,9 @@ export const updateDailyMenu = (id, data) => {
 
 
 // Lấy danh sách food
-export const getFoods = () => {
-  return api.get(`/foods`);
+export const getFoods = (params = {}) => {
+  const q = new URLSearchParams(params).toString();
+  return api.get(`/foods${q ? `?${q}` : ""}`);
 };
 
 export const createFood = (data) => {
@@ -155,9 +156,14 @@ export const deleteFood = (id) => {
   return api.delete(`/foods/${id}`);
 };
 
+export const restoreFood = (id) => {
+  return api.patch(`/foods/${id}/restore`, {});
+};
+
 // Ingredient support
-export const getIngredients = () => {
-  return api.get(`/ingredients`);
+export const getIngredients = (params = {}) => {
+  const q = new URLSearchParams(params).toString();
+  return api.get(`/ingredients${q ? `?${q}` : ""}`);
 };
 
 export const createIngredient = (data) => {
@@ -170,4 +176,8 @@ export const updateIngredient = (id, data) => {
 
 export const deleteIngredient = (id) => {
   return api.delete(`/ingredients/${id}`);
+};
+
+export const restoreIngredient = (id) => {
+  return api.patch(`/ingredients/${id}/restore`, {});
 };

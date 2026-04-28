@@ -93,7 +93,7 @@ function ViewFoodTag({ food }) {
   );
 }
 
-function SchoolAdminWeekTable({ title, weekData, nutritionRanges }) {
+function SchoolAdminWeekTable({ title, weekData, nutritionRanges, useSnapshotTotals = false }) {
   return (
     <Box mb={4}>
       <Stack direction="row" alignItems="center" spacing={1.5} mb={2}>
@@ -187,7 +187,7 @@ function SchoolAdminWeekTable({ title, weekData, nutritionRanges }) {
                 </TableCell>
                 {days.map((day) => {
                   const dayMenu = weekData?.[day];
-                  const evaluation = evaluateDailyNutrition(dayMenu, nutritionRanges);
+                  const evaluation = evaluateDailyNutrition(dayMenu, nutritionRanges, { useSnapshotTotals });
                   const hasData =
                     (dayMenu?.lunchFoods?.length || 0) > 0 ||
                     (dayMenu?.afternoonFoods?.length || 0) > 0;
@@ -510,8 +510,18 @@ const MenuDetailSchoolAdmin = () => {
           </Card>
         )}
 
-        <SchoolAdminWeekTable title="Tuần lẻ" weekData={menu.weeks?.odd} nutritionRanges={nutritionRanges} />
-        <SchoolAdminWeekTable title="Tuần chẵn" weekData={menu.weeks?.even} nutritionRanges={nutritionRanges} />
+        <SchoolAdminWeekTable
+          title="Tuần lẻ"
+          weekData={menu.weeks?.odd}
+          nutritionRanges={nutritionRanges}
+          useSnapshotTotals={menu.status === "completed"}
+        />
+        <SchoolAdminWeekTable
+          title="Tuần chẵn"
+          weekData={menu.weeks?.even}
+          nutritionRanges={nutritionRanges}
+          useSnapshotTotals={menu.status === "completed"}
+        />
       </Box>
     </Box>
   );

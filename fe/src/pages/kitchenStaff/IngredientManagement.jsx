@@ -5,6 +5,7 @@ import {
   createIngredient,
   updateIngredient,
   deleteIngredient,
+  restoreIngredient,
 } from "../../service/menu.api";
 import { INGREDIENT_GROUPS } from "../../constants/ingredientCategories";
 import {
@@ -48,6 +49,7 @@ import {
   Clear as ClearIcon,
   UploadFile as UploadFileIcon,
   Download as DownloadIcon,
+  Restore as RestoreIcon,
 } from "@mui/icons-material";
 
 const normCat = (ing) => ing?.category || "luong_thuc";
@@ -62,6 +64,23 @@ const emptyForm = (category = "luong_thuc") => ({
   carb: "",
 });
 
+const NUTRITION_FIELDS = ["calories", "protein", "fat", "carb"];
+
+const getNutritionError = (value) => {
+  if (value === "" || value === undefined || value === null) return "";
+  const parsed = Number(value);
+  if (Number.isNaN(parsed)) return "Số không hợp lệ";
+  if (parsed < 0) return "Không được nhập số âm";
+  return "";
+};
+
+const calculateCaloriesFromMacros = (protein, fat, carb) => {
+  const p = Number(protein) || 0;
+  const f = Number(fat) || 0;
+  const c = Number(carb) || 0;
+  return Math.round((p * 4 + f * 9 + c * 4) * 10) / 10;
+};
+
 export default function IngredientManagement() {
   const theme = useTheme();
   const isMobile = useMediaQuery(theme.breakpoints.down("sm"));
@@ -70,6 +89,7 @@ export default function IngredientManagement() {
   const [ingredients, setIngredients] = useState([]);
   const [loading, setLoading] = useState(false);
   const [search, setSearch] = useState("");
+  const [ingredientFilter, setIngredientFilter] = useState("active");
   const [groupFilter, setGroupFilter] = useState("all");
 
   const [showModal, setShowModal] = useState(false);
@@ -83,7 +103,7 @@ export default function IngredientManagement() {
   const fetchIngredients = async () => {
     try {
       setLoading(true);
-      const res = await getIngredients();
+      const res = await getIngredients({ filter: ingredientFilter });
       setIngredients(Array.isArray(res?.data) ? res.data : []);
     } catch {
       toast.error("Không thể tải danh sách nguyên liệu");
@@ -94,7 +114,7 @@ export default function IngredientManagement() {
 
   useEffect(() => {
     fetchIngredients();
-  }, []);
+  }, [ingredientFilter]);
 
   const filteredList = useMemo(() => {
     let list = ingredients;
@@ -126,15 +146,18 @@ export default function IngredientManagement() {
   };
 
   const handleOpenEdit = (ingredient) => {
+    const protein = ingredient.protein ?? "";
+    const fat = ingredient.fat ?? "";
+    const carb = ingredient.carb ?? "";
     setEditingIngredient(ingredient);
     setForm({
       name: ingredient.name,
       category: normCat(ingredient),
       unit: ingredient.unit || "100g",
-      calories: ingredient.calories ?? "",
-      protein: ingredient.protein ?? "",
-      fat: ingredient.fat ?? "",
-      carb: ingredient.carb ?? "",
+      calories: String(calculateCaloriesFromMacros(protein, fat, carb)),
+      protein,
+      fat,
+      carb,
     });
     setErrors({});
     setShowModal(true);
@@ -152,21 +175,39 @@ export default function IngredientManagement() {
     if (!form.name?.trim()) newErrors.name = "Tên nguyên liệu không được để trống";
     else if (form.name.trim().length > 100) newErrors.name = "Tối đa 100 ký tự";
 
-    const num = (v) => (v === "" || v === undefined ? 0 : Number(v));
-    if (Number.isNaN(num(form.calories))) newErrors.calories = "Số không hợp lệ";
-    if (Number.isNaN(num(form.protein))) newErrors.protein = "Số không hợp lệ";
-    if (Number.isNaN(num(form.fat))) newErrors.fat = "Số không hợp lệ";
-    if (Number.isNaN(num(form.carb))) newErrors.carb = "Số không hợp lệ";
+    NUTRITION_FIELDS.forEach((field) => {
+      const error = getNutritionError(form[field]);
+      if (error) newErrors[field] = error;
+    });
 
     setErrors(newErrors);
     return Object.keys(newErrors).length === 0;
+  };
+
+  const handleNutritionChange = (field) => (e) => {
+    const value = e.target.value;
+    setForm((p) => {
+      const next = { ...p, [field]: value };
+      if (["protein", "fat", "carb"].includes(field)) {
+        next.calories = String(calculateCaloriesFromMacros(next.protein, next.fat, next.carb));
+      }
+      return next;
+    });
+    const error = getNutritionError(value);
+    setErrors((prev) => {
+      if (error) return { ...prev, [field]: error };
+      if (!prev[field]) return prev;
+      const next = { ...prev };
+      delete next[field];
+      return next;
+    });
   };
 
   const buildPayload = () => ({
     name: form.name.trim(),
     category: form.category,
     unit: (form.unit || "100g").trim(),
-    calories: Number(form.calories) || 0,
+    calories: calculateCaloriesFromMacros(form.protein, form.fat, form.carb),
     protein: Number(form.protein) || 0,
     fat: Number(form.fat) || 0,
     carb: Number(form.carb) || 0,
@@ -237,6 +278,16 @@ export default function IngredientManagement() {
       toast.error(error?.message || error?.data?.message || "Xóa thất bại");
     } finally {
       setDeleting(false);
+    }
+  };
+
+  const handleRestore = async (ingredient) => {
+    try {
+      await restoreIngredient(ingredient._id);
+      toast.success(`Đã khôi phục nguyên liệu "${ingredient.name}"`);
+      fetchIngredients();
+    } catch (error) {
+      toast.error(error?.message || error?.data?.message || "Khôi phục thất bại");
     }
   };
 
@@ -325,19 +376,21 @@ export default function IngredientManagement() {
             Phân nhóm theo dinh dưỡng — đồng bộ dùng cho thực đơn và kho
           </Typography>
         </Box>
-        <Button
-          variant="contained"
-          startIcon={<AddIcon />}
-          onClick={() => handleOpenCreate("luong_thuc")}
-          sx={{
-            borderRadius: 2,
-            textTransform: "none",
-            fontWeight: 700,
-            background: "linear-gradient(135deg, #4f46e5 0%, #7c3aed 100%)",
-          }}
-        >
-          Thêm nguyên liệu
-        </Button>
+        {ingredientFilter !== "deleted" && (
+          <Button
+            variant="contained"
+            startIcon={<AddIcon />}
+            onClick={() => handleOpenCreate("luong_thuc")}
+            sx={{
+              borderRadius: 2,
+              textTransform: "none",
+              fontWeight: 700,
+              background: "linear-gradient(135deg, #4f46e5 0%, #7c3aed 100%)",
+            }}
+          >
+            Thêm nguyên liệu
+          </Button>
+        )}
       </Stack>
 
       <Card
@@ -350,6 +403,25 @@ export default function IngredientManagement() {
           alignItems={{ xs: "stretch", md: "center" }}
           justifyContent="space-between"
         >
+          <Stack direction="row" spacing={1}>
+            <Button
+              size="small"
+              variant={ingredientFilter === "active" ? "contained" : "outlined"}
+              onClick={() => setIngredientFilter("active")}
+              sx={{ textTransform: "none" }}
+            >
+              Đang dùng
+            </Button>
+            <Button
+              size="small"
+              color="warning"
+              variant={ingredientFilter === "deleted" ? "contained" : "outlined"}
+              onClick={() => setIngredientFilter("deleted")}
+              sx={{ textTransform: "none" }}
+            >
+              Đã xóa
+            </Button>
+          </Stack>
           <TextField
             size="small"
             placeholder="Tìm kiếm theo tên nguyên liệu..."
@@ -387,34 +459,38 @@ export default function IngredientManagement() {
             </Select>
           </FormControl>
           <Stack direction="row" spacing={1} flexWrap="wrap" useFlexGap>
-            <Button
-              size="small"
-              variant="outlined"
-              startIcon={<UploadFileIcon />}
-              onClick={() => fileImportRef.current?.click()}
-              sx={{ textTransform: "none" }}
-            >
-              Import Excel
-            </Button>
-            <Button
-              size="small"
-              variant="outlined"
-              startIcon={<DownloadIcon />}
-              onClick={downloadTemplate}
-              sx={{ textTransform: "none" }}
-            >
-              Tải mẫu
-            </Button>
-            <Button
-              size="small"
-              variant="outlined"
-              color="success"
-              startIcon={<DownloadIcon />}
-              onClick={exportExcel}
-              sx={{ textTransform: "none" }}
-            >
-              Xuất Excel
-            </Button>
+            {ingredientFilter !== "deleted" && (
+              <>
+                <Button
+                  size="small"
+                  variant="outlined"
+                  startIcon={<UploadFileIcon />}
+                  onClick={() => fileImportRef.current?.click()}
+                  sx={{ textTransform: "none" }}
+                >
+                  Import Excel
+                </Button>
+                <Button
+                  size="small"
+                  variant="outlined"
+                  startIcon={<DownloadIcon />}
+                  onClick={downloadTemplate}
+                  sx={{ textTransform: "none" }}
+                >
+                  Tải mẫu
+                </Button>
+                <Button
+                  size="small"
+                  variant="outlined"
+                  color="success"
+                  startIcon={<DownloadIcon />}
+                  onClick={exportExcel}
+                  sx={{ textTransform: "none" }}
+                >
+                  Xuất Excel
+                </Button>
+              </>
+            )}
           </Stack>
         </Stack>
         <input
@@ -459,11 +535,13 @@ export default function IngredientManagement() {
                     ({rows.length} mục) — {group.hint}
                   </Typography>
                 </Box>
-                <Tooltip title="Thêm vào nhóm này">
-                  <IconButton size="small" sx={{ color: "#1a56db" }} onClick={() => handleOpenCreate(group.id)}>
-                    <AddIcon fontSize="small" />
-                  </IconButton>
-                </Tooltip>
+                {ingredientFilter !== "deleted" && (
+                  <Tooltip title="Thêm vào nhóm này">
+                    <IconButton size="small" sx={{ color: "#1a56db" }} onClick={() => handleOpenCreate(group.id)}>
+                      <AddIcon fontSize="small" />
+                    </IconButton>
+                  </Tooltip>
+                )}
               </Box>
               <TableContainer
                 sx={{
@@ -494,7 +572,7 @@ export default function IngredientManagement() {
                         Tinh bột (g)
                       </TableCell>
                       <TableCell sx={hCell} align="center">
-                        Xóa
+                        {ingredientFilter === "deleted" ? "Khôi phục" : "Xóa"}
                       </TableCell>
                     </TableRow>
                   </TableHead>
@@ -502,7 +580,9 @@ export default function IngredientManagement() {
                     {rows.length === 0 ? (
                       <TableRow>
                         <TableCell colSpan={7} align="center" sx={{ py: 2, color: "text.secondary", fontSize: "0.8rem" }}>
-                          Chưa có dữ liệu — nhấn <strong>+</strong> để thêm
+                          {ingredientFilter === "deleted"
+                            ? "Không có nguyên liệu nào trong thùng rác"
+                            : <>Chưa có dữ liệu — nhấn <strong>+</strong> để thêm</>}
                         </TableCell>
                       </TableRow>
                     ) : (
@@ -513,11 +593,13 @@ export default function IngredientManagement() {
                               <Typography variant="body2" fontWeight={600}>
                                 {ing.name}
                               </Typography>
-                              <Tooltip title="Sửa">
-                                <IconButton size="small" onClick={() => handleOpenEdit(ing)} sx={{ color: "#4f46e5" }}>
-                                  <EditIcon sx={{ fontSize: 16 }} />
-                                </IconButton>
-                              </Tooltip>
+                              {ingredientFilter !== "deleted" && (
+                                <Tooltip title="Sửa">
+                                  <IconButton size="small" onClick={() => handleOpenEdit(ing)} sx={{ color: "#4f46e5" }}>
+                                    <EditIcon sx={{ fontSize: 16 }} />
+                                  </IconButton>
+                                </Tooltip>
+                              )}
                             </Stack>
                           </TableCell>
                           <TableCell align="center">{ing.unit || "100g"}</TableCell>
@@ -526,9 +608,15 @@ export default function IngredientManagement() {
                           <TableCell align="center">{ing.fat ?? 0}</TableCell>
                           <TableCell align="center">{ing.carb ?? 0}</TableCell>
                           <TableCell align="center">
-                            <IconButton size="small" color="error" onClick={() => setDeleteTarget(ing)}>
-                              <DeleteIcon fontSize="small" />
-                            </IconButton>
+                            {ingredientFilter === "deleted" ? (
+                              <IconButton size="small" color="success" onClick={() => handleRestore(ing)}>
+                                <RestoreIcon fontSize="small" />
+                              </IconButton>
+                            ) : (
+                              <IconButton size="small" color="error" onClick={() => setDeleteTarget(ing)}>
+                                <DeleteIcon fontSize="small" />
+                              </IconButton>
+                            )}
                           </TableCell>
                         </TableRow>
                       ))
@@ -590,9 +678,11 @@ export default function IngredientManagement() {
                 label="Kcal"
                 type="number"
                 value={form.calories}
-                onChange={(e) => setForm((p) => ({ ...p, calories: e.target.value }))}
+                onChange={handleNutritionChange("calories")}
                 error={Boolean(errors.calories)}
-                helperText={errors.calories || " "}
+                helperText={"Tự tính theo Đạm*4 + Béo*9 + Tinh bột*4"}
+                inputProps={{ min: 0 }}
+                disabled
                 fullWidth
               />
               <TextField
@@ -600,9 +690,10 @@ export default function IngredientManagement() {
                 label="Đạm (g)"
                 type="number"
                 value={form.protein}
-                onChange={(e) => setForm((p) => ({ ...p, protein: e.target.value }))}
+                onChange={handleNutritionChange("protein")}
                 error={Boolean(errors.protein)}
                 helperText={errors.protein || " "}
+                inputProps={{ min: 0 }}
                 fullWidth
               />
             </Stack>
@@ -612,9 +703,10 @@ export default function IngredientManagement() {
                 label="Béo (g)"
                 type="number"
                 value={form.fat}
-                onChange={(e) => setForm((p) => ({ ...p, fat: e.target.value }))}
+                onChange={handleNutritionChange("fat")}
                 error={Boolean(errors.fat)}
                 helperText={errors.fat || " "}
+                inputProps={{ min: 0 }}
                 fullWidth
               />
               <TextField
@@ -622,9 +714,10 @@ export default function IngredientManagement() {
                 label="Tinh bột (g)"
                 type="number"
                 value={form.carb}
-                onChange={(e) => setForm((p) => ({ ...p, carb: e.target.value }))}
+                onChange={handleNutritionChange("carb")}
                 error={Boolean(errors.carb)}
                 helperText={errors.carb || " "}
+                inputProps={{ min: 0 }}
                 fullWidth
               />
             </Stack>
