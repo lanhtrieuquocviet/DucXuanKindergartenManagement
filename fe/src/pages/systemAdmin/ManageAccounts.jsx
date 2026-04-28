@@ -18,6 +18,20 @@ import AccountToolbar from './components/AccountToolbar';
 import AccountTable from './components/AccountTable';
 import AccountDialog from './components/AccountDialog';
 
+const mapUserFriendlySaveError = (err) => {
+  const rawMessage = err?.data?.message || err?.message || '';
+  if (rawMessage.includes('E11000') || rawMessage.includes('duplicate key')) {
+    if (rawMessage.includes('email')) {
+      return 'Email đã tồn tại trong hệ thống.';
+    }
+    if (rawMessage.includes('username')) {
+      return 'Tên đăng nhập đã tồn tại trong hệ thống.';
+    }
+    return 'Dữ liệu bị trùng, vui lòng kiểm tra lại thông tin.';
+  }
+  return rawMessage || 'Có lỗi khi lưu tài khoản.';
+};
+
 function ManageAccounts() {
   const theme = useTheme();
   const isSmDown = useMediaQuery(theme.breakpoints.down('sm'));
@@ -240,7 +254,7 @@ function ManageAccounts() {
       const refreshedUsers = await getUsers();
       setUsers(refreshedUsers || []);
     } catch (err) {
-      const msg = err?.data?.message || err?.message || 'Có lỗi khi lưu tài khoản.';
+      const msg = mapUserFriendlySaveError(err);
       setSaveErrorMessage(msg);
     }
   };

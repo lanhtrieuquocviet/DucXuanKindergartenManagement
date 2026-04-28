@@ -10,16 +10,34 @@ const Staff = require('../models/Staff');
 const { createSystemLog } = require('../utils/systemLog');
 
 /** Tạo/Cập nhật Staff record */
-async function ensureStaffRecord(userId, position, status = 'active') {
+async function ensureStaffRecord(userId, staffData = {}) {
+  const {
+    position,
+    status = 'active',
+    fullName = '',
+    email = '',
+    phone = '',
+  } = staffData;
   if (!position) return;
   const existing = await Staff.findOne({ userId });
   if (existing) {
     existing.position = position;
     existing.status = status;
+    if (fullName) existing.fullName = fullName;
+    if (email) existing.email = email;
+    if (phone) existing.phone = phone;
     await existing.save();
   } else {
     const employeeId = `NV${Date.now().toString().slice(-6)}`;
-    const staff = new Staff({ userId, employeeId, position, status });
+    const staff = new Staff({
+      userId,
+      employeeId,
+      position,
+      status,
+      fullName,
+      email,
+      phone,
+    });
     await staff.save();
   }
 }
@@ -56,6 +74,23 @@ const isValidUsername = (username) => {
 
 const isStrongPassword = (password) => PASSWORD_COMPLEXITY_REGEX.test(password || '');
 
+const DUPLICATE_FIELD_LABELS = {
+  email: 'Email',
+  username: 'Tên đăng nhập',
+  phone: 'Số điện thoại',
+};
+
+const getDuplicateKeyMessage = (error) => {
+  const duplicateField = Object.keys(error?.keyPattern || {})[0]
+    || Object.keys(error?.keyValue || {})[0];
+  const label = DUPLICATE_FIELD_LABELS[duplicateField] || duplicateField || 'Dữ liệu';
+  const duplicateValue = error?.keyValue?.[duplicateField];
+  if (duplicateValue) {
+    return `${label} "${duplicateValue}" đã tồn tại trong hệ thống.`;
+  }
+  return `${label} đã tồn tại trong hệ thống.`;
+};
+
 // ============================================
 // Logic functions
 // ============================================
@@ -77,7 +112,13 @@ const createUser = async (req, res) => {
     const passwordHash = await bcrypt.hash(password || '@DucXuan123', salt);
     const user = new User({ username, passwordHash, fullName, email, phone, status, roles: roleIds });
     await user.save();
-    await ensureStaffRecord(user._id, position, user.status);
+    await ensureStaffRecord(user._id, {
+      position,
+      status: user.status,
+      fullName,
+      email,
+      phone,
+    });
     await ensureTeacherRecord(user._id, roleIds || []);
     
     // Log action
@@ -91,6 +132,12 @@ const createUser = async (req, res) => {
 
     res.status(201).json({ status: 'success', message: 'Tạo tài khoản thành công' });
   } catch (error) {
+    if (error?.code === 11000) {
+      return res.status(409).json({
+        status: 'error',
+        message: getDuplicateKeyMessage(error),
+      });
+    }
     res.status(500).json({ status: 'error', message: error.message });
   }
 };
@@ -120,6 +167,12 @@ const updateUser = async (req, res) => {
 
     res.status(200).json({ status: 'success', data: user });
   } catch (error) {
+    if (error?.code === 11000) {
+      return res.status(409).json({
+        status: 'error',
+        message: getDuplicateKeyMessage(error),
+      });
+    }
     res.status(500).json({ status: 'error', message: error.message });
   }
 };
