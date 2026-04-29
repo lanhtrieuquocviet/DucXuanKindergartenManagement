@@ -230,8 +230,9 @@ require('./src/models/LeaveRequest');
       { code: 'MANAGE_MEAL', description: 'Quản lý suất ăn', group: 'Bếp & Thực phẩm', path: '/kitchen/meal-management', menuKey: 'meal-management', order: 67 },
       { code: 'VIEW_MEAL_COUNT', description: 'Số lượng báo ăn', group: 'Bếp & Thực phẩm', path: '/kitchen/headcount', menuKey: 'headcount', order: 68 },
       { code: 'MANAGE_SAMPLE_FOOD', description: 'Lưu mẫu thức ăn', group: 'Bếp & Thực phẩm', path: '/kitchen/sample-food', menuKey: 'sample-food', order: 69 },
-      { code: 'KITCHEN_DISTRICT_NUTRITION', description: 'Dinh dưỡng phòng GD', group: 'Bếp & Thực phẩm', path: '/kitchen/district-nutrition', menuKey: 'district-nutrition', order: 70 },
+      { code: 'KITCHEN_DISTRICT_NUTRITION', description: 'Dinh dưỡng phòng GD (Bếp)', group: 'Bếp & Thực phẩm', path: '/kitchen/district-nutrition', menuKey: 'district-nutrition', order: 70 },
       { code: 'VIEW_KITCHEN_REPORT', description: 'Báo cáo & Thống kê bếp', group: 'Bếp & Thực phẩm', path: '/kitchen/report', menuKey: 'report', order: 71 },
+      { code: 'SCHOOL_ADMIN_DISTRICT_NUTRITION', description: 'Kế hoạch dinh dưỡng (BGH)', group: 'Bếp & Thực phẩm', path: '/school-admin/district-nutrition-plan', menuKey: 'district-nutrition-plan', order: 72 },
       // Bếp & Thực phẩm (HeadParent)
       { code: 'REVIEW_MENU', description: 'Ý kiến thực đơn (PH)', group: 'Bếp & Thực phẩm', path: '/head-parent/menus', menuKey: 'review-menu', order: 65 },
       // Tài sản & Mua sắm
@@ -279,7 +280,7 @@ require('./src/models/LeaveRequest');
         'MANAGE_BLOG_CATEGORY', 'MANAGE_QA', 'MANAGE_DOCUMENT', 'MANAGE_PUBLIC_INFO',
         'MANAGE_IMAGE_LIBRARY', 'MANAGE_ACADEMIC_YEAR', 'MANAGE_CURRICULUM',
         'MANAGE_STUDENT', 'MANAGE_CLASS', 'MANAGE_GRADE', 'MANAGE_STATIC_BLOCK', 'MANAGE_TEACHER',
-        'APPROVE_MENU', 'VIEW_REPORT', 'MANAGE_HEALTH',
+        'APPROVE_MENU', 'SCHOOL_ADMIN_DISTRICT_NUTRITION', 'VIEW_REPORT', 'MANAGE_HEALTH',
         'REGISTER_FACE', 'MANAGE_PURCHASE_REQUEST', 'MANAGE_ASSET',
         'MANAGE_INSPECTION', 'MANAGE_HANDOVER', 'MANAGE_ASSET_ISSUES', 'MANAGE_ROOM_ASSETS',
         'MANAGE_STAFF_POSITION', 'ACCESS_INVENTORY',

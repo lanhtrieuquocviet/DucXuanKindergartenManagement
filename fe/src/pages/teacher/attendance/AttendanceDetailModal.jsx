@@ -332,7 +332,7 @@ function AttendanceDetailModal({
     );
 
   const canSubmitCheckin = mode === 'checkin'
-    ? !!detailForm.checkinImageName && !!detailForm.checkinConfirmed
+    ? !!detailForm.checkinImageName && !!detailForm.checkinConfirmed && !!detailForm.delivererPickupPersonId
     : true;
 
   // Polling: khi đã gửi và chưa được PH xác nhận → kiểm tra mỗi 3s
@@ -1006,10 +1006,10 @@ function AttendanceDetailModal({
                 <Grid size={{ xs: 12, sm: 6 }}>
                   <Paper variant="outlined" sx={{ p: 2, borderRadius: 2, height: '100%', borderColor: 'divider' }}>
                     <Typography variant="caption" fontWeight={700} color="text.secondary" sx={{ display: 'flex', alignItems: 'center', gap: 0.5, mb: 1.5 }}>
-                      <PersonIcon sx={{ fontSize: 14 }} />Người đưa
+                      <PersonIcon sx={{ fontSize: 14 }} />Người đưa <Box component="span" sx={{ color: 'error.main' }}>*</Box>
                     </Typography>
-                    <FormControl fullWidth size="small">
-                      <InputLabel>Chọn người đưa *</InputLabel>
+                    <FormControl fullWidth size="small" error={!detailForm.delivererPickupPersonId}>
+                      <InputLabel error={!detailForm.delivererPickupPersonId}>Chọn người đưa *</InputLabel>
                       <Select
                         value={detailForm.delivererPickupPersonId}
                         label="Chọn người đưa *"
@@ -1200,7 +1200,12 @@ function AttendanceDetailModal({
                   variant="contained"
                   color="success"
                   disabled={!canSubmitCheckin}
-                  title={!canSubmitCheckin ? 'Vui lòng chọn ảnh điểm danh' : ''}
+                  title={
+                    !detailForm.delivererPickupPersonId ? 'Vui lòng chọn người đưa trẻ'
+                    : !detailForm.checkinImageName ? 'Vui lòng chụp ảnh điểm danh'
+                    : !detailForm.checkinConfirmed ? 'Vui lòng xác nhận đã đưa trẻ đến lớp an toàn'
+                    : ''
+                  }
                   startIcon={<CheckCircleIcon />}
                   sx={{ borderRadius: 2, textTransform: 'none', fontWeight: 700, flex: { xs: 2, sm: 'unset' }, bgcolor: 'success.main', '&:hover': { bgcolor: 'success.dark' } }}
                 >

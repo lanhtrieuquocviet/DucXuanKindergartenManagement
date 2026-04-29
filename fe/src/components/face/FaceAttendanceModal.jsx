@@ -3,9 +3,8 @@
  *
  * Modal quét khuôn mặt điểm danh đến cho giáo viên.
  *
- * Khi nhận diện được học sinh, gọi onStudentRecognized() để mở form
- * checkin chi tiết — không nhập thông tin tại đây.
- * Ảnh checkin được chụp tự động từ thời điểm AI quét và truyền sang form.
+ * Khi nhận diện được học sinh, hiển thị kết quả và chờ giáo viên xác nhận.
+ * Sau khi xác nhận, gọi onStudentRecognized() để mở form checkin chi tiết.
  *
  * Chế độ hoạt động:
  *  - ONLINE: gửi embedding lên server → server match
@@ -14,7 +13,7 @@
 
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { toast } from 'react-toastify';
-import { User, Camera, Check, AlertTriangle, Circle } from 'lucide-react';
+import { User, Camera, Check, AlertTriangle, Circle, X } from 'lucide-react';
 import FaceCamera from './FaceCamera';
 import { matchFaceEmbedding, getClassEmbeddings, uploadAttendanceImage } from '../../service/faceAttendance.api';
 import { useOfflineSync } from '../../hooks/useOfflineSync';
@@ -41,6 +40,8 @@ export default function FaceAttendanceModal({ open, onClose, classId, className,
   const [matchResult, setMatchResult] = useState(null);
   const [isProcessing, setIsProcessing] = useState(false);
   const [checkedInToday, setCheckedInToday] = useState([]);
+  // Học sinh đang chờ giáo viên xác nhận
+  const [pendingStudent, setPendingStudent] = useState(null);
 
   // Embeddings local (cho offline)
   const [localEmbeddings, setLocalEmbeddings] = useState([]);
@@ -77,6 +78,7 @@ export default function FaceAttendanceModal({ open, onClose, classId, className,
       setMatchResult(null);
       setCheckedInToday([]);
       setIsProcessing(false);
+      setPendingStudent(null);
       cooldownRef.current = false;
     }
   }, [open]);
@@ -125,6 +127,25 @@ export default function FaceAttendanceModal({ open, onClose, classId, className,
     [localEmbeddings, checkedInToday]
   );
 
+  // Giáo viên xác nhận đúng học sinh → tiến hành điểm danh
+  const handleConfirm = useCallback(() => {
+    if (!pendingStudent) return;
+    setCheckedInToday((prev) => [...prev, pendingStudent.studentId]);
+    toast.success(`Đã xác nhận: ${pendingStudent.student.fullName}`);
+    onStudentRecognized?.(pendingStudent);
+    setPendingStudent(null);
+    setMatchResult(null);
+    // Cho phép camera quét học sinh tiếp theo
+    cooldownRef.current = false;
+  }, [pendingStudent, onStudentRecognized]);
+
+  // Giáo viên từ chối → quét lại
+  const handleReject = useCallback(() => {
+    setPendingStudent(null);
+    setMatchResult(null);
+    cooldownRef.current = false;
+  }, []);
+
   // Callback nhận embedding từ FaceCamera
   const handleDetected = useCallback(
     async (embedding) => {
@@ -160,30 +181,37 @@ export default function FaceAttendanceModal({ open, onClose, classId, className,
         setMatchResult({ ...result, capturedFrame, checkinImageUrl, timestamp: now });
 
         if (result.status === 'success' && result.student?._id) {
-          const studentId = result.student._id;
-          // Đánh dấu đã xử lý để tránh quét trùng trong cùng phiên
-          setCheckedInToday((prev) => [...prev, studentId]);
-          toast.success(`Nhận diện: ${result.student.fullName} — đang mở form điểm danh`);
-          // Chuyển sang form checkin chi tiết với ảnh đã chụp
-          onStudentRecognized?.({ studentId, checkinImageUrl, timeStr, student: result.student });
-        } else if (result.status === 'already_checked_in') {
-          toast.info(`${result.student?.fullName || 'Học sinh'} đã điểm danh rồi`);
-        } else if (result.status === 'no_match') {
-          toast.warn('Không nhận diện được khuôn mặt');
-        } else if (result.status === 'ambiguous') {
-          toast.warn('Khuôn mặt không rõ ràng — hãy đăng ký thêm góc mặt để tăng độ chính xác');
+          // Dừng lại chờ giáo viên xác nhận — cooldown giữ nguyên true
+          setPendingStudent({
+            studentId: result.student._id,
+            checkinImageUrl,
+            timeStr,
+            student: result.student,
+          });
+        } else {
+          // Các trường hợp khác: reset cooldown sau delay
+          if (result.status === 'already_checked_in') {
+            toast.info(`${result.student?.fullName || 'Học sinh'} đã điểm danh rồi`);
+          } else if (result.status === 'no_match') {
+            toast.warn('Không nhận diện được khuôn mặt');
+          } else if (result.status === 'ambiguous') {
+            toast.warn('Khuôn mặt không rõ ràng — hãy đăng ký thêm góc mặt để tăng độ chính xác');
+          }
+          setTimeout(() => {
+            cooldownRef.current = false;
+          }, COOLDOWN_MS);
         }
       } catch (err) {
         console.error('Match error:', err);
         toast.error('Lỗi khi nhận diện. Thử lại sau.');
-      } finally {
-        setIsProcessing(false);
         setTimeout(() => {
           cooldownRef.current = false;
         }, COOLDOWN_MS);
+      } finally {
+        setIsProcessing(false);
       }
     },
-    [isProcessing, isOnline, classId, matchOffline, onStudentRecognized]
+    [isProcessing, isOnline, classId, matchOffline]
   );
 
   if (!open) return null;
@@ -246,6 +274,13 @@ export default function FaceAttendanceModal({ open, onClose, classId, className,
                 </div>
               )}
 
+              {pendingStudent && !isProcessing && (
+                <div className="mt-2 flex items-center gap-2 text-amber-600 text-sm">
+                  <AlertTriangle size={16} />
+                  <span>Đang chờ xác nhận...</span>
+                </div>
+              )}
+
               {/* Thống kê session — mobile */}
               <div className="mt-3 border rounded-xl p-3 md:hidden">
                 <div className="text-center">
@@ -298,10 +333,25 @@ export default function FaceAttendanceModal({ open, onClose, classId, className,
                       </div>
                     </div>
                     <p className="font-bold text-green-700 text-sm sm:text-base">{matchResult.student?.fullName}</p>
-                    <p className="text-xs text-green-600 mt-0.5 flex items-center gap-1">
-                      <Check size={12} />
-                      Nhận diện thành công — đang mở form điểm danh...
-                    </p>
+                    <p className="text-xs text-gray-500 mt-0.5">Vui lòng đối chiếu và xác nhận đúng học sinh</p>
+
+                    {/* Nút xác nhận */}
+                    <div className="mt-3 flex gap-2">
+                      <button
+                        onClick={handleConfirm}
+                        className="flex-1 py-2 bg-green-600 hover:bg-green-700 active:bg-green-800 text-white rounded-lg text-sm font-semibold flex items-center justify-center gap-1.5 transition-colors"
+                      >
+                        <Check size={14} />
+                        Xác nhận
+                      </button>
+                      <button
+                        onClick={handleReject}
+                        className="flex-1 py-2 bg-gray-200 hover:bg-gray-300 active:bg-gray-400 text-gray-700 rounded-lg text-sm font-medium flex items-center justify-center gap-1.5 transition-colors"
+                      >
+                        <X size={14} />
+                        Thử lại
+                      </button>
+                    </div>
                   </div>
                 )}
 

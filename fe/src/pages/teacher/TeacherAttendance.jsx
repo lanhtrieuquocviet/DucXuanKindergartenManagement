@@ -561,6 +561,9 @@ function TeacherAttendance() {
     if (!isValidHHmm(detailForm.timeIn) || !isValidHHmm(detailForm.timeOut))
       return 'Giờ đến/giờ về phải theo định dạng HH:mm.';
 
+    if (detailMode === 'checkin' && !detailForm.delivererPickupPersonId)
+      return 'Vui lòng chọn người đưa trẻ.';
+
     const belongingsNote = detailForm.belongingsNote?.trim() || '';
     const note = detailForm.note?.trim() || '';
 
