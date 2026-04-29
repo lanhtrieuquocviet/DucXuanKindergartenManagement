@@ -1291,6 +1291,50 @@ const parentConfirmCheckout = async (req, res) => {
   }
 };
 
+/**
+ * POST /api/students/attendance/checkout/parent-reject
+ * body: { studentId, date? }
+ */
+const rejectCheckout = async (req, res) => {
+  try {
+    const { studentId, date } = req.body;
+    const parentUserId = req.user?._id || req.user?.id;
+
+    if (!studentId) {
+      return res.status(400).json({ status: 'error', message: 'Vui lòng cung cấp studentId' });
+    }
+
+    const student = await Students.findById(studentId).lean();
+    if (!student) {
+      return res.status(404).json({ status: 'error', message: 'Không tìm thấy học sinh' });
+    }
+    if (student.parentId?.toString() !== parentUserId?.toString()) {
+      return res.status(403).json({ status: 'error', message: 'Không có quyền từ chối cho học sinh này' });
+    }
+
+    const attendanceDate = date ? new Date(date) : new Date();
+    attendanceDate.setHours(0, 0, 0, 0);
+
+    const attendance = await Attendances.findOne({ studentId, date: attendanceDate });
+    if (!attendance) {
+      return res.status(404).json({ status: 'error', message: 'Không tìm thấy điểm danh' });
+    }
+    if (attendance.checkoutStatus !== 'pending') {
+      return res.status(400).json({ status: 'error', message: 'Không có yêu cầu xác nhận nào' });
+    }
+
+    await Attendances.updateOne(
+      { studentId, date: attendanceDate },
+      { $set: { checkoutStatus: 'rejected' } },
+    );
+
+    return res.status(200).json({ status: 'success', message: 'Đã từ chối yêu cầu đón trẻ' });
+  } catch (error) {
+    console.error('Error in rejectCheckout:', error);
+    return res.status(500).json({ status: 'error', message: 'Lỗi khi từ chối', error: error.message });
+  }
+};
+
 module.exports = {
   upsertAttendance,
   checkoutAttendance,
@@ -1303,5 +1347,6 @@ module.exports = {
   requestCheckout,
   getPendingCheckout,
   parentConfirmCheckout,
+  rejectCheckout,
 };
 

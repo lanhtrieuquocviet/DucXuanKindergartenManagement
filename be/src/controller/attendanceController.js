@@ -11,6 +11,7 @@ const getAttendanceExportData = async (req, res, next) => service.getAttendanceE
 const requestCheckout = async (req, res, next) => service.requestCheckout(req, res, next);
 const getPendingCheckout = async (req, res, next) => service.getPendingCheckout(req, res, next);
 const parentConfirmCheckout = async (req, res, next) => service.parentConfirmCheckout(req, res, next);
+const rejectCheckout = async (req, res, next) => service.rejectCheckout(req, res, next);
 
 module.exports = {
   upsertAttendance,
@@ -24,4 +25,5 @@ module.exports = {
   requestCheckout,
   getPendingCheckout,
   parentConfirmCheckout,
+  rejectCheckout,
 };

@@ -35,11 +35,12 @@ export const MENU_CONFIG = {
         { key: 'academic-plan', label: 'Kế hoạch học tập', path: '/school-admin/academic-plan', permissionCode: 'MANAGE_CURRICULUM' },
         { key: 'academic-events', label: 'Sự kiện năm học', path: '/school-admin/academic-events', permissionCode: 'MANAGE_CURRICULUM' },
         // { key: 'curriculum', label: 'Chương trình khung', path: '/school-admin/curriculum', permissionCode: 'MANAGE_CURRICULUM' },
-        { key: 'timetable', label: 'Thời khóa biểu', path: '/school-admin/timetable', permissionCode: 'MANAGE_TIMETABLE' },
+        { key: 'timetable', label: 'Thời khóa biểu', path: '/school-admin/timetable', permissionCode: 'MANAGE_CURRICULUM' },
         { key: 'grades', label: 'Khối lớp', path: '/school-admin/grades', permissionCode: 'MANAGE_GRADE' },
         { key: 'classes', label: 'Danh sách lớp', path: '/school-admin/classes', permissionCode: 'MANAGE_CLASS' },
         { key: 'students', label: 'Học sinh', path: '/school-admin/students', permissionCode: 'MANAGE_STUDENT' },
         { key: 'assessment-templates', label: 'Mẫu đánh giá', path: '/school-admin/assessment-templates', permissionCode: 'MANAGE_ASSESSMENT_TEMPLATE' },
+        { key: 'academic-report', label: 'Báo cáo & Thống kê', path: '/school-admin/academic-report', permissionCode: 'MANAGE_CURRICULUM' },
       ]
     },
     {

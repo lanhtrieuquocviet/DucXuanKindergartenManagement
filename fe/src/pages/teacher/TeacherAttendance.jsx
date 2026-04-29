@@ -269,6 +269,7 @@ function TeacherAttendance() {
       arrivalStatus: serverRec.arrivalStatus || '',
       checkedInByAI: serverRec.checkedInByAI || false,
       checkedOutByAI: serverRec.checkedOutByAI || false,
+      checkoutStatus: serverRec.checkoutStatus || '',
     };
   };
 
@@ -450,7 +451,7 @@ function TeacherAttendance() {
     if (draft && !hasOverrides) {
       setDetailForm({
         ...draft,
-        parentConfirmSent: draft.parentConfirmed ? true : false,
+        parentConfirmSent: draft.parentConfirmSent ?? (draft.parentConfirmed ? true : false),
       });
     } else {
       // Không có draft hoặc có override từ AI: khởi tạo form (override được ưu tiên)
@@ -493,8 +494,9 @@ function TeacherAttendance() {
         checkoutNote: rec.checkoutNote || '',
         checkoutBelongingsNote: rec.checkoutBelongingsNote || '',
         hasCheckoutBelongings: !!(rec.checkoutBelongingsNote),
-        parentConfirmSent: false,
-        parentConfirmed: false,
+        parentConfirmSent: rec.checkoutStatus === 'pending' || rec.checkoutStatus === 'confirmed',
+        parentConfirmed: rec.checkoutStatus === 'confirmed',
+        parentConfirmSentAt: rec.checkoutStatus === 'pending' ? Date.now() : undefined,
       });
     }
 
@@ -505,8 +507,12 @@ function TeacherAttendance() {
   const closeDetail = () => {
     if (detailStudentId) {
       const draftKey = `${detailStudentId}__${detailMode}__${detailOpenedDate}`;
-      const { parentConfirmSent, ...formWithoutConfirmSent } = detailForm;
-      setDraftForms((prev) => ({ ...prev, [draftKey]: formWithoutConfirmSent }));
+      // Giữ parentConfirmSent trong draft nếu đang chờ PH xác nhận
+      const isPending = detailForm.parentConfirmSent && !detailForm.parentConfirmed;
+      const draftToSave = isPending
+        ? detailForm
+        : (() => { const { parentConfirmSent, ...rest } = detailForm; return rest; })();
+      setDraftForms((prev) => ({ ...prev, [draftKey]: draftToSave }));
     }
     setIsDetailOpen(false);
     setSubmitError(null);
