@@ -78,9 +78,11 @@ export default function StudentDashboard() {
   const [isSaving, setIsSaving] = useState(false);
   const [saveMessage, setSaveMessage] = useState(null);
   const [pendingCheckout, setPendingCheckout] = useState(null);
+  const [pendingCheckoutStudentId, setPendingCheckoutStudentId] = useState(null);
   const [showConfirmModal, setShowConfirmModal] = useState(false);
   const [confirming, setConfirming] = useState(false);
   const [confirmDone, setConfirmDone] = useState(false);
+  const [rejecting, setRejecting] = useState(false);
   const [notifOpen, setNotifOpen] = useState(false);
   const [notifications, setNotifications] = useState([]);
   const [unreadCount, setUnreadCount] = useState(0);
@@ -90,6 +92,9 @@ export default function StudentDashboard() {
 
   const pollRef = useRef(null);
   const lastPendingRef = useRef(false);
+  const countdownRef = useRef(null);
+  const autoRejectRef = useRef(null);
+  const [confirmCountdown, setConfirmCountdown] = useState(0);
 
   useEffect(() => {
     if (isInitializing) return;
@@ -126,29 +131,57 @@ export default function StudentDashboard() {
   }, [studentInfo?._id]);
 
   useEffect(() => {
-    if (!studentInfo?._id) return;
+    if (!children.length) return;
     const fetchPending = async () => {
       try {
-        const res = await get(ENDPOINTS.STUDENTS.ATTENDANCE_CHECKOUT_PENDING(studentInfo._id));
-        const data = res.data;
-        if (data && data.checkoutStatus === 'pending') {
+        const results = await Promise.all(
+          children.map(c => get(ENDPOINTS.STUDENTS.ATTENDANCE_CHECKOUT_PENDING(c._id)).catch(() => ({ data: null })))
+        );
+        const foundIndex = results.findIndex(r => r.data?.checkoutStatus === 'pending');
+        if (foundIndex !== -1) {
+          const childId = children[foundIndex]._id;
           if (!lastPendingRef.current) {
             lastPendingRef.current = true;
             setShowConfirmModal(true);
             setConfirmDone(false);
           }
-          setPendingCheckout(data);
+          setPendingCheckout(results[foundIndex].data);
+          setPendingCheckoutStudentId(childId);
         } else {
           lastPendingRef.current = false;
           setPendingCheckout(null);
-          if (data?.checkoutStatus !== 'confirmed') setShowConfirmModal(false);
+          setPendingCheckoutStudentId(null);
+          const anyConfirmed = results.some(r => r.data?.checkoutStatus === 'confirmed');
+          if (!anyConfirmed) setShowConfirmModal(false);
         }
       } catch {}
     };
     fetchPending();
     pollRef.current = setInterval(fetchPending, 3000);
     return () => clearInterval(pollRef.current);
-  }, [studentInfo?._id]);
+  }, [children]);
+
+  // Countdown 60s khi modal xác nhận mở — tự động từ chối nếu hết giờ
+  useEffect(() => {
+    if (!showConfirmModal || confirmDone) {
+      clearInterval(countdownRef.current);
+      setConfirmCountdown(0);
+      return;
+    }
+    setConfirmCountdown(60);
+    countdownRef.current = setInterval(() => {
+      setConfirmCountdown((prev) => {
+        if (prev <= 1) {
+          clearInterval(countdownRef.current);
+          // Gọi reject qua ref để tránh stale closure
+          autoRejectRef.current?.();
+          return 0;
+        }
+        return prev - 1;
+      });
+    }, 1000);
+    return () => clearInterval(countdownRef.current);
+  }, [showConfirmModal, confirmDone]);
 
   useEffect(() => {
     if (!user) return;
@@ -176,10 +209,11 @@ export default function StudentDashboard() {
   };
 
   const handleParentConfirm = async () => {
-    if (!studentInfo?._id) return;
+    const targetId = pendingCheckoutStudentId || studentInfo?._id;
+    if (!targetId) return;
     setConfirming(true);
     try {
-      await post(ENDPOINTS.STUDENTS.ATTENDANCE_CHECKOUT_PARENT_CONFIRM, { studentId: studentInfo._id });
+      await post(ENDPOINTS.STUDENTS.ATTENDANCE_CHECKOUT_PARENT_CONFIRM, { studentId: targetId });
       setConfirmDone(true);
       lastPendingRef.current = false;
       setPendingCheckout(null);
@@ -190,6 +224,24 @@ export default function StudentDashboard() {
       setConfirming(false);
     }
   };
+
+  const handleParentReject = async () => {
+    const targetId = pendingCheckoutStudentId || studentInfo?._id;
+    if (!targetId) return;
+    setRejecting(true);
+    try {
+      await post(ENDPOINTS.STUDENTS.ATTENDANCE_CHECKOUT_PARENT_REJECT, { studentId: targetId });
+      lastPendingRef.current = false;
+      setPendingCheckout(null);
+      setPendingCheckoutStudentId(null);
+      setShowConfirmModal(false);
+    } catch (e) {
+      alert(e.message || 'Có lỗi xảy ra, vui lòng thử lại');
+    } finally {
+      setRejecting(false);
+    }
+  };
+  autoRejectRef.current = handleParentReject;
 
   const handleEditClick = () => {
     if (studentInfo) {
@@ -695,9 +747,19 @@ export default function StudentDashboard() {
                 </Box>
               )}
 
-              <Typography fontSize="0.82rem" color="text.secondary" textAlign="center">
-                Bạn có xác nhận cho phép người này đón con không?
-              </Typography>
+              <Stack direction="row" alignItems="center" justifyContent="center" spacing={1}>
+                <Typography fontSize="0.82rem" color="text.secondary" textAlign="center">
+                  Bạn có xác nhận cho phép người này đón con không?
+                </Typography>
+                {confirmCountdown > 0 && (
+                  <Chip
+                    label={`${confirmCountdown}s`}
+                    size="small"
+                    color={confirmCountdown <= 10 ? 'error' : 'warning'}
+                    sx={{ fontWeight: 700, fontSize: 11, height: 20 }}
+                  />
+                )}
+              </Stack>
             </Stack>
           )}
         </DialogContent>

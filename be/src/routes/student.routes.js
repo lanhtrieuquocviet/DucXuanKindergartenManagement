@@ -20,6 +20,7 @@ const {
   requestCheckout,
   getPendingCheckout,
   parentConfirmCheckout,
+  rejectCheckout,
 } = require('../controller/attendanceController');
 const contactBookCtrl = require('../controller/contactBookController');
 
@@ -220,6 +221,7 @@ router.post('/attendance', authenticate, authorizePermissions('MANAGE_ATTENDANCE
 router.get('/attendance', authenticate, getAttendances);
 router.post('/attendance/checkout/request', authenticate, authorizePermissions('CHECKOUT_STUDENT'), requestCheckout);
 router.post('/attendance/checkout/parent-confirm', authenticate, parentConfirmCheckout);
+router.post('/attendance/checkout/parent-reject', authenticate, rejectCheckout);
 router.get('/attendance/checkout/pending/:studentId', authenticate, getPendingCheckout);
 
 /**

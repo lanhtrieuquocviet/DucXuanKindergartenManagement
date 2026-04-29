@@ -178,7 +178,7 @@ export default function SidebarNavList({
                 ? <Tooltip title={item.label} placement="right" arrow>{parentButton}</Tooltip>
                 : parentButton}
               {!collapsed && isGroupOpen && (
-                <List dense disablePadding sx={{ pl: 4 }}>
+                <Box sx={{ ml: 2.5, pl: 1.5, borderLeft: '2px solid', borderColor: 'divider', mb: 0.5 }}>
                   {item.children.map((child) => {
                     const childIsActive = child.key === activeKey;
                     const childIcon = child.icon || keyIcons[child.key] || <DotIcon sx={{ fontSize: 8 }} />;
@@ -187,55 +187,45 @@ export default function SidebarNavList({
                         key={child.key}
                         onClick={() => onMenuSelect(child.key)}
                         sx={{
-                          mb: 0.5, 
-                          borderRadius: '0 20px 20px 0', 
-                          minHeight: 40, 
-                          pl: 2,
-                          pr: 2,
-                          position: 'relative',
-                          bgcolor: childIsActive ? 'rgba(99, 102, 241, 0.12)' : 'transparent',
+                          mb: 0.25,
+                          borderRadius: 1.5,
+                          minHeight: 34,
+                          pl: 1,
+                          pr: 1,
+                          bgcolor: childIsActive ? 'rgba(99,102,241,0.10)' : 'transparent',
                           color: childIsActive ? 'primary.main' : 'text.secondary',
-                          '&::before': childIsActive
-                            ? {
-                                content: '""',
-                                position: 'absolute',
-                                left: 0, top: '15%', bottom: '15%',
-                                width: 3.5, borderRadius: '0 4px 4px 0',
-                                background: 'linear-gradient(180deg, #4f46e5, #7c3aed)',
-                              }
-                            : {},
                           '&:hover': {
-                            bgcolor: childIsActive ? 'rgba(99, 102, 241, 0.18)' : 'rgba(0, 0, 0, 0.04)',
+                            bgcolor: childIsActive ? 'rgba(99,102,241,0.15)' : 'rgba(0,0,0,0.04)',
                             color: childIsActive ? 'primary.main' : 'text.primary',
                           },
-                          transition: 'all 0.2s ease',
-                          ml: -4, // Pull back to align with parent edge if needed, adjust based on List pl
+                          transition: 'background 0.15s, color 0.15s',
                         }}
                       >
-                        <ListItemIcon sx={{ 
-                          minWidth: 32, 
+                        <ListItemIcon sx={{
+                          minWidth: 26,
                           color: childIsActive ? 'primary.main' : 'text.disabled',
                           display: 'flex',
-                          justifyContent: 'center'
+                          justifyContent: 'center',
+                          '& .MuiSvgIcon-root': { fontSize: 15 },
                         }}>
                           {childIcon}
                         </ListItemIcon>
                         <ListItemText
                           primary={child.label}
-                          slotProps={{ 
-                            primary: { 
-                              style: { 
-                                fontSize: '0.85rem', 
-                                fontWeight: childIsActive ? 700 : 500,
-                                letterSpacing: childIsActive ? '0.01em' : 'normal'
-                              } 
-                            } 
+                          slotProps={{
+                            primary: {
+                              style: {
+                                fontSize: '0.8rem',
+                                fontWeight: childIsActive ? 700 : 400,
+                                color: childIsActive ? undefined : '#555',
+                              }
+                            }
                           }}
                         />
                       </ListItemButton>
                     );
                   })}
-                </List>
+                </Box>
               )}
             </Box>
           );
