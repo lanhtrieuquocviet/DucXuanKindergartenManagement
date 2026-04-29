@@ -171,7 +171,16 @@ const finishAcademicYear = async (req, res) => {
 const updateAcademicYear = async (req, res) => {
   try {
     const { id } = req.params;
-    const { yearName, startDate, endDate, description } = req.body;
+    const {
+      yearName,
+      startDate,
+      endDate,
+      description,
+      term1StartDate,
+      term1EndDate,
+      term2StartDate,
+      term2EndDate,
+    } = req.body;
 
     const year = await AcademicYear.findById(id);
     if (!year) return res.status(404).json({ status: 'error', message: 'Không tìm thấy năm học.' });
@@ -180,6 +189,10 @@ const updateAcademicYear = async (req, res) => {
     if (startDate) year.startDate = startDate;
     if (endDate) year.endDate = endDate;
     if (description !== undefined) year.description = description;
+    if (term1StartDate !== undefined) year.term1StartDate = term1StartDate || null;
+    if (term1EndDate !== undefined) year.term1EndDate = term1EndDate || null;
+    if (term2StartDate !== undefined) year.term2StartDate = term2StartDate || null;
+    if (term2EndDate !== undefined) year.term2EndDate = term2EndDate || null;
 
     await year.save();
 

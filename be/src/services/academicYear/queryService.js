@@ -120,7 +120,15 @@ const getClassesByAcademicYear = async (req, res) => {
     const result = classes.map(cls => ({
       _id: cls._id,
       className: cls.className,
+      gradeId: cls.gradeId?._id || null,
       gradeName: cls.gradeId?.gradeName || '',
+      teacherIds: (cls.teacherIds || [])
+        .map(t => ({
+          _id: t?._id || null,
+          userId: t?.userId?._id || null,
+          fullName: t?.userId?.fullName || '',
+        }))
+        .filter(t => t._id && t.fullName),
       teacherNames: (cls.teacherIds || []).map(t => t.userId?.fullName).join(', '),
     }));
 
