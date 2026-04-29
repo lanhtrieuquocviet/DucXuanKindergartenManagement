@@ -64,7 +64,7 @@ export const MENU_CONFIG = {
       label: 'Bếp & Dinh dưỡng',
       children: [
         { key: 'menu-admin', label: 'Thực đơn', path: '/school-admin/menus', permissionCode: 'APPROVE_MENU' },
-        { key: 'meal-management', label: 'Suất ăn & Phản hồi', path: '/school-admin/meal-management', permissionCode: 'MANAGE_MEAL' },
+        { key: 'meal-management', label: 'Quản lý bữa ăn', path: '/school-admin/meal-management', permissionCode: 'APPROVE_MENU' },
         { key: 'district-nutrition-plan', label: 'Kế hoạch dinh dưỡng', path: '/school-admin/district-nutrition-plan', permissionCode: 'SCHOOL_ADMIN_DISTRICT_NUTRITION' },
       ]
     },
