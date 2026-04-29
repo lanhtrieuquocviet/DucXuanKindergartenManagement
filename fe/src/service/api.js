@@ -474,6 +474,8 @@ export const ENDPOINTS = {
     CLASS_ASSESSMENTS: '/teacher/class-assessments',
     BULK_ASSESSMENTS: '/teacher/bulk-assessments',
     ACADEMIC_PLAN_TOPICS: (yearId) => (yearId ? `/teacher/academic-plan/topics?yearId=${yearId}` : '/teacher/academic-plan/topics'),
+    ACADEMIC_EVENTS: (yearId) => (yearId ? `/teacher/academic-events?yearId=${yearId}` : '/teacher/academic-events'),
+    TIMETABLE: (yearId) => (yearId ? `/teacher/timetable?yearId=${yearId}` : '/teacher/timetable'),
     // Sổ liên lạc
     CONTACT_BOOK_CLASSES: '/teacher/contact-book',
     CONTACT_BOOK_STUDENTS: (classId) => `/teacher/contact-book/${classId}/students`,
