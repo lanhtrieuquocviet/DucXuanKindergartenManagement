@@ -42,6 +42,11 @@ function formatDate(dateString) {
   return d.toLocaleDateString('vi-VN');
 }
 
+function getStudentCount(year) {
+  if (!year) return 0;
+  return Number(year.totalStudents ?? year.studentCount ?? 0);
+}
+
 const ManageAcademicYears = () => {
   const navigate = useNavigate();
   const [years, setYears] = useState([]);
@@ -66,6 +71,10 @@ const ManageAcademicYears = () => {
     yearName: '',
     startDate: '',
     endDate: '',
+    term1StartDate: '',
+    term1EndDate: '',
+    term2StartDate: '',
+    term2EndDate: '',
     description: ''
   });
   const [openErrorDialog, setOpenErrorDialog] = useState(false);
@@ -157,6 +166,10 @@ const ManageAcademicYears = () => {
       yearName: year.yearName,
       startDate: year.startDate ? year.startDate.split('T')[0] : '',
       endDate: year.endDate ? year.endDate.split('T')[0] : '',
+      term1StartDate: year.term1StartDate ? year.term1StartDate.split('T')[0] : '',
+      term1EndDate: year.term1EndDate ? year.term1EndDate.split('T')[0] : '',
+      term2StartDate: year.term2StartDate ? year.term2StartDate.split('T')[0] : '',
+      term2EndDate: year.term2EndDate ? year.term2EndDate.split('T')[0] : '',
       description: year.description || ''
     });
     setOpenEdit(true);
@@ -391,7 +404,7 @@ const ManageAcademicYears = () => {
                         <Box sx={{ p: 0.5, borderRadius: 1, bgcolor: 'rgba(255,255,255,0.2)' }}>
                           <PeopleIcon sx={{ fontSize: 18 }} />
                         </Box>
-                        <Typography variant="subtitle2" fontWeight={700}>{currentYear.totalStudents || 0} học sinh</Typography>
+                        <Typography variant="subtitle2" fontWeight={700}>{getStudentCount(currentYear)} học sinh</Typography>
                       </Stack>
                       <Stack direction="row" spacing={1} alignItems="center">
                         <Box sx={{ p: 0.5, borderRadius: 1, bgcolor: 'rgba(255,255,255,0.2)' }}>
@@ -445,7 +458,7 @@ const ManageAcademicYears = () => {
                       {year.description && <Typography variant="caption" color="text.secondary" sx={{ display: 'block', maxWidth: 300 }}>{year.description}</Typography>}
                     </TableCell>
                     <TableCell><Typography variant="body2" fontWeight={600}>{formatDate(year.startDate)} - {formatDate(year.endDate)}</Typography></TableCell>
-                    <TableCell><Chip label={`${year.totalStudents || 0} học sinh`} size="small" sx={{ fontWeight: 700, bgcolor: '#f1f5f9' }} /></TableCell>
+                    <TableCell><Chip label={`${getStudentCount(year)} học sinh`} size="small" sx={{ fontWeight: 700, bgcolor: '#f1f5f9' }} /></TableCell>
                     <TableCell><Chip label={`${year.classCount || 0} lớp`} size="small" sx={{ fontWeight: 700, bgcolor: '#f1f5f9' }} /></TableCell>
                     <TableCell>
                       <Chip
@@ -477,7 +490,15 @@ const ManageAcademicYears = () => {
                         <IconButton size="small" color="primary" onClick={() => handleOpenEdit(year)} title="Sửa thông tin">
                           <EditIcon fontSize="small" />
                         </IconButton>
-                        <Button size="small" variant="outlined" onClick={() => navigate(`/school-admin/academic-years/${year._id}`)} sx={{ textTransform: 'none', fontWeight: 700, borderRadius: 2 }}>Chi tiết</Button>
+                        <Button
+                          size="small"
+                          variant="outlined"
+                          onClick={() => navigate(`/school-admin/academic-years/${year._id}`)}
+                          disabled={year.status === 'active'}
+                          sx={{ textTransform: 'none', fontWeight: 700, borderRadius: 2 }}
+                        >
+                          Chi tiết
+                        </Button>
                       </Stack>
                     </TableCell>
                   </TableRow>
@@ -713,6 +734,59 @@ const ManageAcademicYears = () => {
                   onChange={(e) => setEditForm({ ...editForm, endDate: e.target.value })}
                 />
               </Stack>
+              <Typography variant="subtitle2" fontWeight={800} color="primary">
+                Cấu hình Học kỳ
+              </Typography>
+              <Box sx={{ p: 2, bgcolor: '#f5f3ff', borderRadius: 2, border: '1px dashed #c4b5fd' }}>
+                <Typography variant="caption" fontWeight={700} color="#6d28d9" sx={{ display: 'block', mb: 1 }}>
+                  HỌC KỲ I
+                </Typography>
+                <Stack direction="row" spacing={2}>
+                  <TextField
+                    label="Từ ngày"
+                    type="date"
+                    fullWidth
+                    size="small"
+                    InputLabelProps={{ shrink: true }}
+                    value={editForm.term1StartDate}
+                    onChange={(e) => setEditForm({ ...editForm, term1StartDate: e.target.value })}
+                  />
+                  <TextField
+                    label="Đến ngày"
+                    type="date"
+                    fullWidth
+                    size="small"
+                    InputLabelProps={{ shrink: true }}
+                    value={editForm.term1EndDate}
+                    onChange={(e) => setEditForm({ ...editForm, term1EndDate: e.target.value })}
+                  />
+                </Stack>
+              </Box>
+              <Box sx={{ p: 2, bgcolor: '#fdf2f8', borderRadius: 2, border: '1px dashed #f9a8d4' }}>
+                <Typography variant="caption" fontWeight={700} color="#be185d" sx={{ display: 'block', mb: 1 }}>
+                  HỌC KỲ II
+                </Typography>
+                <Stack direction="row" spacing={2}>
+                  <TextField
+                    label="Từ ngày"
+                    type="date"
+                    fullWidth
+                    size="small"
+                    InputLabelProps={{ shrink: true }}
+                    value={editForm.term2StartDate}
+                    onChange={(e) => setEditForm({ ...editForm, term2StartDate: e.target.value })}
+                  />
+                  <TextField
+                    label="Đến ngày"
+                    type="date"
+                    fullWidth
+                    size="small"
+                    InputLabelProps={{ shrink: true }}
+                    value={editForm.term2EndDate}
+                    onChange={(e) => setEditForm({ ...editForm, term2EndDate: e.target.value })}
+                  />
+                </Stack>
+              </Box>
               <TextField
                 label="Mô tả / Ghi chú"
                 fullWidth

@@ -76,35 +76,22 @@ function SchoolAdminDashboard() {
           get(ENDPOINTS.SCHOOL_ADMIN.CONTACTS),
         ]);
 
-        // 3. Determine the definitive year ID to filter by
-        const studentYearId = studentsRes?.academicYear?._id || studentsRes?.academicYear || activeYearId;
-        const classYearId = classesRes?.academicYear?._id || classesRes?.academicYear || activeYearId;
-
         const studentRowsRaw = Array.isArray(studentsRes?.data) ? studentsRes.data : [];
-        const studentRows = studentRowsRaw.filter(s => {
-          const sYearId = s.academicYearId?._id || s.academicYearId || s.classId?.academicYearId?._id || s.classId?.academicYearId;
-          return studentYearId && String(sYearId) === String(studentYearId);
-        });
+        // API theo yearId đã trả đúng phạm vi năm học, không cần lọc lại theo academicYearId
+        const studentRows = studentRowsRaw;
         const studentTotal = studentRows.length;
 
         const classRowsRaw = Array.isArray(classesRes?.data) ? classesRes.data : [];
-        const classRows = classRowsRaw.filter(c => {
-          const cYearId = c.academicYearId?._id || c.academicYearId || c.gradeId?.academicYearId?._id || c.gradeId?.academicYearId;
-          const hasGrade = !!(c.gradeId?._id || c.gradeId);
-          return classYearId && String(cYearId) === String(classYearId) && hasGrade;
-        });
+        const classRows = classRowsRaw.filter((c) => !!(c.gradeId?._id || c.gradeId || c.gradeName));
         const classTotal = classRows.length;
+        const classIdSet = new Set(classRows.map((c) => String(c._id)));
 
         const teacherRows = Array.isArray(teachersRes?.data) ? teachersRes.data : [];
         const teacherTotal = teacherRows.filter((t) => (t?.status || 'active') === 'active').length;
 
         const attendanceClasses = (Array.isArray(attendanceRes?.data?.classes)
           ? attendanceRes.data.classes
-          : []).filter(c => {
-            const cYearId = c.academicYearId?._id || c.academicYearId || c.gradeId?.academicYearId?._id || c.gradeId?.academicYearId;
-            const hasGrade = !!(c.gradeId?._id || c.gradeId);
-            return classYearId && String(cYearId) === String(classYearId) && hasGrade;
-          });
+          : []).filter((c) => classIdSet.has(String(c?._id)));
 
         const checkedRows = attendanceClasses.filter(
           (c) => Number(c?.present || 0) + Number(c?.absent || 0) > 0,
@@ -120,7 +107,7 @@ function SchoolAdminDashboard() {
         );
         const attendanceMarked = attendancePresent + attendanceAbsent;
         const attendanceRate =
-          studentTotal > 0 ? Math.min(100, Math.round((attendanceMarked / studentTotal) * 100)) : 0;
+          studentTotal > 0 ? Math.min(100, Math.round((attendancePresent / studentTotal) * 100)) : 0;
 
         const attendanceRows = checkedRows.map((c) => {
           const totalStudents = Number(c?.totalStudents || 0);
@@ -190,7 +177,7 @@ function SchoolAdminDashboard() {
     {
       label: 'Tỷ lệ có mặt hôm nay',
       value: `${stats.attendanceRate}%`,
-      note: `${stats.attendanceMarked}/${stats.studentTotal} em đã điểm danh`,
+      note: `${stats.attendancePresent}/${stats.studentTotal} em có mặt`,
       icon: <CheckCircleIcon sx={{ fontSize: 34, color: '#059669' }} />,
     },
     {

@@ -159,6 +159,7 @@ export const KEY_ICONS = {
   // Teacher specific
   'classes-teacher': <ClassIcon fontSize="small" />,
   'students-teacher': <PeopleIcon fontSize="small" />,
+  'academic-plan-teacher': <PlanIcon fontSize="small" />,
   'evaluation-teacher': <GradingIcon fontSize="small" />,
   'contact-book': <MenuBookIcon fontSize="small" />,
   'class-assets': <InventoryIcon fontSize="small" />,

@@ -2,6 +2,7 @@ const mongoose = require('mongoose');
 const AcademicYear = require('../models/AcademicYear');
 const Classes = require('../models/Classes');
 const AcademicPlanTopic = require('../models/AcademicPlanTopic');
+const Teacher = require('../models/Teacher');
 
 const DAY_MAP = {
   'Thứ 2': 'thu2',
@@ -100,6 +101,24 @@ async function getValidTeacherIdsByGrade(academicYearId, gradeId) {
   return set;
 }
 
+async function normalizeSelectedTeacherIds(inputTeacherIds, validTeacherIds) {
+  const rawIds = Array.isArray(inputTeacherIds) ? inputTeacherIds.map((id) => String(id)) : [];
+  const directTeacherIds = rawIds.filter(
+    (id) => mongoose.Types.ObjectId.isValid(id) && validTeacherIds.has(id),
+  );
+
+  const unresolvedIds = rawIds.filter((id) => mongoose.Types.ObjectId.isValid(id) && !validTeacherIds.has(id));
+  if (unresolvedIds.length === 0) return directTeacherIds;
+
+  // Backward compatibility: frontend might gửi userId thay vì teacherId.
+  const teachersByUser = await Teacher.find({ userId: { $in: unresolvedIds } }).select('_id').lean();
+  const convertedTeacherIds = teachersByUser
+    .map((t) => String(t._id))
+    .filter((id) => validTeacherIds.has(id));
+
+  return Array.from(new Set([...directTeacherIds, ...convertedTeacherIds]));
+}
+
 const listTopics = async ({ yearId, gradeId }) => {
   const academicYearId = await getAcademicYearIdFromInput(yearId);
   if (!academicYearId) throw createHttpError(404, 'Chưa có năm học đang hoạt động');
@@ -108,6 +127,25 @@ const listTopics = async ({ yearId, gradeId }) => {
   if (gradeId) filter.grade = gradeId;
 
   const topics = await AcademicPlanTopic.find(filter)
+    .populate('academicYear', 'yearName')
+    .populate('grade', 'gradeName')
+    .populate({ path: 'teacherIds', select: 'userId', populate: { path: 'userId', select: 'fullName' } })
+    .sort({ startDate: 1, createdAt: 1 });
+
+  return topics.map(mapTopic);
+};
+
+const listTopicsForTeacher = async ({ userId, yearId }) => {
+  const teacher = await Teacher.findOne({ userId }).select('_id').lean();
+  if (!teacher?._id) throw createHttpError(404, 'Không tìm thấy hồ sơ giáo viên');
+
+  const academicYearId = await getAcademicYearIdFromInput(yearId);
+  if (!academicYearId) return [];
+
+  const topics = await AcademicPlanTopic.find({
+    academicYear: academicYearId,
+    teacherIds: teacher._id,
+  })
     .populate('academicYear', 'yearName')
     .populate('grade', 'gradeName')
     .populate({ path: 'teacherIds', select: 'userId', populate: { path: 'userId', select: 'fullName' } })
@@ -145,11 +183,7 @@ const createTopic = async (payload) => {
   if (!inYear) throw createHttpError(400, 'Khối lớp không thuộc năm học đã chọn');
 
   const validTeacherIds = await getValidTeacherIdsByGrade(academicYearId, gradeId);
-  const selectedTeacherIds = Array.isArray(teacherIds)
-    ? teacherIds
-      .map((id) => String(id))
-      .filter((id) => mongoose.Types.ObjectId.isValid(id) && validTeacherIds.has(id))
-    : [];
+  const selectedTeacherIds = await normalizeSelectedTeacherIds(teacherIds, validTeacherIds);
 
   const totalWeeks = Math.max(1, Number(weeks) || 1);
   const topic = await AcademicPlanTopic.create({
@@ -190,11 +224,7 @@ const updateTopic = async (id, payload) => {
   const validTeacherIds = await getValidTeacherIdsByGrade(String(topic.academicYear), String(topic.grade));
   let nextTeacherIds = topic.teacherIds || [];
   if (payload.teacherIds !== undefined) {
-    nextTeacherIds = Array.isArray(payload.teacherIds)
-      ? payload.teacherIds
-        .map((value) => String(value))
-        .filter((value) => mongoose.Types.ObjectId.isValid(value) && validTeacherIds.has(value))
-      : [];
+    nextTeacherIds = await normalizeSelectedTeacherIds(payload.teacherIds, validTeacherIds);
   }
 
   topic.topicName = nextTopicName;
@@ -222,6 +252,7 @@ const deleteTopic = async (id) => {
 
 module.exports = {
   listTopics,
+  listTopicsForTeacher,
   createTopic,
   updateTopic,
   deleteTopic,
