@@ -14,6 +14,7 @@ const Student = require('../models/Student');
 const Attendances = require('../models/Attendances');
 const AcademicYear = require('../models/AcademicYear');
 const assessmentController = require('../controller/assessmentController');
+const academicPlanController = require('../controller/academicPlanController');
 
 const router = express.Router();
 
@@ -185,6 +186,7 @@ router.get('/students/:studentId/change-requests', authenticate, authorizeRoles(
 router.post('/students/:studentId/change-requests', authenticate, authorizeRoles('Teacher'), contactBookCtrl.createChangeRequest);
 router.get('/students/:studentId/evaluation', authenticate, authorizeRoles('Teacher'), contactBookCtrl.getStudentEvaluation);
 router.put('/students/:studentId/evaluation', authenticate, authorizeRoles('Teacher'), contactBookCtrl.updateStudentEvaluation);
+router.get('/academic-plan/topics', authenticate, authorizeRoles('Teacher', 'HeadTeacher'), academicPlanController.listTopicsForTeacher);
 
 // ── Sổ liên lạc điện tử ──
 

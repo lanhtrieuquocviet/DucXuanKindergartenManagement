@@ -35,6 +35,20 @@ function formatDateInput(dateString) {
   return d.toISOString().slice(0, 10);
 }
 
+function parseDateOnly(dateString) {
+  if (!dateString) return null;
+  const d = new Date(`${dateString}T00:00:00`);
+  if (Number.isNaN(d.getTime())) return null;
+  return d;
+}
+
+function shiftDateString(dateString, days) {
+  const d = parseDateOnly(dateString);
+  if (!d) return '';
+  d.setDate(d.getDate() + days);
+  return d.toISOString().slice(0, 10);
+}
+
 const WEEK_DAYS = ['Thứ 2', 'Thứ 3', 'Thứ 4', 'Thứ 5', 'Thứ 6'];
 
 function toDMY(dateStr) {
@@ -345,6 +359,39 @@ export default function AcademicYearPlan() {
       toast.error('Vui lòng nhập đủ Tên chủ đề chính, Từ ngày và Đến ngày.');
       return;
     }
+    const topicStartDate = parseDateOnly(topicForm.startDate);
+    const topicEndDate = parseDateOnly(topicForm.endDate);
+    if (!topicStartDate || !topicEndDate) {
+      toast.error('Ngày bắt đầu hoặc ngày kết thúc của chủ đề không hợp lệ.');
+      return;
+    }
+    if (topicEndDate <= topicStartDate) {
+      toast.error('Đến ngày phải lớn hơn Từ ngày.');
+      return;
+    }
+
+    for (let i = 0; i < topicForm.weeklyDetails.length; i += 1) {
+      const week = topicForm.weeklyDetails[i];
+      const weekLabel = week?.weekName || `Tuần ${i + 1}`;
+      const weekStartDate = parseDateOnly(week?.weekStartDate);
+      const weekEndDate = parseDateOnly(week?.weekEndDate);
+
+      if (weekStartDate && weekEndDate && weekEndDate < weekStartDate) {
+        toast.error(`${weekLabel}: Đến ngày không được nhỏ hơn Từ ngày.`);
+        return;
+      }
+
+      if (weekStartDate && (weekStartDate < topicStartDate || weekStartDate > topicEndDate)) {
+        toast.error(`${weekLabel}: Từ ngày phải nằm trong khoảng thời gian của chủ đề tổng.`);
+        return;
+      }
+
+      if (weekEndDate && (weekEndDate < topicStartDate || weekEndDate > topicEndDate)) {
+        toast.error(`${weekLabel}: Đến ngày phải nằm trong khoảng thời gian của chủ đề tổng.`);
+        return;
+      }
+    }
+
     if (!currentYear?._id || !activeBlock) {
       toast.error('Chưa có khối lớp để thêm chủ đề.');
       return;
@@ -764,6 +811,9 @@ export default function AcademicYearPlan() {
                 InputLabelProps={{ shrink: true }}
                 value={topicForm.startDate}
                 onChange={(e) => handleFormChange('startDate', e.target.value)}
+                inputProps={{
+                  max: topicForm.endDate ? shiftDateString(topicForm.endDate, -1) : undefined,
+                }}
                 fullWidth
               />
               <TextField
@@ -772,6 +822,9 @@ export default function AcademicYearPlan() {
                 InputLabelProps={{ shrink: true }}
                 value={topicForm.endDate}
                 onChange={(e) => handleFormChange('endDate', e.target.value)}
+                inputProps={{
+                  min: topicForm.startDate ? shiftDateString(topicForm.startDate, 1) : undefined,
+                }}
                 fullWidth
               />
             </Stack>
@@ -862,6 +915,10 @@ export default function AcademicYearPlan() {
                         onChange={(e) =>
                           handleWeekDetailChange(weekIndex, 'weekStartDate', e.target.value)
                         }
+                        inputProps={{
+                          min: topicForm.startDate || undefined,
+                          max: week.weekEndDate || topicForm.endDate || undefined,
+                        }}
                         fullWidth
                       />
                       <TextField
@@ -872,6 +929,10 @@ export default function AcademicYearPlan() {
                         onChange={(e) =>
                           handleWeekDetailChange(weekIndex, 'weekEndDate', e.target.value)
                         }
+                        inputProps={{
+                          min: week.weekStartDate || topicForm.startDate || undefined,
+                          max: topicForm.endDate || undefined,
+                        }}
                         fullWidth
                       />
                     </Stack>

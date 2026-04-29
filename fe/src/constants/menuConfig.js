@@ -34,12 +34,13 @@ export const MENU_CONFIG = {
         { key: 'academic-years', label: 'Năm học', path: '/school-admin/academic-years', permissionCode: 'MANAGE_ACADEMIC_YEAR' },
         { key: 'academic-plan', label: 'Kế hoạch học tập', path: '/school-admin/academic-plan', permissionCode: 'MANAGE_CURRICULUM' },
         { key: 'academic-events', label: 'Sự kiện năm học', path: '/school-admin/academic-events', permissionCode: 'MANAGE_CURRICULUM' },
-        { key: 'curriculum', label: 'Chương trình khung', path: '/school-admin/curriculum', permissionCode: 'MANAGE_CURRICULUM' },
-        { key: 'timetable', label: 'Thời khóa biểu', path: '/school-admin/timetable', permissionCode: 'MANAGE_TIMETABLE' },
+        // { key: 'curriculum', label: 'Chương trình khung', path: '/school-admin/curriculum', permissionCode: 'MANAGE_CURRICULUM' },
+        { key: 'timetable', label: 'Thời khóa biểu', path: '/school-admin/timetable', permissionCode: 'MANAGE_CURRICULUM' },
         { key: 'grades', label: 'Khối lớp', path: '/school-admin/grades', permissionCode: 'MANAGE_GRADE' },
         { key: 'classes', label: 'Danh sách lớp', path: '/school-admin/classes', permissionCode: 'MANAGE_CLASS' },
         { key: 'students', label: 'Học sinh', path: '/school-admin/students', permissionCode: 'MANAGE_STUDENT' },
         { key: 'assessment-templates', label: 'Mẫu đánh giá', path: '/school-admin/assessment-templates', permissionCode: 'MANAGE_ASSESSMENT_TEMPLATE' },
+        { key: 'academic-report', label: 'Báo cáo & Thống kê', path: '/school-admin/academic-report', permissionCode: 'MANAGE_CURRICULUM' },
       ]
     },
     {
@@ -107,6 +108,7 @@ export const MENU_CONFIG = {
       children: [
         { key: 'classes-teacher', label: 'Lớp phụ trách', path: '/teacher', permissionCode: 'VIEW_TEACHER_DASHBOARD' },
         { key: 'students-teacher', label: 'Danh sách học sinh', path: '/teacher/students', permissionCode: 'VIEW_TEACHER_STUDENTS' },
+        { key: 'academic-plan-teacher', label: 'Kế hoạch học tập', path: '/teacher/academic-plan' },
       ]
     },
     {

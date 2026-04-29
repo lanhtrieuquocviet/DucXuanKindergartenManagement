@@ -16,6 +16,24 @@ const listTopics = async (req, res) => {
   }
 };
 
+const listTopicsForTeacher = async (req, res) => {
+  try {
+    const data = await academicPlanService.listTopicsForTeacher({
+      userId: req.user?._id,
+      yearId: req.query.yearId,
+    });
+    return res.status(200).json({
+      status: 'success',
+      data,
+    });
+  } catch (error) {
+    console.error('listTopicsForTeacher error:', error);
+    return res
+      .status(error.statusCode || 500)
+      .json({ status: 'error', message: error.message || 'Lỗi khi lấy kế hoạch học tập giáo viên' });
+  }
+};
+
 const createTopic = async (req, res) => {
   try {
     const data = await academicPlanService.createTopic(req.body);
@@ -56,6 +74,7 @@ const deleteTopic = async (req, res) => {
 
 module.exports = {
   listTopics,
+  listTopicsForTeacher,
   createTopic,
   updateTopic,
   deleteTopic,

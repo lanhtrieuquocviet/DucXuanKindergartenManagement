@@ -105,6 +105,7 @@ export const KEY_ICONS = {
   'academic-events': <EventNoteIcon fontSize="small" />,
   'curriculum': <ScheduleIcon fontSize="small" />,
   'timetable': <ScheduleIcon fontSize="small" />,
+  'academic-report': <BarChartIcon fontSize="small" />,
   'grades': <ClassIcon fontSize="small" />,
   'classes': <ClassIcon fontSize="small" />,
   'students': <PeopleIcon fontSize="small" />,
@@ -159,6 +160,7 @@ export const KEY_ICONS = {
   // Teacher specific
   'classes-teacher': <ClassIcon fontSize="small" />,
   'students-teacher': <PeopleIcon fontSize="small" />,
+  'academic-plan-teacher': <PlanIcon fontSize="small" />,
   'evaluation-teacher': <GradingIcon fontSize="small" />,
   'contact-book': <MenuBookIcon fontSize="small" />,
   'class-assets': <InventoryIcon fontSize="small" />,
@@ -319,11 +321,15 @@ function RoleLayout({
 
       {/* Main Content Area */}
       <Box sx={{ flexGrow: 1, display: 'flex', flexDirection: 'column', width: '100%', overflow: 'hidden' }}>
-        <DashboardAppBar 
+        <DashboardAppBar
           title={activeItem?.label || title}
-          icon={activeIcon}
-          onMenuClick={() => setMobileOpen(true)}
+          activeIcon={activeIcon}
+          onOpenMobile={() => setMobileOpen(true)}
           isMobile={isMobile}
+          userName={displayUserName}
+          userAvatar={displayUserAvatar}
+          onViewProfile={onViewProfile}
+          onLogout={handleLogout}
         />
         
         <Box 
