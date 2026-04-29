@@ -577,6 +577,7 @@ export const ENDPOINTS = {
     ATTENDANCE_CHECKOUT: "/students/attendance/checkout",
     ATTENDANCE_CHECKOUT_REQUEST: "/students/attendance/checkout/request",
     ATTENDANCE_CHECKOUT_PARENT_CONFIRM: "/students/attendance/checkout/parent-confirm",
+    ATTENDANCE_CHECKOUT_PARENT_REJECT: "/students/attendance/checkout/parent-reject",
     ATTENDANCE_CHECKOUT_PENDING: (studentId) => `/students/attendance/checkout/pending/${studentId}`,
     ATTENDANCE_LIST: "/students/attendance",
   },
