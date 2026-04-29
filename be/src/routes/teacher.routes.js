@@ -15,6 +15,8 @@ const Attendances = require('../models/Attendances');
 const AcademicYear = require('../models/AcademicYear');
 const assessmentController = require('../controller/assessmentController');
 const academicPlanController = require('../controller/academicPlanController');
+const academicEventController = require('../controller/academicEventController');
+const timetableController = require('../controller/timetableController');
 
 const router = express.Router();
 
@@ -187,6 +189,8 @@ router.post('/students/:studentId/change-requests', authenticate, authorizeRoles
 router.get('/students/:studentId/evaluation', authenticate, authorizeRoles('Teacher'), contactBookCtrl.getStudentEvaluation);
 router.put('/students/:studentId/evaluation', authenticate, authorizeRoles('Teacher'), contactBookCtrl.updateStudentEvaluation);
 router.get('/academic-plan/topics', authenticate, authorizeRoles('Teacher', 'HeadTeacher'), academicPlanController.listTopicsForTeacher);
+router.get('/academic-events', authenticate, authorizeRoles('Teacher', 'HeadTeacher'), academicEventController.getEventPlan);
+router.get('/timetable', authenticate, authorizeRoles('Teacher', 'HeadTeacher'), timetableController.listByYear);
 
 // ── Sổ liên lạc điện tử ──
 

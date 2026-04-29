@@ -32,6 +32,8 @@ const TeacherStudents = lazy(() => import('./pages/teacher/TeacherStudents'));
 const TeacherEvaluation = lazy(() => import('./pages/teacher/TeacherEvaluation'));
 const ClassAssessment = lazy(() => import('./pages/teacher/ClassAssessment'));
 const TeacherAcademicPlan = lazy(() => import('./pages/teacher/TeacherAcademicPlan'));
+const TeacherAcademicEvents = lazy(() => import('./pages/teacher/TeacherAcademicEvents'));
+const TeacherTimetable = lazy(() => import('./pages/teacher/TeacherTimetable'));
 const StudentDashboard = lazy(() => import('./pages/student/StudentDashboard'));
 const StudentContactBook = lazy(() => import('./pages/student/StudentContactBook'));
 const PickupRegistration = lazy(() => import('./pages/student/PickupRegistration'));
@@ -302,6 +304,8 @@ function App() {
               <Route index element={<TeacherDashboard />} />
               <Route path="students" element={<ProtectedRoute requiredPermission="VIEW_TEACHER_STUDENTS"><TeacherStudents /></ProtectedRoute>} />
               <Route path="academic-plan" element={<TeacherAcademicPlan />} />
+              <Route path="academic-events" element={<TeacherAcademicEvents />} />
+              <Route path="timetable" element={<TeacherTimetable />} />
               <Route path="evaluation" element={<ProtectedRoute requiredPermission="MANAGE_TEACHER_EVALUATION"><ClassAssessment /></ProtectedRoute>} />
               <Route path="contact-book" element={<ProtectedRoute requiredPermission="MANAGE_TEACHER_CONTACT_BOOK"><ContactBook /></ProtectedRoute>} />
               <Route path="contact-book/:classId" element={<ProtectedRoute requiredPermission="MANAGE_TEACHER_CONTACT_BOOK"><ContactBookDetail /></ProtectedRoute>} />

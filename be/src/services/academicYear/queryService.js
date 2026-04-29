@@ -117,11 +117,22 @@ const getClassesByAcademicYear = async (req, res) => {
       .populate({ path: 'teacherIds', populate: { path: 'userId', select: 'fullName' } })
       .lean();
 
+    const classIds = classes.map((cls) => cls._id);
+    const studentCounts = await Student.aggregate([
+      { $match: { classId: { $in: classIds }, status: 'active' } },
+      { $group: { _id: '$classId', count: { $sum: 1 } } },
+    ]);
+    const studentCountMap = {};
+    studentCounts.forEach((row) => {
+      studentCountMap[String(row._id)] = Number(row.count || 0);
+    });
+
     const result = classes.map(cls => ({
       _id: cls._id,
       className: cls.className,
       gradeId: cls.gradeId?._id || null,
       gradeName: cls.gradeId?.gradeName || '',
+      studentCount: studentCountMap[String(cls._id)] || 0,
       teacherIds: (cls.teacherIds || [])
         .map(t => ({
           _id: t?._id || null,
