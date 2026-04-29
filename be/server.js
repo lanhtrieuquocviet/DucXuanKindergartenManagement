@@ -226,6 +226,12 @@ require('./src/models/LeaveRequest');
       { code: 'MANAGE_MENU', description: 'Quản lý thực đơn', group: 'Bếp & Thực phẩm', path: '/kitchen/menus', menuKey: 'menu-kitchen', order: 62 },
       { code: 'MANAGE_MEAL_PHOTO', description: 'Ảnh bữa ăn thực tế', group: 'Bếp & Thực phẩm', path: '/kitchen/meal-photos', menuKey: 'meal-photos', order: 63 },
       { code: 'APPROVE_MENU', description: 'Duyệt thực đơn', group: 'Bếp & Thực phẩm', path: '/school-admin/menus', menuKey: 'menu-admin', order: 64 },
+      { code: 'MANAGE_INGREDIENTS', description: 'Quản lý nguyên liệu', group: 'Bếp & Thực phẩm', path: '/kitchen/ingredients', menuKey: 'ingredients', order: 66 },
+      { code: 'MANAGE_MEAL', description: 'Quản lý suất ăn', group: 'Bếp & Thực phẩm', path: '/kitchen/meal-management', menuKey: 'meal-management', order: 67 },
+      { code: 'VIEW_MEAL_COUNT', description: 'Số lượng báo ăn', group: 'Bếp & Thực phẩm', path: '/kitchen/headcount', menuKey: 'headcount', order: 68 },
+      { code: 'MANAGE_SAMPLE_FOOD', description: 'Lưu mẫu thức ăn', group: 'Bếp & Thực phẩm', path: '/kitchen/sample-food', menuKey: 'sample-food', order: 69 },
+      { code: 'KITCHEN_DISTRICT_NUTRITION', description: 'Dinh dưỡng phòng GD', group: 'Bếp & Thực phẩm', path: '/kitchen/district-nutrition', menuKey: 'district-nutrition', order: 70 },
+      { code: 'VIEW_KITCHEN_REPORT', description: 'Báo cáo & Thống kê bếp', group: 'Bếp & Thực phẩm', path: '/kitchen/report', menuKey: 'report', order: 71 },
       // Bếp & Thực phẩm (HeadParent)
       { code: 'REVIEW_MENU', description: 'Ý kiến thực đơn (PH)', group: 'Bếp & Thực phẩm', path: '/head-parent/menus', menuKey: 'review-menu', order: 65 },
       // Tài sản & Mua sắm
@@ -294,7 +300,9 @@ require('./src/models/LeaveRequest');
         'SUBMIT_REPORT', 'TEACHER_LEAVE_REQUEST',
       ],
       KitchenStaff: [
-        'MANAGE_FOOD', 'MANAGE_MENU', 'MANAGE_MEAL_PHOTO', 'VIEW_REPORT', 'ACCESS_KITCHEN',
+        'MANAGE_FOOD', 'MANAGE_MENU', 'MANAGE_MEAL_PHOTO', 'ACCESS_KITCHEN',
+        'MANAGE_INGREDIENTS', 'MANAGE_MEAL', 'VIEW_MEAL_COUNT',
+        'MANAGE_SAMPLE_FOOD', 'KITCHEN_DISTRICT_NUTRITION', 'VIEW_KITCHEN_REPORT',
       ],
       InventoryStaff: [
         'MANAGE_INSPECTION', 'ACCESS_INVENTORY',
