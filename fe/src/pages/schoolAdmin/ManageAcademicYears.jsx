@@ -327,11 +327,11 @@ const ManageAcademicYears = () => {
 
                   setExpressForm({
                     yearName: `Năm học ${nextYearStart}-${nextYearStart + 1}`,
-                    startDate: `${nextYearStart}-09-01`,
+                    startDate: `${nextYearStart}-09-05`,
                     endDate: `${nextYearStart + 1}-05-31`,
-                    term1StartDate: `${nextYearStart}-09-01`,
-                    term1EndDate: `${nextYearStart}-12-31`,
-                    term2StartDate: `${nextYearStart + 1}-01-01`,
+                    term1StartDate: `${nextYearStart}-09-05`,
+                    term1EndDate: `${nextYearStart}-01-16`,
+                    term2StartDate: `${nextYearStart + 1}-01-17`,
                     term2EndDate: `${nextYearStart + 1}-05-31`,
                     description: 'Thiết lập tự động từ cấu hình năm cũ.'
                   });
@@ -825,7 +825,7 @@ const ManageAcademicYears = () => {
           }}>
             <Stack direction="row" spacing={1.5} alignItems="center">
               <MagicIcon />
-              <Typography variant="h6" fontWeight={800}>Thiết lập siêu tốc (1-Click)</Typography>
+              <Typography variant="h6" fontWeight={800}>Thiết lập nhanh năm học mới</Typography>
             </Stack>
           </DialogTitle>
           <DialogContent sx={{ mt: 3 }}>
