@@ -122,15 +122,29 @@ const getClassList = async (req, res) => {
       .populate('academicYearId', 'yearName startDate endDate')
       .populate({ path: 'teacherIds', populate: { path: 'userId', select: 'fullName email phone avatar' } });
 
+    const classIds = classes.map(c => c._id);
+    const enrollmentCounts = await Enrollment.aggregate([
+      { $match: { classId: { $in: classIds }, academicYearId: targetYearId } },
+      { $group: { _id: '$classId', count: { $sum: 1 } } },
+    ]);
+    const countMap = {};
+    enrollmentCounts.forEach(e => { countMap[e._id.toString()] = e.count; });
+
     const yearInfo = await AcademicYear.findById(targetYearId).select('yearName startDate endDate status').lean();
+
+    const data = classes.map(c => {
+      const obj = c.toObject();
+      obj.studentCount = countMap[c._id.toString()] || 0;
+      return obj;
+    });
 
     return res.status(200).json({
       status: 'success',
-      message: classes.length === 0
+      message: data.length === 0
         ? 'Không có lớp học nào'
         : 'Lấy danh sách lớp học thành công',
-      data: classes || [],
-      total: classes.length,
+      data,
+      total: data.length,
       academicYear: yearInfo,
     });
   } catch (error) {

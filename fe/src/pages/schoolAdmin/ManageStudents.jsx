@@ -544,21 +544,27 @@ function ManageStudents() {
     }
   };
 
-  const filteredStudents = students.filter((s) => {
-    // Search filter
-    const matchSearch = !searchTerm || (s.fullName || '').toLowerCase().includes(searchTerm.toLowerCase())
-      || (s.parentId?.fullName || '').toLowerCase().includes(searchTerm.toLowerCase())
-      || (s.studentCode || '').toLowerCase().includes(searchTerm.toLowerCase());
+  const filteredStudents = students
+    .filter((s) => {
+      const matchSearch = !searchTerm
+        || (s.fullName || '').toLowerCase().includes(searchTerm.toLowerCase())
+        || (s.parentId?.fullName || '').toLowerCase().includes(searchTerm.toLowerCase())
+        || (s.studentCode || '').toLowerCase().includes(searchTerm.toLowerCase());
 
-    // Class filter
-    const sClassId = s.classId?._id || s.classId;
-    const matchClass = !classFilter || classFilter === 'all' || String(sClassId) === String(classFilter);
+      const sClassId = s.classId?._id || s.classId;
+      const matchClass = !classFilter || classFilter === 'all' || String(sClassId) === String(classFilter);
 
-    // Gender filter
-    const matchGender = !genderFilter || genderFilter === 'all' || String(s.gender) === String(genderFilter);
+      const matchGender = !genderFilter || genderFilter === 'all' || String(s.gender) === String(genderFilter);
 
-    return matchSearch && matchClass && matchGender;
-  });
+      return matchSearch && matchClass && matchGender;
+    })
+    .sort((a, b) => {
+      const aHasClass = !!(a.classId?._id || a.classId);
+      const bHasClass = !!(b.classId?._id || b.classId);
+      if (!aHasClass && bHasClass) return -1;
+      if (aHasClass && !bHasClass) return 1;
+      return 0;
+    });
 
   const formatDate = (d) => {
     if (!d) return '—';
@@ -567,10 +573,26 @@ function ManageStudents() {
   };
 
   const getAcademicYearLabel = (student) => {
-    const yearId = student.academicYearId?._id || student.academicYearId || student.classId?.academicYearId?._id || student.classId?.academicYearId;
-    if (!yearId) return '—';
-    const yearObj = academicYears.find(y => String(y._id) === String(yearId));
-    return yearObj?.yearName || student.academicYearId?.yearName || student.classId?.academicYearId?.yearName || '—';
+    // Nguồn chính: academicYearId từ enrollment (được gắn bởi backend)
+    const enrollYearId = student.enrollmentYearId?._id || student.enrollmentYearId;
+    if (enrollYearId) {
+      const yearObj = academicYears.find(y => String(y._id) === String(enrollYearId));
+      if (yearObj?.yearName) return yearObj.yearName;
+    }
+
+    // Fallback: mảng academicYearId trên Student document
+    const yearArr = Array.isArray(student.academicYearId)
+      ? student.academicYearId
+      : student.academicYearId ? [student.academicYearId] : [];
+    const lastYear = yearArr[yearArr.length - 1];
+    if (lastYear?.yearName) return lastYear.yearName;
+    const yearId = lastYear?._id || lastYear;
+    if (yearId) {
+      const yearObj = academicYears.find(y => String(y._id) === String(yearId));
+      if (yearObj?.yearName) return yearObj.yearName;
+    }
+
+    return '—';
   };
 
   // const handleMenuSelect = createSchoolAdminMenuSelect(navigate);

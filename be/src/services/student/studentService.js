@@ -31,12 +31,18 @@ const getAllStudents = async (filter = {}) => {
 
   const studentIds = students.map(s => s._id);
 
-  // Lấy đúng enrollment của năm học đang filter để hiển thị đánh giá
-  const enrollmentQuery = yearIdForEnrollment
-    ? { studentId: { $in: studentIds }, academicYearId: yearIdForEnrollment }
-    : { studentId: { $in: studentIds } };
+  // Khi không filter theo năm cụ thể, dùng năm học đang active để lấy enrollmentYearId
+  let displayYearId = yearIdForEnrollment;
+  if (!displayYearId) {
+    const activeYear = await AcademicYear.findOne({ status: 'active' }).select('_id').lean();
+    displayYearId = activeYear?._id || null;
+  }
+
+  const enrollmentQuery = { studentId: { $in: studentIds } };
+  if (displayYearId) enrollmentQuery.academicYearId = displayYearId;
+
   const enrollments = await Enrollment.find(enrollmentQuery)
-    .select('studentId academicEvaluation evaluationNote')
+    .select('studentId academicYearId academicEvaluation evaluationNote')
     .lean();
 
   const enrollmentMap = {};
@@ -53,6 +59,7 @@ const getAllStudents = async (filter = {}) => {
     delete obj.faceEmbedding;
     delete obj.faceEmbeddings;
 
+    obj.enrollmentYearId = enrollment?.academicYearId || null;
     obj.evaluation = enrollment ? {
       academicEvaluation: enrollment.academicEvaluation,
       evaluationNote: enrollment.evaluationNote

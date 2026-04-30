@@ -29,7 +29,7 @@ import {
 
 // Sub-components
 import GradeCard from './ClassManagement/GradeCard';
-import StudentSummary from './ClassManagement/StudentSummary';
+import ClassSummary from './ClassManagement/ClassSummary';
 import ClassTable from './ClassManagement/ClassTable';
 import GradeDialog from './ClassManagement/GradeDialog';
 import ClassDialog from './ClassManagement/ClassDialog';
@@ -42,7 +42,6 @@ export default function ClassList() {
   // Data State
   const [classes, setClasses] = useState([]);
   const [gradeList, setGradeList] = useState([]);
-  const [allStudents, setAllStudents] = useState([]);
   const [activeAcademicYear, setActiveAcademicYear] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
@@ -110,7 +109,6 @@ export default function ClassList() {
   const refreshAll = () => {
     fetchClasses();
     fetchGrades();
-    fetchStudents();
   };
 
   const fetchClasses = async () => {
@@ -130,16 +128,6 @@ export default function ClassList() {
     try {
       const res = await get(ENDPOINTS.GRADES.LIST);
       setGradeList(res.data || []);
-    } catch (_) {}
-  };
-
-  const fetchStudents = async () => {
-    try {
-      const yearRes = await get(ENDPOINTS.SCHOOL_ADMIN.ACADEMIC_YEARS.CURRENT).catch(() => null);
-      const activeYearId = yearRes?.data?._id;
-      const query = activeYearId ? `?status=active&enrolledIn=${activeYearId}` : '?status=active';
-      const res = await get(`${ENDPOINTS.STUDENTS.LIST}${query}`);
-      setAllStudents(res.data || []);
     } catch (_) {}
   };
 
@@ -427,11 +415,12 @@ export default function ClassList() {
             </Box>
             )}
 
-            <StudentSummary 
-              students={allStudents} 
-              activeAcademicYear={activeAcademicYear} 
-              onRefresh={fetchStudents}
+            <ClassSummary
+              classes={classes}
               loading={loading}
+              activeAcademicYear={activeAcademicYear}
+              onRefresh={fetchClasses}
+              onViewStudents={(id) => navigate(`/school-admin/classes/${id}/students`)}
             />
           </Box>
         ) : (
