@@ -450,7 +450,9 @@ function FoodManagement() {
       return;
     }
 
-    const quantity = Number(customIngredient.quantity) || 100;
+    // Cho phép nhập dạng "100" hoặc "100g" (parse giống với quantityWithUnit ở bảng)
+    const parsedQty = parseQuantityFormat(customIngredient.quantity);
+    const quantity = Number(parsedQty.quantity);
     const protein = Number(customIngredient.protein) || 0;
     const fat = Number(customIngredient.fat) || 0;
     const carb = Number(customIngredient.carb) || 0;
@@ -458,15 +460,15 @@ function FoodManagement() {
 
     const category = customIngredient.category || "luong_thuc";
 
-    if (isNegativeOrNaN(customIngredient.quantity) || quantity < 0) {
+    if (Number.isNaN(quantity) || quantity < 0) {
       toast.error("Số lượng nguyên liệu không được là số âm");
       return;
     }
     if (
-      isNegativeOrNaN(customIngredient.calories) ||
-      isNegativeOrNaN(customIngredient.protein) ||
-      isNegativeOrNaN(customIngredient.fat) ||
-      isNegativeOrNaN(customIngredient.carb)
+      isNegativeOrNaN(calories) ||
+      isNegativeOrNaN(protein) ||
+      isNegativeOrNaN(fat) ||
+      isNegativeOrNaN(carb)
     ) {
       toast.error("Chỉ số dinh dưỡng của nguyên liệu không được là số âm");
       return;
@@ -476,7 +478,7 @@ function FoodManagement() {
       name,
       category,
       quantity,
-      unit: String(customIngredient.unit || "g").trim() || "g",
+      unit: parsedQty.unit || "g",
       calories,
       protein,
       fat,
@@ -492,7 +494,9 @@ function FoodManagement() {
     });
 
     try {
-      await createIngredient({ name, calories, protein, fat, carb, unit: newItem.unit, category });
+      // Lưu nguyên liệu vào "kho" theo chuẩn dữ liệu dinh dưỡng trên 100g.
+      // Ở đây quantity là khối lượng đang gán cho món, không phải đơn vị gốc của dữ liệu protein/fat/carb.
+      await createIngredient({ name, calories, protein, fat, carb, unit: "100g", category });
       toast.success("Thêm nguyên liệu mới thành công và lưu vào danh sách chung");
     } catch (error) {
       toast.error("Không thể lưu nguyên liệu mới vào server, vẫn thêm vào món ăn tạm thời");
@@ -1142,7 +1146,7 @@ function FoodManagement() {
                     <TableRow sx={{ bgcolor: 'grey.50' }}>
                       <TableCell sx={{ fontWeight: 700, flex: 1.2 }}>Nguyên liệu</TableCell>
                       <TableCell sx={{ fontWeight: 700, minWidth: 128, maxWidth: 200 }}>Nhóm</TableCell>
-                      <TableCell align="center" sx={{ fontWeight: 700, flex: 1 }}>Số lượng</TableCell>
+                      <TableCell align="center" sx={{ fontWeight: 700, flex: 1 }}>Số lượng (g)</TableCell>
                       <TableCell align="center" sx={{ fontWeight: 700, flex: 1 }}>Kcal</TableCell>
                       <TableCell align="center" sx={{ fontWeight: 700, flex: 1, display: { xs: 'none', sm: 'table-cell' } }}>Chất đạm (g)</TableCell>
                       <TableCell align="center" sx={{ fontWeight: 700, flex: 1, display: { xs: 'none', md: 'table-cell' } }}>Chất béo (g)</TableCell>
@@ -1262,10 +1266,15 @@ function FoodManagement() {
                         <TableCell align="center" sx={{ flex: 1 }}>
                           <TextField
                             size="small"
+                            type="number"
                             value={customIngredient.quantity}
                             onChange={(e) => setCustomIngredient((prev) => ({ ...prev, quantity: e.target.value }))}
                             placeholder="100"
-                            inputProps={{ min: 0, style: { textAlign: 'center', fontSize: '0.875rem' } }}
+                            inputProps={{
+                              min: 0,
+                              step: 1,
+                              style: { textAlign: 'center', fontSize: '0.875rem' },
+                            }}
                             sx={{ width: '100%' }}
                           />
                         </TableCell>

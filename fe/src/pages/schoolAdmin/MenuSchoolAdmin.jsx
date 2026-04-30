@@ -50,9 +50,9 @@ const TABS = [
   { value: "completed", label: "Lịch sử" },
 ];
 
-/** Tab Lịch sử: đã kết thúc + các lần trả về bếp (từ chối / yêu cầu sửa) */
+/** Tab Lịch sử: chỉ các thực đơn đã kết thúc áp dụng trọn vẹn */
 function isHistoryListStatus(menu) {
-  return menu.status === "completed" || menu.status === "rejected";
+  return menu.status === "completed";
 }
 
 function lastHistoryEntry(menu) {
@@ -246,8 +246,9 @@ function MenuSchoolAdmin() {
         ? menus.filter(isHistoryListStatus)
         : menus.filter((m) => m.status === tab);
 
-  const pendingCount = menus.filter((m) => m.status === "pending").length;
-  const activeCount = menus.filter((m) => m.status === "active").length;
+  const pendingCount = menus.filter((m) => String(m.status).trim() === "pending").length;
+  const approvedCount = menus.filter((m) => String(m.status).trim() === "approved").length;
+  const activeCount = menus.filter((m) => String(m.status).trim() === "active").length;
   const historyCount = menus.filter(isHistoryListStatus).length;
 
   return (
@@ -285,6 +286,8 @@ function MenuSchoolAdmin() {
               badge = <Chip label={pendingCount} size="small" color="warning" sx={{ height: 18, fontSize: 10, fontWeight: 700 }} />;
             } else if (t.value === "active" && activeCount > 0) {
               badge = <Chip label={activeCount} size="small" color="info" sx={{ height: 18, fontSize: 10, fontWeight: 700 }} />;
+            } else if (t.value === "approved" && approvedCount > 0) {
+              badge = <Chip label={approvedCount} size="small" color="success" sx={{ height: 18, fontSize: 10, fontWeight: 700 }} />;
             } else if (t.value === "completed" && historyCount > 0) {
               badge = <Chip label={historyCount} size="small" color="secondary" sx={{ height: 18, fontSize: 10, fontWeight: 700 }} />;
             }

@@ -131,6 +131,7 @@ async function autoSyncMenuLifecycle(actorId = null) {
       })
     );
     for (const menu of expiringActiveMenus) {
+      await captureMenuHistorySnapshot(menu, "auto_ended", actorId, now);
       menu.status = "completed";
       menu.isCurrent = false;
       menu.endedAt = now;
@@ -158,6 +159,7 @@ async function autoSyncMenuLifecycle(actorId = null) {
         })
       );
       for (const active of activeMenus) {
+        await captureMenuHistorySnapshot(active, "replaced_by_apply", actorId, now);
         active.status = "completed";
         active.isCurrent = false;
         active.endedAt = now;
@@ -179,6 +181,7 @@ async function autoSyncMenuLifecycle(actorId = null) {
       });
 
       if (dueMenu.scheduledEndAt && dueMenu.scheduledEndAt <= now) {
+        await captureMenuHistorySnapshot(dueMenu, "auto_ended", actorId, now);
         dueMenu.status = "completed";
         dueMenu.isCurrent = false;
         dueMenu.endedAt = now;
@@ -193,6 +196,54 @@ async function autoSyncMenuLifecycle(actorId = null) {
   } catch (error) {
     console.error("autoSyncMenuLifecycle error:", error?.message || error);
   }
+}
+
+async function captureMenuHistorySnapshot(menu, reason, actorId = null, capturedAt = new Date()) {
+  if (!menu || !menu._id) return null;
+  if (!Array.isArray(menu.historySnapshots)) menu.historySnapshots = [];
+
+  const dailyMenus = await DailyMenu.find({ menuId: menu._id })
+    .populate("lunchFoods")
+    .populate("afternoonFoods")
+    .populate("lunchMealSlots.food")
+    .populate("afternoonMealSlots.food")
+    .lean();
+
+  menu.historySnapshots.push({
+    reason,
+    capturedAt,
+    capturedBy: actorId || null,
+    menuSnapshot: {
+      month: menu.month,
+      year: menu.year,
+      status: menu.status,
+      isCurrent: menu.isCurrent,
+      version: menu.version || 1,
+      changeReason: menu.changeReason || "",
+      parentMenuId: menu.parentMenuId || null,
+      changedAt: menu.changedAt || null,
+      scheduledStartAt: menu.scheduledStartAt || null,
+      scheduledEndAt: menu.scheduledEndAt || null,
+      appliedAt: menu.appliedAt || null,
+      endedAt: menu.endedAt || null,
+      nutrition: menu.nutrition || {},
+      nutritionPlan: Array.isArray(menu.nutritionPlan) ? menu.nutritionPlan : [],
+      academicYearId: menu.academicYearId || null,
+    },
+    dailyMenus: Array.isArray(dailyMenus) ? dailyMenus : [],
+  });
+
+  return menu.historySnapshots[menu.historySnapshots.length - 1];
+}
+
+function buildWeeksFromSnapshotDailyMenus(dailyMenus) {
+  const result = { odd: {}, even: {} };
+  (dailyMenus || []).forEach((day) => {
+    if (!day?.weekType || !day?.dayOfWeek) return;
+    if (!result[day.weekType]) result[day.weekType] = {};
+    result[day.weekType][day.dayOfWeek] = day;
+  });
+  return result;
 }
 
 const DEFAULT_NUTRITION_PLAN = [
@@ -409,6 +460,30 @@ exports.getPublicMenuDetail = async (req, res) => {
     if (!menu) {
       return res.status(404).json({ message: "Không tìm thấy thực đơn" });
     }
+
+    // Menu lịch sử: ưu tiên dùng snapshot để không bị thay đổi theo dữ liệu Food/Ingredient mới
+    if (menu.status === "completed") {
+      const lastSnap =
+        Array.isArray(menu.historySnapshots) && menu.historySnapshots.length
+          ? menu.historySnapshots[menu.historySnapshots.length - 1]
+          : null;
+
+      // Data cũ chưa có snapshot → tạo ngay tại thời điểm xem để “đóng băng” từ đây
+      if (!lastSnap) {
+        await captureMenuHistorySnapshot(menu, "ended", null, new Date());
+        await menu.save();
+      }
+
+      const snap =
+        Array.isArray(menu.historySnapshots) && menu.historySnapshots.length
+          ? menu.historySnapshots[menu.historySnapshots.length - 1]
+          : null;
+
+      const result = buildWeeksFromSnapshotDailyMenus(snap?.dailyMenus || []);
+      const menuData = menu.toObject();
+      return res.json({ success: true, data: { ...menuData, weeks: result } });
+    }
+
     const dailyMenus = await DailyMenu.find({ menuId: menu._id })
       .populate("lunchFoods")
       .populate("afternoonFoods")
@@ -452,6 +527,78 @@ exports.getMenuDetail = async (req, res) => {
     if (roleName === "Student" && !["active", "completed"].includes(menu.status)) {
       return res.status(404).json({
         message: "Không tìm thấy thực đơn",
+      });
+    }
+
+    // Menu lịch sử: trả về theo snapshot để không bị thay đổi theo Food/Ingredient mới
+    if (menu.status === "completed") {
+      const lastSnap =
+        Array.isArray(menu.historySnapshots) && menu.historySnapshots.length
+          ? menu.historySnapshots[menu.historySnapshots.length - 1]
+          : null;
+
+      // Data cũ chưa có snapshot → tạo snapshot tại thời điểm xem để “đóng băng” từ đây
+      if (!lastSnap) {
+        await captureMenuHistorySnapshot(menu, "ended", req.user?._id || null, new Date());
+        await menu.save();
+      }
+
+      const snap =
+        Array.isArray(menu.historySnapshots) && menu.historySnapshots.length
+          ? menu.historySnapshots[menu.historySnapshots.length - 1]
+          : null;
+
+      const dm = Array.isArray(snap?.dailyMenus) ? snap.dailyMenus : [];
+      const result = buildWeeksFromSnapshotDailyMenus(dm);
+      const menuData = menu.toObject();
+
+      let totalCalories = 0;
+      let totalProtein = 0;
+      let totalFat = 0;
+      let totalCarb = 0;
+
+      const validDays = dm.filter((day) => {
+        const hasFood = (day.lunchFoods && day.lunchFoods.length > 0) || (day.afternoonFoods && day.afternoonFoods.length > 0);
+        const hasNutrition = (day.totalCalories || 0) > 0 || (day.totalProtein || 0) > 0 || (day.totalFat || 0) > 0 || (day.totalCarb || 0) > 0;
+        return Boolean(day && (hasFood || hasNutrition));
+      });
+
+      dm.forEach((day) => {
+        totalCalories += day.totalCalories || 0;
+        totalProtein += day.totalProtein || 0;
+        totalFat += day.totalFat || 0;
+        totalCarb += day.totalCarb || 0;
+      });
+
+      const dayCount = validDays.length || 1;
+      const avgCalories = Number((totalCalories / dayCount).toFixed(2));
+
+      const kcalFromProtein = totalProtein * 4;
+      const kcalFromFat = totalFat * 9;
+      const kcalFromCarb = totalCarb * 4;
+      const totalMacroKcal = kcalFromProtein + kcalFromFat + kcalFromCarb;
+
+      const proteinPercent = totalMacroKcal > 0 ? Number(((kcalFromProtein / totalMacroKcal) * 100).toFixed(2)) : 0;
+      const fatPercent = totalMacroKcal > 0 ? Number(((kcalFromFat / totalMacroKcal) * 100).toFixed(2)) : 0;
+      const carbPercent = totalMacroKcal > 0 ? Number(((kcalFromCarb / totalMacroKcal) * 100).toFixed(2)) : 0;
+
+      return res.json({
+        success: true,
+        data: {
+          ...menuData,
+          nutritionPlan: Array.isArray(menuData.nutritionPlan) ? menuData.nutritionPlan : [],
+          nutrition: {
+            calories: totalCalories,
+            protein: totalProtein,
+            fat: totalFat,
+            carb: totalCarb,
+            avgCalories,
+            proteinPercent,
+            fatPercent,
+            carbPercent,
+          },
+          weeks: result,
+        },
       });
     }
 
@@ -530,6 +677,13 @@ exports.updateMenu = async (req, res) => {
     if (!menu) {
       return res.status(404).json({
         message: "Menu không tồn tại",
+      });
+    }
+
+    if (menu.status === "completed") {
+      return res.status(400).json({
+        success: false,
+        message: "Thực đơn đã kết thúc và được lưu vào lịch sử, không thể chỉnh sửa",
       });
     }
 
@@ -863,6 +1017,7 @@ exports.requestEditFromActiveMenu = async (req, res) => {
       month: source.month,
       year: source.year,
       createdBy: source.createdBy || req.user?._id || null,
+      academicYearId: source.academicYearId || menu.academicYearId || null,
       status: "rejected",
       isCurrent: false,
       version: Number(source.version || 1) + 1,
@@ -959,6 +1114,7 @@ exports.applyMenu = async (req, res) => {
 
     const previouslyActive = await Menu.find({ status: "active" });
     for (const prev of previouslyActive) {
+      await captureMenuHistorySnapshot(prev, "replaced_by_apply", req.user?._id || null, now);
       prev.status = "completed";
       prev.isCurrent = false;
       prev.endedAt = now;
@@ -1014,6 +1170,7 @@ exports.endMenu = async (req, res) => {
     }
 
     const endedAt = new Date();
+    await captureMenuHistorySnapshot(menu, "ended", req.user?._id || null, endedAt);
     menu.status = "completed";
     menu.isCurrent = false;
     menu.endedAt = endedAt;

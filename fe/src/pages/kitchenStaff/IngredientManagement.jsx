@@ -81,6 +81,29 @@ const calculateCaloriesFromMacros = (protein, fat, carb) => {
   return Math.round((p * 4 + f * 9 + c * 4) * 10) / 10;
 };
 
+const getUnitInputValue = (unitStr) => {
+  const s = String(unitStr ?? "").trim();
+  if (!s) return "";
+  const numMatch = s.match(/[\d.]+/);
+  if (numMatch) return Number(numMatch[0]);
+  // Nếu chỉ có chữ (vd: "g") thì mặc định lấy 100
+  return 100;
+};
+
+const normalizeUnitString = (unitStr) => {
+  const s = String(unitStr ?? "").trim();
+  if (!s) return "100g";
+
+  const numMatch = s.match(/[\d.]+/);
+  const num = numMatch ? numMatch[0] : "100";
+
+  const unitLettersMatch = s.match(/[a-zA-Z]+/);
+  const letters = unitLettersMatch ? unitLettersMatch[0] : "g";
+
+  if (letters.toLowerCase() === "g") return `${num}g`;
+  return `${num}${letters}`;
+};
+
 export default function IngredientManagement() {
   const theme = useTheme();
   const isMobile = useMediaQuery(theme.breakpoints.down("sm"));
@@ -153,7 +176,7 @@ export default function IngredientManagement() {
     setForm({
       name: ingredient.name,
       category: normCat(ingredient),
-      unit: ingredient.unit || "100g",
+      unit: normalizeUnitString(ingredient.unit || "100g"),
       calories: String(calculateCaloriesFromMacros(protein, fat, carb)),
       protein,
       fat,
@@ -206,7 +229,7 @@ export default function IngredientManagement() {
   const buildPayload = () => ({
     name: form.name.trim(),
     category: form.category,
-    unit: (form.unit || "100g").trim(),
+    unit: normalizeUnitString(form.unit),
     calories: calculateCaloriesFromMacros(form.protein, form.fat, form.carb),
     protein: Number(form.protein) || 0,
     fat: Number(form.fat) || 0,
@@ -223,7 +246,7 @@ export default function IngredientManagement() {
         const unchanged =
           payload.name === editingIngredient.name.trim() &&
           payload.category === normCat(editingIngredient) &&
-          payload.unit === (editingIngredient.unit || "100g") &&
+          payload.unit === normalizeUnitString(editingIngredient.unit || "100g") &&
           payload.calories === (Number(editingIngredient.calories) || 0) &&
           payload.protein === (Number(editingIngredient.protein) || 0) &&
           payload.fat === (Number(editingIngredient.fat) || 0) &&
@@ -552,26 +575,26 @@ export default function IngredientManagement() {
                   overflow: "auto",
                 }}
               >
-                <Table size="small" stickyHeader>
+                <Table size="small" stickyHeader sx={{ tableLayout: "fixed" }}>
                   <TableHead>
                     <TableRow>
-                      <TableCell sx={hCell}>Tên nguyên liệu</TableCell>
-                      <TableCell sx={hCell} align="center">
+                      <TableCell sx={{ ...hCell, width: 260 }}>Tên nguyên liệu</TableCell>
+                      <TableCell sx={{ ...hCell, width: 90 }} align="center">
                         ĐVT
                       </TableCell>
-                      <TableCell sx={hCell} align="center">
+                      <TableCell sx={{ ...hCell, width: 90 }} align="center">
                         Kcal
                       </TableCell>
-                      <TableCell sx={hCell} align="center">
+                      <TableCell sx={{ ...hCell, width: 95 }} align="center">
                         Đạm (g)
                       </TableCell>
-                      <TableCell sx={hCell} align="center">
+                      <TableCell sx={{ ...hCell, width: 95 }} align="center">
                         Béo (g)
                       </TableCell>
-                      <TableCell sx={hCell} align="center">
+                      <TableCell sx={{ ...hCell, width: 105 }} align="center">
                         Tinh bột (g)
                       </TableCell>
-                      <TableCell sx={hCell} align="center">
+                      <TableCell sx={{ ...hCell, width: 70 }} align="center">
                         {ingredientFilter === "deleted" ? "Khôi phục" : "Xóa"}
                       </TableCell>
                     </TableRow>
@@ -602,12 +625,22 @@ export default function IngredientManagement() {
                               )}
                             </Stack>
                           </TableCell>
-                          <TableCell align="center">{ing.unit || "100g"}</TableCell>
-                          <TableCell align="center">{ing.calories ?? 0}</TableCell>
-                          <TableCell align="center">{ing.protein ?? 0}</TableCell>
-                          <TableCell align="center">{ing.fat ?? 0}</TableCell>
-                          <TableCell align="center">{ing.carb ?? 0}</TableCell>
-                          <TableCell align="center">
+                          <TableCell align="center" sx={{ width: 90 }}>
+                            {normalizeUnitString(ing.unit || "100g")}
+                          </TableCell>
+                          <TableCell align="center" sx={{ width: 90 }}>
+                            {ing.calories ?? 0}
+                          </TableCell>
+                          <TableCell align="center" sx={{ width: 95 }}>
+                            {ing.protein ?? 0}
+                          </TableCell>
+                          <TableCell align="center" sx={{ width: 95 }}>
+                            {ing.fat ?? 0}
+                          </TableCell>
+                          <TableCell align="center" sx={{ width: 105 }}>
+                            {ing.carb ?? 0}
+                          </TableCell>
+                          <TableCell align="center" sx={{ width: 70 }}>
                             {ingredientFilter === "deleted" ? (
                               <IconButton size="small" color="success" onClick={() => handleRestore(ing)}>
                                 <RestoreIcon fontSize="small" />
@@ -668,9 +701,15 @@ export default function IngredientManagement() {
             <TextField
               fullWidth
               size="small"
-              label="Đơn vị tính (VD: 100g)"
-              value={form.unit}
-              onChange={(e) => setForm((p) => ({ ...p, unit: e.target.value }))}
+              label="ĐVT (g)"
+              type="number"
+              value={getUnitInputValue(form.unit)}
+              onChange={(e) => {
+                const raw = e.target.value;
+                // Lưu dạng chuỗi để backend nhận được đúng format "100g"
+                setForm((p) => ({ ...p, unit: raw === "" ? "" : `${raw}g` }));
+              }}
+              inputProps={{ min: 0, step: 1 }}
             />
             <Stack direction={{ xs: "column", sm: "row" }} spacing={1.5}>
               <TextField
@@ -722,7 +761,6 @@ export default function IngredientManagement() {
               />
             </Stack>
             <Typography variant="caption" color="text.secondary">
-              Giá trị dinh dưỡng theo đơn vị đã chọn (thường là trên 100g).
             </Typography>
           </Stack>
         </DialogContent>
