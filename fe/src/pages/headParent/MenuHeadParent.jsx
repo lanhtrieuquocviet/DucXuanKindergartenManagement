@@ -46,7 +46,7 @@ const MONTH_NAMES = [
 ];
 
 function isHistoryStatus(m) {
-  return m.status === 'completed' || m.status === 'rejected';
+  return m.status === 'completed';
 }
 
 function CardSkeleton() {

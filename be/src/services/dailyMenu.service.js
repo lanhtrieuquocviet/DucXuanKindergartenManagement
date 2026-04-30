@@ -1,5 +1,6 @@
 const DailyMenu = require("../models/DailyMenu");
 const Food = require("../models/Food");
+const Menu = require("../models/Menu");
 const {
   aggregateNutritionFromFoods,
   calculateNutritionPercentage,
@@ -132,6 +133,15 @@ exports.updateDailyMenu = async (req, res) => {
     if (!dailyMenu) {
       return res.status(404).json({
         message: "Daily menu không tồn tại",
+      });
+    }
+
+    // Menu đã kết thúc/lưu lịch sử thì không cho chỉnh sửa daily menu nữa
+    const parentMenu = await Menu.findById(dailyMenu.menuId).select("status").lean();
+    if (parentMenu?.status === "completed") {
+      return res.status(400).json({
+        success: false,
+        message: "Thực đơn đã kết thúc và được lưu vào lịch sử, không thể chỉnh sửa",
       });
     }
 
