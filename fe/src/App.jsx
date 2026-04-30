@@ -38,6 +38,7 @@ const StudentDashboard = lazy(() => import('./pages/student/StudentDashboard'));
 const StudentContactBook = lazy(() => import('./pages/student/StudentContactBook'));
 const PickupRegistration = lazy(() => import('./pages/student/PickupRegistration'));
 const LeaveRequest = lazy(() => import('./pages/student/LeaveRequest'));
+const ClassTransferRequest = lazy(() => import('./pages/student/ClassTransferRequest'));
 const TodayAttendance = lazy(() => import('./pages/student/TodayAttendance'));
 const AttendanceReport = lazy(() => import('./pages/student/AttendanceReport'));
 const SchoolAdminDashboard = lazy(() => import('./pages/schoolAdmin/SchoolAdminDashboard'));
@@ -51,6 +52,7 @@ const ManageGradeCatalog = lazy(() => import('./pages/schoolAdmin/ManageGradeCat
 const ManageStaticBlockCatalog = lazy(() => import('./pages/schoolAdmin/ManageStaticBlockCatalog'));
 const StudentInClass = lazy(() => import('./pages/schoolAdmin/StudentInClass'));
 const ManageStudents = lazy(() => import('./pages/schoolAdmin/ManageStudents'));
+const ManageClassTransferRequests = lazy(() => import('./pages/schoolAdmin/ManageClassTransferRequests'));
 const StudentHealthReport = lazy(() => import('./pages/schoolAdmin/StudentHealthReport'));
 const ManageTeachers = lazy(() => import('./pages/schoolAdmin/ManageTeachers'));
 const ManageStaff = lazy(() => import('./pages/schoolAdmin/ManageStaff'));
@@ -79,6 +81,8 @@ const TeacherClassAssets = lazy(() => import('./pages/teacher/TeacherClassAssets
 const TeacherAssetIncidents = lazy(() => import('./pages/teacher/TeacherAssetIncidents'));
 const HeadTeacherAssetIncidents = lazy(() => import('./pages/teacher/HeadTeacherAssetIncidents'));
 const TeacherLeaveRequests = lazy(() => import('./pages/teacher/TeacherLeaveRequests'));
+const TeacherMyClass = lazy(() => import('./pages/teacher/TeacherMyClass'));
+const TeacherClassTransferRequests = lazy(() => import('./pages/teacher/TeacherClassTransferRequests'));
 const KitchenDashboard = lazy(() => import('./pages/kitchenStaff/KitchenDashboard'));
 const MenuManagement = lazy(() => import('./pages/kitchenStaff/MenuManagement'));
 const MenuDetail = lazy(() => import('./pages/kitchenStaff/MenuDetails'));
@@ -316,7 +320,9 @@ function App() {
               <Route path="asset-incidents" element={<ProtectedRoute requiredPermission="MANAGE_ASSET"><TeacherAssetIncidents /></ProtectedRoute>} />
               <Route path="class-assets" element={<ProtectedRoute requiredPermission="MANAGE_ASSET"><TeacherClassAssets /></ProtectedRoute>} />
               <Route path="manage-asset-incidents" element={<ProtectedRoute requiredPermission="MANAGE_ASSET"><HeadTeacherAssetIncidents /></ProtectedRoute>} />
+              <Route path="my-class" element={<TeacherMyClass />} />
               <Route path="leave-requests" element={<ProtectedRoute requiredPermission="MANAGE_ATTENDANCE"><TeacherLeaveRequests /></ProtectedRoute>} />
+              <Route path="class-transfer-requests" element={<TeacherClassTransferRequests />} />
             </Route>
             {/* Kitchen Staff */}
             <Route
@@ -345,6 +351,7 @@ function App() {
             <Route path="/student" element={<ProtectedRoute allowedRoles={['Student', 'Parent']}><StudentDashboard /></ProtectedRoute>} />
             <Route path="/student/pickup" element={<ProtectedRoute><PickupRegistration /></ProtectedRoute>} />
             <Route path="/student/leave-request" element={<ProtectedRoute><LeaveRequest /></ProtectedRoute>} />
+            <Route path="/student/class-transfer" element={<ProtectedRoute><ClassTransferRequest /></ProtectedRoute>} />
             <Route path="/student/menus" element={<ProtectedRoute><MenuStudent /></ProtectedRoute>} />
             <Route path="/student/menus/:id" element={<ProtectedRoute><MenuDetailStudent /></ProtectedRoute>} />
             <Route path="/student/attendance/today" element={<ProtectedRoute><TodayAttendance /></ProtectedRoute>} />
@@ -368,6 +375,7 @@ function App() {
               <Route path="static-blocks" element={<ManageStaticBlockCatalog />} />
               <Route path="classes/:classId/students" element={<StudentInClass />} />
               <Route path="students" element={<ManageStudents />} />
+              <Route path="class-transfer-requests" element={<ManageClassTransferRequests />} />
               <Route path="assessment-templates" element={<ManageAssessmentTemplates />} />
               <Route path="students/:studentId/detail" element={<StudentDetailPage />} />
               <Route path="staff-positions" element={<ManageStaffPositions />} />

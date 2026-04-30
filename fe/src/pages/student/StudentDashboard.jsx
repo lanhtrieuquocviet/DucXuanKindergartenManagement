@@ -37,6 +37,7 @@ const NOTIF_CONFIG = {
   timetable_daily:     { icon: '📅', bg: '#dcfce7', label: 'Lịch ngày' },
   meal_issue:          { icon: '🍽️', bg: '#fef3c7', label: 'Bữa ăn' },
   leave_request:       { icon: '📝', bg: '#ede9fe', label: 'Đơn xin nghỉ' },
+  class_transfer:      { icon: '🔄', bg: '#f5f3ff', label: 'Chuyển lớp' },
 };
 
 function timeAgo(dateStr) {
@@ -61,7 +62,7 @@ const ACTION_CARDS = [
   { icon: <PhotoLibrary />, label: 'Hình ảnh bữa ăn',       color: '#0891b2', bg: '#ecfeff', key: 'photos' },
   { icon: <School />,       label: 'Sổ liên lạc điện tử',   color: '#7c3aed', bg: '#f5f3ff', key: 'contact-book' },
   { icon: <EditNote />,     label: 'Đơn xin nghỉ',          color: '#6b7280', bg: '#f9fafb', key: 'leave' },
-  { icon: <SwapHoriz />,    label: 'Chuyển lớp',             color: '#6b7280', bg: '#f9fafb', key: 'transfer', disabled: true },
+  { icon: <SwapHoriz />,    label: 'Chuyển lớp',             color: '#7c3aed', bg: '#f5f3ff', key: 'transfer' },
 ];
 
 export default function StudentDashboard() {
@@ -284,6 +285,7 @@ export default function StudentDashboard() {
       photos: () => navigate('/student/meal-photos'),
       'contact-book': () => navigate(`/student/contact-book${q}`),
       leave: () => navigate(`/student/leave-request${q}`),
+      transfer: () => navigate(`/student/class-transfer${q}`),
     };
     routes[key]?.();
   };

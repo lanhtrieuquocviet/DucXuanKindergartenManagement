@@ -38,6 +38,7 @@ export const MENU_CONFIG = {
         { key: 'timetable', label: 'Thời khóa biểu', path: '/school-admin/timetable', permissionCode: 'MANAGE_CURRICULUM' },
         { key: 'classes', label: 'Danh sách khối và lớp', path: '/school-admin/classes', permissionCode: 'MANAGE_CLASS' },
         { key: 'students', label: 'Học sinh', path: '/school-admin/students', permissionCode: 'MANAGE_STUDENT' },
+        { key: 'class-transfer-requests', label: 'Đơn chuyển lớp', path: '/school-admin/class-transfer-requests', permissionCode: 'MANAGE_STUDENT' },
         { key: 'assessment-templates', label: 'Mẫu đánh giá', path: '/school-admin/assessment-templates', permissionCode: 'MANAGE_ASSESSMENT_TEMPLATE' },
         { key: 'academic-report', label: 'Báo cáo & Thống kê', path: '/school-admin/academic-report', permissionCode: 'MANAGE_CURRICULUM' },
       ]
@@ -105,7 +106,7 @@ export const MENU_CONFIG = {
       key: 'academic-management-teacher',
       label: 'Học sinh & Lớp học',
       children: [
-        { key: 'classes-teacher', label: 'Lớp phụ trách', path: '/teacher', permissionCode: 'VIEW_TEACHER_DASHBOARD' },
+        { key: 'classes-teacher', label: 'Lớp phụ trách', path: '/teacher/my-class', permissionCode: 'VIEW_TEACHER_DASHBOARD' },
         { key: 'students-teacher', label: 'Danh sách học sinh', path: '/teacher/students', permissionCode: 'VIEW_TEACHER_STUDENTS' },
         { key: 'academic-plan-teacher', label: 'Kế hoạch học tập', path: '/teacher/academic-plan' },
         { key: 'academic-events-teacher', label: 'Sự kiện năm học', path: '/teacher/academic-events' },
@@ -118,6 +119,7 @@ export const MENU_CONFIG = {
       children: [
         { key: 'attendance', label: 'Điểm danh', path: '/teacher/attendance', permissionCode: 'MANAGE_ATTENDANCE' },
         { key: 'leave-requests', label: 'Đơn xin nghỉ', path: '/teacher/leave-requests', permissionCode: 'TEACHER_LEAVE_REQUEST' },
+        { key: 'class-transfer-requests-teacher', label: 'Đơn chuyển lớp', path: '/teacher/class-transfer-requests' },
         { key: 'pickup-approval', label: 'Đơn đưa đón', path: '/teacher/pickup-approval', permissionCode: 'MANAGE_PICKUP' },
       ]
     },

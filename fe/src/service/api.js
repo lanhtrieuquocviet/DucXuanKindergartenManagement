@@ -632,6 +632,14 @@ export const ENDPOINTS = {
     REQUESTS: '/leave/requests',
     UPDATE_STATUS: '/leave/requests/status',
   },
+  CLASS_TRANSFER: {
+    CREATE: '/class-transfer/requests',
+    CANCEL: (id) => `/class-transfer/requests/${id}/cancel`,
+    MY_REQUESTS: '/class-transfer/my-requests',
+    TEACHER_REQUESTS: '/class-transfer/teacher-requests',
+    ADMIN_REQUESTS: '/class-transfer/admin-requests',
+    UPDATE_STATUS: (id) => `/class-transfer/requests/${id}/status`,
+  },
   // Kitchen
   KITCHEN: {
     PUBLIC_MENUS: "/menus/public",
