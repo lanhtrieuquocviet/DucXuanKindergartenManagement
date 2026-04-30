@@ -639,36 +639,91 @@ function MenuDetail() {
           )}
         </Box>
         <Stack direction="row" spacing={1} flexWrap="wrap" justifyContent={{ xs: "flex-start", sm: "flex-end" }}>
-          <Button 
-            variant="outlined" 
-            size="small"
-            startIcon={<DownloadIcon />} 
-            onClick={handleDownloadTemplate}
-            sx={{ textTransform: 'none', borderRadius: 2 }}
+          <Card
+            elevation={0}
+            sx={{
+              border: "1px solid #bfdbfe",
+              borderRadius: 2.5,
+              px: 1.25,
+              py: 1,
+              background: "linear-gradient(135deg, #eff6ff 0%, #eef2ff 100%)",
+              boxShadow: "0 4px 16px rgba(37, 99, 235, 0.12)",
+            }}
           >
-            Tải mẫu
-          </Button>
-          {menu && (menu.status === "draft" || menu.status === "rejected") && (
-            <Button 
-              variant="outlined" 
-              size="small"
-              startIcon={<UploadIcon />} 
-              onClick={handleImportClick}
-              disabled={importLoading}
-              sx={{ textTransform: 'none', borderRadius: 2 }}
-            >
-              {importLoading ? "Đang nhập..." : "Nhập Excel"}
-            </Button>
-          )}
-          <Button 
-            variant="outlined" 
-            size="small"
-            startIcon={<DownloadIcon />} 
-            onClick={handleExportMenu}
-            sx={{ textTransform: 'none', borderRadius: 2 }}
-          >
-            Xuất Excel
-          </Button>
+            <Stack spacing={0.75}>
+              <Typography
+                variant="caption"
+                sx={{
+                  fontWeight: 800,
+                  color: "#1e40af",
+                  px: 0.5,
+                  letterSpacing: 0.2,
+                  textTransform: "uppercase",
+                }}
+              >
+                Công cụ Excel
+              </Typography>
+              <Stack direction="row" spacing={1} flexWrap="wrap" useFlexGap>
+              <Button
+                variant="contained"
+                size="small"
+                startIcon={<DownloadIcon />}
+                onClick={handleDownloadTemplate}
+                sx={{
+                  textTransform: "none",
+                  borderRadius: 2,
+                  fontWeight: 700,
+                  background: "linear-gradient(135deg, #2563eb 0%, #1d4ed8 100%)",
+                  boxShadow: "0 4px 10px rgba(37, 99, 235, 0.35)",
+                  "&:hover": {
+                    background: "linear-gradient(135deg, #1d4ed8 0%, #1e40af 100%)",
+                  },
+                }}
+              >
+                Tải mẫu
+              </Button>
+              {menu && (menu.status === "draft" || menu.status === "rejected") && (
+                <Button
+                  variant="contained"
+                  size="small"
+                  startIcon={<UploadIcon />}
+                  onClick={handleImportClick}
+                  disabled={importLoading}
+                  sx={{
+                    textTransform: "none",
+                    borderRadius: 2,
+                    fontWeight: 700,
+                    background: "linear-gradient(135deg, #7c3aed 0%, #6d28d9 100%)",
+                    boxShadow: "0 4px 10px rgba(124, 58, 237, 0.35)",
+                    "&:hover": {
+                      background: "linear-gradient(135deg, #6d28d9 0%, #5b21b6 100%)",
+                    },
+                  }}
+                >
+                  {importLoading ? "Đang nhập..." : "Nhập Excel"}
+                </Button>
+              )}
+              <Button
+                variant="contained"
+                size="small"
+                startIcon={<DownloadIcon />}
+                onClick={handleExportMenu}
+                sx={{
+                  textTransform: "none",
+                  borderRadius: 2,
+                  fontWeight: 700,
+                  background: "linear-gradient(135deg, #059669 0%, #047857 100%)",
+                  boxShadow: "0 4px 10px rgba(5, 150, 105, 0.35)",
+                  "&:hover": {
+                    background: "linear-gradient(135deg, #047857 0%, #065f46 100%)",
+                  },
+                }}
+              >
+                Xuất Excel
+              </Button>
+              </Stack>
+            </Stack>
+          </Card>
           {isEditable && (
             <Button
               variant="contained"

@@ -149,7 +149,7 @@ export const MENU_CONFIG = {
   MedicalStaff: [
     { key: 'overview', label: 'Tổng quan', path: '/medical-staff' },
     { key: 'health-records', label: 'Hồ sơ sức khỏe', path: '/medical-staff/health', permissionCode: 'MANAGE_HEALTH' },
-    { key: 'health-incidents', label: 'Sự cố y tế', path: '/medical-staff/incidents', permissionCode: 'MANAGE_HEALTH_INCIDENTS' },
+    { key: 'health-incidents', label: 'Sự cố y tế', path: '/medical-staff/incidents', permissionCode: 'MANAGE_HEALTH' },
   ],
 
   SchoolNurse: [

@@ -154,7 +154,7 @@ const menuSchema = new mongoose.Schema(
         {
           reason: {
             type: String,
-            enum: ["request_edit_active"],
+            enum: ["request_edit_active", "ended", "auto_ended", "replaced_by_apply"],
             required: true,
           },
           capturedAt: { type: Date, default: Date.now },

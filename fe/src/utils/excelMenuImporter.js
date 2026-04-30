@@ -27,6 +27,37 @@ const mealTypeMap = {
   "Bữa chiều": "afternoonFoods"
 };
 
+const normalizeVi = (text) =>
+  String(text || "")
+    .trim()
+    .toLowerCase()
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .replace(/\s+/g, " ");
+
+const extractCellText = (row, idx) => String(row?.[idx] ?? "").trim();
+
+const findHeaderRowIndex = (rows) => {
+  for (let i = 0; i < rows.length; i++) {
+    const row = rows[i] || [];
+    const c0 = normalizeVi(extractCellText(row, 0));
+    const c1 = normalizeVi(extractCellText(row, 1));
+    const c2 = normalizeVi(extractCellText(row, 2));
+    const c3 = normalizeVi(extractCellText(row, 3));
+    const c4 = normalizeVi(extractCellText(row, 4));
+    if (
+      c0 === "thu" &&
+      c1.includes("tuan le") &&
+      c2.includes("tuan le") &&
+      c3.includes("tuan chan") &&
+      c4.includes("tuan chan")
+    ) {
+      return i;
+    }
+  }
+  return -1;
+};
+
 /**
  * Parse Excel file and convert to menu update format (handles new wide format)
  * @param {File} file - Excel file to parse
@@ -42,10 +73,20 @@ export const parseMenuExcel = async (file, currentMenuData, availableFoods = [])
     const arrayBuffer = await file.arrayBuffer();
     const workbook = XLSX.read(arrayBuffer, { type: 'array' });
     const worksheet = workbook.Sheets[workbook.SheetNames[0]];
-    const jsonData = XLSX.utils.sheet_to_json(worksheet);
+    const rows = XLSX.utils.sheet_to_json(worksheet, {
+      header: 1,
+      raw: false,
+      defval: "",
+    });
 
-    if (!jsonData || jsonData.length === 0) {
-      errors.push("File Excel trống hoặc không đúng định dạng");
+    if (!rows || rows.length === 0) {
+      errors.push("File Excel trống");
+      return { updates, errors };
+    }
+
+    const headerRowIdx = findHeaderRowIndex(rows);
+    if (headerRowIdx === -1) {
+      errors.push("Không tìm thấy dòng tiêu đề đúng định dạng (Thứ, Tuần lẻ/chẵn - Bữa trưa/chiều)");
       return { updates, errors };
     }
 
@@ -55,11 +96,6 @@ export const parseMenuExcel = async (file, currentMenuData, availableFoods = [])
       foodMap.set(food.name?.toLowerCase() || '', food._id);
     });
 
-    // Handle new format: days as rows, week/meal combinations as columns
-    const columnHeaders = Object.keys(jsonData[0]);
-    const dayColumn = columnHeaders[0]; // First column should be day name
-
-    // Map columns to week/meal combinations
     const columnConfig = [
       { colIndex: 1, weekType: 'odd', mealType: 'lunchFoods', display: 'Tuần lẻ - Bữa trưa' },
       { colIndex: 2, weekType: 'odd', mealType: 'afternoonFoods', display: 'Tuần lẻ - Bữa chiều' },
@@ -67,25 +103,22 @@ export const parseMenuExcel = async (file, currentMenuData, availableFoods = [])
       { colIndex: 4, weekType: 'even', mealType: 'afternoonFoods', display: 'Tuần chẵn - Bữa chiều' }
     ];
 
-    jsonData.forEach((row, rowIndex) => {
-      const dayName = row[dayColumn]?.trim();
+    for (let rowIndex = headerRowIdx + 1; rowIndex < rows.length; rowIndex++) {
+      const row = rows[rowIndex] || [];
+      const dayName = extractCellText(row, 0);
       const day = reverseDayMap[dayName];
 
       if (!day) {
-        errors.push(`Dòng ${rowIndex + 2}: Ngày không hợp lệ ("${dayName}")`);
-        return;
+        continue;
       }
 
       columnConfig.forEach(({ colIndex, weekType, mealType, display }) => {
-        const colName = columnHeaders[colIndex];
-        if (!colName) return;
-
-        const foodNamesStr = row[colName]?.trim() || '';
+        const foodNamesStr = extractCellText(row, colIndex);
 
         // Get daily menu ID
         const dailyMenu = currentMenuData.weeks?.[weekType]?.[day];
         if (!dailyMenu) {
-          errors.push(`Dòng ${rowIndex + 2}, cột ${display}: Không tìm thấy dữ liệu`);
+          errors.push(`Dòng ${rowIndex + 1}, cột ${display}: Không tìm thấy dữ liệu`);
           return;
         }
 
@@ -93,7 +126,7 @@ export const parseMenuExcel = async (file, currentMenuData, availableFoods = [])
         const foodNames = foodNamesStr
           .split(/[;,]/)
           .map(name => name.trim())
-          .filter(name => name && !name.includes('Nhập'));
+          .filter(name => name && !normalizeVi(name).includes('nhap'));
 
         if (foodNames.length === 0) {
           return; // Allow empty cells
@@ -114,7 +147,7 @@ export const parseMenuExcel = async (file, currentMenuData, availableFoods = [])
 
         if (notFoundFoods.length > 0) {
           errors.push(
-            `Dòng ${rowIndex + 2}, ${display}: Không tìm thấy: ${notFoundFoods.join(', ')}`
+            `Dòng ${rowIndex + 1}, ${display}: Không tìm thấy: ${notFoundFoods.join(', ')}`
           );
         }
 
@@ -129,7 +162,7 @@ export const parseMenuExcel = async (file, currentMenuData, availableFoods = [])
           });
         }
       });
-    });
+    }
 
     return { updates, errors };
   } catch (error) {
