@@ -165,8 +165,15 @@ const getStudentInClass = async (req, res) => {
       });
     }
 
-    // Lấy danh sách học sinh trong lớp
-    const students = await Student.find({ classId, status: 'active' })
+    // Lấy studentId từ Enrollment có classId và academicYearId trùng với lớp học
+    const enrollments = await Enrollment.find({
+      classId,
+      academicYearId: classInfo.academicYearId,
+    }).select('studentId').lean();
+    const enrolledStudentIds = enrollments.map(e => e.studentId);
+
+    // Lấy danh sách học sinh từ enrollment
+    const students = await Student.find({ _id: { $in: enrolledStudentIds } })
       .populate('parentId', 'username email fullName avatar phone')
       .lean();
 
@@ -690,12 +697,13 @@ const removeStudentFromClass = async (req, res) => {
   try {
     const { classId, studentId } = req.params;
 
-    const student = await Student.findOne({ _id: studentId, classId });
-    if (!student) {
+    const enrollment = await Enrollment.findOne({ studentId, classId });
+    if (!enrollment) {
       return res.status(404).json({ status: 'error', message: 'Học sinh không thuộc lớp này' });
     }
 
-    await Student.findByIdAndUpdate(studentId, { $unset: { classId: '' } });
+    await Enrollment.findByIdAndDelete(enrollment._id);
+    await Student.findByIdAndUpdate(studentId, { $set: { classId: null } });
 
     return res.status(200).json({ status: 'success', message: 'Đã xóa học sinh khỏi lớp' });
   } catch (error) {
@@ -717,14 +725,15 @@ const deleteClass = async (req, res) => {
       return res.status(404).json({ status: 'error', message: 'Không tìm thấy lớp học' });
     }
 
-    const studentCount = await Student.countDocuments({ classId });
-    if (studentCount > 0) {
-      return res.status(400).json({
-        status: 'error',
-        message: `Không thể xóa: lớp đang có ${studentCount} học sinh`,
-      });
-    }
+    // Lấy danh sách học sinh đang có enrollment trong lớp này
+    const enrollments = await Enrollment.find({ classId }).select('studentId').lean();
+    const studentIds = enrollments.map(e => e.studentId);
 
+    // Clear classId trên học sinh, xóa enrollment, xóa lớp
+    if (studentIds.length > 0) {
+      await Student.updateMany({ _id: { $in: studentIds } }, { $set: { classId: null } });
+    }
+    await Enrollment.deleteMany({ classId });
     await Classes.findByIdAndDelete(classId);
     return res.status(200).json({ status: 'success', message: 'Xóa lớp học thành công' });
   } catch (error) {

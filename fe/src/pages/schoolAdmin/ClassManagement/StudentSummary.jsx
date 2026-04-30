@@ -38,15 +38,7 @@ const StudentSummary = memo(({ students, activeAcademicYear, loading, onRefresh 
     return () => clearTimeout(timer);
   }, [search]);
 
-  const activeYearId = String(activeAcademicYear?._id || '');
-
-  const currentYearStudents = useMemo(() => {
-    if (!activeYearId) return [];
-    return students.filter(s => {
-      const ids = Array.isArray(s.academicYearId) ? s.academicYearId : [s.academicYearId];
-      return ids.some(id => String(id?._id || id || '') === activeYearId);
-    });
-  }, [students, activeYearId]);
+  const currentYearStudents = useMemo(() => students, [students]);
 
   const stats = useMemo(() => {
     const total = currentYearStudents.length;

@@ -7,11 +7,13 @@ const Enrollment = require('../../models/Enrollment');
  */
 const getStudents = async (req, res) => {
   try {
-    const { classId, academicYearId, gender } = req.query;
+    const { classId, academicYearId, gender, status, enrolledIn } = req.query;
     const filter = {};
     if (classId) filter.classId = classId;
     if (academicYearId) filter.academicYearId = academicYearId;
     if (gender) filter.gender = gender;
+    if (status) filter.status = status;
+    if (enrolledIn) filter.enrolledIn = enrolledIn;
 
     const data = await studentService.getAllStudents(filter);
 

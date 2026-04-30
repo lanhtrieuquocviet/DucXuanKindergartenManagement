@@ -8,20 +8,36 @@ const { generateStudentCode, upsertParentProfileFromUser, purgeOrphanParentAccou
  * Lấy danh sách học sinh kèm thông tin đánh giá
  */
 const getAllStudents = async (filter = {}) => {
-  const students = await Student.find(filter)
+  const { academicYearId, enrolledIn, ...studentFilter } = filter;
+
+  // Cả academicYearId và enrolledIn đều lọc qua Enrollment
+  const yearIdForEnrollment = academicYearId || enrolledIn;
+  if (yearIdForEnrollment) {
+    const enrollmentsForYear = await Enrollment.find({ academicYearId: yearIdForEnrollment })
+      .select('studentId')
+      .lean();
+    studentFilter._id = { $in: enrollmentsForYear.map(e => e.studentId) };
+  }
+
+  const students = await Student.find(studentFilter)
     .populate('classId', 'className gradeId academicYearId')
-    .populate({ 
-      path: 'parentId', 
-      select: 'fullName email username avatar phone roles', 
-      populate: { path: 'roles', select: 'roleName' } 
+    .populate({
+      path: 'parentId',
+      select: 'fullName email username avatar phone roles',
+      populate: { path: 'roles', select: 'roleName' }
     })
     .populate('parentProfileId', 'fullName email phone')
     .populate('academicYearId', 'yearName');
 
   const studentIds = students.map(s => s._id);
-  const enrollments = await Enrollment.find({
-    studentId: { $in: studentIds }
-  }).select('studentId academicEvaluation evaluationNote').lean();
+
+  // Lấy đúng enrollment của năm học đang filter để hiển thị đánh giá
+  const enrollmentQuery = yearIdForEnrollment
+    ? { studentId: { $in: studentIds }, academicYearId: yearIdForEnrollment }
+    : { studentId: { $in: studentIds } };
+  const enrollments = await Enrollment.find(enrollmentQuery)
+    .select('studentId academicEvaluation evaluationNote')
+    .lean();
 
   const enrollmentMap = {};
   enrollments.forEach(e => {

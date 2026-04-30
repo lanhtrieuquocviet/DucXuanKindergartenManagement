@@ -73,7 +73,7 @@ function ManageStudents() {
   const [error, setError] = useState(null);
   const [searchTerm, setSearchTerm] = useState('');
   const [classFilter, setClassFilter] = useState('');
-  const [yearFilter, setYearFilter] = useState('');
+  const [yearFilter, setYearFilter] = useState('all');
   const [genderFilter, setGenderFilter] = useState('');
 
   // Pending change requests
@@ -165,20 +165,10 @@ function ManageStudents() {
         setAcademicYears(uniqueYears);
       }
 
-      let currentFilterId = yearFilter;
-      if (!currentFilterId || currentFilterId === 'active') {
-        if (activeAY?._id) {
-          currentFilterId = activeAY._id;
-          setYearFilter(activeAY._id);
-        } else {
-          currentFilterId = 'all';
-          setYearFilter('all');
-        }
-      }
-
       const studentParams = {
+        status: 'active',
         ...(classFilter ? { classId: classFilter } : {}),
-        ...(currentFilterId !== 'all' ? { academicYearId: currentFilterId } : {}),
+        ...(yearFilter && yearFilter !== 'all' ? { academicYearId: yearFilter } : {}),
         ...(genderFilter ? { gender: genderFilter } : {}),
       };
       const studentsRes = await getAllStudents(studentParams);
@@ -559,19 +549,15 @@ function ManageStudents() {
     const matchSearch = !searchTerm || (s.fullName || '').toLowerCase().includes(searchTerm.toLowerCase())
       || (s.parentId?.fullName || '').toLowerCase().includes(searchTerm.toLowerCase())
       || (s.studentCode || '').toLowerCase().includes(searchTerm.toLowerCase());
-    
-    // Year filter
-    const sYearId = s.academicYearId?._id || s.academicYearId || s.classId?.academicYearId?._id || s.classId?.academicYearId;
-    const matchYear = !yearFilter || yearFilter === 'all' || yearFilter === 'active' || String(sYearId) === String(yearFilter);
-    
+
     // Class filter
     const sClassId = s.classId?._id || s.classId;
     const matchClass = !classFilter || classFilter === 'all' || String(sClassId) === String(classFilter);
-    
+
     // Gender filter
     const matchGender = !genderFilter || genderFilter === 'all' || String(s.gender) === String(genderFilter);
-    
-    return matchSearch && matchYear && matchClass && matchGender;
+
+    return matchSearch && matchClass && matchGender;
   });
 
   const formatDate = (d) => {

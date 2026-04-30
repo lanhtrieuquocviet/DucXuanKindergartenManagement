@@ -135,7 +135,10 @@ export default function ClassList() {
 
   const fetchStudents = async () => {
     try {
-      const res = await get(ENDPOINTS.STUDENTS.LIST);
+      const yearRes = await get(ENDPOINTS.SCHOOL_ADMIN.ACADEMIC_YEARS.CURRENT).catch(() => null);
+      const activeYearId = yearRes?.data?._id;
+      const query = activeYearId ? `?status=active&enrolledIn=${activeYearId}` : '?status=active';
+      const res = await get(`${ENDPOINTS.STUDENTS.LIST}${query}`);
       setAllStudents(res.data || []);
     } catch (_) {}
   };
