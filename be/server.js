@@ -26,6 +26,7 @@ const documentsRoutes = require('./src/routes/documents.routes');
 const otpRoutes = require('./src/routes/otp.routes');
 const pickupRoutes = require("./src/routes/pickup.routes");
 const leaveRequestRoutes = require('./src/routes/leaveRequest.routes');
+const classTransferRequestRoutes = require('./src/routes/classTransferRequest.routes');
 const foodRoutes = require("./src/routes/food.routes");
 const ingredientRoutes = require("./src/routes/ingredient.routes");
 const menuRoutes = require("./src/routes/menu.routes");
@@ -578,6 +579,7 @@ app.use('/api/otp', otpRoutes);
 // pickup-requets
 app.use("/api/pickup", pickupRoutes);
 app.use('/api/leave', leaveRequestRoutes);
+app.use('/api/class-transfer', classTransferRequestRoutes);
 
 //menus
 app.use("/api/foods", foodRoutes);

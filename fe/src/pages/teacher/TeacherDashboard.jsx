@@ -102,7 +102,7 @@ function WeeklyAttendanceChart({ data, loading }) {
         <ChartIcon sx={{ fontSize: 18, color: 'primary.main' }} />
         <Typography variant="subtitle2" fontWeight={700}>Điểm danh trong tuần</Typography>
         <Box sx={{ ml: 'auto', display: 'flex', gap: 1.5 }}>
-          {[['present', 'Có mặt'], ['absent', 'Vắng'], ['leave', 'Nghỉ phép']].map(([key, label]) => (
+          {[['present', 'Có mặt'], ['absent', 'Vắng']].map(([key, label]) => (
             <Box key={key} sx={{ display: 'flex', alignItems: 'center', gap: 0.5 }}>
               <Box sx={{ width: 10, height: 10, borderRadius: '50%', bgcolor: BAR_COLORS[key] }} />
               <Typography variant="caption" color="text.secondary">{label}</Typography>
@@ -126,8 +126,7 @@ function WeeklyAttendanceChart({ data, loading }) {
               const isToday = toLocalISODate(day.date) === toLocalISODate();
               const segments = [
                 { key: 'present', val: day.present },
-                { key: 'absent', val: day.absent },
-                { key: 'leave', val: day.leave },
+                { key: 'absent', val: (day.absent || 0) + (day.leave || 0) },
               ].filter((s) => s.val > 0);
 
               return (
@@ -137,8 +136,7 @@ function WeeklyAttendanceChart({ data, loading }) {
                     <Box>
                       <Typography variant="caption" fontWeight={700}>{day.dayName} ({day.date})</Typography>
                       <br /><Typography variant="caption">Có mặt: {day.present}</Typography>
-                      <br /><Typography variant="caption">Vắng: {day.absent}</Typography>
-                      <br /><Typography variant="caption">Nghỉ phép: {day.leave}</Typography>
+                      <br /><Typography variant="caption">Vắng: {(day.absent || 0) + (day.leave || 0)}</Typography>
                     </Box>
                   }
                   arrow
@@ -264,7 +262,7 @@ function TeacherDashboard() {
       label: 'Có mặt hôm nay',
       value: todayAtt ? todayAtt.present : '—',
       sub: todayAtt
-        ? `Vắng ${todayAtt.absent} · Nghỉ phép ${todayAtt.leave} / Tổng ${todayAtt.total}`
+        ? `Vắng ${(todayAtt.absent || 0) + (todayAtt.leave || 0)} / Tổng ${todayAtt.total}`
         : 'Chưa có dữ liệu hôm nay',
       icon: <CheckCircleIcon sx={{ fontSize: 26, color: 'white' }} />,
       gradient: 'linear-gradient(135deg, #10b981 0%, #14b8a6 100%)',
@@ -415,7 +413,6 @@ function TeacherDashboard() {
                   {[
                     { label: 'Có mặt', value: todayAtt.present, color: '#10b981', bg: '#d1fae5', icon: <CheckCircleIcon sx={{ fontSize: 16 }} /> },
                     { label: 'Vắng mặt', value: todayAtt.absent, color: '#ef4444', bg: '#fee2e2', icon: <AbsentIcon sx={{ fontSize: 16 }} /> },
-                    { label: 'Nghỉ phép', value: todayAtt.leave, color: '#f59e0b', bg: '#fef3c7', icon: <LeaveIcon sx={{ fontSize: 16 }} /> },
                   ].map((item) => (
                     <Box
                       key={item.label}

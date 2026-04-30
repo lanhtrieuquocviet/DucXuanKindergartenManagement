@@ -15,6 +15,8 @@ import {
   Save as SaveIcon,
   Cancel as CancelIcon,
   PhotoCamera as CameraIcon,
+  EmojiEvents as TrophyIcon,
+  PersonRemove as PersonRemoveIcon,
 } from '@mui/icons-material';
 import {
   Alert,
@@ -256,6 +258,51 @@ function TabHoSo({ student }) {
             <Box><Typography variant="caption" color="text.secondary" display="block">Họ tên Phụ huynh</Typography><Typography variant="body2" fontWeight={700}>{student.parentId?.fullName || '—'}</Typography></Box>
             <Box><Typography variant="caption" color="text.secondary" display="block">Số điện thoại</Typography><Typography variant="body2" fontWeight={700} color="primary">{student.parentId?.phone || student.parentPhone || '—'}</Typography></Box>
             <Box><Typography variant="caption" color="text.secondary" display="block">Email</Typography><Typography variant="body2" fontWeight={600}>{student.parentId?.email || '—'}</Typography></Box>
+            <Divider />
+            <Box sx={{
+              p: 1.5, borderRadius: 2,
+              bgcolor: isHeadParent ? '#fffbeb' : '#f8fafc',
+              border: '1px solid',
+              borderColor: isHeadParent ? '#fbbf24' : '#e2e8f0',
+            }}>
+              <Stack direction="row" alignItems="center" justifyContent="space-between" spacing={1}>
+                <Stack direction="row" alignItems="center" spacing={1}>
+                  <TrophyIcon sx={{ fontSize: 20, color: isHeadParent ? '#d97706' : '#94a3b8' }} />
+                  <Box>
+                    <Typography variant="caption" color="text.secondary" display="block">Hội trưởng hội phụ huynh</Typography>
+                    <Typography variant="body2" fontWeight={700} color={isHeadParent ? '#d97706' : 'text.disabled'}>
+                      {isHeadParent ? 'Đang giữ chức vụ' : 'Chưa được phân công'}
+                    </Typography>
+                  </Box>
+                </Stack>
+                {student.parentId?._id && (
+                  isHeadParent ? (
+                    <Button
+                      size="small"
+                      variant="outlined"
+                      color="error"
+                      disabled={toggling}
+                      onClick={handleToggleHeadParent}
+                      startIcon={<PersonRemoveIcon />}
+                      sx={{ borderRadius: 2, fontWeight: 700, textTransform: 'none', whiteSpace: 'nowrap' }}
+                    >
+                      {toggling ? 'Đang xử lý...' : 'Gỡ chức vụ'}
+                    </Button>
+                  ) : (
+                    <Button
+                      size="small"
+                      variant="contained"
+                      disabled={toggling}
+                      onClick={handleToggleHeadParent}
+                      startIcon={<TrophyIcon />}
+                      sx={{ borderRadius: 2, fontWeight: 700, textTransform: 'none', whiteSpace: 'nowrap', bgcolor: '#d97706', '&:hover': { bgcolor: '#b45309' } }}
+                    >
+                      {toggling ? 'Đang xử lý...' : 'Phân công'}
+                    </Button>
+                  )
+                )}
+              </Stack>
+            </Box>
           </Stack>
         </Paper>
       </Grid>
