@@ -40,14 +40,11 @@ const STATUS_CONFIG = {
 };
 
 const TABS = [
-  { value: "all",                label: "Tất cả"                 },
-  { value: "draft",              label: "Nháp"                   },
-  { value: "pending_headparent", label: "Chờ hội trưởng PH"      },
-  { value: "pending",            label: "Chờ BGH duyệt"          },
-  { value: "rejected",           label: "Yêu cầu sửa"            },
-  { value: "approved",           label: "Đã duyệt"               },
-  { value: "active",             label: "Đang áp dụng"           },
-  { value: "completed",          label: "Lịch sử"                },
+  { value: "all", label: "TẤT CẢ" },
+  { value: "pending_group", label: "CHỜ DUYỆT" },
+  { value: "approved", label: "ĐÃ DUYỆT" },
+  { value: "active", label: "ĐANG ÁP DỤNG" },
+  { value: "completed", label: "LỊCH SỬ" },
 ];
 
 /** Lịch sử: chỉ các thực đơn đã kết thúc áp dụng */
@@ -108,6 +105,8 @@ function MenuManagement() {
       const matchStatus =
         tab === "all"
           ? true
+          : tab === "pending_group"
+            ? (m.status === "pending" || m.status === "pending_headparent")
           : tab === "completed"
             ? isHistoryListStatus(m)
             : m.status === tab;
@@ -128,8 +127,9 @@ function MenuManagement() {
     draft: menus.filter((m) => m.status === "draft").length,
   }), [menus]);
 
-  const pendingCount = menus.filter((m) => m.status === "pending").length;
-  const rejectedCount = menus.filter((m) => m.status === "rejected").length;
+  const pendingCount = menus.filter(
+    (m) => m.status === "pending" || m.status === "pending_headparent",
+  ).length;
   const activeCount = menus.filter((m) => m.status === "active").length;
   const historyCount = menus.filter(isHistoryListStatus).length;
 
@@ -191,11 +191,7 @@ function MenuManagement() {
         >
           {TABS.map((t) => {
             let badge = null;
-            if (t.value === "pending" && pendingCount > 0) {
-              badge = <Chip label={pendingCount} size="small" color="warning" sx={{ height: 18, fontSize: 10, fontWeight: 700 }} />;
-            } else if (t.value === "rejected" && rejectedCount > 0) {
-              badge = <Chip label={rejectedCount} size="small" color="error" sx={{ height: 18, fontSize: 10, fontWeight: 700 }} />;
-            } else if (t.value === "active" && activeCount > 0) {
+            if (t.value === "active" && activeCount > 0) {
               badge = <Chip label={activeCount} size="small" color="info" sx={{ height: 18, fontSize: 10, fontWeight: 700 }} />;
             } else if (t.value === "completed" && historyCount > 0) {
               badge = <Chip label={historyCount} size="small" color="secondary" sx={{ height: 18, fontSize: 10, fontWeight: 700 }} />;

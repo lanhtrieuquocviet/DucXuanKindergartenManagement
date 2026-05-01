@@ -46,6 +46,16 @@ function isMonthYearInPast(y, m) {
   return selected < current;
 }
 
+function getMonthDateBounds(y, m) {
+  if (!y || !m) return { minDate: "", maxDate: "" };
+  const pad = (n) => String(n).padStart(2, "0");
+  const lastDayOfMonth = new Date(y, m, 0).getDate();
+  return {
+    minDate: `${y}-${pad(m)}-01`,
+    maxDate: `${y}-${pad(m)}-${pad(lastDayOfMonth)}`,
+  };
+}
+
 function CreateMenu() {
   const navigate = useNavigate();
   const fallbackYear = new Date().getFullYear();
@@ -84,10 +94,9 @@ function CreateMenu() {
     const y = Number(year);
     const m = Number(month);
     if (Number.isNaN(y) || Number.isNaN(m) || !y || !m) return;
-    const pad = (n) => String(n).padStart(2, "0");
-    const lastDayOfMonth = new Date(y, m, 0).getDate();
-    setStartDate(`${y}-${pad(m)}-01`);
-    setEndDate(`${y}-${pad(m)}-${pad(lastDayOfMonth)}`);
+    const { minDate, maxDate } = getMonthDateBounds(y, m);
+    setStartDate(minDate);
+    setEndDate(maxDate);
     setErrors((p) => ({ ...p, startDate: "", endDate: "" }));
   }, [month, year]);
 
@@ -127,8 +136,17 @@ function CreateMenu() {
 
     if (!startDate) newErrors.startDate = "Vui lòng chọn ngày bắt đầu áp dụng";
     if (!endDate) newErrors.endDate = "Vui lòng chọn ngày kết thúc áp dụng";
-    if (startDate && endDate && endDate <= startDate) {
-      newErrors.endDate = "Ngày kết thúc phải sau ngày bắt đầu";
+    if (!newErrors.month && !newErrors.year && !Number.isNaN(y) && !Number.isNaN(m)) {
+      const { minDate, maxDate } = getMonthDateBounds(y, m);
+      if (startDate && (startDate < minDate || startDate > maxDate)) {
+        newErrors.startDate = `Ngày bắt đầu phải nằm trong tháng ${m}/${y}`;
+      }
+      if (endDate && (endDate < minDate || endDate > maxDate)) {
+        newErrors.endDate = `Ngày kết thúc phải nằm trong tháng ${m}/${y}`;
+      }
+    }
+    if (startDate && endDate && endDate < startDate) {
+      newErrors.endDate = "Ngày kết thúc không được nhỏ hơn ngày bắt đầu";
     }
 
     setErrors(newErrors);
@@ -208,6 +226,13 @@ function CreateMenu() {
 
           <form onSubmit={handleSubmit}>
             <Stack spacing={2.5}>
+              {(() => {
+                const y = Number(year);
+                const m = Number(month);
+                const { minDate, maxDate } =
+                  !Number.isNaN(y) && !Number.isNaN(m) ? getMonthDateBounds(y, m) : { minDate: "", maxDate: "" };
+                return (
+                  <>
               {/* Month */}
               <FormControl fullWidth size="small" error={Boolean(errors.month)}>
                 <InputLabel>Tháng</InputLabel>
@@ -265,10 +290,16 @@ function CreateMenu() {
                 label="Bắt đầu áp dụng"
                 type="date"
                 value={startDate}
-                onChange={() => {}}
-                disabled
+                onChange={(e) => {
+                  setStartDate(e.target.value);
+                  setErrors((p) => ({ ...p, startDate: "" }));
+                }}
+                inputProps={{
+                  min: minDate || undefined,
+                  max: maxDate || undefined,
+                }}
                 error={Boolean(errors.startDate)}
-                helperText={errors.startDate || "Tự động lấy ngày đầu tháng đã chọn"}
+                helperText={errors.startDate || "Tự động điền, bạn có thể chỉnh trong phạm vi tháng đã chọn"}
                 InputLabelProps={{ shrink: true }}
                 InputProps={{ sx: { borderRadius: 2 } }}
               />
@@ -279,14 +310,22 @@ function CreateMenu() {
                 label="Kết thúc áp dụng"
                 type="date"
                 value={endDate}
-                onChange={() => {}}
-                disabled
-                inputProps={{ min: startDate || undefined }}
+                onChange={(e) => {
+                  setEndDate(e.target.value);
+                  setErrors((p) => ({ ...p, endDate: "" }));
+                }}
+                inputProps={{
+                  min: minDate || undefined,
+                  max: maxDate || undefined,
+                }}
                 error={Boolean(errors.endDate)}
-                helperText={errors.endDate || "Tự động lấy ngày cuối tháng đã chọn"}
+                helperText={errors.endDate || "Tự động điền, bạn có thể chỉnh trong phạm vi tháng đã chọn"}
                 InputLabelProps={{ shrink: true }}
                 InputProps={{ sx: { borderRadius: 2 } }}
               />
+                  </>
+                );
+              })()}
 
               {/* Preview */}
               {month &&

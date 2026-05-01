@@ -136,12 +136,12 @@ exports.updateDailyMenu = async (req, res) => {
       });
     }
 
-    // Menu đã kết thúc/lưu lịch sử thì không cho chỉnh sửa daily menu nữa
+    // Chỉ cho chỉnh sửa khi menu còn ở nháp hoặc bị từ chối để sửa lại.
     const parentMenu = await Menu.findById(dailyMenu.menuId).select("status").lean();
-    if (parentMenu?.status === "completed") {
+    if (!["draft", "rejected"].includes(parentMenu?.status)) {
       return res.status(400).json({
         success: false,
-        message: "Thực đơn đã kết thúc và được lưu vào lịch sử, không thể chỉnh sửa",
+        message: "Chỉ có thể chỉnh sửa món khi thực đơn ở trạng thái nháp hoặc bị từ chối",
       });
     }
 
