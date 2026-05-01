@@ -16,6 +16,7 @@ import {
   Delete as DeleteIcon,
   Visibility as VisibilityIcon,
   NotificationsActive as RequestAlertIcon,
+  EmojiEvents as TrophyIcon,
 } from '@mui/icons-material';
 
 const StudentTable = ({
@@ -52,6 +53,8 @@ const StudentTable = ({
             const pendingCount = pendingMap[String(row._id)] || 0;
             const parentName = row.parentId?.fullName || row.parentFullName || '—';
             const parentPhone = row.parentId?.phone || row.parentPhone || row.phone || '';
+            const parentRoles = (row.parentId?.roles || []).map(r => r.roleName || r);
+            const isHeadParent = parentRoles.includes('HeadParent');
 
             return (
               <TableRow key={row._id} hover>
@@ -101,7 +104,16 @@ const StudentTable = ({
                     </Typography>
                   )}
                 </TableCell>
-                <TableCell sx={{ minWidth: 160 }}>{parentName}</TableCell>
+                <TableCell sx={{ minWidth: 160 }}>
+                  <Stack direction="row" alignItems="center" spacing={0.5}>
+                    <span>{parentName}</span>
+                    {isHeadParent && (
+                      <Tooltip title="Hội trưởng hội phụ huynh">
+                        <TrophyIcon sx={{ fontSize: 15, color: '#d97706' }} />
+                      </Tooltip>
+                    )}
+                  </Stack>
+                </TableCell>
                 <TableCell sx={{ whiteSpace: 'nowrap', minWidth: 120 }}>{formatPhoneDisplay(parentPhone)}</TableCell>
                 <TableCell sx={{ whiteSpace: 'nowrap' }}>
                   <Chip

@@ -7,9 +7,9 @@ import {
   MenuItem,
   Button,
   Typography,
-  Box,
+  Chip,
 } from '@mui/material';
-import { Refresh as RefreshIcon, Add as AddIcon } from '@mui/icons-material';
+import { Refresh as RefreshIcon, Add as AddIcon, EmojiEvents as TrophyIcon } from '@mui/icons-material';
 
 const StudentFilter = ({
   searchTerm,
@@ -21,6 +21,8 @@ const StudentFilter = ({
   setClassFilter,
   genderFilter,
   setGenderFilter,
+  headParentFilter,
+  setHeadParentFilter,
   classes,
   onRefresh,
   onAddStudent,
@@ -83,6 +85,21 @@ const StudentFilter = ({
             <MenuItem value="female">Nữ</MenuItem>
           </Select>
         </FormControl>
+        <Chip
+          icon={<TrophyIcon sx={{ fontSize: '16px !important', color: headParentFilter ? '#d97706 !important' : undefined }} />}
+          label="Hội trưởng"
+          clickable
+          onClick={() => setHeadParentFilter(headParentFilter ? '' : 'headparent')}
+          variant={headParentFilter ? 'filled' : 'outlined'}
+          sx={{
+            fontWeight: 700,
+            alignSelf: 'center',
+            borderColor: headParentFilter ? '#d97706' : undefined,
+            bgcolor: headParentFilter ? '#fffbeb' : undefined,
+            color: headParentFilter ? '#d97706' : undefined,
+            '&:hover': { bgcolor: '#fffbeb', borderColor: '#d97706' },
+          }}
+        />
         <Button variant="outlined" startIcon={<RefreshIcon />} onClick={onRefresh} disabled={loading}>
           Tải lại
         </Button>

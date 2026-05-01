@@ -75,6 +75,7 @@ function ManageStudents() {
   const [classFilter, setClassFilter] = useState('');
   const [yearFilter, setYearFilter] = useState('all');
   const [genderFilter, setGenderFilter] = useState('');
+  const [headParentFilter, setHeadParentFilter] = useState('');
 
   // Pending change requests
   const [pendingMap, setPendingMap] = useState({});
@@ -556,7 +557,10 @@ function ManageStudents() {
 
       const matchGender = !genderFilter || genderFilter === 'all' || String(s.gender) === String(genderFilter);
 
-      return matchSearch && matchClass && matchGender;
+      const parentRoles = (s.parentId?.roles || []).map(r => r.roleName || r);
+      const matchHeadParent = !headParentFilter || parentRoles.includes('HeadParent');
+
+      return matchSearch && matchClass && matchGender && matchHeadParent;
     })
     .sort((a, b) => {
       const aHasClass = !!(a.classId?._id || a.classId);
@@ -636,6 +640,8 @@ function ManageStudents() {
           setClassFilter={setClassFilter}
           genderFilter={genderFilter}
           setGenderFilter={setGenderFilter}
+          headParentFilter={headParentFilter}
+          setHeadParentFilter={setHeadParentFilter}
           classes={classes}
           onRefresh={fetchData}
           onAddStudent={handleOpenAdd}

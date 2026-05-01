@@ -1,13 +1,12 @@
-﻿import { useEffect, useMemo, useState } from "react";
+﻿import { Fragment, useEffect, useMemo, useState } from "react";
 import { useLocation, useNavigate } from "react-router-dom";
 import { useAuth } from "../../context/AuthContext";
 import { get, post, ENDPOINTS } from "../../service/api";
 import ConfirmDialog from "../../components/ConfirmDialog";
 import {
-  Box, Paper, Typography, Button, Select, MenuItem, FormControl,
-  InputLabel, Table, TableBody, TableCell, TableContainer, TableHead,
+  Box, Paper, Typography, Button, Table, TableBody, TableCell, TableContainer, TableHead,
   TableRow, Chip, Alert, Skeleton, Stack, Dialog, IconButton, Avatar,
-  ToggleButtonGroup, ToggleButton, useMediaQuery, useTheme, TextField,
+  ToggleButtonGroup, ToggleButton, useMediaQuery, useTheme, TextField, Collapse, InputAdornment,
 } from "@mui/material";
 import { EventBusy as EventBusyIcon } from "@mui/icons-material";
 import {
@@ -19,13 +18,75 @@ import {
   HourglassEmpty as PendingIcon,
   CheckCircleOutline as ApprovedIcon,
   BlockOutlined as RejectedIcon,
+  ExpandMore as ExpandMoreIcon,
+  ExpandLess as ExpandLessIcon,
+  Person as PersonIcon,
 } from "@mui/icons-material";
 
 const STATUS_META = {
   pending:  { label: "Chờ duyệt", color: "warning",  icon: <PendingIcon sx={{ fontSize: 14 }} /> },
   approved: { label: "Đã duyệt",  color: "success",  icon: <ApprovedIcon sx={{ fontSize: 14 }} /> },
   rejected: { label: "Từ chối",   color: "error",    icon: <RejectedIcon sx={{ fontSize: 14 }} /> },
+  mixed:    { label: "Hỗn hợp",  color: "default",  icon: <PendingIcon sx={{ fontSize: 14 }} /> },
 };
+
+function parentKey(req) {
+  const p = req.parent;
+  if (!p) return "_none";
+  return String(p._id ?? p);
+}
+
+function studentKey(req) {
+  const s = req.student;
+  if (!s) return "_none";
+  return String(s._id ?? s);
+}
+
+function aggregateStatus(reqs) {
+  if (!reqs.length) return "pending";
+  const st = new Set(reqs.map((r) => r.status));
+  if (st.size === 1) return reqs[0].status;
+  return "mixed";
+}
+
+function groupPickupByParentThenStudent(requestList) {
+  const byParent = new Map();
+  for (const r of requestList) {
+    const pid = parentKey(r);
+    if (!byParent.has(pid)) {
+      byParent.set(pid, { parent: r.parent, byStudent: new Map() });
+    }
+    const g = byParent.get(pid);
+    const sid = studentKey(r);
+    if (!g.byStudent.has(sid)) {
+      g.byStudent.set(sid, { student: r.student, requests: [] });
+    }
+    g.byStudent.get(sid).requests.push(r);
+  }
+
+  const collator = new Intl.Collator("vi");
+  return Array.from(byParent.entries())
+    .map(([parentId, v]) => ({
+      parentId,
+      parent: v.parent,
+      students: Array.from(v.byStudent.values())
+        .map((x) => ({
+          ...x,
+          requests: [...x.requests].sort((a, b) => collator.compare(a.fullName || "", b.fullName || "")),
+        }))
+        .sort((a, b) => collator.compare(a.student?.fullName || "", b.student?.fullName || "")),
+    }))
+    .sort((a, b) => collator.compare(a.parent?.fullName || "", b.parent?.fullName || ""));
+}
+
+function normalizeSearchValue(value) {
+  return String(value || "")
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .replace(/\s+/g, "")
+    .toLowerCase()
+    .trim();
+}
 
 // ── Mobile card cho từng đơn đưa đón ──
 function RequestCard({ req, onAction, onPreviewImage }) {
@@ -130,7 +191,8 @@ function PickupRequest() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
   const [successMessage, setSuccessMessage] = useState("");
-  const [filterStatus, setFilterStatus] = useState("pending");
+  const [filterStatus, setFilterStatus] = useState("all");
+  const [phoneQuery, setPhoneQuery] = useState("");
   const [previewImage, setPreviewImage] = useState(null);
   const [confirmOpen, setConfirmOpen] = useState(false);
   const [selectedRequest, setSelectedRequest] = useState(null);
@@ -138,6 +200,19 @@ function PickupRequest() {
   const [allRequests, setAllRequests] = useState([]);
   const [rejectReason, setRejectReason] = useState("");
   const [rejectDialogOpen, setRejectDialogOpen] = useState(false);
+  const [expandedStudentKeys, setExpandedStudentKeys] = useState(() => new Set());
+
+  const groupedRequests = useMemo(() => groupPickupByParentThenStudent(requests), [requests]);
+
+  const toggleStudentExpand = (parentId, studentId) => {
+    const key = `${parentId}:${studentId}`;
+    setExpandedStudentKeys((prev) => {
+      const next = new Set(prev);
+      if (next.has(key)) next.delete(key);
+      else next.add(key);
+      return next;
+    });
+  };
 
 
 
@@ -217,13 +292,33 @@ function PickupRequest() {
      setLoading(false);
    }
  };
- useEffect(() => {
-   if (filterStatus === "all") {
-     setRequests(allRequests);
-   } else {
-     setRequests(allRequests.filter((r) => r.status === filterStatus));
-   }
- }, [filterStatus, allRequests]);
+  useEffect(() => {
+    const normalizedQ = normalizeSearchValue(phoneQuery);
+
+    const byStatus = (filterStatus === "all")
+      ? allRequests
+      : allRequests.filter((r) => r.status === filterStatus);
+
+    if (!normalizedQ) {
+      setRequests(byStatus);
+      return;
+    }
+
+    setRequests(
+      byStatus.filter((r) => {
+        const pickupPhone = normalizeSearchValue(r.phone);
+        const parentPhone = normalizeSearchValue(r.parent?.phone);
+        const pickupName = normalizeSearchValue(r.fullName);
+        const studentName = normalizeSearchValue(r.student?.fullName);
+        return (
+          pickupPhone.includes(normalizedQ) ||
+          parentPhone.includes(normalizedQ) ||
+          pickupName.includes(normalizedQ) ||
+          studentName.includes(normalizedQ)
+        );
+      })
+    );
+  }, [filterStatus, allRequests, phoneQuery]);
 
   const handleAction = (request, type) => {
     setSelectedRequest(request);
@@ -246,7 +341,7 @@ function PickupRequest() {
         status: "approved",
       };
       await post(ENDPOINTS.PICKUP.UPDATE_STATUS || "/pickup/requests/status", payload);
-      setRequests((prev) =>
+      setAllRequests((prev) =>
         prev.map((r) =>
           r._id === selectedRequest._id ? { ...r, status: "approved" } : r
         )
@@ -271,7 +366,7 @@ function PickupRequest() {
         rejectedReason: rejectReason.trim(),
       };
       await post(ENDPOINTS.PICKUP.UPDATE_STATUS || "/pickup/requests/status", payload);
-      setRequests((prev) =>
+      setAllRequests((prev) =>
         prev.map((r) =>
           r._id === selectedRequest._id
             ? { ...r, status: "rejected", rejectedReason: rejectReason.trim() }
@@ -353,8 +448,10 @@ function PickupRequest() {
           sx={{
             px: { xs: 2, md: 3 }, py: 2,
             borderBottom: "1px solid", borderColor: "divider",
-            display: "flex", flexWrap: "wrap",
-            alignItems: "center", justifyContent: "space-between", gap: 2,
+            display: "flex",
+            flexWrap: "wrap",
+            alignItems: "center",
+            gap: 1.5,
             bgcolor: 'grey.50',
           }}
         >
@@ -363,24 +460,52 @@ function PickupRequest() {
             exclusive
             size="small"
             onChange={(_, val) => { if (val) setFilterStatus(val); }}
-            sx={{ flexWrap: 'wrap', '& .MuiToggleButton-root': { textTransform: 'none', fontWeight: 600, fontSize: 12, px: { xs: 1.25, sm: 2 } } }}
+            sx={{
+              flexWrap: "wrap",
+              "& .MuiToggleButton-root": { textTransform: "none", fontWeight: 600, fontSize: 12, px: { xs: 1.25, sm: 2 } },
+            }}
           >
+            <ToggleButton value="all">Tất cả</ToggleButton>
             <ToggleButton value="pending">Chờ duyệt</ToggleButton>
             <ToggleButton value="approved">Đã duyệt</ToggleButton>
             <ToggleButton value="rejected">Từ chối</ToggleButton>
-            <ToggleButton value="all">Tất cả</ToggleButton>
           </ToggleButtonGroup>
 
-          <Button
-            variant="outlined"
-            startIcon={<RefreshIcon />}
-            onClick={fetchPickupRequests}
-            disabled={loading}
-            size="small"
-            sx={{ borderRadius: 2, textTransform: "none", fontWeight: 600 }}
-          >
-            Làm mới
-          </Button>
+          <Box sx={{ display: "flex", alignItems: "center", gap: 1.5, ml: { xs: 0, md: "auto" }, width: { xs: "100%", md: "auto" } }}>
+            <TextField
+              value={phoneQuery}
+              onChange={(e) => setPhoneQuery(e.target.value)}
+              size="small"
+              placeholder="SĐT / tên người đón / học sinh"
+              sx={{
+                minWidth: { xs: "100%", sm: 360 },
+                "& .MuiOutlinedInput-root": { borderRadius: 2, bgcolor: "white", height: 34 },
+              }}
+              inputProps={{ autoComplete: "off" }}
+              slotProps={{
+                input: {
+                  startAdornment: (
+                    <InputAdornment position="start">
+                      <Typography variant="caption" sx={{ color: "text.secondary", fontWeight: 700 }}>
+                        Tìm kiếm
+                      </Typography>
+                    </InputAdornment>
+                  ),
+                },
+              }}
+            />
+
+            <Button
+              variant="outlined"
+              startIcon={<RefreshIcon />}
+              onClick={fetchPickupRequests}
+              disabled={loading}
+              size="small"
+              sx={{ borderRadius: 2, textTransform: "none", fontWeight: 600, height: 34, whiteSpace: "nowrap" }}
+            >
+              Làm mới
+            </Button>
+          </Box>
         </Box>
 
         {/* Alerts */}
@@ -405,19 +530,85 @@ function PickupRequest() {
             </Typography>
           </Box>
         ) : isMobile ? (
-          /* ── Mobile: Card list ── */
+          /* ── Mobile: theo học sinh, mở rộng từng HS ── */
           <Box>
-            {requests.map((req) => (
-              <RequestCard
-                key={req._id}
-                req={req}
-                onAction={handleAction}
-                onPreviewImage={setPreviewImage}
-              />
-            ))}
+            {groupedRequests.flatMap((group) =>
+              group.students.map((s) => {
+                const sid = String(s.student?._id ?? "");
+                const rowKey = `${group.parentId}:${sid}`;
+                const open = expandedStudentKeys.has(rowKey);
+                const agg = aggregateStatus(s.requests);
+                const meta = STATUS_META[agg] || STATUS_META.mixed;
+                const pend = s.requests.filter((r) => r.status === "pending").length;
+                return (
+                  <Box key={rowKey}>
+                    <Box
+                      sx={{
+                        px: 2, py: 1.5,
+                        borderBottom: "1px solid",
+                        borderColor: "divider",
+                        bgcolor: pend ? "rgba(245,158,11,0.03)" : "white",
+                      }}
+                    >
+                      <Box
+                        sx={{
+                          display: "flex",
+                          alignItems: "center",
+                          gap: 1,
+                          cursor: "pointer",
+                        }}
+                        onClick={() => toggleStudentExpand(group.parentId, sid)}
+                        role="button"
+                        tabIndex={0}
+                        onKeyDown={(e) => {
+                          if (e.key === "Enter" || e.key === " ") {
+                            e.preventDefault();
+                            toggleStudentExpand(group.parentId, sid);
+                          }
+                        }}
+                      >
+                        <Avatar
+                          sx={{
+                            width: 36, height: 36, fontSize: 14, fontWeight: 700,
+                            background: "linear-gradient(135deg,#f59e0b,#d97706)", color: "white",
+                          }}
+                        >
+                          {s.student?.fullName?.[0] || "?"}
+                        </Avatar>
+                        <Box sx={{ flex: 1, minWidth: 0 }}>
+                          <Typography variant="body2" fontWeight={700} color="primary.main">
+                            {s.student?.fullName || "—"}
+                          </Typography>
+                          <Typography variant="caption" color="text.secondary">
+                            {s.requests.length} đơn đăng ký
+                            {pend > 0 ? ` · ${pend} chờ duyệt` : ""}
+                          </Typography>
+                        </Box>
+                        {open ? <ExpandLessIcon color="action" /> : <ExpandMoreIcon color="action" />}
+                      </Box>
+                      <Box sx={{ mt: 1, pl: 0.5 }}>
+                        <Chip label={meta.label} icon={meta.icon} color={meta.color} size="small" sx={{ fontWeight: 700, fontSize: 11, height: 22 }} />
+                      </Box>
+                    </Box>
+                    <Collapse in={open} timeout="auto" unmountOnExit>
+                      <Box sx={{ bgcolor: "grey.50" }}>
+                        {s.requests.map((req) => (
+                          <RequestCard
+                            key={req._id}
+                            req={req}
+                            onAction={handleAction}
+                            onPreviewImage={setPreviewImage}
+                          />
+                        ))}
+                      </Box>
+                    </Collapse>
+                  </Box>
+                );
+              })
+            )}
           </Box>
         ) : (
-          /* ── Desktop: Table ── */
+          /* ── Desktop: 1 dòng / học sinh, mở rộng chi tiết ── */
           <TableContainer>
             <Table>
               <TableHead>
@@ -432,118 +623,195 @@ function PickupRequest() {
                   }}
                 >
                   <TableCell>Học sinh</TableCell>
-                  <TableCell>Người đăng ký</TableCell>
-                  <TableCell>Quan hệ</TableCell>
-                  <TableCell>Số điện thoại</TableCell>
-                  <TableCell align="center">Ảnh</TableCell>
+                  <TableCell>Chi tiết đơn đăng kí</TableCell>
+                  <TableCell colSpan={3} />
                   <TableCell align="center">Trạng thái</TableCell>
-                  <TableCell align="center" sx={{ minWidth: 160 }}>Thao tác</TableCell>
+                  <TableCell align="center" sx={{ minWidth: 100 }}>Chi tiết</TableCell>
                 </TableRow>
               </TableHead>
               <TableBody>
-                {requests.map((req) => {
-                  const meta = STATUS_META[req.status] || { label: req.status, color: "default" };
-                  const isPending = req.status === "pending";
-                  const isRejected = req.status === "rejected";
-                  return (
-                    <TableRow
-                      key={req._id}
-                      hover
-                      sx={{
-                        "&:last-child td": { border: 0 },
-                        bgcolor: isPending ? "rgba(245,158,11,0.03)" : "transparent",
-                      }}
-                    >
-                      <TableCell>
-                        <Box sx={{ display: "flex", alignItems: "center", gap: 1.5 }}>
-                          <Avatar
+                {groupedRequests.flatMap((group) =>
+                  group.students.map((s) => {
+                    const sid = String(s.student?._id ?? "");
+                    const rowKey = `${group.parentId}:${sid}`;
+                    const open = expandedStudentKeys.has(rowKey);
+                    const agg = aggregateStatus(s.requests);
+                    const meta = STATUS_META[agg] || STATUS_META.mixed;
+                    const pend = s.requests.filter((r) => r.status === "pending").length;
+                    const rowPending = pend > 0;
+                    return (
+                      <Fragment key={rowKey}>
+                          <TableRow
+                            hover
                             sx={{
-                              width: 34, height: 34, fontSize: 13, fontWeight: 700,
-                              background: "linear-gradient(135deg,#f59e0b,#d97706)", color: "white",
+                              bgcolor: rowPending ? "rgba(245,158,11,0.03)" : "transparent",
                             }}
                           >
-                            {req.student?.fullName?.[0] || "?"}
-                          </Avatar>
-                          <Typography variant="body2" fontWeight={600}>{req.student?.fullName || "—"}</Typography>
-                        </Box>
-                      </TableCell>
-
-                      <TableCell>
-                        <Box sx={{ display: "flex", alignItems: "center", gap: 1 }}>
-                          <Avatar sx={{ width: 28, height: 28, bgcolor: "grey.200", fontSize: 12 }}>
-                            {req.fullName?.[0] || "?"}
-                          </Avatar>
-                          <Typography variant="body2">{req.fullName}</Typography>
-                        </Box>
-                      </TableCell>
-
-                      <TableCell>
-                        <Chip label={req.relation} size="small" variant="outlined" sx={{ height: 22, fontSize: 11, fontWeight: 600 }} />
-                      </TableCell>
-
-                      <TableCell>
-                        <Typography variant="body2" sx={{ fontFamily: "monospace", fontWeight: 600 }}>{req.phone}</Typography>
-                      </TableCell>
-
-                      <TableCell align="center">
-                        {req.imageUrl ? (
-                          <Box
-                            component="img" src={req.imageUrl} alt={req.fullName}
-                            onClick={() => setPreviewImage(req.imageUrl)}
-                            sx={{
-                              width: 48, height: 48, borderRadius: 2, objectFit: "cover",
-                              border: "2px solid", borderColor: "divider", cursor: "pointer",
-                              transition: "all 0.15s",
-                              "&:hover": { transform: "scale(1.1)", boxShadow: 3, borderColor: "primary.main" },
-                            }}
-                          />
-                        ) : (
-                          <Avatar sx={{ width: 48, height: 48, bgcolor: "grey.100", mx: "auto" }}>
-                            <Typography variant="caption" color="text.disabled">N/A</Typography>
-                          </Avatar>
-                        )}
-                      </TableCell>
-
-                      <TableCell align="center">
-                        <Box sx={{ display: "flex", flexDirection: "column", alignItems: "center", gap: 0.5 }}>
-                          <Chip label={meta.label} icon={meta.icon} color={meta.color} size="small" sx={{ fontWeight: 700, fontSize: 11, height: 24 }} />
-                          {isRejected && req.rejectedReason && (
-                            <Alert severity="error" sx={{ py: 0.25, px: 1, fontSize: 10, borderRadius: 1, minWidth: 120 }}>
-                              <Typography variant="caption" fontWeight={600} sx={{ fontSize: 10 }}>
-                                Lý do: {req.rejectedReason}
+                            <TableCell sx={{ minWidth: 200 }}>
+                              <Box
+                                component="button"
+                                type="button"
+                                onClick={() => toggleStudentExpand(group.parentId, sid)}
+                                sx={{
+                                  display: "flex",
+                                  alignItems: "center",
+                                  gap: 1,
+                                  border: 0,
+                                  background: "none",
+                                  cursor: "pointer",
+                                  p: 0,
+                                  textAlign: "left",
+                                  font: "inherit",
+                                }}
+                              >
+                                <Avatar
+                                  sx={{
+                                    width: 34, height: 34, fontSize: 13, fontWeight: 700,
+                                    background: "linear-gradient(135deg,#f59e0b,#d97706)", color: "white",
+                                  }}
+                                >
+                                  {s.student?.fullName?.[0] || "?"}
+                                </Avatar>
+                                <Box>
+                                  <Typography variant="body2" fontWeight={700} color="primary.main">
+                                    {s.student?.fullName || "—"}
+                                  </Typography>
+                                  <Typography variant="caption" color="text.secondary">
+                                    Bấm để {open ? "thu gọn" : "xem"} người đăng ký
+                                  </Typography>
+                                </Box>
+                                {open ? <ExpandLessIcon fontSize="small" color="action" /> : <ExpandMoreIcon fontSize="small" color="action" />}
+                              </Box>
+                            </TableCell>
+                            <TableCell>
+                              <Typography variant="body2" fontWeight={600}>
+                                {s.requests.length} người / đơn đăng ký
                               </Typography>
-                            </Alert>
-                          )}
-                        </Box>
-                      </TableCell>
-
-                      <TableCell align="center">
-                        {isPending ? (
-                          <Stack direction="row" spacing={1} justifyContent="center">
-                            <Button
-                              size="small" variant="contained" color="success"
-                              startIcon={<ApproveIcon sx={{ fontSize: "14px !important" }} />}
-                              onClick={() => handleAction(req, "approve")}
-                              sx={{ textTransform: "none", fontSize: 12, fontWeight: 700, borderRadius: 2, boxShadow: "none" }}
-                            >
-                              Duyệt
-                            </Button>
-                            <Button
-                              size="small" variant="outlined" color="error"
-                              startIcon={<RejectIcon sx={{ fontSize: "14px !important" }} />}
-                              onClick={() => handleAction(req, "reject")}
-                              sx={{ textTransform: "none", fontSize: 12, fontWeight: 700, borderRadius: 2 }}
-                            >
-                              Từ chối
-                            </Button>
-                          </Stack>
-                        ) : (
-                          <Typography variant="caption" color="text.disabled">—</Typography>
-                        )}
-                      </TableCell>
-                    </TableRow>
-                  );
-                })}
+                              {pend > 0 && (
+                                <Typography variant="caption" color="warning.main" fontWeight={600} display="block">
+                                  {pend} chờ duyệt
+                                </Typography>
+                              )}
+                            </TableCell>
+                            <TableCell colSpan={3} />
+                            <TableCell align="center">
+                              <Chip label={meta.label} icon={meta.icon} color={meta.color} size="small" sx={{ fontWeight: 700, fontSize: 11, height: 24 }} />
+                            </TableCell>
+                            <TableCell align="center">
+                              <Button
+                                size="small"
+                                variant="outlined"
+                                onClick={() => toggleStudentExpand(group.parentId, sid)}
+                                sx={{ textTransform: "none", fontWeight: 600, borderRadius: 2 }}
+                              >
+                                {open ? "Thu gọn" : "Mở"}
+                              </Button>
+                            </TableCell>
+                          </TableRow>
+                          <TableRow>
+                            <TableCell colSpan={7} sx={{ py: 0, borderBottom: open ? undefined : "none" }}>
+                              <Collapse in={open} timeout="auto" unmountOnExit>
+                                <Box sx={{ py: 2, px: 1, bgcolor: "grey.50" }}>
+                                  <Table size="small">
+                                    <TableHead>
+                                      <TableRow>
+                                        <TableCell sx={{ fontWeight: 700 }}>Người đăng ký</TableCell>
+                                        <TableCell sx={{ fontWeight: 700 }}>Quan hệ</TableCell>
+                                        <TableCell sx={{ fontWeight: 700 }}>Số điện thoại</TableCell>
+                                        <TableCell align="center" sx={{ fontWeight: 700 }}>Ảnh</TableCell>
+                                        <TableCell align="center" sx={{ fontWeight: 700 }}>Trạng thái</TableCell>
+                                        <TableCell align="center" sx={{ fontWeight: 700 }}>Thao tác</TableCell>
+                                      </TableRow>
+                                    </TableHead>
+                                    <TableBody>
+                                      {s.requests.map((req) => {
+                                        const rmeta = STATUS_META[req.status] || { label: req.status, color: "default" };
+                                        const isPending = req.status === "pending";
+                                        const isRejected = req.status === "rejected";
+                                        return (
+                                          <TableRow key={req._id}>
+                                            <TableCell>
+                                              <Box sx={{ display: "flex", alignItems: "center", gap: 1 }}>
+                                                <Avatar sx={{ width: 28, height: 28, bgcolor: "grey.200", fontSize: 12 }}>
+                                                  {req.fullName?.[0] || "?"}
+                                                </Avatar>
+                                                <Typography variant="body2">{req.fullName}</Typography>
+                                              </Box>
+                                            </TableCell>
+                                            <TableCell>
+                                              <Chip label={req.relation} size="small" variant="outlined" sx={{ height: 22, fontSize: 11, fontWeight: 600 }} />
+                                            </TableCell>
+                                            <TableCell>
+                                              <Typography variant="body2" sx={{ fontFamily: "monospace", fontWeight: 600 }}>{req.phone}</Typography>
+                                            </TableCell>
+                                            <TableCell align="center">
+                                              {req.imageUrl ? (
+                                                <Box
+                                                  component="img"
+                                                  src={req.imageUrl}
+                                                  alt={req.fullName}
+                                                  onClick={() => setPreviewImage(req.imageUrl)}
+                                                  sx={{
+                                                    width: 44, height: 44, borderRadius: 2, objectFit: "cover",
+                                                    border: "2px solid", borderColor: "divider", cursor: "pointer",
+                                                    "&:hover": { borderColor: "primary.main" },
+                                                  }}
+                                                />
+                                              ) : (
+                                                <Typography variant="caption" color="text.disabled">—</Typography>
+                                              )}
+                                            </TableCell>
+                                            <TableCell align="center">
+                                              <Box sx={{ display: "flex", flexDirection: "column", alignItems: "center", gap: 0.5 }}>
+                                                <Chip label={rmeta.label} icon={rmeta.icon} color={rmeta.color} size="small" sx={{ fontWeight: 700, fontSize: 10, height: 22 }} />
+                                                {isRejected && req.rejectedReason && (
+                                                  <Typography variant="caption" color="error.main" sx={{ maxWidth: 160 }}>
+                                                    {req.rejectedReason}
+                                                  </Typography>
+                                                )}
+                                              </Box>
+                                            </TableCell>
+                                            <TableCell align="center">
+                                              {isPending ? (
+                                                <Stack direction="row" spacing={0.75} justifyContent="center" flexWrap="wrap" useFlexGap>
+                                                  <Button
+                                                    size="small"
+                                                    variant="contained"
+                                                    color="success"
+                                                    startIcon={<ApproveIcon sx={{ fontSize: "14px !important" }} />}
+                                                    onClick={() => handleAction(req, "approve")}
+                                                    sx={{ textTransform: "none", fontSize: 11, fontWeight: 700, borderRadius: 2, boxShadow: "none" }}
+                                                  >
+                                                    Duyệt
+                                                  </Button>
+                                                  <Button
+                                                    size="small"
+                                                    variant="outlined"
+                                                    color="error"
+                                                    startIcon={<RejectIcon sx={{ fontSize: "14px !important" }} />}
+                                                    onClick={() => handleAction(req, "reject")}
+                                                    sx={{ textTransform: "none", fontSize: 11, fontWeight: 700, borderRadius: 2 }}
+                                                  >
+                                                    Từ chối
+                                                  </Button>
+                                                </Stack>
+                                              ) : (
+                                                <Typography variant="caption" color="text.disabled">—</Typography>
+                                              )}
+                                            </TableCell>
+                                          </TableRow>
+                                        );
+                                      })}
+                                    </TableBody>
+                                  </Table>
+                                </Box>
+                              </Collapse>
+                            </TableCell>
+                          </TableRow>
+                      </Fragment>
+                    );
+                  })
+                )}
               </TableBody>
             </Table>
           </TableContainer>

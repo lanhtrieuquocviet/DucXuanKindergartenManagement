@@ -52,6 +52,7 @@ import {
   Close as CloseIcon,
   DirectionsCar as DirectionsCarIcon,
   EventBusy as EventBusyIcon,
+  CompareArrows as CompareArrowsIcon,
   LocationOn as LocationIcon,
   Timeline as TimelineIcon,
   HealthAndSafety as HealthIcon,
@@ -85,10 +86,13 @@ export const KEY_ICONS = {
   // Groups
   'system-management': <SettingsIcon fontSize="small" />,
   'academic-management': <CalendarIcon fontSize="small" />,
+  'academic-management-teacher': <SchoolIcon fontSize="small" />,
   'attendance-management': <ChecklistIcon fontSize="small" />,
+  'attendance-management-teacher': <ChecklistIcon fontSize="small" />,
   'personnel': <BadgeIcon fontSize="small" />,
   'food-nutrition': <RestaurantIcon fontSize="small" />,
   'assets-management': <InventoryIcon fontSize="small" />,
+  'assets-management-teacher': <InventoryIcon fontSize="small" />,
   'cms-management': <PublicIcon fontSize="small" />,
 
   // System
@@ -119,6 +123,8 @@ export const KEY_ICONS = {
   'attendance': <ChecklistIcon fontSize="small" />,
   'pickup-approval': <DirectionsCarIcon fontSize="small" />,
   'leave-requests': <EventBusyIcon fontSize="small" />,
+  'class-transfer-requests': <CompareArrowsIcon fontSize="small" />,
+  'class-transfer-requests-teacher': <CompareArrowsIcon fontSize="small" />,
 
   // Personnel
   'staff-positions': <BadgeIcon fontSize="small" />,
