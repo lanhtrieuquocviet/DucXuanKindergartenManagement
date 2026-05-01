@@ -49,7 +49,7 @@ const StudentFilter = ({
             onChange={(e) => setYearFilter(e.target.value)}
           >
             <MenuItem value="all">Tất cả</MenuItem>
-            {academicYears.map((ay) => (
+            {academicYears.filter((ay) => ay.status !== 'draft').map((ay) => (
               <MenuItem key={ay._id} value={ay._id}>
                 {ay.yearName}
               </MenuItem>
