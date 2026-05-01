@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
+import { useAuth } from '../../context/AuthContext';
 import { getMenus } from '../../service/menu.api';
 import { toast } from 'react-toastify';
 import {
@@ -15,6 +16,7 @@ const BG = '#f0fdf4';
 
 const STATUS_CONFIG = {
   active:    { label: 'Đang áp dụng', color: 'info',    Icon: PlayCircle },
+  approved:  { label: 'Đã duyệt',     color: 'success', Icon: PlayCircle },
   completed: { label: 'Đã kết thúc',  color: 'default', Icon: StopCircle },
 };
 
@@ -22,6 +24,7 @@ const STUDENT_VISIBLE_STATUSES = ['active', 'completed'];
 
 export default function MenuStudent() {
   const navigate = useNavigate();
+  const { user } = useAuth();
   const [menus, setMenus] = useState([]);
   const [loading, setLoading] = useState(false);
 
@@ -31,11 +34,16 @@ export default function MenuStudent() {
         setLoading(true);
         const res = await getMenus();
         const list = Array.isArray(res.data) ? res.data : [];
-        setMenus(list.filter((m) => STUDENT_VISIBLE_STATUSES.includes(m.status)));
+        const roles = user?.roles?.map((r) => r?.roleName || r) || [];
+        const isHeadParent = roles.includes('HeadParent');
+        const visibleStatuses = isHeadParent
+          ? [...STUDENT_VISIBLE_STATUSES, 'approved']
+          : STUDENT_VISIBLE_STATUSES;
+        setMenus(list.filter((m) => visibleStatuses.includes(m.status)));
       } catch { toast.error('Không thể tải danh sách thực đơn'); }
       finally { setLoading(false); }
     })();
-  }, []);
+  }, [user]);
 
   return (
     <Box sx={{ minHeight: '100vh', bgcolor: BG }}>

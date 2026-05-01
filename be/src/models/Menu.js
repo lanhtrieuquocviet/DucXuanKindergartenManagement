@@ -74,6 +74,9 @@ const menuSchema = new mongoose.Schema(
       reviewedBy: { type: mongoose.Schema.Types.ObjectId, ref: 'User', default: null },
       reviewedAt: { type: Date, default: null },
       comment:    { type: String, default: '' },
+      reviewRequestedAt: { type: Date, default: null },
+      reviewDeadlineAt: { type: Date, default: null },
+      reviewNotifiedAt: { type: Date, default: null },
     },
 
     rejectReason: {

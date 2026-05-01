@@ -1,8 +1,12 @@
 const Menu = require("../models/Menu");
+const User = require("../models/User");
+const Role = require("../models/Role");
 const NutritionPlanSetting = require("../models/NutritionPlanSetting");
 const DistrictNutritionPlan = require("../models/DistrictNutritionPlan");
 const AcademicYear = require("../models/AcademicYear");
 const districtNutritionPlanService = require("./districtNutritionPlanService");
+const { createNotification } = require("./notification.service");
+const { sendHeadParentMenuReviewEmail } = require("../utils/email");
 
 const mongoose = require("mongoose");
 const DailyMenu = require("../models/DailyMenu");
@@ -32,6 +36,71 @@ function buildChangeReasonText(presets, detail) {
   const text = buildRejectReasonText(presets, detail).trim();
   if (text) return text;
   return "Yêu cầu chỉnh sửa thực đơn đang áp dụng";
+}
+
+const HEADPARENT_REVIEW_HOURS = 48;
+
+function getHeadParentReviewDeadline(fromDate = new Date()) {
+  return new Date(fromDate.getTime() + HEADPARENT_REVIEW_HOURS * 60 * 60 * 1000);
+}
+
+async function getHeadParentUsers() {
+  const headParentRole = await Role.findOne({ roleName: "HeadParent" }).lean();
+  if (!headParentRole?._id) return [];
+  const users = await User.find({
+    roles: headParentRole._id,
+    status: "active",
+  })
+    .select("_id fullName email")
+    .lean();
+  return Array.isArray(users) ? users : [];
+}
+
+async function notifyHeadParentsForMenuReview(menu, reviewDeadlineAt) {
+  const headParents = await getHeadParentUsers();
+  if (!headParents.length) return;
+
+  const title = `Cần review thực đơn Tháng ${menu.month}/${menu.year}`;
+  const body = `Ban giám hiệu đã duyệt thực đơn và chờ Hội trưởng phụ huynh review trong 48 giờ.`;
+
+  // Thông báo trong hệ thống
+  await Promise.all(
+    headParents.map((hp) =>
+      createNotification({
+        title,
+        body,
+        type: "menu_review",
+        targetUserId: hp._id,
+        extra: {
+          menuId: menu._id,
+          month: menu.month,
+          year: menu.year,
+          reviewDeadlineAt,
+        },
+      })
+    )
+  );
+
+  // Gửi email (best-effort)
+  const frontend = process.env.FRONTEND_URL || "http://localhost:5173";
+  await Promise.all(
+    headParents
+      .filter((hp) => hp.email)
+      .map(async (hp) => {
+        try {
+          await sendHeadParentMenuReviewEmail({
+            to: hp.email,
+            fullName: hp.fullName,
+            month: menu.month,
+            year: menu.year,
+            reviewDeadlineAt,
+            menuUrl: `${frontend}/head-parent/menus/${menu._id}`,
+          });
+        } catch (err) {
+          console.warn("sendHeadParentMenuReviewEmail error:", err?.message || err);
+        }
+      })
+  );
 }
 
 function pushMenuHistory(menu, entry) {
@@ -724,7 +793,14 @@ exports.submitMenu = async (req, res) => {
     menu.rejectReason = "";
     menu.rejectPresets = [];
     menu.rejectDetail = "";
-    menu.headParentReview = { reviewedBy: null, reviewedAt: null, comment: '' };
+    menu.headParentReview = {
+      reviewedBy: null,
+      reviewedAt: null,
+      comment: "",
+      reviewRequestedAt: null,
+      reviewDeadlineAt: null,
+      reviewNotifiedAt: null,
+    };
 
     pushMenuHistory(menu, {
       type: "submitted",
@@ -744,8 +820,8 @@ exports.submitMenu = async (req, res) => {
 };
 
 // Hội trưởng phụ huynh xem xét:
-// - pending_headparent: chuyển tiếp lên ban giám hiệu (pending)
-// - approved: gửi lý do từ chối, trả về bếp chỉnh sửa (rejected)
+// - pending_headparent: chuyển tiếp lên ban giám hiệu (pending) [luồng cũ]
+// - approved: gửi lý do từ chối trong 48h, trả về bếp chỉnh sửa (rejected)
 exports.headParentReviewMenu = async (req, res) => {
   try {
     const menu = await Menu.findById(req.params.id);
@@ -768,6 +844,16 @@ exports.headParentReviewMenu = async (req, res) => {
     };
 
     if (menu.status === "approved") {
+      const deadline = menu.headParentReview?.reviewDeadlineAt
+        ? new Date(menu.headParentReview.reviewDeadlineAt)
+        : null;
+      if (deadline && deadline < new Date()) {
+        return res.status(400).json({
+          success: false,
+          message: "Đã hết thời hạn review 48 giờ kể từ lúc ban giám hiệu duyệt thực đơn.",
+        });
+      }
+
       const presets = Array.isArray(req.body.presets)
         ? [...new Set(req.body.presets.map((p) => String(p).trim()).filter(Boolean))]
         : [];
@@ -847,6 +933,16 @@ exports.approveMenu = async (req, res) => {
     }
 
     menu.status = "approved";
+    const now = new Date();
+    const reviewDeadlineAt = getHeadParentReviewDeadline(now);
+    menu.headParentReview = {
+      reviewedBy: null,
+      reviewedAt: null,
+      comment: "",
+      reviewRequestedAt: now,
+      reviewDeadlineAt,
+      reviewNotifiedAt: now,
+    };
 
     pushMenuHistory(menu, {
       type: "approved",
@@ -854,10 +950,11 @@ exports.approveMenu = async (req, res) => {
     });
 
     await menu.save();
+    await notifyHeadParentsForMenuReview(menu, reviewDeadlineAt);
 
     res.json({
       success: true,
-      message: "Thực đơn đã được duyệt",
+      message: "Thực đơn đã được duyệt và đã gửi yêu cầu review cho Hội trưởng phụ huynh (48 giờ)",
       data: menu,
     });
   } catch (error) {
