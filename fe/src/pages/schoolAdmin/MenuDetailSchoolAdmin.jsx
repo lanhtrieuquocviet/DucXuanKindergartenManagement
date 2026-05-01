@@ -57,6 +57,63 @@ const mealTypes = [
   { key: "afternoonFoods", label: "Bữa chiều" },
 ];
 
+const mealKeyToSlotsKey = (mealKey) =>
+  mealKey === "lunchFoods" ? "lunchMealSlots" : "afternoonMealSlots";
+
+const normalizeFoodItem = (item) => {
+  if (!item) return null;
+  if (typeof item === "string") {
+    return { _id: item, name: "", calories: null };
+  }
+  if (typeof item === "object") {
+    if (item.food && typeof item.food === "object") {
+      return {
+        _id: item.food._id || item._id || item.id || "",
+        name: item.food.name || item.name || "",
+        calories: item.food.calories ?? item.calories ?? item.totalCalories ?? null,
+      };
+    }
+    return {
+      _id: item._id || item.id || item.foodId || "",
+      name: item.name || "",
+      calories: item.calories ?? item.totalCalories ?? null,
+    };
+  }
+  return null;
+};
+
+const getFoodsForMeal = (dayMenu, mealKey) => {
+  const directFoods = Array.isArray(dayMenu?.[mealKey]) ? dayMenu[mealKey] : [];
+  const normalizedDirect = directFoods.map(normalizeFoodItem).filter(Boolean);
+  const hasReadableDirect = normalizedDirect.some((f) => f.name);
+  if (hasReadableDirect) return normalizedDirect;
+
+  const slotsKey = mealKeyToSlotsKey(mealKey);
+  const slots = Array.isArray(dayMenu?.[slotsKey]) ? dayMenu[slotsKey] : [];
+  if (!slots.length) return normalizedDirect;
+
+  const byId = new Map();
+  slots.forEach((slot) => {
+    const slotFood = slot?.food;
+    const id =
+      (typeof slotFood === "object" ? slotFood?._id : slotFood) ||
+      slot?._id ||
+      null;
+    if (!id) return;
+    byId.set(String(id), {
+      _id: String(id),
+      name: (typeof slotFood === "object" ? slotFood?.name : "") || "",
+      calories:
+        slot?.totalCalories ??
+        (typeof slotFood === "object" ? slotFood?.calories : null) ??
+        null,
+    });
+  });
+
+  if (!normalizedDirect.length) return Array.from(byId.values());
+  return normalizedDirect.map((f) => byId.get(String(f._id)) || f);
+};
+
 const STATUS_CHIP = {
   draft: { label: "Nháp", color: "default" },
   pending: { label: "Chờ duyệt", color: "warning" },
@@ -71,23 +128,30 @@ function ViewFoodTag({ food }) {
     <Box
       sx={{
         display: "inline-flex",
-        alignItems: "center",
-        gap: 0.5,
-        bgcolor: alpha("#4f46e5", 0.07),
+        flexDirection: "column",
+        alignItems: "flex-start",
+        gap: 0.25,
+        bgcolor: alpha("#4f46e5", 0.09),
         border: "1px solid",
-        borderColor: alpha("#4f46e5", 0.15),
-        borderRadius: 1.5,
-        px: 1,
-        py: 0.25,
-        mb: 0.5,
-        mr: 0.5,
+        borderColor: alpha("#4f46e5", 0.22),
+        borderRadius: 1.25,
+        px: 0.9,
+        py: 0.55,
+        mb: 0.65,
+        mr: 0.55,
+        minWidth: 82,
       }}
     >
-      <Typography variant="caption" fontWeight={600} color="primary.main" sx={{ fontSize: 11 }}>
-        {food.name}
+      <Typography
+        variant="caption"
+        fontWeight={700}
+        color="primary.main"
+        sx={{ fontSize: 11.5, lineHeight: 1.2 }}
+      >
+        {food.name || "Món ăn"}
       </Typography>
-      <Typography variant="caption" color="text.disabled" sx={{ fontSize: 10 }}>
-        {food.calories} kcal
+      <Typography variant="caption" color="text.secondary" sx={{ fontSize: 10.5, lineHeight: 1.15 }}>
+        {food.calories != null ? `${Number(food.calories).toFixed(1)} kcal` : "—"}
       </Typography>
     </Box>
   );
@@ -154,16 +218,18 @@ function SchoolAdminWeekTable({ title, weekData, nutritionRanges, useSnapshotTot
                   </TableCell>
                   {days.map((day) => {
                     const dayMenu = weekData?.[day];
-                    const foods = dayMenu?.[meal.key] || [];
+                    const foods = getFoodsForMeal(dayMenu, meal.key);
                     return (
-                      <TableCell key={day} sx={{ verticalAlign: "top", p: 1.25, minWidth: 120 }}>
+                      <TableCell key={day} sx={{ verticalAlign: "top", p: 1.25, minWidth: 150 }}>
                         <Box>
                           {!foods.length ? (
                             <Typography variant="caption" color="text.disabled">
                               Không có món
                             </Typography>
                           ) : (
-                            foods.map((food) => <ViewFoodTag key={food._id} food={food} />)
+                            foods.map((food, idx) => (
+                              <ViewFoodTag key={food._id || `${food.name || "food"}-${idx}`} food={food} />
+                            ))
                           )}
                         </Box>
                       </TableCell>
