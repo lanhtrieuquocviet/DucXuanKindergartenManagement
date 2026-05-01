@@ -394,7 +394,7 @@ export default function TeacherStudents() {
                               {s.fullName?.charAt(0)}
                             </Avatar>
                             <Box>
-                              <Typography variant="body2" fontWeight={600} sx={{ lineHeight: 1.3 }}>
+                              <Typography variant="body2" fontWeight={600} sx={{ lineHeight: 1.3, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
                                 {s.fullName}
                               </Typography>
                               {age && (
@@ -419,7 +419,7 @@ export default function TeacherStudents() {
                         <TableCell>
                           <Stack direction="row" alignItems="center" spacing={0.5}>
                             <PersonIcon sx={{ fontSize: 13, color: 'text.disabled' }} />
-                            <Typography variant="body2" sx={{ fontSize: '0.8rem' }}>
+                            <Typography variant="body2" sx={{ fontSize: '0.8rem', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
                               {s.parentId?.fullName || '—'}
                             </Typography>
                           </Stack>

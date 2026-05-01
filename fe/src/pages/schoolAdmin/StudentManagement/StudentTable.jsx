@@ -68,7 +68,9 @@ const StudentTable = ({
                         </IconButton>
                       </Tooltip>
                     )}
-                    <span>{row.fullName || '—'}</span>
+                    <Typography variant="body2" sx={{ whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+                      {row.fullName || '—'}
+                    </Typography>
                   </Stack>
                 </TableCell>
                 <TableCell sx={{ whiteSpace: 'nowrap' }}>{formatDate(row.dateOfBirth)}</TableCell>
@@ -106,7 +108,9 @@ const StudentTable = ({
                 </TableCell>
                 <TableCell sx={{ minWidth: 160 }}>
                   <Stack direction="row" alignItems="center" spacing={0.5}>
-                    <span>{parentName}</span>
+                    <Typography variant="body2" sx={{ whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+                      {parentName}
+                    </Typography>
                     {isHeadParent && (
                       <Tooltip title="Hội trưởng hội phụ huynh">
                         <TrophyIcon sx={{ fontSize: 15, color: '#d97706' }} />
