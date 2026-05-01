@@ -48,6 +48,7 @@ export default function ManageAssessmentTemplates() {
   const navigate = useNavigate();
   const [templates, setTemplates] = useState([]);
   const [academicYears, setAcademicYears] = useState([]);
+  const [grades, setGrades] = useState([]);
   const [selectedYear, setSelectedYear] = useState('');
   const [loading, setLoading] = useState(false);
 
@@ -57,6 +58,8 @@ export default function ManageAssessmentTemplates() {
   const [formData, setFormData] = useState({
     templateName: '',
     academicYearId: '',
+    gradeId: '',
+    period: 'semester_1',
     criteria: [],
   });
   const [newCriterion, setNewCriterion] = useState('');
@@ -64,15 +67,22 @@ export default function ManageAssessmentTemplates() {
 
   const loadInitialData = useCallback(async () => {
     try {
-      const yearsResp = await get(ENDPOINTS.SCHOOL_ADMIN.ACADEMIC_YEARS.LIST);
+      const [yearsResp, gradesResp] = await Promise.all([
+        get(ENDPOINTS.SCHOOL_ADMIN.ACADEMIC_YEARS.LIST),
+        get(ENDPOINTS.GRADES.LIST)
+      ]);
+
       if (yearsResp?.status === 'success') {
         setAcademicYears(yearsResp.data || []);
         const current = yearsResp.data.find(y => y.status === 'active');
         if (current) setSelectedYear(current._id);
         else if (yearsResp.data.length > 0) setSelectedYear(yearsResp.data[0]._id);
       }
+      if (gradesResp?.status === 'success') {
+        setGrades(gradesResp.data || []);
+      }
     } catch (error) {
-      toast.error('Lỗi tải danh sách năm học');
+      toast.error('Lỗi tải dữ liệu cơ sở');
     }
   }, []);
 
@@ -105,17 +115,34 @@ export default function ManageAssessmentTemplates() {
       setFormData({
         templateName: template.templateName,
         academicYearId: template.academicYearId?._id || template.academicYearId,
-        criteria: template.criteria || [],
+        gradeId: template.gradeId?._id || template.gradeId || '',
+        period: template.period || 'semester_1',
+        criteria: [...(template.criteria || [])],
       });
     } else {
       setEditingTemplate(null);
       setFormData({
-        templateName: `Mẫu đánh giá ${academicYears.find(y => y._id === selectedYear)?.yearName || ''}`,
+        templateName: '',
         academicYearId: selectedYear,
-        criteria: [], // Để trống danh sách tiêu chí
+        gradeId: '',
+        period: 'semester_1',
+        criteria: [], 
       });
     }
     setOpenDialog(true);
+  };
+
+  const handleCloneTemplate = (template) => {
+    setEditingTemplate(null); // Force as new template
+    setFormData({
+      templateName: `${template.templateName} (Bản sao)`,
+      academicYearId: template.academicYearId?._id || template.academicYearId,
+      gradeId: template.gradeId?._id || template.gradeId || '',
+      period: template.period, // User will change this in dialog
+      criteria: [...(template.criteria || [])],
+    });
+    setOpenDialog(true);
+    toast.info('Đã sao chép tiêu chí. Vui lòng chọn Kỳ đánh giá mới.');
   };
 
   const handleAddCriterion = () => {
@@ -322,35 +349,101 @@ export default function ManageAssessmentTemplates() {
             </Button>
           </Box>
         ) : (
-          <Stack spacing={2}>
-            {templates.map(tpl => (
-              <Card key={tpl._id} sx={{ borderRadius: 3, border: '1px solid', borderColor: 'divider' }}>
-                <CardContent>
-                  <Stack direction="row" justifyContent="space-between" alignItems="flex-start">
-                    <Box>
-                      <Typography variant="h6" fontWeight="600">{tpl.templateName}</Typography>
-                      <Stack direction="row" spacing={1} mt={1} flexWrap="wrap">
-                        {tpl.criteria.map((c, idx) => (
-                          <Chip key={idx} label={c.name} size="small" variant="outlined" color="primary" />
-                        ))}
-                      </Stack>
-                    </Box>
-                    <Stack direction="row" spacing={1}>
-                      <Tooltip title="Chỉnh sửa">
-                        <IconButton size="small" onClick={() => handleOpenDialog(tpl)}>
-                          <EditIcon color="primary" />
-                        </IconButton>
-                      </Tooltip>
-                      <Tooltip title="Xóa">
-                        <IconButton size="small">
-                          <DeleteIcon color="error" />
-                        </IconButton>
-                      </Tooltip>
-                    </Stack>
+          <Stack spacing={4}>
+            {grades.map(grade => {
+              const gradeTemplates = templates.filter(t => (t.gradeId?._id || t.gradeId) === grade._id);
+              if (gradeTemplates.length === 0) return null;
+
+              return (
+                <Box key={grade._id}>
+                  <Typography variant="h6" fontWeight="bold" color="primary" sx={{ mb: 2, display: 'flex', alignItems: 'center', gap: 1 }}>
+                    <Chip label={grade.gradeName} color="primary" size="small" /> Tiêu chí theo độ tuổi
+                  </Typography>
+                  <Stack spacing={2}>
+                    {gradeTemplates.map(tpl => (
+                      <Card key={tpl._id} sx={{ borderRadius: 3, border: '1px solid', borderColor: 'divider' }}>
+                        <CardContent>
+                          <Stack direction="row" justifyContent="space-between" alignItems="flex-start">
+                            <Box sx={{ flex: 1 }}>
+                              <Stack direction="row" spacing={1} alignItems="center" mb={1}>
+                                <Typography variant="subtitle1" fontWeight="600">{tpl.templateName}</Typography>
+                                <Chip 
+                                  label={
+                                    tpl.period === 'early_year' ? 'Đầu năm' : 
+                                    tpl.period === 'semester_1' ? 'Kỳ 1' : 'Kỳ 2'
+                                  } 
+                                  size="small" 
+                                  color="secondary" 
+                                  variant="outlined"
+                                />
+                              </Stack>
+                              <Stack direction="row" spacing={1} flexWrap="wrap" gap={1}>
+                                {tpl.criteria.map((c, idx) => (
+                                  <Chip key={idx} label={c.name} size="small" variant="outlined" color="default" sx={{ fontSize: '0.7rem' }} />
+                                ))}
+                              </Stack>
+                            </Box>
+                            <Stack direction="row" spacing={1}>
+                              <Tooltip title="Chỉnh sửa">
+                                <IconButton size="small" onClick={() => handleOpenDialog(tpl)}>
+                                  <EditIcon color="primary" />
+                                </IconButton>
+                              </Tooltip>
+                              <Tooltip title="Nhân bản (Clone)">
+                                <IconButton size="small" onClick={() => handleCloneTemplate(tpl)}>
+                                  <AddIcon color="success" />
+                                </IconButton>
+                              </Tooltip>
+                              <Tooltip title="Xóa">
+                                <IconButton size="small">
+                                  <DeleteIcon color="error" />
+                                </IconButton>
+                              </Tooltip>
+                            </Stack>
+                          </Stack>
+                        </CardContent>
+                      </Card>
+                    ))}
                   </Stack>
-                </CardContent>
-              </Card>
-            ))}
+                </Box>
+              );
+            })}
+
+            {/* Các mẫu không gán khối cụ thể (nếu có) */}
+            {(() => {
+              const globalTemplates = templates.filter(t => !t.gradeId);
+              if (globalTemplates.length === 0) return null;
+              return (
+                <Box>
+                  <Typography variant="h6" fontWeight="bold" color="text.secondary" sx={{ mb: 2 }}>
+                    Mẫu chung cho tất cả các khối
+                  </Typography>
+                  <Stack spacing={2}>
+                    {globalTemplates.map(tpl => (
+                      <Card key={tpl._id} sx={{ borderRadius: 3, border: '1px solid', borderColor: 'divider' }}>
+                        <CardContent>
+                          <Stack direction="row" justifyContent="space-between" alignItems="flex-start">
+                            <Box sx={{ flex: 1 }}>
+                              <Typography variant="subtitle1" fontWeight="600" mb={1}>{tpl.templateName}</Typography>
+                              <Stack direction="row" spacing={1} flexWrap="wrap" gap={1}>
+                                {tpl.criteria.map((c, idx) => (
+                                  <Chip key={idx} label={c.name} size="small" variant="outlined" />
+                                ))}
+                              </Stack>
+                            </Box>
+                            <Stack direction="row" spacing={1}>
+                              <IconButton size="small" onClick={() => handleOpenDialog(tpl)}><EditIcon color="primary" /></IconButton>
+                              <IconButton size="small" onClick={() => handleCloneTemplate(tpl)}><AddIcon color="success" /></IconButton>
+                              <IconButton size="small"><DeleteIcon color="error" /></IconButton>
+                            </Stack>
+                          </Stack>
+                        </CardContent>
+                      </Card>
+                    ))}
+                  </Stack>
+                </Box>
+              );
+            })()}
           </Stack>
         )}
 
@@ -368,6 +461,33 @@ export default function ManageAssessmentTemplates() {
                 onChange={(e) => setFormData(prev => ({ ...prev, templateName: e.target.value }))}
                 placeholder="VD: Mẫu đánh giá cuối năm 2024-2025"
               />
+
+              <FormControl fullWidth>
+                <InputLabel>Khối lớp</InputLabel>
+                <Select
+                  value={formData.gradeId}
+                  label="Khối lớp"
+                  onChange={(e) => setFormData(prev => ({ ...prev, gradeId: e.target.value }))}
+                >
+                  <MenuItem value="">— Tất cả các khối —</MenuItem>
+                  {grades.map(g => (
+                    <MenuItem key={g._id} value={g._id}>{g.gradeName}</MenuItem>
+                  ))}
+                </Select>
+              </FormControl>
+
+              <FormControl fullWidth>
+                <InputLabel>Kỳ đánh giá</InputLabel>
+                <Select
+                  value={formData.period}
+                  label="Kỳ đánh giá"
+                  onChange={(e) => setFormData(prev => ({ ...prev, period: e.target.value }))}
+                >
+                  <MenuItem value="early_year">Đầu năm</MenuItem>
+                  <MenuItem value="semester_1">Cuối học kỳ 1</MenuItem>
+                  <MenuItem value="semester_2">Cuối học kỳ 2</MenuItem>
+                </Select>
+              </FormControl>
 
               <FormControl fullWidth>
                 <InputLabel>Năm học</InputLabel>

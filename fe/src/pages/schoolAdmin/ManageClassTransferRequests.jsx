@@ -28,6 +28,8 @@ export default function ManageClassTransferRequests() {
   const [requests, setRequests] = useState([]);
   const [loading, setLoading] = useState(true);
   const [statusFilter, setStatusFilter] = useState('all');
+  const [academicYears, setAcademicYears] = useState([]);
+  const [yearFilter, setYearFilter] = useState('all');
   const isMobile = useMediaQuery('(max-width:700px)');
 
   const [actionDialog, setActionDialog] = useState(null); // { req, action: 'approve'|'reject' }
@@ -37,15 +39,29 @@ export default function ManageClassTransferRequests() {
   const [successMsg, setSuccessMsg] = useState('');
 
   const fetchRequests = () => {
-    const q = statusFilter !== 'all' ? `?status=${statusFilter}` : '';
+    const params = new URLSearchParams();
+    if (statusFilter !== 'all') params.set('status', statusFilter);
+    if (yearFilter !== 'all') params.set('academicYearId', yearFilter);
+    
     setLoading(true);
-    get(`${ENDPOINTS.CLASS_TRANSFER.ADMIN_REQUESTS}${q}`)
+    get(`${ENDPOINTS.CLASS_TRANSFER.ADMIN_REQUESTS}?${params.toString()}`)
       .then((res) => setRequests(res.data || []))
       .catch(() => setRequests([]))
       .finally(() => setLoading(false));
   };
 
-  useEffect(() => { fetchRequests(); }, [statusFilter]);
+  useEffect(() => {
+    get(ENDPOINTS.SCHOOL_ADMIN.ACADEMIC_YEARS.LIST)
+      .then(res => {
+        const list = res.data || [];
+        setAcademicYears(list);
+        const active = list.find(y => y.status === 'active');
+        if (active) setYearFilter(active._id);
+      })
+      .catch(() => {});
+  }, []);
+
+  useEffect(() => { fetchRequests(); }, [statusFilter, yearFilter]);
 
   const pendingCount = requests.filter((r) => r.status === 'pending').length;
 
@@ -106,11 +122,20 @@ export default function ManageClassTransferRequests() {
       )}
 
       {/* Filter */}
-      <Stack direction="row" spacing={1.5} mb={2.5}>
+      <Stack direction="row" spacing={1.5} mb={2.5} flexWrap="wrap" useFlexGap>
+        <FormControl size="small" sx={{ minWidth: 160 }}>
+          <InputLabel>Năm học</InputLabel>
+          <Select value={yearFilter} label="Năm học" onChange={(e) => setYearFilter(e.target.value)}>
+            <MenuItem value="all">Tất cả năm</MenuItem>
+            {academicYears.map(y => (
+              <MenuItem key={y._id} value={y._id}>{y.yearName}</MenuItem>
+            ))}
+          </Select>
+        </FormControl>
         <FormControl size="small" sx={{ minWidth: 160 }}>
           <InputLabel>Trạng thái</InputLabel>
           <Select value={statusFilter} label="Trạng thái" onChange={(e) => setStatusFilter(e.target.value)}>
-            <MenuItem value="all">Tất cả</MenuItem>
+            <MenuItem value="all">Tất cả trạng thái</MenuItem>
             <MenuItem value="pending">Chờ duyệt</MenuItem>
             <MenuItem value="approved">Đã duyệt</MenuItem>
             <MenuItem value="rejected">Bị từ chối</MenuItem>
@@ -183,6 +208,7 @@ export default function ManageClassTransferRequests() {
               <TableRow sx={{ bgcolor: '#f9fafb' }}>
                 <TableCell sx={{ fontWeight: 700 }}>Học sinh</TableCell>
                 <TableCell sx={{ fontWeight: 700 }}>Phụ huynh</TableCell>
+                <TableCell sx={{ fontWeight: 700 }}>Năm học</TableCell>
                 <TableCell sx={{ fontWeight: 700 }}>Lớp đi</TableCell>
                 <TableCell sx={{ fontWeight: 700 }}>Lớp đến</TableCell>
                 <TableCell sx={{ fontWeight: 700 }}>Lý do</TableCell>
@@ -201,6 +227,9 @@ export default function ManageClassTransferRequests() {
                       <Typography fontSize="0.73rem" color="text.secondary">{req.studentId?.studentCode}</Typography>
                     </TableCell>
                     <TableCell sx={{ fontSize: '0.85rem' }}>{req.parentId?.fullName || '—'}</TableCell>
+                    <TableCell sx={{ fontSize: '0.85rem' }}>
+                      <Chip label={req.academicYearId?.yearName || '—'} size="small" variant="outlined" sx={{ fontSize: '0.7rem' }} />
+                    </TableCell>
                     <TableCell sx={{ fontSize: '0.85rem', whiteSpace: 'nowrap' }}>{req.fromClassId?.className || '—'}</TableCell>
                     <TableCell sx={{ fontSize: '0.85rem', whiteSpace: 'nowrap' }}>{req.toClassId?.className || '—'}</TableCell>
                     <TableCell sx={{ maxWidth: 200 }}>

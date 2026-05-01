@@ -10,13 +10,18 @@ const { generateStudentCode, upsertParentProfileFromUser, purgeOrphanParentAccou
 const getAllStudents = async (filter = {}) => {
   const { academicYearId, enrolledIn, ...studentFilter } = filter;
 
-  // Cả academicYearId và enrolledIn đều lọc qua Enrollment
+  // Cả academicYearId và enrolledIn đều lọc qua Enrollment hoặc Student.academicYearId
   const yearIdForEnrollment = academicYearId || enrolledIn;
   if (yearIdForEnrollment) {
     const enrollmentsForYear = await Enrollment.find({ academicYearId: yearIdForEnrollment })
       .select('studentId')
       .lean();
-    studentFilter._id = { $in: enrollmentsForYear.map(e => e.studentId) };
+    const enrolledIds = enrollmentsForYear.map(e => e.studentId);
+    
+    studentFilter.$or = [
+      { _id: { $in: enrolledIds } },
+      { academicYearId: yearIdForEnrollment }
+    ];
   }
 
   const students = await Student.find(studentFilter)
@@ -60,6 +65,10 @@ const getAllStudents = async (filter = {}) => {
     delete obj.faceEmbeddings;
 
     obj.enrollmentYearId = enrollment?.academicYearId || null;
+    // Ghi đè classId bằng classId từ Enrollment của năm học đang xét để frontend lọc chính xác
+    if (displayYearId) {
+      obj.classId = enrollment?.classId || null;
+    }
     obj.evaluation = enrollment ? {
       academicEvaluation: enrollment.academicEvaluation,
       evaluationNote: enrollment.evaluationNote

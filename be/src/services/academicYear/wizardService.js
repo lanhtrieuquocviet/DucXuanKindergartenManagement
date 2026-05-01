@@ -7,6 +7,8 @@ const Enrollment = require('../../models/Enrollment');
 const StaticBlock = require('../../models/StaticBlock');
 const { isGraduationEligibleBand } = require('./core');
 const GeneralCategory = require('../../models/GeneralCategory');
+const AssessmentTemplate = require('../../models/AssessmentTemplate');
+
 
 const getTeacherHistory = async (session = null) => {
   const history = {}; // teacherId -> { className: count }
@@ -41,7 +43,20 @@ const setupNewAcademicYearWizard = async (req, res) => {
   const session = await mongoose.startSession();
   session.startTransaction();
   try {
-    const { yearInfo, grades = [], classes = [], studentPlacements = [], importedStudents = [] } = req.body;
+    const { 
+      yearInfo, 
+      grades = [], 
+      classes = [], 
+      studentPlacements = [], 
+      importedStudents = [],
+      options = {} // { cloneAssessmentTemplates: boolean }
+    } = req.body;
+
+
+    // Find source year for cloning templates
+    let sourceYear = await AcademicYear.findOne({ status: 'active' }).sort({ startDate: -1 }).session(session).lean();
+    if (!sourceYear) sourceYear = await AcademicYear.findOne({ status: 'inactive' }).sort({ endDate: -1 }).session(session).lean();
+
 
     if (!yearInfo?.yearName?.trim()) throw new Error('Tên năm học không được để trống');
     
@@ -69,6 +84,33 @@ const setupNewAcademicYearWizard = async (req, res) => {
         headTeacherId: g.headTeacherId || null,
       }], { session });
       gradeIdMap.set(g.tempId, newGrade._id);
+      
+      // Clone AssessmentTemplates if requested
+      if (sourceYear && options.cloneAssessmentTemplates) {
+        const oldGrade = await Grade.findOne({
+          academicYearId: sourceYear._id,
+          staticBlockId: g.staticBlockId
+        }).session(session).lean();
+
+        if (oldGrade) {
+          const oldTemplates = await AssessmentTemplate.find({ 
+            academicYearId: sourceYear._id,
+            gradeId: oldGrade._id
+          }).session(session).lean();
+
+          if (oldTemplates.length > 0) {
+            const newTemplates = oldTemplates.map(t => ({
+              templateName: t.templateName,
+              academicYearId: newYear._id,
+              gradeId: newGrade._id,
+              criteria: t.criteria,
+              status: t.status,
+              createdBy: t.createdBy
+            }));
+            await AssessmentTemplate.insertMany(newTemplates, { session });
+          }
+        }
+      }
     }
 
     // Step 4: Tạo Lớp & Kiểm tra giáo viên
@@ -136,31 +178,36 @@ const setupNewAcademicYearWizard = async (req, res) => {
       });
     }
 
-    // Step 6: Tạo Enrollment (ở trạng thái chờ kích hoạt)
-    const enrollmentDocs = [];
+    // Step 6: Tạo Enrollment (ở trạng thái DRAFT)
     const allPlacements = [
         ...studentPlacements.map(p => ({ studentId: p.studentId, classTempId: p.classTempId })),
         ...importedStudents.map(s => ({ studentId: importedStudentIdMap.get(s.tempId), classTempId: s.classId }))
     ];
 
-    for (const p of allPlacements) {
+    const bulkOps = allPlacements.map(p => {
       const realClassId = classIdMap.get(p.classTempId);
-      if (!realClassId) continue;
-
+      if (!realClassId) return null;
       const targetClass = insertedClasses.find(c => String(c._id) === String(realClassId));
       
-      // LƯU Ý: Không cập nhật Student.classId ngay lúc này
-      // vì Năm học đang là DRAFT. Việc cập nhật sẽ diễn ra khi Publish.
+      return {
+        updateOne: {
+          filter: { studentId: p.studentId, academicYearId: newYear._id },
+          update: {
+            $set: {
+              classId: realClassId,
+              gradeId: targetClass.gradeId,
+              status: 'draft',
+              enrollmentDate: new Date()
+            }
+          },
+          upsert: true
+        }
+      };
+    }).filter(Boolean);
 
-      enrollmentDocs.push({
-        studentId: p.studentId,
-        classId: realClassId,
-        gradeId: targetClass.gradeId,
-        academicYearId: newYear._id,
-        enrollmentDate: new Date(),
-      });
+    if (bulkOps.length > 0) {
+      await Enrollment.bulkWrite(bulkOps, { session });
     }
-    if (enrollmentDocs.length > 0) await Enrollment.insertMany(enrollmentDocs, { session });
 
     await session.commitTransaction();
     return res.status(201).json({ status: 'success', message: 'Thiết lập thành công', data: { yearId: newYear._id } });
@@ -275,7 +322,8 @@ const expressSetupNewAcademicYear = async (req, res) => {
     // 0. Tính lịch sử dạy học
     const teacherHistory = await getTeacherHistory(session);
 
-    const { yearInfo } = req.body;
+    const { yearInfo, options = {} } = req.body;
+
     if (!yearInfo?.yearName?.trim()) throw new Error('Tên năm học không được để trống');
 
     // 1. Tìm năm học đang hoạt động để làm mẫu
@@ -304,6 +352,26 @@ const expressSetupNewAcademicYear = async (req, res) => {
         headTeacherId: og.headTeacherId
       }], { session });
       gradeIdMap.set(String(og._id), ng._id);
+
+      // Clone AssessmentTemplates if requested
+      if (options.cloneAssessmentTemplates) {
+        const oldTemplates = await AssessmentTemplate.find({ 
+          academicYearId: sourceYear._id, 
+          gradeId: og._id 
+        }).session(session).lean();
+
+        if (oldTemplates.length > 0) {
+          const newTemplates = oldTemplates.map(t => ({
+            templateName: t.templateName,
+            academicYearId: newYear._id,
+            gradeId: ng._id,
+            criteria: t.criteria,
+            status: t.status,
+            createdBy: t.createdBy
+          }));
+          await AssessmentTemplate.insertMany(newTemplates, { session });
+        }
+      }
     }
 
     // 4. Nhân bản Lớp (Classes)

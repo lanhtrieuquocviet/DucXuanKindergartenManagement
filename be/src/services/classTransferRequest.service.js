@@ -175,17 +175,25 @@ exports.getTeacherClassTransferRequests = async (req, res) => {
       return res.json({ success: true, data: [] });
     }
 
-    const { status } = req.query;
+    const { status, academicYearId } = req.query;
+    let targetYearId = academicYearId;
+    if (!targetYearId && academicYearId !== 'all') {
+      const activeYear = await AcademicYear.findOne({ status: 'active' }).select('_id').lean();
+      if (activeYear) targetYearId = activeYear._id;
+    }
+
     const filter = {
       $or: [{ fromClassId: { $in: classIds } }, { toClassId: { $in: classIds } }],
     };
     if (status && status !== 'all') filter.status = status;
+    if (targetYearId && academicYearId !== 'all') filter.academicYearId = targetYearId;
 
     const requests = await ClassTransferRequest.find(filter)
       .populate('studentId', 'fullName studentCode')
       .populate('fromClassId', 'className')
       .populate('toClassId', 'className')
       .populate('parentId', 'fullName phone')
+      .populate('academicYearId', 'yearName')
       .sort({ createdAt: -1 })
       .lean();
 
@@ -200,9 +208,15 @@ exports.getTeacherClassTransferRequests = async (req, res) => {
 exports.getAdminClassTransferRequests = async (req, res) => {
   try {
     const { status, academicYearId } = req.query;
+    let targetYearId = academicYearId;
+    if (!targetYearId && academicYearId !== 'all') {
+      const activeYear = await AcademicYear.findOne({ status: 'active' }).select('_id').lean();
+      if (activeYear) targetYearId = activeYear._id;
+    }
+
     const filter = {};
     if (status && status !== 'all') filter.status = status;
-    if (academicYearId) filter.academicYearId = academicYearId;
+    if (targetYearId && academicYearId !== 'all') filter.academicYearId = targetYearId;
 
     const requests = await ClassTransferRequest.find(filter)
       .populate('studentId', 'fullName studentCode avatar')
@@ -210,6 +224,7 @@ exports.getAdminClassTransferRequests = async (req, res) => {
       .populate('toClassId', 'className')
       .populate('parentId', 'fullName phone')
       .populate('processedBy', 'fullName')
+      .populate('academicYearId', 'yearName')
       .sort({ createdAt: -1 })
       .lean();
 
@@ -222,29 +237,40 @@ exports.getAdminClassTransferRequests = async (req, res) => {
 // ─── Admin: duyệt / từ chối (BR-168) ─────────────────────────────────────────
 
 exports.updateClassTransferRequestStatus = async (req, res) => {
+  const session = await mongoose.startSession();
+  session.startTransaction();
   try {
     const { id } = req.params;
     const { status, rejectedReason } = req.body;
 
     if (!['approved', 'rejected'].includes(status)) {
+      await session.abortTransaction();
       return res.status(400).json({ success: false, message: 'Trạng thái không hợp lệ (approved | rejected)' });
     }
 
-    const request = await ClassTransferRequest.findById(id);
+    const request = await ClassTransferRequest.findById(id).session(session);
     if (!request) {
+      await session.abortTransaction();
       return res.status(404).json({ success: false, message: 'Không tìm thấy đơn' });
     }
     if (request.status !== 'pending') {
+      await session.abortTransaction();
       return res.status(400).json({ success: false, message: 'Chỉ có thể xử lý đơn đang chờ duyệt' });
     }
 
     // AF-4: kiểm tra lại capacity khi duyệt
     if (status === 'approved') {
-      const toClass = await Classes.findById(request.toClassId).lean();
+      const toClass = await Classes.findById(request.toClassId).session(session).lean();
       const maxStudents = toClass?.maxStudents || toClass?.capacity || 0;
       if (maxStudents > 0) {
-        const currentCount = await Student.countDocuments({ classId: request.toClassId, status: 'active' });
+        const currentCount = await Enrollment.countDocuments({ 
+          classId: request.toClassId, 
+          academicYearId: request.academicYearId,
+          status: { $in: ['studying', 'promoted'] } 
+        }).session(session);
+        
         if (currentCount >= maxStudents) {
+          await session.abortTransaction();
           return res.status(400).json({
             success: false,
             message: `Lớp ${toClass.className} đã đạt sĩ số tối đa (${maxStudents} học sinh)`,
@@ -252,16 +278,37 @@ exports.updateClassTransferRequestStatus = async (req, res) => {
         }
       }
 
-      // BR-170: cập nhật classId học sinh ngay lập tức
-      await Student.findByIdAndUpdate(request.studentId, { classId: request.toClassId });
+      // BR-170: Cập nhật Student cache + Enrollment record (QUAN TRỌNG)
+      await Student.findByIdAndUpdate(request.studentId, { classId: request.toClassId }, { session });
+      
+      // Tìm và cập nhật enrollment của năm học đó
+      const enrollmentUpdate = await Enrollment.findOneAndUpdate(
+        { studentId: request.studentId, academicYearId: request.academicYearId },
+        { $set: { classId: request.toClassId } },
+        { session, new: true }
+      );
+
+      if (!enrollmentUpdate) {
+        // Nếu vì lý do gì đó chưa có enrollment, ta tạo mới (đảm bảo không mồ côi)
+        await Enrollment.create([{
+          studentId: request.studentId,
+          academicYearId: request.academicYearId,
+          classId: request.toClassId,
+          gradeId: toClass?.gradeId || null,
+          status: 'studying'
+        }], { session });
+      }
     }
 
     request.status = status;
     request.processedBy = req.user._id;
     request.processedAt = new Date();
     request.rejectedReason = status === 'rejected' ? (rejectedReason || '').trim() : '';
-    await request.save();
+    await request.save({ session });
 
+    await session.commitTransaction();
+
+    // --- Logic thông báo (Sau khi commit để đảm bảo dữ liệu đã lưu) ---
     const student = await Student.findById(request.studentId).lean();
     const fromClass = await Classes.findById(request.fromClassId).lean();
     const toClass = await Classes.findById(request.toClassId).lean();
@@ -275,14 +322,14 @@ exports.updateClassTransferRequestStatus = async (req, res) => {
     const notifExtra = { classTransferRequestId: request._id, status: request.status };
 
     // Thông báo phụ huynh
-    await createNotification({
+    createNotification({
       title,
       body,
       type: 'class_transfer',
       targetRole: 'Parent',
       targetUserId: request.parentId,
       extra: notifExtra,
-    });
+    }).catch(console.error);
 
     // Thông báo giáo viên cả 2 lớp (BR-170)
     const [fromTeacherIds, toTeacherIds] = await Promise.all([
@@ -292,10 +339,13 @@ exports.updateClassTransferRequestStatus = async (req, res) => {
     const allTeacherIds = [...new Set([...fromTeacherIds, ...toTeacherIds].map(String))].map(
       (id) => fromTeacherIds.find((t) => t.toString() === id) || toTeacherIds.find((t) => t.toString() === id),
     );
-    await notifyUsers(allTeacherIds, { title, body, extra: notifExtra });
+    notifyUsers(allTeacherIds, { title, body, extra: notifExtra }).catch(console.error);
 
     return res.json({ success: true, message: 'Cập nhật trạng thái thành công', data: request });
   } catch (error) {
+    if (session.inTransaction()) await session.abortTransaction();
     return res.status(500).json({ success: false, message: 'Lỗi khi xử lý đơn', error: error.message });
+  } finally {
+    session.endSession();
   }
 };

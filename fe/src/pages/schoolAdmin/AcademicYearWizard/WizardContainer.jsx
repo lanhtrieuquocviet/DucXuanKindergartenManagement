@@ -25,6 +25,9 @@ export default function AcademicYearWizard({ open, onClose, onSuccess }) {
 
   // --- Step 1: Năm học ---
   const [yearInfo, setYearInfo] = useState({ ...EMPTY_YEAR_INFO });
+  const [cloneOptions, setCloneOptions] = useState({
+    cloneAssessmentTemplates: true,
+  });
 
   // --- Step 2: Khối học ---
   const [staticBlocks, setStaticBlocks] = useState([]);
@@ -275,7 +278,8 @@ export default function AcademicYearWizard({ open, onClose, onSuccess }) {
         importedStudents: importedStudents.map(s => ({
           ...s,
           classId: placements.find(p => p.studentTempId === s.tempId)?.classTempId
-        })).filter(s => s.classId), // Chỉ gửi những học sinh đã được xếp lớp
+        })).filter(s => s.classId),
+        options: cloneOptions,
       };
 
       const resp = await post(ENDPOINTS.SCHOOL_ADMIN.ACADEMIC_YEARS.WIZARD_SETUP, payload);
@@ -299,7 +303,7 @@ export default function AcademicYearWizard({ open, onClose, onSuccess }) {
 
   // ── Render ─────────────────────────────────────────────────────────────
   const stepContent = [
-    <StepYearInfo key="step1" data={yearInfo} onChange={setYearInfo} errors={errors} />,
+    <StepYearInfo key="step1" data={yearInfo} onChange={setYearInfo} options={cloneOptions} onOptionsChange={setCloneOptions} errors={errors} />,
     <StepGradeSelect
       key="step2"
       staticBlocks={staticBlocks}

@@ -20,6 +20,12 @@ const assessmentTemplateSchema = new mongoose.Schema({
     name: { type: String, required: true }, // VD: Phát triển thể chất
     description: { type: String, default: '' },
   }],
+  period: {
+    type: String,
+    enum: ['early_year', 'semester_1', 'semester_2'],
+    required: true,
+    index: true,
+  },
   status: {
     type: String,
     enum: ['active', 'inactive'],

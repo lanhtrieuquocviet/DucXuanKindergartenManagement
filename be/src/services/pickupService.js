@@ -139,18 +139,22 @@ exports.getPickupRequests = async (req, res) => {
   try {
     const { status } = req.query; // lấy từ query string
 
-    // Tìm Teacher document tương ứng với user hiện tại
-    const teacher = await Teacher.findOne({ userId: req.user._id }).lean();
-    const myTeacherId = teacher?._id;
+    const isSchoolAdmin = (req.user.roles || []).includes("SchoolAdmin");
+    let filter = {};
 
-    // Tìm các lớp giáo viên phụ trách
-    const classes = await Classes.find({ teacherIds: myTeacherId }).select(
-      "_id"
-    );
-    const classIds = classes.map((c) => c._id);
+    if (!isSchoolAdmin) {
+      // Tìm Teacher document tương ứng với user hiện tại
+      const teacher = await Teacher.findOne({ userId: req.user._id }).lean();
+      const myTeacherId = teacher?._id;
 
-    // Xây dựng filter theo lớp để giáo viên chỉ duyệt đơn của lớp mình
-    const filter = { classId: { $in: classIds } };
+      // Tìm các lớp giáo viên phụ trách
+      const classes = await Classes.find({ teacherIds: myTeacherId }).select("_id");
+      const classIds = classes.map((c) => c._id);
+
+      // Xây dựng filter theo lớp để giáo viên chỉ duyệt đơn của lớp mình
+      filter.classId = { $in: classIds };
+    }
+
     if (status && status !== "all") {
       filter.status = status; // chỉ lấy theo trạng thái cụ thể
     }
@@ -229,17 +233,21 @@ exports.updatePickupRequestStatus = async (req, res) => {
 
     // Kiểm tra quyền: giáo viên có phụ trách lớp của học sinh không
     const student = await Student.findById(request.student);
-    const myTeacher2 = await Teacher.findOne({ userId: req.user._id }).lean();
-    const myTeacherId2 = myTeacher2?._id?.toString();
-    const classDoc = await Classes.findById(student?.classId);
-    if (
-      !classDoc || !myTeacherId2 ||
-      !classDoc.teacherIds.some((id) => id.toString() === myTeacherId2)
-    ) {
-      return res.status(403).json({
-        success: false,
-        message: "Không có quyền xử lý đăng ký này",
-      });
+    const isSchoolAdmin = (req.user.roles || []).includes("SchoolAdmin");
+
+    if (!isSchoolAdmin) {
+      const myTeacher2 = await Teacher.findOne({ userId: req.user._id }).lean();
+      const myTeacherId2 = myTeacher2?._id?.toString();
+      const classDoc = await Classes.findById(student?.classId);
+      if (
+        !classDoc || !myTeacherId2 ||
+        !classDoc.teacherIds.some((id) => id.toString() === myTeacherId2)
+      ) {
+        return res.status(403).json({
+          success: false,
+          message: "Không có quyền xử lý đăng ký này",
+        });
+      }
     }
 
     request.status = status;

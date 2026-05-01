@@ -87,8 +87,14 @@ const ManageAcademicYears = () => {
     yearName: '',
     startDate: '',
     endDate: '',
-    description: 'Thiết lập tự động từ năm học cũ.'
+    description: 'Thiết lập tự động từ năm học cũ.',
+    cloneAssessmentTemplates: true,
   });
+
+  // --- Preview States ---
+  const [publishPreview, setPublishPreview] = useState(null);
+  const [openPublishPreview, setOpenPublishPreview] = useState(false);
+  const [targetPublishId, setTargetPublishId] = useState(null);
 
   useEffect(() => {
     fetchData();
@@ -196,6 +202,13 @@ const ManageAcademicYears = () => {
   };
 
   const handleConfirmFinish = async () => {
+    const dropoutCount = dropoutMarkedIds.size;
+    const graduateCount = graduateMarkedIds.size;
+    const promotedCount = finishStudents.length - dropoutCount - graduateCount;
+
+    const confirmMsg = `Bạn sắp kết thúc năm học với:\n- ${promotedCount} học sinh lên lớp\n- ${graduateCount} học sinh tốt nghiệp\n- ${dropoutCount} học sinh thôi học\n\nBạn có chắc chắn muốn tiếp tục?`;
+    if (!window.confirm(confirmMsg)) return;
+
     setLoading(true);
     try {
       const resp = await patch(ENDPOINTS.SCHOOL_ADMIN.ACADEMIC_YEARS.FINISH(currentYear._id), {
@@ -238,19 +251,41 @@ const ManageAcademicYears = () => {
     }
   };
 
-  const handlePublishYear = async (yearId) => {
-    if (!window.confirm('Bạn có chắc chắn muốn công bố năm học này? Hệ thống sẽ tự động kích hoạt lớp học và điều chuyển học sinh.')) return;
+  const handleOpenPublishPreview = async (yearId) => {
+    setTargetPublishId(yearId);
     setLoading(true);
     try {
-      const resp = await patch(ENDPOINTS.SCHOOL_ADMIN.ACADEMIC_YEARS.PUBLISH(yearId));
+      const resp = await get(`/api/school-admin/academic-years/${yearId}/publish-preview`);
+      if (resp?.status === 'success') {
+        setPublishPreview(resp.data);
+        setOpenPublishPreview(true);
+      }
+    } catch (error) {
+      toast.error('Không thể lấy thông tin preview công bố');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handlePublishYear = async () => {
+    if (!targetPublishId) return;
+    setLoading(true);
+    try {
+      const resp = await patch(ENDPOINTS.SCHOOL_ADMIN.ACADEMIC_YEARS.PUBLISH(targetPublishId));
       if (resp?.status === 'success') {
         toast.success(resp.message || 'Công bố năm học thành công!');
+        setOpenPublishPreview(false);
         fetchData();
       } else {
         toast.error(resp?.message || 'Có lỗi xảy ra khi công bố năm học');
       }
     } catch (error) {
-      toast.error(error.message || 'Lỗi khi kết nối máy chủ');
+      if (error.data?.code === 'MISSING_EVALUATIONS') {
+        setFinishErrorDetails(error.data.summary);
+        setOpenErrorDialog(true);
+      } else {
+        toast.error(error.message || 'Lỗi khi kết nối máy chủ');
+      }
     } finally {
       setLoading(false);
     }
@@ -281,7 +316,11 @@ const ManageAcademicYears = () => {
     }
     setLoading(true);
     try {
-      const resp = await post(ENDPOINTS.SCHOOL_ADMIN.ACADEMIC_YEARS.EXPRESS_SETUP, { yearInfo: expressForm });
+      const { cloneAssessmentTemplates, ...yearInfo } = expressForm;
+      const resp = await post(ENDPOINTS.SCHOOL_ADMIN.ACADEMIC_YEARS.EXPRESS_SETUP, { 
+        yearInfo, 
+        options: { cloneAssessmentTemplates } 
+      });
       if (resp?.status === 'success') {
         toast.success('🎉 Thiết lập nhanh thành công! Hệ thống đã tạo bản nháp năm học mới.');
         setOpenExpress(false);
@@ -333,7 +372,8 @@ const ManageAcademicYears = () => {
                     term1EndDate: `${nextYearStart}-01-16`,
                     term2StartDate: `${nextYearStart + 1}-01-17`,
                     term2EndDate: `${nextYearStart + 1}-05-31`,
-                    description: 'Thiết lập tự động từ cấu hình năm cũ.'
+                    description: 'Thiết lập tự động từ cấu hình năm cũ.',
+                    cloneAssessmentTemplates: true,
                   });
                   setOpenExpress(true);
                 }}
@@ -481,7 +521,7 @@ const ManageAcademicYears = () => {
                             size="small"
                             variant="contained"
                             color="success"
-                            onClick={() => handlePublishYear(year._id)}
+                            onClick={() => handleOpenPublishPreview(year._id)}
                             sx={{ textTransform: 'none', fontWeight: 700, borderRadius: 2 }}
                           >
                             Công bố
@@ -885,6 +925,22 @@ const ManageAcademicYears = () => {
                   />
                 </Stack>
               </Box>
+
+              <Box sx={{ p: 2, bgcolor: '#f0f9ff', borderRadius: 2, border: '1px dashed #7dd3fc' }}>
+                <Typography variant="caption" fontWeight={700} color="#0369a1" gutterBottom sx={{ display: 'block' }}>HỒ SƠ ĐI KÈM</Typography>
+                <Stack direction="row" spacing={1} alignItems="center" mt={0.5}>
+                  <Checkbox 
+                    size="small" 
+                    checked={expressForm.cloneAssessmentTemplates} 
+                    onChange={(e) => setExpressForm({ ...expressForm, cloneAssessmentTemplates: e.target.checked })}
+                    sx={{ p: 0 }}
+                  />
+                  <Typography variant="body2" fontWeight={600} color="#0c4a6e">Nhân bản Mẫu tiêu chí đánh giá</Typography>
+                </Stack>
+                <Typography variant="caption" color="text.secondary" sx={{ display: 'block', ml: 3 }}>
+                  Sao chép các bộ tiêu chí nhận xét học sinh từ năm học đang hoạt động.
+                </Typography>
+              </Box>
             </Stack>
           </DialogContent>
           <DialogActions sx={{ p: 2.5, borderTop: '1px solid #f1f5f9' }}>
@@ -899,6 +955,64 @@ const ManageAcademicYears = () => {
               }}
             >
               {loading ? 'Đang xử lý...' : 'Bắt đầu thiết lập ngay'}
+            </Button>
+          </DialogActions>
+        </Dialog>
+
+        {/* Publish Preview Dialog */}
+        <Dialog open={openPublishPreview} onClose={() => setOpenPublishPreview(false)} maxWidth="sm" fullWidth PaperProps={{ sx: { borderRadius: 4 } }}>
+          <DialogTitle sx={{ p: 3, borderBottom: '1px solid #f1f5f9' }}>
+            <Typography variant="h6" fontWeight={800}>Xác nhận Công bố Năm học</Typography>
+            <Typography variant="caption" color="text.secondary">Kiểm tra thông tin trước khi kích hoạt chính thức.</Typography>
+          </DialogTitle>
+          <DialogContent sx={{ p: 3 }}>
+            {publishPreview && (
+              <Stack spacing={2}>
+                <Box sx={{ p: 2, bgcolor: '#f0f9ff', borderRadius: 2, border: '1px solid #bae6fd' }}>
+                  <Typography variant="subtitle2" color="#0369a1" fontWeight={800}>Tổng quan kích hoạt</Typography>
+                  <Grid container spacing={2} sx={{ mt: 1 }}>
+                    <Grid item xs={6}>
+                      <Typography variant="caption" color="text.secondary">Tổng số lớp</Typography>
+                      <Typography variant="h6" fontWeight={900}>{publishPreview.counts.classes} lớp</Typography>
+                    </Grid>
+                    <Grid item xs={6}>
+                      <Typography variant="caption" color="text.secondary">Học sinh đã xếp lớp</Typography>
+                      <Typography variant="h6" fontWeight={900} color="success.main">{publishPreview.counts.students} em</Typography>
+                    </Grid>
+                  </Grid>
+                </Box>
+
+                {publishPreview.counts.orphansToLink > 0 && (
+                  <Box sx={{ p: 2, bgcolor: '#fff7ed', borderRadius: 2, border: '1px solid #ffedd5' }}>
+                    <Typography variant="subtitle2" color="#9a3412" fontWeight={800}>Lưu ý quan trọng</Typography>
+                    <Typography variant="body2" color="#c2410c" sx={{ mt: 1 }}>
+                      Có <strong>{publishPreview.counts.orphansToLink}</strong> học sinh được lên lớp nhưng <strong>chưa được xếp vào lớp cụ thể</strong>.
+                    </Typography>
+                    <Typography variant="caption" color="#9a3412" sx={{ display: 'block', mt: 0.5 }}>
+                      Hệ thống sẽ tự động tạo bản ghi Enrollment ở trạng thái 'promoted' để các em không bị mất dấu. Bạn cần vào danh sách học sinh để phân lớp cho các em sau khi công bố.
+                    </Typography>
+                  </Box>
+                )}
+
+                <Typography variant="body2" color="text.secondary">
+                  Khi nhấn <strong>"Kích hoạt ngay"</strong>, hệ thống sẽ:
+                  <br/>1. Chuyển trạng thái năm học sang <strong>Active</strong>.
+                  <br/>2. Chuyển tất cả học sinh 'draft' sang <strong>Studying</strong>.
+                  <br/>3. Khóa các thay đổi cấu hình năm cũ.
+                </Typography>
+              </Stack>
+            )}
+          </DialogContent>
+          <DialogActions sx={{ p: 3, bgcolor: '#f8fafc', borderTop: '1px solid #f1f5f9' }}>
+            <Button onClick={() => setOpenPublishPreview(false)}>Quay lại</Button>
+            <Button 
+              variant="contained" 
+              color="success" 
+              onClick={handlePublishYear}
+              disabled={loading}
+              sx={{ fontWeight: 800, px: 4, borderRadius: 2 }}
+            >
+              {loading ? 'Đang kích hoạt...' : 'Kích hoạt ngay'}
             </Button>
           </DialogActions>
         </Dialog>

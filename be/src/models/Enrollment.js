@@ -11,7 +11,6 @@ const enrollmentSchema = new mongoose.Schema(
     classId: {
       type: mongoose.Schema.Types.ObjectId,
       ref: 'Classes',
-      required: true,
       index: true,
     },
     /** Khối lớp tại thời điểm ghi nhận — dùng để giới hạn số năm học khác nhau / khối */
@@ -50,6 +49,13 @@ const enrollmentSchema = new mongoose.Schema(
       trim: true,
       default: '',
       maxlength: 1000,
+    },
+    status: {
+      type: String,
+      enum: ['draft', 'studying', 'promoted', 'graduated', 'dropped'],
+      default: 'studying',
+      lowercase: true,
+      trim: true,
     },
   },
   {

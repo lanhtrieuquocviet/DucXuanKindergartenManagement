@@ -15,6 +15,8 @@ const expressSetupNewAcademicYear = async (req, res, next) => service.expressSet
 const updateAcademicYear = async (req, res, next) => service.updateAcademicYear(req, res, next);
 const publishAcademicYear = async (req, res, next) => service.publishAcademicYear(req, res, next);
 const remindEvaluations = async (req, res, next) => service.remindEvaluations(req, res, next);
+const getFinishYearPreview = async (req, res, next) => service.getFinishYearPreview(req, res, next);
+const getPublishYearPreview = async (req, res, next) => service.getPublishYearPreview(req, res, next);
 
 module.exports = {
   getCurrentAcademicYear,
@@ -32,5 +34,7 @@ module.exports = {
   updateAcademicYear,
   publishAcademicYear,
   remindEvaluations,
+  getFinishYearPreview,
+  getPublishYearPreview
 };
 

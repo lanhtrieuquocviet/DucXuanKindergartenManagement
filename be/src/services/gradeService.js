@@ -4,6 +4,7 @@ const Student = require('../models/Student');
 const Teacher = require('../models/Teacher');
 const StaticBlock = require('../models/StaticBlock');
 const AcademicYear = require('../models/AcademicYear');
+const { logAction } = require('./auditService');
 
 function normalizeAgeLabel(minAge, maxAge) {
   const min = Number(minAge);
@@ -163,10 +164,13 @@ const createGrade = async (req, res) => {
     }
 
     // Populate staticBlock in response
-    const populatedGrade = await Grade.findById(grade._id)
-      .populate('staticBlockId')
-      .populate('academicYearId')
-      .populate('headTeacherId');
+    await logAction({
+      action: 'CREATE_GRADE',
+      actorId: req.user.id,
+      targetModel: 'Grade',
+      targetId: grade._id,
+      newData: populatedGrade
+    }, req);
 
     return res.status(201).json({ status: 'success', message: 'Tạo khối lớp thành công', data: populatedGrade });
   } catch (error) {
@@ -184,10 +188,15 @@ const updateGrade = async (req, res) => {
     const { id } = req.params;
     const { maxClasses, headTeacherId } = req.body;
 
-    const grade = await Grade.findById(id);
+    const grade = await Grade.findById(id).populate('academicYearId');
     if (!grade) {
       return res.status(404).json({ status: 'error', message: 'Không tìm thấy khối lớp' });
     }
+
+    if (grade.academicYearId?.status === 'inactive') {
+      return res.status(400).json({ status: 'error', message: 'Không thể sửa khối lớp của năm học đã kết thúc' });
+    }
+    const oldData = { ...grade.toObject() };
 
     const immutableFieldChanged = [
       ['gradeName', String(req.body?.gradeName || '').trim(), String(grade.gradeName || '').trim()],
@@ -259,6 +268,15 @@ const updateGrade = async (req, res) => {
     await grade.save();
     await Grade.updateOne({ _id: grade._id }, { $unset: { ageRange: '' } });
 
+    await logAction({
+      action: 'UPDATE_GRADE',
+      actorId: req.user.id,
+      targetModel: 'Grade',
+      targetId: id,
+      oldData,
+      newData: grade
+    }, req);
+
     return res.status(200).json({ status: 'success', message: 'Cập nhật khối lớp thành công', data: grade });
   } catch (error) {
     console.error('updateGrade error:', error);
@@ -279,16 +297,32 @@ const deleteGrade = async (req, res) => {
       return res.status(404).json({ status: 'error', message: 'Không tìm thấy khối lớp' });
     }
 
-    const classCount = await Classes.countDocuments({ gradeId: id });
+    if (grade.academicYearId?.status === 'inactive') {
+      return res.status(400).json({ status: 'error', message: 'Không thể xóa khối lớp của năm học đã kết thúc' });
+    }
+
+    const classCount = await Classes.countDocuments({ gradeId: id, status: { $ne: 'inactive' } });
     if (classCount > 0) {
       return res.status(400).json({
         status: 'error',
-        message: `Không thể xóa: khối lớp đang có ${classCount} lớp học liên kết`,
+        message: `Không thể xóa: khối lớp đang có ${classCount} lớp học đang hoạt động liên kết`,
       });
     }
 
-    await Grade.findByIdAndDelete(id);
-    return res.status(200).json({ status: 'success', message: 'Xóa khối lớp thành công' });
+    const oldData = { ...grade.toObject() };
+    grade.status = 'inactive';
+    await grade.save();
+
+    await logAction({
+      action: 'DELETE_GRADE_SOFT',
+      actorId: req.user.id,
+      targetModel: 'Grade',
+      targetId: id,
+      oldData,
+      newData: { status: 'inactive' }
+    }, req);
+
+    return res.status(200).json({ status: 'success', message: 'Đã chuyển trạng thái khối lớp sang Inactive thành công' });
   } catch (error) {
     console.error('deleteGrade error:', error);
     return res.status(500).json({ status: 'error', message: 'Lỗi khi xóa khối lớp' });

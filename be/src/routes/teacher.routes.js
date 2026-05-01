@@ -6,6 +6,7 @@ const purchaseCtrl = require('../controller/purchaseRequestController');
 const incidentCtrl    = require('../controller/assetIncidentController');
 const allocationCtrl  = require('../controller/assetAllocationController');
 const contactBookCtrl = require('../controller/contactBookController');
+const assessmentCtrl = require('../controller/assessmentController');
 const InspectionCommittee = require('../models/InspectionCommittee');
 const User = require('../models/User');
 const Teacher = require('../models/Teacher');
@@ -186,8 +187,8 @@ router.get('/dashboard', authenticate, authorizeRoles('Teacher', 'HeadTeacher'),
 router.get('/students', authenticate, authorizeRoles('Teacher'), contactBookCtrl.getMyStudents);
 router.get('/students/:studentId/change-requests', authenticate, authorizeRoles('Teacher'), contactBookCtrl.getChangeRequests);
 router.post('/students/:studentId/change-requests', authenticate, authorizeRoles('Teacher'), contactBookCtrl.createChangeRequest);
-router.get('/students/:studentId/evaluation', authenticate, authorizeRoles('Teacher'), contactBookCtrl.getStudentEvaluation);
-router.put('/students/:studentId/evaluation', authenticate, authorizeRoles('Teacher'), contactBookCtrl.updateStudentEvaluation);
+router.get('/students/:studentId/evaluation', authenticate, authorizeRoles('Teacher'), assessmentCtrl.getStudentAssessment);
+router.put('/students/:studentId/evaluation', authenticate, authorizeRoles('Teacher'), assessmentCtrl.saveBulkAssessments);
 router.get('/academic-plan/topics', authenticate, authorizeRoles('Teacher', 'HeadTeacher'), academicPlanController.listTopicsForTeacher);
 router.get('/academic-events', authenticate, authorizeRoles('Teacher', 'HeadTeacher'), academicEventController.getEventPlan);
 router.get('/timetable', authenticate, authorizeRoles('Teacher', 'HeadTeacher'), timetableController.listByYear);

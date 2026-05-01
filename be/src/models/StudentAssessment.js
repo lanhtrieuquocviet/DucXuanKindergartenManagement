@@ -16,8 +16,9 @@ const studentAssessmentSchema = new mongoose.Schema({
     ref: 'AcademicYears',
     required: true,
   },
-  term: {
-    type: Number, // 1 hoặc 2
+  period: {
+    type: String,
+    enum: ['early_year', 'semester_1', 'semester_2'],
     required: true,
   },
   templateId: {
@@ -52,7 +53,7 @@ const studentAssessmentSchema = new mongoose.Schema({
 });
 
 // Index để tránh đánh giá trùng cho cùng 1 học sinh trong 1 kỳ
-studentAssessmentSchema.index({ studentId: 1, academicYearId: 1, term: 1 }, { unique: true });
+studentAssessmentSchema.index({ studentId: 1, academicYearId: 1, period: 1 }, { unique: true });
 
 const StudentAssessment = mongoose.model('StudentAssessments', studentAssessmentSchema);
 

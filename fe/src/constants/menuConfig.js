@@ -39,7 +39,7 @@ export const MENU_CONFIG = {
         { key: 'classes', label: 'Danh sách khối và lớp', path: '/school-admin/classes', permissionCode: 'MANAGE_CLASS' },
         { key: 'students', label: 'Học sinh', path: '/school-admin/students', permissionCode: 'MANAGE_STUDENT' },
         { key: 'class-transfer-requests', label: 'Đơn chuyển lớp', path: '/school-admin/class-transfer-requests', permissionCode: 'MANAGE_STUDENT' },
-        { key: 'assessment-templates', label: 'Mẫu đánh giá', path: '/school-admin/assessment-templates', permissionCode: 'MANAGE_ASSESSMENT_TEMPLATE' },
+        { key: 'assessment-templates', label: 'Mẫu đánh giá', path: '/school-admin/assessment-templates' },
         { key: 'academic-report', label: 'Báo cáo & Thống kê', path: '/school-admin/academic-report', permissionCode: 'MANAGE_CURRICULUM' },
       ]
     },

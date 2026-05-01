@@ -47,6 +47,13 @@ const gradeSchema = new mongoose.Schema({
     ref: 'Teacher',
     default: null,
   },
+  status: {
+    type: String,
+    enum: ['active', 'inactive'],
+    default: 'active',
+    lowercase: true,
+    trim: true
+  },
   createdAt: {
     type: Date,
     default: Date.now

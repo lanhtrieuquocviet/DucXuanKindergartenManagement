@@ -7,6 +7,9 @@ const AcademicYear = require('../models/AcademicYear');
 const RefreshToken = require('../models/RefreshToken');
 const ExcelJS = require('exceljs');
 const { generateRandomPassword, sendParentAccountEmail } = require('../utils/email');
+const { logAction } = require('./auditService');
+const Enrollment = require('../models/Enrollment');
+const mongoose = require('mongoose');
 
 const normalizePhone = (value = '') => String(value).replace(/\D/g, '').trim();
 
@@ -276,6 +279,17 @@ const createStudentWithParentCore = async ({ parent, studentData }) => {
   });
   await newStudent.save();
 
+  // Luật 1: Tránh mồ côi
+  if (activeYear) {
+    await Enrollment.create([{
+      studentId: newStudent._id,
+      classId: studentData.classId || null,
+      academicYearId: activeYear._id,
+      status: 'studying',
+      enrollmentDate: new Date()
+    }]);
+  }
+
   if (isNewParent) {
     await sendParentAccountEmail(parentUser.email, parentUser.fullName, parentUser.username, generatedPassword);
   }
@@ -289,26 +303,64 @@ const createStudentWithParentCore = async ({ parent, studentData }) => {
  */
 const getStudents = async (req, res) => {
   try {
-    const { classId, academicYearId } = req.query;
-    const filter = { status: 'active' };
-    if (classId) filter.classId = classId;
-    if (academicYearId) {
-      filter.academicYearId = academicYearId;
-    } else {
-      const activeYear = await AcademicYear.findOne({ status: 'active' }).sort({ startDate: -1 }).lean();
-      if (activeYear) filter.academicYearId = activeYear._id;
+    const { classId, academicYearId, status } = req.query;
+    
+    // 1. Xác định năm học mục tiêu
+    let targetYearId = (academicYearId && academicYearId !== 'all') ? academicYearId : null;
+
+    // 2. Xây dựng filter cho Student
+    const studentFilter = { status: status || 'active' };
+    
+    // TRƯỜNG HỢP 1: Lọc theo lớp cụ thể -> Chỉ lấy học sinh đã có Enrollment trong lớp đó
+    if (classId && classId !== 'all') {
+      const enrollmentMatch = { classId };
+      if (targetYearId && academicYearId !== 'all') enrollmentMatch.academicYearId = targetYearId;
+      
+      const enrollments = await Enrollment.find(enrollmentMatch).select('studentId').lean();
+      const studentIds = enrollments.map(e => e.studentId);
+      studentFilter._id = { $in: studentIds };
+    } 
+    // TRƯỜNG HỢP 2: Lọc theo năm học (không có lớp) -> Lấy học sinh thuộc niên khóa đó (dựa trên mảng academicYearId của Student)
+    else if (targetYearId && academicYearId !== 'all') {
+      studentFilter.academicYearId = targetYearId;
     }
 
-    const students = await Student.find(filter)
-      .populate('classId', 'className gradeId')
+    const students = await Student.find(studentFilter)
       .populate('parentId', 'fullName email username avatar phone')
       .populate('parentProfileId', 'fullName email phone')
-      .populate('academicYearId', 'yearName');
+      .populate('academicYearId', 'yearName')
+      .lean();
 
-    // Không gửi mảng embedding 128 số về client (tốn bandwidth)
-    // Thay bằng flag hasFaceEmbedding và faceRegisteredAt
+    // 3. Lấy thông tin Enrollment tương ứng để đính kèm classId và status năm học
+    const studentObjectIds = students.map(s => s._id);
+    const enrollmentQuery = { studentId: { $in: studentObjectIds } };
+    
+    // Nếu lọc theo năm cụ thể, chỉ lấy enrollment năm đó. 
+    // Nếu yearFilter='all', ta sẽ lấy enrollment mới nhất của mỗi học sinh.
+    if (targetYearId && academicYearId !== 'all') {
+      enrollmentQuery.academicYearId = targetYearId;
+    }
+
+    const enrollments = await Enrollment.find(enrollmentQuery)
+      .populate('classId', 'className gradeId')
+      .sort({ createdAt: -1 }) // Lấy cái mới nhất nếu year='all'
+      .lean();
+
+    const enrollmentMap = {};
+    enrollments.forEach(e => {
+      const sid = String(e.studentId);
+      if (!enrollmentMap[sid]) enrollmentMap[sid] = e;
+    });
+
     const data = students.map((s) => {
-      const obj = s.toObject();
+      const obj = s;
+      const enrollment = enrollmentMap[String(s._id)];
+      
+      // Override/Attach year-specific info
+      obj.classId = enrollment?.classId || null;
+      obj.enrollmentStatus = enrollment?.status || null;
+      obj.enrollmentYearId = enrollment?.academicYearId || null;
+
       obj.hasFaceEmbedding = Array.isArray(obj.faceEmbedding) && obj.faceEmbedding.length > 0;
       obj.faceImageUrls = Array.isArray(obj.faceImageUrls) ? obj.faceImageUrls.filter(Boolean) : [];
       obj.angleCount = Array.isArray(obj.faceEmbeddings) ? obj.faceEmbeddings.length : (obj.hasFaceEmbedding ? 1 : 0);
@@ -338,22 +390,24 @@ const getStudents = async (req, res) => {
  * POST /api/students
  */
 const createStudent = async (req, res) => {
+  const session = await mongoose.startSession();
+  session.startTransaction();
   try {
     const { fullName, dateOfBirth, gender, phone, address, classId, parentId, userId } =
       req.body;
 
     if (!fullName || !dateOfBirth || !gender) {
+      await session.abortTransaction();
       return res.status(400).json({
         status: 'error',
-        message:
-          'Vui lòng cung cấp đầy đủ thông tin: fullName, dateOfBirth, gender',
+        message: 'Vui lòng cung cấp đầy đủ thông tin: fullName, dateOfBirth, gender',
       });
     }
 
-    const activeYear = await AcademicYear.findOne({ status: 'active' }).sort({ startDate: -1 }).lean();
+    const activeYear = await AcademicYear.findOne({ status: 'active' }).sort({ startDate: -1 }).session(session).lean();
     let parentProfileId = null;
     if (parentId || userId) {
-      const parentUser = await User.findById(parentId || userId);
+      const parentUser = await User.findById(parentId || userId).session(session);
       if (parentUser) {
         const parentProfile = await upsertParentProfileFromUser(parentUser);
         parentProfileId = parentProfile?._id || null;
@@ -375,7 +429,20 @@ const createStudent = async (req, res) => {
       status: 'active',
     });
 
-    await newStudent.save();
+    await newStudent.save({ session });
+
+    // Luật 1: Tạo Enrollment ngay để tránh "mồ côi"
+    if (activeYear) {
+      await Enrollment.create([{
+        studentId: newStudent._id,
+        classId: classId || null,
+        academicYearId: activeYear._id,
+        status: 'studying',
+        enrollmentDate: new Date()
+      }], { session });
+    }
+
+    await session.commitTransaction();
 
     const populatedStudent = await Student.findById(newStudent._id)
       .populate('classId', 'className')
@@ -383,18 +450,25 @@ const createStudent = async (req, res) => {
       .populate('parentProfileId', 'fullName email phone')
       .populate('academicYearId', 'yearName');
 
+    await logAction({
+      action: 'CREATE_STUDENT',
+      actorId: req.user.id,
+      targetModel: 'Student',
+      targetId: newStudent._id,
+      newData: populatedStudent
+    }, req);
+
     return res.status(201).json({
       status: 'success',
       message: 'Tạo học sinh thành công',
       data: populatedStudent,
     });
   } catch (error) {
+    await session.abortTransaction();
     console.error('Error in createStudent:', error);
-    return res.status(500).json({
-      status: 'error',
-      message: 'Lỗi khi tạo học sinh',
-      error: error.message,
-    });
+    return res.status(500).json({ status: 'error', message: error.message });
+  } finally {
+    session.endSession();
   }
 };
 
@@ -428,6 +502,14 @@ const createStudentWithParent = async (req, res) => {
       .populate('parentId', 'fullName email username avatar phone')
       .populate('parentProfileId', 'fullName email phone')
       .populate('academicYearId', 'yearName');
+
+    await logAction({
+      action: 'CREATE_STUDENT_WITH_PARENT',
+      actorId: req.user.id,
+      targetModel: 'Student',
+      targetId: newStudent._id,
+      newData: populatedStudent
+    }, req);
 
     return res.status(201).json({
       status: 'success',
@@ -731,6 +813,15 @@ const updateStudent = async (req, res) => {
       .populate('parentId', 'fullName email username avatar phone')
       .populate('parentProfileId', 'fullName email phone');
 
+    await logAction({
+      action: 'UPDATE_STUDENT',
+      actorId: req.user.id,
+      targetModel: 'Student',
+      targetId: studentId,
+      oldData: student,
+      newData: updatedStudent
+    }, req);
+
     return res.status(200).json({
       status: 'success',
       message: 'Cập nhật thông tin học sinh thành công',
@@ -753,11 +844,8 @@ const updateStudent = async (req, res) => {
 const deleteStudent = async (req, res) => {
   try {
     const { studentId } = req.params;
-    const studentToDelete = await Student.findById(studentId).select('_id parentId');
-    const parentId = studentToDelete?.parentId || null;
-    const deletedStudent = await Student.findByIdAndDelete(studentId);
-
-    if (!deletedStudent) {
+    const studentToDelete = await Student.findById(studentId).select('_id parentId status');
+    if (!studentToDelete) {
       return res.status(404).json({
         status: 'error',
         message: 'Không tìm thấy học sinh',
@@ -765,31 +853,23 @@ const deleteStudent = async (req, res) => {
       });
     }
 
-    if (parentId) {
-      const remainingChildren = await Student.countDocuments({
-        $or: [
-          { parentId },
-          { ParentId: parentId },
-          { userId: parentId },
-          { UserId: parentId },
-        ],
-      });
+    const oldData = { ...studentToDelete.toObject() };
+    studentToDelete.status = 'inactive';
+    await studentToDelete.save();
 
-      if (remainingChildren === 0) {
-        // Nghiệp vụ: xóa profile phụ huynh khi không còn học sinh nào.
-        await ParentProfile.deleteOne({ userId: parentId });
-        const parentUser = await User.findById(parentId).select('_id roles');
-        if (parentUser && await isParentOnlyAccount(parentUser)) {
-          await RefreshToken.deleteMany({ userId: parentId });
-          await User.findByIdAndDelete(parentId);
-        }
-      }
-    }
+    await logAction({
+      action: 'DELETE_STUDENT_SOFT',
+      actorId: req.user.id,
+      targetModel: 'Student',
+      targetId: studentId,
+      oldData,
+      newData: { status: 'inactive' }
+    }, req);
 
     return res.status(200).json({
       status: 'success',
-      message: 'Xóa học sinh thành công',
-      data: deletedStudent,
+      message: 'Đã chuyển trạng thái học sinh sang Inactive thành công',
+      data: studentToDelete,
     });
   } catch (error) {
     console.error('Error in deleteStudent:', error);

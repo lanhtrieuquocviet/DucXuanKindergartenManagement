@@ -1,6 +1,6 @@
 const express = require("express");
 const router = express.Router();
-const { authenticate, authorizeRoles, authorizePermissions } = require("../middleware/auth");
+const { authenticate, authorizeRoles, authorizePermissions, authorizeAnyPermission } = require("../middleware/auth");
 const {
   createPickupRequest,
   getMyPickupRequests,
@@ -85,7 +85,7 @@ const {
  *         description: Danh sách đăng ký đón trẻ
  */
 router.post("/requests", authenticate, createPickupRequest);
-router.get("/requests", authenticate, authorizePermissions("MANAGE_PICKUP"), getPickupRequests);
+router.get("/requests", authenticate, authorizeAnyPermission("MANAGE_PICKUP", "MANAGE_STUDENT"), getPickupRequests);
 
 /**
  * @openapi
@@ -125,7 +125,7 @@ router.get("/my-requests", authenticate, getMyPickupRequests);
  *       200:
  *         description: Danh sách người đón đã duyệt
  */
-router.get("/requests/student/:studentId", authenticate, authorizePermissions("MANAGE_PICKUP"), getApprovedPickupPersonsByStudent);
+router.get("/requests/student/:studentId", authenticate, authorizeAnyPermission("MANAGE_PICKUP", "MANAGE_STUDENT"), getApprovedPickupPersonsByStudent);
 
 /**
  * @openapi
@@ -157,7 +157,7 @@ router.get("/requests/student/:studentId", authenticate, authorizePermissions("M
  *       200:
  *         description: Cập nhật trạng thái thành công
  */
-router.post("/requests/status", authenticate, authorizePermissions("MANAGE_PICKUP"), updatePickupRequestStatus);
+router.post("/requests/status", authenticate, authorizeAnyPermission("MANAGE_PICKUP", "MANAGE_STUDENT"), updatePickupRequestStatus);
 
 /**
  * @openapi
@@ -207,7 +207,7 @@ router.post("/requests/status", authenticate, authorizePermissions("MANAGE_PICKU
  *         description: Xóa thành công
  */
 router.put("/requests/:id", authenticate, updateMyPickupRequest);
-router.put("/admin/requests/:requestId", authenticate, authorizePermissions("MANAGE_PICKUP"), updatePickupRequest);
+router.put("/admin/requests/:requestId", authenticate, authorizeAnyPermission("MANAGE_PICKUP", "MANAGE_STUDENT"), updatePickupRequest);
 router.delete("/requests/:id", authenticate, deleteMyPickupRequest);
 
 module.exports = router;

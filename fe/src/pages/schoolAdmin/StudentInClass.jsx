@@ -159,7 +159,9 @@ export default function StudentInClass() {
     setAddError(null);
     setLoadingAll(true);
     try {
-      const res = await get(ENDPOINTS.STUDENTS.LIST);
+      const yearId = classDetail?.academicYearId?._id || classDetail?.academicYearId;
+      const url = yearId ? `${ENDPOINTS.STUDENTS.LIST}?academicYearId=${yearId}` : ENDPOINTS.STUDENTS.LIST;
+      const res = await get(url);
       setAllStudents(res.data || []);
     } catch (err) {
       setAddError(err.message || 'Lỗi khi tải danh sách học sinh');

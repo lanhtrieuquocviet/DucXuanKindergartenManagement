@@ -9,7 +9,7 @@ import {
   TablePagination, TextField, InputAdornment, FormControl, InputLabel,
   Select, MenuItem, Button, Tooltip, Dialog, DialogTitle, DialogContent,
   DialogActions, Badge, List, ListItem, ListItemText, Divider,
-  Radio, FormControlLabel, FormLabel,
+  Radio, FormControlLabel, FormLabel, Checkbox,
 } from '@mui/material';
 import {
   Search as SearchIcon,
@@ -77,7 +77,11 @@ export default function TeacherStudents() {
 
   // Evaluation dialog — đánh giá học tập
   const [evalDialog, setEvalDialog] = useState(null); // student object
-  const [evalData, setEvalData]     = useState({ academicEvaluation: null, evaluationNote: '' });
+  const [evalPeriod, setEvalPeriod] = useState('semester_1');
+  const [evalTemplate, setEvalTemplate] = useState(null);
+  const [evalResults, setEvalResults] = useState([]); // [{ criterionName, isPassed }]
+  const [evalOverall, setEvalOverall] = useState('Đạt');
+  const [evalNote, setEvalNote] = useState('');
   const [evalLoading, setEvalLoading] = useState(false);
   const [evalSubmitting, setEvalSubmitting] = useState(false);
 
@@ -133,20 +137,24 @@ export default function TeacherStudents() {
   };
 
   const submitEvaluation = async () => {
-    if (!evalData.academicEvaluation) {
-      toast.error('Vui lòng chọn kết quả đánh giá');
-      return;
-    }
+    if (!evalTemplate) return;
     setEvalSubmitting(true);
     try {
-      await put(ENDPOINTS.TEACHER.STUDENT_EVALUATION(evalDialog._id), {
-        academicEvaluation: evalData.academicEvaluation,
-        evaluationNote: evalData.evaluationNote.trim(),
-      });
+      const assessmentToSave = {
+        studentId: evalDialog._id,
+        classId: evalDialog.classId?._id || evalDialog.classId,
+        academicYearId: selectedYearId,
+        period: evalPeriod,
+        templateId: evalTemplate._id,
+        results: evalResults,
+        overallResult: evalOverall,
+        notes: evalNote.trim(),
+      };
+
+      await put(ENDPOINTS.TEACHER.STUDENT_EVALUATION(evalDialog._id), { assessments: [assessmentToSave] });
       toast.success('Đã cập nhật đánh giá học tập');
       closeEvalDialog();
-      // Refresh student list to show updated evaluation
-      fetchStudents(classFilter);
+      fetchStudents(classFilter, selectedYearId);
     } catch (err) {
       toast.error(err.data?.message || err.message || 'Cập nhật thất bại');
     } finally {
@@ -168,23 +176,39 @@ export default function TeacherStudents() {
     }
   };
 
-  const openEvalDialog = async (student) => {
-    setEvalDialog(student);
-    setEvalData({ academicEvaluation: null, evaluationNote: '' });
+  const loadEvaluationData = async (student, period) => {
     setEvalLoading(true);
+    setEvalTemplate(null);
+    setEvalResults([]);
+    setEvalOverall('Đạt');
+    setEvalNote('');
     try {
-      const res = await get(ENDPOINTS.TEACHER.STUDENT_EVALUATION(student._id));
-      if (res.data?.evaluation) {
-        setEvalData({
-          academicEvaluation: res.data.evaluation.academicEvaluation,
-          evaluationNote: res.data.evaluation.evaluationNote || ''
-        });
+      const res = await get(`${ENDPOINTS.TEACHER.STUDENT_EVALUATION(student._id)}?period=${period}&academicYearId=${selectedYearId}`);
+      if (res.status === 'success') {
+        const { template, assessment } = res.data;
+        setEvalTemplate(template);
+        if (assessment) {
+          setEvalResults(assessment.results || []);
+          setEvalOverall(assessment.overallResult || 'Đạt');
+          setEvalNote(assessment.notes || '');
+        } else {
+          setEvalResults(template.criteria.map(c => ({ criterionName: c.name, isPassed: false })));
+          setEvalOverall('Chưa đạt');
+        }
+      } else if (res.status === 'no_template') {
+        setEvalTemplate(null);
       }
     } catch (err) {
       toast.error('Không thể tải thông tin đánh giá');
     } finally {
       setEvalLoading(false);
     }
+  };
+
+  const openEvalDialog = (student) => {
+    setEvalDialog(student);
+    setEvalPeriod('semester_1'); // Default to Semester 1
+    loadEvaluationData(student, 'semester_1');
   };
 
   const closeEvalDialog = () => { setEvalDialog(null); };
@@ -606,60 +630,129 @@ export default function TeacherStudents() {
       {/* Dialog đánh giá học tập */}
       <Dialog open={!!evalDialog} onClose={closeEvalDialog} maxWidth="sm" fullWidth>
         <DialogTitle sx={{ fontWeight: 700, pb: 1 }}>
-          Đánh giá học tập tổng quan
+          Đánh giá học tập
         </DialogTitle>
         <DialogContent dividers>
           {evalDialog && (
-            <Stack spacing={0.5} mb={2} direction="row" alignItems="center">
-              <Avatar src={evalDialog.avatar || undefined} sx={{ width: 32, height: 32, bgcolor: '#ede9fe', color: '#7c3aed', fontSize: '0.8rem' }}>
+            <Stack direction="row" alignItems="center" spacing={1.5} mb={3}>
+              <Avatar src={evalDialog.avatar || undefined} sx={{ width: 40, height: 40, bgcolor: '#ede9fe', color: '#7c3aed' }}>
                 {evalDialog.fullName?.charAt(0)}
               </Avatar>
-              <Typography variant="body2" fontWeight={600}>{evalDialog.fullName}</Typography>
-              <Typography variant="caption" color="text.secondary">· {evalDialog.classId?.className || ''}</Typography>
+              <Box>
+                <Typography variant="body1" fontWeight={700}>{evalDialog.fullName}</Typography>
+                <Typography variant="caption" color="text.secondary">Lớp {evalDialog.classId?.className || ''}</Typography>
+              </Box>
             </Stack>
           )}
+
+          <FormControl fullWidth size="small" sx={{ mb: 3 }}>
+            <InputLabel>Giai đoạn đánh giá</InputLabel>
+            <Select
+              value={evalPeriod}
+              label="Giai đoạn đánh giá"
+              onChange={(e) => {
+                const p = e.target.value;
+                setEvalPeriod(p);
+                loadEvaluationData(evalDialog, p);
+              }}
+            >
+              <MenuItem value="early_year">Đánh giá đầu năm</MenuItem>
+              <MenuItem value="semester_1">Đánh giá cuối Kỳ 1</MenuItem>
+              <MenuItem value="semester_2">Đánh giá cuối năm học</MenuItem>
+            </Select>
+          </FormControl>
+
           {evalLoading ? (
             <Box sx={{ py: 4, textAlign: 'center' }}>
-              <Typography variant="body2" color="text.secondary">Đang tải thông tin đánh giá...</Typography>
+              <Typography variant="body2" color="text.secondary">Đang tải biểu mẫu...</Typography>
             </Box>
+          ) : !evalTemplate ? (
+            <Alert severity="info">
+              Chưa có mẫu đánh giá được thiết lập cho giai đoạn này.
+            </Alert>
           ) : (
-            <Stack spacing={2}>
-              <FormControl component="fieldset">
-                <Typography variant="body2" fontWeight={600} gutterBottom>
-                  Kết quả đánh giá học tập *
+            <Stack spacing={2.5}>
+              <Box>
+                <Typography variant="subtitle2" fontWeight={700} gutterBottom>
+                  Tiêu chí đánh giá ({evalTemplate.templateName})
                 </Typography>
+                <Paper variant="outlined" sx={{ borderRadius: 2, overflow: 'hidden' }}>
+                  <List disablePadding>
+                    {evalTemplate.criteria.map((c, idx) => {
+                      const res = evalResults.find(r => r.criterionName === c.name);
+                      const isPassed = res ? res.isPassed : false;
+                      return (
+                        <ListItem 
+                          key={idx} 
+                          divider={idx < evalTemplate.criteria.length - 1}
+                          sx={{ py: 1 }}
+                        >
+                          <ListItemText 
+                            primary={<Typography variant="body2" fontWeight={500}>{c.name}</Typography>}
+                            secondary={c.description}
+                          />
+                          <FormControlLabel
+                            control={
+                              <Checkbox 
+                                size="small"
+                                checked={isPassed}
+                                onChange={(e) => {
+                                  const updated = evalResults.map(r => 
+                                    r.criterionName === c.name ? { ...r, isPassed: e.target.checked } : r
+                                  );
+                                  setEvalResults(updated);
+                                  // Auto-calculate overall
+                                  const allPassed = updated.every(r => r.isPassed);
+                                  setEvalOverall(allPassed ? 'Đạt' : 'Chưa đạt');
+                                }}
+                              />
+                            }
+                            label={<Typography variant="caption">Đạt</Typography>}
+                          />
+                        </ListItem>
+                      );
+                    })}
+                  </List>
+                </Paper>
+              </Box>
+
+              <FormControl component="fieldset">
+                <Typography variant="subtitle2" fontWeight={700} gutterBottom>Kết quả tổng quan</Typography>
                 <Stack direction="row" spacing={2}>
                   <FormControlLabel
                     control={
                       <Radio
-                        checked={evalData.academicEvaluation === 'đạt'}
-                        onChange={(e) => setEvalData(prev => ({ ...prev, academicEvaluation: e.target.checked ? 'đạt' : null }))}
+                        size="small"
+                        checked={evalOverall === 'Đạt'}
+                        onChange={() => setEvalOverall('Đạt')}
                         color="success"
                       />
                     }
-                    label="Đạt"
+                    label={<Typography variant="body2">Đạt</Typography>}
                   />
                   <FormControlLabel
                     control={
                       <Radio
-                        checked={evalData.academicEvaluation === 'chưa đạt'}
-                        onChange={(e) => setEvalData(prev => ({ ...prev, academicEvaluation: e.target.checked ? 'chưa đạt' : null }))}
+                        size="small"
+                        checked={evalOverall === 'Chưa đạt'}
+                        onChange={() => setEvalOverall('Chưa đạt')}
                         color="error"
                       />
                     }
-                    label="Chưa đạt"
+                    label={<Typography variant="body2">Chưa đạt</Typography>}
                   />
                 </Stack>
               </FormControl>
+
               <TextField
                 label="Ghi chú đánh giá"
                 size="small"
                 fullWidth
                 multiline
                 minRows={3}
-                value={evalData.evaluationNote}
-                onChange={(e) => setEvalData(prev => ({ ...prev, evaluationNote: e.target.value }))}
-                placeholder="Nhập ghi chú chi tiết về kết quả học tập của học sinh..."
+                value={evalNote}
+                onChange={(e) => setEvalNote(e.target.value)}
+                placeholder="Nhập ghi chú chi tiết..."
               />
             </Stack>
           )}
@@ -669,8 +762,8 @@ export default function TeacherStudents() {
           <Button
             variant="contained"
             onClick={submitEvaluation}
-            disabled={evalSubmitting || evalLoading || !evalData.academicEvaluation}
-            sx={{ bgcolor: '#0891b2', '&:hover': { bgcolor: '#0284a8' } }}
+            disabled={evalSubmitting || evalLoading || !evalTemplate}
+            sx={{ bgcolor: '#0891b2', '&:hover': { bgcolor: '#0284a8' }, borderRadius: 2 }}
           >
             {evalSubmitting ? 'Đang lưu...' : 'Lưu đánh giá'}
           </Button>

@@ -7,6 +7,7 @@ const User = require('../models/User');
 const Teacher = require('../models/Teacher');
 const Classroom = require('../models/Classroom');
 const Enrollment = require('../models/Enrollment');
+const { logAction } = require('./auditService');
 
 /** Tối đa số năm học khác nhau mà một học sinh được học cùng một khối (gradeId) */
 const MAX_DISTINCT_ACADEMIC_YEARS_PER_GRADE = 2;
@@ -251,8 +252,8 @@ const getClassDetail = async (req, res) => {
       });
     }
 
-    // Đếm số lượng học sinh
-    const studentCount = await Student.countDocuments({ classId });
+    // Đếm số lượng học sinh từ Enrollment
+    const studentCount = await Enrollment.countDocuments({ classId, academicYearId: classInfo.academicYearId });
 
     return res.status(200).json({
       status: 'success',
@@ -382,6 +383,14 @@ const createClass = async (req, res) => {
       .populate('academicYearId', 'yearName')
       .populate({ path: 'teacherIds', populate: { path: 'userId', select: 'fullName email phone avatar' } });
 
+    await logAction({
+      action: 'CREATE_CLASS',
+      actorId: req.user.id,
+      targetModel: 'Classes',
+      targetId: newClass._id,
+      newData: populatedClass
+    }, req);
+
     return res.status(201).json({
       status: 'success',
       message: 'Tạo lớp học thành công',
@@ -406,15 +415,25 @@ const updateClass = async (req, res) => {
     const { classId } = req.params;
     const { className, gradeId, teacherIds, maxStudents, roomId } = req.body;
 
-    const cls = await Classes.findById(classId);
+    const cls = await Classes.findById(classId).populate('academicYearId');
     if (!cls) {
       return res.status(404).json({ status: 'error', message: 'Không tìm thấy lớp học' });
     }
 
+    // Luật 7: Chặn sửa khi năm học đã kết thúc
+    if (cls.academicYearId?.status === 'inactive') {
+      return res.status(400).json({ status: 'error', message: 'Không thể sửa lớp học của năm học đã kết thúc' });
+    }
+    const oldData = { ...cls.toObject() };
+
     const newClassName = className ? String(className).trim() : cls.className;
 
     if (newClassName !== cls.className) {
-      const existingClass = await Classes.findOne({ className: newClassName, academicYearId: cls.academicYearId, _id: { $ne: classId } });
+      const existingClass = await Classes.findOne({
+        className: newClassName,
+        academicYearId: cls.academicYearId,
+        _id: { $ne: classId }
+      });
       if (existingClass) {
         return res.status(400).json({ status: 'error', message: 'Tên lớp đã tồn tại trong năm học này' });
       }
@@ -426,7 +445,6 @@ const updateClass = async (req, res) => {
       return res.status(400).json({ status: 'error', message: teacherError });
     }
 
-    // Validate phòng học — mỗi phòng chỉ dùng cho 1 lớp trong năm học
     if (roomId) {
       const room = await Classroom.findById(roomId).lean();
       if (!room) {
@@ -462,7 +480,6 @@ const updateClass = async (req, res) => {
           await Classroom.findByIdAndUpdate(newRoomId, { status: 'in_use' });
         }
         if (prevRoomId) {
-          // Kiểm tra phòng cũ có lớp nào khác sử dụng không
           const stillOccupied = await Classes.findOne({ roomId: prevRoomId, _id: { $ne: classId } }).lean();
           if (!stillOccupied) {
             await Classroom.findByIdAndUpdate(prevRoomId, { status: 'available' });
@@ -471,13 +488,22 @@ const updateClass = async (req, res) => {
       }
     }
 
-    const populated = await Classes.findById(classId)
+    const updatedClass = await Classes.findById(classId)
       .populate('gradeId', 'gradeName')
       .populate('roomId', 'roomName floor capacity status')
       .populate('academicYearId', 'yearName')
       .populate({ path: 'teacherIds', populate: { path: 'userId', select: 'fullName email phone avatar' } });
 
-    return res.status(200).json({ status: 'success', message: 'Cập nhật lớp học thành công', data: populated });
+    await logAction({
+      action: 'UPDATE_CLASS',
+      actorId: req.user.id,
+      targetModel: 'Classes',
+      targetId: classId,
+      oldData,
+      newData: updatedClass
+    }, req);
+
+    return res.status(200).json({ status: 'success', message: 'Cập nhật lớp học thành công', data: updatedClass });
   } catch (error) {
     console.error('Error in updateClass:', error);
     return res.status(500).json({ status: 'error', message: 'Lỗi khi cập nhật lớp học', error: error.message });
@@ -490,21 +516,27 @@ const updateClass = async (req, res) => {
  * body: { studentIds: string[] }
  */
 const addStudentsToClass = async (req, res) => {
+  const session = await mongoose.startSession();
+  session.startTransaction();
   try {
     const { classId } = req.params;
     const { studentIds, healthNote } = req.body;
 
     if (!Array.isArray(studentIds) || studentIds.length === 0) {
+      await session.abortTransaction();
       return res.status(400).json({ status: 'error', message: 'Vui lòng chọn ít nhất 1 học sinh' });
     }
 
-    const cls = await Classes.findById(classId).lean();
+    const cls = await Classes.findById(classId).populate('academicYearId').session(session).lean();
     if (!cls) {
+      await session.abortTransaction();
       return res.status(404).json({ status: 'error', message: 'Không tìm thấy lớp học' });
     }
+    const academicYear = cls.academicYearId;
 
-    const grade = await Grade.findById(cls.gradeId).populate('staticBlockId').lean();
+    const grade = await Grade.findById(cls.gradeId).populate('staticBlockId').session(session).lean();
     if (!grade || !grade.staticBlockId) {
+      await session.abortTransaction();
       return res.status(400).json({
         status: 'error',
         message: 'Lớp chưa gắn khối hoặc danh mục khối, không thể thêm học sinh',
@@ -513,72 +545,54 @@ const addStudentsToClass = async (req, res) => {
 
     const minAge = Number(grade.staticBlockId.minAge);
     const maxAge = Number(grade.staticBlockId.maxAge);
-    if (!Number.isFinite(minAge) || !Number.isFinite(maxAge)) {
-      return res.status(400).json({
-        status: 'error',
-        message: 'Danh mục khối chưa cấu hình độ tuổi hợp lệ',
-      });
-    }
 
-    // Kiểm tra sĩ số tối đa
-    const currentCount = await Student.countDocuments({ classId });
+    // Kiểm tra sĩ số tối đa từ Enrollment
+    const currentCount = await Enrollment.countDocuments({ classId }).session(session);
     if (cls.maxStudents > 0 && currentCount + studentIds.length > cls.maxStudents) {
+      await session.abortTransaction();
       return res.status(400).json({
         status: 'error',
         message: `Vượt quá sĩ số tối đa (${cls.maxStudents}). Hiện có ${currentCount} học sinh, không thể thêm ${studentIds.length} học sinh nữa.`,
       });
     }
 
-    // Kiểm tra học sinh đã có lớp khác chưa
-    const alreadyAssigned = await Student.find({
-      _id: { $in: studentIds },
-      classId: { $ne: null, $exists: true },
-      status: 'active',
-    }).select('fullName classId').lean();
+    // Kiểm tra học sinh đã có lớp khác trong CÙNG NĂM HỌC này chưa
+    const targetAcademicYearId = new mongoose.Types.ObjectId(cls.academicYearId?._id || cls.academicYearId);
+    const alreadyAssigned = await Enrollment.find({
+      studentId: { $in: studentIds },
+      academicYearId: targetAcademicYearId,
+      classId: { $ne: null, $exists: true }
+    }).session(session).populate('studentId', 'fullName').populate('classId', 'className').lean();
 
     if (alreadyAssigned.length > 0) {
-      const names = alreadyAssigned.map(s => s.fullName).join(', ');
+      await session.abortTransaction();
+      const names = alreadyAssigned.map(e => `${e.studentId?.fullName} (đang ở lớp ${e.classId?.className})`).join(', ');
       return res.status(400).json({
         status: 'error',
-        message: `Các học sinh sau đã thuộc lớp khác: ${names}`,
+        message: `Các học sinh sau đã được xếp lớp trong năm học này: ${names}`,
       });
     }
 
+    const studentIdsAsString = studentIds.map((id) => String(id));
     const students = await Student.find({ _id: { $in: studentIds }, status: 'active' })
+      .session(session)
       .select('_id fullName dateOfBirth')
       .lean();
 
     if (students.length !== studentIds.length) {
+      await session.abortTransaction();
+      const foundIds = students.map(s => String(s._id));
+      const missingIds = studentIdsAsString.filter(id => !foundIds.includes(id));
       return res.status(400).json({
         status: 'error',
-        message: 'Có học sinh không tồn tại trong danh sách đã chọn',
+        message: `Có ${missingIds.length} học sinh không hợp lệ hoặc không ở trạng thái "Đang học". Vui lòng kiểm tra lại danh sách.`,
+        data: { missingIds }
       });
     }
 
-    if (!cls.gradeId || !cls.academicYearId) {
-      return res.status(400).json({
-        status: 'error',
-        message: 'Lớp chưa gắn khối hoặc năm học, không thể ghi nhận enrollment',
-      });
-    }
-
-    const targetGradeId = new mongoose.Types.ObjectId(cls.gradeId);
-    const targetAcademicYearId = new mongoose.Types.ObjectId(cls.academicYearId);
-    const targetYearStr = String(cls.academicYearId);
-
-    const studentIdsAsString = studentIds.map((id) => String(id));
     const studentObjectIds = students.map((s) => s._id);
 
-    const enrollmentStats = await Enrollment.aggregate([
-      { $match: { studentId: { $in: studentObjectIds } } },
-      { $group: { _id: '$studentId', count: { $sum: 1 } } },
-    ]);
-    const enrollmentCountMap = {};
-    enrollmentStats.forEach((item) => {
-      enrollmentCountMap[String(item._id)] = Number(item.count || 0);
-    });
-
-    // Đếm các năm học khác nhau đã có enrollment cùng gradeId (bản ghi cũ dùng lookup lớp nếu chưa có gradeId/year trên Enrollment)
+    // Kiểm tra số lần học lại khối
     const gradeYearAgg = await Enrollment.aggregate([
       { $match: { studentId: { $in: studentObjectIds } } },
       {
@@ -601,7 +615,7 @@ const addStudentsToClass = async (req, res) => {
       },
       {
         $match: {
-          resolvedGradeId: targetGradeId,
+          resolvedGradeId: new mongoose.Types.ObjectId(cls.gradeId),
           resolvedYearId: { $ne: null },
         },
       },
@@ -616,7 +630,7 @@ const addStudentsToClass = async (req, res) => {
           yearIds: { $addToSet: '$_id.y' },
         },
       },
-    ]);
+    ]).session(session);
 
     const distinctYearsByStudent = {};
     gradeYearAgg.forEach((row) => {
@@ -624,82 +638,88 @@ const addStudentsToClass = async (req, res) => {
     });
 
     const gradeRepeatViolations = [];
+    const targetYearStr = String(targetAcademicYearId);
     for (const sid of studentIdsAsString) {
       const years = distinctYearsByStudent[sid] || [];
       const yearSet = new Set(years);
-      if (yearSet.has(targetYearStr)) {
-        continue;
-      }
+      if (yearSet.has(targetYearStr)) continue; // Đã có enrollment năm nay rồi (đang update)
+      
       if (yearSet.size >= MAX_DISTINCT_ACADEMIC_YEARS_PER_GRADE) {
         const student = students.find((s) => String(s._id) === sid);
-        gradeRepeatViolations.push(
-          student?.fullName || sid,
-        );
+        gradeRepeatViolations.push(student?.fullName || sid);
       }
     }
 
     if (gradeRepeatViolations.length > 0) {
+      await session.abortTransaction();
       return res.status(400).json({
         status: 'error',
-        message: `Học sinh đã học khối này đủ ${MAX_DISTINCT_ACADEMIC_YEARS_PER_GRADE} năm học khác nhau, không thể xếp lớp thêm: ${gradeRepeatViolations.join(', ')}`,
+        message: `Học sinh đã học khối này đủ ${MAX_DISTINCT_ACADEMIC_YEARS_PER_GRADE} năm học khác nhau: ${gradeRepeatViolations.join(', ')}`,
       });
     }
 
-    // Get ages of students being added
     const invalidStudents = [];
+    const cutoffDate = academicYear?.startDate ? new Date(academicYear.startDate) : new Date();
 
     for (const studentId of studentIdsAsString) {
       const student = students.find((s) => String(s._id) === studentId);
       if (!student) continue;
-      const age = calculateAgeOnDate(student.dateOfBirth);
+      const age = calculateAgeOnDate(student.dateOfBirth, cutoffDate);
       if (age === null || age < 0) {
         invalidStudents.push(`${student.fullName} (ngày sinh không hợp lệ)`);
         continue;
       }
-
-      const isRepeater = (enrollmentCountMap[studentId] || 0) > 0;
       const maxAllowedAge = maxAge + 2;
-      const inRange = age >= minAge && age <= maxAllowedAge;
-      if (!inRange) {
-        invalidStudents.push(
-          `${student.fullName} (${age} tuổi, yêu cầu ${minAge}-${maxAllowedAge} tuổi${isRepeater ? ' (học lại)' : ''})`,
-        );
+      if (age < minAge || age > maxAllowedAge) {
+        invalidStudents.push(`${student.fullName} (${age} tuổi, yêu cầu ${minAge}-${maxAllowedAge})`);
       }
     }
 
     if (invalidStudents.length > 0) {
-      return res.status(400).json({
-        status: 'error',
-        message: `Không thể thêm học sinh do không đạt điều kiện độ tuổi: ${invalidStudents.join('; ')}`,
-      });
+      await session.abortTransaction();
+      return res.status(400).json({ status: 'error', message: `Không đạt điều kiện độ tuổi: ${invalidStudents.join('; ')}` });
     }
 
+    // UPDATE DATA
     await Student.updateMany(
       { _id: { $in: studentIds } },
       { $set: { classId } },
+      { session }
     );
 
-    const normalizedHealthNote = typeof healthNote === 'string' ? healthNote.trim() : '';
-    const enrollmentDocs = studentIdsAsString.map((studentId) => ({
-      studentId,
-      classId,
-      gradeId: cls.gradeId,
-      academicYearId: cls.academicYearId,
-      enrollmentDate: new Date(),
-      healthNote: normalizedHealthNote,
+    const enrollmentStatus = (academicYear?.status === 'draft') ? 'draft' : 'studying';
+    const ops = studentIdsAsString.map((studentId) => ({
+      updateOne: {
+        filter: { studentId, academicYearId: cls.academicYearId?._id || cls.academicYearId },
+        update: {
+          $set: {
+            classId,
+            gradeId: cls.gradeId,
+            status: enrollmentStatus,
+            enrollmentDate: new Date(),
+          },
+        },
+        upsert: true,
+      },
     }));
-    await Enrollment.insertMany(enrollmentDocs);
+    await Enrollment.bulkWrite(ops, { session });
 
-    const updatedCount = await Student.countDocuments({ classId });
+    const updatedCount = await Enrollment.countDocuments({ classId }).session(session);
 
+    await session.commitTransaction();
     return res.status(200).json({
       status: 'success',
       message: `Đã thêm ${studentIds.length} học sinh vào lớp thành công`,
       data: { added: studentIds.length, total: updatedCount, enrollmentsCreated: studentIds.length },
     });
   } catch (error) {
+    if (session.inTransaction()) {
+      await session.abortTransaction();
+    }
     console.error('Error in addStudentsToClass:', error);
     return res.status(500).json({ status: 'error', message: 'Lỗi khi thêm học sinh vào lớp', error: error.message });
+  } finally {
+    session.endSession();
   }
 };
 
@@ -739,17 +759,28 @@ const deleteClass = async (req, res) => {
       return res.status(404).json({ status: 'error', message: 'Không tìm thấy lớp học' });
     }
 
-    // Lấy danh sách học sinh đang có enrollment trong lớp này
-    const enrollments = await Enrollment.find({ classId }).select('studentId').lean();
-    const studentIds = enrollments.map(e => e.studentId);
+    // Soft delete: chuyển trạng thái lớp sang inactive (nếu model có status) 
+    // hoặc ít nhất là ghi log và dọn dẹp enrollment
+    const oldData = { ...cls.toObject() };
+    
+    // Nếu Classes model chưa có status, ta có thể thêm sau. Hiện tại ta vẫn cho phép xóa Enrollment.
+    // Nhưng theo luật soft delete, ta nên giữ record.
+    // Giả sử ta thêm field status: 'inactive' vào Classes model.
+    cls.status = 'inactive'; 
+    await cls.save();
 
-    // Clear classId trên học sinh, xóa enrollment, xóa lớp
-    if (studentIds.length > 0) {
-      await Student.updateMany({ _id: { $in: studentIds } }, { $set: { classId: null } });
-    }
-    await Enrollment.deleteMany({ classId });
-    await Classes.findByIdAndDelete(classId);
-    return res.status(200).json({ status: 'success', message: 'Xóa lớp học thành công' });
+    await Enrollment.updateMany({ classId }, { $set: { status: 'dropped' } }); // Học sinh trong lớp bị xóa coi như dropped khỏi lớp đó
+
+    await logAction({
+      action: 'DELETE_CLASS_SOFT',
+      actorId: req.user.id,
+      targetModel: 'Classes',
+      targetId: classId,
+      oldData,
+      newData: { status: 'inactive' }
+    }, req);
+
+    return res.status(200).json({ status: 'success', message: 'Đã chuyển trạng thái lớp học sang Inactive thành công' });
   } catch (error) {
     console.error('Error in deleteClass:', error);
     return res.status(500).json({ status: 'error', message: 'Lỗi khi xóa lớp học', error: error.message });

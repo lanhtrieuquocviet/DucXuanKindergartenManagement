@@ -21,7 +21,7 @@ const smartPlacementService = {
     // 2. Lấy kết quả đánh giá kỳ 2 của các học sinh này
     const assessments = await StudentAssessment.find({
       academicYearId: currentYearId,
-      term: 2
+      period: 'semester_2'
     });
 
     const assessmentMap = assessments.reduce((acc, curr) => {

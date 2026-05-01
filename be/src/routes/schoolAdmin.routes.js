@@ -1611,7 +1611,9 @@ router.put('/academic-years/:id', authenticate, authorizePermissions('MANAGE_ACA
  *         description: Kết thúc năm học thành công
  */
 router.patch('/academic-years/:id/finish', authenticate, authorizePermissions('MANAGE_ACADEMIC_YEAR'), academicYearController.finishAcademicYear);
+router.post('/academic-years/:id/finish-preview', authenticate, authorizePermissions('MANAGE_ACADEMIC_YEAR'), academicYearController.getFinishYearPreview);
 router.patch('/academic-years/:id/publish', authenticate, authorizePermissions('MANAGE_ACADEMIC_YEAR'), academicYearController.publishAcademicYear);
+router.get('/academic-years/:id/publish-preview', authenticate, authorizePermissions('MANAGE_ACADEMIC_YEAR'), academicYearController.getPublishYearPreview);
 router.post('/academic-years/:id/remind-evaluations', authenticate, authorizePermissions('MANAGE_ACADEMIC_YEAR'), academicYearController.remindEvaluations);
 
 // ============================================

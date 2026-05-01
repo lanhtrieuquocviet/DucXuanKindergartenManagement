@@ -176,6 +176,7 @@ exports.getStudentsInClass = async (req, res) => {
           _id: cls._id,
           className: cls.className,
           gradeName: cls.gradeId?.gradeName || '',
+          academicYearId: cls.academicYearId,
         },
         students,
       },

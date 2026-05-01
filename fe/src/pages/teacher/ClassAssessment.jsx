@@ -41,7 +41,7 @@ export default function ClassAssessment() {
 
   const [classes, setClasses] = useState([]);
   const [selectedClass, setSelectedClass] = useState('');
-  const [selectedTerm, setSelectedTerm] = useState(1);
+  const [selectedPeriod, setSelectedPeriod] = useState('semester_1');
   const [academicYear, setAcademicYear] = useState(null);
   
   const [loading, setLoading] = useState(false);
@@ -72,10 +72,10 @@ export default function ClassAssessment() {
   }, []);
 
   const loadAssessments = useCallback(async () => {
-    if (!selectedClass || !selectedTerm || !academicYear) return;
+    if (!selectedClass || !selectedPeriod || !academicYear) return;
     setLoading(true);
     try {
-      const resp = await get(`${ENDPOINTS.TEACHER.CLASS_ASSESSMENTS}?classId=${selectedClass}&term=${selectedTerm}&academicYearId=${academicYear._id}`);
+      const resp = await get(`${ENDPOINTS.TEACHER.CLASS_ASSESSMENTS}?classId=${selectedClass}&period=${selectedPeriod}&academicYearId=${academicYear._id}`);
       if (resp?.status === 'success') {
         setData(resp.data);
       } else if (resp?.status === 'no_template') {
@@ -86,7 +86,7 @@ export default function ClassAssessment() {
     } finally {
       setLoading(false);
     }
-  }, [selectedClass, selectedTerm, academicYear]);
+  }, [selectedClass, selectedPeriod, academicYear]);
 
   useEffect(() => {
     loadInitialData();
@@ -107,7 +107,6 @@ export default function ClassAssessment() {
           r.criterionName === criterionName ? { ...r, isPassed: !r.isPassed } : r
         );
 
-        // Tự động tính overallResult (Đạt nếu tất cả tiêu chí đạt)
         const allPassed = updatedResults.every(r => r.isPassed);
 
         return {
@@ -146,7 +145,7 @@ export default function ClassAssessment() {
         studentId: st._id,
         classId: selectedClass,
         academicYearId: academicYear._id,
-        term: selectedTerm,
+        period: selectedPeriod,
         templateId: data.template._id,
         results: st.assessment?.results || data.template.criteria.map(c => ({ criterionName: c.name, isPassed: false })),
         overallResult: st.assessment?.overallResult || 'Chưa đạt',
@@ -165,138 +164,190 @@ export default function ClassAssessment() {
     }
   };
 
+  const selectedClassDoc = classes.find(c => c._id === selectedClass);
+  const periodLabel = {
+    early_year: 'ĐẦU NĂM',
+    semester_1: 'CUỐI HỌC KỲ 1',
+    semester_2: 'CUỐI NĂM HỌC'
+  }[selectedPeriod];
 
+  // Tính toán % cho dòng tổng
+  const calculatePercentage = (criterionName) => {
+    if (!data.students.length) return '0%';
+    const passedCount = data.students.filter(st => 
+      st.assessment?.results?.find(r => r.criterionName === criterionName)?.isPassed
+    ).length;
+    return Math.round((passedCount / data.students.length) * 100) + '%';
+  };
+
+  const calculateOverallPercentage = () => {
+    if (!data.students.length) return '0%';
+    const passedCount = data.students.filter(st => st.assessment?.overallResult === 'Đạt').length;
+    return Math.round((passedCount / data.students.length) * 100) + '%';
+  };
 
   return (
     <Box p={2}>
-      <Box p={2}>
-        <Card sx={{ mb: 3, borderRadius: 3 }}>
-          <CardContent>
-            <Stack direction={{ xs: 'column', sm: 'row' }} spacing={2}>
-              <FormControl size="small" sx={{ minWidth: 200 }}>
-                <InputLabel>Chọn lớp</InputLabel>
-                <Select
-                  value={selectedClass}
-                  label="Chọn lớp"
-                  onChange={(e) => setSelectedClass(e.target.value)}
-                >
-                  {classes.map(c => <MenuItem key={c._id} value={c._id}>{c.className}</MenuItem>)}
-                </Select>
-              </FormControl>
-              <FormControl size="small" sx={{ minWidth: 150 }}>
-                <InputLabel>Kỳ học</InputLabel>
-                <Select
-                  value={selectedTerm}
-                  label="Kỳ học"
-                  onChange={(e) => setSelectedTerm(e.target.value)}
-                >
-                  <MenuItem value={1}>Học kỳ 1</MenuItem>
-                  <MenuItem value={2}>Học kỳ 2</MenuItem>
-                </Select>
-              </FormControl>
-              <Box flex={1} />
-              <Button
-                variant="contained"
-                startIcon={<SaveIcon />}
-                onClick={handleSaveAll}
-                disabled={saving || !data.template}
+      <Card sx={{ mb: 3, borderRadius: 3, boxShadow: 'none', border: '1px solid #e0e0e0' }}>
+        <CardContent>
+          <Stack direction={{ xs: 'column', sm: 'row' }} spacing={2} alignItems="center">
+            <FormControl size="small" sx={{ minWidth: 200 }}>
+              <InputLabel>Chọn lớp</InputLabel>
+              <Select
+                value={selectedClass}
+                label="Chọn lớp"
+                onChange={(e) => setSelectedClass(e.target.value)}
               >
-                {saving ? 'Đang lưu...' : 'Lưu tất cả'}
-              </Button>
-            </Stack>
-          </CardContent>
-        </Card>
-
-        {!loading && academicYear && classes.length === 0 && (
-          <Alert severity="info" sx={{ borderRadius: 3 }}>
-            Bạn chưa được phân công phụ trách lớp nào trong năm học <strong>{academicYear.yearName}</strong>.
-          </Alert>
-        )}
-
-        {!loading && academicYear && classes.length > 0 && !data.template && (
-          <Alert severity="warning" sx={{ borderRadius: 3 }}>
-            Chưa có mẫu đánh giá được thiết lập cho năm học <strong>{academicYear.yearName}</strong>. 
-            Vui lòng liên hệ Admin để tạo form mẫu.
-          </Alert>
-        )}
-
-        {!loading && !academicYear && (
-          <Alert severity="info" sx={{ borderRadius: 3 }}>
-            Đang tải thông tin năm học...
-          </Alert>
-        )}
-
-        {loading ? (
-          <Stack spacing={2}>
-            {[1, 2, 3, 4, 5].map(i => <Skeleton key={i} variant="rectangular" height={60} sx={{ borderRadius: 2 }} />)}
+                {classes.map(c => <MenuItem key={c._id} value={c._id}>{c.className}</MenuItem>)}
+              </Select>
+            </FormControl>
+            <FormControl size="small" sx={{ minWidth: 200 }}>
+              <InputLabel>Giai đoạn đánh giá</InputLabel>
+              <Select
+                value={selectedPeriod}
+                label="Giai đoạn đánh giá"
+                onChange={(e) => setSelectedPeriod(e.target.value)}
+              >
+                <MenuItem value="early_year">Đánh giá đầu năm</MenuItem>
+                <MenuItem value="semester_1">Đánh giá cuối Kỳ 1</MenuItem>
+                <MenuItem value="semester_2">Đánh giá cuối năm học</MenuItem>
+              </Select>
+            </FormControl>
+            <Box flex={1} />
+            <Button
+              variant="contained"
+              startIcon={<SaveIcon />}
+              onClick={handleSaveAll}
+              disabled={saving || !data.template}
+              sx={{ borderRadius: 2, bgcolor: '#059669', '&:hover': { bgcolor: '#047857' } }}
+            >
+              {saving ? 'Đang lưu...' : 'Lưu tất cả'}
+            </Button>
           </Stack>
-        ) : data.template && (
-          <TableContainer component={Paper} sx={{ borderRadius: 3, overflow: 'hidden', boxShadow: 'none', border: '1px solid', borderColor: 'divider' }}>
-            <Table size="small">
-              <TableHead sx={{ bgcolor: 'grey.50' }}>
-                <TableRow>
-                  <TableCell width={50} sx={{ fontWeight: 'bold' }}>STT</TableCell>
-                  <TableCell sx={{ fontWeight: 'bold' }}>Học sinh</TableCell>
+        </CardContent>
+      </Card>
+
+      {!loading && academicYear && classes.length > 0 && data.template && (
+        <Paper elevation={0} sx={{ p: 4, borderRadius: 3, border: '1px solid #e0e0e0', bgcolor: '#fff' }}>
+          {/* Header style like reference image */}
+          <Box sx={{ mb: 4, textAlign: 'center' }}>
+            <Stack direction="row" justifyContent="space-between" alignItems="flex-start">
+              <Box sx={{ textAlign: 'left' }}>
+                <Typography variant="subtitle2" fontWeight={700}>TRƯỜNG MẦM NON ĐỨC XUÂN</Typography>
+                <Typography variant="body2" fontWeight={700}>LỚP {selectedClassDoc?.className?.toUpperCase() || '...'}</Typography>
+              </Box>
+              <Box sx={{ textAlign: 'center', flex: 1 }}>
+                <Typography variant="h6" fontWeight={800}>DANH SÁCH ĐÁNH GIÁ {periodLabel}</Typography>
+                <Typography variant="subtitle1" fontWeight={700}>NĂM HỌC {academicYear?.yearName}</Typography>
+              </Box>
+              <Box sx={{ width: 200 }} /> {/* Spacer */}
+            </Stack>
+          </Box>
+
+          <TableContainer>
+            <Table size="small" sx={{ 
+              border: '1px solid black',
+              '& .MuiTableCell-root': { 
+                border: '1px solid black',
+                padding: '4px 8px',
+                fontSize: '0.85rem',
+                color: 'black'
+              } 
+            }}>
+              <TableHead>
+                <TableRow sx={{ bgcolor: '#f5f5f5' }}>
+                  <TableCell align="center" sx={{ fontWeight: 800 }}>STT</TableCell>
+                  <TableCell sx={{ fontWeight: 800 }}>Họ và tên</TableCell>
                   {data.template.criteria.map((c, i) => (
-                    <TableCell key={i} align="center" sx={{ fontWeight: 'bold', maxWidth: 100 }}>
-                      <Tooltip title={c.description || 'Không có mô tả'} arrow>
-                        <Typography variant="caption" fontWeight="bold" sx={{ cursor: 'help', borderBottom: '1px dotted grey' }}>
-                          {c.name}
-                        </Typography>
-                      </Tooltip>
+                    <TableCell key={i} align="center" sx={{ fontWeight: 800, width: 80 }}>
+                      <Typography variant="caption" fontWeight={800} sx={{ lineHeight: 1.2, display: 'block' }}>
+                        {c.name}
+                      </Typography>
                     </TableCell>
                   ))}
-                  <TableCell align="center" sx={{ fontWeight: 'bold' }}>Đánh giá chung</TableCell>
-                  <TableCell sx={{ fontWeight: 'bold' }}>Ghi chú</TableCell>
+                  <TableCell align="center" sx={{ fontWeight: 800, bgcolor: '#f9fafb' }}>Đạt</TableCell>
+                  <TableCell align="center" sx={{ fontWeight: 800, bgcolor: '#f9fafb' }}>Chưa đạt</TableCell>
+                  <TableCell sx={{ fontWeight: 800 }}>Ghi chú</TableCell>
                 </TableRow>
               </TableHead>
               <TableBody>
                 {data.students.map((st, idx) => (
-                  <TableRow key={st._id} hover>
-                    <TableCell>{idx + 1}</TableCell>
-                    <TableCell sx={{ fontWeight: 600 }}>{st.fullName}</TableCell>
+                  <TableRow key={st._id}>
+                    <TableCell align="center">{idx + 1}</TableCell>
+                    <TableCell sx={{ fontWeight: 500 }}>{st.fullName}</TableCell>
                     {data.template.criteria.map((c, i) => {
                       const res = st.assessment?.results?.find(r => r.criterionName === c.name);
                       const isPassed = res ? res.isPassed : false;
                       return (
-                        <TableCell key={i} align="center">
-                          <Checkbox
-                            size="small"
-                            checked={isPassed}
-                            onChange={() => handleToggleResult(st._id, c.name)}
-                            icon={<CancelIcon color="disabled" fontSize="small" />}
-                            checkedIcon={<CheckIcon color="success" fontSize="small" />}
-                          />
+                        <TableCell key={i} align="center" 
+                          sx={{ cursor: 'pointer', '&:hover': { bgcolor: '#f0f9ff' } }}
+                          onClick={() => handleToggleResult(st._id, c.name)}
+                        >
+                          {isPassed ? (
+                            <Typography sx={{ color: 'red', fontWeight: 900, fontSize: '1.2rem' }}>+</Typography>
+                          ) : ' '}
                         </TableCell>
                       );
                     })}
-                    <TableCell align="center">
-                      <Chip
-                        label={st.assessment?.overallResult || 'Chưa đạt'}
-                        size="small"
-                        color={st.assessment?.overallResult === 'Đạt' ? 'success' : 'default'}
-                        variant={st.assessment?.overallResult === 'Đạt' ? 'filled' : 'outlined'}
-                        sx={{ fontWeight: 'bold', fontSize: 11 }}
-                      />
+                    <TableCell align="center" sx={{ bgcolor: '#f9fafb' }}>
+                      {st.assessment?.overallResult === 'Đạt' && (
+                        <Typography sx={{ color: 'red', fontWeight: 900, fontSize: '1.2rem' }}>+</Typography>
+                      )}
+                    </TableCell>
+                    <TableCell align="center" sx={{ bgcolor: '#f9fafb' }}>
+                      {st.assessment?.overallResult === 'Chưa đạt' && (
+                         <Typography sx={{ color: 'black', fontWeight: 900, fontSize: '1.2rem' }}>-</Typography>
+                      )}
                     </TableCell>
                     <TableCell>
                       <TextField
                         size="small"
                         fullWidth
-                        placeholder="Ghi chú..."
                         variant="standard"
                         value={st.assessment?.notes || ''}
                         onChange={(e) => handleNoteChange(st._id, e.target.value)}
-                        InputProps={{ disableUnderline: true, sx: { fontSize: 13 } }}
+                        InputProps={{ disableUnderline: true, sx: { fontSize: '0.8rem' } }}
                       />
                     </TableCell>
                   </TableRow>
                 ))}
+                {/* Tổng dòng Footer */}
+                <TableRow sx={{ bgcolor: '#f5f5f5' }}>
+                  <TableCell colSpan={2} align="center" sx={{ fontWeight: 800 }}>Tổng</TableCell>
+                  {data.template.criteria.map((c, i) => (
+                    <TableCell key={i} align="center" sx={{ fontWeight: 800 }}>
+                      {calculatePercentage(c.name)}
+                    </TableCell>
+                  ))}
+                  <TableCell align="center" sx={{ fontWeight: 800, bgcolor: '#f9fafb' }}>
+                    {calculateOverallPercentage()}
+                  </TableCell>
+                  <TableCell align="center" sx={{ bgcolor: '#f9fafb' }} />
+                  <TableCell />
+                </TableRow>
               </TableBody>
             </Table>
           </TableContainer>
-        )}
-      </Box>
+
+          <Box sx={{ mt: 3, textAlign: 'right', display: 'flex', justifyContent: 'flex-end', gap: 2 }}>
+             <Button variant="outlined" onClick={() => window.print()} startIcon={<AssessmentIcon />}>In báo cáo</Button>
+          </Box>
+        </Paper>
+      )}
+
+      {!loading && !data.template && academicYear && (
+        <Box sx={{ textAlign: 'center', py: 10 }}>
+          <AssessmentIcon sx={{ fontSize: 60, color: 'text.disabled', mb: 2 }} />
+          <Typography color="text.secondary">Chưa có mẫu đánh giá được thiết lập cho <strong>{periodLabel}</strong></Typography>
+          <Typography variant="body2" color="text.disabled">Vui lòng liên hệ School Admin để thiết lập bộ tiêu chí đánh giá.</Typography>
+        </Box>
+      )}
+
+      {loading && (
+        <Stack spacing={2}>
+          {[1, 2, 3, 4, 5].map(i => <Skeleton key={i} variant="rectangular" height={80} sx={{ borderRadius: 2 }} />)}
+        </Stack>
+      )}
     </Box>
   );
 }

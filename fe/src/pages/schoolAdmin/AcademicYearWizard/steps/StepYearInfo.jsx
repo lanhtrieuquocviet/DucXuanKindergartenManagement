@@ -1,4 +1,4 @@
-import { Box, Paper, Stack, TextField, Typography, InputAdornment } from '@mui/material';
+import { Box, Paper, Stack, TextField, Typography, InputAdornment, Checkbox } from '@mui/material';
 import { 
   CalendarToday as CalendarIcon, 
   Edit as EditIcon, 
@@ -6,7 +6,7 @@ import {
   Timeline as TimelineIcon
 } from '@mui/icons-material';
 
-export default function StepYearInfo({ data, onChange, errors }) {
+export default function StepYearInfo({ data, onChange, options, onOptionsChange, errors }) {
   const set = (field, value) => onChange({ ...data, [field]: value });
 
   // Auto-calculate logic
@@ -182,6 +182,30 @@ export default function StepYearInfo({ data, onChange, errors }) {
             </Stack>
           </Paper>
         </Stack>
+      </Box>
+
+      <Box>
+        <Stack direction="row" alignItems="center" spacing={1.5} mb={2.5}>
+          <Box sx={{ p: 1, borderRadius: 1.5, bgcolor: 'rgba(3, 105, 161, 0.1)' }}>
+            <DescriptionIcon sx={{ color: '#0369a1', fontSize: 22, display: 'block' }} />
+          </Box>
+          <Typography variant="h6" fontWeight={800} color="#1e293b">
+            Cấu hình nhân bản dữ liệu
+          </Typography>
+        </Stack>
+        <Paper elevation={0} sx={{ p: 2.5, border: '1px solid #e2e8f0', borderRadius: 3, bgcolor: '#f0f9ff' }}>
+          <Stack direction="row" spacing={1} alignItems="center">
+            <Checkbox 
+              size="small" 
+              checked={options.cloneAssessmentTemplates} 
+              onChange={e => onOptionsChange({ ...options, cloneAssessmentTemplates: e.target.checked })}
+            />
+            <Box>
+              <Typography variant="subtitle2" fontWeight={800} color="#0369a1">Nhân bản Mẫu tiêu chí đánh giá</Typography>
+              <Typography variant="caption" color="text.secondary">Sao chép các bộ nhận xét, đánh giá từ năm học đang hoạt động sang năm học mới.</Typography>
+            </Box>
+          </Stack>
+        </Paper>
       </Box>
     </Stack>
   );

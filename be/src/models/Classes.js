@@ -32,6 +32,13 @@ const classesSchema = new mongoose.Schema({
     type: Number,
     default: 0
   },
+  status: {
+    type: String,
+    enum: ['active', 'inactive'],
+    default: 'active',
+    lowercase: true,
+    trim: true
+  },
   createdAt: {
     type: Date,
     default: Date.now

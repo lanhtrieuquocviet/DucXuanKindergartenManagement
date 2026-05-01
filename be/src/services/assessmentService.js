@@ -25,17 +25,17 @@ const getTemplates = async (req, res) => {
  */
 const upsertTemplate = async (req, res) => {
   try {
-    const { _id, templateName, academicYearId, gradeId, criteria } = req.body;
+    const { _id, templateName, academicYearId, gradeId, period, criteria } = req.body;
     
     if (_id) {
       const updated = await AssessmentTemplate.findByIdAndUpdate(_id, {
-        templateName, academicYearId, gradeId, criteria
+        templateName, academicYearId, gradeId, period, criteria
       }, { new: true });
       return res.json({ status: 'success', data: updated });
     }
 
     const created = await AssessmentTemplate.create({
-      templateName, academicYearId, gradeId, criteria,
+      templateName, academicYearId, gradeId, period, criteria,
       createdBy: req.user?._id
     });
     res.status(201).json({ status: 'success', data: created });
@@ -49,31 +49,33 @@ const upsertTemplate = async (req, res) => {
  */
 const getClassAssessments = async (req, res) => {
   try {
-    const { classId, term, academicYearId } = req.query;
+    const { classId, period, academicYearId } = req.query;
     
-    if (!classId || !term || !academicYearId) {
+    if (!classId || !period || !academicYearId) {
       return res.status(400).json({ status: 'error', message: 'Thiếu thông tin truy vấn' });
     }
 
-    // 1. Tìm template phù hợp (theo lớp -> khối)
+    // 1. Tìm template phù hợp (theo lớp -> khối + kỳ đánh giá)
     const cls = await Classes.findById(classId).populate('gradeId');
     let template = await AssessmentTemplate.findOne({ 
       academicYearId, 
       gradeId: cls.gradeId?._id,
+      period,
       status: 'active'
     });
 
-    // Nếu không có template riêng cho khối, tìm template chung của năm học
+    // Nếu không có template riêng cho khối, tìm template chung của năm học + kỳ đó
     if (!template) {
       template = await AssessmentTemplate.findOne({ 
         academicYearId, 
         gradeId: null,
+        period,
         status: 'active'
       });
     }
 
     if (!template) {
-      return res.json({ status: 'no_template', message: 'Chưa có form đánh giá cho năm học này' });
+      return res.json({ status: 'no_template', message: 'Chưa có form đánh giá cho kỳ này' });
     }
 
     // 2. Lấy danh sách học sinh
@@ -81,7 +83,7 @@ const getClassAssessments = async (req, res) => {
 
     // 3. Lấy các bản đánh giá đã có
     const assessments = await StudentAssessment.find({
-      classId, term, academicYearId
+      classId, period, academicYearId
     }).lean();
 
     // 4. Map kết quả
@@ -117,7 +119,7 @@ const saveBulkAssessments = async (req, res) => {
         filter: { 
           studentId: item.studentId, 
           academicYearId: item.academicYearId, 
-          term: item.term 
+          period: item.period 
         },
         update: { 
           $set: {
@@ -137,9 +139,66 @@ const saveBulkAssessments = async (req, res) => {
   }
 };
 
+/**
+ * Lấy đánh giá của 1 học sinh cụ thể (dùng cho Dialog)
+ */
+const getStudentAssessment = async (req, res) => {
+  try {
+    const { studentId } = req.params;
+    const { period, academicYearId } = req.query;
+
+    if (!studentId || !period || !academicYearId) {
+      return res.status(400).json({ status: 'error', message: 'Thiếu thông tin truy vấn' });
+    }
+
+    const student = await Student.findById(studentId).populate('classId');
+    if (!student) return res.status(404).json({ status: 'error', message: 'Không tìm thấy học sinh' });
+
+    const cls = student.classId;
+    if (!cls) return res.status(400).json({ status: 'error', message: 'Học sinh chưa vào lớp' });
+
+    // 1. Tìm template
+    let template = await AssessmentTemplate.findOne({ 
+      academicYearId, 
+      gradeId: cls.gradeId,
+      period,
+      status: 'active'
+    });
+
+    if (!template) {
+      template = await AssessmentTemplate.findOne({ 
+        academicYearId, 
+        gradeId: null,
+        period,
+        status: 'active'
+      });
+    }
+
+    if (!template) {
+      return res.json({ status: 'no_template', message: 'Chưa có form đánh giá cho kỳ này' });
+    }
+
+    // 2. Lấy bản đánh giá đã có
+    const assessment = await StudentAssessment.findOne({
+      studentId, period, academicYearId
+    }).lean();
+
+    res.json({ 
+      status: 'success', 
+      data: {
+        template,
+        assessment: assessment || null
+      }
+    });
+  } catch (error) {
+    res.status(500).json({ status: 'error', message: error.message });
+  }
+};
+
 module.exports = {
   getTemplates,
   upsertTemplate,
   getClassAssessments,
-  saveBulkAssessments
+  saveBulkAssessments,
+  getStudentAssessment
 };

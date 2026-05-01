@@ -6,8 +6,10 @@ const Grade = require('../../models/Grade');
 const StudentAssessment = require('../../models/StudentAssessment');
 const Teacher = require('../../models/Teacher');
 const Classes = require('../../models/Classes');
+const Enrollment = require('../../models/Enrollment');
 const { autoFinishExpiredAcademicYears, isGraduationEligibleBand, timetableSeasonLabel } = require('./core');
 const { createNotification } = require('../../services/notification.service');
+const { logAction } = require('../auditService');
 
 /**
  * PATCH /api/school-admin/academic-years/current/timetable-season
@@ -67,7 +69,7 @@ const createAcademicYear = async (req, res) => {
  */
 const validateEvaluations = async (academicYearId) => {
   const students = await Student.find({ academicYearId, status: 'active' }).populate('classId');
-  const assessments = await StudentAssessment.find({ academicYearId, term: 2 }).select('studentId');
+  const assessments = await StudentAssessment.find({ academicYearId, period: 'semester_2' }).select('studentId');
   const assessedStudentIds = new Set(assessments.map(a => a.studentId.toString()));
 
   const missingSummary = {}; 
@@ -124,38 +126,59 @@ const finishAcademicYear = async (req, res) => {
       }
     }
 
-    // 1. Tìm năm học mới nhất để chuyển tiếp
-    const newestYear = await AcademicYear.findOne().sort({ startDate: -1 }).session(session).lean();
-
-    const students = await Student.find({ academicYearId: id, status: 'active' })
-        .session(session)
-        .populate('classId');
-
-    for (const student of students) {
-      const studentIdStr = student._id.toString();
-
-      if (dropoutStudentIds.includes(studentIdStr)) {
-        await Student.findByIdAndUpdate(student._id, { status: 'inactive', classId: null }, { session });
-        continue;
-      }
-
-      const grade = student.classId?.gradeId;
-      if (isGraduationEligibleBand(grade)) {
-        if (selectedStudentIds.includes(studentIdStr)) {
-          await Student.findByIdAndUpdate(student._id, { status: 'graduated', classId: null }, { session });
-        } else if (newestYear && String(newestYear._id) !== id) {
-          await Student.findByIdAndUpdate(student._id, { classId: null, $addToSet: { academicYearId: newestYear._id } }, { session });
-        }
-      } else if (newestYear && String(newestYear._id) !== id) {
-        await Student.findByIdAndUpdate(student._id, { classId: null, $addToSet: { academicYearId: newestYear._id } }, { session });
-      }
+    // 1. Phân loại và cập nhật trạng thái Enrollment/Student bằng bulk operations
+    // Nhóm 1: Thôi học
+    if (dropoutStudentIds.length > 0) {
+      await Enrollment.updateMany(
+        { academicYearId: id, studentId: { $in: dropoutStudentIds } },
+        { $set: { status: 'dropped' } },
+        { session }
+      );
+      await Student.updateMany(
+        { _id: { $in: dropoutStudentIds } },
+        { $set: { status: 'inactive' } },
+        { session }
+      );
     }
+
+    // Nhóm 2: Tốt nghiệp (Những em thuộc khối Lá và được chọn)
+    if (selectedStudentIds.length > 0) {
+      await Enrollment.updateMany(
+        { academicYearId: id, studentId: { $in: selectedStudentIds } },
+        { $set: { status: 'graduated' } },
+        { session }
+      );
+      await Student.updateMany(
+        { _id: { $in: selectedStudentIds } },
+        { $set: { status: 'graduated' } },
+        { session }
+      );
+    }
+
+    // Nhóm 3: Chuyển tiếp (Tất cả những em còn lại)
+    const handledIds = [...dropoutStudentIds, ...selectedStudentIds];
+    await Enrollment.updateMany(
+      { 
+        academicYearId: id, 
+        studentId: { $nin: handledIds } 
+      },
+      { $set: { status: 'promoted' } },
+      { session }
+    );
 
     // Kết thúc menu & notification
     await Menu.updateMany({ academicYearId: id, status: 'active' }, { $set: { status: 'completed' } }, { session });
     
     year.status = 'inactive';
     await year.save({ session });
+
+    await logAction({
+      action: 'FINISH_ACADEMIC_YEAR',
+      actorId: req.user.id,
+      targetModel: 'AcademicYear',
+      targetId: id,
+      newData: { status: 'inactive', dropoutCount: dropoutStudentIds.length, graduatedCount: selectedStudentIds.length }
+    }, req);
 
     await session.commitTransaction();
     return res.status(200).json({ status: 'success', message: 'Đã kết thúc năm học thành công' });
@@ -202,8 +225,6 @@ const updateAcademicYear = async (req, res) => {
   }
 };
 
-const Enrollment = require('../../models/Enrollment');
-
 /**
  * PATCH /api/school-admin/academic-years/:id/publish
  * Chuyển năm học DRAFT thành ACTIVE
@@ -218,6 +239,23 @@ const publishAcademicYear = async (req, res) => {
     if (!year) throw new Error('Không tìm thấy năm học');
     if (year.status !== 'draft') throw new Error('Chỉ có thể công bố năm học đang ở trạng thái bản nháp (Draft)');
 
+    const { force = false } = req.body || {};
+
+    // 0. Kiểm tra đánh giá của năm học hiện tại (nếu có)
+    const activeYear = await AcademicYear.findOne({ status: 'active' }).session(session);
+    if (activeYear && !force) {
+      const missing = await validateEvaluations(activeYear._id);
+      if (missing.length > 0) {
+        await session.abortTransaction();
+        return res.status(400).json({
+          status: 'error',
+          code: 'MISSING_EVALUATIONS',
+          message: 'Vẫn còn học sinh ở năm học hiện tại chưa được đánh giá kết thúc năm học.',
+          summary: missing
+        });
+      }
+    }
+
     // 1. Chuyển năm học hiện tại (nếu có) sang Inactive
     await AcademicYear.updateMany(
       { status: 'active', _id: { $ne: id } }, 
@@ -229,47 +267,69 @@ const publishAcademicYear = async (req, res) => {
     year.status = 'active';
     await year.save({ session });
 
-    // 3. Xử lý chuyển đổi học sinh
-    const enrollments = await Enrollment.find({ academicYearId: id }).session(session);
-    const promotedStudentIds = enrollments.map(en => String(en.studentId));
+    // 3. Chuyển đổi trạng thái Enrollment và đồng bộ hồ sơ Student (Cache classId)
+    await Enrollment.updateMany(
+      { academicYearId: id, status: 'draft' },
+      { $set: { status: 'studying' } },
+      { session }
+    );
 
-    // Cập nhật học sinh lên lớp / ở lại lớp (có trong Enrollment)
+    const enrollments = await Enrollment.find({ academicYearId: id }).session(session);
     for (const en of enrollments) {
       await Student.findByIdAndUpdate(en.studentId, {
         $set: { 
           classId: en.classId,
           status: 'active'
         },
-        $addToSet: { academicYearId: id } // Thêm vào lịch sử năm học
+        $addToSet: { academicYearId: id } 
       }).session(session);
     }
 
-    // 4. Xử lý học sinh còn lại của năm học cũ (Tốt nghiệp hoặc Nghỉ học)
-    // Tìm năm học vừa bị set inactive
+    // 4. Phòng chống học sinh "mồ côi" (Orphan Prevention)
+    // Tìm các bé được 'promoted' từ năm trước nhưng chưa được xếp lớp ở năm nay
     const prevYear = await AcademicYear.findOne({ status: 'inactive', _id: { $ne: id } })
       .sort({ endDate: -1 })
       .session(session);
 
     if (prevYear) {
-      const remainingStudents = await Student.find({
-        academicYearId: prevYear._id,
-        _id: { $nin: promotedStudentIds },
-        status: 'active'
-      }).populate('classId').session(session);
+      const promotedIds = await Enrollment.find({ 
+        academicYearId: prevYear._id, 
+        status: 'promoted' 
+      }).distinct('studentId').session(session);
+      
+      const enrolledIds = await Enrollment.find({ academicYearId: id }).distinct('studentId').session(session);
+      const enrolledSet = new Set(enrolledIds.map(eid => eid.toString()));
 
-      for (const student of remainingStudents) {
-        const oldClass = student.classId;
-        const oldGrade = oldClass ? await Grade.findById(oldClass.gradeId).session(session) : null;
+      const missingIds = promotedIds.filter(pid => !enrolledSet.has(pid.toString()));
 
-        if (oldGrade && oldGrade.minAge >= 5) {
-          student.status = 'graduated';
-        } else {
-          student.status = 'inactive'; 
-        }
-        student.classId = null; // Clear classId for non-promoted students
-        await student.save({ session });
+      if (missingIds.length > 0) {
+        // Cập nhật Student cache
+        await Student.updateMany(
+          { _id: { $in: missingIds } },
+          { $addToSet: { academicYearId: id } },
+          { session }
+        );
+        
+        // Luật 1: Tạo Enrollment cho học sinh mồ côi (chưa có lớp)
+        const orphanEnrollments = missingIds.map(sid => ({
+          studentId: sid,
+          classId: null,
+          gradeId: null,
+          academicYearId: id,
+          status: 'studying',
+          enrollmentDate: new Date()
+        }));
+        await Enrollment.insertMany(orphanEnrollments, { session });
       }
     }
+
+    await logAction({
+      action: 'PUBLISH_ACADEMIC_YEAR',
+      actorId: req.user.id,
+      targetModel: 'AcademicYear',
+      targetId: id,
+      newData: { status: 'active' }
+    }, req);
 
     await session.commitTransaction();
     return res.status(200).json({ status: 'success', message: `Đã công bố năm học ${year.yearName} thành công!` });
@@ -310,11 +370,78 @@ const remindEvaluations = async (req, res) => {
   }
 };
 
+/**
+ * POST /api/school-admin/academic-years/:id/finish-preview
+ */
+const getFinishYearPreview = async (req, res) => {
+  try {
+    const { id } = req.params;
+    const { selectedStudentIds = [], dropoutStudentIds = [] } = req.body;
+
+    const Enrollment = require('../../models/Enrollment');
+    const totalStudents = await Enrollment.countDocuments({ academicYearId: id });
+    const dropoutCount = dropoutStudentIds.length;
+    const graduatedCount = selectedStudentIds.length;
+    const promotedCount = Math.max(0, totalStudents - dropoutCount - graduatedCount);
+
+    return res.status(200).json({
+      status: 'success',
+      data: {
+        total: totalStudents,
+        promoted: promotedCount,
+        graduated: graduatedCount,
+        dropped: dropoutCount
+      }
+    });
+  } catch (error) {
+    return res.status(500).json({ status: 'error', message: error.message });
+  }
+};
+
+/**
+ * GET /api/school-admin/academic-years/:id/publish-preview
+ */
+const getPublishYearPreview = async (req, res) => {
+  try {
+    const { id } = req.params;
+    const Enrollment = require('../../models/Enrollment');
+    
+    // 1. Số Enrollment draft sẽ kích hoạt
+    const draftCount = await Enrollment.countDocuments({ academicYearId: id, status: 'draft' });
+    
+    // 2. Tìm học sinh mồ côi (promoted năm ngoái nhưng chưa có lớp năm nay)
+    let orphanCount = 0;
+    const prevYear = await AcademicYear.findOne({ status: 'inactive', _id: { $ne: id } }).sort({ endDate: -1 }).lean();
+    
+    if (prevYear) {
+      const promotedIds = await Enrollment.find({ 
+        academicYearId: prevYear._id, 
+        status: 'promoted' 
+      }).distinct('studentId');
+      
+      const enrolledIds = await Enrollment.find({ academicYearId: id }).distinct('studentId');
+      const enrolledSet = new Set(enrolledIds.map(eid => eid.toString()));
+      orphancount = promotedIds.filter(pid => !enrolledSet.has(pid.toString())).length;
+    }
+
+    return res.status(200).json({
+      status: 'success',
+      data: {
+        toActivate: draftCount,
+        orphansToLink: orphancount
+      }
+    });
+  } catch (error) {
+    return res.status(500).json({ status: 'error', message: error.message });
+  }
+};
+
 module.exports = {
   patchCurrentTimetableSeason,
-  createAcademicYear,
   finishAcademicYear,
   updateAcademicYear,
   publishAcademicYear,
   remindEvaluations,
+  getFinishYearPreview,
+  getPublishYearPreview
 };
