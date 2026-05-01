@@ -49,8 +49,8 @@ function cosineSimilarity(vecA, vecB) {
 const MATCH_THRESHOLD = 0.94;
 
 // Khoảng cách tối thiểu giữa kết quả tốt nhất và thứ 2
-// Tăng lên 0.05 để đảm bảo sự khác biệt rõ rệt giữa các khuôn mặt gần giống nhau
-const MIN_MARGIN = 0.05;
+// Hạ xuống 0.02: chỉ báo ambiguous khi 2 kết quả cực kỳ sát nhau (< 2%)
+const MIN_MARGIN = 0.02;
 
 /**
  * Lấy tất cả embeddings của một học sinh (hỗ trợ nhiều góc mặt)
@@ -259,9 +259,10 @@ const matchFaceEmbedding = async (req, res) => {
     // Kiểm tra margin: kết quả tốt nhất phải rõ ràng hơn kết quả thứ 2
     // Tránh nhầm khi 2 học sinh có khuôn mặt giống nhau (đặc biệt anh chị em ruột)
     const margin = bestSimilarity - secondBestSimilarity;
-    
-    // Nếu kết quả thứ 2 cũng khá cao (>0.85) nhưng khoảng cách (margin) quá hẹp -> Ambiguous
-    if (secondBestSimilarity > 0.85 && margin < MIN_MARGIN) {
+    console.log(`[FaceMatch] best=${bestSimilarity.toFixed(4)} (${bestMatch.fullName}), second=${secondBestSimilarity.toFixed(4)}, margin=${margin.toFixed(4)}`);
+
+    // Nếu kết quả thứ 2 cũng khá cao (>0.80) nhưng khoảng cách (margin) quá hẹp -> Ambiguous
+    if (secondBestSimilarity > 0.80 && margin < MIN_MARGIN) {
       return res.status(200).json({
         status: 'ambiguous',
         message: 'Khuôn mặt quá giống nhau giữa các học sinh, không thể xác định chính xác',

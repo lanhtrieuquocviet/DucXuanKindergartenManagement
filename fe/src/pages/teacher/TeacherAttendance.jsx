@@ -844,220 +844,154 @@ function TeacherAttendance() {
       )}
 
       {classId && (
-        <Box sx={{ mb: 2, display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: 1.5 }}>
-          <Stack direction="row" spacing={1.5} alignItems="center">
+        <Box sx={{ mb: 2, display: 'flex', flexDirection: 'column', gap: 1.5 }}>
+          {/* Row 1: Tabs + Year selector */}
+          <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, flexWrap: 'wrap' }}>
             <ToggleButtonGroup
               value={viewMode}
               exclusive
               onChange={(_, v) => v && setViewMode(v)}
               size="small"
-              sx={{ '& .MuiToggleButton-root': { textTransform: 'none', fontWeight: 600, fontSize: 13, px: 2 } }}
+              sx={{ '& .MuiToggleButton-root': { textTransform: 'none', fontWeight: 600, fontSize: 13, px: { xs: 1.5, sm: 2 } } }}
             >
               <ToggleButton value="day">
-                <DayViewIcon sx={{ fontSize: 16, mr: 0.75 }} /> Theo ngày
+                <DayViewIcon sx={{ fontSize: 16, mr: 0.5 }} />
+                <Box component="span" sx={{ display: { xs: 'none', sm: 'inline' } }}>Theo ngày</Box>
+                <Box component="span" sx={{ display: { xs: 'inline', sm: 'none' } }}>Ngày</Box>
               </ToggleButton>
               <ToggleButton value="week">
-                <WeekViewIcon sx={{ fontSize: 16, mr: 0.75 }} /> Thống kê tuần
+                <WeekViewIcon sx={{ fontSize: 16, mr: 0.5 }} />
+                <Box component="span" sx={{ display: { xs: 'none', sm: 'inline' } }}>Thống kê tuần</Box>
+                <Box component="span" sx={{ display: { xs: 'inline', sm: 'none' } }}>Tuần</Box>
               </ToggleButton>
             </ToggleButtonGroup>
 
-            <FormControl size="small" sx={{ minWidth: 160 }}>
+            <FormControl size="small" sx={{ minWidth: { xs: 130, sm: 170 } }}>
               <Select
                 value={selectedYearId}
                 onChange={(e) => setSelectedYearId(e.target.value)}
                 displayEmpty
-                sx={{ 
-                  height: 36, 
-                  fontSize: 13, 
-                  fontWeight: 600,
-                  bgcolor: 'white',
-                  '& .MuiSelect-select': { py: 0.5 }
-                }}
+                sx={{ height: 36, fontSize: 13, fontWeight: 600, bgcolor: 'white', '& .MuiSelect-select': { py: 0.5 } }}
               >
                 {academicYears.map((y) => (
                   <MenuItem key={y._id} value={y._id} sx={{ fontSize: 13 }}>
-                    Năm học: {y.yearName} {y.status === 'active' && '(Hiện tại)'}
+                    {y.yearName} {y.status === 'active' && '(Hiện tại)'}
                   </MenuItem>
                 ))}
               </Select>
             </FormControl>
-          </Stack>
+          </Box>
+
+          {/* Row 2: Nút AI — full-width trên mobile, auto trên desktop */}
+          {viewMode === 'day' && !isWeekendDate(selectedDate) && (
+            <Box sx={{ display: 'flex', gap: 1 }}>
+              {[
+                {
+                  label: 'Điểm danh đến', shortLabel: 'Đến',
+                  bg: 'linear-gradient(135deg, #10b981 0%, #059669 100%)',
+                  shadow: 'rgba(16, 185, 129, 0.4)', shadowHover: 'rgba(16, 185, 129, 0.55)',
+                  delay: '0s',
+                  disabled: selectedDate !== todayISO,
+                  onClick: () => setIsFaceModalOpen(true),
+                  icon: (
+                    <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                      <path d="M23 7l-7 5 7 5V7z"/><rect x="1" y="5" width="15" height="14" rx="2" ry="2"/>
+                    </svg>
+                  ),
+                },
+                {
+                  label: 'Điểm danh về', shortLabel: 'Về',
+                  bg: 'linear-gradient(135deg, #3b82f6 0%, #6366f1 100%)',
+                  shadow: 'rgba(99, 102, 241, 0.4)', shadowHover: 'rgba(99, 102, 241, 0.55)',
+                  delay: '0.5s',
+                  disabled: selectedDate !== todayISO,
+                  onClick: () => setIsPickupFaceModalOpen(true),
+                  icon: (
+                    <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                      <circle cx="12" cy="8" r="4"/><path d="M4 20c0-4 3.6-7 8-7s8 3 8 7"/>
+                      <path d="M18 14l2 2 4-4" strokeWidth="2.5"/>
+                    </svg>
+                  ),
+                },
+                {
+                  label: 'Đăng ký khuôn mặt', shortLabel: 'Đăng ký',
+                  bg: 'linear-gradient(135deg, #7c3aed 0%, #a855f7 100%)',
+                  shadow: 'rgba(124, 58, 237, 0.4)', shadowHover: 'rgba(124, 58, 237, 0.55)',
+                  delay: '1s',
+                  onClick: () => setIsFaceRegisterClassOpen(true),
+                  icon: (
+                    <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                      <circle cx="9" cy="7" r="4"/><path d="M3 21v-2a4 4 0 0 1 4-4h4a4 4 0 0 1 4 4v2"/>
+                      <path d="M16 3.13a4 4 0 0 1 0 7.75"/><path d="M21 21v-2a4 4 0 0 0-3-3.87"/>
+                    </svg>
+                  ),
+                  badge: students.length > 0
+                    ? { text: `${students.filter(s => s.hasFaceEmbedding).length}/${students.length}`, full: students.filter(s => s.hasFaceEmbedding).length === students.length }
+                    : null,
+                },
+              ].map((btn) => (
+                <Tooltip key={btn.label} title={btn.disabled ? 'Chỉ có thể điểm danh AI vào ngày hôm nay' : ''} arrow>
+                  <span style={{ flex: 1, minWidth: 0, display: 'flex' }}>
+                <button
+                  onClick={btn.disabled ? undefined : btn.onClick}
+                  disabled={btn.disabled}
+                  style={{
+                    flex: 1,
+                    background: btn.disabled ? '#9ca3af' : btn.bg,
+                    boxShadow: btn.disabled ? 'none' : `0 4px 15px ${btn.shadow}`,
+                    transition: 'all 0.25s ease',
+                    border: 'none',
+                    cursor: btn.disabled ? 'not-allowed' : 'pointer',
+                    opacity: btn.disabled ? 0.6 : 1,
+                    position: 'relative',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    gap: 6,
+                    padding: '10px 12px',
+                    color: 'white',
+                    fontSize: 13,
+                    fontWeight: 600,
+                    borderRadius: 12,
+                    overflow: 'hidden',
+                    minWidth: 0,
+                    width: '100%',
+                  }}
+                  onMouseEnter={e => {
+                    if (btn.disabled) return;
+                    e.currentTarget.style.transform = 'translateY(-2px)';
+                    e.currentTarget.style.boxShadow = `0 8px 25px ${btn.shadowHover}`;
+                  }}
+                  onMouseLeave={e => {
+                    if (btn.disabled) return;
+                    e.currentTarget.style.transform = 'translateY(0)';
+                    e.currentTarget.style.boxShadow = `0 4px 15px ${btn.shadow}`;
+                  }}
+                >
+                  <span style={{ position: 'absolute', inset: 0, background: 'linear-gradient(105deg, transparent 40%, rgba(255,255,255,0.18) 50%, transparent 60%)', backgroundSize: '200% 100%', animation: `shimmer 2.5s infinite ${btn.delay}` }} />
+                  <span style={{ position: 'relative', display: 'flex', alignItems: 'center', gap: 4, flexShrink: 0 }}>
+                    {btn.icon}
+                    <span style={{ fontSize: 8, fontWeight: 700, background: 'rgba(255,255,255,0.25)', borderRadius: 4, padding: '1px 4px', lineHeight: '13px' }}>AI</span>
+                  </span>
+                  <span style={{ position: 'relative', whiteSpace: 'nowrap' }} className="hidden sm:inline">{btn.label}</span>
+                  <span style={{ position: 'relative', whiteSpace: 'nowrap' }} className="sm:hidden">{btn.shortLabel}</span>
+                  {btn.badge && (
+                    <span className="hidden sm:inline" style={{ position: 'relative', background: btn.badge.full ? 'rgba(16,185,129,0.9)' : 'rgba(255,255,255,0.25)', borderRadius: 99, padding: '1px 6px', fontSize: 10, fontWeight: 700, lineHeight: '16px', flexShrink: 0 }}>
+                      {btn.badge.text}
+                    </span>
+                  )}
+                </button>
+                  </span>
+                </Tooltip>
+              ))}
+              <style>{`@keyframes shimmer { 0%{background-position:-200% 0} 100%{background-position:200% 0} }`}</style>
+            </Box>
+          )}
         </Box>
       )}
 
       {classId && viewMode === 'week' && (
         <WeeklyAttendanceView classId={classId} students={students} />
-      )}
-
-      {classId && viewMode === 'day' && !isWeekendDate(selectedDate) && (
-        <div className="mb-4 flex flex-wrap justify-end gap-2">
-          {/* Nút Điểm danh đến */}
-          <button
-            onClick={() => setIsFaceModalOpen(true)}
-            style={{
-              background: 'linear-gradient(135deg, #10b981 0%, #059669 100%)',
-              boxShadow: '0 4px 15px rgba(16, 185, 129, 0.4)',
-              transition: 'all 0.25s ease',
-              border: 'none',
-              cursor: 'pointer',
-            }}
-            onMouseEnter={e => {
-              e.currentTarget.style.transform = 'translateY(-2px)';
-              e.currentTarget.style.boxShadow = '0 8px 25px rgba(16, 185, 129, 0.55)';
-            }}
-            onMouseLeave={e => {
-              e.currentTarget.style.transform = 'translateY(0)';
-              e.currentTarget.style.boxShadow = '0 4px 15px rgba(16, 185, 129, 0.4)';
-            }}
-            className="relative flex items-center gap-2 px-4 py-2 sm:px-5 sm:py-2.5 text-white text-xs sm:text-sm font-semibold rounded-xl overflow-hidden"
-          >
-            {/* Hiệu ứng shimmer */}
-            <span
-              style={{
-                position: 'absolute', inset: 0,
-                background: 'linear-gradient(105deg, transparent 40%, rgba(255,255,255,0.18) 50%, transparent 60%)',
-                backgroundSize: '200% 100%',
-                animation: 'shimmer 2.5s infinite',
-              }}
-            />
-            {/* Icon camera AI */}
-            <span style={{ position: 'relative', display: 'flex', alignItems: 'center', gap: 5 }}>
-              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                <path d="M23 7l-7 5 7 5V7z"/><rect x="1" y="5" width="15" height="14" rx="2" ry="2"/>
-              </svg>
-              <span
-                style={{
-                  fontSize: 8, fontWeight: 700, letterSpacing: '0.05em',
-                  background: 'rgba(255,255,255,0.25)', borderRadius: 4,
-                  padding: '1px 4px', lineHeight: '13px',
-                }}
-              >AI</span>
-            </span>
-            <span style={{ position: 'relative' }} className="hidden sm:inline">Điểm danh đến</span>
-            <span style={{ position: 'relative' }} className="sm:hidden">Đến</span>
-          </button>
-
-          {/* Nút Điểm danh về */}
-          <button
-            onClick={() => {
-              setIsPickupFaceModalOpen(true);
-            }}
-            style={{
-              background: 'linear-gradient(135deg, #3b82f6 0%, #6366f1 100%)',
-              boxShadow: '0 4px 15px rgba(99, 102, 241, 0.4)',
-              transition: 'all 0.25s ease',
-              border: 'none',
-              cursor: 'pointer',
-            }}
-            onMouseEnter={e => {
-              e.currentTarget.style.transform = 'translateY(-2px)';
-              e.currentTarget.style.boxShadow = '0 8px 25px rgba(99, 102, 241, 0.55)';
-            }}
-            onMouseLeave={e => {
-              e.currentTarget.style.transform = 'translateY(0)';
-              e.currentTarget.style.boxShadow = '0 4px 15px rgba(99, 102, 241, 0.4)';
-            }}
-            className="relative flex items-center gap-2 px-4 py-2 sm:px-5 sm:py-2.5 text-white text-xs sm:text-sm font-semibold rounded-xl overflow-hidden"
-          >
-            {/* Hiệu ứng shimmer */}
-            <span
-              style={{
-                position: 'absolute', inset: 0,
-                background: 'linear-gradient(105deg, transparent 40%, rgba(255,255,255,0.18) 50%, transparent 60%)',
-                backgroundSize: '200% 100%',
-                animation: 'shimmer 2.5s infinite 0.5s',
-              }}
-            />
-            {/* Icon checkout AI */}
-            <span style={{ position: 'relative', display: 'flex', alignItems: 'center', gap: 5 }}>
-              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                <circle cx="12" cy="8" r="4"/><path d="M4 20c0-4 3.6-7 8-7s8 3 8 7"/>
-                <path d="M18 14l2 2 4-4" strokeWidth="2.5"/>
-              </svg>
-              <span
-                style={{
-                  fontSize: 8, fontWeight: 700, letterSpacing: '0.05em',
-                  background: 'rgba(255,255,255,0.25)', borderRadius: 4,
-                  padding: '1px 4px', lineHeight: '13px',
-                }}
-              >AI</span>
-            </span>
-            <span style={{ position: 'relative' }} className="hidden sm:inline">Điểm danh về</span>
-            <span style={{ position: 'relative' }} className="sm:hidden">Về</span>
-          </button>
-
-          {/* Nút Đăng ký khuôn mặt AI */}
-          <button
-            onClick={() => setIsFaceRegisterClassOpen(true)}
-            style={{
-              background: 'linear-gradient(135deg, #7c3aed 0%, #a855f7 100%)',
-              boxShadow: '0 4px 15px rgba(124, 58, 237, 0.4)',
-              transition: 'all 0.25s ease',
-              border: 'none',
-              cursor: 'pointer',
-            }}
-            onMouseEnter={e => {
-              e.currentTarget.style.transform = 'translateY(-2px)';
-              e.currentTarget.style.boxShadow = '0 8px 25px rgba(124, 58, 237, 0.55)';
-            }}
-            onMouseLeave={e => {
-              e.currentTarget.style.transform = 'translateY(0)';
-              e.currentTarget.style.boxShadow = '0 4px 15px rgba(124, 58, 237, 0.4)';
-            }}
-            className="relative flex items-center gap-2 px-4 py-2 sm:px-5 sm:py-2.5 text-white text-xs sm:text-sm font-semibold rounded-xl overflow-hidden"
-          >
-            <span
-              style={{
-                position: 'absolute', inset: 0,
-                background: 'linear-gradient(105deg, transparent 40%, rgba(255,255,255,0.18) 50%, transparent 60%)',
-                backgroundSize: '200% 100%',
-                animation: 'shimmer 2.5s infinite 1s',
-              }}
-            />
-            <span style={{ position: 'relative', display: 'flex', alignItems: 'center', gap: 5 }}>
-              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                <circle cx="9" cy="7" r="4"/><path d="M3 21v-2a4 4 0 0 1 4-4h4a4 4 0 0 1 4 4v2"/>
-                <path d="M16 3.13a4 4 0 0 1 0 7.75"/><path d="M21 21v-2a4 4 0 0 0-3-3.87"/>
-              </svg>
-              <span
-                style={{
-                  fontSize: 8, fontWeight: 700, letterSpacing: '0.05em',
-                  background: 'rgba(255,255,255,0.25)', borderRadius: 4,
-                  padding: '1px 4px', lineHeight: '13px',
-                }}
-              >AI</span>
-            </span>
-            <span style={{ position: 'relative' }} className="hidden sm:inline">Đăng ký khuôn mặt</span>
-            <span style={{ position: 'relative' }} className="sm:hidden">Đăng ký</span>
-            {/* Badge số học sinh đã đăng ký */}
-            {students.length > 0 && (
-              <span
-                style={{
-                  position: 'relative',
-                  background: students.filter(s => s.hasFaceEmbedding).length === students.length
-                    ? 'rgba(16,185,129,0.9)'
-                    : 'rgba(255,255,255,0.25)',
-                  borderRadius: 99,
-                  padding: '1px 7px',
-                  fontSize: 10,
-                  fontWeight: 700,
-                  lineHeight: '16px',
-                  letterSpacing: '0.02em',
-                }}
-                className="hidden sm:inline"
-              >
-                {students.filter(s => s.hasFaceEmbedding).length}/{students.length}
-              </span>
-            )}
-          </button>
-
-          <style>{`
-            @keyframes shimmer {
-              0% { background-position: -200% 0; }
-              100% { background-position: 200% 0; }
-            }
-          `}</style>
-        </div>
       )}
 
       {classId && viewMode === 'day' && (
