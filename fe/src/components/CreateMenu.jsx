@@ -85,10 +85,9 @@ function CreateMenu() {
     const m = Number(month);
     if (Number.isNaN(y) || Number.isNaN(m) || !y || !m) return;
     const pad = (n) => String(n).padStart(2, "0");
-    const nextMonth = m === 12 ? 1 : m + 1;
-    const nextYear = m === 12 ? y + 1 : y;
+    const lastDayOfMonth = new Date(y, m, 0).getDate();
     setStartDate(`${y}-${pad(m)}-01`);
-    setEndDate(`${nextYear}-${pad(nextMonth)}-01`);
+    setEndDate(`${y}-${pad(m)}-${pad(lastDayOfMonth)}`);
     setErrors((p) => ({ ...p, startDate: "", endDate: "" }));
   }, [month, year]);
 
@@ -266,12 +265,10 @@ function CreateMenu() {
                 label="Bắt đầu áp dụng"
                 type="date"
                 value={startDate}
-                onChange={(e) => {
-                  setStartDate(e.target.value);
-                  setErrors((p) => ({ ...p, startDate: "", endDate: "" }));
-                }}
+                onChange={() => {}}
+                disabled
                 error={Boolean(errors.startDate)}
-                helperText={errors.startDate || ""}
+                helperText={errors.startDate || "Tự động lấy ngày đầu tháng đã chọn"}
                 InputLabelProps={{ shrink: true }}
                 InputProps={{ sx: { borderRadius: 2 } }}
               />
@@ -282,13 +279,11 @@ function CreateMenu() {
                 label="Kết thúc áp dụng"
                 type="date"
                 value={endDate}
-                onChange={(e) => {
-                  setEndDate(e.target.value);
-                  setErrors((p) => ({ ...p, endDate: "" }));
-                }}
+                onChange={() => {}}
+                disabled
                 inputProps={{ min: startDate || undefined }}
                 error={Boolean(errors.endDate)}
-                helperText={errors.endDate || ""}
+                helperText={errors.endDate || "Tự động lấy ngày cuối tháng đã chọn"}
                 InputLabelProps={{ shrink: true }}
                 InputProps={{ sx: { borderRadius: 2 } }}
               />

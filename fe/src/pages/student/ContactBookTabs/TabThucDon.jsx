@@ -5,6 +5,11 @@ import {
 } from '@mui/icons-material';
 import { get, ENDPOINTS } from '../../../service/api';
 
+const formatRounded = (val) => {
+  if (val == null || Number.isNaN(Number(val))) return '0';
+  return Math.round(Number(val)).toLocaleString('vi-VN');
+};
+
 export default function TabThucDon() {
   const [data, setData]     = useState(null);
   const [loading, setLoading] = useState(true);
@@ -62,7 +67,9 @@ export default function TabThucDon() {
             .filter(n => n.val > 0).map(n => (
               <Box key={n.label} sx={{ bgcolor: '#f8fafc', border: '1px solid #e2e8f0', borderRadius: 1.5, px: 1.5, py: 0.75, textAlign: 'center' }}>
                 <Typography variant="caption" color="text.secondary" sx={{ display: 'block', fontSize: '0.68rem' }}>{n.label}</Typography>
-                <Typography variant="body2" fontWeight={700} color={n.color}>{Math.round(n.val)}{n.unit}</Typography>
+                <Typography variant="body2" fontWeight={700} color={n.color}>
+                  {formatRounded(n.val)} {n.unit}
+                </Typography>
               </Box>
             ))}
         </Stack>

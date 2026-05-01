@@ -117,6 +117,7 @@ export default function MenuDetailHeadParent() {
   const [rejectDetail, setRejectDetail] = useState('');
   const [rejectPresetSel, setRejectPresetSel] = useState({});
   const [submitting, setSubmitting] = useState(false);
+  const [nowMs, setNowMs] = useState(Date.now());
 
   const menuItems = [
     { key: 'menus', label: 'Thực đơn', icon: <MenuBookIcon /> },
@@ -134,6 +135,11 @@ export default function MenuDetailHeadParent() {
       }
     })();
   }, [id]);
+
+  useEffect(() => {
+    const timer = setInterval(() => setNowMs(Date.now()), 60000);
+    return () => clearInterval(timer);
+  }, []);
 
   const handleReview = async () => {
     if (reviewMode === 'reject') {
@@ -175,6 +181,17 @@ export default function MenuDetailHeadParent() {
   const statusCfg = STATUS_CHIP[menu?.status] || { label: menu?.status, color: 'default' };
   const week1 = menu?.dailyMenus?.reduce((acc, dm) => { if (dm.week === 1) acc[dm.dayOfWeek] = dm; return acc; }, {});
   const week2 = menu?.dailyMenus?.reduce((acc, dm) => { if (dm.week === 2) acc[dm.dayOfWeek] = dm; return acc; }, {});
+  const reviewDeadlineAt = menu?.headParentReview?.reviewDeadlineAt
+    ? new Date(menu.headParentReview.reviewDeadlineAt)
+    : null;
+  const reviewRequestedAt = menu?.headParentReview?.reviewRequestedAt
+    ? new Date(menu.headParentReview.reviewRequestedAt)
+    : null;
+  const remainingMs = reviewDeadlineAt ? (reviewDeadlineAt.getTime() - nowMs) : null;
+  const isExpired = remainingMs != null && remainingMs <= 0;
+  const remainingTotalMinutes = remainingMs != null ? Math.max(0, Math.floor(remainingMs / 60000)) : 0;
+  const remainingHours = Math.floor(remainingTotalMinutes / 60);
+  const remainingMinutes = remainingTotalMinutes % 60;
 
   return (
     <>
@@ -255,6 +272,35 @@ export default function MenuDetailHeadParent() {
                     </Typography>
                     <Typography variant="body2" color="text.secondary" mt={0.5}>
                       {menu.headParentReview.comment}
+                    </Typography>
+                  </Box>
+                )}
+
+                {menu.status === 'approved' && reviewDeadlineAt && (
+                  <Box
+                    mt={2}
+                    px={2}
+                    py={1.25}
+                    sx={{
+                      bgcolor: isExpired ? 'error.50' : 'warning.50',
+                      border: '1px solid',
+                      borderColor: isExpired ? 'error.200' : 'warning.200',
+                      borderRadius: 2,
+                    }}
+                  >
+                    <Typography variant="caption" sx={{ fontWeight: 700, color: isExpired ? 'error.dark' : 'warning.dark' }}>
+                      Deadline review thực đơn (48 giờ)
+                    </Typography>
+                    <Typography variant="body2" sx={{ mt: 0.25, fontWeight: 600 }}>
+                      {isExpired
+                        ? 'Đã hết thời hạn review'
+                        : `Còn lại: ${remainingHours} giờ ${remainingMinutes} phút`}
+                    </Typography>
+                    <Typography variant="caption" color="text.secondary" display="block" sx={{ mt: 0.25 }}>
+                      Bắt đầu: {reviewRequestedAt ? reviewRequestedAt.toLocaleString('vi-VN') : '—'}
+                    </Typography>
+                    <Typography variant="caption" color="text.secondary" display="block">
+                      Hạn cuối: {reviewDeadlineAt.toLocaleString('vi-VN')}
                     </Typography>
                   </Box>
                 )}
