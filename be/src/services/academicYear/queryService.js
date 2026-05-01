@@ -2,6 +2,7 @@ const AcademicYear = require('../../models/AcademicYear');
 const Classes = require('../../models/Classes');
 const Student = require('../../models/Student');
 const Enrollment = require('../../models/Enrollment');
+const mongoose = require('mongoose');
 const { autoFinishExpiredAcademicYears, isGraduationEligibleBand } = require('./core');
 
 const getCurrentAcademicYear = async (req, res) => {
@@ -112,14 +113,20 @@ const getAcademicYearHistory = async (req, res) => {
 const getClassesByAcademicYear = async (req, res) => {
   try {
     const { yearId } = req.params;
+    const yearObjectId = mongoose.Types.ObjectId.isValid(yearId)
+      ? new mongoose.Types.ObjectId(yearId)
+      : null;
+    if (!yearObjectId) {
+      return res.status(400).json({ status: 'error', message: 'yearId không hợp lệ' });
+    }
     const classes = await Classes.find({ academicYearId: yearId })
       .populate('gradeId', 'gradeName')
       .populate({ path: 'teacherIds', populate: { path: 'userId', select: 'fullName' } })
       .lean();
 
     const classIds = classes.map((cls) => cls._id);
-    const studentCounts = await Student.aggregate([
-      { $match: { classId: { $in: classIds }, status: 'active' } },
+    const studentCounts = await Enrollment.aggregate([
+      { $match: { academicYearId: yearObjectId, classId: { $in: classIds } } },
       { $group: { _id: '$classId', count: { $sum: 1 } } },
     ]);
     const studentCountMap = {};
