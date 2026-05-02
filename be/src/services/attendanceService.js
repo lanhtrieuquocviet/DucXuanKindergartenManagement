@@ -115,11 +115,11 @@ const upsertAttendance = async (req, res) => {
       return res.status(400).json({ status: 'error', message: 'Không thể điểm danh cho ngày trong tương lai' });
     }
 
-    // Không cho phép điểm danh vào thứ 7, chủ nhật
-    const dayOfWeek = attendanceDate.getDay();
-    if (dayOfWeek === 0 || dayOfWeek === 6) {
-      return res.status(400).json({ status: 'error', message: 'Không thể điểm danh vào thứ 7 và chủ nhật' });
-    }
+    // // Không cho phép điểm danh vào thứ 7, chủ nhật (tạm tắt)
+    // const dayOfWeek = attendanceDate.getDay();
+    // if (dayOfWeek === 0 || dayOfWeek === 6) {
+    //   return res.status(400).json({ status: 'error', message: 'Không thể điểm danh vào thứ 7 và chủ nhật' });
+    // }
 
     // Validate status enum
     const VALID_STATUSES = ['present', 'absent', 'leave'];
@@ -346,11 +346,11 @@ const checkoutAttendance = async (req, res) => {
       return res.status(400).json({ status: 'error', message: 'Không thể điểm danh về cho ngày trong tương lai' });
     }
 
-    // Không cho phép điểm danh vào thứ 7, chủ nhật
-    const dayOfWeekCheckout = attendanceDate.getDay();
-    if (dayOfWeekCheckout === 0 || dayOfWeekCheckout === 6) {
-      return res.status(400).json({ status: 'error', message: 'Không thể điểm danh về vào thứ 7 và chủ nhật' });
-    }
+    // // Không cho phép điểm danh vào thứ 7, chủ nhật (tạm tắt)
+    // const dayOfWeekCheckout = attendanceDate.getDay();
+    // if (dayOfWeekCheckout === 0 || dayOfWeekCheckout === 6) {
+    //   return res.status(400).json({ status: 'error', message: 'Không thể điểm danh về vào thứ 7 và chủ nhật' });
+    // }
 
     // Validate định dạng giờ check-out nếu client cung cấp tường minh
     if (timeString?.checkOut && !/^\d{2}:\d{2}$/.test(timeString.checkOut)) {
@@ -1202,7 +1202,7 @@ const requestCheckout = async (req, res) => {
       });
     }
 
-    return res.status(200).json({ status: 'success', message: 'Đã gửi thông tin cho phụ huynh', data: { checkoutStatus: 'pending' } });
+    return res.status(200).json({ status: 'success', message: 'Đã gửi thông tin cho phụ huynh', data: { checkoutStatus: 'pending', sentAt: attendance.pendingCheckoutData.sentAt } });
   } catch (error) {
     console.error('Error in requestCheckout:', error);
     return res.status(500).json({ status: 'error', message: 'Lỗi khi gửi thông tin', error: error.message });
@@ -1225,7 +1225,7 @@ const getPendingCheckout = async (req, res) => {
       .populate('classId', 'className')
       .lean();
 
-    if (!attendance || !['pending', 'confirmed'].includes(attendance.checkoutStatus) || attendance.time?.checkOut) {
+    if (!attendance || !['pending', 'confirmed', 'rejected'].includes(attendance.checkoutStatus) || attendance.time?.checkOut) {
       return res.status(200).json({ status: 'success', data: null });
     }
 

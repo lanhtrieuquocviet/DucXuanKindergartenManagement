@@ -95,6 +95,7 @@ export default function StudentDashboard() {
   const lastPendingRef = useRef(false);
   const countdownRef = useRef(null);
   const autoRejectRef = useRef(null);
+  const pendingStartTimeRef = useRef(null);
   const [confirmCountdown, setConfirmCountdown] = useState(0);
 
   useEffect(() => {
@@ -143,6 +144,8 @@ export default function StudentDashboard() {
           const childId = children[foundIndex]._id;
           if (!lastPendingRef.current) {
             lastPendingRef.current = true;
+            const sentAt = results[foundIndex].data?.pendingCheckoutData?.sentAt;
+            pendingStartTimeRef.current = sentAt ? new Date(sentAt).getTime() : Date.now();
             setShowConfirmModal(true);
             setConfirmDone(false);
           }
@@ -150,6 +153,7 @@ export default function StudentDashboard() {
           setPendingCheckoutStudentId(childId);
         } else {
           lastPendingRef.current = false;
+          pendingStartTimeRef.current = null;
           setPendingCheckout(null);
           setPendingCheckoutStudentId(null);
           const anyConfirmed = results.some(r => r.data?.checkoutStatus === 'confirmed');
@@ -163,23 +167,27 @@ export default function StudentDashboard() {
   }, [children]);
 
   // Countdown 60s khi modal xác nhận mở — tự động từ chối nếu hết giờ
+  // Tính remaining từ lúc pending bắt đầu, không reset khi modal đóng/mở lại
   useEffect(() => {
     if (!showConfirmModal || confirmDone) {
       clearInterval(countdownRef.current);
       setConfirmCountdown(0);
       return;
     }
-    setConfirmCountdown(60);
+    const getRemaining = () => {
+      if (!pendingStartTimeRef.current) return 60;
+      return Math.max(0, 60 - Math.floor((Date.now() - pendingStartTimeRef.current) / 1000));
+    };
+    const initial = getRemaining();
+    if (initial <= 0) { autoRejectRef.current?.(); return; }
+    setConfirmCountdown(initial);
     countdownRef.current = setInterval(() => {
-      setConfirmCountdown((prev) => {
-        if (prev <= 1) {
-          clearInterval(countdownRef.current);
-          // Gọi reject qua ref để tránh stale closure
-          autoRejectRef.current?.();
-          return 0;
-        }
-        return prev - 1;
-      });
+      const remaining = getRemaining();
+      setConfirmCountdown(remaining);
+      if (remaining <= 0) {
+        clearInterval(countdownRef.current);
+        autoRejectRef.current?.();
+      }
     }, 1000);
     return () => clearInterval(countdownRef.current);
   }, [showConfirmModal, confirmDone]);
@@ -673,8 +681,7 @@ export default function StudentDashboard() {
 
       {/* ── Pending Checkout Confirm Dialog ── */}
       <Dialog open={showConfirmModal} onClose={() => !confirming && setShowConfirmModal(false)}
-        fullScreen={isMobile}
-        maxWidth="xs" fullWidth PaperProps={{ sx: { borderRadius: isMobile ? 0 : 4, mx: isMobile ? 0 : 2 } }}>
+        maxWidth="xs" fullWidth PaperProps={{ sx: { borderRadius: 4, mx: 2, my: 'auto' } }}>
         <DialogTitle sx={{ pb: 1 }}>
           <Stack direction="row" alignItems="center" justifyContent="space-between">
             <Typography fontWeight={700}>🏠 Xác nhận đón trẻ</Typography>
@@ -768,17 +775,17 @@ export default function StudentDashboard() {
         {!confirmDone && (
           <DialogActions sx={{ px: 2.5, pb: 2.5, gap: 1 }}>
             <Button
-              onClick={() => setShowConfirmModal(false)}
+              onClick={handleParentReject}
               variant="outlined"
-              disabled={confirming}
-              sx={{ flex: 1, borderRadius: 2, textTransform: 'none', borderColor: '#d1d5db', color: '#6b7280' }}
+              disabled={confirming || rejecting}
+              sx={{ flex: 1, borderRadius: 2, textTransform: 'none', borderColor: '#fca5a5', color: '#dc2626', '&:hover': { borderColor: '#dc2626', bgcolor: '#fef2f2' } }}
             >
-              Để sau
+              {rejecting ? <CircularProgress size={18} sx={{ color: '#dc2626' }} /> : '✕ Từ chối'}
             </Button>
             <Button
               onClick={handleParentConfirm}
               variant="contained"
-              disabled={confirming}
+              disabled={confirming || rejecting}
               sx={{ flex: 2, borderRadius: 2, textTransform: 'none', fontWeight: 700, bgcolor: PRIMARY, '&:hover': { bgcolor: PRIMARY_DARK } }}
             >
               {confirming ? <CircularProgress size={18} sx={{ color: 'white' }} /> : '✓ Xác nhận đón trẻ'}

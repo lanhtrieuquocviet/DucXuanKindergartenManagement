@@ -56,11 +56,12 @@ import AttendanceDetailModal from './attendance/AttendanceDetailModal';
 import AbsentModal from './attendance/AbsentModal';
 import WeeklyAttendanceView from './attendance/WeeklyAttendanceView';
 
-const isWeekendDate = (dateStr) => {
-  const d = new Date(dateStr + 'T00:00:00');
-  const day = d.getDay();
-  return day === 0 || day === 6;
-};
+const isWeekendDate = (_dateStr) => false; // tạm tắt kiểm tra T7/CN
+// const isWeekendDate = (dateStr) => {
+//   const d = new Date(dateStr + 'T00:00:00');
+//   const day = d.getDay();
+//   return day === 0 || day === 6;
+// };
 const isLateByTime = (value) => {
   if (!value) return false;
   try {
