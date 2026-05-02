@@ -7,7 +7,8 @@ import {
   Typography, 
   TextField,
   Box,
-  TableCell
+  TableCell,
+  Stack
 } from '@mui/material';
 import { useState } from 'react';
 
@@ -108,6 +109,29 @@ export function formatDate(d) {
   });
 }
 
+export function normalizeCondition(cond) {
+  if (!cond) return 'Còn tốt';
+  const c = String(cond).toLowerCase();
+  if (c === 'broken' || c === 'da hong' || c === 'đã hỏng' || c === 'không sử dụng được' || c === 'khong su dung duoc') {
+    return 'Không sử dụng được';
+  }
+  return 'Còn tốt';
+}
+
+export function deriveWarehouseQuantities(asset) {
+  const total = Number(asset?.quantity) || 0;
+  const hasGood = asset?.goodQuantity !== undefined && asset?.goodQuantity !== null;
+  const hasBroken = asset?.brokenQuantity !== undefined && asset?.brokenQuantity !== null;
+  if (hasGood || hasBroken) {
+    const good = Math.max(0, Number(asset?.goodQuantity) || 0);
+    const broken = Math.max(0, Number(asset?.brokenQuantity) || 0);
+    return { good, broken, total: good + broken };
+  }
+  const cond = normalizeCondition(asset?.condition);
+  if (cond === 'Không sử dụng được') return { good: 0, broken: total, total };
+  return { good: total, broken: 0, total };
+}
+
 // ─── Shared: Inline-edit cell components ─────────────────────────────────────
 export function InlineCell({ a, field, align = 'left', isText = false, ie, setIe, onSave, sx = {} }) {
   const isEditing = ie?.id === a._id && ie?.field === field;
@@ -195,31 +219,47 @@ export function ConfirmDialog({ open, title, message, onConfirm, onCancel, loadi
 
 // ─── Shared: Add Category Dialog ─────────────────────────────────────────────
 export function AddCategoryDialog({ open, onClose, onConfirm }) {
-  const [value, setValue] = useState('');
+  const [name, setName] = useState('');
+  const [code, setCode] = useState('');
+
   const handleConfirm = () => {
-    if (!value.trim()) return;
-    onConfirm(value.trim());
-    setValue('');
+    if (!name.trim()) return;
+    onConfirm({ name: name.trim(), code: code.trim() });
+    setName('');
+    setCode('');
   };
+
   return (
     <Dialog open={open} onClose={onClose} maxWidth="xs" fullWidth>
-      <DialogTitle>Thêm nhóm tài sản</DialogTitle>
-      <DialogContent>
-        <TextField
-          autoFocus
-          fullWidth
-          size="small"
-          label="Tên nhóm"
-          placeholder="VD: ĐỒ DÙNG, THIẾT BỊ DẠY HỌC"
-          value={value}
-          onChange={e => setValue(e.target.value)}
-          onKeyDown={e => e.key === 'Enter' && handleConfirm()}
-          sx={{ mt: 1 }}
-        />
+      <DialogTitle sx={{ fontWeight: 700 }}>Thêm nhóm tài sản</DialogTitle>
+      <DialogContent dividers>
+        <Stack spacing={2} sx={{ mt: 1 }}>
+          <TextField
+            autoFocus
+            fullWidth
+            size="small"
+            label="Tên nhóm *"
+            placeholder="VD: ĐỒ DÙNG, THIẾT BỊ DẠY HỌC"
+            value={name}
+            onChange={e => setName(e.target.value)}
+          />
+          <TextField
+            fullWidth
+            size="small"
+            label="Mã nhóm (Tiền tố sinh mã)"
+            placeholder="VD: MN561, TBNT"
+            value={code}
+            onChange={e => setCode(e.target.value)}
+            onKeyDown={e => e.key === 'Enter' && handleConfirm()}
+          />
+          <Typography variant="caption" color="text.secondary">
+            Mã này sẽ dùng làm tiền tố để tự động sinh mã tài sản (VD: MN5610001).
+          </Typography>
+        </Stack>
       </DialogContent>
-      <DialogActions sx={{ px: 2, pb: 2 }}>
-        <Button onClick={() => { onClose(); setValue(''); }}>Hủy</Button>
-        <Button variant="contained" onClick={handleConfirm} disabled={!value.trim()}>Thêm</Button>
+      <DialogActions sx={{ p: 2 }}>
+        <Button onClick={() => { onClose(); setName(''); setCode(''); }}>Hủy</Button>
+        <Button variant="contained" onClick={handleConfirm} disabled={!name.trim()}>Thêm</Button>
       </DialogActions>
     </Dialog>
   );

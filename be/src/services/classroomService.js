@@ -1,11 +1,43 @@
 const Classroom = require('../models/Classroom');
 const Classes = require('../models/Classes');
+const FacilityLocation = require('../models/FacilityLocation');
 
 /** GET /api/classrooms — Danh sách tất cả phòng học (kèm thông tin lớp đang sử dụng) */
 const listClassrooms = async (req, res) => {
   try {
     const AcademicYear = require('../models/AcademicYear');
-    const classrooms = await Classroom.find().sort({ floor: 1, roomName: 1 }).lean();
+    // 1. Lấy từ bảng Classroom hiện tại
+    const classrooms = await Classroom.find()
+      .populate('assetId', 'name area managerId type')
+      .sort({ floor: 1, roomName: 1 })
+      .lean();
+
+    // 2. Lấy thêm từ bảng FacilityLocation (những mục có type là classroom)
+    const facilityRooms = await FacilityLocation.find({ 
+      type: { $regex: /^classroom$/i } 
+    }).lean();
+    
+    // Chuyển đổi format FacilityLocation sang format Classroom để frontend dùng chung
+    const mappedFacilityRooms = facilityRooms.map(f => ({
+      _id: f._id,
+      roomName: f.name,
+      floor: 1, 
+      capacity: 30,
+      status: 'available', // Cực kỳ quan trọng: Mặc định sẵn sàng để chọn được bên Lớp học
+      note: f.description || f.area || '',
+      isFacilityLocation: true
+    }));
+
+    // 3. Gộp danh sách, loại bỏ trùng tên (nếu có)
+    const allRooms = [...classrooms];
+    const existingNames = new Set(classrooms.map(r => String(r.roomName).toLowerCase().trim()));
+
+    for (const fr of mappedFacilityRooms) {
+      const frName = String(fr.roomName).toLowerCase().trim();
+      if (!existingNames.has(frName)) {
+        allRooms.push(fr);
+      }
+    }
 
     // Tìm năm học đang hoạt động để kiểm tra phòng đang được sử dụng
     const activeYear = await AcademicYear.findOne({ status: 'active' }).lean();
@@ -17,15 +49,15 @@ const listClassrooms = async (req, res) => {
       for (const cls of occupiedClasses) {
         if (cls.roomId) occupiedMap[cls.roomId.toString()] = cls.className;
       }
-      for (const room of classrooms) {
+      for (const room of allRooms) {
         const usedBy = occupiedMap[room._id.toString()];
         room.occupiedByClass = usedBy || null;
       }
     } else {
-      for (const room of classrooms) room.occupiedByClass = null;
+      for (const room of allRooms) room.occupiedByClass = null;
     }
 
-    return res.status(200).json({ status: 'success', data: classrooms });
+    return res.status(200).json({ status: 'success', data: allRooms });
   } catch (error) {
     console.error('listClassrooms error:', error);
     return res.status(500).json({ status: 'error', message: 'Lỗi khi lấy danh sách phòng học' });
@@ -35,7 +67,7 @@ const listClassrooms = async (req, res) => {
 /** POST /api/classrooms — Tạo phòng học */
 const createClassroom = async (req, res) => {
   try {
-    const { roomName, floor, capacity, note } = req.body;
+    const { roomName, floor, capacity, note, roomType, zone } = req.body;
 
     if (!roomName || !String(roomName).trim()) {
       return res.status(400).json({ status: 'error', message: 'Tên phòng không được để trống' });
@@ -55,6 +87,9 @@ const createClassroom = async (req, res) => {
       floor: floorNum,
       capacity: Number(capacity) || 0,
       note: typeof note === 'string' ? note.trim() : '',
+      roomType: roomType || 'learning',
+      zone: zone || 'A',
+      assetId: req.body.assetId || null,
     });
 
     return res.status(201).json({ status: 'success', message: 'Tạo phòng học thành công', data: classroom });
@@ -68,7 +103,7 @@ const createClassroom = async (req, res) => {
 const updateClassroom = async (req, res) => {
   try {
     const { id } = req.params;
-    const { roomName, floor, capacity, status, note } = req.body;
+    const { roomName, floor, capacity, status, note, roomType, zone } = req.body;
 
     const classroom = await Classroom.findById(id);
     if (!classroom) {
@@ -96,6 +131,9 @@ const updateClassroom = async (req, res) => {
     if (capacity !== undefined) classroom.capacity = Number(capacity) || 0;
     if (status !== undefined) classroom.status = status;
     if (note !== undefined) classroom.note = typeof note === 'string' ? note.trim() : '';
+    if (roomType !== undefined) classroom.roomType = roomType;
+    if (zone !== undefined) classroom.zone = zone;
+    if (req.body.assetId !== undefined) classroom.assetId = req.body.assetId || null;
 
     await classroom.save();
     return res.status(200).json({ status: 'success', message: 'Cập nhật phòng học thành công', data: classroom });

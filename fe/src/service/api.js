@@ -405,6 +405,10 @@ export const ENDPOINTS = {
     ASSET_MINUTES_EXPORT_WORD: (id) => `/school-admin/asset-minutes/${id}/export-word`,
     ASSET_MINUTES_APPROVE: (id) => `/school-admin/asset-minutes/${id}/approve`,
     ASSET_MINUTES_REJECT: (id) => `/school-admin/asset-minutes/${id}/reject`,
+    // Asset Adjustments
+    ASSET_ADJUSTMENTS: "/school-admin/asset-adjustments",
+    ASSET_ADJUSTMENT_APPLY: (id) => `/school-admin/asset-adjustments/${id}/apply`,
+    ASSET_ADJUSTMENT_VOID: (id) => `/school-admin/asset-adjustments/${id}/void`,
     // Room Assets (Tài sản theo phòng học)
     ROOM_ASSETS: "/school-admin/room-assets",
     ROOM_ASSETS_BY_ROOM: (roomId) => `/school-admin/room-assets/${roomId}`,
@@ -424,8 +428,13 @@ export const ENDPOINTS = {
     ASSET_ALLOCATION_EXPORT_WORD: (id) => `/school-admin/asset-allocations/${id}/export-word`,
     ASSET_ALLOCATION_TRANSFER: (id) => `/school-admin/asset-allocations/${id}/transfer`,
     ASSET_INCIDENTS: "/school-admin/asset-incidents",
+    GENERAL_CATEGORIES: "/school-admin/general-categories",
+    FACILITY_TYPES: "/school-admin/facilities/types",
+    FACILITY_CATEGORIES: "/school-admin/facilities/categories",
+    FACILITY_LOCATIONS: "/school-admin/facilities/locations",
     ASSET_INCIDENT_DETAIL: (id) => `/school-admin/asset-incidents/${id}`,
     ASSET_DETAIL: (id) => `/school-admin/assets/${id}`,
+    ASSET_TRANSACTIONS: "/school-admin/asset-transactions",
     JOB_POSITIONS: {
       LIST: '/school-admin/staff-positions',
       CREATE: '/school-admin/staff-positions',

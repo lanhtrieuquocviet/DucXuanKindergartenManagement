@@ -16,6 +16,11 @@ const generalCategorySchema = new mongoose.Schema({
     default: '',
     trim: true,
   },
+  code: {
+    type: String,
+    trim: true,
+    uppercase: true,
+  },
   status: {
     type: String,
     enum: ['active', 'inactive'],

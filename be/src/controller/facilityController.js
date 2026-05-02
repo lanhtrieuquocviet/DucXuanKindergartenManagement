@@ -54,7 +54,7 @@ const facilityController = {
       if (locationId) filter.currentLocationId = locationId;
       if (typeId) filter.typeId = typeId;
       if (status) filter.status = status;
-      
+
       // Nếu lọc theo Area, cần tìm các locationId thuộc Area đó trước
       if (area) {
         const locations = await FacilityLocation.find({ area }).select('_id');
@@ -67,7 +67,7 @@ const facilityController = {
           populate: { path: 'categoryId' }
         })
         .populate('currentLocationId');
-      
+
       res.json({ status: 'success', data: assets });
     } catch (error) {
       res.status(500).json({ status: 'error', message: error.message });

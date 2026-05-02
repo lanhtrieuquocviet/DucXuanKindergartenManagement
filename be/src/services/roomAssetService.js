@@ -1,6 +1,7 @@
 const RoomAsset = require('../models/RoomAsset');
 const Classroom = require('../models/Classroom');
 const Asset = require('../models/Asset');
+const AssetTransaction = require('../models/AssetTransaction');
 const mongoose = require('mongoose');
 
 let roomAssetIndexesEnsured = false;
@@ -18,9 +19,9 @@ function normalizeText(v) {
 function getWarehouseAvailableQty(asset) {
   if (!asset) return 0;
   if (asset.type === 'asset') {
-    return Math.max(0, Number(asset.goodQuantity ?? asset.quantity ?? 0) || 0);
+    return Math.max(0, Number(asset.goodQuantity) || 0);
   }
-  return Math.max(0, Number(asset.quantity || 0));
+  return Math.max(0, Number(asset.quantity) || 0);
 }
 
 async function ensureRoomAssetIndexes() {
@@ -64,7 +65,10 @@ async function ensureRoomAssetIndexes() {
 exports.listRooms = async (req, res) => {
   try {
     const Classes = require('../models/Classes');
-    const classrooms = await Classroom.find().sort({ roomName: 1 }).lean();
+    const classrooms = await Classroom.find()
+      .populate('assetId', 'name area')
+      .sort({ roomName: 1 })
+      .lean();
 
     const counts = await RoomAsset.aggregate([
       { $group: { _id: '$classroomId', totalTypes: { $sum: 1 }, totalQuantity: { $sum: '$quantity' } } },
@@ -107,7 +111,9 @@ exports.listRoomAssets = async (req, res) => {
   try {
     const { roomId } = req.params;
 
-    const classroom = await Classroom.findById(roomId).lean();
+    const classroom = await Classroom.findById(roomId)
+      .populate('assetId', 'name area')
+      .lean();
     if (!classroom) return res.status(404).json({ status: 'error', message: 'Không tìm thấy phòng.' });
 
     const items = await RoomAsset.find({ classroomId: roomId })
@@ -160,7 +166,24 @@ exports.addAssetToRoom = async (req, res) => {
       assetId,
       quantity: Number(quantity),
       notes: notes?.trim() || '',
+      assignedBy: req.user._id,
       createdBy: req.user._id,
+    });
+
+    // Ghi log Transaction
+    await AssetTransaction.create({
+      type: 'ALLOCATE',
+      inventoryItemId: assetId,
+      toRoomId: roomId,
+      quantity: Number(quantity),
+      snapshot: {
+        name: asset.name,
+        assetCode: asset.assetCode,
+        unit: asset.unit,
+        category: asset.category,
+      },
+      actorId: req.user._id,
+      reason: notes?.trim() || 'Cấp phát mới',
     });
 
     const populated = await item.populate('assetId', 'assetCode name category unit');
@@ -185,6 +208,7 @@ exports.updateRoomAsset = async (req, res) => {
     const item = await RoomAsset.findById(id);
     if (!item) return res.status(404).json({ status: 'error', message: 'Không tìm thấy bản ghi.' });
 
+    const oldQty = item.quantity;
     if (quantity !== undefined) {
       if (Number(quantity) < 0) return res.status(400).json({ status: 'error', message: 'Số lượng không hợp lệ.' });
 
@@ -202,11 +226,30 @@ exports.updateRoomAsset = async (req, res) => {
             message: `Không đủ số lượng trong kho. Tồn còn lại: ${remaining}, yêu cầu: ${quantity}.`,
           });
         }
+        
+        // Log Transaction if quantity changed
+        if (Number(quantity) !== oldQty) {
+          await AssetTransaction.create({
+            type: 'UPDATE',
+            inventoryItemId: asset._id,
+            toRoomId: item.classroomId,
+            quantity: Number(quantity) - oldQty, // Change amount
+            snapshot: {
+              name: asset.name,
+              assetCode: asset.assetCode,
+              unit: asset.unit,
+              category: asset.category,
+            },
+            actorId: req.user._id,
+            reason: `Điều chỉnh số lượng từ ${oldQty} sang ${quantity}. ${notes || ''}`,
+          });
+        }
       }
 
       item.quantity = Number(quantity);
     }
     if (notes !== undefined) item.notes = notes.trim();
+    item.lastUpdatedBy = req.user._id;
 
     await item.save();
     const populated = await item.populate('assetId', 'assetCode name category unit');
@@ -220,8 +263,26 @@ exports.updateRoomAsset = async (req, res) => {
 exports.removeAssetFromRoom = async (req, res) => {
   try {
     const { id } = req.params;
-    const item = await RoomAsset.findByIdAndDelete(id);
+    const item = await RoomAsset.findById(id).populate('assetId');
     if (!item) return res.status(404).json({ status: 'error', message: 'Không tìm thấy bản ghi.' });
+
+    // Log Transaction
+    await AssetTransaction.create({
+      type: 'RECOVER',
+      inventoryItemId: item.assetId._id,
+      fromRoomId: item.classroomId,
+      quantity: item.quantity,
+      snapshot: {
+        name: item.assetId.name,
+        assetCode: item.assetId.assetCode,
+        unit: item.assetId.unit,
+        category: item.assetId.category,
+      },
+      actorId: req.user._id,
+      reason: 'Thu hồi về kho',
+    });
+
+    await RoomAsset.findByIdAndDelete(id);
     return res.json({ status: 'success', message: 'Đã xóa tài sản khỏi phòng.' });
   } catch (err) {
     return res.status(500).json({ status: 'error', message: err.message });
@@ -328,6 +389,17 @@ exports.bulkImportRoomAssets = async (req, res) => {
       if (roomItem) {
         await RoomAsset.findByIdAndUpdate(roomItem._id, { quantity: nextQty });
         result.updated++;
+        
+        // Log transaction for update
+        await AssetTransaction.create({
+          type: 'UPDATE',
+          inventoryItemId: assetId,
+          toRoomId: roomId,
+          quantity: payload.addQty, // The amount added
+          snapshot: { name: asset.name, assetCode: asset.assetCode, unit: asset.unit, category: asset.category },
+          actorId: req.user._id,
+          reason: 'Import cộng dồn vào phòng',
+        });
       } else {
         await RoomAsset.create({
           classroomId: roomId,
@@ -337,6 +409,17 @@ exports.bulkImportRoomAssets = async (req, res) => {
           createdBy: req.user._id,
         });
         result.created++;
+
+        // Log transaction for new allocation
+        await AssetTransaction.create({
+          type: 'ALLOCATE',
+          inventoryItemId: assetId,
+          toRoomId: roomId,
+          quantity: payload.addQty,
+          snapshot: { name: asset.name, assetCode: asset.assetCode, unit: asset.unit, category: asset.category },
+          actorId: req.user._id,
+          reason: 'Import cấp phát mới vào phòng',
+        });
       }
     }
 

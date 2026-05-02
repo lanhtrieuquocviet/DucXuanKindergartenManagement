@@ -11,8 +11,10 @@ import {
   Edit as EditIcon,
   Delete as DeleteIcon,
   Search as SearchIcon,
-  LocationOn as LocationIcon
+  LocationOn as LocationIcon,
+  ArrowBack as ArrowBackIcon
 } from '@mui/icons-material';
+import { useNavigate } from 'react-router-dom';
 import facilityService from '../../../service/facility.api';
 import { toast } from 'react-toastify';
 
@@ -27,6 +29,7 @@ const LOCATION_TYPES = [
 ];
 
 const ManageLocations = () => {
+  const navigate = useNavigate();
   const [locations, setLocations] = useState([]);
   const [loading, setLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState('');
@@ -135,9 +138,17 @@ const ManageLocations = () => {
   return (
     <Box>
       <Stack direction="row" justifyContent="space-between" alignItems="center" sx={{ mb: 3 }}>
-        <Box>
-          <Typography variant="h5" fontWeight={800} color="primary">Danh mục Cơ sở vật chất (CSVC)</Typography>
-          <Typography variant="body2" color="text.secondary">Quản lý danh sách phòng học, kho bãi và khu vực hạ tầng của nhà trường</Typography>
+        <Box sx={{ display: 'flex', alignItems: 'center' }}>
+          <IconButton 
+            onClick={() => navigate('/school-admin/assets')} 
+            sx={{ mr: 2, bgcolor: '#f1f5f9', '&:hover': { bgcolor: '#e2e8f0' } }}
+          >
+            <ArrowBackIcon />
+          </IconButton>
+          <Box>
+            <Typography variant="h5" fontWeight={800} color="primary">Danh mục Cơ sở vật chất (CSVC)</Typography>
+            <Typography variant="body2" color="text.secondary">Quản lý danh sách phòng học, kho bãi và khu vực hạ tầng của nhà trường</Typography>
+          </Box>
         </Box>
         <Button 
           variant="contained" 

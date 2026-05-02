@@ -1,7 +1,9 @@
+const mongoose = require('mongoose');
 const AcademicYear = require('../../models/AcademicYear');
 const Classes = require('../../models/Classes');
 const Student = require('../../models/Student');
 const Enrollment = require('../../models/Enrollment');
+const StudentAssessment = require('../../models/StudentAssessment');
 const { autoFinishExpiredAcademicYears, isGraduationEligibleBand } = require('./core');
 
 const getCurrentAcademicYear = async (req, res) => {
@@ -60,9 +62,29 @@ const getStudentsByAcademicYear = async (req, res) => {
     const classIds = classes.map(c => c._id);
     const students = await Student.find({ classId: { $in: classIds } }).lean();
 
+    const oYearId = new mongoose.Types.ObjectId(yearId);
     const data = await Promise.all(students.map(async (s) => {
       const cls = classes.find(c => String(c._id) === String(s.classId));
-      const enrollment = await Enrollment.findOne({ studentId: s._id, academicYearId: yearId }).lean();
+      const oStudentId = new mongoose.Types.ObjectId(s._id);
+      
+      // 1. Tìm đánh giá ở hệ thống mới
+      let assessment = await StudentAssessment.findOne({ 
+        studentId: oStudentId, 
+        academicYearId: oYearId,
+        period: 'semester_2'
+      }).lean();
+
+      if (!assessment || !assessment.overallResult || assessment.overallResult === 'Chưa đánh giá') {
+        const anyAssessment = await StudentAssessment.findOne({
+          studentId: oStudentId,
+          academicYearId: oYearId,
+          overallResult: { $exists: true, $nin: [null, '', 'Chưa đánh giá'] }
+        }).sort({ createdAt: -1 }).lean();
+        if (anyAssessment) assessment = anyAssessment;
+      }
+
+      const academicEvaluation = assessment?.overallResult || assessment?.academicEvaluation;
+      const evaluationNote = assessment?.notes || assessment?.evaluationNote;
 
       return {
         ...s,
@@ -72,9 +94,9 @@ const getStudentsByAcademicYear = async (req, res) => {
         teacherUserIds: (cls?.teacherIds || []).map(t => t.userId?._id).filter(Boolean),
         gradeName: cls?.gradeId?.gradeName || '',
         canChooseGraduation: isGraduationEligibleBand(cls?.gradeId),
-        evaluation: enrollment ? {
-          academicEvaluation: enrollment.academicEvaluation,
-          evaluationNote: enrollment.evaluationNote
+        evaluation: academicEvaluation && academicEvaluation !== 'Chưa đánh giá' ? {
+          academicEvaluation: academicEvaluation,
+          evaluationNote: evaluationNote || ''
         } : null
       };
     }));

@@ -69,7 +69,12 @@ const createAcademicYear = async (req, res) => {
  */
 const validateEvaluations = async (academicYearId) => {
   const students = await Student.find({ academicYearId, status: 'active' }).populate('classId');
-  const assessments = await StudentAssessment.find({ academicYearId, period: 'semester_2' }).select('studentId');
+  
+  // 1. Lấy tất cả studentId đã có đánh giá trong năm học này từ hệ thống mới (không phân biệt kỳ)
+  const assessments = await StudentAssessment.find({ 
+    academicYearId, 
+    overallResult: { $exists: true, $nin: [null, '', 'Chưa đánh giá', 'chưa đánh giá'] }
+  }).select('studentId');
   const assessedStudentIds = new Set(assessments.map(a => a.studentId.toString()));
 
   const missingSummary = {}; 
@@ -79,7 +84,6 @@ const validateEvaluations = async (academicYearId) => {
       const classId = student.classId?._id?.toString() || 'unassigned';
       if (!missingSummary[classId]) {
         const cls = student.classId;
-        // Lấy thông tin giáo viên từ Teacher model
         const teachers = cls ? await Teacher.find({ _id: { $in: cls.teacherIds || [] } }).populate('userId', 'fullName') : [];
         
         missingSummary[classId] = {
@@ -155,12 +159,29 @@ const finishAcademicYear = async (req, res) => {
       );
     }
 
-    // Nhóm 3: Chuyển tiếp (Tất cả những em còn lại)
-    const handledIds = [...dropoutStudentIds, ...selectedStudentIds];
+    // Nhóm 3: Ở lại lớp (Dựa trên đánh giá semester_2 có promotionStatus === 'retained')
+    const retainedAssessments = await StudentAssessment.find({
+      academicYearId: id,
+      period: 'semester_2',
+      promotionStatus: 'retained'
+    }).distinct('studentId');
+
+    const retainedStudentIds = retainedAssessments.filter(rid => !handledIds.includes(rid.toString()));
+
+    if (retainedStudentIds.length > 0) {
+      await Enrollment.updateMany(
+        { academicYearId: id, studentId: { $in: retainedStudentIds } },
+        { $set: { status: 'retained' } },
+        { session }
+      );
+    }
+
+    // Nhóm 4: Chuyển tiếp (Những em còn lại và Đạt đánh giá)
+    const finalHandledIds = [...handledIds, ...retainedStudentIds.map(rid => rid.toString())];
     await Enrollment.updateMany(
       { 
         academicYearId: id, 
-        studentId: { $nin: handledIds } 
+        studentId: { $nin: finalHandledIds } 
       },
       { $set: { status: 'promoted' } },
       { session }

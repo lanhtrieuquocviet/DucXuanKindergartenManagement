@@ -22,6 +22,11 @@ const classroomSchema = new mongoose.Schema({
     default: 0,
     min: 0,
   },
+  roomType: {
+    type: String,
+    enum: ['learning', 'admin', 'support', 'outdoor'],
+    default: 'learning',
+  },
   status: {
     type: String,
     enum: ['available', 'in_use', 'maintenance'],
@@ -31,6 +36,10 @@ const classroomSchema = new mongoose.Schema({
     type: String,
     trim: true,
     default: '',
+  },
+  assetId: {
+    type: mongoose.Schema.Types.ObjectId,
+    ref: 'FacilityLocation', // Liên kết tới Địa điểm/Vị trí trong danh mục CSVC
   },
 }, {
   timestamps: true,

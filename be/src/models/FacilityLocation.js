@@ -22,6 +22,10 @@ const facilityLocationSchema = new mongoose.Schema({
     ref: 'User' // Người phụ trách vị trí này
   },
   description: String,
+  assetId: {
+    type: mongoose.Schema.Types.ObjectId,
+    ref: 'Asset' // Liên kết với danh mục Cơ sở vật chất
+  },
   createdAt: { type: Date, default: Date.now }
 }, { timestamps: true });
 

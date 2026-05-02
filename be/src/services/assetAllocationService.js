@@ -1,6 +1,8 @@
+const AcademicYear    = require('../models/AcademicYear');
+const InspectionMinutes = require('../models/InspectionMinutes');
 const AssetAllocation = require('../models/AssetAllocation');
 const Classes         = require('../models/Classes');
-const AcademicYear    = require('../models/AcademicYear');
+const auditService     = require('./assetAuditService');
 const mammoth         = require('mammoth');
 const WordExtractor   = require('word-extractor');
 const {
@@ -71,6 +73,20 @@ exports.createAllocation = async (req, res) => {
 
     if (!assets || !Array.isArray(assets) || assets.length === 0)
       return res.status(400).json({ status: 'error', message: 'Danh sách tài sản không được để trống.' });
+
+    // LOCK CHECK: Nếu lớp đang bị kiểm kê (trạng thái pending), không cho phép bàn giao mới
+    if (classId) {
+      const activeInspection = await InspectionMinutes.findOne({
+        className: className, // Hoặc dựa trên classId nếu có quan hệ chặt chẽ hơn
+        status: 'pending',
+      }).lean();
+      if (activeInspection) {
+        return res.status(403).json({
+          status: 'error',
+          message: `Dữ liệu lớp đang bị khóa để phục vụ kiểm kê (${activeInspection.minutesNumber}). Vui lòng hoàn tất kiểm kê trước khi bàn giao thêm.`,
+        });
+      }
+    }
 
     // Kiểm tra lớp đã có biên bản đang hoạt động hoặc chờ xác nhận chưa
     if (classId) {
@@ -157,6 +173,18 @@ exports.updateAllocation = async (req, res) => {
 
     if (allocation.status === 'transferred')
       return res.status(400).json({ status: 'error', message: 'Không thể chỉnh sửa biên bản đã chuyển lớp.' });
+
+    // LOCK CHECK:
+    const activeInspection = await InspectionMinutes.findOne({
+      className: allocation.className,
+      status: 'pending',
+    }).lean();
+    if (activeInspection) {
+      return res.status(403).json({
+        status: 'error',
+        message: 'Dữ liệu lớp đang bị khóa để phục vụ kiểm kê. Không thể cập nhật bàn giao.',
+      });
+    }
 
     const fields = [
       'classId','className','teacherName','teacherPosition',

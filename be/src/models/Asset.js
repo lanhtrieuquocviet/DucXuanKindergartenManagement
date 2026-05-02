@@ -12,23 +12,17 @@ const assetSchema = new mongoose.Schema(
     },
     category: {
       type: String,
-      enum: [
-        // CSVC — theo thông tư
-        'Phòng nuôi dưỡng, chăm sóc, giáo dục trẻ em',
-        'Số bàn, ghế ngồi',
-        'Khối phòng phục vụ học tập',
-        'Phòng tổ chức ăn, nghỉ',
-        'Công trình công cộng và khối phòng phục vụ khác',
-        'Khối phòng hành chính quản trị',
-        'Diện tích đất',
-        'Thiết bị dạy học và CNTT',
-        // Tài sản kho — phân bổ phòng/lớp
-        'Đồ dùng',
-        'Thiết bị dạy học, đồ chơi và học liệu',
-        'Sách, tài liệu, băng đĩa',
-        'Thiết bị ngoài thông tư',
-      ],
-      default: 'Phòng nuôi dưỡng, chăm sóc, giáo dục trẻ em',
+      default: 'Đồ dùng',
+    },
+    assetClass: {
+      type: String,
+      enum: ['consumable', 'fixed'],
+      default: 'fixed',
+    },
+    status: {
+      type: String,
+      enum: ['active', 'disposed', 'reserved', 'transferred', 'in_repair', 'lost', 'broken'],
+      default: 'active',
     },
     room:             { type: String, trim: true, default: '' },
     requiredQuantity: { type: Number, min: 0, default: 0 },   // Nhu cầu theo quy định
@@ -52,8 +46,11 @@ const assetSchema = new mongoose.Schema(
     seats1:   { type: Number, min: 0, default: null },  // Trong đó: 1 chỗ ngồi (phần 2)
     seats2:   { type: Number, min: 0, default: null },  // Trong đó: 2 chỗ ngồi (phần 2)
     seats4:   { type: Number, min: 0, default: null },  // Trong đó: 4 chỗ ngồi (phần 2)
+    linkedReportId: { type: mongoose.Schema.Types.ObjectId, ref: 'Asset', default: null }, // Liên kết tới mục báo cáo (type='csvc')
     notes:    { type: String, trim: true, default: '' },
     createdBy: { type: mongoose.Schema.Types.ObjectId, ref: 'User', required: true },
+    isDeleted: { type: Boolean, default: false },
+    deletedAt: { type: Date, default: null },
   },
   {
     timestamps: true,

@@ -13,6 +13,7 @@ const assetCrudCtrl = require('../controller/assetController');
 const purchaseCtrl = require('../controller/purchaseRequestController');
 const allocationCtrl = require('../controller/assetAllocationController');
 const incidentCtrl = require('../controller/assetIncidentController');
+const adjustmentCtrl = require('../controller/assetAdjustmentController');
 const roomAssetCtrl = require('../controller/roomAssetController');
 const {
   getAttendanceOverview,
@@ -2823,6 +2824,7 @@ router.post('/assets/bulk-warehouse', authenticate, authorizePermissions('MANAGE
 router.get('/assets/:id', authenticate, authorizePermissions('MANAGE_ASSET'), assetCrudCtrl.getAsset);
 router.put('/assets/:id', authenticate, authorizePermissions('MANAGE_ASSET'), assetCrudCtrl.updateAsset);
 router.delete('/assets/:id', authenticate, authorizePermissions('MANAGE_ASSET'), assetCrudCtrl.deleteAsset);
+router.get('/asset-transactions', authenticate, authorizePermissions('MANAGE_ASSET'), assetCrudCtrl.listTransactions);
 
 // ============================================
 // Asset Allocations (Biên bản bàn giao tài sản)
@@ -2871,6 +2873,13 @@ router.patch('/purchase-requests/:id/reject', authenticate, authorizePermissions
 // ============================================
 router.get('/asset-incidents', authenticate, authorizePermissions('MANAGE_ASSET'), incidentCtrl.listAllIncidents);
 router.patch('/asset-incidents/:id', authenticate, authorizePermissions('MANAGE_ASSET'), incidentCtrl.updateIncidentStatus);
+
+// ============================================
+// Asset Adjustments (Điều chỉnh sau kiểm kê)
+// ============================================
+router.get('/asset-adjustments', authenticate, authorizePermissions('MANAGE_ASSET'), adjustmentCtrl.listAdjustments);
+router.patch('/asset-adjustments/:id/apply', authenticate, authorizePermissions('MANAGE_ASSET'), adjustmentCtrl.applyAdjustment);
+router.patch('/asset-adjustments/:id/void', authenticate, authorizePermissions('MANAGE_ASSET'), adjustmentCtrl.voidAdjustment);
 
 // PATCH /school-admin/parents/:userId/toggle-headparent — gán hoặc bỏ role HeadParent cho phụ huynh
 router.patch('/parents/:userId/toggle-headparent', authenticate, authorizeRoles('SchoolAdmin'), async (req, res) => {

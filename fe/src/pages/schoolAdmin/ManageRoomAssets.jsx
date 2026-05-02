@@ -24,7 +24,14 @@ const ROOM_STATUS_LABEL = {
   maintenance: { label: 'Bảo trì',    color: 'warning' },
 };
 
-const emptyRoomForm = () => ({ roomName: '', zone: 'A', floor: 1, capacity: 0, status: 'available', note: '' });
+const ROOM_TYPE_LABEL = {
+  learning: { label: 'Khối Học tập', color: 'primary' },
+  admin:    { label: 'Khối Hành chính', color: 'info' },
+  support:  { label: 'Khối Phụ trợ', color: 'secondary' },
+  outdoor:  { label: 'Khối Ngoại cảnh', color: 'success' },
+};
+
+const emptyRoomForm = () => ({ roomName: '', zone: 'A', floor: 1, capacity: 0, status: 'available', note: '', roomType: 'learning', locationId: '' });
 const emptyAssetForm = () => ({ assetId: '', quantity: 1, notes: '' });
 const toCanonical = (value = '') => String(value)
   .normalize('NFD')
@@ -85,6 +92,7 @@ export default function ManageRoomAssets() {
 
   // ── Catalog tài sản ─────────────────────────────────────────────────────────
   const [assetCatalog, setAssetCatalog] = useState([]);
+  const [csvcCatalog, setCsvcCatalog] = useState([]);
   const [processingIncidents, setProcessingIncidents] = useState([]);
 
   // Dialog thêm / sửa tài sản trong phòng
@@ -119,14 +127,13 @@ export default function ManageRoomAssets() {
 
   const loadCatalog = async () => {
     try {
-      const res = await get(ENDPOINTS.SCHOOL_ADMIN.ASSETS + '?type=asset');
-      if (res.status === 'success') {
-        const assets = res.data.assets || [];
-        setAssetCatalog(assets);
-        return assets;
-      }
+      const [resAsset, resCsvc] = await Promise.all([
+        get(ENDPOINTS.SCHOOL_ADMIN.ASSETS + '?type=asset'),
+        get(ENDPOINTS.SCHOOL_ADMIN.FACILITY_LOCATIONS), // Lấy từ danh mục CSVC (Địa điểm/Vị trí) thực tế
+      ]);
+      if (resAsset.status === 'success') setAssetCatalog(resAsset.data.assets || []);
+      if (resCsvc.status === 'success') setCsvcCatalog(resCsvc.data || []);
     } catch { /* silent */ }
-    return [];
   };
 
   const loadProcessingIncidents = async () => {
@@ -146,7 +153,16 @@ export default function ManageRoomAssets() {
   const openEditRoom = (room, e) => {
     e.stopPropagation();
     setEditRoom(room);
-    setRoomForm({ roomName: room.roomName, zone: room.zone || 'A', floor: room.floor || 1, capacity: room.capacity || 0, status: room.status, note: room.note || '' });
+    setRoomForm({ 
+      roomName: room.roomName, 
+      zone: room.zone || 'A', 
+      floor: room.floor || 1, 
+      capacity: room.capacity || 0, 
+      status: room.status, 
+      note: room.note || '', 
+      roomType: room.roomType || 'learning',
+      locationId: room.assetId?._id || ''
+    });
     setRoomDialogOpen(true);
   };
 
@@ -154,16 +170,19 @@ export default function ManageRoomAssets() {
     if (!roomForm.roomName.trim()) return toast.warn('Tên phòng không được để trống.');
     setSavingRoom(true);
     try {
+      const { locationId, ...rest } = roomForm;
+      const payload = { ...rest, assetId: locationId };
+      
       if (editRoom) {
-        const res = await put(ENDPOINTS.SCHOOL_ADMIN.CLASSROOM_UPDATE(editRoom._id), roomForm);
+        const res = await put(ENDPOINTS.SCHOOL_ADMIN.CLASSROOM_UPDATE(editRoom._id), payload);
         if (res.status === 'success') {
           await loadRooms();
-          if (selectedRoom?._id === editRoom._id) setSelectedRoom((p) => ({ ...p, ...roomForm }));
+          if (selectedRoom?._id === editRoom._id) setSelectedRoom((p) => ({ ...p, ...payload }));
           toast.success('Cập nhật phòng thành công.');
           setRoomDialogOpen(false);
         }
       } else {
-        const res = await post(ENDPOINTS.SCHOOL_ADMIN.CLASSROOMS, roomForm);
+        const res = await post(ENDPOINTS.SCHOOL_ADMIN.CLASSROOMS, payload);
         if (res.status === 'success') {
           await loadRooms();
           toast.success('Thêm phòng thành công.');
@@ -542,8 +561,16 @@ export default function ManageRoomAssets() {
                     secondaryTypographyProps={{ component: 'div' }}
                     secondary={
                       <Stack direction="row" spacing={0.5} alignItems="center" flexWrap="wrap">
+                        {room.assetId && (
+                          <Chip 
+                            label={`${room.assetId.name}${room.assetId.area ? ` (${room.assetId.area})` : ''}`} 
+                            size="small" 
+                            variant="outlined"
+                            sx={{ fontSize: 10, height: 18, mb: 0.5, bgcolor: '#ecfdf5', color: '#059669', fontWeight: 600 }} 
+                            title={`Vị trí thực tế (CSVC): ${room.assetId.area || ''}`}
+                          />
+                        )}
                         <Chip label={ROOM_STATUS_LABEL[room.status]?.label || room.status} color={ROOM_STATUS_LABEL[room.status]?.color || 'default'} size="small" sx={{ fontSize: 10, height: 18 }} />
-                        {room.zone && <Typography variant="caption" color="text.secondary">Khu {room.zone}</Typography>}
                         {room.floor && <Typography variant="caption" color="text.secondary">• Tầng {room.floor}</Typography>}
                         {room.capacity > 0 && <Typography variant="caption" color="text.secondary">• SC: {room.capacity}</Typography>}
                         <Typography variant="caption" color="text.secondary">• {room.totalTypes || 0} loại</Typography>
@@ -589,6 +616,7 @@ export default function ManageRoomAssets() {
                   <Box>
                     <Typography variant="h6" fontWeight={700}>{selectedRoom.roomName}</Typography>
                     <Stack direction="row" spacing={1} alignItems="center">
+                      <Chip label={ROOM_TYPE_LABEL[selectedRoom.roomType]?.label || 'Học tập'} color="default" size="small" variant="outlined" />
                       <Chip label={ROOM_STATUS_LABEL[selectedRoom.status]?.label || selectedRoom.status} color={ROOM_STATUS_LABEL[selectedRoom.status]?.color || 'default'} size="small" />
                       {selectedRoom.zone && <Typography variant="caption" color="text.secondary">Khu {selectedRoom.zone}</Typography>}
                       {selectedRoom.floor && <Typography variant="caption" color="text.secondary">• Tầng {selectedRoom.floor}</Typography>}
@@ -631,16 +659,16 @@ export default function ManageRoomAssets() {
                   <Table size="small" stickyHeader>
                     <TableHead>
                       <TableRow>
-                        <TableCell width={50}>#</TableCell>
-                        <TableCell width={100}>Mã TS</TableCell>
-                        <TableCell>Tên tài sản</TableCell>
-                        <TableCell>Loại</TableCell>
-                        <TableCell width={70} align="center">ĐVT</TableCell>
-                        <TableCell width={90} align="center">Số lượng</TableCell>
-                        <TableCell width={90} align="center" sx={{ color: 'success.main' }}>Còn tốt</TableCell>
-                        <TableCell width={120} align="center" sx={{ color: 'error.main' }}>Không dùng được</TableCell>
-                        <TableCell>Ghi chú</TableCell>
-                        <TableCell width={100} align="center">Thao tác</TableCell>
+                        <TableCell sx={{ whiteSpace: 'nowrap' }} width={50}>#</TableCell>
+                        <TableCell sx={{ whiteSpace: 'nowrap' }} width={100}>Mã TS</TableCell>
+                        <TableCell sx={{ whiteSpace: 'nowrap' }}>Tên tài sản</TableCell>
+                        <TableCell sx={{ whiteSpace: 'nowrap' }}>Loại</TableCell>
+                        <TableCell sx={{ whiteSpace: 'nowrap' }} width={70} align="center">ĐVT</TableCell>
+                        <TableCell sx={{ whiteSpace: 'nowrap' }} width={90} align="center">Số lượng</TableCell>
+                        <TableCell align="center" width={90} sx={{ color: 'success.main', whiteSpace: 'nowrap' }}>Còn tốt</TableCell>
+                        <TableCell align="center" width={120} sx={{ color: 'error.main', whiteSpace: 'nowrap' }}>Không dùng được</TableCell>
+                        <TableCell sx={{ whiteSpace: 'nowrap' }}>Ghi chú</TableCell>
+                        <TableCell sx={{ whiteSpace: 'nowrap' }} width={100} align="center">Thao tác</TableCell>
                       </TableRow>
                     </TableHead>
                     <TableBody>
@@ -704,9 +732,8 @@ export default function ManageRoomAssets() {
               {items.length > 0 && (
                 <Box sx={{ p: 1.5, borderTop: '1px solid', borderColor: 'divider', bgcolor: 'grey.50' }}>
                   <Stack direction="row" spacing={3}>
-                    <Typography variant="caption" color="text.secondary">
-                      Tổng loại: <strong>{filteredItems.length}</strong>
-                      {(itemSearch || itemCategory) && <span style={{ color: '#888' }}> / {items.length}</span>}
+                    <Typography variant="caption" sx={{ color: 'text.secondary', display: 'block', mt: 0.5 }}>
+                      Tầng {selectedRoom.floor || 1} • {items.length} loại tài sản
                     </Typography>
                     <Typography variant="caption" color="text.secondary">
                       Tổng số lượng: <strong>{filteredQtyTotal}</strong>
@@ -738,11 +765,25 @@ export default function ManageRoomAssets() {
         <DialogTitle>{editRoom ? 'Sửa thông tin phòng' : 'Thêm phòng mới'}</DialogTitle>
         <DialogContent>
           <Stack spacing={2} sx={{ mt: 1 }}>
-            <TextField label="Tên phòng" value={roomForm.roomName} onChange={(e) => setRoomForm((f) => ({ ...f, roomName: e.target.value }))} fullWidth required size="small" />
-            <TextField select label="Khu" value={roomForm.zone} onChange={(e) => setRoomForm((f) => ({ ...f, zone: e.target.value }))} fullWidth size="small">
-              <MenuItem value="A">Khu A</MenuItem>
-              <MenuItem value="B">Khu B</MenuItem>
+            <TextField label="Tên phòng (Ví dụ: Phòng 201)" value={roomForm.roomName} onChange={(e) => setRoomForm((f) => ({ ...f, roomName: e.target.value }))} fullWidth required size="small" />
+            
+            <TextField 
+              select 
+              label="Vị trí vật lý (Danh mục CSVC)" 
+              value={roomForm.locationId} 
+              onChange={(e) => setRoomForm((f) => ({ ...f, locationId: e.target.value }))} 
+              fullWidth 
+              size="small"
+              helperText="Liên kết phòng này với Vị trí vật lý đã khai báo trong danh mục CSVC"
+            >
+              <MenuItem value="">-- Chọn danh mục CSVC --</MenuItem>
+              {csvcCatalog.map((item) => (
+                <MenuItem key={item._id} value={item._id}>
+                  {item.name} {item.area ? `[${item.area}]` : ''}
+                </MenuItem>
+              ))}
             </TextField>
+
             <TextField select label="Trạng thái" value={roomForm.status} onChange={(e) => setRoomForm((f) => ({ ...f, status: e.target.value }))} fullWidth size="small">
               <MenuItem value="available">Trống</MenuItem>
               <MenuItem value="in_use">Đang dùng</MenuItem>

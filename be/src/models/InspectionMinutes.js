@@ -29,6 +29,14 @@ const inspectionMinutesSchema = new mongoose.Schema(
     academicYearId: { type: mongoose.Schema.Types.ObjectId, ref: 'AcademicYears', default: null, index: true },
     assets: [assetRowSchema],
     extraAssets: [assetRowSchema],
+    snapshot: [
+      {
+        assetId: { type: mongoose.Schema.Types.ObjectId, ref: 'Asset' },
+        expectedQty: { type: Number },
+        condition: { type: String },
+      }
+    ],
+    version: { type: Number, default: 1 },
     conclusion: { type: String, trim: true, default: '' },
     status: {
       type: String,

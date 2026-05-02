@@ -108,13 +108,37 @@ export default function ClassAssessment() {
         );
 
         const allPassed = updatedResults.every(r => r.isPassed);
+        const overallResult = allPassed ? 'Đạt' : 'Chưa đạt';
+        
+        // Tự động gán promotionStatus dựa trên overallResult khi đánh giá cuối năm
+        let promotionStatus = st.assessment?.promotionStatus || 'promoted';
+        if (selectedPeriod === 'semester_2') {
+          promotionStatus = overallResult === 'Đạt' ? 'promoted' : 'retained';
+        }
 
         return {
           ...st,
           assessment: {
             ...(st.assessment || {}),
             results: updatedResults,
-            overallResult: allPassed ? 'Đạt' : 'Chưa đạt'
+            overallResult,
+            promotionStatus
+          }
+        };
+      })
+    }));
+  };
+
+  const handlePromotionStatusChange = (studentId, status) => {
+    setData(prev => ({
+      ...prev,
+      students: prev.students.map(st => {
+        if (String(st._id) !== String(studentId)) return st;
+        return {
+          ...st,
+          assessment: {
+            ...(st.assessment || {}),
+            promotionStatus: status
           }
         };
       })
@@ -149,6 +173,7 @@ export default function ClassAssessment() {
         templateId: data.template._id,
         results: st.assessment?.results || data.template.criteria.map(c => ({ criterionName: c.name, isPassed: false })),
         overallResult: st.assessment?.overallResult || 'Chưa đạt',
+        promotionStatus: st.assessment?.promotionStatus || (selectedPeriod === 'semester_2' ? 'retained' : 'promoted'),
         notes: st.assessment?.notes || '',
       }));
 
@@ -267,6 +292,9 @@ export default function ClassAssessment() {
                   ))}
                   <TableCell align="center" sx={{ fontWeight: 800, bgcolor: '#f9fafb' }}>Đạt</TableCell>
                   <TableCell align="center" sx={{ fontWeight: 800, bgcolor: '#f9fafb' }}>Chưa đạt</TableCell>
+                  {selectedPeriod === 'semester_2' && (
+                    <TableCell align="center" sx={{ fontWeight: 800, bgcolor: '#fffde7', color: '#f57c00' }}>Trạng thái cuối năm</TableCell>
+                  )}
                   <TableCell sx={{ fontWeight: 800 }}>Ghi chú</TableCell>
                 </TableRow>
               </TableHead>
@@ -274,7 +302,14 @@ export default function ClassAssessment() {
                 {data.students.map((st, idx) => (
                   <TableRow key={st._id}>
                     <TableCell align="center">{idx + 1}</TableCell>
-                    <TableCell sx={{ fontWeight: 500 }}>{st.fullName}</TableCell>
+                    <TableCell sx={{ fontWeight: 500 }}>
+                      {st.fullName}
+                      {!st.assessment && (
+                        <Chip label="Chưa đánh giá" size="small" color="error" variant="outlined" 
+                          sx={{ height: 16, fontSize: '0.6rem', ml: 1, borderStyle: 'dashed' }} 
+                        />
+                      )}
+                    </TableCell>
                     {data.template.criteria.map((c, i) => {
                       const res = st.assessment?.results?.find(r => r.criterionName === c.name);
                       const isPassed = res ? res.isPassed : false;
@@ -299,6 +334,22 @@ export default function ClassAssessment() {
                          <Typography sx={{ color: 'black', fontWeight: 900, fontSize: '1.2rem' }}>-</Typography>
                       )}
                     </TableCell>
+                    {selectedPeriod === 'semester_2' && (
+                      <TableCell align="center" sx={{ bgcolor: '#fffde7' }}>
+                        <Select
+                          size="small"
+                          value={st.assessment?.promotionStatus || 'promoted'}
+                          onChange={(e) => handlePromotionStatusChange(st._id, e.target.value)}
+                          variant="standard"
+                          disableUnderline
+                          sx={{ fontSize: '0.8rem', fontWeight: 600, color: st.assessment?.promotionStatus === 'retained' ? 'error.main' : 'primary.main' }}
+                        >
+                          <MenuItem value="promoted" sx={{ fontSize: '0.8rem' }}>Lên lớp</MenuItem>
+                          <MenuItem value="retained" sx={{ fontSize: '0.8rem' }}>Ở lại lớp</MenuItem>
+                          <MenuItem value="graduated" sx={{ fontSize: '0.8rem' }}>Tốt nghiệp</MenuItem>
+                        </Select>
+                      </TableCell>
+                    )}
                     <TableCell>
                       <TextField
                         size="small"
@@ -323,6 +374,9 @@ export default function ClassAssessment() {
                     {calculateOverallPercentage()}
                   </TableCell>
                   <TableCell align="center" sx={{ bgcolor: '#f9fafb' }} />
+                  {selectedPeriod === 'semester_2' && (
+                    <TableCell align="center" sx={{ bgcolor: '#fffde7' }} />
+                  )}
                   <TableCell />
                 </TableRow>
               </TableBody>

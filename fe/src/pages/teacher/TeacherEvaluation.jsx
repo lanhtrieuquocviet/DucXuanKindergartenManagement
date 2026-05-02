@@ -47,7 +47,7 @@ function getTeacherMenuItems(hasPermission, hasRole) {
     { key: 'pickup-approval', label: 'Đơn đăng ký đưa đón', permission: 'MANAGE_PICKUP' },
     { key: 'leave-requests', label: 'Danh sách đơn xin nghỉ', permission: 'MANAGE_ATTENDANCE' },
     { key: 'contact-book', label: 'Sổ liên lạc' },
-    { key: 'purchase-request', label: 'Cơ sở vật chất', permission: 'MANAGE_PURCHASE_REQUEST' },
+    // { key: 'purchase-request', label: 'Cơ sở vật chất', permission: 'MANAGE_PURCHASE_REQUEST' },
     { key: 'class-assets', label: 'Tài sản lớp', permission: 'MANAGE_ASSET' },
     { key: 'asset-inspection', label: 'Kiểm kê tài sản', role: 'InventoryStaff' },
   ];
@@ -69,6 +69,7 @@ export default function TeacherEvaluation() {
   const [error, setError]       = useState('');
   const [search, setSearch]     = useState('');
   const [classFilter, setClassFilter] = useState('');
+  const [statusFilter, setStatusFilter] = useState('all'); // all, đạt, chưa đạt, chưa đánh giá
   const [page, setPage]         = useState(0);
 
   // Evaluation dialog
@@ -87,9 +88,16 @@ export default function TeacherEvaluation() {
     setLoading(true);
     setError('');
     try {
-      const params = cId ? `?classId=${cId}` : '';
-      const res = await get(`${ENDPOINTS.TEACHER.MY_STUDENTS}${params}`);
-      setStudents(res.data || []);
+      const activeYearRes = await get(ENDPOINTS.SCHOOL_ADMIN.ACADEMIC_YEARS.CURRENT);
+      const yearId = activeYearRes.data?._id;
+      
+      const params = new URLSearchParams();
+      if (cId) params.set('classId', cId);
+      params.set('period', 'semester_2');
+      if (yearId) params.set('academicYearId', yearId);
+      
+      const res = await get(`${ENDPOINTS.TEACHER.CLASS_ASSESSMENTS}?${params.toString()}`);
+      setStudents(res.data?.students || []);
       if (res.classes) setClasses(res.classes);
     } catch (err) {
       setError(err.message || 'Không tải được dữ liệu');
@@ -103,11 +111,14 @@ export default function TeacherEvaluation() {
     setEvalData({ academicEvaluation: null, evaluationNote: '' });
     setEvalLoading(true);
     try {
-      const res = await get(ENDPOINTS.TEACHER.STUDENT_EVALUATION(student._id));
-      if (res.data?.evaluation) {
+      const activeYearRes = await get(ENDPOINTS.SCHOOL_ADMIN.ACADEMIC_YEARS.CURRENT);
+      const yearId = activeYearRes.data?._id;
+      const res = await get(`${ENDPOINTS.TEACHER.STUDENT_EVALUATION(student._id)}?period=semester_2&academicYearId=${yearId}`);
+      
+      if (res.data?.assessment) {
         setEvalData({
-          academicEvaluation: res.data.evaluation.academicEvaluation,
-          evaluationNote: res.data.evaluation.evaluationNote || ''
+          academicEvaluation: res.data.assessment.academicEvaluation || res.data.assessment.overallResult || null,
+          evaluationNote: res.data.assessment.evaluationNote || res.data.assessment.notes || ''
         });
       }
     } catch (err) {
@@ -126,9 +137,22 @@ export default function TeacherEvaluation() {
     }
     setEvalSubmitting(true);
     try {
-      await put(ENDPOINTS.TEACHER.STUDENT_EVALUATION(evalDialog._id), {
-        academicEvaluation: evalData.academicEvaluation,
-        evaluationNote: evalData.evaluationNote.trim(),
+      const activeYearRes = await get(ENDPOINTS.SCHOOL_ADMIN.ACADEMIC_YEARS.CURRENT);
+      const yearId = activeYearRes.data?._id;
+
+      const assessmentToSave = {
+        studentId: evalDialog._id,
+        classId: evalDialog.classId?._id || evalDialog.classId,
+        academicYearId: yearId,
+        period: 'semester_2',
+        overallResult: evalData.academicEvaluation,
+        academicEvaluation: evalData.academicEvaluation, // Sync cả 2 để tương thích
+        notes: evalData.evaluationNote.trim(),
+        evaluationNote: evalData.evaluationNote.trim()
+      };
+
+      await post(ENDPOINTS.TEACHER.BULK_ASSESSMENTS, {
+        assessments: [assessmentToSave]
       });
       toast.success('Đã cập nhật đánh giá học tập');
       closeEvalDialog();
@@ -142,11 +166,13 @@ export default function TeacherEvaluation() {
 
   const filtered = useMemo(() => {
     const q = search.trim().toLowerCase();
-    return students.filter(s =>
-      (!q || s.fullName.toLowerCase().includes(q) ||
-        (s.classId?.className || '').toLowerCase().includes(q))
-    );
-  }, [students, search]);
+    return students.filter(s => {
+      const matchSearch = !q || s.fullName.toLowerCase().includes(q) || (s.classId?.className || '').toLowerCase().includes(q);
+      const evalStatus = s.evaluation?.academicEvaluation || 'chưa đánh giá';
+      const matchStatus = statusFilter === 'all' || evalStatus.toLowerCase() === statusFilter.toLowerCase();
+      return matchSearch && matchStatus;
+    });
+  }, [students, search, statusFilter]);
 
   const paginated = filtered.slice(page * PAGE_SIZE, (page + 1) * PAGE_SIZE);
 
@@ -166,7 +192,7 @@ export default function TeacherEvaluation() {
       attendance: '/teacher/attendance',
       'pickup-approval': '/teacher/pickup-approval',
       'leave-requests': '/teacher/leave-requests',
-      'purchase-request': '/teacher/purchase-request',
+      // 'purchase-request': '/teacher/purchase-request',
       'class-assets': '/teacher/class-assets',
       'asset-inspection': '/teacher/asset-inspection',
     };
@@ -208,6 +234,19 @@ export default function TeacherEvaluation() {
             >
               <MenuItem value="">Tất cả lớp</MenuItem>
               {classes.map(c => <MenuItem key={c._id} value={c._id}>{c.className}</MenuItem>)}
+            </Select>
+          </FormControl>
+          <FormControl size="small" sx={{ minWidth: 160 }}>
+            <InputLabel>Trạng thái</InputLabel>
+            <Select
+              label="Trạng thái"
+              value={statusFilter}
+              onChange={e => { setStatusFilter(e.target.value); setPage(0); }}
+            >
+              <MenuItem value="all">Tất cả trạng thái</MenuItem>
+              <MenuItem value="đạt">Đạt</MenuItem>
+              <MenuItem value="chưa đạt">Chưa đạt</MenuItem>
+              <MenuItem value="chưa đánh giá">Chưa đánh giá</MenuItem>
             </Select>
           </FormControl>
           <Box sx={{ flex: 1 }} />
@@ -257,17 +296,12 @@ export default function TeacherEvaluation() {
                         <Chip label={s.classId?.className || '—'} size="small" sx={{ bgcolor: '#ecfdf5', color: '#059669', fontWeight: 600 }} />
                       </TableCell>
                       <TableCell>
-                        {s.evaluation?.academicEvaluation ? (
-                          <Chip
-                            label={s.evaluation.academicEvaluation === 'đạt' ? 'Đạt' : 'Chưa đạt'}
-                            color={s.evaluation.academicEvaluation === 'đạt' ? 'success' : 'error'}
-                            size="small"
-                            icon={s.evaluation.academicEvaluation === 'đạt' ? <CheckIcon sx={{ fontSize: '14px !important' }} /> : <CancelIcon sx={{ fontSize: '14px !important' }} />}
-                            sx={{ fontWeight: 600 }}
-                          />
-                        ) : (
-                          <Typography variant="caption" color="text.disabled">Chưa đánh giá</Typography>
-                        )}
+                        {(() => {
+                          const val = (s.evaluation?.academicEvaluation || 'chưa đánh giá').toLowerCase();
+                          if (val === 'đạt') return <Chip label="Đạt" color="success" size="small" icon={<CheckIcon sx={{ fontSize: '14px !important' }} />} sx={{ fontWeight: 600 }} />;
+                          if (val === 'chưa đạt') return <Chip label="Chưa đạt" color="error" size="small" icon={<CancelIcon sx={{ fontSize: '14px !important' }} />} sx={{ fontWeight: 600 }} />;
+                          return <Chip label="Chưa đánh giá" size="small" sx={{ bgcolor: '#f1f5f9', color: '#64748b', fontWeight: 600, border: '1px solid #e2e8f0' }} />;
+                        })()}
                       </TableCell>
                       <TableCell>
                         {s.evaluation?.evaluationNote ? (
@@ -330,6 +364,10 @@ export default function TeacherEvaluation() {
                   <FormControlLabel
                     control={<Radio checked={evalData.academicEvaluation === 'chưa đạt'} onChange={() => setEvalData(p => ({ ...p, academicEvaluation: 'chưa đạt' }))} color="error" />}
                     label={<Typography variant="body2" fontWeight={600} color="error.main">Chưa đạt</Typography>}
+                  />
+                  <FormControlLabel
+                    control={<Radio checked={evalData.academicEvaluation === 'chưa đánh giá'} onChange={() => setEvalData(p => ({ ...p, academicEvaluation: 'chưa đánh giá' }))} color="default" />}
+                    label={<Typography variant="body2" fontWeight={600} color="text.secondary">Chưa đánh giá</Typography>}
                   />
                 </Stack>
               </FormControl>

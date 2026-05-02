@@ -164,6 +164,10 @@ export default function TeacherAssetInspection() {
   };
 
   const handleOpenCreate = () => {
+    if (committees.length === 0) {
+      toast.error('Hiện chưa có Ban kiểm kê nào đang hoạt động. Vui lòng liên hệ Admin để tạo Ban kiểm kê trước.');
+      return;
+    }
     setEditing(null);
     setSelectedAllocation(null);
     setForm({ ...emptyForm(), committeeId: myCommittee?._id || '' });
@@ -212,8 +216,12 @@ export default function TeacherAssetInspection() {
   const handleRemoveExtraRow = idx => setForm(prev => ({ ...prev, extraAssets: prev.extraAssets.filter((_, i) => i !== idx) }));
 
   const handleSave = async () => {
-    if (!form.className.trim()) { toast.error('Vui lòng nhập Lớp.'); return; }
+    if (!form.className.trim()) { toast.error('Vui lòng chọn Lớp.'); return; }
     if (!form.inspectionDate)  { toast.error('Vui lòng chọn ngày kiểm kê.'); return; }
+    if (!form.committeeId) {
+      toast.error('Hệ thống chưa có Ban kiểm kê đang hoạt động hoặc chưa chọn Ban kiểm kê.');
+      return;
+    }
     setSaving(true);
     try {
       if (editing?._id) {
@@ -307,6 +315,17 @@ export default function TeacherAssetInspection() {
             Tạo Biên Bản Mới
           </Button>
         </Stack>
+
+        {committees.length === 0 && !loading && (
+          <Paper variant="outlined" sx={{ p: 2, mb: 3, borderRadius: 2, bgcolor: '#fff1f2', borderColor: '#fecaca' }}>
+            <Typography variant="body2" color="error.main" fontWeight={600}>
+              Cảnh báo: Hiện chưa có Ban kiểm kê nào đang hoạt động.
+            </Typography>
+            <Typography variant="caption" color="error.main">
+              Bạn không thể tạo biên bản kiểm kê nếu chưa có Ban kiểm kê. Vui lòng liên hệ Quản trị viên để thiết lập.
+            </Typography>
+          </Paper>
+        )}
 
         {/* List */}
         {loading ? (

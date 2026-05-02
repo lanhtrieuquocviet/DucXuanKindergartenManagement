@@ -32,12 +32,17 @@ const studentAssessmentSchema = new mongoose.Schema({
   }],
   overallResult: {
     type: String,
-    enum: ['Đạt', 'Chưa đạt'],
-    default: 'Đạt',
+    enum: ['Đạt', 'Chưa đạt', 'Chưa đánh giá'],
+    default: 'Chưa đánh giá',
   },
   notes: {
     type: String,
     default: '',
+  },
+  promotionStatus: {
+    type: String,
+    enum: ['promoted', 'retained', 'graduated'],
+    default: 'promoted', // Mặc định là lên lớp nếu đạt
   },
   assessedBy: {
     type: mongoose.Schema.Types.ObjectId,

@@ -37,25 +37,13 @@ const enrollmentSchema = new mongoose.Schema(
       default: '',
       maxlength: 1000,
     },
-    /** Đánh giá học tập tổng quan của cả năm */
-    academicEvaluation: {
-      type: String,
-      enum: ['đạt', 'chưa đạt', null],
-      default: null,
-      trim: true,
-    },
-    evaluationNote: {
-      type: String,
-      trim: true,
-      default: '',
-      maxlength: 1000,
-    },
     status: {
       type: String,
       enum: ['draft', 'studying', 'promoted', 'graduated', 'dropped'],
       default: 'studying',
       lowercase: true,
       trim: true,
+      index: true,
     },
   },
   {

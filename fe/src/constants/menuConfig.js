@@ -77,9 +77,9 @@ export const MENU_CONFIG = {
         { key: 'asset-allocation', label: 'Bàn giao tài sản', path: '/school-admin/asset-allocation', permissionCode: 'MANAGE_HANDOVER' },
         { key: 'asset-incidents', label: 'Sự cố & Sửa chữa', path: '/school-admin/asset-incidents', permissionCode: 'MANAGE_ASSET_ISSUES' },
         { key: 'room-assets', label: 'Tài sản theo phòng', path: '/school-admin/room-assets', permissionCode: 'MANAGE_ROOM_ASSETS' },
-        { key: 'purchase-requests', label: 'Đề xuất mua sắm', path: '/school-admin/purchase-requests', permissionCode: 'MANAGE_PURCHASE_REQUEST' },
-        { key: 'committee', label: 'Hội đồng kiểm kê', path: '/school-admin/committee', permissionCode: 'MANAGE_COMMITTEE' },
-        { key: 'minutes', label: 'Biên bản kiểm kê', path: '/school-admin/minutes', permissionCode: 'MANAGE_MINUTES' },
+        // { key: 'purchase-requests', label: 'Đề xuất mua sắm', path: '/school-admin/purchase-requests', permissionCode: 'MANAGE_PURCHASE_REQUEST' },
+        { key: 'committee', label: 'Hội đồng kiểm kê', path: '/school-admin/committee', permissionCode: 'MANAGE_ASSET' },
+        { key: 'minutes', label: 'Biên bản kiểm kê', path: '/school-admin/minutes', permissionCode: 'MANAGE_ASSET' },
       ]
     },
     {

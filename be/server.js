@@ -228,6 +228,7 @@ require('./src/models/LeaveRequest');
       { code: 'MANAGE_MEAL_PHOTO', description: 'Ảnh bữa ăn thực tế', group: 'Bếp & Thực phẩm', path: '/kitchen/meal-photos', menuKey: 'meal-photos', order: 63 },
       { code: 'APPROVE_MENU', description: 'Duyệt thực đơn', group: 'Bếp & Thực phẩm', path: '/school-admin/menus', menuKey: 'menu-admin', order: 64 },
       { code: 'MANAGE_INGREDIENTS', description: 'Quản lý nguyên liệu', group: 'Bếp & Thực phẩm', path: '/kitchen/ingredients', menuKey: 'ingredients', order: 66 },
+      { code: 'MANAGE_INGREDIENT_CATEGORY', description: 'Quản lý nhóm nguyên liệu', group: 'Bếp & Thực phẩm', order: 66 },
       { code: 'MANAGE_MEAL', description: 'Quản lý suất ăn', group: 'Bếp & Thực phẩm', path: '/kitchen/meal-management', menuKey: 'meal-management', order: 67 },
       { code: 'VIEW_MEAL_COUNT', description: 'Số lượng báo ăn', group: 'Bếp & Thực phẩm', path: '/kitchen/headcount', menuKey: 'headcount', order: 68 },
       { code: 'MANAGE_SAMPLE_FOOD', description: 'Lưu mẫu thức ăn', group: 'Bếp & Thực phẩm', path: '/kitchen/sample-food', menuKey: 'sample-food', order: 69 },
@@ -238,6 +239,8 @@ require('./src/models/LeaveRequest');
       { code: 'REVIEW_MENU', description: 'Ý kiến thực đơn (PH)', group: 'Bếp & Thực phẩm', path: '/head-parent/menus', menuKey: 'review-menu', order: 65 },
       // Tài sản & Mua sắm
       { code: 'MANAGE_ASSET', description: 'Danh mục tài sản', group: 'Tài sản & Mua sắm', path: '/school-admin/facilities', menuKey: 'assets-list', order: 81 },
+      { code: 'MANAGE_ASSET_CATEGORY', description: 'Quản lý nhóm tài sản', group: 'Tài sản & Mua sắm', order: 81 },
+      { code: 'MANAGE_FACILITY_CATEGORY', description: 'Quản lý nhóm CSVC', group: 'Tài sản & Mua sắm', order: 81 },
       { code: 'MANAGE_INSPECTION', description: 'Kiểm kê tài sản', group: 'Tài sản & Mua sắm', path: '/school-admin/facilities/inventory', menuKey: 'asset-inspection', order: 82 },
       { code: 'MANAGE_PURCHASE_REQUEST', description: 'Yêu cầu mua sắm', group: 'Tài sản & Mua sắm', path: '/school-admin/purchase-requests', menuKey: 'purchase-requests', order: 83 },
       { code: 'MANAGE_HANDOVER', description: 'Bàn giao tài sản', group: 'Tài sản & Mua sắm', path: '/school-admin/facilities/handover', menuKey: 'asset-handover', order: 84 },
@@ -285,6 +288,7 @@ require('./src/models/LeaveRequest');
         'REGISTER_FACE', 'MANAGE_PURCHASE_REQUEST', 'MANAGE_ASSET',
         'MANAGE_INSPECTION', 'MANAGE_HANDOVER', 'MANAGE_ASSET_ISSUES', 'MANAGE_ROOM_ASSETS',
         'MANAGE_STAFF_POSITION', 'ACCESS_INVENTORY',
+        'MANAGE_FACILITY_CATEGORY', 'MANAGE_ASSET_CATEGORY', 'MANAGE_INGREDIENT_CATEGORY',
       ],
       HeadTeacher: [
         // Tất cả quyền của giáo viên

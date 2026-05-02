@@ -2,18 +2,24 @@ const mongoose = require('mongoose');
 
 const assetIncidentSchema = new mongoose.Schema(
   {
-    classId:   { type: mongoose.Schema.Types.ObjectId, ref: 'Classes' },
-    className: { type: String, default: '' },
-
-    allocationId: { type: mongoose.Schema.Types.ObjectId, ref: 'AssetAllocation' },
-
+    assetId: { type: mongoose.Schema.Types.ObjectId, ref: 'Asset' },
     assetName: { type: String, required: true, trim: true },
     assetCode: { type: String, default: '', trim: true },
 
+    classId: { type: mongoose.Schema.Types.ObjectId, ref: 'Classes' },
+    className: { type: String, default: '' },
+    location: { type: String, default: '' },
+
     type: {
       type: String,
-      enum: ['broken', 'lost'],
+      enum: ['broken', 'lost', 'damaged', 'other'],
       required: true,
+    },
+
+    severity: {
+      type: String,
+      enum: ['low', 'medium', 'high', 'critical'],
+      default: 'medium',
     },
 
     description: { type: String, default: '' },
@@ -21,13 +27,18 @@ const assetIncidentSchema = new mongoose.Schema(
 
     status: {
       type: String,
-      enum: ['pending', 'processing', 'fixed'],
+      enum: ['pending', 'processing', 'fixed', 'disposed', 'rejected'],
       default: 'pending',
     },
 
-    adminNotes:  { type: String, default: '' },
-    resolvedAt:  { type: Date },
-    createdBy:   { type: mongoose.Schema.Types.ObjectId, ref: 'User', required: true },
+    adminNotes: { type: String, default: '' },
+    resolvedAt: { type: Date },
+    
+    // Nguồn gốc sự cố (nếu từ kiểm kê)
+    sourceInspectionId: { type: mongoose.Schema.Types.ObjectId, ref: 'InspectionMinutes' },
+    
+    createdBy: { type: mongoose.Schema.Types.ObjectId, ref: 'User', required: true },
+    reporter: { type: mongoose.Schema.Types.ObjectId, ref: 'User' }, // Thường là giáo viên
   },
   {
     timestamps: true,

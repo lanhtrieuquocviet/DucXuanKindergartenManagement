@@ -511,7 +511,7 @@ export function CommitteeTab() {
                           <Select label="Nhiệm vụ phân công" value={m.role} onChange={e => handleMemberChange(idx, 'role', e.target.value)}>
                             <MenuItem value="Trưởng ban">Trưởng ban</MenuItem>
                             <MenuItem value="Phó trưởng ban">Phó trưởng ban</MenuItem>
-                            <MenuItem value="Thành viên - Thư ký">Thành viên - Thư ký</MenuItem>
+                            <MenuItem value="Thư ký">Thư ký</MenuItem>
                             <MenuItem value="Ủy viên">Ủy viên</MenuItem>
                             <MenuItem value="Thành viên">Thành viên</MenuItem>
                           </Select>
@@ -599,7 +599,7 @@ export function CommitteeTab() {
                             <Select value={m.role} onChange={e => handleMemberChange(idx, 'role', e.target.value)}>
                               <MenuItem value="Trưởng ban">Trưởng ban</MenuItem>
                               <MenuItem value="Phó trưởng ban">Phó trưởng ban</MenuItem>
-                              <MenuItem value="Thành viên - Thư ký">Thành viên - Thư ký</MenuItem>
+                              <MenuItem value="Thư ký">Thư ký</MenuItem>
                               <MenuItem value="Ủy viên">Ủy viên</MenuItem>
                               <MenuItem value="Thành viên">Thành viên</MenuItem>
                             </Select>
@@ -1088,8 +1088,8 @@ export function CommitteeTab() {
             <Stack direction={{ xs: 'column', sm: 'row' }} spacing={2} textAlign="center">
               {[
                 { title: 'XÁC NHẬN CỦA NHÀ TRƯỜNG', sub: 'Phó Hiệu Trưởng', name: mSelectedCommittee?.members?.find(m => m.role === 'Trưởng ban')?.fullName },
-                { title: 'GIÁO VIÊN CHỦ NHIỆM', sub: '', name: '' },
-                { title: 'NGƯỜI GHI BIÊN BẢN', sub: '', name: mSelectedCommittee?.members?.find(m => m.role === 'Phó ban')?.fullName },
+                { title: 'GIÁO VIÊN CHỦ NHIỆM', sub: '(Ký, họ tên)', name: '' },
+                { title: 'NGƯỜI GHI BIÊN BẢN', sub: '(Thư ký)', name: mSelectedCommittee?.members?.find(m => m.role === 'Thư ký' || m.role === 'Thành viên - Thư ký')?.fullName },
               ].map((col, i) => (
                 <Box key={i} sx={{ flex: 1 }}>
                   <Typography sx={{ fontWeight: 700, fontFamily: 'inherit', fontSize: { xs: 11, sm: 13 } }}>{col.title}</Typography>

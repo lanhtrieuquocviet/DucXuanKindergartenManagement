@@ -47,7 +47,8 @@ const getAllStudents = async (filter = {}) => {
   if (displayYearId) enrollmentQuery.academicYearId = displayYearId;
 
   const enrollments = await Enrollment.find(enrollmentQuery)
-    .select('studentId academicYearId academicEvaluation evaluationNote')
+    .select('studentId academicYearId academicEvaluation evaluationNote classId')
+    .populate('classId', 'className gradeId')
     .lean();
 
   const enrollmentMap = {};
@@ -65,8 +66,9 @@ const getAllStudents = async (filter = {}) => {
     delete obj.faceEmbeddings;
 
     obj.enrollmentYearId = enrollment?.academicYearId || null;
-    // Ghi đè classId bằng classId từ Enrollment của năm học đang xét để frontend lọc chính xác
-    if (displayYearId) {
+    // Ghi đè classId bằng classId từ Enrollment nếu đang lọc theo niên khóa cụ thể
+    // Nếu xem tất cả (yearIdForEnrollment null), giữ nguyên classId từ Student (thường là lớp hiện tại)
+    if (yearIdForEnrollment) {
       obj.classId = enrollment?.classId || null;
     }
     obj.evaluation = enrollment ? {
@@ -105,6 +107,17 @@ const createStudent = async (studentData) => {
   });
 
   await newStudent.save();
+
+  // Tạo Enrollment ngay khi tạo học sinh để đảm bảo có dữ liệu niên khóa
+  if (activeYear) {
+    await Enrollment.create({
+      studentId: newStudent._id,
+      classId: studentData.classId || null,
+      academicYearId: activeYear._id,
+      status: 'studying',
+      enrollmentDate: new Date()
+    });
+  }
   return Student.findById(newStudent._id)
     .populate('classId', 'className')
     .populate('parentId', 'fullName email username avatar phone')

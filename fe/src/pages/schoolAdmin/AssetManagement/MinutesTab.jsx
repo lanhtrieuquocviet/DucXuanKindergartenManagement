@@ -102,6 +102,10 @@ export function MinutesTab() {
 
   const handleSave = async () => {
     if (!form.inspectionDate) { toast.error('Vui lòng chọn ngày kiểm kê.'); return; }
+    if (!form.committeeId) {
+      toast.error('Vui lòng chọn Ban kiểm kê.');
+      return;
+    }
     setSaving(true);
     try {
       if (editingMinutes?._id) {
@@ -178,7 +182,7 @@ export function MinutesTab() {
   const selectedCommittee = committees.find(c => c._id === form.committeeId) || null;
 
   const cellBorder = { border: '1px solid #555', padding: '4px 6px', fontSize: 13 };
-  const headerCell = { ...cellBorder, fontWeight: 700, textAlign: 'center', background: '#f3f4f6' };
+  const headerCell = { ...cellBorder, fontWeight: 700, textAlign: 'center', background: '#f3f4f6', whiteSpace: 'nowrap' };
 
   return (
     <Box>

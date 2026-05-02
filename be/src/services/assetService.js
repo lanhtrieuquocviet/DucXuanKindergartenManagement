@@ -1,5 +1,49 @@
 const Asset = require('../models/Asset');
 const RoomAsset = require('../models/RoomAsset');
+const AssetTransaction = require('../models/AssetTransaction');
+const GeneralCategory = require('../models/GeneralCategory');
+
+async function generateAssetCode(type, categoryName) {
+  let prefix = 'ASSET';
+  
+  if (type === 'asset' && categoryName) {
+    const catDoc = await GeneralCategory.findOne({ name: categoryName, type: 'Asset' }).lean();
+    if (catDoc && catDoc.code) {
+      prefix = catDoc.code;
+    } else {
+      // Fallback logic for known default categories
+      if (categoryName === 'Đồ dùng') prefix = 'MN561';
+      else if (categoryName === 'Thiết bị dạy học, đồ chơi và học liệu') prefix = 'MN562';
+      else if (categoryName === 'Sách, tài liệu, băng đĩa') prefix = 'MN563';
+      else if (categoryName === 'Thiết bị ngoài thông tư') prefix = 'TBNT';
+      else prefix = 'WH';
+    }
+  } else if (type === 'csvc') {
+    prefix = 'CSVC';
+  }
+
+  // Tìm mã lớn nhất hiện có với prefix này
+  const lastAsset = await Asset.findOne({ assetCode: new RegExp(`^${prefix}`) })
+    .sort({ assetCode: -1 })
+    .lean();
+
+  let nextNumber = 1;
+  if (lastAsset && lastAsset.assetCode) {
+    const match = lastAsset.assetCode.match(new RegExp(`^${prefix}(\\d+)`));
+    if (match && match[1]) {
+      nextNumber = parseInt(match[1], 10) + 1;
+    } else {
+      // Nếu không có số sau prefix, thử tìm số cuối cùng trong chuỗi
+      const numericMatch = lastAsset.assetCode.match(/\d+$/);
+      if (numericMatch) {
+        nextNumber = parseInt(numericMatch[0], 10) + 1;
+      }
+    }
+  }
+
+  // Trả về mã định dạng Prefix + 4 chữ số (ví dụ: MN5610001)
+  return `${prefix}${String(nextNumber).padStart(4, '0')}`;
+}
 
 function normalizeWarehouseCategory(rawCategory) {
   const text = String(rawCategory || '')
@@ -76,11 +120,11 @@ exports.listAssets = async (req, res) => {
   try {
     // ?type=csvc hoặc ?type=asset; mặc định trả tất cả
     // Dữ liệu cũ không có field type → coi là 'csvc'
-    let filter = {};
+    let filter = { isDeleted: { $ne: true } };
     if (req.query.type === 'asset') {
-      filter = { type: 'asset' };
+      filter.type = 'asset';
     } else if (req.query.type === 'csvc') {
-      filter = { $or: [{ type: 'csvc' }, { type: { $exists: false } }, { type: null }] };
+      filter.$or = [{ type: 'csvc' }, { type: { $exists: false } }, { type: null }];
     }
 
     const assets = await Asset.find(filter)
@@ -92,6 +136,14 @@ exports.listAssets = async (req, res) => {
     ]);
     const allocMap = {};
     allocations.forEach((a) => { allocMap[a._id.toString()] = a.allocatedQty; });
+
+    // Lấy tổng số lượng từ kho được mapping vào báo cáo
+    const warehouseAgg = await Asset.aggregate([
+      { $match: { type: 'asset', linkedReportId: { $ne: null }, isDeleted: { $ne: true } } },
+      { $group: { _id: '$linkedReportId', totalQty: { $sum: '$quantity' } } }
+    ]);
+    const warehouseMap = {};
+    warehouseAgg.forEach(item => { warehouseMap[item._id.toString()] = item.totalQty; });
 
     const result = assets.map((asset) => {
       const a = asset.toObject();
@@ -106,10 +158,20 @@ exports.listAssets = async (req, res) => {
         a.goodQuantity = normalized.goodQuantity;
         a.brokenQuantity = normalized.brokenQuantity;
         a.condition = normalized.condition;
+      } else {
+        // Nếu là mục báo cáo, cộng thêm số lượng từ kho đã mapping
+        const fromWarehouse = warehouseMap[a._id.toString()] || 0;
+        a.manualQuantity = a.quantity || 0; // Giữ lại giá trị nhập tay để FE biết
+        a.warehouseQuantity = fromWarehouse;
+        a.quantity = (a.quantity || 0) + fromWarehouse;
       }
+      
+      // Standardize field names for FE
       a.allocatedQty = allocMap[a._id.toString()] || 0;
-      const availableQty = a.type === 'asset' ? (a.goodQuantity || 0) : (a.quantity || 0);
-      a.remainingQty = Math.max(0, availableQty - a.allocatedQty);
+      
+      const availableFromWarehouse = a.type === 'asset' ? (a.goodQuantity || 0) : (a.quantity || 0);
+      a.remainingQty = Math.max(0, availableFromWarehouse - a.allocatedQty);
+      
       return a;
     });
 
@@ -131,12 +193,19 @@ exports.getAsset = async (req, res) => {
 
 exports.createAsset = async (req, res) => {
   try {
-    const { assetCode, name, type, category, room, requiredQuantity, quantity, area, constructionType, condition, notes, goodQuantity, brokenQuantity } = req.body;
-    if (!assetCode?.trim()) return res.status(400).json({ status: 'error', message: 'Mã tài sản không được để trống.' });
-    if (!name?.trim())      return res.status(400).json({ status: 'error', message: 'Tên tài sản không được để trống.' });
+    const { name, type, category, room, requiredQuantity, quantity, area, constructionType, condition, notes, goodQuantity, brokenQuantity, linkedReportId } = req.body;
+    let { assetCode } = req.body;
+    
+    if (!name?.trim()) return res.status(400).json({ status: 'error', message: 'Tên tài sản không được để trống.' });
 
-    const existing = await Asset.findOne({ assetCode: assetCode.trim() });
-    if (existing) return res.status(409).json({ status: 'error', message: 'Mã tài sản đã tồn tại.' });
+    // Tự động sinh mã nếu không được cung cấp
+    if (!assetCode || !assetCode.trim()) {
+      assetCode = await generateAssetCode(type || 'csvc', category);
+    } else {
+      assetCode = assetCode.trim();
+      const existing = await Asset.findOne({ assetCode });
+      if (existing) return res.status(409).json({ status: 'error', message: 'Mã tài sản đã tồn tại.' });
+    }
 
     const isWarehouse = (type || 'csvc') === 'asset';
     const warehouseQuantities = isWarehouse
@@ -155,6 +224,7 @@ exports.createAsset = async (req, res) => {
       condition:        isWarehouse ? warehouseQuantities.condition : normalizeCondition(condition),
       goodQuantity:     isWarehouse ? warehouseQuantities.goodQuantity : null,
       brokenQuantity:   isWarehouse ? warehouseQuantities.brokenQuantity : null,
+      linkedReportId:   linkedReportId || null,
       notes:            notes?.trim() || '',
       createdBy:        req.user._id,
     });
@@ -166,7 +236,7 @@ exports.createAsset = async (req, res) => {
 
 exports.updateAsset = async (req, res) => {
   try {
-    const { assetCode, name, type, category, room, requiredQuantity, quantity, area, constructionType, condition, notes, goodQuantity, brokenQuantity } = req.body;
+    const { assetCode, name, type, category, room, requiredQuantity, quantity, area, constructionType, condition, notes, goodQuantity, brokenQuantity, linkedReportId } = req.body;
     const asset = await Asset.findById(req.params.id);
     if (!asset) return res.status(404).json({ status: 'error', message: 'Không tìm thấy tài sản.' });
 
@@ -195,7 +265,9 @@ exports.updateAsset = async (req, res) => {
     } else if (quantity !== undefined) {
       asset.quantity = quantity;
     }
-    if (area !== undefined)             asset.area             = area !== '' && area != null ? Number(area) : null;
+
+    if (linkedReportId !== undefined)   asset.linkedReportId   = linkedReportId || null;
+    if (area !== undefined)             asset.area             = area != null && area !== '' ? Number(area) : null;
     if (constructionType !== undefined) asset.constructionType = constructionType;
     if (condition !== undefined && nextType !== 'asset') asset.condition = normalizeCondition(condition);
     if (notes !== undefined)            asset.notes            = notes.trim();
@@ -209,9 +281,14 @@ exports.updateAsset = async (req, res) => {
 
 exports.deleteAsset = async (req, res) => {
   try {
-    const asset = await Asset.findByIdAndDelete(req.params.id);
+    const asset = await Asset.findById(req.params.id);
     if (!asset) return res.status(404).json({ status: 'error', message: 'Không tìm thấy tài sản.' });
-    return res.json({ status: 'success', message: 'Xóa tài sản thành công.' });
+
+    asset.isDeleted = true;
+    asset.deletedAt = new Date();
+    await asset.save();
+
+    return res.json({ status: 'success', message: 'Xóa tài sản thành công (Soft Delete).' });
   } catch (err) {
     return res.status(500).json({ status: 'error', message: err.message });
   }
@@ -370,6 +447,34 @@ exports.bulkCreateWarehouseAssets = async (req, res) => {
       }
     }
     return res.json({ status: 'success', data: results });
+  } catch (err) {
+    return res.status(500).json({ status: 'error', message: err.message });
+  }
+};
+
+exports.listTransactions = async (req, res) => {
+  try {
+    const { inventoryItemId, roomId, type, startDate, endDate } = req.query;
+    const filter = {};
+    if (inventoryItemId) filter.inventoryItemId = inventoryItemId;
+    if (roomId) {
+      filter.$or = [{ fromRoomId: roomId }, { toRoomId: roomId }];
+    }
+    if (type) filter.type = type;
+    if (startDate || endDate) {
+      filter.date = {};
+      if (startDate) filter.date.$gte = new Date(startDate);
+      if (endDate) filter.date.$lte = new Date(endDate);
+    }
+
+    const transactions = await AssetTransaction.find(filter)
+      .populate('inventoryItemId', 'name assetCode unit')
+      .populate('fromRoomId', 'roomName')
+      .populate('toRoomId', 'roomName')
+      .populate('actorId', 'fullName')
+      .sort({ date: -1 });
+
+    return res.json({ status: 'success', data: transactions });
   } catch (err) {
     return res.status(500).json({ status: 'error', message: err.message });
   }

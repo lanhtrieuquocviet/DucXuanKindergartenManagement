@@ -74,12 +74,9 @@ exports.getMyStudents = async (req, res) => {
       const en = enrollmentMap[String(student._id)];
       return {
         ...student,
-        // Đảm bảo classId và evaluation phản ánh đúng năm học đang xem
+        // Đảm bảo classId phản ánh đúng năm học đang xem
         classId: en ? { ...student.classId, _id: en.classId } : student.classId,
-        evaluation: en ? {
-          academicEvaluation: en.academicEvaluation,
-          evaluationNote: en.evaluationNote
-        } : null
+        evaluation: null // Đã chuyển sang hệ thống StudentAssessment chi tiết
       };
     });
 
@@ -474,100 +471,4 @@ exports.createChangeRequest = async (req, res) => {
   }
 };
 
-// ── Student Evaluation ────────────────────────────────────────
-
-/** GET /teacher/students/:studentId/evaluation */
-exports.getStudentEvaluation = async (req, res) => {
-  try {
-    const { studentId } = req.params;
-    const teacher = await Teacher.findOne({ userId: req.user._id }).lean();
-    if (!teacher) return res.status(403).json({ status: 'error', message: 'Không có hồ sơ giáo viên.' });
-
-    // Lấy học sinh và kiểm tra giáo viên có phụ trách lớp không
-    const student = await Student.findById(studentId).populate('classId').lean();
-    if (!student) return res.status(404).json({ status: 'error', message: 'Không tìm thấy học sinh.' });
-
-    const cls = await Classes.findOne({ _id: student.classId._id, teacherIds: teacher._id }).lean();
-    if (!cls) return res.status(403).json({ status: 'error', message: 'Bạn không phụ trách lớp của học sinh này.' });
-
-    // Lấy enrollment hiện tại của học sinh
-    const enrollment = await Enrollment.findOne({
-      studentId,
-      academicYearId: cls.academicYearId,
-      gradeId: cls.gradeId
-    }).lean();
-
-    return res.json({
-      status: 'success',
-      data: {
-        student: {
-          _id: student._id,
-          fullName: student.fullName,
-          className: student.classId.className
-        },
-        evaluation: enrollment ? {
-          academicEvaluation: enrollment.academicEvaluation,
-          evaluationNote: enrollment.evaluationNote
-        } : null
-      }
-    });
-  } catch (err) {
-    return res.status(500).json({ status: 'error', message: err.message });
-  }
-};
-
-/** PUT /teacher/students/:studentId/evaluation */
-exports.updateStudentEvaluation = async (req, res) => {
-  try {
-    const { studentId } = req.params;
-    const { academicEvaluation, evaluationNote } = req.body;
-
-    const teacher = await Teacher.findOne({ userId: req.user._id }).lean();
-    if (!teacher) return res.status(403).json({ status: 'error', message: 'Không có hồ sơ giáo viên.' });
-
-    // Lấy học sinh và kiểm tra giáo viên có phụ trách lớp không
-    const student = await Student.findById(studentId).populate('classId').lean();
-    if (!student) return res.status(404).json({ status: 'error', message: 'Không tìm thấy học sinh.' });
-
-    const cls = await Classes.findOne({ _id: student.classId._id, teacherIds: teacher._id }).lean();
-    if (!cls) return res.status(403).json({ status: 'error', message: 'Bạn không phụ trách lớp của học sinh này.' });
-
-    // --- BỔ SUNG: Kiểm tra "Khóa sổ" (Hard Archive) ---
-    const ay = await AcademicYear.findById(cls.academicYearId).select('status').lean();
-    if (ay && ay.status === 'inactive') {
-      return res.status(403).json({
-        status: 'error',
-        message: 'Không thể cập nhật đánh giá cho năm học đã kết thúc (Hard Archive).',
-      });
-    }
-
-    // Cập nhật hoặc tạo enrollment
-    const enrollment = await Enrollment.findOneAndUpdate(
-      {
-        studentId,
-        academicYearId: cls.academicYearId,
-        gradeId: cls.gradeId
-      },
-      {
-        academicEvaluation,
-        evaluationNote: evaluationNote?.trim() || ''
-      },
-      {
-        new: true,
-        upsert: true,
-        setDefaultsOnInsert: true
-      }
-    );
-
-    return res.json({
-      status: 'success',
-      data: {
-        academicEvaluation: enrollment.academicEvaluation,
-        evaluationNote: enrollment.evaluationNote
-      },
-      message: 'Đã cập nhật đánh giá học tập.'
-    });
-  } catch (err) {
-    return res.status(500).json({ status: 'error', message: err.message });
-  }
-};
+// End of file

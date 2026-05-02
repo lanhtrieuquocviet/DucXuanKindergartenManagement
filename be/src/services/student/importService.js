@@ -3,6 +3,7 @@ const User = require('../../models/User');
 const Role = require('../../models/Role');
 const AcademicYear = require('../../models/AcademicYear');
 const Classes = require('../../models/Classes');
+const Enrollment = require('../../models/Enrollment');
 const bcrypt = require('bcryptjs');
 const { 
   normalizePhone, 
@@ -117,6 +118,15 @@ const createStudentWithParentCore = async ({ parent, studentData }) => {
     student.parentProfileId = parentProfile?._id || student.parentProfileId;
     student.academicYearId = activeYear?._id || student.academicYearId;
     await student.save();
+
+    // Cập nhật hoặc tạo mới Enrollment cho năm học hiện tại
+    if (activeYear) {
+      await Enrollment.findOneAndUpdate(
+        { studentId: student._id, academicYearId: activeYear._id },
+        { classId: student.classId || null, status: 'studying' },
+        { upsert: true, new: true }
+      );
+    }
   } else {
     const studentCode = await generateStudentCode();
     student = new Student({
@@ -134,6 +144,17 @@ const createStudentWithParentCore = async ({ parent, studentData }) => {
       status: 'active',
     });
     await student.save();
+
+    // Tạo Enrollment ngay khi import để đồng bộ niên khóa
+    if (activeYear) {
+      await Enrollment.create({
+        studentId: student._id,
+        classId: student.classId || null,
+        academicYearId: activeYear._id,
+        status: 'studying',
+        enrollmentDate: new Date()
+      });
+    }
     isNewStudent = true;
   }
 

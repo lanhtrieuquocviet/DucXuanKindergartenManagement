@@ -1,4 +1,4 @@
-import { createContext, useContext, useState, useEffect, useRef, useCallback } from 'react';
+import { createContext, useContext, useState, useEffect, useRef, useCallback, useMemo } from 'react';
 import { get, post, put, getToken, getRefreshToken, ENDPOINTS, setAuthFailureHandler } from '../service/api';
 
 const AuthContext = createContext(null);
@@ -22,7 +22,12 @@ export const AuthProvider = ({
   const [token, setToken] = useState(localStorage.getItem('token'));
   const [loading, setLoading] = useState(true); // Bắt đầu với loading = true để chờ verify token
   const [error, setError] = useState(null);
-  const [isInitializing, setIsInitializing] = useState(true); // Trạng thái đang khởi tạo
+   const [isInitializing, setIsInitializing] = useState(true); // Trạng thái đang khởi tạo
+ 
+   const userRoles = useMemo(() => {
+     if (!user || !user.roles) return [];
+     return user.roles.map((r) => r.roleName || r);
+   }, [user]);
 
   // Sử dụng useRef để lưu trữ callback functions, tránh thay đổi kích thước mảng dependencies
   const onErrorRef = useRef(onError);
@@ -298,26 +303,13 @@ export const AuthProvider = ({
 
   // Get user roles
   const getUserRoles = useCallback(() => {
-    if (!user || !user.roles) {
-      console.log('DEBUG getUserRoles: No user or roles', { user: user ? 'exists' : 'null', roles: user?.roles ? 'exists' : 'null' });
-      return [];
-    }
-    const roles = user.roles.map((r) => {
-      console.log('DEBUG: Processing role:', r);
-      return r.roleName || r;
-    });
-    console.log('getUserRoles result:', { input: user.roles, output: roles });
-    return roles;
-  }, [user]);
+    return userRoles;
+  }, [userRoles]);
 
   // Check if user has specific role
   const hasRole = useCallback((roleName) => {
-    const userRoles = getUserRoles();
-    const hasIt = userRoles.includes(roleName);
-    // eslint-disable-next-line no-console
-    console.log('hasRole check:', { roleName, userRoles, hasIt });
-    return hasIt;
-  }, [getUserRoles]);
+    return userRoles.includes(roleName);
+  }, [userRoles]);
 
   // Check if user has a specific permission code.
   // Nếu user chưa có permission nào (DB chưa seed hoặc sync lỗi) → trả về true để không ẩn menu chuẩn.

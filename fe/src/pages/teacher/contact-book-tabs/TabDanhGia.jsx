@@ -13,7 +13,7 @@ export default function TabDanhGia({ studentId, classId, academicYearId }) {
   const [period, setPeriod] = useState('semester_1');
   const [template, setTemplate] = useState(null);
   const [results, setResults] = useState([]); 
-  const [overall, setOverall] = useState('Đạt');
+  const [overall, setOverall] = useState('Chưa đánh giá');
   const [note, setNote] = useState('');
   const [showCriteria, setShowCriteria] = useState(false);
   const [error, setError] = useState(null);
@@ -45,7 +45,7 @@ export default function TabDanhGia({ studentId, classId, academicYearId }) {
             isPassed: false 
           }));
           setResults(initialResults);
-          setOverall('Chưa đạt');
+          setOverall('Chưa đánh giá');
           setNote('');
         }
       } else if (res.status === 'no_template') {
@@ -134,32 +134,24 @@ export default function TabDanhGia({ studentId, classId, academicYearId }) {
               <Typography variant="body2" fontWeight={700} mb={1}>Kết quả tổng quan</Typography>
               <Stack direction="row" spacing={3}>
                 <FormControlLabel
-                  control={<Radio size="small" checked={overall === 'Đạt'} 
-                    onChange={() => {
-                      setOverall('Đạt');
-                      setResults(results.map(r => ({ ...r, isPassed: true })));
-                    }} 
-                    color="success" 
-                  />}
+                  control={<Radio size="small" checked={overall === 'Đạt'} disabled color="success" />}
                   label={<Typography variant="body2" fontWeight={600} color="success.main">Đạt yêu cầu</Typography>}
                 />
                 <FormControlLabel
-                  control={<Radio size="small" checked={overall === 'Chưa đạt'} 
-                    onChange={() => {
-                      setOverall('Chưa đạt');
-                      setResults(results.map(r => ({ ...r, isPassed: false })));
-                    }} 
-                    color="error" 
-                  />}
+                  control={<Radio size="small" checked={overall === 'Chưa đạt'} disabled color="error" />}
                   label={<Typography variant="body2" fontWeight={600} color="error.main">Chưa đạt</Typography>}
+                />
+                <FormControlLabel
+                  control={<Radio size="small" checked={overall === 'Chưa đánh giá'} disabled color="default" />}
+                  label={<Typography variant="body2" fontWeight={600} color="text.secondary">Chưa đánh giá</Typography>}
                 />
               </Stack>
             </FormControl>
 
             <TextField
               label="Ghi chú & Nhận xét" fullWidth multiline minRows={2}
-              value={note} onChange={e => setNote(e.target.value)}
-              placeholder="Nhập nhận xét nhanh..."
+              value={note} disabled
+              placeholder="(Không có ghi chú)"
               sx={{ '& .MuiOutlinedInput-root': { borderRadius: 2, fontSize: '0.85rem' } }}
             />
 
@@ -170,12 +162,6 @@ export default function TabDanhGia({ studentId, classId, academicYearId }) {
                 sx={{ textTransform: 'none', color: '#64748b', fontSize: '0.75rem' }}
               >
                 {showCriteria ? '— Thu gọn tiêu chí' : '+ Xem chi tiết tiêu chí'}
-              </Button>
-              <Button
-                variant="contained" size="small" onClick={handleSave} disabled={saving}
-                sx={{ bgcolor: '#0891b2', '&:hover': { bgcolor: '#0e7490' }, borderRadius: 2, px: 3, fontWeight: 700, textTransform: 'none' }}
-              >
-                {saving ? 'Đang lưu...' : 'Lưu nhanh'}
               </Button>
             </Box>
           </Stack>
@@ -196,15 +182,7 @@ export default function TabDanhGia({ studentId, classId, academicYearId }) {
                       primary={<Typography variant="body2" sx={{ fontSize: '0.8rem' }}>{c.name}</Typography>}
                     />
                     <Checkbox 
-                      size="small" checked={isPassed} 
-                      onChange={(e) => {
-                        const updated = results.map(r => r.criterionName === c.name ? { ...r, isPassed: e.target.checked } : r);
-                        setResults(updated);
-                        
-                        // Tự động cập nhật trạng thái tổng quan
-                        const allPassed = updated.every(r => r.isPassed);
-                        setOverall(allPassed ? 'Đạt' : 'Chưa đạt');
-                      }}
+                      size="small" checked={isPassed} disabled
                     />
                   </ListItem>
                 );

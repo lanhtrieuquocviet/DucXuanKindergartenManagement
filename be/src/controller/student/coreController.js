@@ -1,6 +1,7 @@
 const studentService = require('../../services/student/studentService');
 const Student = require('../../models/Student');
 const Enrollment = require('../../models/Enrollment');
+const AcademicYear = require('../../models/AcademicYear');
 
 /**
  * Lấy danh sách tất cả học sinh (lọc theo classId, academicYearId, gender)
@@ -80,6 +81,17 @@ const updateStudent = async (req, res) => {
     if (!student) {
       return res.status(404).json({ status: 'error', message: 'Không tìm thấy học sinh' });
     }
+
+    // Đồng bộ classId sang Enrollment của năm học hiện tại
+    const activeYear = await AcademicYear.findOne({ status: 'active' }).select('_id').lean();
+    if (activeYear && req.body.classId !== undefined) {
+      await Enrollment.findOneAndUpdate(
+        { studentId: student._id, academicYearId: activeYear._id },
+        { classId: req.body.classId || null },
+        { upsert: true }
+      );
+    }
+
     return res.status(200).json({ status: 'success', data: student });
   } catch (error) {
     return res.status(500).json({ status: 'error', message: error.message });

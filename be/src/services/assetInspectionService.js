@@ -3,6 +3,10 @@ const InspectionMinutes = require('../models/InspectionMinutes');
 const User = require('../models/User');
 const Role = require('../models/Role');
 const AcademicYear = require('../models/AcademicYear');
+const Asset = require('../models/Asset');
+const AssetAdjustment = require('../models/AssetAdjustment');
+const AssetIncident = require('../models/AssetIncident');
+const auditService = require('./assetAuditService');
 
 // Đồng bộ role InventoryStaff — một giáo viên chỉ thuộc 1 ban tại một thời điểm
 async function syncInventoryStaffRole(addUserIds = [], removeUserIds = []) {
@@ -233,6 +237,20 @@ exports.createMinutes = async (req, res) => {
       createdBy: req.user._id,
       status: 'pending',
     });
+
+    // ─── SNAPSHOTTING ───
+    // Chụp ảnh số lượng và tình trạng tài sản hiện tại
+    const assetIds = (assets || []).map(a => a.assetId).filter(Boolean);
+    if (assetIds.length > 0) {
+      const currentAssets = await Asset.find({ _id: { $in: assetIds } }).lean();
+      minutes.snapshot = currentAssets.map(a => ({
+        assetId: a._id,
+        expectedQty: a.quantity,
+        condition: a.condition,
+      }));
+      await minutes.save();
+    }
+
     await minutes.populate('createdBy', 'fullName username');
     return res.status(201).json({ status: 'success', data: { minutes } });
   } catch (err) {
@@ -243,15 +261,44 @@ exports.createMinutes = async (req, res) => {
 exports.updateMinutes = async (req, res) => {
   try {
     const { className, scope, location, inspectionDate, inspectionTime, endTime, reason, inspectionMethod, committeeId, assets, extraAssets, conclusion } = req.body;
-    const minutes = await InspectionMinutes.findById(req.params.id);
-    if (!minutes) return res.status(404).json({ status: 'error', message: 'Không tìm thấy biên bản.' });
-    if (minutes.status === 'approved') {
+    const oldMinutes = await InspectionMinutes.findById(req.params.id);
+    if (!oldMinutes) return res.status(404).json({ status: 'error', message: 'Không tìm thấy biên bản.' });
+    
+    if (oldMinutes.status === 'approved') {
       return res.status(400).json({ status: 'error', message: 'Không thể chỉnh sửa biên bản đã duyệt.' });
     }
-    Object.assign(minutes, { className: className || '', scope, location, inspectionDate, inspectionTime, endTime, reason, inspectionMethod, committeeId, assets, extraAssets: extraAssets || [], conclusion });
-    await minutes.save();
-    await minutes.populate('createdBy', 'fullName username');
-    return res.json({ status: 'success', data: { minutes } });
+
+    // Nếu biên bản đang bị reject, tạo version mới thay vì sửa đè (Audit trail)
+    if (oldMinutes.status === 'rejected') {
+      const newVersion = new InspectionMinutes({
+        minutesNumber: oldMinutes.minutesNumber, // Giữ nguyên mã số
+        className: className || oldMinutes.className,
+        scope: scope || oldMinutes.scope,
+        location: location || oldMinutes.location,
+        inspectionDate: inspectionDate || oldMinutes.inspectionDate,
+        inspectionTime: inspectionTime || oldMinutes.inspectionTime,
+        endTime: endTime || oldMinutes.endTime,
+        reason: reason || oldMinutes.reason,
+        inspectionMethod: inspectionMethod || oldMinutes.inspectionMethod,
+        committeeId: committeeId || oldMinutes.committeeId,
+        academicYearId: oldMinutes.academicYearId,
+        assets: assets || oldMinutes.assets,
+        extraAssets: extraAssets || oldMinutes.extraAssets,
+        snapshot: oldMinutes.snapshot, // Giữ nguyên snapshot của lần đầu
+        conclusion: conclusion || oldMinutes.conclusion,
+        version: oldMinutes.version + 1,
+        status: 'pending',
+        createdBy: req.user._id,
+      });
+      await newVersion.save();
+      return res.json({ status: 'success', message: 'Đã tạo phiên bản mới cho biên bản.', data: newVersion });
+    }
+
+    // Nếu đang là draft hoặc pending (chưa duyệt/chưa reject), cho phép sửa đè
+    Object.assign(oldMinutes, { className: className || '', scope, location, inspectionDate, inspectionTime, endTime, reason, inspectionMethod, committeeId, assets, extraAssets: extraAssets || [], conclusion });
+    await oldMinutes.save();
+    await oldMinutes.populate('createdBy', 'fullName username');
+    return res.json({ status: 'success', data: { minutes: oldMinutes } });
   } catch (err) {
     return res.status(500).json({ status: 'error', message: err.message });
   }
@@ -259,13 +306,84 @@ exports.updateMinutes = async (req, res) => {
 
 exports.approveMinutes = async (req, res) => {
   try {
-    const minutes = await InspectionMinutes.findByIdAndUpdate(
-      req.params.id,
-      { status: 'approved' },
-      { new: true }
-    ).populate('createdBy', 'fullName username');
+    const minutes = await InspectionMinutes.findById(req.params.id);
     if (!minutes) return res.status(404).json({ status: 'error', message: 'Không tìm thấy biên bản.' });
-    return res.json({ status: 'success', data: { minutes } });
+    if (minutes.status === 'approved') return res.status(400).json({ status: 'error', message: 'Biên bản đã được duyệt trước đó.' });
+
+    // 1. Tạo các bản ghi Adjustment thay vì sync trực tiếp
+    const adjustments = [];
+    const incidents = [];
+
+    for (const item of minutes.assets) {
+      const snap = minutes.snapshot.find(s => s.assetId.toString() === (item.assetId || '').toString());
+      const expected = snap ? snap.expectedQty : 0;
+      const actual = item.quantity || 0;
+      const diff = actual - expected;
+
+      if (diff !== 0) {
+        adjustments.push({
+          assetId: item.assetId,
+          type: diff > 0 ? 'excess' : 'missing',
+          oldQty: expected,
+          newQty: actual,
+          difference: diff,
+          reason: `Kiểm kê lớp ${minutes.className} (${minutes.minutesNumber})`,
+          sourceInspectionId: minutes._id,
+          createdBy: req.user._id,
+        });
+
+        if (diff < 0) {
+          incidents.push({
+            assetId: item.assetId,
+            assetName: item.name,
+            assetCode: item.assetCode,
+            className: minutes.className,
+            location: minutes.location || minutes.className,
+            type: 'lost',
+            severity: 'medium',
+            description: `Mất tài sản phát hiện qua kiểm kê ${minutes.minutesNumber}. Thiếu ${Math.abs(diff)} đơn vị so với thực tế.`,
+            sourceInspectionId: minutes._id,
+            createdBy: req.user._id,
+            reporter: req.user._id,
+          });
+        }
+      }
+
+      // Check hỏng hóc trong ghi chú hoặc condition (logic demo)
+      if (item.notes && (item.notes.toLowerCase().includes('hỏng') || item.notes.toLowerCase().includes('sửa'))) {
+        incidents.push({
+          assetId: item.assetId,
+          assetName: item.name,
+          assetCode: item.assetCode,
+          className: minutes.className,
+          location: minutes.location || minutes.className,
+          type: 'broken',
+          severity: 'medium',
+          description: `Tài sản hỏng/cần sửa chữa phát hiện qua kiểm kê ${minutes.minutesNumber}: ${item.notes}`,
+          sourceInspectionId: minutes._id,
+          createdBy: req.user._id,
+          reporter: req.user._id,
+        });
+      }
+    }
+
+    if (adjustments.length > 0) {
+      await AssetAdjustment.insertMany(adjustments);
+    }
+    if (incidents.length > 0) {
+      await AssetIncident.insertMany(incidents);
+    }
+
+    minutes.status = 'approved';
+    await minutes.save();
+
+    await auditService.logAssetAction(null, 'APPROVE_INSPECTION', req.user._id, {
+      minutesId: minutes._id,
+      adjustmentCount: adjustments.length,
+      incidentCount: incidents.length,
+    });
+
+    return res.json({ status: 'success', data: { minutes, adjustmentsCreated: adjustments.length } });
   } catch (err) {
     return res.status(500).json({ status: 'error', message: err.message });
   }
