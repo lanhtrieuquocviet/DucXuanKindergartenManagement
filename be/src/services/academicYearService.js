@@ -28,4 +28,6 @@ module.exports = {
   updateAcademicYear: lifecycleService.updateAcademicYear,
   publishAcademicYear: lifecycleService.publishAcademicYear,
   remindEvaluations: lifecycleService.remindEvaluations,
+  getFinishYearPreview: lifecycleService.getFinishYearPreview,
+  getPublishYearPreview: lifecycleService.getPublishYearPreview,
 };
