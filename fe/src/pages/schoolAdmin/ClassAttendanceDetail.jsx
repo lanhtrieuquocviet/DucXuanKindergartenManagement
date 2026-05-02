@@ -27,11 +27,12 @@ import SearchIcon from '@mui/icons-material/Search';
 import VisibilityIcon from '@mui/icons-material/Visibility';
 import ArrowBackIcon from '@mui/icons-material/ArrowBack';
 
-const isWeekendDate = (dateStr) => {
-  if (!dateStr) return false;
-  const d = new Date(dateStr + 'T00:00:00');
-  return d.getDay() === 0 || d.getDay() === 6;
-};
+const isWeekendDate = (_dateStr) => false; // tạm tắt kiểm tra T7/CN
+// const isWeekendDate = (dateStr) => {
+//   if (!dateStr) return false;
+//   const d = new Date(dateStr + 'T00:00:00');
+//   return d.getDay() === 0 || d.getDay() === 6;
+// };
 
 const getLocalISODate = () => {
   const d = new Date();

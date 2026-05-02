@@ -63,12 +63,15 @@ const renderImagePreview = (imageValue, altText) => {
 };
 
 // ── Parent Confirm Section ──
-function ParentConfirmSection({ detailForm, setDetailForm, student, approvedPickupPersons = [], onSendToParent, confirmCountdown, sending }) {
+const MAX_SEND = 3;
+
+function ParentConfirmSection({ detailForm, setDetailForm, student, approvedPickupPersons = [], onSendToParent, confirmCountdown, sending, sendCount = 0 }) {
   const teacherConfirmed = !!detailForm.teacherConfirmedCheckout;
   const sent = !!detailForm.parentConfirmSent;
   const confirmed = !!detailForm.parentConfirmed;
   const rejected = !!detailForm.parentRejected;
   const timedOut = sent && !confirmed && confirmCountdown <= 0;
+  const sendLimitReached = sendCount >= MAX_SEND;
 
   const handleToggleTeacherConfirm = () => {
     setDetailForm((prev) => ({
@@ -156,21 +159,39 @@ function ParentConfirmSection({ detailForm, setDetailForm, student, approvedPick
                   <Typography variant="caption" color="text.secondary">Người đón không được phụ huynh xác nhận</Typography>
                 </Box>
               </Box>
-              <Button
-                fullWidth
-                size="small"
-                variant="outlined"
-                color="error"
-                startIcon={<SendIcon sx={{ fontSize: 14 }} />}
-                onClick={() => {
-                  setDetailForm((prev) => ({ ...prev, parentRejected: false }));
-                  onSendToParent();
-                }}
-                disabled={sending}
-                sx={{ borderRadius: 2, textTransform: 'none', fontSize: 12 }}
-              >
-                Gửi lại cho phụ huynh
-              </Button>
+              {(student?.parentId || student?.parentPhone) && (
+                <Box sx={{ bgcolor: '#fff7ed', borderRadius: 2, p: 1.5, border: '1px solid #fed7aa', mb: 1.5 }}>
+                  <Typography variant="caption" fontWeight={700} color="warning.main" sx={{ display: 'flex', alignItems: 'center', gap: 0.5, mb: 0.75 }}>
+                    <ContactPhoneIcon sx={{ fontSize: 14 }} />Thông tin liên hệ phụ huynh
+                  </Typography>
+                  {student?.parentId && (
+                    <Typography variant="body2">
+                      👨‍👩‍👧 {student.parentId.fullName || 'Phụ huynh'}: <strong>{student.parentId.phone || student.parentPhone || '—'}</strong>
+                    </Typography>
+                  )}
+                </Box>
+              )}
+              {sendLimitReached ? (
+                <Alert severity="warning" sx={{ borderRadius: 2, fontSize: 12 }}>
+                  Đã gửi {MAX_SEND} lần. Liên hệ trực tiếp phụ huynh để xử lý.
+                </Alert>
+              ) : (
+                <Button
+                  fullWidth
+                  size="small"
+                  variant="outlined"
+                  color="error"
+                  startIcon={<SendIcon sx={{ fontSize: 14 }} />}
+                  onClick={() => {
+                    setDetailForm((prev) => ({ ...prev, parentRejected: false }));
+                    onSendToParent();
+                  }}
+                  disabled={sending}
+                  sx={{ borderRadius: 2, textTransform: 'none', fontSize: 12 }}
+                >
+                  Gửi lại cho phụ huynh ({MAX_SEND - sendCount} lần còn lại)
+                </Button>
+              )}
             </Box>
           ) : sent && !timedOut ? (
             /* Đang chờ PH xác nhận */
@@ -188,17 +209,23 @@ function ParentConfirmSection({ detailForm, setDetailForm, student, approvedPick
                   sx={{ fontWeight: 700, fontSize: 12, height: 22 }}
                 />
               </Box>
-              <Button
-                fullWidth
-                size="small"
-                variant="outlined"
-                startIcon={<SendIcon sx={{ fontSize: 14 }} />}
-                onClick={onSendToParent}
-                disabled={sending}
-                sx={{ borderRadius: 2, textTransform: 'none', fontSize: 12 }}
-              >
-                Gửi lại
-              </Button>
+              {sendLimitReached ? (
+                <Alert severity="warning" sx={{ borderRadius: 2, fontSize: 12 }}>
+                  Đã gửi {MAX_SEND} lần. Liên hệ trực tiếp phụ huynh để xử lý.
+                </Alert>
+              ) : (
+                <Button
+                  fullWidth
+                  size="small"
+                  variant="outlined"
+                  startIcon={<SendIcon sx={{ fontSize: 14 }} />}
+                  onClick={onSendToParent}
+                  disabled={sending}
+                  sx={{ borderRadius: 2, textTransform: 'none', fontSize: 12 }}
+                >
+                  Gửi lại ({MAX_SEND - sendCount} lần còn lại)
+                </Button>
+              )}
             </Box>
           ) : timedOut ? (
             /* Hết 2 phút, hiện thông tin liên hệ */
@@ -209,7 +236,7 @@ function ParentConfirmSection({ detailForm, setDetailForm, student, approvedPick
                 </Typography>
                 {student?.parentId && (
                   <Typography variant="body2" sx={{ mb: 0.5 }}>
-                    👨‍👩‍👧 {student.parentId.fullName || 'Phụ huynh'}: <strong>{student.parentId.phone || '—'}</strong>
+                    👨‍👩‍👧 {student.parentId.fullName || 'Phụ huynh'}: <strong>{student.parentId.phone || student.parentPhone || '—'}</strong>
                   </Typography>
                 )}
                 {approvedPickupPersons.length > 0 && (
@@ -380,18 +407,24 @@ function AttendanceDetailModal({
     return () => clearInterval(pollRef.current);
   }, [detailForm.parentConfirmSent, detailForm.parentConfirmed, detailForm.parentRejected, studentId]);
 
-  // Countdown 60s kể từ lần gửi gần nhất (parentConfirmSentAt thay đổi mỗi lần gửi)
+  // Countdown 60s tính từ sentAt server (đồng bộ với bên phụ huynh)
   useEffect(() => {
     if (!detailForm.parentConfirmSent || detailForm.parentConfirmed || detailForm.parentRejected) {
       clearInterval(countdownRef.current);
+      setConfirmCountdown(0);
       return;
     }
-    setConfirmCountdown(60);
+    const getRemaining = () => {
+      if (!detailForm.parentConfirmSentAt) return 60;
+      return Math.max(0, 60 - Math.floor((Date.now() - detailForm.parentConfirmSentAt) / 1000));
+    };
+    const initial = getRemaining();
+    if (initial <= 0) { setConfirmCountdown(0); return; }
+    setConfirmCountdown(initial);
     countdownRef.current = setInterval(() => {
-      setConfirmCountdown((prev) => {
-        if (prev <= 1) { clearInterval(countdownRef.current); return 0; }
-        return prev - 1;
-      });
+      const remaining = getRemaining();
+      setConfirmCountdown(remaining);
+      if (remaining <= 0) clearInterval(countdownRef.current);
     }, 1000);
     return () => clearInterval(countdownRef.current);
   }, [detailForm.parentConfirmSentAt, detailForm.parentConfirmed, detailForm.parentRejected]);
@@ -413,14 +446,15 @@ function AttendanceDetailModal({
     setSending(true);
     try {
       const receiverOtherInfoFinal = `${detailForm.receiverName?.trim() || ''} - ${detailForm.receiverPhone?.trim() || ''}`;
-      await post(ENDPOINTS.STUDENTS.ATTENDANCE_CHECKOUT_REQUEST, {
+      const res = await post(ENDPOINTS.STUDENTS.ATTENDANCE_CHECKOUT_REQUEST, {
         studentId,
         receiverType: detailForm.receiverType || 'Khác',
         receiverOtherInfo: receiverOtherInfoFinal,
         receiverOtherImageName: detailForm.receiverOtherImageName || '',
         checkoutImageName: detailForm.checkoutImageName || '',
       });
-      setDetailForm((prev) => ({ ...prev, parentConfirmSent: true, parentConfirmed: false, parentRejected: false, parentConfirmSentAt: Date.now() }));
+      const sentAt = res?.data?.sentAt ? new Date(res.data.sentAt).getTime() : Date.now();
+      setDetailForm((prev) => ({ ...prev, parentConfirmSent: true, parentConfirmed: false, parentRejected: false, parentConfirmSentAt: sentAt, parentConfirmSendCount: (prev.parentConfirmSendCount || 0) + 1 }));
     } catch (err) {
       setSubmitError(err.message || 'Lỗi khi gửi thông tin cho phụ huynh');
     } finally {
@@ -958,6 +992,7 @@ function AttendanceDetailModal({
                   onSendToParent={handleSendToParent}
                   confirmCountdown={confirmCountdown}
                   sending={sending}
+                  sendCount={detailForm.parentConfirmSendCount || 0}
                 />
               )}
 
