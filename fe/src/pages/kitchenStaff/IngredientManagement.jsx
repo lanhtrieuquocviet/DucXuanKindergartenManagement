@@ -54,20 +54,25 @@ import {
 
 const normCat = (ing) => ing?.category || "luong_thuc";
 
+/** Chuẩn hệ thống: định lượng dinh dưỡng luôn trên 100g */
+const FIXED_INGREDIENT_UNIT = "100g";
+
 const emptyForm = (category = "luong_thuc") => ({
   name: "",
   category,
-  unit: "100g",
+  unit: FIXED_INGREDIENT_UNIT,
   calories: "",
   protein: "",
   fat: "",
   carb: "",
 });
 
-const NUTRITION_FIELDS = ["calories", "protein", "fat", "carb"];
+const MACRO_FIELDS = ["protein", "fat", "carb"];
 
-const getNutritionError = (value) => {
-  if (value === "" || value === undefined || value === null) return "";
+const getMacroNutritionError = (value) => {
+  if (value === "" || value === undefined || value === null) {
+    return "Không được để trống";
+  }
   const parsed = Number(value);
   if (Number.isNaN(parsed)) return "Số không hợp lệ";
   if (parsed < 0) return "Không được nhập số âm";
@@ -79,15 +84,6 @@ const calculateCaloriesFromMacros = (protein, fat, carb) => {
   const f = Number(fat) || 0;
   const c = Number(carb) || 0;
   return Math.round((p * 4 + f * 9 + c * 4) * 10) / 10;
-};
-
-const getUnitInputValue = (unitStr) => {
-  const s = String(unitStr ?? "").trim();
-  if (!s) return "";
-  const numMatch = s.match(/[\d.]+/);
-  if (numMatch) return Number(numMatch[0]);
-  // Nếu chỉ có chữ (vd: "g") thì mặc định lấy 100
-  return 100;
 };
 
 const normalizeUnitString = (unitStr) => {
@@ -176,7 +172,7 @@ export default function IngredientManagement() {
     setForm({
       name: ingredient.name,
       category: normCat(ingredient),
-      unit: normalizeUnitString(ingredient.unit || "100g"),
+      unit: FIXED_INGREDIENT_UNIT,
       calories: String(calculateCaloriesFromMacros(protein, fat, carb)),
       protein,
       fat,
@@ -198,8 +194,8 @@ export default function IngredientManagement() {
     if (!form.name?.trim()) newErrors.name = "Tên nguyên liệu không được để trống";
     else if (form.name.trim().length > 100) newErrors.name = "Tối đa 100 ký tự";
 
-    NUTRITION_FIELDS.forEach((field) => {
-      const error = getNutritionError(form[field]);
+    MACRO_FIELDS.forEach((field) => {
+      const error = getMacroNutritionError(form[field]);
       if (error) newErrors[field] = error;
     });
 
@@ -207,16 +203,23 @@ export default function IngredientManagement() {
     return Object.keys(newErrors).length === 0;
   };
 
-  const handleNutritionChange = (field) => (e) => {
+  const handleMacroChange = (field) => (e) => {
     const value = e.target.value;
+    if (value !== "" && value !== "-" && value !== ".") {
+      const parsed = Number(value);
+      if (!Number.isNaN(parsed) && parsed < 0) {
+        toast.error("Không được nhập số âm");
+        return;
+      }
+    }
     setForm((p) => {
       const next = { ...p, [field]: value };
-      if (["protein", "fat", "carb"].includes(field)) {
+      if (MACRO_FIELDS.includes(field)) {
         next.calories = String(calculateCaloriesFromMacros(next.protein, next.fat, next.carb));
       }
       return next;
     });
-    const error = getNutritionError(value);
+    const error = getMacroNutritionError(value);
     setErrors((prev) => {
       if (error) return { ...prev, [field]: error };
       if (!prev[field]) return prev;
@@ -229,7 +232,7 @@ export default function IngredientManagement() {
   const buildPayload = () => ({
     name: form.name.trim(),
     category: form.category,
-    unit: normalizeUnitString(form.unit),
+    unit: FIXED_INGREDIENT_UNIT,
     calories: calculateCaloriesFromMacros(form.protein, form.fat, form.carb),
     protein: Number(form.protein) || 0,
     fat: Number(form.fat) || 0,
@@ -246,7 +249,7 @@ export default function IngredientManagement() {
         const unchanged =
           payload.name === editingIngredient.name.trim() &&
           payload.category === normCat(editingIngredient) &&
-          payload.unit === normalizeUnitString(editingIngredient.unit || "100g") &&
+          payload.unit === FIXED_INGREDIENT_UNIT &&
           payload.calories === (Number(editingIngredient.calories) || 0) &&
           payload.protein === (Number(editingIngredient.protein) || 0) &&
           payload.fat === (Number(editingIngredient.fat) || 0) &&
@@ -702,14 +705,18 @@ export default function IngredientManagement() {
               fullWidth
               size="small"
               label="ĐVT (g)"
-              type="number"
-              value={getUnitInputValue(form.unit)}
-              onChange={(e) => {
-                const raw = e.target.value;
-                // Lưu dạng chuỗi để backend nhận được đúng format "100g"
-                setForm((p) => ({ ...p, unit: raw === "" ? "" : `${raw}g` }));
+              value="100"
+              disabled
+              helperText=""
+              InputProps={{
+                endAdornment: (
+                  <InputAdornment position="end">
+                    <Typography variant="caption" color="text.secondary">
+                      g
+                    </Typography>
+                  </InputAdornment>
+                ),
               }}
-              inputProps={{ min: 0, step: 1 }}
             />
             <Stack direction={{ xs: "column", sm: "row" }} spacing={1.5}>
               <TextField
@@ -717,7 +724,6 @@ export default function IngredientManagement() {
                 label="Kcal"
                 type="number"
                 value={form.calories}
-                onChange={handleNutritionChange("calories")}
                 error={Boolean(errors.calories)}
                 helperText={"Tự tính theo Đạm*4 + Béo*9 + Tinh bột*4"}
                 inputProps={{ min: 0 }}
@@ -729,10 +735,10 @@ export default function IngredientManagement() {
                 label="Đạm (g)"
                 type="number"
                 value={form.protein}
-                onChange={handleNutritionChange("protein")}
+                onChange={handleMacroChange("protein")}
                 error={Boolean(errors.protein)}
                 helperText={errors.protein || " "}
-                inputProps={{ min: 0 }}
+                inputProps={{ min: 0, step: "any" }}
                 fullWidth
               />
             </Stack>
@@ -742,10 +748,10 @@ export default function IngredientManagement() {
                 label="Béo (g)"
                 type="number"
                 value={form.fat}
-                onChange={handleNutritionChange("fat")}
+                onChange={handleMacroChange("fat")}
                 error={Boolean(errors.fat)}
                 helperText={errors.fat || " "}
-                inputProps={{ min: 0 }}
+                inputProps={{ min: 0, step: "any" }}
                 fullWidth
               />
               <TextField
@@ -753,10 +759,10 @@ export default function IngredientManagement() {
                 label="Tinh bột (g)"
                 type="number"
                 value={form.carb}
-                onChange={handleNutritionChange("carb")}
+                onChange={handleMacroChange("carb")}
                 error={Boolean(errors.carb)}
                 helperText={errors.carb || " "}
-                inputProps={{ min: 0 }}
+                inputProps={{ min: 0, step: "any" }}
                 fullWidth
               />
             </Stack>

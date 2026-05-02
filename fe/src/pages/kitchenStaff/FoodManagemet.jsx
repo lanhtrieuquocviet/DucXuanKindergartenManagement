@@ -107,6 +107,23 @@ const isNegativeOrNaN = (value) => {
   return Number.isNaN(parsed) || parsed < 0;
 };
 
+/** Giống quản lý nguyên liệu: đạm/béo/tinh bột bắt buộc, ≥ 0 */
+const getMacroNutritionError = (value) => {
+  if (value === "" || value === undefined || value === null) {
+    return "Không được để trống";
+  }
+  const parsed = Number(value);
+  if (Number.isNaN(parsed)) return "Số không hợp lệ";
+  if (parsed < 0) return "Không được nhập số âm";
+  return "";
+};
+
+const macroFieldToErrorString = (v) => {
+  if (v === 0 || v === "0") return "0";
+  if (v === undefined || v === null) return "";
+  return String(v);
+};
+
 const calculateCaloriesFromMacros = (protein, fat, carb) => {
   const p = Number(protein) || 0;
   const f = Number(fat) || 0;
@@ -255,6 +272,9 @@ function FoodManagement() {
     category: "luong_thuc",
   });
   const [errors, setErrors] = useState({});
+  /** key: `${index}_protein` | `${index}_fat` | `${index}_carb` */
+  const [ingredientMacroErrors, setIngredientMacroErrors] = useState({});
+  const [customMacroErrors, setCustomMacroErrors] = useState({});
 
   useEffect(() => {
     fetchFoods();
@@ -307,6 +327,8 @@ function FoodManagement() {
     setEditingFood(null);
     setForm(emptyFood);
     setErrors({});
+    setIngredientMacroErrors({});
+    setCustomMacroErrors({});
     setShowCustomRow(false);
     setSelectedIngredient(null);
     setCustomIngredient({
@@ -346,6 +368,8 @@ function FoodManagement() {
       ingredients: normalizedIngredients,
     });
     setErrors({});
+    setIngredientMacroErrors({});
+    setCustomMacroErrors({});
     setShowCustomRow(false);
     setSelectedIngredient(null);
     setShowModal(true);
@@ -385,11 +409,9 @@ function FoodManagement() {
     return { quantity: Number.NaN, unit: "g" };
   };
 
-  // Helper: Format quantity + unit together (e.g., {quantity: 100, unit: "g"} -> "100g")
-  const formatQuantityDisplay = (quantity, unit) => {
-    const q = quantity !== undefined && quantity !== null && quantity !== '' ? quantity : 100;
-    const u = unit && unit !== 'undefined' ? unit : 'g';
-    return `${q}${u}`;
+  const ingredientGroupMenuLabel = (categoryId) => {
+    const g = INGREDIENT_GROUPS.find((x) => x.id === (categoryId || "luong_thuc"));
+    return g ? `${g.order}. ${g.title}` : String(categoryId || "");
   };
 
   const addIngredientFromLibrary = (ingredient) => {
@@ -453,26 +475,30 @@ function FoodManagement() {
     // Cho phép nhập dạng "100" hoặc "100g" (parse giống với quantityWithUnit ở bảng)
     const parsedQty = parseQuantityFormat(customIngredient.quantity);
     const quantity = Number(parsedQty.quantity);
-    const protein = Number(customIngredient.protein) || 0;
-    const fat = Number(customIngredient.fat) || 0;
-    const carb = Number(customIngredient.carb) || 0;
-    const calories = calculateCaloriesFromMacros(protein, fat, carb);
-
     const category = customIngredient.category || "luong_thuc";
 
     if (Number.isNaN(quantity) || quantity < 0) {
       toast.error("Số lượng nguyên liệu không được là số âm");
       return;
     }
-    if (
-      isNegativeOrNaN(calories) ||
-      isNegativeOrNaN(protein) ||
-      isNegativeOrNaN(fat) ||
-      isNegativeOrNaN(carb)
-    ) {
-      toast.error("Chỉ số dinh dưỡng của nguyên liệu không được là số âm");
+
+    const pErr = getMacroNutritionError(macroFieldToErrorString(customIngredient.protein));
+    const fErr = getMacroNutritionError(macroFieldToErrorString(customIngredient.fat));
+    const cErr = getMacroNutritionError(macroFieldToErrorString(customIngredient.carb));
+    setCustomMacroErrors({
+      ...(pErr && { protein: pErr }),
+      ...(fErr && { fat: fErr }),
+      ...(cErr && { carb: cErr }),
+    });
+    if (pErr || fErr || cErr) {
+      toast.error("Điền đủ Đạm, Béo, Tinh bột (≥ 0, không để trống)");
       return;
     }
+
+    const protein = Number(customIngredient.protein) || 0;
+    const fat = Number(customIngredient.fat) || 0;
+    const carb = Number(customIngredient.carb) || 0;
+    const calories = calculateCaloriesFromMacros(protein, fat, carb);
 
     const newItem = {
       name,
@@ -503,6 +529,7 @@ function FoodManagement() {
       console.error("createIngredient error", error);
     }
 
+    setCustomMacroErrors({});
     setCustomIngredient((prev) => ({
       name: "",
       quantity: 100,
@@ -559,6 +586,7 @@ function FoodManagement() {
 
 
   const handleRemoveIngredient = (index) => {
+    setIngredientMacroErrors({});
     setForm((prev) => {
       const updatedIngredients = prev.ingredients.filter((_, i) => i !== index);
       return {
@@ -571,16 +599,23 @@ function FoodManagement() {
 
   const handleIngredientChange = (index, field, value) => {
     setForm((prev) => {
-      // Handle combined quantity+unit field
-      if (field === 'quantityWithUnit') {
-        const { quantity, unit } = parseQuantityFormat(value);
-        if (Number.isNaN(Number(quantity)) || Number(quantity) < 0) {
-          toast.error("Số lượng nguyên liệu không được là số âm");
+      /** ĐVT (g): chỉ số, chuẩn 100g — tổng món = (ĐVT/100) × Kcal/đạm/béo/tinh bột trên 100g */
+      if (field === "dvt" || field === "quantityWithUnit") {
+        const s = String(value ?? "").trim();
+        let q;
+        if (s === "") {
+          q = 100;
+        } else {
+          const n = Number(String(s).replace(/[^\d.]/g, ""));
+          q = Number.isFinite(n) ? n : Number.NaN;
+        }
+        if (Number.isNaN(q) || q < 0) {
+          toast.error("ĐVT (g) phải là số không âm");
           return prev;
         }
         const updatedIngredients = prev.ingredients.map((item, i) => {
           if (i !== index) return item;
-          return { ...item, quantity, unit };
+          return { ...item, quantity: q, unit: item.unit || "g" };
         });
         return {
           ...prev,
@@ -589,29 +624,51 @@ function FoodManagement() {
         };
       }
 
-      // Convert numeric fields to number
       let finalValue = value;
-      if (["calories", "protein", "fat", "carb"].includes(field)) {
+      if (field === "calories") {
         if (isNegativeOrNaN(value)) {
           toast.error("Không được nhập số âm");
           return prev;
         }
         finalValue = value === "" ? 0 : Number(value);
+      } else if (["protein", "fat", "carb"].includes(field)) {
+        const strVal = String(value);
+        if (strVal !== "" && strVal !== "-" && strVal !== ".") {
+          const parsed = Number(value);
+          if (!Number.isNaN(parsed) && parsed < 0) {
+            toast.error("Không được nhập số âm");
+            return prev;
+          }
+        }
+        if (value === "" || value === "-" || value === ".") {
+          finalValue = value;
+        } else {
+          const n = Number(value);
+          finalValue = Number.isNaN(n) ? value : n;
+        }
       }
 
       const updatedIngredients = prev.ingredients.map((item, i) => {
         if (i !== index) return item;
 
         const updated = { ...item, [field]: finalValue };
-        
-        // Auto-calculate calories from P/F/C if editing those fields
-        if (['protein', 'fat', 'carb'].includes(field)) {
-          const p = Number(updated.protein) || 0;
-          const f = Number(updated.fat) || 0;
-          const c = Number(updated.carb) || 0;
+
+        if (["protein", "fat", "carb"].includes(field)) {
+          const p =
+            updated.protein === "" || updated.protein === "-" || updated.protein === "."
+              ? 0
+              : Number(updated.protein) || 0;
+          const f =
+            updated.fat === "" || updated.fat === "-" || updated.fat === "."
+              ? 0
+              : Number(updated.fat) || 0;
+          const c =
+            updated.carb === "" || updated.carb === "-" || updated.carb === "."
+              ? 0
+              : Number(updated.carb) || 0;
           updated.calories = Math.round((p * 4 + f * 9 + c * 4) * 10) / 10;
         }
-        
+
         return updated;
       });
 
@@ -621,24 +678,48 @@ function FoodManagement() {
         ...computeNutritionFromIngredients(updatedIngredients),
       };
     });
+
+    if (["protein", "fat", "carb"].includes(field)) {
+      const errKey = `${index}_${field}`;
+      const msg = getMacroNutritionError(String(value));
+      setIngredientMacroErrors((prevE) => {
+        if (!msg) {
+          if (!prevE[errKey]) return prevE;
+          const next = { ...prevE };
+          delete next[errKey];
+          return next;
+        }
+        return { ...prevE, [errKey]: msg };
+      });
+    }
   };
 
   const handleCustomMacroChange = (field, value) => {
-    if (isNegativeOrNaN(value)) {
-      toast.error("Không được nhập số âm");
-      return;
+    if (value !== "" && value !== "-" && value !== ".") {
+      const parsed = Number(value);
+      if (!Number.isNaN(parsed) && parsed < 0) {
+        toast.error("Không được nhập số âm");
+        return;
+      }
     }
 
     setCustomIngredient((prev) => {
-      if (isNegativeOrNaN(value) && value !== "") {
-        toast.error("Giá trị dinh dưỡng không được là số âm");
-        return prev;
-      }
       const next = { ...prev, [field]: value };
       return {
         ...next,
         calories: String(calculateCaloriesFromMacros(next.protein, next.fat, next.carb)),
       };
+    });
+
+    const msg = getMacroNutritionError(String(value));
+    setCustomMacroErrors((prevE) => {
+      if (!msg) {
+        if (!prevE[field]) return prevE;
+        const next = { ...prevE };
+        delete next[field];
+        return next;
+      }
+      return { ...prevE, [field]: msg };
     });
   };
 
@@ -670,8 +751,21 @@ function FoodManagement() {
   const validateForm = () => {
     let isValid = true;
     Object.keys(form).forEach((key) => {
+      if (key === "ingredients") return;
       if (!validateField(key, form[key])) isValid = false;
     });
+
+    const ingErr = {};
+    (form.ingredients || []).forEach((item, idx) => {
+      for (const f of ["protein", "fat", "carb"]) {
+        const msg = getMacroNutritionError(macroFieldToErrorString(item[f]));
+        if (msg) {
+          ingErr[`${idx}_${f}`] = msg;
+          isValid = false;
+        }
+      }
+    });
+    setIngredientMacroErrors(ingErr);
     return isValid;
   };
 
@@ -719,6 +813,8 @@ function FoodManagement() {
         toast.success("Tạo món ăn thành công");
       }
       setShowModal(false);
+      setIngredientMacroErrors({});
+      setCustomMacroErrors({});
       fetchFoods();
     } catch (error) {
       toast.error(error.response?.data?.message || "Thao tác thất bại");
@@ -752,9 +848,21 @@ function FoodManagement() {
     }
   };
 
+  const macroCellValue = (v) => {
+    if (v === "" || v === "-" || v === ".") return v;
+    if (v === undefined || v === null) return "";
+    return v;
+  };
+
+  const ingredientRowsMacrosValid = (form.ingredients || []).every((item) =>
+    ["protein", "fat", "carb"].every((f) => !getMacroNutritionError(macroFieldToErrorString(item[f])))
+  );
+
   const isFormValid =
     Object.values(errors).every((e) => !e) &&
-    Object.values(form).every((v) => String(v).trim() !== "");
+    String(form.name || "").trim() !== "" &&
+    ingredientRowsMacrosValid &&
+    (form.ingredients || []).length > 0;
 
   return (
     <Box>
@@ -1019,13 +1127,17 @@ function FoodManagement() {
           if (saving) return;
           setShowModal(false);
           setShowCustomRow(false);
+          setIngredientMacroErrors({});
+          setCustomMacroErrors({});
         }}
-        maxWidth="lg"
+        maxWidth={false}
         fullWidth
         PaperProps={{
           sx: {
             borderRadius: 3,
             boxShadow: "0 20px 60px rgba(0,0,0,0.15)",
+            width: "100%",
+            maxWidth: "min(98vw, 1400px)",
           },
         }}
       >
@@ -1140,36 +1252,75 @@ function FoodManagement() {
                 Danh sách nguyên liệu ({form.ingredients?.length || 0})
               </Typography>
 
-              <TableContainer sx={{ border: '1px solid', borderColor: 'divider', borderRadius: 1, overflowX: { xs: 'auto', sm: 'auto' } }}>
-                <Table size="small" sx={{ width: '100%', tableLayout: 'fixed' }}>
+              <TableContainer
+                sx={{
+                  border: "1px solid",
+                  borderColor: "divider",
+                  borderRadius: 1,
+                  overflowX: "auto",
+                  maxHeight: { xs: "none", md: 420 },
+                }}
+              >
+                <Table
+                  size="small"
+                  sx={{
+                    width: "100%",
+                    minWidth: 1020,
+                    tableLayout: "auto",
+                    "& .MuiTableCell-root": { verticalAlign: "middle" },
+                  }}
+                >
                   <TableHead>
-                    <TableRow sx={{ bgcolor: 'grey.50' }}>
-                      <TableCell sx={{ fontWeight: 700, flex: 1.2 }}>Nguyên liệu</TableCell>
-                      <TableCell sx={{ fontWeight: 700, minWidth: 128, maxWidth: 200 }}>Nhóm</TableCell>
-                      <TableCell align="center" sx={{ fontWeight: 700, flex: 1 }}>Số lượng (g)</TableCell>
-                      <TableCell align="center" sx={{ fontWeight: 700, flex: 1 }}>Kcal</TableCell>
-                      <TableCell align="center" sx={{ fontWeight: 700, flex: 1, display: { xs: 'none', sm: 'table-cell' } }}>Chất đạm (g)</TableCell>
-                      <TableCell align="center" sx={{ fontWeight: 700, flex: 1, display: { xs: 'none', md: 'table-cell' } }}>Chất béo (g)</TableCell>
-                      <TableCell align="center" sx={{ fontWeight: 700, flex: 1, display: { xs: 'none', md: 'table-cell' } }}>Tinh bột (g)</TableCell>
-                      <TableCell align="center" sx={{ fontWeight: 700, flex: 0.8 }}>Hành động</TableCell>
+                    <TableRow sx={{ bgcolor: "grey.50" }}>
+                      <TableCell sx={{ fontWeight: 700, minWidth: 160, maxWidth: 280 }}>Nguyên liệu</TableCell>
+                      <TableCell sx={{ fontWeight: 700, minWidth: 260, width: "26%" }}>Nhóm</TableCell>
+                      <TableCell align="center" sx={{ fontWeight: 700, minWidth: 120, whiteSpace: "nowrap" }}>
+                        ĐVT (g)
+                      </TableCell>
+                      <TableCell align="center" sx={{ fontWeight: 700, minWidth: 88 }}>
+                        Kcal
+                      </TableCell>
+                      <TableCell
+                        align="center"
+                        sx={{ fontWeight: 700, minWidth: 100, display: { xs: "none", sm: "table-cell" } }}
+                      >
+                        Chất đạm (g)
+                      </TableCell>
+                      <TableCell
+                        align="center"
+                        sx={{ fontWeight: 700, minWidth: 100, display: { xs: "none", md: "table-cell" } }}
+                      >
+                        Chất béo (g)
+                      </TableCell>
+                      <TableCell
+                        align="center"
+                        sx={{ fontWeight: 700, minWidth: 100, display: { xs: "none", md: "table-cell" } }}
+                      >
+                        Tinh bột (g)
+                      </TableCell>
+                      <TableCell align="center" sx={{ fontWeight: 700, minWidth: 72, width: 72 }}>
+                        Hành động
+                      </TableCell>
                     </TableRow>
                   </TableHead>
                   <TableBody>
                     {(form.ingredients || []).map((item, idx) => (
                       <TableRow key={idx} hover>
-                        <TableCell sx={{ fontWeight: 600, flex: 1.2, wordBreak: 'break-word' }}>{item.name}</TableCell>
-                        <TableCell sx={{ py: 0.5, verticalAlign: "middle", minWidth: 128, maxWidth: 220 }}>
-                          <FormControl size="small" fullWidth>
+                        <TableCell sx={{ fontWeight: 600, wordBreak: "break-word" }}>{item.name}</TableCell>
+                        <TableCell sx={{ py: 0.75, minWidth: 260 }}>
+                          <FormControl size="small" fullWidth sx={{ minWidth: 240 }}>
                             <InputLabel id={`ing-cat-${idx}`}>Nhóm</InputLabel>
                             <Select
                               labelId={`ing-cat-${idx}`}
                               label="Nhóm"
                               value={item.category || "luong_thuc"}
                               onChange={(e) => handleIngredientChange(idx, "category", e.target.value)}
+                              renderValue={(v) => ingredientGroupMenuLabel(v)}
+                              MenuProps={{ PaperProps: { sx: { minWidth: 320, maxHeight: 360 } } }}
                             >
                               {INGREDIENT_GROUPS.map((g) => (
                                 <MenuItem key={g.id} value={g.id}>
-                                  {g.title}
+                                  {g.order}. {g.title}
                                 </MenuItem>
                               ))}
                             </Select>
@@ -1178,11 +1329,23 @@ function FoodManagement() {
                         <TableCell align="center" sx={{ flex: 1 }}>
                           <TextField
                             size="small"
-                            defaultValue={formatQuantityDisplay(item.quantity || 100, item.unit || 'g')}
-                            onChange={(e) => handleIngredientChange(idx, 'quantityWithUnit', e.target.value)}
-                            placeholder="100g"
-                            inputProps={{ style: { textAlign: 'center', fontSize: '0.875rem' } }}
-                            sx={{ width: '100%' }}
+                            type="number"
+                            value={item.quantity ?? 100}
+                            onChange={(e) => handleIngredientChange(idx, "dvt", e.target.value)}
+                            placeholder="100"
+                            helperText=""
+                            FormHelperTextProps={{ sx: { m: 0, fontSize: "0.6rem", lineHeight: 1.15 } }}
+                            inputProps={{ min: 0, step: "any", style: { textAlign: "center", fontSize: "0.875rem" } }}
+                            InputProps={{
+                              endAdornment: (
+                                <InputAdornment position="end">
+                                  <Typography variant="caption" color="text.secondary">
+                                    g
+                                  </Typography>
+                                </InputAdornment>
+                              ),
+                            }}
+                            sx={{ width: "100%" }}
                           />
                         </TableCell>
                         <TableCell align="center" sx={{ flex: 1 }}>
@@ -1199,9 +1362,12 @@ function FoodManagement() {
                           <TextField
                             size="small"
                             type="number"
-                            value={item.protein ?? 0}
+                            value={macroCellValue(item.protein)}
                             onChange={(e) => handleIngredientChange(idx, 'protein', e.target.value)}
-                            inputProps={{ min: 0, style: { textAlign: 'center', fontSize: '0.875rem' } }}
+                            error={Boolean(ingredientMacroErrors[`${idx}_protein`])}
+                            helperText={ingredientMacroErrors[`${idx}_protein`] || " "}
+                            FormHelperTextProps={{ sx: { m: 0, fontSize: "0.65rem", lineHeight: 1.2 } }}
+                            inputProps={{ min: 0, step: "any", style: { textAlign: 'center', fontSize: '0.875rem' } }}
                             sx={{ width: '100%' }}
                           />
                         </TableCell>
@@ -1209,9 +1375,12 @@ function FoodManagement() {
                           <TextField
                             size="small"
                             type="number"
-                            value={item.fat ?? 0}
+                            value={macroCellValue(item.fat)}
                             onChange={(e) => handleIngredientChange(idx, 'fat', e.target.value)}
-                            inputProps={{ min: 0, style: { textAlign: 'center', fontSize: '0.875rem' } }}
+                            error={Boolean(ingredientMacroErrors[`${idx}_fat`])}
+                            helperText={ingredientMacroErrors[`${idx}_fat`] || " "}
+                            FormHelperTextProps={{ sx: { m: 0, fontSize: "0.65rem", lineHeight: 1.2 } }}
+                            inputProps={{ min: 0, step: "any", style: { textAlign: 'center', fontSize: '0.875rem' } }}
                             sx={{ width: '100%' }}
                           />
                         </TableCell>
@@ -1219,9 +1388,12 @@ function FoodManagement() {
                           <TextField
                             size="small"
                             type="number"
-                            value={item.carb ?? 0}
+                            value={macroCellValue(item.carb)}
                             onChange={(e) => handleIngredientChange(idx, 'carb', e.target.value)}
-                            inputProps={{ min: 0, style: { textAlign: 'center', fontSize: '0.875rem' } }}
+                            error={Boolean(ingredientMacroErrors[`${idx}_carb`])}
+                            helperText={ingredientMacroErrors[`${idx}_carb`] || " "}
+                            FormHelperTextProps={{ sx: { m: 0, fontSize: "0.65rem", lineHeight: 1.2 } }}
+                            inputProps={{ min: 0, step: "any", style: { textAlign: 'center', fontSize: '0.875rem' } }}
                             sx={{ width: '100%' }}
                           />
                         </TableCell>
@@ -1244,8 +1416,8 @@ function FoodManagement() {
                             fullWidth
                           />
                         </TableCell>
-                        <TableCell sx={{ py: 0.5, verticalAlign: "middle", minWidth: 128, maxWidth: 220 }}>
-                          <FormControl size="small" fullWidth>
+                        <TableCell sx={{ py: 0.75, minWidth: 260 }}>
+                          <FormControl size="small" fullWidth sx={{ minWidth: 240 }}>
                             <InputLabel id="custom-ing-cat">Nhóm</InputLabel>
                             <Select
                               labelId="custom-ing-cat"
@@ -1254,10 +1426,12 @@ function FoodManagement() {
                               onChange={(e) =>
                                 setCustomIngredient((prev) => ({ ...prev, category: e.target.value }))
                               }
+                              renderValue={(v) => ingredientGroupMenuLabel(v)}
+                              MenuProps={{ PaperProps: { sx: { minWidth: 320, maxHeight: 360 } } }}
                             >
                               {INGREDIENT_GROUPS.map((g) => (
                                 <MenuItem key={g.id} value={g.id}>
-                                  {g.title}
+                                  {g.order}. {g.title}
                                 </MenuItem>
                               ))}
                             </Select>
@@ -1268,14 +1442,43 @@ function FoodManagement() {
                             size="small"
                             type="number"
                             value={customIngredient.quantity}
-                            onChange={(e) => setCustomIngredient((prev) => ({ ...prev, quantity: e.target.value }))}
+                            onChange={(e) => {
+                              const raw = e.target.value;
+                              if (raw === "") {
+                                setCustomIngredient((prev) => ({ ...prev, quantity: "" }));
+                                return;
+                              }
+                              const n = Number(String(raw).replace(/[^\d.]/g, ""));
+                              if (!Number.isFinite(n) || n < 0) return;
+                              setCustomIngredient((prev) => ({ ...prev, quantity: n }));
+                            }}
+                            onBlur={() => {
+                              setCustomIngredient((prev) => ({
+                                ...prev,
+                                quantity:
+                                  prev.quantity === "" || prev.quantity === undefined || Number(prev.quantity) < 0
+                                    ? 100
+                                    : Number(prev.quantity),
+                              }));
+                            }}
                             placeholder="100"
+                            helperText="Chuẩn 100g"
+                            FormHelperTextProps={{ sx: { m: 0, fontSize: "0.6rem", lineHeight: 1.15 } }}
                             inputProps={{
                               min: 0,
-                              step: 1,
-                              style: { textAlign: 'center', fontSize: '0.875rem' },
+                              step: "any",
+                              style: { textAlign: "center", fontSize: "0.875rem" },
                             }}
-                            sx={{ width: '100%' }}
+                            InputProps={{
+                              endAdornment: (
+                                <InputAdornment position="end">
+                                  <Typography variant="caption" color="text.secondary">
+                                    g
+                                  </Typography>
+                                </InputAdornment>
+                              ),
+                            }}
+                            sx={{ width: "100%" }}
                           />
                         </TableCell>
                         <TableCell align="center" sx={{ flex: 1 }}>
@@ -1296,7 +1499,10 @@ function FoodManagement() {
                             onChange={(e) => handleCustomMacroChange("protein", e.target.value)}
                             placeholder="Chất đạm"
                             type="number"
-                            inputProps={{ min: 0, style: { textAlign: 'center', fontSize: '0.875rem' } }}
+                            error={Boolean(customMacroErrors.protein)}
+                            helperText={customMacroErrors.protein || " "}
+                            FormHelperTextProps={{ sx: { m: 0, fontSize: "0.65rem", lineHeight: 1.2 } }}
+                            inputProps={{ min: 0, step: "any", style: { textAlign: 'center', fontSize: '0.875rem' } }}
                             sx={{ width: '100%' }}
                           />
                         </TableCell>
@@ -1307,7 +1513,10 @@ function FoodManagement() {
                             onChange={(e) => handleCustomMacroChange("fat", e.target.value)}
                             placeholder="Chất béo"
                             type="number"
-                            inputProps={{ min: 0, style: { textAlign: 'center', fontSize: '0.875rem' } }}
+                            error={Boolean(customMacroErrors.fat)}
+                            helperText={customMacroErrors.fat || " "}
+                            FormHelperTextProps={{ sx: { m: 0, fontSize: "0.65rem", lineHeight: 1.2 } }}
+                            inputProps={{ min: 0, step: "any", style: { textAlign: 'center', fontSize: '0.875rem' } }}
                             sx={{ width: '100%' }}
                           />
                         </TableCell>
@@ -1318,7 +1527,10 @@ function FoodManagement() {
                             onChange={(e) => handleCustomMacroChange("carb", e.target.value)}
                             placeholder="Tinh bột"
                             type="number"
-                            inputProps={{ min: 0, style: { textAlign: 'center', fontSize: '0.875rem' } }}
+                            error={Boolean(customMacroErrors.carb)}
+                            helperText={customMacroErrors.carb || " "}
+                            FormHelperTextProps={{ sx: { m: 0, fontSize: "0.65rem", lineHeight: 1.2 } }}
+                            inputProps={{ min: 0, step: "any", style: { textAlign: 'center', fontSize: '0.875rem' } }}
                             sx={{ width: '100%' }}
                           />
                         </TableCell>
@@ -1364,6 +1576,8 @@ function FoodManagement() {
             onClick={() => {
               setShowModal(false);
               setShowCustomRow(false);
+              setIngredientMacroErrors({});
+              setCustomMacroErrors({});
             }}
             disabled={saving}
             sx={{
