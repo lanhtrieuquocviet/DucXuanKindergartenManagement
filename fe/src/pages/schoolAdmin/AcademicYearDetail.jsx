@@ -141,7 +141,7 @@ export default function AcademicYearDetail() {
                 {summary?.endDate && ` | Kết thúc ngày ${formatDate(summary.endDate)}`}
               </Typography>
             </Box>
-            <Button
+            {/* <Button
               variant="contained"
               sx={{
                 bgcolor: '#10b981',
@@ -152,7 +152,7 @@ export default function AcademicYearDetail() {
               }}
             >
               Export toàn bộ dữ liệu
-            </Button>
+            </Button> */}
           </Stack>
 
           <Stack
@@ -253,7 +253,7 @@ export default function AcademicYearDetail() {
             <Tab label="Danh sách trẻ em" />
             <Tab label="Chương trình & Kế hoạch" />
             <Tab label="Báo cáo & Thống kê" />
-            <Tab label="Lưu trữ & Tài liệu" />
+            {/* <Tab label="Lưu trữ & Tài liệu" /> */}
           </Tabs>
 
           {tab === 0 && (
