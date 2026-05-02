@@ -10,6 +10,7 @@ const { sendHeadParentMenuReviewEmail } = require("../utils/email");
 
 const mongoose = require("mongoose");
 const DailyMenu = require("../models/DailyMenu");
+const Food = require("../models/Food");
 
 
 const REJECT_PRESET_LABELS = {
@@ -315,6 +316,239 @@ function buildWeeksFromSnapshotDailyMenus(dailyMenus) {
   return result;
 }
 
+function normalizeFoodId(value) {
+  if (!value) return "";
+  if (typeof value === "string") return value;
+  if (value instanceof mongoose.Types.ObjectId) return String(value);
+  if (typeof value === "object") {
+    if (value.$oid && typeof value.$oid === "string") return value.$oid;
+    if (value._id) return String(value._id);
+    if (value.id) return String(value.id);
+    if (value.food) {
+      const nested = normalizeFoodId(value.food);
+      if (nested) return nested;
+    }
+    if (typeof value.toString === "function") {
+      const asString = String(value.toString());
+      if (mongoose.Types.ObjectId.isValid(asString)) return asString;
+    }
+  }
+  return "";
+}
+
+function buildFoodSnapshotFromSlot(slot) {
+  const lines = Array.isArray(slot?.ingredientLines) ? slot.ingredientLines : [];
+  const fromLines = lines.reduce(
+    (acc, line) => {
+      const grams = Number(line?.grams) || 0;
+      const ratio = grams / 100;
+      acc.calories += (Number(line?.caloriesPer100g) || 0) * ratio;
+      acc.protein += (Number(line?.proteinPer100g) || 0) * ratio;
+      acc.fat += (Number(line?.fatPer100g) || 0) * ratio;
+      acc.carb += (Number(line?.carbPer100g) || 0) * ratio;
+      return acc;
+    },
+    { calories: 0, protein: 0, fat: 0, carb: 0 }
+  );
+  const hasLineNutrition =
+    fromLines.calories > 0 || fromLines.protein > 0 || fromLines.fat > 0 || fromLines.carb > 0;
+  if (hasLineNutrition) return fromLines;
+  return {
+    calories: Number(slot?.foodSnapshot?.calories) || 0,
+    protein: Number(slot?.foodSnapshot?.protein) || 0,
+    fat: Number(slot?.foodSnapshot?.fat) || 0,
+    carb: Number(slot?.foodSnapshot?.carb) || 0,
+  };
+}
+
+function buildFrozenDailyMenusView(dailyMenus) {
+  const rows = Array.isArray(dailyMenus) ? dailyMenus : [];
+  return rows.map((day) => {
+    const mapSlotToFood = (slot) => {
+      const fid = normalizeFoodId(slot?.food);
+      const foodLike = typeof slot?.food === "object" && slot?.food ? slot.food : null;
+      const snap = buildFoodSnapshotFromSlot(slot);
+      return {
+        _id: fid || "",
+        name: String(slot?.foodName || foodLike?.name || "").trim(),
+        calories: Number(snap.calories || foodLike?.calories || 0),
+        protein: Number(snap.protein || foodLike?.protein || 0),
+        fat: Number(snap.fat || foodLike?.fat || 0),
+        carb: Number(snap.carb || foodLike?.carb || 0),
+      };
+    };
+
+    const lunchSlots = Array.isArray(day?.lunchMealSlots) ? day.lunchMealSlots : [];
+    const afternoonSlots = Array.isArray(day?.afternoonMealSlots) ? day.afternoonMealSlots : [];
+    const existingLunchFoods = Array.isArray(day?.lunchFoods) ? day.lunchFoods : [];
+    const existingAfternoonFoods = Array.isArray(day?.afternoonFoods) ? day.afternoonFoods : [];
+    const lunchFromSlots = lunchSlots.length ? lunchSlots.map(mapSlotToFood) : [];
+    const afternoonFromSlots = afternoonSlots.length ? afternoonSlots.map(mapSlotToFood) : [];
+    const hasNamedLunch = lunchFromSlots.some((f) => String(f?.name || "").trim());
+    const hasNamedAfternoon = afternoonFromSlots.some((f) => String(f?.name || "").trim());
+
+    return {
+      ...day,
+      lunchFoods: hasNamedLunch ? lunchFromSlots : existingLunchFoods,
+      afternoonFoods: hasNamedAfternoon ? afternoonFromSlots : existingAfternoonFoods,
+    };
+  });
+}
+
+async function refreshFrozenSlotsForMenu(menuId) {
+  const dailyMenus = await DailyMenu.find({ menuId });
+  if (!dailyMenus.length) return;
+
+  const foodIds = new Set();
+  dailyMenus.forEach((day) => {
+    (day.lunchFoods || []).forEach((id) => {
+      const fid = normalizeFoodId(id);
+      if (fid) foodIds.add(fid);
+    });
+    (day.afternoonFoods || []).forEach((id) => {
+      const fid = normalizeFoodId(id);
+      if (fid) foodIds.add(fid);
+    });
+    (day.lunchMealSlots || []).forEach((slot) => {
+      const fid = normalizeFoodId(slot?.food);
+      if (fid) foodIds.add(fid);
+    });
+    (day.afternoonMealSlots || []).forEach((slot) => {
+      const fid = normalizeFoodId(slot?.food);
+      if (fid) foodIds.add(fid);
+    });
+  });
+
+  const foods = await Food.find({ _id: { $in: Array.from(foodIds) } })
+    .select("name calories protein fat carb")
+    .lean();
+  const foodMap = new Map(foods.map((f) => [String(f._id), f]));
+
+  const updates = dailyMenus.map(async (day) => {
+    const withSnapshots = (slots, fallbackIds = []) => {
+      const next = Array.isArray(slots) ? slots.map((s) => ({ ...s })) : [];
+      const byId = new Map(next.map((s) => [normalizeFoodId(s.food), s]));
+      const orderedIdsFromFoods = Array.isArray(fallbackIds)
+        ? fallbackIds.map((x) => normalizeFoodId(x)).filter(Boolean)
+        : [];
+      const orderedIds = orderedIdsFromFoods.length
+        ? orderedIdsFromFoods
+        : Array.from(byId.keys()).filter(Boolean);
+
+      orderedIds.forEach((id) => {
+        if (!byId.has(id)) byId.set(id, { food: id, ingredientLines: [] });
+      });
+
+      return orderedIds.map((id) => byId.get(id)).filter(Boolean).map((slot) => {
+        const fid = normalizeFoodId(slot.food);
+        const food = foodMap.get(fid);
+        return {
+          ...slot,
+          food: fid || slot.food,
+          foodName: String(slot.foodName || food?.name || "").trim(),
+          foodSnapshot: {
+            calories: Number(slot?.foodSnapshot?.calories ?? food?.calories ?? 0),
+            protein: Number(slot?.foodSnapshot?.protein ?? food?.protein ?? 0),
+            fat: Number(slot?.foodSnapshot?.fat ?? food?.fat ?? 0),
+            carb: Number(slot?.foodSnapshot?.carb ?? food?.carb ?? 0),
+          },
+        };
+      });
+    };
+
+    day.lunchMealSlots = withSnapshots(day.lunchMealSlots, day.lunchFoods || []);
+    day.afternoonMealSlots = withSnapshots(day.afternoonMealSlots, day.afternoonFoods || []);
+    await day.save();
+  });
+
+  await Promise.all(updates);
+}
+
+async function enrichDailyMenusWithFoodData(dailyMenus) {
+  const rows = Array.isArray(dailyMenus) ? dailyMenus : [];
+  if (!rows.length) return rows;
+
+  const foodIds = new Set();
+  rows.forEach((day) => {
+    (day?.lunchFoods || []).forEach((f) => {
+      const id = normalizeFoodId(f);
+      if (id) foodIds.add(id);
+    });
+    (day?.afternoonFoods || []).forEach((f) => {
+      const id = normalizeFoodId(f);
+      if (id) foodIds.add(id);
+    });
+    (day?.lunchMealSlots || []).forEach((slot) => {
+      const id = normalizeFoodId(slot?.food);
+      if (id) foodIds.add(id);
+    });
+    (day?.afternoonMealSlots || []).forEach((slot) => {
+      const id = normalizeFoodId(slot?.food);
+      if (id) foodIds.add(id);
+    });
+  });
+
+  if (!foodIds.size) return rows;
+  const foods = await Food.find({ _id: { $in: Array.from(foodIds) } })
+    .select("name calories protein fat carb")
+    .lean();
+  const foodMap = new Map(foods.map((f) => [String(f._id), f]));
+
+  const mapFoodLike = (value) => {
+    const id = normalizeFoodId(value);
+    if (!id) return value;
+    const dbFood = foodMap.get(id);
+    const base = typeof value === "object" && value ? value : {};
+    if (!dbFood) return { ...base, _id: id };
+    return {
+      _id: id,
+      name: base.name || dbFood.name || "",
+      calories: Number(base.calories ?? dbFood.calories ?? 0),
+      protein: Number(base.protein ?? dbFood.protein ?? 0),
+      fat: Number(base.fat ?? dbFood.fat ?? 0),
+      carb: Number(base.carb ?? dbFood.carb ?? 0),
+    };
+  };
+
+  return rows.map((day) => ({
+    ...day,
+    lunchFoods: Array.isArray(day?.lunchFoods) ? day.lunchFoods.map(mapFoodLike) : [],
+    afternoonFoods: Array.isArray(day?.afternoonFoods) ? day.afternoonFoods.map(mapFoodLike) : [],
+    lunchMealSlots: Array.isArray(day?.lunchMealSlots)
+      ? day.lunchMealSlots.map((slot) => {
+          const foodLike = mapFoodLike(slot?.food);
+          return {
+            ...slot,
+            food: foodLike,
+            foodName: String(slot?.foodName || foodLike?.name || "").trim(),
+            foodSnapshot: {
+              calories: Number(slot?.foodSnapshot?.calories ?? foodLike?.calories ?? 0),
+              protein: Number(slot?.foodSnapshot?.protein ?? foodLike?.protein ?? 0),
+              fat: Number(slot?.foodSnapshot?.fat ?? foodLike?.fat ?? 0),
+              carb: Number(slot?.foodSnapshot?.carb ?? foodLike?.carb ?? 0),
+            },
+          };
+        })
+      : [],
+    afternoonMealSlots: Array.isArray(day?.afternoonMealSlots)
+      ? day.afternoonMealSlots.map((slot) => {
+          const foodLike = mapFoodLike(slot?.food);
+          return {
+            ...slot,
+            food: foodLike,
+            foodName: String(slot?.foodName || foodLike?.name || "").trim(),
+            foodSnapshot: {
+              calories: Number(slot?.foodSnapshot?.calories ?? foodLike?.calories ?? 0),
+              protein: Number(slot?.foodSnapshot?.protein ?? foodLike?.protein ?? 0),
+              fat: Number(slot?.foodSnapshot?.fat ?? foodLike?.fat ?? 0),
+              carb: Number(slot?.foodSnapshot?.carb ?? foodLike?.carb ?? 0),
+            },
+          };
+        })
+      : [],
+  }));
+}
+
 const DEFAULT_NUTRITION_PLAN = [
   { name: "Calo trung bình/ngày", min: 615, max: 726, actual: 0 },
   { name: "Đạm (g)", min: 13, max: 20, actual: 0 },
@@ -548,19 +782,20 @@ exports.getPublicMenuDetail = async (req, res) => {
           ? menu.historySnapshots[menu.historySnapshots.length - 1]
           : null;
 
-      const result = buildWeeksFromSnapshotDailyMenus(snap?.dailyMenus || []);
+      const snapshotRows = await enrichDailyMenusWithFoodData(snap?.dailyMenus || []);
+      const frozenSnapshotDays = buildFrozenDailyMenusView(snapshotRows);
+      const result = buildWeeksFromSnapshotDailyMenus(frozenSnapshotDays);
       const menuData = menu.toObject();
       return res.json({ success: true, data: { ...menuData, weeks: result } });
     }
 
-    const dailyMenus = await DailyMenu.find({ menuId: menu._id })
-      .populate("lunchFoods")
-      .populate("afternoonFoods")
-      .populate("lunchMealSlots.food")
-      .populate("afternoonMealSlots.food");
+    await refreshFrozenSlotsForMenu(menu._id);
+    const dailyMenus = await DailyMenu.find({ menuId: menu._id }).lean();
+    const enrichedDailyMenus = await enrichDailyMenusWithFoodData(dailyMenus);
+    const frozenDailyMenus = buildFrozenDailyMenusView(enrichedDailyMenus);
 
     const result = { odd: {}, even: {} };
-    dailyMenus.forEach((day) => {
+    frozenDailyMenus.forEach((day) => {
       result[day.weekType][day.dayOfWeek] = day;
     });
 
@@ -617,7 +852,10 @@ exports.getMenuDetail = async (req, res) => {
           ? menu.historySnapshots[menu.historySnapshots.length - 1]
           : null;
 
-      const dm = Array.isArray(snap?.dailyMenus) ? snap.dailyMenus : [];
+      const snapshotRows = await enrichDailyMenusWithFoodData(
+        Array.isArray(snap?.dailyMenus) ? snap.dailyMenus : []
+      );
+      const dm = buildFrozenDailyMenusView(snapshotRows);
       const result = buildWeeksFromSnapshotDailyMenus(dm);
       const menuData = menu.toObject();
 
@@ -671,11 +909,16 @@ exports.getMenuDetail = async (req, res) => {
       });
     }
 
-    const dailyMenus = await DailyMenu.find({ menuId: menu._id })
-      .populate("lunchFoods")
-      .populate("afternoonFoods")
-      .populate("lunchMealSlots.food")
-      .populate("afternoonMealSlots.food");
+    const readOnlyStatuses = ["pending_headparent", "pending", "approved", "active", "completed"];
+    if (readOnlyStatuses.includes(menu.status)) {
+      await refreshFrozenSlotsForMenu(menu._id);
+    }
+
+    const dailyMenus = await DailyMenu.find({ menuId: menu._id }).lean();
+    const enrichedDailyMenus = await enrichDailyMenusWithFoodData(dailyMenus);
+    const normalizedDailyMenus = readOnlyStatuses.includes(menu.status)
+      ? buildFrozenDailyMenusView(enrichedDailyMenus)
+      : enrichedDailyMenus;
 
     const result = {
       odd: {},
@@ -687,13 +930,13 @@ exports.getMenuDetail = async (req, res) => {
     let totalFat = 0;
     let totalCarb = 0;
 
-    const validDays = dailyMenus.filter((day) => {
+    const validDays = normalizedDailyMenus.filter((day) => {
       const hasFood = (day.lunchFoods && day.lunchFoods.length > 0) || (day.afternoonFoods && day.afternoonFoods.length > 0);
       const hasNutrition = (day.totalCalories || 0) > 0 || (day.totalProtein || 0) > 0 || (day.totalFat || 0) > 0 || (day.totalCarb || 0) > 0;
       return Boolean(day && (hasFood || hasNutrition));
     });
 
-    dailyMenus.forEach((day) => {
+    normalizedDailyMenus.forEach((day) => {
       result[day.weekType][day.dayOfWeek] = day;
 
       totalCalories += day.totalCalories || 0;
@@ -787,6 +1030,8 @@ exports.submitMenu = async (req, res) => {
         message: "Chỉ có thể gửi duyệt khi thực đơn ở trạng thái nháp hoặc bị từ chối",
       });
     }
+
+    await refreshFrozenSlotsForMenu(menu._id);
 
     // KitchenStaff gửi thẳng lên SchoolAdmin duyệt.
     menu.status = "pending";

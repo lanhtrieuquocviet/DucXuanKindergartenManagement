@@ -31,6 +31,11 @@ import {
   CheckCircle as CheckIcon,
 } from "@mui/icons-material";
 
+const format1Decimal = (value) => {
+  const num = Number(value);
+  return Number.isFinite(num) ? num.toFixed(1) : "0.0";
+};
+
 function FoodSelectorModal({ open, selectedFoods = [], onClose, onSave }) {
   const [allFoods, setAllFoods] = useState([]);
   const [checked, setChecked] = useState([]);
@@ -232,10 +237,10 @@ function FoodSelectorModal({ open, selectedFoods = [], onClose, onSave }) {
                             variant="caption"
                             sx={{ color: "#f97316", fontWeight: 600, fontSize: 11 }}
                           >
-                            🔥 {food.calories} kcal
+                            🔥 {format1Decimal(food.calories)} kcal
                           </Typography>
                           <Typography variant="caption" color="text.disabled" sx={{ fontSize: 11 }}>
-                            P: {food.protein}g · F: {food.fat}g · C: {food.carb}g
+                            P: {format1Decimal(food.protein)}g · F: {format1Decimal(food.fat)}g · C: {format1Decimal(food.carb)}g
                           </Typography>
                         </Stack>
                       }
@@ -267,12 +272,12 @@ function FoodSelectorModal({ open, selectedFoods = [], onClose, onSave }) {
               <Stack direction="row" spacing={1}>
                 <Chip
                   icon={<CalorieIcon sx={{ fontSize: 13, color: "#f97316 !important" }} />}
-                  label={`${totalCalories} kcal`}
+                  label={`${format1Decimal(totalCalories)} kcal`}
                   size="small"
                   sx={{ fontSize: 11, fontWeight: 700, bgcolor: alpha("#f97316", 0.1) }}
                 />
                 <Chip
-                  label={`Protein: ${totalProtein}g`}
+                  label={`Protein: ${format1Decimal(totalProtein)}g`}
                   size="small"
                   sx={{ fontSize: 11, fontWeight: 700, bgcolor: alpha("#6366f1", 0.1) }}
                 />

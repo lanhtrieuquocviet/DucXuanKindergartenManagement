@@ -281,7 +281,7 @@ function RoleLayout({
     userAvatar: displayUserAvatar, 
     userRole: displayUserRole,
     collapsed: isMobile ? false : collapsed,
-    onToggleCollapse: () => setCollapsed(!collapsed),
+    onToggleCollapse: isMobile ? () => setMobileOpen(false) : () => setCollapsed(!collapsed),
     loading: isInitializing,
   };
 

@@ -361,12 +361,26 @@ export default function AcademicYearPlan() {
     }
     const topicStartDate = parseDateOnly(topicForm.startDate);
     const topicEndDate = parseDateOnly(topicForm.endDate);
+    const academicYearStartDate = parseDateOnly(formatDateInput(currentYear?.startDate));
+    const academicYearEndDate = parseDateOnly(formatDateInput(currentYear?.endDate));
     if (!topicStartDate || !topicEndDate) {
       toast.error('Ngày bắt đầu hoặc ngày kết thúc của chủ đề không hợp lệ.');
       return;
     }
+    if (!academicYearStartDate || !academicYearEndDate) {
+      toast.error('Không xác định được khoảng thời gian của năm học.');
+      return;
+    }
     if (topicEndDate <= topicStartDate) {
       toast.error('Đến ngày phải lớn hơn Từ ngày.');
+      return;
+    }
+    if (topicStartDate < academicYearStartDate || topicStartDate > academicYearEndDate) {
+      toast.error('Từ ngày của chủ đề tổng phải nằm trong khoảng thời gian của năm học.');
+      return;
+    }
+    if (topicEndDate < academicYearStartDate || topicEndDate > academicYearEndDate) {
+      toast.error('Đến ngày của chủ đề tổng phải nằm trong khoảng thời gian của năm học.');
       return;
     }
 
@@ -503,6 +517,8 @@ export default function AcademicYearPlan() {
   };
 
   const userName = user?.fullName || user?.username || 'School Admin';
+  const academicYearStart = formatDateInput(currentYear?.startDate);
+  const academicYearEnd = formatDateInput(currentYear?.endDate);
 
   return (
     <Box>
@@ -812,7 +828,12 @@ export default function AcademicYearPlan() {
                 value={topicForm.startDate}
                 onChange={(e) => handleFormChange('startDate', e.target.value)}
                 inputProps={{
-                  max: topicForm.endDate ? shiftDateString(topicForm.endDate, -1) : undefined,
+                  min: academicYearStart || undefined,
+                  max: topicForm.endDate
+                    ? (academicYearEnd && shiftDateString(topicForm.endDate, -1) > academicYearEnd
+                      ? academicYearEnd
+                      : shiftDateString(topicForm.endDate, -1))
+                    : (academicYearEnd || undefined),
                 }}
                 fullWidth
               />
@@ -823,7 +844,12 @@ export default function AcademicYearPlan() {
                 value={topicForm.endDate}
                 onChange={(e) => handleFormChange('endDate', e.target.value)}
                 inputProps={{
-                  min: topicForm.startDate ? shiftDateString(topicForm.startDate, 1) : undefined,
+                  min: topicForm.startDate
+                    ? (academicYearStart && shiftDateString(topicForm.startDate, 1) < academicYearStart
+                      ? academicYearStart
+                      : shiftDateString(topicForm.startDate, 1))
+                    : (academicYearStart || undefined),
+                  max: academicYearEnd || undefined,
                 }}
                 fullWidth
               />

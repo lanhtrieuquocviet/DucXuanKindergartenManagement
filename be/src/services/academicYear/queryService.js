@@ -34,7 +34,7 @@ const listAcademicYears = async (req, res) => {
   try {
     await autoFinishExpiredAcademicYears();
     const years = await AcademicYear.find().sort({ startDate: -1 }).lean();
-    
+
     const data = await Promise.all(years.map(async (year) => {
       const classCount = await Classes.countDocuments({ academicYearId: year._id });
       const studentCount = await Enrollment.countDocuments({ academicYearId: year._id });
@@ -66,10 +66,10 @@ const getStudentsByAcademicYear = async (req, res) => {
     const data = await Promise.all(students.map(async (s) => {
       const cls = classes.find(c => String(c._id) === String(s.classId));
       const oStudentId = new mongoose.Types.ObjectId(s._id);
-      
+
       // 1. Tìm đánh giá ở hệ thống mới
-      let assessment = await StudentAssessment.findOne({ 
-        studentId: oStudentId, 
+      let assessment = await StudentAssessment.findOne({
+        studentId: oStudentId,
         academicYearId: oYearId,
         period: 'semester_2'
       }).lean();
@@ -114,7 +114,7 @@ const getAcademicYearHistory = async (req, res) => {
     const filter = yearId ? { _id: yearId } : { status: { $ne: 'active' } };
 
     const years = await AcademicYear.find(filter).sort({ startDate: -1 }).lean();
-    
+
     const data = await Promise.all(years.map(async (year) => {
       const classCount = await Classes.countDocuments({ academicYearId: year._id });
       const studentCount = await Enrollment.countDocuments({ academicYearId: year._id });
@@ -134,14 +134,20 @@ const getAcademicYearHistory = async (req, res) => {
 const getClassesByAcademicYear = async (req, res) => {
   try {
     const { yearId } = req.params;
+    const yearObjectId = mongoose.Types.ObjectId.isValid(yearId)
+      ? new mongoose.Types.ObjectId(yearId)
+      : null;
+    if (!yearObjectId) {
+      return res.status(400).json({ status: 'error', message: 'yearId không hợp lệ' });
+    }
     const classes = await Classes.find({ academicYearId: yearId })
       .populate('gradeId', 'gradeName')
       .populate({ path: 'teacherIds', populate: { path: 'userId', select: 'fullName' } })
       .lean();
 
     const classIds = classes.map((cls) => cls._id);
-    const studentCounts = await Student.aggregate([
-      { $match: { classId: { $in: classIds }, status: 'active' } },
+    const studentCounts = await Enrollment.aggregate([
+      { $match: { academicYearId: yearObjectId, classId: { $in: classIds } } },
       { $group: { _id: '$classId', count: { $sum: 1 } } },
     ]);
     const studentCountMap = {};
