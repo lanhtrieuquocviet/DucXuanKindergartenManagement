@@ -338,6 +338,7 @@ export const ENDPOINTS = {
       UPDATE: (id) => `/school-admin/academic-years/${id}`,
       FINISH: (id) => `/school-admin/academic-years/${id}/finish`,
       PUBLISH: (id) => `/school-admin/academic-years/${id}/publish`,
+      PUBLISH_PREVIEW: (id) => `/school-admin/academic-years/${id}/publish-preview`,
       REMIND_EVALUATIONS: (id) => `/school-admin/academic-years/${id}/remind-evaluations`,
       HISTORY: "/school-admin/academic-years/history",
       CLASSES: (yearId) => `/school-admin/academic-years/${yearId}/classes`,

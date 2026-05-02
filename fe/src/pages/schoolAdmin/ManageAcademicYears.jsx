@@ -56,6 +56,7 @@ const ManageAcademicYears = () => {
 
   // --- Finish Year States ---
   const [openFinish, setOpenFinish] = useState(false);
+  const [openFinishConfirm, setOpenFinishConfirm] = useState(false);
   const [finishStudents, setFinishStudents] = useState([]);
   const [graduateMarkedIds, setGraduateMarkedIds] = useState(new Set());
   const [dropoutMarkedIds, setDropoutMarkedIds] = useState(new Set());
@@ -201,14 +202,16 @@ const ManageAcademicYears = () => {
     }
   };
 
-  const handleConfirmFinish = async () => {
+  const finishSummaryCounts = useMemo(() => {
     const dropoutCount = dropoutMarkedIds.size;
     const graduateCount = graduateMarkedIds.size;
-    const promotedCount = finishStudents.length - dropoutCount - graduateCount;
+    const promotedCount = Math.max(0, finishStudents.length - dropoutCount - graduateCount);
+    return { dropoutCount, graduateCount, promotedCount };
+  }, [dropoutMarkedIds, graduateMarkedIds, finishStudents]);
 
-    const confirmMsg = `Bạn sắp kết thúc năm học với:\n- ${promotedCount} học sinh lên lớp\n- ${graduateCount} học sinh tốt nghiệp\n- ${dropoutCount} học sinh thôi học\n\nBạn có chắc chắn muốn tiếp tục?`;
-    if (!window.confirm(confirmMsg)) return;
-
+  const executeFinishYear = async () => {
+    if (!currentYear?._id) return;
+    setOpenFinishConfirm(false);
     setLoading(true);
     try {
       const resp = await patch(ENDPOINTS.SCHOOL_ADMIN.ACADEMIC_YEARS.FINISH(currentYear._id), {
@@ -255,7 +258,7 @@ const ManageAcademicYears = () => {
     setTargetPublishId(yearId);
     setLoading(true);
     try {
-      const resp = await get(`/api/school-admin/academic-years/${yearId}/publish-preview`);
+      const resp = await get(ENDPOINTS.SCHOOL_ADMIN.ACADEMIC_YEARS.PUBLISH_PREVIEW(yearId));
       if (resp?.status === 'success') {
         setPublishPreview(resp.data);
         setOpenPublishPreview(true);
@@ -548,7 +551,17 @@ const ManageAcademicYears = () => {
           </TableContainer>
         </Paper>
 
-        <Dialog open={openFinish} onClose={() => !loading && setOpenFinish(false)} maxWidth="lg" fullWidth PaperProps={{ sx: { borderRadius: 4 } }}>
+        <Dialog
+          open={openFinish}
+          onClose={() => {
+            if (loading) return;
+            setOpenFinish(false);
+            setOpenFinishConfirm(false);
+          }}
+          maxWidth="lg"
+          fullWidth
+          PaperProps={{ sx: { borderRadius: 4 } }}
+        >
           <DialogTitle sx={{ px: 3, py: 2.5, borderBottom: '1px solid #f1f5f9' }}>
             <Stack direction="row" spacing={2} alignItems="center">
               <Box sx={{ p: 1, borderRadius: 2, bgcolor: '#fff1f2', color: '#e11d48', display: 'flex' }}><ArchiveIcon /></Box>
@@ -681,17 +694,86 @@ const ManageAcademicYears = () => {
           <DialogActions sx={{ px: 3, py: 2, justifyContent: 'space-between' }}>
             <Typography variant="body2" color="text.secondary">Khối <strong>năm cuối</strong>: <strong>{graduateTickCount}</strong> em tốt nghiệp</Typography>
             <Stack direction="row" spacing={1.5}>
-              <Button onClick={() => setOpenFinish(false)} sx={{ textTransform: 'none' }}>Hủy</Button>
+              <Button
+                onClick={() => {
+                  setOpenFinish(false);
+                  setOpenFinishConfirm(false);
+                }}
+                sx={{ textTransform: 'none' }}
+              >
+                Hủy
+              </Button>
               <Button
                 variant="contained"
                 color="error"
-                onClick={handleConfirmFinish}
+                onClick={() => setOpenFinishConfirm(true)}
                 disabled={loading}
                 sx={{ textTransform: 'none', fontWeight: 700, px: 4 }}
               >
                 {loading ? 'Đang xử lý...' : 'Xác nhận kết thúc năm học'}
               </Button>
             </Stack>
+          </DialogActions>
+        </Dialog>
+
+        <Dialog
+          open={openFinishConfirm}
+          onClose={() => !loading && setOpenFinishConfirm(false)}
+          maxWidth="sm"
+          fullWidth
+          PaperProps={{ sx: { borderRadius: 4 } }}
+        >
+          <DialogTitle sx={{ p: 3, borderBottom: '1px solid #f1f5f9' }}>
+            <Stack direction="row" spacing={2} alignItems="center">
+              <Box sx={{ p: 1, borderRadius: 2, bgcolor: '#fff1f2', color: '#e11d48', display: 'flex' }}>
+                <ArchiveIcon />
+              </Box>
+              <Box>
+                <Typography variant="h6" fontWeight={800}>Xác nhận kết thúc năm học</Typography>
+                <Typography variant="caption" color="text.secondary">
+                  {currentYear?.yearName ? `Năm ${currentYear.yearName}` : 'Kiểm tra lại số liệu trước khi lưu trữ.'}
+                </Typography>
+              </Box>
+            </Stack>
+          </DialogTitle>
+          <DialogContent sx={{ p: 3 }}>
+            <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
+              Bạn sắp kết thúc năm học với:
+            </Typography>
+            <Paper variant="outlined" sx={{ p: 2, borderRadius: 3, bgcolor: '#f8fafc', borderColor: '#e2e8f0' }}>
+              <Stack spacing={1.25}>
+                <Typography variant="body2">
+                  <strong>{finishSummaryCounts.promotedCount}</strong> học sinh lên lớp
+                </Typography>
+                <Typography variant="body2">
+                  <strong>{finishSummaryCounts.graduateCount}</strong> học sinh tốt nghiệp
+                </Typography>
+                <Typography variant="body2">
+                  <strong>{finishSummaryCounts.dropoutCount}</strong> học sinh thôi học
+                </Typography>
+              </Stack>
+            </Paper>
+            <Typography variant="body2" color="text.secondary" sx={{ mt: 2.5, fontWeight: 600 }}>
+              Bạn có chắc chắn muốn tiếp tục?
+            </Typography>
+          </DialogContent>
+          <DialogActions sx={{ p: 3, bgcolor: '#f8fafc', borderTop: '1px solid #f1f5f9', gap: 1 }}>
+            <Button
+              onClick={() => setOpenFinishConfirm(false)}
+              disabled={loading}
+              sx={{ textTransform: 'none', fontWeight: 700 }}
+            >
+              Hủy
+            </Button>
+            <Button
+              variant="contained"
+              color="error"
+              onClick={executeFinishYear}
+              disabled={loading}
+              sx={{ textTransform: 'none', fontWeight: 800, px: 3, borderRadius: 2 }}
+            >
+              {loading ? 'Đang xử lý...' : 'Tiếp tục kết thúc năm học'}
+            </Button>
           </DialogActions>
         </Dialog>
 
@@ -973,20 +1055,20 @@ const ManageAcademicYears = () => {
                   <Grid container spacing={2} sx={{ mt: 1 }}>
                     <Grid item xs={6}>
                       <Typography variant="caption" color="text.secondary">Tổng số lớp</Typography>
-                      <Typography variant="h6" fontWeight={900}>{publishPreview.counts.classes} lớp</Typography>
+                      <Typography variant="h6" fontWeight={900}>{publishPreview.counts?.classes ?? 0} lớp</Typography>
                     </Grid>
                     <Grid item xs={6}>
                       <Typography variant="caption" color="text.secondary">Học sinh đã xếp lớp</Typography>
-                      <Typography variant="h6" fontWeight={900} color="success.main">{publishPreview.counts.students} em</Typography>
+                      <Typography variant="h6" fontWeight={900} color="success.main">{publishPreview.counts?.students ?? 0} em</Typography>
                     </Grid>
                   </Grid>
                 </Box>
 
-                {publishPreview.counts.orphansToLink > 0 && (
+                {(publishPreview.counts?.orphansToLink ?? publishPreview.orphansToLink ?? 0) > 0 && (
                   <Box sx={{ p: 2, bgcolor: '#fff7ed', borderRadius: 2, border: '1px solid #ffedd5' }}>
                     <Typography variant="subtitle2" color="#9a3412" fontWeight={800}>Lưu ý quan trọng</Typography>
                     <Typography variant="body2" color="#c2410c" sx={{ mt: 1 }}>
-                      Có <strong>{publishPreview.counts.orphansToLink}</strong> học sinh được lên lớp nhưng <strong>chưa được xếp vào lớp cụ thể</strong>.
+                      Có <strong>{publishPreview.counts?.orphansToLink ?? publishPreview.orphansToLink}</strong> học sinh được lên lớp nhưng <strong>chưa được xếp vào lớp cụ thể</strong>.
                     </Typography>
                     <Typography variant="caption" color="#9a3412" sx={{ display: 'block', mt: 0.5 }}>
                       Hệ thống sẽ tự động tạo bản ghi Enrollment ở trạng thái 'promoted' để các em không bị mất dấu. Bạn cần vào danh sách học sinh để phân lớp cho các em sau khi công bố.
