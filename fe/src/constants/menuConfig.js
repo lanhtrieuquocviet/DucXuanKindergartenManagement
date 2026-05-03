@@ -130,6 +130,7 @@ export const MENU_CONFIG = {
       children: [
         { key: 'class-assets', label: 'Tài sản lớp', path: '/teacher/class-assets', permissionCode: 'VIEW_CLASS_ASSETS' },
         { key: 'asset-incidents-teacher', label: 'Báo cáo sự cố', path: '/teacher/asset-incidents', permissionCode: 'TEACHER_ASSET_INCIDENTS' },
+        { key: 'asset-inspection', label: 'Biên bản kiểm kê', path: '/teacher/asset-inspection', requiredRole: 'InventoryStaff' },
       ]
     },
   ],
@@ -141,7 +142,6 @@ export const MENU_CONFIG = {
     { key: 'ingredients', label: 'Nguyên liệu', path: '/kitchen/ingredients', permissionCode: 'MANAGE_INGREDIENTS' },
     { key: 'meal-management', label: 'Suất ăn', path: '/kitchen/meal-management', permissionCode: 'MANAGE_MEAL' },
     { key: 'headcount', label: 'Số lượng báo ăn', path: '/kitchen/headcount', permissionCode: 'VIEW_MEAL_COUNT' },
-    { key: 'sample-food', label: 'Lưu mẫu thức ăn', path: '/kitchen/sample-food', permissionCode: 'MANAGE_SAMPLE_FOOD' },
     { key: 'district-nutrition', label: 'Dinh dưỡng phòng', path: '/kitchen/district-nutrition', permissionCode: 'KITCHEN_DISTRICT_NUTRITION' },
     { key: 'report', label: 'Báo cáo & Thống kê', path: '/kitchen/report', permissionCode: 'VIEW_KITCHEN_REPORT' },
   ],

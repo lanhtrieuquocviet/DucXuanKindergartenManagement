@@ -228,7 +228,7 @@ router.put('/sample-entry/review', authenticate, authorizePermissions('APPROVE_M
  *       200:
  *         description: Tổng hợp sĩ số
  */
-router.get('/attendance-summary', authenticate, authorizePermissions('VIEW_REPORT'), mealPhotoController.getAttendanceSummary);
+router.get('/attendance-summary', authenticate, authorizePermissions('VIEW_MEAL_COUNT'), mealPhotoController.getAttendanceSummary);
 
 /**
  * @openapi

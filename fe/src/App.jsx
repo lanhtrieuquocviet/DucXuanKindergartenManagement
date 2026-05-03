@@ -316,9 +316,9 @@ function App() {
               <Route path="attendance" element={<ProtectedRoute requiredPermission="MANAGE_ATTENDANCE"><TeacherAttendance /></ProtectedRoute>} />
               <Route path="attendance/:classId" element={<ProtectedRoute requiredPermission="MANAGE_ATTENDANCE"><TeacherAttendance /></ProtectedRoute>} />
               <Route path="pickup-approval" element={<ProtectedRoute requiredPermission="MANAGE_PICKUP"><PickupRequest /></ProtectedRoute>} />
-              <Route path="asset-inspection" element={<ProtectedRoute requiredPermission="MANAGE_ASSET"><TeacherAssetInspection /></ProtectedRoute>} />
-              <Route path="asset-incidents" element={<ProtectedRoute requiredPermission="MANAGE_ASSET"><TeacherAssetIncidents /></ProtectedRoute>} />
-              <Route path="class-assets" element={<ProtectedRoute requiredPermission="MANAGE_ASSET"><TeacherClassAssets /></ProtectedRoute>} />
+              <Route path="asset-inspection" element={<TeacherAssetInspection />} />
+              <Route path="asset-incidents" element={<ProtectedRoute requiredPermission="TEACHER_ASSET_INCIDENTS"><TeacherAssetIncidents /></ProtectedRoute>} />
+              <Route path="class-assets" element={<ProtectedRoute requiredPermission="VIEW_CLASS_ASSETS"><TeacherClassAssets /></ProtectedRoute>} />
               <Route path="manage-asset-incidents" element={<ProtectedRoute requiredPermission="MANAGE_ASSET"><HeadTeacherAssetIncidents /></ProtectedRoute>} />
               <Route path="my-class" element={<TeacherMyClass />} />
               <Route path="leave-requests" element={<ProtectedRoute requiredPermission="MANAGE_ATTENDANCE"><TeacherLeaveRequests /></ProtectedRoute>} />

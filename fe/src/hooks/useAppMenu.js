@@ -8,7 +8,7 @@ import { getDefaultMenuByRole } from '../constants/menuConfig';
  * Sử dụng bộ menu tĩnh từ menuConfig.js và lọc theo quyền từ DB.
  */
 export const useAppMenu = () => {
-  const { user, isInitializing, hasPermission } = useAuth();
+  const { user, isInitializing, hasPermission, hasRole } = useAuth();
   const navigate = useNavigate();
   const location = useLocation();
 
@@ -25,6 +25,10 @@ export const useAppMenu = () => {
         .filter((item) => {
           // Nếu mục menu có yêu cầu mã quyền, kiểm tra qua AuthContext
           if (item.permissionCode && !hasPermission(item.permissionCode)) {
+            return false;
+          }
+          // Nếu mục menu yêu cầu role cụ thể (VD: InventoryStaff), kiểm tra hasRole
+          if (item.requiredRole && !hasRole(item.requiredRole)) {
             return false;
           }
           return true;
@@ -47,7 +51,7 @@ export const useAppMenu = () => {
     };
 
     return filterMenu(baseMenu);
-  }, [user, isInitializing, hasPermission]);
+  }, [user, isInitializing, hasPermission, hasRole]);
 
   /**
    * Tìm key đang hoạt động dựa trên URL hiện tại.

@@ -174,6 +174,7 @@ export const KEY_ICONS = {
   'contact-book': <MenuBookIcon fontSize="small" />,
   'class-assets': <InventoryIcon fontSize="small" />,
   'asset-incidents-teacher': <ReportProblemIcon fontSize="small" />,
+  'asset-inspection': <DescriptionIcon fontSize="small" />,
 
   // Medical & Health
   'health-records': <HealthIcon fontSize="small" />,
