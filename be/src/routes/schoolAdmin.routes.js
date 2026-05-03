@@ -2362,6 +2362,7 @@ router.post('/users', authenticate, authorizeRoles('SchoolAdmin'), async (req, r
 
     const employeeId = await generateEmployeeId(position.trim());
     let userId = null;
+    let generatedPassword = null;
 
     // 1. Nếu có roleName -> Tạo User (Tài khoản hệ thống)
     if (roleName) {
@@ -2393,7 +2394,7 @@ router.post('/users', authenticate, authorizeRoles('SchoolAdmin'), async (req, r
       }
 
       // TỰ ĐỘNG GEN MẬT KHẨU
-      const generatedPassword = generateRandomPassword(10);
+      generatedPassword = generateRandomPassword(10);
       const salt = await bcrypt.genSalt(10);
       const passwordHash = await bcrypt.hash(generatedPassword, salt);
 
