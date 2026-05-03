@@ -102,11 +102,17 @@ export default function PickupRegistration() {
       if (!/^0[35789]\d{8}$/.test(form.phone.trim())) throw new Error('Số điện thoại không hợp lệ.');
       if (!form.relation.trim()) throw new Error('Vui lòng nhập mối quan hệ');
       if (!form.imageFile && !editingId) throw new Error('Vui lòng chọn ảnh để đăng ký');
+      const isDuplicatePhone = selectedStudentRequests.some(
+        (r) => r.phone === form.phone.trim() && r._id !== editingId
+      );
+      if (isDuplicatePhone) throw new Error('Số điện thoại này đã được đăng ký cho học sinh này');
       let imageUrl = '';
       if (form.imageFile) {
         const fd = new FormData(); fd.append('avatar', form.imageFile);
         const uploadRes = await postFormData(ENDPOINTS.CLOUDINARY.UPLOAD_AVATAR, fd);
         imageUrl = uploadRes?.data?.url || '';
+      } else if (editingId && previewUrl) {
+        imageUrl = previewUrl;
       }
       const payload = { studentId: form.studentId, fullName: form.fullName.trim(), relation: form.relation.trim(), phone: form.phone.trim(), imageUrl };
       if (editingId) { await put(ENDPOINTS.PICKUP.UPDATE(editingId), payload); setSuccess('Cập nhật thành công!'); }

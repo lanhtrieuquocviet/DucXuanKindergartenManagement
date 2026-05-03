@@ -34,12 +34,11 @@ const getLocalISODate = () => {
   return new Date(d.getTime() - tzOffset).toISOString().slice(0, 10);
 };
 
-const isWeekendDate = (_dateStr) => false; // tạm tắt kiểm tra T7/CN
-// const isWeekendDate = (dateStr) => {
-//   if (!dateStr) return false;
-//   const d = new Date(dateStr + 'T00:00:00');
-//   return d.getDay() === 0 || d.getDay() === 6;
-// };
+const isWeekendDate = (dateStr) => {
+  if (!dateStr) return false;
+  const d = new Date(dateStr + 'T00:00:00');
+  return d.getDay() === 0 || d.getDay() === 6;
+};
 
 const formatDate = (dateStr) => {
   if (!dateStr) return '';
