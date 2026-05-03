@@ -160,6 +160,11 @@ const finishAcademicYear = async (req, res) => {
     }
 
     // Nhóm 3: Ở lại lớp (Dựa trên đánh giá semester_2 có promotionStatus === 'retained')
+    const handledIds = [
+      ...dropoutStudentIds.map((sid) => sid.toString()),
+      ...selectedStudentIds.map((sid) => sid.toString()),
+    ];
+
     const retainedAssessments = await StudentAssessment.find({
       academicYearId: id,
       period: 'semester_2',
@@ -478,7 +483,12 @@ const getPublishYearPreview = async (req, res) => {
     
     // 1. Số Enrollment draft sẽ kích hoạt
     const draftCount = await Enrollment.countDocuments({ academicYearId: id, status: 'draft' });
-    
+    const classCount = await Classes.countDocuments({ academicYearId: id });
+    const placedStudentCount = await Enrollment.countDocuments({
+      academicYearId: id,
+      classId: { $exists: true, $ne: null },
+    });
+
     // 2. Tìm học sinh mồ côi (promoted năm ngoái nhưng chưa có lớp năm nay)
     let orphanCount = 0;
     const prevYear = await AcademicYear.findOne({ status: 'inactive', _id: { $ne: id } }).sort({ endDate: -1 }).lean();
@@ -491,14 +501,19 @@ const getPublishYearPreview = async (req, res) => {
       
       const enrolledIds = await Enrollment.find({ academicYearId: id }).distinct('studentId');
       const enrolledSet = new Set(enrolledIds.map(eid => eid.toString()));
-      orphancount = promotedIds.filter(pid => !enrolledSet.has(pid.toString())).length;
+      orphanCount = promotedIds.filter(pid => !enrolledSet.has(pid.toString())).length;
     }
 
     return res.status(200).json({
       status: 'success',
       data: {
         toActivate: draftCount,
-        orphansToLink: orphancount
+        orphansToLink: orphanCount,
+        counts: {
+          classes: classCount,
+          students: placedStudentCount,
+          orphansToLink: orphanCount,
+        },
       }
     });
   } catch (error) {

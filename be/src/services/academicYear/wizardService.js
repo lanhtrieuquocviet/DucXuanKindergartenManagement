@@ -104,6 +104,7 @@ const setupNewAcademicYearWizard = async (req, res) => {
               academicYearId: newYear._id,
               gradeId: newGrade._id,
               criteria: t.criteria,
+              period: t.period || 'semester_1',
               status: t.status,
               createdBy: t.createdBy
             }));
@@ -370,6 +371,7 @@ const expressSetupNewAcademicYear = async (req, res) => {
             academicYearId: newYear._id,
             gradeId: ng._id,
             criteria: t.criteria,
+            period: t.period || 'semester_1',
             status: t.status,
             createdBy: t.createdBy
           }));

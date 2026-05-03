@@ -106,7 +106,7 @@ export default function TodayAttendance() {
   const today = useMemo(() => new Date(), []);
   const todayLabel = today.toLocaleDateString('vi-VN', { weekday: 'long', day: '2-digit', month: '2-digit', year: 'numeric' });
   const todayQuery = `${today.getFullYear()}-${String(today.getMonth()+1).padStart(2,'0')}-${String(today.getDate()).padStart(2,'0')}`;
-  const isWeekend = today.getDay() === 0 || today.getDay() === 6;
+  const isWeekend = false; // tạm tắt kiểm tra T7/CN // today.getDay() === 0 || today.getDay() === 6;
 
   useEffect(() => {
     if (isInitializing) return;

@@ -2,8 +2,8 @@ const Blog = require('../models/Blog');
 const BlogCategory = require('../models/BlogCategory');
 const HomepageBannerSetting = require('../models/HomepageBannerSetting');
 const ImageLibraryItem = require('../models/ImageLibraryItem');
-const PublicInfo = require('../models/PublicInfo');
 const Timetable = require('../models/Timetable');
+const { getOrganizationStructureData } = require('../services/publicInfoService');
 
 // Simple in-memory cache
 let homepageCache = {
@@ -31,13 +31,13 @@ exports.getHomepageData = async (req, res) => {
       banners,
       categories,
       gallery,
-      publicInfo,
+      organizationStructure,
       timetable
     ] = await Promise.all([
       HomepageBannerSetting.findOne().lean(),
       BlogCategory.find().lean(),
       ImageLibraryItem.find().sort({ createdAt: -1 }).limit(6).lean(),
-      PublicInfo.findOne().lean(),
+      getOrganizationStructureData(),
       Timetable.find({ isActive: true }).limit(6).lean()
     ]);
 
@@ -74,7 +74,7 @@ exports.getHomepageData = async (req, res) => {
       banners: banners?.banners || [],
       featuredBlogs: processedBlogs,
       gallery,
-      organizationStructure: publicInfo?.organizationStructure || {},
+      organizationStructure: organizationStructure || {},
       timetable: {
         data: timetable,
         effectiveSeason: timetable[0]?.appliesToSeason || 'quanh năm'
