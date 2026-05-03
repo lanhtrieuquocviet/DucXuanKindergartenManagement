@@ -116,6 +116,16 @@ function escapeRegex(text) {
   return String(text || '').replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
 }
 
+function toCanonical(value = '') {
+  return String(value)
+    .normalize('NFD')
+    .replace(/[̀-ͯ]/g, '')
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, ' ')
+    .trim()
+    .replace(/\s+/g, ' ');
+}
+
 exports.listAssets = async (req, res) => {
   try {
     // ?type=csvc hoặc ?type=asset; mặc định trả tất cả
@@ -366,6 +376,8 @@ exports.bulkCreateWarehouseAssets = async (req, res) => {
     for (const item of assets) {
       try {
         const { name, category, quantity, condition, unit, notes, goodQuantity, brokenQuantity } = item;
+        const normalizedName = String(name || '').trim();
+        const canonicalName = toCanonical(normalizedName);
         const normalizedCondition = normalizeCondition(condition);
         let { assetCode } = item;
         const normalizedCategory = normalizeWarehouseCategory(category);
@@ -425,7 +437,7 @@ exports.bulkCreateWarehouseAssets = async (req, res) => {
           assetCode = `TBNT${String(nttCounter).padStart(3, '0')}`;
         }
 
-        await Asset.create({
+        const createdAsset = await Asset.create({
           assetCode: assetCode.trim(),
           name: normalizedName,
           type: 'asset',

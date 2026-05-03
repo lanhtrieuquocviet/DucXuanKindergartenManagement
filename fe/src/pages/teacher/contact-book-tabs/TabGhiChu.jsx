@@ -1,4 +1,5 @@
 import { useState, useRef, useEffect, useCallback } from 'react';
+import { useConfirm } from '../../../hooks/useConfirm';
 import { 
   Box, Paper, Stack, Typography, TextField, IconButton, 
   Tooltip, Button, Chip, Skeleton, CircularProgress 
@@ -14,6 +15,7 @@ import { get, postFormData, del, ENDPOINTS } from '../../../service/api';
 import { toast } from 'react-toastify';
 
 export default function TabGhiChu({ classId, studentId }) {
+  const confirm = useConfirm();
   const [content, setContent]     = useState('');
   const [images, setImages]       = useState([]); // [{ file, url, uploading }]
   const [loading, setLoading]     = useState(true);
@@ -70,7 +72,7 @@ export default function TabGhiChu({ classId, studentId }) {
   };
 
   const handleDelete = async (noteId) => {
-    if (!window.confirm('Bạn có chắc muốn xoá ghi chú này?')) return;
+    if (!await confirm('Bạn có chắc muốn xoá ghi chú này?')) return;
     try {
       await del(ENDPOINTS.TEACHER.CONTACT_BOOK_NOTE_DETAIL(classId, studentId, noteId));
       toast.success('Đã xoá');

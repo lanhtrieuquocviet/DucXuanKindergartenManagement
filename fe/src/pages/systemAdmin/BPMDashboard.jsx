@@ -1,4 +1,5 @@
 import AddIcon from '@mui/icons-material/Add';
+import { useConfirm } from '../../hooks/useConfirm';
 import CloudUploadIcon from '@mui/icons-material/CloudUpload';
 import GetAppIcon from '@mui/icons-material/GetApp';
 import HealthAndSafetyIcon from '@mui/icons-material/HealthAndSafety';
@@ -79,6 +80,7 @@ const MODULES = [
 
 // ─── Main Content ─────────────────────────────────────────────
 const BPMDashboardContent = () => {
+  const confirm = useConfirm();
   const { user, logout } = useAuth();
   const navigate = useNavigate();
   const { getBPMWorkflows, saveBPMWorkflow, deleteBPMWorkflow,
@@ -176,7 +178,7 @@ const BPMDashboardContent = () => {
 
   const handleDelete = async () => {
     if (!current) return toast.warning('Chưa chọn quy trình');
-    if (!window.confirm(`Xóa vĩnh viễn "${current.name}"?`)) return;
+    if (!await confirm(`Xóa vĩnh viễn "${current.name}"?`)) return;
     await deleteBPMWorkflow(current._id || current.id);
     setNodes([]); setEdges([]); setCurrent(null);
     toast.success('Đã xóa'); loadData();
@@ -408,7 +410,7 @@ const BPMDashboardContent = () => {
               Xóa chọn
             </Button>
             <Button size="small" variant="outlined" color="error"
-              onClick={() => { if (window.confirm('Xóa sạch canvas?')) { setNodes([]); setEdges([]); } }}>
+              onClick={async () => { if (await confirm('Xóa sạch canvas?')) { setNodes([]); setEdges([]); } }}>
               Xóa bảng
             </Button>
             <Button size="small" variant="contained" startIcon={<AddIcon />}

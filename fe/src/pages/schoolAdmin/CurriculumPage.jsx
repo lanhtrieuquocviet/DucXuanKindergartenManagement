@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
+import { useConfirm } from '../../hooks/useConfirm';
 import {
   Box,
   Paper,
@@ -177,6 +178,7 @@ function CurriculumTopicCard({ topic, onEdit, onDelete }) {
 }
 
 export default function CurriculumPage() {
+  const confirm = useConfirm();
   const navigate = useNavigate();
   const { user, logout } = useAuth();
 
@@ -334,7 +336,7 @@ export default function CurriculumPage() {
   };
 
   const handleDeleteTopic = async (topic) => {
-    if (!window.confirm(`Bạn có chắc muốn xóa chủ đề "${topic.topicName}"?`)) return;
+    if (!await confirm(`Bạn có chắc muốn xóa chủ đề "${topic.topicName}"?`)) return;
     try {
       await del(ENDPOINTS.SCHOOL_ADMIN.CURRICULUM.DELETE(topic._id));
       setTopics((prev) => prev.filter((t) => t._id !== topic._id));

@@ -244,8 +244,6 @@ export function AssetsTab() {
             {CATEGORY_OPTIONS.map(o => <MenuItem key={o} value={o}>{o}</MenuItem>)}
           </Select>
         </FormControl>
-        <Button variant="outlined" startIcon={<UploadFileIcon />} onClick={() => importRef.current?.click()}>Import Excel</Button>
-        <input ref={importRef} hidden type="file" accept=".xlsx,.xls" onChange={handleImportFile} />
       </Stack>
 
       {loading ? <Box display="flex" justifyContent="center" py={4}><CircularProgress /></Box> : (

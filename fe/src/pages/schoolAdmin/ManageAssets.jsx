@@ -24,7 +24,6 @@ import { useAuth } from '../../context/AuthContext';
 // Import split components
 import { CommitteeTab } from './AssetManagement/CommitteeTab';
 import { MinutesTab } from './AssetManagement/MinutesTab';
-import { AssetsTab } from './AssetManagement/AssetsTab';
 import { WarehouseAssetsTab } from './AssetManagement/WarehouseAssetsTab';
 import { AdjustmentsTab } from './AssetManagement/AdjustmentsTab';
 import { AssetTransactionsTab } from './AssetManagement/AssetTransactionsTab';
@@ -61,7 +60,6 @@ export default function ManageAssets() {
           }}
         >
           <Tab icon={<DashboardIcon fontSize="small" />} iconPosition="start" label="Tổng quan" />
-          <Tab icon={<ListIcon fontSize="small" />} iconPosition="start" label="Báo cáo cuối năm" />
           <Tab icon={<InventoryIcon fontSize="small" />} iconPosition="start" label="Quản lý Kho (Phân bổ)" />
           <Tab icon={<CheckIcon fontSize="small" />} iconPosition="start" label="Lệnh điều chỉnh" />
           <Tab icon={<HistoryIcon fontSize="small" />} iconPosition="start" label="Hội đồng & Biên bản" />
@@ -76,9 +74,9 @@ export default function ManageAssets() {
                 <Stack spacing={2}>
                   {[
                     { title: '1. Thiết lập Hạ tầng', desc: 'Khai báo danh mục các phòng học, kho bãi và vị trí vật lý trong trường.', link: '/school-admin/facilities/locations', icon: <LocationIcon color="primary" /> },
-                    { title: '2. Quản lý Kho tổng', desc: 'Nhập danh mục tài sản và theo dõi số lượng tồn thực tế (Tốt/Hỏng).', tab: 2, icon: <ListIcon color="success" /> },
+                    { title: '2. Quản lý Kho tổng', desc: 'Nhập danh mục tài sản và theo dõi số lượng tồn thực tế (Tốt/Hỏng).', tab: 1, icon: <ListIcon color="success" /> },
                     { title: '3. Phân bổ & Bàn giao', desc: 'Cấp phát tài sản từ kho về từng phòng học hoặc điều chuyển giữa các vị trí.', link: '/school-admin/facilities/room-based', icon: <InventoryIcon color="warning" /> },
-                    { title: '4. Truy xuất & Audit', desc: 'Theo dõi lịch sử biến động chi tiết và rà soát báo cáo hiện trạng tài sản.', tab: 4, icon: <ArrowIcon color="info" /> }
+                    { title: '4. Truy xuất & Audit', desc: 'Theo dõi lịch sử biến động chi tiết và rà soát báo cáo hiện trạng tài sản.', tab: 3, icon: <ArrowIcon color="info" /> }
                   ].map((step, i) => (
                     <Paper
                       key={i}
@@ -109,7 +107,6 @@ export default function ManageAssets() {
                   <Typography variant="h6" fontWeight={800} color="#1e40af" mb={1}>Phím tắt nhanh</Typography>
                   <Stack spacing={1.5} mt={2}>
                     <Button variant="contained" fullWidth onClick={() => navigate('/school-admin/facilities/locations')} sx={{ bgcolor: '#2563eb', borderRadius: 2 }}>Quản lý Danh mục CSVC</Button>
-                    <Button variant="outlined" fullWidth onClick={() => setMainTab(1)} sx={{ borderRadius: 2 }}>Xem Báo cáo Tổng quát</Button>
                     <Button variant="outlined" fullWidth onClick={() => navigate('/school-admin/facilities/room-based')} sx={{ borderRadius: 2 }}>Xem Tài sản theo phòng</Button>
                     <Button variant="outlined" fullWidth onClick={() => navigate('/school-admin/committee')} sx={{ borderRadius: 2, color: '#0284c7', borderColor: '#0284c7' }}>Hội đồng kiểm kê</Button>
                   </Stack>
@@ -119,11 +116,10 @@ export default function ManageAssets() {
           </Box>
         )}
 
-        {mainTab === 1 && <AssetsTab />}
-        {mainTab === 2 && <WarehouseAssetsTab />}
-        {mainTab === 3 && <AdjustmentsTab />}
-        {mainTab === 4 && <CommitteeTab />}
-        {mainTab === 5 && <AssetTransactionsTab />}
+        {mainTab === 1 && <WarehouseAssetsTab />}
+        {mainTab === 2 && <AdjustmentsTab />}
+        {mainTab === 3 && <CommitteeTab />}
+        {mainTab === 4 && <AssetTransactionsTab />}
       </Paper>
     </Box>
   );

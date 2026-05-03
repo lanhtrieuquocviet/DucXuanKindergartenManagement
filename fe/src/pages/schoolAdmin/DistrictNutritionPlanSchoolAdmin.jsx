@@ -1,4 +1,5 @@
 ﻿import { useState, useEffect, useCallback, useRef } from "react";
+import { useConfirm } from "../../hooks/useConfirm";
 import { useNavigate } from "react-router-dom";
 import { toast } from "react-toastify";
 import { useAuth } from "../../context/AuthContext";
@@ -95,6 +96,7 @@ function isSameMetrics(aRows, bRows) {
 }
 
 export default function DistrictNutritionPlanSchoolAdmin() {
+  const confirm = useConfirm();
   const navigate = useNavigate();
   const { user } = useAuth();
 
@@ -340,7 +342,7 @@ export default function DistrictNutritionPlanSchoolAdmin() {
 
   const handleDeleteUpcoming = async (planId) => {
     if (!planId) return;
-    if (!window.confirm("Bạn có chắc muốn xóa kế hoạch sắp tới này?")) return;
+    if (!await confirm("Bạn có chắc muốn xóa kế hoạch sắp tới này?")) return;
     try {
       await deleteScheduledDistrictNutritionPlan(planId);
       toast.success("Đã xóa kế hoạch sắp tới");

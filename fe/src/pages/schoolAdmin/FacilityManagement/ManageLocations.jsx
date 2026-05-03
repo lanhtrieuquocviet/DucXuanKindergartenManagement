@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import { useConfirm } from '../../../hooks/useConfirm';
 import {
   Box, Typography, Paper, Table, TableBody, TableCell,
   TableContainer, TableHead, TableRow, Button, Stack,
@@ -29,6 +30,7 @@ const LOCATION_TYPES = [
 ];
 
 const ManageLocations = () => {
+  const confirm = useConfirm();
   const navigate = useNavigate();
   const [locations, setLocations] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -120,7 +122,7 @@ const ManageLocations = () => {
   };
 
   const handleDelete = async (id) => {
-    if (!window.confirm('Bạn có chắc chắn muốn xóa vị trí này?')) return;
+    if (!await confirm('Bạn có chắc chắn muốn xóa vị trí này?')) return;
     try {
       await facilityService.deleteLocation(id);
       toast.success('Xóa thành công');
@@ -244,7 +246,7 @@ const ManageLocations = () => {
               onChange={(e) => setForm({ ...form, name: e.target.value })}
               required
             />
-            
+
             <FormControl fullWidth>
               <InputLabel>Loại hình CSVC</InputLabel>
               <Select

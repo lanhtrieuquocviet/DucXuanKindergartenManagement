@@ -3,7 +3,16 @@ const BlogCategory = require('../models/BlogCategory');
 const HomepageBannerSetting = require('../models/HomepageBannerSetting');
 const ImageLibraryItem = require('../models/ImageLibraryItem');
 const Timetable = require('../models/Timetable');
+const AcademicYear = require('../models/AcademicYear');
 const { getOrganizationStructureData } = require('../services/publicInfoService');
+
+function minutesToLabel(m) {
+  const mm = Number(m);
+  if (Number.isNaN(mm)) return '';
+  const h = Math.floor(mm / 60);
+  const minutes = mm % 60;
+  return `${h}:${String(minutes).padStart(2, '0')}`;
+}
 
 // Simple in-memory cache
 let homepageCache = {
@@ -27,19 +36,32 @@ exports.getHomepageData = async (req, res) => {
       });
     }
 
+    const activeYear = await AcademicYear.findOne({ status: 'active' })
+      .sort({ startDate: -1 })
+      .select('_id')
+      .lean();
+
     const [
       banners,
       categories,
       gallery,
       organizationStructure,
-      timetable
+      timetableRaw
     ] = await Promise.all([
       HomepageBannerSetting.findOne().lean(),
       BlogCategory.find().lean(),
       ImageLibraryItem.find().sort({ createdAt: -1 }).limit(6).lean(),
       getOrganizationStructureData(),
-      Timetable.find({ isActive: true }).limit(6).lean()
+      activeYear
+        ? Timetable.find({ academicYear: activeYear._id }).sort({ startMinutes: 1 }).limit(6).lean()
+        : Promise.resolve([])
     ]);
+
+    const timetable = timetableRaw.map(item => ({
+      ...item,
+      startLabel: minutesToLabel(item.startMinutes),
+      endLabel: minutesToLabel(item.endMinutes),
+    }));
 
     // Fetch latest blog for each category more efficiently
     // We can use an aggregation to get the latest blog for each category in one call
