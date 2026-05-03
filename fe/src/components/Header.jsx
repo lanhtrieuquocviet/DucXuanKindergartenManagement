@@ -306,31 +306,12 @@ function Header() {
                                                     { key: 'administrativeGroup', label: 'Tổ Hành chính - Văn phòng', route: '/administrative-staff', members: [] },
                                                     { key: 'parentCouncil', label: 'Hội Thường trực PHHS', route: '/parent-council', members: [] },
                                                 ]).map((group, idx, arr) => (
-                                                    <div key={group.key} className={`relative group/item ${idx === 0 ? 'rounded-t-xl' : ''} ${idx === arr.length - 1 ? 'rounded-b-xl' : ''}`}>
+                                                    <div key={group.key}>
                                                         <a href={group.route}>
-                                                            <div className={`px-4 py-3 hover:bg-green-100 flex justify-between cursor-pointer ${idx === 0 ? 'rounded-t-xl' : ''} ${idx === arr.length - 1 ? 'rounded-b-xl' : ''}`}>
-                                                                <span>{group.label}</span>
-                                                                <span className="text-gray-400">▶</span>
+                                                            <div className={`px-4 py-3 hover:bg-green-100 cursor-pointer ${idx === 0 ? 'rounded-t-xl' : ''} ${idx === arr.length - 1 ? 'rounded-b-xl' : ''}`}>
+                                                                {group.label}
                                                             </div>
                                                         </a>
-                                                        <div className="absolute top-0 left-full -ml-1 pl-1 hidden group-hover/item:block z-50">
-                                                            <div className="bg-white rounded-xl shadow-xl min-w-[260px] border border-gray-50 py-1">
-                                                                {group.members.length > 0 ? (
-                                                                    group.members.map((member, memberIdx) => (
-                                                                        <div
-                                                                            key={`${group.key}-${member}-${memberIdx}`}
-                                                                            className={`px-4 py-2.5 hover:bg-green-100 text-sm ${memberIdx === 0 ? 'rounded-t-xl' : ''} ${memberIdx === group.members.length - 1 ? 'rounded-b-xl' : ''}`}
-                                                                        >
-                                                                            {member.fullName || '—'}
-                                                                        </div>
-                                                                    ))
-                                                                ) : (
-                                                                    <div className="px-4 py-2.5 text-sm text-gray-500 rounded-xl">
-                                                                        Chưa cập nhật nhân sự
-                                                                    </div>
-                                                                )}
-                                                            </div>
-                                                        </div>
                                                     </div>
                                                 ))}
                                             </div>

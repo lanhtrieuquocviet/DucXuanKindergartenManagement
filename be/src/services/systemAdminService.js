@@ -107,7 +107,23 @@ const getUsers = async (req, res) => {
 const createUser = async (req, res) => {
   try {
     const { username, password, fullName, email, phone, status, roleIds, position } = req.body;
-    // ... validation logic same as before ...
+
+    if (!fullName?.trim()) {
+      return res.status(400).json({ status: 'error', message: 'Vui lòng nhập họ và tên.' });
+    }
+    if (!username?.trim()) {
+      return res.status(400).json({ status: 'error', message: 'Vui lòng nhập tên đăng nhập.' });
+    }
+    if (!email?.trim()) {
+      return res.status(400).json({ status: 'error', message: 'Vui lòng nhập địa chỉ email.' });
+    }
+    if (!roleIds?.length) {
+      return res.status(400).json({ status: 'error', message: 'Vui lòng chọn vai trò hệ thống.' });
+    }
+    if (!position?.trim()) {
+      return res.status(400).json({ status: 'error', message: 'Vui lòng chọn chức vụ / vị trí.' });
+    }
+
     const salt = await bcrypt.genSalt(10);
     const passwordHash = await bcrypt.hash(password || '@DucXuan123', salt);
     const user = new User({ username, passwordHash, fullName, email, phone, status, roles: roleIds });
