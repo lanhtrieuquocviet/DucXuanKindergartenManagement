@@ -44,6 +44,7 @@ import {
   InputLabel,
   Select,
   MenuItem,
+  Checkbox,
 } from "@mui/material";
 import { INGREDIENT_GROUPS, labelForIngredientCategory } from "../../constants/ingredientCategories";
 import {
@@ -129,6 +130,23 @@ const calculateCaloriesFromMacros = (protein, fat, carb) => {
   const f = Number(fat) || 0;
   const c = Number(carb) || 0;
   return Math.round((p * 4 + f * 9 + c * 4) * 10) / 10;
+};
+
+/** Dữ liệu gốc trên 100g — hiển thị dòng = nhân theo ĐVT(g)/100 */
+const rowNutrientScaleRatio = (item) => {
+  let quantity = Number(item?.quantity);
+  if (Number.isNaN(quantity) || quantity < 0) quantity = 100;
+  return quantity / 100;
+};
+
+const scaledNutrientsForDisplay = (item) => {
+  const r = rowNutrientScaleRatio(item);
+  return {
+    calories: Math.round((Number(item.calories) || 0) * r * 10) / 10,
+    protein: Math.round((Number(item.protein) || 0) * r * 10) / 10,
+    fat: Math.round((Number(item.fat) || 0) * r * 10) / 10,
+    carb: Math.round((Number(item.carb) || 0) * r * 10) / 10,
+  };
 };
 
 function NutritionBar({ value, max, color }) {
@@ -259,7 +277,7 @@ function FoodManagement() {
 
   const [form, setForm] = useState(emptyFood);
   const [newIngredient, setNewIngredient] = useState({ name: "", quantity: "", unit: "g", calories: "", protein: "", fat: "", carb: "" });
-  const [selectedIngredient, setSelectedIngredient] = useState(null);
+  const [selectedLibraryIngredients, setSelectedLibraryIngredients] = useState([]);
   const [showCustomRow, setShowCustomRow] = useState(false);
   const [customIngredient, setCustomIngredient] = useState({
     name: "",
@@ -330,7 +348,7 @@ function FoodManagement() {
     setIngredientMacroErrors({});
     setCustomMacroErrors({});
     setShowCustomRow(false);
-    setSelectedIngredient(null);
+    setSelectedLibraryIngredients([]);
     setCustomIngredient({
       name: "",
       quantity: 100,
@@ -371,7 +389,7 @@ function FoodManagement() {
     setIngredientMacroErrors({});
     setCustomMacroErrors({});
     setShowCustomRow(false);
-    setSelectedIngredient(null);
+    setSelectedLibraryIngredients([]);
     setShowModal(true);
   };
 
@@ -414,46 +432,47 @@ function FoodManagement() {
     return g ? `${g.order}. ${g.title}` : String(categoryId || "");
   };
 
-  const addIngredientFromLibrary = (ingredient) => {
-    if (!ingredient) return;
+  const addSelectedLibraryIngredients = () => {
+    if (!selectedLibraryIngredients.length) return;
 
-    // Kiểm tra nguyên liệu đã có trong danh sách chưa
-    const alreadyExists = form.ingredients.some((it) => it.name.toLowerCase() === ingredient.name.toLowerCase());
-    if (alreadyExists) {
-      toast.error(`Nguyên liệu "${ingredient.name}" đã có trong danh sách`);
-      return;
-    }
-
-    // Tính Calories từ P/F/C (Protein*4 + Fat*9 + Carb*4)
-    const p = Number(ingredient.protein) || 0;
-    const f = Number(ingredient.fat) || 0;
-    const c = Number(ingredient.carb) || 0;
-    const calculatedCalories = Math.round((p * 4 + f * 9 + c * 4) * 10) / 10;
-
-    // Thêm trực tiếp vào form.ingredients với mặc định 100g
-    const finalUnit = extractUnitOnly(ingredient.unit) || 'g';
-    const updatedIngredients = [
-      ...form.ingredients,
-      {
-        name: ingredient.name || '',
-        category: ingredient.category || "luong_thuc",
-        quantity: 100,
-        unit: finalUnit,
-        calories: calculatedCalories,
-        protein: p,
-        fat: f,
-        carb: c,
-      },
-    ];
-
-    setForm((prev) => ({
-      ...prev,
-      ingredients: updatedIngredients,
-      ...computeNutritionFromIngredients(updatedIngredients),
-    }));
-
-    // Reset selectedIngredient
-    setSelectedIngredient(null);
+    setForm((prev) => {
+      let updated = [...prev.ingredients];
+      const skipped = [];
+      for (const ingredient of selectedLibraryIngredients) {
+        if (!ingredient) continue;
+        const exists = updated.some((it) => it.name.toLowerCase() === ingredient.name.toLowerCase());
+        if (exists) {
+          skipped.push(ingredient.name);
+          continue;
+        }
+        const p = Number(ingredient.protein) || 0;
+        const f = Number(ingredient.fat) || 0;
+        const c = Number(ingredient.carb) || 0;
+        const calculatedCalories = Math.round((p * 4 + f * 9 + c * 4) * 10) / 10;
+        const finalUnit = extractUnitOnly(ingredient.unit) || "g";
+        updated.push({
+          name: ingredient.name || "",
+          category: ingredient.category || "luong_thuc",
+          quantity: 100,
+          unit: finalUnit,
+          calories: calculatedCalories,
+          protein: p,
+          fat: f,
+          carb: c,
+          fromLibrary: true,
+        });
+      }
+      if (skipped.length) {
+        const msg = `Đã bỏ qua (trùng tên): ${skipped.join(", ")}`;
+        setTimeout(() => toast.error(msg), 0);
+      }
+      return {
+        ...prev,
+        ingredients: updated,
+        ...computeNutritionFromIngredients(updated),
+      };
+    });
+    setSelectedLibraryIngredients([]);
   };
 
 
@@ -599,6 +618,14 @@ function FoodManagement() {
 
   const handleIngredientChange = (index, field, value) => {
     setForm((prev) => {
+      const row = prev.ingredients[index];
+      if (
+        row?.fromLibrary &&
+        ["calories", "protein", "fat", "carb"].includes(field)
+      ) {
+        return prev;
+      }
+
       /** ĐVT (g): chỉ số, chuẩn 100g — tổng món = (ĐVT/100) × Kcal/đạm/béo/tinh bột trên 100g */
       if (field === "dvt" || field === "quantityWithUnit") {
         const s = String(value ?? "").trim();
@@ -1198,10 +1225,21 @@ function FoodManagement() {
               <Typography sx={{ mb: 1, fontWeight: 700 }}>Chọn nguyên liệu có sẵn</Typography>
               <Box sx={{ display: 'flex', gap: 1, alignItems: 'flex-start' }}>
                 <Autocomplete
+                  multiple
+                  disableCloseOnSelect
                   options={availableIngredients}
-                  value={selectedIngredient}
-                  getOptionLabel={(option) => `${option.name}`}
-                  onChange={(_, value) => setSelectedIngredient(value)}
+                  value={selectedLibraryIngredients}
+                  onChange={(_, value) => setSelectedLibraryIngredients(value)}
+                  getOptionLabel={(option) => option?.name ?? ""}
+                  isOptionEqualToValue={(a, b) =>
+                    a && b && (a._id && b._id ? a._id === b._id : String(a.name).toLowerCase() === String(b.name).toLowerCase())
+                  }
+                  renderOption={(props, option, { selected }) => (
+                    <li {...props} key={option._id || option.name}>
+                      <Checkbox size="small" sx={{ mr: 1, py: 0 }} checked={selected} />
+                      {option.name}
+                    </li>
+                  )}
                   renderInput={(params) => (
                     <TextField
                       {...params}
@@ -1212,16 +1250,12 @@ function FoodManagement() {
                     />
                   )}
                   sx={{ flex: 1 }}
+                  ListboxProps={{ style: { maxHeight: 280 } }}
                 />
                 <Button
                   variant="contained"
-                  onClick={() => {
-                    if (selectedIngredient) {
-                      addIngredientFromLibrary(selectedIngredient);
-                      setSelectedIngredient(null);
-                    }
-                  }}
-                  disabled={!selectedIngredient}
+                  onClick={addSelectedLibraryIngredients}
+                  disabled={!selectedLibraryIngredients.length}
                   sx={{ mt: 0.5 }}
                 >
                   Thêm
@@ -1304,7 +1338,9 @@ function FoodManagement() {
                     </TableRow>
                   </TableHead>
                   <TableBody>
-                    {(form.ingredients || []).map((item, idx) => (
+                    {(form.ingredients || []).map((item, idx) => {
+                      const libraryScaled = item.fromLibrary ? scaledNutrientsForDisplay(item) : null;
+                      return (
                       <TableRow key={idx} hover>
                         <TableCell sx={{ fontWeight: 600, wordBreak: "break-word" }}>{item.name}</TableCell>
                         <TableCell sx={{ py: 0.75, minWidth: 260 }}>
@@ -1352,49 +1388,80 @@ function FoodManagement() {
                           <TextField
                             size="small"
                             type="number"
-                            value={item.calories ?? 0}
-                            disabled={true}
+                            value={libraryScaled ? libraryScaled.calories : item.calories ?? 0}
+                            disabled
                             inputProps={{ style: { textAlign: 'center', fontSize: '0.875rem' } }}
-                            sx={{ width: '100%' }}
+                            sx={{
+                              width: '100%',
+                              ...(item.fromLibrary && {
+                                '& .MuiInputBase-input.Mui-disabled': {
+                                  WebkitTextFillColor: 'text.secondary',
+                                },
+                              }),
+                            }}
                           />
                         </TableCell>
                         <TableCell align="center" sx={{ flex: 1, display: { xs: 'none', sm: 'table-cell' } }}>
                           <TextField
                             size="small"
                             type="number"
-                            value={macroCellValue(item.protein)}
+                            value={libraryScaled ? libraryScaled.protein : macroCellValue(item.protein)}
                             onChange={(e) => handleIngredientChange(idx, 'protein', e.target.value)}
                             error={Boolean(ingredientMacroErrors[`${idx}_protein`])}
                             helperText={ingredientMacroErrors[`${idx}_protein`] || " "}
                             FormHelperTextProps={{ sx: { m: 0, fontSize: "0.65rem", lineHeight: 1.2 } }}
                             inputProps={{ min: 0, step: "any", style: { textAlign: 'center', fontSize: '0.875rem' } }}
-                            sx={{ width: '100%' }}
+                            disabled={Boolean(item.fromLibrary)}
+                            sx={{
+                              width: '100%',
+                              ...(item.fromLibrary && {
+                                '& .MuiInputBase-input.Mui-disabled': {
+                                  WebkitTextFillColor: 'text.secondary',
+                                },
+                              }),
+                            }}
                           />
                         </TableCell>
                         <TableCell align="center" sx={{ flex: 1, display: { xs: 'none', md: 'table-cell' } }}>
                           <TextField
                             size="small"
                             type="number"
-                            value={macroCellValue(item.fat)}
+                            value={libraryScaled ? libraryScaled.fat : macroCellValue(item.fat)}
                             onChange={(e) => handleIngredientChange(idx, 'fat', e.target.value)}
                             error={Boolean(ingredientMacroErrors[`${idx}_fat`])}
                             helperText={ingredientMacroErrors[`${idx}_fat`] || " "}
                             FormHelperTextProps={{ sx: { m: 0, fontSize: "0.65rem", lineHeight: 1.2 } }}
                             inputProps={{ min: 0, step: "any", style: { textAlign: 'center', fontSize: '0.875rem' } }}
-                            sx={{ width: '100%' }}
+                            disabled={Boolean(item.fromLibrary)}
+                            sx={{
+                              width: '100%',
+                              ...(item.fromLibrary && {
+                                '& .MuiInputBase-input.Mui-disabled': {
+                                  WebkitTextFillColor: 'text.secondary',
+                                },
+                              }),
+                            }}
                           />
                         </TableCell>
                         <TableCell align="center" sx={{ flex: 1, display: { xs: 'none', md: 'table-cell' } }}>
                           <TextField
                             size="small"
                             type="number"
-                            value={macroCellValue(item.carb)}
+                            value={libraryScaled ? libraryScaled.carb : macroCellValue(item.carb)}
                             onChange={(e) => handleIngredientChange(idx, 'carb', e.target.value)}
                             error={Boolean(ingredientMacroErrors[`${idx}_carb`])}
                             helperText={ingredientMacroErrors[`${idx}_carb`] || " "}
                             FormHelperTextProps={{ sx: { m: 0, fontSize: "0.65rem", lineHeight: 1.2 } }}
                             inputProps={{ min: 0, step: "any", style: { textAlign: 'center', fontSize: '0.875rem' } }}
-                            sx={{ width: '100%' }}
+                            disabled={Boolean(item.fromLibrary)}
+                            sx={{
+                              width: '100%',
+                              ...(item.fromLibrary && {
+                                '& .MuiInputBase-input.Mui-disabled': {
+                                  WebkitTextFillColor: 'text.secondary',
+                                },
+                              }),
+                            }}
                           />
                         </TableCell>
                         <TableCell align="center" sx={{ flex: 0.8 }}>
@@ -1404,7 +1471,7 @@ function FoodManagement() {
                           </IconButton>
                         </TableCell>
                       </TableRow>
-                    ))}
+                    );})}
                     {showCustomRow && (
                       <TableRow>
                         <TableCell sx={{ fontWeight: 600, flex: 1.2, wordBreak: 'break-word' }}>
