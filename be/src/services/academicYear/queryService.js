@@ -135,6 +135,7 @@ const getStudentsByAcademicYear = async (req, res) => {
         teacherUserIds: (cls?.teacherIds || []).map(t => t.userId?._id).filter(Boolean),
         gradeName: cls?.gradeId?.gradeName || '',
         canChooseGraduation: isGraduationEligibleBand(cls?.gradeId),
+        promotionStatus: assessment?.promotionStatus || null,
         evaluation: academicEvaluation && academicEvaluation !== 'Chưa đánh giá' ? {
           academicEvaluation: academicEvaluation,
           evaluationNote: evaluationNote || ''

@@ -67,6 +67,7 @@ import {
 import { Box, Drawer, IconButton, useMediaQuery, useTheme } from '@mui/material';
 
 import { useState } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 
 import DashboardAppBar from '../components/layouts/DashboardAppBar';
@@ -233,6 +234,7 @@ function RoleLayout({
 }) {
   const { user, logout, isInitializing } = useAuth();
   const theme = useTheme();
+  const navigate = useNavigate();
   const appMenu = useAppMenu();
 
   // Use hook values if props are missing
@@ -245,6 +247,7 @@ function RoleLayout({
   const displayUserAvatar = userAvatar || user?.avatarUrl;
   const displayUserRole = userRole || (user?.roles?.[0]?.roleName || user?.roles?.[0]);
   const handleLogout = onLogout || logout;
+  const handleViewProfile = onViewProfile || (() => navigate('/profile'));
 
   const isMobile = useMediaQuery(theme.breakpoints.down('md'));
   const [mobileOpen, setMobileOpen] = useState(false);
@@ -276,7 +279,7 @@ function RoleLayout({
     activeKey: effectiveActiveKey,
     onMenuSelect: handleMenuSelect,
     onLogout: () => { setMobileOpen(false); if (handleLogout) handleLogout(); },
-    onViewProfile: onViewProfile ? () => { setMobileOpen(false); onViewProfile(); } : null,
+    onViewProfile: () => { setMobileOpen(false); handleViewProfile(); },
     userName: displayUserName, 
     userAvatar: displayUserAvatar, 
     userRole: displayUserRole,
@@ -336,7 +339,7 @@ function RoleLayout({
           isMobile={isMobile}
           userName={displayUserName}
           userAvatar={displayUserAvatar}
-          onViewProfile={onViewProfile}
+          onViewProfile={handleViewProfile}
           onLogout={handleLogout}
         />
         

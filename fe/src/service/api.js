@@ -346,6 +346,7 @@ export const ENDPOINTS = {
       WIZARD_SETUP: "/school-admin/academic-years/wizard-setup",
       EXPRESS_SETUP: "/school-admin/academic-years/express-setup",
       WIZARD_CLONE_DATA: "/school-admin/academic-years/wizard-clone-data",
+      WIZARD_SUGGESTIONS: "/school-admin/academic-years/wizard-suggestions",
     },
     ASSESSMENT_TEMPLATES: "/school-admin/assessment-templates",
     ACADEMIC_PLAN: {

@@ -110,9 +110,9 @@ export default function ClassAssessment() {
         const allPassed = updatedResults.every(r => r.isPassed);
         const overallResult = allPassed ? 'Đạt' : 'Chưa đạt';
         
-        // Tự động gán promotionStatus dựa trên overallResult khi đánh giá cuối năm
+        // Tự động gán promotionStatus dựa trên overallResult, không ghi đè nếu đã chọn graduated
         let promotionStatus = st.assessment?.promotionStatus || 'promoted';
-        if (selectedPeriod === 'semester_2') {
+        if (selectedPeriod === 'semester_2' && promotionStatus !== 'graduated') {
           promotionStatus = overallResult === 'Đạt' ? 'promoted' : 'retained';
         }
 

@@ -215,33 +215,6 @@ export default function TeacherMyClass() {
             </Box>
           </Box>
 
-          <FormControl size="small" sx={{ minWidth: 160 }}>
-            <Select
-              value={selectedYearId}
-              onChange={(e) => {
-                setSelectedYearId(e.target.value);
-                setSelectedClassId('');
-                fetchStudents('', e.target.value);
-              }}
-              displayEmpty
-              sx={{
-                color: 'white', bgcolor: 'rgba(255,255,255,0.15)', borderRadius: 2,
-                '.MuiOutlinedInput-notchedOutline': { borderColor: 'rgba(255,255,255,0.3)' },
-                '&:hover .MuiOutlinedInput-notchedOutline': { borderColor: 'rgba(255,255,255,0.5)' },
-                '.MuiSelect-icon': { color: 'white' }, fontSize: '0.875rem', fontWeight: 600,
-              }}
-              renderValue={(v) => {
-                const y = academicYears.find(ay => String(ay._id) === String(v));
-                return y ? y.yearName : 'Năm học';
-              }}
-            >
-              {academicYears.map(y => (
-                <MenuItem key={y._id} value={y._id}>
-                  {y.yearName} {y.status === 'active' && <Chip label="Hiện tại" size="small" color="primary" sx={{ ml: 1, height: 20 }} />}
-                </MenuItem>
-              ))}
-            </Select>
-          </FormControl>
         </Box>
       </Paper>
 
