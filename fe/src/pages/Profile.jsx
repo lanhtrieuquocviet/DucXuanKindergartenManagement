@@ -243,7 +243,6 @@ function Profile() {
   const hasLoadedProfileRef = useRef(false);
   const hasUserEditedRef = useRef(false);
   const forceChangePassword = new URLSearchParams(location.search).get('forceChangePassword') === '1';
-  const canEditParentAvatar = userRoles.includes('Parent') || userRoles.includes('StudentParent');
 
   useEffect(() => {
     if (forceChangePassword) {
@@ -395,7 +394,7 @@ function Profile() {
               onSubmit={handleSubmitProfile}
               savingProfile={savingProfile}
               currentAvatar={profileForm.avatar || DEFAULT_AVATAR}
-              canEditAvatar={canEditParentAvatar}
+              canEditAvatar
               onAvatarSelect={handleAvatarSelect}
               uploadingAvatar={uploadingAvatar}
             />
