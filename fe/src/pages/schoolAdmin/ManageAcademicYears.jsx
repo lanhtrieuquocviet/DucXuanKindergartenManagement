@@ -116,9 +116,12 @@ const ManageAcademicYears = () => {
         const studentsResp = await get(ENDPOINTS.SCHOOL_ADMIN.ACADEMIC_YEARS.STUDENTS(currentResp.data._id));
         if (studentsResp?.status === 'success') {
           setFinishStudents(studentsResp.data || []);
-          // Default: mark all eligible seniors for graduation
-          const seniors = (studentsResp.data || []).filter(isFinishRowSelectable);
-          setGraduateMarkedIds(new Set(seniors.map(s => s._id)));
+          // Pre-populate từ promotionStatus giáo viên đã chọn, fallback về eligible band
+          const toGraduate = (studentsResp.data || []).filter(s =>
+            s.promotionStatus === 'graduated' ||
+            (!s.promotionStatus && (s.canChooseGraduation || s.age >= 5))
+          );
+          setGraduateMarkedIds(new Set(toGraduate.map(s => s._id)));
         }
       }
     } catch (err) {
@@ -129,10 +132,7 @@ const ManageAcademicYears = () => {
   };
 
   const isFinishRowSelectable = (student) => {
-    if (!currentYear) return false;
-    const canGraduate = student.canChooseGraduation;
-    const isOldEnough = student.age >= 5;
-    return canGraduate || isOldEnough;
+    return student.canChooseGraduation || student.age >= 5;
   };
 
   const handleToggleGraduateMark = (id) => {

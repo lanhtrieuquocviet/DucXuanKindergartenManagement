@@ -312,35 +312,6 @@ function TeacherDashboard() {
             </Box>
           </Box>
           <Box sx={{ display: 'flex', gap: 1.5, flexWrap: 'wrap', alignItems: 'center' }}>
-            <FormControl size="small" sx={{ minWidth: 160 }}>
-              <Select
-                value={selectedYearId}
-                onChange={(e) => setSelectedYearId(e.target.value)}
-                displayEmpty
-                sx={{
-                  color: 'white',
-                  bgcolor: 'rgba(255,255,255,0.12)',
-                  borderRadius: 2,
-                  '.MuiOutlinedInput-notchedOutline': { borderColor: 'rgba(255,255,255,0.3)' },
-                  '&:hover .MuiOutlinedInput-notchedOutline': { borderColor: 'rgba(255,255,255,0.5)' },
-                  '&.Mui-focused .MuiOutlinedInput-notchedOutline': { borderColor: 'rgba(255,255,255,0.6)' },
-                  '.MuiSelect-icon': { color: 'white' },
-                  fontSize: '0.875rem',
-                  fontWeight: 600
-                }}
-                renderValue={(selected) => {
-                  if (!selected) return 'Chọn năm học';
-                  const year = academicYears.find(y => String(y._id) === String(selected));
-                  return year ? year.yearName : 'Chọn năm học';
-                }}
-              >
-                {academicYears.map((year) => (
-                  <MenuItem key={year._id} value={year._id}>
-                    {year.yearName} {year.status === 'active' && <Chip label="Hiện tại" size="small" color="primary" sx={{ ml: 1, height: 20 }} />}
-                  </MenuItem>
-                ))}
-              </Select>
-            </FormControl>
 
             {hasPermission('MANAGE_ATTENDANCE') && (
               <Button

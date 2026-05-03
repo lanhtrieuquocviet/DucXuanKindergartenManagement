@@ -196,15 +196,15 @@ export default function PickupFaceAttendanceModal({ open, onClose, classId, clas
                     <div className="flex gap-2 sm:gap-3 mb-2">
                       <div className="flex flex-col items-center gap-1 flex-1">
                         <div className="w-full h-16 sm:h-24 rounded-lg overflow-hidden bg-gray-200 border-2 border-emerald-300">
-                          {matchResult.student?.avatar ? (
-                            <img src={matchResult.student.avatar} alt="Ảnh hồ sơ" className="w-full h-full object-cover" />
+                          {(matchResult.student?.faceImageUrls?.[0] || matchResult.student?.avatar) ? (
+                            <img src={matchResult.student.faceImageUrls?.[0] || matchResult.student.avatar} alt="Ảnh khuôn mặt đăng ký" className="w-full h-full object-cover" />
                           ) : (
                             <div className="w-full h-full flex items-center justify-center">
                               <User size={32} className="text-gray-400" />
                             </div>
                           )}
                         </div>
-                        <p className="text-xs text-gray-500">Hồ sơ</p>
+                        <p className="text-xs text-gray-500">Khuôn mặt đăng ký</p>
                       </div>
                       <div className="flex flex-col items-center gap-1 flex-1">
                         <div className="w-full h-16 sm:h-24 rounded-lg overflow-hidden bg-gray-200 border-2 border-blue-300">

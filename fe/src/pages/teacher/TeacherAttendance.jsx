@@ -867,20 +867,6 @@ function TeacherAttendance() {
               </ToggleButton>
             </ToggleButtonGroup>
 
-            <FormControl size="small" sx={{ minWidth: { xs: 130, sm: 170 } }}>
-              <Select
-                value={selectedYearId}
-                onChange={(e) => setSelectedYearId(e.target.value)}
-                displayEmpty
-                sx={{ height: 36, fontSize: 13, fontWeight: 600, bgcolor: 'white', '& .MuiSelect-select': { py: 0.5 } }}
-              >
-                {academicYears.map((y) => (
-                  <MenuItem key={y._id} value={y._id} sx={{ fontSize: 13 }}>
-                    {y.yearName} {y.status === 'active' && '(Hiện tại)'}
-                  </MenuItem>
-                ))}
-              </Select>
-            </FormControl>
           </Box>
 
           {/* Row 2: Nút AI — full-width trên mobile, auto trên desktop */}

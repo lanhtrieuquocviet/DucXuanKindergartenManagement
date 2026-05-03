@@ -219,7 +219,7 @@ const matchFaceEmbedding = async (req, res) => {
       classId,
       status: 'active',
       faceEmbedding: { $exists: true, $not: { $size: 0 } },
-    }).select('_id fullName faceEmbedding faceEmbeddings classId avatar');
+    }).select('_id fullName faceEmbedding faceEmbeddings faceImageUrls classId avatar');
 
     if (students.length === 0) {
       return res.status(200).json({
@@ -305,6 +305,7 @@ const matchFaceEmbedding = async (req, res) => {
           _id: bestMatch._id,
           fullName: bestMatch.fullName,
           avatar: bestMatch.avatar,
+          faceImageUrls: bestMatch.faceImageUrls,
           classId: bestMatch.classId,
         },
         similarity: bestSimilarity.toFixed(4),
@@ -354,6 +355,7 @@ const matchFaceEmbedding = async (req, res) => {
         _id: bestMatch._id,
         fullName: bestMatch.fullName,
         avatar: bestMatch.avatar,
+        faceImageUrls: bestMatch.faceImageUrls,
         classId: bestMatch.classId,
       },
       similarity: bestSimilarity.toFixed(4),
@@ -396,7 +398,7 @@ const getClassEmbeddings = async (req, res) => {
       classId,
       status: 'active',
       faceEmbedding: { $exists: true, $not: { $size: 0 } },
-    }).select('_id fullName avatar faceEmbedding faceEmbeddings faceRegisteredAt classId');
+    }).select('_id fullName avatar faceEmbedding faceEmbeddings faceImageUrls faceRegisteredAt classId');
 
     return res.status(200).json({
       status: 'success',
@@ -409,6 +411,7 @@ const getClassEmbeddings = async (req, res) => {
           studentId: s._id,
           fullName: s.fullName,
           avatar: s.avatar,
+          faceImageUrls: s.faceImageUrls || [],
           classId: s.classId,
           embedding: s.faceEmbedding,   // backward compat
           embeddings,                    // multi-angle
@@ -815,7 +818,7 @@ const matchStudentFaceForCheckout = async (req, res) => {
       classId,
       status: 'active',
       faceEmbedding: { $exists: true, $not: { $size: 0 } },
-    }).select('_id fullName avatar faceEmbedding faceEmbeddings classId');
+    }).select('_id fullName avatar faceEmbedding faceEmbeddings faceImageUrls classId');
 
     if (students.length === 0) {
       return res.status(200).json({
@@ -878,7 +881,7 @@ const matchStudentFaceForCheckout = async (req, res) => {
         status: 'not_checked_in',
         message: `${bestMatch.fullName} chưa điểm danh đến hôm nay`,
         matched: true,
-        student: { _id: bestMatch._id, fullName: bestMatch.fullName, avatar: bestMatch.avatar },
+        student: { _id: bestMatch._id, fullName: bestMatch.fullName, avatar: bestMatch.avatar, faceImageUrls: bestMatch.faceImageUrls },
       });
     }
 
@@ -888,7 +891,7 @@ const matchStudentFaceForCheckout = async (req, res) => {
         status: 'already_checked_out',
         message: `${bestMatch.fullName} đã điểm danh về lúc ${existingAttendance.timeString.checkOut}`,
         matched: true,
-        student: { _id: bestMatch._id, fullName: bestMatch.fullName, avatar: bestMatch.avatar },
+        student: { _id: bestMatch._id, fullName: bestMatch.fullName, avatar: bestMatch.avatar, faceImageUrls: bestMatch.faceImageUrls },
         attendance: existingAttendance,
       });
     }
@@ -901,7 +904,7 @@ const matchStudentFaceForCheckout = async (req, res) => {
         status: 'success',
         message: `Nhận diện thành công: ${bestMatch.fullName}`,
         matched: true,
-        student: { _id: bestMatch._id, fullName: bestMatch.fullName, avatar: bestMatch.avatar },
+        student: { _id: bestMatch._id, fullName: bestMatch.fullName, avatar: bestMatch.avatar, faceImageUrls: bestMatch.faceImageUrls },
         similarity: bestSimilarity.toFixed(4),
         attendance: existingAttendance,
         previewTime: { checkOut: checkOutTimeString },

@@ -106,8 +106,7 @@ export const MENU_CONFIG = {
       key: 'academic-management-teacher',
       label: 'Học sinh & Lớp học',
       children: [
-        { key: 'classes-teacher', label: 'Lớp phụ trách', path: '/teacher/my-class', permissionCode: 'VIEW_TEACHER_DASHBOARD' },
-        { key: 'students-teacher', label: 'Danh sách học sinh', path: '/teacher/students', permissionCode: 'VIEW_TEACHER_STUDENTS' },
+{ key: 'students-teacher', label: 'Danh sách học sinh', path: '/teacher/students', permissionCode: 'VIEW_TEACHER_STUDENTS' },
         { key: 'academic-plan-teacher', label: 'Kế hoạch học tập', path: '/teacher/academic-plan' },
         { key: 'academic-events-teacher', label: 'Sự kiện năm học', path: '/teacher/academic-events' },
         { key: 'timetable-teacher', label: 'Thời khóa biểu', path: '/teacher/timetable' },
