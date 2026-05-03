@@ -258,8 +258,13 @@ function AccountDialog({
                 onChange={handleChangeField}
                 size="medium"
                 placeholder="Số điện thoại"
-                helperText={!isSystemAdminRole ? "Số điện thoại này sẽ dùng làm tài khoản đăng nhập." : ""}
-                FormHelperTextProps={{ sx: { color: 'primary.main', fontWeight: 600 } }}
+                helperText={
+                  editingUser
+                    ? "Số điện thoại là tài khoản đăng nhập, không thể thay đổi."
+                    : !isSystemAdminRole ? "Số điện thoại này sẽ dùng làm tài khoản đăng nhập." : ""
+                }
+                FormHelperTextProps={{ sx: { color: editingUser ? 'text.secondary' : 'primary.main', fontWeight: 600 } }}
+                disabled={!!editingUser}
                 fullWidth
               />
             </Box>
@@ -301,8 +306,7 @@ function AccountDialog({
                 label="Chức vụ / Vị trí"
                 onChange={handleChangeField}
               >
-                <MenuItem value="Giáo viên chủ nhiệm">Giáo viên chủ nhiệm</MenuItem>
-                <MenuItem value="Giáo viên bộ môn">Giáo viên bộ môn</MenuItem>
+                <MenuItem value="Giáo viên">Giáo viên</MenuItem>
                 <MenuItem value="Bảo mẫu">Bảo mẫu</MenuItem>
                 <MenuItem value="Nhân viên bếp">Nhân viên bếp</MenuItem>
                 <MenuItem value="Nhân viên y tế">Nhân viên y tế</MenuItem>
@@ -313,21 +317,23 @@ function AccountDialog({
               </Select>
             </FormControl>
 
-            <FormControl size="medium" fullWidth>
-              <InputLabel>Trạng thái công tác</InputLabel>
-              <Select
-                name="status"
-                value={userForm.status}
-                label="Trạng thái công tác"
-                onChange={handleChangeField}
-              >
-                <MenuItem value="active">Đang làm việc</MenuItem>
-                <MenuItem value="maternity_leave">Nghỉ thai sản</MenuItem>
-                <MenuItem value="on_leave">Nghỉ phép dài hạn</MenuItem>
-                <MenuItem value="resigned">Đã thôi việc</MenuItem>
-                <MenuItem value="inactive">Khóa tài khoản</MenuItem>
-              </Select>
-            </FormControl>
+            {editingUser && (
+              <FormControl size="medium" fullWidth>
+                <InputLabel>Trạng thái công tác</InputLabel>
+                <Select
+                  name="status"
+                  value={userForm.status}
+                  label="Trạng thái công tác"
+                  onChange={handleChangeField}
+                >
+                  <MenuItem value="active">Đang làm việc</MenuItem>
+                  <MenuItem value="maternity_leave">Nghỉ thai sản</MenuItem>
+                  <MenuItem value="on_leave">Nghỉ phép dài hạn</MenuItem>
+                  <MenuItem value="resigned">Đã thôi việc</MenuItem>
+                  <MenuItem value="inactive">Khóa tài khoản</MenuItem>
+                </Select>
+              </FormControl>
+            )}
           </Box>
         </DialogContent>
 

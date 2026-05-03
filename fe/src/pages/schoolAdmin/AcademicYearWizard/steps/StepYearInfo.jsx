@@ -68,6 +68,7 @@ export default function StepYearInfo({ data, onChange, options, onOptionsChange,
               required
               InputLabelProps={{ shrink: true }} fullWidth size="small"
               value={data.startDate}
+              inputProps={{ lang: 'en-GB' }}
               onChange={e => handleYearDateChange('startDate', e.target.value)}
               error={!!errors.startDate} helperText={errors.startDate}
             />
@@ -76,7 +77,7 @@ export default function StepYearInfo({ data, onChange, options, onOptionsChange,
               required
               InputLabelProps={{ shrink: true }} fullWidth size="small"
               value={data.endDate}
-              inputProps={{ min: data.startDate || undefined }}
+              inputProps={{ min: data.startDate || undefined, lang: 'en-GB' }}
               onChange={e => handleYearDateChange('endDate', e.target.value)}
               error={!!errors.endDate} helperText={errors.endDate}
             />
@@ -129,7 +130,7 @@ export default function StepYearInfo({ data, onChange, options, onOptionsChange,
                 required
                 InputLabelProps={{ shrink: true }} fullWidth size="small"
                 value={data.term1StartDate}
-                inputProps={{ min: data.startDate || undefined, max: data.endDate || undefined }}
+                inputProps={{ min: data.startDate || undefined, max: data.endDate || undefined, lang: 'en-GB' }}
                 onChange={e => set('term1StartDate', e.target.value)}
                 error={!!errors.term1StartDate} helperText={errors.term1StartDate}
                 sx={{ bgcolor: 'white' }}
@@ -139,7 +140,7 @@ export default function StepYearInfo({ data, onChange, options, onOptionsChange,
                 required
                 InputLabelProps={{ shrink: true }} fullWidth size="small"
                 value={data.term1EndDate}
-                inputProps={{ min: data.term1StartDate || data.startDate || undefined, max: data.endDate || undefined }}
+                inputProps={{ min: data.term1StartDate || data.startDate || undefined, max: data.endDate || undefined, lang: 'en-GB' }}
                 onChange={e => set('term1EndDate', e.target.value)}
                 error={!!errors.term1EndDate} helperText={errors.term1EndDate}
                 sx={{ bgcolor: 'white' }}
@@ -164,7 +165,7 @@ export default function StepYearInfo({ data, onChange, options, onOptionsChange,
                 required
                 InputLabelProps={{ shrink: true }} fullWidth size="small"
                 value={data.term2StartDate}
-                inputProps={{ min: data.term1EndDate || data.startDate || undefined, max: data.endDate || undefined }}
+                inputProps={{ min: data.term1EndDate || data.startDate || undefined, max: data.endDate || undefined, lang: 'en-GB' }}
                 onChange={e => set('term2StartDate', e.target.value)}
                 error={!!errors.term2StartDate} helperText={errors.term2StartDate}
                 sx={{ bgcolor: 'white' }}
@@ -174,7 +175,7 @@ export default function StepYearInfo({ data, onChange, options, onOptionsChange,
                 required
                 InputLabelProps={{ shrink: true }} fullWidth size="small"
                 value={data.term2EndDate}
-                inputProps={{ min: data.term2StartDate || data.startDate || undefined, max: data.endDate || undefined }}
+                inputProps={{ min: data.term2StartDate || data.startDate || undefined, max: data.endDate || undefined, lang: 'en-GB' }}
                 onChange={e => set('term2EndDate', e.target.value)}
                 error={!!errors.term2EndDate} helperText={errors.term2EndDate}
                 sx={{ bgcolor: 'white' }}
