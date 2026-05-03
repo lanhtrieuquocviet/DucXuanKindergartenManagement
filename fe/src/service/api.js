@@ -191,6 +191,17 @@ export const postFormData = async (endpoint, formData, options = {}) => {
 };
 
 /**
+ * GET blob - dùng cho download file
+ */
+export const getBlob = async (endpoint) => {
+  const token = getToken();
+  const headers = token ? { Authorization: `Bearer ${token}` } : {};
+  const res = await fetch(`${API_BASE_URL}${endpoint}`, { method: 'GET', headers });
+  if (!res.ok) throw new Error(`Download failed: ${res.status}`);
+  return res.blob();
+};
+
+/**
  * PUT FormData (multipart) - dùng cho upload file
  */
 export const putFormData = async (endpoint, formData, options = {}) => {
@@ -420,6 +431,7 @@ export const ENDPOINTS = {
     ASSETS: "/school-admin/assets",
     ASSETS_BULK: "/school-admin/assets/bulk",
     ASSETS_BULK_WAREHOUSE: "/school-admin/assets/bulk-warehouse",
+    ASSETS_WAREHOUSE_TEMPLATE: "/school-admin/assets/warehouse-template",
     // Asset Allocations (Biên bản bàn giao tài sản)
     ASSET_ALLOCATIONS: "/school-admin/asset-allocations",
     ASSET_ALLOCATIONS_CLASSES: "/school-admin/asset-allocations/classes",

@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react';
+import { useConfirm } from '../../../hooks/useConfirm';
 import {
   Box,
   Button,
@@ -40,6 +41,7 @@ const ADJUSTMENT_TYPE = {
 };
 
 export function AdjustmentsTab() {
+  const confirm = useConfirm();
   const [loading, setLoading] = useState(true);
   const [adjustments, setAdjustments] = useState([]);
   const [processingId, setProcessingId] = useState(null);
@@ -61,7 +63,7 @@ export function AdjustmentsTab() {
   }, []);
 
   const handleApply = async (id) => {
-    if (!window.confirm('Bạn có chắc muốn áp dụng lệnh điều chỉnh này? Số lượng tài sản trong kho sẽ được cập nhật.')) return;
+    if (!await confirm('Bạn có chắc muốn áp dụng lệnh điều chỉnh này? Số lượng tài sản trong kho sẽ được cập nhật.')) return;
     setProcessingId(id);
     try {
       await patch(ENDPOINTS.SCHOOL_ADMIN.ASSET_ADJUSTMENT_APPLY(id));
@@ -75,7 +77,7 @@ export function AdjustmentsTab() {
   };
 
   const handleVoid = async (id) => {
-    if (!window.confirm('Bạn có chắc muốn hủy lệnh điều chỉnh này?')) return;
+    if (!await confirm('Bạn có chắc muốn hủy lệnh điều chỉnh này?')) return;
     setProcessingId(id);
     try {
       await patch(ENDPOINTS.SCHOOL_ADMIN.ASSET_ADJUSTMENT_VOID(id));

@@ -27,6 +27,26 @@ const facilityController = {
     }
   },
 
+  async updateLocation(req, res) {
+    try {
+      const location = await FacilityLocation.findByIdAndUpdate(req.params.id, req.body, { new: true }).populate('managerId', 'fullName');
+      if (!location) return res.status(404).json({ status: 'error', message: 'Không tìm thấy vị trí' });
+      res.json({ status: 'success', data: location });
+    } catch (error) {
+      res.status(500).json({ status: 'error', message: error.message });
+    }
+  },
+
+  async deleteLocation(req, res) {
+    try {
+      const location = await FacilityLocation.findByIdAndDelete(req.params.id);
+      if (!location) return res.status(404).json({ status: 'error', message: 'Không tìm thấy vị trí' });
+      res.json({ status: 'success', message: 'Đã xóa thành công' });
+    } catch (error) {
+      res.status(500).json({ status: 'error', message: error.message });
+    }
+  },
+
   // --- Categories & Types ---
   async listCategories(req, res) {
     try {

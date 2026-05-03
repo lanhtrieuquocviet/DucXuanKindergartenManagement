@@ -30,9 +30,11 @@ import {
   Edit as EditIcon,
   UploadFile as UploadFileIcon,
   FormatListBulleted as ListIcon,
+  FileDownload as DownloadIcon,
 } from '@mui/icons-material';
 import { toast } from 'react-toastify';
-import { del, get, post, postFormData, put, ENDPOINTS } from '../../../service/api';
+import { del, get, post, postFormData, put, getBlob, ENDPOINTS } from '../../../service/api';
+import { useConfirm } from '../../../hooks/useConfirm';
 import {
   emptyWarehouseAsset,
   ConfirmDialog,
@@ -44,6 +46,7 @@ import {
 
 
 export function WarehouseAssetsTab() {
+  const confirm = useConfirm();
   const [loading, setLoading] = useState(true);
   const [assets, setAssets] = useState([]);
   const [reportItems, setReportItems] = useState([]); // Danh sách các mục từ Tab Báo cáo
@@ -158,7 +161,7 @@ export function WarehouseAssetsTab() {
 
   const handleQuickDelete = async (asset) => {
     if (!asset?._id) return;
-    if (!window.confirm(`Bạn có chắc chắn muốn xóa "${asset.name}"?`)) return;
+    if (!await confirm(`Bạn có chắc chắn muốn xóa "${asset.name}"?`)) return;
     setDeletingId(asset._id);
     try {
       await del(ENDPOINTS.SCHOOL_ADMIN.ASSET_DETAIL(asset._id));
@@ -240,6 +243,20 @@ export function WarehouseAssetsTab() {
     }
   };
 
+  const handleDownloadTemplate = async () => {
+    try {
+      const blob = await getBlob(ENDPOINTS.SCHOOL_ADMIN.ASSETS_WAREHOUSE_TEMPLATE);
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = 'mau_nhap_kho_tai_san.docx';
+      a.click();
+      URL.revokeObjectURL(url);
+    } catch (err) {
+      toast.error('Không tải được file mẫu.');
+    }
+  };
+
   const handleImport = async () => {
     setImporting(true);
     try {
@@ -263,6 +280,9 @@ export function WarehouseAssetsTab() {
         <Stack direction="row" spacing={1}>
           <Button variant="outlined" color="info" startIcon={<ListIcon />} onClick={() => setCategoryDialog(true)}>
             Quản lý Nhóm
+          </Button>
+          <Button variant="outlined" color="success" startIcon={<DownloadIcon />} onClick={handleDownloadTemplate}>
+            Tải mẫu
           </Button>
           <Button variant="outlined" startIcon={<UploadFileIcon />} onClick={() => fileInputRef.current?.click()}>
             Import Word

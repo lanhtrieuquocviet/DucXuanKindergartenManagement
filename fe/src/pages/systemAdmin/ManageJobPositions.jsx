@@ -3,6 +3,7 @@ import {
   Box,
 } from '@mui/material';
 import { useEffect, useState } from 'react';
+import { useConfirm } from '../../hooks/useConfirm';
 import { toast } from 'react-toastify';
 import { del, get, post, put, ENDPOINTS } from '../../service/api';
 import JobPositionHeader from './components/JobPositionHeader';
@@ -10,6 +11,7 @@ import JobPositionTable from './components/JobPositionTable';
 import JobPositionDialog from './components/JobPositionDialog';
 
 const ManageJobPositions = () => {
+  const confirm = useConfirm();
   const [positions, setPositions] = useState([]);
   const [roles, setRoles] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -88,7 +90,7 @@ const ManageJobPositions = () => {
   };
 
   const handleDelete = async (id) => {
-    if (!window.confirm('Bạn có chắc chắn muốn xóa chức vụ này?')) return;
+    if (!await confirm('Bạn có chắc chắn muốn xóa chức vụ này?')) return;
     try {
       await del(ENDPOINTS.SYSTEM_ADMIN.DELETE_JOB_POSITION(id));
       toast.success('Đã xóa chức vụ');

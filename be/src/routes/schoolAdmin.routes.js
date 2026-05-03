@@ -48,6 +48,8 @@ const router = express.Router();
 // ============================================
 router.get('/facilities/locations', authenticate, authorizeRoles('SchoolAdmin'), facilityController.listLocations);
 router.post('/facilities/locations', authenticate, authorizeRoles('SchoolAdmin'), facilityController.createLocation);
+router.put('/facilities/locations/:id', authenticate, authorizeRoles('SchoolAdmin'), facilityController.updateLocation);
+router.delete('/facilities/locations/:id', authenticate, authorizeRoles('SchoolAdmin'), facilityController.deleteLocation);
 
 router.get('/facilities/categories', authenticate, authorizeRoles('SchoolAdmin'), facilityController.listCategories);
 router.get('/facilities/types', authenticate, authorizeRoles('SchoolAdmin'), facilityController.listTypes);
@@ -2846,6 +2848,7 @@ router.get('/assets', authenticate, authorizePermissions('MANAGE_ASSET'), assetC
 router.post('/assets', authenticate, authorizePermissions('MANAGE_ASSET'), assetCrudCtrl.createAsset);
 router.post('/assets/bulk', authenticate, authorizePermissions('MANAGE_ASSET'), assetCrudCtrl.bulkCreateAssets);
 router.post('/assets/bulk-warehouse', authenticate, authorizePermissions('MANAGE_ASSET'), assetCrudCtrl.bulkCreateWarehouseAssets);
+router.get('/assets/warehouse-template', authenticate, authorizePermissions('MANAGE_ASSET'), assetCrudCtrl.generateWarehouseTemplate);
 router.get('/assets/:id', authenticate, authorizePermissions('MANAGE_ASSET'), assetCrudCtrl.getAsset);
 router.put('/assets/:id', authenticate, authorizePermissions('MANAGE_ASSET'), assetCrudCtrl.updateAsset);
 router.delete('/assets/:id', authenticate, authorizePermissions('MANAGE_ASSET'), assetCrudCtrl.deleteAsset);

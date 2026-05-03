@@ -1,4 +1,5 @@
 ﻿import React, { useEffect, useState } from "react";
+import { useConfirm } from "../../hooks/useConfirm";
 import { useNavigate } from "react-router-dom";
 import {
   Box,
@@ -25,6 +26,7 @@ import { getHealthCheckRecords, deleteHealthCheck, updateHealthCheck } from "../
 import { toast } from "react-toastify";
 
 function HealthCheckList() {
+  const confirm = useConfirm();
   const navigate = useNavigate();
   const [records, setRecords] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -52,7 +54,7 @@ function HealthCheckList() {
   };
 
   const handleDelete = async (id) => {
-    if (window.confirm("Bạn chắc chắn muốn xóa bản ghi này?")) {
+    if (await confirm("Bạn chắc chắn muốn xóa bản ghi này?")) {
       try {
         await deleteHealthCheck(id);
         setRecords(records.filter((r) => r._id !== id));

@@ -233,7 +233,10 @@ export default function ManageStaff({ isEmbedded = false }) {
     );
   }, [staff, search]);
 
-  const POSITION_OPTIONS_DYNAMIC = positions.map(p => p.title);
+  const EXCLUDED_TITLES = ['phụ huynh', 'ban kiểm kê'];
+  const POSITION_OPTIONS_DYNAMIC = positions
+    .filter(p => !EXCLUDED_TITLES.includes((p.title || '').toLowerCase()))
+    .map(p => p.title);
   const POSITION_MAP_DYNAMIC = positions.reduce((acc, curr) => {
     acc[curr.title] = curr.roleName;
     return acc;

@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
+import { useConfirm } from '../../hooks/useConfirm';
 import { useAuth } from '../../context/AuthContext';
 import { get, post, patch, ENDPOINTS } from '../../service/api';
 import {
@@ -28,6 +29,7 @@ function fmtDate(d) {
 }
 
 export default function ClassTransferRequestPage() {
+  const confirm = useConfirm();
   const navigate = useNavigate();
   const [params] = useSearchParams();
   const { user } = useAuth();
@@ -125,7 +127,7 @@ export default function ClassTransferRequestPage() {
   };
 
   const handleCancel = async (id) => {
-    if (!window.confirm('Bạn có chắc muốn huỷ đơn này không?')) return;
+    if (!await confirm('Bạn có chắc muốn huỷ đơn này không?')) return;
     setCancelling(id);
     try {
       await post(ENDPOINTS.CLASS_TRANSFER.CANCEL(id));

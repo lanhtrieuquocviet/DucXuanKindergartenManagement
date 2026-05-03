@@ -3,6 +3,7 @@ import { Route, BrowserRouter as Router, Routes } from 'react-router-dom';
 import './App.css';
 import ProtectedRoute from './components/ProtectedRoute';
 import { AuthProvider } from './context/AuthContext';
+import { ConfirmProvider } from './hooks/useConfirm';
 import { SchoolAdminProvider } from './context/SchoolAdminContext';
 import { SchoolNurseProvider } from './context/SchoolNurseContext';
 import { SystemAdminProvider } from './context/SystemAdminContext';
@@ -256,6 +257,7 @@ function App() {
   return (
     <Router>
       <AuthProvider>
+      <ConfirmProvider>
         <Suspense fallback={<LoadingFallback />}>
           <Routes>
             {/* Trang login / forgot-password KHÔNG dùng MainLayout */}
@@ -499,6 +501,7 @@ function App() {
             />
           </Routes>
         </Suspense>
+      </ConfirmProvider>
       </AuthProvider>
     </Router>
   );
