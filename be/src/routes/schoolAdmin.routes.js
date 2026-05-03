@@ -754,12 +754,26 @@ router.post('/students/health-import', authenticate, authorizeAnyPermission('MAN
   try {
     const Student = require('../models/Student');
     const HealthCheck = require('../models/HealthCheck');
-    const { rows } = req.body; // [{ fullName, className, height, weight, chronicDiseases, allergies, notes }]
+    const Classes = require('../models/Classes');
+    const AcademicYear = require('../models/AcademicYear');
+    const { rows } = req.body; // [{ fullName, className, height, weight, chronicDiseases, allergies, notes?, generalStatus? }]
     if (!Array.isArray(rows) || rows.length === 0) {
       return res.status(400).json({ status: 'error', message: 'Không có dữ liệu để import' });
     }
 
-    let created = 0, updated = 0, skipped = 0;
+    const activeYear = await AcademicYear.findOne({ status: 'active' }).sort({ startDate: -1 }).lean();
+
+    const normalizeGeneralStatus = (raw) => {
+      const t = String(raw || '').trim().toLowerCase();
+      if (!t) return 'healthy';
+      if (t === 'healthy' || t === 'bình thường' || t.includes('bình thường')) return 'healthy';
+      if (t === 'monitor' || t === 'theo dõi' || t.includes('theo dõi')) return 'monitor';
+      if (t === 'concerning' || t === 'đáng lo ngại' || t.includes('đáng lo')) return 'concerning';
+      return 'healthy';
+    };
+
+    let created = 0;
+    let skipped = 0;
     const errors = [];
 
     for (let i = 0; i < rows.length; i++) {
@@ -768,18 +782,28 @@ router.post('/students/health-import', authenticate, authorizeAnyPermission('MAN
       const name = (row.fullName || '').trim();
       if (!name) { skipped++; continue; }
 
-      // Tìm học sinh theo tên (có thể lọc thêm theo className)
+      const hasMetrics =
+        (row.height != null && String(row.height).trim() !== '') ||
+        (row.weight != null && String(row.weight).trim() !== '') ||
+        (row.chronicDiseases && String(row.chronicDiseases).trim()) ||
+        (row.allergies && String(row.allergies).trim()) ||
+        (row.generalStatus && String(row.generalStatus).trim()) ||
+        (row.notes && String(row.notes).trim());
+      if (!hasMetrics) { skipped++; continue; }
+
+      // Tìm học sinh theo tên (có thể lọc thêm theo className, ưu tiên lớp thuộc năm học đang active)
       const query = { fullName: name, status: 'active' };
-      let student;
+      if (activeYear) query.academicYearId = activeYear._id;
       if (row.className) {
-        const Classes = require('../models/Classes');
-        const cls = await Classes.findOne({ className: row.className.trim() }).lean();
+        const classQ = { className: row.className.trim() };
+        if (activeYear) classQ.academicYearId = activeYear._id;
+        const cls = await Classes.findOne(classQ).lean();
         if (cls) query.classId = cls._id;
       }
       const matches = await Student.find(query).lean();
-      if (matches.length === 0) { errors.push(`Hàng ${rowNum}: Không tìm thấy học sinh "${name}"`); skipped++; continue; }
-      if (matches.length > 1) { errors.push(`Hàng ${rowNum}: Có nhiều học sinh tên "${name}", cần chỉ định lớp`); skipped++; continue; }
-      student = matches[0];
+      if (matches.length === 0) { errors.push(`Hàng ${rowNum}: Không tìm thấy học sinh "${name}"${row.className ? ` (lớp ${row.className})` : ''}`); skipped++; continue; }
+      if (matches.length > 1) { errors.push(`Hàng ${rowNum}: Có nhiều học sinh tên "${name}", cần chỉ định đúng tên lớp`); skipped++; continue; }
+      const student = matches[0];
 
       // Parse allergies: "Tôm, Sữa" → [{allergen:'Tôm'}, {allergen:'Sữa'}]
       const allergies = (row.allergies || '').split(',').map(a => a.trim()).filter(Boolean).map(a => ({ allergen: a }));
@@ -788,17 +812,17 @@ router.post('/students/health-import', authenticate, authorizeAnyPermission('MAN
 
       const payload = {
         studentId: student._id,
-        height: row.height ? Number(row.height) : undefined,
-        weight: row.weight ? Number(row.weight) : undefined,
+        academicYearId: activeYear ? activeYear._id : undefined,
+        height: row.height !== undefined && row.height !== null && String(row.height).trim() !== '' ? Number(row.height) : undefined,
+        weight: row.weight !== undefined && row.weight !== null && String(row.weight).trim() !== '' ? Number(row.weight) : undefined,
         allergies,
         chronicDiseases,
         notes: row.notes || '',
-        generalStatus: 'healthy',
+        generalStatus: normalizeGeneralStatus(row.generalStatus),
         recordedBy: req.user._id,
         checkDate: new Date(),
       };
 
-      // Upsert: tạo record mới (giữ lịch sử)
       await HealthCheck.create(payload);
       created++;
     }

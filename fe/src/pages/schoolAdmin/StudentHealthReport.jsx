@@ -34,7 +34,25 @@ function bmiLabel(bmi) {
   return           { label: 'Béo phì', color: 'error' };
 }
 
-const IMPORT_COLUMNS = ['Tên học sinh', 'Lớp', 'Chiều cao (cm)', 'Cân nặng (kg)', 'Tiền sử bệnh', 'Dị ứng', 'Ghi chú'];
+const IMPORT_COLUMNS = ['Tên học sinh', 'Lớp', 'Chiều cao (cm)', 'Cân nặng (kg)', 'Tiền sử bệnh', 'Dị ứng', 'Tình trạng'];
+
+function parseHealthImportRows(raw) {
+  if (raw.length < 2) return [];
+  const hdr = (raw[0] || []).map(c => String(c || '').trim().toLowerCase());
+  const col6 = hdr[6] || '';
+  const lastColIsNotes = col6.includes('ghi chú') || col6.includes('ghi chu');
+  return raw.slice(1).map(row => ({
+    fullName: String(row[0] || '').trim(),
+    className: String(row[1] || '').trim(),
+    height: row[2] ?? '',
+    weight: row[3] ?? '',
+    chronicDiseases: String(row[4] || '').trim(),
+    allergies: String(row[5] || '').trim(),
+    ...(lastColIsNotes
+      ? { notes: String(row[6] || '').trim(), generalStatus: '' }
+      : { generalStatus: String(row[6] || '').trim(), notes: '' }),
+  })).filter(r => r.fullName);
+}
 
 export default function StudentHealthReport() {
   const navigate = useNavigate();
@@ -123,15 +141,21 @@ export default function StudentHealthReport() {
 
   // ── Download template ─────────────────────────────────────────
   const handleDownloadTemplate = () => {
-    const data = [
-      IMPORT_COLUMNS,
-      ['Nguyễn Văn A', 'Lớp Lá Xanh', '105', '17', 'Hen suyễn', 'Tôm, Sữa', 'Ghi chú mẫu'],
-    ];
+    const bodyRows = filtered.map((r) => [
+      r.fullName,
+      r.className && r.className !== '—' ? r.className : '',
+      '', '', '', '', '',
+    ]);
+    if (bodyRows.length === 0) {
+      toast.warning('Không có học sinh trong danh sách hiện tại (sau lọc/tìm kiếm). File chỉ có dòng tiêu đề.');
+    }
+    const data = [IMPORT_COLUMNS, ...bodyRows];
     const ws = XLSX.utils.aoa_to_sheet(data);
-    ws['!cols'] = IMPORT_COLUMNS.map((_, i) => ({ wch: i === 0 ? 22 : 16 }));
+    ws['!cols'] = IMPORT_COLUMNS.map((_, i) => ({ wch: [22, 16, 14, 14, 24, 18, 18][i] || 16 }));
     const wb = XLSX.utils.book_new();
     XLSX.utils.book_append_sheet(wb, ws, 'Mẫu import');
-    XLSX.writeFile(wb, 'mau-import-suc-khoe.xlsx');
+    XLSX.writeFile(wb, `mau-import-suc-khoe-${new Date().toISOString().slice(0, 10)}.xlsx`);
+    if (bodyRows.length > 0) toast.success(`Đã tải mẫu (${bodyRows.length} học sinh)`);
   };
 
   // ── Parse Excel file ──────────────────────────────────────────
@@ -147,15 +171,8 @@ export default function StudentHealthReport() {
         const ws = wb.Sheets[wb.SheetNames[0]];
         const raw = XLSX.utils.sheet_to_json(ws, { header: 1 });
         if (raw.length < 2) { toast.error('File Excel trống'); return; }
-        const parsed = raw.slice(1).map(row => ({
-          fullName:         String(row[0] || '').trim(),
-          className:        String(row[1] || '').trim(),
-          height:           row[2] || '',
-          weight:           row[3] || '',
-          chronicDiseases:  String(row[4] || '').trim(),
-          allergies:        String(row[5] || '').trim(),
-          notes:            String(row[6] || '').trim(),
-        })).filter(r => r.fullName);
+        const parsed = parseHealthImportRows(raw);
+        if (!parsed.length) { toast.error('Không có dòng dữ liệu hợp lệ (cần cột Tên học sinh)'); return; }
         setImportRows(parsed);
       } catch {
         toast.error('Không thể đọc file Excel');
@@ -365,8 +382,8 @@ export default function StudentHealthReport() {
         <DialogContent dividers>
           <Stack spacing={2}>
             <Alert severity="info" sx={{ fontSize: '0.8rem' }}>
-              File Excel cần có các cột theo thứ tự: <strong>{IMPORT_COLUMNS.join(', ')}</strong>.<br />
-              Hàng đầu tiên là tiêu đề, từ hàng 2 là dữ liệu. Nhấn <em>"Tải mẫu"</em> để lấy file mẫu.
+              Dùng <strong>Tải mẫu</strong> để có sẵn họ tên và lớp; điền chiều cao, cân nặng, tiền sử, dị ứng, tình trạng (Bình thường / Theo dõi / Đáng lo ngại).<br />
+              Cột: <strong>{IMPORT_COLUMNS.join(', ')}</strong>. Hàng 1 là tiêu đề.
             </Alert>
 
             <Box>
