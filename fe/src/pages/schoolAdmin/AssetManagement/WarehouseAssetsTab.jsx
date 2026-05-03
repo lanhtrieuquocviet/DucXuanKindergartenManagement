@@ -227,7 +227,17 @@ export function WarehouseAssetsTab() {
       const formData = new FormData();
       formData.append('file', file);
       const res = await postFormData(ENDPOINTS.SCHOOL_ADMIN.ASSET_ALLOCATIONS_PARSE_WORD, formData);
-      const parsed = (res?.data?.assets || []).concat(res?.data?.extraAssets || []).map(a => ({
+      const normalizeCat = (cat) => {
+        if (!cat?.trim()) return '';
+        const t = cat.trim().toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g, '');
+        if (/^iii[.\s]/.test(t)) return 'Sách, tài liệu, băng đĩa';
+        if (/^ii[.\s]/.test(t)) return 'Thiết bị dạy học, đồ chơi và học liệu';
+        if (/^i[.\s]/.test(t)) return 'Đồ dùng';
+        return cat.trim();
+      };
+      const extraWithCategory = (res?.data?.extraAssets || []).map(a => ({ ...a, category: 'Thiết bị ngoài thông tư' }));
+      const parsed = (res?.data?.assets || []).map(a => ({ ...a, category: normalizeCat(a.category) }))
+        .concat(extraWithCategory).map(a => ({
         ...a,
         condition: 'Còn tốt',
         goodQuantity: a.quantity,
@@ -261,7 +271,16 @@ export function WarehouseAssetsTab() {
     setImporting(true);
     try {
       const res = await post(ENDPOINTS.SCHOOL_ADMIN.ASSETS_BULK_WAREHOUSE, { assets: importItems });
-      toast.success('Nhập thành công.');
+      const { created = 0, merged = 0, skipped = 0, errors = [] } = res?.data || {};
+      if (created === 0 && merged === 0 && skipped > 0) {
+        toast.warn(`Không nhập được mục nào. Bỏ qua ${skipped} mục${errors.length ? ': ' + errors.slice(0, 2).join('; ') : ''}.`);
+      } else {
+        const parts = [];
+        if (created > 0) parts.push(`tạo mới ${created}`);
+        if (merged > 0) parts.push(`cập nhật ${merged}`);
+        if (skipped > 0) parts.push(`bỏ qua ${skipped}`);
+        toast.success(`Nhập thành công — ${parts.join(', ')} tài sản.`);
+      }
       setImportOpen(false);
       setImportItems([]);
       load();
@@ -281,12 +300,12 @@ export function WarehouseAssetsTab() {
           <Button variant="outlined" color="info" startIcon={<ListIcon />} onClick={() => setCategoryDialog(true)}>
             Quản lý Nhóm
           </Button>
-          <Button variant="outlined" color="success" startIcon={<DownloadIcon />} onClick={handleDownloadTemplate}>
+          {/* <Button variant="outlined" color="success" startIcon={<DownloadIcon />} onClick={handleDownloadTemplate}>
             Tải mẫu
           </Button>
           <Button variant="outlined" startIcon={<UploadFileIcon />} onClick={() => fileInputRef.current?.click()}>
             Import Word
-          </Button>
+          </Button> */}
         </Stack>
         <input ref={fileInputRef} type="file" accept=".docx,.doc" style={{ display: 'none' }} onChange={handleFileSelect} />
       </Stack>
@@ -453,30 +472,97 @@ export function WarehouseAssetsTab() {
         }} 
       />
 
-      <Dialog open={importOpen} onClose={() => setImportOpen(false)} maxWidth="md" fullWidth>
-        <DialogTitle sx={{ fontWeight: 800 }}>Xem trước dữ liệu import — {importItems.length} tài sản</DialogTitle>
+      <Dialog open={importOpen} onClose={() => { if (!importing) { setImportOpen(false); setImportItems([]); } }} maxWidth="lg" fullWidth>
+        <DialogTitle sx={{ fontWeight: 800 }}>
+          Xem trước & chỉnh sửa trước khi nhập — {importItems.length} tài sản
+        </DialogTitle>
         <DialogContent dividers sx={{ p: 0 }}>
-          {warehouseCategories.map(cat => {
-            const rows = importItems.filter(a => a.category === cat);
-            if (!rows.length) return null;
-            return (
-              <Box key={cat} sx={{ mb: 2 }}>
-                <Typography sx={{ bgcolor: '#f1f5f9', px: 2, py: 1, fontWeight: 700 }} variant="body2">{cat}</Typography>
-                <Table size="small">
-                  <TableHead><TableRow><TableCell>Tên</TableCell><TableCell align="center">Mã</TableCell><TableCell align="center">SL</TableCell></TableRow></TableHead>
-                  <TableBody>
-                    {rows.map((r, i) => (
-                      <TableRow key={i}><TableCell>{r.name}</TableCell><TableCell align="center">{r.assetCode}</TableCell><TableCell align="center">{r.quantity}</TableCell></TableRow>
-                    ))}
-                  </TableBody>
-                </Table>
-              </Box>
-            );
-          })}
+          {(() => {
+            const knownCats = warehouseCategories;
+            const unknownItems = importItems.filter(a => !knownCats.includes(a.category));
+            const groups = [
+              ...knownCats.map(cat => ({ cat, rows: importItems.filter(a => a.category === cat) })),
+              ...(unknownItems.length ? [{ cat: '__unknown__', rows: unknownItems }] : []),
+            ];
+            return groups.map(({ cat, rows }) => {
+              if (!rows.length) return null;
+              const idxOffset = importItems.indexOf(rows[0]);
+              return (
+                <Box key={cat} sx={{ mb: 0 }}>
+                  <Typography sx={{ bgcolor: cat === '__unknown__' ? '#fff3cd' : '#f1f5f9', px: 2, py: 1, fontWeight: 700, borderBottom: '1px solid #e2e8f0' }} variant="body2" color={cat === '__unknown__' ? 'warning.dark' : 'primary'}>
+                    {cat === '__unknown__' ? '⚠ Nhóm chưa xác định (sẽ vào "Đồ dùng")' : cat} — {rows.length} mục
+                  </Typography>
+                  <TableContainer>
+                    <Table size="small">
+                      <TableHead sx={{ bgcolor: '#f8fafc' }}>
+                        <TableRow>
+                          <TableCell sx={{ fontWeight: 700, minWidth: 200 }}>Tên tài sản</TableCell>
+                          <TableCell sx={{ fontWeight: 700, width: 90 }} align="center">Mã TS</TableCell>
+                          <TableCell sx={{ fontWeight: 700, width: 70 }} align="center">ĐVT</TableCell>
+                          <TableCell sx={{ fontWeight: 700, width: 80 }} align="center">SL</TableCell>
+                          <TableCell sx={{ fontWeight: 700, minWidth: 180 }}>Nhóm</TableCell>
+                          <TableCell sx={{ fontWeight: 700, width: 40 }} align="center">Xóa</TableCell>
+                        </TableRow>
+                      </TableHead>
+                      <TableBody>
+                        {rows.map((r) => {
+                          const idx = importItems.indexOf(r);
+                          return (
+                            <TableRow key={idx} hover sx={cat === '__unknown__' ? { bgcolor: '#fffbf0' } : {}}>
+                              <TableCell>
+                                <TextField size="small" variant="standard" value={r.name} fullWidth
+                                  onChange={e => setImportItems(prev => prev.map((it, i) => i === idx ? { ...it, name: e.target.value } : it))}
+                                  inputProps={{ style: { fontSize: 13 } }} />
+                              </TableCell>
+                              <TableCell align="center">
+                                <TextField size="small" variant="standard" value={r.assetCode || ''}
+                                  onChange={e => setImportItems(prev => prev.map((it, i) => i === idx ? { ...it, assetCode: e.target.value } : it))}
+                                  inputProps={{ style: { fontSize: 13, textAlign: 'center', width: 80 } }}
+                                  placeholder="Tự động" />
+                              </TableCell>
+                              <TableCell align="center">
+                                <TextField size="small" variant="standard" value={r.unit || 'Cái'}
+                                  onChange={e => setImportItems(prev => prev.map((it, i) => i === idx ? { ...it, unit: e.target.value } : it))}
+                                  inputProps={{ style: { fontSize: 13, textAlign: 'center', width: 55 } }} />
+                              </TableCell>
+                              <TableCell align="center">
+                                <TextField size="small" variant="standard" type="number" value={r.quantity || 0}
+                                  onChange={e => {
+                                    const v = Math.max(0, Number(e.target.value) || 0);
+                                    setImportItems(prev => prev.map((it, i) => i === idx ? { ...it, quantity: v, goodQuantity: v } : it));
+                                  }}
+                                  inputProps={{ min: 0, style: { fontSize: 13, textAlign: 'center', width: 60 } }} />
+                              </TableCell>
+                              <TableCell>
+                                <TextField select size="small" variant="standard" value={r.category || ''} fullWidth
+                                  onChange={e => setImportItems(prev => prev.map((it, i) => i === idx ? { ...it, category: e.target.value } : it))}>
+                                  {warehouseCategories.map(c => <MenuItem key={c} value={c}>{c}</MenuItem>)}
+                                </TextField>
+                              </TableCell>
+                              <TableCell align="center">
+                                <IconButton size="small" color="error" onClick={() => setImportItems(prev => prev.filter((_, i) => i !== idx))}>
+                                  <DeleteIcon fontSize="small" />
+                                </IconButton>
+                              </TableCell>
+                            </TableRow>
+                          );
+                        })}
+                      </TableBody>
+                    </Table>
+                  </TableContainer>
+                </Box>
+              );
+            });
+          })()}
         </DialogContent>
-        <DialogActions sx={{ p: 2.5 }}>
-          <Button onClick={() => setImportOpen(false)}>Hủy bỏ</Button>
-          <Button variant="contained" onClick={handleImport} disabled={importing} sx={{ px: 4 }}>{importing ? 'Đang xử lý...' : 'Xác nhận Nhập'}</Button>
+        <DialogActions sx={{ p: 2.5, gap: 1 }}>
+          <Typography variant="body2" color="text.secondary" sx={{ flex: 1 }}>
+            Bạn có thể sửa tên, mã, số lượng, nhóm hoặc xóa từng dòng trước khi nhập.
+          </Typography>
+          <Button onClick={() => { setImportOpen(false); setImportItems([]); }} disabled={importing}>Hủy bỏ</Button>
+          <Button variant="contained" onClick={handleImport} disabled={importing || importItems.length === 0} sx={{ px: 4 }}>
+            {importing ? 'Đang xử lý...' : `Xác nhận nhập ${importItems.length} mục`}
+          </Button>
         </DialogActions>
       </Dialog>
 
