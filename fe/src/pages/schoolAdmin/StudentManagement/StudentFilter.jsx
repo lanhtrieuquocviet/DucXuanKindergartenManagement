@@ -44,21 +44,6 @@ const StudentFilter = ({
           sx={{ minWidth: 150 }}
         />
         <FormControl size="small" sx={{ minWidth: 120 }}>
-          <InputLabel>Năm học</InputLabel>
-          <Select
-            value={yearFilter}
-            label="Năm học"
-            onChange={(e) => setYearFilter(e.target.value)}
-          >
-            <MenuItem value="all">Tất cả</MenuItem>
-            {academicYears.filter((ay) => ay.status !== 'draft').map((ay) => (
-              <MenuItem key={ay._id} value={ay._id}>
-                {ay.yearName}
-              </MenuItem>
-            ))}
-          </Select>
-        </FormControl>
-        <FormControl size="small" sx={{ minWidth: 120 }}>
           <InputLabel>Lớp</InputLabel>
           <Select
             value={classFilter}

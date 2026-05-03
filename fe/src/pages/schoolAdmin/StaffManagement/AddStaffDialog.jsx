@@ -109,12 +109,20 @@ const AddStaffDialog = ({
               ))}
               <MenuItem value="Other">Khác...</MenuItem>
             </Select>
-            {form.position && !POSITION_MAP[form.position] && form.position !== 'Other' && (
-              <Typography variant="caption" color="text.secondary" sx={{ mt: 0.5, ml: 1.5 }}>
-                * Chức vụ này chỉ tạo hồ sơ nhân sự, không có quyền truy cập hệ thống.
-              </Typography>
-            )}
           </FormControl>
+
+          {form.position && form.position !== 'Other' && (
+            <TextField
+              size="small"
+              label="Quyền hạn hệ thống"
+              fullWidth
+              variant="filled"
+              InputProps={{ readOnly: true }}
+              value={form.roleName || 'Không có quyền truy cập'}
+              helperText={form.roleName ? "Tài khoản sẽ được cấp quyền này tự động" : "Nhân viên này chỉ lưu hồ sơ, không thể đăng nhập"}
+              sx={{ '& .MuiFilledInput-root': { bgcolor: '#f8fafc' } }}
+            />
+          )}
           {form.position === 'Other' && (
             <TextField
               size="small"

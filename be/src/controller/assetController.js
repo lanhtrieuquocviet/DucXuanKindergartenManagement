@@ -19,4 +19,5 @@ module.exports = {
   bulkCreateAssets,
   bulkCreateWarehouseAssets,
   listTransactions,
+  disposeAsset: async (req, res, next) => service.disposeAsset(req, res, next),
 };

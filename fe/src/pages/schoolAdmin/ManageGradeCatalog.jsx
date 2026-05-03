@@ -1,7 +1,11 @@
-import { useEffect, useMemo, useState } from 'react';
-import { useNavigate } from 'react-router-dom';
-import { useAuth } from '../../context/AuthContext';
-import { del, get, post, put, ENDPOINTS } from '../../service/api';
+import {
+  Add as AddIcon,
+  ArrowBack as ArrowBackIcon,
+  Delete as DeleteIcon,
+  Edit as EditIcon,
+  Layers as LayersIcon,
+  Refresh as RefreshIcon,
+} from '@mui/icons-material';
 import {
   Alert,
   Box,
@@ -23,14 +27,10 @@ import {
   Tooltip,
   Typography,
 } from '@mui/material';
-import {
-  Add as AddIcon,
-  ArrowBack as ArrowBackIcon,
-  Delete as DeleteIcon,
-  Edit as EditIcon,
-  Layers as LayersIcon,
-  Refresh as RefreshIcon,
-} from '@mui/icons-material';
+import { useEffect, useMemo, useState } from 'react';
+import { useNavigate } from 'react-router-dom';
+import { useAuth } from '../../context/AuthContext';
+import { del, ENDPOINTS, get, post, put } from '../../service/api';
 
 const GRADE_COLORS = [
   { header: '#0891b2', light: '#cffafe' },
@@ -144,14 +144,15 @@ function ManageGradeCatalog() {
     setForm(
       grade
         ? {
-            gradeName: grade.gradeName || '',
-            description: grade.description || '',
-            maxClasses: grade.maxClasses ?? 10,
-            minAge: grade.minAge || '',
-            maxAge: grade.maxAge || '',
-            headTeacherId: grade.headTeacherId?._id || grade.headTeacherId || '',
-            staticBlockId: grade.staticBlockId?._id || grade.staticBlockId || '',
-          }
+          gradeName: grade.gradeName || '',
+          description: grade.description || '',
+          maxClasses: grade.maxClasses ?? 10,
+          minAge: grade.minAge || '',
+          maxAge: grade.maxAge || '',
+          ageRange: grade.ageRange || getAgeLabel(grade), // Thêm ageRange từ backend
+          headTeacherId: grade.headTeacherId?._id || grade.headTeacherId || '',
+          staticBlockId: grade.staticBlockId?._id || grade.staticBlockId || '',
+        }
         : EMPTY_FORM
     );
 
@@ -520,150 +521,131 @@ function ManageGradeCatalog() {
         <DialogContent dividers>
           {formErrors.submit && <Alert severity="error" sx={{ mb: 2 }}>{formErrors.submit}</Alert>}
           <Stack spacing={2.5} mt={0.5}>
-            {dialog.mode === 'create' && (
-              <Alert severity={currentAcademicYear ? 'info' : 'warning'}>
-                {currentAcademicYear
-                  ? `Khởi tạo cho năm học đang hoạt động: ${currentAcademicYear.yearName}`
-                  : 'Chưa có năm học đang hoạt động. Vui lòng tạo năm học trước khi khởi tạo khối.'}
-              </Alert>
-            )}
-            <FormControl size="small" fullWidth>
-              <InputLabel>Danh mục khối *</InputLabel>
-              <Select
-                label="Danh mục khối *"
-                value={form.staticBlockId}
-                onChange={(e) => setForm((prev) => ({ ...prev, staticBlockId: e.target.value }))}
-                disabled={staticBlocksLoading || dialog.mode === 'edit'}
-              >
-                <MenuItem value=""><em>— Chọn danh mục khối —</em></MenuItem>
-                {(dialog.mode === 'create' ? availableStaticBlocks : staticBlocks).map(block => (
-                  <MenuItem key={block._id} value={block._id}>
-                    {block.name} ({getAgeLabel(block)})
-                  </MenuItem>
-                ))}
-              </Select>
-              {formErrors.staticBlockId && (
-                <Typography variant="caption" color="error" sx={{ mt: 0.5, ml: 1.75 }}>{formErrors.staticBlockId}</Typography>
-              )}
-              {dialog.mode === 'create' && !staticBlocksLoading && availableStaticBlocks.length === 0 && (
-                <Typography variant="caption" color="warning.main" sx={{ mt: 0.5, ml: 1.75 }}>
-                  Tất cả danh mục khối đã được khởi tạo trong năm học hiện tại.
-                </Typography>
-              )}
-            </FormControl>
-            <TextField
-              label="Tên khối lớp"
-              required
-              fullWidth
-              size="small"
-              value={form.gradeName}
-              onChange={(e) => setForm((prev) => ({ ...prev, gradeName: e.target.value }))}
-              error={!!formErrors.gradeName}
-              helperText={
-                dialog.mode === 'edit'
-                  ? 'Tên khối lớp không được chỉnh sửa sau khi tạo'
-                  : formErrors.gradeName || `${form.gradeName.length}/10 ký tự`
-              }
-              inputProps={{ maxLength: 10 }}
-              disabled
-            />
-            <TextField
-              label="Mô tả"
-              fullWidth
-              size="small"
-              multiline
-              rows={2}
-              value={form.description}
-              onChange={(e) => setForm((prev) => ({ ...prev, description: e.target.value }))}
-              error={!!formErrors.description}
-              helperText={
-                dialog.mode === 'edit'
-                  ? 'Mô tả chỉ được thiết lập khi tạo khối'
-                  : formErrors.description || `${form.description.length}/50 ký tự`
-              }
-              inputProps={{ maxLength: 50 }}
-              disabled
-            />
-            <TextField
-              label="Số lớp tối đa"
-              required
-              fullWidth
-              size="small"
-              type="number"
-              value={form.maxClasses}
-              onChange={(e) => setForm((prev) => ({ ...prev, maxClasses: e.target.value }))}
-              error={!!formErrors.maxClasses}
-              helperText={
-                dialog.mode === 'create'
-                  ? 'Tự động lấy từ danh mục khối đã chọn'
-                  : formErrors.maxClasses || 'Tối đa 10 lớp trong một khối'
-              }
-              inputProps={{ min: 1, max: 10 }}
-              disabled={dialog.mode === 'create'}
-            />
-            <Stack direction={{ xs: 'column', sm: 'row' }} spacing={2}>
-              <TextField
-                label="Tuổi tối thiểu"
-                fullWidth
-                size="small"
-                type="number"
-                value={form.minAge}
-                onChange={(e) => setForm((prev) => ({ ...prev, minAge: e.target.value }))}
-                error={!!formErrors.minAge}
-                helperText={dialog.mode === 'edit' ? 'Không chỉnh sửa ở chế độ này' : formErrors.minAge || 'Không bắt buộc'}
-                inputProps={{ min: 1 }}
-                disabled
-              />
-              <TextField
-                label="Tuổi tối đa"
-                fullWidth
-                size="small"
-                type="number"
-                value={form.maxAge}
-                onChange={(e) => setForm((prev) => ({ ...prev, maxAge: e.target.value }))}
-                error={!!formErrors.maxAge}
-                helperText={dialog.mode === 'edit' ? 'Không chỉnh sửa ở chế độ này' : formErrors.maxAge || 'Không bắt buộc'}
-                inputProps={{ max: 6 }}
-                disabled
-              />
-            </Stack>
-            <FormControl size="small" fullWidth>
-              <InputLabel>Tổ trưởng khối</InputLabel>
-              <Select
-                label="Tổ trưởng khối"
-                value={form.headTeacherId}
-                onChange={(e) => setForm((prev) => ({ ...prev, headTeacherId: e.target.value }))}
-                disabled={teachersLoading}
-              >
-                <MenuItem value="">
-                  <em>Chưa phân công</em>
-                </MenuItem>
-                {teachers
-                  .filter((teacher) => teacher.status === 'active')
-                  .map((teacher) => (
-                    <MenuItem key={teacher._id} value={teacher._id}>
-                      {teacher.fullName}
-                    </MenuItem>
-                  ))}
-              </Select>
-            </FormControl>
+            {(() => {
+              const isModeEdit = dialog.mode !== 'create';
+              const isInactive = currentAcademicYear?.status === 'inactive';
+              const isActive = currentAcademicYear?.status === 'active';
+
+              return (
+                <>
+                  {isModeEdit && (
+                    <Alert severity={isInactive ? "error" : "info"} sx={{ mb: 1 }}>
+                      {isInactive 
+                        ? "Năm học đã kết thúc. Mọi thông tin đã được đóng băng và không thể chỉnh sửa." 
+                        : "Năm học đang hoạt động. Bạn chỉ có thể thay đổi Tổ trưởng chuyên môn."}
+                    </Alert>
+                  )}
+                  {dialog.mode === 'create' && (
+                    <Alert severity={currentAcademicYear ? 'info' : 'warning'}>
+                      {currentAcademicYear
+                        ? `Khởi tạo cho năm học đang hoạt động: ${currentAcademicYear.yearName}`
+                        : 'Chưa có năm học đang hoạt động. Vui lòng tạo năm học trước khi khởi tạo khối.'}
+                    </Alert>
+                  )}
+                  <FormControl size="small" fullWidth>
+                    <InputLabel>Danh mục khối *</InputLabel>
+                    <Select
+                      label="Danh mục khối *"
+                      value={form.staticBlockId}
+                      onChange={(e) => setForm((prev) => ({ ...prev, staticBlockId: e.target.value }))}
+                      disabled={staticBlocksLoading || isModeEdit}
+                    >
+                      <MenuItem value=""><em>— Chọn danh mục khối —</em></MenuItem>
+                      {(dialog.mode === 'create' ? availableStaticBlocks : staticBlocks).map(block => (
+                        <MenuItem key={block._id} value={block._id}>
+                          {block.name} ({getAgeLabel(block)})
+                        </MenuItem>
+                      ))}
+                    </Select>
+                    {formErrors.staticBlockId && (
+                      <Typography variant="caption" color="error" sx={{ mt: 0.5, ml: 1.75 }}>{formErrors.staticBlockId}</Typography>
+                    )}
+                  </FormControl>
+                  
+                  <TextField
+                    label="Tên hiển thị *"
+                    fullWidth
+                    size="small"
+                    value={form.gradeName}
+                    disabled={isModeEdit}
+                    InputProps={{ readOnly: isModeEdit, tabIndex: -1 }}
+                    sx={{ "& .MuiInputBase-root.Mui-disabled": { pointerEvents: 'none' } }}
+                    helperText={isModeEdit ? "Không thể thay đổi tên sau khi đã khởi tạo" : ""}
+                  />
+
+                  <TextField
+                    label="Mô tả Khối"
+                    fullWidth
+                    size="small"
+                    multiline
+                    rows={2}
+                    value={form.description}
+                    disabled={isModeEdit}
+                    InputProps={{ readOnly: isModeEdit, tabIndex: -1 }}
+                    sx={{ "& .MuiInputBase-root.Mui-disabled": { pointerEvents: 'none' } }}
+                    helperText={isModeEdit ? "Mô tả cố định theo danh mục khối" : ""}
+                  />
+
+                  <TextField
+                    label="Số lớp tối đa *"
+                    fullWidth
+                    size="small"
+                    type="number"
+                    value={form.maxClasses}
+                    onChange={(e) => setForm((prev) => ({ ...prev, maxClasses: e.target.value }))}
+                    disabled={dialog.mode === 'create' || isActive || isInactive}
+                    InputProps={{ readOnly: isActive || isInactive }}
+                    helperText={(isActive || isInactive) ? "Số lớp đã được chốt cho năm học này" : "Tối đa 10 lớp"}
+                  />
+
+                  <TextField
+                    label="Độ tuổi quy định"
+                    fullWidth
+                    size="small"
+                    value={form.ageRange || ''}
+                    disabled
+                    InputProps={{ readOnly: true }}
+                    helperText="Độ tuổi áp dụng cho khối này"
+                  />
+
+                  <FormControl size="small" fullWidth>
+                    <InputLabel>Tổ trưởng khối</InputLabel>
+                    <Select
+                      label="Tổ trưởng khối"
+                      value={form.headTeacherId}
+                      onChange={(e) => setForm((prev) => ({ ...prev, headTeacherId: e.target.value }))}
+                      disabled={teachersLoading || isInactive}
+                    >
+                      <MenuItem value=""><em>Chưa phân công</em></MenuItem>
+                      {teachers
+                        .filter((teacher) => teacher.status === 'active')
+                        .map((teacher) => (
+                          <MenuItem key={teacher._id} value={teacher._id}>{teacher.fullName}</MenuItem>
+                        ))}
+                    </Select>
+                  </FormControl>
+                </>
+              );
+            })()}
           </Stack>
         </DialogContent>
         <DialogActions sx={{ px: 3, py: 2 }}>
           <Button onClick={() => setDialog({ open: false, mode: 'create', data: null })} color="inherit" disabled={submitting}>
-            Hủy
+            {currentAcademicYear?.status === 'inactive' && dialog.mode === 'edit' ? 'Đóng' : 'Hủy'}
           </Button>
-          <Button
-            variant="contained"
-            onClick={handleSubmit}
-            disabled={
-              submitting ||
-              (dialog.mode === 'create' && (!currentAcademicYear || availableStaticBlocks.length === 0))
-            }
-            sx={{ bgcolor: '#2563eb', '&:hover': { bgcolor: '#1d4ed8' }, textTransform: 'none', fontWeight: 600 }}
-          >
-            {submitting ? <CircularProgress size={18} color="inherit" /> : dialog.mode === 'create' ? 'Tạo' : 'Lưu'}
-          </Button>
+          {!(currentAcademicYear?.status === 'inactive' && dialog.mode === 'edit') && (
+            <Button
+              variant="contained"
+              onClick={handleSubmit}
+              disabled={
+                submitting ||
+                (dialog.mode === 'create' && (!currentAcademicYear || availableStaticBlocks.length === 0))
+              }
+              sx={{ bgcolor: '#2563eb', '&:hover': { bgcolor: '#1d4ed8' }, textTransform: 'none', fontWeight: 600 }}
+            >
+              {submitting ? <CircularProgress size={18} color="inherit" /> : dialog.mode === 'create' ? 'Tạo' : 'Lưu thay đổi'}
+            </Button>
+          )}
         </DialogActions>
       </Dialog>
 

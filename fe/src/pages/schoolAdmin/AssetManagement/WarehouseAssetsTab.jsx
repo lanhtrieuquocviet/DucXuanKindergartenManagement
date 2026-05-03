@@ -30,6 +30,7 @@ import {
   Edit as EditIcon,
   UploadFile as UploadFileIcon,
   FormatListBulleted as ListIcon,
+  Recycling as DisposeIcon,
 } from '@mui/icons-material';
 import { toast } from 'react-toastify';
 import { del, get, post, postFormData, put, ENDPOINTS } from '../../../service/api';
@@ -63,6 +64,11 @@ export function WarehouseAssetsTab() {
   const [categoryDialog, setCategoryDialog] = useState(false);
   const [rowsPerPage, setRowsPerPage] = useState(10);
   const [pageByCategory, setPageByCategory] = useState({});
+  const [disposeModal, setDisposeModal] = useState(false);
+  const [disposeTarget, setDisposeTarget] = useState(null);
+  const [disposeQty, setDisposeQty] = useState(1);
+  const [disposeReason, setDisposeReason] = useState('Thanh lý tài sản hỏng');
+  const [disposing, setDisposing] = useState(false);
   const fileInputRef = useRef(null);
 
   const loadReportItems = async () => {
@@ -253,6 +259,24 @@ export function WarehouseAssetsTab() {
     } finally { setImporting(false); }
   };
 
+  const handleDispose = async () => {
+    if (!disposeTarget || disposeQty <= 0) return;
+    if (disposeQty > disposeTarget.quantity) return toast.warn('Số lượng thanh lý vượt quá tồn kho.');
+    
+    setDisposing(true);
+    try {
+      await post(ENDPOINTS.SCHOOL_ADMIN.ASSET_DETAIL(disposeTarget._id) + '/dispose', {
+        quantity: disposeQty,
+        reason: disposeReason
+      });
+      toast.success('Thanh lý thành công.');
+      setDisposeModal(false);
+      load();
+    } catch (err) {
+      toast.error(err?.message || 'Lỗi khi thanh lý.');
+    } finally { setDisposing(false); }
+  };
+
   const filtered = assets.filter(a => a.name?.toLowerCase().includes(search.toLowerCase()) || a.assetCode?.toLowerCase().includes(search.toLowerCase()));
   const grouped = warehouseCategories.map(cat => ({ cat, rows: filtered.filter(a => a.category === cat) }));
 
@@ -326,6 +350,11 @@ export function WarehouseAssetsTab() {
                             <TableCell align="center" sx={{ color: 'error.main' }}>{a.brokenQuantity}</TableCell>
                             <TableCell align="center">
                               <IconButton size="small" onClick={() => { setForm({ ...a }); setEditId(a._id); setOpenModal(true); }}><EditIcon fontSize="small" /></IconButton>
+                              <Tooltip title="Thanh lý">
+                                <IconButton size="small" color="warning" onClick={() => { setDisposeTarget(a); setDisposeQty(a.brokenQuantity || 1); setDisposeModal(true); }}>
+                                  <DisposeIcon fontSize="small" />
+                                </IconButton>
+                              </Tooltip>
                               <IconButton size="small" color="error" onClick={() => handleQuickDelete(a)} disabled={deletingId === a._id}>
                                 {deletingId === a._id ? <CircularProgress size={16} /> : <DeleteIcon fontSize="small" />}
                               </IconButton>
@@ -457,6 +486,44 @@ export function WarehouseAssetsTab() {
         <DialogActions sx={{ p: 2.5 }}>
           <Button onClick={() => setImportOpen(false)}>Hủy bỏ</Button>
           <Button variant="contained" onClick={handleImport} disabled={importing} sx={{ px: 4 }}>{importing ? 'Đang xử lý...' : 'Xác nhận Nhập'}</Button>
+        </DialogActions>
+      </Dialog>
+
+      <Dialog open={disposeModal} onClose={() => setDisposeModal(false)} maxWidth="xs" fullWidth>
+        <DialogTitle sx={{ fontWeight: 800 }}>Thanh lý tài sản</DialogTitle>
+        <DialogContent dividers>
+          <Stack spacing={2} sx={{ mt: 1 }}>
+            <Typography variant="body2">
+              Bạn đang thực hiện thanh lý tài sản: <strong>{disposeTarget?.name}</strong>
+            </Typography>
+            <TextField
+              label="Số lượng thanh lý"
+              type="number"
+              fullWidth
+              size="small"
+              value={disposeQty}
+              onChange={(e) => setDisposeQty(Number(e.target.value))}
+              inputProps={{ min: 1, max: disposeTarget?.quantity }}
+            />
+            <TextField
+              label="Lý do thanh lý"
+              fullWidth
+              size="small"
+              multiline
+              rows={2}
+              value={disposeReason}
+              onChange={(e) => setDisposeReason(e.target.value)}
+            />
+            <Typography variant="caption" color="text.secondary">
+              * Ưu tiên trừ vào số lượng tài sản hỏng trong kho trước.
+            </Typography>
+          </Stack>
+        </DialogContent>
+        <DialogActions sx={{ p: 2 }}>
+          <Button onClick={() => setDisposeModal(false)}>Hủy</Button>
+          <Button variant="contained" color="warning" onClick={handleDispose} disabled={disposing}>
+            {disposing ? 'Đang xử lý...' : 'Xác nhận thanh lý'}
+          </Button>
         </DialogActions>
       </Dialog>
     </Box>

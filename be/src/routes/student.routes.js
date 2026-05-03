@@ -396,6 +396,33 @@ router.get('/contact-book/attendance', authenticate, async (req, res) => {
 // GET /students/contact-book/today-menu — thực đơn hôm nay cho phụ huynh/học sinh
 router.get('/contact-book/today-menu', authenticate, contactBookCtrl.getTodayMenu);
 
+// POST /students/contact-book/request — gửi yêu cầu chuyển trường / thôi học
+router.post('/contact-book/request', authenticate, async (req, res) => {
+  try {
+    const student = await getMyStudent(req.user.id);
+    if (!student) return res.status(404).json({ status: 'error', message: 'Không tìm thấy học sinh.' });
+    
+    const studentRequestService = require('../services/studentRequestService');
+    const { type, reason, effectiveDate } = req.body;
+    
+    if (!['transfer', 'withdrawal'].includes(type)) {
+      return res.status(400).json({ status: 'error', message: 'Loại yêu cầu không hợp lệ' });
+    }
+    
+    const request = await studentRequestService.createRequest({
+      studentId: student._id,
+      parentId: req.user.id,
+      type,
+      reason,
+      effectiveDate: effectiveDate ? new Date(effectiveDate) : undefined,
+    });
+    
+    return res.status(201).json({ status: 'success', data: request });
+  } catch (err) {
+    return res.status(500).json({ status: 'error', message: err.message });
+  }
+});
+
 // GET /students/contact-book/notes — ghi chú của giáo viên
 router.get('/contact-book/notes', authenticate, async (req, res) => {
   try {

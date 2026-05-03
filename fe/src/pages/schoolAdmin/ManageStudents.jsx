@@ -1,4 +1,4 @@
-import { PeopleAlt as PeopleAltIcon } from '@mui/icons-material';
+import { PeopleAlt as PeopleAltIcon, ExitToApp as WithdrawalIcon, MonitorHeart as HealthIcon } from '@mui/icons-material';
 import { Box, CircularProgress, Paper, Stack, Tab, Tabs, Typography } from '@mui/material';
 import { useEffect, useRef, useState } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
@@ -73,7 +73,7 @@ function ManageStudents() {
   const [error, setError] = useState(null);
   const [searchTerm, setSearchTerm] = useState('');
   const [classFilter, setClassFilter] = useState('');
-  const [yearFilter, setYearFilter] = useState('all');
+  const [yearFilter, setYearFilter] = useState('');
   const [genderFilter, setGenderFilter] = useState('');
   const [headParentFilter, setHeadParentFilter] = useState('');
 
@@ -151,14 +151,6 @@ function ManageStudents() {
       const activeAY = currentYearRes?.status === 'success' ? currentYearRes.data : null;
       setActiveAcademicYear(activeAY);
 
-      if (requestedYearId) {
-        const viewRes = await get(`${ENDPOINTS.SCHOOL_ADMIN.ACADEMIC_YEARS.HISTORY}?yearId=${requestedYearId}`).catch(() => null);
-        const yearRow = viewRes?.status === 'success' ? (Array.isArray(viewRes.data) ? viewRes.data[0] : viewRes.data) : null;
-        setViewAcademicYear(yearRow || null);
-      } else {
-        setViewAcademicYear(activeAY);
-      }
-
       if (allYearsRes?.status === 'success') {
         const historyYears = Array.isArray(allYearsRes.data) ? allYearsRes.data : [];
         const allYears = activeAY ? [activeAY, ...historyYears] : historyYears;
@@ -166,10 +158,14 @@ function ManageStudents() {
         setAcademicYears(uniqueYears);
       }
 
+      // Xác định yearId để lọc ngay lập tức
+      const effectiveYearFilter = activeAY?._id || '';
+      setYearFilter(effectiveYearFilter);
+
       const studentParams = {
         status: 'active',
         ...(classFilter ? { classId: classFilter } : {}),
-        ...(yearFilter && yearFilter !== 'all' ? { academicYearId: yearFilter } : {}),
+        academicYearId: effectiveYearFilter, // Luôn ưu tiên năm học hiện tại
         ...(genderFilter ? { gender: genderFilter } : {}),
       };
       const studentsRes = await getAllStudents(studentParams);
@@ -608,17 +604,22 @@ function ManageStudents() {
           Quản lý học sinh
         </Typography>
         <Typography variant="body2" color="text.secondary">
-          Danh sách toàn bộ học sinh trong hệ thống. Bạn có thể lọc theo niên khóa để xem chi tiết.
+          Danh sách học sinh trong năm học hiện tại. Hệ thống tự động lọc theo niên khóa đang diễn ra.
         </Typography>
       </Box>
 
       <Paper elevation={0} sx={{ mb: 2, borderRadius: 2, border: '1px solid', borderColor: 'divider' }}>
         <Tabs
           value={0}
-          onChange={(_, v) => { if (v === 1) navigate('/school-admin/students/health-report'); }}
+          onChange={(_, v) => { 
+            if (v === 1) navigate('/school-admin/student-requests');
+            if (v === 2) navigate('/school-admin/students/health-report'); 
+          }}
           sx={{ px: 1, '& .MuiTab-root': { textTransform: 'none', fontWeight: 600, fontSize: 13 }, '& .Mui-selected': { color: '#6366f1' }, '& .MuiTabs-indicator': { bgcolor: '#6366f1' } }}
         >
           <Tab icon={<PeopleAltIcon fontSize="small" />} iconPosition="start" label="Danh sách học sinh" />
+          <Tab icon={<WithdrawalIcon fontSize="small" />} iconPosition="start" label="Yêu cầu từ phụ huynh" />
+          <Tab icon={<HealthIcon fontSize="small" />} iconPosition="start" label="Báo cáo sức khỏe" />
         </Tabs>
       </Paper>
 

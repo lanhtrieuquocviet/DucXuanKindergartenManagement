@@ -31,6 +31,8 @@ export default function AcademicYearDetail() {
   const [tab, setTab] = useState(0);
   const [classes, setClasses] = useState([]);
   const [classesLoading, setClassesLoading] = useState(false);
+  const [students, setStudents] = useState([]);
+  const [studentsLoading, setStudentsLoading] = useState(false);
 
 
   useEffect(() => {
@@ -81,6 +83,28 @@ export default function AcademicYearDetail() {
       }
     };
     loadClasses();
+  }, [yearId, tab]);
+
+  useEffect(() => {
+    const loadStudents = async () => {
+      if (!yearId || tab !== 2) return;
+      try {
+        setStudentsLoading(true);
+        const resp = await get(ENDPOINTS.SCHOOL_ADMIN.ACADEMIC_YEARS.STUDENTS(yearId));
+        if (resp?.status === 'success' && Array.isArray(resp.data)) {
+          setStudents(resp.data);
+        } else {
+          setStudents([]);
+        }
+      } catch (error) {
+        // eslint-disable-next-line no-console
+        console.error('Error loading students:', error);
+        setStudents([]);
+      } finally {
+        setStudentsLoading(false);
+      }
+    };
+    loadStudents();
   }, [yearId, tab]);
 
   const passRate = 0;
@@ -330,43 +354,86 @@ export default function AcademicYearDetail() {
 
           {tab === 2 && (
             <Box sx={{ p: 3, borderTop: '1px solid', borderColor: 'divider' }}>
-              <Paper
-                elevation={0}
-                sx={{
-                  borderRadius: 2,
-                  border: '1px solid',
-                  borderColor: 'divider',
-                  p: 3,
-                  backgroundColor: 'grey.50',
-                }}
-              >
-                <Typography variant="h6" fontWeight={700} color="#4f46e5" gutterBottom>
-                  Danh sách trẻ em (tóm tắt)
+              <Stack direction="row" justifyContent="space-between" alignItems="center" mb={2}>
+                <Typography variant="h6" fontWeight={700} color="primary">
+                  Danh sách trẻ em năm {summary?.yearName || ''}
                 </Typography>
-                <Stack spacing={1}>
-                  <Typography variant="body1" color="text.primary">
-                    Tổng số: {totalStudents} trẻ
-                  </Typography>
-                </Stack>
+                <Chip label={`${students.length} học sinh`} color="primary" size="small" sx={{ fontWeight: 700 }} />
+              </Stack>
 
-                <Box sx={{ mt: 3 }}>
-                  <Button
-                    variant="contained"
-                    onClick={() => {
-                      if (yearId) navigate(`/school-admin/students?yearId=${yearId}`);
-                    }}
-                    sx={{
-                      borderRadius: 2,
-                      textTransform: 'none',
-                      fontWeight: 700,
-                      bgcolor: '#6366f1',
-                      '&:hover': { bgcolor: '#4f46e5' },
-                    }}
-                  >
-                    Xem danh sách đầy đủ &amp; hồ sơ cá nhân
-                  </Button>
+              {studentsLoading ? (
+                <Typography variant="body2" color="text.secondary">Đang tải danh sách học sinh...</Typography>
+              ) : students.length === 0 ? (
+                <Typography variant="body2" color="text.secondary">Không có học sinh nào trong năm học này.</Typography>
+              ) : (
+                <Box sx={{ overflowX: 'auto' }}>
+                  <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '0.875rem' }}>
+                    <thead>
+                      <tr style={{ textAlign: 'left', borderBottom: '2px solid #f1f5f9', color: '#64748b' }}>
+                        <th style={{ padding: '12px 8px', fontWeight: 700 }}>Họ tên</th>
+                        <th style={{ padding: '12px 8px', fontWeight: 700 }}>Ngày sinh</th>
+                        <th style={{ padding: '12px 8px', fontWeight: 700 }}>Giới tính</th>
+                        <th style={{ padding: '12px 8px', fontWeight: 700 }}>Lớp</th>
+                        <th style={{ padding: '12px 8px', fontWeight: 700 }}>Phụ huynh</th>
+                        <th style={{ padding: '12px 8px', fontWeight: 700 }}>SĐT</th>
+                        <th style={{ padding: '12px 8px', fontWeight: 700, textAlign: 'right' }}>Thao tác</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {students.map((s) => (
+                        <tr key={s._id} style={{ borderBottom: '1px solid #f1f5f9' }}>
+                          <td style={{ padding: '12px 8px' }}>
+                            <Stack direction="row" alignItems="center" spacing={1.5}>
+                              <Box
+                                sx={{
+                                  width: 32,
+                                  height: 32,
+                                  borderRadius: '50%',
+                                  bgcolor: '#eef2ff',
+                                  color: '#6366f1',
+                                  display: 'flex',
+                                  alignItems: 'center',
+                                  justifyContent: 'center',
+                                  fontWeight: 700,
+                                  fontSize: '0.75rem',
+                                }}
+                              >
+                                {s.fullName?.charAt(0).toUpperCase()}
+                              </Box>
+                              <Typography variant="body2" fontWeight={600}>{s.fullName}</Typography>
+                            </Stack>
+                          </td>
+                          <td style={{ padding: '12px 8px' }}>{formatDate(s.dateOfBirth)}</td>
+                          <td style={{ padding: '12px 8px' }}>{s.gender === 'male' ? 'Nam' : 'Nữ'}</td>
+                          <td style={{ padding: '12px 8px' }}>
+                            {s.className && s.className !== 'Chưa phân lớp' ? (
+                              <Chip label={s.className} size="small" sx={{ bgcolor: '#f1f5f9', fontWeight: 600 }} />
+                            ) : (
+                              <Typography variant="caption" color="text.disabled">Chưa xếp lớp</Typography>
+                            )}
+                          </td>
+                          <td style={{ padding: '12px 8px' }}>
+                            {s.parentId?.fullName || s.parentProfileId?.fullName || '—'}
+                          </td>
+                          <td style={{ padding: '12px 8px' }}>
+                            {s.parentId?.phone || s.parentProfileId?.phone || '—'}
+                          </td>
+                          <td style={{ padding: '12px 8px', textAlign: 'right' }}>
+                            <Button 
+                              size="small" 
+                              variant="text" 
+                              onClick={() => navigate(`/school-admin/students/${s._id}/detail`)}
+                              sx={{ fontWeight: 700, textTransform: 'none' }}
+                            >
+                              Hồ sơ
+                            </Button>
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
                 </Box>
-              </Paper>
+              )}
             </Box>
           )}
 

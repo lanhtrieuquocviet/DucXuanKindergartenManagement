@@ -2,7 +2,7 @@ const express = require('express');
 const mongoose = require('mongoose');
 const { authenticate, authorizeRoles, authorizePermissions } = require('../middleware/auth');
 const assetCtrl = require('../controller/assetInspectionController');
-const purchaseCtrl = require('../controller/purchaseRequestController');
+// const purchaseCtrl = require('../controller/purchaseRequestController');
 const incidentCtrl    = require('../controller/assetIncidentController');
 const allocationCtrl  = require('../controller/assetAllocationController');
 const contactBookCtrl = require('../controller/contactBookController');
@@ -480,12 +480,12 @@ router.get('/asset-minutes/:id/export-word', authenticate, authorizePermissions(
  *       403:
  *         description: Giáo viên không phụ trách lớp được chọn
  */
-router.get('/my-classes', authenticate, authorizePermissions('MANAGE_PURCHASE_REQUEST'), purchaseCtrl.getMyClasses);
-router.get('/purchase-requests', authenticate, authorizePermissions('MANAGE_PURCHASE_REQUEST'), purchaseCtrl.listMyRequests);
-router.post('/purchase-requests', authenticate, authorizePermissions('MANAGE_PURCHASE_REQUEST'), purchaseCtrl.createRequest);
-router.get('/purchase-requests/:id', authenticate, authorizePermissions('MANAGE_PURCHASE_REQUEST'), purchaseCtrl.getRequest);
-router.put('/purchase-requests/:id', authenticate, authorizePermissions('MANAGE_PURCHASE_REQUEST'), purchaseCtrl.updateRequest);
-router.delete('/purchase-requests/:id', authenticate, authorizePermissions('MANAGE_PURCHASE_REQUEST'), purchaseCtrl.deleteRequest);
+// router.get('/my-classes', authenticate, authorizePermissions('MANAGE_PURCHASE_REQUEST'), purchaseCtrl.getMyClasses);
+// router.get('/purchase-requests', authenticate, authorizePermissions('MANAGE_PURCHASE_REQUEST'), purchaseCtrl.listMyRequests);
+// router.post('/purchase-requests', authenticate, authorizePermissions('MANAGE_PURCHASE_REQUEST'), purchaseCtrl.createRequest);
+// router.get('/purchase-requests/:id', authenticate, authorizePermissions('MANAGE_PURCHASE_REQUEST'), purchaseCtrl.getRequest);
+// router.put('/purchase-requests/:id', authenticate, authorizePermissions('MANAGE_PURCHASE_REQUEST'), purchaseCtrl.updateRequest);
+// router.delete('/purchase-requests/:id', authenticate, authorizePermissions('MANAGE_PURCHASE_REQUEST'), purchaseCtrl.deleteRequest);
 
 // ── Asset Allocation (Tài sản lớp) ──
 router.get('/asset-allocations', authenticate, authorizePermissions('MANAGE_ASSET'), incidentCtrl.getMyAllocation);

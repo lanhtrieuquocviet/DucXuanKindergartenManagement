@@ -123,12 +123,16 @@ const StudentTable = ({
                   <Chip
                     label={
                       row.status === 'graduated' ? 'Đã tốt nghiệp' :
-                      row.status === 'inactive' ? 'Nghỉ học' : 'Đang học'
+                      row.status === 'transferred' ? 'Chuyển trường' :
+                      row.status === 'withdrawn' ? 'Nghỉ học' :
+                      row.status === 'inactive' ? 'Ngưng học' : 'Đang học'
                     }
                     size="small"
                     color={
                       row.status === 'graduated' ? 'success' :
-                      row.status === 'inactive' ? 'error' : 'primary'
+                      row.status === 'transferred' ? 'secondary' :
+                      row.status === 'withdrawn' ? 'error' :
+                      row.status === 'inactive' ? 'default' : 'primary'
                     }
                     sx={{ fontWeight: 700, fontSize: '0.7rem' }}
                   />

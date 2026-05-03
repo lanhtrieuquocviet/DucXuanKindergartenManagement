@@ -38,6 +38,7 @@ const GradeDialog = memo(({
   staticBlocksLoading,
   teachers,
   teachersLoading,
+  academicYear,
 }) => {
   // Find selected block to show details
   const selectedBlock = useMemo(() => 
@@ -89,7 +90,21 @@ const GradeDialog = memo(({
       <DialogContent sx={{ p: 3 }}>
         {errors.submit && <Alert severity="error" sx={{ mb: 3, borderRadius: 2 }}>{errors.submit}</Alert>}
         
-        <Stack spacing={3} mt={1}>
+        {(() => {
+          const isModeEdit = mode !== 'create';
+          const isInactive = academicYear?.status === 'inactive';
+          const isActive = academicYear?.status === 'active';
+
+          return (
+            <Stack spacing={3} mt={1}>
+              {isModeEdit && (
+                <Alert severity={isInactive ? "error" : "info"} sx={{ mb: 1, borderRadius: 2 }}>
+                  {isInactive 
+                    ? "Năm học đã kết thúc. Mọi thông tin đã được đóng băng và không thể chỉnh sửa." 
+                    : "Năm học đang hoạt động. Bạn chỉ có thể thay đổi Tổ trưởng chuyên môn."}
+                </Alert>
+              )}
+
           {/* Section 1: Template Selection */}
           <Box>
             <Stack direction="row" spacing={1} alignItems="center" mb={1.5}>
@@ -105,8 +120,8 @@ const GradeDialog = memo(({
                 label="Chọn loại khối từ hệ thống *"
                 value={form.staticBlockId}
                 onChange={handleBlockChange}
-                disabled={staticBlocksLoading || mode === 'edit'} 
-                sx={{ borderRadius: 2, bgcolor: '#fff' }}
+                disabled={staticBlocksLoading || isModeEdit} 
+                sx={{ borderRadius: 2, bgcolor: isModeEdit ? '#f1f5f9' : '#fff' }}
               >
                 <MenuItem value=""><em>— Chọn một loại khối —</em></MenuItem>
                 {staticBlocks.map(block => (
@@ -137,10 +152,10 @@ const GradeDialog = memo(({
                 fullWidth
                 size="small"
                 value={form.gradeName}
-                onChange={(e) => setForm((f) => ({ ...f, gradeName: e.target.value }))}
-                error={!!errors.gradeName}
-                helperText={errors.gradeName}
-                sx={{ bgcolor: '#fff' }}
+                disabled={isModeEdit}
+                InputProps={{ readOnly: isModeEdit, tabIndex: -1 }}
+                helperText={isModeEdit ? "Không thể thay đổi tên sau khi đã khởi tạo" : ""}
+                sx={{ bgcolor: isModeEdit ? '#f1f5f9' : '#fff', "& .MuiInputBase-root.Mui-disabled": { pointerEvents: 'none' } }}
               />
 
               <TextField
@@ -150,8 +165,10 @@ const GradeDialog = memo(({
                 multiline
                 rows={2}
                 value={form.description}
-                onChange={(e) => setForm((f) => ({ ...f, description: e.target.value }))}
-                sx={{ bgcolor: '#fff' }}
+                disabled={isModeEdit}
+                InputProps={{ readOnly: isModeEdit, tabIndex: -1 }}
+                helperText={isModeEdit ? "Mô tả cố định theo danh mục khối" : ""}
+                sx={{ bgcolor: isModeEdit ? '#f1f5f9' : '#fff', "& .MuiInputBase-root.Mui-disabled": { pointerEvents: 'none' } }}
               />
 
               <Stack direction="row" spacing={2}>
@@ -163,15 +180,19 @@ const GradeDialog = memo(({
                   type="number"
                   value={form.maxClasses}
                   onChange={(e) => setForm((f) => ({ ...f, maxClasses: e.target.value }))}
-                  sx={{ bgcolor: '#fff' }}
+                  disabled={mode === 'create' || isActive || isInactive}
+                  InputProps={{ readOnly: isActive || isInactive, tabIndex: (isActive || isInactive) ? -1 : 0 }}
+                  helperText={(isActive || isInactive) ? "Đã khóa số lớp" : "Tối đa 10 lớp"}
+                  sx={{ bgcolor: (isActive || isInactive) ? '#f1f5f9' : '#fff', "& .MuiInputBase-root.Mui-disabled": { pointerEvents: (isActive || isInactive) ? 'none' : 'auto' } }}
                 />
                 <TextField
                   label="Độ tuổi quy định"
                   fullWidth
                   size="small"
                   value={form.ageRange}
-                  onChange={(e) => setForm((f) => ({ ...f, ageRange: e.target.value }))}
-                  sx={{ bgcolor: '#fff' }}
+                  disabled
+                  InputProps={{ readOnly: true, tabIndex: -1 }}
+                  sx={{ bgcolor: '#f1f5f9', "& .MuiInputBase-root.Mui-disabled": { pointerEvents: 'none' } }}
                 />
               </Stack>
             </Stack>
@@ -194,8 +215,8 @@ const GradeDialog = memo(({
                 label="Tổ trưởng khối *"
                 value={form.headTeacherId}
                 onChange={(e) => setForm((f) => ({ ...f, headTeacherId: e.target.value }))}
-                disabled={teachersLoading}
-                sx={{ bgcolor: '#fff', borderRadius: 2 }}
+                disabled={teachersLoading || isInactive}
+                sx={{ bgcolor: isInactive ? '#f1f5f9' : '#fff', borderRadius: 2 }}
               >
                 <MenuItem value=""><em>— Chưa phân công —</em></MenuItem>
                 {teachers.filter(t => t.status === 'active').map(t => (
@@ -207,34 +228,40 @@ const GradeDialog = memo(({
                   </MenuItem>
                 ))}
               </Select>
-              <Typography variant="caption" sx={{ mt: 1, color: 'text.secondary', display: 'block', fontStyle: 'italic' }}>
-                * Tổ trưởng khối có thể thay đổi tùy theo từng năm học.
+              <Typography variant="caption" sx={{ mt: 1, color: isInactive ? 'error.main' : 'text.secondary', display: 'block', fontStyle: 'italic' }}>
+                {isInactive 
+                  ? "* Năm học đã kết thúc, không thể thay đổi tổ trưởng." 
+                  : "* Tổ trưởng khối có thể thay đổi tùy theo từng năm học."}
               </Typography>
             </FormControl>
           </Box>
         </Stack>
+        );
+        })()}
       </DialogContent>
 
       <DialogActions sx={{ p: 3, bgcolor: '#f8fafc', borderTop: '1px solid', borderColor: 'divider' }}>
         <Button onClick={onClose} color="inherit" sx={{ fontWeight: 600, textTransform: 'none' }}>
-          Hủy bỏ
+          {academicYear?.status === 'inactive' && mode === 'edit' ? 'Đóng' : 'Hủy bỏ'}
         </Button>
-        <Button
-          variant="contained"
-          onClick={onSubmit}
-          disabled={submitting}
-          sx={{ 
-            bgcolor: '#2563eb', 
-            '&:hover': { bgcolor: '#1d4ed8' }, 
-            textTransform: 'none', 
-            fontWeight: 700, 
-            borderRadius: 2, 
-            px: 4,
-            boxShadow: '0 4px 6px -1px rgba(37, 99, 235, 0.2)'
-          }}
-        >
-          {submitting ? <CircularProgress size={20} color="inherit" /> : (mode === 'create' ? 'Tạo Khối lớp' : 'Lưu thay đổi')}
-        </Button>
+        {!(academicYear?.status === 'inactive' && mode === 'edit') && (
+          <Button
+            variant="contained"
+            onClick={onSubmit}
+            disabled={submitting}
+            sx={{ 
+              bgcolor: '#2563eb', 
+              '&:hover': { bgcolor: '#1d4ed8' }, 
+              textTransform: 'none', 
+              fontWeight: 700, 
+              borderRadius: 2, 
+              px: 4,
+              boxShadow: '0 4px 6px -1px rgba(37, 99, 235, 0.2)'
+            }}
+          >
+            {submitting ? <CircularProgress size={20} color="inherit" /> : (mode === 'create' ? 'Tạo Khối lớp' : 'Lưu thay đổi')}
+          </Button>
+        )}
       </DialogActions>
     </Dialog>
   );

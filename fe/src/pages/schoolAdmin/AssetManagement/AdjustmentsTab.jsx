@@ -32,9 +32,11 @@ const ADJUSTMENT_STATUS = {
 };
 
 const ADJUSTMENT_TYPE = {
-  surplus: { label: 'Thừa', color: 'info' },
-  shortage: { label: 'Thiếu', color: 'error' },
+  excess: { label: 'Thừa', color: 'info' },
+  missing: { label: 'Thiếu/Mất', color: 'error' },
   damage: { label: 'Hỏng', color: 'warning' },
+  repair: { label: 'Sửa chữa', color: 'primary' },
+  disposal: { label: 'Thanh lý', color: 'error' },
 };
 
 export function AdjustmentsTab() {

@@ -28,14 +28,13 @@ function normalizeAgeLabel(minAge, maxAge) {
  */
 const listGrades = async (req, res) => {
   try {
-    await Grade.updateMany({ ageRange: { $exists: true } }, { $unset: { ageRange: '' } });
-
     const currentAcademicYear = await AcademicYear.findOne({ status: 'active' }).sort({ startDate: -1 }).lean();
     if (!currentAcademicYear) {
       return res.status(200).json({ status: 'success', data: [] });
     }
 
-    const grades = await Grade.find({ academicYearId: currentAcademicYear._id }).sort({ gradeName: 1 })
+    const grades = await Grade.find({ academicYearId: currentAcademicYear._id, status: 'active' })
+      .sort({ gradeName: 1 })
       .populate({ path: 'headTeacherId', populate: { path: 'userId', select: 'fullName' } })
       .populate('staticBlockId')
       .lean();
@@ -67,21 +66,25 @@ const listGrades = async (req, res) => {
       });
     });
 
-    const data = grades.map(g => ({
-      ...g,
-      academicYear: {
-        _id: currentAcademicYear._id,
-        yearName: currentAcademicYear.yearName,
-      },
-      ageLabel: normalizeAgeLabel(g.minAge, g.maxAge),
-      totalStudents: gradeStats[g._id.toString()]?.totalStudents || 0,
-      teacherNames: gradeStats[g._id.toString()]
-        ? [...gradeStats[g._id.toString()].teacherNames]
-        : [],
-      headTeacher: g.headTeacherId
-        ? { _id: g.headTeacherId._id, fullName: g.headTeacherId.userId?.fullName || '' }
-        : null,
-    }));
+    const data = grades.map(g => {
+      const label = normalizeAgeLabel(g.minAge, g.maxAge);
+      return {
+        ...g,
+        academicYear: {
+          _id: currentAcademicYear._id,
+          yearName: currentAcademicYear.yearName,
+        },
+        ageLabel: label,
+        ageRange: label, // Đảm bảo trường ageRange cũng có dữ liệu cho Frontend
+        totalStudents: gradeStats[g._id.toString()]?.totalStudents || 0,
+        teacherNames: gradeStats[g._id.toString()]
+          ? [...gradeStats[g._id.toString()].teacherNames]
+          : [],
+        headTeacher: g.headTeacherId
+          ? { _id: g.headTeacherId._id, fullName: g.headTeacherId.userId?.fullName || '' }
+          : null,
+      };
+    });
 
     return res.status(200).json({ status: 'success', data });
   } catch (error) {
@@ -194,28 +197,28 @@ const updateGrade = async (req, res) => {
     }
 
     if (grade.academicYearId?.status === 'inactive') {
-      return res.status(400).json({ status: 'error', message: 'Không thể sửa khối lớp của năm học đã kết thúc' });
+      return res.status(400).json({ status: 'error', message: 'Năm học đã kết thúc. Không thể chỉnh sửa bất kỳ thông tin nào của khối lớp này.' });
     }
     const oldData = { ...grade.toObject() };
 
-    const immutableFieldChanged = [
-      ['gradeName', String(req.body?.gradeName || '').trim(), String(grade.gradeName || '').trim()],
-      ['description', String(req.body?.description || '').trim(), String(grade.description || '').trim()],
-      ['minAge', req.body?.minAge ?? grade.minAge, grade.minAge],
-      ['maxAge', req.body?.maxAge ?? grade.maxAge, grade.maxAge],
-    ].some(([field, incoming, current]) => {
+    // Kiểm tra nếu năm học đang hoạt động (Active) -> Chỉ cho phép đổi headTeacherId
+    const isActiveYear = grade.academicYearId?.status === 'active';
+    
+    const fieldsToLockInActiveYear = ['gradeName', 'description', 'minAge', 'maxAge', 'maxClasses', 'staticBlockId'];
+    const attemptedLockFieldChange = fieldsToLockInActiveYear.some(field => {
       if (!(field in (req.body || {}))) return false;
-      return String(incoming) !== String(current);
+      return String(req.body[field]) !== String(grade[field]);
     });
 
-    if (immutableFieldChanged) {
+    if (isActiveYear && attemptedLockFieldChange) {
       return res.status(400).json({
         status: 'error',
-        message: 'Chỉ được phép chỉnh sửa tổ trưởng khối và số lớp tối đa',
+        message: 'Trong năm học đang hoạt động, bạn chỉ được phép thay đổi Tổ trưởng chuyên môn. Các thông tin cấu hình khối khác đã bị khóa.',
       });
     }
 
-    if (maxClasses !== undefined) {
+    // Logic cho phép sửa maxClasses nếu là năm học DRAFT
+    if (grade.academicYearId?.status === 'draft' && maxClasses !== undefined) {
       const maxCls = Number(maxClasses);
       if (!Number.isInteger(maxCls) || maxCls < 1 || maxCls > 10) {
         return res.status(400).json({ status: 'error', message: 'Số lớp tối đa phải từ 1 đến 10' });

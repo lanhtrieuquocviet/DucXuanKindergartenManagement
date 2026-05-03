@@ -479,3 +479,55 @@ exports.listTransactions = async (req, res) => {
     return res.status(500).json({ status: 'error', message: err.message });
   }
 };
+
+exports.disposeAsset = async (req, res) => {
+  try {
+    const { quantity, reason } = req.body;
+    const asset = await Asset.findById(req.params.id);
+    if (!asset) return res.status(404).json({ status: 'error', message: 'Không tìm thấy tài sản.' });
+
+    const disposeQty = Number(quantity) || 0;
+    if (disposeQty <= 0) return res.status(400).json({ status: 'error', message: 'Số lượng thanh lý không hợp lệ.' });
+    
+    if (asset.type === 'asset') {
+       if (disposeQty > asset.quantity) return res.status(400).json({ status: 'error', message: 'Số lượng thanh lý vượt quá tổng số lượng hiện có.' });
+       
+       // Ưu tiên trừ vào brokenQuantity
+       const subFromBroken = Math.min(disposeQty, asset.brokenQuantity || 0);
+       asset.brokenQuantity = Math.max(0, (asset.brokenQuantity || 0) - subFromBroken);
+       
+       const remainingToSub = disposeQty - subFromBroken;
+       if (remainingToSub > 0) {
+         asset.goodQuantity = Math.max(0, (asset.goodQuantity || 0) - remainingToSub);
+       }
+       
+       asset.quantity = Math.max(0, (asset.quantity || 0) - disposeQty);
+       asset.condition = (asset.brokenQuantity || 0) > 0 ? 'Đã hỏng' : 'Còn tốt';
+    } else {
+       if (disposeQty > asset.quantity) return res.status(400).json({ status: 'error', message: 'Số lượng thanh lý vượt quá số lượng hiện có.' });
+       asset.quantity -= disposeQty;
+    }
+
+    await asset.save();
+
+    await AssetTransaction.create({
+      type: 'DISPOSE',
+      inventoryItemId: asset._id,
+      quantity: disposeQty,
+      snapshot: {
+        name: asset.name,
+        assetCode: asset.assetCode,
+        unit: asset.unit,
+        category: asset.category,
+      },
+      actorId: req.user._id,
+      reason: reason || 'Thanh lý tài sản',
+      date: new Date(),
+    });
+
+    return res.json({ status: 'success', message: 'Thanh lý tài sản thành công.', data: { asset } });
+  } catch (err) {
+    return res.status(500).json({ status: 'error', message: err.message });
+  }
+};
+

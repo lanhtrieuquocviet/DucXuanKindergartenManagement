@@ -126,7 +126,10 @@ const EditStudentDialog = ({
               onChange={(e) => setFormEdit((prev) => ({ ...prev, status: e.target.value }))}
             >
               <MenuItem value="active">Đang học</MenuItem>
-              <MenuItem value="inactive">Đã thôi học / Tốt nghiệp</MenuItem>
+              <MenuItem value="transferred">Chuyển trường</MenuItem>
+              <MenuItem value="withdrawn">Nghỉ học</MenuItem>
+              <MenuItem value="graduated">Đã tốt nghiệp</MenuItem>
+              <MenuItem value="inactive">Ngưng học</MenuItem>
             </Select>
           </FormControl>
         </Stack>

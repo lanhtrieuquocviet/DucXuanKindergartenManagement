@@ -584,6 +584,10 @@ export const ENDPOINTS = {
     CONTACT_BOOK_ATTENDANCE: '/students/contact-book/attendance',
     CONTACT_BOOK_TODAY_MENU: '/students/contact-book/today-menu',
     CONTACT_BOOK_NOTES: '/students/contact-book/notes',
+    CONTACT_BOOK_SUBMIT_REQUEST: '/students/contact-book/request',
+    // Parent student requests (transfer/withdrawal) - Admin manage
+    ADMIN_GET_REQUESTS: '/school-admin/students/requests',
+    ADMIN_PROCESS_REQUEST: (id) => `/school-admin/students/requests/${id}/process`,
     UPDATE: (studentId) => `/students/${studentId}`,
     DELETE: (studentId) => `/students/${studentId}`,
     ATTENDANCE_CHECKIN: "/students/attendance",

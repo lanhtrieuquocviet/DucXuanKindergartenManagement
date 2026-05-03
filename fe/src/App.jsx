@@ -74,7 +74,7 @@ const BlogDetail = lazy(() => import('./pages/schoolAdmin/BlogDetail'));
 const DocumentDetail = lazy(() => import('./pages/schoolAdmin/DocumentDetail'));
 const Contact = lazy(() => import('./pages/Contact'));
 const Profile = lazy(() => import('./pages/Profile'));
-const ManagePurchaseRequests = lazy(() => import('./pages/schoolAdmin/ManagePurchaseRequests'));
+// const ManagePurchaseRequests = lazy(() => import('./pages/schoolAdmin/ManagePurchaseRequests'));
 const PickupRequest = lazy(() => import('./pages/teacher/PickupRequest'));
 const TeacherAssetInspection = lazy(() => import('./pages/teacher/TeacherAssetInspection'));
 const TeacherClassAssets = lazy(() => import('./pages/teacher/TeacherClassAssets'));
@@ -419,7 +419,7 @@ function App() {
               <Route path="room-assets" element={<ManageRoomAssets />} />
               <Route path="asset-allocation" element={<ManageAssetAllocation />} />
               <Route path="asset-incidents" element={<ManageAssetIncidents />} />
-              <Route path="purchase-requests" element={<ManagePurchaseRequests />} />
+{/* <Route path="purchase-requests" element={<ManagePurchaseRequests />} /> */}
               <Route path="committee" element={<ManageCommittee />} />
               <Route path="minutes" element={<ManageMinutes />} />
               <Route path="academic-plan" element={<AcademicYearPlan />} />

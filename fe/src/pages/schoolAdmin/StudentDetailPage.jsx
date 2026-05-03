@@ -588,7 +588,21 @@ export default function StudentDetailPage() {
                   </Stack>
                 </Box>
                 <Stack spacing={1} alignItems={{ xs: 'center', sm: 'flex-end' }}>
-                  <Chip label={student.status === 'active' ? 'Đang theo học' : 'Nghỉ học'} sx={{ bgcolor: 'rgba(255,255,255,0.2)', color: 'white', fontWeight: 800, backdropFilter: 'blur(4px)' }} />
+                  <Chip 
+                    label={
+                      student.status === 'active' ? 'Đang theo học' : 
+                      student.status === 'transferred' ? 'Chuyển trường' :
+                      student.status === 'withdrawn' ? 'Nghỉ học' :
+                      student.status === 'graduated' ? 'Đã tốt nghiệp' : 'Ngưng học'
+                    } 
+                    sx={{ 
+                      bgcolor: 'rgba(255,255,255,0.2)', 
+                      color: 'white', 
+                      fontWeight: 800, 
+                      backdropFilter: 'blur(4px)',
+                      border: '1px solid rgba(255,255,255,0.4)'
+                    }} 
+                  />
                   <Typography variant="caption" sx={{ opacity: 0.7 }}>MSHS: {student.studentCode || student._id.slice(-6).toUpperCase()}</Typography>
                 </Stack>
               </Stack>

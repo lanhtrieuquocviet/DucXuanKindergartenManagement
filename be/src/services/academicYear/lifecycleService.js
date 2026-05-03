@@ -68,9 +68,18 @@ const createAcademicYear = async (req, res) => {
  * Helper: Kiểm tra học sinh chưa được đánh giá trong năm học (kỳ 2)
  */
 const validateEvaluations = async (academicYearId) => {
-  const students = await Student.find({ academicYearId, status: 'active' }).populate('classId');
+  // 1. Chỉ lấy những Enrollment đã có lớp học trong năm học này
+  const enrollments = await Enrollment.find({ 
+    academicYearId, 
+    classId: { $ne: null } 
+  }).populate({
+    path: 'classId',
+    select: 'className teacherIds'
+  });
   
-  // 1. Lấy tất cả studentId đã có đánh giá trong năm học này từ hệ thống mới (không phân biệt kỳ)
+  if (!enrollments.length) return [];
+
+  // 2. Lấy tất cả studentId đã có đánh giá trong năm học này
   const assessments = await StudentAssessment.find({ 
     academicYearId, 
     overallResult: { $exists: true, $nin: [null, '', 'Chưa đánh giá', 'chưa đánh giá'] }
@@ -79,16 +88,19 @@ const validateEvaluations = async (academicYearId) => {
 
   const missingSummary = {}; 
 
-  for (const student of students) {
-    if (!assessedStudentIds.has(student._id.toString())) {
-      const classId = student.classId?._id?.toString() || 'unassigned';
+  for (const en of enrollments) {
+    const studentIdStr = en.studentId.toString();
+    if (!assessedStudentIds.has(studentIdStr)) {
+      const classId = en.classId?._id?.toString();
+      if (!classId) continue; // Safety check
+
       if (!missingSummary[classId]) {
-        const cls = student.classId;
-        const teachers = cls ? await Teacher.find({ _id: { $in: cls.teacherIds || [] } }).populate('userId', 'fullName') : [];
+        const cls = en.classId;
+        const teachers = await Teacher.find({ _id: { $in: cls.teacherIds || [] } }).populate('userId', 'fullName');
         
         missingSummary[classId] = {
           classId: classId,
-          className: cls?.className || 'Chưa xếp lớp',
+          className: cls.className,
           teacherNames: teachers.map(t => t.userId?.fullName).filter(Boolean),
           teacherUserIds: teachers.map(t => t.userId?._id).filter(Boolean),
           missingCount: 0
@@ -179,6 +191,12 @@ const finishAcademicYear = async (req, res) => {
         { $set: { status: 'retained' } },
         { session }
       );
+      // Update student status for retained students (keep active)
+      await Student.updateMany(
+        { _id: { $in: retainedStudentIds } },
+        { $set: { status: 'active' } },
+        { session }
+      );
     }
 
     // Nhóm 4: Chuyển tiếp (Những em còn lại và Đạt đánh giá)
@@ -191,6 +209,15 @@ const finishAcademicYear = async (req, res) => {
       { $set: { status: 'promoted' } },
       { session }
     );
+    // Update student status for promoted students (set active)
+    const promotedStudentIds = await Enrollment.find({ academicYearId: id, status: 'promoted' }).distinct('studentId').session(session);
+    if (promotedStudentIds.length > 0) {
+      await Student.updateMany(
+        { _id: { $in: promotedStudentIds } },
+        { $set: { status: 'active' } },
+        { session }
+      );
+    }
 
     // Kết thúc menu & notification
     await Menu.updateMany({ academicYearId: id, status: 'active' }, { $set: { status: 'completed' } }, { session });

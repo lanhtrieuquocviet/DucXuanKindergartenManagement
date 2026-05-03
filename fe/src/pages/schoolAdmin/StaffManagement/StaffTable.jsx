@@ -30,6 +30,7 @@ const StaffTable = ({
           <TableRow>
             <TableCell sx={{ fontWeight: 700 }}>Nhân viên</TableCell>
             <TableCell sx={{ fontWeight: 700 }}>Chức vụ</TableCell>
+            <TableCell sx={{ fontWeight: 700 }}>Quyền hạn</TableCell>
             <TableCell sx={{ fontWeight: 700 }}>Email</TableCell>
             <TableCell sx={{ fontWeight: 700 }}>Số điện thoại</TableCell>
             <TableCell sx={{ fontWeight: 700 }}>Trạng thái</TableCell>
@@ -69,6 +70,25 @@ const StaffTable = ({
                     fontSize: '0.75rem',
                   }}
                 />
+              </TableCell>
+              <TableCell>
+                {item.roleNames ? (
+                  <Chip
+                    label={String(item.roleNames).split(',')[0]}
+                    size="small"
+                    variant="outlined"
+                    sx={{
+                      color: '#6366f1',
+                      borderColor: '#e0e7ff',
+                      bgcolor: '#eef2ff',
+                      fontWeight: 700,
+                      fontSize: '0.7rem',
+                      textTransform: 'uppercase'
+                    }}
+                  />
+                ) : (
+                  <Typography variant="caption" color="text.disabled">Không có</Typography>
+                )}
               </TableCell>
               <TableCell>
                 <Typography variant="body2">{item.email || '—'}</Typography>

@@ -245,6 +245,7 @@ const ManageAcademicYears = () => {
       });
       if (resp?.status === 'success') {
         toast.success('Đã gửi thông báo nhắc nhở đến giáo viên các lớp.');
+        setCurrentYear(prev => ({ ...prev, evaluationRemindersSentAt: new Date().toISOString() }));
         setOpenErrorDialog(false);
       }
     } catch (err) {
@@ -624,7 +625,9 @@ const ManageAcademicYears = () => {
                             <Grid item xs={12} sm={3}>
                               <Stack spacing={0.5}>
                                 <Typography variant="caption" color="text.secondary" fontWeight={700}>TRẠNG THÁI ĐÁNH GIÁ</Typography>
-                                {studentsInClass.filter(s => s.evaluation?.academicEvaluation).length === studentsInClass.length ? (
+                                {className === 'Chưa phân lớp' ? (
+                                  <Chip label="KHÔNG YÊU CẦU" size="small" sx={{ fontWeight: 900, borderRadius: 1.5, bgcolor: '#f1f5f9', color: '#64748b' }} />
+                                ) : studentsInClass.filter(s => s.evaluation?.academicEvaluation).length === studentsInClass.length ? (
                                   <Chip label="ĐÃ HOÀN TẤT" size="small" color="success" sx={{ fontWeight: 900, borderRadius: 1.5 }} />
                                 ) : (
                                   <Chip label="CHƯA HOÀN TẤT" size="small" color="error" sx={{ fontWeight: 900, borderRadius: 1.5 }} />
@@ -637,8 +640,15 @@ const ManageAcademicYears = () => {
                             </Grid>
                             <Grid item xs={6} sm={2}>
                               <Typography variant="caption" color="text.secondary" sx={{ display: 'block' }}>Đã đánh giá</Typography>
-                              <Typography variant="subtitle1" fontWeight={800} color={studentsInClass.filter(s => s.evaluation?.academicEvaluation).length === studentsInClass.length ? 'success.main' : 'error.main'}>
-                                {studentsInClass.filter(s => s.evaluation?.academicEvaluation).length} / {studentsInClass.length}
+                              <Typography 
+                                variant="subtitle1" 
+                                fontWeight={800} 
+                                color={
+                                  className === 'Chưa phân lớp' ? 'text.secondary' :
+                                  studentsInClass.filter(s => s.evaluation?.academicEvaluation).length === studentsInClass.length ? 'success.main' : 'error.main'
+                                }
+                              >
+                                {className === 'Chưa phân lớp' ? 'N/A' : `${studentsInClass.filter(s => s.evaluation?.academicEvaluation).length} / ${studentsInClass.length}`}
                               </Typography>
                             </Grid>
                             <Grid item xs={12} sm={3}>
@@ -665,6 +675,7 @@ const ManageAcademicYears = () => {
                                         }]
                                       });
                                       toast.success(`Đã gửi nhắc nhở lớp ${className}`);
+                                      setCurrentYear(prev => ({ ...prev, evaluationRemindersSentAt: new Date().toISOString() }));
                                     } catch (err) {
                                       toast.error('Lỗi gửi nhắc nhở');
                                     } finally {

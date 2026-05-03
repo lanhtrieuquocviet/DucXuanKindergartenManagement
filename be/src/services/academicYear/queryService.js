@@ -54,26 +54,54 @@ const listAcademicYears = async (req, res) => {
 const getStudentsByAcademicYear = async (req, res) => {
   try {
     const { yearId } = req.params;
-    const classes = await Classes.find({ academicYearId: yearId })
-      .populate('gradeId', 'gradeName minAge maxAge')
-      .populate({ path: 'teacherIds', populate: { path: 'userId', select: 'fullName' } })
+    const oYearId = new mongoose.Types.ObjectId(yearId);
+
+    // 1. Lấy tất cả danh sách ghi danh của năm học này
+    const enrollments = await Enrollment.find({ academicYearId: oYearId })
+      .populate({
+        path: 'studentId',
+        select: 'fullName dateOfBirth gender studentCode status academicYearId parentId parentProfileId',
+        populate: [
+          {
+            path: 'parentId',
+            select: 'fullName phone'
+          },
+          {
+            path: 'parentProfileId',
+            select: 'fullName phone'
+          }
+        ]
+      })
+      .populate({
+        path: 'classId',
+        populate: [
+          { path: 'gradeId', select: 'gradeName minAge maxAge' },
+          { path: 'teacherIds', populate: { path: 'userId', select: 'fullName' } }
+        ]
+      })
       .lean();
 
-    const classIds = classes.map(c => c._id);
-    const students = await Student.find({ classId: { $in: classIds } }).lean();
+    if (!enrollments || enrollments.length === 0) {
+      return res.status(200).json({ status: 'success', data: [] });
+    }
 
-    const oYearId = new mongoose.Types.ObjectId(yearId);
-    const data = await Promise.all(students.map(async (s) => {
-      const cls = classes.find(c => String(c._id) === String(s.classId));
+    // 2. Chuyển đổi dữ liệu sang định dạng frontend mong đợi
+    const data = await Promise.all(enrollments.map(async (en) => {
+      const s = en.studentId;
+      const cls = en.classId;
+      
+      if (!s) return null;
+
       const oStudentId = new mongoose.Types.ObjectId(s._id);
 
-      // 1. Tìm đánh giá ở hệ thống mới
+      // Tìm đánh giá ở hệ thống mới (Kỳ 2)
       let assessment = await StudentAssessment.findOne({
         studentId: oStudentId,
         academicYearId: oYearId,
         period: 'semester_2'
       }).lean();
 
+      // Fallback nếu không có đánh giá kỳ 2 thì lấy đánh giá gần nhất có kết quả
       if (!assessment || !assessment.overallResult || assessment.overallResult === 'Chưa đánh giá') {
         const anyAssessment = await StudentAssessment.findOne({
           studentId: oStudentId,
@@ -101,7 +129,7 @@ const getStudentsByAcademicYear = async (req, res) => {
       return {
         ...s,
         age,
-        className: cls?.className || '',
+        className: cls?.className || 'Chưa phân lớp',
         classId: cls?._id,
         teacherNames: (cls?.teacherIds || []).map(t => t.userId?.fullName).filter(Boolean),
         teacherUserIds: (cls?.teacherIds || []).map(t => t.userId?._id).filter(Boolean),
@@ -114,8 +142,10 @@ const getStudentsByAcademicYear = async (req, res) => {
       };
     }));
 
-    return res.status(200).json({ status: 'success', data });
+    // Lọc bỏ các phần tử null và trả về
+    return res.status(200).json({ status: 'success', data: data.filter(Boolean) });
   } catch (error) {
+    console.error('Lỗi getStudentsByAcademicYear:', error);
     return res.status(500).json({ status: 'error', message: 'Lỗi khi lấy danh sách học sinh' });
   }
 };

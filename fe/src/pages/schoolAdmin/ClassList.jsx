@@ -471,6 +471,7 @@ export default function ClassList() {
         onSubmit={handleGradeSubmit}
         staticBlocks={staticBlocks}
         teachers={teachers}
+        academicYear={activeAcademicYear}
         onClose={() => setGradeDialog({ open: false, mode: 'create', data: null })}
       />
 

@@ -39,6 +39,11 @@ exports.applyAdjustment = async (req, res) => {
       asset.brokenQuantity = (asset.brokenQuantity || 0) + Math.abs(adjustment.difference);
       asset.goodQuantity = Math.max(0, (asset.goodQuantity || 0) - Math.abs(adjustment.difference));
       asset.condition = 'Đã hỏng';
+    } else if (adjustment.type === 'disposal') {
+      // Thanh lý: Trừ thẳng vào quantity và brokenQuantity
+      const subQty = Math.abs(adjustment.difference);
+      asset.brokenQuantity = Math.max(0, (asset.brokenQuantity || 0) - subQty);
+      asset.quantity = Math.max(0, (asset.quantity || 0) - subQty);
     }
 
     await asset.save();

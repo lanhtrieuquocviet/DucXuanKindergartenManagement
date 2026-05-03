@@ -31,6 +31,7 @@ const TRANSACTION_TYPE_MAP = {
   UPDATE: { label: 'Cập nhật', color: 'info', icon: '📝' },
   RECOVER: { label: 'Thu hồi', color: 'warning', icon: '🔙' },
   TRANSFER: { label: 'Điều chuyển', color: 'secondary', icon: '↔️' },
+  DISPOSE: { label: 'Thanh lý', color: 'error', icon: '🗑️' },
   INITIAL: { label: 'Khởi tạo', color: 'success', icon: '🆕' },
 };
 

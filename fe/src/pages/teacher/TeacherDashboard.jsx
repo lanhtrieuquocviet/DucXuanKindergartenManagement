@@ -242,7 +242,7 @@ function TeacherDashboard() {
       label: 'Lớp phụ trách',
       value: classes.length,
       sub: classes.length > 0 
-        ? `${classes.map((c) => c.className).join(' · ')} (${dashData?.yearName || '—'})` 
+        ? `${classes.map((c) => `${c.className}${c.roomId?.roomName ? ` (${c.roomId.roomName})` : ''}`).join(' · ')}` 
         : 'Chưa phân lớp',
       icon: <SchoolIcon sx={{ fontSize: 26, color: 'white' }} />,
       gradient: 'linear-gradient(135deg, #6366f1 0%, #8b5cf6 100%)',

@@ -58,7 +58,7 @@ const PERMISSIONS_DATA = [
   { code: 'MANAGE_HANDOVER', description: 'Quản lý bàn giao tài sản', group: 'CSVC & Thiết bị', path: '/school-admin/asset-allocation', menuKey: 'asset-handover', order: 71 },
   { code: 'MANAGE_ASSET_ISSUES', description: 'Quản lý sự cố & sửa chữa', group: 'CSVC & Thiết bị', path: '/school-admin/asset-incidents', menuKey: 'asset-issues', order: 72 },
   { code: 'MANAGE_ROOM_ASSETS', description: 'Quản lý tài sản theo phòng', group: 'CSVC & Thiết bị', path: '/school-admin/room-assets', menuKey: 'room-assets', order: 73 },
-  { code: 'MANAGE_PURCHASE', description: 'Quản lý đề xuất mua sắm', group: 'CSVC & Thiết bị', path: '/school-admin/purchase-requests', menuKey: 'purchase-requests', order: 74 },
+// { code: 'MANAGE_PURCHASE', description: 'Quản lý đề xuất mua sắm', group: 'CSVC & Thiết bị', path: '/school-admin/purchase-requests', menuKey: 'purchase-requests', order: 74 },
   { code: 'MANAGE_COMMITTEE', description: 'Quản lý hội đồng kiểm kê', group: 'CSVC & Thiết bị', path: '/school-admin/committee', menuKey: 'committee', order: 75 },
   { code: 'MANAGE_MINUTES', description: 'Quản lý biên bản kiểm kê', group: 'CSVC & Thiết bị', path: '/school-admin/minutes', menuKey: 'minutes', order: 76 },
 
@@ -92,7 +92,7 @@ const ROLES_MAPPING = {
     'MANAGE_TIMETABLE', 'MANAGE_GRADE', 'MANAGE_CLASS', 'MANAGE_STUDENT', 'MANAGE_ASSESSMENT_TEMPLATE', 
     'MANAGE_STATIC_BLOCK', 'VIEW_ATTENDANCE', 'REGISTER_FACE', 'EXPORT_REPORT', 'MANAGE_STAFF_POSITION', 
     'MANAGE_PERSONNEL', 'APPROVE_MENU', 'MANAGE_MEAL', 'SCHOOL_ADMIN_DISTRICT_NUTRITION', 'MANAGE_ASSET', 
-    'MANAGE_HANDOVER', 'MANAGE_ASSET_ISSUES', 'MANAGE_ROOM_ASSETS', 'MANAGE_PURCHASE', 'MANAGE_COMMITTEE', 
+    'MANAGE_HANDOVER', 'MANAGE_ASSET_ISSUES', 'MANAGE_ROOM_ASSETS', /* 'MANAGE_PURCHASE', */ 'MANAGE_COMMITTEE', 
     'MANAGE_MINUTES', 'MANAGE_PUBLIC_INFO', 'MANAGE_BANNER', 'MANAGE_BLOG', 'MANAGE_BLOG_CATEGORY', 
     'MANAGE_DOCUMENT', 'MANAGE_IMAGE_LIBRARY', 'MANAGE_VIDEOS', 'MANAGE_CONTACT', 'MANAGE_QA',
     'VIEW_HEALTH_REPORT', 'MANAGE_PICKUP', 'MANAGE_HEALTH', 'MANAGE_HEALTH_INCIDENTS'
