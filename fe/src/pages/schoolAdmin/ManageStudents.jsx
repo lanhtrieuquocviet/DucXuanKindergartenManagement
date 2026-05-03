@@ -618,8 +618,8 @@ function ManageStudents() {
           sx={{ px: 1, '& .MuiTab-root': { textTransform: 'none', fontWeight: 600, fontSize: 13 }, '& .Mui-selected': { color: '#6366f1' }, '& .MuiTabs-indicator': { bgcolor: '#6366f1' } }}
         >
           <Tab icon={<PeopleAltIcon fontSize="small" />} iconPosition="start" label="Danh sách học sinh" />
-          <Tab icon={<WithdrawalIcon fontSize="small" />} iconPosition="start" label="Yêu cầu từ phụ huynh" />
-          <Tab icon={<HealthIcon fontSize="small" />} iconPosition="start" label="Báo cáo sức khỏe" />
+          {/* <Tab icon={<WithdrawalIcon fontSize="small" />} iconPosition="start" label="Yêu cầu từ phụ huynh" /> */}
+          {/* <Tab icon={<HealthIcon fontSize="small" />} iconPosition="start" label="Báo cáo sức khỏe" /> */}
         </Tabs>
       </Paper>
 
