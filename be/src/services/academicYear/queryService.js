@@ -86,8 +86,21 @@ const getStudentsByAcademicYear = async (req, res) => {
       const academicEvaluation = assessment?.overallResult || assessment?.academicEvaluation;
       const evaluationNote = assessment?.notes || assessment?.evaluationNote;
 
+      // Tính tuổi học sinh
+      let age = 0;
+      if (s.dateOfBirth) {
+        const birthDate = new Date(s.dateOfBirth);
+        const today = new Date();
+        age = today.getFullYear() - birthDate.getFullYear();
+        const m = today.getMonth() - birthDate.getMonth();
+        if (m < 0 || (m === 0 && today.getDate() < birthDate.getDate())) {
+          age--;
+        }
+      }
+
       return {
         ...s,
+        age,
         className: cls?.className || '',
         classId: cls?._id,
         teacherNames: (cls?.teacherIds || []).map(t => t.userId?.fullName).filter(Boolean),

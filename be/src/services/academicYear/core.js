@@ -54,12 +54,24 @@ const autoFinishExpiredAcademicYears = async () => {
 /**
  * Kiểm tra khối có thuộc diện tốt nghiệp (5-6 tuổi) hay không
  */
+/**
+ * Kiểm tra khối có thuộc diện tốt nghiệp (5-6 tuổi) hay không
+ */
 function isGraduationEligibleBand(grade) {
   if (!grade) return false;
+  
+  // 1. Kiểm tra theo từ khóa tên khối (Ưu tiên)
+  const name = (grade.gradeName || '').toLowerCase();
+  const keywords = ['lá', '5 tuổi', '5-6 tuổi', 'lớn', 'khối 5'];
+  if (keywords.some(k => name.includes(k))) return true;
+
+  // 2. Kiểm tra theo độ tuổi
   const min = Number(grade.minAge);
   const max = Number(grade.maxAge);
-  if (!Number.isFinite(min) || !Number.isFinite(max)) return false;
-  return min >= 5 && max >= 6;
+  if (Number.isFinite(min) && min >= 5) return true;
+  if (Number.isFinite(max) && max >= 6) return true;
+
+  return false;
 }
 
 module.exports = {

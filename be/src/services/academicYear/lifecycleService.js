@@ -320,10 +320,23 @@ const publishAcademicYear = async (req, res) => {
       
       const enrolledIds = await Enrollment.find({ academicYearId: id }).distinct('studentId').session(session);
       const enrolledSet = new Set(enrolledIds.map(eid => eid.toString()));
-
       const missingIds = promotedIds.filter(pid => !enrolledSet.has(pid.toString()));
 
       if (missingIds.length > 0) {
+        // Lấy danh sách lớp của năm học mới để làm căn cứ xếp lớp
+        const nextYearClasses = await Classes.find({ academicYearId: id }).populate('gradeId').lean();
+        
+        // Lấy thông tin lớp cũ của các học sinh này
+        const prevEnrollments = await Enrollment.find({ 
+          academicYearId: prevYear._id, 
+          studentId: { $in: missingIds } 
+        }).populate({ path: 'classId', populate: { path: 'gradeId' } }).lean();
+
+        const enrollmentMap = prevEnrollments.reduce((acc, curr) => {
+          acc[curr.studentId.toString()] = curr;
+          return acc;
+        }, {});
+
         // Cập nhật Student cache
         await Student.updateMany(
           { _id: { $in: missingIds } },
@@ -331,16 +344,52 @@ const publishAcademicYear = async (req, res) => {
           { session }
         );
         
-        // Luật 1: Tạo Enrollment cho học sinh mồ côi (chưa có lớp)
-        const orphanEnrollments = missingIds.map(sid => ({
-          studentId: sid,
-          classId: null,
-          gradeId: null,
-          academicYearId: id,
-          status: 'studying',
-          enrollmentDate: new Date()
-        }));
-        await Enrollment.insertMany(orphanEnrollments, { session });
+        // Tạo Enrollment kèm theo logic xếp lớp thông minh
+        const orphanEnrollments = [];
+        for (const sid of missingIds) {
+          const prevEn = enrollmentMap[sid.toString()];
+          let targetClassId = null;
+          let targetGradeId = null;
+
+          if (prevEn && prevEn.classId && prevEn.classId.gradeId) {
+            const currentGrade = prevEn.classId.gradeId;
+            const currentClassName = prevEn.classId.className;
+            const currentClassNum = currentClassName.match(/\d+/)?.[0] || currentClassName;
+
+            // Tìm khối tiếp theo (minAge + 1)
+            const targetGrade = nextYearClasses.find(c => c.gradeId.minAge === currentGrade.minAge + 1)?.gradeId;
+            
+            if (targetGrade) {
+              targetGradeId = targetGrade._id;
+              // Tìm lớp có cùng hậu tố ở khối mới
+              const match = nextYearClasses.find(c => 
+                String(c.gradeId._id) === String(targetGrade._id) && 
+                (c.className.match(/\d+/)?.[0] || c.className) === currentClassNum
+              );
+              if (match) targetClassId = match._id;
+            }
+          }
+
+          orphanEnrollments.push({
+            studentId: sid,
+            classId: targetClassId,
+            gradeId: targetGradeId,
+            academicYearId: id,
+            status: 'studying',
+            enrollmentDate: new Date()
+          });
+        }
+        
+        if (orphanEnrollments.length > 0) {
+          await Enrollment.insertMany(orphanEnrollments, { session });
+          
+          // Cập nhật classId cache cho Student nếu tìm được lớp
+          for (const en of orphanEnrollments) {
+            if (en.classId) {
+              await Student.findByIdAndUpdate(en.studentId, { $set: { classId: en.classId } }).session(session);
+            }
+          }
+        }
       }
     }
 

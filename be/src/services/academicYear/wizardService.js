@@ -326,9 +326,13 @@ const expressSetupNewAcademicYear = async (req, res) => {
 
     if (!yearInfo?.yearName?.trim()) throw new Error('Tên năm học không được để trống');
 
-    // 1. Tìm năm học đang hoạt động để làm mẫu
-    const sourceYear = await AcademicYear.findOne({ status: 'active' }).sort({ startDate: -1 }).session(session).lean();
-    if (!sourceYear) throw new Error('Không tìm thấy năm học đang hoạt động để làm mẫu thiết lập nhanh');
+    // 1. Tìm năm học làm mẫu (Ưu tiên năm đang hoạt động, nếu không lấy năm gần nhất vừa kết thúc)
+    let sourceYear = await AcademicYear.findOne({ status: 'active' }).sort({ startDate: -1 }).session(session).lean();
+    if (!sourceYear) {
+      sourceYear = await AcademicYear.findOne({ status: 'inactive' }).sort({ endDate: -1 }).session(session).lean();
+    }
+    
+    if (!sourceYear) throw new Error('Không tìm thấy năm học mẫu (đang hoạt động hoặc đã kết thúc) để thực hiện thiết lập nhanh.');
 
     // 2. Tạo Năm học mới (Draft)
     const [newYear] = await AcademicYear.create([{
