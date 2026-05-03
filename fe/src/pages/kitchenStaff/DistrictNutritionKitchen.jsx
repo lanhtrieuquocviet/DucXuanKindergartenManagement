@@ -3,7 +3,6 @@ import { toast } from "react-toastify";
 import {
   listDistrictNutritionPlans,
   downloadDistrictRegulationFile,
-  getAcademicYears,
 } from "../../service/menu.api";
 import {
   Box,
@@ -20,10 +19,6 @@ import {
   Tabs,
   Tab,
   CircularProgress,
-  FormControl,
-  InputLabel,
-  Select,
-  MenuItem,
   Dialog,
   DialogTitle,
   DialogContent,
@@ -45,13 +40,11 @@ export default function DistrictNutritionKitchen() {
   const [activePlans, setActivePlans] = useState([]);
   const [upcomingPlans, setUpcomingPlans] = useState([]);
   const [historyPlans, setHistoryPlans] = useState([]);
-  const [academicYears, setAcademicYears] = useState([]);
-  const [selectedYearId, setSelectedYearId] = useState("");
   const [viewPlan, setViewPlan] = useState(null);
 
-  const loadDistrict = useCallback(async (yearId) => {
+  const loadDistrict = useCallback(async () => {
     try {
-      const res = await listDistrictNutritionPlans(yearId && yearId !== "all" ? { academicYearId: yearId } : {});
+      const res = await listDistrictNutritionPlans({});
       const data = res?.data;
       setActivePlans(Array.isArray(data?.active) ? data.active : []);
       setUpcomingPlans(Array.isArray(data?.upcoming) ? data.upcoming : []);
@@ -61,50 +54,26 @@ export default function DistrictNutritionKitchen() {
     }
   }, []);
 
-  const loadAll = useCallback(async (yearId) => {
+  const loadAll = useCallback(async () => {
     setLoading(true);
     try {
-      await loadDistrict(yearId);
+      await loadDistrict();
     } finally {
       setLoading(false);
     }
   }, [loadDistrict]);
 
   useEffect(() => {
-    const fetchInitial = async () => {
-      try {
-        const yearsRes = await getAcademicYears();
-        const years = yearsRes?.data || [];
-        setAcademicYears(years);
-        const active = years.find(y => y.status === 'active');
-        if (active) {
-          setSelectedYearId(active._id);
-          loadAll(active._id);
-        } else {
-          setSelectedYearId("all");
-          loadAll("all");
-        }
-      } catch {
-        setSelectedYearId("all");
-        loadAll("all");
-      }
-    };
-    fetchInitial();
+    loadAll();
   }, [loadAll]);
-
-  const handleYearChange = (e) => {
-    const yId = e.target.value;
-    setSelectedYearId(yId);
-    loadAll(yId);
-  };
 
   useEffect(() => {
     const onStorage = (e) => {
       if (e.key === "nutrition_plan_updated_at") {
-        loadAll(selectedYearId);
+        loadAll();
       }
     };
-    const onPlanUpdated = () => loadAll(selectedYearId);
+    const onPlanUpdated = () => loadAll();
     window.addEventListener("storage", onStorage);
     window.addEventListener("nutrition_plan_updated", onPlanUpdated);
     return () => {
@@ -119,25 +88,6 @@ export default function DistrictNutritionKitchen() {
 
   return (
     <Box>
-      <Stack direction={{ xs: "column", sm: "row" }} spacing={2} alignItems={{ sm: "center" }} mb={2}>
-        <FormControl size="small" sx={{ minWidth: 240 }}>
-          <InputLabel>Năm học</InputLabel>
-          <Select
-            label="Năm học"
-            value={selectedYearId}
-            onChange={handleYearChange}
-          >
-            <MenuItem value="all">Tất cả năm học</MenuItem>
-            {academicYears.map((y) => (
-              <MenuItem key={y._id} value={y._id}>
-                {y.yearName} {y.status === 'active' ? "(Hiện tại)" : ""}
-              </MenuItem>
-            ))}
-          </Select>
-        </FormControl>
-        <Box sx={{ flex: 1 }} />
-      </Stack>
-
       <Tabs value={mainTab} onChange={(_, v) => setMainTab(v)} sx={{ mb: 2, borderBottom: 1, borderColor: "divider" }}>
         <Tab label={`Đang áp dụng (${activePlans.length})`} sx={{ textTransform: "none", fontWeight: 600 }} />
         <Tab label={`Kế hoạch sắp tới (${upcomingPlans.length})`} sx={{ textTransform: "none", fontWeight: 600 }} />
