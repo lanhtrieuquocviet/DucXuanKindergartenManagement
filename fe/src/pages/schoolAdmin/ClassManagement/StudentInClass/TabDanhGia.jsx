@@ -26,7 +26,10 @@ export default function TabDanhGia({ studentId }) {
     if (!studentId) return;
     setLoading(true);
     get(ENDPOINTS.STUDENTS.ADMIN_EVALUATIONS(studentId))
-      .then(res => setEvals(res.data || []))
+      .then((res) => {
+        const rows = Array.isArray(res.data) ? res.data : [];
+        setEvals(rows.filter((e) => e?.academicYearId?._id && e?.classId?._id));
+      })
       .catch(() => setEvals([]))
       .finally(() => setLoading(false));
   }, [studentId]);

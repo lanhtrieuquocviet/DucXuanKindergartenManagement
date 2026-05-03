@@ -113,7 +113,12 @@ const deleteStudent = async (req, res) => {
 const getStudentEvaluations = async (req, res) => {
   try {
     const { studentId } = req.params;
-    const evaluations = await Enrollment.find({ studentId })
+    // Chỉ lấy các năm học mà học sinh thực sự có enrollment gắn academicYearId
+    const evaluations = await Enrollment.find({
+      studentId,
+      academicYearId: { $ne: null },
+      classId: { $ne: null },
+    })
       .populate('academicYearId', 'yearName')
       .populate('gradeId', 'gradeName')
       .populate('classId', 'className')

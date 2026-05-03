@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useLocation, useNavigate } from 'react-router-dom';
 import { toast } from 'react-toastify';
 import { useSchoolAdmin } from '../../context/SchoolAdminContext';
 import { useAuth } from '../../context/AuthContext';
@@ -367,6 +367,7 @@ function ManageBlogs() {
   } = useSchoolAdmin();
 
   const navigate = useNavigate();
+  const location = useLocation();
   const { user, isInitializing } = useAuth();
 
   const [blogs, setBlogs] = useState([]);
@@ -425,6 +426,17 @@ function ManageBlogs() {
     loadData();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [filters.status]);
+
+  useEffect(() => {
+    const editBlogId = location.state?.editBlogId;
+    if (!editBlogId || blogs.length === 0) return;
+
+    const blogToEdit = blogs.find((b) => String(b._id) === String(editBlogId));
+    if (blogToEdit) {
+      openEditModal(blogToEdit);
+      navigate('/school-admin/blogs', { replace: true });
+    }
+  }, [location.state, blogs, navigate]);
 
   // fetch categories once
   useEffect(() => {

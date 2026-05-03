@@ -83,7 +83,7 @@ function BlogDetail() {
     }
   };
 
-  const handleEdit = () => navigate(`/school-admin/blogs/${blogId}/edit`);
+  const handleEdit = () => navigate('/school-admin/blogs', { state: { editBlogId: blogId } });
   const handleBack = () => navigate('/school-admin/blogs', { replace: true });
 
   const userName = user?.fullName || user?.username || 'School Admin';
