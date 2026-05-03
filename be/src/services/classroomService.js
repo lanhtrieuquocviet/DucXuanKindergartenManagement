@@ -1,43 +1,16 @@
 const Classroom = require('../models/Classroom');
 const Classes = require('../models/Classes');
-const FacilityLocation = require('../models/FacilityLocation');
 
 /** GET /api/classrooms — Danh sách tất cả phòng học (kèm thông tin lớp đang sử dụng) */
 const listClassrooms = async (req, res) => {
   try {
     const AcademicYear = require('../models/AcademicYear');
-    // 1. Lấy từ bảng Classroom hiện tại
     const classrooms = await Classroom.find()
       .populate('assetId', 'name area managerId type')
       .sort({ floor: 1, roomName: 1 })
       .lean();
 
-    // 2. Lấy thêm từ bảng FacilityLocation (những mục có type là classroom)
-    const facilityRooms = await FacilityLocation.find({ 
-      type: { $regex: /^classroom$/i } 
-    }).lean();
-    
-    // Chuyển đổi format FacilityLocation sang format Classroom để frontend dùng chung
-    const mappedFacilityRooms = facilityRooms.map(f => ({
-      _id: f._id,
-      roomName: f.name,
-      floor: 1, 
-      capacity: 30,
-      status: 'available', // Cực kỳ quan trọng: Mặc định sẵn sàng để chọn được bên Lớp học
-      note: f.description || f.area || '',
-      isFacilityLocation: true
-    }));
-
-    // 3. Gộp danh sách, loại bỏ trùng tên (nếu có)
     const allRooms = [...classrooms];
-    const existingNames = new Set(classrooms.map(r => String(r.roomName).toLowerCase().trim()));
-
-    for (const fr of mappedFacilityRooms) {
-      const frName = String(fr.roomName).toLowerCase().trim();
-      if (!existingNames.has(frName)) {
-        allRooms.push(fr);
-      }
-    }
 
     // Tìm năm học đang hoạt động để kiểm tra phòng đang được sử dụng
     const activeYear = await AcademicYear.findOne({ status: 'active' }).lean();
